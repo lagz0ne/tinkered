@@ -4208,3 +4208,29 @@ This is new type feedback; no Core source changed.
   `stack-t08-resume-t18-validate.log` in the briefs cache.
 - Next: the final jobs run with the bounded queue check,
   then stack, alone under `/tmp/mutation.lock`.
+
+### t08 bounded lifecycle checks
+
+- The next jobs run ended with 125 killed, 9 timeout,
+  20 survived, and 3 without coverage; `EXIT 0`.
+  Killed share: 81.17%, below the required 85%.
+  Stryker score: 85.35%; that score counts timeouts.
+- Saved this run's log and JSON under
+  `stack-t08-resume-final-jobs-mutation-second`
+  in the briefs cache.
+- The queue check still waited on a close that joined
+  the blocked send before releasing its transaction.
+  The test now borrows a real transaction from a separate
+  session and closes that owner before joining the send.
+  No fake database or runtime change is needed.
+- Lifecycle checks now poll the job's entry event.
+  The graceful-close check releases its gate in `finally`.
+  A missing worker must fail the check without leaving
+  the test waiting forever for an entry event.
+- Full gate passes: jobs 25, stack 114, tracker 79;
+  build and check pass, `EXIT 0`.
+  Check: 0 errors, the same 28 warnings as clean main.
+- Jev: 0 flags and 0 README gaps in 25 tests.
+  Strict style census: OK.
+- Next: check the timeout ranges under the lock,
+  then rerun both full mutation lanes and validation.

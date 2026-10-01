@@ -13,14 +13,14 @@ import { isError, job, jobs } from "../src/index.ts";
 import { fixture, scopes, store } from "./fixtures.ts";
 
 test("graceful close stops fetching and lets a running job commit", async () => {
-  const entered = Promise.withResolvers<void>();
+  let entered = false;
   const finish = Promise.withResolvers<void>();
   const work = operation({
     label: "wait and save",
     depends: { tx: store.tx },
     run: async ({ tx }, ctx: Operation.Ctx<{ value: string }>) => {
       await tx.execute(sql`insert into receipts values (${ctx.input.value})`);
-      entered.resolve();
+      entered = true;
       await finish.promise;
     },
   });
@@ -33,26 +33,32 @@ test("graceful close stops fetching and lets a running job commit", async () => 
     await s.run(piece.send, { input: { queue: "wait", data: { value: "second" } } });
   });
   const tick = clock.advance(500);
-  await entered.promise;
-  const closing = scope.close({ graceful: true });
-  finish.resolve();
-  await tick;
-  expect((await closing).status).toBe("success");
-  expect((await client.query("select * from receipts")).rows).toHaveLength(1);
-  expect((await client.query("select state from pgboss.job order by state")).rows).toEqual([
-    { state: "created" },
-    { state: "completed" },
-  ]);
+  try {
+    await expect.poll(() => entered).toBe(true);
+    const closing = scope.close({ graceful: true });
+    finish.resolve();
+    await tick;
+    expect((await closing).status).toBe("success");
+    expect((await client.query("select * from receipts")).rows).toHaveLength(1);
+    expect((await client.query("select state from pgboss.job order by state")).rows).toEqual([
+      { state: "created" },
+      { state: "completed" },
+    ]);
+  } finally {
+    finish.resolve();
+    await scope.close();
+    await tick;
+  }
 });
 
 test("forced close cancels the running job and rolls its session back", async () => {
-  const entered = Promise.withResolvers<void>();
+  let entered = false;
   const work = operation({
     label: "wait for abort",
     depends: { tx: store.tx },
     run: async ({ tx }, ctx) => {
       await tx.execute(sql`insert into receipts values ('cancelled')`);
-      entered.resolve();
+      entered = true;
       await ctx.clock.sleep(60000, ctx.signal);
     },
   });
@@ -62,7 +68,7 @@ test("forced close cancels the running job and rolls its session back", async ()
   await scope.ready;
   await scope.session((s) => s.run(piece.send, { input: { queue: "wait", data: {} } }));
   const tick = clock.advance(500);
-  await entered.promise;
+  await expect.poll(() => entered).toBe(true);
   const closed = await scope.close();
   await tick;
   expect(closed.status).toBe("cancelled");
@@ -76,11 +82,11 @@ test("forced close cancels the running job and rolls its session back", async ()
 });
 
 test("forced close on the last try leaves a failed job and logs its cancellation once", async () => {
-  const entered = Promise.withResolvers<void>();
+  let entered = false;
   const work = operation({
     label: "wait on last try",
     run: async (_deps, ctx) => {
-      entered.resolve();
+      entered = true;
       await ctx.clock.sleep(60000, ctx.signal);
     },
   });
@@ -96,7 +102,7 @@ test("forced close on the last try leaves a failed job and logs its cancellation
   await scope.ready;
   const id = await scope.session((s) => s.run(piece.send, { input: { queue: "wait", data: {} } }));
   const tick = clock.advance(500);
-  await entered.promise;
+  await expect.poll(() => entered).toBe(true);
   await scope.close();
   await tick;
   expect((await client.query("select state from pgboss.job")).rows).toEqual([{ state: "failed" }]);
@@ -245,13 +251,13 @@ test("an unreachable JOBS_URL fails boot at the given Postgres address", async (
 });
 
 test("a piece stays owned until the whole root close ends", async () => {
-  const entered = Promise.withResolvers<void>();
+  let entered = false;
   const finish = Promise.withResolvers<void>();
   const late = extension({
     label: "late cleanup",
     start: async (_scope, ctx, next) => {
       ctx.defer(async () => {
-        entered.resolve();
+        entered = true;
         await finish.promise;
       });
       await next();
@@ -262,7 +268,7 @@ test("a piece stays owned until the whole root close ends", async () => {
   scopes.push(first);
   await first.ready;
   const closing = first.close({ graceful: true });
-  await entered.promise;
+  await expect.poll(() => entered).toBe(true);
   const second = createScope({ tags, extensions: [piece.extension] });
   scopes.push(second);
   try {
@@ -278,12 +284,12 @@ test("a piece stays owned until the whole root close ends", async () => {
 });
 
 test("closing stops other queues while a running job drains", async () => {
-  const entered = Promise.withResolvers<void>();
+  let entered = false;
   const finish = Promise.withResolvers<void>();
   const wait = operation({
     label: "wait without transaction",
     run: async () => {
-      entered.resolve();
+      entered = true;
       await finish.promise;
     },
   });
@@ -300,7 +306,7 @@ test("closing stops other queues while a running job drains", async () => {
   await scope.ready;
   await scope.session((s) => s.run(piece.send, { input: { queue: "wait", data: {} } }));
   await clock.advance(500);
-  await entered.promise;
+  await expect.poll(() => entered).toBe(true);
   await scope.session((s) => s.run(piece.send, { input: { queue: "other", data: {} } }));
   const closing = scope.close({ graceful: true });
   try {

@@ -2,6 +2,7 @@ import {
   createScope,
   data,
   operation,
+  resource,
   type Operation,
   type Observe,
   type RunResult,
@@ -9,7 +10,7 @@ import {
 import { errorResponses, hono, route } from "@tinker/hono";
 import { sql } from "drizzle-orm";
 import { expect, test } from "vite-plus/test";
-import { isError, job } from "../src/index.ts";
+import { isError, job, jobs } from "../src/index.ts";
 import { fixture, scopes, store } from "./fixtures.ts";
 
 const save = operation({
@@ -57,12 +58,20 @@ test("a rolled back request leaves no job", async () => {
 });
 
 test("an unknown queue fails without blocking the request or close", async () => {
-  const { client, piece, tags } = await fixture([job("save", save)]);
+  const { client, tags } = await fixture([]);
+  /** Keep the real transaction's cleanup independent of a blocked send. */
+  const borrowed = resource({
+    label: "borrowed request transaction",
+    target: "session",
+    factory: () => transaction.resolve(store.tx),
+  });
+  const piece = jobs([job("save", save)], { pglite: store.db, tx: borrowed, env: {} });
   const scope = createScope({ tags, extensions: [piece.extension] });
   scopes.push(scope);
   await scope.ready;
+  const transaction = scope.createSession();
+  await transaction.resolve(store.tx);
   const request = scope.createSession();
-  await request.resolve(store.tx);
   let result: RunResult<unknown> | undefined;
   const sending = Promise.resolve(
     request.settle(piece.send, { input: { queue: "nope", data: {} } }),
@@ -75,6 +84,7 @@ test("an unknown queue fails without blocking the request or close", async () =>
     if (!isError(result.error, "UnknownQueue")) throw result.error;
     expect(result.error.payload).toEqual({ queue: "nope" });
   } finally {
+    await transaction.close();
     await request.close();
     await sending;
   }
