@@ -1,6 +1,6 @@
 # Thin Process entries
 
-Status: Doing.
+Status: Review; code saved and full checks pass.
 Owner: authoring lead.
 Writers: Astra xhigh; one package per turn.
 Review: Opus high.
@@ -136,4 +136,30 @@ No paid backend is used for gates.
 
 ## Proof
 
-Pending.
+Source at `87789d8a` passed Opus high review: READY.
+The lead read the source and public entry tests too.
+The final source includes the newer auth landing from `175c408b`.
+
+- Full build passes: 23 tasks.
+- Full check passes: 0 errors, 28 existing warnings.
+- Full tests pass: all 31 package and example tasks.
+- Process passes 44 tests; Blueprint passes 118 local tests.
+  Its one existing paid test stays skipped.
+- Tinkerer passes 103; tracker passes 82.
+- Process example passes 7; Process CLI passes 5; MCP passes 6.
+- Three outside-repo example copies pass install, checks, tests, and run.
+- Strict census and TSDoc pass for all 32 changed TypeScript files.
+- Jev lead review has 0 flags.
+  Writer model checks for Blueprint and Tinkerer were skipped without a key.
+  Other writer checks passed; no new label state was added.
+- Active code has no old Result, shell builder, wait action, or positional call.
+  The public built Process entry has no `execute` export.
+- Three injected regressions fail as required:
+  forced exit loses pipe output; ignored close returns false success;
+  a removed loader race leaves stop waiting.
+
+The child CLI tests forward Vitest's active fault through Stryker's env port.
+Child coverage stays in the child, so the Process lane runs every test per fault.
+The native child timeout is a cleanup bound, not a speed claim.
+A full Process lane, Blueprint lane, Tinkerer lane, and release checks are queued.
+Fault and release proof remains pending.
