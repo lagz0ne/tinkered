@@ -414,3 +414,13 @@ These defaults never apply to `start` or `preview`.
 - Dev reload keeps saved issues, ends sync,
   and SIGTERM exits zero.
 - Prod refuses a missing HOST, PORT, DATA_PATH, or NATS_URL.
+- The dev page borrows its store and keeps draft opt-in
+  for `1` and `true`; `0` keeps the helper off.
+- A page carries its cells and assets through Router's
+  public payload.
+- A server page names its style, client entry, and dev
+  refresh scripts.
+- The page error guard rejects values outside its error.
+- A page keeps each API error reply and sync header.
+- The real page entry keeps its first list, follows sync,
+  and stops on `pagehide`.

@@ -34,15 +34,16 @@ test("hydrate keeps the first list, accepts a live snapshot, and stops the brows
   try {
     await expect.poll(() => document.querySelector('[aria-label="issues"]')).toBe(before);
     await expect.poll(() => document.querySelector('[aria-live="polite"]')).toBeNull();
+    const title = `After hydrate ${crypto.randomUUID()}`;
     const saved = await fetch(`${baseUrl}/api/issues`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: "After hydrate live title", description: "from SSE" }),
+      body: JSON.stringify({ title, description: "from SSE" }),
     });
     expect(saved.status).toBe(201);
     await expect
       .poll(() => document.querySelector('[aria-label="issues"]')?.textContent)
-      .toContain("After hydrate live title");
+      .toContain(title);
     expect(document.querySelector('[aria-label="issues"]')).toBe(before);
   } finally {
     stop.abort();

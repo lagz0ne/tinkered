@@ -4,12 +4,66 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createScope } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
-import { isError, issueList, issueServer } from "../src/index.ts";
+import { fail, isError, issueList, issueServer } from "../src/index.ts";
 
 import { createIssuePages, readPageAssets } from "@tinker-issue-tracker/server-pages";
 import { createPageRouter } from "@tinker-issue-tracker/pages";
 
 const assets = { script: "/assets/client.js", styles: ["/assets/style.css"], dev: false };
+
+test("a page carries its cells and assets through Router's public payload", async () => {
+  const content = createElement("main");
+  const from = createPageRouter({ issues: [], content, assets });
+  const values: unknown[] = [];
+  const into = createPageRouter({
+    issues: [],
+    content,
+    assets: { script: "old.js", styles: [], dev: true },
+    hydrate: (issues) => values.push(issues),
+  });
+  const payload = await from.options.dehydrate?.();
+  expect(payload).toEqual({ issues: [], assets });
+  if (payload === undefined) return expect.unreachable();
+  await into.options.hydrate?.(payload);
+  expect(values).toEqual([[]]);
+  expect(into.options.context?.assets).toEqual(assets);
+  await from.options.hydrate?.(payload);
+});
+
+test("a server page names its style, client entry, and dev refresh scripts", async () => {
+  const page = createIssuePages({ ...assets, dev: true });
+  const web = issueServer({ mount: page.mount });
+  const scope = createScope({ extensions: [web, page.extension] });
+  try {
+    await scope.ready;
+    const response = await scope.resolve(web).request("/");
+    const html = await response.text();
+    expect(response.status).toBe(200);
+    expect(html).toContain('href="/assets/style.css"');
+    expect(html).toContain('src="/assets/client.js"');
+    expect(html).toContain('src="/@vite/client"');
+    expect(html).toContain('import refresh from "/@react-refresh"');
+    expect(html).toContain("__vite_plugin_react_preamble_installed__ = true");
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a page error guard accepts its own error and rejects other values", () => {
+  const error = fail("BadPage", {});
+  if (!isError(error, "BadPage")) throw error;
+  expect(error.payload).toEqual({});
+  for (const value of [
+    null,
+    undefined,
+    {},
+    { kind: "BadPage" },
+    new Error("BadPage"),
+    fail("DraftOff", {}),
+  ]) {
+    if (isError(value, "BadPage")) expect.unreachable();
+  }
+});
 
 test("the page uses TanStack's 404 for an unknown page path", async () => {
   const page = createIssuePages(assets);

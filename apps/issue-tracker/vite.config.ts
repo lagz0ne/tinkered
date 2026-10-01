@@ -1,9 +1,20 @@
-import { defineConfig } from "vite-plus";
+import { defineConfig, type ProxyOptions } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+class PageTestTarget {
+  protocol = "http:";
+  host = "127.0.0.1";
+  get port() {
+    return Number(new URL(process.env.TINKERED_PAGE_TEST_URL ?? "http://127.0.0.1:9").port);
+  }
+}
+
+const pageProxy: ProxyOptions = { target: new PageTestTarget() };
+
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  server: mode === "test" ? { proxy: { "/api": pageProxy, "/sync": pageProxy } } : undefined,
   build: {
     manifest: true,
     outDir: "dist/client",
@@ -17,7 +28,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "browser",
-          include: ["tests/page-client.test.tsx"],
+          include: ["tests/page-?*.test.tsx"],
           globalSetup: "./tests/page-setup.ts",
           browser: {
             enabled: true,
@@ -32,4 +43,4 @@ export default defineConfig({
     hookTimeout: 30000,
     maxWorkers: 2,
   },
-});
+}));

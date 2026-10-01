@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, onTestFinished, test } from "vite-plus/test";
 import { runServer } from "../src/index.ts";
+import { runDev, type Dev } from "@tinker/stack/dev";
 
 async function readFreePort(): Promise<number> {
   const listener = createServer();
@@ -20,6 +21,57 @@ async function readFreePort(): Promise<number> {
     await new Promise<void>((resolve) => listener.close(() => resolve()));
   }
 }
+
+test.each([
+  { setting: "1", enabled: true },
+  { setting: "true", enabled: true },
+  { setting: "0", enabled: false },
+])(
+  "the dev page borrows its store and keeps draft opt-in $setting",
+  async ({ setting, enabled }) => {
+    const app = fileURLToPath(new URL("../", import.meta.url));
+    const base = fileURLToPath(new URL("../../../scratch/", import.meta.url));
+    await mkdir(base, { recursive: true });
+    const directory = await mkdtemp(join(base, "tracker-page-dev-"));
+    for (const file of ["src", "drizzle", "index.html", "vite.config.ts", "package.json"]) {
+      await cp(join(app, file), join(directory, file), { recursive: true });
+    }
+    await symlink(join(app, "node_modules"), join(directory, "node_modules"));
+    const port = await readFreePort();
+    const url = `http://127.0.0.1:${port}`;
+    const stop = new AbortController();
+    const events: Dev.Event[] = [];
+    const done = runDev(
+      {
+        root: directory,
+        entry: "src/server/main.ts",
+        nats: true,
+        env: { PORT: String(port), DRAFT_HELPER: setting },
+        report: (event) => events.push(event),
+      },
+      stop.signal,
+    );
+    try {
+      await expect
+        .poll(() => events.some((event) => event.kind === "ready"), { timeout: 30000 })
+        .toBe(true);
+      expect(await (await fetch(`${url}/api/draft`)).json()).toEqual({ enabled });
+      const response = await fetch(url);
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain('src="/src/client/page-main.tsx"');
+      expect(html).toContain('href="/src/client/style.css?direct"');
+      expect(html).toContain('src="/@vite/client"');
+      expect(html).toContain("__vite_plugin_react_preamble_installed__ = true");
+      expect(events.filter((event) => event.kind === "error")).toEqual([]);
+    } finally {
+      stop.abort();
+      expect(await done).toBe(0);
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+  60000,
+);
 
 test("dev reload keeps saved issues, ends sync, and SIGTERM exits zero", async () => {
   const app = fileURLToPath(new URL("../", import.meta.url));

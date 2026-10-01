@@ -588,7 +588,11 @@ test("the detail and conflict routes answer through app.request", async () => {
       body: JSON.stringify({ baseRevision: created.revision, title: "Late" }),
     });
     expect(stale.status).toBe(409);
-    expect(await stale.json()).toMatchObject({ currentRevision: 1 });
+    expect(await stale.json()).toMatchObject({
+      message: "someone else saved first — reload and try again",
+      id: created.id,
+      currentRevision: 1,
+    });
 
     const commented = await app.request(`/api/issues/${created.id}/comments`, {
       method: "POST",
@@ -613,6 +617,8 @@ test("a sync GET with keys registers and streams each key's snapshot after the r
   try {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/event-stream");
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+    expect(res.headers.get("connection")).toBe("keep-alive");
     while (reader !== undefined && !text.includes("\n\ndata: ")) {
       const chunk = await reader.read();
       if (chunk.done) break;
@@ -630,8 +636,11 @@ test("a sync GET with keys registers and streams each key's snapshot after the r
 test("a sync GET with no keys or an unknown key answers 400 before any stream", async () => {
   const { scope, app } = await boot();
   try {
-    expect((await app.request("/sync")).status).toBe(400);
-    expect((await app.request("/sync?keys=issues&keys=nope")).status).toBe(400);
+    for (const path of ["/sync", "/sync?keys=issues&keys=nope"]) {
+      const response = await app.request(path);
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe("bad request");
+    }
   } finally {
     await scope.close({ graceful: true });
   }

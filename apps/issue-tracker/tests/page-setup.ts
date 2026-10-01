@@ -47,7 +47,11 @@ export default async function setup(project: TestProject) {
   const address = listener.address();
   if (address === null || typeof address === "string") return scope.close();
   project.provide("tracker", `http://127.0.0.1:${address.port}`);
+  const previous = process.env.TINKERED_PAGE_TEST_URL;
+  process.env.TINKERED_PAGE_TEST_URL = `http://127.0.0.1:${address.port}`;
   return async () => {
+    if (previous === undefined) delete process.env.TINKERED_PAGE_TEST_URL;
+    else process.env.TINKERED_PAGE_TEST_URL = previous;
     await scope.close();
     await new Promise<void>((resolve, reject) =>
       listener.close((error) => (error ? reject(error) : resolve())),
