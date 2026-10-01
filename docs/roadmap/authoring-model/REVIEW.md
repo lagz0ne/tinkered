@@ -154,9 +154,11 @@ Adding a hook argument alone does not make this migration happen.
 - **HTTP:** static config tags and send/attempt operations.
   No engine is needed just to make two configured calls.
   Source: `packages/http/src/client.ts:177`.
-- **Drizzle:** a shared or namespace-owned database and a session-owned transaction.
-  The resource target states the lifetime.
-  Source: `packages/drizzle/src/index.ts:60` and `:72`.
+- **Drizzle:** the resource targets state the correct lifetime.
+  The public frame builder still hides the authored resource declarations.
+  The user rejected that wrapper on 2026-10-01.
+  The correction declares config, database, and transaction units directly.
+  See [the current impact block](HOOKS.md).
 - **Harness:** shared SDK resources, a session-owned thread, and mutable output cells.
   Its two-agent namespace test passes.
   Source: `packages/harness/src/index.ts:215` and `tests/namespaces.test.ts:9`.

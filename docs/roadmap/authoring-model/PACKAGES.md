@@ -283,7 +283,9 @@ No timing change or claim is part of these tickets.
 - **Drizzle** — `src/index.ts`, namespace and transaction tests.
   The reusable DB belongs to a root or namespace.
   Each transaction belongs to a session and cleans up on close.
-  No source fix found.
+  The first review accepted the frame builder; the user corrected that finding.
+  Replace it with native static resource declarations and namespace settings.
+  Keep logger and transaction adapters inside resource factories.
 - **NATS** — `src/index.ts` and namespace and reuse tests.
   Namespace config chooses a root-owned connection.
   Incoming calls keep that connection's namespace.

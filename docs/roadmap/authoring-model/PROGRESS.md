@@ -800,3 +800,14 @@ The final caller scan finds 207 calls, all in the event form.
 Core remains 16,275 bytes gzip at the 16,384-byte cap.
 The other 13 package inputs and built modules match their checked versions.
 Remaining: the fresh isolated Stack fault gate, main verification, and push.
+
+## Drizzle public API correction
+
+The user found that `drizzleStore` still hides resources inside a frame.
+The initial review accepted that shape; this correction removes it.
+Author database config, database, and transaction declarations directly.
+Namespaces choose database instances; session lifetime decides transaction outcome.
+The library keeps logger and transaction adapters inside resource factories.
+The impact block, caller list, and checks are in [HOOKS.md](HOOKS.md).
+The obsolete Stack-only fault waiter ended before it acquired the lock.
+Remaining: package and caller changes, combined gates, fresh fault lanes, and landing.

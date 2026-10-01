@@ -4,8 +4,9 @@ Declare the graph once.
 A graph is the set of named units and their dependencies.
 Reuse it across roots, sessions, and namespace instances.
 
-A graph builder such as `harness()` or `drizzleStore()` is valid.
-Call it once for the authored configuration.
+Call a graph builder such as `harness()` once for the authored configuration.
+Expose database and transaction resources as static declarations.
+Do not hide them inside a store frame builder.
 It must leave live state with the instance that owns it.
 
 ## Pick the unit by what it does
@@ -31,6 +32,10 @@ Do not add an extension to a pure helper or a thin view adapter.
 
 The precedent is request middleware and a database transaction.
 A request opens a session; its end commits or rolls back its work.
+A database resource opens lazily from its namespace settings.
+Its transaction resource uses that same database and belongs to the session.
+SDK helpers inside a factory may connect, log, or bridge a transaction callback.
+They do not create a second graph or own a scope.
 A root owns the resources shared by its sessions.
 
 Resource targets choose sharing:

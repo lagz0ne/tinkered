@@ -97,14 +97,16 @@
 | `stream`        | `stream(c, op, call?)`: answers a streaming Response whose body is the declared operation `op`; the run binds the `emit` tag, read with `depends: { emit: emit.required }`, and the session stays open until the body finishes or the client cancels (ADR 0021, 0040). Every other response closes the session after `next()`.                                                                                                                                                                                                                             |
 | `onError` slot  | `hono(routes, { onError })`: runs before the default map (parse failure 400, cancelled 499, MissingTag/NoSession 500, else rethrow to Hono) and may answer a failure with its own Response (ADR 0040).                                                                                                                                                                                                                                 |
 
-## Drizzle store (`@tinker/drizzle`)
+## Drizzle resources (`@tinker/drizzle`)
 
-| term          | meaning                                                                                                                                                                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| store         | `drizzleStore({ label, open, close? })`: the frame — a required `config` tag, a scope-target `db` resource (`open` once, `close` in `defer`), a session-target `tx` resource (ADR 0041).                                                                      |
-| `tx` resource | The session's transaction: `db.transaction(cb)` held open for the session; its `defer` commits on `end.status === "success"` and rolls back on `failed`/`cancelled`/`released`, awaiting the commit before the close resolves. One per request session in v1. |
-| `db query`    | The one log line per statement: Drizzle's logger bound to the `db` resource's `ctx.log`, `{ sql }` only — params are data and never logged.                                                                                                                   |
-| core feedback | The section every integration report ends with; candidates live in `docs/roadmap/core-feedback.md` and become core tickets when a second integration asks or the workaround is dishonest.                                                                     |
+- **database resource** — a native database value owned by its root or namespace.
+  Its declaration is static; namespace tags select its settings.
+- **tx resource** — a native transaction owned by a session.
+  Its session's outcome selects commit or rollback before close finishes.
+- **db query** — the SQL-only log line emitted for a database statement.
+  Query parameters are data and are never logged.
+- **core feedback** — findings from package work that may need a Core change.
+  They become a Core ticket at the second asker, or when the workaround is dishonest.
 
 ## CLI driver (`@tinker/cli`) — RETIRED by ADR 0056, replaced by `@tinker/process`. Until ADR 0051 it was a driver extension: `cli({ name, version, commands })`, value = `run(argv, io)`; `command(name, op | loader, { input?, respond?, description? })` and `command.entry(name, (argv) => …)` return rows; `runMain(wiring, scope?)` is root glue; the `commands` tag, `command` meta, and `run({ scope })` are gone
 
