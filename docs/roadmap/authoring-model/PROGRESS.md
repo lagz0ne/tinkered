@@ -758,15 +758,34 @@ Process: 50 tests pass; fault score 94.61, above the floor of 85.
 The merged code check passes with 0 errors and 28 existing warnings.
 The existing card moved from Ready to Done; no duplicate card was added.
 
-## Remove positional extension hooks — in progress
+## Remove positional extension hooks — verified
 
 The user asked for this migration after the package review landed.
 The impact block and package briefs are in [HOOKS.md](HOOKS.md).
 ADR 0093 replaces ADR 0089's compatibility rule with one event hook form.
 The graph, namespace, ownership, and middleware behavior stay the same.
 The 16 KiB Core cap stays in force.
-Current source and tests are being migrated in isolated package worktrees.
+All current packages, apps, examples, and behavior tests use event hooks.
 Historical decisions and past proof retain the API they recorded.
 
 The hooks-only start-log probe still drops both lines around `event.next()`.
 This migration does not close `core/start-log`.
+
+The lead kept main's 11 standalone examples and stack/t17's new behavior.
+Source checkpoint `87280748` passes build, check, all 28 test tasks, and prose.
+Code check: 0 errors and 28 existing warnings in 558 files.
+All 48 release lanes pass; Core is 16,275 bytes gzip at the 16,384-byte cap.
+The final audit checks 205 extension calls across 404 current files.
+All use a literal config with no positional hook or spread.
+SCIP indexes all 14 packages and finds no reference to the six removed methods.
+
+The full ticket gate passes at `67444b81`; all 707 initial inputs still match.
+Both merged package reruns pass: Hono 91.38 and Stack 86.00.
+All 14 package scores pass the floor of 85.
+The other 12 packages keep identical source, tests, config, and built modules.
+All 777 merged inputs match after the final fault lanes finish.
+The complete scores and checked hashes are in [hook-fault-proof.json](hook-fault-proof.json).
+The final code review has 0 flags; the full calibration run finishes with exit 0.
+The unchanged Core `panics[0]` census row stays outside this migration.
+
+Source and proof are ready for the final fast-forward and push.

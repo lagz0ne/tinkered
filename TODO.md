@@ -46,7 +46,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 - **authoring/hooks** — remove positional extension hooks.
   Owner: lead (authoring session); Astra writers, xhigh, one package each.
-  Next: finish caller checks, all gates, and the 14 isolated fault lanes.
+  Next: land the checked source and proof, then push main and the checkpoint tag.
   Verify: no old declarations remain; build/check, all consumer tests,
   prose, release checks, and all 14 packages' isolated fault lanes.
   Core stays within 16,384 bytes gzip.

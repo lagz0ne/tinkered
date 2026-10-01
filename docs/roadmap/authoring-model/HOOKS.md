@@ -1,7 +1,7 @@
 # One extension hook shape
 
 Date: 2026-09-30.
-Status: Review.
+Status: Verified; landing next.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -185,3 +185,27 @@ All 707 frozen inputs match after the lanes finish and restore their files.
 The lead checked every score; the helper's best-effort fallback was not used.
 The merged Hono and Stack reruns are still waiting on the shared lock.
 Proof: `/tmp/tinkered-hooks-ticket-gate.log`.
+
+## Final merged gate completed
+
+Both fresh fault lanes finish with exit 0 under the same shared lock.
+Hono is 91.38; Stack is 86.00; both pass the floor of 85.
+The other 12 packages reuse their completed scores with identical inputs and built modules.
+All 777 merged inputs still match after the fresh lanes finish.
+All 14 final scores and counts are saved in [hook-fault-proof.json](hook-fault-proof.json).
+Source checkpoint: `87280748`; first ticket checkpoint: `67444b81`.
+The final code review has 0 flags and the full calibration result is saved.
+There are no open source conflicts or legacy hook declarations.
+
+Final observed logs:
+
+- `/tmp/tinkered-hooks-ticket-gate.log`
+- `/tmp/tinkered-hooks-land-fault-gate.log`
+- `/tmp/tinkered-hooks-land-final-build.log`
+- `/tmp/tinkered-hooks-land-final-check.log`
+- `/tmp/tinkered-hooks-land-final-tests.log`
+- `/tmp/tinkered-hooks-land-final-prose.log`
+- `/tmp/tinkered-hooks-land-final-size.log`
+- `/tmp/tinkered-hooks-land-final-validate.log`
+- `/tmp/tinkered-hooks-land-final-review.log`
+- `/tmp/tinkered-hooks-land-calibration.log`
