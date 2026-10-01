@@ -80,10 +80,7 @@ test("dev reload keeps saved issues, ends sync, and SIGTERM exits zero", async (
   })();
   const routes = join(directory, "src/server/routes.ts");
   const source = await readFile(routes, "utf8");
-  await writeFile(
-    routes,
-    source.replace('route.get("/api/issues", readIssues)', 'route.get("/api/edited", readIssues)'),
-  );
+  await writeFile(routes, source.replaceAll('"/api/issues"', '"/api/edited"'));
   await expect.poll(() => output.match(/"kind":"ready"/g)?.length, { timeout: 30000 }).toBe(2);
   expect(await streamEnded).toBe(true);
   expect(await (await fetch(`${url}/api/edited`)).json()).toEqual([saved]);
