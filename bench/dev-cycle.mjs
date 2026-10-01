@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { appendFile, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -97,4 +97,12 @@ async function run() {
   }
 }
 
-await run();
+try {
+  await run();
+} catch (error) {
+  await appendFile(
+    resolve(".bench/dev-cycle-errors.jsonl"),
+    `${JSON.stringify({ mode, node: process.version, error: error instanceof Error ? error.stack : String(error) })}\n`,
+  );
+  throw error;
+}
