@@ -22,11 +22,11 @@
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 217,
-    "medianTrue": 0.88,
-    "medianFalse": 0.54,
+    "falses": 218,
+    "medianTrue": 0.89,
+    "medianFalse": 0.55,
     "separation": 0.34,
-    "ordered": 0.98,
+    "ordered": 0.99,
     "at": "2026-10-01"
   },
   "configNotTag": {
