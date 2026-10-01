@@ -4315,3 +4315,18 @@ This is new type feedback; no Core source changed.
   No running mutation lane was stopped.
 - Next: both full lanes, jobs first, then stack
   after checking the t17 done file.
+
+### t08 full jobs mutation after the hook migration
+
+- Jobs: 135 killed, 0 timeout, 20 survived,
+  3 without coverage; `EXIT 0`.
+  Killed share: 87.10%, above the required 85%.
+  Stryker score: 85.44%.
+- The runner recovered from one worker's `SIGILL`.
+  The final report has no error rows or timeouts.
+- Proof: `stack-t08-resume-final-jobs-mutation.log`
+  and its `.json` in the briefs cache.
+- Checked that `t17-mutation.done` exists before
+  queuing stack under `/tmp/mutation.lock`.
+- Next: finish the full stack lane, save its counts,
+  and hand the branch to the lead for review.
