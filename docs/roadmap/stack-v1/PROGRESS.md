@@ -4198,3 +4198,13 @@ This is new type feedback; no Core source changed.
   No source label changed.
 - Next: all tests and validation on this base,
   then jobs and stack mutation under the lock.
+
+### t08 t18-base validation
+
+- All 29 test tasks pass without cache: `EXIT 0`.
+- `pnpm validate`: all 50 checks pass, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Logs: `stack-t08-resume-t18-all-tests.log` and
+  `stack-t08-resume-t18-validate.log` in the briefs cache.
+- Next: the final jobs run with the bounded queue check,
+  then stack, alone under `/tmp/mutation.lock`.
