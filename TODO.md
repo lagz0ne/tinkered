@@ -50,11 +50,10 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t09 mail** — Owner: writer stack/t09.
-  Next: lead lands `stack/t09`; the review fix and checks are saved.
-  Verify: review fix gate `EXIT 0`; mail 13, jobs 26, stack 114;
-  release 54/54; mail killed share 89.09% (98/0/12).
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
+Next: lead lands `stack/t09`; the review fix and checks are saved.
+Verify: review fix gate `EXIT 0`; mail 13, jobs 26, stack 114;
+release 54/54; mail killed share 89.09% (98/0/12).
+[Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
@@ -109,6 +108,7 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Done
 
+- **stack/t09 mail** — `@tinker/mail` on Upyo 0.6.0 and React Email (pinned): the app's operation calls `sendMail` (template + props + to/subject), which adds a mail job through the request's transaction, so a rolled-back request sends nothing; the job renders HTML and text and sends; a retryable failure retries, a permanent one fails once via `failJob(cause)` (new in `@tinker/jobs`); `MAIL_URL` (`smtp://`, login optional so Mailpit works) checked in start; a log backend for dev and Upyo's mock for tests. Proof: gate EXIT 0 (mail 13, jobs 26, stack 114; 0 errors, 28 warnings), mail mutation 89.09% (98/0/12), release checks 54/54. Lead review (one fix: optional SMTP login). Sol writer daf6d3a7. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/main-entries** — static exports and guarded app entries.
   Proof: READY review; build, check, all 30 test tasks, and prose pass.
   All ten fresh example copies and 52 release lanes pass.
