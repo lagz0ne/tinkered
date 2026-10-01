@@ -358,7 +358,7 @@ The mutation floor is 85.
 ## Migrate before serving
 
 List `server` first so it checks settings before any database work.
-List `migrate(store.db, migrations)` right after `server`.
+List `migrate(store, migrations)` right after `server`.
 Migrations finish before the port opens.
 
 `migrations` holds the app's `migrationsFolder` path

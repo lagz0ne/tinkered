@@ -21,7 +21,7 @@ const { extension: web } = hono(issueRoutes, {
 });
 const scope = createScope({ tags: [tenant("public")], extensions: [web] });
 await scope.ready; // every row's loader ran once; a rejection fails boot
-await scope.resolve(store.db); // warm-up: the read verb is the warm-up
+await scope.resolve(store); // warm-up: the read verb is the warm-up
 process.on("SIGTERM", async () => {
   await scope.close({ graceful: true }); // waits for requests, stops serve
   process.exit(0);

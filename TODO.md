@@ -39,17 +39,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **authoring/hooks** — event hooks and a static Drizzle resource API.
-  Owner: lead (authoring session); Astra writers, xhigh, one package each.
-  Next: remove Drizzle's frame builder and migrate its current callers.
-  Verify: native static resources select instances by namespace; no old wrapper
-  or hook calls; build/check, consumers, release, and isolated fault scores >= 85.
-  [Track](docs/roadmap/authoring-model/HOOKS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 ## Review
+
+- **authoring/hooks** — event hooks and a static Drizzle resource API.
+  Owner: lead (authoring session); Astra writers, xhigh, one package each.
+  Next: observe Drizzle, Hono, and Stack's fresh fault lanes; verify main and push.
+  Verify: build/check, all 28 test tasks, 48 release lanes, and no old API refs pass;
+  native resources use namespaces; all isolated fault scores >= 85.
+  [Track](docs/roadmap/authoring-model/HOOKS.md).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

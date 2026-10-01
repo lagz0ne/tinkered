@@ -53,7 +53,7 @@ const lanes = [
   ["drizzle cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/drizzle"],
   [
     "drizzle pure universal bundle (no node:, no drizzle-orm at runtime)",
-    `bash -c 'grep -qE "from \\"node:|drizzle-orm" packages/drizzle/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/drizzle/dist/index.mjs\\").then(m=>process.exit(m.drizzleStore?0:1))"'`,
+    `bash -c 'grep -qE "from \\"node:|drizzle-orm" packages/drizzle/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/drizzle/dist/index.mjs\\").then(m=>process.exit(m.openTransaction&&m.createQueryLogger?0:1))"'`,
   ],
   // @tinker/process (ADR 0056): same promises; only `main` touches the process, so dist stays pure.
   ["process tests", `${VP} run --no-cache process#test`],

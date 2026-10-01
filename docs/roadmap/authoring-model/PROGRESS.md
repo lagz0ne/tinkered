@@ -810,4 +810,12 @@ Namespaces choose database instances; session lifetime decides transaction outco
 The library keeps logger and transaction adapters inside resource factories.
 The impact block, caller list, and checks are in [HOOKS.md](HOOKS.md).
 The obsolete Stack-only fault waiter ended before it acquired the lock.
-Remaining: package and caller changes, combined gates, fresh fault lanes, and landing.
+The package and callers now use native static resources and config tags.
+Database instances use namespaces; transactions use sessions.
+Build, check, all 28 test tasks, and all 48 release lanes pass, exit 0.
+Core stays at 16,275 bytes gzip under the 16 KiB cap.
+The extra tracker browser-helper run passes all 7 tests.
+The final scan finds 207 event hook calls and no public frame imports.
+SCIP indexes all 14 packages with no removed symbol refs.
+All 777 code inputs are frozen; the other 11 packages match their checked inputs.
+Remaining: three fresh isolated fault lanes, main verification, and push.

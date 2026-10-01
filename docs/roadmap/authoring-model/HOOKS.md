@@ -1,7 +1,7 @@
 # One extension hook shape
 
 Date: 2026-09-30.
-Status: Doing; the merged shutdown code awaits its fault gate.
+Status: Review; the static resource API awaits three fresh fault lanes.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -298,3 +298,46 @@ The pending t18 Stack fault waiter is no longer the final source to verify.
 The lead ended only its own waiter, PID 1258701, before it acquired the lock.
 Its foreground session ended with exit 143; no other lane was stopped.
 The new combined source requeues after the resource API and callers are checked.
+
+## Static Drizzle resource review and normal proof
+
+Drizzle now exports only logger and transaction adapters, plus their types.
+The public frame builder and all current imports are gone.
+Drizzle, Hono, Stack, the tracker, and the example declare resources directly.
+Database factories keep native handles and register cleanup before setup work.
+Namespace targets select instances; session targets own transaction outcomes.
+The Stack and Hono fixtures explicitly borrow a scope-shared client.
+Their test owner still closes that client.
+The tracker uses lazy SDK imports and a namespace database resource.
+The example uses a static namespace and prints `ada` on repeated fresh roots.
+
+The lead read each source and caller diff and kept all existing behavior checks.
+Drizzle's new failed-begin test fails without the helper API and passes with it.
+Its 26 tests pass; Hono has 86, Stack 114, and the tracker 79.
+The full build, code check, and all 28 test tasks pass, exit 0.
+The tracker browser helper has 7 passing tests under its app config.
+Code check has 0 errors and 28 existing warnings in 558 files.
+Core remains 16,275 bytes gzip, below its 16,384-byte cap.
+Prose has 0 hits; all 48 deterministic release lanes pass, exit 0.
+The release bundle check now checks the two helpers, not the removed frame export.
+Hono and Stack README examples pass the database resource directly.
+
+The final scan finds 207 literal extension calls in 404 current files.
+No call uses a positional hook or spread config.
+SCIP indexes all 14 packages and finds no removed hook, frame, or stop helper ref.
+The source scan finds no `drizzleStore` or `DrizzleStore` in current code or guides.
+Blueprint's `store.tx` fixtures test dotted symbol names; they are not Drizzle calls.
+Changed source has no new strict census hit and valid TSDoc.
+The unchanged Core and tracker census rows remain outside this task.
+The whole-range review flags the tracker's intended public resource exports.
+The lead labels that flag false, along with two finite-work cleanup notes.
+The calibration run includes all three labels and preserves the existing bank.
+
+All 777 final code inputs are frozen before the fault lanes.
+The other 11 packages keep identical checked inputs and built modules.
+None of their source or tests imports Drizzle, Hono, or Stack.
+The complete dependency lock matches the earlier checked tree.
+Run Drizzle, Hono, then Stack alone under `/tmp/mutation.lock`, cache off.
+Remaining: observe all three scores, verify main, and push.
+Normal proof logs are `/tmp/tinkered-hooks-resource-*.log`.
+Input proof is `/tmp/tinkered-hooks-resource-package-input-comparison.json`.
