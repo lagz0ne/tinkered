@@ -1,33 +1,44 @@
-import { HttpResponse, type HttpClient } from "@tinker/http";
-import type { Tinkerer } from "@tinker/tinkerer";
-import { tour, type Tour } from "./real.ts";
+import { createScope } from "@tinker/core";
+import { backend } from "@tinker/http";
+import { a, b, coder } from "./coder.ts";
+import { checkClosed } from "./errors.ts";
+import { recorded } from "./recorded.ts";
 
-const chunks: Tinkerer.Chunk[] = [
-  { choices: [{ delta: { content: "Hello" } }] },
-  { choices: [{ delta: { content: " from the demo." }, finish_reason: "stop" }] },
-  { usage: { prompt_tokens: 10, completion_tokens: 5 } },
-];
-const stream = `${chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join("")}data: [DONE]\n\n`;
-
-/** The public backend tag supplies real HTTP response objects without opening a socket. */
-const recorded: HttpClient.Backend = async (request) =>
-  HttpResponse.make(request, {
-    status: 200,
-    headers: { "content-type": "text/event-stream" },
-    body: stream,
+if (import.meta.main) {
+  const stop = new AbortController();
+  const root = createScope({
+    signal: stop.signal,
+    tags: [
+      coder.config({
+        model: "demo-model",
+        baseUrl: "https://demo.invalid/v1",
+        headers: { authorization: "Bearer demo-key" },
+      }),
+      backend(recorded),
+    ],
   });
-
-/** Uses the same turn and stream reader as the live tour, with a local response. */
-export function demoTour(): Promise<Tour.Reply[]> {
-  return tour(
-    {
-      apiKey: "demo-key",
-      baseUrl: "https://demo.invalid/v1",
-      model: "demo-model",
-      prompt: "Say hi in five words.",
-    },
-    recorded,
-  );
+  const shutdown = (): void => stop.abort();
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+  const replies = [];
+  let completed = false;
+  try {
+    await root.ready;
+    const session = root.createSession();
+    for (const { name, ns } of [
+      { name: "A", ns: a },
+      { name: "B", ns: b },
+    ]) {
+      const reply = await session.run(coder.turn, { input: "Say hi in five words.", ns });
+      replies.push({ name, text: session.resolve(coder.text, { ns }), usage: reply.usage });
+    }
+    completed = true;
+  } finally {
+    stop.abort();
+    const result = await root.closed;
+    process.removeListener("SIGINT", shutdown);
+    process.removeListener("SIGTERM", shutdown);
+    if (completed) checkClosed(result);
+  }
+  process.stdout.write(`${JSON.stringify(replies, null, 2)}\n`);
 }
-
-if (import.meta.main) process.stdout.write(`${JSON.stringify(await demoTour(), null, 2)}\n`);

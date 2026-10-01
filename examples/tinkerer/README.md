@@ -1,4 +1,4 @@
-# Tinkerer tours
+# Tinkerer entries
 
 Two agents share one graph and keep separate conversation data.
 The default command uses a local HTTP backend.
@@ -67,16 +67,20 @@ The code has no default account, model, or token file.
 ## Code and checks
 
 - `coder.ts` declares the graph and both namespaces once.
-- `real.ts` checks inputs and owns the root.
+- `settings.ts` checks live inputs before a root is made.
+- `real.ts` owns the live root inside `if (import.meta.main)`.
   Config tags carry model, URL, key, and each agent's system prompt.
   Namespaces split the two agents' conversation state.
   Tinkerer data holds text and token counts.
   The root stops and waits for `closed` in `finally`.
   A failed close is reported if the run itself did not fail.
-- `demo.ts` binds a local HTTP backend.
+- `demo.ts` owns the local root inside `if (import.meta.main)`.
+  Both entries stop on SIGINT or SIGTERM and remove their listeners after cleanup.
+- `recorded.ts` supplies the local HTTP backend.
   It returns valid stream chunks and never opens a socket.
-- `index.ts` exports the two tours and the error guard.
-  Imports start no tour and read no environment variables.
+- `index.ts` exports the graph, namespaces, backend, settings reader, and error guard.
+  Imports start no entry and read no environment variables.
 
-`vp test` checks the two demo replies through `index.ts`.
-It also checks missing live settings without an account call.
+Tests build their own small roots from the units in `index.ts`.
+Two streamed replies keep separate conversation data without an account.
+Missing live settings fail before a request and report only field names.
