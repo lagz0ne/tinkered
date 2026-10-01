@@ -4,7 +4,7 @@ export type { Migrate } from "./migrate.ts";
 export { createTestDatabase } from "./testing.ts";
 export type { TestDatabase } from "./testing.ts";
 export type { Server } from "./server.ts";
-export { runUntilStop } from "./stop.ts";
+export { readExitCode } from "./exit.ts";
 export { describeError, jsonLines } from "./observe.ts";
 export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";

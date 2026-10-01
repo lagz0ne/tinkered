@@ -16,11 +16,12 @@ The server opens the port after all later starts finish.
 ```ts
 import { createScope } from "@tinker/core";
 import { hono } from "@tinker/hono";
-import { jsonLines, runUntilStop, server } from "@tinker/stack";
+import { readExitCode } from "@tinker/stack";
+import * as stack from "@tinker/stack";
 
 async function run(stop: AbortSignal) {
   const observe = {
-    ...jsonLines((line) => {
+    ...stack.jsonLines((line) => {
       process.stdout.write(`${line}\n`);
     }),
     clock: Date.now,
@@ -28,7 +29,7 @@ async function run(stop: AbortSignal) {
   const web = hono([]).extension;
   const scope = createScope({
     extensions: [
-      server(web, {
+      stack.server(web, {
         env: process.env,
         clientDir: "./dist/client",
         observe,
@@ -36,8 +37,13 @@ async function run(stop: AbortSignal) {
       web,
     ],
     observe,
+    signal: stop,
   });
-  return runUntilStop(scope, stop, observe);
+  const phase = await scope.ready.then(
+    () => "shutdown" as const,
+    () => "boot" as const,
+  );
+  return readExitCode(await scope.closed, observe, phase);
 }
 
 if (import.meta.main) {
@@ -61,14 +67,23 @@ A second live root raises `PieceInUse` with `{ label: "stack.server" }`.
 - The root passes env; the package never reads it.
 - Dev defaults belong in the app's root.
 
-`runUntilStop(scope, stop, observe)` borrows the scope.
-It never creates or returns a scope.
+`createScope({ signal: stop })` owns start and stop.
+The root reads `scope.ready` only to name the log line.
+It then awaits `scope.closed`, after cleanup ends.
+A stop is graceful: in-flight work finishes first.
+A failed boot closes before the result is returned.
+
+`readExitCode(result, observe, phase)` reads that result.
+It never creates, borrows, or closes a scope.
 The observe config must include a clock function.
-It waits for ready and then the stop signal.
-Close is graceful: in-flight work finishes first.
-A failed ready is closed and awaited before returning 1.
-A failed close or teardown error also returns 1.
-A clean close returns 0.
+Use `"boot"` when ready failed and `"shutdown"` otherwise;
+the result itself does not name the phase.
+A failed result returns 1 and logs `boot failed` or
+`shutdown failed`, with the error's fields.
+Its teardown errors join that same line.
+Otherwise, teardown errors return 1 and log `shutdown failed`.
+Other results return 0 without a failure log;
+this includes a cancelled result with no teardown errors.
 
 `jsonLines(write)` returns the scope's observe config.
 The root supplies stdout, a file, or a test writer.
@@ -116,6 +131,7 @@ Each root keeps its own settings, writer, and queue.
 Closing one root or failing its setup leaves the others running.
 Missing config or bad settings reject `ready` and finish
 `closed` as `failed` with the same error.
+The exit-code helper logs `boot failed` and answers 1.
 Close all apps before telemetry to export their final cleanup spans
 and logs.
 Leave observation off in the telemetry scope so exports do not
@@ -268,8 +284,11 @@ A later commit or a new boot reads the current database.
   answers zero.
 - Failed boot waits for cleanup before logging and
   answering one.
+- A failed boot with teardown errors logs both on one boot failed line.
 - A failed close logs shutdown failed and answers one.
 - Teardown errors log shutdown failed and answer one.
+- A cancelled root without teardown errors answers zero.
+- A cancelled root with teardown errors answers one.
 - A port already in use fails boot without closing
   its owner.
 - A bad PORT fails ready and names PORT.
@@ -312,6 +331,8 @@ A later commit or a new boot reads the current database.
 - The timer exports finished spans while a stream is still open.
 - Graceful close exports queued spans, failed status, and cleanup logs.
 - Missing or bad OTLP settings stop boot and name every key.
+- Telemetry with missing or invalid config finishes cleanup
+  and reports one boot failure.
 - A bad OTLP endpoint fails boot naming only its key.
 - A missing service name fails boot naming only its key.
 - A down, slow, or 500 collector keeps requests and close working and logs once per burst.

@@ -9,7 +9,7 @@ import {
   type Operation,
 } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
-import { isError as isStackError, traceSink } from "../src/index.ts";
+import { isError as isStackError, jsonLines, readExitCode, traceSink } from "../src/index.ts";
 import { logs, Receiver, spans } from "./otlp-fixture.ts";
 
 const work = operation({
@@ -201,7 +201,7 @@ test("failed telemetry setup cleans its root and leaves the other queue running"
 });
 
 test.each(["missing", "invalid"])(
-  "telemetry with %s config rejects ready and settles closed with the same failure",
+  "telemetry with %s config finishes cleanup and reports one boot failure",
   async (config) => {
     const tracing = traceSink();
     const telemetry = createScope({
@@ -234,6 +234,17 @@ test.each(["missing", "invalid"])(
     const result = await closing;
     if (result.status !== "failed") expect.unreachable();
     expect(result.error).toBe(failure);
+    const lines: string[] = [];
+    const observe = { ...jsonLines((line) => lines.push(line)), clock: () => 42 };
+    expect(readExitCode(result, observe, "boot")).toBe(1);
+    expect(lines.map((line) => JSON.parse(line))).toEqual([
+      expect.objectContaining({
+        time: 42,
+        level: 50,
+        message: "boot failed",
+        kind: config === "missing" ? "MissingTag" : "BadTraceSettings",
+      }),
+    ]);
   },
 );
 
