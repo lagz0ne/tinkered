@@ -428,6 +428,7 @@ host?.ready(scope.ready.then(() => scope.resolve(web)));
 When `host` is present, omit the root's `server` row.
 The host keeps the port and Vite's client middleware open.
 Vite owns client file paths; the app owns its API routes.
+An app response keeps its body even when the browser accepts HTML.
 A server edit stops the old root, awaits its exit,
 and imports the new root through Vite's runner.
 Only a ready root receives new requests.
@@ -457,7 +458,8 @@ Prod gets none of these defaults.
 - A broken root entry stays editable on 503.
   The error event preserves a thrown value or exit code.
   A missing callable entry reports `BadDevEntry`.
-- Dev reports bad listen settings and answers one.
+- Dev answers one for bad listen settings with or without a report.
+- Dev without a report still starts, recovers, and stops.
 - Dev refuses an occupied port without closing its owner.
 
 - Live updates borrow one connection across roots.

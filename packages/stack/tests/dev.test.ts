@@ -11,7 +11,9 @@ test("dev serves the app and Vite client from one listener", async () => {
   const host = await createDevFixture(false);
   expect(await host.ready).toEqual({ kind: "ready", url: host.url });
   expect(host.probe.connections.at(0)).toBeUndefined();
-  expect(await (await fetch(`${host.url}/api/value`)).json()).toBe("first");
+  expect(
+    await (await fetch(`${host.url}/api/value`, { headers: { accept: "text/html" } })).json(),
+  ).toBe("first");
   const page = await fetch(host.url);
   expect(page.headers.get("content-type")).toBe("text/html");
   expect(await page.text()).toContain("/@vite/client");
@@ -194,23 +196,59 @@ test.each([
     .toBe('"first"');
 });
 
-test("dev reports bad listen settings and answers one", async () => {
-  const errors: unknown[] = [];
-  const code = await runDev(
-    {
-      root: "/missing/dev-app",
-      entry: "root.ts",
-      env: { PORT: "bad" },
-      report: (event) => {
-        if (event.kind === "error") errors.push(event.error);
+test.each([true, false])(
+  "dev answers one for bad listen settings with or without a report (%s)",
+  async (reporting) => {
+    const errors: unknown[] = [];
+    const code = await runDev(
+      {
+        root: "/missing/dev-app",
+        entry: "root.ts",
+        env: { PORT: "bad" },
+        report: reporting
+          ? (event) => {
+              if (event.kind === "error") errors.push(event.error);
+            }
+          : undefined,
       },
-    },
-    new AbortController().signal,
+      new AbortController().signal,
+    );
+    if (reporting) {
+      const error = errors.at(0);
+      if (!isError(error, "BadListenSettings")) throw error;
+      expect(error.payload.keys).toEqual(["PORT"]);
+    }
+    expect(code).toBe(1);
+  },
+);
+
+test("dev without a report still starts, recovers, and stops", async () => {
+  const host = await createDevFixture(false, {}, false);
+  await expect
+    .poll(async () => (await fetch(`${host.url}/api/value`)).text(), {
+      timeout: 20000,
+    })
+    .toBe('"first"');
+  await writeFile(
+    join(host.directory, "shared/value.ts"),
+    'export const value: string = "broken";\n',
   );
-  const error = errors.at(0);
-  if (!isError(error, "BadListenSettings")) throw error;
-  expect(error.payload.keys).toEqual(["PORT"]);
-  expect(code).toBe(1);
+  await expect
+    .poll(async () => (await fetch(`${host.url}/api/value`)).status, {
+      timeout: 20000,
+    })
+    .toBe(503);
+  await writeFile(
+    join(host.directory, "shared/value.ts"),
+    'export const value: string = "fixed";\n',
+  );
+  await expect
+    .poll(async () => (await fetch(`${host.url}/api/value`)).text(), {
+      timeout: 20000,
+    })
+    .toBe('"fixed"');
+  host.stop.abort();
+  expect(await host.done).toBe(0);
 });
 
 test("dev refuses an occupied port without closing its owner", async () => {

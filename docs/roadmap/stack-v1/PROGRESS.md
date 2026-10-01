@@ -5223,3 +5223,18 @@ No build runs in that tree while the job waits or runs.
   No runner rule or mutation exclusion changed.
 - Next: optional report proof, full gate, whole fault lanes,
   queued restart versus reload, and all validation lanes.
+
+### t14 refreshed full gate before final fault runs
+
+- Fetched `origin/main`; it is still `d96fee94`.
+- Dev also works without the optional report callback:
+  it boots, serves a failed edit as 503, recovers, and stops.
+  Bad listen settings answer one with or without reporting.
+- An API response keeps its body when a browser accepts HTML.
+- Full gate `EXIT 0`: Stack 131, NATS 36, Drizzle 26, tracker 84.
+- Check: zero errors and 28 warnings in 568 files, matching main.
+- Jev: zero flags among 67 Stack and 31 NATS test entries.
+  No README gaps; one Stack pick is unsure, not a flag.
+- Preflight repeats existing saved labels; no new label is owed.
+- Prose and strict style checks pass for the touched code and tests.
+- Final whole fault lanes and queued timing still remain.

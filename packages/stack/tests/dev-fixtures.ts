@@ -38,33 +38,38 @@ async function createDevDirectory() {
   return directory;
 }
 
-function startFixture(options: Dev.Options) {
+function startFixture(options: Dev.Options, reporting: boolean) {
   const events: Dev.Event[] = [];
   const first = Promise.withResolvers<Dev.Event>();
   const stop = new AbortController();
   const done = runDev(
     {
       ...options,
-      report: (event) => {
-        events.push(event);
-        first.resolve(event);
-      },
+      report: reporting
+        ? (event) => {
+            events.push(event);
+            first.resolve(event);
+          }
+        : undefined,
     },
     stop.signal,
   );
   return { events, ready: first.promise, stop, done };
 }
 
-export async function createDevFixture(nats = true, env: NodeJS.ProcessEnv = {}) {
+export async function createDevFixture(nats = true, env: NodeJS.ProcessEnv = {}, reporting = true) {
   const directory = await createDevDirectory();
   const probe: DevProbe = require(join(directory, "probe.cjs"));
   const PORT = env.PORT ?? (await readFreePort());
-  const host = startFixture({
-    root: directory,
-    entry: "server/root.ts",
-    env: { ...env, PORT },
-    nats,
-  });
+  const host = startFixture(
+    {
+      root: directory,
+      entry: "server/root.ts",
+      env: { ...env, PORT },
+      nats,
+    },
+    reporting,
+  );
   onTestFinished(async () => {
     probe.release.resolve();
     host.stop.abort();
