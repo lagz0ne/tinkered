@@ -4666,3 +4666,29 @@ mutate_files=$(
 flock /tmp/mutation.lock \
   npx stryker run --mutate "$mutate_files"
 ```
+
+### t11 landed base and fresh gate
+
+- Rebased onto the landed mail tag at `28fde312`.
+  The only conflict joined both sets of appended track notes.
+  No auth source changed during that rebase.
+- The lead then landed Core's start-log fix.
+  Rebased again onto `origin/main` at `758efce5`.
+  That rebase had no conflicts.
+  All three auth source hashes still match the mutation run.
+- Installed, rebuilt, and ran the fresh gate without cache.
+  Build and check pass; 0 errors and 28 warnings.
+  Auth 25, mail 13, jobs 26, Stack 114, tracker 80 pass.
+  The whole chain has `EXIT 0`.
+- Jev: zero file flags, test flags, or README gaps.
+  The three plain module-level notes need no labels.
+  Each auth definition needs its own config and user tags;
+  its settings resource depends on that config tag.
+- Strict style census and TSDoc pass.
+- Proof: `stack-t11-core-base-gate.log`,
+  `stack-t11-core-base-jev-preflight.log`,
+  `stack-t11-core-base-jev-tests.log`,
+  `stack-t11-core-base-jev-promises.log`, and
+  `stack-t11-core-base-style.log` in the briefs cache.
+- Next: repeat the full repo tests and release checks
+  on the landed Core base, then save the final proof.
