@@ -3730,7 +3730,7 @@ await closing;
   This only separates pre-session auth work; rollback, commit before
   answer, failed-close header drop, abort cleanup, and ownership stay.
   Stream code and its following helpers match main exactly.
-- Main already handles abort after the cookie read at line 302.
+- Main already handles abort after the cookie read at line 303.
   Keep that path; no second auth abort guard is needed.
 - `packages/hono/tests/hono.test.ts:586`, `:621`, `:654`, `:677`,
   `:703`, and `:714`: prove preparation, abort, graceful drain,
@@ -3743,3 +3743,15 @@ await closing;
   cookie failure case and explain preparation and shutdown answers.
 - Hono's and Stack's event starts are main's unchanged code.
   The only added Stack line names the accepted-read drain.
+
+### Second resume auth mutation passes
+
+- Fresh full auth lane after the event and static-store rebase:
+  killed 86, timeout 0, survived 14.
+  No coverage 0, errors 0; 86.00 percent, `EXIT 0`.
+- The full lane ran alone under `/tmp/mutation.lock`,
+  with timeout 60000, concurrency 2, and the unchanged floor 85.
+- Log and JSON: `stack-t10-resume2-auth-mutation`
+  in the briefs cache.
+- Next: Hono under the same lock, then the uncached browser
+  proof and validation.
