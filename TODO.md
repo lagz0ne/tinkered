@@ -39,6 +39,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **authoring/drizzle-pglite** — static driver resources and a migration action.
+  Owner: lead (authoring session); Astra writer, xhigh; Opus review.
+  Next: publish the PGlite graph, then move tracker and example callers.
+  Verify: namespace and root isolation, owned and borrowed clients,
+  commit, rollback, migration failure and stop; build/check/tests;
+  release checks and Drizzle fault score >= 85.
+  [Track](docs/roadmap/authoring-model/PGLITE.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 

@@ -828,3 +828,10 @@ Its code inputs match the full test and fault checked source.
 The board-only upstream update is kept; other local review notes remain untouched.
 The final tag is `core/tauthoring-hooks`.
 Start logs still reach no sink; the separate `core/start-log` fix must rebase after this.
+
+## PGlite public graph follow-up
+
+The user found that Drizzle still exports only helper functions.
+The approved follow-up publishes static driver units.
+PGlite is the first driver, checked against the tracker and standalone example.
+[Scope, impact, and proof](PGLITE.md).
