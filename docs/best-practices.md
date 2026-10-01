@@ -196,7 +196,8 @@ The main guard owns process listeners, output, and cleanup.
 Command examples let Process `main` own their command roots.
 
 ```ts
-import { createScope, operation, type Scope } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
+import type { Scope } from "@tinker/core";
 
 const hello = operation({
   label: "hello",

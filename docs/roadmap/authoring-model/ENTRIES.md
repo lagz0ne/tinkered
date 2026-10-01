@@ -1,6 +1,6 @@
 # Example app entries
 
-Status: Doing.
+Status: Review.
 Owner: authoring lead.
 Writers: Astra, xhigh; one example package per turn.
 
@@ -29,6 +29,15 @@ Live Harness and Tinkerer entries must stay safe to import.
 Checks use local adapters; they must not spend a live account's money.
 Every root's cleanup must finish after success and failure.
 Stream readers, clients, and transport work keep their current owners.
+
+Live entries record a stop request before stopping the root.
+The active reply finishes; later calls are skipped.
+They then close the root and wait for cleanup.
+A second Ctrl+C quits at once.
+The signal probes found Core rejects active data writes during graceful close.
+The two callers and reduced failure are recorded in
+[Core feedback](../core-feedback.md#graceful-close-blocks-active-writes-2026-10-01).
+The separate Ready card is `core/graceful-writes`.
 
 ## Verify
 

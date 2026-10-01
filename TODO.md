@@ -23,6 +23,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/graceful-writes** — active calls keep state open during graceful close.
+  Asked by: Harness and Tinkerer live entries.
+  Next: a Core writer fixes the delayed controller write after the active card.
+  Verify: a running call can finish its write during graceful root close;
+  calls after close begins stay refused; Core ticket and size checks pass.
+  [Proof](docs/roadmap/core-feedback.md#graceful-close-blocks-active-writes-2026-10-01).
+
 | Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
