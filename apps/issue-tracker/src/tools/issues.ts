@@ -1,5 +1,4 @@
 import { operation } from "@tinker/core";
-import type { Scope } from "@tinker/core";
 import { argv, io, jsonLine, type Process } from "@tinker/process";
 import { isError as isHttpError } from "@tinker/http";
 import { expose, mcp, type Mcp } from "@tinker/mcp";
@@ -207,39 +206,35 @@ const getCommand: Process.Command = operation({
   },
 });
 
-/** The routes for the issue commands: plain rows, each naming one of the module-level operations
- * above and carrying the root `options` its run needs (ADR 0056). Help lists them without
- * building a root, so it needs no backend. */
-export function issueCommands(options: Scope.Options = {}): readonly Process.Route[] {
-  return [
-    {
-      name: "list",
-      description: "list the saved issues",
-      entry: () => ({ op: listCommand, options }),
-    },
-    {
-      name: "create",
-      description: "create one issue: create --title T --description D",
-      entry: () => ({ op: createCommand, options }),
-    },
-    {
-      name: "update",
-      description:
-        "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
-      entry: () => ({ op: updateCommand, options }),
-    },
-    {
-      name: "comment",
-      description: "append a comment: comment ID --author A --text T",
-      entry: () => ({ op: commentCommand, options }),
-    },
-    {
-      name: "get",
-      description: "show one saved issue with its detail",
-      entry: () => ({ op: getCommand, options }),
-    },
-  ];
-}
+/** Help lists these routes without building a root, so it needs no backend. */
+export const issueCommands: readonly Process.Route[] = [
+  {
+    name: "list",
+    description: "list the saved issues",
+    entry: () => ({ kind: "command", op: listCommand }),
+  },
+  {
+    name: "create",
+    description: "create one issue: create --title T --description D",
+    entry: () => ({ kind: "command", op: createCommand }),
+  },
+  {
+    name: "update",
+    description:
+      "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
+    entry: () => ({ kind: "command", op: updateCommand }),
+  },
+  {
+    name: "comment",
+    description: "append a comment: comment ID --author A --text T",
+    entry: () => ({ kind: "command", op: commentCommand }),
+  },
+  {
+    name: "get",
+    description: "show one saved issue with its detail",
+    entry: () => ({ kind: "command", op: getCommand }),
+  },
+];
 
 /** The `list` tool row: MCP serves it, and the draft harness takes it too. */
 export const listTool: Mcp.Row = expose(listRemote, {
@@ -267,6 +262,4 @@ export const issueTools: readonly Mcp.Row[] = [
   getTool,
 ];
 
-/** The issue MCP driver: installed on the scope `runMain` creates, resolved in
- * the `mcp` entry command. */
 export const issuesMcp = mcp({ name: "issues", version: "0.1.0", tools: issueTools });

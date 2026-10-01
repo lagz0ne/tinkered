@@ -150,6 +150,12 @@ Every command reaches the running server over HTTP; `BASE_URL` picks the
 address (default `http://127.0.0.1:4311`). Help needs no backend.
 Missing or blank `--base-revision` values report command usage.
 
+The static `issueCommands` routes use `kind: "command"` entries.
+Pass the API config once in the Process call's `options`.
+
+`run({ shell, args, io, options })` returns an exit code.
+Tests collect output through their own `io` writers.
+
 ```bash
 BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools help
 BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools list
@@ -168,6 +174,13 @@ again. Comments append without a revision.
 The same five actions are MCP tools (`list`, `create`, `update`,
 `comment`, `get`) served over stdio.
 They save through the same server and report conflicts as tool errors.
+
+The `mcp` route is a Process service with the stdio and MCP extensions.
+Its stdio extension uses the Process `stop` tag to ask for a clean close.
+The guarded entry sets `process.exitCode` after cleanup finishes.
+
+The MCP entry closes cleanly when stdin ends.
+The MCP entry closes cleanly on SIGTERM.
 
 ```bash
 BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#mcp

@@ -1,10 +1,13 @@
 import { cloneDatabase } from "./database.ts";
+import { once } from "node:events";
 import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { run, type Process } from "@tinker/process";
 import { mcp } from "@tinker/mcp";
+import { serve } from "@hono/node-server";
 import {
   api,
   issueCommands,
@@ -20,6 +23,8 @@ import {
   issueServer,
 } from "../src/index.ts";
 
+const shell: Process.Shell = { name: "issues", version: "0.1.0", commands: issueCommands };
+
 /** This file's root: the routes over a fresh store, plus the published list
  * (`GET /api/issues` reads it, not the table). `/sync` answers 500 here because `src` is absent. */
 async function boot() {
@@ -29,57 +34,42 @@ async function boot() {
     extensions: [server, migrateIssues, publish()],
   });
   await scope.ready;
-  return { scope, app: scope.resolve(server) };
-}
-
-type Heard = { readonly stop: () => Promise<void>; readonly base: string };
-
-async function hear(app: {
-  fetch: (req: Request) => Response | Promise<Response>;
-}): Promise<Heard> {
-  const { serve } = await import("@hono/node-server");
-  let settle: (port: number) => void = () => undefined;
-  const heard = new Promise<number>((resolve) => {
-    settle = resolve;
-  });
-  const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 }, (info) =>
-    settle(info.port),
-  );
-  const port = await heard;
+  const listener = serve({ fetch: scope.resolve(server).fetch, hostname: "127.0.0.1", port: 0 });
+  await once(listener, "listening");
+  const address = listener.address();
+  if (address === null || typeof address === "string") return expect.unreachable();
   return {
-    stop: () =>
-      new Promise<void>((resolve) => {
-        server.close(() => resolve());
-      }),
-    base: `http://127.0.0.1:${port}`,
+    scope,
+    base: `http://127.0.0.1:${address.port}`,
+    stop: () => new Promise<void>((resolve) => listener.close(() => resolve())),
   };
 }
 
-function readTextPart(part: unknown): string {
-  if (typeof part !== "object" || part === null) return "";
-  if (!("type" in part) || !("text" in part)) return "";
-  if (part.type !== "text" || typeof part.text !== "string") return "";
-  return part.text;
-}
-
 function readText(answered: object): string {
-  if (!("content" in answered)) return "";
-  const content: unknown = answered.content;
-  if (!Array.isArray(content)) return "";
-  return readTextPart(content[0]);
+  const { content } = CallToolResultSchema.parse(answered);
+  const [part] = content;
+  return part?.type === "text" ? part.text : "";
 }
 
 /** Run one issue command with the API config bound. Every run builds and closes
  * its own root (ADR 0056), so a test needs no scope of its own. */
-function openCli(baseUrl: string): {
-  readonly run: (argv: readonly string[]) => Promise<Process.Result>;
-} {
-  const shell: Process.Shell = {
-    name: "issues",
-    version: "0.1.0",
-    commands: issueCommands({ tags: [api.config({ baseUrl })] }),
+function openCli(baseUrl: string) {
+  return {
+    run: async (args: readonly string[]) => {
+      const stdout: string[] = [];
+      const stderr: string[] = [];
+      const code = await run({
+        shell,
+        args,
+        io: {
+          write: (text) => stdout.push(text),
+          error: (text) => stderr.push(text),
+        },
+        options: { tags: [api.config({ baseUrl })] },
+      });
+      return { code, stdout: stdout.join(""), stderr: stderr.join("") };
+    },
   };
-  return { run: (argv) => run(shell, argv) };
 }
 
 test("missing and blank revisions report command usage", async () => {
@@ -112,9 +102,8 @@ test("help lists the issue commands with no backend", async () => {
 });
 
 test("CLI drives the saved create/list/update/comment/get through real HTTP", async () => {
-  const { scope, app } = await boot();
-  const heard = await hear(app);
-  const cliScope = openCli(heard.base);
+  const { scope, base, stop } = await boot();
+  const cliScope = openCli(base);
   try {
     const created = await cliScope.run([
       "create",
@@ -187,17 +176,16 @@ test("CLI drives the saved create/list/update/comment/get through real HTTP", as
     expect(gone.code).toBe(1);
     expect(gone.stderr).toContain("IssueNotFound");
   } finally {
-    await heard.stop();
+    await stop();
     await scope.close({ graceful: true });
   }
 });
 
 test("MCP tools save through the same server and answer conflicts as errors", async () => {
-  const { scope, app } = await boot();
-  const heard = await hear(app);
+  const { scope, base, stop } = await boot();
   const ext = mcp({ name: "issues", version: "0.1.0", tools: issueTools });
   const tools = createScope({
-    tags: [api.config({ baseUrl: heard.base })],
+    tags: [api.config({ baseUrl: base })],
     extensions: [ext],
   });
   await tools.ready;
@@ -273,7 +261,7 @@ test("MCP tools save through the same server and answer conflicts as errors", as
     await client.close();
     await server.close();
     await tools.close({ graceful: true });
-    await heard.stop();
+    await stop();
     await scope.close({ graceful: true });
   }
 });
