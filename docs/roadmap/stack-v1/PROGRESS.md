@@ -474,7 +474,7 @@ npx --no-install stryker run \
   Verify: a test edits a server file: the old scope
   closes, the new one serves, nothing leaks;
   `benchctl ab` says a reload beats a restart.
-- **t15 server pages** -- [ ] blocked by: t14
+- **t15 server pages** -- [ ] owner: t15 writer; t14 landed
   The tracker's list page renders on the server
   with TanStack Router under one Hono route
   (ADR 0075). Its cells cross to the browser
@@ -5547,3 +5547,13 @@ No build runs in that tree while the job waits or runs.
 - The first Hono attempt is saved as start-log-hono-mutation-first.*.
 - All proof files are in ~/.cache/tinkered-briefs/.
 - Next: lead reviews and lands the branch.
+### t15 writer start
+
+- Branch: `stack/t15`, cut from `origin/main` at `fa2febb4`.
+- Next: stream published cells through TanStack Router.
+- Verify: first HTML, live browser updates, stream cleanup,
+  dev reload, final gate, selected fault runs, and validation.
+- Assumption: the list page is `/`; other page paths answer 404.
+- Router checked on npm: `1.170.41`; pin that exact version.
+- SSR docs still call the server functions experimental.
+  Source: [TanStack SSR](https://tanstack.com/router/latest/docs/guide/ssr).
