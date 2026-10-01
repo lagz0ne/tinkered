@@ -162,3 +162,7 @@ Only the test process receives the flag; code, tests, and floor stay unchanged.
 The crash log is `/tmp/tinkered-pglite-mutation-node24-crash.log`.
 Five Jev labels are saved; full calibration completed with exit 0.
 [Package input and fault proof](pglite-fault-proof.json).
+
+Main fast-forwards to `f3e94f84`; local peer notes stay untouched.
+Its fresh install, build, check, and prose pass, exit 0.
+All 336 code inputs and built modules match the test and fault checked source.

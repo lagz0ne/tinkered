@@ -162,5 +162,14 @@
   ],
   "normalLogs": "/tmp/tinkered-pglite-final-*.log",
   "freshFaultLog": "/tmp/tinkered-pglite-final-mutation.log",
-  "postRunFrozenInputs": "all 336 files and all 14 package hashes match; root package, lock, workspace and Vite settings match the base"
+  "postRunFrozenInputs": "all 336 files and all 14 package hashes match; root package, lock, workspace and Vite settings match the base",
+  "mainVerification": {
+    "checkpoint": "f3e94f846e29dc29971b9365fa3e85b1c0b13e3a",
+    "gates": ["install", "recursive build", "check", "prose"],
+    "exitCode": 0,
+    "frozenInputCount": 336,
+    "inputsMatchTestedSource": true,
+    "peerFilesPreserved": true,
+    "sharedSettingsMatchBase": true
+  }
 }

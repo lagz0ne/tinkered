@@ -843,3 +843,7 @@ The fresh isolated Drizzle fault lane passes: 87.97, exit 0, floor 85.
 All 336 frozen inputs match; the other 13 package proofs remain valid.
 The runner uses a test-process flag for the observed Node 24 Wasm cleanup crash.
 The first crash and successful retry are both recorded in [PGLITE.md](PGLITE.md).
+
+Main fast-forwards to `f3e94f84`; local peer notes stay untouched.
+Its fresh install, build, check, and prose pass, exit 0.
+All 336 code inputs and built modules match the test and fault checked source.
