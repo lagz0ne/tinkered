@@ -39,14 +39,16 @@ export function auth(database: Resource.Handle<Promise<object>>, schema: Record<
   let owner: Scope.Handle | undefined;
   const piece = extension({
     label: "auth",
-    start: async (scope, ctx, next) => {
-      if (owner) raise("PieceInUse", { label: ctx.label });
-      scope.resolve(settings);
-      owner = scope;
-      ctx.defer(() => {
-        owner = undefined;
-      });
-      await next();
+    hooks: {
+      start: async (event) => {
+        if (owner) raise("PieceInUse", { label: "auth" });
+        event.scope.resolve(settings);
+        owner = event.scope;
+        event.defer(() => {
+          owner = undefined;
+        });
+        await event.next();
+      },
     },
   });
   const readClient = () => {

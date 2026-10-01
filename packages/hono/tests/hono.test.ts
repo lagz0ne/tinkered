@@ -681,9 +681,11 @@ test("a request without a tags hook answers 503 during graceful close", async ()
   const web = hono([route.get("/", read)]).extension;
   const gate = extension({
     label: "closeGate",
-    close: async (_options, next) => {
-      await release.promise;
-      return next();
+    hooks: {
+      close: async (event) => {
+        await release.promise;
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [web, gate] });

@@ -1,18 +1,34 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vite-plus/test";
 import { serve } from "@hono/node-server";
-import { createScope, operation, tag, type Scope } from "@tinker/core";
-import { drizzleStore } from "@tinker/drizzle";
+import { createScope, operation, resource, tag, type Scope } from "@tinker/core";
+import { createQueryLogger, openTransaction } from "@tinker/drizzle";
 import { hono, route, type HonoScope } from "@tinker/hono";
 import { createTestDatabase, type TestDatabase } from "@tinker/stack";
-import { drizzle } from "drizzle-orm/pglite";
 import type { PGlite } from "@electric-sql/pglite";
 import { auth, isError } from "../src/index.ts";
 import * as schema from "./fixture/schema.ts";
 
-const store = drizzleStore({
-  open: (client: PGlite) => drizzle({ client, relations: schema.authRelations }),
+const storeConfig = tag<{ client: PGlite }>({ label: "auth.test.store" });
+const store = resource({
+  label: "auth.test.db",
+  target: "namespace",
+  depends: { config: storeConfig },
+  factory: async ({ config }, ctx) => {
+    const { drizzle } = await import("drizzle-orm/pglite");
+    return drizzle({
+      client: config.client,
+      relations: schema.authRelations,
+      logger: createQueryLogger(ctx),
+    });
+  },
 });
-const identity = auth(store.db, schema);
+const transaction = resource({
+  label: "auth.test.tx",
+  target: "session",
+  depends: { db: store },
+  factory: ({ db }, ctx) => openTransaction(db, ctx),
+});
+const identity = auth(store, schema);
 const settings = {
   BETTER_AUTH_SECRET: "test-only-secret-with-at-least-32-characters",
   BETTER_AUTH_URL: "http://auth.example.test",
@@ -31,7 +47,7 @@ const readUser = operation({
 });
 const visit = operation({
   label: "visit",
-  depends: { tx: store.tx, readUser, hold: hold.optional },
+  depends: { tx: transaction, readUser, hold: hold.optional },
   run: async ({ tx, readUser, hold }) => {
     if (hold.present) {
       hold.value.entered();
@@ -106,7 +122,7 @@ beforeEach(async () => {
     },
   ).extension;
   scope = createScope({
-    tags: [store.config(client), identity.config(settings)],
+    tags: [storeConfig({ client }), identity.config(settings)],
     extensions: [web, identity.extension],
   });
   scopes.push(scope);
@@ -250,7 +266,7 @@ test("a piece rejects a second live root and can restart after its owner closes"
   expect((await post(url, "sign-up/email")).status).toBe(200);
   await scope.close({ graceful: true });
   scope = createScope({
-    tags: [store.config(client), identity.config(settings)],
+    tags: [storeConfig({ client }), identity.config(settings)],
     extensions: [web, identity.extension],
   });
   scopes.push(scope);
@@ -266,7 +282,7 @@ test("a changed auth secret rejects a cookie from the prior root", async () => {
   await scope.close({ graceful: true });
   scope = createScope({
     tags: [
-      store.config(client),
+      storeConfig({ client }),
       identity.config({
         ...settings,
         BETTER_AUTH_SECRET: "a-new-test-only-secret-with-at-least-32-characters",

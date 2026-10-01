@@ -14,7 +14,7 @@ Read `identity.user` in an operation.
 It is user data or `null`; it never holds a token.
 
 ```ts
-const identity = auth(store.db, schema);
+const identity = auth(store, schema);
 const me = operation({
   label: "me",
   depends: { user: identity.user },
@@ -25,7 +25,7 @@ const web = hono([route.get("/me", me)], {
 }).extension;
 const scope = createScope({
   tags: [
-    store.config(client),
+    storeConfig({ client }),
     identity.config({
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
@@ -45,7 +45,7 @@ It can start again after that root closes.
 
 Hono awaits the cookie read before opening the request session.
 Operations can then read `identity.user` even after opening
-`store.tx`, without taking a second database connection.
+`transaction`, without taking a second database connection.
 Auth routes at `/api/auth/*` read their own session;
 the tag hook skips its user read there.
 Those routes use Better Auth's own transactions.
@@ -72,6 +72,8 @@ Email checks, password resets, and plugins are not enabled.
 ## Tables and checks
 
 The example app is in `tests/fixture`.
+The tests declare the database and transaction as static resources.
+They borrow a cloned client and close it after its scope closes.
 Its generated auth tables live under `pgSchema("auth")`.
 Its own `visits` table lives under `public`.
 Both join one Drizzle migration history.

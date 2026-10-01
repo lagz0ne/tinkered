@@ -3657,3 +3657,34 @@ await closing;
   `stack-t10-fix2-before-rebase.log` in the briefs cache.
 - Next: read `stack-resume-2.md`, rebase for event hooks
   and the static store, then repeat all requested proof.
+
+### Second authoring rebase and first green gate
+
+- Read `stack-resume-2.md`, ADRs 0093 and 0094,
+  the event fields, Drizzle's README, and the tracker store.
+- Fetched and rebased onto `d96fee94` on origin/main.
+- Conflicts and results:
+  `tools/jev/cases.jsonl` keeps both label sets,
+  with duplicate identical lines removed.
+  `TODO.md` keeps other cards and one current t10 card.
+  `packages/hono/tests/transactions.test.ts` keeps the async
+  cookie case with main's static database fixture.
+- Restored the plain header-drop test exactly from new main.
+  A byte comparison confirms that whole test matches.
+- Auth start and the no-tags close gate use event hooks.
+  Hono's merged start already passes `event.scope`
+  to request preparation; Stack keeps main's own hooks.
+- Auth's fixture declares one namespace database resource
+  and one session transaction resource at module scope.
+  It borrows each clone; tests close it after the scope.
+  The logger and transaction adapters keep native values.
+- All t10 acceptance and cookie-refresh fixes remain.
+  No positional hooks or store frames remain in auth.
+- Hono's owned request body and stream helpers match main.
+  The user read still runs before opening that body.
+- Gate: build, check, uncached auth, Hono, Stack, tracker, prose.
+  Auth 19, Hono 93, Stack 114, tracker 79: `EXIT 0`.
+  Check: no errors and 28 warnings.
+- Log: `stack-t10-resume2-gate.log` in the briefs cache.
+- Next: full repo tests, style and advisory checks, fresh
+  auth and Hono mutation, one uncached browser proof, validate.

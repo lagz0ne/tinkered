@@ -96,7 +96,7 @@ test("a failed commit drops the built answer's headers", async () => {
         }),
     }),
   ]);
-  const scope = createScope({ tags: [store.config(null)], extensions: [web] });
+  const scope = createScope({ tags: [databaseConfig(null)], extensions: [web] });
   try {
     await scope.ready;
     for (const path of ["/context", "/response"]) {
