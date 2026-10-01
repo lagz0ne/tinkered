@@ -10,12 +10,13 @@ if (import.meta.main) {
     model: process.env.TINKERER_MODEL,
     prompt: process.env.TINKERER_PROMPT ?? "Say hi in five words.",
   });
+  const requestStop = new AbortController();
   const stop = new AbortController();
   const root = createScope({
     signal: stop.signal,
     tags: coder.config({ model, baseUrl, headers: { authorization: `Bearer ${apiKey}` } }),
   });
-  const shutdown = (): void => stop.abort();
+  const shutdown = (): void => requestStop.abort();
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
   const replies = [];
@@ -27,7 +28,9 @@ if (import.meta.main) {
       { name: "A", ns: a },
       { name: "B", ns: b },
     ]) {
+      if (requestStop.signal.aborted) break;
       const reply = await session.run(coder.turn, { input: prompt, ns });
+      if (requestStop.signal.aborted) break;
       replies.push({ name, text: session.resolve(coder.text, { ns }), usage: reply.usage });
     }
     completed = true;

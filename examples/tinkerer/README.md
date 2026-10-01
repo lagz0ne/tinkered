@@ -60,6 +60,9 @@ vp run live
 
 This command makes two live requests and uses your account.
 It prints each final reply and its token counts.
+Ctrl+C lets the current reply finish and prevents the next call.
+The root stops after that reply, keeping its state open until the work ends.
+A second Ctrl+C quits at once.
 Missing or invalid settings fail before a request is sent.
 An `InvalidSettings` error lists field names, never values.
 The code has no default account, model, or token file.
