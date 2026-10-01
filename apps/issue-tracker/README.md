@@ -444,3 +444,4 @@ These defaults never apply to `start` or `preview`.
 - The real server's page payload boots the built browser,
   which then follows a live update.
 - A page keeps one cell snapshot while the parent publishes.
+- Posting a ready draft saves one comment and quiets the run.
