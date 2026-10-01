@@ -59,37 +59,39 @@ await server.connect(new StdioServerTransport());
 `listTools` answers one entry per registered row: its name, its
 description, and its schema keys.
 
-The stdio entry through `@tinker/process` (`examples/mcp/cli.ts`): one
-`mcp` command whose entry options install the MCP extension beside a
-`stdio` extension that resolves the server and connects the transport,
-then wait for that serving lifetime. A harness runs `node cli.ts mcp`:
+The stdio entry through `@tinker/process` is a service graph.
+The MCP extension serves tools; a stdio extension connects its transport.
+Process waits for native root cleanup.
+A harness runs `node cli.ts mcp`:
 
 ```ts
-import { extension, operation } from "@tinker/core";
-import { main, type Process } from "@tinker/process";
+import { extension, tag } from "@tinker/core";
+import { main, stop, type Process } from "@tinker/process";
+import type { Readable, Writable } from "node:stream";
 
-/** ext and StdioServerTransport are defined above. */
+const streams = tag<{
+  input: Readable;
+  output: Writable;
+}>({ label: "coder.streams" });
+
 const stdio = extension({
   label: "coder.stdio",
   hooks: {
-    start: async (event) => {
+    async start(event) {
       await event.next();
       const server = event.scope.resolve(ext);
-      event.defer(() => server.close());
-      await server.connect(new StdioServerTransport());
+      const { input, output } = event.scope.resolve(streams.required);
+      const end = event.scope.resolve(stop.required);
+      input.once("end", end);
+      server.server.onclose = end;
+      event.defer(async () => {
+        input.removeListener("end", end);
+        server.server.onclose = undefined;
+        await server.close();
+      });
+      await server.connect(new StdioServerTransport(input, output));
     },
   },
-});
-
-/** A server command returns when it is told to stop. */
-const serveMcp = operation({
-  label: "mcp",
-  run: (_deps, ctx) =>
-    new Promise<number>((done) =>
-      ctx.signal.addEventListener("abort", () => done(0), {
-        once: true,
-      }),
-    ),
 });
 
 const shell: Process.Shell = {
@@ -99,20 +101,32 @@ const shell: Process.Shell = {
     {
       name: "mcp",
       entry: () => ({
-        op: serveMcp,
+        kind: "service",
         options: { extensions: [stdio, ext] },
       }),
     },
   ],
 };
-if (import.meta.main) await main(shell);
+
+if (import.meta.main) {
+  process.exitCode = await main({
+    shell,
+    options: {
+      tags: streams({
+        input: process.stdin,
+        output: process.stdout,
+      }),
+    },
+  });
+}
 ```
 
-The command must wait for its serving lifetime. `connect()` only opens the
-transport; returning it alone would let the process exit before tool calls
-arrive. This command returns on a signal; `cli.ts` also binds a `stopping`
-cell that stdin EOF and a server close set, and watches it beside the
-signal. The root's defer closes the transport.
+`ext` and `StdioServerTransport` come from the earlier snippets.
+The guarded app binds its borrowed streams once.
+`connect()` only opens the transport; the service root owns its lifetime.
+Stdin EOF and server close call the same static `stop` port.
+The extension removes its listeners before closing the transport.
+No stop cell or waiting operation is needed.
 
 Two `mcp()` extensions on one scope are two servers (ADR 0060):
 

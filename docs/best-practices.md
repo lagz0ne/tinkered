@@ -193,7 +193,19 @@ An executable example runs only inside `if (import.meta.main)`.
 Its index exports static graph units, not a helper that runs the whole example.
 Its tests create small roots from those units.
 The main guard owns process listeners, output, and cleanup.
-Command examples let Process `main` own their command roots.
+Process `main` owns a selected command or service root.
+The guarded app sets the returned code so pending output can finish.
+
+```ts
+if (import.meta.main) {
+  process.exitCode = await main({ shell });
+}
+```
+
+A command entry names an operation that answers an exit code.
+A service entry names extensions and waits for native root cleanup.
+Its extension resolves Process `stop.required` to stop on EOF.
+Keep shell metadata static; put run settings in the Process call.
 
 ```ts
 import { createScope, operation } from "@tinker/core";
