@@ -66,6 +66,7 @@ Its optional `options` supplies common Core settings.
 The entry's own settings override common fields.
 Tags combine process facts, then common tags, then entry tags.
 Use ordinary options precedence, not a new merge framework.
+Process owns the root signal; the public `signal` or `stop` port requests its stop.
 
 `main` reads real argv, environment, and streams once.
 It accepts `{ shell, args?, options? }` and returns a number.
@@ -158,8 +159,10 @@ The final source includes the newer auth landing from `175c408b`.
   forced exit loses pipe output; ignored close returns false success;
   a removed loader race leaves stop waiting.
 
-The child CLI tests forward Vitest's active fault through Stryker's env port.
-Child coverage stays in the child, so the Process lane runs every test per fault.
+The first fault run failed at 73.20: the Vitest runner skipped child-only faults.
+Its coverage result overrode the disabled-coverage setting.
+Process now uses Stryker's built-in command runner.
+Each fault runs the whole suite; children inherit its native fault env port.
 The native child timeout is a cleanup bound, not a speed claim.
 A full Process lane, Blueprint lane, Tinkerer lane, and release checks are queued.
 Fault and release proof remains pending.

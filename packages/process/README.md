@@ -61,7 +61,8 @@ const code = await run({
 - The `argv` tag carries arguments after the selected route name.
 - Entry options override common options and tags combine after process facts.
   Common tags follow Process tags; entry tags follow common tags.
-  Other Core options use ordinary field replacement.
+  Other Core settings use ordinary field replacement.
+  Process owns the root signal; use `run.signal` or the `stop` port to stop it.
 - A command with a signal writes to the root data its extensions read.
 - The graph produces the trace: the command operation and the operation it drives beneath it.
 
