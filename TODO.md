@@ -39,6 +39,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **authoring/main-entries** — examples use guarded app entries.
+  Owner: lead (authoring session); Astra writers, one package per turn.
+  Next: export static units; move runs and cleanup into main guards.
+  Verify: example imports start nothing; entries exit after cleanup;
+  build, check, tests, prose, strict census, and release checks pass.
+  [Track](docs/roadmap/authoring-model/ENTRIES.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
