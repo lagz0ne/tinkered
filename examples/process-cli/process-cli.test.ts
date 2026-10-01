@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { run } from "@tinker/process";
-import { shell, tour } from "./index.ts";
+import { arithmetic, shell } from "./index.ts";
 
 test("prints help when no command is given", async () => {
   expect(await run(shell, [])).toEqual({
@@ -34,6 +34,10 @@ test("greet without a name prints usage with code 2", async () => {
   });
 });
 
-test("the tour reports help, double, and ping results", async () => {
-  expect(await tour()).toBe('help 0\ndouble 0: 42\nping 0: "pong"\n');
+test("double prints twice the given number", async () => {
+  expect(await run(arithmetic, ["double", "21"])).toEqual({
+    code: 0,
+    stdout: "42\n",
+    stderr: "",
+  });
 });

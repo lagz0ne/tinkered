@@ -49,28 +49,32 @@ vp run start -- greet ada
 The export includes the unreleased library packages.
 Its install uses those copies.
 
-## The tour
+## Double a number
 
-`tour()` is also public through `index.ts`.
-It runs help, doubles 21, then selects a lazy ping command.
-Help loads no command.
-Selecting ping imports its declared operations from `ping.ts`.
-The tour reuses one declared shell.
+`basic.ts` exports the `arithmetic` shell through `index.ts`.
+It declares the double command once.
+From this folder, run:
 
-The returned report is:
-
-```text
-help 0
-double 0: 42
-ping 0: "pong"
+```bash
+node --experimental-strip-types basic.ts double 21
 ```
 
-It shows all three commands succeeding, with 42 and `"pong"` as their answers.
+It prints twice the given number and exits with code 0:
+
+```text
+42
+```
+
+Both shells also have a lazy ping command.
+Selecting ping imports its declared operations from `ping.ts`.
+Help loads no command.
 Every command's root closes before its result returns.
 
-`main.ts` starts only when run directly.
+`main.ts` and `basic.ts` start only inside `if (import.meta.main)`.
+Both use Process `main`, which owns stop signals and cleanup.
 `index.ts` exports the pieces from `shell.ts` and `basic.ts`.
-Tests import these pieces without loading the entry file.
+Importing these pieces starts no command or root.
+Tests pass each shell to Process `run` and check its result.
 
 Run the package checks here:
 

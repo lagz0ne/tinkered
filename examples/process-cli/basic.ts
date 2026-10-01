@@ -1,5 +1,5 @@
 import { operation } from "@tinker/core";
-import { argv, io, run, type Process } from "@tinker/process";
+import { argv, io, main, type Process } from "@tinker/process";
 import { z } from "zod";
 
 const double = operation({
@@ -19,8 +19,8 @@ const doubleCommand = operation({
   },
 });
 
-const shell: Process.Shell = {
-  name: "tour",
+export const arithmetic: Process.Shell = {
+  name: "arithmetic",
   version: "0.0.0",
   commands: [
     { name: "double", description: "double a number", entry: () => ({ op: doubleCommand }) },
@@ -31,15 +31,4 @@ const shell: Process.Shell = {
   ],
 };
 
-/** A cast-free tour of the entrypoint: routes are plain data, `run` builds one root per run and
- * answers `{ code, stdout, stderr }` without a process, and `help` loads nothing (ADR 0056). */
-export async function tour(): Promise<string> {
-  const helped = await run(shell, ["help"]);
-  const answered = await run(shell, ["double", "21"]);
-  const pinged = await run(shell, ["ping"]);
-  return [
-    `help ${helped.code}\n`,
-    `double ${answered.code}: ${answered.stdout}`,
-    `ping ${pinged.code}: ${pinged.stdout}`,
-  ].join("");
-}
+if (import.meta.main) await main(arithmetic);
