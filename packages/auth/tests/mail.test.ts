@@ -9,7 +9,9 @@ import { createMailMock } from "@tinker/mail/testing";
 import { createTestDatabase, type TestDatabase } from "@tinker/stack";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vite-plus/test";
-import { auth, authTemplates } from "../src/index.ts";
+import { createElement } from "react";
+import { Html, Link } from "react-email";
+import { auth, authTemplates, type Auth } from "../src/index.ts";
 import * as schema from "./fixture/schema.ts";
 
 const config = tag<PGlite>({ label: "auth.mail.database" });
@@ -251,4 +253,54 @@ test("auth mails and due jobs take turns with a request on PGlite", async () => 
       .flatMap(({ to }) => to)
       .sort(),
   ).toEqual([person.email, person.email, "grace@example.com"]);
+});
+
+test("an app can replace both auth mail templates", async () => {
+  await scope.close({ graceful: true });
+  const customPost = mail(
+    {
+      verifyEmail: ({ url }: Auth.MailProps) =>
+        createElement(Html, null, createElement(Link, { href: url }, "Confirm your account")),
+      resetPassword: ({ url }: Auth.MailProps) =>
+        createElement(Html, null, createElement(Link, { href: url }, "Pick another password")),
+    },
+    { env: {}, from: "app@example.com" },
+  );
+  const customQueue = jobs([customPost.job], { pglite: database, tx: transaction, env: {} });
+  const send = operation({
+    label: "custom auth.mail.job",
+    depends: { queue: customQueue.extension, db: database },
+    run: ({ queue, db }, ctx: Operation.Ctx<Jobs.Input>) => queue.send(ctx.input, db),
+  });
+  const customAuth = auth(database, schema, { sendMail: customPost.sendMail(send) });
+  mock = createMailMock(customPost.backend);
+  const web = hono([], {
+    ...customAuth.wiring,
+    serve: (app) =>
+      new Promise((resolve) => {
+        const listener = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 }, (address) => {
+          url = `http://127.0.0.1:${address.port}`;
+          resolve(
+            () =>
+              new Promise<void>((done, fail) => {
+                listener.close((error) => (error ? fail(error) : done()));
+              }),
+          );
+        });
+      }),
+  }).extension;
+  scope = createScope({
+    tags: [config(client), customAuth.config(settings), mock.binding, clock.binding],
+    extensions: [customPost.extension, customQueue.extension, customAuth.extension, web],
+  });
+  await scope.ready;
+  await post("sign-up/email");
+  const verify = (await deliver(1))[0];
+  expect(verify.from).toBe("app@example.com");
+  expect(verify.text).toContain("Confirm your account");
+  expect(readLink(verify.html).pathname).toBe("/api/auth/verify-email");
+  await post("request-password-reset", { email: person.email });
+  const reset = (await deliver(2))[1];
+  expect(reset.text).toContain("Pick another password");
+  expect(readLink(reset.html).pathname).toMatch(/^\/api\/auth\/reset-password\/[^/]+$/);
 });

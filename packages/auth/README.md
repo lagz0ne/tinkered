@@ -189,3 +189,4 @@ The check does not edit that file.
 - A duplicate sign-up sends no extra mail.
 - A sign-up that fails after its mail hook sends no mail.
 - Auth mails and due jobs take turns with a request on PGlite.
+- An app can replace both auth mail templates.
