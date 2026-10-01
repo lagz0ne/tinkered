@@ -145,3 +145,33 @@ Merge both changes and migrate every current example to event hooks.
 Use a separate checkout while the first fault gate runs.
 The final build, code check, example tests, and caller audit must include these projects.
 Package fault scores can carry forward only where package inputs and runtime dependencies match.
+
+## Merged source review
+
+Hono `d5c54a85` keeps t17's request-close behavior and tests.
+Stack `12d3703f` keeps t17's server ownership and port-close behavior.
+Compared with t17, their source and tests differ only in hook shape and wording.
+The root scope read, cleanup order, and bound close handle stay the same.
+Examples `c6899cde` keep all 11 projects byte-for-byte as main `600992f7`.
+The lead read both package diffs and the example merge before integration.
+
+The merged checkout passes frozen install, build, and code check, exit 0.
+Code check: 0 errors and 28 existing warnings in 558 files.
+All 28 test tasks pass; all 48 release lanes pass, exit 0.
+Core size: 16,275 bytes gzip; cap: 16,384.
+Prose: 0 hits in 167 files; changed-source TSDoc: 0 rows in 60 files.
+The source census still finds only the unchanged Core `panics[0]` read.
+
+The final literal audit scans 404 current source and doc files.
+All 205 extension calls use literal configs with no positional hook or spread.
+SCIP indexes all 14 packages and finds no reference to the six removed methods.
+The merged review bank keeps all 1,842 unique cases from all three inputs.
+No case is missing and no label changed during the union.
+The full calibration run finishes with exit 0 and its result is saved.
+
+The other 12 packages have identical source, test, config, and built module files.
+Their runtime dependencies do not use Hono or Stack in a fault lane.
+External lock entries also match; only project entries change.
+Hono and Stack are queued for fresh isolated fault scores on this merged code.
+Proof files: `/tmp/tinkered-hooks-land-package-input-comparison.json` and
+`/tmp/tinkered-hooks-land-frozen-inputs.json`.

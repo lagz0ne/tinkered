@@ -62,7 +62,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Parked
 
-- **stack/t17 hono-commit** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `4783edd2` rebasing onto main (drops the stopped lander's board commit); then an Opus re-check of the merge; the lead lands. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t08 jobs** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `04d6e604` rebasing with `--onto` main; reviewer READY at `da34b8cf` (b372d629); the lead lands. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t18 roots-signal** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `f63d5891` rebasing onto main and folding main's new stack shutdown into the exit-code helper; then an Opus re-review; the lead lands. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **core/start-log** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `c3f272c1`: first probes main (ADR 0089 rewrote the extension ctx); if the bug is gone it closes, else it redoes the fix on the new shape. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
@@ -110,6 +109,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
   All 48 release checks passed; Jev calibration is saved.
   [Track](docs/roadmap/examples-v1/PROGRESS.md).
 
+- **stack/t17 hono-commit** — a request commits before it answers: a close that is not clean (failed commit, failed hook, any teardown error) answers a fresh 500 and logs one `RequestCloseFailed` line; any raised error (mapped 4xx, body builder, unmapped, plain Error, HTTPException) rolls the request back and its answer is unchanged; a returned (not raised) 4xx commits; a stream commits at its end and errors on a failed commit (ADR 0084, user 2026-09-29). The server piece shuts its port when close starts and keeps per-start state (`PieceInUse` on a second live root). Rebased onto the authoring-model main (kept its abort and stream-start cleanup, call ownership, trace reads). The new tests fail on main in 9 places. Proof: gate EXIT 0 (hono 86, drizzle 25, stack 111, tracker 79; 0 errors, 28 warnings), browser proof 4/4 uncached, hono mutation 86.85% (370/0/56), stack mutation 85.71% (552/3/89), validate 48/48. Reviewer READY (839f6123) before the resume; Sol rebase writer 4783edd2; landed by the lead. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/packages** — checked all 14 packages and all three apps.
   Owner: lead (authoring session); source: `46bf1f74`.
   Fixed owner, namespace, setup, and steering gaps with public tests.
