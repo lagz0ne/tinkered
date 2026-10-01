@@ -3,126 +3,116 @@
 Requires `drizzle-orm@^0.45.2` or `drizzle-orm@^1.0.0-rc.4`.
 This repo pins Drizzle ORM and Kit to `1.0.0-rc.4`.
 
-The client is a scope resource by default; the transaction is a session resource whose
-commit is the session's success (ADR 0041). A store can also serve many tenants.
-
-```text
-drizzleStore({ label?, target?, open, close? })
-├── store.config   (tag, required)
-├── store.db       (resource, scope or namespace)  open(config, { logger })
-└── store.tx       (resource, session)             db.transaction(cb) per request
-```
-
-`config` has no default: resolving a database without a root or namespace binding
-raises core's `MissingTag` with the config label.
-
-A frame is cheap to import (ADR 0042): the driver import lives inside `open`, so binding
-`store.config` at an entrypoint — or listing CLI commands — loads no database code until the
-store is first resolved:
+Declare database settings, resources, and operations once at module scope.
+Namespaces bind settings and select separate database instances.
+The scope owns each database's lifetime; each session owns its transaction.
+The database and transaction values stay native.
+The adapters create no graph nodes.
 
 ```ts
-export const store = drizzleStore({
-  label: "store",
+import { createScope, namespace } from "@tinker/core";
+import { operation, resource, tag } from "@tinker/core";
+import { createQueryLogger } from "@tinker/drizzle";
+import { openTransaction } from "@tinker/drizzle";
+import { pgTable, text } from "drizzle-orm/pg-core";
+
+const users = pgTable("users", {
+  name: text("name").notNull(),
+});
+export const databaseConfig = tag<{ url: string }>({
+  label: "database.config",
+});
+export const database = resource({
+  label: "database",
   target: "namespace",
-  open: async ({ url }: { url: string }, { logger }) => {
+  depends: { config: databaseConfig },
+  factory: async ({ config }, ctx) => {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");
-    return drizzle({ client: new PGlite(url), logger });
+    const client = new PGlite(config.url);
+    ctx.defer(() => client.close());
+    const ddl = "create table users (name text not null)";
+    await client.exec(ddl);
+    return drizzle({
+      client,
+      logger: createQueryLogger(ctx),
+    });
   },
-  close: (db) => db.$client.close(),
 });
-createScope({ tags: [store.config({ url: "memory://" })] });
-```
-
-`target: "scope"` (the default) shares one pool across the whole scope, even for agent namespaces.
-`target: "namespace"` opens a pool for every namespace in which the store resolves — including agents.
-For tenants, bind each tenant's config in its namespace and resolve the store there:
-
-`label` defaults to `"drizzle"`; it names graph nodes, not tenants. With no namespace,
-either target uses one database from the root's default bucket and one transaction
-per request session, as before.
-
-```ts
-const a = namespace({ tags: [store.config({ url: "a" })] });
-const b = namespace({ tags: [store.config({ url: "b" })] });
-await scope.session({ ns: a }, (s) => s.run(addUser, { input: "ada" }));
-await scope.session({ ns: b }, (s) => s.run(addUser, { input: "grace" }));
-```
-
-Both requests for `a` reuse its database. Each request has its own transaction.
-A request tag cannot override the config used to open the tenant database:
-`db` reads the namespace's bindings and root tags, not the asking session's tags.
-Closing the scope closes each opened database once, after its transactions settle.
-
-A resource dependency is delivered as its built value (ADR 0044). An operation that writes
-declares `depends: { tx: store.tx }` and uses the transaction directly. Core waits for an async
-resource build before entering the operation body:
-
-```ts
+export const transaction = resource({
+  label: "transaction",
+  target: "session",
+  depends: { db: database },
+  factory: ({ db }, ctx) => openTransaction(db, ctx),
+});
 const addUser = operation({
   label: "addUser",
-  input: parseName,
-  depends: { tx: store.tx },
-  run: async ({ tx }, ctx) => tx.insert(users).values({ name: ctx.input }),
-});
-```
-
-The logger passed to `open` writes one `db query` log line per statement. It records
-SQL, not parameter values.
-
-A helper that accepts a transaction can use
-`DrizzleStore.Tx<Awaited<ReturnType<typeof openDatabase>>>` when `openDatabase` is async.
-`Awaited` selects the built database value; `ReturnType` alone still names its promise.
-The [tracker operations](../../apps/issue-tracker/src/server/operations.ts) use this pattern.
-
-The outcome rule: when the owning session (or a graceful scope close) settles `success`,
-the factory returns from the transaction callback — commit. On `failed`, `cancelled`, or
-`released` it raises `Rollback` inside the callback — rollback. Nobody outside ever sees
-`Rollback`; the resource's `defer` handles that expected rollback. Other commit or cleanup
-failures remain in the close result; `scope.session(...)` rejects when cleanup fails. Await
-the completed session before publishing saved state to other readers. A failed request
-rejects with its operation error and rolls back only its own transaction; rows from
-prior successful requests remain saved.
-A failed commit rejects the session with `TeardownFailed`; its causes hold the database error.
-
-One transaction per request session (v1): a tagged call opens a child session, which would
-build its own `tx` — a second transaction, not a savepoint. Bind per-flow tags at the
-request session, not per call inside a transactional flow.
-
-Test recipe: PGlite (in-memory Postgres) through `drizzle-orm/pglite`, a dev dependency.
-`open` creates the client plus schema (`db.execute(sql\`create table …\`)`), `close` closes
-the client. PGlite is single-connection: two transactions held open at once serialize (the
-second waits), so overlapping sessions are honest in tests too.
-
-## Single-connection stores (PGlite)
-
-Two request sessions can each open `store.tx` at once. PGlite serializes the two
-transactions itself — the second waits for the first — so a revision check inside the
-transaction sees the first commit. **No app-level queue is needed**: the tracker's
-"two concurrent edits on one revision settle exactly one winner" test
-(`apps/issue-tracker/tests/issues.test.ts`) fires two PATCHes at one revision and expects
-exactly one 200 and one 409.
-
-A queue IS needed only for a store that _rejects_ a second concurrent transaction instead
-of waiting. Serialize transaction entries in a scope resource the write operations depend on:
-
-```ts
-const noop = (): void => undefined;
-/** One transaction at a time: a write waits its turn, then runs. */
-const serial = resource({
-  label: "serial",
-  factory: () => {
-    let tail: Promise<void> = Promise.resolve();
-    return <T>(work: () => Promise<T>): Promise<T> => {
-      const run = tail.then(work);
-      tail = run.then(noop, noop);
-      return run;
-    };
+  input: (raw) => String(raw),
+  depends: { tx: transaction },
+  run: ({ tx }, ctx) => {
+    return tx.insert(users).values({ name: ctx.input });
   },
 });
-depends: { db: store.db, takeTurn: serial },
-run: ({ db, takeTurn }, ctx) => takeTurn(() => db.transaction((tx) => writeEdit(tx, ctx.input))),
+
+const ada = namespace({
+  tags: [databaseConfig({ url: "memory://ada" })],
+});
+const grace = namespace({
+  tags: [databaseConfig({ url: "memory://grace" })],
+});
+const stop = new AbortController();
+const scope = createScope({ signal: stop.signal });
+await scope.session({ ns: ada }, (session) => {
+  return session.run(addUser, { input: "Ada" });
+});
+await scope.session({ ns: grace }, (session) => {
+  return session.run(addUser, { input: "Grace" });
+});
+stop.abort();
+await scope.closed;
 ```
+
+The driver loads only when the database first resolves.
+Binding a tag or importing these declarations opens no database.
+A config tag without a binding raises Core's `MissingTag` with its label.
+
+A namespace database stays open across request transactions until scope close.
+Repeated requests in one namespace reuse that database.
+A request config tag cannot replace its tenant database config.
+
+Use `target: "scope"` on the database to share one client across namespaces.
+The same declaration used by two roots opens a separate client in each root.
+Closing one root closes only its owned client, after its transactions settle.
+For a borrowed client, leave its close call to its owner.
+
+`createQueryLogger(ctx)` returns `QueryLogger.Handle` for Drizzle's `logger` option.
+Each statement writes one `db query` log line with SQL and never the parameter values.
+`openTransaction(db, ctx)` returns the exact native transaction handle.
+`Transaction.Database` describes Drizzle's callback transaction method.
+`Transaction.Handle<DB>` names the native transaction type for a concrete database type.
+
+Core waits for resource dependencies before entering an operation.
+Each session opens one transaction; two sequential sessions open two transactions.
+At the root, the transaction builds once and a graceful scope close commits with success.
+
+A successful session commits before its answer reaches the caller.
+A failed, cancelled, or released session rolls back.
+A throwing operation rejects the session with its error and leaves no row behind.
+A failed tenant request rolls back without losing another request's commit.
+A forced close rolls back a parked insert and leaves a borrowed client open.
+
+A failed begin rejects the session without waiting for a transaction handle.
+A failed commit rejects the session with `TeardownFailed` holding the database error.
+The adapter handles its own expected `Rollback`; other cleanup errors remain visible.
+Await the completed session before publishing saved state to other readers.
+
+A tagged call opens a child session with its own transaction, not a savepoint.
+Bind per-flow tags on the request session when its operations must share one transaction.
+
+PGlite serializes overlapping transactions on its single connection.
+The second transaction waits for the first commit, so its revision check sees that commit.
+The tracker tests two edits at one revision and expects one success and one conflict.
+A driver that rejects overlapping transactions needs a queue owned by a resource.
 
 ## Migration files
 
