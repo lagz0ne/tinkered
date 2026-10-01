@@ -49,13 +49,12 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t11 auth-mails** — Owner: writer stack/t11.
-  Next: lead reviews and lands the saved branch.
-  Verify: gate `EXIT 0`; auth 25, mail 13, jobs 26;
-  Stack 114, tracker 80; all 31 test tasks; release 54/54.
-  Auth changed-file mutation: 88.03% (103/0/14).
-  Rebased onto `758efce5`; auth source hashes match the run.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
+Next: lead reviews and lands the saved branch.
+Verify: gate `EXIT 0`; auth 25, mail 13, jobs 26;
+Stack 114, tracker 80; all 31 test tasks; release 54/54.
+Auth changed-file mutation: 88.03% (103/0/14).
+Rebased onto `758efce5`; auth source hashes match the run.
+[Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Next: lead lands `stack/t09`; the review fix and checks are saved.
 Verify: review fix gate `EXIT 0`; mail 13, jobs 26, stack 114;
@@ -114,6 +113,7 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Done
 
+- **stack/t11 auth-mails** — sign-up sends a verify mail and a reset request sends a reset mail, both through `sendMail` (React Email templates in `@tinker/auth`; an app can pass its own); links use `BETTER_AUTH_URL`, the sender comes from mail; mail stays optional. The mail job is added after Better Auth commits, so PGlite's one connection takes turns; if that insert fails the account stays and the mail is lost (the README says so). Six HTTP tests: verify link marks the email verified, reset link sets the new password, a duplicate sign-up sends nothing. Proof: gate EXIT 0 (auth 25, mail 13, jobs 26; 0 errors, 28 warnings), changed-file mutation 88.03% (103/0/14), validate 54/54. Lead review. Sol writer bcb8d8e0. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **core/start-log** — a log written in an extension's event-form `start` or `close` hook now reaches the scope's sink, with the level filter and clock, named by the extension, no span (on main both printed `[]`; five askers: stack t02, t05, t07, t08, t13). The logger is built once per extension on first use; logging off stays a no-op. Proof: gate EXIT 0 (core 796, all repo tests; 0 errors, 28 warnings), slots headroom 4, size 16,350 B (cap 16,384), N=31 timing all "no difference we can see", changed-line mutation 85.71% (6/0/1), validate 54/54. Lead review. Sol writer c3f272c1. The stack pieces' workarounds can go now (a follow-up card).
 - **stack/t09 mail** — `@tinker/mail` on Upyo 0.6.0 and React Email (pinned): the app's operation calls `sendMail` (template + props + to/subject), which adds a mail job through the request's transaction, so a rolled-back request sends nothing; the job renders HTML and text and sends; a retryable failure retries, a permanent one fails once via `failJob(cause)` (new in `@tinker/jobs`); `MAIL_URL` (`smtp://`, login optional so Mailpit works) checked in start; a log backend for dev and Upyo's mock for tests. Proof: gate EXIT 0 (mail 13, jobs 26, stack 114; 0 errors, 28 warnings), mail mutation 89.09% (98/0/12), release checks 54/54. Lead review (one fix: optional SMTP login). Sol writer daf6d3a7. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/main-entries** — static exports and guarded app entries.

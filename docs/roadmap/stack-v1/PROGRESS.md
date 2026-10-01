@@ -439,7 +439,7 @@ npx --no-install stryker run \
   read the user in an operation, sign out, and no
   request hangs; a test fails when the generated
   auth schema differs from the committed one.
-- **t11 auth mails: verify and reset** -- [ ] Review
+- **t11 auth mails: verify and reset** -- [x] landed (blocked by: t09, t10)
   Owner: writer stack/t11; lead reviews and lands.
   Sign-up sends a verify mail. A reset request
   sends a reset mail. Both go through `sendMail`.
