@@ -39,13 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t10 auth-signin** — Owner: stack/t10 writer (Codex).
-  Next: restore the plain commit test and cover raw cookie headers,
-  then rebase for event hooks and the static store resource.
-  Verify: named gate, auth and Hono mutation under the lock,
-  uncached tracker browser proof, and validation.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -53,6 +46,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
+
+- **stack/t10 auth-signin** — Owner: stack/t10 writer (Codex).
+  Next: lead reviews both fixes and the event and store rebase.
+  Verify: auth 19, Hono 93, Stack 114, tracker 79; full repo tests;
+  fresh auth and Hono mutation above 85; browser proof and 7 helpers;
+  validation 50 of 50, `EXIT 0`; prose and style pass.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Blocked
 

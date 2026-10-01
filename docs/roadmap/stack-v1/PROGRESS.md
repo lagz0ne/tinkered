@@ -3776,3 +3776,30 @@ await closing;
   Both task cache hits are zero.
 - Log: `stack-t10-resume2-browser.log` in the briefs cache.
 - Next: final `pnpm validate`, then review.
+
+### Second resume and fix round 2 complete
+
+- Final build and `pnpm validate`: all 50 lanes pass, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it is not part of a commit.
+- Named gate: auth 19, Hono 93, Stack 114, tracker 79.
+  All 29 repo test tasks also pass uncached.
+  Check has no errors and 28 warnings; prose and style pass.
+- Fresh mutations: auth 86 / 0 / 14, score 86.00 percent;
+  Hono 406 / 0 / 62, Stryker score 86.38 percent.
+  Hono has 2 no-coverage cases and no errors.
+  Its killed-only score is 86.75 percent.
+  Both full lanes passed alone under the lock, `EXIT 0`.
+- Tracker browser proof ran once uncached; 7 helpers pass.
+- The two round 1 cookie tests failed on `dca8561b` first.
+  The new raw-answer test also failed before header copying.
+  Every one now passes with event hooks and static resources.
+- The plain failed-commit test matches `d96fee94` exactly.
+  Its separate async-cookie test keeps its own README promise.
+- Raw answers use the documented context-header copy.
+  No automatic Hono header merge was added.
+- The Hono change map and conflict results are above.
+  Core feedback stays the same accepted-read close snippet
+  recorded above; no new feedback from the event rebase.
+- All owned foreground jobs have finished.
+  Commit by path; do not push. The lead reviews and lands.
+- Final log: `stack-t10-resume2-validate.log` in the briefs cache.
