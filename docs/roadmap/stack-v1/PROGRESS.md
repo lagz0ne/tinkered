@@ -2539,7 +2539,7 @@ Core feedback: none new.
 
 Owner: stack/t18 writer.
 Branch: `stack/t18`.
-Next: run the resume checks on current main.
+Next: lead review and landing; the writer has not pushed.
 Verify: stack and tracker tests, browser proof, real entry
 exit codes, plain lifetime rules, validation, and mutation.
 
@@ -2740,8 +2740,8 @@ EXIT=0
 ### t18 resume on main
 
 Owner: stack/t18 writer.
-Status: Doing.
-Next: run the full gate, then mutation and validation.
+Status: Review.
+Next: lead review and landing.
 Verify: stack and tracker tests, browser proof, real entry,
 SCIP, lifetime lint, stack mutation K/T/S, and validation.
 
@@ -2827,6 +2827,11 @@ SCIP, lifetime lint, stack mutation K/T/S, and validation.
   Build passed; check has zero errors and 28 warnings.
   Stack: 114 tests in 12 files.
   Tracker: 79 tests in nine files.
+- A clean `870beab4` worktree also builds and checks
+  with zero errors and 28 warnings, `MAIN_CHECK_EXIT 0`.
+  The clean worktree was removed after the check.
+- All 18 package test tasks pass through their own configs,
+  `ALL_TESTS_EXIT 0`.
 - Browser proof and seven browser helper tests pass,
   `BROWSER_EXIT 0`.
 - The real entry serves HTTP 200 and exits 0 on SIGTERM.
@@ -2835,9 +2840,62 @@ SCIP, lifetime lint, stack mutation K/T/S, and validation.
 - SCIP finds no old helper; `rg` has no old caller.
   The required lint has no S19, S27, S28, or S29 row.
 - Strict style census: OK; TSDoc has zero S26 rows.
+- Jev on `origin/main..HEAD`: zero source flags.
+  Stack: zero of 57 titles flagged; no promise gap.
+  New label lines: none.
+- The required `main..HEAD` run also reads unrelated
+  examples and landed Hono and server changes.
+  Local main is `600992f7`, behind the tested remote base.
+  Its 18 unit flags are outside t18's diff.
+  The remote-base run above checks only this ticket.
+  The directory lint's seven factory notes need no labels.
 - Logs: `/tmp/stack-t18-final-gate.log`,
   `/tmp/stack-t18-final-browser.log`,
   `/tmp/stack-t18-final-entry.log`, and
   `/tmp/stack-t18-final-bad-port.log`.
 - The earlier mutation proof is from the paused base.
-  The current lane and validation still need to run.
+  The current lane and validation are recorded below.
+
+### t18 current mutation proof — 2026-10-01
+
+- Ran once after t17 landed, alone under `/tmp/mutation.lock`.
+  Waited in this turn until the shared lock was free.
+  Kept the 60-second config and used two workers.
+
+```bash
+flock /tmp/mutation.lock \
+  vp run --no-cache stack#mutate --concurrency 2
+```
+
+```text
+Killed: 548
+Timeout: 3
+Survived: 89
+No coverage: 2
+Errors: 0
+MUTATION_EXIT 0
+```
+
+- Kills alone: 548 of 640, or 85.625 percent.
+  With the two uncovered rows: 548 of 642, or 85.36 percent.
+  Both exceed the floor of 85.
+  Stryker's score, which counts timeouts, is 85.83.
+- Timeouts: `src/publish.ts:97`, `src/trace.ts:220`,
+  and `src/trace.ts:221`.
+  These source files are unchanged by this ticket.
+- The first test run passed all 114 tests.
+  Source files remain unchanged after the lane.
+- Report: `packages/stack/reports/mutation/mutation.json`.
+  Saved a copy as `stack-t18-final-mutation.json`
+  in `/home/paseo/.cache/tinkered-briefs`.
+  Log: `/tmp/stack-t18-final-mutation.log`.
+- `pnpm validate`: all 48 lanes pass, `VALIDATE_EXIT 0`.
+  `allowBuilds.esbuild` was already true.
+  Restored `pnpm-workspace.yaml` after validation.
+- No new Jev labels or Core feedback.
+  No source or config edit followed the gate.
+- Final logs and the mutation report are also saved in
+  `/home/paseo/.cache/tinkered-briefs`.
+  Validation log: `/tmp/stack-t18-final-validate.log`.
+- Status: Review; next is lead review and landing.
+  Nothing was pushed.
