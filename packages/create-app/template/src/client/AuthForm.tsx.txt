@@ -1,0 +1,87 @@
+import { raise } from "../errors.ts";
+import { operation, type Operation } from "@tinker/core";
+import { HttpRequest, send } from "@tinker/http";
+import { useRun } from "@tinker/react";
+
+export declare namespace AuthForm {
+  type Mode = "sign-up" | "sign-in" | "reset" | "new-password";
+  type Submission = { path: string; fields: Record<string, string> };
+}
+
+const forms = {
+  "sign-up": { title: "Sign up", path: "sign-up/email" },
+  "sign-in": { title: "Sign in", path: "sign-in/email" },
+  reset: { title: "Reset password", path: "request-password-reset" },
+  "new-password": { title: "Set new password", path: "reset-password" },
+};
+const submitAuth = operation({
+  label: "auth.submit",
+  depends: { send },
+  async run({ send }, { input }: Operation.Ctx<AuthForm.Submission>) {
+    const reply = await send.run({
+      input: HttpRequest.post(`/api/auth/${input.path}`, {
+        body: HttpRequest.bodyJson(input.fields),
+      }),
+    });
+    return reply.text();
+  },
+});
+
+export function AuthForm(props: { mode: AuthForm.Mode }) {
+  const form = forms[props.mode];
+  const submit = useRun(submitAuth);
+  return (
+    <main>
+      <h1>{form.title}</h1>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const fields: Record<string, string> = {};
+          for (const [key, value] of new FormData(event.currentTarget)) {
+            if (typeof value !== "string") raise("BadForm", { key });
+            fields[key] = value;
+          }
+          if (props.mode === "sign-up") fields.callbackURL = `${window.location.origin}/verify`;
+          if (props.mode === "reset") fields.redirectTo = `${window.location.origin}/new-password`;
+          if (props.mode === "new-password")
+            fields.token = new URLSearchParams(window.location.search).get("token") ?? "";
+          submit.run({ input: { path: form.path, fields } });
+        }}
+      >
+        {props.mode === "sign-up" ? (
+          <label>
+            Name
+            <input name="name" required autoComplete="name" />
+          </label>
+        ) : null}
+        {props.mode !== "new-password" ? (
+          <label>
+            Email
+            <input name="email" type="email" required autoComplete="email" />
+          </label>
+        ) : null}
+        {props.mode !== "reset" ? (
+          <label>
+            Password
+            <input
+              name={props.mode === "new-password" ? "newPassword" : "password"}
+              type="password"
+              required
+              minLength={8}
+              autoComplete={props.mode === "sign-in" ? "current-password" : "new-password"}
+            />
+          </label>
+        ) : null}
+        <button disabled={submit.isPending}>{form.title}</button>
+      </form>
+      {submit.isSuccess ? <p role="status">Done. For sign-up or reset, check your mail.</p> : null}
+      {submit.isError ? (
+        <p role="alert">That did not work. Check your details and try again.</p>
+      ) : null}
+      <nav>
+        <a href="/">Notes</a> · <a href="/sign-in">Sign in</a> · <a href="/sign-up">Sign up</a> ·{" "}
+        <a href="/reset">Reset password</a>
+      </nav>
+    </main>
+  );
+}

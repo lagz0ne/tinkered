@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { Html, Text } from "react-email";
+import { authTemplates } from "@tinker/auth";
 import { mail } from "@tinker/mail";
 
 function Welcome(props: { name: string }) {
@@ -7,5 +8,5 @@ function Welcome(props: { name: string }) {
 }
 
 export function createMail(env: NodeJS.ProcessEnv) {
-  return mail({ welcome: Welcome }, { env, from: "team@example.com" });
+  return mail({ ...authTemplates, welcome: Welcome }, { env, from: "team@example.com" });
 }

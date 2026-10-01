@@ -30,3 +30,5 @@ export function readNotes(input: unknown): Notes.Note[] {
   if (!Array.isArray(input)) raise("BadNote", { input });
   return input.map(readNote);
 }
+
+export const pagePath = data({ label: "page.path", initial: "/" });

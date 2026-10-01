@@ -1,12 +1,11 @@
-import { operation } from "@tinker/core";
+import { operation, type Operation } from "@tinker/core";
 import { HttpRequest, send } from "@tinker/http";
-import { readNote } from "../shared/notes.ts";
+import { readNote, type Notes } from "../shared/notes.ts";
 
 export const saveNote = operation({
   label: "notes.save",
-  input: readNote,
   depends: { send },
-  async run({ send }, { input }) {
+  async run({ send }, { input }: Operation.Ctx<Notes.Note>) {
     const response = await send.run({
       input: HttpRequest.post("/api/notes", { body: HttpRequest.bodyJson(input) }),
     });

@@ -1,0 +1,20 @@
+import { operation, type Operation } from "@tinker/core";
+import { auth, type Auth } from "@tinker/auth";
+import type { createJobs } from "./jobs.ts";
+import type { createMail } from "./mail.ts";
+import { database } from "./store.ts";
+import * as schema from "./schema.ts";
+
+export function createIdentity(
+  work: ReturnType<typeof createJobs>,
+  post: ReturnType<typeof createMail>,
+) {
+  /** Better Auth commits before this insert borrows PGlite's one connection. */
+  const sendAuthMail = operation({
+    label: "auth.mail.job",
+    depends: { queue: work.extension, db: database },
+    run: ({ queue, db }, ctx: Operation.Ctx<Auth.MailInput>) =>
+      queue.send({ queue: post.job.queue, data: ctx.input }, db),
+  });
+  return auth(database, schema, { sendMail: sendAuthMail });
+}

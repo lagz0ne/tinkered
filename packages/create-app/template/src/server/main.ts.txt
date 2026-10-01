@@ -7,6 +7,7 @@ import { migrations } from "./migrations.ts";
 import { publishNotes } from "./notes.ts";
 import { published } from "./sync.ts";
 import { createPages } from "./pages.tsx";
+import { createIdentity } from "./auth.ts";
 import { createMail } from "./mail.ts";
 import { createJobs } from "./jobs.ts";
 import { createWeb } from "./routes.ts";
@@ -15,15 +16,22 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
   let log: Observe.Logger | undefined;
   const post = createMail(env);
   const work = createJobs(env, [post.job]);
+  const identity = createIdentity(work, post);
   const page = createPages({
     script: "/assets/client.js",
     styles: ["/assets/client.css"],
     dev: false,
   });
-  const web = createWeb(page.mount);
+  const web = createWeb(page.mount, identity.wiring);
   const scope = createScope({
     signal: stop,
-    tags: [databaseConfig(env.DATA_PATH)],
+    tags: [
+      databaseConfig(env.DATA_PATH),
+      identity.config({
+        BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
+        BETTER_AUTH_URL: env.BETTER_AUTH_URL,
+      }),
+    ],
     observe: jsonLines((line) => process.stdout.write(`${line}\n`)),
     extensions: [
       server(web, { env, clientDir: resolve("dist/client") }),
@@ -40,6 +48,7 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
       migrate(database, migrations),
       post.extension,
       work.extension,
+      identity.extension,
       page.extension,
       web,
       published,

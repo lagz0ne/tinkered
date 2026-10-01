@@ -1,15 +1,17 @@
 import { defineConfig } from "vite-plus";
 
-export default defineConfig({
-  build: {
-    outDir: "dist/client",
-    lib: {
-      entry: "src/client/boot.tsx",
-      formats: ["es"],
-      fileName: "assets/client",
-      cssFileName: "assets/client",
-    },
-  },
+export default defineConfig(({ isSsrBuild }) => ({
+  build: isSsrBuild
+    ? {}
+    : {
+        outDir: "dist/client",
+        lib: {
+          entry: "src/client/boot.tsx",
+          formats: ["es"],
+          fileName: "assets/client",
+          cssFileName: "assets/client",
+        },
+      },
   test: {
     testTimeout: 30000,
     hookTimeout: 30000,
@@ -17,4 +19,4 @@ export default defineConfig({
     server: { deps: { inline: ["vite-plus"] } },
     exclude: ["**/node_modules/**", "**/dist/**"],
   },
-});
+}));

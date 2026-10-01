@@ -1,4 +1,5 @@
 type Payloads = {
+  BadForm: { key: string };
   BadPage: Record<string, never>;
   BadDataSettings: { keys: string[] };
   BadNote: { input: unknown };

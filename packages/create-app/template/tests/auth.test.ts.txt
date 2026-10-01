@@ -1,0 +1,134 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import type { PGlite } from "@electric-sql/pglite";
+import { createScope, type Scope } from "@tinker/core";
+import { createJobsClock } from "@tinker/jobs/testing";
+import { createMailMock } from "@tinker/mail/testing";
+import { createTestDatabase, type TestDatabase } from "@tinker/stack";
+import { beforeAll, afterAll, beforeEach, afterEach, expect, test } from "vite-plus/test";
+import {
+  createIdentity,
+  createJobs,
+  createMail,
+  createWeb,
+  databaseConfig,
+  migrations,
+} from "../src/index.ts";
+
+const settings = {
+  BETTER_AUTH_SECRET: "test-only-secret-with-at-least-32-characters",
+  BETTER_AUTH_URL: "http://app.example.test",
+};
+const person = {
+  name: "Ada",
+  email: "ada@example.com",
+  password: "test-password-123",
+  callbackURL: `${settings.BETTER_AUTH_URL}/verify`,
+};
+let template: TestDatabase.Handle;
+let client: PGlite;
+let scope: Scope.Handle;
+let web: ReturnType<typeof createWeb>;
+let clock: Awaited<ReturnType<typeof createJobsClock>>;
+let mock: ReturnType<typeof createMailMock>;
+
+beforeAll(async () => {
+  template = await createTestDatabase(migrations);
+});
+afterAll(async () => {
+  await template.close();
+});
+beforeEach(async () => {
+  client = await template.clone();
+  clock = await createJobsClock("2030-01-01T00:00:00Z");
+  const post = createMail({});
+  mock = createMailMock(post.backend);
+  const work = createJobs({}, [post.job]);
+  const identity = createIdentity(work, post);
+  web = createWeb(undefined, identity.wiring);
+  scope = createScope({
+    tags: [databaseConfig({ client }), clock.binding, mock.binding, identity.config(settings)],
+    extensions: [post.extension, work.extension, identity.extension, web],
+  });
+  await scope.ready;
+});
+afterEach(async () => {
+  await scope.close({ graceful: true });
+  await client.close();
+});
+
+function post(path: string, body: object = person) {
+  return scope.resolve(web).request(`${settings.BETTER_AUTH_URL}/api/auth/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", origin: settings.BETTER_AUTH_URL },
+    body: JSON.stringify(body),
+  });
+}
+
+async function deliver(count: number) {
+  await clock.advance(1000);
+  await expect
+    .poll(async () => (await client.query("select state from pgboss.job")).rows)
+    .toEqual(Array.from({ length: count }, () => ({ state: "completed" })));
+  return mock.sent();
+}
+
+function readLink(html: string | undefined) {
+  const href = html?.match(/href="([^"]+)"/)?.at(1);
+  if (!href) expect.unreachable("mail needs a link");
+  return new URL(href.replaceAll("&amp;", "&"));
+}
+
+test("sign-up then sign-in gives an accepted session cookie", async () => {
+  expect((await post("sign-up/email")).status).toBe(200);
+  const signIn = await post("sign-in/email");
+  const cookie = signIn.headers
+    .getSetCookie()
+    .map((value) => value.split(";").at(0))
+    .join("; ");
+  const session = await scope
+    .resolve(web)
+    .request(`${settings.BETTER_AUTH_URL}/api/auth/get-session`, { headers: { cookie } });
+  expect(await session.json()).toMatchObject({ user: { email: person.email } });
+});
+
+test("the verify mail link marks the email verified", async () => {
+  await post("sign-up/email");
+  const mail = (await deliver(1)).at(0);
+  const link = readLink(mail?.html);
+  await scope.resolve(web).request(link.href);
+  const signedIn = await post("sign-in/email");
+  const cookie = signedIn.headers
+    .getSetCookie()
+    .map((value) => value.split(";").at(0))
+    .join("; ");
+  const session = await scope
+    .resolve(web)
+    .request(`${settings.BETTER_AUTH_URL}/api/auth/get-session`, { headers: { cookie } });
+  expect(await session.json()).toMatchObject({ user: { emailVerified: true } });
+});
+
+test("the reset mail link sets a new password", async () => {
+  await post("sign-up/email");
+  await deliver(1);
+  await post("request-password-reset", {
+    email: person.email,
+    redirectTo: `${settings.BETTER_AUTH_URL}/new-password`,
+  });
+  const mail = (await deliver(2)).find((mail) => mail.subject === "Reset your password");
+  const reset = await scope.resolve(web).request(readLink(mail?.html).href);
+  const location = reset.headers.get("location");
+  if (!location) expect.unreachable("reset needs a redirect");
+  const token = new URL(location).searchParams.get("token");
+  expect((await post("reset-password", { token, newPassword: "new-password-456" })).status).toBe(
+    200,
+  );
+  expect((await post("sign-in/email")).status).toBe(401);
+  expect((await post("sign-in/email", { ...person, password: "new-password-456" })).status).toBe(
+    200,
+  );
+});
+
+test("auth schema matches fresh generation", async () => {
+  await promisify(execFile)(process.execPath, ["check-auth-schema.mjs"]);
+});

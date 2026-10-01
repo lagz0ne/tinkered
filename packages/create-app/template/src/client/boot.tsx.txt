@@ -5,7 +5,7 @@ import { createScope, extension } from "@tinker/core";
 import { ScopeProvider } from "@tinker/react";
 import { subscribe } from "@tinker/sync";
 import { createPageRouter } from "../shared/page.tsx";
-import { noteList } from "../shared/notes.ts";
+import { noteList, pagePath } from "../shared/notes.ts";
 import { App } from "./App.tsx";
 import { config } from "@tinker/http";
 import { openSource, wire } from "./connection.ts";
@@ -27,8 +27,12 @@ export async function bootPage(env: { baseUrl: string }, stop: AbortSignal): Pro
           async start(event) {
             const router = createPageRouter({
               notes: event.resolve(noteList),
+              path: event.resolve(pagePath),
               ready: hydrated.resolve,
-              hydrate: (notes) => event.controller(noteList).set(notes),
+              hydrate: (snapshot) => {
+                event.controller(noteList).set(snapshot.notes);
+                event.controller(pagePath).set(snapshot.path);
+              },
               content: (
                 <ScopeProvider scope={event.scope}>
                   <App />

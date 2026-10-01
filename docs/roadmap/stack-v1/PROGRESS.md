@@ -5826,3 +5826,23 @@ eq: (a, b) => a.length === b.length;
 - The test mock receives the rendered HTML and text.
 - Fresh app: 7 tests pass; generator: 12 pass.
 - Next: auth routes, pages, and schema checks.
+
+### t16 auth
+
+- Added sign-up, sign-in, verify, reset, and new-password pages.
+- Auth mail uses the queue after Better Auth commits.
+- The static database supplies native auth relations.
+- Auth schema is checked against fresh CLI output.
+- The checker removes only the CLI's pure annotations.
+- Fresh app: 16 tests pass; generator: 12 pass.
+- Fixed SSR builds to select the server entry, not the client library.
+- Core feedback: a wider mail operation does not fit Auth.MailInput.
+- The app declares the narrow auth enqueue operation directly.
+
+```ts
+const sendMail = post.sendMail(sendAuthJob);
+auth(database, schema, { sendMail });
+```
+
+- With welcome beside auth templates, this gives TS2322.
+- Next: trace sink, settings, and real entry checks.

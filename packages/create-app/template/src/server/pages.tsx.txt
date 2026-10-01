@@ -1,20 +1,23 @@
 import { createRequestHandler as createSsrRequest } from "@tanstack/react-router/ssr/server";
 import { defaultStreamHandler as renderStream } from "@tanstack/react-router/ssr/server";
+import { request } from "@tinker/hono";
 import { operation } from "@tinker/core";
 import { pages } from "@tinker/stack/pages";
 import { App } from "../client/App.tsx";
-import { noteList } from "../shared/notes.ts";
+import { noteList, pagePath } from "../shared/notes.ts";
 import { createPageRouter, type Page } from "../shared/page.tsx";
 
 /** Shadow the published list once: the HTML and its payload share the same snapshot,
  * even if another request publishes while React is still streaming. */
 const readPage = operation({
   label: "notes.pageCells",
-  depends: { notes: noteList.controller },
-  run({ notes }) {
+  depends: { notes: noteList.controller, path: pagePath.controller, request },
+  run({ notes, path, request }) {
     const values = notes.get();
     notes.set(values);
-    return values;
+    const pathname = new URL(request.url).pathname;
+    path.set(pathname);
+    return { notes: values, path: pathname };
   },
 });
 
@@ -22,10 +25,10 @@ export function createPages(assets: Page.Assets) {
   return pages({
     component: App,
     read: readPage,
-    render(request, notes, content) {
+    render(request, values, content) {
       return createSsrRequest({
         request,
-        createRouter: () => createPageRouter({ notes, content, assets }),
+        createRouter: () => createPageRouter({ ...values, content, assets }),
       })(renderStream);
     },
   });

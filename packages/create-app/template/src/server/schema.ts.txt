@@ -3,3 +3,5 @@ import { pgTable, text } from "drizzle-orm/pg-core";
 export const notes = pgTable("notes", { title: text("title").primaryKey() });
 
 export const receipts = pgTable("receipts", { title: text("title").primaryKey() });
+
+export * from "./auth-schema.ts";
