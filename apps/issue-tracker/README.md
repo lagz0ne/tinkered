@@ -67,6 +67,8 @@ Router's dehydrate sends those cells with the HTML.
 Its hydrate fills the browser scope before React takes over.
 The SSE wire then carries live updates.
 The same list nodes stay in place while that happens.
+If the first SSE connection fails for good,
+the old dead-page flow still offers Reconnect.
 
 Stack mounts one catch-all page through Hono's wiring.
 API, SSE, and built assets keep their existing routes.
@@ -108,6 +110,7 @@ under the chosen Ada/Lin/Sam author through the normal comment action.
 
 A draft streams text and finishes without saving anything.
 Only "Post draft" saves the generated text.
+Discarding a run quiets the cell without posting.
 Posting a draft saves one comment and one activity.
 While a draft post is pending, posting controls stay disabled; it saves once.
 A model error result or thrown error ends the turn as failed with no final draft.

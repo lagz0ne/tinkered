@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createRequestHandler, defaultStreamHandler } from "@tanstack/react-router/ssr/server";
+import { createRequestHandler as createSsrRequest } from "@tanstack/react-router/ssr/server";
+import { defaultStreamHandler as renderStream } from "@tanstack/react-router/ssr/server";
 import { operation } from "@tinker/core";
 import { pages } from "@tinker/stack/pages";
 import { App } from "../client/App.tsx";
@@ -14,8 +15,9 @@ const readPage = operation({
   label: "issues.pageCells",
   depends: { issues: issueList.controller },
   run({ issues }) {
-    issues.set(issues.get());
-    return issues;
+    const values = issues.get();
+    issues.set(values);
+    return values;
   },
 });
 
@@ -46,10 +48,10 @@ export function createIssuePages(assets: Page.Assets) {
     component: App,
     read: readPage,
     render(request, issues, content) {
-      return createRequestHandler({
+      return createSsrRequest({
         request,
         createRouter: () => createPageRouter({ issues, content, assets }),
-      })(defaultStreamHandler);
+      })(renderStream);
     },
   });
 }

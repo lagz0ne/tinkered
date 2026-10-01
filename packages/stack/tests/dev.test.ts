@@ -320,3 +320,15 @@ test.each(["close-broken", "close-reject"])(
     await expect(fetch(host.url)).rejects.toThrow();
   },
 );
+
+test("a page loaded by the dev wiring reloads its root on edit", async () => {
+  const host = await createDevFixture(false);
+  expect((await host.ready).kind).toBe("ready");
+  expect(await (await fetch(`${host.url}/api/page`)).json()).toBe("First page");
+  const closed = host.probe.closed.at(0)!;
+  await writeFile(join(host.directory, "page.ts"), 'export const title = "Saved page";\n');
+  await expect
+    .poll(async () => (await fetch(`${host.url}/api/page`)).text(), { timeout: 20000 })
+    .toBe('"Saved page"');
+  expect((await closed).status).toBe("success");
+});

@@ -11,6 +11,7 @@ import config from "../shared/config.json" with { type: "json" };
 const probe: DevProbe = createRequire(import.meta.url)("../probe.cjs");
 
 export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host: Dev.Wiring) {
+  const page = await host.load<{ title: string }>("page.ts");
   probe.clients.push(host.client);
   probe.connections.push(host.connection);
   probe.signals.push(stop);
@@ -33,7 +34,12 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
     env,
     connection: host.connection,
   });
-  const web = hono([route.get("/api/value", read), route.get("/api/slow", slow)]).extension;
+  const readPage = operation({ label: "readPage", run: () => page.title });
+  const web = hono([
+    route.get("/api/value", read),
+    route.get("/api/slow", slow),
+    route.get("/api/page", readPage),
+  ]).extension;
   const scope = createScope({
     signal: stop,
     extensions: [

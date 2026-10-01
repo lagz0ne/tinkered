@@ -86,7 +86,7 @@ test.each([
 ])("a bad page payload refuses hydrate: %j", async (payload) => {
   const scope = createScope();
   const router = createPageRouter({
-    issues: scope.controller(issueList),
+    issues: scope.resolve(issueList),
     content: createElement("main"),
     assets,
   });

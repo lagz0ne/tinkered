@@ -6,7 +6,6 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import type { Scope } from "@tinker/core";
 import { raise } from "../errors.ts";
 import { parseIssueList, type Issues } from "./issues.ts";
 
@@ -15,7 +14,8 @@ export declare namespace Page {
   type Context = { content: ReactNode; assets: Assets };
   type Snapshot = { issues: readonly Issues.Issue[]; assets: Assets };
   type Options = Context & {
-    issues: Pick<Scope.DataController<readonly Issues.Issue[]>, "get" | "set">;
+    issues: readonly Issues.Issue[];
+    hydrate?: (issues: readonly Issues.Issue[]) => void;
   };
 }
 
@@ -57,10 +57,10 @@ export function createPageRouter(options: Page.Options) {
   const router = createRouter({
     routeTree: root.addChildren([list]),
     context: { content: options.content, assets: options.assets },
-    dehydrate: (): Page.Snapshot => ({ issues: options.issues.get(), assets: options.assets }),
+    dehydrate: (): Page.Snapshot => ({ issues: options.issues, assets: options.assets }),
     hydrate(raw) {
       const snapshot = readSnapshot(raw);
-      options.issues.set(snapshot.issues);
+      options.hydrate?.(snapshot.issues);
       router.update({ context: { content: options.content, assets: snapshot.assets } });
     },
   });
@@ -89,7 +89,7 @@ function Document() {
             type="module"
             dangerouslySetInnerHTML={{
               __html:
-                'import RefreshRuntime from "/@react-refresh"; RefreshRuntime.injectIntoGlobalHook(window); window.$RefreshReg$ = () => {}; window.$RefreshSig$ = () => (type) => type; window.__vite_plugin_react_preamble_installed__ = true;',
+                'import refresh from "/@react-refresh"; refresh.injectIntoGlobalHook(window); window.$RefreshReg$ = () => {}; window.$RefreshSig$ = () => (type) => type; window.__vite_plugin_react_preamble_installed__ = true;',
             }}
           />
         ) : null}

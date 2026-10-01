@@ -361,6 +361,21 @@ async function main(): Promise<void> {
     await rowFor(firstTab, title).first().waitFor();
     await selectIssue(firstTab, title);
     await selectIssue(secondTab, title);
+    const refusedBoot = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    try {
+      refusedBoot.on("pageerror", (error) => pageErrors.push(String(error)));
+      await refusedBoot.route(
+        (url) => url.pathname === "/sync",
+        (stream) => stream.fulfill({ status: 503, body: "down" }),
+      );
+      await refusedBoot.goto(base);
+      await refusedBoot.getByText("Could not connect. Your drafts are kept in this tab.").waitFor();
+      await refusedBoot.unrouteAll();
+      await refusedBoot.getByRole("button", { name: "Reconnect", exact: true }).click();
+      await rowFor(refusedBoot, title).first().waitFor();
+    } finally {
+      await refusedBoot.close();
+    }
     const afterReload = await readDetail(base, id);
     assert.equal(afterReload.issue.status, "done");
     const staleRevision = afterReload.issue.revision;

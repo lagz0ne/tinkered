@@ -29,7 +29,8 @@ export async function bootPage(env: { baseUrl: string }, stop: AbortSignal): Pro
         hooks: {
           async start(event) {
             const router = createPageRouter({
-              issues: event.controller(issueList),
+              issues: event.resolve(issueList),
+              hydrate: (issues) => event.controller(issueList).set(issues),
               content: (
                 <ScopeProvider scope={event.scope}>
                   <Hydrated ready={hydrated.resolve}>
@@ -54,7 +55,12 @@ export async function bootPage(env: { baseUrl: string }, stop: AbortSignal): Pro
       subscribe(wire, { cells: [[issueList, "issues"]] }),
     ],
   });
-  await scope.ready;
+  try {
+    await scope.ready;
+  } catch (error) {
+    await scope.closed;
+    throw error;
+  }
   await scope.closed;
 }
 

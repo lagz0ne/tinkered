@@ -516,3 +516,5 @@ The dev wiring's `load(path)` uses Vite's kept SSR runner.
 Its page imports join the server's reload graph.
 A page component edit closes the old root
 and is visible on reload.
+
+- A page loaded by the dev wiring reloads its root on edit.
