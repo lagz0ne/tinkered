@@ -4644,3 +4644,25 @@ EXIT 0
   Keep the finished local mail code in this branch.
 - Next: one auth mutation run, alone and in the foreground,
   under `/tmp/mutation.lock`; then lead review.
+
+### t11 mutation scope update
+
+- The user's speed rule now limits mutation to changed files.
+  Use `stack/t09` as the base while mail is not on main.
+- Stopped only this writer's queued full-package command.
+  It had not acquired the lock or started Stryker.
+  Its stopped queue log has `EXIT 143`; no mutant ran.
+- The actual run covers these auth files:
+  `src/better-auth.ts`, `src/index.ts`, `src/templates.ts`.
+- The floor is killed / (killed + timeout + survived) >= 85%.
+  Keep timeout separate from killed in the report.
+- Run alone, in the foreground, from `packages/auth`:
+
+```bash
+mutate_files=$(
+  git diff --relative --name-only \
+    stack/t09...HEAD -- src | paste -sd,
+)
+flock /tmp/mutation.lock \
+  npx stryker run --mutate "$mutate_files"
+```
