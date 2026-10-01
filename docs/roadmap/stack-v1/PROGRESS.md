@@ -419,7 +419,7 @@ npx --no-install stryker run \
   Verify: `vp run jobs#test`: a rolled-back request
   adds no job; a failing job retries; nothing hangs
   on PGlite's one connection.
-- **t09 mail stack piece** -- [ ] blocked by: t08
+- **t09 mail stack piece** -- [ ] writer: stack/t09; t08 landed
   `@tinker/mail`: the app calls `sendMail` with a
   React Email template and its props. That adds a
   mail job, which renders and sends through Upyo,

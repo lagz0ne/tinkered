@@ -36,7 +36,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
-- **stack/t09 mail** — `@tinker/mail`: `sendMail` adds a mail job; Upyo sends; dev logs, tests mock (ADR 0083). After t08. Verify: one mail per commit, none per rollback; a missing `MAIL_URL` fails boot in prod. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t11 auth-mails** — verify and reset mails through `sendMail`. After t09 and t10. Verify: auth tests read both mails from the mock and follow their links. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t15 server-pages** — the tracker's list page renders on the server with TanStack Router (ADR 0075). After t14. Verify: the browser test sees the list in the first HTML, then live updates. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t16 generator** — `vp create` writes a full app with every stack piece wired (ADR 0074). After t01, t02, t11, t12, t13, t15. Verify: a fresh app passes `vp check` and its tests, and boots in dev and prod. [track](docs/roadmap/stack-v1/PROGRESS.md).
@@ -45,6 +44,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **stack/span-kinds** — OTLP span kind from the driver: hono marks server spans, http client spans, nats producer and consumer spans; today every span exports INTERNAL. Next: settle where the kind hint lives (ADR 0076 §5 left it open) after core/traceparent. Verify: the sink test sees SERVER / CLIENT / PRODUCER / CONSUMER per driver.
 
 ## Doing
+
+- **stack/t09 mail** — Owner: writer stack/t09.
+  Next: add mail, its queue row, and public tests.
+  Verify: mail/jobs/stack gate, release lanes, mail mutation >= 85.
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
