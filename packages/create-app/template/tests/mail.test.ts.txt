@@ -1,0 +1,49 @@
+import { createScope } from "@tinker/core";
+import { createJobsClock } from "@tinker/jobs/testing";
+import { createMailMock } from "@tinker/mail/testing";
+import { createTestDatabase } from "@tinker/stack";
+import { expect, test } from "vite-plus/test";
+import { createJobs, createMail, databaseConfig, migrations } from "../src/index.ts";
+
+test("welcome mail reaches the mock with its React Email text", async () => {
+  const template = await createTestDatabase(migrations);
+  const client = await template.clone();
+  const clock = await createJobsClock("2030-01-01T00:00:00Z");
+  const post = createMail({});
+  const mock = createMailMock(post.backend);
+  const work = createJobs({}, [post.job]);
+  const sendMail = post.sendMail(work.send);
+  const scope = createScope({
+    tags: [databaseConfig({ client }), mock.binding, clock.binding],
+    extensions: [post.extension, work.extension],
+  });
+  try {
+    await scope.ready;
+    await scope.session((session) =>
+      session.run(sendMail, {
+        input: {
+          template: "welcome",
+          props: { name: "Ada" },
+          to: "ada@example.com",
+          subject: "Welcome",
+        },
+      }),
+    );
+    await clock.advance(1000);
+    await expect
+      .poll(async () => (await client.query("select state from pgboss.job")).rows)
+      .toEqual([{ state: "completed" }]);
+    expect(mock.sent()).toMatchObject([
+      {
+        to: ["ada@example.com"],
+        subject: "Welcome",
+        text: "Hello Ada!",
+        html: expect.stringContaining("Hello Ada!"),
+      },
+    ]);
+  } finally {
+    await scope.close({ graceful: true });
+    await client.close();
+    await template.close();
+  }
+});

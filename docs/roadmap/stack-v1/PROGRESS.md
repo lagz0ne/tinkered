@@ -5818,3 +5818,11 @@ eq: (a, b) => a.length === b.length;
 - Both tests use the jobs clock and wait for saved rows.
 - Fresh app: 6 tests pass; generator: 12 pass.
 - Next: React Email and the mail mock.
+
+### t16 mail
+
+- Mail registers one app-owned React Email template.
+- Its job shares the app's queue and transaction.
+- The test mock receives the rendered HTML and text.
+- Fresh app: 7 tests pass; generator: 12 pass.
+- Next: auth routes, pages, and schema checks.

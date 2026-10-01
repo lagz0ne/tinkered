@@ -1,0 +1,11 @@
+import { createElement } from "react";
+import { Html, Text } from "react-email";
+import { mail } from "@tinker/mail";
+
+function Welcome(props: { name: string }) {
+  return createElement(Html, null, createElement(Text, null, `Hello ${props.name}!`));
+}
+
+export function createMail(env: NodeJS.ProcessEnv) {
+  return mail({ welcome: Welcome }, { env, from: "team@example.com" });
+}

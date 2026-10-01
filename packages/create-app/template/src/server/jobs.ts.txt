@@ -1,5 +1,5 @@
 import { operation } from "@tinker/core";
-import { job, jobs } from "@tinker/jobs";
+import { job, jobs, type Jobs } from "@tinker/jobs";
 import { readNote } from "../shared/notes.ts";
 import { receipts } from "./schema.ts";
 import { database, transaction } from "./store.ts";
@@ -16,9 +16,9 @@ const dailyReceipt = operation({
   run: ({ tx }) => tx.insert(receipts).values({ title: "Daily check" }).onConflictDoNothing(),
 });
 
-export function createJobs(env: NodeJS.ProcessEnv) {
+export function createJobs(env: NodeJS.ProcessEnv, rows: Jobs.Row[] = []) {
   return jobs(
-    [job("receipt", saveReceipt), job("daily-check", dailyReceipt, { cron: "0 9 * * *" })],
+    [...rows, job("receipt", saveReceipt), job("daily-check", dailyReceipt, { cron: "0 9 * * *" })],
     { env, pglite: database, tx: transaction },
   );
 }
