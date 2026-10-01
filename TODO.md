@@ -41,7 +41,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **authoring/hooks** — keep the new hook API while merging landed stack/t18.
   Owner: lead (authoring session); Astra Stack writer, xhigh.
-  Next: keep root-signal shutdown, migrate new hook tests, then rerun gates and land.
+  Next: wait for the isolated Stack fault gate, then verify main and push.
   Verify: all current calls use event hooks; build/check, consumers, release,
   and a fresh isolated Stack fault score of at least 85.
   [Track](docs/roadmap/authoring-model/HOOKS.md).
