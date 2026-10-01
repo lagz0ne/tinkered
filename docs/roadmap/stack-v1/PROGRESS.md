@@ -5574,3 +5574,42 @@ No build runs in that tree while the job waits or runs.
 - The latest Router pin was refused by the one-day install rule.
   Kept the rule and pinned `1.170.40` from the brief.
 - Next: finish browser checks, commit, rebase, then all gates.
+
+### t15 page boot and final browser proof
+
+- Rebased onto `origin/main` at `c125c72b`.
+- The gate passed after the rebase; `EXIT 0`.
+  Build, check, Stack 143, Hono 93, tracker 104.
+  Check: zero errors and 28 warnings, as on the base.
+- Four fresh browser runs passed; no cache was used.
+  Each run also passed the seven browser helper tests.
+  The first list appears while client scripts are held.
+  Live updates follow hydrate; reconnect and drafts still work.
+- A first SSE failure still shows the old dead page.
+  Its Reconnect button restores the list.
+- Dev proof: a page edit changes HTML and closes the old root.
+- Found and fixed a 404 boot wait that never finished.
+  Its test times out without the fix and passes with it.
+  React now reports ready from each page's own content.
+  Reporting ready above Router starts SSE before that content.
+- Jev: no new code flags and no missing README promises.
+  Stack has zero gaps among 75 titles.
+  Tracker has zero gaps among 85 titles.
+  The Discard promise is now stated in the README.
+- The five inherited code flags already have saved labels.
+  The old helper counts are unchanged in untouched tests.
+  No new label was added; noisy notes need no label.
+- Strict style and TSDoc checks passed.
+- Proof logs use `stack-t15-ship-` in the briefs cache.
+  The 404 red proof is `stack-t15-404-red.log`.
+- Core feedback: rule 8 marks the native React ready hook.
+  A resource cannot say when React kept the server HTML.
+  Moving this signal above the page let SSE change the HTML
+  before React kept it; the list identity test failed.
+
+```tsx
+useEffect(() => props.ready?.(), [props.ready]);
+```
+
+- Next: changed-file fault runs and full validation.
+  Saved work will wait for lead review; no push is allowed.
