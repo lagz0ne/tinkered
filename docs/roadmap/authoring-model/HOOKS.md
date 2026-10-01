@@ -1,7 +1,7 @@
 # One extension hook shape
 
 Date: 2026-09-30.
-Status: Done.
+Status: Review; merging the newly landed shutdown code.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -220,3 +220,13 @@ Core remains 16,275 bytes gzip at the 16,384-byte cap.
 The final tag is `core/tauthoring-hooks`.
 The card moves from Review to Done after this proof is observed.
 Main logs are `/tmp/tinkered-hooks-main-{install,build,check,tests,prose,size}.log`.
+
+## Landed t18 impact before the merge
+
+Remote main `23f0ccce` lands stack/t18 before the hooks push.
+Keep its root signal and exit-code behavior and all new regression tests.
+Its public `runUntilStop` removal stays; the tracker uses `createScope({ signal })`.
+Merge in a private checkout and convert any new flat hooks to event hooks.
+Stack source and tests need fresh normal checks and an isolated fault score.
+Other package scores may carry forward only when inputs and runtime modules match.
+The final build, check, consumer tests, prose, caller audit, and release lanes must rerun.

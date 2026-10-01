@@ -39,6 +39,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **authoring/hooks** — keep the new hook API while merging landed stack/t18.
+  Owner: lead (authoring session); Astra Stack writer, xhigh.
+  Next: keep root-signal shutdown, migrate new hook tests, then rerun gates and land.
+  Verify: all current calls use event hooks; build/check, consumers, release,
+  and a fresh isolated Stack fault score of at least 85.
+  [Track](docs/roadmap/authoring-model/HOOKS.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -93,14 +100,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
-
-- **authoring/hooks** — removed all positional extension hooks and migrated current callers.
-  Owner: lead (authoring session); Astra writers, xhigh, one package each.
-  Proof: build/check, all 28 test tasks, prose, and all 48 release lanes pass.
-  All 14 isolated fault scores meet 85; merged Hono is 91.38 and Stack is 86.00.
-  All 205 current extension calls use event hooks; Core is 16,275 bytes gzip.
-  Main's fresh checks pass; local review notes stay in place.
-  [Track](docs/roadmap/authoring-model/HOOKS.md).
 
 - **examples/standalone** — all eleven examples run on their own.
   Owner: lead (Codex); Astra writers; Opus 5.5 READY.
