@@ -2936,6 +2936,7 @@ MUTATION_EXIT 0
   Copies are in `/home/paseo/.cache/tinkered-briefs`.
 - Status: Review; next is lead review and landing.
   Nothing was pushed.
+
 ## t10 writer work
 
 - Owner: stack/t10 writer (Codex), branch `stack/t10`.
@@ -3444,3 +3445,65 @@ await closing;
 - Saved log and JSON: `stack-t10-resume-hono-mutation`
   in the briefs cache, with `.log` and `.json` endings.
 - Next: finish validation, then hand the branch to the lead.
+
+### Refreshed main after the lock waits — 2026-10-01
+
+- Main moved during the two mutation lock waits.
+  Fetched and rebased again onto `23f0ccce`.
+  This keeps the landed t18 root exit code work
+  and the separate example projects.
+- Only the progress notes conflicted on this refresh.
+  Keep all t18 proof, then append the t10 proof.
+  Fixed one missing blank line found by the format check.
+- Installed again and ran the full gate from the new base.
+  Build, check, auth, Hono, stack: `EXIT 0`.
+  Auth: 16 tests; Hono: 91; stack: 114.
+- Every repo test task ran uncached: 29 tasks passed.
+  Core: 790 tests; tracker: 79.
+  One existing repo test is skipped; no authored test is skipped.
+- Tracker browser proof ran once on this refreshed base,
+  uncached, followed by all 7 helper tests: `EXIT 0`.
+- Check: no errors and 28 warnings.
+  A fresh main worktree at `23f0ccce` has the same result.
+  Removed that check worktree after seeing `EXIT 0`.
+- Kept the completed full mutation results.
+  Assumption: proof stays valid when its inputs stay the same.
+  Compared every reported mutation source with the current file.
+  Auth, Hono, Core, and Drizzle trees are unchanged,
+  including their tests, package configs, and peer code.
+  The lockfile changed only the example project entries.
+  All package versions and snapshots are unchanged.
+  Auth tests use Stack's server and test database exports.
+  Those files and their called helpers are unchanged.
+  Stack's entry replaces an unused stop export with
+  an unused exit code export; both only declare functions.
+  The new root run config only changes task caching.
+- Auth mutation: killed 77, timeout 0, survived 13.
+  No coverage 0, errors 0; killed-only 85.56 percent.
+- Hono mutation: killed 405, timeout 0, survived 62.
+  No coverage 2, errors 0; killed-only 86.72 percent.
+  Stryker's score with uncovered changes is 86.35 percent.
+  Both full lanes ran alone under the lock and ended `EXIT 0`.
+- Fresh strict census, TSDoc, prose, and SCIP refs pass.
+  The Hono source from the trace reader to the end
+  still matches main exactly.
+- Fresh Jev: no file flags or missing README promises.
+  Auth: zero of 11 titles flagged; Hono: zero of 91.
+  Seven Hono promise matches are unsure, not missing.
+  Plain local-unit notes keep each auth piece's identity.
+  The three Hono state labels remain false:
+  `serveRequests`, `serveAfterTags`, and `serveSession`
+  own request preparation, the reply, and cleanup.
+  Main's unchanged stream keeps its false effect label.
+  The noisy answer-route note needs no label.
+- Logs in the briefs cache start with
+  `stack-t10-resume-refreshed-`:
+  gate, main-check, Jev, style, refs, and validation.
+- Refreshed validation: all 50 lanes pass, `EXIT 0`.
+  Rebuilt before running it and restored the workspace file.
+  The earlier validation also passed all 50 lanes.
+- Status: Review; next is lead review.
+  No push; all owned jobs ended in this turn.
+  No runtime source changed after the full mutation runs.
+- Core feedback is unchanged: the failing close snippet above
+  shows why Hono still wraps close before session admission ends.
