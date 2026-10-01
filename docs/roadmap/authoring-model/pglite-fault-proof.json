@@ -32,7 +32,19 @@
       "checkedInputs": 16,
       "inputsSha256": "2a7331f2210aea0dbb8c6e6fd62476db440dee499fc059f219694c8eb9181698",
       "status": "pending",
-      "rerun": true
+      "rerun": true,
+      "testRunnerNodeArgs": ["--no-wasm-code-gc"],
+      "attempts": [
+        {
+          "exitCode": 1,
+          "phase": "initial test run",
+          "signal": "SIGILL",
+          "runtime": "Node 24.21.0",
+          "cause": "V8 Wasm cleanup assertion matches nodejs/node#66366",
+          "issue": "https://github.com/nodejs/node/issues/66366",
+          "log": "/tmp/tinkered-pglite-mutation-node24-crash.log"
+        }
+      ]
     },
     {
       "name": "harness",

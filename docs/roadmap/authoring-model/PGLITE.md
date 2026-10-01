@@ -150,6 +150,11 @@ The root check has the same 28 existing warnings and 0 errors.
 Frozen inputs cover all 14 packages.
 Thirteen packages retain identical source, tests, settings, and built modules.
 Their existing fault scores remain valid.
-Drizzle needs its fresh isolated fault lane; it is pending.
+Drizzle needs its fresh isolated fault lane; the retry is pending.
+The first attempt exited 1 during the initial tests with Node `SIGILL`.
+Its Wasm cleanup assertion matches [Node issue 66366](https://github.com/nodejs/node/issues/66366).
+The retry passes `--testRunnerNodeArgs "--no-wasm-code-gc"`.
+Only the test process receives the flag; code, tests, and floor stay unchanged.
+The crash log is `/tmp/tinkered-pglite-mutation-node24-crash.log`.
 Five Jev labels are saved; full calibration completed with exit 0.
 [Package input and fault proof](pglite-fault-proof.json).
