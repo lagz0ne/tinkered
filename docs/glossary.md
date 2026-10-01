@@ -215,6 +215,10 @@ New sections are lists, one term per item (vertical layout,
 
 ## Authoring: factories and units (ADR 0057)
 
+- **graph module** — A reusable set of graph units for an app goal,
+  with extensions where the module must drive work.
+- **host adapter** — Code that connects an app's Core graph to a process or view,
+  binding its outside inputs and lifetime.
 - **unit** — An `operation`, `resource`, data cell,
   or `tag`. Its identity is its cache key: core
   keys builds, cell state, controllers, and presets
@@ -241,6 +245,8 @@ New sections are lists, one term per item (vertical layout,
 
 ## Process entrypoint (`@tinker/process`, ADR 0096)
 
+- **Process** — A CLI host adapter: app entry support that routes commands,
+  binds process tags, and waits for Core root cleanup before returning an exit code.
 - **process tags** — `argv`, `env`, `io`, and `stop`:
   static bindings for one run's arguments, environment,
   writers, and borrowed root stop function.

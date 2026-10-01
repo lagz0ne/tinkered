@@ -1,8 +1,19 @@
 # @tinker/process
 
+Process is app entry support: a CLI adapter that connects a command line app to Core.
+The app declares its operations, resources, and extensions.
+Process supplies routing, process tags, and one root's startup and shutdown.
+
 A command is a Core operation that returns an exit code.
 A service starts through Core extensions and waits for its root to close.
 Process routes first, owns one root, and reads cleanup before returning.
+
+`main` binds host args, env, output, and signals.
+`run` takes those facts from a caller, so tests can run the same app entry.
+The reusable job is to return a code after Core cleanup completes.
+`usageOf`, `positionals`, and `jsonLine` support that job.
+
+See the [package roles](../../docs/best-practices.md#give-the-package-a-job).
 
 ```ts
 import { operation } from "@tinker/core";

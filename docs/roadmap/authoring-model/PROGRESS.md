@@ -925,3 +925,27 @@ Main fast-forwarded to `a2d25d8d` after the checked fault lanes.
 Its fresh install, build, check, 48 Process tests, and prose pass, exit 0.
 All fault input hashes match main too.
 The other pending notes keep their saved bytes; no peer work was staged.
+
+## Process is app entry support
+
+The user settled Process's role after a review of its public API and callers.
+It is a CLI host adapter, connecting the app's graph to a command line entry.
+The app declares operations, resources, and extensions.
+Process supplies routes, process tags, signals, and one root's lifetime wiring.
+Core performs startup, work, and cleanup.
+Process returns an exit code after that cleanup and lets pending output finish.
+
+The authoring guide now names graph modules, host adapters, and helper libraries.
+A helper-only library does not earn a `@tinker/*` package.
+Graph builders count by the units they declare.
+Process and React qualify through their Core host bindings.
+Tags alone do not justify a graph module.
+
+The Process README and glossary record the settled role.
+ADR 0096 and the public API keep their existing meaning.
+No runtime, test, package name, or import path changed.
+
+Proof: `vp run prose` passes with 0 hits across all 174 tracked docs.
+The phone-width check passes all five touched docs with 0 wide rows or lines.
+`git diff --check` passes.
+The lead's Process review passed all 48 tests and the strict style census.

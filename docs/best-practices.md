@@ -28,6 +28,28 @@ A pure helper may take and return values.
 View state and editor handles may belong to their mounted view.
 Do not add an extension to a pure helper or a thin view adapter.
 
+## Give the package a job
+
+- **Graph module** — supplies reusable graph units or a builder that declares them.
+  Use an extension when the module must drive work toward its goal.
+  HTTP supplies actions; Drizzle's PGlite entry supplies resources and a migration action.
+- **Host adapter** — connects an app's graph to process or view inputs and lifetime.
+  Process supplies command line entry support.
+  React connects Core state and sessions to mounted views.
+- **Helper library** — supplies plain functions that take and return values.
+  Keep helpers in the package that uses them.
+  A helper-only library does not earn a `@tinker/*` package.
+
+The precedent is a Unix main entry: read inputs, run work, clean up, return a code.
+Process is that app entry adapter; the app supplies the graph.
+Its tags carry args, env, writers, and a stop request into that graph.
+Its shared job is routing and waiting for Core cleanup before returning a code.
+Formatting and parsing helpers support that job.
+
+A function that declares a graph, such as `harness()`, is a graph builder.
+Judge a package by the reusable job its public API supplies.
+Tags alone do not turn a helper library into a graph module.
+
 ## Keep lifetime with its owner
 
 The precedent is request middleware and a database transaction.
