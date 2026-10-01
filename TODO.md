@@ -49,12 +49,11 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t15 server-pages** — owner: t15 writer.
-  Next: lead reviews and lands `stack/t15`; no push.
-  Verify: gate `EXIT 0`; Stack 152, Hono 93, tracker 128;
-  four fresh browser proofs; validation 54/54.
-  Changed-file killed shares: Stack 86.02%, tracker 85.83%.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
+Next: lead reviews and lands `stack/t15`; no push.
+Verify: gate `EXIT 0`; Stack 152, Hono 93, tracker 128;
+four fresh browser proofs; validation 54/54.
+Changed-file killed shares: Stack 86.02%, tracker 85.83%.
+[Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Hook loggers replace the boot log workarounds.
 Next: lead review and landing; the writer never pushed.
@@ -137,6 +136,7 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Done
 
+- **stack/t15 server-pages** — the tracker's pages render on the server with TanStack Router 1.170.40 (pinned) under one Hono route: `@tinker/stack`'s `pages()` piece reads the page's cells in the request's session, renders, and streams the HTML through Hono's `stream`, so the session stays open until the stream ends and commits then (ADR 0084); the browser boots from those values, then the SSE wire takes over; 404 pages stay server pages; the dev host renders pages through Vite and an edit shows on reload. Proof: gate EXIT 0 (stack 152, hono 93, tracker 128; 0 errors, 28 warnings), browser proof 4/4, changed-file mutation stack 86.02% (203/2/31), tracker 85.83% (327/3/51), validate 54/54. Lead review. Sol writer 3dc1eaaa. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/package-roles** — all 16 package roles checked.
   Removed unused `utils`; Drizzle and React entries name their roles.
   Opus high review READY; build, check, full tests, and 54 release checks pass.

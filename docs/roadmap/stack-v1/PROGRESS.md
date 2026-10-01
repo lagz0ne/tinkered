@@ -474,7 +474,7 @@ npx --no-install stryker run \
   Verify: a test edits a server file: the old scope
   closes, the new one serves, nothing leaks;
   `benchctl ab` says a reload beats a restart.
-- **t15 server pages** -- [ ] owner: t15 writer; t14 landed
+- **t15 server pages** -- [x] landed (blocked by: t14)
   The tracker's list page renders on the server
   with TanStack Router under one Hono route
   (ADR 0075). Its cells cross to the browser
