@@ -76,7 +76,7 @@ No generic CRUD operations or empty extension are needed.
   Verify: tracker tests and browser-helper tests.
 - **p03 standalone example** — [x] blocked by: p01.
   Show direct imports, namespace settings, and app operations.
-  Verify: check/test/start, repeated tours, standalone export check.
+  Verify: check/test/start, repeated runs, standalone export check.
 - **p04 review and land** — [x] blocked by: p02, p03.
   Review the combined change and run the final gates by exit code.
   Verify: full build/check/tests, prose, release checks,

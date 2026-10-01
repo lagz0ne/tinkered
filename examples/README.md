@@ -29,6 +29,21 @@ Each README lists the other commands and the output to expect.
 The default runs use local data or public fakes.
 Live AI and service commands need your own account settings.
 
+## Write an entry
+
+Declare graph units at module scope and export them through `index.ts`.
+Put the executable body inside `if (import.meta.main)`.
+Imports start no work and add no process listeners.
+Do not export a helper that runs the whole example and returns its answer.
+Tests create their own roots from the exported units.
+
+The main entry owns its stop signal.
+It handles SIGINT and SIGTERM, then removes its listeners on exit.
+Its `finally` block stops the root and awaits `closed`.
+Check the close result so a cleanup error fails a successful command.
+Process command entries use `main(shell)` for the same ownership.
+Browser entries use their component's lifetime.
+
 ## Run outside this repo
 
 The libraries are not on npm yet.

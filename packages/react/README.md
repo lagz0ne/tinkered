@@ -16,7 +16,7 @@ vp install
 
 ## 60-second example
 
-`examples/react/basic.tsx` is a cast-free tour. The shape:
+`examples/react/basic.tsx` is a cast-free example. The shape:
 
 ```tsx
 const count = data({ label: "count", initial: 0 });

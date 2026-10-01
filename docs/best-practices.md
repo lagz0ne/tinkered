@@ -189,6 +189,43 @@ Use Core's root lifetime: pass a signal and await `closed`.
 Do not close a root again after its `ready` rejects.
 Do not pass its handle through app helpers.
 
+An executable example runs only inside `if (import.meta.main)`.
+Its index exports static graph units, not a helper that runs the whole example.
+Its tests create small roots from those units.
+The main guard owns process listeners, output, and cleanup.
+Command examples let Process `main` own their command roots.
+
+```ts
+import { createScope, operation } from "@tinker/core";
+
+const hello = operation({
+  label: "hello",
+  run: () => "hello",
+});
+
+if (import.meta.main) {
+  const stop = new AbortController();
+  const requestStop = () => stop.abort();
+  process.once("SIGINT", requestStop);
+  process.once("SIGTERM", requestStop);
+  const root = createScope({ signal: stop.signal });
+  try {
+    await root.ready;
+    process.stdout.write(`${root.run(hello)}\n`);
+  } finally {
+    stop.abort();
+    const end = await root.closed;
+    process.removeListener("SIGINT", requestStop);
+    process.removeListener("SIGTERM", requestStop);
+    if (end.status === "failed") throw end.error;
+    if (end.teardownErrors?.length) {
+      const [error] = end.teardownErrors;
+      throw error;
+    }
+  }
+}
+```
+
 Declare domain operations and resources outside request bodies.
 Helpers over values may parse, format, or transform those values.
 A driver receives the root through its extension event.
