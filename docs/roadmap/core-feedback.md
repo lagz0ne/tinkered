@@ -597,7 +597,13 @@ Proof: kitchen-01 worker-3-attempt-1 check-1, teacher 52/53.
 
 - An extension's `start` ctx logs nowhere: `ctx.log` there is `OFF_LOG`, so a boot line is dropped even with an observe sink. Stack pieces write to the sink directly. The hono workaround (a resource's logger) adds one `hono.errors` span per scope at boot; it goes when core/start-log lands.
   From: stack/t05, stack/t02 (hono.errors span), stack/t07
-  State: **ticket** — core/start-log (after stack/t04)
+  State: **done** — core/start-log (2026-10-01, 758efce5); the stack pieces drop their workarounds in stack/start-log-cleanup
+
+- A tagged `settle` that ended in place returns a plain `Result`, yet TypeScript lets the caller
+  write `.then` on it; at runtime `pending.then` is not a function (ADR 0072 returns
+  `T | Promise<Awaited<T>>`). The jobs test wraps it in `Promise.resolve(pending)` first.
+  From: stack/t08
+  State: candidate
 
 - W3C `traceparent` parsing and formatting now lives in three packages (hono reads it, http writes it, nats does both). One shared helper, beside the trace types, would keep them in step.
   From: stack/t04 (hono, http), stack/t13 (nats)

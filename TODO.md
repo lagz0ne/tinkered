@@ -43,6 +43,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 - **stack/span-kinds** — OTLP span kind from the driver: hono marks server spans, http client spans, nats producer and consumer spans; today every span exports INTERNAL. Next: settle where the kind hint lives (ADR 0076 §5 left it open) after core/traceparent. Verify: the sink test sees SERVER / CLIENT / PRODUCER / CONSUMER per driver.
 
+- **stack/start-log-cleanup** — core/start-log landed (758efce5), so the stack pieces drop their workarounds: hono's resource logger and its `hono.errors` boot span, the server piece's direct "listening" sink write and `readExitCode`'s `clock` parameter, and the direct sink writes in nats, jobs, and the trace sink; each logs through `event`/`ctx.log` in its start or close hook. Next: brief a Sol writer. Verify: no direct sink writes left for start or close logs (rg), the `hono.errors` span gone from span trees, every package's tests pass, changed-files mutation ≥ 85.
+
 ## Doing
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
