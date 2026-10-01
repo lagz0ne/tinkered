@@ -3,25 +3,35 @@ import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
-import { createScope, LEVELS, operation, type Observe } from "@tinker/core";
-import { drizzleStore } from "@tinker/drizzle";
+import { createScope, LEVELS, operation, resource, tag, type Observe } from "@tinker/core";
+import { createQueryLogger, openTransaction } from "@tinker/drizzle";
 import { emit, errorResponses, hono, isError, route, stream } from "../src/index.ts";
 
 const issues = pgTable("issues", { title: text("title").notNull() });
-const store = drizzleStore({
-  label: "issues",
-  open: async (_config: null, { logger }) => {
-    const db = drizzle({ client: new PGlite(), logger });
+const databaseConfig = tag<null>({ label: "issues.config" });
+const database = resource({
+  label: "issues.db",
+  target: "scope",
+  depends: { config: databaseConfig },
+  factory: async (_deps, ctx) => {
+    const client = new PGlite();
+    ctx.defer(() => client.close());
+    const db = drizzle({ client, logger: createQueryLogger(ctx) });
     await db.execute(sql`create table issues (
       title text not null unique deferrable initially deferred
     )`);
     return db;
   },
-  close: (db) => db.$client.close(),
+});
+const transaction = resource({
+  label: "issues.tx",
+  target: "session",
+  depends: { db: database },
+  factory: ({ db }, ctx) => openTransaction(db, ctx),
 });
 const duplicate = operation({
   label: "duplicate",
-  depends: { tx: store.tx },
+  depends: { tx: transaction },
   run: async ({ tx }) => {
     await tx.insert(issues).values([{ title: "A" }, { title: "A" }]);
     return "ok";
@@ -29,7 +39,7 @@ const duplicate = operation({
 });
 const save = operation({
   label: "save",
-  depends: { tx: store.tx },
+  depends: { tx: transaction },
   run: async ({ tx }) => {
     await tx.insert(issues).values({ title: "A" });
     return "ok";
@@ -50,7 +60,7 @@ test("a failed commit answers 500, logs one line, and saves nothing", async () =
     route.post("/issues", duplicate, { respond: (value, c) => c.text(value, 201) }),
   ]);
   const scope = createScope({
-    tags: [store.config(null)],
+    tags: [databaseConfig(null)],
     extensions: [web],
     observe: { log: (entry) => logs.push(entry) },
   });
@@ -59,7 +69,7 @@ test("a failed commit answers 500, logs one line, and saves nothing", async () =
     const response = await scope.resolve(web).request("/issues", { method: "POST" });
     expect(response.status).toBe(500);
     expect(await response.text()).toBe("internal");
-    const db = await scope.resolve(store.db);
+    const db = await scope.resolve(database);
     expect(await db.select().from(issues)).toEqual([]);
     expect(logs.filter((entry) => entry.message === "request failed")).toMatchObject([
       { level: LEVELS.error, attributes: { method: "POST", path: "/issues" } },
@@ -86,7 +96,7 @@ test("a failed commit drops the built answer's headers", async () => {
         }),
     }),
   ]);
-  const scope = createScope({ tags: [store.config(null)], extensions: [web] });
+  const scope = createScope({ tags: [databaseConfig(null)], extensions: [web] });
   try {
     await scope.ready;
     for (const path of ["/context", "/response"]) {
@@ -108,14 +118,14 @@ test("a save followed by a mapped 409 rolls back and keeps the mapped answer", a
       IssueConflict: { status: 409, body: ({ title }) => ({ message: "reload", title }) },
     }),
   });
-  const scope = createScope({ tags: [store.config(null)], extensions: [web] });
+  const scope = createScope({ tags: [databaseConfig(null)], extensions: [web] });
   try {
     await scope.ready;
     const response = await scope.resolve(web).request("/issues", { method: "POST" });
     expect(response.status).toBe(409);
     expect(response.headers.get("content-type")).toBe("application/json");
     expect(await response.text()).toBe('{"message":"reload","title":"A"}');
-    const db = await scope.resolve(store.db);
+    const db = await scope.resolve(database);
     expect(await db.select().from(issues)).toEqual([]);
   } finally {
     await scope.close();
@@ -126,7 +136,7 @@ test("a save followed by an unmapped error answers 500 and rolls back", async ()
   const logs: Observe.Log[] = [];
   const { extension: web } = hono([route.post("/issues", saveThenRaise)]);
   const scope = createScope({
-    tags: [store.config(null)],
+    tags: [databaseConfig(null)],
     extensions: [web],
     observe: { log: (entry) => logs.push(entry) },
   });
@@ -135,7 +145,7 @@ test("a save followed by an unmapped error answers 500 and rolls back", async ()
     const response = await scope.resolve(web).request("/issues", { method: "POST" });
     expect(response.status).toBe(500);
     expect(await response.text()).toBe("internal");
-    const db = await scope.resolve(store.db);
+    const db = await scope.resolve(database);
     expect(await db.select().from(issues)).toEqual([]);
     expect(logs.filter((entry) => entry.message === "request failed")).toMatchObject([
       { attributes: { kind: "IssueConflict" } },
@@ -154,11 +164,11 @@ test("a successful save commits before its answer arrives", async () => {
       },
     }),
   ]);
-  const scope = createScope({ tags: [store.config(null)], extensions: [web] });
+  const scope = createScope({ tags: [databaseConfig(null)], extensions: [web] });
   try {
     await scope.ready;
     const response = await scope.resolve(web).request("/issues", { method: "POST" });
-    const db = await scope.resolve(store.db);
+    const db = await scope.resolve(database);
     expect(await db.select().from(issues)).toEqual([{ title: "A" }]);
     expect(response.status).toBe(201);
     expect(response.headers.get("x-saved")).toBe("yes");
@@ -184,7 +194,7 @@ test("a stream whose commit fails errors its body and logs one line", async () =
     route.get("/stream", ready, { respond: (_value, c) => stream(c, body) }),
   ]);
   const scope = createScope({
-    tags: [store.config(null)],
+    tags: [databaseConfig(null)],
     extensions: [web],
     observe: { log: (entry) => logs.push(entry) },
   });
@@ -202,7 +212,7 @@ test("a stream whose commit fails errors its body and logs one line", async () =
     );
     if (!isError(error, "RequestCloseFailed")) throw error;
     expect(error.payload.result.teardownErrors).toMatchObject([{ code: "23505" }]);
-    const db = await scope.resolve(store.db);
+    const db = await scope.resolve(database);
     expect(await db.select().from(issues)).toEqual([]);
     expect(logs.filter((entry) => entry.message === "request failed")).toMatchObject([
       { level: LEVELS.error, attributes: { method: "GET", path: "/stream" } },
