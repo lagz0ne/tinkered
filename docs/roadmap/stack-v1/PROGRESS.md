@@ -5643,3 +5643,21 @@ useEffect(() => props.ready?.(), [props.ready]);
   Kept both tracks' proof notes when their appends conflicted.
 - Next: rebuilt gate, four browser runs, fresh fault runs,
   and full validation on this base.
+
+### t15 final gate and Stack faults
+
+- Gate on `7e75db1b`: build, check, Stack 152,
+  Hono 93, and tracker 104 passed; `EXIT 0`.
+- Check has 28 warnings, as the base did.
+- Four fresh browser runs passed; each also passed
+  its seven browser helper checks.
+- `pnpm validate`: all 54 lanes passed; `EXIT 0`.
+- Strict style and TSDoc checks passed.
+- Stack faults: 203 killed, 2 timeout, 29 survived,
+  2 uncovered, and 1 runner error.
+  The strict killed share is 203 / 236 = 86.02%.
+  Timeouts and uncovered faults count against that share.
+  Runner errors get no kill credit.
+- Jev saved the stream cleanup label for `syncBody`.
+  The SSE wire owns its abort cleanup and is awaited.
+- Next: tracker changed-file faults, then lead review.
