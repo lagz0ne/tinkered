@@ -892,3 +892,31 @@ The selected loader also stays outside the stop path.
 The proposal keeps process tags and lazy routes, removes live output
 collection, and lets extensions and Core own service lifetime.
 No runtime code or settled decision changed in this review.
+
+## Thin Process entries — checked 2026-10-01
+
+The user approved the smaller Process model.
+[Contract, impact, and full proof](PROCESS.md).
+Routes load a command action or a service's extension graph.
+`run` takes one object and returns a code; its caller owns the output.
+`main` reads the host facts and leaves final exit to the guarded app entry.
+Core owns start, stop, and cleanup on one root.
+All Blueprint, Tinkerer, tracker, Process, Process CLI, and MCP callers moved.
+No old public Result, executor, shell builder, or waiting action remains.
+
+Opus high reviewed the runtime and final test changes: READY.
+The lead's full build, check, and all 31 test tasks pass.
+The check has 0 errors and 28 existing warnings.
+The final Process suite passes 48 tests.
+Strict census and TSDoc pass on all 32 changed TypeScript files.
+Prose and the phone-width check pass on all 16 touched Markdown files.
+Jev lead review has 0 flags; no new label state was added.
+Three outside-repo example copies pass install, checks, tests, and run.
+
+Fresh full fault lanes pass: Process 86.00, Blueprint 86.23, Tinkerer 91.82.
+Every lane keeps the 85 floor and ran alone under the mutation lock.
+The final Process lane skipped no faults.
+Its 10 timeouts remove required setup or cleanup or create endless waits or loops.
+Targeted stop and failure checks killed all 23 faults without a timeout.
+All 54 deterministic release checks pass, exit 0.
+Fault source, test, and config hashes still match the saved inputs.

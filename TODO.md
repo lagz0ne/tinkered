@@ -50,14 +50,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **process/thin-entry** — route actions and services with native ownership.
-  Owner: lead (authoring session).
-  Writers: Astra xhigh, one package per turn; Opus high review.
-  Next: review the saved code; finish full and fault checks; land.
-  Verify: build, check, all tests, real pipe and stop probes, prose,
-  strict census, release checks, and affected package fault scores above 85.
-  [Track](docs/roadmap/authoring-model/PROCESS.md).
-
 Next: lead reviews and lands the saved branch.
 Verify: gate `EXIT 0`; auth 25, mail 13, jobs 26;
 Stack 114, tracker 80; all 31 test tasks; release 54/54.
@@ -132,6 +124,14 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **process/thin-entry** — native command and service ownership.
+  Object calls, static shells, caller-owned output, and guarded main entries.
+  All callers moved; Opus high review READY.
+  Proof: full build, check, 31 test tasks; Process 48; strict census and prose.
+  Fresh fault scores: Process 86.00, Blueprint 86.23, Tinkerer 91.82.
+  Release checks 54/54; three outside-repo example copies pass.
+  [Track](docs/roadmap/authoring-model/PROCESS.md).
 
 - **process/model-review** — basic jobs and extra layers reviewed.
   Proof: build, check, 50 tests, and strict style census pass.

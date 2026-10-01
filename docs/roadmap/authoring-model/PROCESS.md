@@ -1,6 +1,6 @@
 # Thin Process entries
 
-Status: Review; code saved and full checks pass.
+Status: Done; full checks and all affected fault lanes pass.
 Owner: authoring lead.
 Writers: Astra xhigh; one package per turn.
 Review: Opus high.
@@ -144,7 +144,7 @@ The final source includes the newer auth landing from `175c408b`.
 - Full build passes: 23 tasks.
 - Full check passes: 0 errors, 28 existing warnings.
 - Full tests pass: all 31 package and example tasks.
-- Process passes 44 tests; Blueprint passes 118 local tests.
+- Process passes 48 tests; Blueprint passes 118 local tests.
   Its one existing paid test stays skipped.
 - Tinkerer passes 103; tracker passes 82.
 - Process example passes 7; Process CLI passes 5; MCP passes 6.
@@ -164,5 +164,30 @@ Its coverage result overrode the disabled-coverage setting.
 Process now uses Stryker's built-in command runner.
 Each fault runs the whole suite; children inherit its native fault env port.
 The native child timeout is a cleanup bound, not a speed claim.
-A full Process lane, Blueprint lane, Tinkerer lane, and release checks are queued.
-Fault and release proof remains pending.
+The next Process run failed at 83.60, with no skipped faults.
+Its short outer limit produced 81 timeouts.
+The runner now uses two workers and a 30-second outer limit.
+Stronger checks prove pre-abort, sorted help, and graceful service cleanup.
+Four added cases cover loader stop races, in-root command cancellation,
+and an owned service task failing after startup.
+Opus high reviewed these checks at `bc779217`: READY.
+Targeted stop and failure checks killed all 23 faults, with no timeouts.
+
+- Blueprint's fresh full fault score passes at 86.23.
+  It killed 1,334 faults; 6 timed out; 157 survived; 57 had no coverage.
+- Tinkerer's fresh full fault score passes at 91.82.
+  It killed 659 faults; 26 timed out; 53 survived; 8 had no coverage.
+- All 54 release checks pass, exit 0.
+
+The final full Process lane passes at 86.00, exit 0.
+It killed 205 faults; 10 timed out; 35 survived; none were skipped.
+The floor remains 85, with every source file included.
+The lead read all 10 timeout changes:
+five remove command cleanup, two drop the root bindings,
+one leaves the loader waiting forever, and two make argument loops run backward.
+Each prevents promised work from starting or finishing.
+The targeted stop and failure checks killed all 23 faults without a timeout.
+
+The final 48-test suite, build, check, prose, census, and TSDoc pass.
+All fault input hashes still match the checked source and tests.
+Runtime source stayed fixed through the final review and fault runs.
