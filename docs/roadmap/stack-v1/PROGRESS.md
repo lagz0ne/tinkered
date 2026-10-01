@@ -4293,3 +4293,25 @@ This is new type feedback; no Core source changed.
   in the briefs cache.
 - Next: the focused timeout check, then both full
   mutation lanes alone under `/tmp/mutation.lock`.
+
+### t08 timeout ranges after the hook migration
+
+- Focused run: 75 killed, 0 timeout, 8 survived,
+  3 without coverage; `EXIT 0`.
+  Killed share: 90.36%; Stryker score: 87.21%.
+- The old timeout cases now print `[Killed]`:
+  fetch wait, worker registration, queue guard and body,
+  per-call database, queue setup function and loop,
+  and the error registry's throw body.
+- The queue check releases its real transaction owner.
+  Lifecycle checks poll entry and release the work gate.
+  No runtime behavior or mutation settings changed
+  to fix the timeouts.
+- Proof: `stack-t08-resume-jobs-timeout-ranges.log`
+  and its `.json` in the briefs cache.
+- One queued attempt used the wrong CLI list form.
+  Stopped only that waiting command and corrected it.
+  Stopped the next waiting attempt when hooks landed.
+  No running mutation lane was stopped.
+- Next: both full lanes, jobs first, then stack
+  after checking the t17 done file.
