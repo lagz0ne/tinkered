@@ -3803,6 +3803,7 @@ await closing;
 - All owned foreground jobs have finished.
   Commit by path; do not push. The lead reviews and lands.
 - Final log: `stack-t10-resume2-validate.log` in the briefs cache.
+
 ## t08 writer work
 
 - Owner: stack/t08 writer, branch `stack/t08`.
