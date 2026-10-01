@@ -72,3 +72,5 @@ by a new decision that names the old one.
 - [0093](0093-extension-hooks-use-the-event-form-only.md): extension hooks use one event form.
 
 - [0094](0094-databases-are-static-resources-not-store-frames.md): databases are static resources.
+
+- [0095](0095-drizzle-publishes-static-units-for-each-database.md): Drizzle publishes static database units.

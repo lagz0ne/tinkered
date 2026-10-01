@@ -38,6 +38,29 @@ SDK helpers inside a factory may connect, log, or bridge a transaction callback.
 They do not create a second graph or own a scope.
 A root owns the resources shared by its sessions.
 
+Import reusable static units from their package.
+For PGlite, the package supplies its settings and native resources:
+
+```ts
+import { namespace } from "@tinker/core";
+import { config, database, transaction } from "@tinker/drizzle/pglite";
+
+const issues = namespace({
+  tags: [
+    config({
+      kind: "open",
+      url: "./data/issues",
+    }),
+  ],
+});
+```
+
+App actions depend on `transaction` to share their session's work.
+The exported `migrate` action owns its transaction until commit or rollback.
+An app extension runs it before continuing startup.
+App tables and actions stay in the app.
+See the filled-in [Drizzle guide](../packages/drizzle/README.md).
+
 Resource targets choose sharing:
 
 - `scope`: one value for the root.
