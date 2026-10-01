@@ -46,13 +46,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **authoring/main-entries** — examples use guarded app entries.
-  Owner: lead (authoring session); Astra writers, one package per turn.
-  Next: export static units; move runs and cleanup into main guards.
-  Verify: example imports start nothing; entries exit after cleanup;
-  build, check, tests, prose, strict census, and release checks pass.
-  [Track](docs/roadmap/authoring-model/ENTRIES.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -110,6 +103,13 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **authoring/main-entries** — static exports and guarded app entries.
+  Proof: READY review; build, check, all 30 test tasks, and prose pass.
+  All ten fresh example copies and 52 release lanes pass.
+  Thirty imports start nothing; stop probes keep the finished reply.
+  Cleanup, strict style census, and TSDoc checks pass.
+  [Proof](docs/roadmap/authoring-model/ENTRIES.md).
 
 - **authoring/drizzle-pglite** — static PGlite units and a migration action.
   Tracker and example use namespace config and session transactions.

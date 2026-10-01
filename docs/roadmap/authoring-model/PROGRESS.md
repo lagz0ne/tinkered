@@ -854,3 +854,24 @@ Its install, build, check, 30 test tasks, prose, and 52 release checks pass.
 Drizzle, its Core runtime, and both SDK versions still match the fault run.
 The original frozen proof describes `3d61241c`; upstream owns the new Hono,
 Stack, Auth, and Jobs proof shown in the package proof's integration row.
+
+## Example app entries
+
+All ten command examples now export static graph units.
+Executable bodies sit inside main guards and own their cleanup.
+Tests create their own roots; importing an entry starts nothing.
+[Scope, impact, and proof](ENTRIES.md).
+
+Source `6de99118` has a READY Opus review with no bugs left.
+Build, check, all 30 test tasks, prose, and 52 release lanes pass.
+All ten changed examples also pass as fresh copies outside the repo.
+Thirty imports start no work and add no signal listeners.
+Strict style census and TSDoc checks pass.
+
+The stop probes found a separate Core graceful-close bug.
+Live entries keep the current reply, skip the next call, then close.
+Their recorded response probes pass without live account use.
+Harness preserves a failed reply's exit code after a stop request.
+The Core fix stays Ready as `core/graceful-writes`.
+No package runtime, package tests, or package build settings changed.
+Their existing fault and timing proofs remain valid.

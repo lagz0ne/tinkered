@@ -1,6 +1,6 @@
 # Example app entries
 
-Status: Review.
+Status: Done.
 Owner: authoring lead.
 Writers: Astra, xhigh; one example package per turn.
 
@@ -54,4 +54,40 @@ This ticket changes example consumers, not package source or tests.
 
 ## Proof
 
-Pending.
+Checked source: `6de99118`.
+Opus review: READY, with no bugs left.
+The lead saw every exit code below pass.
+
+- Package build passes before consumer checks.
+- Code check passes: 0 errors and 28 existing warnings.
+- All 30 test tasks pass with each project's own settings.
+  The full run limits task concurrency to two.
+  An earlier full run hit Drizzle's unchanged cleanup timeout.
+  Its isolated retry passes all 43 tests; no timeout was raised.
+- The final reply fix passes Harness's 8 and Tinkerer's 2 tests.
+- All 52 deterministic release lanes pass.
+- All ten changed examples pass outside the repo.
+  Each fresh copy installs, checks, tests, and runs.
+- Thirty module imports print nothing and add no signal listeners.
+- Current examples and guides contain none of the removed runners.
+- Strict style census passes for all ten changed examples.
+- TSDoc checks pass on all 42 changed TypeScript files.
+- Prose passes; the new proof and changed guides fit the phone rules.
+
+The real entry stop probes use local recorded SDK responses.
+Harness's five live entries finish one reply and print it after SIGINT.
+Services preserve exit 1 for a failed reply after SIGINT or SIGTERM.
+A second SIGINT quits at once.
+Tinkerer's before case finishes a reply, then fails with `Disposed`.
+Its fixed entry prints that reply, starts no next call, and exits 0.
+Neither probe spends a live account's money.
+
+Logs use the `/tmp/tinkered-entries-` prefix.
+The full test log ends with `final-tests-second.log`.
+The release log ends with `final-validate.log`.
+The stop logs end with `harness-stop-final.log`
+and `tinkerer-stop-probe.log`.
+
+No package runtime, package tests, or package build settings changed.
+Their existing fault and timing proofs still apply.
+The Core drain bug remains on the separate Ready card.
