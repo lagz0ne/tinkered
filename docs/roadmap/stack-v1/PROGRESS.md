@@ -463,7 +463,7 @@ npx --no-install stryker run \
   receiver: one request gives one trace with all
   its spans.
   Open (low): a failed span with no error message exports the text `undefined` (otlp.ts); the span queue caps by count (2048), bytes only per batch.
-- **t14 the dev host** -- [ ] blocked by: t06, t07
+- **t14 the dev host** -- [x] landed (blocked by: t06, t07)
   `vp run dev` is one process that keeps PGlite,
   `nats-server`, and Vite open (ADR 0082). An edit
   re-imports the app, closes the old scope, and

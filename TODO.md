@@ -72,7 +72,6 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Parked
 
-- **stack/t14 dev-host** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `c4f5f4d3` rebasing and finishing the dev host. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **perf/explicit-uses** — declare the ctx features a unit uses (`uses: ["defer", "signal"]`). The committee (Astra + Fable) found an estimated 10–40 ns per run and a migration of every package; the user skipped it (2026-09-29, ADR 0073). Resume when: a graph consumer needs per-unit lifetime facts, or the per-run ctx becomes the main cost of a hot path. Next: the measure-only ceiling screen in `/home/paseo/next/tinkered-inv-reports/committee-uses.md`.
 
 - **jev/handrolled** — survey, bridge analysis, ADR 0070, and plain rules S20–S25 landed
@@ -125,6 +124,7 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Done
 
+- **stack/t14 dev-host** — `vp run dev` is one process, the dev host (`@tinker/stack/dev`): it keeps the HTTP listener, one PGlite, a local `nats-server`, and Vite (client HMR) for the whole session; a server edit re-imports the app, stops the old root through its signal, and starts a new one with the lent handles (`runServer(env, stop, host?)`; the store takes `{ kind: "borrow", client }`). Old requests finish; a failed edit keeps the host up and answers the error until the next good edit; SIGTERM closes everything. Only the dev host binds defaults: the tracker in prod now needs `PORT`, `HOST`, `DATA_PATH`, and `NATS_URL` (its no-NATS local mode is gone). `benchctl ab`: a reload beats a restart, 20,882 → 7,288 ms (−65%). Proof: gate EXIT 0 (stack 135, nats 36, drizzle 43, tracker 87; 0 errors, 28 warnings), changed-file mutation stack 85.75% (319/1/52), nats 88.10% (111/0/15), validate 54/54. Lead review of the prod path. Sol writer c4f5f4d3. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **process/thin-entry** — native command and service ownership.
   Object calls, static shells, caller-owned output, and guarded main entries.
   All callers moved; Opus high review READY.
