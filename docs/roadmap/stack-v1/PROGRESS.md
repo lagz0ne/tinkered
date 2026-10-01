@@ -4390,3 +4390,43 @@ This is new type feedback; no Core source changed.
   Verify: jobs/mail/stack tests and a refs check on `failJob`.
 - SMTP only; no HTTP provider is needed for this ticket.
   The root supplies the sender used when `from` is absent.
+
+### t09 gate and review checks
+
+- Fetched and rebased on `origin/main` at `b9ee321c`.
+  The branch was current; no conflict needed a fix.
+- Added `@tinker/mail`, with pinned Upyo 0.6.0
+  and React Email 6.11.0.
+  It exports a mail piece, a queue row, and a send operation.
+- The gate passed with `EXIT 0`:
+
+```bash
+vp run -r build && vp check \
+  && vp run --no-cache mail#test \
+  && vp run --no-cache jobs#test \
+  && vp run --no-cache stack#test
+```
+
+```text
+check: 0 errors, 28 warnings
+mail: 11 passed
+jobs: 26 passed
+stack: 114 passed
+EXIT 0
+```
+
+- `pnpm validate`: all 54 lanes passed, `EXIT 0`.
+  Mail has test and size lanes beside the other pieces.
+- Strict style census and prose lint passed.
+  TSDoc check: 0 S26 rows.
+- Mail and jobs tests and README promises have no Jev flags.
+- The test mock's state belongs to the test, not a scope.
+  Labeled `stateOutsideCell` false for `createMailMock`.
+  Rechecked only that judge's score after adding the label.
+- Keep the backend tag inside `mail` so each definition
+  has its own binding; the module-level tag note needs no label.
+- Local `main` is behind the fetched base.
+  Also ran preflight on `origin/main..HEAD`
+  to keep older source flags apart from this ticket's changes.
+- SCIP found `failJob` in jobs and its mail caller.
+- Core feedback: none; no Core workaround was needed.
