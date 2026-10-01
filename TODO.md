@@ -37,7 +37,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
-- **stack/t11 auth-mails** — verify and reset mails through `sendMail`. After t09 and t10. Verify: auth tests read both mails from the mock and follow their links. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t15 server-pages** — the tracker's list page renders on the server with TanStack Router (ADR 0075). After t14. Verify: the browser test sees the list in the first HTML, then live updates. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t16 generator** — `vp create` writes a full app with every stack piece wired (ADR 0074). After t01, t02, t11, t12, t13, t15. Verify: a fresh app passes `vp check` and its tests, and boots in dev and prod. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **core/close-hook-scope** — an extension can tell the scope began closing, on a graceful close too (a signal or state its start can read), and its close hook gets the scope. Two askers: sync/subscribe (a `closing` flag set by its close hook) and stack/t07 (nats replaces core's `scope.close` on its handle as a stopgap). Also (ADR 0085): a root's close hooks run once, cannot skip cleanup or replace its outcome, and a hook's throw becomes a teardown error; then `closed` counts it. Next: brief a writer after stack/t04 and core/start-log (one core card at a time). Verify: sync drops its `closing` flag and nats drops its `scope.close` patch; core tests; `scripts/ticket.sh`; `pnpm validate`.
@@ -58,6 +57,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
   Verify: build, check, all tests, real pipe and stop probes, prose,
   strict census, release checks, and affected package fault scores above 85.
   [Track](docs/roadmap/authoring-model/PROCESS.md).
+
+Next: lead reviews and lands the saved branch.
+Verify: gate `EXIT 0`; auth 25, mail 13, jobs 26;
+Stack 114, tracker 80; all 31 test tasks; release 54/54.
+Auth changed-file mutation: 88.03% (103/0/14).
+Rebased onto `758efce5`; auth source hashes match the run.
+[Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Next: lead lands `stack/t09`; the review fix and checks are saved.
 Verify: review fix gate `EXIT 0`; mail 13, jobs 26, stack 114;
@@ -133,6 +139,7 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
   Smaller command and service cases are proposed; no runtime code changed.
   [Review](docs/roadmap/authoring-model/PROCESS-REVIEW.md).
 
+- **stack/t11 auth-mails** — sign-up sends a verify mail and a reset request sends a reset mail, both through `sendMail` (React Email templates in `@tinker/auth`; an app can pass its own); links use `BETTER_AUTH_URL`, the sender comes from mail; mail stays optional. The mail job is added after Better Auth commits, so PGlite's one connection takes turns; if that insert fails the account stays and the mail is lost (the README says so). Six HTTP tests: verify link marks the email verified, reset link sets the new password, a duplicate sign-up sends nothing. Proof: gate EXIT 0 (auth 25, mail 13, jobs 26; 0 errors, 28 warnings), changed-file mutation 88.03% (103/0/14), validate 54/54. Lead review. Sol writer bcb8d8e0. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **core/start-log** — a log written in an extension's event-form `start` or `close` hook now reaches the scope's sink, with the level filter and clock, named by the extension, no span (on main both printed `[]`; five askers: stack t02, t05, t07, t08, t13). The logger is built once per extension on first use; logging off stays a no-op. Proof: gate EXIT 0 (core 796, all repo tests; 0 errors, 28 warnings), slots headroom 4, size 16,350 B (cap 16,384), N=31 timing all "no difference we can see", changed-line mutation 85.71% (6/0/1), validate 54/54. Lead review. Sol writer c3f272c1. The stack pieces' workarounds can go now (a follow-up card).
 - **stack/t09 mail** — `@tinker/mail` on Upyo 0.6.0 and React Email (pinned): the app's operation calls `sendMail` (template + props + to/subject), which adds a mail job through the request's transaction, so a rolled-back request sends nothing; the job renders HTML and text and sends; a retryable failure retries, a permanent one fails once via `failJob(cause)` (new in `@tinker/jobs`); `MAIL_URL` (`smtp://`, login optional so Mailpit works) checked in start; a log backend for dev and Upyo's mock for tests. Proof: gate EXIT 0 (mail 13, jobs 26, stack 114; 0 errors, 28 warnings), mail mutation 89.09% (98/0/12), release checks 54/54. Lead review (one fix: optional SMTP login). Sol writer daf6d3a7. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/main-entries** — static exports and guarded app entries.

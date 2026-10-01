@@ -33,11 +33,14 @@
     "prepublishOnly": "vp run build"
   },
   "dependencies": {
+    "@better-auth/core": "1.7.6",
     "@better-auth/drizzle-adapter": "1.7.6",
     "@tinker/core": "workspace:*",
     "@tinker/hono": "workspace:*",
     "better-auth": "1.7.6",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "react": "19.3.0",
+    "react-email": "6.11.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
@@ -45,8 +48,11 @@
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@tinker/drizzle": "workspace:*",
+    "@tinker/jobs": "workspace:*",
+    "@tinker/mail": "workspace:*",
     "@tinker/stack": "workspace:*",
     "@types/node": "26.5.1",
+    "@types/react": "19.3.0",
     "auth": "1.7.6",
     "drizzle-kit": "catalog:",
     "hono": "catalog:",

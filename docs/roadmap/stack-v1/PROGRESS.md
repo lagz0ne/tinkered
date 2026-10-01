@@ -439,7 +439,8 @@ npx --no-install stryker run \
   read the user in an operation, sign out, and no
   request hangs; a test fails when the generated
   auth schema differs from the committed one.
-- **t11 auth mails: verify and reset** -- [ ] blocked by: t09, t10
+- **t11 auth mails: verify and reset** -- [x] landed (blocked by: t09, t10)
+  Owner: writer stack/t11; lead reviews and lands.
   Sign-up sends a verify mail. A reset request
   sends a reset mail. Both go through `sendMail`.
   Verify: `vp run auth#test` reads both mails from
@@ -4538,5 +4539,182 @@ flock /tmp/mutation.lock bash -c \
 - Killed 98, timeout 0, survived 12; no uncovered mutants or errors.
   `98 / (98 + 0 + 12) = 89.09%`, above the floor of 85.
   `EXIT 0`.
+- Saved work waits in Review for the lead to land it.
+  The writer made no push.
+
+### t11 writer setup
+
+- Owner: writer stack/t11; branch: `stack/t11`.
+- Base: local `stack/t09` at `18b25063`.
+- Next: auth hooks, React Email templates, and HTTP tests.
+- Verify: auth, mail, jobs tests; check; auth mutation; validate.
+- Reuse the mail piece's sender and auth's public base URL.
+  Add no new setting.
+- Keep sign-in open before verification, as t10 does.
+- Better Auth 1.7.6 opens a transaction around sign-up.
+  Its after-commit hook drops mail work on rollback.
+  Insert through auth's borrowed database after that hook.
+  Do not open a request transaction for that insert.
+- Keep mail optional for existing callers.
+  An app registers the shipped templates or its own
+  under the same names, then supplies a send operation.
+
+### t11 mail and HTTP proof
+
+- Added verify and reset hooks to the optional mail wiring.
+  The app registers React Email templates in its mail piece.
+  It can replace either template under the same name.
+- Reuse the app's sender and `BETTER_AUTH_URL`.
+  No new setting or table is needed.
+- Better Auth's after-commit hook avoids a second connection
+  while its sign-up transaction is open.
+  The mail insert borrows auth's database after commit.
+  The README names the gap if that insert fails after commit.
+- Six HTTP tests prove both links, both template replacements,
+  duplicate sign-up, a later sign-up failure, and PGlite turns.
+- Before the hooks, the verify and reset tests failed
+  because no mail job was saved; red proof has `EXIT 1`.
+- Brought in the finished local t09 SMTP fix.
+  The only conflict was appended track notes; kept both.
+  Then rebased the branch onto `origin/main` at `91964db3`.
+  That rebase had no conflicts.
+  The fetched main still has no `stack/t09` tag.
+- Fresh gate passed:
+
+```bash
+vp run -r build && vp check \
+  && vp run --no-cache auth#test \
+  && vp run --no-cache mail#test \
+  && vp run --no-cache jobs#test \
+  && vp run --no-cache stack#test \
+  && vp run --no-cache @tinker-issue-tracker#test
+```
+
+```text
+check: 0 errors, 28 warnings
+main check: 0 errors, 28 warnings
+auth: 25 passed
+mail: 13 passed
+jobs: 26 passed
+stack: 114 passed
+tracker: 80 passed
+EXIT 0
+```
+
+- Jev: no file flags, test flags, or README gaps.
+  Each auth definition keeps its own config and user tags.
+  Its settings resource depends on that config tag.
+  Those plain module-level notes need no labels.
+  Mail's saved false mock-owner label still applies.
+  The test owns the backend; scopes borrow it.
+  The noisy wrapper notes owe no label.
+- Strict census passes on auth source and the changed test.
+  The package-wide scan also sees four generated pure markers
+  in the unchanged auth schema; main has the same four.
+  TSDoc and prose pass.
+- Logs: `stack-t11-final-gate.log`, `stack-t11-red.log`,
+  `stack-t11-main-check.log`, and `stack-t11-jev-final.log`
+  in `~/.cache/tinkered-briefs/`.
+- Core feedback: none; no Core workaround was needed.
+- Next: all package tests, release checks, then auth mutation
+  once under `/tmp/mutation.lock`.
+
+### t11 full repo and exact reset count
+
+- All 31 test tasks passed without cache, `EXIT 0`.
+  Proof: `stack-t11-all-tests.log` in the briefs cache.
+- Tightened the reset test to read exactly one new mail
+  from the mock, including its sender, subject, and text.
+- Fresh required gate after that test edit: `EXIT 0`.
+  Build and check pass; 0 errors and 28 warnings.
+  Auth 25, mail 13, jobs 26 tests pass.
+  Proof: `stack-t11-exact-reset-gate.log`.
+- Jev still has no test flags; strict census passes.
+- Fetched again: main stays at `91964db3`.
+  The `stack/t09` tag is still absent.
+- Next: release checks, then the single auth mutation run.
+
+### t11 release proof
+
+- `pnpm validate`: all 54 lanes pass, `EXIT 0`.
+- The workspace already allowed esbuild.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Proof: `stack-t11-validate.log` in the briefs cache.
+- Fetched before mutation: main stays at `91964db3`.
+  The `stack/t09` tag is still absent from main.
+  Keep the finished local mail code in this branch.
+- Next: one auth mutation run, alone and in the foreground,
+  under `/tmp/mutation.lock`; then lead review.
+
+### t11 mutation scope update
+
+- The user's speed rule now limits mutation to changed files.
+  Use `stack/t09` as the base while mail is not on main.
+- Stopped only this writer's queued full-package command.
+  It had not acquired the lock or started Stryker.
+  Its stopped queue log has `EXIT 143`; no mutant ran.
+- The actual run covers these auth files:
+  `src/better-auth.ts`, `src/index.ts`, `src/templates.ts`.
+- The floor is killed / (killed + timeout + survived) >= 85%.
+  Keep timeout separate from killed in the report.
+- Run alone, in the foreground, from `packages/auth`:
+
+```bash
+mutate_files=$(
+  git diff --relative --name-only \
+    stack/t09...HEAD -- src | paste -sd,
+)
+flock /tmp/mutation.lock \
+  npx stryker run --mutate "$mutate_files"
+```
+
+### t11 landed base and fresh gate
+
+- Rebased onto the landed mail tag at `28fde312`.
+  The only conflict joined both sets of appended track notes.
+  No auth source changed during that rebase.
+- The lead then landed Core's start-log fix.
+  Rebased again onto `origin/main` at `758efce5`.
+  That rebase had no conflicts.
+  All three auth source hashes still match the mutation run.
+- Installed, rebuilt, and ran the fresh gate without cache.
+  Build and check pass; 0 errors and 28 warnings.
+  Auth 25, mail 13, jobs 26, Stack 114, tracker 80 pass.
+  The whole chain has `EXIT 0`.
+- Jev: zero file flags, test flags, or README gaps.
+  The three plain module-level notes need no labels.
+  Each auth definition needs its own config and user tags;
+  its settings resource depends on that config tag.
+- Strict style census and TSDoc pass.
+- Proof: `stack-t11-core-base-gate.log`,
+  `stack-t11-core-base-jev-preflight.log`,
+  `stack-t11-core-base-jev-tests.log`,
+  `stack-t11-core-base-jev-promises.log`, and
+  `stack-t11-core-base-style.log` in the briefs cache.
+- Next: repeat the full repo tests and release checks
+  on the landed Core base, then save the final proof.
+
+### t11 final proof for review
+
+- All 31 package test tasks pass on `758efce5`.
+  They ran without cache; `EXIT 0`.
+- `pnpm validate`: all 54 lanes pass; `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- The auth mutation run covered only the changed files:
+  `src/better-auth.ts`, `src/index.ts`, `src/templates.ts`.
+  It ran alone under `/tmp/mutation.lock`.
+  Killed 103; timeout 0; survived 14; uncovered 0.
+  `103 / (103 + 0 + 14) = 88.03%`; floor 85; `EXIT 0`.
+- Both landed-base rebases came after that run.
+  Kept the brief's single-run rule.
+  All three source hashes still match the mutation report.
+  The fresh gate, full repo tests, and release checks
+  above ran with the landed Core fix.
+- Proof: `stack-t11-core-base-all-tests.log`,
+  `stack-t11-core-base-validate.log`,
+  `stack-t11-auth-mutation.log`, and
+  `stack-t11-auth-mutation.json` in the briefs cache.
+- No new Jev labels are owed.
+  No new Core feedback or workaround was needed.
 - Saved work waits in Review for the lead to land it.
   The writer made no push.
