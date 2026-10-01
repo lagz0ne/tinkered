@@ -1,16 +1,16 @@
 {
   "observedDate": "2026-10-01",
-  "sourceCheckpoint": "872807486e450ff83068e88f72e728cfc9a43636",
+  "sourceCheckpoint": "e1429bda574130199becdb577b7ec88b8969c473",
   "initialSourceCheckpoint": "4d61ed19",
   "initialGateCheckpoint": "67444b81",
   "floor": 85,
   "execution": "serial under /tmp/mutation.lock; task cache disabled",
   "initialFrozenInputCount": 707,
   "mergedFrozenInputCount": 777,
-  "unchangedPackageCount": 12,
-  "externalLockSha256": "92b108289369920aae67e354483ed5a29d8a6279e04b0b8ad63d7a5261a06dd7",
+  "unchangedPackageCount": 11,
+  "externalLockSha256": "85e52accc342d532599a7358665f045588360249cc369be900ad9b3fb2872f6c",
   "initialInputsSha256": "5c74fa316a03eb5c9054529c1332600e777008f7c1468e7d33d8052424f7e6aa",
-  "mergedInputsSha256": "523db208b301df3465a1320c5b78712cd00fc178e9dc082d9e034be8de56431f",
+  "mergedInputsSha256": "89c2a48a4fa7bb3fc15fd9e3d4dc7a21b0ebfe0351d0839efbb6b00c31f1cd8e",
   "packages": [
     {
       "name": "blueprint",
@@ -23,7 +23,8 @@
       "initialScore": 86,
       "rerunOnMergedCode": false,
       "checkedInputs": 167,
-      "inputsSha256": "2036d061ccb0399a111108884418c9ab65cc8f14dcd0c427e271e2e9c6e45c05"
+      "inputsSha256": "a45fd9c871d1d01084a9b934294881fef4639b6c5daa500af7c7b6498b3ea43a",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "core",
@@ -36,20 +37,23 @@
       "initialScore": 85.8,
       "rerunOnMergedCode": false,
       "checkedInputs": 42,
-      "inputsSha256": "28f49cfa31aeb5b8562246422f5e34dd07e8f3766449c8f2b039e56709c3048b"
+      "inputsSha256": "4ecdcee591d69ac620307be8ea9c215339f2ade206d671a053191260614f5d78",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "drizzle",
-      "score": 93.86,
-      "killed": 107,
+      "score": 96.77,
+      "killed": 90,
       "timeout": 0,
-      "survived": 7,
+      "survived": 3,
       "uncovered": 0,
       "errors": 0,
       "initialScore": 93.86,
       "rerunOnMergedCode": false,
       "checkedInputs": 9,
-      "inputsSha256": "5bb59eb584d76851066bf4b2e24151611cec0b79181c4b7fc3bed04361603e03"
+      "inputsSha256": "db76d6d54b7e9b82c9874630e135a09b45c35afe5bd878299ec337c0a3be2313",
+      "rerunAfterResourceCorrection": true,
+      "previousMergedScore": 93.86
     },
     {
       "name": "harness",
@@ -62,20 +66,23 @@
       "initialScore": 85.64,
       "rerunOnMergedCode": false,
       "checkedInputs": 16,
-      "inputsSha256": "cad2953743526db6ecb8c829c0fe3b639193bb1d19095f1771735f402406e9d1"
+      "inputsSha256": "a7cc6bb524db3b54c95e697c8b2807ec2a2d91ce261dc52a81e29085488c1463",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "hono",
-      "score": 91.38,
-      "killed": 322,
-      "timeout": 70,
-      "survived": 35,
+      "score": 93.01,
+      "killed": 330,
+      "timeout": 69,
+      "survived": 28,
       "uncovered": 2,
       "errors": 0,
       "initialScore": 86.47,
       "rerunOnMergedCode": true,
       "checkedInputs": 15,
-      "inputsSha256": "37566da2c2f96298e5aa539488d7949688c43a43c3d69e07e0207b2c4b041bba"
+      "inputsSha256": "2fdc6502eb1607c83bcf178e43a9a17372fd583622c29215f8525b058a2b2ac9",
+      "rerunAfterResourceCorrection": true,
+      "previousMergedScore": 91.38
     },
     {
       "name": "http",
@@ -88,7 +95,8 @@
       "initialScore": 89.7,
       "rerunOnMergedCode": false,
       "checkedInputs": 21,
-      "inputsSha256": "9f6704de703ca48a47494a982e0db8385dfc498fed524e1a8280b02a6200ee3f"
+      "inputsSha256": "52698d66255951cd9e0a5d189bf7e60e60029c27b33b28220417f2b2b57a66c1",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "mcp",
@@ -101,7 +109,8 @@
       "initialScore": 98.53,
       "rerunOnMergedCode": false,
       "checkedInputs": 8,
-      "inputsSha256": "d4fa8e42ae8d503c8ff0bc38a5b8f3e6953be823e38aa1e13eb4e869892467ea"
+      "inputsSha256": "60e12f05b284da5644e591ba951dd9d3f6682d06ba1c1cd8f3e5c654400b8a96",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "nats",
@@ -114,7 +123,8 @@
       "initialScore": 87.67,
       "rerunOnMergedCode": false,
       "checkedInputs": 11,
-      "inputsSha256": "85637a858d1c1012cbe039f8ee4bbf11a7de10f8a6f62a7242a546367854e6bd"
+      "inputsSha256": "66f3ce99f7f7ab4a5022ef1a9c1db0deea1142ead737cb133f2a1eb05c6cb571",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "process",
@@ -127,7 +137,8 @@
       "initialScore": 94.61,
       "rerunOnMergedCode": false,
       "checkedInputs": 10,
-      "inputsSha256": "5f6cf0ce62a4683235dffc9d747aa9c8be6913847c78dacdcf31e1ca70ca3eb3"
+      "inputsSha256": "2afaba3c9c916e0616196a7b32f0e9735ef48a8183247dc7951eada3d67eb90b",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "react",
@@ -140,12 +151,13 @@
       "initialScore": 92.75,
       "rerunOnMergedCode": false,
       "checkedInputs": 29,
-      "inputsSha256": "1f49bbcab0d3f2948df5f4a607ce7e5e748f05d7d38a0fd295892478a2aa913d"
+      "inputsSha256": "f528e00dfc05ff5b283b8def1b877a3bc31e7a57406e3666f75c795ad6468900",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "stack",
-      "score": 86,
-      "killed": 557,
+      "score": 85.91,
+      "killed": 553,
       "timeout": 2,
       "survived": 89,
       "uncovered": 2,
@@ -153,7 +165,9 @@
       "initialScore": 86.04,
       "rerunOnMergedCode": true,
       "checkedInputs": 29,
-      "inputsSha256": "77b2197312a36a4fc86866a99f9ecf55220f7401ffcbb5ce49724d603d1600ed"
+      "inputsSha256": "4f12ca8bd795d55a6c970ff1ac31a2a3f6e28e034192eafdd48e025a1238e552",
+      "rerunAfterResourceCorrection": true,
+      "previousMergedScore": 86
     },
     {
       "name": "sync",
@@ -166,7 +180,8 @@
       "initialScore": 86.31,
       "rerunOnMergedCode": false,
       "checkedInputs": 11,
-      "inputsSha256": "4752f4902b523b1d40f4e54fa9332f76f8fa4641eab0358f7a936eef91ecf648"
+      "inputsSha256": "448ca9887746dadacb63e9a5411a3a53b2642a600b8dd2614c49c98d517f1e21",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "tinkerer",
@@ -179,7 +194,8 @@
       "initialScore": 91.82,
       "rerunOnMergedCode": false,
       "checkedInputs": 30,
-      "inputsSha256": "f176684206252426ef4b18fd581ff3b3d9066d24a7a76b99e9bd14d44dcb6cbe"
+      "inputsSha256": "9ea06d05f4bb01745ff54b34349c6c018fbc92385cedb92d7f328b30bb90a613",
+      "rerunAfterResourceCorrection": false
     },
     {
       "name": "utils",
@@ -192,7 +208,16 @@
       "initialScore": 100,
       "rerunOnMergedCode": false,
       "checkedInputs": 6,
-      "inputsSha256": "566d94df7906ed0ffc192a62e9c8974ce3bc11fd49ba3975ac084eb861e1696a"
+      "inputsSha256": "e01908d382c434b08777090353fc0805804ffd20ce65ad65fa0014399444de5d",
+      "rerunAfterResourceCorrection": false
     }
-  ]
+  ],
+  "previousMergedSourceCheckpoint": "872807486e450ff83068e88f72e728cfc9a43636",
+  "initialInputsHashEncoding": "SHA-256 of the initial frozen manifest file bytes",
+  "mergedInputsHashEncoding": "SHA-256 of JSON.stringify of sorted path-to-file-SHA-256 entries",
+  "packageInputsHashEncoding": "SHA-256 of JSON.stringify of sorted path-to-file-SHA-256 entries",
+  "externalLockHashEncoding": "SHA-256 of raw lock bytes from the newline before packages: through EOF",
+  "lockSha256": "45b92658eb4ed3ceefa6abe0365e241f6eb2eacf3ad9f362fc748e8c6aafd9d6",
+  "normalLogs": "/tmp/tinkered-hooks-resource-*.log",
+  "freshFaultLog": "/tmp/tinkered-hooks-resource-fault.log"
 }
