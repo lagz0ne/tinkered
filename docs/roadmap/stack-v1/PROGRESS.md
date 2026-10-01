@@ -5661,3 +5661,33 @@ useEffect(() => props.ready?.(), [props.ready]);
 - Jev saved the stream cleanup label for `syncBody`.
   The SSE wire owns its abort cleanup and is awaited.
 - Next: tracker changed-file faults, then lead review.
+
+### t15 real entry and early stop proof
+
+- The third tracker fault run was below 85.
+  It killed 287, timed out 8, and left 78 alive or uncovered.
+  The strict killed share was 287 / 373 = 76.94%.
+- Tests now build the current server entry for real CLI calls.
+  Stryker's public active-fault key reaches each child.
+  A focused logger probe killed both selected faults.
+  Node crashed once in WebAssembly; Stryker retried it.
+  The final probe passed; the crash earned no kill credit.
+- Live update titles are fresh in every run.
+  Tests also cover the real browser entry and dead-page retry.
+  Dev tests call the real entry in process and in a child.
+- Found an early stop bug: hydrate still opened sync.
+  The red test saw one sync request after stop, instead of zero.
+  The page now checks its caller's stop before opening sync.
+  That stop also releases the wait for React's ready signal.
+  Its listener is removed through defer.
+- Build, check, and all 123 tracker tests passed.
+  Check still has zero errors and 28 warnings.
+  Prose and strict style passed.
+- Jev has zero code flags and zero test flags.
+  All 93 named tracker tests have README promises.
+- Temporary CLI bundles live outside the app tree.
+  Dev fixtures use the worktree scratch directory.
+  Their cleanup runs before an exit-code assertion.
+- Logs use `stack-t15-stop-` in the briefs cache.
+  The red proof is `stack-t15-stop-hydrate-red.log`.
+- Next: finish the fourth tracker fault run.

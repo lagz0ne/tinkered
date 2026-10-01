@@ -45,7 +45,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 - **stack/t15 server-pages** — owner: t15 writer.
-  Next: stream the list and hand its cells to the browser.
+  Next: finish tracker fault proof, then rerun all gates.
   Verify: first HTML has titles; live update after hydrate;
   stream cleanup; dev reload; gate and changed-file mutation.
   [Proof](docs/roadmap/stack-v1/PROGRESS.md).

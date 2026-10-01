@@ -687,3 +687,36 @@ This does not permit new calls after closing begins.
 Log: `/tmp/tinkerer-core-graceful-stop-repro.log`.
 Both real entry probes failed before their entry fix.
 They now finish the first reply, make one call, and exit 0.
+
+## React ready waits during root stop, 2026-10-01
+
+Asked by stack/t15 server pages.
+The browser must wait for React to keep the server HTML.
+An effect in the route reports that ready state.
+A Core resource cannot report React's commit.
+
+```tsx
+useEffect(() => props.ready?.(), [props.ready]);
+```
+
+Moving this signal above the route let sync replace its HTML
+before React kept it; the list identity test failed.
+Putting it only in the list left the 404 page waiting forever.
+Each route now owns its ready signal.
+
+A root stop during that wait also let sync open after stop:
+
+```ts
+await hydrated.promise;
+await event.next();
+```
+
+The public browser test saw one sync request instead of zero.
+The page now listens to its caller's stop signal.
+It releases the wait and checks stop before starting sync.
+Its defer removes the listener.
+Core's root signal closes gracefully once ready.
+It does not abort the hook's signal at that point.
+
+Proof: `stack-t15-stop-hydrate-red.log` in the briefs cache.
+The fixed browser test and all 123 tracker tests pass.
