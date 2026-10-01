@@ -45,14 +45,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t09 mail** — Owner: writer stack/t09.
-  Next: finish locked jobs/mail mutation, then lead review.
-  Verify: mail/jobs/stack gate, release lanes, mail mutation >= 85.
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 ## Review
+
+- **stack/t09 mail** — Owner: writer stack/t09.
+  Next: lead reviews and lands `stack/t09`; no push by the writer.
+  Verify: gate `EXIT 0`; mail 11, jobs 26, stack 114, tracker 80;
+  release 54/54; mail mutation 89.29% (100/0/12),
+  jobs 85.96% (142/5/21; 3 not covered).
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

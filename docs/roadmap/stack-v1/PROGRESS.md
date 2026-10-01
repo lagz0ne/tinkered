@@ -419,7 +419,7 @@ npx --no-install stryker run \
   Verify: `vp run jobs#test`: a rolled-back request
   adds no job; a failing job retries; nothing hangs
   on PGlite's one connection.
-- **t09 mail stack piece** -- [ ] writer: stack/t09; t08 landed
+- **t09 mail stack piece** -- [ ] review: stack/t09; t08 landed
   `@tinker/mail`: the app calls `sendMail` with a
   React Email template and its props. That adds a
   mail job, which renders and sends through Upyo,
@@ -4425,9 +4425,9 @@ EXIT 0
   Rechecked only that judge's score after adding the label.
 - Keep the backend tag inside `mail` so each definition
   has its own binding; the module-level tag note needs no label.
-- Local `main` is behind the fetched base.
+- The first preflight range included source outside this ticket.
   Also ran preflight on `origin/main..HEAD`
-  to keep older source flags apart from this ticket's changes.
+  to keep those flags apart from this ticket's changes.
 - SCIP found `failJob` in jobs and its mail caller.
 - Core feedback: none; no Core workaround was needed.
 
@@ -4435,4 +4435,47 @@ EXIT 0
   passed all 31 tasks, `EXIT 0`.
   The tracker passed 79 tests; its jobs caller still works.
   The tinkerer suite keeps its one old skipped test.
-- Only the locked mutation runs remain before the writer report.
+
+### t09 final rebase and fault proof
+
+- Fetched and rebased again onto `7014b683`,
+  the PGlite merge that kept the jobs piece.
+- Only `tools/jev/calibration.json` conflicted.
+  Kept main's score data and dropped the old score commit.
+  Rechecked `stateOutsideCell` against the merged labels.
+  Every main label and this ticket's one label remain.
+- The fresh gate passed, with the tracker added as a consumer:
+
+```bash
+vp run -r build && vp check \
+  && vp run --no-cache mail#test \
+  && vp run --no-cache jobs#test \
+  && vp run --no-cache stack#test \
+  && vp run --no-cache @tinker-issue-tracker#test
+```
+
+```text
+check: 0 errors, 28 warnings
+mail: 11 passed
+jobs: 26 passed
+stack: 114 passed
+tracker: 80 passed
+EXIT 0
+```
+
+- Fresh `pnpm validate`: all 54 lanes passed, `EXIT 0`.
+- Fresh `main..HEAD` preflight has no file flags.
+  The mock owner flag keeps its false label.
+  The backend tag note and the noisy wrapper note are unchanged.
+- Both fault lanes ran alone under `/tmp/mutation.lock`.
+  Mail ran once, after the fresh gate and release checks.
+  Its config sets `timeoutMS: 60000` and a floor of 85.
+- Mail: 89.29%; killed 100, timeout 0, survived 12.
+  No uncovered mutants and no errors; `EXIT 0`.
+- Jobs: 85.96%; killed 142, timeout 5, survived 21.
+  Three uncovered mutants and no errors; `EXIT 0`.
+  Jobs ran before the final rebase; its package files
+  were unchanged by that rebase, checked by `git diff`.
+- Saved work waits in Review for the lead.
+  The writer made no push.
+- Core feedback: none; no Core workaround was needed.
