@@ -44,16 +44,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t15 server-pages** — owner: t15 writer.
-  Next: finish tracker fault proof, then rerun all gates.
-  Verify: first HTML has titles; live update after hydrate;
-  stream cleanup; dev reload; gate and changed-file mutation.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 ## Review
+
+- **stack/t15 server-pages** — owner: t15 writer.
+  Next: lead reviews and lands `stack/t15`; no push.
+  Verify: gate `EXIT 0`; Stack 152, Hono 93, tracker 128;
+  four fresh browser proofs; validation 54/54.
+  Changed-file killed shares: Stack 86.02%, tracker 85.83%.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Hook loggers replace the boot log workarounds.
 Next: lead review and landing; the writer never pushed.

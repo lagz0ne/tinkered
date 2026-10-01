@@ -5691,3 +5691,72 @@ useEffect(() => props.ready?.(), [props.ready]);
 - Logs use `stack-t15-stop-` in the briefs cache.
   The red proof is `stack-t15-stop-hydrate-red.log`.
 - Next: finish the fourth tracker fault run.
+
+### t15 kept API and page snapshot proof
+
+- The fourth tracker run killed 302, timed out 7,
+  and left 62 alive and 10 uncovered.
+  Its strict killed share was 302 / 381 = 79.27%.
+  It failed; the tool's 81.10% credits timeouts.
+- Added real checks for draft tool URLs and stream headers.
+  A public activity-write preset rejects create, edit,
+  and comment writes; each keeps its reason and rolls back.
+- The real server test now loads its payload in Chromium.
+  It waits for sync, then checks a new live issue.
+  A restart still keeps both saved rows.
+- A page snapshot test publishes after its cell read.
+  The page keeps the old snapshot; the parent keeps the new one.
+- A plain HTML shell still boots from its first sync snapshot.
+  A missing sync source fails before stream headers.
+- The first-sync failure test polls its owned promise.
+  Its finally stops and waits for that root.
+  A broken start now fails the check instead of hanging it.
+- Vite can finish a cache write during fixture removal.
+  Native file removal retries `ENOTEMPTY`; it still throws
+  if cleanup fails after those retries.
+- All 128 tracker tests passed, plus build, check,
+  prose, and strict style.
+- Fetched and rebased onto `origin/main` at `65922db4`.
+  No conflict; the newer commits remove the unused starter
+  and record the package roles.
+- The full gate passed on that base; `EXIT 0`.
+  Stack 152, Hono 93, tracker 128; 28 check warnings.
+- Four fresh browser proofs passed; no cache was used.
+  Each also passed its seven browser helper checks.
+- `pnpm validate`: all 54 lanes passed; `EXIT 0`.
+  The workspace file was restored and was never committed.
+- Jev: zero test flags among 95 named tests.
+  Fixed the posted-draft README gap; zero gaps remain.
+  The `syncBody` cleanup answer is already in the label bank.
+- Proof logs use `stack-t15-final3-` in the briefs cache.
+  The next fault run is `stack-t15-mutation-tracker-fifth.log`.
+- Next: finish that changed-file fault run, then lead review.
+
+### t15 final changed-file faults and handoff
+
+- Tracker fifth run passed; `EXIT 0`.
+  Killed 327, timeout 3, survived 42, uncovered 9.
+  The strict killed share is 327 / 381 = 85.83%.
+  The three timeouts earn no kill credit.
+  The run had zero runner errors.
+- Stack remains 203 killed, 2 timeout, 29 survived,
+  2 uncovered, and 1 runner error; strict share 86.02%.
+  Its source is unchanged by the last rebase.
+  The runner error earns no kill credit.
+- Both package shares include uncovered faults as survivors.
+  Neither share uses Stryker's timeout credit.
+- The tracker CSS path cannot be parsed by Stryker.
+  Saved that failed raw-path run, then tested all changed
+  TypeScript and TSX paths; no typed source path was excluded.
+  Browser proofs check the moved stylesheet too.
+- The native child entry is rebuilt from the tested source.
+  Its public active-fault key reaches CLI and dev children.
+- Final TSDoc check: zero rows in all 31 changed typed files.
+  Strict style passed.
+- The saved `syncBody` label answers the repeated Jev flag.
+  The React ready effect remains an explained hint.
+- The card is in Review; the lead owns the next step.
+  No branch was pushed.
+- Final fault logs and JSON are in the briefs cache:
+  `stack-t15-mutation-stack-final` and
+  `stack-t15-mutation-tracker-fifth`.
