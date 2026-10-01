@@ -4540,3 +4540,20 @@ flock /tmp/mutation.lock bash -c \
   `EXIT 0`.
 - Saved work waits in Review for the lead to land it.
   The writer made no push.
+
+### t11 writer setup
+
+- Owner: writer stack/t11; branch: `stack/t11`.
+- Base: local `stack/t09` at `18b25063`.
+- Next: auth hooks, React Email templates, and HTTP tests.
+- Verify: auth, mail, jobs tests; check; auth mutation; validate.
+- Reuse the mail piece's sender and auth's public base URL.
+  Add no new setting.
+- Keep sign-in open before verification, as t10 does.
+- Better Auth 1.7.6 opens a transaction around sign-up.
+  Its after-commit hook drops mail work on rollback.
+  Insert through auth's borrowed database after that hook.
+  Do not open a request transaction for that insert.
+- Keep mail optional for existing callers.
+  An app registers the shipped templates or its own
+  under the same names, then supplies a send operation.
