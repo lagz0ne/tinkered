@@ -73,3 +73,43 @@ test("MAIL_URL sends over SMTP with its credentials and closes the connection", 
     );
   }
 });
+
+test("forced close aborts a mail job waiting on SMTP", async () => {
+  const attempting = Promise.withResolvers<void>();
+  const disconnected = Promise.withResolvers<void>();
+  const server = createServer((socket) => {
+    socket.setEncoding("utf8");
+    socket.write("220 localhost ESMTP\r\n");
+    socket.once("close", disconnected.resolve);
+    socket.on("data", (command: string) => {
+      if (command.startsWith("EHLO")) socket.write("250-localhost\r\n250 AUTH PLAIN\r\n");
+      else if (command.startsWith("AUTH")) socket.write("235 authenticated\r\n");
+      else if (command.startsWith("MAIL")) attempting.resolve();
+    });
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  if (!address || typeof address === "string") expect.unreachable();
+  const { client, clock, sendMail, tags, extensions } = await fixture(undefined, {
+    env: { MAIL_URL: `smtp://user:pass@127.0.0.1:${address.port}` },
+    from: "team@example.com",
+  });
+  const scope = createScope({ tags, extensions });
+  scopes.push(scope);
+  await scope.ready;
+  await scope.session((s) => s.run(sendMail, { input }));
+  const polling = clock.advance(1000);
+  try {
+    await attempting.promise;
+    await scope.close({ graceful: false });
+    await polling;
+    await disconnected.promise;
+    expect(await readStates(client)).toEqual([{ state: "retry", retry_count: 0 }]);
+  } finally {
+    await scope.close();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});

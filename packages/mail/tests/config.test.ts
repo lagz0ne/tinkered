@@ -8,6 +8,8 @@ test("a missing or bad MAIL_URL fails boot naming the key", async () => {
     "bad",
     "http://user:pass@host:587",
     "smtp://host:587",
+    "smtp://user@host:587",
+    "smtp://:pass@host:587",
     "smtp://user:pass@host:70000",
     "smtp://%ZZ:pass@host:587",
   ]) {

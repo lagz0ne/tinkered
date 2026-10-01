@@ -76,14 +76,20 @@ test("a raised error mapped to 409 sends no mail", async () => {
 });
 
 test("a retryable delivery failure retries then sends", async () => {
-  const { client, clock, mock, sendMail, tags, extensions } = await fixture();
+  const { client, piece, clock, mock, sendMail, tags, extensions } = await fixture();
   const logs: Observe.Log[] = [];
+  piece.job.retryDelay = 2;
   mock.failNext(["temporary failure"], true);
   const scope = createScope({ tags, extensions, observe: { log: (log) => logs.push(log) } });
   scopes.push(scope);
   await scope.ready;
   await scope.session((s) => s.run(sendMail, { input }));
   await clock.advance(1000);
+  await expect.poll(() => readStates(client)).toEqual([{ state: "retry", retry_count: 0 }]);
+  expect((await client.query("select output from pgboss.job")).rows).toMatchObject([
+    { output: { kind: "DeliveryFailed", payload: { errors: ["temporary failure"] } } },
+  ]);
+  await clock.advance(2000);
   await expect.poll(() => readStates(client)).toEqual([{ state: "completed", retry_count: 1 }]);
   expect(mock.sent()).toHaveLength(2);
   expect(logs.filter((log) => log.level === 50)).toEqual([]);

@@ -1,6 +1,6 @@
 import { extension, operation, resource, tag, type Operation } from "@tinker/core";
 import { failJob, job, type Jobs } from "@tinker/jobs";
-import type { Message, Receipt, Transport } from "@upyo/core";
+import type { Transport } from "@upyo/core";
 import type { ComponentType, ComponentProps } from "react";
 import { raise } from "./errors.ts";
 
@@ -65,7 +65,6 @@ export function mail<T extends Mail.Templates>(templates: T, wiring: Mail.Wiring
     depends: { mailer },
     run: async ({ mailer }, ctx: Operation.Ctx<Mail.Input<T>>) => {
       const { template, props, to, subject, from } = ctx.input;
-      if (!Object.hasOwn(templates, template)) raise("UnknownTemplate", { template });
       const { createElement } = await import("react");
       const { render } = await import("react-email");
       const element = createElement(templates[template], props);
@@ -77,13 +76,13 @@ export function mail<T extends Mail.Templates>(templates: T, wiring: Mail.Wiring
         return;
       }
       const { createMessage } = await import("@upyo/core");
-      const message: Message = createMessage({
+      const message = createMessage({
         from: from ?? wiring.from,
         to,
         subject,
         content: { html, text },
       });
-      const receipt: Receipt = await mailer.send(message, { signal: ctx.signal });
+      const receipt = await mailer.send(message, { signal: ctx.signal });
       if (receipt.successful) return;
       if (receipt.retryable !== false) {
         raise("DeliveryFailed", { errors: receipt.errorMessages });

@@ -102,4 +102,5 @@ const sentMail = mock.sent();
 - An open request adds mail while due jobs wait for PGlite.
 - A missing or bad MAIL_URL fails boot naming the key.
 - MAIL_URL sends over SMTP with its credentials and closes the connection.
+- Forced close aborts a mail job waiting on SMTP.
 - The graph traces queuing mail and delivering it.

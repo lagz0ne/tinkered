@@ -1,6 +1,5 @@
 type Payloads = {
   InvalidConfig: { key: "MAIL_URL" };
-  UnknownTemplate: { template: string };
   DeliveryFailed: { errors: readonly string[] };
 };
 
