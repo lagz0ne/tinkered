@@ -3755,3 +3755,16 @@ await closing;
   in the briefs cache.
 - Next: Hono under the same lock, then the uncached browser
   proof and validation.
+
+### Second resume Hono mutation passes
+
+- Fresh full Hono lane after rebasing onto event hooks:
+  killed 406, timeout 0, survived 62.
+  No coverage 2, errors 0; Stryker score 86.38 percent, `EXIT 0`.
+  Killed divided by killed, timeout, and survived is 86.75 percent.
+- Both fresh lanes ran alone, one after the other
+  under the same `/tmp/mutation.lock`.
+  Timeout 60000, concurrency 2, floor 85; no new exclusions.
+- Log and JSON: `stack-t10-resume2-hono-mutation`
+  in the briefs cache.
+- Next: tracker browser proof once uncached, then validation.
