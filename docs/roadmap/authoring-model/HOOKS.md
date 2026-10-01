@@ -1,7 +1,7 @@
 # One extension hook shape
 
 Date: 2026-09-30.
-Status: Verified; landing next.
+Status: Done.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -209,3 +209,14 @@ Final observed logs:
 - `/tmp/tinkered-hooks-land-final-validate.log`
 - `/tmp/tinkered-hooks-land-final-review.log`
 - `/tmp/tinkered-hooks-land-calibration.log`
+
+## Main verification
+
+Main fast-forwards to checked checkpoint `debbc428`.
+The lead keeps all local review notes and adds only the owned hook card to the board.
+Main's fresh frozen install, build, check, all 28 test tasks, prose, and size finish with exit 0.
+Code check: 0 errors and 28 existing warnings in 558 files.
+Core remains 16,275 bytes gzip at the 16,384-byte cap.
+The final tag is `core/tauthoring-hooks`.
+The card moves from Review to Done after this proof is observed.
+Main logs are `/tmp/tinkered-hooks-main-{install,build,check,tests,prose,size}.log`.

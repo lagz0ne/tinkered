@@ -44,14 +44,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **authoring/hooks** — remove positional extension hooks.
-  Owner: lead (authoring session); Astra writers, xhigh, one package each.
-  Next: land the checked source and proof, then push main and the checkpoint tag.
-  Verify: no old declarations remain; build/check, all consumer tests,
-  prose, release checks, and all 14 packages' isolated fault lanes.
-  Core stays within 16,384 bytes gzip.
-  [Track](docs/roadmap/authoring-model/HOOKS.md).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -101,6 +93,14 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **authoring/hooks** — removed all positional extension hooks and migrated current callers.
+  Owner: lead (authoring session); Astra writers, xhigh, one package each.
+  Proof: build/check, all 28 test tasks, prose, and all 48 release lanes pass.
+  All 14 isolated fault scores meet 85; merged Hono is 91.38 and Stack is 86.00.
+  All 205 current extension calls use event hooks; Core is 16,275 bytes gzip.
+  Main's fresh checks pass; local review notes stay in place.
+  [Track](docs/roadmap/authoring-model/HOOKS.md).
 
 - **examples/standalone** — all eleven examples run on their own.
   Owner: lead (Codex); Astra writers; Opus 5.5 READY.

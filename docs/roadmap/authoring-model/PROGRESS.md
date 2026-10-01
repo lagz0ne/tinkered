@@ -758,7 +758,7 @@ Process: 50 tests pass; fault score 94.61, above the floor of 85.
 The merged code check passes with 0 errors and 28 existing warnings.
 The existing card moved from Ready to Done; no duplicate card was added.
 
-## Remove positional extension hooks — verified
+## Remove positional extension hooks — complete
 
 The user asked for this migration after the package review landed.
 The impact block and package briefs are in [HOOKS.md](HOOKS.md).
@@ -788,4 +788,7 @@ The complete scores and checked hashes are in [hook-fault-proof.json](hook-fault
 The final code review has 0 flags; the full calibration run finishes with exit 0.
 The unchanged Core `panics[0]` census row stays outside this migration.
 
-Source and proof are ready for the final fast-forward and push.
+Main fast-forwards to checked checkpoint `debbc428` while keeping local review notes.
+Its fresh install, build, check, all 28 test tasks, prose, and size pass, exit 0.
+All frozen source, test, and config inputs still match the fault-tested code.
+The card moves to Done; the final checkpoint tag is `core/tauthoring-hooks`.
