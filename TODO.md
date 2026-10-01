@@ -44,7 +44,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 - **stack/t16 generator** — owner: stack/t16 writer.
-  Next: generator skeleton, then each app piece.
+  Next: final rebase, review, mutation, and gate.
   Verify: fresh app checks and tests; dev and prod boot;
   changed-file mutation at least 85; full gate and validate.
   [Track](docs/roadmap/stack-v1/PROGRESS.md).

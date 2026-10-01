@@ -5,7 +5,7 @@ import { useRun } from "@tinker/react";
 
 export declare namespace AuthForm {
   type Mode = "sign-up" | "sign-in" | "reset" | "new-password";
-  type Submission = { path: string; fields: Record<string, string> };
+  type Submission = { mode: Mode; form: FormData; url: URL };
 }
 
 const forms = {
@@ -18,9 +18,21 @@ const submitAuth = operation({
   label: "auth.submit",
   depends: { send },
   async run({ send }, { input }: Operation.Ctx<AuthForm.Submission>) {
+    const fields: Record<string, string> = {};
+    for (const [key, value] of input.form) {
+      if (typeof value !== "string") raise("BadForm", { key });
+      fields[key] = value;
+    }
+    if (input.mode === "sign-up") fields.callbackURL = `${input.url.origin}/verify`;
+    if (input.mode === "reset") fields.redirectTo = `${input.url.origin}/new-password`;
+    if (input.mode === "new-password") {
+      const token = input.url.searchParams.get("token");
+      if (token === null) raise("BadForm", { key: "token" });
+      fields.token = token;
+    }
     const reply = await send.run({
-      input: HttpRequest.post(`/api/auth/${input.path}`, {
-        body: HttpRequest.bodyJson(input.fields),
+      input: HttpRequest.post(`/api/auth/${forms[input.mode].path}`, {
+        body: HttpRequest.bodyJson(fields),
       }),
     });
     return reply.text();
@@ -36,16 +48,13 @@ export function AuthForm(props: { mode: AuthForm.Mode }) {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          const fields: Record<string, string> = {};
-          for (const [key, value] of new FormData(event.currentTarget)) {
-            if (typeof value !== "string") raise("BadForm", { key });
-            fields[key] = value;
-          }
-          if (props.mode === "sign-up") fields.callbackURL = `${window.location.origin}/verify`;
-          if (props.mode === "reset") fields.redirectTo = `${window.location.origin}/new-password`;
-          if (props.mode === "new-password")
-            fields.token = new URLSearchParams(window.location.search).get("token") ?? "";
-          submit.run({ input: { path: form.path, fields } });
+          submit.run({
+            input: {
+              mode: props.mode,
+              form: new FormData(event.currentTarget),
+              url: new URL(window.location.href),
+            },
+          });
         }}
       >
         {props.mode === "sign-up" ? (

@@ -22,10 +22,16 @@ const packages = [
   "create-app",
 ];
 
-test("the bin writes an app that installs, builds, checks, and passes its tests", async () => {
+test("vp create writes an app that installs, builds, checks, and passes its tests", async () => {
   const root = await mkdtemp(join(tmpdir(), "tinker-workspace-"));
   try {
-    for (const file of ["package.json", "pnpm-workspace.yaml", "vite.config.ts", ".gitignore"]) {
+    for (const file of [
+      "package.json",
+      "pnpm-workspace.yaml",
+      "pnpm-lock.yaml",
+      "vite.config.ts",
+      ".gitignore",
+    ]) {
       await cp(join(repository, file), join(root, file));
     }
     for (const name of packages) {
@@ -43,7 +49,11 @@ test("the bin writes an app that installs, builds, checks, and passes its tests"
       { cwd: root, stdio: "inherit" },
     );
     execFileSync("vp", ["install"], { cwd: root, stdio: "pipe" });
-    execFileSync("vp", ["run", "-r", "build"], { cwd: root, stdio: "pipe" });
+    execFileSync("vp", ["run", "-r", "build"], {
+      cwd: root,
+      stdio: "pipe",
+      env: { ...process.env, NODE_ENV: "production" },
+    });
     execFileSync("vp", ["check"], { cwd: root, stdio: "pipe" });
     const output = execFileSync("vp", ["run", "@tinker-app/sample#test"], {
       cwd: root,

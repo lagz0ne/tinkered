@@ -5857,3 +5857,36 @@ auth(database, schema, { sendMail });
 - Its fresh workspace installs, builds, checks, and tests.
 - Fresh app: 26 tests pass; generator: 12 pass.
 - Next: the dev host and final checks.
+
+### t16 dev host
+
+- The dev entry owns local settings, PGlite, and NATS.
+- It binds log mail without a prod MAIL_URL.
+- The real vp run dev command serves a saved note.
+- Its test waits for child pipes to close before cleanup.
+- vp itself ends by SIGTERM; prod exits with code 0.
+- Added generator test and size lanes to validate.
+- Added the starter commands and piece removal guide.
+- Next: final review, mutation, rebase, and full gate.
+
+### t16 browser boot
+
+- A mobile browser caught a client bundle bug.
+- Library builds kept process.env.NODE_ENV in React.
+- The browser failed with process is not defined.
+- The starter now sets that value at build time.
+- Its new browser test fails without the fix.
+- It saves a note and waits for the live list update.
+- App checks pass; all 28 starter tests pass.
+- DOM input is read by operations, before network calls.
+- Browser setup is listed in the app README.
+
+- Fresh builds must not inherit Vitest's NODE_ENV=test.
+- That selected jsxDEV with a prod React bundle.
+- The workspace fixture sets production for its build.
+- It keeps the workspace lock file too.
+
+- Fresh workspace: generator 12 tests pass.
+- Fresh starter: all 28 tests pass, including browser boot.
+- Strict style census covers generator and starter: OK.
+- No app files are kept in the repo.

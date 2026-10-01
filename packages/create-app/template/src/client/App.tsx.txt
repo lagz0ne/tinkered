@@ -1,5 +1,5 @@
 import { useData, useRun } from "@tinker/react";
-import { noteList, pagePath, readNote } from "../shared/notes.ts";
+import { noteList, pagePath } from "../shared/notes.ts";
 import { AuthForm } from "./AuthForm.tsx";
 import { saveNote } from "./actions.ts";
 
@@ -29,7 +29,7 @@ export function App() {
         onSubmit={(event) => {
           event.preventDefault();
           save.run({
-            input: readNote({ title: new FormData(event.currentTarget).get("title") }),
+            input: { title: new FormData(event.currentTarget).get("title") },
           });
         }}
       >

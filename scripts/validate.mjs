@@ -5,6 +5,8 @@ import { execSync } from "node:child_process";
 const VP = "/home/paseo/.local/vp/bin/vp";
 const strip = "node --experimental-strip-types";
 const lanes = [
+  ["create-app tests", `${VP} run --no-cache create-app#test`],
+  ["create-app size (<= 10 kB gzip)", `${VP} run --no-cache create-app#size`],
   ["mail tests", `${VP} run --no-cache mail#test`],
   ["mail size (<= 10 kB gzip)", `${VP} run --no-cache mail#size`],
   ["auth tests", `${VP} run --no-cache auth#test`],

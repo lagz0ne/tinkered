@@ -1,6 +1,13 @@
 import { defineConfig } from "vite-plus";
 
-export default defineConfig(({ isSsrBuild }) => ({
+export default defineConfig(({ isSsrBuild, mode }) => ({
+  define: isSsrBuild
+    ? {}
+    : {
+        "process.env.NODE_ENV": JSON.stringify(
+          mode === "production" ? "production" : "development",
+        ),
+      },
   build: isSsrBuild
     ? {}
     : {

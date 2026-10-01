@@ -9,9 +9,10 @@
   "scripts": {
     "build": "vp build && vp build --ssr src/server/main.ts --outDir dist/server",
     "test": "vp test",
-    "start": "node dist/server/main.js",
+    "start": "node --env-file-if-exists=.env dist/server/main.js",
     "db:generate": "drizzle-kit generate",
-    "auth:check": "node check-auth-schema.mjs"
+    "auth:check": "node check-auth-schema.mjs",
+    "dev": "node --env-file-if-exists=.env --experimental-strip-types src/dev.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.8",
@@ -41,6 +42,7 @@
     "auth": "1.7.6",
     "better-auth": "1.7.6",
     "drizzle-kit": "1.0.0-rc.4",
+    "playwright": "1.55.0",
     "typescript": "7.0.2",
     "vite-plus": "0.3.1"
   }

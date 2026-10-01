@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { chromium } from "playwright";
 import { startNatsServer } from "@tinker/nats/testing";
 import { beforeAll, afterAll, beforeEach, expect, test } from "vite-plus/test";
 
@@ -110,6 +111,36 @@ test.each(keys)("a missing %s stops prod boot and names the key", async (key) =>
     expect(await run.closed).toBe(1);
     expect(run.lines.join("")).toContain(key);
   } finally {
+    run.child.kill("SIGTERM");
+    await run.closed;
+  }
+});
+
+test("the browser saves a note and shows its live update", async () => {
+  const run = start(env);
+  const browser = await chromium.launch({ headless: true });
+  try {
+    await expect
+      .poll(() => run.lines.join(""), { timeout: 15000 })
+      .toContain('"message":"listening"');
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const connected = page.waitForRequest((request) => request.url().endsWith("/sync"), {
+      timeout: 10000,
+    });
+    await page.goto(`http://${env.HOST}:${env.PORT}/`);
+    await connected.catch((error: unknown) => {
+      if (errors.length) expect.fail(errors.join("; "));
+      throw error;
+    });
+    await page.getByLabel("Title").fill("Browser note");
+    await page.getByRole("button", { name: "Save note" }).click();
+    await expect
+      .poll(() => page.getByRole("listitem").allTextContents(), { timeout: 10000 })
+      .toContain("Browser note");
+  } finally {
+    await browser.close();
     run.child.kill("SIGTERM");
     await run.closed;
   }
