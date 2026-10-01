@@ -1,13 +1,34 @@
 import { fileURLToPath } from "node:url";
 import { PassThrough } from "node:stream";
 import { expect, test } from "vite-plus/test";
+import { createScope } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { runServer, tour } from "./index.ts";
+import { runServer, memory, connected, searchMcp } from "./index.ts";
 
-test("the memory demo lists and calls search", async () => {
-  expect(await tour()).toBe('search=["hit:owls"]');
+test("the memory example lists and calls search", async () => {
+  const stop = new AbortController();
+  const root = createScope({ signal: stop.signal, extensions: [connected, searchMcp] });
+  const client = new Client({ name: "example-test", version: "1.0.0" });
+  try {
+    await root.ready;
+    await client.connect(root.resolve(memory).client);
+    const listed = await client.listTools();
+    expect(listed.tools.map((entry) => entry.name)).toEqual(["search"]);
+    const answered = await client.request(
+      { method: "tools/call", params: { name: "search", arguments: { q: "owls" } } },
+      CallToolResultSchema,
+    );
+    expect(answered.content).toEqual([{ type: "text", text: '["hit:owls"]' }]);
+  } finally {
+    try {
+      await client.close();
+    } finally {
+      stop.abort();
+      await root.closed;
+    }
+  }
 });
 
 test("both stdio entries answer the search tool", async () => {

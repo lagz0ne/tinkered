@@ -2,7 +2,7 @@
 
 One search operation serves three entries.
 MCP is the protocol a client uses to list and call the tool.
-The safe demo connects a client and server in memory.
+The safe example connects a client and server in memory.
 It needs no network, account, or extra process.
 
 ## Run in this repo
@@ -18,7 +18,7 @@ vp check
 vp test
 ```
 
-`vp run dev` runs the same safe demo.
+`vp run dev` runs the same safe example.
 The output is:
 
 ```text
@@ -93,7 +93,11 @@ Its stop state lives in a data cell.
 The entry binds input and output as tags.
 It borrows those streams and removes its listeners on close.
 
-The memory demo closes its client in `finally`.
+The memory entry runs inside `if (import.meta.main)`.
+It closes its client in `finally`, even after a failed call.
+SIGINT and SIGTERM ask the entry to stop.
+The entry waits for `closed` and removes its signal listeners.
+A failed close is reported if the run itself did not fail.
 Each root owns its transport cleanup, including a failed start.
 The standalone root takes a stop signal and awaits `closed`.
 The command entry lets `@tinker/process` own its root.
@@ -102,4 +106,6 @@ Imports open no transport and add no process listeners.
 `vp test` checks the memory tool list and reply.
 It also calls both stdio entries with SDK clients in child processes.
 A third check ends the standalone server's input and waits for exit code 0.
-The tests use the public exports in `index.ts` and the entry commands.
+`index.ts` exports the memory transport, connection extension, and MCP graph.
+The memory test owns its root and client and uses those same units.
+The stdio tests use the public entry and command.

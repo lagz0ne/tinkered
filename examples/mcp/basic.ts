@@ -5,7 +5,7 @@ import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { searchMcp } from "./search.ts";
 import { checkClosed } from "./errors.ts";
 
-const memory = resource({
+export const memory = resource({
   label: "memory.transports",
   target: "scope",
   factory: (_deps, ctx) => {
@@ -16,7 +16,7 @@ const memory = resource({
   },
 });
 
-const connected = extension({
+export const connected = extension({
   label: "memory.server",
   hooks: {
     start: async (event) => {
@@ -28,12 +28,15 @@ const connected = extension({
   },
 });
 
-/** The SDK schema reads the tool reply at the edge; imports start no client or server. */
-export async function tour(): Promise<string> {
+if (import.meta.main) {
   const stop = new AbortController();
   const root = createScope({ signal: stop.signal, extensions: [connected, searchMcp] });
-  const client = new Client({ name: "tour", version: "1.0.0" });
+  const client = new Client({ name: "example", version: "1.0.0" });
   let completed = false;
+  let output: string;
+  const onStop = () => stop.abort();
+  process.once("SIGINT", onStop);
+  process.once("SIGTERM", onStop);
   try {
     await root.ready;
     await client.connect(root.resolve(memory).client);
@@ -43,15 +46,15 @@ export async function tour(): Promise<string> {
       CallToolResultSchema,
     );
     const text = answered.content.find((part) => part.type === "text")?.text ?? "";
-    const result = `${listed.tools.map((entry) => entry.name).join(",")}=${text}`;
+    output = `${listed.tools.map((entry) => entry.name).join(",")}=${text}`;
     completed = true;
-    return result;
   } finally {
     const [clientResult] = await Promise.allSettled([client.close()]);
     stop.abort();
     const result = await root.closed;
+    process.off("SIGINT", onStop);
+    process.off("SIGTERM", onStop);
     if (completed) checkClosed(clientResult, result);
   }
+  process.stdout.write(`${output}\n`);
 }
-
-if (import.meta.main) process.stdout.write(`${await tour()}\n`);
