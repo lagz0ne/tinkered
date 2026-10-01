@@ -4722,7 +4722,7 @@ flock /tmp/mutation.lock \
 ## t14 writer notes
 
 Owner: stack/t14 writer. Branch: `stack/t14`.
-Next: queued timing, then Stack and NATS mutation.
+Next: Stack and NATS mutation, then final proof.
 Verify: brief gate, validate, stack mutation at least 85,
 and queue verdict `b is faster` for reload versus restart.
 
@@ -5115,3 +5115,32 @@ No build runs in that tree while the job waits or runs.
 - Validation ran while the lock belonged to another writer.
   It ran on the final landed source, before mutation.
   If mutation needs a source fix, validation must run again.
+
+### t14 queued restart-versus-reload result
+
+- Queue job: `825612a5d958`.
+  Clean tree: `69de14b7` under `/home/paseo`.
+  Six rounds run three timed samples for each side.
+  A is full process restart; B is dev root reload.
+- Each sample includes one boot, five server edits,
+  a request after every edit, and final cleanup.
+  These are whole-cycle numbers, not one warm edit.
+- A median: 20.720 seconds.
+  B median: 7.362 seconds.
+  Delta: -13.3584 seconds, or -64.5 percent.
+  The 95 percent range is -13.5929 to -13.1433 seconds.
+  Verdict: `b is faster`, with `EXIT 0`.
+- Main's `a94dce47` changes the board alone.
+  The rebase has no conflicts and keeps all source bytes.
+  The timing tree's source still matches this branch.
+- I canceled a waiting mutation job before reading that diff.
+  No lane had started, and no mutation result was lost.
+  Both lanes are re-queued after checking the t17 marker.
+- Install, build, and the ticket gate pass again.
+  Check: zero errors and 28 warnings, matching main.
+  Stack: 128; NATS: 36; Drizzle: 25; tracker: 84.
+  The combined gate ends with `EXIT 0`.
+- `authoring/hooks` is not yet on main.
+  The dev host still uses the supported callback form.
+  If the removal lands before this ticket finishes,
+  rebase and move its new hooks to the object form.
