@@ -8,9 +8,9 @@ import {
 } from "@tinker/core";
 import type { PGlite } from "@electric-sql/pglite";
 import type { SQL } from "drizzle-orm";
-import type { JobWithMetadata, PgBoss } from "pg-boss";
+import type { JobResult, JobWithMetadata, PgBoss } from "pg-boss";
 import { jobsClock } from "./time.ts";
-import { raise } from "./errors.ts";
+import { isError, raise } from "./errors.ts";
 
 export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";
@@ -32,6 +32,11 @@ export declare namespace Jobs {
     pglite?: Resource.Handle<Promise<{ $client: PGlite }>>;
     env: { JOBS_URL?: string };
   };
+}
+
+/** Fail the current job once, without using its remaining retries. */
+export function failJob(cause: unknown): never {
+  raise("UnretryableJob", { cause });
 }
 
 /** A queue's operation reads job data through its usual input parser. */
@@ -106,20 +111,28 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
         for (const row of rows) {
           await worker.work(
             row.queue,
-            { includeMetadata: true, pollingIntervalSeconds: 0.5 },
+            { includeMetadata: true, pollingIntervalSeconds: 0.5, perJobResults: true },
             async (batch) => {
               await scope.ready;
+              const results: JobResult[] = [];
               for (const item of batch) {
                 try {
                   if (closing) raise("JobCancelled", { queue: row.queue });
                   await runJob(scope, row, item);
+                  results.push({ id: item.id, status: "completed" });
                 } catch (error) {
-                  if (item.retryCount >= item.retryLimit) {
+                  const permanent = isError(error, "UnretryableJob");
+                  if (permanent || item.retryCount >= item.retryLimit) {
                     log.error("job failed", { queue: row.queue, id: item.id, error });
                   }
-                  throw error;
+                  results.push({
+                    id: item.id,
+                    status: permanent ? "deadletter" : "failed",
+                    output: error,
+                  });
                 }
               }
+              return results;
             },
           );
         }

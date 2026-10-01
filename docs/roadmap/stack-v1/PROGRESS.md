@@ -4373,3 +4373,20 @@ This is new type feedback; no Core source changed.
   Strict style census and prose pass.
 - No owned check is left running. Never pushed.
 - Next: lead review and landing; the lead owns the board.
+
+### t09 writer assumptions and impact
+
+- Register React templates by name at the root.
+  Save that name and JSON props in each job.
+  Render only when the worker runs.
+- Use one jobs piece for mail and the app's other rows.
+  The root binds its send operation with `piece.sendMail(queue.send)`.
+- A permanent delivery failure must stay failed in pg-boss.
+  Jobs needs a public `failJob(cause)` for that outcome.
+  Use pg-boss per-job results after the session rolls back.
+- Existing `jobs`, `job`, and `send` signatures stay the same.
+  Callers: jobs tests, tracker job fixture,
+  and the new mail package.
+  Verify: jobs/mail/stack tests and a refs check on `failJob`.
+- SMTP only; no HTTP provider is needed for this ticket.
+  The root supplies the sender used when `from` is absent.

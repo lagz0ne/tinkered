@@ -10,7 +10,7 @@ import {
 import { errorResponses, hono, route } from "@tinker/hono";
 import { sql } from "drizzle-orm";
 import { expect, test } from "vite-plus/test";
-import { isError, job, jobs } from "../src/index.ts";
+import { failJob, isError, job, jobs } from "../src/index.ts";
 import { database, fixture, scopes, transaction } from "./fixtures.ts";
 
 const save = operation({
@@ -333,4 +333,40 @@ test("a failed child operation fails the job with its cause", async () => {
   const failures = logs.filter((log) => log.message === "job failed");
   expect(failures).toHaveLength(1);
   for (const log of failures) expect(log.attributes.error).toBe(cause);
+});
+
+test("a permanent job failure rolls back without retrying and logs once", async () => {
+  const cause = { reason: "permanent failure" };
+  let attempts = 0;
+  const fail = operation({
+    label: "permanent receipt failure",
+    depends: { tx: transaction },
+    run: async ({ tx }) => {
+      attempts++;
+      await tx.execute(sql`insert into receipts values ('gone')`);
+      failJob(cause);
+    },
+  });
+  const { client, clock, piece, tags } = await fixture([job("fail", fail)]);
+  const logs: Observe.Log[] = [];
+  const scope = createScope({
+    tags,
+    extensions: [piece.extension],
+    observe: { log: (log) => logs.push(log) },
+  });
+  scopes.push(scope);
+  await scope.ready;
+  await scope.session((s) => s.run(piece.send, { input: { queue: "fail", data: {} } }));
+  await clock.advance(1000);
+  await expect.poll(() => readStates(client)).toEqual([{ state: "failed", retry_count: 0 }]);
+  await clock.advance(5000);
+  expect(attempts).toBe(1);
+  expect((await client.query("select * from receipts")).rows).toEqual([]);
+  const failures = logs.filter((log) => log.level === 50);
+  expect(failures).toHaveLength(1);
+  for (const failure of failures) {
+    const error = failure.attributes.error;
+    if (!isError(error, "UnretryableJob")) throw error;
+    expect(error.payload.cause).toBe(cause);
+  }
 });

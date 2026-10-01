@@ -49,6 +49,8 @@ An unlisted queue raises `UnknownQueue` with `{ queue }`
 before pg-boss runs a query.
 A successful job closes its session before completion.
 A throw rolls it back and lets pg-boss retry.
+`failJob(cause)` rolls it back and fails it once,
+without using any remaining retries.
 A failed commit also fails the job.
 After the last try, the job stays failed and logs one line.
 The queue uses pg-boss defaults unless its row sets
@@ -73,6 +75,8 @@ Tests poll saved job states after advancing time.
 They never sleep or patch globals.
 
 ## Promises
+
+- A permanent job failure rolls back without retrying and logs once.
 
 - A committed request runs its job once with its data.
 - A rolled back request leaves no job.

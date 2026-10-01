@@ -1,10 +1,7 @@
 type Payloads = {
-  UnretryableJob: { cause: unknown };
-  InvalidConfig: { keys: string[] };
-  UnknownQueue: { queue: string };
-  PieceInUse: { label: string };
-  JobCancelled: { queue: string };
-  CommitFailed: { errors: readonly unknown[] };
+  InvalidConfig: { key: "MAIL_URL" };
+  UnknownTemplate: { template: string };
+  DeliveryFailed: { errors: readonly string[] };
 };
 
 export declare namespace Errors {
@@ -20,7 +17,7 @@ export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>
   throw Object.assign(new Error(kind), { kind, payload });
 }
 
-/** Narrow a caught package error; callers rethrow other errors. */
+/** Callers rethrow errors that do not belong to this package. */
 export function isError<N extends Errors.Name>(value: unknown, kind: N): value is Errors.Of<N> {
   return value instanceof Error && (value as Partial<Errors.Of>).kind === kind;
 }
