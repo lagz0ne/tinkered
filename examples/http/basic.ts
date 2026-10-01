@@ -39,9 +39,7 @@ export const onboard = operation({
   },
 });
 
-/** The declared operations share `send`; call tags give only the issue request a fresh token.
- * The recording backend keeps this tour local, including its sample GitHub URLs. */
-export async function tour(): Promise<string> {
+if (import.meta.main) {
   const seen: HttpRequest.Record[] = [];
   const fake: HttpClient.Backend = (request) => {
     seen.push(request);
@@ -49,6 +47,9 @@ export async function tour(): Promise<string> {
   };
 
   const stop = new AbortController();
+  const requestStop = () => stop.abort();
+  process.once("SIGINT", requestStop);
+  process.once("SIGTERM", requestStop);
   const scope = createScope({
     signal: stop.signal,
     tags: [
@@ -71,15 +72,13 @@ export async function tour(): Promise<string> {
   } finally {
     stop.abort();
     end = await scope.closed;
+    process.off("SIGINT", requestStop);
+    process.off("SIGTERM", requestStop);
   }
   if (end.status === "failed") throw end.error;
   if (end.teardownErrors?.length) {
     const [error] = end.teardownErrors;
     throw error;
   }
-  return output;
-}
-
-if (import.meta.main) {
-  process.stdout.write(`${await tour()}\n`);
+  process.stdout.write(`${output}\n`);
 }

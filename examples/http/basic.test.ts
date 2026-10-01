@@ -1,10 +1,35 @@
 import { createScope } from "@tinker/core";
 import { backend, config, HttpRequest, HttpResponse, isError } from "@tinker/http";
 import { expect, test } from "vite-plus/test";
-import { listRepos, onboard, tour } from "./index.ts";
+import { listRepos, onboard } from "./index.ts";
 
-test("the tour reports the parsed reply and first request URL", async () => {
-  expect(await tour()).toBe("ok 200 https://api.github.com/users/octocat/repos");
+test("listing repos parses the reply from the configured request URL", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const stop = new AbortController();
+  const scope = createScope({
+    signal: stop.signal,
+    tags: [
+      backend((request) => {
+        seen.push(request);
+        return Promise.resolve(HttpResponse.make(request, { status: 200, body: '"ok"' }));
+      }),
+      config({
+        baseUrl: "https://api.github.com",
+        headers: { accept: "json" },
+        accept: (status) => status < 300,
+      }),
+    ],
+  });
+  try {
+    await scope.ready;
+    expect(await scope.run(listRepos, { input: "octocat" })).toBe("ok");
+    expect(seen.map((request) => HttpRequest.toUrl(request))).toEqual([
+      "https://api.github.com/users/octocat/repos",
+    ]);
+  } finally {
+    stop.abort();
+    await scope.closed;
+  }
 });
 
 test("onboarding uses the fresh token only for its issue request", async () => {
@@ -25,7 +50,8 @@ test("onboarding uses the fresh token only for its issue request", async () => {
   });
   try {
     await scope.ready;
-    await scope.run(onboard, { input: "octocat" });
+    const created = await scope.run(onboard, { input: "octocat" });
+    expect(created.status).toBe(200);
     await scope.run(listRepos, { input: "after" });
     expect(
       seen.map((request) => ({

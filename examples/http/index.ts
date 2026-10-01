@@ -1,1 +1,1 @@
-export { listRepos, onboard, tour } from "./basic.ts";
+export { listRepos, onboard } from "./basic.ts";
