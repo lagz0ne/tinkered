@@ -15,6 +15,7 @@ an edit revision.
 Creating an issue posts once and clears the create form after success.
 Posting a comment clears its draft text after success.
 A rejected comment saves no row and records no activity.
+A failed activity write rolls back the request's issue insert.
 
 If the live connection drops — a wire failure or a server restart — the
 page keeps every typed draft, and the browser reconnects by itself.
@@ -289,7 +290,7 @@ vp run db:generate
 ```
 
 Commit the new folder in `drizzle/`.
-Boot runs those files through the stack's migrate step.
+Boot runs those files through `@tinker/drizzle/pglite`'s `migrate` operation.
 Never run `drizzle-kit push`.
 The config filters only `public`, the tracker's schema.
 An old database keeps its rows while the first boot

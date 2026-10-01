@@ -34,7 +34,10 @@ async function readFreePort(): Promise<number> {
 test("the first HTTP read and sync snapshot contain saved issues while the port binds", async () => {
   const dir = await mkdtemp(join(tmpdir(), "issues-order-"));
   const path = join(dir, "db");
-  const seed = createScope({ tags: [storeConfig(path)], extensions: [migrateIssues] });
+  const seed = createScope({
+    tags: [storeConfig({ kind: "open", url: path })],
+    extensions: [migrateIssues],
+  });
   await seed.ready;
   const saved = await seed
     .session((s) =>
@@ -65,7 +68,7 @@ test("the first HTTP read and sync snapshot contain saved issues while the port 
     },
   });
   const scope = createScope({
-    tags: [storeConfig(path)],
+    tags: [storeConfig({ kind: "open", url: path })],
     extensions: [server, migrateIssues, src, publish()],
   });
   try {

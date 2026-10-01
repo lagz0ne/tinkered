@@ -15,6 +15,7 @@ import {
   addComment,
   createIssue,
   editIssue,
+  fail,
   isError,
   issueList,
   listIssues,
@@ -51,7 +52,7 @@ type Boot = {
 async function boot(options: Boot = {}) {
   const server = issueServer({ serve: options.serve });
   const scope = createScope({
-    tags: [storeConfig(await cloneDatabase())],
+    tags: [storeConfig({ kind: "borrow", ...(await cloneDatabase()) })],
     extensions: [server, migrateIssues, src, publish()],
     presets: options.presets,
     observe: options.observe,
@@ -69,7 +70,9 @@ function detail(scope: Scope.Handle, id: string) {
 }
 
 test("a session save commits a row the root list read sees", async () => {
-  const scope = createScope({ tags: [storeConfig(await cloneDatabase())] });
+  const scope = createScope({
+    tags: [storeConfig({ kind: "borrow", ...(await cloneDatabase()) })],
+  });
   try {
     await scope.session((s) => s.run(createIssue, { input: { title: "First", description: "x" } }));
     const all = await scope.run(listIssues);
@@ -82,7 +85,7 @@ test("a session save commits a row the root list read sees", async () => {
 test("a seeded random replays the same issue, comment, and activity ids", async () => {
   async function ids(): Promise<readonly string[]> {
     const scope = createScope({
-      tags: [storeConfig(await cloneDatabase())],
+      tags: [storeConfig({ kind: "borrow", ...(await cloneDatabase()) })],
       random: makeTestRandom({ seed: 7 }),
     });
     try {
@@ -130,7 +133,10 @@ test("creating a valid issue saves it and a second viewer sees it", async () => 
 
 test("reopening against the same database restores the saved issue", async () => {
   const path = tempPath();
-  const first = createScope({ tags: [storeConfig(path)], extensions: [migrateIssues] });
+  const first = createScope({
+    tags: [storeConfig({ kind: "open", url: path })],
+    extensions: [migrateIssues],
+  });
   await first.ready;
   try {
     await save(first, createIssue, { title: "Kept", description: "survives restart" });
@@ -139,7 +145,7 @@ test("reopening against the same database restores the saved issue", async () =>
   }
 
   const second = createScope({
-    tags: [storeConfig(path)],
+    tags: [storeConfig({ kind: "open", url: path })],
     extensions: [migrateIssues, publish()],
   });
   try {
@@ -175,6 +181,27 @@ test("the HTTP routes save through app.request", async () => {
     const saved = parseIssueList(await list.json());
     expect(saved.length).toBe(1);
     expect(saved[0]?.title).toBe("Via HTTP");
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("a failed activity write rolls back the request's issue insert", async () => {
+  const { scope, app } = await boot({
+    presets: [
+      preset(recordActivity, () => {
+        throw fail("BadCreateInput", { reason: "activity write rejected" });
+      }),
+    ],
+  });
+  try {
+    const response = await app.request("/api/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Rolled back", description: "activity failed" }),
+    });
+    expect(response.status).toBe(400);
+    expect(await scope.run(listIssues)).toEqual([]);
   } finally {
     await scope.close({ graceful: true });
   }
@@ -302,7 +329,9 @@ test("a stale edit is rejected with the current saved issue and writes nothing",
 });
 
 test("an edit of a missing issue fails with an origin that names the loadSaved step", async () => {
-  const scope = createScope({ tags: [storeConfig(await cloneDatabase())] });
+  const scope = createScope({
+    tags: [storeConfig({ kind: "borrow", ...(await cloneDatabase()) })],
+  });
   try {
     let origin: ReturnType<typeof originOf>;
     try {
@@ -321,7 +350,7 @@ test("an edit of a missing issue fails with an origin that names the loadSaved s
 test("a preset recordActivity receives every activity write a create and an edit make", async () => {
   const written: Issues.Activity[] = [];
   const scope = createScope({
-    tags: [storeConfig(await cloneDatabase())],
+    tags: [storeConfig({ kind: "borrow", ...(await cloneDatabase()) })],
     presets: [
       preset(recordActivity, async (_deps, ctx) => {
         written.push(ctx.input);
@@ -451,7 +480,10 @@ test("a rejected comment writes nothing and records no activity", async () => {
 
 test("edited details, comments, and activity survive a restart", async () => {
   const path = tempPath();
-  const first = createScope({ tags: [storeConfig(path)], extensions: [migrateIssues] });
+  const first = createScope({
+    tags: [storeConfig({ kind: "open", url: path })],
+    extensions: [migrateIssues],
+  });
   await first.ready;
   try {
     const created = await save(first, createIssue, { title: "Kept talk", description: "v1" });
@@ -466,7 +498,10 @@ test("edited details, comments, and activity survive a restart", async () => {
     await first.close({ graceful: true });
   }
 
-  const second = createScope({ tags: [storeConfig(path)], extensions: [migrateIssues] });
+  const second = createScope({
+    tags: [storeConfig({ kind: "open", url: path })],
+    extensions: [migrateIssues],
+  });
   await second.ready;
   try {
     const issues = await second.run(listIssues);

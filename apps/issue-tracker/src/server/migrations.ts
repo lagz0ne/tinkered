@@ -1,18 +1,27 @@
 import { fileURLToPath } from "node:url";
+import { extension } from "@tinker/core";
 import { migrateDatabase, type Migrations } from "@tinker/drizzle/migrations";
-import { migrate, type Migrate } from "@tinker/stack";
+import { migrate, migrationConfig, type Migrate } from "@tinker/drizzle/pglite";
 import { sql } from "drizzle-orm";
-import { store } from "./store.ts";
 
 const firstMigration = "20260929165528_tracker";
 
 /** Keep this folder relative to the app, not the process's working directory. */
-export const migrations: Migrate.Options = {
+export const migrations = {
   migrationsFolder: fileURLToPath(new URL("../../drizzle", import.meta.url)),
   baseline: baselineIssues,
-};
+} satisfies Migrate.Config;
 
-export const migrateIssues = migrate(store, migrations);
+/** Finish the migration commit before later startup hooks can use the store. */
+export const migrateIssues = extension({
+  label: "issues.migrate",
+  hooks: {
+    start: async (event) => {
+      await event.scope.run(migrate, { tags: [migrationConfig(migrations)] });
+      await event.next();
+    },
+  },
+});
 
 /** Only databases from the old hand-SQL history enter here. Every upgrade and
  * the journal record share the migrate step's locked transaction (ADR 0079). */

@@ -32,7 +32,7 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
   const web = issueServer();
   const scope = createScope({
     tags: [
-      storeConfig(env.DATA_PATH ?? "./data/issues"),
+      storeConfig({ kind: "open", url: env.DATA_PATH ?? "./data/issues" }),
       draftTags(readDraftOptIn(env, listen.HOST, listen.PORT)),
     ],
     extensions: [

@@ -34,7 +34,7 @@ type Boot = {
 async function boot(path: { client: import("@electric-sql/pglite").PGlite }, options: Boot = {}) {
   const server = issueServer();
   const scope = createScope({
-    tags: [storeConfig(path), draftTags(options.draft)],
+    tags: [storeConfig({ kind: "borrow", client: path.client }), draftTags(options.draft)],
     extensions: [server, migrateIssues, src, publish()],
     presets: options.presets,
     observe: options.observe,

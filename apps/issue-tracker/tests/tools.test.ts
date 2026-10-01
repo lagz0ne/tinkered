@@ -25,7 +25,7 @@ import {
 async function boot() {
   const server = issueServer();
   const scope = createScope({
-    tags: [storeConfig(await cloneDatabase())],
+    tags: [storeConfig({ kind: "borrow", ...(await cloneDatabase()) })],
     extensions: [server, migrateIssues, publish()],
   });
   await scope.ready;

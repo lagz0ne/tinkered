@@ -25,7 +25,10 @@ const indexes =
   "select tablename, indexdef from pg_indexes where schemaname = 'public' order by tablename, indexname";
 
 async function boot(client: PGlite) {
-  const scope = createScope({ tags: [storeConfig({ client })], extensions: [migrateIssues] });
+  const scope = createScope({
+    tags: [storeConfig({ kind: "borrow", client })],
+    extensions: [migrateIssues],
+  });
   await scope.ready;
   await scope.close();
 }

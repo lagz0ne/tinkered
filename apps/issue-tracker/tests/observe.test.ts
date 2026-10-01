@@ -19,7 +19,7 @@ test("an error no route maps answers 500 and one `request failed` line names it"
   const observe = jsonLines((line) => written.push(line));
   const server = issueServer();
   const scope = createScope({
-    tags: [storeConfig(tempPath())],
+    tags: [storeConfig({ kind: "open", url: tempPath() })],
     extensions: [server],
     observe,
     presets: [

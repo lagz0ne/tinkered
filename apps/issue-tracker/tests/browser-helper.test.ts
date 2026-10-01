@@ -49,7 +49,14 @@ type Boot = {
 async function boot(path: string | undefined, options: Boot = {}) {
   const server = issueServer();
   const scope = createScope({
-    tags: [storeConfig(path ?? (await cloneDatabase())), draftTags(options.draft)],
+    tags: [
+      storeConfig(
+        path === undefined
+          ? { kind: "borrow", ...(await cloneDatabase()) }
+          : { kind: "open", url: path },
+      ),
+      draftTags(options.draft),
+    ],
     extensions: [server, migrateIssues, src, publish()],
     presets: options.presets,
     observe: options.observe,
