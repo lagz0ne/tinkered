@@ -1,6 +1,6 @@
 # Drizzle PGlite module
 
-Status: Doing.
+Status: Review; code gates pass, fresh faults pending.
 Owner: authoring lead.
 Writers: Astra, xhigh, one package each.
 Review: Opus 5.5, high.
@@ -67,14 +67,14 @@ No generic CRUD operations or empty extension are needed.
 
 ## Tickets
 
-- **p01 public PGlite graph** — [ ] blocked by: none.
+- **p01 public PGlite graph** — [x] blocked by: none.
   Native static resources, settings, migration action, public behavior tests.
   Verify: package build/check/test, strict census, Jev, release checks.
-- **p02 tracker caller** — [ ] blocked by: p01.
+- **p02 tracker caller** — [x] blocked by: p01.
   Import the graph and run its migration action in the app startup extension.
   Keep baseline upgrades, borrowed fixtures, issue behavior, and startup order.
   Verify: tracker tests and browser-helper tests.
-- **p03 standalone example** — [ ] blocked by: p01.
+- **p03 standalone example** — [x] blocked by: p01.
   Show direct imports, namespace settings, and app operations.
   Verify: check/test/start, repeated tours, standalone export check.
 - **p04 review and land** — [ ] blocked by: p02, p03.
@@ -114,4 +114,42 @@ tests, settings, and the runtime they import are unchanged.
 
 ## Proof
 
-Pending.
+Source checkpoint: `3d61241c`.
+Opus 5.5 review: READY on that full code diff.
+
+Observed gates, all exit 0:
+
+- Full recursive build and root code check.
+- All 28 test tasks using each project's own settings.
+- Drizzle: 43 tests; tracker: 80 tests.
+- Browser-helper: 7 more tests.
+- Standalone example: 2 tests and output `ada`.
+- The exported standalone copy installs, checks, tests, and runs.
+- All 48 deterministic release checks.
+- Prose: 0 hits; changed TypeScript census: OK; TSDoc: 0 rows.
+- SCIP indices rebuilt for Drizzle and Stack; helper references remain valid.
+- Built helper and migration entries match the base bytes exactly.
+
+Both lifecycle regressions failed before their fixes:
+
+- A stopped lazy factory created a database directory.
+  It now checks the stop signal after every import.
+- A bad path was published and repeated its error during cleanup.
+  Owned clients now await readiness before publication.
+
+The deferred UNIQUE test fails at COMMIT, raises native `23505`,
+and leaves no new table.
+It proves the migration answer waits for commit.
+The tracker HTTP regression proves a failed activity write rolls back its insert.
+A separate root/tenant probe confirms their native clients stay separate.
+
+The full directory census shows two unchanged `void run` rows in app services.
+They are outside this task; the changed-file strict census passes.
+The root check has the same 28 existing warnings and 0 errors.
+
+Frozen inputs cover all 14 packages.
+Thirteen packages retain identical source, tests, settings, and built modules.
+Their existing fault scores remain valid.
+Drizzle needs its fresh isolated fault lane; it is pending.
+Five Jev labels are saved; full calibration completed with exit 0.
+[Package input and fault proof](pglite-fault-proof.json).

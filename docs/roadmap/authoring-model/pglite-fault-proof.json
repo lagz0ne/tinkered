@@ -1,0 +1,139 @@
+{
+  "observedDate": "2026-10-01",
+  "sourceCheckpoint": "3d61241c5afe91bdc65bd8591c30289c9c975d0d",
+  "baseCheckpoint": "d96fee942c873f5d871607e4fc6ec96bcf5f3717",
+  "floor": 85,
+  "execution": "serial under /tmp/mutation.lock; task cache disabled",
+  "unchangedPackageCount": 13,
+  "checkedInputCount": 336,
+  "inputHashEncoding": "SHA-256 of UTF-8 JSON with sorted keys and compact separators",
+  "previousProof": "hook-fault-proof.json",
+  "packages": [
+    {
+      "name": "blueprint",
+      "checkedInputs": 77,
+      "inputsSha256": "5a793ef957540c132feefa8c3c2e82722bddfd49abc7e1da396162fedcbf96cb",
+      "status": "reused",
+      "rerun": false,
+      "score": 86,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "core",
+      "checkedInputs": 43,
+      "inputsSha256": "a560ea856761c5941c8b8443d0a32fbf1dd72a2ce8035f8b7a1db6df99bd9826",
+      "status": "reused",
+      "rerun": false,
+      "score": 85.8,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "drizzle",
+      "checkedInputs": 16,
+      "inputsSha256": "2a7331f2210aea0dbb8c6e6fd62476db440dee499fc059f219694c8eb9181698",
+      "status": "pending",
+      "rerun": true
+    },
+    {
+      "name": "harness",
+      "checkedInputs": 17,
+      "inputsSha256": "1093e2459670a6e98c4d5f4dbc2d547beb786668aad77281c00803a7a6d6074b",
+      "status": "reused",
+      "rerun": false,
+      "score": 85.64,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "hono",
+      "checkedInputs": 16,
+      "inputsSha256": "b6d644957436f2dd79e5a8a2ec0a847621125141a0d46979bdac2758adbe2734",
+      "status": "reused",
+      "rerun": false,
+      "score": 93.01,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "http",
+      "checkedInputs": 23,
+      "inputsSha256": "881de7a64ff334a18563b0c1ba77055c1759dee043bc64630cf5bf7cedd77e64",
+      "status": "reused",
+      "rerun": false,
+      "score": 89.7,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "mcp",
+      "checkedInputs": 9,
+      "inputsSha256": "5f29a58fc95501a1752688745433533bbaf59c802ddd0b0fb238d8fd392873c8",
+      "status": "reused",
+      "rerun": false,
+      "score": 98.53,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "nats",
+      "checkedInputs": 14,
+      "inputsSha256": "36d3aaba0d78122cc0a18b5bdffe1a164aba1ab6621fb50e772c4bc64ee951db",
+      "status": "reused",
+      "rerun": false,
+      "score": 87.67,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "process",
+      "checkedInputs": 11,
+      "inputsSha256": "ed5e83e0a8105e47ccbb21943c8ab0a9a7b16731b958f5e8be35baeb79e2e5f7",
+      "status": "reused",
+      "rerun": false,
+      "score": 94.61,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "react",
+      "checkedInputs": 30,
+      "inputsSha256": "c4b2c22719111635fd9d358fe65966c8acfba8ceb6cdd84042687c1a0e3266e0",
+      "status": "reused",
+      "rerun": false,
+      "score": 92.75,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "stack",
+      "checkedInputs": 30,
+      "inputsSha256": "d44c40cb9a2f5078b7af42fa7c503738e8f494867e8398b2a96bb09eb560858c",
+      "status": "reused",
+      "rerun": false,
+      "score": 85.91,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "sync",
+      "checkedInputs": 13,
+      "inputsSha256": "8d67fd6be664bbba8b6502a911c9a063df3a13a9f4fd3a1dc1a34472ff596d15",
+      "status": "reused",
+      "rerun": false,
+      "score": 86.31,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "tinkerer",
+      "checkedInputs": 30,
+      "inputsSha256": "bde69264e57a569d19126cdbc6a9f6936a34f3f34a58b43a593b4c38d7d94f8b",
+      "status": "reused",
+      "rerun": false,
+      "score": 91.82,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    },
+    {
+      "name": "utils",
+      "checkedInputs": 7,
+      "inputsSha256": "cd8247b53a49fc5489e074f9eb58ab02b585a982649fb438d2223e8ea6fabf74",
+      "status": "reused",
+      "rerun": false,
+      "score": 100,
+      "basis": "all source, tests, package settings and built modules match d96fee94"
+    }
+  ],
+  "normalLogs": "/tmp/tinkered-pglite-final-*.log",
+  "freshFaultLog": "/tmp/tinkered-pglite-final-mutation.log"
+}
