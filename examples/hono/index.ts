@@ -1,1 +1,1 @@
-export { database, tenant, tour, web } from "./basic.ts";
+export { database, tenant, web } from "./basic.ts";

@@ -1,6 +1,6 @@
 # Hono example
 
-A request tour built with `@tinker/hono`.
+A request example built with `@tinker/hono`.
 It needs Node 22.18 or newer and Vite+ (`vp`).
 Requests stay in memory; no server port or network is used.
 The database names are demo values, with no database to set up.
@@ -23,7 +23,7 @@ It prints:
 The three status codes come from two greetings and health.
 The next three names are the selected databases.
 The final `ab` is the complete streamed body.
-`dev` runs the same tour as `start`.
+`dev` runs the same entry as `start`.
 
 To copy this package out, run from the repo root:
 
@@ -47,14 +47,18 @@ Its install uses those copies.
 - `/health` answers with status 200.
 - `/database` selects `alpha-db` or `beta-db` by tenant.
   An unknown tenant uses the root's database setting.
-  The tour binds that setting to `public-db`.
+  The entry binds that setting to `public-db`.
 - `/ticks` streams `a`, then `b`.
-- `tour()` reads the full stream before stopping its root.
+- `main.ts` reads the full stream before stopping its root.
   Cleanup also runs when a request or body read fails.
 
 `web`, `tenant`, and `database` are public pieces for test roots.
 The route graph is declared once, then reused by each root.
-`main.ts` starts only when run directly.
+`main.ts` starts only inside `if (import.meta.main)`.
+Importing it starts no root or requests.
+Ctrl+C or SIGTERM asks its root to close.
+The entry waits for `closed`, then removes its signal listeners.
+After successful requests, a close or cleanup error makes the command fail.
 
 Run the package checks here:
 
