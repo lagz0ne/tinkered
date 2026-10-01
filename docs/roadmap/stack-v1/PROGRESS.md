@@ -4722,7 +4722,7 @@ flock /tmp/mutation.lock \
 ## t14 writer notes
 
 Owner: stack/t14 writer. Branch: `stack/t14`.
-Next: queued timing, Stack and NATS mutation, then validate.
+Next: queued timing, then Stack and NATS mutation.
 Verify: brief gate, validate, stack mutation at least 85,
 and queue verdict `b is faster` for reload versus restart.
 
@@ -5098,3 +5098,20 @@ No build runs in that tree while the job waits or runs.
   The other resource flags already have landed false labels.
 - The lead's t17 mutation marker is present.
   No t14 timing or mutation job has started yet.
+
+### t14 release checks during the lock wait
+
+- `pnpm validate` passes every deterministic budget lane.
+  All 48 lanes pass with `EXIT 0`.
+  Stack and NATS size limits pass unchanged.
+  The workspace already allows the esbuild build step.
+  The workspace file was restored after the run.
+- The clean timing tree is at `69de14b7`.
+  Install and the full build pass with `EXIT 0`.
+  Its checked NATS cache lives inside its writable tree.
+- The restart-versus-reload AB wait is in the foreground.
+  It checked the t17 marker before entering the lock wait.
+  No timing sample has run yet.
+- Validation ran while the lock belonged to another writer.
+  It ran on the final landed source, before mutation.
+  If mutation needs a source fix, validation must run again.
