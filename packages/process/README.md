@@ -41,6 +41,8 @@ It accepts `env`, `signal`, and common Core `options`.
 It reads no host process facts and keeps no output transcript.
 
 ```ts
+import { run } from "@tinker/process";
+
 const output: string[] = [];
 const errors: string[] = [];
 const code = await run({

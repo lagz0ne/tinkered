@@ -1,28 +1,29 @@
 import { spawn } from "node:child_process";
+import type { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 
+type ChildResult = { code: number | null; signal: string | null; stdout: string; stderr: string };
+
 const fixture = fileURLToPath(new URL("./fixtures/main.ts", import.meta.url));
+
+function readPipe(stream: Readable) {
+  const chunks: string[] = [];
+  stream.setEncoding("utf8").on("data", (text: string) => chunks.push(text));
+  return (): string => chunks.join("");
+}
 
 function child(args: string[], env: Record<string, string> = {}) {
   const processChild = spawn(process.execPath, ["--experimental-strip-types", fixture, ...args], {
     env: { ...process.env, ...env },
     stdio: ["pipe", "pipe", "pipe"],
   });
-  const stdout: Buffer[] = [];
-  const stderr: Buffer[] = [];
-  processChild.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
-  processChild.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
-  const out = (): string => Buffer.concat(stdout).toString();
-  const done = new Promise<{
-    code: number | null;
-    signal: string | null;
-    stdout: string;
-    stderr: string;
-  }>((resolve, reject) => {
+  const out = readPipe(processChild.stdout);
+  const err = readPipe(processChild.stderr);
+  const done = new Promise<ChildResult>((resolve, reject) => {
     processChild.once("error", reject);
     processChild.once("close", (code, signal) =>
-      resolve({ code, signal, stdout: out(), stderr: Buffer.concat(stderr).toString() }),
+      resolve({ code, signal, stdout: out(), stderr: err() }),
     );
   });
   return { process: processChild, out, done };
@@ -73,6 +74,7 @@ test("a real command SIGINT exits 130", async () => {
     expect(await running.done).toEqual({ code: 130, signal: null, stdout: "ready\n", stderr: "" });
   } finally {
     running.process.kill("SIGKILL");
+    await running.done;
   }
 });
 
@@ -89,6 +91,7 @@ test("stdin EOF stops a service and waits for cleanup", async () => {
     });
   } finally {
     running.process.kill("SIGKILL");
+    await running.done;
   }
 });
 
@@ -107,6 +110,7 @@ test.each(["SIGINT", "SIGTERM"] as const)(
       });
     } finally {
       running.process.kill("SIGKILL");
+      await running.done;
     }
   },
 );
@@ -126,5 +130,6 @@ test("a second OS signal terminates stalled service cleanup normally", async () 
     });
   } finally {
     running.process.kill("SIGKILL");
+    await running.done;
   }
 });

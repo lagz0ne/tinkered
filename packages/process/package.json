@@ -1,7 +1,7 @@
 {
   "name": "@tinker/process",
   "version": "0.0.0",
-  "description": "Tinkered Process: the process is tags, a command is an operation that answers an exit code, routing runs outside any scope (ADR 0056).",
+  "description": "Tinkered Process: command and service entries that return an exit code after root cleanup (ADR 0096).",
   "homepage": "https://github.com/author/library#readme",
   "bugs": {
     "url": "https://github.com/author/library/issues"
