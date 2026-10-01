@@ -171,5 +171,31 @@
     "inputsMatchTestedSource": true,
     "peerFilesPreserved": true,
     "sharedSettingsMatchBase": true
+  },
+  "integration": {
+    "upstreamCheckpoint": "b9ee321c0127a9bcc4040f9602b95e17b6ccd15b",
+    "keptTracks": ["stack/t10 auth", "stack/t08 jobs"],
+    "gates": [
+      "install",
+      "recursive build",
+      "check",
+      "30 test tasks",
+      "prose",
+      "52 deterministic release checks"
+    ],
+    "exitCode": 0,
+    "drizzleAndCoreInputCount": 59,
+    "drizzleAndCoreInputsMatchFaultRun": true,
+    "sdkVersions": {
+      "@electric-sql/pglite": "0.5.8",
+      "drizzle-orm": "1.0.0-rc.4"
+    },
+    "upstreamFaultScores": {
+      "auth": 86.0,
+      "hono": 86.38,
+      "jobs": 87.1,
+      "stack": 85.87
+    },
+    "basis": "Original 14-package frozen proof is for 3d61241c. Hono and the Stack bundle changed on upstream; their new proof belongs to the preserved stack tracks. Drizzle, its Core runtime, and both SDK versions still match the fresh Drizzle fault run."
   }
 }

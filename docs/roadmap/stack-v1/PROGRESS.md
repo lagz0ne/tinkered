@@ -408,7 +408,7 @@ npx --no-install stryker run \
   a missing `NATS_URL` fails boot naming it.
   nats patches core's `scope.close` on its handle
   until core/close-hook-scope lands.
-- **t08 jobs stack piece** -- [ ] blocked by: t06
+- **t08 jobs stack piece** -- [x] landed 2ac4a246 (blocked by: t06)
   `@tinker/jobs` runs pg-boss as a driver. Each
   job's operation runs in its own session: success
   commits, failure rolls back and retries
@@ -3803,3 +3803,573 @@ await closing;
 - All owned foreground jobs have finished.
   Commit by path; do not push. The lead reviews and lands.
 - Final log: `stack-t10-resume2-validate.log` in the briefs cache.
+
+## t08 writer work
+
+- Owner: stack/t08 writer, branch `stack/t08`.
+- Status: Doing.
+- Base: local `stack/t06` at `50b31bab`, as requested.
+- Next: add jobs after the migrate extension.
+- Verify: jobs, stack, tracker tests; build and check;
+  all validation lanes; jobs mutation at least 85.
+- Assumption: list the jobs extension just after migrate.
+  Drizzle commits before the jobs start takes its own lock.
+
+### t08 first green step
+
+- Added `@tinker/jobs`, pinned to pg-boss 12.35.0.
+- Sixteen public tests pass on real PGlite.
+- Build and check pass: no errors, 29 warnings.
+  A clean main at `6330012c` has the same 29 warnings.
+- Prose and strict style census pass; TSDoc has no findings.
+- `createJobsClock` binds a clock through the scope's tags.
+  It moves both pg-boss timers and SQL time.
+  Cron tests advance to a fixed minute and poll the app queue.
+- Assumption: `JOBS_URL` names the Postgres worker pool.
+  On PGlite, the caller lends the store's own `db` resource.
+  In both modes, send borrows `store.tx` for each call.
+- Core close has no scope argument, as in the NATS ticket.
+  The jobs piece stops fetches through the captured close handle.
+  It waits for worker cleanup after core closes child sessions.
+- Registered jobs in the size/test validation lanes and driver check.
+  The workspace already includes all packages by path pattern.
+  Each package has its own tsconfig; there is no root reference list.
+- Next: full gate, Jev, validation, and the single mutation lane.
+
+### t08 gate and Jev
+
+- Gate chain: build, check, jobs 16, stack 63, tracker 79.
+  `EXIT 0`; check has no errors and 29 warnings.
+- Jev tests: 0 of 16 flagged; every title has a README line.
+- Label `leakedInternal false` on `src/time.ts`:
+  the tag is shared inside the package, not in its exports.
+- Label `stateOutsideCell false` on the test fixture:
+  the client array owns cleanup, not app state.
+- The inherited tracker entry flag already has t06's false label.
+- The inherited test-helper resource closes over its PGlite client.
+  Moving it to module scope would lose that owner.
+- All remaining preflight hits were hints or noisy notes.
+
+### t08 close ownership fix
+
+- A new test held another extension's final cleanup open.
+  The old code let a second scope start during that wait.
+  Red proof: one failed test, exit 1.
+- Keep the owner until the captured root close has returned.
+  Failed boot still releases it through the start defer.
+- Build and check pass; all 17 jobs tests pass.
+  Check still has no errors and 29 warnings.
+- Jev tests and README promises: no flags in 17 tests.
+- Full repo tests before this fix: all 18 package tasks pass.
+  No package outside jobs changed in this fix.
+
+### t08 checks before mutation
+
+- Fresh fetch: no `stack/t06` tag is on origin.
+  The base remains `50b31bab` from local `stack/t06`.
+- Final gate: build, check, jobs 17, stack 63, tracker 79.
+  `EXIT 0`; no errors and the same 29 warnings.
+- `pnpm validate`: all 50 lanes pass, exit 0.
+  `pnpm-workspace.yaml` has no branch change.
+- Final Jev hits are covered by the same labels and notes.
+  Strict style census: OK.
+- Mutation is next, once, under `/tmp/mutation.lock`.
+  The config has used `timeoutMS: 60000` from the start.
+
+### t08 Core feedback
+
+The close hook gets options and next, but no scope.
+Jobs must capture the public handle in start and wrap close,
+as NATS does, so closing a rejected scope cannot stop its owner.
+The following probe fails with TS2322, exit 1:
+
+```ts
+extension({
+  close: async (_scope: Scope.Handle, next) => next(),
+});
+```
+
+The type checker says `CloseOptions` cannot be `Scope.Handle`.
+The probe was removed after the check.
+This is another caller for `core/close-hook-scope`.
+Core itself has no change on this branch.
+
+### t08 mutation findings
+
+- First full run: 65.75%, exit 1.
+  Counts: 92 killed, 4 timeout, 45 survived, 5 no coverage.
+- The report marked deletion of `jobs()` as survived.
+  Starting jobs in `beforeAll` made broken setup skip tests.
+  Only the Drizzle template now starts in that hook.
+  Each test starts jobs in its own body.
+- Tests now check the saved cancel cause, commit error,
+  original job error, old close handles, and failed boot cleanup.
+- Three new tests cover other queues during close,
+  worker database faults, and failed child operations.
+- Build, check, and all 20 jobs tests pass, exit 0.
+  Check has the same 29 warnings as main.
+  Jev tests and promises have no flags; style census passes.
+- Deviation: repeat the final mutation run after fixing setup.
+  The first report had false survivors and cannot prove the floor.
+  Keep its log and JSON; do not change the floor or source list.
+
+### t08 corrected final checks
+
+- Fetch still shows no `stack/t06` tag on origin.
+  The base is local t06 at `50b31bab`.
+- Gate chain: build, check, jobs 20, stack 63, tracker 79.
+  `EXIT 0`; no errors and the same 29 warnings as main.
+- `pnpm validate`: all 50 lanes pass again, exit 0.
+- Jev preflight has the same labels and notes.
+  Jev tests and promises: no flags in 20 tests.
+- No source change since the prior close fix.
+  The corrected mutation run is the last check.
+
+### t08 final proof
+
+- Corrected full mutation run: 86.99%, exit 0.
+  Counts: 127 killed, 0 timeout, 17 survived, 2 no coverage.
+  All 146 mutations stayed in the run; the floor stayed at 85.
+  `timeoutMS` stayed at 60000 from the first config.
+- Deleting `jobs()` is now killed by a test.
+  The first report marked that deletion survived with zero tests.
+  One remaining module-load failure still reports zero tests.
+  It counts against the score, not as a killed mutation.
+- Both full runs held `/tmp/mutation.lock` and ended in this turn.
+  The first report remains saved, including its failed score.
+- The final repo test command passes all 18 package tasks, exit 0.
+  The required gate, all 50 validation lanes, prose, and style pass.
+- A fresh fetch still has no `stack/t06` tag on origin.
+  `origin/main` remains `be6a9526`.
+  This branch's base is local t06 at `50b31bab`.
+- Card moved to Review; no push.
+  Next: lead review, then landing after t06.
+- Logs and reports are in `/home/paseo/.cache/tinkered-briefs/`:
+  - `stack-t08-final-gate2.log`: required gate.
+  - `stack-t08-validate2.log`: 50 passing lanes.
+  - `stack-t08-all-tests-final.log`: all repo tests.
+  - `stack-t08-mutation-first.log` and `.json`: first run.
+  - `stack-t08-mutation-final.log` and `.json`: corrected run.
+
+### t08 reviewer round 1
+
+- Owner: stack/t08 writer; base stays `50b31bab`.
+  No rebase or push in this round.
+- Fix unknown queue sends before calling pg-boss.
+  Add the managed error `UnknownQueue` with `{ queue }`.
+- Apply retry settings on restart and remove dropped cron schedules.
+- Prove a throwing Hono request rolls back its queued job.
+  Keep the forced-close rollback test.
+- Log cancellation when it uses the job's last try.
+- Verify: each regression, required gate, coverage, prose, Jev.
+  Run mutation only if source coverage drops.
+- Caller check: this base has no jobs consumers outside its tests.
+  No existing cross-package symbol changes.
+
+### t08 round 1 fixes and gate
+
+- New regression tests failed on the old runtime code, exit 1.
+  Unknown queue send timed out, as did its close cleanup.
+  Restart kept the old cron schedule.
+  Last-try cancellation produced no failure log.
+  The new throwing-request test already passed, as reviewed.
+- Unknown queue sends now raise before any pg-boss call.
+- Queue setup creates, updates, then schedules or unschedules.
+  Omitted settings reset to `retryLimit: 2`, `retryDelay: 0`,
+  and `retryBackoff: false`.
+  These are pg-boss 12.35.0's defaults.
+  All queue setup still runs before workers start.
+- The final-try log now includes cancelled jobs during close.
+  The early cancellation check uses that same error path.
+- All four tests pass; the forced-close rollback test stays.
+- Required gate: build, check, jobs 24, stack 63, tracker 79.
+  `EXIT 0`; no errors and the same 29 warnings as before.
+- Next: compare coverage, finish Jev and all validation lanes.
+
+### t08 round 1 final proof
+
+- The required gate passed, exit 0.
+  Jobs: 24 tests; stack: 63; tracker: 79.
+  Check: no errors and the same 29 warnings.
+- `pnpm validate`: all 50 lanes pass, exit 0.
+  `vp run -r test`: all 18 package tasks pass, exit 0.
+- Coverage before and after, over every jobs source file:
+  - Lines: 100% to 100% (73/73 to 79/79).
+  - Functions: 100% to 100% (20/20 to 22/22).
+  - Statements: 98.82% to 98.91% (84/85 to 91/92).
+  - Branches: 95.34% to 95.65% (41/43 to 44/46).
+    No file lost coverage in any of these measures.
+    Mutation was not rerun, as requested for this fix round.
+- Coverage used `@vitest/coverage-v8` 4.1.11 from the home cache.
+  The temporary module link was removed after the checks.
+  Repo package files have no new tool dependency.
+- Jev tests and promises: no flags in 24 tests.
+  The two existing jobs labels still apply:
+  `leakedInternal false` for the private clock tag;
+  `stateOutsideCell false` for test client cleanup.
+  The tracker entry has its inherited false label.
+  The stack test resource still needs its own database client.
+  Other hits were hints or a noisy judge; no new labels.
+- Prose and strict style census pass.
+  No new Core feedback; the earlier close-hook probe still applies.
+- Base snapshot stays `50b31bab`; no rebase or push.
+  Card returns to Review for the round 1 fixes.
+- Proof files share `/home/paseo/.cache/tinkered-briefs/`:
+  - `stack-t08-round1-red-queue.log`: send and close timeouts.
+  - `stack-t08-round1-red-other.log`: two failures and the passing throw test.
+  - `stack-t08-round1-gate.log`: required gate.
+  - `stack-t08-round1-validate.log`: all 50 lanes.
+  - `stack-t08-round1-all-tests.log`: all package tests.
+  - `stack-t08-round1-coverage-before/coverage-summary.json`.
+  - `stack-t08-round1-coverage-after/coverage-summary.json`.
+
+### t08 resume gate — 2026-09-30
+
+- Owner: stack/t08 writer.
+  Branch: `stack/t08`.
+- Discarded the paused lander's uncommitted board,
+  track, and calibration edits, as requested.
+- The diff from reviewed `da34b8cf` to old head `5e968706`
+  contains code changes from the earlier base change.
+  It changes 49 files overall.
+  The jobs package itself has no change in that diff.
+- `50b31bab` is no longer an ancestor.
+  Landed t06 at `2700a440` is an ancestor.
+- Rebasing from `2700a440` tried to replay old main commits.
+  It hit `scripts/validate.mjs`; that attempt was aborted.
+- Rebased the ten jobs commits from their actual main fork,
+  `4c88cded`, onto `origin/main` at `217a4fe3`.
+  No jobs landing commit was present to drop.
+- The completed rebase had one conflict:
+  `tools/jev/cases.jsonl`.
+  Kept main's labels and the two jobs labels.
+- Main's stack code and the jobs code needed no merge edits.
+  Drizzle still commits before the jobs extension starts.
+  Main's publisher, namespace, trace, and close behavior stays.
+- Restored `TODO.md` from current main.
+  Old jobs commits had restored a stale Review card.
+  The lead owns the current board and landing.
+- Gate: jobs 24, stack 106, tracker 79 tests pass.
+  Build and check pass: 0 errors, 28 warnings.
+  A clean `origin/main` worktree also has 28 warnings.
+
+```bash
+vp run -r build && vp check \
+  && vp run jobs#test && vp run stack#test \
+  && vp run @tinker-issue-tracker#test
+EXIT 0
+```
+
+- Jev tests: 0 flags in 24 tests.
+  README promises: 0 gaps in 24 titles.
+- Jev preflight: the private clock tag has its saved
+  `leakedInternal false` label.
+  It is shared only inside the package.
+  The remaining hits are a noisy note and two hints.
+- Strict style census: OK.
+  Prose lint passes.
+- t17 is absent from `origin/main` at this gate.
+  The mapped 4xx job test still waits for its rollback fix.
+- Next: all package tests, jobs and stack mutation under
+  `/tmp/mutation.lock`, then `pnpm validate`.
+- Proof logs: `~/.cache/tinkered-briefs/` files named
+  `stack-t08-resume-gate.log`,
+  `stack-t08-resume-main-check.log`, and
+  `stack-t08-resume-jev-*.log`.
+
+### t08 resume jobs mutation — 2026-09-30
+
+- All 19 package test tasks pass: `EXIT 0`.
+- Jobs mutation ran alone under `/tmp/mutation.lock`.
+  It completed in the foreground with `EXIT 0`.
+- Jobs: 133 killed, 1 timeout, 20 survived.
+  No coverage: 3.
+- Killed / (killed + timeout + survived): 86.36%.
+  Stryker score: 85.35%, above its 85 floor.
+- Proof: `~/.cache/tinkered-briefs/` files
+  `stack-t08-resume-jobs-mutation.log` and
+  `stack-t08-resume-jobs-mutation.json`.
+- The lead reserved the next lock turn for t17.
+  Waited in the foreground, polling once a minute,
+  until `t17-mutation.done` existed.
+- After that file appeared, fetched origin again.
+  `origin/main` is still `217a4fe3`; t17 is absent.
+  The mapped 4xx job test still waits for that fix.
+- Stack mutation is queued after the done file.
+  Next: its result, then `pnpm validate`.
+
+### t08 follow-up after t17 — 2026-10-01
+
+- The queued stack lane passed on the first resumed base.
+  Killed: 530; timeout: 2; survived: 86; no coverage: 1.
+  Killed share: 85.76%; Stryker score: 85.95%; `EXIT 0`.
+  Its log and JSON use `stack-t08-resume-stack-mutation`
+  in the briefs cache.
+- A fresh fetch found t17 on `origin/main` at `22b91ecf`.
+  Added the promised mapped 409 job test and README line.
+- Before t17, the test failed: the 409 left an active job.
+  After t17, the 409 leaves no job; no clock wait is needed.
+  Red proof: `stack-t08-resume-409-red.log`, `EXIT 1`.
+- Rebased onto `22b91ecf`.
+  Kept both track-note blocks and both Jev label sets.
+  The lockfile keeps main's separate example packages
+  and the jobs dependency entries.
+  Dropped only obsolete example dependencies in the conflict.
+- Main's Hono, stack, and Core source stays unchanged.
+  Install passed; restored `CLAUDE.md`.
+- Full gate: jobs 25, stack 111, tracker 79; `EXIT 0`.
+  Check: 0 errors, 28 warnings, matching a fresh main check.
+  Logs: `stack-t08-resume-final-gate.log` and
+  `stack-t08-resume-final-main-check.log`.
+- Jev: 0 flags and 0 README gaps in 25 tests.
+  The private clock's saved false label still applies.
+  Strict style census and prose pass.
+- Next: all package tests and validation, then fresh jobs
+  and stack mutation on this final base under the lock.
+  The lead owns review and landing; this writer never pushes.
+
+### t08 final-base tests and validation
+
+- All 29 test tasks pass without cache: `EXIT 0`.
+  Each package used its own test config after the full build.
+- `pnpm validate`: all 50 checks pass, `EXIT 0`.
+  The workspace already allowed esbuild.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Logs in the briefs cache:
+  `stack-t08-resume-final-all-tests.log` and
+  `stack-t08-resume-final-validate.log`.
+- Assumption: rerun both mutation lanes after the t17 rebase,
+  since the tested Hono and stack behavior changed.
+  Next: jobs, then stack, alone under `/tmp/mutation.lock`.
+
+### t08 mutation timeout check
+
+- First final-base jobs run: 127 killed, 7 timeout,
+  20 survived, 3 without coverage; `EXIT 0`.
+  Stryker score: 85.35%.
+  Killed share: 82.47%, below the required 85%.
+  This run does not meet the resume gate.
+- Kept its full log and JSON under
+  `stack-t08-resume-final-jobs-mutation-first`
+  in the briefs cache.
+- Four timeouts cover the unknown-queue test.
+  That test awaited the send before releasing its transaction.
+  It now polls the public result, closes in `finally`,
+  and joins the send after close.
+  It keeps the same managed error and payload checks.
+  No runtime code or mutation setting changed.
+- Gate after the test change: jobs 25, stack 111, tracker 79;
+  build and check pass, `EXIT 0`.
+  Check: 0 errors, 28 warnings, still matching main.
+  Log: `stack-t08-resume-final-gate-cleanup.log`.
+- Next: validate again, then both full mutation lanes.
+
+### t08 Core feedback: early failure from an async send
+
+The declared send result is a promise.
+TypeScript accepted `.then` on its settled result.
+The unknown-queue path returned a plain failed result instead.
+The first test revision failed with `then is not a function`.
+
+```ts
+const pending = request.settle(piece.send, {
+  input: { queue: "nope", data: {} },
+});
+await pending.then((result) => result);
+```
+
+`Scope.Settled<Promise<T>>` only declares a promise.
+The test uses `Promise.resolve` before `.then`.
+This is new type feedback; no Core source changed.
+
+### t08 refresh after t18
+
+- Fetched and rebased onto `origin/main` at `23f0ccce`.
+  The only conflicts were appended track notes.
+  Kept all t18 notes and jobs notes.
+- Main's stack and tracker source stays unchanged.
+  Install passed; restored `CLAUDE.md`.
+- Fresh gate: jobs 25, stack 114, tracker 79; `EXIT 0`.
+  Check: 0 errors, 28 warnings.
+  A fresh clean main check has the same 28 warnings.
+- Gate and main logs in the briefs cache:
+  `stack-t08-resume-t18-gate.log` and
+  `stack-t08-resume-t18-main-check.log`.
+- Jev still has 0 flags and 0 README gaps in 25 tests.
+  No source label changed.
+- Next: all tests and validation on this base,
+  then jobs and stack mutation under the lock.
+
+### t08 t18-base validation
+
+- All 29 test tasks pass without cache: `EXIT 0`.
+- `pnpm validate`: all 50 checks pass, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Logs: `stack-t08-resume-t18-all-tests.log` and
+  `stack-t08-resume-t18-validate.log` in the briefs cache.
+- Next: the final jobs run with the bounded queue check,
+  then stack, alone under `/tmp/mutation.lock`.
+
+### t08 bounded lifecycle checks
+
+- The next jobs run ended with 125 killed, 9 timeout,
+  20 survived, and 3 without coverage; `EXIT 0`.
+  Killed share: 81.17%, below the required 85%.
+  Stryker score: 85.35%; that score counts timeouts.
+- Saved this run's log and JSON under
+  `stack-t08-resume-final-jobs-mutation-second`
+  in the briefs cache.
+- The queue check still waited on a close that joined
+  the blocked send before releasing its transaction.
+  The test now borrows a real transaction from a separate
+  session and closes that owner before joining the send.
+  No fake database or runtime change is needed.
+- Lifecycle checks now poll the job's entry event.
+  The graceful-close check releases its gate in `finally`.
+  A missing worker must fail the check without leaving
+  the test waiting forever for an entry event.
+- Full gate passes: jobs 25, stack 114, tracker 79;
+  build and check pass, `EXIT 0`.
+  Check: 0 errors, the same 28 warnings as clean main.
+- Jev: 0 flags and 0 README gaps in 25 tests.
+  Strict style census: OK.
+- Next: check the timeout ranges under the lock,
+  then rerun both full mutation lanes and validation.
+
+### t08 cleanup validation
+
+- `pnpm validate` passes all 50 checks, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Proof: `stack-t08-resume-cleanup-validate.log`
+  in the briefs cache.
+- The focused mutation check is still waiting
+  for `/tmp/mutation.lock` in the foreground.
+- Next: its result, then both full mutation lanes.
+
+### t08 authoring migration
+
+- Owner: stack/t08 writer.
+- State: Doing; main removed the old hook and store forms.
+- Rebased onto `origin/main` at `d96fee94`.
+  Kept main's authoring labels and the jobs labels
+  in the only conflict, `tools/jev/cases.jsonl`.
+- Assumption: jobs tests must use native database
+  and transaction resources, matching main's Drizzle API.
+- Next: object hooks and native test resources,
+  then a fresh gate and both full mutation lanes.
+- Verify: build, check, jobs, stack, tracker, Jev,
+  strict style census, mutation, and `pnpm validate`.
+- Read ADRs 0093 and 0094 and the wave-2 brief.
+  The database resource uses `target: "namespace"`
+  with a borrowed `{ client }` config binding.
+  The session resource calls `openTransaction`.
+- Jobs and all test extensions now use object hooks.
+  The worker still borrows the native database's `$client`.
+  Sending, retries, cron, and close order stay the same.
+- Fresh gate: jobs 25, stack 114, tracker 79; `EXIT 0`.
+  Check: 0 errors, 28 warnings.
+  A clean `d96fee94` check has the same 28 warnings.
+- Gate and baseline proof in the briefs cache:
+  `stack-t08-resume-hooks-gate.log` and
+  `stack-t08-resume-hooks-main-check.log`.
+- Jev: 0 flags and 0 README gaps in 25 tests.
+  The private clock's saved false label still applies.
+  Strict style census and prose pass.
+- Next: all tests and validation on this base,
+  then the focused check and both full mutation lanes.
+
+### t08 all tests after the hook migration
+
+- All 29 package test tasks pass without cache, `EXIT 0`.
+  Each task uses its own test config.
+- Proof: `stack-t08-resume-hooks-all-tests.log`
+  in the briefs cache.
+- Next: validation, then the locked mutation checks.
+
+### t08 validation after the hook migration
+
+- `pnpm validate` passes all 50 checks, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Proof: `stack-t08-resume-hooks-validate.log`
+  in the briefs cache.
+- Next: the focused timeout check, then both full
+  mutation lanes alone under `/tmp/mutation.lock`.
+
+### t08 timeout ranges after the hook migration
+
+- Focused run: 75 killed, 0 timeout, 8 survived,
+  3 without coverage; `EXIT 0`.
+  Killed share: 90.36%; Stryker score: 87.21%.
+- The old timeout cases now print `[Killed]`:
+  fetch wait, worker registration, queue guard and body,
+  per-call database, queue setup function and loop,
+  and the error registry's throw body.
+- The queue check releases its real transaction owner.
+  Lifecycle checks poll entry and release the work gate.
+  No runtime behavior or mutation settings changed
+  to fix the timeouts.
+- Proof: `stack-t08-resume-jobs-timeout-ranges.log`
+  and its `.json` in the briefs cache.
+- One queued attempt used the wrong CLI list form.
+  Stopped only that waiting command and corrected it.
+  Stopped the next waiting attempt when hooks landed.
+  No running mutation lane was stopped.
+- Next: both full lanes, jobs first, then stack
+  after checking the t17 done file.
+
+### t08 full jobs mutation after the hook migration
+
+- Jobs: 135 killed, 0 timeout, 20 survived,
+  3 without coverage; `EXIT 0`.
+  Killed share: 87.10%, above the required 85%.
+  Stryker score: 85.44%.
+- The runner recovered from one worker's `SIGILL`.
+  The final report has no error rows or timeouts.
+- Proof: `stack-t08-resume-final-jobs-mutation.log`
+  and its `.json` in the briefs cache.
+- Checked that `t17-mutation.done` exists before
+  queuing stack under `/tmp/mutation.lock`.
+- Next: finish the full stack lane, save its counts,
+  and hand the branch to the lead for review.
+
+### t08 full stack mutation after the hook migration
+
+- Stack: 553 killed, 2 timeout, 89 survived,
+  2 without coverage; `EXIT 0`.
+  Killed share: 85.87%, above the required 85%.
+  Stryker score: 85.91%.
+- Ran alone under `/tmp/mutation.lock` after jobs.
+  Checked the t17 done file before queuing it.
+- Proof: `stack-t08-resume-final-stack-mutation.log`
+  and its `.json` in the briefs cache.
+- Fresh fetch still shows `origin/main` at `d96fee94`.
+  No further rebase or code change is needed.
+- Next: final validation, then lead review and landing.
+
+### t08 final resume proof
+
+- Owner: stack/t08 writer.
+- State: Review; all resume checks pass on `d96fee94`.
+- Jobs and test extensions use event hooks.
+  The namespace database resource borrows `{ client }`;
+  the session transaction resource uses `openTransaction`.
+  All 25 jobs promises still pass.
+- The mapped 409 check failed before t17 with a saved job.
+  It passes after t17 with no job, before clock advance.
+- Gate: build, check, jobs 25, stack 114, tracker 79;
+  `EXIT 0`, with 0 errors and 28 warnings.
+  A clean main check has the same 28 warnings.
+- All 29 test tasks pass without cache, `EXIT 0`.
+- Both full mutation lanes pass the killed share floor:
+  jobs 135 / 0 / 20, 87.10%;
+  stack 553 / 2 / 89, 85.87%.
+  Counts are killed / timeout / survived.
+- Final `pnpm validate`: all 50 checks pass, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; no branch change.
+  Proof: `stack-t08-resume-post-mutation-validate.log`
+  in the briefs cache.
+- Jev has no test flags or README gaps.
+  The two saved false labels stay in the case bank.
+  Strict style census and prose pass.
+- No owned check is left running. Never pushed.
+- Next: lead review and landing; the lead owns the board.

@@ -847,3 +847,10 @@ The first crash and successful retry are both recorded in [PGLITE.md](PGLITE.md)
 Main fast-forwards to `f3e94f84`; local peer notes stay untouched.
 Its fresh install, build, check, and prose pass, exit 0.
 All 336 code inputs and built modules match the test and fault checked source.
+
+The first push met upstream's auth and jobs landings.
+Both tracks and every review label are retained in the final merge.
+Its install, build, check, 30 test tasks, prose, and 52 release checks pass.
+Drizzle, its Core runtime, and both SDK versions still match the fault run.
+The original frozen proof describes `3d61241c`; upstream owns the new Hono,
+Stack, Auth, and Jobs proof shown in the package proof's integration row.
