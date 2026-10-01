@@ -44,15 +44,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t11 auth-mails** — Owner: writer stack/t11.
-  Next: wire auth mail hooks and prove both links over HTTP.
-  Verify: auth, mail, jobs tests; check; auth mutation; validate.
-  [Track](docs/roadmap/stack-v1/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 ## Review
+
+- **stack/t11 auth-mails** — Owner: writer stack/t11.
+  Next: lead reviews and lands the saved branch.
+  Verify: gate `EXIT 0`; auth 25, mail 13, jobs 26;
+  Stack 114, tracker 80; all 31 test tasks; release 54/54.
+  Auth changed-file mutation: 88.03% (103/0/14).
+  Rebased onto `758efce5`; auth source hashes match the run.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Next: lead lands `stack/t09`; the review fix and checks are saved.
 Verify: review fix gate `EXIT 0`; mail 13, jobs 26, stack 114;

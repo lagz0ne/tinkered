@@ -439,7 +439,8 @@ npx --no-install stryker run \
   read the user in an operation, sign out, and no
   request hangs; a test fails when the generated
   auth schema differs from the committed one.
-- **t11 auth mails: verify and reset** -- [ ] blocked by: t09, t10
+- **t11 auth mails: verify and reset** -- [ ] Review
+  Owner: writer stack/t11; lead reviews and lands.
   Sign-up sends a verify mail. A reset request
   sends a reset mail. Both go through `sendMail`.
   Verify: `vp run auth#test` reads both mails from
@@ -4692,3 +4693,28 @@ flock /tmp/mutation.lock \
   `stack-t11-core-base-style.log` in the briefs cache.
 - Next: repeat the full repo tests and release checks
   on the landed Core base, then save the final proof.
+
+### t11 final proof for review
+
+- All 31 package test tasks pass on `758efce5`.
+  They ran without cache; `EXIT 0`.
+- `pnpm validate`: all 54 lanes pass; `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- The auth mutation run covered only the changed files:
+  `src/better-auth.ts`, `src/index.ts`, `src/templates.ts`.
+  It ran alone under `/tmp/mutation.lock`.
+  Killed 103; timeout 0; survived 14; uncovered 0.
+  `103 / (103 + 0 + 14) = 88.03%`; floor 85; `EXIT 0`.
+- Both landed-base rebases came after that run.
+  Kept the brief's single-run rule.
+  All three source hashes still match the mutation report.
+  The fresh gate, full repo tests, and release checks
+  above ran with the landed Core fix.
+- Proof: `stack-t11-core-base-all-tests.log`,
+  `stack-t11-core-base-validate.log`,
+  `stack-t11-auth-mutation.log`, and
+  `stack-t11-auth-mutation.json` in the briefs cache.
+- No new Jev labels are owed.
+  No new Core feedback or workaround was needed.
+- Saved work waits in Review for the lead to land it.
+  The writer made no push.
