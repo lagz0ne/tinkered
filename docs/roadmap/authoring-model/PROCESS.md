@@ -1,0 +1,139 @@
+# Thin Process entries
+
+Status: Doing.
+Owner: authoring lead.
+Writers: Astra xhigh; one package per turn.
+Review: Opus high.
+
+The user approved the Process review and its smaller shape.
+[Observed failures and proposed cases](PROCESS-REVIEW.md).
+The Unix main precedent stays: route, run, finish cleanup, return a code.
+Node's output rule requires natural exit after pending writes finish.
+
+## API and ownership
+
+Keep native tags, operations, resources, and extensions.
+Routing remains outside Core: help and unknown routes build no root.
+A route still loads only after selection.
+Its callback receives one object with `args` and optional `signal`.
+The signal lets owned loader work stop too.
+An import promise stays observed if its caller stops awaiting it.
+A loader only supplies graph units and config; it does not start a service.
+
+Each selected entry is one of these cases:
+
+```ts
+{ kind: "command", op: checkCommand }
+{ kind: "service", options: {
+  extensions: [stdio, searchMcp],
+} }
+```
+
+A command still returns its own exit code and writes through `io`.
+Its abort force-closes its one root, preserving root data ownership.
+Do not use Core's call signal: that makes a child session.
+A service starts its extensions and waits for Core's `closed` result.
+Its stop requests graceful root close; no waiting operation is needed.
+
+`stop` is a static Process tag carrying a borrowed `() => void` port.
+The runner binds it to its root's native stop controller.
+A service extension calls it when stdin ends or its transport closes.
+That gives EOF and OS signals the same native lifetime boundary.
+No stop cell, scope handle, or close promise is handed to userland.
+
+The public calls are object calls, with no legacy form:
+
+```ts
+const code = await run({
+  shell,
+  args: ["check", "README.md"],
+  env: {},
+  io: {
+    write: (text) => output.push(text),
+    error: (text) => errors.push(text),
+  },
+});
+
+if (import.meta.main) {
+  process.exitCode = await main({ shell });
+}
+```
+
+`run` answers a number and never reads the host process.
+Its `io` is required; `env` defaults to an empty record.
+Its optional `signal` comes from its caller.
+Its optional `options` supplies common Core settings.
+The entry's own settings override common fields.
+Tags combine process facts, then common tags, then entry tags.
+Use ordinary options precedence, not a new merge framework.
+
+`main` reads real argv, environment, and streams once.
+It accepts `{ shell, args?, options? }` and returns a number.
+It installs both OS stop listeners and removes both after the first stop
+or after the run ends, so a second signal can terminate the process.
+It never calls `process.exit`; its app owns `process.exitCode`.
+Environment values are copied at the edge for the run's static binding.
+
+Remove public `execute` and `Process.Result`.
+The executor is private; callers collect only the output they need.
+Retain `usageOf`, `positionals`, `jsonLine`, and managed Process errors.
+No command builder, class, cache, or generic manager is added.
+
+## Exit rules
+
+- Help and version return 0 without a loader or root.
+- Unknown route or invalid command input returns 2 with usage.
+- Loader or command failure returns 1 with the failure text.
+- A pre-aborted call starts no loader and returns 130.
+- An abort while loading returns 130 and observes a late rejection.
+- A cancelled command returns 130 unless it handles the stop and returns.
+- A service's normal stop or EOF returns 0 after cleanup.
+- Failed start or teardown makes a successful run return 1.
+- An earlier failed command keeps its code and primary failure.
+  Secondary cleanup must not hide it or create a false success.
+
+## Impact before code
+
+Process changes `Entry`, `Route`, `run`, and `main`.
+It adds the static `stop` port and removes `execute` and `Result`.
+SCIP references and source searches name these callers:
+
+- Process source, its tests, and its README.
+- Blueprint's static shell, main, command tests, and docs.
+- Tinkerer's command tests and README.
+- The tracker tools entry, route list, tests, and README.
+- Process, Process CLI, and MCP examples and their docs.
+- MCP package README and the authoring guide.
+- Glossary and a new decision replacing the affected ADR 0056 rules.
+
+Blueprint's shell becomes static metadata.
+Common settings move to the Process call instead of repeated route closures.
+Domain operations and resources keep their identities.
+Each writer touches only its assigned package in its own worktree.
+Callers can be prepared together from this contract.
+Their final gates wait for the new Process package to be built.
+No legacy compatibility adapter lands.
+
+Core, HTTP, Hono, Drizzle, Harness, and server runtime graphs are unchanged.
+The known Core graceful-write and close-hook limits remain separate cards.
+No paid backend is used for gates.
+
+## Tickets
+
+- **Process API and bugs** — blocked by: none.
+  New cases and object calls; full pipe output; cleanup failure handling.
+  Verify: package check/tests; real pipe, loader stop, and service EOF cases.
+
+- **Caller migration** — blocked by: the built Process API for final checks.
+  Static shells, explicit output collection, native service lifetime.
+  Verify: each package's own checks and tests; no old public symbol refs.
+
+- **Lead integration** — blocked by: both preceding slices.
+  Review, full repo checks, package fault proof, and landing.
+  Verify: build, check, all tests, prose, strict census, release checks;
+  affected package mutation floors remain 85; imports start nothing;
+  outside-repo Process, Process CLI, and MCP copies pass.
+
+## Proof
+
+Pending.

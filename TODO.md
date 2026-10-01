@@ -45,6 +45,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **process/thin-entry** — route actions and services with native ownership.
+  Owner: lead (authoring session).
+  Writers: Astra xhigh, one package per turn; Opus high review.
+  Next: fix output and cleanup; publish object calls; move all callers.
+  Verify: build, check, all tests, real pipe and stop probes, prose,
+  strict census, release checks, and affected package fault scores above 85.
+  [Track](docs/roadmap/authoring-model/PROCESS.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
