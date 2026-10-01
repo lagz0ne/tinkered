@@ -5547,6 +5547,7 @@ No build runs in that tree while the job waits or runs.
 - The first Hono attempt is saved as start-log-hono-mutation-first.*.
 - All proof files are in ~/.cache/tinkered-briefs/.
 - Next: lead reviews and lands the branch.
+
 ### t15 writer start
 
 - Branch: `stack/t15`, cut from `origin/main` at `fa2febb4`.
@@ -5623,3 +5624,22 @@ useEffect(() => props.ready?.(), [props.ready]);
 - The temp base worktree is removed.
   Its first-HTML failure log remains in the briefs cache.
 - Next: changed-file fault runs, queued under the shared lock.
+
+### t15 fault review and second rebase
+
+- First Stack fault run: 184 killed, 2 timeout,
+  38 survived, 3 uncovered, and 2 runner errors.
+  The killed share was below 85; it was not accepted.
+- Added public checks for empty replies, ordinary sessions,
+  request reuse, renderer reader cleanup, and route fallback.
+- Removed the duplicate once option from the abort listener.
+  A native abort happens once; finally removes the listener.
+- Found a dev bug: an app's HTML 404 became the loading shell.
+  The red check saw 200; the fixed check sees 404 and its HTML.
+  The real tracker dev test now checks that page too.
+- Stack 151 and tracker 104 passed before the rebase.
+- Rebased onto `origin/main` at `7e75db1b`.
+  Kept the new hook loggers and the page wiring.
+  Kept both tracks' proof notes when their appends conflicted.
+- Next: rebuilt gate, four browser runs, fresh fault runs,
+  and full validation on this base.
