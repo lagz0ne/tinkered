@@ -45,12 +45,29 @@ The test runs the real tour through `index.ts` with an in-memory database.
 
 ## Read the code
 
-- `basic.ts` declares the table, store, and operations once.
-- The root scope owns the database client.
+- `basic.ts` declares the table, config tag, resources, and operations once.
+- A namespace binds the database URL and selects its database instance.
+  The session insert and root read use the same namespace.
+- The database resource opens its client when first used.
+  It registers cleanup with `ctx.defer` before setting up the table.
+  The root closes the client even if setup fails.
 - Each session owns a transaction, a group of database changes.
   A successful session commits its changes before the root reads them.
-- `open` owns the client until it returns the database to the store.
-  If setup fails, it closes the client before passing on the error.
+- `createQueryLogger(ctx)` sends SQL logs through the database resource.
 - A stop signal closes the root in `finally`; the tour waits for `closed`.
 - The entry prints only when run directly.
 - `vite.config.ts` and `tsconfig.json` belong to this folder.
+
+The transaction resource uses the declared database directly:
+
+```ts
+const transaction = resource({
+  label: "tour.tx",
+  target: "session",
+  depends: { db: database },
+  factory: ({ db }, ctx) => openTransaction(db, ctx),
+});
+```
+
+Its factory returns the native Drizzle transaction.
+`openTransaction` uses the resource's cleanup to commit or roll back.
