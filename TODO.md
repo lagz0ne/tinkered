@@ -44,14 +44,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **authoring/drizzle-pglite** — static driver resources and a migration action.
-  Owner: lead (authoring session); Astra writers, xhigh; Opus review READY.
-  Next: run the isolated Drizzle fault lane, then land and push.
-  Verify: full build/check, 28 test tasks, browser-helper 7,
-  48 release checks, namespace and root isolation pass;
-  Drizzle fault score >= 85 still pending.
-  [Track](docs/roadmap/authoring-model/PGLITE.md).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -100,6 +92,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **authoring/drizzle-pglite** — static PGlite units and a migration action.
+  Tracker and example use namespace config and session transactions.
+  Proof: Opus review READY; build/check, 28 test tasks,
+  browser-helper 7, 48 release checks, Drizzle faults 87.97 >= 85.
+  All 336 inputs match; all 14 package fault scores pass.
+  [Track](docs/roadmap/authoring-model/PGLITE.md).
 
 - **authoring/hooks** — one event hook form; native static Drizzle resources.
   Owner: lead (authoring session); Astra writers, xhigh, one package each.

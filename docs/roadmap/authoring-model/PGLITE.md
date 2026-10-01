@@ -1,6 +1,6 @@
 # Drizzle PGlite module
 
-Status: Review; code gates pass, fresh faults pending.
+Status: Done; review and every required gate pass.
 Owner: authoring lead.
 Writers: Astra, xhigh, one package each.
 Review: Opus 5.5, high.
@@ -77,7 +77,7 @@ No generic CRUD operations or empty extension are needed.
 - **p03 standalone example** — [x] blocked by: p01.
   Show direct imports, namespace settings, and app operations.
   Verify: check/test/start, repeated tours, standalone export check.
-- **p04 review and land** — [ ] blocked by: p02, p03.
+- **p04 review and land** — [x] blocked by: p02, p03.
   Review the combined change and run the final gates by exit code.
   Verify: full build/check/tests, prose, release checks,
   fresh isolated Drizzle fault score >= 85, and SCIP references.
@@ -150,7 +150,11 @@ The root check has the same 28 existing warnings and 0 errors.
 Frozen inputs cover all 14 packages.
 Thirteen packages retain identical source, tests, settings, and built modules.
 Their existing fault scores remain valid.
-Drizzle needs its fresh isolated fault lane; the retry is pending.
+Drizzle passes its fresh isolated fault lane: 87.97, exit 0.
+Its 133 faults have 117 killed, 16 survived, 0 timed out,
+0 uncovered, and 0 errors.
+All 336 frozen inputs still match after the run.
+All 14 package scores meet the floor of 85.
 The first attempt exited 1 during the initial tests with Node `SIGILL`.
 Its Wasm cleanup assertion matches [Node issue 66366](https://github.com/nodejs/node/issues/66366).
 The retry passes `--testRunnerNodeArgs "--no-wasm-code-gc"`.

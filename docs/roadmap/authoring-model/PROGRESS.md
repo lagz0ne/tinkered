@@ -835,3 +835,11 @@ The user found that Drizzle still exports only helper functions.
 The approved follow-up publishes static driver units.
 PGlite is the first driver, checked against the tracker and standalone example.
 [Scope, impact, and proof](PGLITE.md).
+
+The static PGlite graph, tracker caller, and standalone example are complete.
+Opus review is READY with no blocking bugs.
+Build, check, all 28 test tasks, browser-helper 7, and 48 release checks pass.
+The fresh isolated Drizzle fault lane passes: 87.97, exit 0, floor 85.
+All 336 frozen inputs match; the other 13 package proofs remain valid.
+The runner uses a test-process flag for the observed Node 24 Wasm cleanup crash.
+The first crash and successful retry are both recorded in [PGLITE.md](PGLITE.md).
