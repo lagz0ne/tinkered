@@ -29,8 +29,9 @@ export const database = resource({
       return drizzle({ client: config.client, logger: createQueryLogger(ctx) });
     const { PGlite } = await import("@electric-sql/pglite");
     ctx.signal.throwIfAborted();
-    const client = new PGlite(config.url);
+    const client = await PGlite.create(config.url);
     ctx.defer(() => client.close());
+    ctx.signal.throwIfAborted();
     return drizzle({ client, logger: createQueryLogger(ctx) });
   },
 });

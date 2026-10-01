@@ -85,6 +85,8 @@ with `createQueryLogger` and `openTransaction`.
 Missing PGlite config raises `MissingTag` with the config label.
 An owned database opens its configured path lazily and closes with the scope.
 Stopping a lazy database build leaves its configured path unopened.
+An owned database is ready before resolution returns.
+An invalid owned path rejects during resolution without a duplicate cleanup error.
 Two roots open separate clients and closing one leaves the other usable.
 Tenant databases stay separate and request config cannot replace the tenant client.
 A failed session rolls back while the prior session commit stays visible.
@@ -102,6 +104,7 @@ Its key is `classId: 1937006964, objectId: 1`.
 - Root migrations commit before answering and produce a child span under the caller.
 - Baseline and pending files share the migration lock and commit together in the selected tenant.
 - A failed migration rolls back the baseline and every pending file before answering.
+- A failed migration commit rejects the action and rolls back its schema and data.
 - A failed baseline rolls back and never starts pending migration files.
 - Stopping during baseline waits for rollback and leaves pending files untouched.
 - Stopping after the last migration statement rolls back before commit.
@@ -119,6 +122,7 @@ It has no SDK or Node runtime import.
 Synchronous SQLite transactions need a separate driver;
 these helpers cannot keep their callback open.
 The helpers create no graph nodes.
+This custom resource example uses Drizzle 1.0 relations.
 
 ```ts
 import { resource } from "@tinker/core";

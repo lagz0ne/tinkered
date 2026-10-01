@@ -139,6 +139,23 @@ test("a failed migration rolls back the baseline and every pending file before a
   await scope.close();
 });
 
+test("a failed migration commit rejects the action and rolls back its schema and data", async () => {
+  const { client, migrationsFolder } = await fixture();
+  await addFolder(
+    migrationsFolder,
+    first,
+    "create table pending (value text unique deferrable initially deferred);\n--> statement-breakpoint\ninsert into pending values ('same'), ('same');",
+  );
+  const scope = createScope({
+    tags: [config({ kind: "borrow", client }), migrationConfig({ migrationsFolder })],
+  });
+  await expect(scope.run(migrate)).rejects.toMatchObject({ code: "23505" });
+  expect((await client.query("select to_regclass('pending') as table")).rows).toEqual([
+    { table: null },
+  ]);
+  await scope.close();
+});
+
 test("a failed baseline rolls back and never starts pending migration files", async () => {
   const { client, migrationsFolder } = await fixture();
   await addFolder(migrationsFolder, first, "create table pending (value text);");

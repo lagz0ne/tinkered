@@ -65,6 +65,19 @@ test("stopping a lazy database build leaves its configured path unopened", async
   expect(await readdir(path)).toEqual([]);
 });
 
+test("an invalid owned path rejects during resolution without a duplicate cleanup error", async () => {
+  const path = await mkdtemp(join(tmpdir(), "pglite-invalid-"));
+  folders.push(path);
+  const scope = createScope({
+    tags: [config({ kind: "open", url: join(path, "missing", "db") })],
+  });
+  try {
+    await expect(scope.resolve(database)).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    expect((await scope.close()).teardownErrors).toBeUndefined();
+  }
+});
+
 test("two roots open separate clients and closing one leaves the other usable", async () => {
   const first = createScope({ tags: [config({ kind: "open" })] });
   const second = createScope({ tags: [config({ kind: "open" })] });
