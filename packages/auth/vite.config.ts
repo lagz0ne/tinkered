@@ -7,6 +7,9 @@ export default defineConfig({
       neverBundle: [
         "@tinker/core",
         "@tinker/hono",
+        "@better-auth/core",
+        "react",
+        "react-email",
         "better-auth",
         "@better-auth/drizzle-adapter",
         "drizzle-orm",

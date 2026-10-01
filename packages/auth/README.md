@@ -67,7 +67,75 @@ route.get("/raw-me", me, {
 });
 ```
 
-Email checks, password resets, and plugins are not enabled.
+## Verify and reset mail
+
+Pass a send operation as auth's third argument to enable mail.
+Register `authTemplates` in the app's mail piece.
+The mail piece supplies the sender; auth reuses `BETTER_AUTH_URL`
+for both links.
+There are no new settings.
+Sign-in still works before verification.
+
+Auth routes use Better Auth's own transaction.
+Its mail hook queues the insert after that transaction commits.
+A failed sign-up drops the hook and sends nothing.
+The insert borrows the same database, with no request transaction.
+The queue and auth then take turns on PGlite's one connection.
+A failed mail insert can fail the reply after auth has committed.
+Delivery retries use the mail queue's normal policy.
+
+```ts
+import { operation } from "@tinker/core";
+import { auth, authTemplates } from "@tinker/auth";
+import { jobs, type Jobs } from "@tinker/jobs";
+import type { Operation } from "@tinker/core";
+import { mail } from "@tinker/mail";
+
+const post = mail(authTemplates, {
+  env: { MAIL_URL: process.env.MAIL_URL },
+  from: "team@example.com",
+});
+const queue = jobs([post.job], {
+  pglite: database,
+  tx: transaction,
+  env: {},
+});
+const sendAuthJob = operation({
+  label: "auth.mail.job",
+  depends: { queue: queue.extension, db: database },
+  run: ({ queue, db }, ctx: Operation.Ctx<Jobs.Input>) => queue.send(ctx.input, db),
+});
+const identity = auth(database, schema, {
+  sendMail: post.sendMail(sendAuthJob),
+});
+```
+
+List `post.extension`, `queue.extension`, `identity.extension`,
+and Hono's extension at the root.
+App operations still use `post.sendMail(queue.send)`;
+that path inserts through the request's transaction.
+
+An app can replace either template when registering mail:
+
+```ts
+const post = mail(
+  {
+    ...authTemplates,
+    verifyEmail: MyVerifyEmail,
+    resetPassword: MyResetPassword,
+  },
+  {
+    env: { MAIL_URL: process.env.MAIL_URL },
+    from: "team@example.com",
+  },
+);
+```
+
+Each component receives `{ url: string }`.
+Keep the names registered while jobs still use them.
+The shipped templates each have one link and a short note.
+Without the third argument, auth keeps sign-up and sign-in only.
+Plugins are not enabled.
 
 ## Tables and checks
 
@@ -115,3 +183,9 @@ The check does not edit that file.
 - Fresh auth generation matches the saved schema and rejects an edited copy.
 - The app and auth tables match the one migration history.
 - HTTPS and a 32 character secret pass the boot settings check.
+
+- Sign-up sends one verify mail whose link verifies the email.
+- A reset mail link changes the password and rejects the old password.
+- A duplicate sign-up sends no extra mail.
+- A sign-up that fails after its mail hook sends no mail.
+- Auth mails and due jobs take turns with a request on PGlite.

@@ -1,11 +1,22 @@
-import { extension, resource, tag, type Resource, type Scope } from "@tinker/core";
+import { extension, resource, tag, type Operation, type Resource, type Scope } from "@tinker/core";
 import type { HonoScope } from "@tinker/hono";
 import { raise } from "./errors.ts";
+
+export { authTemplates } from "./templates.ts";
 
 export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";
 
 export declare namespace Auth {
+  type MailProps = { url: string };
+  type MailInput = {
+    template: "verifyEmail" | "resetPassword";
+    props: MailProps;
+    to: string;
+    subject: string;
+  };
+  /** Borrow a send operation that inserts on auth's database, without a request transaction. */
+  type Mails = { sendMail: Operation.Handle<Promise<string | null>, MailInput> };
   type Config = { BETTER_AUTH_SECRET?: string; BETTER_AUTH_URL?: string };
   /** App data only; cookies, tokens, and password hashes stay inside Better Auth. */
   type User = {
@@ -20,7 +31,11 @@ export declare namespace Auth {
 /** One piece per live root. Hono awaits the user read before it opens a request
  * session. Auth's own routes use the borrowed database directly (ADR 0075).
  * List the extension beside Hono and spread its wiring into Hono's wiring. */
-export function auth(database: Resource.Handle<Promise<object>>, schema: Record<string, unknown>) {
+export function auth(
+  database: Resource.Handle<Promise<object>>,
+  schema: Record<string, unknown>,
+  mails?: Auth.Mails,
+) {
   const config = tag<Auth.Config>({ label: "auth.config" });
   const user = tag<Auth.User | null>({ label: "auth.user", default: null });
   const settings = resource({
@@ -30,10 +45,19 @@ export function auth(database: Resource.Handle<Promise<object>>, schema: Record<
   });
   const client = resource({
     label: "auth.client",
-    depends: { db: database, settings },
-    factory: async ({ db, settings }) => {
+    depends: { db: database, settings, ...mails },
+    factory: async ({ db, settings, sendMail }) => {
       const { createAuth } = await import("./better-auth.ts");
-      return createAuth(db, settings, schema);
+      return createAuth(
+        db,
+        settings,
+        schema,
+        sendMail
+          ? async (input) => {
+              await sendMail.run({ input });
+            }
+          : undefined,
+      );
     },
   });
   let owner: Scope.Handle | undefined;
