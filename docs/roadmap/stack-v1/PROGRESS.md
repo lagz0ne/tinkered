@@ -4632,3 +4632,15 @@ EXIT 0
 - Fetched again: main stays at `91964db3`.
   The `stack/t09` tag is still absent.
 - Next: release checks, then the single auth mutation run.
+
+### t11 release proof
+
+- `pnpm validate`: all 54 lanes pass, `EXIT 0`.
+- The workspace already allowed esbuild.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Proof: `stack-t11-validate.log` in the briefs cache.
+- Fetched before mutation: main stays at `91964db3`.
+  The `stack/t09` tag is still absent from main.
+  Keep the finished local mail code in this branch.
+- Next: one auth mutation run, alone and in the foreground,
+  under `/tmp/mutation.lock`; then lead review.
