@@ -4244,3 +4244,35 @@ This is new type feedback; no Core source changed.
 - The focused mutation check is still waiting
   for `/tmp/mutation.lock` in the foreground.
 - Next: its result, then both full mutation lanes.
+
+### t08 authoring migration
+
+- Owner: stack/t08 writer.
+- State: Doing; main removed the old hook and store forms.
+- Rebased onto `origin/main` at `d96fee94`.
+  Kept main's authoring labels and the jobs labels
+  in the only conflict, `tools/jev/cases.jsonl`.
+- Assumption: jobs tests must use native database
+  and transaction resources, matching main's Drizzle API.
+- Next: object hooks and native test resources,
+  then a fresh gate and both full mutation lanes.
+- Verify: build, check, jobs, stack, tracker, Jev,
+  strict style census, mutation, and `pnpm validate`.
+- Read ADRs 0093 and 0094 and the wave-2 brief.
+  The database resource uses `target: "namespace"`
+  with a borrowed `{ client }` config binding.
+  The session resource calls `openTransaction`.
+- Jobs and all test extensions now use object hooks.
+  The worker still borrows the native database's `$client`.
+  Sending, retries, cron, and close order stay the same.
+- Fresh gate: jobs 25, stack 114, tracker 79; `EXIT 0`.
+  Check: 0 errors, 28 warnings.
+  A clean `d96fee94` check has the same 28 warnings.
+- Gate and baseline proof in the briefs cache:
+  `stack-t08-resume-hooks-gate.log` and
+  `stack-t08-resume-hooks-main-check.log`.
+- Jev: 0 flags and 0 README gaps in 25 tests.
+  The private clock's saved false label still applies.
+  Strict style census and prose pass.
+- Next: all tests and validation on this base,
+  then the focused check and both full mutation lanes.

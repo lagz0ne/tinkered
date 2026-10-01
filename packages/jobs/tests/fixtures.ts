@@ -1,13 +1,25 @@
 import { PGlite } from "@electric-sql/pglite";
-import { drizzleStore } from "@tinker/drizzle";
-import { type Scope } from "@tinker/core";
+import { openTransaction } from "@tinker/drizzle";
+import { resource, tag, type Scope } from "@tinker/core";
 import { createTestDatabase } from "@tinker/stack";
 import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, afterEach, beforeAll } from "vite-plus/test";
 import { jobs, type Jobs } from "../src/index.ts";
 import { createJobsClock } from "@tinker/jobs/testing";
 
-export const store = drizzleStore({ open: (client: PGlite) => drizzle({ client }) });
+export const databaseConfig = tag<{ client: PGlite }>({ label: "drizzle.config" });
+export const database = resource({
+  label: "drizzle.db",
+  target: "namespace",
+  depends: { config: databaseConfig },
+  factory: ({ config }) => Promise.resolve(drizzle({ client: config.client })),
+});
+export const transaction = resource({
+  label: "drizzle.tx",
+  target: "session",
+  depends: { db: database },
+  factory: ({ db }, ctx) => openTransaction(db, ctx),
+});
 export const scopes: Scope.Handle[] = [];
 const clients: PGlite[] = [];
 let template: PGlite;
@@ -36,6 +48,6 @@ export async function fixture(rows: readonly Jobs.Row[]) {
   const client = (await template.clone()) as PGlite;
   clients.push(client);
   const clock = await createJobsClock("2030-01-01T00:00:00Z");
-  const piece = jobs(rows, { pglite: store.db, tx: store.tx, env: {} });
-  return { client, clock, piece, tags: [store.config(client), clock.binding] };
+  const piece = jobs(rows, { pglite: database, tx: transaction, env: {} });
+  return { client, clock, piece, tags: [databaseConfig({ client }), clock.binding] };
 }

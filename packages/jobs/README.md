@@ -6,8 +6,8 @@ The package uses pg-boss 12.35.0.
 
 ```ts
 const queue = jobs([job("receipt", saveReceipt)], {
-  tx: store.tx,
-  pglite: store.db,
+  tx: transaction,
+  pglite: database,
   env: {},
 });
 
@@ -24,7 +24,7 @@ const addReceipt = operation({
 });
 ```
 
-List `queue.extension` after `migrate(store.db, files)`.
+List `queue.extension` after `migrate(database, files)`.
 Drizzle commits its files before pg-boss starts.
 pg-boss installs or upgrades its own `pgboss` schema,
 under its own advisory lock.
@@ -32,11 +32,12 @@ Keep `schemaFilter: ["public", "auth"]` in Drizzle Kit
 when the app has auth tables; use `["public"]` without them.
 Do not include `pgboss` or use `drizzle-kit push`.
 
-With PGlite, pass the same store's `db` and `tx`.
+With PGlite, pass the native database resource
+and its session transaction resource.
 The jobs piece borrows its client and never closes it.
 For Postgres, omit `pglite` and set `env.JOBS_URL`.
 `JOBS_URL` is the queue connection string;
-it must point to the same database as `store.tx`.
+it must point to the same database as `transaction`.
 This name lets the worker use its own pool settings.
 It must use the `postgres:` or `postgresql:` scheme.
 The piece has no default URL.

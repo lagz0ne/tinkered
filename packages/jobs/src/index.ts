@@ -56,79 +56,82 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
   let owner: Scope.Handle | undefined;
   const bridge = extension({
     label: "jobs",
-    start: async (scope, ctx, next) => {
-      if (owner) raise("PieceInUse", { label: ctx.label });
-      const connectionString = wiring.pglite ? undefined : readUrl(wiring.env.JOBS_URL);
-      owner = scope;
-      let closing = false;
-      let closingScope = false;
-      let boss: PgBoss | undefined;
-      const closeScope = scope.close.bind(scope);
-      const release = () => {
-        if (owner === scope) owner = undefined;
-      };
-      /** Core's close hook has no scope. Stop fetches before core closes sessions,
-       * without waiting for a fetch blocked behind a request's open transaction. */
-      scope.close = async (options) => {
-        closingScope = true;
-        closing = true;
-        try {
-          await stopFetching(boss, rows, false);
-          return await closeScope(options);
-        } finally {
-          release();
-        }
-      };
-      ctx.defer(() => {
-        if (!closingScope) release();
-      });
-      const client = wiring.pglite ? (await scope.resolve(wiring.pglite)).$client : undefined;
-      const { log, clock } = scope.resolve(errors);
-      const { PgBoss, fromPglite, fromDrizzle } = await import("pg-boss");
-      const { sql } = await import("drizzle-orm");
-      const worker = new PgBoss({
-        ...(client ? { db: fromPglite(client), backend: "pglite" } : { connectionString }),
-        cronMonitorIntervalSeconds: 1,
-        clock,
-      });
-      boss = worker;
-      worker.on("error", (error) => log.error("jobs worker failed", { error }));
-      ctx.defer(async () => {
-        closing = true;
-        await stopFetching(worker, rows, true);
-        await worker.stop({ graceful: false });
-      });
-      await worker.start();
-      await configureQueues(worker, rows);
-      await next();
-      for (const row of rows) {
-        await worker.work(
-          row.queue,
-          { includeMetadata: true, pollingIntervalSeconds: 0.5 },
-          async (batch) => {
-            await scope.ready;
-            for (const item of batch) {
-              try {
-                if (closing) raise("JobCancelled", { queue: row.queue });
-                await runJob(scope, row, item);
-              } catch (error) {
-                if (item.retryCount >= item.retryLimit) {
-                  log.error("job failed", { queue: row.queue, id: item.id, error });
-                }
-                throw error;
-              }
-            }
-          },
-        );
-      }
-      return {
-        send: (input: Jobs.Input, tx: Jobs.Transaction) => {
-          if (!rows.some((row) => row.queue === input.queue)) {
-            raise("UnknownQueue", { queue: input.queue });
+    hooks: {
+      async start(event) {
+        const { scope } = event;
+        if (owner) raise("PieceInUse", { label: event.label });
+        const connectionString = wiring.pglite ? undefined : readUrl(wiring.env.JOBS_URL);
+        owner = scope;
+        let closing = false;
+        let closingScope = false;
+        let boss: PgBoss | undefined;
+        const closeScope = scope.close.bind(scope);
+        const release = () => {
+          if (owner === scope) owner = undefined;
+        };
+        /** Core's close hook has no scope. Stop fetches before core closes sessions,
+         * without waiting for a fetch blocked behind a request's open transaction. */
+        scope.close = async (options) => {
+          closingScope = true;
+          closing = true;
+          try {
+            await stopFetching(boss, rows, false);
+            return await closeScope(options);
+          } finally {
+            release();
           }
-          return worker.send(input.queue, input.data, { db: fromDrizzle(tx, sql) });
-        },
-      };
+        };
+        event.defer(() => {
+          if (!closingScope) release();
+        });
+        const client = wiring.pglite ? (await scope.resolve(wiring.pglite)).$client : undefined;
+        const { log, clock } = scope.resolve(errors);
+        const { PgBoss, fromPglite, fromDrizzle } = await import("pg-boss");
+        const { sql } = await import("drizzle-orm");
+        const worker = new PgBoss({
+          ...(client ? { db: fromPglite(client), backend: "pglite" } : { connectionString }),
+          cronMonitorIntervalSeconds: 1,
+          clock,
+        });
+        boss = worker;
+        worker.on("error", (error) => log.error("jobs worker failed", { error }));
+        event.defer(async () => {
+          closing = true;
+          await stopFetching(worker, rows, true);
+          await worker.stop({ graceful: false });
+        });
+        await worker.start();
+        await configureQueues(worker, rows);
+        await event.next();
+        for (const row of rows) {
+          await worker.work(
+            row.queue,
+            { includeMetadata: true, pollingIntervalSeconds: 0.5 },
+            async (batch) => {
+              await scope.ready;
+              for (const item of batch) {
+                try {
+                  if (closing) raise("JobCancelled", { queue: row.queue });
+                  await runJob(scope, row, item);
+                } catch (error) {
+                  if (item.retryCount >= item.retryLimit) {
+                    log.error("job failed", { queue: row.queue, id: item.id, error });
+                  }
+                  throw error;
+                }
+              }
+            },
+          );
+        }
+        return {
+          send: (input: Jobs.Input, tx: Jobs.Transaction) => {
+            if (!rows.some((row) => row.queue === input.queue)) {
+              raise("UnknownQueue", { queue: input.queue });
+            }
+            return worker.send(input.queue, input.data, { db: fromDrizzle(tx, sql) });
+          },
+        };
+      },
     },
   });
   const send = operation({

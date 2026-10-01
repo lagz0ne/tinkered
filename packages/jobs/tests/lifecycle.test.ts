@@ -10,14 +10,14 @@ import { hono } from "@tinker/hono";
 import { sql } from "drizzle-orm";
 import { expect, test } from "vite-plus/test";
 import { isError, job, jobs } from "../src/index.ts";
-import { fixture, scopes, store } from "./fixtures.ts";
+import { database, fixture, scopes, transaction } from "./fixtures.ts";
 
 test("graceful close stops fetching and lets a running job commit", async () => {
   let entered = false;
   const finish = Promise.withResolvers<void>();
   const work = operation({
     label: "wait and save",
-    depends: { tx: store.tx },
+    depends: { tx: transaction },
     run: async ({ tx }, ctx: Operation.Ctx<{ value: string }>) => {
       await tx.execute(sql`insert into receipts values (${ctx.input.value})`);
       entered = true;
@@ -55,7 +55,7 @@ test("forced close cancels the running job and rolls its session back", async ()
   let entered = false;
   const work = operation({
     label: "wait for abort",
-    depends: { tx: store.tx },
+    depends: { tx: transaction },
     run: async ({ tx }, ctx) => {
       await tx.execute(sql`insert into receipts values ('cancelled')`);
       entered = true;
@@ -127,8 +127,8 @@ test("a restart applies changed retry settings and removes a dropped cron schedu
   await first.ready;
   await first.close();
   const changed = jobs([job("save", save, { retryLimit: 0 })], {
-    pglite: store.db,
-    tx: store.tx,
+    pglite: database,
+    tx: transaction,
     env: {},
   });
   const second = createScope({ tags, extensions: [changed.extension] });
@@ -160,7 +160,7 @@ test("bad settings fail boot naming JOBS_URL before serving", async () => {
         opened = true;
       },
     }).extension;
-    const piece = jobs([], { tx: store.tx, env: { JOBS_URL } });
+    const piece = jobs([], { tx: transaction, env: { JOBS_URL } });
     const scope = createScope({ extensions: [web, piece.extension] });
     scopes.push(scope);
     try {
@@ -210,14 +210,16 @@ test("a failed later start stops jobs and leaves the borrowed database open", as
   const cleaned = Promise.withResolvers<void>();
   const cleanup = extension({
     label: "observe cleanup",
-    start: async (_scope, ctx, next) => {
-      ctx.defer(() => cleaned.resolve());
-      await next();
+    hooks: {
+      async start(event) {
+        event.defer(() => cleaned.resolve());
+        await event.next();
+      },
     },
   });
   const broken = extension({
     label: "broken",
-    start: (_scope, ctx) => ctx.raise("BootFailed", {}),
+    hooks: { start: (event) => event.raise("BootFailed", {}) },
   });
   const scope = createScope({ tags, extensions: [cleanup, piece.extension, broken] });
   scopes.push(scope);
@@ -236,7 +238,7 @@ test("a failed later start stops jobs and leaves the borrowed database open", as
 
 test("an unreachable JOBS_URL fails boot at the given Postgres address", async () => {
   for (const scheme of ["postgres", "postgresql"]) {
-    const piece = jobs([], { tx: store.tx, env: { JOBS_URL: `${scheme}://127.0.0.1:1/jobs` } });
+    const piece = jobs([], { tx: transaction, env: { JOBS_URL: `${scheme}://127.0.0.1:1/jobs` } });
     const scope = createScope({ extensions: [piece.extension] });
     scopes.push(scope);
     try {
@@ -255,12 +257,14 @@ test("a piece stays owned until the whole root close ends", async () => {
   const finish = Promise.withResolvers<void>();
   const late = extension({
     label: "late cleanup",
-    start: async (_scope, ctx, next) => {
-      ctx.defer(async () => {
-        entered = true;
-        await finish.promise;
-      });
-      await next();
+    hooks: {
+      async start(event) {
+        event.defer(async () => {
+          entered = true;
+          await finish.promise;
+        });
+        await event.next();
+      },
     },
   });
   const { piece, tags } = await fixture([]);

@@ -11,11 +11,11 @@ import { errorResponses, hono, route } from "@tinker/hono";
 import { sql } from "drizzle-orm";
 import { expect, test } from "vite-plus/test";
 import { isError, job, jobs } from "../src/index.ts";
-import { fixture, scopes, store } from "./fixtures.ts";
+import { database, fixture, scopes, transaction } from "./fixtures.ts";
 
 const save = operation({
   label: "save receipt",
-  depends: { tx: store.tx },
+  depends: { tx: transaction },
   run: async ({ tx }, { input }: Operation.Ctx<{ value: string }>) => {
     await tx.execute(sql`insert into receipts values (${input.value})`);
   },
@@ -63,14 +63,14 @@ test("an unknown queue fails without blocking the request or close", async () =>
   const borrowed = resource({
     label: "borrowed request transaction",
     target: "session",
-    factory: () => transaction.resolve(store.tx),
+    factory: () => transactionOwner.resolve(transaction),
   });
-  const piece = jobs([job("save", save)], { pglite: store.db, tx: borrowed, env: {} });
+  const piece = jobs([job("save", save)], { pglite: database, tx: borrowed, env: {} });
   const scope = createScope({ tags, extensions: [piece.extension] });
   scopes.push(scope);
   await scope.ready;
-  const transaction = scope.createSession();
-  await transaction.resolve(store.tx);
+  const transactionOwner = scope.createSession();
+  await transactionOwner.resolve(transaction);
   const request = scope.createSession();
   let result: RunResult<unknown> | undefined;
   const sending = Promise.resolve(
@@ -84,7 +84,7 @@ test("an unknown queue fails without blocking the request or close", async () =>
     if (!isError(result.error, "UnknownQueue")) throw result.error;
     expect(result.error.payload).toEqual({ queue: "nope" });
   } finally {
-    await transaction.close();
+    await transactionOwner.close();
     await request.close();
     await sending;
   }
@@ -139,7 +139,7 @@ test("a failing job retries then stays failed and logs one line", async () => {
   const cause = new Error("receipt failed");
   const fail = operation({
     label: "fail receipt",
-    depends: { tx: store.tx },
+    depends: { tx: transaction },
     run: async ({ tx }) => {
       attempts++;
       await tx.execute(sql`insert into receipts values ('rolled back')`);
@@ -251,7 +251,7 @@ test("an open request can add jobs while due jobs wait for PGlite", async () => 
 test("a failed commit fails the job instead of marking it complete", async () => {
   const work = operation({
     label: "save duplicate",
-    depends: { tx: store.tx },
+    depends: { tx: transaction },
     run: async ({ tx }) => {
       await tx.execute(sql`insert into receipts values ('same'), ('same')`);
     },
@@ -282,7 +282,7 @@ test("job input passes through its operation parser", async () => {
   const parsed = operation({
     label: "parse receipt",
     input: (raw) => JSON.stringify(raw),
-    depends: { tx: store.tx },
+    depends: { tx: transaction },
     run: async ({ tx }, ctx) => {
       await tx.execute(sql`insert into receipts values (${ctx.input})`);
     },
@@ -311,7 +311,7 @@ test("a failed child operation fails the job with its cause", async () => {
   });
   const work = operation({
     label: "start child",
-    depends: { fail: fail.controller, tx: store.tx },
+    depends: { fail: fail.controller, tx: transaction },
     run: async ({ fail, tx }) => {
       await tx.execute(sql`insert into receipts values ('child')`);
       void fail.run();
