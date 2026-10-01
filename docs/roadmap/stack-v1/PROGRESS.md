@@ -4276,3 +4276,11 @@ This is new type feedback; no Core source changed.
   Strict style census and prose pass.
 - Next: all tests and validation on this base,
   then the focused check and both full mutation lanes.
+
+### t08 all tests after the hook migration
+
+- All 29 package test tasks pass without cache, `EXIT 0`.
+  Each task uses its own test config.
+- Proof: `stack-t08-resume-hooks-all-tests.log`
+  in the briefs cache.
+- Next: validation, then the locked mutation checks.
