@@ -43,32 +43,12 @@ test("two streamed replies keep separate conversation data without an account", 
   }
 });
 
-test("missing live settings fail before a request and report only field names", async () => {
-  expect.assertions(2);
-  let requests = 0;
+test("missing live settings report only field names", () => {
+  expect.assertions(1);
   try {
-    const { apiKey, baseUrl, model, prompt } = readSettings({ prompt: "Hello." });
-    const stop = new AbortController();
-    const root = createScope({
-      signal: stop.signal,
-      tags: [
-        coder.config({ model, baseUrl, headers: { authorization: `Bearer ${apiKey}` } }),
-        backend((request, signal) => {
-          requests += 1;
-          return recorded(request, signal);
-        }),
-      ],
-    });
-    try {
-      await root.ready;
-      await root.createSession().run(coder.turn, { input: prompt, ns: a });
-    } finally {
-      stop.abort();
-      await root.closed;
-    }
+    readSettings({ prompt: "Hello." });
   } catch (error) {
     if (!isError(error, "InvalidSettings")) throw error;
     expect(error.payload.fields).toEqual(["apiKey", "baseUrl", "model"]);
-    expect(requests).toBe(0);
   }
 });
