@@ -4722,7 +4722,7 @@ flock /tmp/mutation.lock \
 ## t14 writer notes
 
 Owner: stack/t14 writer. Branch: `stack/t14`.
-Next: rebase onto t18, then run the final checks.
+Next: queued timing, Stack and NATS mutation, then validate.
 Verify: brief gate, validate, stack mutation at least 85,
 and queue verdict `b is faster` for reload versus restart.
 
@@ -5065,3 +5065,36 @@ No build runs in that tree while the job waits or runs.
   t18's fresh mutation run still waits for the shared lock.
   Its exit helper is not yet on main.
   t14's final timing and mutation runs have not started.
+
+### t14 final gate on landed t18
+
+- Rebased onto `23f0ccce`, the t18 landing.
+  Install passes for all 30 workspaces.
+- Notes: keep every main note, then append the t14 notes.
+- Tracker root: keep t18's phase and exit-code reader.
+  Keep t14's third argument and ready callback for dev.
+  The root owns its signal and waits for its closed result.
+  No temporary helper or old `runUntilStop` remains.
+- The full gate passes with `EXIT 0`.
+  Build passes; check has zero errors and 28 warnings.
+  The warning count matches the clean main check.
+  Stack: 128; NATS: 36; Drizzle: 25; tracker: 84.
+- All 28 workspace test tasks pass without cache.
+  The tracker browser proof and seven helper tests pass.
+  Their combined chain ends with `EXIT 0`.
+- SCIP indexes Stack, NATS, and Drizzle.
+  References show the kept-handle and exit-reader callers.
+  The old `runUntilStop` reference search prints none.
+- Strict style census passes.
+  Prose has zero hits in 166 files.
+  TSDoc has zero S26 rows in nine changed source files.
+- Jev flags no tests or missing README promises.
+  Stack: 66 titles; NATS: 31; tracker: 79 promises.
+  The changed tracker test check has four titles and no flags.
+- Preflight's NATS cache-key flag is false.
+  The cache holds one pinned release and host archive.
+  Each server config still lives in a fresh separate store.
+  Label `b05c93eb847f` records that reason.
+  The other resource flags already have landed false labels.
+- The lead's t17 mutation marker is present.
+  No t14 timing or mutation job has started yet.
