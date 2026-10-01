@@ -875,3 +875,7 @@ Harness preserves a failed reply's exit code after a stop request.
 The Core fix stays Ready as `core/graceful-writes`.
 No package runtime, package tests, or package build settings changed.
 Their existing fault and timing proofs remain valid.
+
+Main fast-forwards to `82dff2f6` and keeps the pending peer notes.
+Its fresh install, build, code check, and prose pass, exit 0.
+Its example and package code matches the checked source `6de99118`.

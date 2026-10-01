@@ -91,3 +91,8 @@ and `tinkerer-stop-probe.log`.
 No package runtime, package tests, or package build settings changed.
 Their existing fault and timing proofs still apply.
 The Core drain bug remains on the separate Ready card.
+
+Main fast-forwards to `82dff2f6` with all pending peer notes intact.
+Its fresh install, build, code check, and prose pass, exit 0.
+The example and package code still matches checked source `6de99118`.
+A stale ignored Sync declaration with a removed export is discarded.
