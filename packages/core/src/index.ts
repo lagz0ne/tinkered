@@ -2170,8 +2170,9 @@ function obsCtx(layer: Layer, span: SpanImpl | undefined): Observe.Ctx {
 function logFor(obs: Obs, span: SpanImpl | undefined, extension?: string): Observe.Logger {
   const sink = obs.log;
   if (!sink) return noop;
+  const min = obs.level;
   const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
-    if (level < obs.level) return;
+    if (level < min) return;
     isolate(() =>
       sink({
         time: obs.clock(),
@@ -2182,11 +2183,12 @@ function logFor(obs: Obs, span: SpanImpl | undefined, extension?: string): Obser
       }),
     );
   };
-  const log = at(LEVELS.info) as Observe.Logger;
-  for (const name in LEVELS) {
-    log[name as keyof typeof LEVELS] = at(LEVELS[name as keyof typeof LEVELS]);
-  }
-  return log;
+  return Object.assign(at(LEVELS.info), {
+    debug: at(LEVELS.debug),
+    info: at(LEVELS.info),
+    warn: at(LEVELS.warn),
+    error: at(LEVELS.error),
+  });
 }
 
 function recordUsed(
@@ -5315,16 +5317,16 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return this.owner.random;
   }
   private get ctx(): OperationCtx<unknown> | undefined {
-    return this.flight && hookCtx(this.flight);
+    return this.flight === undefined ? undefined : hookCtx(this.flight);
   }
   private use<T>(fn: () => T): T {
-    return this.flight ? withHookAccess(this.flight, fn) : fn();
+    return this.flight === undefined ? fn() : withHookAccess(this.flight, fn);
   }
   get resolve(): Scope.Handle["resolve"] {
     return (this.resolver ??= ((target: Scope.Dependency, ns?: Scope.NsArg): unknown =>
       this.use(() => {
         const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-        if (this.owner.closed && !this.flight)
+        if (this.owner.closed && this.flight === undefined)
           return resolveHeld(this.owner, target, chain === undefined ? undefined : { ns: chain });
         if (isResource(target)) return this.resource(target, chain).resolve();
         return resolveNs(this.owner, target, chain);
@@ -5348,7 +5350,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     chain: readonly Namespace[] | undefined,
   ): Scope.DataController<unknown> {
     const controller = dataController(this.owner, target, chain);
-    if (!this.flight) return controller;
+    if (this.flight === undefined) return controller;
     return {
       get: () => this.use(() => controller.get()),
       set: (value) => this.use(() => controller.set(value)),
@@ -5362,7 +5364,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   ): Scope.ResourceController<unknown> {
     const controller = resourceController(this.owner, target, this.flight?.span, chain);
     const run = this.flight;
-    if (!run) return controller;
+    if (run === undefined) return controller;
     const selected: SelectedResource = (owner, target, state) =>
       addBorrow(instanceOf(owner, target, state), (run.held ??= createBorrows()));
     const owner = ownerOf(this.owner, target);
@@ -5399,7 +5401,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
       run(call?: Scope.Invocation<unknown>): unknown;
       settle(call?: Scope.Invocation<unknown>): unknown;
     };
-    if (!this.flight) return controller;
+    if (this.flight === undefined) return controller;
     return {
       run: (call?: Scope.Invocation<unknown>) => this.use(() => controller.run(call)),
       settle: (call?: Scope.Invocation<unknown>) => {

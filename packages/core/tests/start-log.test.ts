@@ -1,39 +1,29 @@
 import { describe, expect, it, test } from "vite-plus/test";
-import { createScope, extension, LEVELS, type Observe, type Scope } from "../src/index.ts";
+import { createScope, extension, LEVELS, type Observe } from "../src/index.ts";
 
-function startWith(
-  form: "callback" | "object",
-  config: { label: string; start: NonNullable<Scope.Extension["start"]> },
-) {
-  return extension(
-    form === "callback"
-      ? config
-      : {
-          label: config.label,
-          hooks: { start: (event) => config.start(event.scope, event, event.next) },
-        },
-  );
-}
-
-describe.each(["callback", "object"] as const)("%s extension start", (form) => {
+describe("extension start", () => {
   it("extension start logs before and after next reach the scope sink without a span", async () => {
     const lines: Observe.Log[] = [];
     const scope = createScope({
       observe: { history: 1, clock: () => 10, log: (line) => void lines.push(line) },
       extensions: [
-        startWith(form, {
+        extension({
           label: "outer",
-          start: async (_scope, ctx, next) => {
-            ctx.log("before", { port: 3000, label: "mine", extension: "caller" });
-            await next();
-            ctx.log("after");
+          hooks: {
+            async start(event) {
+              event.log("before", { port: 3000, label: "mine", extension: "caller" });
+              await event.next();
+              event.log("after");
+            },
           },
         }),
-        startWith(form, {
+        extension({
           label: "inner",
-          start: (_scope, ctx, next) => {
-            ctx.log("inside");
-            return next();
+          hooks: {
+            start(event) {
+              event.log("inside");
+              return event.next();
+            },
           },
         }),
       ],
@@ -71,17 +61,19 @@ describe.each(["callback", "object"] as const)("%s extension start", (form) => {
     const scope = createScope({
       observe: { clock: () => 7, log: (line) => void lines.push(line) },
       extensions: [
-        startWith(form, {
+        extension({
           label: "boot",
-          start: (_scope, ctx, next) => {
-            const { log } = ctx;
-            expect(ctx.log).toBe(log);
-            log("plain");
-            log.debug("debug");
-            log.info("info");
-            log.warn("warn");
-            log.error("error");
-            return next();
+          hooks: {
+            start(event) {
+              const { log } = event;
+              expect(event.log).toBe(log);
+              log("plain");
+              log.debug("debug");
+              log.info("info");
+              log.warn("warn");
+              log.error("error");
+              return event.next();
+            },
           },
         }),
       ],
@@ -109,12 +101,14 @@ describe.each(["callback", "object"] as const)("%s extension start", (form) => {
         log: (line) => void lines.push(line),
       },
       extensions: [
-        startWith(form, {
+        extension({
           label: "boot",
-          start: (_scope, ctx, next) => {
-            ctx.log.debug("dropped");
-            ctx.log.info("kept");
-            return next();
+          hooks: {
+            start(event) {
+              event.log.debug("dropped");
+              event.log.info("kept");
+              return event.next();
+            },
           },
         }),
       ],
@@ -141,15 +135,17 @@ describe.each(["callback", "object"] as const)("%s extension start", (form) => {
         return "unused";
       },
     };
-    const boot = startWith(form, {
+    const boot = extension({
       label: "boot",
-      start: (_scope, ctx, next) => {
-        ctx.log("plain", attributes);
-        ctx.log.debug("debug", attributes);
-        ctx.log.info("info", attributes);
-        ctx.log.warn("warn", attributes);
-        ctx.log.error("error", attributes);
-        return next();
+      hooks: {
+        start(event) {
+          event.log("plain", attributes);
+          event.log.debug("debug", attributes);
+          event.log.info("info", attributes);
+          event.log.warn("warn", attributes);
+          event.log.error("error", attributes);
+          return event.next();
+        },
       },
     });
     for (const observe of [undefined, { history: 1, clock: () => reads++ }]) {
@@ -166,11 +162,13 @@ describe.each(["callback", "object"] as const)("%s extension start", (form) => {
     const scope = createScope({
       observe: { log: (line) => void lines.push(line.message) },
       extensions: [
-        startWith(form, {
+        extension({
           label: "boot",
-          start: (_scope, ctx) => {
-            ctx.log.error("failed to boot");
-            throw failure;
+          hooks: {
+            start(event) {
+              event.log.error("failed to boot");
+              throw failure;
+            },
           },
         }),
       ],
@@ -187,12 +185,14 @@ describe.each(["callback", "object"] as const)("%s extension start", (form) => {
         },
       },
       extensions: [
-        startWith(form, {
+        extension({
           label: "boot",
-          start: async (_scope, ctx, next) => {
-            ctx.log("before");
-            await next();
-            ctx.log("after");
+          hooks: {
+            async start(event) {
+              event.log("before");
+              await event.next();
+              event.log("after");
+            },
           },
         }),
       ],
@@ -202,7 +202,7 @@ describe.each(["callback", "object"] as const)("%s extension start", (form) => {
   });
 });
 
-test("an object close hook logs before and after next with the scope filter and clock", async () => {
+test("an extension close hook logs before and after next with the scope filter and clock", async () => {
   const lines: Observe.Log[] = [];
   const scope = createScope({
     observe: { level: LEVELS.warn, clock: () => 12, log: (line) => void lines.push(line) },
