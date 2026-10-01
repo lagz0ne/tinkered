@@ -3416,3 +3416,16 @@ finishCookieRead();
 await reply;
 await closing;
 ```
+
+### Rebased auth mutation — 2026-10-01
+
+- One fresh full auth lane, under `/tmp/mutation.lock`.
+- Killed: 77; timeout: 0; survived: 13.
+- No coverage: 0; errors: 0; total: 90.
+- Killed-only score: `77 / 90 = 85.56%`; `EXIT 0`.
+- Config: timeout 60000, two workers, floor 85.
+  All three source files were tested; none were excluded.
+- The lock wait finished before this lane began.
+- Saved log and JSON: `stack-t10-resume-auth-mutation`
+  in the briefs cache, with `.log` and `.json` endings.
+- Next: the full rebased Hono lane under the same lock.
