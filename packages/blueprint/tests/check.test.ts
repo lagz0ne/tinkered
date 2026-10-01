@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, preset, type Scope } from "@tinker/core";
-import { run, type Process } from "@tinker/process";
+import { run } from "@tinker/process";
 import {
   check,
   corpusPath,
@@ -32,11 +32,23 @@ function fake(table: Readonly<Record<string, Blueprint.Answer>>): Blueprint.Judg
 }
 
 /** Run the shell in-process: argv in, exit code and streams out. */
-async function answer(
-  argv: readonly string[],
-  options?: Omit<Scope.Options, "extensions">,
-): Promise<Process.Result> {
-  return run(shell(options), argv);
+async function answer(args: readonly string[], options?: Omit<Scope.Options, "extensions">) {
+  let stdout = "";
+  let stderr = "";
+  const code = await run({
+    shell,
+    args,
+    options,
+    io: {
+      write: (text) => {
+        stdout += text;
+      },
+      error: (text) => {
+        stderr += text;
+      },
+    },
+  });
+  return { code, stdout, stderr };
 }
 
 /** Write one throwaway yaml file under a temp dir; the caller removes the dir. */

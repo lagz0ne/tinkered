@@ -25,14 +25,16 @@ function shape(spans: readonly Observe.Span[]): string[] {
 
 test("a check run's trace shows the command, the operation it drives, and the resources it built", async () => {
   const seen: Observe.Span[] = [];
-  const result = await run(
-    shell({
+  const code = await run({
+    shell,
+    args: ["check", trackerPath],
+    io: { write: () => {}, error: () => {} },
+    options: {
       tags: [corpusPath(provisionalCorpus)],
       presets: [preset(judge, () => ({ ask: () => Promise.resolve(no) }) as never)],
       observe: { history: 100, export: (span) => seen.push(span) },
-    }),
-    ["check", trackerPath],
-  );
-  expect(result.code).toBe(0);
+    },
+  });
+  expect(code).toBe(0);
   expect(shape(seen)).toEqual(["check", "  check", "    corpus", "    judge"]);
 });

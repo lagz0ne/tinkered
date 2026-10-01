@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, preset, type Scope } from "@tinker/core";
-import { run, type Process } from "@tinker/process";
+import { run } from "@tinker/process";
 import {
   bodyJudge,
   corpusPath,
@@ -30,11 +30,23 @@ const srcDir = join(repo, "packages", "blueprint", "src");
 /** Run the shell in-process: argv in, exit code and streams out (`check.test.ts`'s
  * `answer`). `verify` depends on `corpus` and `bodyJudge`; a test that skips `tags`/`presets`
  * gets the shipped corpus and no engine — the "no key" path. */
-async function answer(
-  argv: readonly string[],
-  options?: Omit<Scope.Options, "extensions">,
-): Promise<Process.Result> {
-  return run(shell(options), argv);
+async function answer(args: readonly string[], options?: Omit<Scope.Options, "extensions">) {
+  let stdout = "";
+  let stderr = "";
+  const code = await run({
+    shell,
+    args,
+    options,
+    io: {
+      write: (text) => {
+        stdout += text;
+      },
+      error: (text) => {
+        stderr += text;
+      },
+    },
+  });
+  return { code, stdout, stderr };
 }
 
 /** One operation node whose body never mentions "close" — a body-template hit for

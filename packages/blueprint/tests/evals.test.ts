@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { createScope, preset, type Scope } from "@tinker/core";
-import { run, type Process } from "@tinker/process";
+import { createScope, preset } from "@tinker/core";
+import { run } from "@tinker/process";
 import {
   corpus,
   corpusPath,
@@ -504,14 +504,6 @@ test("evalSet attaches golden cases from evals/golden.yaml to every template it 
   }
 });
 
-/** Run the shell in-process: argv in, exit code and streams out. */
-async function answer(
-  argv: readonly string[],
-  options?: Omit<Scope.Options, "extensions">,
-): Promise<Process.Result> {
-  return run(shell(options), argv);
-}
-
 test("evals through the cli prints exactly the expected line for proven, provisional, and a golden hit", async () => {
   const gradesJudge: Blueprint.Judge = {
     ask: async (state, questions) => {
@@ -521,24 +513,32 @@ test("evals through the cli prints exactly the expected line for proven, provisi
       return { [id]: { type: "boolean", probability } };
     },
   };
-  const options = {
-    tags: [
-      corpusPath(join(here, "fixtures", "corpus-grades")),
-      evalsPath(join(here, "fixtures", "evals-grades")),
-    ],
-    presets: [preset(judge, () => gradesJudge)],
-  };
-  {
-    const result = await answer(["evals"], options);
-    expect(result.stdout).toBe(
-      [
-        "✗ noisy        noisy        bad 2 (med 100%)  clean 3 (med 0%)  sep 100%  ordered 67%  golden 1/1",
-        "✓ proven       proven       bad 5 (med 100%)  clean 5 (med 0%)  sep 100%  ordered 100%  golden 0/0",
-        "~ provisional  provisional  bad 2 (med 100%)  clean 2 (med 0%)  sep 100%  ordered 100%  golden 0/0",
-        "",
-      ].join("\n"),
-    );
-  }
+  let stdout = "";
+  await run({
+    shell,
+    args: ["evals"],
+    options: {
+      tags: [
+        corpusPath(join(here, "fixtures", "corpus-grades")),
+        evalsPath(join(here, "fixtures", "evals-grades")),
+      ],
+      presets: [preset(judge, () => gradesJudge)],
+    },
+    io: {
+      write: (text) => {
+        stdout += text;
+      },
+      error: () => {},
+    },
+  });
+  expect(stdout).toBe(
+    [
+      "✗ noisy        noisy        bad 2 (med 100%)  clean 3 (med 0%)  sep 100%  ordered 67%  golden 1/1",
+      "✓ proven       proven       bad 5 (med 100%)  clean 5 (med 0%)  sep 100%  ordered 100%  golden 0/0",
+      "~ provisional  provisional  bad 2 (med 100%)  clean 2 (med 0%)  sep 100%  ordered 100%  golden 0/0",
+      "",
+    ].join("\n"),
+  );
 });
 
 test("evals returns one grade per template in the fixture corpus", async () => {

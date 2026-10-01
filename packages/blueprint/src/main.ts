@@ -10,5 +10,8 @@ function keyFrom(argv: readonly string[]): string | undefined {
 
 if (import.meta.main) {
   const key = keyFrom(process.argv);
-  await main(shell({ tags: key ? [engine({ model: "typesafe-ai/jev", apiKey: key })] : [] }));
+  process.exitCode = await main({
+    shell,
+    options: { tags: key ? [engine({ model: "typesafe-ai/jev", apiKey: key })] : [] },
+  });
 }

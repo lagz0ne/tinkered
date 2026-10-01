@@ -544,6 +544,41 @@ count):
 - **NoSource** — `verify`'s source dir held no `*.ts` file. Carries the
   dir.
 
+## Running in a caller
+
+`shell` is static command metadata.
+Pass shared Core settings through `run` or `main`.
+`run` returns the exit code; its caller owns any output it keeps.
+
+```ts
+import { run } from "@tinker/process";
+import { corpusPath, shell } from "@tinker/blueprint";
+
+const stdout: string[] = [];
+const stderr: string[] = [];
+const code = await run({
+  shell,
+  args: ["explain"],
+  options: { tags: [corpusPath("./corpus")] },
+  io: {
+    write: (text) => stdout.push(text),
+    error: (text) => stderr.push(text),
+  },
+});
+```
+
+An app entry sets `process.exitCode` after `main` returns.
+This lets Node finish pending output before exit.
+
+```ts
+import { main } from "@tinker/process";
+import { shell } from "@tinker/blueprint";
+
+if (import.meta.main) {
+  process.exitCode = await main({ shell });
+}
+```
+
 ## Running check
 
 A check trace shows the command, the operation it drives, and the

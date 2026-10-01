@@ -1,12 +1,4 @@
-import {
-  operation,
-  resource,
-  tag,
-  type Operation,
-  type Resource,
-  type Scope,
-  type Tag,
-} from "@tinker/core";
+import { operation, resource, tag, type Operation, type Resource, type Tag } from "@tinker/core";
 import { argv, io, jsonLine, positionals, type Process } from "@tinker/process";
 import {
   createGateway,
@@ -635,41 +627,36 @@ const verifyCommand: Process.Command = operation({
   },
 });
 
-/** The binary: every command runs on the same root options, so the entrypoint binds the key once
- * and a test binds its fakes the same way. Each command's operation is declared at module scope
- * (ADR 0057); the rows are plain data, built here, and each hands its operation and the caller's
- * options to `entry`, which runs only after routing. */
-export function shell(options: Scope.Options = {}): Process.Shell {
-  return {
-    name: "blueprint",
-    version: "0.0.0",
-    commands: [
-      {
-        name: checkName,
-        description: "judge one blueprint file with Jev over the shipped question templates",
-        entry: () => ({ op: checkCommand, options }),
-      },
-      {
-        name: explainName,
-        description: "print every template verbatim, or as a markdown list with --md",
-        entry: () => ({ op: explainCommand, options }),
-      },
-      {
-        name: evalsName,
-        description: "grade every template against its evals with the judge (needs a key)",
-        entry: () => ({ op: evalsCommand, options }),
-      },
-      {
-        name: suggestName,
-        description: "which unit fits a sentence, with the shape to write (needs a key)",
-        entry: () => ({ op: suggestCommand, options }),
-      },
-      {
-        name: verifyName,
-        description:
-          "diff a blueprint file's nodes against the code's declared units, plus body templates with a key",
-        entry: () => ({ op: verifyCommand, options }),
-      },
-    ],
-  };
-}
+/** Bind common Core settings in the Process call; routes share these command identities. */
+export const shell: Process.Shell = {
+  name: "blueprint",
+  version: "0.0.0",
+  commands: [
+    {
+      name: checkName,
+      description: "judge one blueprint file with Jev over the shipped question templates",
+      entry: () => ({ kind: "command", op: checkCommand }),
+    },
+    {
+      name: explainName,
+      description: "print every template verbatim, or as a markdown list with --md",
+      entry: () => ({ kind: "command", op: explainCommand }),
+    },
+    {
+      name: evalsName,
+      description: "grade every template against its evals with the judge (needs a key)",
+      entry: () => ({ kind: "command", op: evalsCommand }),
+    },
+    {
+      name: suggestName,
+      description: "which unit fits a sentence, with the shape to write (needs a key)",
+      entry: () => ({ kind: "command", op: suggestCommand }),
+    },
+    {
+      name: verifyName,
+      description:
+        "diff a blueprint file's nodes against the code's declared units, plus body templates with a key",
+      entry: () => ({ kind: "command", op: verifyCommand }),
+    },
+  ],
+};
