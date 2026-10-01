@@ -1,9 +1,9 @@
-# Harness tours
+# Harness examples
 
 Run two recorded agents without an account.
 Each agent keeps its own conversation and streamed text.
 The first reply becomes the second agent's prompt.
-The demo uses a local adapter and makes no network call.
+The example uses a local adapter and makes no network call.
 
 ## Run in this repo
 
@@ -18,9 +18,10 @@ vp check
 vp test
 ```
 
-`vp run dev` runs the same safe demo.
-Each tour starts only when run as the entry file.
-Importing `index.ts` starts no tour and loads no agent SDK.
+`vp run dev` runs the same safe example.
+Each entry runs inside `if (import.meta.main)`.
+Importing an entry or `index.ts` starts no work and loads no agent SDK.
+`index.ts` exports the local graph for tests that own their roots.
 
 ## Copy and run on its own
 
@@ -40,7 +41,7 @@ The copy has its own package, config, and library archives.
 It needs Node 22.18 or newer and Vite+.
 Its package file selects pnpm 12.4.1.
 
-## Live tours
+## Live examples
 
 These commands use a real SDK and your account.
 Run them from this folder with auth already set up.
@@ -54,21 +55,23 @@ They use the current folder as the working directory.
   The policy allows Read and denies other approval requests.
 - `vp run services -- "Read octocat/Hello-World."`:
   Claude Code reads GitHub and Cloudflare through two tools.
-  See [the service tour](SERVICES.md) for token setup.
+  See [the service example](SERVICES.md) for token setup.
 
 The graphs are declared once.
 Tags carry fixed settings; Harness data holds turn state.
 Each root has a stop signal and waits for `closed` in `finally`.
+SIGINT and SIGTERM ask each entry to stop.
 A failed close is reported if the run itself did not fail.
 Claude Code and Codex print each new text chunk once.
 
 ## Checks without accounts
 
-`vp test` checks the demo reply and the service entry's arguments.
+`vp test` checks the local reply and the service entry's arguments.
 It also runs six service checks with a recorded SDK and HTTP backend.
 The checks call the public exports in `index.ts`.
 
-- The demo returns both replies with separate conversation state.
+- The example keeps each conversation and its text in its own namespace.
+  The first reply becomes the second prompt.
 - A lone task separator is rejected as a missing prompt.
   Missing tokens stop the entry before it can load the SDK.
 - The agent reads two service URLs with separate tokens.

@@ -24,27 +24,30 @@ const ask = operation({
   run: ({ send }, ctx) => send.run({ input: { prompt: ctx.input } }),
 });
 
-/** Requires Claude Code auth; the deny policy still permits the Read tool. */
-export async function tour(cwd: string): Promise<string> {
+if (import.meta.main) {
   const stop = new AbortController();
   const root = createScope({
     signal: stop.signal,
-    tags: [claudeCode.options({ cwd })],
+    tags: [claudeCode.options({ cwd: process.cwd() })],
   });
+  let output: string;
   let completed = false;
+  const onStop = () => stop.abort();
+  process.once("SIGINT", onStop);
+  process.once("SIGTERM", onStop);
   try {
     await root.ready;
     const session = root.createSession({ tags: [policy("deny")] });
     await session.run(ask, { input: "list the files here" });
     const decisions = session.resolve(coder.items).filter((item) => item.kind === "approval");
-    const result = decisions.map((item) => item.status).join(",");
+    output = decisions.map((item) => item.status).join(",");
     completed = true;
-    return result;
   } finally {
     stop.abort();
     const result = await root.closed;
+    process.off("SIGINT", onStop);
+    process.off("SIGTERM", onStop);
     if (completed) checkClosed(result);
   }
+  process.stdout.write(`${output}\n`);
 }
-
-if (import.meta.main) process.stdout.write(`${await tour(process.cwd())}\n`);

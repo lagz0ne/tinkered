@@ -11,30 +11,30 @@ const ask = operation({
   run: ({ send }, ctx) => send.run({ input: { input: ctx.input } }),
 });
 
-/** Requires an authenticated SDK; the caller owns any streamed output. */
-export async function tour(cwd: string, write: (text: string) => void): Promise<string> {
+if (import.meta.main) {
   const stop = new AbortController();
   const root = createScope({
     signal: stop.signal,
-    tags: [codex.options({ workingDirectory: cwd, sandboxMode: "read-only" })],
+    tags: [codex.options({ workingDirectory: process.cwd(), sandboxMode: "read-only" })],
   });
   let completed = false;
+  const onStop = () => stop.abort();
+  process.once("SIGINT", onStop);
+  process.once("SIGTERM", onStop);
   try {
     await root.ready;
     const session = root.createSession();
-    session.controller(coder.text).watch((next, previous) => write(next.slice(previous.length)));
+    session
+      .controller(coder.text)
+      .watch((next, previous) => process.stdout.write(next.slice(previous.length)));
     await session.run(ask, { input: "say hello in five words" });
-    const result = session.resolve(coder.text);
     completed = true;
-    return result;
   } finally {
     stop.abort();
     const result = await root.closed;
+    process.off("SIGINT", onStop);
+    process.off("SIGTERM", onStop);
     if (completed) checkClosed(result);
   }
-}
-
-if (import.meta.main) {
-  await tour(process.cwd(), (text) => process.stdout.write(text));
   process.stdout.write("\n");
 }

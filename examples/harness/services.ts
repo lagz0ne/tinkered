@@ -17,7 +17,6 @@ const settingsSchema = z.object({
 export declare namespace Services {
   export type Settings = z.output<typeof settingsSchema>;
   export type Routes = { github: Namespace; cloudflare: Namespace };
-  export type Output = { write: (text: string) => void; error: (text: string) => void };
 }
 
 /** Each root chooses the two HTTP namespaces; the reusable graph captures neither key. */
@@ -135,12 +134,11 @@ export function serviceTags(settings: Services.Settings) {
 const launchSchema = settingsSchema.extend({ prompts: z.array(z.string().trim().min(1)).min(1) });
 
 /** The process edge validates env and argv once, before opening a root or loading the SDK. */
-export async function runServices(
+export function readLaunch(
   env: Record<string, string | undefined>,
   args: readonly string[],
   cwd: string,
-  output: Services.Output,
-): Promise<number> {
+) {
   const [first, ...rest] = args;
   const launch = launchSchema.safeParse({
     githubToken: env.GITHUB_TOKEN,
@@ -151,33 +149,36 @@ export async function runServices(
   if (!launch.success) {
     raise("InvalidSettings", { fields: launch.error.issues.map((issue) => issue.path.join(".")) });
   }
+  return launch.data;
+}
+
+if (import.meta.main) {
+  const launch = readLaunch(process.env, process.argv.slice(2), process.cwd());
   const stop = new AbortController();
-  const root = createScope({ signal: stop.signal, tags: serviceTags(launch.data) });
+  const root = createScope({ signal: stop.signal, tags: serviceTags(launch) });
   let completed = false;
+  const onStop = () => stop.abort();
+  process.once("SIGINT", onStop);
+  process.once("SIGTERM", onStop);
   try {
     await root.ready;
     const session = root.createSession();
     let exitCode = 0;
-    for (const prompt of launch.data.prompts) {
+    for (const prompt of launch.prompts) {
       const result = await session.run(services.send, { input: { prompt } });
-      if (result.subtype === "success") output.write(`${result.result}\n`);
+      if (result.subtype === "success") process.stdout.write(`${result.result}\n`);
       else {
-        output.error(`${result.errors.join("\n")}\n`);
+        process.stderr.write(`${result.errors.join("\n")}\n`);
         exitCode = 1;
       }
     }
     completed = true;
-    return exitCode;
+    process.exitCode = exitCode;
   } finally {
     stop.abort();
     const result = await root.closed;
+    process.off("SIGINT", onStop);
+    process.off("SIGTERM", onStop);
     if (completed) checkClosed(result);
   }
-}
-
-if (import.meta.main) {
-  process.exitCode = await runServices(process.env, process.argv.slice(2), process.cwd(), {
-    write: (text) => process.stdout.write(text),
-    error: (text) => process.stderr.write(text),
-  });
 }

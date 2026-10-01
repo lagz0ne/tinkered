@@ -4,55 +4,58 @@ import { demo } from "./demo.ts";
 import { checkClosed } from "./errors.ts";
 
 /** One graph serves both namespaces; each keeps its own conversation and text. */
-const coder = harness({ adapter: demo });
-const a = namespace({
+export const coder = harness({ adapter: demo });
+export const firstAgent = namespace({
   tags: demo.options({ id: "agent-a", words: ["Hello"], reply: "Hello" }),
 });
-const b = namespace({
+export const secondAgent = namespace({
   tags: demo.options({ id: "agent-b", words: ["Hi", " again"], reply: "Hi again" }),
 });
-const relay = operation({
+export const relay = operation({
   label: "relay",
   depends: { send: coder.send },
   run: async ({ send }) => {
-    const first = await send.run({ input: "first", ns: a });
-    return send.run({ input: first, ns: b });
+    const first = await send.run({ input: "first", ns: firstAgent });
+    return send.run({ input: first, ns: secondAgent });
   },
 });
 
-/** Replays two turns without a network call, a process, or account access. */
-export async function tour(): Promise<string> {
+if (import.meta.main) {
   const stop = new AbortController();
   const root = createScope({ signal: stop.signal });
+  let output: string;
   let completed = false;
+  const onStop = () => stop.abort();
+  process.once("SIGINT", onStop);
+  process.once("SIGTERM", onStop);
   try {
     await root.ready;
     const session = root.createSession();
     const textA: string[] = [];
     const textB: string[] = [];
-    session.controller(coder.text, { ns: a }).watch((next) => textA.push(next));
-    session.controller(coder.text, { ns: b }).watch((next) => textB.push(next));
+    session.controller(coder.text, { ns: firstAgent }).watch((next) => textA.push(next));
+    session.controller(coder.text, { ns: secondAgent }).watch((next) => textB.push(next));
     const answer = await session.run(relay);
-    const result = [
+    output = [
       answer,
-      session.resolve(coder.text, { ns: a }),
-      session.resolve(coder.text, { ns: b }),
-      session.resolve(coder.id, { ns: a }),
-      session.resolve(coder.id, { ns: b }),
+      session.resolve(coder.text, { ns: firstAgent }),
+      session.resolve(coder.text, { ns: secondAgent }),
+      session.resolve(coder.id, { ns: firstAgent }),
+      session.resolve(coder.id, { ns: secondAgent }),
       textA.join("|"),
       textB.join("|"),
       [
-        ...session.resolve(coder.events, { ns: a }),
-        ...session.resolve(coder.events, { ns: b }),
+        ...session.resolve(coder.events, { ns: firstAgent }),
+        ...session.resolve(coder.events, { ns: secondAgent }),
       ].join("|"),
     ].join(";");
     completed = true;
-    return result;
   } finally {
     stop.abort();
     const result = await root.closed;
+    process.off("SIGINT", onStop);
+    process.off("SIGTERM", onStop);
     if (completed) checkClosed(result);
   }
+  process.stdout.write(`${output}\n`);
 }
-
-if (import.meta.main) process.stdout.write(`${await tour()}\n`);

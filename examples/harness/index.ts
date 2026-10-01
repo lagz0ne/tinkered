@@ -1,12 +1,8 @@
-export { tour as demoTour } from "./basic.ts";
-export { tour as claudeTour } from "./real.ts";
-export { tour as codexTour } from "./codex.ts";
-export { tour as toolsTour } from "./tools.ts";
-export { tour as approvalsTour } from "./approvals.ts";
+export { coder, firstAgent, secondAgent, relay } from "./basic.ts";
 export {
   getRepo,
   listZones,
-  runServices,
+  readLaunch,
   serviceRoutes,
   services,
   serviceTags,
