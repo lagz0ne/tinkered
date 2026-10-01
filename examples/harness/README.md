@@ -60,7 +60,10 @@ They use the current folder as the working directory.
 The graphs are declared once.
 Tags carry fixed settings; Harness data holds turn state.
 Each root has a stop signal and waits for `closed` in `finally`.
-SIGINT and SIGTERM ask each entry to stop.
+Ctrl+C lets the current reply finish and prevents the next call.
+The entry waits to stop its root until the current reply ends.
+A second Ctrl+C quits at once.
+SIGTERM also waits for the current reply before stopping.
 A failed close is reported if the run itself did not fail.
 Claude Code and Codex print each new text chunk once.
 

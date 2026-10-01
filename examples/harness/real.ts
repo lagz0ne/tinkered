@@ -12,22 +12,26 @@ const ask = operation({
 });
 
 if (import.meta.main) {
+  const requestStop = new AbortController();
   const stop = new AbortController();
   const root = createScope({
     signal: stop.signal,
     tags: [claudeCode.options({ cwd: process.cwd(), permissionMode: "plan" })],
   });
   let completed = false;
-  const onStop = () => stop.abort();
+  const onStop = () => requestStop.abort();
   process.once("SIGINT", onStop);
   process.once("SIGTERM", onStop);
   try {
     await root.ready;
-    const session = root.createSession();
-    session
-      .controller(coder.text)
-      .watch((next, previous) => process.stdout.write(next.slice(previous.length)));
-    await session.run(ask, { input: "say hello in five words" });
+    if (!requestStop.signal.aborted) {
+      const session = root.createSession();
+      session
+        .controller(coder.text)
+        .watch((next, previous) => process.stdout.write(next.slice(previous.length)));
+      await session.run(ask, { input: "say hello in five words" });
+      if (!requestStop.signal.aborted) process.stdout.write("\n");
+    }
     completed = true;
   } finally {
     stop.abort();
@@ -36,5 +40,4 @@ if (import.meta.main) {
     process.off("SIGTERM", onStop);
     if (completed) checkClosed(result);
   }
-  process.stdout.write("\n");
 }

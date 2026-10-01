@@ -34,21 +34,26 @@ const ask = operation({
 });
 
 if (import.meta.main) {
+  const requestStop = new AbortController();
   const stop = new AbortController();
   const root = createScope({
     signal: stop.signal,
     tags: [claudeCode.options({ cwd: process.cwd(), allowedTools: ["mcp__coder__search"] })],
   });
-  let output: string;
+  let output: string | undefined;
   let completed = false;
-  const onStop = () => stop.abort();
+  const onStop = () => requestStop.abort();
   process.once("SIGINT", onStop);
   process.once("SIGTERM", onStop);
   try {
     await root.ready;
-    const session = root.createSession({ tags: [index("code")] });
-    await session.run(ask, { input: "search for the word harness" });
-    output = session.resolve(coder.text);
+    if (!requestStop.signal.aborted) {
+      const session = root.createSession({ tags: [index("code")] });
+      await session.run(ask, { input: "search for the word harness" });
+      if (!requestStop.signal.aborted) {
+        output = session.resolve(coder.text);
+      }
+    }
     completed = true;
   } finally {
     stop.abort();
@@ -57,5 +62,5 @@ if (import.meta.main) {
     process.off("SIGTERM", onStop);
     if (completed) checkClosed(result);
   }
-  process.stdout.write(`${output}\n`);
+  if (output !== undefined) process.stdout.write(`${output}\n`);
 }

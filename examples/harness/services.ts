@@ -154,26 +154,31 @@ export function readLaunch(
 
 if (import.meta.main) {
   const launch = readLaunch(process.env, process.argv.slice(2), process.cwd());
+  const requestStop = new AbortController();
   const stop = new AbortController();
   const root = createScope({ signal: stop.signal, tags: serviceTags(launch) });
   let completed = false;
-  const onStop = () => stop.abort();
+  const onStop = () => requestStop.abort();
   process.once("SIGINT", onStop);
   process.once("SIGTERM", onStop);
   try {
     await root.ready;
-    const session = root.createSession();
-    let exitCode = 0;
-    for (const prompt of launch.prompts) {
-      const result = await session.run(services.send, { input: { prompt } });
-      if (result.subtype === "success") process.stdout.write(`${result.result}\n`);
-      else {
-        process.stderr.write(`${result.errors.join("\n")}\n`);
-        exitCode = 1;
+    if (!requestStop.signal.aborted) {
+      const session = root.createSession();
+      let exitCode = 0;
+      for (const prompt of launch.prompts) {
+        if (requestStop.signal.aborted) break;
+        const result = await session.run(services.send, { input: { prompt } });
+        if (requestStop.signal.aborted) break;
+        if (result.subtype === "success") process.stdout.write(`${result.result}\n`);
+        else {
+          process.stderr.write(`${result.errors.join("\n")}\n`);
+          exitCode = 1;
+        }
       }
+      process.exitCode = exitCode;
     }
     completed = true;
-    process.exitCode = exitCode;
   } finally {
     stop.abort();
     const result = await root.closed;
