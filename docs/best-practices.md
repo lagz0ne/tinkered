@@ -196,7 +196,7 @@ The main guard owns process listeners, output, and cleanup.
 Command examples let Process `main` own their command roots.
 
 ```ts
-import { createScope, operation } from "@tinker/core";
+import { createScope, operation, type Scope } from "@tinker/core";
 
 const hello = operation({
   label: "hello",
@@ -209,20 +209,23 @@ if (import.meta.main) {
   process.once("SIGINT", requestStop);
   process.once("SIGTERM", requestStop);
   const root = createScope({ signal: stop.signal });
+  let message: string;
+  let end: Scope.Result;
   try {
     await root.ready;
-    process.stdout.write(`${root.run(hello)}\n`);
+    message = root.run(hello);
   } finally {
     stop.abort();
-    const end = await root.closed;
+    end = await root.closed;
     process.removeListener("SIGINT", requestStop);
     process.removeListener("SIGTERM", requestStop);
-    if (end.status === "failed") throw end.error;
-    if (end.teardownErrors?.length) {
-      const [error] = end.teardownErrors;
-      throw error;
-    }
   }
+  if (end.status === "failed") throw end.error;
+  if (end.teardownErrors?.length) {
+    const [error] = end.teardownErrors;
+    throw error;
+  }
+  process.stdout.write(`${message}\n`);
 }
 ```
 
