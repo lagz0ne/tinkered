@@ -503,7 +503,7 @@ npx --no-install stryker run \
   main; `vp run hono#test`, tracker tests, browser
   proof, `pnpm validate`.
 
-- **t18 the stack's roots on the stop signal** -- [ ] blocked by: none
+- **t18 the stack's roots on the stop signal** -- [x] landed 18af8441 (blocked by: none)
   core/root-lifetime landed (ADR 0085). The stack
   drops `runUntilStop` for an exit-code helper over
   a plain `Result`; the tracker's server root passes

@@ -55,7 +55,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 ## Parked
 
 - **stack/t08 jobs** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `04d6e604` rebasing with `--onto` main; reviewer READY at `da34b8cf` (b372d629); the lead lands. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t18 roots-signal** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `f63d5891` rebasing onto main and folding main's new stack shutdown into the exit-code helper; then an Opus re-review; the lead lands. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **core/start-log** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `c3f272c1`: first probes main (ADR 0089 rewrote the extension ctx); if the bug is gone it closes, else it redoes the fix on the new shape. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t14 dev-host** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `c4f5f4d3` rebasing and finishing the dev host. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t10 auth-signin** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Waits for stack/t17 to land, then a Sol writer rebases it and an Opus reviewer reviews. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
@@ -94,6 +93,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **stack/t18 roots-signal** — `@tinker/stack` drops `runUntilStop` for `readExitCode(result, observe, phase)` over a plain `Result` (ADR 0085 §6: failed or any teardown error answers 1, else 0, `cancelled` included); the tracker's server root passes its stop signal to `createScope({ signal })`, takes the phase from which way `scope.ready` settled, and awaits `scope.closed`. A failed boot keeps its teardown errors in the log line; a failed telemetry boot is covered. SIGTERM exits 0; a bad `PORT` exits 1 with one "boot failed" line and no database touched. No `runUntilStop` left; the lifetime lint (S19, S27–S29) prints no row. Proof: gate EXIT 0 (stack 114, tracker 79; 0 errors, 28 warnings), browser proof, stack mutation 85.63% (548/3/89), validate 48/48. Review: the first reviewer (5d41ea28) stopped in the 05:53 restart after one fix round; the lead reviewed the final diff. Sol rebase writer f63d5891. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **examples/standalone** — all eleven examples run on their own.
   Owner: lead (Codex); Astra writers; Opus 5.5 READY.
   Proof: every exported copy passed install, check, tests, and run.
