@@ -3624,3 +3624,14 @@ await closing;
 - Log and JSON: `stack-t10-fix1-hono-mutation`
   in the briefs cache.
 - Round 1 validation follows before round 2 edits.
+
+### Fix round 1 complete
+
+- Build and `pnpm validate`: all 50 lanes pass, `EXIT 0`.
+  Restored `pnpm-workspace.yaml` after validation.
+- Log: `stack-t10-fix1-validate.log` in the briefs cache.
+- Both mutation lanes and validation finished before round 2 edits.
+- Next: restore the plain failed-commit test, add an async twin,
+  and document and test raw answers copying auth headers.
+  Then read the second resume brief and rebase for event hooks
+  and the static store resource; repeat the requested proof.

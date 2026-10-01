@@ -40,9 +40,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 - **stack/t10 auth-signin** — Owner: stack/t10 writer (Codex).
-  Next: fix cookie refresh and clarify shutdown answers.
-  Verify: two failing-first cookie proofs, repo gate,
-  auth and Hono mutation under the lock, and validation.
+  Next: restore the plain commit test and cover raw cookie headers,
+  then rebase for event hooks and the static store resource.
+  Verify: named gate, auth and Hono mutation under the lock,
+  uncached tracker browser proof, and validation.
   [Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
