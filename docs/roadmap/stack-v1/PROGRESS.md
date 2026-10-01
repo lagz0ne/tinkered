@@ -3552,3 +3552,31 @@ await closing;
   Check still has no errors and 28 warnings.
 - Next: full repo gate, advisory checks, fresh mutation,
   then validation and review.
+
+### Fix round 1 full gate and advisory checks
+
+- Fetched main before the full gate; it remains `23f0ccce`.
+  Rebase reports this branch is up to date.
+- Gate: build, check, every repo test task, then prose.
+  All 29 test tasks ran uncached; `EXIT 0`.
+- Auth: 18 tests; Hono: 92; Stack: 114; tracker: 79.
+  Core: 790; the one existing repo skip remains.
+- Check: no errors, 28 warnings; same as the seen main proof.
+- Strict style census and TSDoc pass.
+  Jev has no file flags or missing promises.
+  Auth: zero of 13 titles flagged; Hono: zero of 92.
+  Ten Hono promise matches are unsure, not missing.
+- Existing Hono state and stream labels remain false.
+  The root owns preparation and the request owns cleanup.
+  Stack's unchanged listen helper keeps both false labels.
+  Its returned stop is owned by the server's defer.
+  Its close flag only selects socket cleanup.
+- Each auth piece keeps its own config and user tags.
+  Existing Hono helper-size and helper-count notes are unchanged.
+  The noisy answer-route note needs no label.
+- No new labels or judge rules.
+  Hono's runtime source still matches the reviewed head.
+- Logs: `stack-t10-fix1-gate.log`, `stack-t10-fix1-jev.log`,
+  and `stack-t10-fix1-style.log` in the briefs cache.
+- Next: fresh full auth and Hono mutation lanes,
+  one at a time under `/tmp/mutation.lock`, then validation.
