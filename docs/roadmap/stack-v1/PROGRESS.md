@@ -3599,3 +3599,16 @@ await closing;
 - Hono did not start after the failed auth lane.
   Next: auth checks and fresh mutation, then Hono and validation.
 - Round 2 edits wait until round 1's checks finish.
+
+### Fix round 1 auth mutation passes
+
+- Saved the stronger cookie test at `359ceeac`.
+  Build, check, auth 18, and prose pass, `EXIT 0`.
+- Fresh full auth lane under `/tmp/mutation.lock`:
+  killed 85, timeout 0, survived 13.
+  No coverage 0, errors 0; 86.73 percent, `EXIT 0`.
+- Both append changes are killed by the same refresh test.
+  Earlier app cookies now have proof beside later cookies.
+- Log and JSON: `stack-t10-fix1-auth-mutation`
+  in the briefs cache.
+- Next: Hono under the same lock, then validation.
