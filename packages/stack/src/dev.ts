@@ -46,9 +46,11 @@ export async function runDev(options: Dev.Options, stop: AbortSignal): Promise<n
     extensions: [
       extension({
         label: "stack.dev",
-        start: async (_scope, ctx) => {
-          ctx.defer(() => host.close());
-          await host.open();
+        hooks: {
+          start: async (event) => {
+            event.defer(() => host.close());
+            await host.open();
+          },
         },
       }),
     ],

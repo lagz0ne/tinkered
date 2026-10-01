@@ -5144,3 +5144,42 @@ No build runs in that tree while the job waits or runs.
   The dev host still uses the supported callback form.
   If the removal lands before this ticket finishes,
   rebase and move its new hooks to the object form.
+
+### t14 rebase onto the sole hook and static database APIs
+
+- Read ADRs 0093 and 0094 on `origin/main` at `d96fee94`.
+- Rebased onto that head after ending the obsolete Stack fault run.
+- That run exited 143 after 332 of 839 mutants were tested.
+- It has no final score; NATS had not started.
+- Its old log stays saved; both whole lanes will run on the new source.
+- The old queued timing result stays historical; the new source will be timed again.
+- `server/main.ts`: main keeps `storeConfig`; t14 lends the client's exact object.
+- The host owns the dev listener; prod keeps its required settings.
+- `server/store.ts`: main keeps static database and transaction resources.
+- T14 keeps the managed failure for a missing or empty `DATA_PATH`.
+- A handed-in client stays borrowed and is closed only by the dev host.
+- The new live test binds main's `databaseConfig(client)` resource setup.
+- Both new dev start hooks use one bound event under `hooks`.
+- Main's publisher, server, and existing tests keep their event hooks.
+- `cases.jsonl`: keep main's rows byte for byte and append only t14's four labels.
+- No acceptance line changed; no Core workaround was added.
+
+### t14 wave 2 gate and review proof
+
+- Installed and built after the rebase onto `d96fee94`.
+- Full gate `EXIT 0`: Stack 128, NATS 36, Drizzle 26, tracker 84.
+- `vp check`: zero errors and 28 warnings in 568 files.
+- Clean `d96fee94`: zero errors and the same 28 warnings in 558 files.
+- Stack test review: zero flags among 66 entries.
+- NATS test review: zero flags among 31 entries.
+- Changed tracker tests: zero flags among four entries.
+- README review: no gaps among 66 Stack, 31 NATS, and 79 tracker titles.
+- Eleven tracker picks remain unsure; they are not flags.
+- Preflight repeats the saved cache and listener labels; no new label is owed.
+- The two noisy publisher notes remain advisory.
+- TSDoc: nine source files, zero S26 rows.
+- SCIP indexed Stack, NATS, and Drizzle and checked the named consumers.
+- `runUntilStop` has no remaining source reference.
+- Strict style census passed.
+- Logs use `stack-t14-wave2-` under the briefs cache.
+- Next: whole Stack and NATS fault lanes, queued A/B, then all validation lanes.

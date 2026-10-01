@@ -40,21 +40,23 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
       host.connection ? bus.extension : [],
       extension({
         label: "database",
-        start: async (_scope, ctx) => {
-          const timer = setInterval(() => probe.ticks++, 60_000);
-          probe.timers.add(timer);
-          ctx.defer(() => {
-            clearInterval(timer);
-            probe.timers.delete(timer);
-            probe.cleaned++;
-            if (value === "close-broken") ctx.raise("CloseFailed", { value });
-          });
-          await host.client.exec("create table if not exists kept (title text)");
-          if (value === "slow-boot") {
-            probe.entered.resolve();
-            await probe.release.promise;
-          }
-          if (value === "broken") ctx.raise("BootFailed", { value });
+        hooks: {
+          start: async (event) => {
+            const timer = setInterval(() => probe.ticks++, 60_000);
+            probe.timers.add(timer);
+            event.defer(() => {
+              clearInterval(timer);
+              probe.timers.delete(timer);
+              probe.cleaned++;
+              if (value === "close-broken") event.raise("CloseFailed", { value });
+            });
+            await host.client.exec("create table if not exists kept (title text)");
+            if (value === "slow-boot") {
+              probe.entered.resolve();
+              await probe.release.promise;
+            }
+            if (value === "broken") event.raise("BootFailed", { value });
+          },
         },
       }),
     ],

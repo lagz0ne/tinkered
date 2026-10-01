@@ -312,7 +312,7 @@ test("live updates borrow one connection across roots", async () => {
   try {
     for (let root = 0; root < 3; root++) {
       const scope = createScope({
-        tags: [store.config(db)],
+        tags: [databaseConfig(client)],
         extensions: [
           liveUpdates(publish, {
             subject: "issues.changed",
