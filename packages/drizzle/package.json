@@ -19,6 +19,7 @@
   "exports": {
     ".": "./dist/index.mjs",
     "./migrations": "./dist/migrations.mjs",
+    "./pglite": "./dist/pglite.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -50,6 +51,12 @@
     "vite-plus": "catalog:"
   },
   "peerDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "drizzle-orm": "^0.45.2 || ^1.0.0-rc.4"
+  },
+  "peerDependenciesMeta": {
+    "@electric-sql/pglite": {
+      "optional": true
+    }
   }
 }

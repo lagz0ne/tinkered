@@ -3,73 +3,152 @@
 Requires `drizzle-orm@^0.45.2` or `drizzle-orm@^1.0.0-rc.4`.
 This repo pins Drizzle ORM and Kit to `1.0.0-rc.4`.
 
-Declare database settings, resources, and operations once at module scope.
-Namespaces bind settings and select separate database instances.
-The scope owns each database's lifetime; each session owns its transaction.
-The database and transaction values stay native.
-The adapters create no graph nodes.
+## PGlite graph
+
+`@tinker/drizzle/pglite` requires Drizzle `1.0.0-rc.4`
+and `@electric-sql/pglite@^0.5.8`.
+It exports `config`, `database`, `transaction`,
+`migrationConfig`, and `migrate` as static units.
+Declare app tables and operations once at module scope.
 
 ```ts
-import { createScope, namespace } from "@tinker/core";
-import { operation, resource, tag } from "@tinker/core";
-import { createQueryLogger } from "@tinker/drizzle";
-import { openTransaction } from "@tinker/drizzle";
+import { createScope, extension } from "@tinker/core";
+import { namespace, operation } from "@tinker/core";
+import { config, transaction } from "@tinker/drizzle/pglite";
+import { migrate } from "@tinker/drizzle/pglite";
+import { migrationConfig } from "@tinker/drizzle/pglite";
 import { pgTable, text } from "drizzle-orm/pg-core";
 
 const users = pgTable("users", {
   name: text("name").notNull(),
 });
-export const databaseConfig = tag<{ url: string }>({
-  label: "database.config",
+const addUser = operation({
+  label: "addUser",
+  depends: { tx: transaction },
+  run: ({ tx }) => tx.insert(users).values({ name: "Ada" }),
 });
-export const database = resource({
-  label: "database",
+const team = namespace({
+  tags: [config({ kind: "open", url: "./data/team" })],
+});
+const prepare = extension({
+  label: "prepare",
+  hooks: {
+    start: async (event) => {
+      await event.scope.run(migrate, {
+        ns: team,
+        tags: [
+          migrationConfig({
+            migrationsFolder: "./drizzle",
+          }),
+        ],
+      });
+      await event.next();
+    },
+  },
+});
+const stop = new AbortController();
+const scope = createScope({
+  signal: stop.signal,
+  extensions: [prepare],
+});
+await scope.ready;
+await scope.session({ ns: team }, (session) => {
+  return session.run(addUser);
+});
+stop.abort();
+await scope.closed;
+```
+
+Generate the `./drizzle` files from the app's tables with
+its pinned Drizzle Kit before running this example.
+The first migration creates the `users` table.
+
+`Database.Config` chooses who owns the client:
+
+```ts
+import { PGlite } from "@electric-sql/pglite";
+import { config } from "@tinker/drizzle/pglite";
+
+const client = new PGlite();
+config({ kind: "open", url: "./data/team" });
+config({ kind: "open" });
+config({ kind: "borrow", client });
+```
+
+An open client uses the given path, or memory without a URL.
+A borrowed client keeps the exact client open after scope close.
+`Database.Handle` is the inferred native Drizzle database.
+Custom typed schemas can still declare their own resources
+with `createQueryLogger` and `openTransaction`.
+
+Missing PGlite config raises `MissingTag` with the config label.
+An owned database opens its configured path lazily and closes with the scope.
+Two roots open separate clients and closing one leaves the other usable.
+Tenant databases stay separate and request config cannot replace the tenant client.
+A failed session rolls back while the prior session commit stays visible.
+Each session reuses one native transaction and the next session gets another.
+
+`Migrate.Config` takes `migrationsFolder` and an optional
+`baseline(tx)` callback with the native transaction.
+The callback upgrades old tables and records their baseline
+before pending files run.
+The migration operation owns its complete transaction,
+including the Postgres advisory lock shared with Stack.
+Its key is `classId: 1937006964, objectId: 1`.
+
+- Missing migration settings raise `MissingTag` with the migration config label.
+- Root migrations commit before answering and produce a child span under the caller.
+- Baseline and pending files share the migration lock and commit together in the selected tenant.
+- A failed migration rolls back the baseline and every pending file before answering.
+- A failed baseline rolls back and never starts pending migration files.
+- Stopping during baseline waits for rollback and leaves pending files untouched.
+- Stopping after the last migration statement rolls back before commit.
+
+Pass a call signal to stop a migration.
+Each awaited stage checks the signal before more work starts.
+The last check happens before the transaction commits.
+Awaited database calls finish before the stop reaches rollback.
+
+## Custom resources
+
+The root helper entry supports Drizzle `^0.45.2` or
+`^1.0.0-rc.4` callback transactions that await their callback.
+It has no SDK or Node runtime import.
+Synchronous SQLite transactions need a separate driver;
+these helpers cannot keep their callback open.
+The helpers create no graph nodes.
+
+```ts
+import { resource } from "@tinker/core";
+import { createQueryLogger } from "@tinker/drizzle";
+import { openTransaction } from "@tinker/drizzle";
+import { defineRelations } from "drizzle-orm";
+import { pgTable, text } from "drizzle-orm/pg-core";
+
+const users = pgTable("users", {
+  name: text("name").notNull(),
+});
+const customDatabase = resource({
+  label: "custom.database",
   target: "namespace",
-  depends: { config: databaseConfig },
-  factory: async ({ config }, ctx) => {
+  factory: async (_deps, ctx) => {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");
-    const client = new PGlite(config.url);
+    const client = new PGlite();
     ctx.defer(() => client.close());
-    const ddl = "create table users (name text not null)";
-    await client.exec(ddl);
     return drizzle({
       client,
+      relations: defineRelations({ users }),
       logger: createQueryLogger(ctx),
     });
   },
 });
-export const transaction = resource({
-  label: "transaction",
+const customTransaction = resource({
+  label: "custom.transaction",
   target: "session",
-  depends: { db: database },
+  depends: { db: customDatabase },
   factory: ({ db }, ctx) => openTransaction(db, ctx),
 });
-const addUser = operation({
-  label: "addUser",
-  input: (raw) => String(raw),
-  depends: { tx: transaction },
-  run: ({ tx }, ctx) => {
-    return tx.insert(users).values({ name: ctx.input });
-  },
-});
-
-const ada = namespace({
-  tags: [databaseConfig({ url: "memory://ada" })],
-});
-const grace = namespace({
-  tags: [databaseConfig({ url: "memory://grace" })],
-});
-const stop = new AbortController();
-const scope = createScope({ signal: stop.signal });
-await scope.session({ ns: ada }, (session) => {
-  return session.run(addUser, { input: "Ada" });
-});
-await scope.session({ ns: grace }, (session) => {
-  return session.run(addUser, { input: "Grace" });
-});
-stop.abort();
-await scope.closed;
 ```
 
 The driver loads only when the database first resolves.
@@ -120,7 +199,8 @@ The Node entry `@tinker/drizzle/migrations` requires
 Drizzle ORM and Kit `1.0.0-rc.4`.
 `migrateDatabase(db, { migrationsFolder })` borrows a
 Postgres database or transaction and runs Drizzle's files.
-The stack owns the lock and the boot order.
+The caller owns the lock and the boot order.
+The PGlite `migrate` operation supplies the locked transaction.
 
 For an old database, first bring its tables level.
 Then pass `baseline` with the exact first folder name.
