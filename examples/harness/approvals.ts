@@ -41,10 +41,8 @@ if (import.meta.main) {
     if (!requestStop.signal.aborted) {
       const session = root.createSession({ tags: [policy("deny")] });
       await session.run(ask, { input: "list the files here" });
-      if (!requestStop.signal.aborted) {
-        const decisions = session.resolve(coder.items).filter((item) => item.kind === "approval");
-        output = decisions.map((item) => item.status).join(",");
-      }
+      const decisions = session.resolve(coder.items).filter((item) => item.kind === "approval");
+      output = decisions.map((item) => item.status).join(",");
     }
     completed = true;
   } finally {

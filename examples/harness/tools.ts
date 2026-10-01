@@ -50,9 +50,7 @@ if (import.meta.main) {
     if (!requestStop.signal.aborted) {
       const session = root.createSession({ tags: [index("code")] });
       await session.run(ask, { input: "search for the word harness" });
-      if (!requestStop.signal.aborted) {
-        output = session.resolve(coder.text);
-      }
+      output = session.resolve(coder.text);
     }
     completed = true;
   } finally {

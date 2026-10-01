@@ -169,7 +169,6 @@ if (import.meta.main) {
       for (const prompt of launch.prompts) {
         if (requestStop.signal.aborted) break;
         const result = await session.run(services.send, { input: { prompt } });
-        if (requestStop.signal.aborted) break;
         if (result.subtype === "success") process.stdout.write(`${result.result}\n`);
         else {
           process.stderr.write(`${result.errors.join("\n")}\n`);

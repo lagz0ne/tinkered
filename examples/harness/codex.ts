@@ -30,7 +30,7 @@ if (import.meta.main) {
         .controller(coder.text)
         .watch((next, previous) => process.stdout.write(next.slice(previous.length)));
       await session.run(ask, { input: "say hello in five words" });
-      if (!requestStop.signal.aborted) process.stdout.write("\n");
+      process.stdout.write("\n");
     }
     completed = true;
   } finally {
