@@ -5613,3 +5613,13 @@ useEffect(() => props.ready?.(), [props.ready]);
 
 - Next: changed-file fault runs and full validation.
   Saved work will wait for lead review; no push is allowed.
+
+### t15 full validation
+
+- `pnpm validate`: all 54 lanes passed; `EXIT 0`.
+- The first run found a format issue in these notes.
+  Formatted them and reran every lane; all passed.
+- The workspace file matches the saved file.
+- The temp base worktree is removed.
+  Its first-HTML failure log remains in the briefs cache.
+- Next: changed-file fault runs, queued under the shared lock.
