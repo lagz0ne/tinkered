@@ -135,3 +135,6 @@ Merge in a separate checkout so running fault lanes keep stable source files.
 Hono and Stack need fresh normal tests and isolated fault scores on the merged code.
 The final caller audit, build, check, consumer tests, and release lanes must rerun.
 Other packages may reuse completed lanes only if their checked inputs and runtime dependencies match.
+
+The first gate's completed scores so far: Utils 100.00, Core 85.80, MCP 98.53.
+Hono's t17 merge is being reviewed in its own package checkout.
