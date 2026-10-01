@@ -5470,3 +5470,26 @@ No build runs in that tree while the job waits or runs.
 - Existing Hono helper-count notes are in unchanged test files.
 - Strict style census and prose pass.
 - Next: fetch and rebase, full gate, mutation, validate.
+
+### start-log-cleanup gate and first two packages
+
+- Rebased onto origin/main at c125c72b; no conflicts.
+- Full gate: build, check, all package tests without cache.
+- The chain has EXIT 0; all 31 test tasks pass.
+- Hono 93, Stack 136, jobs 26, tracker 87 tests pass.
+- A clean origin/main check has 0 errors and 28 warnings.
+- The branch check has the same counts.
+- Jobs changed-file mutation: 128 killed, 5 timeout, 17 survived.
+- Killed share: 85.33%; 3 without coverage, 0 errors; EXIT 0.
+- Hono first run: 357 killed, 69 timeout, 31 survived.
+- Its 78.12% killed share did not meet the required floor.
+- The default run used 7 workers and the default timeout.
+- Repeated Hono with 2 workers and a 60-second timeout.
+- No code, tests, or mutation scope changed between runs.
+- Hono final: 397 killed, 0 timeout, 60 survived.
+- Killed share: 86.87%; 2 without coverage, 0 errors; EXIT 0.
+- Both runs held /tmp/mutation.lock in the foreground.
+- Stack uses 2 workers and its existing 60-second timeout.
+- Next: Stack mutation, release checks, then Review.
+- Proof logs and JSON are in ~/.cache/tinkered-briefs/.
+- Log prefix: start-log-.
