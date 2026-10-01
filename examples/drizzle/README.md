@@ -3,7 +3,7 @@
 A local database tour using Drizzle and PGlite.
 PGlite runs Postgres in memory; no database server is needed.
 Each run starts with a new database.
-The tour reads the name committed by its session.
+The tour runs a migration, then reads the name committed by its session.
 It waits for the database to close before returning.
 
 ## Run
@@ -41,33 +41,50 @@ vp run check
 vp run test
 ```
 
-The test runs the real tour through `index.ts` with an in-memory database.
+The tests run the real tour through `index.ts` with an in-memory database.
+They check the saved name and fresh databases across repeated tours.
 
 ## Read the code
 
-- `basic.ts` declares the table, config tag, resources, and operations once.
-- A namespace binds the database URL and selects its database instance.
-  The session insert and root read use the same namespace.
-- The database resource opens its client when first used.
-  It registers cleanup with `ctx.defer` before setting up the table.
-  The root closes the client even if setup fails.
+- `basic.ts` imports the resources from `@tinker/drizzle/pglite`.
+  It declares the app's table and operations once.
+- A namespace binds `config({ kind: "open" })` for a fresh in-memory client.
+  The migration, session insert, and root read use the same namespace.
+- The database resource opens its client when first used and owns its cleanup.
+- `migrate` creates the table from `drizzle/20261001000000_users/migration.sql`.
+  The migration commits before the session starts.
 - Each session owns a transaction, a group of database changes.
   A successful session commits its changes before the root reads them.
-- `createQueryLogger(ctx)` sends SQL logs through the database resource.
+- The driver sends SQL logs through the database resource.
 - A stop signal closes the root in `finally`; the tour waits for `closed`.
 - The entry prints only when run directly.
 - `vite.config.ts` and `tsconfig.json` belong to this folder.
 
-The transaction resource uses the declared database directly:
+The namespace selects the database for the imported resources:
 
 ```ts
-const transaction = resource({
-  label: "tour.tx",
-  target: "session",
-  depends: { db: database },
-  factory: ({ db }, ctx) => openTransaction(db, ctx),
+import { namespace } from "@tinker/core";
+import { config } from "@tinker/drizzle/pglite";
+
+const tourNamespace = namespace({
+  tags: [config({ kind: "open" })],
 });
 ```
 
-Its factory returns the native Drizzle transaction.
-`openTransaction` uses the resource's cleanup to commit or roll back.
+Before inserting, the tour runs the shared migration operation:
+
+```ts
+import { fileURLToPath } from "node:url";
+import { migrate } from "@tinker/drizzle/pglite";
+import { migrationConfig } from "@tinker/drizzle/pglite";
+
+const folder = new URL("./drizzle", import.meta.url);
+const migrationsFolder = fileURLToPath(folder);
+await scope.run(migrate, {
+  ns: tourNamespace,
+  tags: [migrationConfig({ migrationsFolder })],
+});
+```
+
+The imported `transaction` returns the native Drizzle transaction.
+The session's cleanup commits or rolls back its changes.

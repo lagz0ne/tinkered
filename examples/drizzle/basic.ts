@@ -1,33 +1,12 @@
-import { PGlite } from "@electric-sql/pglite";
-import { sql } from "drizzle-orm";
+import { fileURLToPath } from "node:url";
 import { pgTable, serial, text } from "drizzle-orm/pg-core";
-import { drizzle } from "drizzle-orm/pglite";
-import { createScope, namespace, operation, resource, tag, type Scope } from "@tinker/core";
-import { createQueryLogger, openTransaction } from "@tinker/drizzle";
+import { createScope, namespace, operation, type Scope } from "@tinker/core";
+import { config, database, migrate, migrationConfig, transaction } from "@tinker/drizzle/pglite";
 import { z } from "zod";
 
 const users = pgTable("tour_users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-});
-const databaseConfig = tag<{ url: string }>({ label: "tour.config" });
-const database = resource({
-  label: "tour.db",
-  target: "namespace",
-  depends: { config: databaseConfig },
-  factory: async ({ config }, ctx) => {
-    const client = new PGlite(config.url);
-    ctx.defer(() => client.close());
-    const db = drizzle({ client, logger: createQueryLogger(ctx) });
-    await db.execute(sql`create table tour_users (id serial primary key, name text not null)`);
-    return db;
-  },
-});
-const transaction = resource({
-  label: "tour.tx",
-  target: "session",
-  depends: { db: database },
-  factory: ({ db }, ctx) => openTransaction(db, ctx),
 });
 const addUser = operation({
   label: "addUser",
@@ -41,8 +20,9 @@ const listNames = operation({
   run: ({ db }) => db.select().from(users),
 });
 const tourNamespace = namespace({
-  tags: [databaseConfig({ url: "memory://tour" })],
+  tags: [config({ kind: "open" })],
 });
+const migrationsFolder = fileURLToPath(new URL("./drizzle", import.meta.url));
 
 /** The session commits its insert before the root reads; each tour owns its database. */
 export async function tour(): Promise<string> {
@@ -52,6 +32,10 @@ export async function tour(): Promise<string> {
   let end: Scope.Result;
   try {
     await scope.ready;
+    await scope.run(migrate, {
+      ns: tourNamespace,
+      tags: [migrationConfig({ migrationsFolder })],
+    });
     await scope.session({ ns: tourNamespace }, (session) => session.run(addUser, { input: "ada" }));
     const rows = await scope.run(listNames, { ns: tourNamespace });
     output = rows.map((row) => row.name).join(",");
