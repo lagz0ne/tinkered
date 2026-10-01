@@ -1,1 +1,1 @@
-export { tour } from "./basic.ts";
+export { users, addUser, listNames, databaseNamespace, migrationsFolder } from "./basic.ts";

@@ -1,4 +1,4 @@
-CREATE TABLE "tour_users" (
+CREATE TABLE "users" (
   "id" serial PRIMARY KEY,
   "name" text NOT NULL
 );

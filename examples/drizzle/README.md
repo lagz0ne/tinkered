@@ -1,9 +1,9 @@
 # Drizzle example
 
-A local database tour using Drizzle and PGlite.
+A local database example using Drizzle and PGlite.
 PGlite runs Postgres in memory; no database server is needed.
 Each run starts with a new database.
-The tour runs a migration, then reads the name committed by its session.
+The entry runs a migration, then reads the name committed by its session.
 It waits for the database to close before returning.
 
 ## Run
@@ -28,7 +28,7 @@ vp run start
 ```
 
 The output is `ada`.
-`vp run dev` runs the same tour.
+`vp run dev` runs the same example.
 After the repository install and build, these commands also work in
 `examples/drizzle`.
 
@@ -41,13 +41,16 @@ vp run check
 vp run test
 ```
 
-The tests run the real tour through `index.ts` with an in-memory database.
-They check the saved name and fresh databases across repeated tours.
+The tests import the static graph through `index.ts` and own their roots.
+They use real in-memory databases.
+The root reads the name committed by its session.
+Each root starts with a fresh database.
 
 ## Read the code
 
 - `basic.ts` imports the resources from `@tinker/drizzle/pglite`.
   It declares the app's table and operations once.
+  `index.ts` exports them with the namespace and migration folder.
 - A namespace binds `config({ kind: "open" })` for a fresh in-memory client.
   The migration, session insert, and root read use the same namespace.
 - The database resource opens its client when first used and owns its cleanup.
@@ -56,8 +59,12 @@ They check the saved name and fresh databases across repeated tours.
 - Each session owns a transaction, a group of database changes.
   A successful session commits its changes before the root reads them.
 - The driver sends SQL logs through the database resource.
-- A stop signal closes the root in `finally`; the tour waits for `closed`.
-- The entry prints only when run directly.
+- The entry runs inside `if (import.meta.main)`.
+  Importing the graph does not open a root or a database.
+- SIGINT and SIGTERM ask the entry to stop.
+  The stop signal closes the root in `finally`.
+  The entry waits for `closed` and removes its signal listeners.
+  A failed close is reported if the run itself did not fail.
 - `vite.config.ts` and `tsconfig.json` belong to this folder.
 
 The namespace selects the database for the imported resources:
@@ -66,12 +73,12 @@ The namespace selects the database for the imported resources:
 import { namespace } from "@tinker/core";
 import { config } from "@tinker/drizzle/pglite";
 
-const tourNamespace = namespace({
+const databaseNamespace = namespace({
   tags: [config({ kind: "open" })],
 });
 ```
 
-Before inserting, the tour runs the shared migration operation:
+Before inserting, the entry runs the shared migration operation:
 
 ```ts
 import { fileURLToPath } from "node:url";
@@ -81,7 +88,7 @@ import { migrationConfig } from "@tinker/drizzle/pglite";
 const folder = new URL("./drizzle", import.meta.url);
 const migrationsFolder = fileURLToPath(folder);
 await scope.run(migrate, {
-  ns: tourNamespace,
+  ns: databaseNamespace,
   tags: [migrationConfig({ migrationsFolder })],
 });
 ```
