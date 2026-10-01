@@ -235,8 +235,15 @@ test.each(["missing", "invalid"])(
     if (result.status !== "failed") expect.unreachable();
     expect(result.error).toBe(failure);
     const lines: string[] = [];
-    const observe = { ...jsonLines((line) => lines.push(line)), clock: () => 42 };
-    expect(readExitCode(result, observe, "boot")).toBe(1);
+    const root = extension({ label: "root", hooks: { start: (event) => event.log } });
+    const scope = createScope({
+      extensions: [root],
+      observe: { ...jsonLines((line) => lines.push(line)), clock: () => 42 },
+    });
+    await scope.ready;
+    const log = scope.resolve(root);
+    await scope.close();
+    expect(readExitCode(result, log, "boot")).toBe(1);
     expect(lines.map((line) => JSON.parse(line))).toEqual([
       expect.objectContaining({
         time: 42,

@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import { connect } from "node:net";
-import { createScope, extension, operation } from "@tinker/core";
+import { createScope, extension, operation, type Observe } from "@tinker/core";
 import { emit, hono, route, stream } from "@tinker/hono";
 import { expect, test } from "vite-plus/test";
 import { jsonLines, readExitCode, server } from "../src/index.ts";
@@ -8,12 +8,21 @@ import { readFreePort } from "./fixtures.ts";
 
 const answer = operation({ label: "answer", run: () => "ready" });
 
+async function createLogger(observe: Observe.Config): Promise<Observe.Logger> {
+  const root = extension({ label: "root", hooks: { start: (event) => event.log } });
+  const scope = createScope({ extensions: [root], observe });
+  await scope.ready;
+  const log = scope.resolve(root);
+  await scope.close();
+  return log;
+}
+
 test("a server piece restarts after close", async () => {
   const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
   const lines: string[] = [];
   const observe = jsonLines((line) => lines.push(line));
   const web = hono([route.get("/ready", answer)]).extension;
-  const piece = server(web, { env, clientDir: "/missing-client", observe });
+  const piece = server(web, { env, clientDir: "/missing-client" });
   const url = `http://${env.HOST}:${env.PORT}/ready`;
   for (let round = 0; round < 2; round++) {
     const scope = createScope({ extensions: [piece, web], observe });
@@ -28,6 +37,22 @@ test("a server piece restarts after close", async () => {
   expect(
     lines.map((line) => JSON.parse(line)).filter((line) => line.message === "listening"),
   ).toHaveLength(2);
+});
+
+test("the scope level filters the listening line", async () => {
+  const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
+  const web = hono([]).extension;
+  const logs: Observe.Log[] = [];
+  const scope = createScope({
+    extensions: [server(web, { env, clientDir: "/missing" }), web],
+    observe: { level: 50, log: (entry) => logs.push(entry) },
+  });
+  try {
+    await scope.ready;
+    expect(logs).toEqual([]);
+  } finally {
+    await scope.close();
+  }
 });
 
 test("a second live root cannot take or stop the server piece", async () => {
@@ -106,43 +131,29 @@ test("an old root's second close keeps the new server owner", async () => {
   }
 });
 
-test("a failed start closes its listener and frees the server piece", async () => {
+test("a broken listening sink keeps the server ready and frees its port on close", async () => {
   const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
   const web = hono([route.get("/ready", answer)]).extension;
-  const failure = new Error("log sink closed");
-  let fail = true;
-  const piece = server(web, {
-    env,
-    clientDir: "/missing-client",
-    observe: {
-      log: () => {
-        if (fail) {
-          fail = false;
-          throw failure;
-        }
-      },
+  const piece = server(web, { env, clientDir: "/missing-client" });
+  let writes = 0;
+  const observe = {
+    log: () => {
+      writes++;
+      throw new Error("log sink closed");
     },
-  });
-  const first = createScope({ extensions: [piece, web] });
-  const roots = [first];
+  };
   const url = `http://${env.HOST}:${env.PORT}/ready`;
-  try {
-    await expect(first.ready).rejects.toBe(failure);
-    await expect
-      .poll(() =>
-        fetch(url).then(
-          () => false,
-          () => true,
-        ),
-      )
-      .toBe(true);
-    const second = createScope({ extensions: [piece, web] });
-    roots.push(second);
-    await second.ready;
-    expect(await (await fetch(url)).json()).toBe("ready");
-  } finally {
-    for (const root of roots.reverse()) await root.close({ graceful: true });
+  for (let round = 0; round < 2; round++) {
+    const scope = createScope({ extensions: [piece, web], observe });
+    try {
+      await scope.ready;
+      expect(await (await fetch(url)).json()).toBe("ready");
+    } finally {
+      await scope.close({ graceful: true });
+    }
+    await expect(fetch(url)).rejects.toThrow();
   }
+  expect(writes).toBe(4);
 });
 
 test("stop closes the keep-alive socket after the last stream chunk", async () => {
@@ -210,10 +221,10 @@ test("opens the port only after every other start finishes", async () => {
     },
   });
   const lines: string[] = [];
-  const observe = jsonLines((line) => lines.push(line));
+  const observe = { ...jsonLines((line) => lines.push(line)), clock: () => 42 };
   const web = hono([route.get("/ready", answer)]).extension;
   const scope = createScope({
-    extensions: [server(web, { env, clientDir: "/missing-client", observe }), web, later],
+    extensions: [server(web, { env, clientDir: "/missing-client" }), web, later],
     observe,
   });
   const base = `http://${env.HOST}:${env.PORT}`;
@@ -227,6 +238,8 @@ test("opens the port only after every other start finishes", async () => {
       expect.objectContaining({
         kind: "log",
         message: "listening",
+        time: 42,
+        extension: "stack.server",
         host: env.HOST,
         port: Number(env.PORT),
       }),
@@ -269,9 +282,7 @@ test("a stop refuses new requests while it waits for an in-flight request", asyn
       }),
     ],
   });
-  const ended = scope.closed.then((result) =>
-    readExitCode(result, { clock: Date.now }, "shutdown"),
-  );
+  const ended = scope.closed.then((result) => readExitCode(result, undefined, "shutdown"));
   let didEnd = false;
   const joined = ended.then((code) => {
     didEnd = true;
@@ -309,10 +320,7 @@ test.each(["127.0.0.1", "::1"])(
     expect(
       readExitCode(
         await scope.closed,
-        {
-          ...jsonLines((line) => lines.push(line)),
-          clock: Date.now,
-        },
+        await createLogger(jsonLines((line) => lines.push(line))),
         "shutdown",
       ),
     ).toBe(0);
@@ -353,8 +361,8 @@ test("failed boot waits for cleanup before logging and answering one", async () 
     signal: new AbortController().signal,
   });
   const lines: string[] = [];
-  const observe = { ...jsonLines((line) => lines.push(line)), clock: () => 42 };
-  const ended = scope.closed.then((result) => readExitCode(result, observe, "boot"));
+  const log = await createLogger({ ...jsonLines((line) => lines.push(line)), clock: () => 42 });
+  const ended = scope.closed.then((result) => readExitCode(result, log, "boot"));
   try {
     await cleaning.promise;
     expect(lines).toEqual([]);
@@ -403,14 +411,15 @@ test("a failed boot with teardown errors logs both on one boot failed line", asy
     signal: new AbortController().signal,
   });
   const lines: string[] = [];
-  const observe = { ...jsonLines((line) => lines.push(line)), clock: () => 42 };
-  expect(readExitCode(await scope.closed, observe, "boot")).toBe(1);
+  const log = await createLogger({ ...jsonLines((line) => lines.push(line)), clock: () => 42 });
+  expect(readExitCode(await scope.closed, log, "boot")).toBe(1);
   expect(lines.map((line) => JSON.parse(line))).toEqual([
     {
       kind: "log",
       time: 42,
       level: 50,
       message: "boot failed",
+      extension: "root",
       error: "boot broke",
       name: "Error",
       stack: expect.any(String),
@@ -435,10 +444,7 @@ test("a failed close logs shutdown failed and answers one", async () => {
   expect(
     readExitCode(
       await scope.closed,
-      {
-        ...jsonLines((line) => lines.push(line)),
-        clock: Date.now,
-      },
+      await createLogger(jsonLines((line) => lines.push(line))),
       "shutdown",
     ),
   ).toBe(1);
@@ -463,10 +469,7 @@ test("teardown errors log shutdown failed and answer one", async () => {
   expect(
     readExitCode(
       await scope.closed,
-      {
-        ...jsonLines((line) => lines.push(line)),
-        clock: Date.now,
-      },
+      await createLogger(jsonLines((line) => lines.push(line))),
       "shutdown",
     ),
   ).toBe(1);
@@ -493,10 +496,7 @@ test("a port already in use fails boot without closing its owner", async () => {
     expect(
       readExitCode(
         await refused.closed,
-        {
-          ...jsonLines((line) => lines.push(line)),
-          clock: Date.now,
-        },
+        await createLogger(jsonLines((line) => lines.push(line))),
         "boot",
       ),
     ).toBe(1);
@@ -538,14 +538,7 @@ test.each([
   expect(result.status).toBe("cancelled");
   const lines: string[] = [];
   expect(
-    readExitCode(
-      result,
-      {
-        ...jsonLines((line) => lines.push(line)),
-        clock: Date.now,
-      },
-      "shutdown",
-    ),
+    readExitCode(result, await createLogger(jsonLines((line) => lines.push(line))), "shutdown"),
   ).toBe(code);
   expect(lines.map((line) => JSON.parse(line))).toEqual(
     broken

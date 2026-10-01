@@ -1,7 +1,7 @@
 import type { Server } from "node:http";
 import { isIP } from "node:net";
 import { serve } from "@hono/node-server";
-import { extension, LEVELS, type Observe, type Scope } from "@tinker/core";
+import { extension, type Scope } from "@tinker/core";
 import type { HonoScope } from "@tinker/hono";
 import { raise } from "./errors.ts";
 import { mountClient } from "./client.ts";
@@ -11,7 +11,6 @@ export declare namespace Server {
   export type Options = {
     env: Env;
     clientDir: string;
-    observe?: Observe.Config;
   };
 }
 
@@ -74,14 +73,7 @@ export function server(
         mountClient(app, options.clientDir);
         close = await listen(app, settings);
         if (stopped) await stop();
-        else
-          options.observe?.log?.({
-            time: options.observe.clock?.() ?? event.clock.currentTimeMillis(),
-            level: LEVELS.info,
-            message: "listening",
-            attributes: settings,
-            span: undefined,
-          });
+        else event.log.info("listening", settings);
       },
     },
   });

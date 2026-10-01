@@ -41,7 +41,7 @@ test("one request exports one trace with its remote parent, span fields, and ser
       .request("/", { headers: { traceparent: `00-${traceId}-${parentSpanId}-00` } });
     expect(await answer.json()).toBe("db:ok");
     expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
-    const exported = spans(collector.state.packets).filter((span) => span.name !== "hono.errors");
+    const exported = spans(collector.state.packets);
     const server = exported.find((span) => span.name === "GET /")!;
     const rootSpan = exported.find((span) => span.name === "root")!;
     const childSpan = exported.find((span) => span.name === "child")!;

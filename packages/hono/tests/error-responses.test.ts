@@ -112,6 +112,7 @@ test("an unlisted managed error answers 500 and writes one request failed line t
         level: LEVELS.error,
         message: "request failed",
         attributes: {
+          extension: "hono",
           method: "POST",
           path: "/edit",
           error: "IssueConflict",

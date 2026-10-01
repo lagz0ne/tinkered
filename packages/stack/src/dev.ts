@@ -66,7 +66,7 @@ export async function runDev(options: Dev.Options, stop: AbortSignal): Promise<n
       return "boot" as const;
     },
   );
-  return readExitCode(await scope.closed, { clock: Date.now }, phase);
+  return readExitCode(await scope.closed, undefined, phase);
 }
 
 class DevHost {

@@ -1,11 +1,4 @@
-import {
-  extension,
-  operation,
-  resource,
-  type Operation,
-  type Resource,
-  type Scope,
-} from "@tinker/core";
+import { extension, operation, type Operation, type Resource, type Scope } from "@tinker/core";
 import type { PGlite } from "@electric-sql/pglite";
 import type { SQL } from "drizzle-orm";
 import type { JobResult, JobWithMetadata, PgBoss } from "pg-boss";
@@ -48,12 +41,6 @@ export function job<T, I>(
   return { queue, operation: op, ...options };
 }
 
-const errors = resource({
-  label: "jobs.errors",
-  depends: { clock: jobsClock.optional },
-  factory: ({ clock }, { log }) => ({ clock: clock.present ? clock.value : undefined, log }),
-});
-
 /** List after stack.migrate: pg-boss installs its own schema under its own lock.
  * One live root owns this piece. Sending borrows the current session's transaction;
  * fetching and settling happen outside that transaction, after its owner closes it. */
@@ -90,13 +77,14 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
           if (!closingScope) release();
         });
         const client = wiring.pglite ? (await scope.resolve(wiring.pglite)).$client : undefined;
-        const { log, clock } = scope.resolve(errors);
+        const log = event.log;
+        const clock = event.resolve(jobsClock.optional);
         const { PgBoss, fromPglite, fromDrizzle } = await import("pg-boss");
         const { sql } = await import("drizzle-orm");
         const worker = new PgBoss({
           ...(client ? { db: fromPglite(client), backend: "pglite" } : { connectionString }),
           cronMonitorIntervalSeconds: 1,
-          clock,
+          clock: clock.present ? clock.value : undefined,
         });
         boss = worker;
         worker.on("error", (error) => log.error("jobs worker failed", { error }));

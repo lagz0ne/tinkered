@@ -5434,3 +5434,39 @@ No build runs in that tree while the job waits or runs.
 - Prose: zero hits in 174 files. Strict style census passed.
 - Core feedback: none; no workaround was needed.
 - Saved work waits for lead review. No push was made.
+
+### start-log-cleanup writer scope
+
+- Owner: stack/start-log-cleanup writer.
+- Base: origin/main at c125c72b.
+- Next: remove resource loggers and direct hook sink writes.
+- Verify: full gate, changed-file mutation >= 85, validate.
+- Impact: readExitCode takes a logger instead of sink settings.
+- Callers: tracker main, stack dev, server tests, trace root tests,
+  and the dev test root.
+- Server options drop observe; roots keep their observe settings.
+- Trace drop warnings stay local to avoid feeding export failures
+  back into the same export queue.
+- NATS, live updates, and migrate have no direct hook sink writes.
+
+### start-log-cleanup saved step
+
+- Hono logs through its start hook logger.
+- Removed hono.errors and jobs.errors boot resources.
+- Server logs listening through its start hook logger.
+- readExitCode takes a logger; the tracker keeps its root logger.
+- Removed the tracker and dev exit clock settings.
+- Messages and error fields stay unchanged.
+- New extension fields: hono, jobs, stack.server, issues.root.
+- The OTLP warning remains local to avoid export recursion.
+- Red proof: old server fails both listening checks, EXIT 1.
+- Red proof: old Hono fails the extension log check, EXIT 1.
+- Green: Hono 93, Stack 136, jobs 26 tests.
+- Rebuilt check: EXIT 0, 0 errors and 28 warnings.
+- SCIP refs cover readExitCode and Server.Options callers.
+- Jev: no test flags or README gaps.
+- One new false label covers Hono transport close state.
+- The other five false labels already exist in the case bank.
+- Existing Hono helper-count notes are in unchanged test files.
+- Strict style census and prose pass.
+- Next: fetch and rebase, full gate, mutation, validate.

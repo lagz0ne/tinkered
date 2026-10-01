@@ -72,8 +72,9 @@ test("a failed migration stops the port opening and rolls back its tables and hi
   const web = hono([]).extension;
   const lines: string[] = [];
   const scope = createScope({
+    observe: jsonLines((line) => lines.push(line)),
     extensions: [
-      server(web, { env, clientDir: "/missing", observe: jsonLines((line) => lines.push(line)) }),
+      server(web, { env, clientDir: "/missing" }),
       migrate(database, { migrationsFolder }),
       web,
     ],

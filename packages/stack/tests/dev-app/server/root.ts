@@ -76,5 +76,5 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
   );
   const result = await scope.closed;
   if (value === "close-reject") throw result.teardownErrors?.at(0);
-  return readExitCode(result, { clock: Date.now }, started ? "shutdown" : "boot");
+  return readExitCode(result, undefined, started ? "shutdown" : "boot");
 }

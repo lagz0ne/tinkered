@@ -14,25 +14,31 @@ List the Hono extension after both.
 The server opens the port after all later starts finish.
 
 ```ts
-import { createScope } from "@tinker/core";
+import { createScope, extension, type Observe } from "@tinker/core";
 import { hono } from "@tinker/hono";
 import { readExitCode } from "@tinker/stack";
 import * as stack from "@tinker/stack";
 
 async function run(stop: AbortSignal) {
-  const observe = {
-    ...stack.jsonLines((line) => {
-      process.stdout.write(`${line}\n`);
-    }),
-    clock: Date.now,
-  };
+  const observe = stack.jsonLines((line) => {
+    process.stdout.write(`${line}\n`);
+  });
+  let log: Observe.Logger | undefined;
   const web = hono([]).extension;
   const scope = createScope({
     extensions: [
+      extension({
+        label: "app.root",
+        hooks: {
+          start(event) {
+            log = event.log;
+            return event.next();
+          },
+        },
+      }),
       stack.server(web, {
         env: process.env,
         clientDir: "./dist/client",
-        observe,
       }),
       web,
     ],
@@ -43,7 +49,7 @@ async function run(stop: AbortSignal) {
     () => "shutdown" as const,
     () => "boot" as const,
   );
-  return readExitCode(await scope.closed, observe, phase);
+  return readExitCode(await scope.closed, log, phase);
 }
 
 if (import.meta.main) {
@@ -73,7 +79,10 @@ It then awaits `scope.closed`, after cleanup ends.
 A stop is graceful: in-flight work finishes first.
 A failed boot closes before the result is returned.
 
-`readExitCode(result, observe, phase)` reads that result.
+`readExitCode(result, log, phase)` reads that result.
+Keep the root hook logger and pass it after close.
+Pass undefined when no failure line is needed.
+The logger adds its extension label to the line.
 It never creates, borrows, or closes a scope.
 The observe config must include a clock function.
 Use `"boot"` when ready failed and `"shutdown"` otherwise;
@@ -274,7 +283,8 @@ A later commit or a new boot reads the current database.
 - A second live root cannot take or stop the server piece.
   The piece stays owned until the full close chain ends.
 - An old root's second close keeps the new server owner.
-- A failed start closes its listener and frees the server piece.
+- A broken listening sink keeps the server ready and frees its port on close.
+- The scope level filters the listening line.
 - Stop closes the keep-alive socket after the last stream chunk.
 - Opens the port only after every other start finishes.
 - A stop refuses new requests while it waits for an in-flight request.

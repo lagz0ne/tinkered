@@ -5,7 +5,7 @@ import type { Context, MiddlewareHandler as Middleware } from "hono";
 import type { ContentfulStatusCode, StatusCode } from "hono/utils/http-status";
 import type { JSONValue } from "hono/utils/types";
 import type { Many, Namespace, Observe, Operation, RunResult, Scope, Tag } from "@tinker/core";
-import { extension, isError as isCoreError, readMany, resource, tag } from "@tinker/core";
+import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
 import { isError, makeError, raise } from "./errors.ts";
 
 type Endpoint = (c: Context) => Promise<Response>;
@@ -118,22 +118,17 @@ function isManagedError(error: unknown): error is Error & { kind: string; payloa
   );
 }
 
-/** Resolve the request logger through the root's middleware and keep it for
- * the server's lifetime, including hand mounts. */
-const requestErrors = resource({
-  label: "hono.errors",
-  factory:
-    (_deps, { log }) =>
-    (error: Error, c: Context) => {
-      if (error instanceof HTTPException) return error.getResponse();
-      log.error("request failed", {
-        method: c.req.method,
-        path: c.req.path,
-        ...describeError(error),
-      });
-      return c.text("internal", 500);
-    },
-});
+function createRequestErrors(log: Observe.Logger): (error: Error, c: Context) => Response {
+  return (error, c) => {
+    if (error instanceof HTTPException) return error.getResponse();
+    log.error("request failed", {
+      method: c.req.method,
+      path: c.req.path,
+      ...describeError(error),
+    });
+    return c.text("internal", 500);
+  };
+}
 
 function describeError(error: unknown): Record<string, unknown> {
   if (!(error instanceof Error)) return { error: String(error) };
@@ -183,9 +178,10 @@ export function hono(
           const mounted = await Promise.all(
             readMany(routes).map(async (row) => ({ row, op: await row.load() })),
           );
+          const logError = createRequestErrors(event.log);
           const app = new Hono()
-            .onError(event.scope.resolve(requestErrors))
-            .use(serveRequests(event.scope, wiring));
+            .onError(logError)
+            .use(serveRequests(event.scope, wiring, logError));
           for (const { row, op } of mounted)
             app.on(row.method, row.path, answerRoute(op, row.route));
           wiring?.mount?.(app);
@@ -221,8 +217,11 @@ type RequestReads = {
   closing?: Promise<Scope.Result>;
 };
 
-function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined): Middleware {
-  const logError = scope.resolve(requestErrors);
+function serveRequests(
+  scope: Scope.Handle,
+  wiring: HonoScope.Wiring | undefined,
+  logError: (error: Error, c: Context) => Response,
+): Middleware {
   const reads: RequestReads = { forced: false, phase: "open" };
   const close = scope.close.bind(scope);
   /** Core closes a handle to new sessions as soon as close starts. Drain accepted

@@ -1,7 +1,7 @@
 import type { Dev } from "@tinker/stack/dev";
 import { join } from "node:path";
 import { raise } from "../errors.ts";
-import { createScope, extension } from "@tinker/core";
+import { createScope, extension, type Observe } from "@tinker/core";
 import { jsonLines, liveUpdates, readExitCode, server } from "@tinker/stack";
 import { draftTags, type DraftConfig } from "./draft.ts";
 import { issueServer } from "./routes.ts";
@@ -25,10 +25,8 @@ export async function runServer(
   stop: AbortSignal,
   host?: Dev.Wiring,
 ): Promise<number> {
-  const observe = {
-    ...jsonLines((line) => process.stdout.write(`${line}\n`)),
-    clock: Date.now,
-  };
+  const observe = jsonLines((line) => process.stdout.write(`${line}\n`));
+  let log: Observe.Logger | undefined;
   const web = issueServer();
   const scope = createScope({
     tags: [
@@ -38,7 +36,16 @@ export async function runServer(
       draftTags(readDraftOptIn(env)),
     ],
     extensions: [
-      host ? [] : server(web, { env, clientDir: join(process.cwd(), "dist", "client"), observe }),
+      extension({
+        label: "issues.root",
+        hooks: {
+          start(event) {
+            log = event.log;
+            return event.next();
+          },
+        },
+      }),
+      host ? [] : server(web, { env, clientDir: join(process.cwd(), "dist", "client") }),
       !host &&
         extension({
           label: "issues.data-settings",
@@ -68,7 +75,7 @@ export async function runServer(
     () => "shutdown" as const,
     () => "boot" as const,
   );
-  return readExitCode(await scope.closed, observe, phase);
+  return readExitCode(await scope.closed, log, phase);
 }
 
 if (import.meta.main) {
