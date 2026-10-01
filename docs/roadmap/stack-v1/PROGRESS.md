@@ -5798,3 +5798,14 @@ eq: (a, b) => a.length === b.length;
 
 - That form throws during sync start, before any request.
 - Next: server pages.
+
+### t16 server pages
+
+- The list uses the tracker's TanStack page shape.
+- The first HTML holds the saved note.
+- Router fills the browser cell before sync starts.
+- The browser entry is an inline module in the document.
+- Typed modules only export code; importing starts nothing.
+- Fresh app: 4 tests pass; generator: 12 pass.
+- No new check warning.
+- Next: one job and one cron row.

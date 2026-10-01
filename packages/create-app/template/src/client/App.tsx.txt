@@ -1,0 +1,33 @@
+import { useData, useRun } from "@tinker/react";
+import { noteList } from "../shared/notes.ts";
+import { saveNote } from "./actions.ts";
+
+export function App() {
+  const notes = useData(noteList);
+  const save = useRun(saveNote);
+  return (
+    <main>
+      <h1>Notes</h1>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          save.run({
+            input: { title: String(new FormData(event.currentTarget).get("title") ?? "") },
+          });
+        }}
+      >
+        <label>
+          Title
+          <input name="title" required />
+        </label>
+        <button disabled={save.isPending}>Save note</button>
+        {save.isError ? <p role="alert">The note could not be saved.</p> : null}
+      </form>
+      <ul>
+        {notes.map((note) => (
+          <li key={note.title}>{note.title}</li>
+        ))}
+      </ul>
+    </main>
+  );
+}

@@ -1,4 +1,8 @@
-type Payloads = { BadDataSettings: { keys: string[] }; BadNote: { input: unknown } };
+type Payloads = {
+  BadPage: Record<string, never>;
+  BadDataSettings: { keys: string[] };
+  BadNote: { input: unknown };
+};
 
 export declare namespace Errors {
   type Name = keyof Payloads;

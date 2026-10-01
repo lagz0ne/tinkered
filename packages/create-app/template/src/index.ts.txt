@@ -6,3 +6,4 @@ export { createWeb } from "./server/routes.ts";
 export { runServer } from "./server/main.ts";
 export { published } from "./server/sync.ts";
 export { noteList } from "./shared/notes.ts";
+export { createPages } from "./server/pages.tsx";

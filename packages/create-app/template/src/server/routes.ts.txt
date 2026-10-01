@@ -1,14 +1,17 @@
-import { hono, route } from "@tinker/hono";
+import { hono, route, type HonoScope } from "@tinker/hono";
 import { syncRoute } from "./sync.ts";
 import { addNote, listNotes } from "./notes.ts";
 
-export function createWeb() {
-  return hono([
-    syncRoute,
-    route.get("/api/notes", listNotes),
-    route.post("/api/notes", addNote, {
-      input: (c) => c.req.json(),
-      respond: (note, c) => c.json(note, 201),
-    }),
-  ]).extension;
+export function createWeb(mount?: HonoScope.Wiring["mount"]) {
+  return hono(
+    [
+      syncRoute,
+      route.get("/api/notes", listNotes),
+      route.post("/api/notes", addNote, {
+        input: (c) => c.req.json(),
+        respond: (note, c) => c.json(note, 201),
+      }),
+    ],
+    { mount },
+  ).extension;
 }

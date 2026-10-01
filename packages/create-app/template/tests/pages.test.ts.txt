@@ -1,0 +1,36 @@
+import { createScope } from "@tinker/core";
+import { createTestDatabase, publishAfterCommit } from "@tinker/stack";
+import { expect, test } from "vite-plus/test";
+import {
+  createPages,
+  createWeb,
+  databaseConfig,
+  migrations,
+  published,
+  publishNotes,
+} from "../src/index.ts";
+
+test("the list page includes saved notes in its first HTML", async () => {
+  const template = await createTestDatabase(migrations);
+  const client = await template.clone();
+  const page = createPages({ script: "/assets/client.js", styles: [], dev: false });
+  const web = createWeb(page.mount);
+  const scope = createScope({
+    tags: [databaseConfig({ client })],
+    extensions: [page.extension, web, published, publishAfterCommit(publishNotes)],
+  });
+  try {
+    await scope.ready;
+    await scope.resolve(web).request("/api/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "First HTML" }),
+    });
+    const response = await scope.resolve(web).request("/");
+    expect(await response.text()).toContain("<li>First HTML</li>");
+  } finally {
+    await scope.close();
+    await client.close();
+    await template.close();
+  }
+});

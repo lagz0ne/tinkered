@@ -1,0 +1,65 @@
+import { hydrateRoot } from "react-dom/client";
+import { hydrate } from "@tanstack/react-router/ssr/client";
+import { RouterProvider } from "@tanstack/react-router";
+import { createScope, extension } from "@tinker/core";
+import { ScopeProvider } from "@tinker/react";
+import { subscribe } from "@tinker/sync";
+import { createPageRouter } from "../shared/page.tsx";
+import { noteList } from "../shared/notes.ts";
+import { App } from "./App.tsx";
+import { config } from "@tinker/http";
+import { openSource, wire } from "./connection.ts";
+
+/** The root starts with Router's cells. Only after React takes over the same HTML
+ * does the SSE subscriber change them. This also keeps a slow wire from hiding the list. */
+export async function bootPage(env: { baseUrl: string }, stop: AbortSignal): Promise<void> {
+  const hydrated = Promise.withResolvers<void>();
+  const scope = createScope({
+    signal: stop,
+    tags: [
+      config({ baseUrl: env.baseUrl }),
+      openSource((url) => new EventSource(new URL(url, env.baseUrl))),
+    ],
+    extensions: [
+      extension({
+        label: "notes.hydrate",
+        hooks: {
+          async start(event) {
+            const router = createPageRouter({
+              notes: event.resolve(noteList),
+              ready: hydrated.resolve,
+              hydrate: (notes) => event.controller(noteList).set(notes),
+              content: (
+                <ScopeProvider scope={event.scope}>
+                  <App />
+                </ScopeProvider>
+              ),
+              assets: { script: "", styles: [], dev: false },
+            });
+            await hydrate(router);
+            window.$_TSR!.h();
+            if (stop.aborted) return;
+            const element = hydrateRoot(document, <RouterProvider router={router} />);
+            event.defer(() => element.unmount());
+            const stopWaiting = () => hydrated.resolve();
+            stop.addEventListener("abort", stopWaiting);
+            event.defer(() => stop.removeEventListener("abort", stopWaiting));
+            await hydrated.promise;
+            if (stop.aborted) return;
+            await event.next();
+          },
+        },
+      }),
+      subscribe(wire, { cells: [[noteList, "notes"]] }),
+    ],
+  });
+  try {
+    await scope.ready;
+  } catch (error) {
+    await scope.closed;
+    throw error;
+  }
+  await scope.closed;
+}
+
+import "./style.css";

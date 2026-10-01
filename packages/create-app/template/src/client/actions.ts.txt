@@ -1,0 +1,15 @@
+import { operation } from "@tinker/core";
+import { HttpRequest, send } from "@tinker/http";
+import { readNote } from "../shared/notes.ts";
+
+export const saveNote = operation({
+  label: "notes.save",
+  input: readNote,
+  depends: { send },
+  async run({ send }, { input }) {
+    const response = await send.run({
+      input: HttpRequest.post("/api/notes", { body: HttpRequest.bodyJson(input) }),
+    });
+    return response.json(readNote);
+  },
+});

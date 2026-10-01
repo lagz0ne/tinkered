@@ -1,7 +1,15 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  pack: { dts: { generator: "tsgo" } },
+  build: {
+    outDir: "dist/client",
+    lib: {
+      entry: "src/client/boot.tsx",
+      formats: ["es"],
+      fileName: "assets/client",
+      cssFileName: "assets/client",
+    },
+  },
   test: {
     testTimeout: 30000,
     hookTimeout: 30000,

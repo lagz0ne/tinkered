@@ -22,9 +22,11 @@ export function readNote(input: unknown): Notes.Note {
 export const noteList = data<Notes.Note[]>({
   label: "notes",
   initial: [],
-  parse(input) {
-    if (!Array.isArray(input)) raise("BadNote", { input });
-    return input.map(readNote);
-  },
+  parse: readNotes,
   eq: (a, b) => JSON.stringify(a) === JSON.stringify(b),
 });
+
+export function readNotes(input: unknown): Notes.Note[] {
+  if (!Array.isArray(input)) raise("BadNote", { input });
+  return input.map(readNote);
+}
