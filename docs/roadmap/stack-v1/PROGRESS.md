@@ -2899,3 +2899,40 @@ MUTATION_EXIT 0
   Validation log: `/tmp/stack-t18-final-validate.log`.
 - Status: Review; next is lead review and landing.
   Nothing was pushed.
+
+### t18 final main refresh — 2026-10-01
+
+- Main moved during the lock wait to `22b91ecf`.
+  Its four new commits give each example its own package.
+  Read ADR 0092 before the final refresh.
+- Rebased all twelve t18 commits onto that main.
+  This rebase has no conflicts.
+  Install passed; it changed no tracked file.
+- Compared the old checked head `821b1416` with the new head.
+  Stack's source, tests, configs, and README are byte-for-byte equal.
+  Core, Hono, Drizzle, NATS, and tracker are also byte-for-byte equal.
+  No mutation input or runtime dependency changed.
+  The one full mutation lane above still covers this code.
+- The browser and real-entry proof also cover identical code.
+  Their logs remain the `stack-t18-final-*` logs above.
+- Re-ran the ticket's full gate on `22b91ecf`, `GATE_EXIT 0`.
+  Build passed; check has zero errors and 28 warnings.
+  Stack: 114 tests in 12 files.
+  Tracker: 79 tests in nine files.
+- All 28 package test tasks pass, with no cached result,
+  `ALL_TESTS_EXIT 0`.
+- The updated `pnpm validate` passes all 48 lanes,
+  `VALIDATE_EXIT 0`.
+  Restored `pnpm-workspace.yaml` afterward.
+- The required lifetime lint still has no S19, S27, S28, or S29 row.
+  Jev on the remote-base diff has zero source flags.
+  Stack has zero of 57 test titles flagged and no promise gap.
+  The old live-signal title is unsure, not missing.
+  New label lines: none; Core feedback: none.
+- Latest logs: `/tmp/stack-t18-latest-gate.log`,
+  `/tmp/stack-t18-latest-all-tests.log`,
+  `/tmp/stack-t18-latest-jev.log`, and
+  `/tmp/stack-t18-latest-validate.log`.
+  Copies are in `/home/paseo/.cache/tinkered-briefs`.
+- Status: Review; next is lead review and landing.
+  Nothing was pushed.
