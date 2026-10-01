@@ -4617,3 +4617,18 @@ EXIT 0
 - Core feedback: none; no Core workaround was needed.
 - Next: all package tests, release checks, then auth mutation
   once under `/tmp/mutation.lock`.
+
+### t11 full repo and exact reset count
+
+- All 31 test tasks passed without cache, `EXIT 0`.
+  Proof: `stack-t11-all-tests.log` in the briefs cache.
+- Tightened the reset test to read exactly one new mail
+  from the mock, including its sender, subject, and text.
+- Fresh required gate after that test edit: `EXIT 0`.
+  Build and check pass; 0 errors and 28 warnings.
+  Auth 25, mail 13, jobs 26 tests pass.
+  Proof: `stack-t11-exact-reset-gate.log`.
+- Jev still has no test flags; strict census passes.
+- Fetched again: main stays at `91964db3`.
+  The `stack/t09` tag is still absent.
+- Next: release checks, then the single auth mutation run.

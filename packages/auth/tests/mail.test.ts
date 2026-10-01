@@ -182,13 +182,15 @@ test("a reset mail link changes the password and rejects the old password", asyn
     ).status,
   ).toBe(200);
   const sent = await deliver(2);
-  expect(sent[1]).toEqual({
-    from: "team@example.com",
-    to: [person.email],
-    subject: "Reset your password",
-    html: expect.stringContaining("Reset password"),
-    text: expect.stringContaining("Choose a new password."),
-  });
+  expect(sent.slice(1)).toEqual([
+    {
+      from: "team@example.com",
+      to: [person.email],
+      subject: "Reset your password",
+      html: expect.stringContaining("Reset password"),
+      text: expect.stringContaining("Choose a new password."),
+    },
+  ]);
   const link = readLink(sent[1].html);
   expect(link.origin).toBe(settings.BETTER_AUTH_URL);
   const response = await fetch(`${url}${link.pathname}${link.search}`, { redirect: "manual" });
