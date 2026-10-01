@@ -2167,21 +2167,13 @@ function obsCtx(layer: Layer, span: SpanImpl | undefined): Observe.Ctx {
   };
 }
 
-function logFor(obs: Obs, span: SpanImpl | undefined, extension?: string): Observe.Logger {
+function logFor(obs: Obs, span: SpanImpl | undefined): Observe.Logger {
   const sink = obs.log;
   if (!sink) return noop;
   const min = obs.level;
   const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
     if (level < min) return;
-    isolate(() =>
-      sink({
-        time: obs.clock(),
-        level,
-        message,
-        attributes: extension === undefined ? (attributes ?? {}) : { ...attributes, extension },
-        span,
-      }),
-    );
+    isolate(() => sink({ time: obs.clock(), level, message, attributes: attributes ?? {}, span }));
   };
   return Object.assign(at(LEVELS.info), {
     debug: at(LEVELS.debug),
@@ -5458,7 +5450,22 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return this.ctx?.obs ?? OFF_OBS;
   }
   get log(): Observe.Logger {
-    return this.ctx?.log ?? (this.logTools ??= logFor(this.owner.obs, undefined, this.label));
+    const ctx = this.ctx;
+    if (ctx) return ctx.log;
+    const sink = this.owner.obs.log;
+    return sink ? (this.logTools ??= this.createLog(sink)) : noop;
+  }
+  /** Keep the sink wrapper's captured state off the run logger's path. */
+  private createLog(sink: NonNullable<Obs["log"]>): Observe.Logger {
+    const obs = this.owner.obs;
+    const label = this.label;
+    return logFor(
+      {
+        ...obs,
+        log: (line) => sink({ ...line, attributes: { ...line.attributes, extension: label } }),
+      },
+      undefined,
+    );
   }
   get raise(): Resource.Ctx["raise"] {
     return (this.raiser ??= (kind, payload) => raiseFrom(this.ctx ?? this, kind, payload));
