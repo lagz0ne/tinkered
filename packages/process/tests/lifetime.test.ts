@@ -55,7 +55,7 @@ const failedCommand = operation({
   },
 });
 const began = tag<() => void>({ label: "began" });
-const finish = tag<"return" | "reject">({ label: "finish" });
+const finish = tag<"return" | "reject" | "cancel">({ label: "finish" });
 const hang = operation({
   label: "hang",
   depends: { began: began.required, finish: finish.required },
@@ -65,7 +65,7 @@ const hang = operation({
         "abort",
         () => {
           if (finish === "return") resolve(7);
-          else reject(new Error("stopped"));
+          else reject(finish === "reject" ? new Error("stopped") : ctx.signal.reason);
         },
         { once: true },
       );
@@ -240,11 +240,13 @@ test("a service signal waits for graceful cleanup before returning 0", async () 
   const started = gate<void>();
   const cleaned = gate<void>();
   const cleanupStarted = gate<void>();
+  const outcomes: string[] = [];
   const service = extension({
     label: "service",
     hooks: {
       start: (event) => {
-        event.defer(() => {
+        event.defer((end) => {
+          outcomes.push(end.status);
           cleanupStarted.resolve();
           return cleaned.promise;
         });
@@ -266,7 +268,12 @@ test("a service signal waits for graceful cleanup before returning 0", async () 
   await cleanupStarted.promise;
   expect(done).toBe(false);
   cleaned.resolve();
-  expect(await result).toEqual({ code: 0, output: [], errors: [] });
+  expect({ ...(await result), outcomes }).toEqual({
+    code: 0,
+    output: [],
+    errors: [],
+    outcomes: ["success"],
+  });
 });
 
 test("a service stop during startup finishes start and then cleans up", async () => {
@@ -326,4 +333,62 @@ test("a service cleanup failure returns 1", async () => {
     output: [],
     errors: ["Error: cleanup failed\n"],
   });
+});
+
+test("a command cancelled by its own root returns 130 without an external signal", async () => {
+  const started = gate<void>();
+  let close!: () => Promise<Scope.Result>;
+  const owner = extension({
+    label: "owner",
+    hooks: {
+      start: (event) => {
+        close = () => event.scope.close();
+        return event.next();
+      },
+    },
+  });
+  const pending = collect({
+    kind: "command",
+    op: hang,
+    options: {
+      extensions: [owner],
+      tags: [began(started.resolve), finish("cancel")],
+    },
+  });
+  await started.promise;
+  const ended = await close();
+  expect({ ...(await pending), outcome: ended.status }).toEqual({
+    code: 130,
+    output: [],
+    errors: [],
+    outcome: "cancelled",
+  });
+});
+
+test("an unexpected error in an owned service task returns 1 after startup", async () => {
+  const started = gate<void>();
+  const finish = gate<void>();
+  const task = operation({
+    label: "owned task",
+    depends: { stop: stop.required },
+    run: async ({ stop }) => {
+      await finish.promise;
+      stop();
+      throw new Error("service task failed");
+    },
+  });
+  const service = extension({
+    label: "service",
+    hooks: {
+      start: (event) => {
+        started.resolve(event.scope.ready);
+        void event.run(task);
+        return event.next();
+      },
+    },
+  });
+  const result = collect({ kind: "service", options: { extensions: [service] } });
+  await started.promise;
+  finish.resolve();
+  expect(await result).toEqual({ code: 1, output: [], errors: ["Error: service task failed\n"] });
 });

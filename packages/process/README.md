@@ -129,6 +129,8 @@ Call it when stdin ends or a transport closes.
 
 - An already aborted call starts no loader and returns 130.
 - Abort during loading returns 130 before the loader ends and observes its late rejection.
+- A loader that aborts before returning starts no root.
+- A loader failure caused by abort returns 130 without error output.
 - An abort during extension start exits 130 without running the command.
 - Command abort force-closes its root and a cancelled command returns 130.
   A command that handles the stop and returns keeps its own code.
@@ -136,6 +138,8 @@ Call it when stdin ends or a transport closes.
 - A service stop during startup finishes start and then cleans up.
 - A service whose start fails returns 1 after cleanup.
 - A service cleanup failure returns 1.
+- An unexpected error in an owned service task returns 1 after startup.
+- A command cancelled by its own root returns 130 without an external signal.
 - Stdin EOF stops a service and waits for cleanup.
 
 ## Main

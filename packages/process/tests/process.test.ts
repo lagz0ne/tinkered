@@ -77,12 +77,14 @@ test("help sorts routes by name and preserves duplicate order without loading", 
       },
     },
     route("alpha", three, "first"),
+    route("middle", three),
     route("alpha", three, "second"),
+    route("beta", three),
   ]);
   for (const args of [[], ["help"], ["--help"]]) {
     expect(await collect({ shell: table, args })).toEqual({
       code: 0,
-      stdout: "usage: tk <command>\n  alpha  first\n  alpha  second\n  zeta\n",
+      stdout: "usage: tk <command>\n  alpha  first\n  alpha  second\n  beta\n  middle\n  zeta\n",
       stderr: "",
     });
   }
@@ -229,20 +231,67 @@ test("entry options override common options and tags combine after process facts
 });
 
 test("an already aborted call starts no loader and returns 130", async () => {
-  expect(
-    await collect({
-      shell: shell([
-        {
-          name: "show",
-          entry: () => {
-            throw new Error("must not load");
-          },
+  let loads = 0;
+  const result = await collect({
+    shell: shell([
+      {
+        name: "show",
+        entry: () => {
+          loads += 1;
+          return { kind: "command", op: show };
         },
-      ]),
-      args: ["show"],
-      signal: AbortSignal.abort(),
-    }),
-  ).toEqual({ code: 130, stdout: "", stderr: "" });
+      },
+    ]),
+    args: ["show"],
+    signal: AbortSignal.abort(),
+  });
+  expect({ ...result, loads }).toEqual({ code: 130, stdout: "", stderr: "", loads: 0 });
+});
+
+test("a loader that aborts before returning starts no root", async () => {
+  const controller = new AbortController();
+  const starts: string[] = [];
+  const started = extension({
+    label: "started",
+    hooks: {
+      start: (event) => {
+        starts.push("started");
+        return event.next();
+      },
+    },
+  });
+  const result = await collect({
+    shell: shell([
+      {
+        name: "show",
+        entry: () => {
+          controller.abort();
+          return { kind: "command", op: show, options: { extensions: [started] } };
+        },
+      },
+    ]),
+    args: ["show"],
+    signal: controller.signal,
+  });
+  expect({ ...result, starts }).toEqual({ code: 130, stdout: "", stderr: "", starts: [] });
+});
+
+test("a loader failure caused by abort returns 130 without error output", async () => {
+  const controller = new AbortController();
+  const result = await collect({
+    shell: shell([
+      {
+        name: "show",
+        entry: () => {
+          controller.abort();
+          throw controller.signal.reason;
+        },
+      },
+    ]),
+    args: ["show"],
+    signal: controller.signal,
+  });
+  expect(result).toEqual({ code: 130, stdout: "", stderr: "" });
 });
 
 test("abort during loading returns 130 before the loader ends and observes its late rejection", async () => {
