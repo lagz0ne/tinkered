@@ -583,3 +583,159 @@ test("a close landing mid-bind still reaps the listener exactly once", async () 
   await scope.close();
   expect(stops).toBe(1);
 });
+
+test("async request tags finish before the operation opens its session resource", async () => {
+  const steps: string[] = [];
+  const identity = tag<string>({ label: "async.identity" });
+  const transaction = resource({
+    label: "transaction",
+    target: "session",
+    factory: () => {
+      steps.push("transaction");
+      return true;
+    },
+  });
+  const read = operation({
+    label: "identity",
+    depends: { transaction, identity },
+    run: ({ identity }) => identity,
+  });
+  const web = hono([route.get("/", read)], {
+    tags: async () => {
+      const value = await Promise.resolve("Ada");
+      steps.push("identity");
+      return identity(value);
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  try {
+    await scope.ready;
+    const answer = scope.resolve(web).request("/");
+    expect(await (await answer).json()).toBe("Ada");
+    expect(steps).toEqual(["identity", "transaction"]);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a request aborted while reading async tags never runs its operation", async () => {
+  let finish!: () => void;
+  const tagsRead = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const writes: string[] = [];
+  const save = operation({
+    label: "save",
+    run: () => {
+      writes.push("saved");
+      return "ok";
+    },
+  });
+  const web = hono([route.post("/", save)], {
+    tags: async () => {
+      await tagsRead;
+      return [];
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  try {
+    await scope.ready;
+    const stop = new AbortController();
+    const response = scope.resolve(web).request("/", { method: "POST", signal: stop.signal });
+    stop.abort();
+    finish();
+    expect((await response).status).toBe(499);
+    expect(writes).toEqual([]);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a graceful close waits for async tags and the request they prepare", async () => {
+  let finish!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const read = operation({ label: "read", run: () => "ok" });
+  const web = hono([route.get("/", read)], {
+    tags: async () => {
+      await ready;
+      return [];
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  const answer = app.request("/");
+  const closing = scope.close({ graceful: true });
+  const refused = app.request("/");
+  finish();
+  expect((await refused).status).toBe(503);
+  expect(await (await answer).json()).toBe("ok");
+  expect((await closing).status).toBe("success");
+});
+
+test("a request without a tags hook answers 503 during graceful close", async () => {
+  const release = Promise.withResolvers<void>();
+  const read = operation({ label: "read", run: () => "ok" });
+  const web = hono([route.get("/", read)]).extension;
+  const gate = extension({
+    label: "closeGate",
+    hooks: {
+      close: async (event) => {
+        await release.promise;
+        return event.next();
+      },
+    },
+  });
+  const scope = createScope({ extensions: [web, gate] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  const closing = scope.close({ graceful: true });
+  try {
+    expect((await app.request("/")).status).toBe(503);
+  } finally {
+    release.resolve();
+    await closing;
+  }
+});
+
+test("a failed async tag read fails only its request", async () => {
+  const read = operation({ label: "read", run: () => "ok" });
+  const web = hono([route.get("/", read)], {
+    tags: () => Promise.reject(new Error("tag read")),
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  expect((await scope.resolve(web).request("/")).status).toBe(500);
+  expect((await scope.close({ graceful: true })).status).toBe("success");
+});
+
+test("a forced close during async tags never runs the prepared operation", async () => {
+  let finish!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const writes: string[] = [];
+  const write = operation({
+    label: "write",
+    run: () => {
+      writes.push("saved");
+      return "ok";
+    },
+  });
+  const web = hono([route.post("/", write)], {
+    tags: async () => {
+      await ready;
+      return [];
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const answer = scope.resolve(web).request("/", { method: "POST" });
+  const closing = scope.close();
+  finish();
+  expect((await answer).status).toBe(499);
+  expect(writes).toEqual([]);
+  expect((await closing).status).toBe("cancelled");
+});

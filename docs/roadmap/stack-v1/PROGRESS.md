@@ -429,7 +429,7 @@ npx --no-install stryker run \
   Verify: `vp run mail#test`: a committed request
   sends one mail, a rolled-back one sends none; a
   missing `MAIL_URL` fails boot in prod.
-- **t10 auth: sign-up and sign-in** -- [ ] blocked by: t06
+- **t10 auth: sign-up and sign-in** -- [x] landed 54296a9b (blocked by: t06)
   `@tinker/auth`: Better Auth, pinned, mounted at
   `/api/auth/*` through the Hono wiring (ADR 0075).
   Its tables live in the `auth` schema and come
@@ -2936,3 +2936,870 @@ MUTATION_EXIT 0
   Copies are in `/home/paseo/.cache/tinkered-briefs`.
 - Status: Review; next is lead review and landing.
   Nothing was pushed.
+
+## t10 writer work
+
+- Owner: stack/t10 writer (Codex), branch `stack/t10`.
+- Status: Review; both fresh full mutation runs pass.
+- Base: local `stack/t06` at `c68802fd`.
+- Next: lead review, then join the listed Hono changes with t17.
+- Verify: HTTP auth tests, Hono and stack tests, gate,
+  validation, and one auth mutation lane at least 85.
+- Assumption: the example app lives in
+  `packages/auth/tests/fixture`.
+- Settings: `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`.
+- Impact: `HonoScope.Wiring.tags` will accept a promise.
+  Hono awaits it before opening the request session.
+  Existing sync callers keep their call shape.
+  No symbol is removed.
+- Callers: Hono tests, the tracker request tags,
+  and stack live-update tests use this wiring.
+  New auth wiring supplies the async cookie read.
+- Review refs: `HonoScope/Wiring.*tags` and `hono\(\)`.
+  Run Hono, auth, stack, and tracker tests.
+
+### t10 first green step
+
+- Added `@tinker/auth` with Better Auth and its adapter at 1.7.6.
+- Drizzle 1.0 needs the adapter's `relations-v2` entry.
+  The default entry's generated `relations()` call fails on this RC.
+- Auth settings are checked at start; the client loads on first use.
+- The fixture app owns its schema and migrations.
+  Fresh auth generation and Drizzle drift checks both pass.
+- Build, check, 15 auth tests, and 70 Hono tests pass; exit 0.
+- Check: 0 errors and 29 warnings.
+  Main at `6330012c` also passes with 29 warnings.
+- Hono awaits only promise tags, keeping sync calls on the same turn.
+  The first unconditional await broke six abort and close tests.
+  The final code passes all six and the two new tests.
+- Prose and the strict census of authored auth code pass.
+  The generated schema retains the CLI's own pure-call comments.
+
+### t10 gate and review checks
+
+- Fresh fetch: origin/main has no `stack/t06` or `stack/t17` tag.
+- Rebased onto local `stack/t06` at `c68802fd`.
+  This adds the migrate writer's latest tests and error handling.
+- Gate: build, check, auth, stack, and all repo tests; `EXIT 0`.
+  Auth: 15; Hono: 70; stack: 63; tracker: 79.
+  All 18 repo test tasks pass.
+- Check: 0 errors, 29 warnings, matching checked main.
+- The full tracker run caught a pre-aborted request answering 500.
+  It now answers 499 without running an operation.
+  The tracker test and the new async-tag abort test both pass.
+- Regression proof: ran both new Hono tests on the old Hono source.
+  Both failed, exit 1; restored the new source before the gate.
+- SCIP confirms the Hono tag hook is used by auth's wiring.
+  No symbol was removed; all consumers pass.
+- Jev tests: no auth or Hono test title flags.
+  The README checks find no missing promise.
+- Existing Hono helper-count and helper-size notes stay unchanged.
+  Those files are outside this change; the helpers use public seams.
+- Plain local-unit notes: each auth frame owns distinct config and user
+  tags; its settings resource reads that frame's config.
+  Moving them outside would join separate auth pieces.
+- The inherited test-database resource captures its own PGlite.
+  Moving it outside would share that handle between templates.
+- Both model flags already have false labels in the bank:
+  `leakedInternal` on the tracker's public entry;
+  `effectWithoutDefer` on Hono's `stream`.
+  The entry is the app's test seam.
+  The stream closes its session when the body ends or is cancelled.
+  Neither needs a new label or calibration change.
+- Strict census of authored auth code and changed Hono files: OK.
+  TSDoc: no findings.
+
+### t10 validation proof
+
+- `pnpm validate`: all 50 lanes pass, `EXIT 0`.
+  The two new lanes check auth's tests and size.
+- `pnpm-workspace.yaml` has no branch change.
+  Workspaces and TypeScript configs already find packages by folder.
+- The final Jev pass gives the same notes and existing labels.
+- Auth mutation is queued under `/tmp/mutation.lock`.
+  Its config has `timeoutMS: 60000`, concurrency 2, and floor 85.
+  No source file is excluded.
+
+### t10 async tag reads during shutdown
+
+- A further probe found HTTP 500 when graceful close began during
+  an async tag read, before the request session existed.
+- Core refuses new sessions as soon as close starts, even when
+  an owned operation is still running.
+- Hono now drains its accepted async requests before calling the
+  captured root close, as NATS already does for subscriptions.
+  It rejects new requests during that drain with HTTP 503.
+- Forced close does not wait for tag reads.
+  A tag read that finishes later cannot run its prepared operation.
+- Added graceful-close, forced-close, and rejected-tag-read tests.
+- The first two approaches failed the graceful-close probe.
+  The final code passes all 73 Hono tests.
+- Full gate and all 18 repo test tasks pass again, `EXIT 0`.
+  Auth: 15; stack: 63; tracker: 79; check: 29 warnings.
+- Cancelled only this ticket's waiting `flock` before editing.
+  The auth mutation tool had not started; its log was empty.
+  No full auth mutation lane has run yet.
+- Core feedback: Hono needs a per-root hook before close locks
+  out new sessions, to drain request preparation.
+  Until then, its start wraps that root's public close method.
+  This is the same missing close hook already reported by NATS.
+
+```ts
+const reply = app.request("/me");
+const closing = scope.close({ graceful: true });
+finishCookieRead();
+await reply; // was HTTP 500; should be HTTP 200
+await closing;
+```
+
+### t10 final shutdown review
+
+- Re-ran validation after the shutdown fix: all 50 lanes pass,
+  `EXIT 0`.
+- Re-ran SCIP refs, strict census, TSDoc, and prose; all pass.
+- Jev finds no auth or Hono test title flags and no clear
+  missing README promise.
+- Added two false `stateOutsideCell` labels:
+  `serveRequests` and `serveAfterTags` own a root's pending
+  request promises and close state, not app data.
+  Their sets release each promise on either outcome.
+- Fresh fetch still points to `origin/main` at `be6a9526`.
+  Neither `stack/t06` nor `stack/t17` has landed there.
+- The full auth mutation lane is queued again under the lock.
+
+### t10 full mutation result and test gaps
+
+- The one full lane finished with `EXIT 1`: score 81.11.
+  Killed: 73; timeout: 0; survived: 17.
+  No coverage: 0; errors: 0; total: 90.
+- The unchanged tests passed before mutation began.
+  The config kept `timeoutMS: 60000` and floor 85.
+- Full log and JSON are saved as `stack-t10-mutation.log`
+  and `stack-t10-mutation.json` in
+  `/home/paseo/.cache/tinkered-briefs/`.
+- Two real test gaps appeared among the survivors.
+  Dropping the supplied settings still passed the HTTP tests.
+  A nondefault base URL did not catch this either.
+  The HTTP fixture now uses `http://auth.example.test`.
+- The second-owner test now rejects `BadAuthSettings` before
+  accepting `PieceInUse`, proving those errors stay distinct.
+- The first narrow check killed all five error-kind changes,
+  including the three old survivors.
+  Dropping the settings still survived; the check exited 1.
+- Added a public check that changing the secret on restart
+  rejects a cookie from the prior root.
+- No runtime source changed after the full lane.
+  The next check repeats those two source lines.
+- The brief allows one full lane.
+  A fresh full score of at least 85 remains a landing check;
+  the failed full result is not a pass.
+
+### t10 survivor proof and handoff
+
+- Final narrow check: `EXIT 0`, score 100.
+  Killed: 6; timeout: 0; survived: 0.
+- These four survivors from the full report are now `[Killed]`:
+  14, 16, and 17 at `src/errors.ts:22`;
+  96 at `src/index.ts:88`.
+- Compared all three runtime files with the full report's source.
+  They are unchanged.
+  Only the tests and their docs changed after that run.
+- The first run's 73 kills plus four new kills are 77 of 90,
+  or 85.56 percent across the two reports.
+  This is combined proof, not a fresh full-lane score.
+- Saved the narrow log and JSON as
+  `stack-t10-survivor-check-final.log` and
+  `stack-t10-survivor-check-final.json` in the same cache folder.
+- Final gate: build, check, auth, stack, and all repo tests;
+  `EXIT 0`.
+  Auth: 16; Hono: 73; stack: 63; tracker: 79.
+  All 18 test tasks pass; check still has 29 warnings.
+- Re-ran `pnpm validate` after the secret-change test.
+  All 50 lanes pass, `EXIT 0`.
+- Jev tests and README promises: no flags on the auth changes.
+  Strict style census and prose pass.
+- Latest fetch: `origin/main` is still `be6a9526`.
+  No `stack/t06` or `stack/t17` tag has landed there.
+- No push; no own mutation or test job left running.
+
+The narrow check was:
+
+```sh
+cd packages/auth
+flock /tmp/mutation.lock \
+  vp exec stryker run \
+  --mutate 'src/errors.ts:22-22,src/index.ts:88-88' \
+  --reporters clear-text,json
+```
+
+The lead's remaining full gate is:
+
+```sh
+flock /tmp/mutation.lock \
+  vp run --no-cache auth#mutate
+```
+
+### t10 lead follow-up
+
+- Keep the current base; do not rebase onto the pending t17.
+- Run fresh full auth mutation, then Hono mutation, alone.
+  Count kills as `killed / (killed + timeout + survived)`.
+  The required floor is 85 percent.
+- List each Hono change and why auth needs it before review.
+- Re-run the full gate and validation; commit by path.
+
+### t10 Hono changes to keep with t17
+
+All paths below are under `packages/hono`.
+All changes serve auth's async cookie read; none were removed.
+
+- `src/index.ts:70`: the tag hook accepts a promise.
+  Auth must read its session cookie before a request can open
+  `store.tx`, since PGlite has one connection.
+- `src/index.ts:212`: each started server owns its pending
+  reads, forced-close flag, and one close promise.
+  Auth can have requests waiting on the cookie database read
+  before core has a request session to own.
+- `src/index.ts:224`: wrap this root's close.
+  Graceful close drains accepted reads and their requests
+  before core blocks new sessions.
+  Forced close starts at once; repeat close returns its promise.
+  Without this order, an accepted auth request can answer 500
+  during graceful shutdown because it cannot open its session.
+- `src/index.ts:233`: reject new requests with 503 while draining.
+  New cookie reads must not enter after shutdown chose the
+  accepted set it will drain.
+- `src/index.ts:234`: read request hooks, then pass their bound
+  tags and namespace to the request session.
+  Only promise tags wait; sync tags keep their old call order.
+  Auth needs the wait; other callers need their sync behavior.
+- `src/index.ts:247`: retain each async read through its response,
+  and release it on success or failure.
+  This covers the gap before the request session exists and
+  hands any kept stream back to core's session close path.
+  A failed auth read fails its request, not the root's close.
+- `src/index.ts:253`: answer 499 after a forced close.
+  A cookie read that finishes later must not start an operation.
+- `src/index.ts:264`: move the old session body to `serveSession`.
+  Both sync and async tags use it without adding an await to
+  sync callers; typed context also removes the old cast.
+  Its session, error hook, abort listener, and stream cleanup
+  are the prior code moved into this helper.
+- `src/index.ts:272`: answer 499 for an already-aborted request.
+  A client can abort while auth reads its cookie, before the
+  session's abort listener exists.
+  The operation must not run once that cookie read ends.
+- `tests/hono.test.ts:585`: proves the cookie read order before
+  a session resource opens, standing in for the transaction.
+- `tests/hono.test.ts:619`: proves abort during that read prevents
+  the operation and answers 499.
+- `tests/hono.test.ts:652`: proves graceful shutdown finishes the
+  accepted read and request instead of answering 500.
+- `tests/hono.test.ts:673`: proves a rejected auth read fails
+  only that request and leaves graceful close successful.
+- `tests/hono.test.ts:684`: proves forced shutdown does not run
+  an operation after its cookie read ends.
+- `README.md:296`: states those async-read promises and the
+  promise-returning hook so auth callers can rely on them.
+
+For the later rebase, t17 owns commit-before-answer and rollback
+after a raised error.
+Keep its request body and stream close rules when joining the
+session code at `src/index.ts:273`.
+The t10 changes above prepare tags before that body starts;
+they do not require keeping the old commit or rollback behavior.
+
+### t10 fresh auth mutation proof
+
+- Fresh full auth run: `EXIT 0`.
+  Killed: 77; timeout: 0; survived: 13.
+  No coverage: 0; errors: 0.
+- The killed-only score is `77 / 90 = 85.56%`.
+  This is a new full run, not the earlier combined proof.
+  No further auth lift was needed.
+- The auth sandbox folder was already absent before the run.
+  Stryker made a fresh sandbox and tested all 90 changes.
+- Logs: `stack-t10-auth-full-2.log` and
+  `stack-t10-auth-full-2.json` in
+  `/home/paseo/.cache/tinkered-briefs/`.
+- Next: full Hono mutation, with a 60 second tool timeout
+  and two workers, alone under the same lock.
+
+### t10 fresh Hono mutation proof
+
+- One fresh full Hono run, after auth: `EXIT 0`.
+  Killed: 275; timeout: 0; survived: 45.
+  No coverage: 3; errors: 0.
+- The lead's score is `275 / 320 = 85.94%`.
+  Stryker's total, which counts the three uncovered changes,
+  is 85.14 percent and passes its unchanged floor of 85.
+- Command: `vp run --no-cache hono#mutate`, under the lock,
+  with `--timeoutMS 60000 --concurrency 2`.
+  No Hono config or runtime file changed in this follow-up.
+- Logs: `stack-t10-hono-full-1.log` and
+  `stack-t10-hono-full-1.json` in the same cache folder.
+- Next: the requested full gate, then `pnpm validate`.
+
+### t10 follow-up final gate
+
+- The requested chain passes by exit code, `EXIT 0`:
+  build, check, auth, Hono, stack, then every repo test task.
+- Check: 0 errors and 29 warnings, matching the checked base.
+  Auth: 16; Hono: 73; stack: 63; tracker: 79.
+  All 18 repo test tasks pass.
+- Then `pnpm validate` passes all 50 lanes, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Strict census, TSDoc, prose, and SCIP refs pass.
+  No public symbol was removed.
+- Main advanced while the mutation runs waited.
+  Stopped only this worktree's advisory `main..HEAD` reader:
+  it was reading newer core and HTTP changes outside this ticket.
+  Re-ran Jev on the held base, `c68802fd..HEAD`.
+  It has no file flags and the same explained unit notes.
+- The two `stateOutsideCell` labels and the stream's
+  `effectWithoutDefer` label remain false; no new labels.
+  Request bookkeeping belongs to the started server root.
+  The stream already owns its close path.
+  Each auth frame needs its own config and user tags.
+- No runtime source, test, or package config changed in this
+  follow-up; only the board and these proof notes changed.
+- No rebase or push.
+  Base is still local t06 at
+  `c68802fd96fc26fa606dd2419662979164e52b26`.
+- All own long jobs finished in this turn.
+  Status: Review; next is the lead's review and later t17 rebase.
+- Final logs: `stack-t10-followup-gate.log`,
+  `stack-t10-followup-validate.log`, and
+  `stack-t10-followup-jev-base.log` in the same cache folder.
+
+## t10 resume — 2026-09-30
+
+- Owner: stack/t10 writer.
+- Base checked: `c68802fd` is an ancestor of the paused head.
+- Rebased with `--onto origin/main c68802fd`.
+- Main is `870beab4`; t06 and t17 are both in it.
+- No paused edits or board-landing commits were present.
+- Assumption: use the saved fixture app and its migrations.
+- Keep main's session body, abort cleanup, stream cleanup,
+  commit before answer, and rollback on every raised error.
+- Drop t10's own client-abort guard: main already answers 499.
+- Keep async tags, the pre-close drain, and forced-close 499.
+- Return 503 during the drain.
+  Once close ends, keep main's Hono error path for late requests.
+
+### Impact before the final fix
+
+- Public change: `HonoScope.Wiring.tags` accepts a promise.
+- Callers: auth wiring, Hono tests, and the tracker route wiring.
+- All other Hono consumers use the shared session body.
+- Check SCIP refs for `HonoScope/Wiring#tags`.
+- Run every package's tests and the tracker browser proof.
+- Verify: the named gate, both mutation lanes, and validation.
+
+### First rebased gate
+
+- Build, check, auth, Hono, and stack: `EXIT 0`.
+- Auth: 16 tests; Hono: 91; stack: 111.
+- Check: 0 errors, 28 warnings.
+- Fresh main check at `870beab4`: 0 errors, 28 warnings.
+  Main's build and check also ended with `EXIT 0`.
+- Strict style census and TSDoc pass.
+- SCIP finds the promise-tag hook in auth's source and tests.
+- Jev: no file flags or missing README promises.
+- Three local auth units stay inside each piece.
+  Moving its tags out would join separate auth pieces.
+- Existing Hono helper-size and helper-count notes stay as-is.
+  Those helpers predate this ticket and use public APIs.
+- Label the new request-close state as driver cleanup.
+  Each promise is joined and each pending entry is released.
+- Main's stream already has the same false effect label.
+- Used `origin/main..HEAD` for Jev.
+  Local main has unrelated example work ahead of origin.
+- Fresh fetch still points to `870beab4`.
+
+### Final rebased gate and browser proof
+
+- Named gate: build, check, auth, Hono, stack; `EXIT 0`.
+- Auth: 16 tests; Hono: 91; stack: 111.
+- Every repo test task ran uncached: 19 tasks passed.
+  Core: 790 tests; tracker: 79.
+- Main and branch both have 28 warnings and no errors.
+- Close-phase regression: build passed, then the test failed
+  without the fix, `EXIT 1`: got 503 where main promises 500.
+  Restored the fix and rebuilt before the final gate.
+- Tracker browser proof ran once, uncached, `EXIT 0`.
+  The browser run and all 7 helper tests pass.
+- Used the full `@tinker-issue-tracker` task name.
+  The short `issue-tracker` name matched no task.
+- The source from the trace reader through the end of Hono
+  is byte-for-byte the same as main.
+- Logs: `stack-t10-resume-gate-final.log`,
+  `stack-t10-resume-browser.log`,
+  `stack-t10-resume-regression.log`, and
+  `stack-t10-resume-main-check.log` in the briefs cache.
+- Next: auth and Hono mutation lanes, alone under the lock,
+  then validation and the lead's review.
+
+### Rebase conflicts
+
+- `packages/hono/src/index.ts`: t10 prepares cookie tags;
+  main owns the request body and close result.
+  Keep preparation outside main's moved session body.
+  Drop the old t10 session body and client-abort guard.
+- `packages/hono/README.md`: main promises commit and cleanup;
+  t10 promises async tags.
+  Keep both, with a new async-tags section.
+- `docs/roadmap/stack-v1/PROGRESS.md`: keep main's later proof
+  and append t10's saved proof and these resume notes.
+- `TODO.md`: keep main's board and update only the t10 card.
+  Remove its old parked row while this writer resumes it.
+- `tools/jev/cases.jsonl`: keep both banks' rows.
+  Label the changed request preparation and moved session body.
+- Later t10 Hono patches met code already kept in the first
+  replayed commit; keep that code and replay their tests.
+- No board-landing commit needed dropping or reverting.
+
+### Hono changes kept for auth after the rebase
+
+All paths in this list are under `packages/hono`.
+
+- `src/index.ts:71`: tags can return a promise.
+  Auth's cookie read must finish before `store.tx` opens.
+- `src/index.ts:214`: one started root owns pending reads,
+  its close phase, forced-close mode, and one close promise.
+  Core cannot own a cookie read before its session exists.
+- `src/index.ts:228`: graceful close waits for accepted reads
+  and their requests before core refuses new sessions.
+  Forced close starts at once; repeat close joins the same work.
+- `src/index.ts:236`: mark the root closed when close ends.
+  Keep main's error handler for late requests after that point.
+- `src/index.ts:241`: new requests answer 503 while closing.
+  They cannot add a cookie read after the drain starts.
+- `src/index.ts:244`: read tags before opening the session.
+  Sync hooks keep main's tags, trace, namespace read order.
+  Async hooks wait, then bind the user beside the raw request.
+- `src/index.ts:259`: hold each async read through its reply
+  and release it on success or failure.
+  A stream has its owned session before this promise leaves.
+  A rejected cookie read fails its request, not root close.
+- `src/index.ts:265`: answer 499 when a cookie read finishes
+  after forced close; never run the prepared operation.
+- `src/index.ts:276`: move main's session body into one helper.
+  Both sync and async tags use its commit and rollback rules.
+  Main's abort cleanup and stream rules stay intact.
+- `tests/hono.test.ts:585`: prove tags precede session resources.
+- `tests/hono.test.ts:619`: prove abort during tags answers 499
+  and runs no operation, using main's abort branch.
+- `tests/hono.test.ts:652`: prove accepted requests finish during
+  graceful close, while new requests answer 503.
+- `tests/hono.test.ts:676`: prove a failed cookie read does not
+  make root close fail.
+- `tests/hono.test.ts:687`: prove forced close answers 499
+  after tags and runs no operation.
+- `README.md:347`: promise the async-read order and close rules.
+
+Main already covers a client abort once the session exists.
+The t10-only guard before session creation was dropped.
+Main does not drain cookie reads before sessions exist.
+That drain and the forced-close 499 still belong to t10.
+
+### Core feedback kept from the saved branch
+
+Core blocks new sessions before a close hook can drain preparation.
+Hono still wraps this root's close to finish accepted cookie reads.
+A hook before that block would remove the workaround.
+Without it, the accepted request below answers 500 on close.
+
+```ts
+const reply = app.request("/me");
+const closing = scope.close({ graceful: true });
+finishCookieRead();
+await reply;
+await closing;
+```
+
+### Rebased auth mutation — 2026-10-01
+
+- One fresh full auth lane, under `/tmp/mutation.lock`.
+- Killed: 77; timeout: 0; survived: 13.
+- No coverage: 0; errors: 0; total: 90.
+- Killed-only score: `77 / 90 = 85.56%`; `EXIT 0`.
+- Config: timeout 60000, two workers, floor 85.
+  All three source files were tested; none were excluded.
+- The lock wait finished before this lane began.
+- Saved log and JSON: `stack-t10-resume-auth-mutation`
+  in the briefs cache, with `.log` and `.json` endings.
+- Next: the full rebased Hono lane under the same lock.
+
+### Rebased Hono mutation — 2026-10-01
+
+- One fresh full Hono lane, after auth, under the same lock.
+- Killed: 405; timeout: 0; survived: 62.
+- No coverage: 2; errors: 0; total: 469.
+- Killed-only score: `405 / 467 = 86.72%`; `EXIT 0`.
+- Stryker's score with uncovered changes is 86.35 percent.
+  Both scores pass the unchanged floor of 85.
+- Command: `vp run --no-cache hono#mutate`, with
+  `--timeoutMS 60000 --concurrency 2` under the lock.
+- All source files were tested; none were excluded.
+- Saved log and JSON: `stack-t10-resume-hono-mutation`
+  in the briefs cache, with `.log` and `.json` endings.
+- Next: finish validation, then hand the branch to the lead.
+
+### Refreshed main after the lock waits — 2026-10-01
+
+- Main moved during the two mutation lock waits.
+  Fetched and rebased again onto `23f0ccce`.
+  This keeps the landed t18 root exit code work
+  and the separate example projects.
+- Only the progress notes conflicted on this refresh.
+  Keep all t18 proof, then append the t10 proof.
+  Fixed one missing blank line found by the format check.
+- Installed again and ran the full gate from the new base.
+  Build, check, auth, Hono, stack: `EXIT 0`.
+  Auth: 16 tests; Hono: 91; stack: 114.
+- Every repo test task ran uncached: 29 tasks passed.
+  Core: 790 tests; tracker: 79.
+  One existing repo test is skipped; no authored test is skipped.
+- Tracker browser proof ran once on this refreshed base,
+  uncached, followed by all 7 helper tests: `EXIT 0`.
+- Check: no errors and 28 warnings.
+  A fresh main worktree at `23f0ccce` has the same result.
+  Removed that check worktree after seeing `EXIT 0`.
+- Kept the completed full mutation results.
+  Assumption: proof stays valid when its inputs stay the same.
+  Compared every reported mutation source with the current file.
+  Auth, Hono, Core, and Drizzle trees are unchanged,
+  including their tests, package configs, and peer code.
+  The lockfile changed only the example project entries.
+  All package versions and snapshots are unchanged.
+  Auth tests use Stack's server and test database exports.
+  Those files and their called helpers are unchanged.
+  Stack's entry replaces an unused stop export with
+  an unused exit code export; both only declare functions.
+  The new root run config only changes task caching.
+- Auth mutation: killed 77, timeout 0, survived 13.
+  No coverage 0, errors 0; killed-only 85.56 percent.
+- Hono mutation: killed 405, timeout 0, survived 62.
+  No coverage 2, errors 0; killed-only 86.72 percent.
+  Stryker's score with uncovered changes is 86.35 percent.
+  Both full lanes ran alone under the lock and ended `EXIT 0`.
+- Fresh strict census, TSDoc, prose, and SCIP refs pass.
+  The Hono source from the trace reader to the end
+  still matches main exactly.
+- Fresh Jev: no file flags or missing README promises.
+  Auth: zero of 11 titles flagged; Hono: zero of 91.
+  Seven Hono promise matches are unsure, not missing.
+  Plain local-unit notes keep each auth piece's identity.
+  The three Hono state labels remain false:
+  `serveRequests`, `serveAfterTags`, and `serveSession`
+  own request preparation, the reply, and cleanup.
+  Main's unchanged stream keeps its false effect label.
+  The noisy answer-route note needs no label.
+- Logs in the briefs cache start with
+  `stack-t10-resume-refreshed-`:
+  gate, main-check, Jev, style, refs, and validation.
+- Refreshed validation: all 50 lanes pass, `EXIT 0`.
+  Rebuilt before running it and restored the workspace file.
+  The earlier validation also passed all 50 lanes.
+- Status: Review; next is lead review.
+  No push; all owned jobs ended in this turn.
+  No runtime source changed after the full mutation runs.
+- Core feedback is unchanged: the failing close snippet above
+  shows why Hono still wraps close before session admission ends.
+
+## t10 reviewer fix round 1 — 2026-10-01
+
+- Owner: stack/t10 writer; reviewed head `dca8561b`.
+- Next: carry refreshed cookies to app answers,
+  skip the user read on auth routes, and state close rules.
+- Verify: both cookie tests fail on the reviewed head,
+  then the full repo gate, prose, both mutation lanes,
+  and validation pass.
+- The no-tags 503 is already present on the reviewed head.
+  Its new test should pass there; this finding needs docs.
+- Keep main's failed-commit header drop unchanged.
+
+### Fix round 1 failing-first proof
+
+- Runtime source still matched `dca8561b` exactly.
+  Added the tests first, then rebuilt.
+- The two near-expiry cookie tests failed, `EXIT 1`.
+  App route: only `app=active; Path=/` was returned.
+  Auth get-session route: no cookies were returned.
+  Both lacked `better-auth.session_token`.
+- The no-tags shutdown test passed on the old code, `EXIT 0`.
+  It names the already shipped 503; docs now state that rule.
+- Logs: `stack-t10-fix1-failing-first.log` and
+  `stack-t10-fix1-no-tags-baseline.log` in the briefs cache.
+
+### Fix round 1 first green step
+
+- Auth reads with `returnHeaders: true` before the session.
+  Append each returned cookie to the app answer.
+  The app's own cookie remains beside the refreshed token.
+- Skip the tag user read on `/api/auth/*`.
+  Better Auth now reads and refreshes once on its own route.
+- Hono's runtime source is unchanged.
+  Its docs now say 503 applies during any root close,
+  and late requests reach Hono's error handler after close.
+- Stack's server doc names the tag drain before listener stop.
+  No Stack runtime behavior changed.
+- Extended the existing failed-commit header-drop test
+  with an async tag cookie and an appended route cookie.
+  Its fresh 500 still drops all built headers.
+- Build, check, auth 18, Hono 92, prose: `EXIT 0`.
+  Check still has no errors and 28 warnings.
+- Next: full repo gate, advisory checks, fresh mutation,
+  then validation and review.
+
+### Fix round 1 full gate and advisory checks
+
+- Fetched main before the full gate; it remains `23f0ccce`.
+  Rebase reports this branch is up to date.
+- Gate: build, check, every repo test task, then prose.
+  All 29 test tasks ran uncached; `EXIT 0`.
+- Auth: 18 tests; Hono: 92; Stack: 114; tracker: 79.
+  Core: 790; the one existing repo skip remains.
+- Check: no errors, 28 warnings; same as the seen main proof.
+- Strict style census and TSDoc pass.
+  Jev has no file flags or missing promises.
+  Auth: zero of 13 titles flagged; Hono: zero of 92.
+  Ten Hono promise matches are unsure, not missing.
+- Existing Hono state and stream labels remain false.
+  The root owns preparation and the request owns cleanup.
+  Stack's unchanged listen helper keeps both false labels.
+  Its returned stop is owned by the server's defer.
+  Its close flag only selects socket cleanup.
+- Each auth piece keeps its own config and user tags.
+  Existing Hono helper-size and helper-count notes are unchanged.
+  The noisy answer-route note needs no label.
+- No new labels or judge rules.
+  Hono's runtime source still matches the reviewed head.
+- Logs: `stack-t10-fix1-gate.log`, `stack-t10-fix1-jev.log`,
+  and `stack-t10-fix1-style.log` in the briefs cache.
+- Next: fresh full auth and Hono mutation lanes,
+  one at a time under `/tmp/mutation.lock`, then validation.
+
+### Fix round 1 mutation found a cookie test gap
+
+- First auth lane: killed 83, timeout 0, survived 15.
+  No coverage 0, errors 0; score 84.69 percent, `EXIT 1`.
+  The floor stays 85; no exclusions were added.
+- Both append changes survived: an empty option object
+  and `append: false` each overwrite earlier cookies.
+- The existing refresh test only set an app cookie
+  after the user read; it missed cookies already present.
+  Its fixture now also sets an earlier cookie.
+  The same test checks that both app cookies stay
+  beside the refreshed session token.
+- No runtime code changed; this checks the promised append.
+- Kept the failed log and JSON as
+  `stack-t10-fix1-auth-mutation-attempt1` in the briefs cache.
+- Hono did not start after the failed auth lane.
+  Next: auth checks and fresh mutation, then Hono and validation.
+- Round 2 edits wait until round 1's checks finish.
+
+### Fix round 1 auth mutation passes
+
+- Saved the stronger cookie test at `359ceeac`.
+  Build, check, auth 18, and prose pass, `EXIT 0`.
+- Fresh full auth lane under `/tmp/mutation.lock`:
+  killed 85, timeout 0, survived 13.
+  No coverage 0, errors 0; 86.73 percent, `EXIT 0`.
+- Both append changes are killed by the same refresh test.
+  Earlier app cookies now have proof beside later cookies.
+- Log and JSON: `stack-t10-fix1-auth-mutation`
+  in the briefs cache.
+- Next: Hono under the same lock, then validation.
+
+### Fix round 1 Hono mutation passes
+
+- Fresh full Hono lane under the same mutation lock:
+  killed 405, timeout 0, survived 62.
+  No coverage 2, errors 0; score 86.35 percent, `EXIT 0`.
+  Killed divided by killed, timeout, and survived is 86.72 percent.
+- Timeout stayed 60000; concurrency stayed 2.
+  Both full lanes passed without new exclusions.
+- Log and JSON: `stack-t10-fix1-hono-mutation`
+  in the briefs cache.
+- Round 1 validation follows before round 2 edits.
+
+### Fix round 1 complete
+
+- Build and `pnpm validate`: all 50 lanes pass, `EXIT 0`.
+  Restored `pnpm-workspace.yaml` after validation.
+- Log: `stack-t10-fix1-validate.log` in the briefs cache.
+- Both mutation lanes and validation finished before round 2 edits.
+- Next: restore the plain failed-commit test, add an async twin,
+  and document and test raw answers copying auth headers.
+  Then read the second resume brief and rebase for event hooks
+  and the static store resource; repeat the requested proof.
+
+### Fix round 2 before the authoring rebase
+
+- Restored the plain failed-commit header test from the old main.
+  Its original no-tags case stays separate from the new async case.
+  Rebase will keep main's new static-store fixture names.
+- Added a separate async-tag cookie test and README promise.
+  Hono runtime source is unchanged in this fix step.
+- The raw-answer test failed first, `EXIT 1`:
+  only `app=1; Path=/` reached the browser.
+- Auth's README now names `c.json`, `c.text`, and `c.body`,
+  and shows a raw answer copying `c.res.headers`.
+  Add its own cookies to the context before that copy.
+  The fixture follows that form and keeps both cookies.
+- Chose the requested doc and example fix:
+  automatic copying would change Hono's header merge rules.
+- Build, check, auth 19, Hono 93, prose: `EXIT 0`.
+  Check has no errors and the same 28 warnings.
+- Logs: `stack-t10-fix2-raw-failing-first.log` and
+  `stack-t10-fix2-before-rebase.log` in the briefs cache.
+- Next: read `stack-resume-2.md`, rebase for event hooks
+  and the static store, then repeat all requested proof.
+
+### Second authoring rebase and first green gate
+
+- Read `stack-resume-2.md`, ADRs 0093 and 0094,
+  the event fields, Drizzle's README, and the tracker store.
+- Fetched and rebased onto `d96fee94` on origin/main.
+- Conflicts and results:
+  `tools/jev/cases.jsonl` keeps both label sets,
+  with duplicate identical lines removed.
+  `TODO.md` keeps other cards and one current t10 card.
+  `packages/hono/tests/transactions.test.ts` keeps the async
+  cookie case with main's static database fixture.
+- Restored the plain header-drop test exactly from new main.
+  A byte comparison confirms that whole test matches.
+- Auth start and the no-tags close gate use event hooks.
+  Hono's merged start already passes `event.scope`
+  to request preparation; Stack keeps main's own hooks.
+- Auth's fixture declares one namespace database resource
+  and one session transaction resource at module scope.
+  It borrows each clone; tests close it after the scope.
+  The logger and transaction adapters keep native values.
+- All t10 acceptance and cookie-refresh fixes remain.
+  No positional hooks or store frames remain in auth.
+- Hono's owned request body and stream helpers match main.
+  The user read still runs before opening that body.
+- Gate: build, check, uncached auth, Hono, Stack, tracker, prose.
+  Auth 19, Hono 93, Stack 114, tracker 79: `EXIT 0`.
+  Check: no errors and 28 warnings.
+- Log: `stack-t10-resume2-gate.log` in the briefs cache.
+- Next: full repo tests, style and advisory checks, fresh
+  auth and Hono mutation, one uncached browser proof, validate.
+
+### Second resume full gate and advisory checks
+
+- All 29 repo test tasks ran uncached, `EXIT 0`.
+  The one existing skipped test remains.
+- Strict style census passes.
+  Jev has no file flags or missing README promises.
+  Auth: zero of 14 titles flagged; Hono: zero of 93.
+  Eight Hono promise matches are unsure, not missing.
+- Auth's local config and user tags keep each piece's identity.
+  Its settings resource belongs to that same piece.
+  Those three plain code notes need no judge label.
+- Labeled Hono request bookkeeping false at `66a115ca2cde`:
+  its call site now uses `event.scope`; the started root
+  owns the accepted cookie reads and the close drain.
+- The existing false labels for request preparation,
+  the request body, and the stream remain in the bank.
+  The inherited helper size and count notes remain unchanged.
+  The noisy answer-route note needs no label.
+- Logs: `stack-t10-resume2-all-tests.log`,
+  `stack-t10-resume2-style.log`, and `stack-t10-resume2-jev.log`
+  in the briefs cache.
+
+### Hono changes kept after the second resume
+
+- `packages/hono/src/index.ts:71`: tags may return a promise.
+  Better Auth must finish its cookie read before a transaction opens.
+- `packages/hono/src/index.ts:224`: prepare tags outside the session.
+  Keep tag, trace, and namespace read order; sync tags do not await.
+- `packages/hono/src/index.ts:231`: drain accepted reads before close.
+  Core otherwise blocks their late request sessions.
+  After close, keep main's error handler behavior.
+- `packages/hono/src/index.ts:244`: answer 503 during any root close.
+  New requests must stop entering auth reads while shutdown drains.
+- `packages/hono/src/index.ts:262`: retain preparation through its answer.
+  A stream must enter its owned session before root draining begins.
+- `packages/hono/src/index.ts:268`: forced close answers 499.
+  Never run an operation prepared after the root was forced closed.
+- `packages/hono/src/index.ts:279`: move main's body into a helper.
+  This only separates pre-session auth work; rollback, commit before
+  answer, failed-close header drop, abort cleanup, and ownership stay.
+  Stream code and its following helpers match main exactly.
+- Main already handles abort after the cookie read at line 303.
+  Keep that path; no second auth abort guard is needed.
+- `packages/hono/tests/hono.test.ts:586`, `:621`, `:654`, `:677`,
+  `:703`, and `:714`: prove preparation, abort, graceful drain,
+  no-tags 503, read failure, and forced close.
+  Auth needs those outcomes before opening its transaction.
+- `packages/hono/tests/transactions.test.ts:115`: a separate async
+  cookie case proves a failed commit drops every built header.
+  The plain test above it matches main exactly.
+- `packages/hono/README.md:312` and `:348`: promise that separate
+  cookie failure case and explain preparation and shutdown answers.
+- Hono's and Stack's event starts are main's unchanged code.
+  The only added Stack line names the accepted-read drain.
+
+### Second resume auth mutation passes
+
+- Fresh full auth lane after the event and static-store rebase:
+  killed 86, timeout 0, survived 14.
+  No coverage 0, errors 0; 86.00 percent, `EXIT 0`.
+- The full lane ran alone under `/tmp/mutation.lock`,
+  with timeout 60000, concurrency 2, and the unchanged floor 85.
+- Log and JSON: `stack-t10-resume2-auth-mutation`
+  in the briefs cache.
+- Next: Hono under the same lock, then the uncached browser
+  proof and validation.
+
+### Second resume Hono mutation passes
+
+- Fresh full Hono lane after rebasing onto event hooks:
+  killed 406, timeout 0, survived 62.
+  No coverage 2, errors 0; Stryker score 86.38 percent, `EXIT 0`.
+  Killed divided by killed, timeout, and survived is 86.75 percent.
+- Both fresh lanes ran alone, one after the other
+  under the same `/tmp/mutation.lock`.
+  Timeout 60000, concurrency 2, floor 85; no new exclusions.
+- Log and JSON: `stack-t10-resume2-hono-mutation`
+  in the briefs cache.
+- Next: tracker browser proof once uncached, then validation.
+
+### Second resume browser proof passes
+
+- Ran tracker `test:browser` exactly once, uncached.
+  Browser proof and 7 helper tests pass, `EXIT 0`.
+  Both task cache hits are zero.
+- Log: `stack-t10-resume2-browser.log` in the briefs cache.
+- Next: final `pnpm validate`, then review.
+
+### Second resume and fix round 2 complete
+
+- Final build and `pnpm validate`: all 50 lanes pass, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it is not part of a commit.
+- Named gate: auth 19, Hono 93, Stack 114, tracker 79.
+  All 29 repo test tasks also pass uncached.
+  Check has no errors and 28 warnings; prose and style pass.
+- Fresh mutations: auth 86 / 0 / 14, score 86.00 percent;
+  Hono 406 / 0 / 62, Stryker score 86.38 percent.
+  Hono has 2 no-coverage cases and no errors.
+  Its killed-only score is 86.75 percent.
+  Both full lanes passed alone under the lock, `EXIT 0`.
+- Tracker browser proof ran once uncached; 7 helpers pass.
+- The two round 1 cookie tests failed on `dca8561b` first.
+  The new raw-answer test also failed before header copying.
+  Every one now passes with event hooks and static resources.
+- The plain failed-commit test matches `d96fee94` exactly.
+  Its separate async-cookie test keeps its own README promise.
+- Raw answers use the documented context-header copy.
+  No automatic Hono header merge was added.
+- The Hono change map and conflict results are above.
+  Core feedback stays the same accepted-read close snippet
+  recorded above; no new feedback from the event rebase.
+- All owned foreground jobs have finished.
+  Commit by path; do not push. The lead reviews and lands.
+- Final log: `stack-t10-resume2-validate.log` in the briefs cache.

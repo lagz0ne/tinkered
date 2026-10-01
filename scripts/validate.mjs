@@ -5,6 +5,8 @@ import { execSync } from "node:child_process";
 const VP = "/home/paseo/.local/vp/bin/vp";
 const strip = "node --experimental-strip-types";
 const lanes = [
+  ["auth tests", `${VP} run --no-cache auth#test`],
+  ["auth size (<= 10 kB gzip)", `${VP} run --no-cache auth#size`],
   ["nats tests", `${VP} run --no-cache nats#test`],
   ["nats size (<= 10 kB gzip)", `${VP} run --no-cache nats#size`],
   ["lint/types/format/complexity", `${VP} check`],
@@ -123,7 +125,7 @@ for (const [name, cmd, show] of lanes) {
   }
 }
 console.log(
-  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache process#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` and \`${VP} run --no-cache stack#mutate\` and \`${VP} run --no-cache nats#mutate\` ALONE (break >= 85 for every package (user, 2026-09-24); measured alone 2026-09-21: core 86.07, react 93.16; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, process 83.43, harness 76.05, mcp 82.86, sync 79.67).`,
+  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache process#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` and \`${VP} run --no-cache stack#mutate\` and \`${VP} run --no-cache nats#mutate\` and \`${VP} run --no-cache auth#mutate\` ALONE (break >= 85 for every package (user, 2026-09-24); measured alone 2026-09-21: core 86.07, react 93.16; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, process 83.43, harness 76.05, mcp 82.86, sync 79.67).`,
 );
 console.log(
   `Timing lanes:  run via \`benchctl exec -- ${strip} bench/<lane>.mjs\` from a clean worktree (the queue; never by hand).\n` +

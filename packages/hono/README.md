@@ -309,6 +309,7 @@ The `http request` line and request span record the built status; a close failur
   Any teardown error or unexpected failed close replaces the built answer
   with `internal` and writes one `request failed` line through the scope sink.
 - A failed commit drops the built answer's headers.
+- A failed commit drops async-tag cookies and the built answer's headers.
   This includes cookies and location headers set through the context
   or returned in a Response.
 - A save followed by a mapped 409 rolls back and keeps the mapped answer.
@@ -343,3 +344,17 @@ Cleanup failure after a writer error logs once and keeps the reader error.
 The header reader follows [W3C Trace Context](https://www.w3.org/TR/trace-context/).
 Unknown flag bits and future fields are ignored.
 This driver does not carry `tracestate`.
+
+## Async request tags
+
+Async request tags finish before the operation opens its session resource.
+The `tags` wiring hook can return a promise.
+Hono awaits it before opening the request session.
+A request aborted while reading async tags never runs its operation.
+A graceful close waits for async tags and the request they prepare.
+Any request arriving while the root closes answers 503,
+with async tags, sync tags, or no tags hook.
+A request without a tags hook answers 503 during graceful close.
+After close, requests reach Hono's error handler.
+A failed async tag read fails only its request.
+A forced close during async tags never runs the prepared operation.

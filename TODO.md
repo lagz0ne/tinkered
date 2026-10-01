@@ -47,6 +47,12 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
+Next: lead reviews both fixes and the event and store rebase.
+Verify: auth 19, Hono 93, Stack 114, tracker 79; full repo tests;
+fresh auth and Hono mutation above 85; browser proof and 7 helpers;
+validation 50 of 50, `EXIT 0`; prose and style pass.
+[Proof](docs/roadmap/stack-v1/PROGRESS.md).
+
 ## Blocked
 
 | Card | Waiting for | Next | Verify |
@@ -57,7 +63,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t08 jobs** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `04d6e604` rebasing with `--onto` main; reviewer READY at `da34b8cf` (b372d629); the lead lands. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **core/start-log** — Resumed 2026-09-30: built main still drops start logs in BOTH hook forms (`[]`); Sol writer `c3f272c1` fixed both (branch `core/start-log` at `098929e0`; gate, timing no row slower, core mutation 85.33%, validate 48/48; core at exactly 16,384 B). Waits for the authoring work's `authoring/hooks` branch, which removes the positional hooks: then rebase and keep only the object-hook path, then an Opus review and the lead lands. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t14 dev-host** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `c4f5f4d3` rebasing and finishing the dev host. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t10 auth-signin** — Rebased onto main with t17 and t18 by Sol writer `cfabd9f8` (head `dca8561b`; gate green; auth 85.56%, hono 86.72%; validate 50/50). First review: Opus `06eab677` running. The lead lands. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **perf/explicit-uses** — declare the ctx features a unit uses (`uses: ["defer", "signal"]`). The committee (Astra + Fable) found an estimated 10–40 ns per run and a migration of every package; the user skipped it (2026-09-29, ADR 0073). Resume when: a graph consumer needs per-unit lifetime facts, or the per-run ctx becomes the main cost of a hot path. Next: the measure-only ceiling screen in `/home/paseo/next/tinkered-inv-reports/committee-uses.md`.
 
 - **jev/handrolled** — survey, bridge analysis, ADR 0070, and plain rules S20–S25 landed
@@ -100,6 +105,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
   All 336 inputs match; all 14 package fault scores pass.
   [Track](docs/roadmap/authoring-model/PGLITE.md).
 
+- **stack/t10 auth-signin** — `@tinker/auth`: Better Auth 1.7.6 (pinned exact, with its Drizzle adapter and the `auth` CLI) for email and password sign-up and sign-in, mounted at `/api/auth/*` through the hono wiring; its tables live in `pgSchema("auth")` in the app's one migration history (the app's `schemaFilter` is `public` and `auth`, never `pgboss`) with an auth drift check; the signed-in user is read from the cookies BEFORE the request's transaction opens (hono tags may return a promise; a graceful close drains accepted reads and answers 503 meanwhile; 499 after a forced close or a client abort). Review fixes: the refreshed session cookie now reaches every reply (users were signed out after 7 days), including raw `Response` answers. ADR 0084 holds with async tags. Event-form hooks and static database resources (ADRs 0093, 0094). Proof: gate EXIT 0 (auth 19, hono 93, stack 114, tracker 79; 0 errors, 28 warnings), browser proof, auth mutation 86.00% (86/0/14), hono 86.38% (406/0/62), validate 50/50. Reviewer 06eab677 (two rounds; the lead checked round 2). Sol writer cfabd9f8. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/hooks** — one event hook form; native static Drizzle resources.
   Owner: lead (authoring session); Astra writers, xhigh, one package each.
   Next: complete; namespace instances and session transactions are explicit.
