@@ -12,7 +12,7 @@ export default defineConfig({
   test: {
     server: { deps: { inline: ["vite-plus"] } },
     projects: [
-      { extends: true, test: { name: "server", include: ["tests/*.test.ts"] } },
+      { extends: true, test: { name: "server", include: ["tests/?*.test.ts"] } },
       {
         extends: true,
         test: {
