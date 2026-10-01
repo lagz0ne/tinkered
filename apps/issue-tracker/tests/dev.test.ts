@@ -25,12 +25,12 @@ async function readFreePort(): Promise<number> {
 }
 
 test.each([
-  { setting: "1", enabled: true },
-  { setting: "true", enabled: true },
-  { setting: "0", enabled: false },
+  { setting: "1", enabled: true, publicUrl: "https://issues.example" },
+  { setting: "true", enabled: true, publicUrl: undefined },
+  { setting: "0", enabled: false, publicUrl: undefined },
 ])(
   "the dev page borrows its store and keeps draft opt-in $setting",
-  async ({ setting, enabled }) => {
+  async ({ setting, enabled, publicUrl }) => {
     const app = fileURLToPath(new URL("../", import.meta.url));
     const base = join(await realpath(join(app, "node_modules")), "../../../scratch");
     await mkdir(base, { recursive: true });
@@ -38,6 +38,17 @@ test.each([
     for (const file of ["src", "drizzle", "index.html", "vite.config.ts", "package.json"]) {
       await cp(join(app, file), join(directory, file), { recursive: true });
     }
+    const component = join(directory, "src/client/App.tsx");
+    const original = await readFile(component, "utf8");
+    await writeFile(
+      component,
+      'import { useScope } from "@tinker/react";\n' +
+        'import { draftHelper } from "../index.ts";\n' +
+        original.replace(
+          "<main>",
+          "<main data-draft-base-url={useScope().resolve(draftHelper).baseUrl}>",
+        ),
+    );
     await symlink(join(app, "node_modules"), join(directory, "node_modules"));
     const port = await readFreePort();
     const url = `http://127.0.0.1:${port}`;
@@ -48,7 +59,12 @@ test.each([
         root: directory,
         entry: "src/server/main.ts",
         nats: true,
-        env: { PORT: String(port), DRAFT_HELPER: setting },
+        env: {
+          HOST: "127.0.0.1",
+          PORT: String(port),
+          DRAFT_HELPER: setting,
+          PUBLIC_BASE_URL: publicUrl,
+        },
         report: (event) => events.push(event),
       },
       stop.signal,
@@ -61,6 +77,8 @@ test.each([
       const response = await fetch(url);
       expect(response.status).toBe(200);
       const html = await response.text();
+      if (enabled) expect(html).toContain(`data-draft-base-url="${publicUrl ?? url}"`);
+      else expect(html).not.toContain("data-draft-base-url");
       expect(html).toContain('src="/src/client/page-main.tsx"');
       expect(html).toContain('href="/src/client/style.css?direct"');
       expect(html).toContain('src="/@vite/client"');
@@ -69,7 +87,7 @@ test.each([
     } finally {
       stop.abort();
       const code = await done;
-      await rm(directory, { recursive: true, force: true });
+      await rm(directory, { recursive: true, force: true, maxRetries: 5 });
       expect(code).toBe(0);
     }
   },

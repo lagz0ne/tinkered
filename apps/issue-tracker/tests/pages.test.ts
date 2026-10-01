@@ -2,14 +2,54 @@ import { createElement } from "react";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createScope } from "@tinker/core";
+import { createScope, extension } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
-import { fail, isError, issueList, issueServer } from "../src/index.ts";
+import { fail, isError, issueList, issueServer, parseIssue } from "../src/index.ts";
 
 import { createIssuePages, readPageAssets } from "@tinker-issue-tracker/server-pages";
 import { createPageRouter } from "@tinker-issue-tracker/pages";
 
 const assets = { script: "/assets/client.js", styles: ["/assets/style.css"], dev: false };
+
+test("a page keeps one cell snapshot while the parent publishes", async () => {
+  const before = [
+    parseIssue({
+      id: "before",
+      title: "Before publish",
+      description: "first",
+      status: "open",
+      assignee: null,
+      revision: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  ];
+  const after = [parseIssue({ ...before[0], id: "after", title: "After publish" })];
+  const page = createIssuePages(assets);
+  const web = issueServer({ mount: page.mount });
+  const change = extension({
+    label: "publish-during-page",
+    hooks: {
+      async run(event) {
+        const result = await event.next();
+        if (event.op.label === "issues.pageCells") scope.controller(issueList).set(after);
+        return result;
+      },
+    },
+  });
+  const scope = createScope({ extensions: [web, page.extension, change] });
+  try {
+    await scope.ready;
+    scope.controller(issueList).set(before);
+    const response = await scope.resolve(web).request("/");
+    const html = await response.text();
+    expect(html).toContain("<strong>Before publish</strong>");
+    expect(html).not.toContain("<strong>After publish</strong>");
+    expect(scope.resolve(issueList)).toEqual(after);
+  } finally {
+    await scope.close();
+  }
+});
 
 test("a page carries its cells and assets through Router's public payload", async () => {
   const content = createElement("main");

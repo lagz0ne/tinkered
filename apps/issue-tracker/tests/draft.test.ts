@@ -110,6 +110,9 @@ test("a draft streams text and finishes without saving anything", async () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/event-stream");
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+    expect(res.headers.get("connection")).toBe("keep-alive");
     const seen = readEvents(await res.text());
     expect(
       seen

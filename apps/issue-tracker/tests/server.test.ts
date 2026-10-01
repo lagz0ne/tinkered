@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { chromium } from "playwright";
 import { createScope } from "@tinker/core";
 import { startNatsServer } from "@tinker/nats/testing";
 import { expect, test } from "vite-plus/test";
@@ -118,6 +119,36 @@ test("runServer sends saved titles in the first HTML and stops with zero", async
     for (const path of [assets.script, ...assets.styles]) {
       expect((await fetch(`${base}${path}`)).status).toBe(200);
     }
+    const expected = [saved];
+    const browser = await chromium.launch();
+    try {
+      const tab = await browser.newPage();
+      await Promise.all([
+        tab.waitForResponse(
+          (response) => new URL(response.url()).pathname === "/sync" && response.status() === 200,
+          { timeout: 10000 },
+        ),
+        tab.goto(base),
+      ]);
+      const title = `Real page ${crypto.randomUUID()}`;
+      const changed = await fetch(`${base}/api/issues`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title, description: "after hydrate" }),
+      });
+      expect(changed.status).toBe(201);
+      expected.push(parseIssue(await changed.json()));
+      await expect
+        .poll(
+          async () => (await tab.locator('[aria-label="issues"]').allTextContents()).join("\n"),
+          {
+            timeout: 10000,
+          },
+        )
+        .toContain(title);
+    } finally {
+      await browser.close();
+    }
     stop.abort();
     expect(await ended).toBe(0);
     const restart = new AbortController();
@@ -129,7 +160,7 @@ test("runServer sends saved titles in the first HTML and stops with zero", async
       await expect
         .poll(async () => (await fetch(`${base}/api/issues`)).status, { timeout: 10000 })
         .toBe(200);
-      expect(parseIssueList(await (await fetch(`${base}/api/issues`)).json())).toEqual([saved]);
+      expect(parseIssueList(await (await fetch(`${base}/api/issues`)).json())).toEqual(expected);
     } finally {
       restart.abort();
       expect(await restarted).toBe(0);

@@ -16,7 +16,7 @@
     "start": "node ./dist/server/main.js",
     "tools": "node --experimental-strip-types ./src/tools/main.ts",
     "mcp": "node --experimental-strip-types ./src/tools/main.ts mcp",
-    "test": "vp test tests/issues.test.ts tests/tools.test.ts tests/tools-entry.test.ts tests/draft.test.ts tests/client.test.ts tests/observe.test.ts tests/span-tree.test.ts tests/config.test.ts tests/server.test.ts tests/migrations.test.ts tests/dev.test.ts tests/pages.test.ts tests/page-routes.test.ts tests/page-client.test.tsx tests/page-entry.test.tsx tests/page-fallback.test.tsx",
+    "test": "vp test tests/issues.test.ts tests/tools.test.ts tests/tools-entry.test.ts tests/draft.test.ts tests/client.test.ts tests/observe.test.ts tests/span-tree.test.ts tests/config.test.ts tests/server.test.ts tests/migrations.test.ts tests/dev.test.ts tests/pages.test.ts tests/page-routes.test.ts tests/page-client.test.tsx tests/page-entry.test.tsx tests/page-fallback.test.tsx tests/page-static.test.tsx",
     "test:browser": "node --experimental-strip-types ./tests/browser-proof.ts && vp test tests/browser-helper.test.ts",
     "db:generate": "drizzle-kit generate"
   },

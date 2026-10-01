@@ -186,26 +186,57 @@ test("the HTTP routes save through app.request", async () => {
   }
 });
 
-test("a failed activity write rolls back the request's issue insert", async () => {
-  const { scope, app } = await boot({
-    presets: [
-      preset(recordActivity, () => {
-        throw fail("BadCreateInput", { reason: "activity write rejected" });
-      }),
-    ],
-  });
-  try {
-    const response = await app.request("/api/issues", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: "Rolled back", description: "activity failed" }),
+test.each([
+  {
+    error: "BadCreateInput" as const,
+    method: "POST",
+    tail: "",
+    body: { title: "Rejected", description: "Rejected" },
+  },
+  {
+    error: "BadEditInput" as const,
+    method: "PATCH",
+    tail: "/id",
+    body: { baseRevision: 0, title: "Rejected" },
+  },
+  {
+    error: "BadCommentInput" as const,
+    method: "POST",
+    tail: "/id/comments",
+    body: { author: "Lin", text: "Rejected" },
+  },
+])(
+  "a rejected activity write answers its reason and rolls back $error",
+  async ({ error, method, tail, body }) => {
+    let reject = false;
+    const { scope, app } = await boot({
+      presets: [
+        preset(recordActivity, async () => {
+          if (reject) throw fail(error, { reason: "activity write rejected" });
+        }),
+      ],
     });
-    expect(response.status).toBe(400);
-    expect(await scope.run(listIssues)).toEqual([]);
-  } finally {
-    await scope.close({ graceful: true });
-  }
-});
+    try {
+      const saved = await save(scope, createIssue, { title: "Saved", description: "Kept" });
+      const read = () =>
+        error === "BadCreateInput"
+          ? scope.run(listIssues)
+          : scope.run(readDetail, { input: saved.id });
+      const before = await read();
+      reject = true;
+      const response = await app.request(`/api/issues${tail.replace("id", saved.id)}`, {
+        method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe("activity write rejected");
+      expect(await read()).toEqual(before);
+    } finally {
+      await scope.close({ graceful: true });
+    }
+  },
+);
 
 test("a route reads the published list without a database", async () => {
   const saved = parseIssue({

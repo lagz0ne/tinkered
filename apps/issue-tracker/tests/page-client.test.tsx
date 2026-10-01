@@ -76,16 +76,24 @@ test("a failed first sync closes the hydrated root and returns SyncNotReady", as
   const response = await fetch(inject("tracker"));
   showPage(new DOMParser().parseFromString(await response.text(), "text/html"));
   const stop = new AbortController();
+  const outcome: { settled: boolean; error?: unknown } = { settled: false };
+  const done = bootPage({ baseUrl: inject("unavailable") }, stop.signal).then(
+    () => {
+      outcome.settled = true;
+    },
+    (error: unknown) => {
+      outcome.error = error;
+      outcome.settled = true;
+    },
+  );
   try {
-    const error = await bootPage({ baseUrl: inject("unavailable") }, stop.signal).then(
-      () => undefined,
-      (error: unknown) => error,
-    );
-    if (!isSyncError(error, "SyncNotReady")) throw error;
-    expect(error.payload.missing).toEqual(["issues"]);
+    await expect.poll(() => outcome.settled).toBe(true);
+    if (!isSyncError(outcome.error, "SyncNotReady")) throw outcome.error;
+    expect(outcome.error.payload.missing).toEqual(["issues"]);
     expect(document.querySelector("main")).toBeNull();
   } finally {
     stop.abort();
+    await done;
   }
 });
 

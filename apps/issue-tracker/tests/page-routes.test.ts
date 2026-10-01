@@ -3,6 +3,19 @@ import { expect, test } from "vite-plus/test";
 import { cloneDatabase } from "./database.ts";
 import { issueServer, migrateIssues, publish, src, storeConfig } from "../src/index.ts";
 
+test("a sync route without its source answers 500 before streaming", async () => {
+  const web = issueServer();
+  const scope = createScope({ extensions: [web] });
+  try {
+    await scope.ready;
+    const response = await scope.resolve(web).request("/sync?keys=issues");
+    expect(response.status).toBe(500);
+    expect(response.headers.get("content-type")).not.toBe("text/event-stream");
+  } finally {
+    await scope.close();
+  }
+});
+
 test.each([
   { path: "/api/issues", method: "POST", body: {}, status: 400, text: "title is required" },
   {

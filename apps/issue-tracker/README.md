@@ -432,3 +432,15 @@ These defaults never apply to `start` or `preview`.
 - API and CLI name a missing or empty `DATA_PATH` in a
   `boot failed` line from `issues.root`.
 - A stop during hydrate never opens the sync wire.
+- A rejected activity write answers its reason and rolls back
+  the create, edit, or comment.
+- Draft streams use `text/event-stream`, `no-cache`, and
+  `keep-alive` headers.
+- Draft tool reads use `PUBLIC_BASE_URL` when set.
+  Otherwise they use the server's `HOST` and `PORT`.
+- The page entry still boots a plain HTML shell from the
+  first sync snapshot.
+- A sync route without its source answers 500 before streaming.
+- The real server's page payload boots the built browser,
+  which then follows a live update.
+- A page keeps one cell snapshot while the parent publishes.
