@@ -30,7 +30,6 @@ if (import.meta.main) {
     ]) {
       if (requestStop.signal.aborted) break;
       const reply = await session.run(coder.turn, { input: prompt, ns });
-      if (requestStop.signal.aborted) break;
       replies.push({ name, text: session.resolve(coder.text, { ns }), usage: reply.usage });
     }
     completed = true;
