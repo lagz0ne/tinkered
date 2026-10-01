@@ -309,6 +309,7 @@ The `http request` line and request span record the built status; a close failur
   Any teardown error or unexpected failed close replaces the built answer
   with `internal` and writes one `request failed` line through the scope sink.
 - A failed commit drops the built answer's headers.
+- A failed commit drops async-tag cookies and the built answer's headers.
   This includes cookies and location headers set through the context
   or returned in a Response.
 - A save followed by a mapped 409 rolls back and keeps the mapped answer.

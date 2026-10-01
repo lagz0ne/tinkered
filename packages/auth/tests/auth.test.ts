@@ -73,6 +73,13 @@ beforeEach(async () => {
       route.get("/me", visit, {
         respond: (user, c) => c.json(user, { headers: { "Set-Cookie": "app=active; Path=/" } }),
       }),
+      route.get("/raw-me", visit, {
+        respond: (user, c) => {
+          c.header("Set-Cookie", "app=1; Path=/", { append: true });
+          c.header("Content-Type", "application/json");
+          return new Response(JSON.stringify(user), { headers: c.res.headers });
+        },
+      }),
     ],
     {
       ...identity.wiring,
@@ -145,6 +152,18 @@ test("an app route refreshes a near-expiry session cookie and keeps its own cook
       expect.stringContaining("better-auth.session_token="),
       "before=kept; Path=/",
       "app=active; Path=/",
+    ]),
+  );
+});
+
+test("a raw response keeps refreshed cookies when it copies the context headers", async () => {
+  const cookie = await signIn(url);
+  await client.query("update auth.session set expires_at = now() + interval '1 day'");
+  const response = await fetch(`${url}/raw-me`, { headers: { cookie } });
+  expect(response.headers.getSetCookie()).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("better-auth.session_token="),
+      "app=1; Path=/",
     ]),
   );
 });

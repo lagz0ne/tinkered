@@ -50,6 +50,23 @@ Auth routes at `/api/auth/*` read their own session;
 the tag hook skips its user read there.
 Those routes use Better Auth's own transactions.
 Its HTTP answers pass through unchanged.
+
+Answer with `c.json`, `c.text`, or `c.body` to keep auth cookies.
+For a raw `Response`, copy the auth headers from `c.res.headers`.
+Add the route's own cookies to the context before copying:
+
+```ts
+route.get("/raw-me", me, {
+  respond: (user, c) => {
+    c.header("Set-Cookie", "app=1", { append: true });
+    c.header("Content-Type", "application/json");
+    return new Response(JSON.stringify(user), {
+      headers: c.res.headers,
+    });
+  },
+});
+```
+
 Email checks, password resets, and plugins are not enabled.
 
 ## Tables and checks
@@ -85,6 +102,7 @@ The check does not edit that file.
 - An operation reads the user after opening its transaction and reads none without a cookie.
 - An app route refreshes a near-expiry session cookie and keeps its own cookies.
 - The auth get-session route refreshes a near-expiry session cookie.
+- A raw response keeps refreshed cookies when it copies the context headers.
 - Sign out ends the session even when the old cookie is sent again.
 - A wrong password keeps Better Auth's status and answer.
 - Sign in and requests take turns with work holding the one database connection.

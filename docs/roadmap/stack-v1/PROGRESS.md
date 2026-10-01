@@ -3635,3 +3635,25 @@ await closing;
   and document and test raw answers copying auth headers.
   Then read the second resume brief and rebase for event hooks
   and the static store resource; repeat the requested proof.
+
+### Fix round 2 before the authoring rebase
+
+- Restored the plain failed-commit header test from the old main.
+  Its original no-tags case stays separate from the new async case.
+  Rebase will keep main's new static-store fixture names.
+- Added a separate async-tag cookie test and README promise.
+  Hono runtime source is unchanged in this fix step.
+- The raw-answer test failed first, `EXIT 1`:
+  only `app=1; Path=/` reached the browser.
+- Auth's README now names `c.json`, `c.text`, and `c.body`,
+  and shows a raw answer copying `c.res.headers`.
+  Add its own cookies to the context before that copy.
+  The fixture follows that form and keeps both cookies.
+- Chose the requested doc and example fix:
+  automatic copying would change Hono's header merge rules.
+- Build, check, auth 19, Hono 93, prose: `EXIT 0`.
+  Check has no errors and the same 28 warnings.
+- Logs: `stack-t10-fix2-raw-failing-first.log` and
+  `stack-t10-fix2-before-rebase.log` in the briefs cache.
+- Next: read `stack-resume-2.md`, rebase for event hooks
+  and the static store, then repeat all requested proof.
