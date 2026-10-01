@@ -47,12 +47,11 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
-- **stack/t10 auth-signin** — Owner: stack/t10 writer (Codex).
-  Next: lead reviews both fixes and the event and store rebase.
-  Verify: auth 19, Hono 93, Stack 114, tracker 79; full repo tests;
-  fresh auth and Hono mutation above 85; browser proof and 7 helpers;
-  validation 50 of 50, `EXIT 0`; prose and style pass.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
+Next: lead reviews both fixes and the event and store rebase.
+Verify: auth 19, Hono 93, Stack 114, tracker 79; full repo tests;
+fresh auth and Hono mutation above 85; browser proof and 7 helpers;
+validation 50 of 50, `EXIT 0`; prose and style pass.
+[Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Blocked
 
@@ -99,6 +98,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **stack/t10 auth-signin** — `@tinker/auth`: Better Auth 1.7.6 (pinned exact, with its Drizzle adapter and the `auth` CLI) for email and password sign-up and sign-in, mounted at `/api/auth/*` through the hono wiring; its tables live in `pgSchema("auth")` in the app's one migration history (the app's `schemaFilter` is `public` and `auth`, never `pgboss`) with an auth drift check; the signed-in user is read from the cookies BEFORE the request's transaction opens (hono tags may return a promise; a graceful close drains accepted reads and answers 503 meanwhile; 499 after a forced close or a client abort). Review fixes: the refreshed session cookie now reaches every reply (users were signed out after 7 days), including raw `Response` answers. ADR 0084 holds with async tags. Event-form hooks and static database resources (ADRs 0093, 0094). Proof: gate EXIT 0 (auth 19, hono 93, stack 114, tracker 79; 0 errors, 28 warnings), browser proof, auth mutation 86.00% (86/0/14), hono 86.38% (406/0/62), validate 50/50. Reviewer 06eab677 (two rounds; the lead checked round 2). Sol writer cfabd9f8. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/hooks** — one event hook form; native static Drizzle resources.
   Owner: lead (authoring session); Astra writers, xhigh, one package each.
   Next: complete; namespace instances and session transactions are explicit.

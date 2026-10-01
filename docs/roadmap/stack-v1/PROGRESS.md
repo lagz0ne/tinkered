@@ -429,7 +429,7 @@ npx --no-install stryker run \
   Verify: `vp run mail#test`: a committed request
   sends one mail, a rolled-back one sends none; a
   missing `MAIL_URL` fails boot in prod.
-- **t10 auth: sign-up and sign-in** -- [ ] blocked by: t06
+- **t10 auth: sign-up and sign-in** -- [x] landed 54296a9b (blocked by: t06)
   `@tinker/auth`: Better Auth, pinned, mounted at
   `/api/auth/*` through the Hono wiring (ADR 0075).
   Its tables live in the `auth` schema and come
