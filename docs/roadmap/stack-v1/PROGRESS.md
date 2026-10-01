@@ -4284,3 +4284,12 @@ This is new type feedback; no Core source changed.
 - Proof: `stack-t08-resume-hooks-all-tests.log`
   in the briefs cache.
 - Next: validation, then the locked mutation checks.
+
+### t08 validation after the hook migration
+
+- `pnpm validate` passes all 50 checks, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Proof: `stack-t08-resume-hooks-validate.log`
+  in the briefs cache.
+- Next: the focused timeout check, then both full
+  mutation lanes alone under `/tmp/mutation.lock`.
