@@ -818,4 +818,13 @@ The extra tracker browser-helper run passes all 7 tests.
 The final scan finds 207 event hook calls and no public frame imports.
 SCIP indexes all 14 packages with no removed symbol refs.
 All 777 code inputs are frozen; the other 11 packages match their checked inputs.
-Remaining: three fresh isolated fault lanes, main verification, and push.
+The fresh fault gate passes, exit 0: Drizzle 96.77, Hono 93.01, and Stack 85.91.
+All 14 package scores pass the floor of 85.
+All 777 code inputs still match after the runs.
+[hook-fault-proof.json](hook-fault-proof.json) records the scores and checked hashes.
+The full calibration run passes and preserves all earlier bank rows.
+Main's fresh install, build, check, and prose pass, exit 0.
+Its code inputs match the full test and fault checked source.
+The board-only upstream update is kept; other local review notes remain untouched.
+The final tag is `core/tauthoring-hooks`.
+Start logs still reach no sink; the separate `core/start-log` fix must rebase after this.

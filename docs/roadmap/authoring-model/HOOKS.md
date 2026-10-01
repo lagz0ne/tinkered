@@ -1,7 +1,7 @@
 # One extension hook shape
 
 Date: 2026-09-30.
-Status: Review; the static resource API awaits three fresh fault lanes.
+Status: Done; event hooks and the static Drizzle resource API pass all gates.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -341,3 +341,29 @@ Run Drizzle, Hono, then Stack alone under `/tmp/mutation.lock`, cache off.
 Remaining: observe all three scores, verify main, and push.
 Normal proof logs are `/tmp/tinkered-hooks-resource-*.log`.
 Input proof is `/tmp/tinkered-hooks-resource-package-input-comparison.json`.
+
+## Final resource fault proof and landing
+
+The combined fault gate finishes with `RESOURCE_FAULT_EXIT 0`.
+It runs alone under `/tmp/mutation.lock`, with task cache off.
+All three fresh scores pass the unchanged floor of 85:
+
+- Drizzle: 96.77.
+- Hono: 93.01.
+- Stack: 85.91.
+
+All 777 code inputs still match after the runs.
+The other 11 package scores carry from identical checked inputs and built modules.
+All 14 final scores pass; [hook-fault-proof.json](hook-fault-proof.json) records the proof.
+The input hashes now name their exact encoding.
+The dependency lock is unchanged; its external-section hash uses raw lock bytes.
+
+The calibration run finishes with exit 0 and saves its result.
+All 1,842 earlier bank rows are preserved; the three new labels make 1,845.
+Changed-source strict census passes; TSDoc has 0 rows in 8 files.
+Main's fresh install, build, code check, and prose pass, exit 0.
+Its 777 code inputs match the full test and fault checked source.
+The later upstream board-only commit `a94dce47` is merged without source changes.
+The lead preserves every unrelated local review note and changes only the owned card.
+The final publication uses `core/tauthoring-hooks`.
+The start-log probe still drops its lines; `core/start-log` remains separate work.

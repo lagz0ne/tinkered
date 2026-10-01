@@ -44,13 +44,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **authoring/hooks** — event hooks and a static Drizzle resource API.
-  Owner: lead (authoring session); Astra writers, xhigh, one package each.
-  Next: observe Drizzle, Hono, and Stack's fresh fault lanes; verify main and push.
-  Verify: build/check, all 28 test tasks, 48 release lanes, and no old API refs pass;
-  native resources use namespaces; all isolated fault scores >= 85.
-  [Track](docs/roadmap/authoring-model/HOOKS.md).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -99,6 +92,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **authoring/hooks** — one event hook form; native static Drizzle resources.
+  Owner: lead (authoring session); Astra writers, xhigh, one package each.
+  Next: complete; namespace instances and session transactions are explicit.
+  Verify: build/check, 28 test tasks, 48 release lanes, and 207 event calls pass;
+  all 14 fault scores >= 85; fresh Drizzle 96.77, Hono 93.01, Stack 85.91.
+  [Track](docs/roadmap/authoring-model/HOOKS.md).
 
 - **stack/t18 roots-signal** — `@tinker/stack` drops `runUntilStop` for `readExitCode(result, observe, phase)` over a plain `Result` (ADR 0085 §6: failed or any teardown error answers 1, else 0, `cancelled` included); the tracker's server root passes its stop signal to `createScope({ signal })`, takes the phase from which way `scope.ready` settled, and awaits `scope.closed`. A failed boot keeps its teardown errors in the log line; a failed telemetry boot is covered. SIGTERM exits 0; a bad `PORT` exits 1 with one "boot failed" line and no database touched. No `runUntilStop` left; the lifetime lint (S19, S27–S29) prints no row. Proof: gate EXIT 0 (stack 114, tracker 79; 0 errors, 28 warnings), browser proof, stack mutation 85.63% (548/3/89), validate 48/48. Review: the first reviewer (5d41ea28) stopped in the 05:53 restart after one fix round; the lead reviewed the final diff. Sol rebase writer f63d5891. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **examples/standalone** — all eleven examples run on their own.

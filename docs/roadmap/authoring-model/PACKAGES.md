@@ -1,7 +1,7 @@
 # Authoring rules across packages and apps
 
 Date: 2026-09-30.
-Status: Review; Drizzle's corrected API awaits fresh fault proof.
+Status: Done; all checks and the corrected Drizzle API's fault proof pass.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
