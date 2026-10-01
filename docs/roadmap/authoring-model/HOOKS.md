@@ -260,3 +260,41 @@ All 777 final code inputs are frozen before the fresh Stack fault lane.
 The new fault gate runs alone under `/tmp/mutation.lock` with cache off.
 Normal logs are `/tmp/tinkered-hooks-t18-{install,build,check,tests,prose,size,validate}.log`.
 Input proof is `/tmp/tinkered-hooks-t18-package-input-comparison.json`.
+
+## Drizzle correction: impact before code
+
+The user rejected the public `drizzleStore({ open, close })` frame on 2026-10-01.
+The earlier review accepted it as a graph builder; that finding was too broad.
+A database is a static resource; namespaces bind its settings and select instances.
+The resource API must be the declaration itself, not a frame hiding that resource.
+Declare the database config tag, database resource, and transaction resource directly.
+Keep native database and transaction handles; do not wrap the client.
+
+Remove public `drizzleStore` and `DrizzleStore.Frame`, `Tools`, `Tx`, and `Logger`.
+The package keeps two adapters used inside resource factories:
+`createQueryLogger(ctx)` and `openTransaction(db, ctx)`.
+`QueryLogger.Handle` names Drizzle's logger shape.
+`Transaction.Database` names the native callback transaction requirement.
+`Transaction.Handle<DB>` keeps the exact native transaction type.
+These helpers do not create graph nodes or own a scope.
+The resource ctx owns the transaction outcome and its cleanup as before.
+
+Keep commit-before-answer, rollback, failed begin and commit, cleanup, SQL logs,
+borrowed-client ownership, lazy database setup, and all tenant and root isolation.
+Scope sharing remains an explicit resource target choice.
+Namespace instances use `target: "namespace"`; each transaction uses `"session"`.
+Do not add an empty extension or change Core to implement this correction.
+
+Current callers: Drizzle tests, Hono transaction tests, Stack live tests,
+the tracker store and its imports, and the standalone Drizzle example.
+Check all public refs before code and again at review with `scripts/scip.sh`.
+Update current READMEs, authoring guidance, glossary, and the prior review finding.
+Keep historical decisions unchanged; a new decision records this API correction.
+One package per writer; lead owns docs and integration.
+Drizzle, Hono, and Stack need fresh isolated fault lanes after their tests change.
+Other scores carry only where inputs and runtime dependencies still match.
+
+The pending t18 Stack fault waiter is no longer the final source to verify.
+The lead ended only its own waiter, PID 1258701, before it acquired the lock.
+Its foreground session ended with exit 143; no other lane was stopped.
+The new combined source requeues after the resource API and callers are checked.

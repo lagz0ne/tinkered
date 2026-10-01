@@ -39,11 +39,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **authoring/hooks** — keep the new hook API while merging landed stack/t18.
-  Owner: lead (authoring session); Astra Stack writer, xhigh.
-  Next: wait for the isolated Stack fault gate, then verify main and push.
-  Verify: all current calls use event hooks; build/check, consumers, release,
-  and a fresh isolated Stack fault score of at least 85.
+- **authoring/hooks** — event hooks and a static Drizzle resource API.
+  Owner: lead (authoring session); Astra writers, xhigh, one package each.
+  Next: remove Drizzle's frame builder and migrate its current callers.
+  Verify: native static resources select instances by namespace; no old wrapper
+  or hook calls; build/check, consumers, release, and isolated fault scores >= 85.
   [Track](docs/roadmap/authoring-model/HOOKS.md).
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
