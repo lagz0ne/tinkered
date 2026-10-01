@@ -106,3 +106,20 @@ The new check reads TypeScript syntax, ignoring prose, aliases, and dependencies
 It found zero casts across all 73 example TypeScript files.
 A separate probe let prose and an import alias pass.
 The probe rejected a real cast and a non-null assertion with exit 1.
+
+## Shared main
+
+GitHub received the checked `stack/t17` work before the example push.
+The merge keeps that work and these example changes.
+No library source needed a conflict fix.
+The board keeps both Done cards; the Jev bank keeps both sets of labels.
+
+All eleven fresh exported copies passed again after the merge.
+Copies: `/tmp/tinkered-examples-ltZWjO`.
+Log: `/tmp/tinkered-examples-integration-standalone.log`.
+The merged build, code check, package tests, and prose all passed with exit 0.
+Logs use `/tmp/tinkered-examples-integration-` as their prefix.
+All 48 merged release checks passed with exit 0.
+Log: `/tmp/tinkered-examples-integration-validate.log`.
+The six changed Jev judges were calibrated against the combined bank.
+Each run passed with exit 0; the results are saved in `calibration.json`.
