@@ -4722,7 +4722,7 @@ flock /tmp/mutation.lock \
 ## t14 writer notes
 
 Owner: stack/t14 writer. Branch: `stack/t14`.
-Next: Stack and NATS mutation, then final proof.
+Next: lead review; the writer's final proof is saved below.
 Verify: brief gate, validate, stack mutation at least 85,
 and queue verdict `b is faster` for reload versus restart.
 
@@ -4757,6 +4757,13 @@ The root keeps the signal and `closed` rule (ADR 0085).
 A promise hands the web app to the host without handing
 it a scope, or letting it serve before ready.
 The root call resolves only after its scope has closed.
+
+The current root takes `host?: Dev.Wiring` as its third argument.
+Dev binds `{ kind: "borrow", client: host.client }`.
+Prod binds `{ kind: "open", url: env.DATA_PATH }`.
+The public PGlite resource owns only a client that it opens.
+The host also lends its optional NATS connection.
+Dev omits the root's server row; the host keeps the listener.
 
 Assumption: the dev entry lists `nats: true` when its root
 uses NATS; the tracker lists it.
@@ -5331,3 +5338,63 @@ No build runs in that tree while the job waits or runs.
   The workspace file is restored; no install setting is part of this change.
 - Prose: zero hits in 171 files.
 - Next: run the selected NATS file, then queued A/B.
+
+### t14 final current-main proof
+
+- Rebased onto `758efce5`, then `175c408b`.
+  Main's Core logger, mail, auth, and notes stay intact.
+  Each notes conflict keeps main's rows, then t14's rows.
+  Main's label bank remains a byte-for-byte prefix.
+- Fetched again after timing; main is still `175c408b`.
+  The branch is zero commits behind it.
+- Installed and built after the final rebase.
+- Full gate `EXIT 0`: Stack 135, NATS 36, Drizzle 43, tracker 85.
+  Check: zero errors and 28 warnings in 608 files.
+  Clean `175c408b`: zero errors and 28 warnings in 597 files.
+- Changed-file mutation runs each held `/tmp/mutation.lock`.
+  Each lane and the chain exited zero.
+- Stack selects `dev.ts`, `errors.ts`, `publish.ts`, and `server.ts`.
+  K/T/S: `319/1/52`; S includes three uncovered faults.
+  Strict score: `319 / (319 + 1 + 52) = 85.75%`.
+  There are no runner error rows.
+- NATS selects only `src/testing.ts`, including its cache change.
+  K/T/S: `111/0/15`; S includes five uncovered faults.
+  Strict score: `111 / (111 + 15) = 88.10%`.
+  Two runner errors get no kill credit.
+  Counting them as survivors still gives `111 / 128 = 86.72%`.
+  Both remove a guard from partial server output.
+  The runner then fails while printing the thrown error.
+- The selected saved source matches this branch exactly.
+  The auth-only rebase changed none of those packages or their dependencies.
+  No mutation exclusion or test promise changed to raise a score.
+  The NATS child cache check runs built code, not mutated code.
+- Jev has no new flags that need labels.
+  Four saved t14 labels and main's existing labels stay.
+  Test and README reviews have no flags or missing promises.
+  TSDoc, SCIP refs, and strict style checks passed.
+- `pnpm validate`: all 54 deterministic lanes passed; `EXIT 0`.
+  The workspace file is restored.
+- The first current-main A/B job failed with no useful error.
+  A queued restart-and-reload pair then passed on Node 22.23.3.
+  The probe now saves any failed cycle's error before throwing.
+  The later full A/B passed without a saved probe error.
+- Final queue job: `db3e848afdd8`; state done; `EXIT 0`.
+  Six rounds, three measured samples per side per round.
+  A sample includes boot, five saves, HTTP replies, and stop.
+  A restarts the process for each save; B reloads the root.
+  A median: 20,881.93 ms.
+  B median: 7,287.58 ms.
+  Delta: -13,594.3 ms, or -65.1%.
+  The 95% range is -13,930.8 to -13,505.2 ms.
+  Verdict: `b is faster`.
+- Timing held the shared lock and used a clean tree under `/home/paseo`.
+  Queue Node is 22.23.3; foreground Node is 24.21.0.
+  All owned temporary app folders were removed.
+  The failed job and both diagnostic logs stay saved.
+- Final proof logs use `stack-t14-wave7-` in the briefs cache.
+  Final changed-file reports use `stack-t14-wave6-` there.
+- Final build, check, prose, and strict style chain: `EXIT 0`.
+  Prose has zero hits in 172 files.
+- Core feedback: none; no workaround was needed.
+- All writer-owned jobs finished, and the writer made no push.
+  Saved work waits for the lead's review and landing.
