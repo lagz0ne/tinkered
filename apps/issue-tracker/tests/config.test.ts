@@ -1,24 +1,53 @@
 import { once } from "node:events";
 import { spawn } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "vite-plus/test";
+import { afterAll, beforeAll, expect, onTestFinished, test } from "vite-plus/test";
+import { build } from "vite-plus";
+import { childEnv } from "./child-env.ts";
 import { createScope, operation } from "@tinker/core";
 import { backend, HttpRequest, HttpResponse, isError as isHttpError, send } from "@tinker/http";
-import { api } from "../src/index.ts";
+import { api, runServer } from "../src/index.ts";
 
-const APP = dirname(realpathSync(join(dirname(fileURLToPath(import.meta.url)), "../node_modules")));
+const APP = dirname(dirname(fileURLToPath(import.meta.url)));
+const scratch = join(APP, "scratch");
+mkdirSync(scratch, { recursive: true });
+const bundle = mkdtempSync(join(scratch, "tracker-entry-"));
+
+beforeAll(async () => {
+  await build({
+    root: APP,
+    logLevel: "silent",
+    build: { ssr: "src/server/main.ts", outDir: bundle },
+  });
+});
+afterAll(() => rmSync(bundle, { recursive: true, force: true }));
 
 /** Settings fail before any database work. Read the boot outcome, then wait
  * for child cleanup before removing its temporary directory. */
-async function readBootResult(port: string): Promise<Record<string, unknown>> {
+async function readBootResult(settings: NodeJS.ProcessEnv): Promise<Record<string, unknown>> {
   const dir = mkdtempSync(join(tmpdir(), "issues-port-"));
-  const child = spawn(process.execPath, ["dist/server/main.js"], {
+  const env = {
+    ...process.env,
+    HOST: "127.0.0.1",
+    NATS_URL: undefined,
+    DATA_PATH: join(dir, "db"),
+    ...settings,
+  };
+  const stop = new AbortController();
+  const done = runServer(env, stop.signal);
+  onTestFinished(async () => {
+    stop.abort();
+    await done;
+    rmSync(dir, { recursive: true, force: true });
+  });
+  expect(await done).toBe(1);
+  const child = spawn(process.execPath, [join(bundle, "main.js")], {
     cwd: APP,
-    env: { ...process.env, HOST: "127.0.0.1", PORT: port, DATA_PATH: join(dir, "db") },
+    env: childEnv(env),
     stdio: ["ignore", "pipe", "ignore"],
   });
   const exited = once(child, "exit");
@@ -31,20 +60,28 @@ async function readBootResult(port: string): Promise<Record<string, unknown>> {
   } finally {
     child.kill();
     await exited;
-    rmSync(dir, { recursive: true, force: true });
   }
 }
 
 test("a PORT that is not a port number fails the boot naming PORT", async () => {
-  const first = await readBootResult("abc");
+  const first = await readBootResult({ PORT: "abc" });
   expect(first.message).toBe("boot failed");
   expect(first.kind).toBe("BadListenSettings");
   expect(first.payload).toEqual({ keys: ["PORT"] });
+  expect(first.extension).toBe("issues.root");
 });
 
 test("a PORT with trailing junk or out of range fails the boot too", async () => {
-  expect((await readBootResult("80x")).payload).toEqual({ keys: ["PORT"] });
-  expect((await readBootResult("70000")).payload).toEqual({ keys: ["PORT"] });
+  expect((await readBootResult({ PORT: "80x" })).payload).toEqual({ keys: ["PORT"] });
+  expect((await readBootResult({ PORT: "70000" })).payload).toEqual({ keys: ["PORT"] });
+});
+
+test.each([undefined, ""])("API and CLI name a missing or empty DATA_PATH: %j", async (value) => {
+  const result = await readBootResult({ PORT: "4311", DATA_PATH: value });
+  expect(result.message).toBe("boot failed");
+  expect(result.kind).toBe("BadDataSettings");
+  expect(result.payload).toEqual({ keys: ["DATA_PATH"] });
+  expect(result.extension).toBe("issues.root");
 });
 
 /** A 500 through a baseUrl-only binding still rejects: the helper folds the policy in. */

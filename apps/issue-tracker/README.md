@@ -429,3 +429,5 @@ These defaults never apply to `start` or `preview`.
 - A failed page entry keeps its style and reconnects
   through the existing dead page.
 - Prod refuses an empty `DATA_PATH` with a working bus.
+- API and CLI name a missing or empty `DATA_PATH` in a
+  `boot failed` line from `issues.root`.

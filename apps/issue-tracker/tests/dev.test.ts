@@ -9,6 +9,7 @@ import { expect, onTestFinished, test } from "vite-plus/test";
 import { runServer } from "../src/index.ts";
 import { runDev, type Dev } from "@tinker/stack/dev";
 import { startNatsServer } from "@tinker/nats/testing";
+import { childEnv } from "./child-env.ts";
 
 async function readFreePort(): Promise<number> {
   const listener = createServer();
@@ -87,14 +88,14 @@ test("dev reload keeps saved issues, ends sync, and SIGTERM exits zero", async (
   const url = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ["--experimental-strip-types", "src/dev.ts"], {
     cwd: directory,
-    env: {
+    env: childEnv({
       ...process.env,
       PORT: String(port),
       HOST: undefined,
       DATA_PATH: undefined,
       NATS_URL: undefined,
       DRAFT_HELPER: "0",
-    },
+    }),
     stdio: ["ignore", "pipe", "pipe"],
   });
   const exited = once(child, "exit");
