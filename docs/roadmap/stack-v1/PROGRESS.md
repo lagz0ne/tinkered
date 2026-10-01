@@ -4344,3 +4344,31 @@ This is new type feedback; no Core source changed.
 - Fresh fetch still shows `origin/main` at `d96fee94`.
   No further rebase or code change is needed.
 - Next: final validation, then lead review and landing.
+
+### t08 final resume proof
+
+- Owner: stack/t08 writer.
+- State: Review; all resume checks pass on `d96fee94`.
+- Jobs and test extensions use event hooks.
+  The namespace database resource borrows `{ client }`;
+  the session transaction resource uses `openTransaction`.
+  All 25 jobs promises still pass.
+- The mapped 409 check failed before t17 with a saved job.
+  It passes after t17 with no job, before clock advance.
+- Gate: build, check, jobs 25, stack 114, tracker 79;
+  `EXIT 0`, with 0 errors and 28 warnings.
+  A clean main check has the same 28 warnings.
+- All 29 test tasks pass without cache, `EXIT 0`.
+- Both full mutation lanes pass the killed share floor:
+  jobs 135 / 0 / 20, 87.10%;
+  stack 553 / 2 / 89, 85.87%.
+  Counts are killed / timeout / survived.
+- Final `pnpm validate`: all 50 checks pass, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; no branch change.
+  Proof: `stack-t08-resume-post-mutation-validate.log`
+  in the briefs cache.
+- Jev has no test flags or README gaps.
+  The two saved false labels stay in the case bank.
+  Strict style census and prose pass.
+- No owned check is left running. Never pushed.
+- Next: lead review and landing; the lead owns the board.
