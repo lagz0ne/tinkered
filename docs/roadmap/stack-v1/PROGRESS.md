@@ -5238,3 +5238,60 @@ No build runs in that tree while the job waits or runs.
 - Preflight repeats existing saved labels; no new label is owed.
 - Prose and strict style checks pass for the touched code and tests.
 - Final whole fault lanes and queued timing still remain.
+
+### t14 second whole-lane result and current-main rebase
+
+- Stack's second whole lane is still red.
+  Killed 701; timeout 4; survived 126; uncovered 4.
+  Strict score: `701 / (701 + 4 + 126 + 4) = 83.95%`.
+  The final report has no runner error rows.
+- NATS: killed 192; timeout 0; survived 22; uncovered 5.
+  Strict score: `192 / (192 + 22 + 5) = 87.67%`; `EXIT 0`.
+  Both raw reports stay saved under `stack-t14-wave3-`.
+- Main moved to `7014b683` while those lanes ran.
+  It adds auth, jobs, and ADR 0095's public PGlite graph.
+- Rebased all 26 t14 commits onto that head.
+- `PROGRESS.md`: keep main's t10 and t08 notes, then t14's notes.
+- `server/store.ts`: keep main's public PGlite exports exactly.
+- `server/main.ts`: keep those units and bind `kind: "borrow"`
+  with the host's client, or `kind: "open"` with the prod path.
+- Prod checks `DATA_PATH` in a start hook before migration.
+  Missing or empty paths still raise `BadDataSettings` and answer one.
+  Dev omits that hook and the root's second listener.
+- `cases.jsonl`: preserve main's bytes, followed by t14's four rows.
+- Main's Hono cleanup, auth, jobs, migrations, and board stay intact.
+- One chained check ran while rebase was paused.
+  It failed before any test; it is not regression proof.
+
+### t14 imported-file and shutdown gaps
+
+- The imported JSON test failed on the old host.
+  HTTP kept `first` instead of `first-saved`; `EXIT 1`.
+  Proof: `stack-t14-json-edit-red-2.log` in the briefs cache.
+- The host now lets Vite's server graph select imported files.
+  It no longer guesses which file suffixes can affect server code.
+- A server file not yet imported also closes the old root on save.
+- The three-reload test places DATA_PATH inside the server folder.
+  Database writes add no reloads; exactly four roots are made.
+- The report-free recovery check waits for the boot error's body,
+  rather than mistaking an in-progress reload for a failed boot.
+- A plain HTTP request with no Accept header keeps its 404.
+- An explicit IPv6 host reports a usable URL and serves the app.
+- A root that rejects on stop still releases all kept services.
+- The host stores only values that have been set.
+  Its exit reader takes the ready result's phase directly.
+- Full gate `EXIT 0`: Stack 135, NATS 36, Drizzle 43, tracker 85.
+- Check: zero errors and 28 warnings in 594 files.
+  Clean main has the same 28 warnings in 583 files.
+- One tracker start check hit its one-second poll limit.
+  Its log then shows a clean start and close.
+  It now uses the other root checks' ten-second limit.
+  The HTTP and cleanup assertions stay the same.
+  Clean main's 80 tracker tests also passed.
+- Jev: zero flags among 69 Stack and four changed tracker entries.
+  No README gaps among 69 Stack and 80 tracker titles.
+  One Stack and eleven tracker picks are unsure, not flags.
+- TSDoc and strict style checks pass.
+- Foreground checks use Node 24.21.0 from Vite+.
+  Queued timing uses the host's pinned Node 22.23.3.
+- Next: whole fault lanes on this source, queued A/B, then validation.

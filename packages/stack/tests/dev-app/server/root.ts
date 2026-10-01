@@ -6,6 +6,7 @@ import { readExitCode } from "@tinker/stack";
 import type { Dev } from "@tinker/stack/dev";
 import type { DevProbe } from "../../dev-fixtures.ts";
 import { value } from "../shared/value.ts";
+import config from "../shared/config.json" with { type: "json" };
 
 const probe: DevProbe = createRequire(import.meta.url)("../probe.cjs");
 
@@ -13,7 +14,7 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
   probe.clients.push(host.client);
   probe.connections.push(host.connection);
   probe.signals.push(stop);
-  const read = operation({ label: "read", run: () => value });
+  const read = operation({ label: "read", run: () => value + config.suffix });
   const slow = operation({
     label: "slow",
     run: async (_deps, ctx) => {
@@ -52,7 +53,9 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
               clearInterval(timer);
               probe.timers.delete(timer);
               probe.cleaned++;
-              if (value === "close-broken") event.raise("CloseFailed", { value });
+              if (value === "close-broken" || value === "close-reject") {
+                event.raise("CloseFailed", { value });
+              }
             });
             await host.client.exec("create table if not exists kept (title text)");
             if (value === "slow-boot") {
@@ -71,5 +74,7 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
     () => true,
     () => false,
   );
-  return readExitCode(await scope.closed, { clock: Date.now }, started ? "shutdown" : "boot");
+  const result = await scope.closed;
+  if (value === "close-reject") throw result.teardownErrors?.at(0);
+  return readExitCode(result, { clock: Date.now }, started ? "shutdown" : "boot");
 }

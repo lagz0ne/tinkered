@@ -445,10 +445,14 @@ its URL; the NATS piece borrows the host's one connection.
 Prod gets none of these defaults.
 
 - Dev serves the app and Vite client from one listener.
+- Dev binds an explicit IPv6 host and reports its usable URL.
+- An imported JSON edit rebuilds the server root.
+- An unloaded server file save closes the old root.
 - A client edit reaches HMR on the kept port and leaves the root running.
   Stop closes an open HMR socket before returning.
 - Three server edits close old roots and keep the same
   database and NATS handles.
+  Database writes do not add reloads when DATA_PATH is in the server folder.
   Root cleanup can still use both borrowed handles.
   Stop closes the database, NATS connection, and local server.
 - A request in flight during an edit finishes on its old root.
@@ -468,3 +472,4 @@ Prod gets none of these defaults.
   before joining it.
 - A root teardown failure still closes dev services
   and answers one.
+  This also holds when the root rejects on stop.

@@ -77,5 +77,7 @@ export async function createDevFixture(nats = true, env: NodeJS.ProcessEnv = {},
     delete require.cache[join(directory, "probe.cjs")];
     await rm(directory, { recursive: true, force: true });
   });
-  return { ...host, directory, probe, url: `http://127.0.0.1:${PORT}` };
+  const HOST = env.HOST ?? "127.0.0.1";
+  const address = HOST.includes(":") ? `[${HOST}]` : HOST;
+  return { ...host, directory, probe, url: `http://${address}:${PORT}` };
 }

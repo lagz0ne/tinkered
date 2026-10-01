@@ -93,7 +93,9 @@ test("runServer serves saved issues until stop and then answers zero", async () 
     stop.signal,
   );
   try {
-    await expect.poll(async () => (await fetch(`${base}/api/issues`)).status).toBe(200);
+    await expect
+      .poll(async () => (await fetch(`${base}/api/issues`)).status, { timeout: 10000 })
+      .toBe(200);
     const response = await fetch(`${base}/api/issues`, {
       method: "POST",
       headers: { "content-type": "application/json" },

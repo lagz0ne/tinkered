@@ -1,6 +1,7 @@
 import { getEventListeners } from "node:events";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { get } from "node:http";
 import { expect, onTestFinished, test } from "vite-plus/test";
 import { connect } from "@nats-io/transport-node";
 import { runDev } from "@tinker/stack/dev";
@@ -20,8 +21,20 @@ test("dev serves the app and Vite client from one listener", async () => {
   expect(await (await fetch(`${host.url}/client.ts`)).text()).toContain(
     'export const label = "client code"',
   );
-  expect((await fetch(`${host.url}/missing`)).status).toBe(404);
+  const missing = await new Promise<number | undefined>((done, fail) => {
+    get(`${host.url}/missing`, (response) => {
+      response.resume();
+      response.once("end", () => done(response.statusCode));
+    }).once("error", fail);
+  });
+  expect(missing).toBe(404);
   expect((await fetch(host.url, { method: "POST" })).status).toBe(404);
+});
+
+test("dev binds an explicit IPv6 host and reports its usable URL", async () => {
+  const host = await createDevFixture(false, { HOST: "::1" });
+  expect(await host.ready).toEqual({ kind: "ready", url: host.url });
+  expect(await (await fetch(`${host.url}/api/value`)).json()).toBe("first");
 });
 
 test("a client edit reaches HMR on the kept port and leaves the root running", async () => {
@@ -49,8 +62,35 @@ test("a client edit reaches HMR on the kept port and leaves the root running", a
   await closed.promise;
 });
 
+test("an imported JSON edit rebuilds the server root", async () => {
+  const host = await createDevFixture(false);
+  expect((await host.ready).kind).toBe("ready");
+  await writeFile(join(host.directory, "shared/config.json"), '{"suffix":"-saved"}\n');
+  await expect
+    .poll(async () => (await fetch(`${host.url}/api/value`)).text(), {
+      timeout: 20000,
+    })
+    .toBe('"first-saved"');
+});
+
+test("an unloaded server file save closes the old root", async () => {
+  const host = await createDevFixture(false);
+  expect((await host.ready).kind).toBe("ready");
+  const oldClosed = host.probe.closed.at(0)!;
+  await writeFile(
+    join(host.directory, "server/unloaded.ts"),
+    'export const unloaded: string = "saved";\n',
+  );
+  await expect
+    .poll(() => host.events.filter((event) => event.kind === "ready").length, {
+      timeout: 20000,
+    })
+    .toBe(2);
+  expect((await oldClosed).status).toBe("success");
+});
+
 test("three server edits close old roots and keep the same database and NATS handles", async () => {
-  const host = await createDevFixture();
+  const host = await createDevFixture(true, { DATA_PATH: "./server/data" });
   expect(await host.ready).toEqual({ kind: "ready", url: host.url });
   const client = host.probe.clients.at(0)!;
   const connection = host.probe.connections.at(0)!;
@@ -77,6 +117,7 @@ test("three server edits close old roots and keep the same database and NATS han
     await connection.flush();
     await expect.poll(() => host.probe.deliveries).toBe(deliveries + 1);
   }
+  expect(host.probe.closed).toHaveLength(4);
   expect(new Set(host.probe.clients).size).toBe(1);
   expect(new Set(host.probe.connections).size).toBe(1);
   expect((await client.query("select * from kept")).rows).toEqual([{ title: "saved" }]);
@@ -234,10 +275,10 @@ test("dev without a report still starts, recovers, and stops", async () => {
     'export const value: string = "broken";\n',
   );
   await expect
-    .poll(async () => (await fetch(`${host.url}/api/value`)).status, {
+    .poll(async () => (await fetch(`${host.url}/api/value`)).text(), {
       timeout: 20000,
     })
-    .toBe(503);
+    .toBe("BootFailed");
   await writeFile(
     join(host.directory, "shared/value.ts"),
     'export const value: string = "fixed";\n',
@@ -259,20 +300,23 @@ test("dev refuses an occupied port without closing its owner", async () => {
   expect(await (await fetch(`${owner.url}/api/value`)).json()).toBe("first");
 });
 
-test("a root teardown failure still closes dev services and answers one", async () => {
-  const host = await createDevFixture();
-  expect(await host.ready).toEqual({ kind: "ready", url: host.url });
-  await writeFile(
-    join(host.directory, "shared/value.ts"),
-    'export const value: string = "close-broken";\n',
-  );
-  await expect
-    .poll(async () => (await fetch(`${host.url}/api/value`)).text(), { timeout: 20000 })
-    .toBe('"close-broken"');
-  host.stop.abort();
-  expect(await host.done).toBe(1);
-  expect(host.probe.clients.at(-1)!.closed).toBe(true);
-  expect(host.probe.connections.at(-1)!.isClosed()).toBe(true);
-  expect(host.probe.timers.size).toBe(0);
-  await expect(fetch(host.url)).rejects.toThrow();
-});
+test.each(["close-broken", "close-reject"])(
+  "a root teardown failure still closes dev services and answers one (%s)",
+  async (value) => {
+    const host = await createDevFixture();
+    expect(await host.ready).toEqual({ kind: "ready", url: host.url });
+    await writeFile(
+      join(host.directory, "shared/value.ts"),
+      `export const value: string = ${JSON.stringify(value)};\n`,
+    );
+    await expect
+      .poll(async () => (await fetch(`${host.url}/api/value`)).text(), { timeout: 20000 })
+      .toBe(JSON.stringify(value));
+    host.stop.abort();
+    expect(await host.done).toBe(1);
+    expect(host.probe.clients.at(-1)!.closed).toBe(true);
+    expect(host.probe.connections.at(-1)!.isClosed()).toBe(true);
+    expect(host.probe.timers.size).toBe(0);
+    await expect(fetch(host.url)).rejects.toThrow();
+  },
+);

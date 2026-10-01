@@ -33,16 +33,12 @@ export async function runServer(
   const scope = createScope({
     tags: [
       storeConfig(
-        host
-          ? { kind: "borrow", client: host.client }
-          : { kind: "open", url: env.DATA_PATH },
+        host ? { kind: "borrow", client: host.client } : { kind: "open", url: env.DATA_PATH },
       ),
       draftTags(readDraftOptIn(env)),
     ],
     extensions: [
-      host
-        ? []
-        : server(web, { env, clientDir: join(process.cwd(), "dist", "client"), observe }),
+      host ? [] : server(web, { env, clientDir: join(process.cwd(), "dist", "client"), observe }),
       !host &&
         extension({
           label: "issues.data-settings",

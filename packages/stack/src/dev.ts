@@ -59,14 +59,14 @@ export async function runDev(options: Dev.Options, stop: AbortSignal): Promise<n
       }),
     ],
   });
-  const started = await scope.ready.then(
-    () => true,
+  const phase = await scope.ready.then(
+    () => "shutdown" as const,
     (error: unknown) => {
       options.report?.({ kind: "error", error });
-      return false;
+      return "boot" as const;
     },
   );
-  return readExitCode(await scope.closed, { clock: Date.now }, started ? "shutdown" : "boot");
+  return readExitCode(await scope.closed, { clock: Date.now }, phase);
 }
 
 class DevHost {
@@ -81,10 +81,10 @@ class DevHost {
   private connection?: Nats.Wiring["connection"];
   private root?: { stop: AbortController; done: Promise<RootEnd> };
   private current?: Dev.App;
-  private failure = "starting";
+  private failure?: string;
   private pending = Promise.resolve();
   private stopping = false;
-  private url = "";
+  private url?: string;
 
   constructor(options: Dev.Options, signal: AbortSignal) {
     this.options = options;
@@ -175,7 +175,6 @@ class DevHost {
           name: "tinker-dev-root",
           async hotUpdate({ file, modules }) {
             if (this.environment.name !== "ssr") return;
-            if (!/\.[cm]?[jt]sx?$/.test(file)) return;
             if (modules.length === 0 && !file.startsWith(serverDirectory)) return;
             this.environment.moduleGraph.invalidateAll();
             await reload();
@@ -217,7 +216,7 @@ class DevHost {
             return raise("DevRootStopped", { code: end.code });
           }),
         ]);
-        this.options.report?.({ kind: "ready", url: this.url });
+        this.options.report?.({ kind: "ready", url: this.url! });
       } catch (error) {
         await this.stopRoot();
         this.failure = error instanceof Error ? error.message : String(error);
