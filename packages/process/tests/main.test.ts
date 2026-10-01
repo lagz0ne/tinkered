@@ -1,14 +1,7 @@
 import { spawn } from "node:child_process";
 import type { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
-import { expect, inject, test } from "vite-plus/test";
-
-declare module "vite-plus/test" {
-  /** Vitest uses this open registry for context supplied by its runner. */
-  interface ProvidedContext {
-    activeMutant: string | undefined;
-  }
-}
+import { expect, test } from "vite-plus/test";
 
 type ChildResult = { code: number | null; signal: string | null; stdout: string; stderr: string };
 
@@ -20,19 +13,11 @@ function readPipe(stream: Readable) {
   return (): string => chunks.join("");
 }
 
-/** Child Node processes read the active fault from their environment, outside Vitest's worker. */
-function childEnv(env: Record<string, string>) {
-  return {
-    ...process.env,
-    ...env,
-    __STRYKER_ACTIVE_MUTANT__:
-      process.env.STRYKER_MUTATOR_WORKER === undefined ? undefined : inject("activeMutant"),
-  };
-}
-
+/** Stryker's command runner sets the active fault in the inherited environment for both
+ * this test and its real Node child. Child-only work cannot report coverage to Vitest. */
 function child(args: string[], env: Record<string, string> = {}) {
   const processChild = spawn(process.execPath, ["--experimental-strip-types", fixture, ...args], {
-    env: childEnv(env),
+    env: { ...process.env, ...env },
     timeout: 15_000,
     killSignal: "SIGKILL",
     stdio: ["pipe", "pipe", "pipe"],

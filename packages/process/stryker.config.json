@@ -1,9 +1,9 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "testRunner": "vitest",
+  "testRunner": "command",
   "coverageAnalysis": "off",
-  "vitest": { "related": false },
-  "plugins": ["@stryker-mutator/vitest-runner"],
+  "commandRunner": { "command": "vp test" },
+  "plugins": [],
   "mutate": ["src/**/*.ts"],
   "ignorePatterns": ["tsconfig.json", "dist"],
   "reporters": ["clear-text", "progress", "json"],
