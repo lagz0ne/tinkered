@@ -87,6 +87,7 @@ Turn the helper on for local use:
 DRAFT_HELPER=1 \
   PUBLIC_BASE_URL=http://127.0.0.1:4311 \
   HOST=127.0.0.1 PORT=4311 DATA_PATH=./data/issues \
+  NATS_URL=nats://127.0.0.1:4222 \
   vp run @tinker-issue-tracker#start
 ```
 

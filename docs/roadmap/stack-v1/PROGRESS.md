@@ -4723,7 +4723,7 @@ flock /tmp/mutation.lock \
 
 Owner: stack/t14 writer. Branch: `stack/t14`.
 Next: lead review; the writer's final proof is saved below.
-Verify: brief gate, validate, stack mutation at least 85,
+Verify: brief gate, validate, changed-file Stack and NATS mutation at least 85,
 and queue verdict `b is faster` for reload versus restart.
 
 ### Impact before code
@@ -5398,3 +5398,39 @@ No build runs in that tree while the job waits or runs.
 - Core feedback: none; no workaround was needed.
 - All writer-owned jobs finished, and the writer made no push.
   Saved work waits for the lead's review and landing.
+
+### t14 final rebase on Process entries
+
+- Main moved to `405169be` during the final notes commit.
+  Read ADR 0096 and rebased all 30 t14 commits onto it.
+  Main's Process entries and callers stay intact.
+- `apps/issue-tracker/package.json` had one conflict.
+  Main adds tools-entry tests; t14 adds dev tests.
+  The script now runs both.
+- `apps/issue-tracker/README.md` had one conflict.
+  Main shortens command lines; t14 requires NATS in prod.
+  The command keeps short lines and all required settings.
+  The draft-helper command now also supplies `NATS_URL`.
+- Stack, NATS, Core, Hono, and Drizzle still match the tested source.
+  The server root, dev entry, and benchmark source also match.
+  The dependency lock is unchanged.
+  The new Process code is not imported by the dev graph.
+  The saved changed-file fault and queue proofs stay valid.
+  The queue run took place before this Process rebase.
+- Installed and built after the rebase.
+- Full gate `EXIT 0`: Stack 135, NATS 36, Drizzle 43, tracker 87.
+  Check: zero errors and 28 warnings in 612 files.
+  Clean `405169be`: zero errors and 28 warnings in 601 files.
+- All 31 workspace test tasks passed without cache; `EXIT 0`.
+  Main's Blueprint model check stays skipped without its API key.
+- Fresh preflight repeats only saved labels and noisy notes.
+  Tracker README review: zero gaps among 82 titles.
+  Nine picks are unsure; they are not flags.
+- `pnpm validate`: all 54 deterministic lanes passed; `EXIT 0`.
+  The workspace file is restored.
+- Fetched once more; main is still `405169be`.
+  The branch is zero commits behind it.
+- These final logs use `stack-t14-wave8-` in the briefs cache.
+- Prose: zero hits in 174 files. Strict style census passed.
+- Core feedback: none; no workaround was needed.
+- Saved work waits for lead review. No push was made.
