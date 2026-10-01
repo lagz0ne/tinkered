@@ -77,6 +77,7 @@ beforeEach(async () => {
     {
       ...identity.wiring,
       tags: async (c) => {
+        c.header("Set-Cookie", "before=kept; Path=/", { append: true });
         arrived?.();
         return identity.wiring.tags?.(c);
       },
@@ -135,13 +136,14 @@ test("sign up then sign in gives a session cookie accepted by the auth GET route
   expect(await session.json()).toMatchObject({ user: { name: "Ada", email: person.email } });
 });
 
-test("an app route refreshes a near-expiry session cookie and keeps its own cookie", async () => {
+test("an app route refreshes a near-expiry session cookie and keeps its own cookies", async () => {
   const cookie = await signIn(url);
   await client.query("update auth.session set expires_at = now() + interval '1 day'");
   const response = await fetch(`${url}/me`, { headers: { cookie } });
   expect(response.headers.getSetCookie()).toEqual(
     expect.arrayContaining([
       expect.stringContaining("better-auth.session_token="),
+      "before=kept; Path=/",
       "app=active; Path=/",
     ]),
   );

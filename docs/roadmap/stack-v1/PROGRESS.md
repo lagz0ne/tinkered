@@ -3580,3 +3580,22 @@ await closing;
   and `stack-t10-fix1-style.log` in the briefs cache.
 - Next: fresh full auth and Hono mutation lanes,
   one at a time under `/tmp/mutation.lock`, then validation.
+
+### Fix round 1 mutation found a cookie test gap
+
+- First auth lane: killed 83, timeout 0, survived 15.
+  No coverage 0, errors 0; score 84.69 percent, `EXIT 1`.
+  The floor stays 85; no exclusions were added.
+- Both append changes survived: an empty option object
+  and `append: false` each overwrite earlier cookies.
+- The existing refresh test only set an app cookie
+  after the user read; it missed cookies already present.
+  Its fixture now also sets an earlier cookie.
+  The same test checks that both app cookies stay
+  beside the refreshed session token.
+- No runtime code changed; this checks the promised append.
+- Kept the failed log and JSON as
+  `stack-t10-fix1-auth-mutation-attempt1` in the briefs cache.
+- Hono did not start after the failed auth lane.
+  Next: auth checks and fresh mutation, then Hono and validation.
+- Round 2 edits wait until round 1's checks finish.

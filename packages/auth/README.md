@@ -83,7 +83,7 @@ The check does not edit that file.
 
 - Sign up then sign in gives a session cookie accepted by the auth GET route.
 - An operation reads the user after opening its transaction and reads none without a cookie.
-- An app route refreshes a near-expiry session cookie and keeps its own cookie.
+- An app route refreshes a near-expiry session cookie and keeps its own cookies.
 - The auth get-session route refreshes a near-expiry session cookie.
 - Sign out ends the session even when the old cookie is sent again.
 - A wrong password keeps Better Auth's status and answer.
