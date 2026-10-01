@@ -175,3 +175,13 @@ External lock entries also match; only project entries change.
 Hono and Stack are queued for fresh isolated fault scores on this merged code.
 Proof files: `/tmp/tinkered-hooks-land-package-input-comparison.json` and
 `/tmp/tinkered-hooks-land-frozen-inputs.json`.
+
+## First ticket gate completed
+
+The full ticket gate finishes with exit 0 at checkpoint `67444b81`.
+All 14 package fault scores pass the floor of 85.
+Core is 85.80; the first Stack run is 86.04.
+All 707 frozen inputs match after the lanes finish and restore their files.
+The lead checked every score; the helper's best-effort fallback was not used.
+The merged Hono and Stack reruns are still waiting on the shared lock.
+Proof: `/tmp/tinkered-hooks-ticket-gate.log`.
