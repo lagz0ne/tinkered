@@ -1,1 +1,1 @@
-export { tour } from "./basic.ts";
+export { region, count, doubled, store, stamp } from "./basic.ts";

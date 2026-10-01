@@ -1,8 +1,8 @@
 # Core example
 
-A small tour of tags, data, operations, resources, sessions, and a test clock.
+A small example of tags, data, operations, resources, sessions, and a test clock.
 It runs without a network service.
-The tour keeps its result before closing the scope.
+The entry keeps its result before closing the scope.
 
 ## Run
 
@@ -25,8 +25,8 @@ vp install
 vp run start
 ```
 
-The output is `Core tour: 286`.
-`vp run dev` runs the same tour.
+The output is `Core example: 286`.
+`vp run dev` runs the same entry.
 After the repository install and build, these commands also work in
 `examples/core`.
 
@@ -39,15 +39,21 @@ vp run check
 vp run test
 ```
 
-The test runs the real tour through `index.ts`.
+Tests build small roots from the units in `index.ts`.
 
 ## Read the code
 
-- `basic.ts` declares the graph once and exports `tour()`.
-- Each tour call owns a new scope and a test clock set to zero.
-- The child session changes its own count without changing the root's count.
-- The tour reads its result while the scope is open.
-- A stop signal closes the root in `finally`; the tour waits for `closed`.
+- `basic.ts` declares the graph once.
+- `index.ts` exports `region`, `count`, `doubled`, `store`, and `stamp`.
+- A child session changes its own count without changing the root's count.
+- An inline call reads tags, data, and its input.
+- Reading the store again keeps its rows.
+- `stamp` reads the clock supplied by the root.
+- `main.ts` owns a root and a test clock set to zero inside `if (import.meta.main)`.
+- The entry reads its result while the scope is open.
+- A stop signal closes the root in `finally`; the entry waits for `closed`.
+- SIGINT and SIGTERM ask the root to stop.
+  Their listeners are removed after cleanup.
 - A failed close or cleanup error makes the command fail.
-- `main.ts` prints only when run as the entry file.
+- Imports start nothing.
 - `vite.config.ts` and `tsconfig.json` belong to this folder.
