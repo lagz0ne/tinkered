@@ -47,11 +47,13 @@ Its install uses those copies.
 - `serve` ticks every 10 milliseconds until a stop signal.
   Its clock wait is owned by the command.
   A data cell keeps the count; a resource owns cleanup.
-- `tour()` runs help, check, count, and serve.
-  It stops serve after `listening`, without a timer.
 
-`main.ts` starts only when run directly.
-Tests import `index.ts`, which starts no process.
+`app.ts` declares the command graph once.
+`index.ts` exports its static `shell` and starts no process.
+`main.ts` calls Process `main(shell)` only inside `if (import.meta.main)`.
+That command entry owns the selected command's root, signals, and cleanup.
+Tests call the public Process `run` function with `shell`.
+The serve test stops after one test-clock tick and checks the final count.
 
 Run the package checks here:
 

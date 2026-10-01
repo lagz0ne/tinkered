@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { makeTestClock, type Clock } from "@tinker/core";
 import { run, type Process } from "@tinker/process";
-import { shell, tour } from "./index.ts";
+import { shell } from "./index.ts";
 
 test("prints help when no command is given", async () => {
   const result = await run(shell, []);
@@ -82,10 +82,4 @@ test("stops serve and reports its completed ticks", async () => {
     stdout: "listening\nstopped after 1 ticks\n",
     stderr: "",
   });
-});
-
-test("the tour stops serve once it starts", async () => {
-  const results = await tour();
-  expect(results.map((result) => result.code)).toEqual([0, 0, 0, 0]);
-  expect(results.at(-1)?.stdout).toBe("listening\nstopped after 0 ticks\n");
 });

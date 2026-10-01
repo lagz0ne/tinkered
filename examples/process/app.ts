@@ -1,5 +1,5 @@
 import { data, operation, resource, tag } from "@tinker/core";
-import { argv, io, run, type Process } from "@tinker/process";
+import { argv, io, type Process } from "@tinker/process";
 import { z } from "zod";
 import { check } from "./check.ts";
 
@@ -80,23 +80,3 @@ export const shell: Process.Shell = {
     { name: "serve", description: "tick until SIGINT", entry: () => ({ op: waitForSignal }) },
   ],
 };
-
-/** Stop after the listener starts, so the tour does not wait for real time or a process signal. */
-export async function tour(): Promise<readonly Process.Result[]> {
-  const stop = new AbortController();
-  return [
-    await run(shell, ["help"]),
-    await run(shell, ["check", "a.yaml"]),
-    await run(shell, ["count", "3"]),
-    await run(
-      shell,
-      ["serve"],
-      {
-        write: (line) => {
-          if (line === "listening\n") queueMicrotask(() => stop.abort());
-        },
-      },
-      stop.signal,
-    ),
-  ];
-}

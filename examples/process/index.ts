@@ -1,1 +1,1 @@
-export { shell, tour } from "./app.ts";
+export { shell } from "./app.ts";
