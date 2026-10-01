@@ -5,6 +5,7 @@ import { commands, page } from "vite-plus/test/browser";
 declare module "vite-plus/test/browser" {
   interface BrowserCommands {
     selectPageServer(down: boolean): Promise<void>;
+    readSyncRequests(): Promise<number>;
   }
 }
 

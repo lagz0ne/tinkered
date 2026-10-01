@@ -40,9 +40,14 @@ export async function bootPage(env: { baseUrl: string }, stop: AbortSignal): Pro
             });
             await hydrate(router);
             window.$_TSR!.h();
+            if (stop.aborted) return;
             const element = hydrateRoot(document, <RouterProvider router={router} />);
             event.defer(() => element.unmount());
+            const stopWaiting = () => hydrated.resolve();
+            stop.addEventListener("abort", stopWaiting);
+            event.defer(() => stop.removeEventListener("abort", stopWaiting));
             await hydrated.promise;
+            if (stop.aborted) return;
             await event.next();
             event.resolve(detailRefresh);
             event.resolve(drafter);

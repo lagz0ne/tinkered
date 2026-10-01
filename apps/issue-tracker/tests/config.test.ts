@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import { spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -13,9 +13,7 @@ import { backend, HttpRequest, HttpResponse, isError as isHttpError, send } from
 import { api, runServer } from "../src/index.ts";
 
 const APP = dirname(dirname(fileURLToPath(import.meta.url)));
-const scratch = join(APP, "scratch");
-mkdirSync(scratch, { recursive: true });
-const bundle = mkdtempSync(join(scratch, "tracker-entry-"));
+const bundle = mkdtempSync(join(tmpdir(), "tracker-entry-"));
 
 beforeAll(async () => {
   await build({
@@ -23,6 +21,7 @@ beforeAll(async () => {
     logLevel: "silent",
     build: { ssr: "src/server/main.ts", outDir: bundle },
   });
+  symlinkSync(join(APP, "node_modules"), join(bundle, "node_modules"));
 });
 afterAll(() => rmSync(bundle, { recursive: true, force: true }));
 

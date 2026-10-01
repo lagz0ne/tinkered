@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { cp, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -32,7 +32,7 @@ test.each([
   "the dev page borrows its store and keeps draft opt-in $setting",
   async ({ setting, enabled }) => {
     const app = fileURLToPath(new URL("../", import.meta.url));
-    const base = fileURLToPath(new URL("../../../scratch/", import.meta.url));
+    const base = join(await realpath(join(app, "node_modules")), "../../../scratch");
     await mkdir(base, { recursive: true });
     const directory = await mkdtemp(join(base, "tracker-page-dev-"));
     for (const file of ["src", "drizzle", "index.html", "vite.config.ts", "package.json"]) {
@@ -68,8 +68,9 @@ test.each([
       expect(events.filter((event) => event.kind === "error")).toEqual([]);
     } finally {
       stop.abort();
-      expect(await done).toBe(0);
+      const code = await done;
       await rm(directory, { recursive: true, force: true });
+      expect(code).toBe(0);
     }
   },
   60000,
@@ -77,7 +78,7 @@ test.each([
 
 test("dev reload keeps saved issues, ends sync, and SIGTERM exits zero", async () => {
   const app = fileURLToPath(new URL("../", import.meta.url));
-  const base = fileURLToPath(new URL("../../../scratch/", import.meta.url));
+  const base = join(await realpath(join(app, "node_modules")), "../../../scratch");
   await mkdir(base, { recursive: true });
   const directory = await mkdtemp(join(base, "tracker-dev-"));
   for (const file of ["src", "drizzle", "index.html", "vite.config.ts", "package.json"]) {

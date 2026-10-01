@@ -36,6 +36,9 @@ export default defineConfig(({ mode }) => ({
             headless: true,
             provider: playwright(),
             commands: {
+              readSyncRequests({ project }) {
+                return project.getProvidedContext().pageTraffic.syncs;
+              },
               selectPageServer({ project }, down: boolean) {
                 const context = project.getProvidedContext();
                 process.env.TINKERED_PAGE_TEST_URL = down ? context.unavailable : context.tracker;

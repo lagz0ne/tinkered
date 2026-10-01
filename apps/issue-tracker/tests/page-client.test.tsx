@@ -1,13 +1,14 @@
 import { expect, inject, test } from "vite-plus/test";
 import { bootPage } from "@tinker-issue-tracker/pages";
 import { isError as isSyncError } from "@tinker/sync";
-import { page } from "vite-plus/test/browser";
+import { commands, page } from "vite-plus/test/browser";
 
 /** Vitest's provided context is an open registry shared by setup and the browser. */
 declare module "vite-plus/test" {
   interface ProvidedContext {
     tracker: string;
     unavailable: string;
+    pageTraffic: { syncs: number };
   }
 }
 
@@ -60,6 +61,17 @@ test("hydrate keeps the first list, accepts a live snapshot, and stops the brows
   expect(document.querySelector("main")).toBeNull();
 });
 
+test("a stop during hydrate never opens the sync wire", async () => {
+  const response = await fetch(inject("tracker"));
+  showPage(new DOMParser().parseFromString(await response.text(), "text/html"));
+  const before = await commands.readSyncRequests();
+  const stop = new AbortController();
+  const done = bootPage({ baseUrl: inject("tracker") }, stop.signal);
+  stop.abort();
+  await done;
+  expect(await commands.readSyncRequests()).toBe(before);
+});
+
 test("a failed first sync closes the hydrated root and returns SyncNotReady", async () => {
   const response = await fetch(inject("tracker"));
   showPage(new DOMParser().parseFromString(await response.text(), "text/html"));
@@ -83,9 +95,11 @@ test("a missing page hydrates its 404 and stops the browser root", async () => {
   expect(response.status).toBe(404);
   showPage(new DOMParser().parseFromString(await response.text(), "text/html"));
   const before = document.querySelector("h1");
+  const opened = await commands.readSyncRequests();
   const stop = new AbortController();
   const done = bootPage({ baseUrl }, stop.signal);
   try {
+    await expect.poll(() => commands.readSyncRequests()).toBeGreaterThan(opened);
     await expect.poll(() => document.querySelector("h1")?.textContent).toBe("Page not found");
     expect(document.querySelector("h1")).toBe(before);
   } finally {

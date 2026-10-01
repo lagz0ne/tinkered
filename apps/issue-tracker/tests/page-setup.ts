@@ -36,10 +36,13 @@ export default async function setup(project: TestProject) {
   );
   await scope.run(publishIssues);
   const app = scope.resolve(web);
+  const traffic = { syncs: 0 };
+  project.provide("pageTraffic", traffic);
   const listener = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
+      if (new URL(request.url).pathname === "/sync") traffic.syncs++;
       const response = request.method === "OPTIONS" ? new Response(null) : await app.fetch(request);
       response.headers.set("access-control-allow-origin", "*");
       response.headers.set("access-control-allow-methods", "GET, POST");

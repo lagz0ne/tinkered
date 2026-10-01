@@ -431,3 +431,4 @@ These defaults never apply to `start` or `preview`.
 - Prod refuses an empty `DATA_PATH` with a working bus.
 - API and CLI name a missing or empty `DATA_PATH` in a
   `boot failed` line from `issues.root`.
+- A stop during hydrate never opens the sync wire.
