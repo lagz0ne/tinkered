@@ -4126,3 +4126,17 @@ EXIT 0
 - Next: all package tests and validation, then fresh jobs
   and stack mutation on this final base under the lock.
   The lead owns review and landing; this writer never pushes.
+
+### t08 final-base tests and validation
+
+- All 29 test tasks pass without cache: `EXIT 0`.
+  Each package used its own test config after the full build.
+- `pnpm validate`: all 50 checks pass, `EXIT 0`.
+  The workspace already allowed esbuild.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Logs in the briefs cache:
+  `stack-t08-resume-final-all-tests.log` and
+  `stack-t08-resume-final-validate.log`.
+- Assumption: rerun both mutation lanes after the t17 rebase,
+  since the tested Hono and stack behavior changed.
+  Next: jobs, then stack, alone under `/tmp/mutation.lock`.
