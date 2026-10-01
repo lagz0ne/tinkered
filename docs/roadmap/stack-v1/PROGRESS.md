@@ -3688,3 +3688,58 @@ await closing;
 - Log: `stack-t10-resume2-gate.log` in the briefs cache.
 - Next: full repo tests, style and advisory checks, fresh
   auth and Hono mutation, one uncached browser proof, validate.
+
+### Second resume full gate and advisory checks
+
+- All 29 repo test tasks ran uncached, `EXIT 0`.
+  The one existing skipped test remains.
+- Strict style census passes.
+  Jev has no file flags or missing README promises.
+  Auth: zero of 14 titles flagged; Hono: zero of 93.
+  Eight Hono promise matches are unsure, not missing.
+- Auth's local config and user tags keep each piece's identity.
+  Its settings resource belongs to that same piece.
+  Those three plain code notes need no judge label.
+- Labeled Hono request bookkeeping false at `66a115ca2cde`:
+  its call site now uses `event.scope`; the started root
+  owns the accepted cookie reads and the close drain.
+- The existing false labels for request preparation,
+  the request body, and the stream remain in the bank.
+  The inherited helper size and count notes remain unchanged.
+  The noisy answer-route note needs no label.
+- Logs: `stack-t10-resume2-all-tests.log`,
+  `stack-t10-resume2-style.log`, and `stack-t10-resume2-jev.log`
+  in the briefs cache.
+
+### Hono changes kept after the second resume
+
+- `packages/hono/src/index.ts:71`: tags may return a promise.
+  Better Auth must finish its cookie read before a transaction opens.
+- `packages/hono/src/index.ts:224`: prepare tags outside the session.
+  Keep tag, trace, and namespace read order; sync tags do not await.
+- `packages/hono/src/index.ts:231`: drain accepted reads before close.
+  Core otherwise blocks their late request sessions.
+  After close, keep main's error handler behavior.
+- `packages/hono/src/index.ts:244`: answer 503 during any root close.
+  New requests must stop entering auth reads while shutdown drains.
+- `packages/hono/src/index.ts:262`: retain preparation through its answer.
+  A stream must enter its owned session before root draining begins.
+- `packages/hono/src/index.ts:268`: forced close answers 499.
+  Never run an operation prepared after the root was forced closed.
+- `packages/hono/src/index.ts:279`: move main's body into a helper.
+  This only separates pre-session auth work; rollback, commit before
+  answer, failed-close header drop, abort cleanup, and ownership stay.
+  Stream code and its following helpers match main exactly.
+- Main already handles abort after the cookie read at line 302.
+  Keep that path; no second auth abort guard is needed.
+- `packages/hono/tests/hono.test.ts:586`, `:621`, `:654`, `:677`,
+  `:703`, and `:714`: prove preparation, abort, graceful drain,
+  no-tags 503, read failure, and forced close.
+  Auth needs those outcomes before opening its transaction.
+- `packages/hono/tests/transactions.test.ts:115`: a separate async
+  cookie case proves a failed commit drops every built header.
+  The plain test above it matches main exactly.
+- `packages/hono/README.md:312` and `:348`: promise that separate
+  cookie failure case and explain preparation and shutdown answers.
+- Hono's and Stack's event starts are main's unchanged code.
+  The only added Stack line names the accepted-read drain.
