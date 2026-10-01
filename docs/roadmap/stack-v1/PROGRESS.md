@@ -408,7 +408,7 @@ npx --no-install stryker run \
   a missing `NATS_URL` fails boot naming it.
   nats patches core's `scope.close` on its handle
   until core/close-hook-scope lands.
-- **t08 jobs stack piece** -- [ ] Review; resume checks in progress
+- **t08 jobs stack piece** -- [x] landed 2ac4a246 (blocked by: t06)
   `@tinker/jobs` runs pg-boss as a driver. Each
   job's operation runs in its own session: success
   commits, failure rolls back and retries
