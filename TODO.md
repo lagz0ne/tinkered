@@ -50,13 +50,12 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/start-log-cleanup** — owner: stack/start-log-cleanup writer.
-  Hook loggers replace the boot log workarounds.
-  Next: lead review and landing; the writer never pushed.
-  Verify: final gate EXIT 0; all 31 test tasks pass.
-  Killed shares: Hono 86.87%, jobs 85.33%, Stack 87.25%.
-  Validate: all 54 lanes pass on origin/main at 5487051b.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
+Hook loggers replace the boot log workarounds.
+Next: lead review and landing; the writer never pushed.
+Verify: final gate EXIT 0; all 31 test tasks pass.
+Killed shares: Hono 86.87%, jobs 85.33%, Stack 87.25%.
+Validate: all 54 lanes pass on origin/main at 5487051b.
+[Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Next: lead reviews and lands the saved branch.
 Verify: gate `EXIT 0`; auth 25, mail 13, jobs 26;
@@ -132,6 +131,7 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Done
 
+- **stack/start-log-cleanup** — the stack pieces log through their hook's logger now that core/start-log landed: hono's boot logger resource and its `hono.errors` span are gone; `readExitCode(result, log, phase)` takes a logger instead of `observe` plus `clock`; the server, live, migrate, nats, and jobs pieces drop their direct sink writes (the trace sink keeps its warnings local so they never feed its own queue). Log lines add `extension`. Proof: gate EXIT 0 (all 31 test tasks; 0 errors, 28 warnings), changed-file mutation hono 86.87% (397/0/60), jobs 85.33% (128/5/17), stack 87.25% (267/0/39), validate 54/54. Lead review. Sol writer 4f788859.
 - **process/role** — settled as app entry support.
   CLI host adapter; graph modules and helper libraries have clear roles.
   Proof: public API and callers reviewed; 48 Process tests pass;
