@@ -4484,14 +4484,14 @@ EXIT 0
 
 - Fetched and rebased before the gate.
   `origin/main` stayed at `7014b683`; no conflicts.
-- A URL with no user and no password opens SMTP without auth.
+- A URL with no user and no password opens SMTP without login.
   `smtp://localhost:1025` can use Mailpit or a local relay.
 - A user or password alone still raises `InvalidConfig`
   with `{ key: "MAIL_URL" }` at boot.
   A wrong scheme or missing host stays bad config.
 - Reused the local SMTP server for the no-login send test.
   Before the fix, that test failed with `InvalidConfig`, `EXIT 1`.
-  After the fix, it boots, delivers mail, and sends no auth.
+  After the fix, it boots, delivers mail, and sends no login command.
 - Added the username-without-password test and both README promises.
 - Kept `failJob(cause)` and the receipt retry rule as accepted.
   The jobs README already states that permanent failures do not retry.
@@ -4521,3 +4521,22 @@ EXIT 0
   Each mail definition owns its backend tag.
   The tag note needs no label; the wrapper notes are unchanged.
 - Core feedback: none; no Core workaround was needed.
+
+- The final mail fault lane ran once, alone, in the foreground:
+
+```bash
+flock /tmp/mutation.lock bash -c \
+  'vp run --no-cache mail#mutate'
+```
+
+- It waited for the prior lock holder, then ran to completion.
+- The changed-file rule arrived while that command was queued.
+  Kept the command: its scope is exactly the changed-file list.
+  All three mail source files are new on this branch:
+  `src/errors.ts`, `src/index.ts`, and `src/testing.ts`.
+  The report confirms those three files and matches the saved source.
+- Killed 98, timeout 0, survived 12; no uncovered mutants or errors.
+  `98 / (98 + 0 + 12) = 89.09%`, above the floor of 85.
+  `EXIT 0`.
+- Saved work waits in Review for the lead to land it.
+  The writer made no push.

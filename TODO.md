@@ -51,10 +51,9 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 ## Review
 
 - **stack/t09 mail** — Owner: writer stack/t09.
-  Next: writer runs the mail fault lane, then the lead lands it.
+  Next: lead lands `stack/t09`; the review fix and checks are saved.
   Verify: review fix gate `EXIT 0`; mail 13, jobs 26, stack 114;
-  release 54/54; mail mutation 89.29% (100/0/12),
-  jobs 85.96% (142/5/21; 3 not covered).
+  release 54/54; mail killed share 89.09% (98/0/12).
   [Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 | Card | Owner | Next | Verify |
