@@ -5295,3 +5295,39 @@ No build runs in that tree while the job waits or runs.
 - Foreground checks use Node 24.21.0 from Vite+.
   Queued timing uses the host's pinned Node 22.23.3.
 - Next: whole fault lanes on this source, queued A/B, then validation.
+
+### t14 finished whole runs and the changed-file rule
+
+- The existing foreground chain finished both whole lanes.
+  Each lane and the chain exited zero.
+- Stack: killed 700; timeout 3; survived 114; uncovered 4.
+  Strict score: `700 / (700 + 3 + 114 + 4) = 85.26%`.
+  There are no runner error rows.
+- NATS: killed 192; timeout 0; survived 22; uncovered 5.
+  Strict score: `192 / (192 + 22 + 5) = 87.67%`.
+  There are no runner error rows.
+- The lead's new rule selects only the branch's changed source files.
+- Stack selects `dev.ts`, `errors.ts`, `publish.ts`, and `server.ts`.
+  Those rows in the finished report give K/T/S `319/1/52`.
+  S includes three uncovered faults; the strict score is 85.75%.
+- NATS selects `src/testing.ts`.
+  Main's old whole lane excludes that file.
+  Its old score cannot prove the helper's cache change.
+- Fetched and rebased all 27 commits onto `91964db3` without a conflict.
+  Main keeps its new guarded example entries and notes.
+  The tested packages, tracker, tests, and dependency lock are unchanged.
+  The saved Stack report's selected source matches this branch exactly.
+- Installed and rebuilt after that rebase.
+- Fresh full gate `EXIT 0`: Stack 135, NATS 36, Drizzle 43, tracker 85.
+- Check: zero errors and 28 warnings in 596 files.
+  Clean main has zero errors and the same 28 warnings in 585 files.
+- Fresh test review: zero flags among 69 Stack and 31 NATS entries.
+  Preflight repeats saved labels; no new label is owed.
+  Strict style census passed.
+- Ended only the unstarted NATS lock wait, PID 1868331.
+  No fault ran; that wait exited 143.
+  Validation can run before the helper is queued again.
+- `pnpm validate`: all 52 deterministic budget lanes passed; `EXIT 0`.
+  The workspace file is restored; no install setting is part of this change.
+- Prose: zero hits in 171 files.
+- Next: run the selected NATS file, then queued A/B.
