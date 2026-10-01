@@ -4479,3 +4479,45 @@ EXIT 0
 - Saved work waits in Review for the lead.
   The writer made no push.
 - Core feedback: none; no Core workaround was needed.
+
+### t09 review fix: optional SMTP login
+
+- Fetched and rebased before the gate.
+  `origin/main` stayed at `7014b683`; no conflicts.
+- A URL with no user and no password opens SMTP without auth.
+  `smtp://localhost:1025` can use Mailpit or a local relay.
+- A user or password alone still raises `InvalidConfig`
+  with `{ key: "MAIL_URL" }` at boot.
+  A wrong scheme or missing host stays bad config.
+- Reused the local SMTP server for the no-login send test.
+  Before the fix, that test failed with `InvalidConfig`, `EXIT 1`.
+  After the fix, it boots, delivers mail, and sends no auth.
+- Added the username-without-password test and both README promises.
+- Kept `failJob(cause)` and the receipt retry rule as accepted.
+  The jobs README already states that permanent failures do not retry.
+- The requested gate passed:
+
+```bash
+vp run -r build && vp check \
+  && vp run --no-cache mail#test \
+  && vp run --no-cache jobs#test \
+  && vp run --no-cache stack#test
+```
+
+```text
+check: 0 errors, 28 warnings
+mail: 13 passed
+jobs: 26 passed
+stack: 114 passed
+EXIT 0
+```
+
+- `pnpm validate`: all 54 lanes passed, `EXIT 0`.
+- Prose and strict style census passed.
+- Jev tests and promises: no flags or gaps across 13 titles.
+  Preflight: no file flags; `readUrl` has no unit flag.
+  The earlier false `stateOutsideCell` label still applies:
+  the test owns the mock transport, and scopes borrow it.
+  Each mail definition owns its backend tag.
+  The tag note needs no label; the wrapper notes are unchanged.
+- Core feedback: none; no Core workaround was needed.
