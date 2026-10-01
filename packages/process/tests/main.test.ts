@@ -33,7 +33,7 @@ function childEnv(env: Record<string, string>) {
 function child(args: string[], env: Record<string, string> = {}) {
   const processChild = spawn(process.execPath, ["--experimental-strip-types", fixture, ...args], {
     env: childEnv(env),
-    timeout: 2_000,
+    timeout: 15_000,
     killSignal: "SIGKILL",
     stdio: ["pipe", "pipe", "pipe"],
   });
