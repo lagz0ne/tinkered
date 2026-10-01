@@ -19,7 +19,7 @@ import {
   type Observe,
   type Operation,
 } from "@tinker/core";
-import { drizzleStore } from "@tinker/drizzle";
+import { openTransaction } from "@tinker/drizzle";
 import { errorResponses, hono, route } from "@tinker/hono";
 import { nats, subscribe as onNats, type Nats } from "@tinker/nats";
 import { startNatsServer, type NatsServer } from "@tinker/nats/testing";
@@ -27,13 +27,26 @@ import { memoryPair, source, subscribe } from "@tinker/sync";
 import { isError, liveUpdates } from "../src/index.ts";
 
 let server: NatsServer.Handle;
-let db: PGlite;
+let client: PGlite;
 const scopes: Scope.Handle[] = [];
 const lists = data<string[]>({ label: "list", initial: [] });
-const store = drizzleStore({ label: "shared", open: (database: PGlite) => database });
+const databaseConfig = tag<PGlite>({ label: "shared.config" });
+/** Each root borrows the same client; test cleanup owns its close. */
+const db = resource({
+  label: "shared.db",
+  target: "scope",
+  depends: { config: databaseConfig },
+  factory: ({ config }) => config,
+});
+const tx = resource({
+  label: "shared.tx",
+  target: "session",
+  depends: { db },
+  factory: ({ db }, ctx) => openTransaction(db, ctx),
+});
 const publish = operation({
   label: "publish",
-  depends: { db: store.db, list: lists.controller },
+  depends: { db, list: lists.controller },
   run: async ({ db, list }) => {
     const { rows } = await db.query<{ title: string }>("select title from issues order by title");
     const next = rows.map((row) => row.title);
@@ -42,7 +55,7 @@ const publish = operation({
 });
 const save = operation({
   label: "save",
-  depends: { tx: store.tx },
+  depends: { tx },
   input: String,
   run: async ({ tx }, ctx) => {
     await tx.query("insert into issues (title) values ($1)", [ctx.input]);
@@ -53,7 +66,7 @@ const save = operation({
 const read = operation({ label: "read", depends: { list: lists }, run: ({ list }) => list });
 const saveTaken = operation({
   label: "saveTaken",
-  depends: { tx: store.tx },
+  depends: { tx },
   run: async ({ tx }, ctx) => {
     await tx.query("insert into issues (title) values ($1)", ["Taken"]);
     ctx.raise("Taken", { title: "Taken" });
@@ -62,18 +75,20 @@ const saveTaken = operation({
 
 beforeAll(async () => {
   server = await startNatsServer();
-  db = new PGlite();
-  await db.exec("create table issues (title text not null unique deferrable initially deferred)");
+  client = new PGlite();
+  await client.exec(
+    "create table issues (title text not null unique deferrable initially deferred)",
+  );
 }, 30000);
 beforeEach(async () => {
-  await db.exec("delete from issues");
+  await client.exec("delete from issues");
 });
 afterEach(async () => {
   for (const scope of scopes.reverse()) await scope.close();
   scopes.length = 0;
 });
 afterAll(async () => {
-  await db.close();
+  await client.close();
   await server.close();
 });
 
@@ -85,7 +100,7 @@ async function boot(subject = "issues.changed", observe?: Observe.Config) {
   const src = source({ cells: [[lists, "issues"]] });
   const scope = createScope({
     observe,
-    tags: [store.config(db)],
+    tags: [databaseConfig(client)],
     extensions: [web, src, liveUpdates(publish, { subject, env: { NATS_URL: server.url } })],
   });
   scopes.push(scope);
@@ -157,7 +172,7 @@ test("GET and a rolled-back save send no signal", async () => {
   await a.scope.close({ graceful: true });
   await observer.scope.close({ graceful: true });
   expect(observer.messages).toEqual([]);
-  expect((await db.query("select title from issues")).rows).toEqual([]);
+  expect((await client.query("select title from issues")).rows).toEqual([]);
 });
 
 test("closing one server removes its NATS subscription while the other keeps publishing", async () => {
@@ -195,7 +210,7 @@ test("a raised error mapped to 4xx rolls back and sends no signal", async () => 
     onError: errorResponses({ Taken: 409 }),
   }).extension;
   const scope = createScope({
-    tags: [store.config(db)],
+    tags: [databaseConfig(client)],
     extensions: [
       web,
       liveUpdates(publish, { subject: "issues.changed", env: { NATS_URL: server.url } }),
@@ -207,7 +222,7 @@ test("a raised error mapped to 4xx rolls back and sends no signal", async () => 
   expect(response.status).toBe(409);
   await scope.close({ graceful: true });
   await observer.scope.close({ graceful: true });
-  expect((await db.query("select title from issues")).rows).toEqual([]);
+  expect((await client.query("select title from issues")).rows).toEqual([]);
   expect(observer.messages).toEqual([]);
 });
 
@@ -246,7 +261,7 @@ test("a failed database commit sends no signal", async () => {
   await a.scope.close({ graceful: true });
   await observer.scope.close({ graceful: true });
   expect(observer.messages).toEqual([{ subject: "issues.changed", payload: new Uint8Array() }]);
-  expect((await db.query("select title from issues")).rows).toEqual([{ title: "A" }]);
+  expect((await client.query("select title from issues")).rows).toEqual([{ title: "A" }]);
 });
 
 test("a failed second live root leaves the first root receiving signals", async () => {
