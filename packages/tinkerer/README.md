@@ -300,9 +300,10 @@ const scope = createScope({
 });
 const session = scope.createSession();
 session.resolve(history.transcript, { ns: reviewer });
+const content = "Review the diff";
 session
   .controller(coder.messages, { ns: reviewer })
-  .update((saved) => [...saved, { role: "user", content: "Review the diff" }]);
+  .update((saved) => [...saved, { role: "user", content }]);
 ```
 
 The update first reads the cell, then writes it.

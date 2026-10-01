@@ -46,14 +46,14 @@ you want:
 
 ```text
 import { createScope } from "@tinker/core";
-const { StdioServerTransport } = await import(
+const { StdioServerTransport: Transport } = await import(
   "@modelcontextprotocol/sdk/server/stdio.js"
 );
 
 const scope = createScope({ extensions: [ext] });
 await scope.ready;
 const server = scope.resolve(ext);
-await server.connect(new StdioServerTransport());
+await server.connect(new Transport());
 ```
 
 `listTools` answers one entry per registered row: its name, its
@@ -79,9 +79,10 @@ const stdio = extension({
   hooks: {
     async start(event) {
       await event.next();
-      const server = event.scope.resolve(ext);
-      const { input, output } = event.scope.resolve(streams.required);
-      const end = event.scope.resolve(stop.required);
+      const server = event.resolve(ext);
+      const ports = event.resolve(streams.required);
+      const { input, output } = ports;
+      const end = event.resolve(stop.required);
       input.once("end", end);
       server.server.onclose = end;
       event.defer(async () => {
@@ -89,7 +90,8 @@ const stdio = extension({
         server.server.onclose = undefined;
         await server.close();
       });
-      await server.connect(new StdioServerTransport(input, output));
+      await server.connect(new Transport(input, output));
+      if (input.readableEnded) end();
     },
   },
 });
@@ -121,7 +123,7 @@ if (import.meta.main) {
 }
 ```
 
-`ext` and `StdioServerTransport` come from the earlier snippets.
+`ext` and `Transport` come from the earlier snippets.
 The guarded app binds its borrowed streams once.
 `connect()` only opens the transport; the service root owns its lifetime.
 Stdin EOF and server close call the same static `stop` port.

@@ -84,7 +84,10 @@ Each issue's live draft keeps its own text and result.
 Turn the helper on for local use:
 
 ```bash
-DRAFT_HELPER=1 PUBLIC_BASE_URL=http://127.0.0.1:4311 HOST=127.0.0.1 PORT=4311 DATA_PATH=./data/issues vp run @tinker-issue-tracker#start
+DRAFT_HELPER=1 \
+  PUBLIC_BASE_URL=http://127.0.0.1:4311 \
+  HOST=127.0.0.1 PORT=4311 DATA_PATH=./data/issues \
+  vp run @tinker-issue-tracker#start
 ```
 
 `DRAFT_HELPER=1` (or `true`) opts in; without it the helper stays off.
@@ -108,7 +111,8 @@ summary; one that is not text answers 400 and runs no model.
 ```bash
 vp install
 vp run --no-cache --filter '@tinker-issue-tracker...' build
-HOST=127.0.0.1 PORT=4311 DATA_PATH=./data/issues vp run @tinker-issue-tracker#start
+HOST=127.0.0.1 PORT=4311 DATA_PATH=./data/issues \
+  vp run @tinker-issue-tracker#start
 ```
 
 The build command builds the public workspace libraries before the app.
@@ -157,12 +161,21 @@ Pass the API config once in the Process call's `options`.
 Tests collect output through their own `io` writers.
 
 ```bash
-BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools help
-BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools list
-BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools create --title "Title" --description "Why"
-BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools update ID --base-revision 0 --status done
-BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools comment ID --author Ada --text "Shipped"
-BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools get ID
+BASE_URL=http://127.0.0.1:4311 \
+  vp run @tinker-issue-tracker#tools help
+BASE_URL=http://127.0.0.1:4311 \
+  vp run @tinker-issue-tracker#tools list
+BASE_URL=http://127.0.0.1:4311 \
+  vp run @tinker-issue-tracker#tools create \
+    --title "Title" --description "Why"
+BASE_URL=http://127.0.0.1:4311 \
+  vp run @tinker-issue-tracker#tools update ID \
+    --base-revision 0 --status done
+BASE_URL=http://127.0.0.1:4311 \
+  vp run @tinker-issue-tracker#tools comment ID \
+    --author Ada --text "Shipped"
+BASE_URL=http://127.0.0.1:4311 \
+  vp run @tinker-issue-tracker#tools get ID
 ```
 
 Edits carry the revision originally opened. A stale save exits nonzero
@@ -183,18 +196,22 @@ The MCP entry closes cleanly when stdin ends.
 The MCP entry closes cleanly on SIGTERM.
 
 ```bash
-BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#mcp
+BASE_URL=http://127.0.0.1:4311 \
+  vp run @tinker-issue-tracker#mcp
 ```
 
 Point a harness at that command directly (stdio carries the protocol,
 so run node itself rather than through the task runner):
 
-```json
+```text
 {
   "mcpServers": {
     "issues": {
       "command": "node",
-      "args": ["/abs/path/apps/issue-tracker/src/tools/main.ts", "mcp"],
+      "args": [
+        "/abs/path/apps/issue-tracker/src/tools/main.ts",
+        "mcp"
+      ],
       "env": { "BASE_URL": "http://127.0.0.1:4311" }
     }
   }
