@@ -5846,3 +5846,14 @@ auth(database, schema, { sendMail });
 
 - With welcome beside auth templates, this gives TS2322.
 - Next: trace sink, settings, and real entry checks.
+
+### t16 traces and prod entry
+
+- Added the trace sink and all nine env keys.
+- The real prod entry serves its page and exports a trace.
+- SIGTERM closes it with exit 0.
+- Each missing key fails boot with its key in the output.
+- The registered vp create command works without prompts.
+- Its fresh workspace installs, builds, checks, and tests.
+- Fresh app: 26 tests pass; generator: 12 pass.
+- Next: the dev host and final checks.

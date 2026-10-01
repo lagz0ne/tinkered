@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { createScope, extension, type Observe } from "@tinker/core";
-import { jsonLines, liveUpdates, migrate, readExitCode, server } from "@tinker/stack";
+import { liveUpdates, migrate, readExitCode, server, traceSink } from "@tinker/stack";
 import { raise } from "../errors.ts";
 import { database, databaseConfig } from "./store.ts";
 import { migrations } from "./migrations.ts";
@@ -14,6 +14,13 @@ import { createWeb } from "./routes.ts";
 
 export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Promise<number> {
   let log: Observe.Logger | undefined;
+  const traces = traceSink({
+    env: {
+      OTEL_EXPORTER_OTLP_ENDPOINT: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+      OTEL_SERVICE_NAME: env.OTEL_SERVICE_NAME,
+    },
+    write: (line) => process.stdout.write(`${line}\n`),
+  });
   const post = createMail(env);
   const work = createJobs(env, [post.job]);
   const identity = createIdentity(work, post);
@@ -32,14 +39,23 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
         BETTER_AUTH_URL: env.BETTER_AUTH_URL,
       }),
     ],
-    observe: jsonLines((line) => process.stdout.write(`${line}\n`)),
+    observe: traces.observe,
     extensions: [
+      extension({
+        label: "__APP_NAME__.root",
+        hooks: {
+          start(event) {
+            log = event.log;
+            return event.next();
+          },
+        },
+      }),
       server(web, { env, clientDir: resolve("dist/client") }),
+      traces.extension,
       extension({
         label: "__APP_NAME__.settings",
         hooks: {
           start(event) {
-            log = event.log;
             if (!env.DATA_PATH) raise("BadDataSettings", { keys: ["DATA_PATH"] });
             return event.next();
           },

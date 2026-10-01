@@ -1,0 +1,116 @@
+import { spawn } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { createServer, type Server } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { startNatsServer } from "@tinker/nats/testing";
+import { beforeAll, afterAll, beforeEach, expect, test } from "vite-plus/test";
+
+const keys = [
+  "PORT",
+  "HOST",
+  "DATA_PATH",
+  "NATS_URL",
+  "MAIL_URL",
+  "BETTER_AUTH_SECRET",
+  "BETTER_AUTH_URL",
+  "OTEL_EXPORTER_OTLP_ENDPOINT",
+  "OTEL_SERVICE_NAME",
+];
+const exports: string[] = [];
+const collector = createServer((request, reply) => {
+  exports.push(request.url ?? "");
+  request.resume();
+  reply.writeHead(204).end();
+});
+let nats: Awaited<ReturnType<typeof startNatsServer>>;
+let folder: string;
+let env: NodeJS.ProcessEnv;
+let endpoint: string;
+
+async function listen(server: Server) {
+  await new Promise<void>((done, fail) => {
+    server.once("error", fail);
+    server.listen(0, "127.0.0.1", done);
+  });
+  const address = server.address();
+  if (address === null || typeof address === "string") expect.unreachable("a TCP port is needed");
+  return address.port;
+}
+
+async function freePort() {
+  const server = createServer();
+  const port = await listen(server);
+  await new Promise<void>((done, fail) => server.close((error) => (error ? fail(error) : done())));
+  return port;
+}
+
+function start(settings: NodeJS.ProcessEnv) {
+  const child = spawn(process.execPath, ["dist/server/main.js"], {
+    env: { PATH: process.env.PATH, ...settings },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const lines: string[] = [];
+  child.stdout.on("data", (chunk: Buffer) => lines.push(chunk.toString()));
+  child.stderr.on("data", (chunk: Buffer) => lines.push(chunk.toString()));
+  const closed = new Promise<number | null>((done, fail) => {
+    child.once("error", fail);
+    child.once("exit", done);
+  });
+  return { child, closed, lines };
+}
+
+beforeAll(async () => {
+  folder = await mkdtemp(join(tmpdir(), "__APP_NAME__-entry-"));
+  nats = await startNatsServer();
+  endpoint = `http://127.0.0.1:${await listen(collector)}`;
+});
+afterAll(async () => {
+  await new Promise<void>((done, fail) =>
+    collector.close((error) => (error ? fail(error) : done())),
+  );
+  await nats.close();
+  await rm(folder, { recursive: true, force: true });
+});
+beforeEach(async () => {
+  const port = await freePort();
+  env = {
+    HOST: "127.0.0.1",
+    PORT: String(port),
+    DATA_PATH: join(folder, "db"),
+    NATS_URL: nats.url,
+    MAIL_URL: "smtp://127.0.0.1:1025",
+    BETTER_AUTH_SECRET: "test-only-secret-with-at-least-32-characters",
+    BETTER_AUTH_URL: `http://127.0.0.1:${port}`,
+    OTEL_EXPORTER_OTLP_ENDPOINT: endpoint,
+    OTEL_SERVICE_NAME: "__APP_NAME__",
+  };
+});
+
+test("the prod entry serves its page, exports a trace, and exits zero on SIGTERM", async () => {
+  const run = start(env);
+  try {
+    await expect
+      .poll(() => run.lines.join(""), { timeout: 15000 })
+      .toContain('"message":"listening"');
+    const response = await fetch(`http://${env.HOST}:${env.PORT}/`);
+    expect(await response.text()).toContain("<h1>Notes</h1>");
+  } finally {
+    run.child.kill("SIGTERM");
+    expect(await run.closed).toBe(0);
+  }
+  expect(exports).toContain("/v1/traces");
+});
+
+test.each(keys)("a missing %s stops prod boot and names the key", async (key) => {
+  const settings = { ...env };
+  delete settings[key];
+  const run = start(settings);
+  try {
+    expect(await run.closed).toBe(1);
+    expect(run.lines.join("")).toContain(key);
+  } finally {
+    run.child.kill("SIGTERM");
+    await run.closed;
+  }
+});
