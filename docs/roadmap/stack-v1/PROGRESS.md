@@ -4234,3 +4234,13 @@ This is new type feedback; no Core source changed.
   Strict style census: OK.
 - Next: check the timeout ranges under the lock,
   then rerun both full mutation lanes and validation.
+
+### t08 cleanup validation
+
+- `pnpm validate` passes all 50 checks, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Proof: `stack-t08-resume-cleanup-validate.log`
+  in the briefs cache.
+- The focused mutation check is still waiting
+  for `/tmp/mutation.lock` in the foreground.
+- Next: its result, then both full mutation lanes.
