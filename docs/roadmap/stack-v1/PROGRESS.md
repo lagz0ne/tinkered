@@ -3612,3 +3612,15 @@ await closing;
 - Log and JSON: `stack-t10-fix1-auth-mutation`
   in the briefs cache.
 - Next: Hono under the same lock, then validation.
+
+### Fix round 1 Hono mutation passes
+
+- Fresh full Hono lane under the same mutation lock:
+  killed 405, timeout 0, survived 62.
+  No coverage 2, errors 0; score 86.35 percent, `EXIT 0`.
+  Killed divided by killed, timeout, and survived is 86.72 percent.
+- Timeout stayed 60000; concurrency stayed 2.
+  Both full lanes passed without new exclusions.
+- Log and JSON: `stack-t10-fix1-hono-mutation`
+  in the briefs cache.
+- Round 1 validation follows before round 2 edits.
