@@ -54,6 +54,17 @@ test("an owned database opens its configured path lazily and closes with the sco
   expect(db.$client.closed).toBe(true);
 });
 
+test("stopping a lazy database build leaves its configured path unopened", async () => {
+  const path = await mkdtemp(join(tmpdir(), "pglite-stopped-"));
+  folders.push(path);
+  const scope = createScope({ tags: [config({ kind: "open", url: join(path, "db") })] });
+  const building = scope.resolve(database);
+  const closing = scope.close();
+  await expect(building).rejects.toBeDefined();
+  await closing;
+  expect(await readdir(path)).toEqual([]);
+});
+
 test("two roots open separate clients and closing one leaves the other usable", async () => {
   const first = createScope({ tags: [config({ kind: "open" })] });
   const second = createScope({ tags: [config({ kind: "open" })] });

@@ -24,9 +24,11 @@ export const database = resource({
   depends: { config },
   factory: async ({ config }, ctx) => {
     const { drizzle } = await import("drizzle-orm/pglite");
+    ctx.signal.throwIfAborted();
     if (config.kind === "borrow")
       return drizzle({ client: config.client, logger: createQueryLogger(ctx) });
     const { PGlite } = await import("@electric-sql/pglite");
+    ctx.signal.throwIfAborted();
     const client = new PGlite(config.url);
     ctx.defer(() => client.close());
     return drizzle({ client, logger: createQueryLogger(ctx) });

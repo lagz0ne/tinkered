@@ -14,7 +14,8 @@ Declare app tables and operations once at module scope.
 ```ts
 import { createScope, extension } from "@tinker/core";
 import { namespace, operation } from "@tinker/core";
-import { config, transaction } from "@tinker/drizzle/pglite";
+import { config } from "@tinker/drizzle/pglite";
+import { transaction } from "@tinker/drizzle/pglite";
 import { migrate } from "@tinker/drizzle/pglite";
 import { migrationConfig } from "@tinker/drizzle/pglite";
 import { pgTable, text } from "drizzle-orm/pg-core";
@@ -83,6 +84,7 @@ with `createQueryLogger` and `openTransaction`.
 
 Missing PGlite config raises `MissingTag` with the config label.
 An owned database opens its configured path lazily and closes with the scope.
+Stopping a lazy database build leaves its configured path unopened.
 Two roots open separate clients and closing one leaves the other usable.
 Tenant databases stay separate and request config cannot replace the tenant client.
 A failed session rolls back while the prior session commit stays visible.
