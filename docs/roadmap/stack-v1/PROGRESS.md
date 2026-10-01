@@ -4330,3 +4330,17 @@ This is new type feedback; no Core source changed.
   queuing stack under `/tmp/mutation.lock`.
 - Next: finish the full stack lane, save its counts,
   and hand the branch to the lead for review.
+
+### t08 full stack mutation after the hook migration
+
+- Stack: 553 killed, 2 timeout, 89 survived,
+  2 without coverage; `EXIT 0`.
+  Killed share: 85.87%, above the required 85%.
+  Stryker score: 85.91%.
+- Ran alone under `/tmp/mutation.lock` after jobs.
+  Checked the t17 done file before queuing it.
+- Proof: `stack-t08-resume-final-stack-mutation.log`
+  and its `.json` in the briefs cache.
+- Fresh fetch still shows `origin/main` at `d96fee94`.
+  No further rebase or code change is needed.
+- Next: final validation, then lead review and landing.
