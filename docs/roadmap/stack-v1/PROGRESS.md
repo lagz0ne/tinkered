@@ -503,7 +503,7 @@ npx --no-install stryker run \
   main; `vp run hono#test`, tracker tests, browser
   proof, `pnpm validate`.
 
-- **t18 the stack's roots on the stop signal** -- [ ] blocked by: none
+- **t18 the stack's roots on the stop signal** -- [x] landed 18af8441 (blocked by: none)
   core/root-lifetime landed (ADR 0085). The stack
   drops `runUntilStop` for an exit-code helper over
   a plain `Result`; the tracker's server root passes
@@ -2534,3 +2534,405 @@ The checked Hono, Stack, tracker, Core, and lockfile trees are unchanged.
 No code or tests changed during this resume.
 The branch is ready for lead review; this writer did not push.
 Core feedback: none new.
+
+## t18 writer — 2026-09-30
+
+Owner: stack/t18 writer.
+Branch: `stack/t18`.
+Next: lead review and landing; the writer has not pushed.
+Verify: stack and tracker tests, browser proof, real entry
+exit codes, plain lifetime rules, validation, and mutation.
+
+### t18 impact before code
+
+- Remove the public `runUntilStop` function.
+  Its callers are the tracker's server entry and the
+  stack's server tests; the stack README shows it too.
+- Add `readExitCode(result, observe, phase)`.
+  The result and observe config are borrowed.
+  The helper owns no scope and does not wait or close.
+- A failed result or any teardown error answers 1.
+  Every other result, including cancellation, answers 0.
+- Assumption: the root supplies `"boot"` or `"shutdown"`
+  because core's result has no boot marker.
+  Reading ready's outcome chooses the existing log line;
+  only core owns cleanup and the stop listener.
+- Keep the tracker's extension order from t06.
+  Rebase on t17 before the final gate and keep its server
+  changes. Leave the parallel root migration alone.
+- Review: index stack and check both helper symbols.
+  The removed symbol must print `(none)`.
+
+```sh
+scripts/scip.sh index stack
+scripts/scip.sh refs 'runUntilStop' stack
+scripts/scip.sh refs 'readExitCode' stack
+```
+
+### t18 first green step
+
+- Commit `4ad58653` replaces the old helper with
+  `readExitCode` and moves the tracker onto core's stop
+  signal and `closed` result.
+- Build, `vp check`, and stack tests: exit 0.
+  Stack: 65 tests in eight files.
+  Check: zero errors and 28 warnings.
+  A separate `origin/main` worktree at `f8acfee5` also
+  built and checked with zero errors and 28 warnings.
+- Tracker: 79 tests in nine files, exit 0.
+- Browser proof and seven browser-helper tests: exit 0.
+- The real server entry answered 0 on SIGTERM.
+  Bad PORT answered 1 with one `boot failed` line and
+  `payload.keys` equal to `["PORT"]`.
+- SCIP: `runUntilStop` printed `(none)`.
+  `git grep` found no old helper in packages or apps.
+  `rg` is not on PATH; `git grep` checked tracked files.
+- Jev over `origin/main..HEAD`: no source flags.
+  Stack tests: zero of 30 titles flagged.
+  README promises: zero missing lines.
+  No labels were needed for this ticket.
+- The required `main..HEAD` run also read core's root
+  lifetime changes because local main was still at t06.
+  Its 61 unit flags are outside this ticket's diff.
+  The remote-base run above checks only this ticket.
+- The plain directory lint found no S19, S27, S28, or
+  S29 rows. S19's wider reach and S29 have not landed.
+  Two unchanged factory notes remain in `publish.ts`
+  and `testing.ts`: each factory binds its own inputs.
+- TSDoc: zero S26 rows. Style census: OK.
+- Core feedback: no new failing case.
+
+### t18 wider checks before the t17 landing
+
+- `pnpm validate`: all 48 lanes passed, exit 0.
+- `vp run -r build && vp run -r test`: exit 0;
+  all 17 workspace test tasks passed.
+- The cancellation test now awaits `run()` instead of
+  discarding a `settle()` result; each case names its
+  exit code. Build, check, and stack tests passed again.
+- The README's root example fits a 60-character line.
+- t17 is still absent from `origin/main` at `f8acfee5`.
+  The final rebase, gate, and mutation run wait for it.
+
+### t18 final gate before mutation
+
+- Rebased onto t17's checked commit `31334686`, then
+  onto `origin/main` at `b78302c1` for S19 and S29.
+  Assumption: the checked t17 branch is the intended
+  dependency while its landing on main is still pending.
+  The t17 code ends at `090d07e8` in this branch.
+  The t17 server and Hono source are unchanged.
+- Kept the tracker's order: server, migrate, web, src,
+  then the live piece when NATS_URL is set, else publish.
+- The only rebase conflict was the track notes.
+  Both sets of notes are kept.
+
+```sh
+vp run -r build && vp check \
+  && vp run stack#test \
+  && vp run @tinker-issue-tracker#test
+```
+
+```text
+check: 0 errors, 28 warnings
+stack: 70 passed (8 files)
+tracker: 79 passed (9 files)
+EXIT 0
+```
+
+- The warning count matches the main baseline check.
+- `pnpm validate`: all 48 lanes pass, exit 0.
+- `vp run -r test`: all 17 tasks pass, exit 0.
+- Browser proof and seven browser-helper tests: exit 0.
+  One earlier browser attempt overlapped validation's
+  package rebuild and could not import stack's dist.
+  Running it after validation passed without a code change.
+- Real entry: SIGTERM exits 0 with no boot failure line.
+  Bad PORT exits 1 with exactly one `boot failed` line,
+  whose `payload.keys` is `["PORT"]`.
+- New plain rules: no S19, S27, S28, or S29 rows in
+  the tracker's server source or the stack's source.
+  The same two factory notes remain; no label is owed.
+- Jev over this ticket's diff: zero source flags.
+  Stack tests: zero of 35 titles flagged.
+  README promises: zero missing lines.
+  New label lines: none.
+- SCIP: the deleted helper prints `(none)`.
+  Its replacement has refs in the public entry and tests.
+  No old helper remains in tracked packages or apps.
+- Style census: OK.
+- Prose lint: zero hits.
+- Core feedback: no new failing case.
+
+### t18 final mutation and handoff
+
+- The full stack lane ran once, alone under the lock.
+  Its config kept `timeoutMS: 60000` and the floor of 85.
+
+```sh
+flock /tmp/mutation.lock \
+  vp run --no-cache stack#mutate
+```
+
+```text
+All files: 88.74%
+Killed: 268
+Timeout: 0
+Survived: 33
+No coverage: 1
+Errors: 0
+EXIT 0
+```
+
+- The new exit helper scored 85.71%: 18 killed and
+  three survived, with no timeout or uncovered code.
+- Report: `packages/stack/reports/mutation/mutation.json`.
+  The command log is `/tmp/stack-t18-mutation.log`.
+- This proof covers the checked t17 code plus t18 on
+  `origin/main` at `b78302c1`.
+  t13 landed on main while this lane waited for the lock;
+  it is outside this tested base.
+  The lead must rebase and run the landing checks on
+  current main, as the contributor rules require.
+- New Jev label lines: none; no new Core feedback.
+- No push. The card is in Review.
+
+### t18 reviewer fix round 1
+
+- Keep teardown errors on the same failed boot log line.
+  Prove it through a real root with two start hooks.
+- Read the log phase straight from ready in the server
+  entry and README example.
+- Assumption: this round keeps the reviewed base and
+  touches only the two fixes, their test, and this proof.
+- The new test failed without the fix: the single log
+  line had no `teardown` field.
+  The fix adds that field and keeps the message,
+  other fields, and exit code of one.
+- Gate: build, check, stack tests, tracker tests.
+
+```text
+check: 0 errors, 28 warnings
+stack: 71 passed (8 files)
+tracker: 79 passed (9 files)
+EXIT=0
+```
+
+- The warning count matches the reviewed base.
+- Prose lint: zero hits; README code lines under 60.
+- Jev lint: no S19, S27, S28, or S29 rows.
+  The two old factory notes remain in `liveUpdates`
+  and `createTestDatabase`: each binds its own inputs.
+  These plain code notes need no labels.
+- Jev pre-flight: zero flags in the changed source.
+  Stack tests: zero of 36 titles flagged.
+  README promises: zero missing lines.
+  The new test matches its promise exactly.
+  One unsure old live-signal title is already promised
+  across two README lines; no change is needed.
+- Style census: OK.
+- New Jev label lines: none; no new Core feedback.
+- Logs: `/tmp/stack-t18-r1-gate.log` and
+  `/tmp/stack-t18-r1-red-test.log`.
+- Next: run the full stack mutation lane once under
+  the lock, then save its proof here.
+
+### t18 resume on main
+
+Owner: stack/t18 writer.
+Status: Review.
+Next: lead review and landing.
+Verify: stack and tracker tests, browser proof, real entry,
+SCIP, lifetime lint, stack mutation K/T/S, and validation.
+
+- Base: `217a4fe3` from `origin/main`.
+- Another writer rebased the same worktree onto the
+  stopped lander's t17 tip while the briefs were read.
+  Its `1a01f415` held the same eight t18 commits.
+  Used `git rebase --onto origin/main 547c23a1` to move
+  only those eight onto main.
+  This leaves out t17 and its board commit.
+- The first t18 commit conflicted in this file.
+  Kept main's notes and t18's notes.
+  Left t17's notes on its own branch.
+- The duplicate writer then repeated its t17 rebase
+  during the build, producing `f5ba6331`.
+  Stopped the duplicate run and the mixed-base gate.
+  Saved the useful trace test edit and its README line.
+  Discarded unsaved track notes.
+  Restored the completed main rebase at `cc96f012`.
+  Reapplied the test and README edits.
+- No rebase is in progress; no old gate is still running.
+- Kept main's trace cleanup fix (`da27c9cc`).
+  Missing or invalid config still closes with its boot error.
+  Its test now checks exit code 1 and one boot failure line.
+- Assumption: ready's outcome supplies the log phase.
+  Core owns cleanup through `signal` and `closed`.
+- No t17 code is needed: the main-only build and gate pass.
+- Gate: build, check, stack, tracker; `EXIT 0`.
+  Stack: 109 tests in 12 files.
+  Tracker: 79 tests in nine files.
+  Check: zero errors and 28 warnings.
+  The clean main check at `217a4fe3` also has 28 warnings.
+- The boot teardown test fails with the old helper behavior:
+  its log has no teardown field, `RED_EXIT 1`.
+  Restoring the fix makes it pass, `GREEN_EXIT 0`.
+  The source is restored with no diff.
+- SCIP: the old helper has no definition or reference.
+  The new helper is used by the server and trace tests.
+  `rg runUntilStop packages/ apps/` has no matches.
+- Jev: zero source flags and zero of 52 test titles flagged.
+  No missing README promises; one old title is unsure.
+  New label lines: none.
+- The required directory lint has no S19, S27, S28,
+  or S29 row; these rules are present on main.
+  Seven old factory notes remain.
+  The trace factory makes its own config tag and graph.
+  The test database factory binds its own migrations.
+  These plain notes need no label.
+- Strict style census: OK; TSDoc: zero S26 rows.
+  Prose lint: zero hits.
+- All 18 package test tasks pass through their own configs,
+  `ALL_TESTS_EXIT 0`.
+- The browser proof and seven browser helper tests pass,
+  `BROWSER_EXIT 0`.
+- The real entry answers GET with HTTP 200 and exits 0
+  on SIGTERM.
+  Bad PORT exits 1, writes one boot failure line,
+  names only PORT, and creates no database.
+- The final fetch still points to `217a4fe3`.
+  `git rebase origin/main` reports up to date.
+- The clean main check worktree was removed.
+- Logs: `/tmp/stack-t18-resume-gate-final.log`,
+  `/tmp/stack-t18-main-baseline.log`,
+  `/tmp/stack-t18-resume-red.log`,
+  `/tmp/stack-t18-resume-green.log`,
+  `/tmp/stack-t18-resume-jev.log`, and
+  `/tmp/stack-t18-resume-lint.log`.
+
+### t18 checks after t17 landed
+
+- Waited for the lead's t17 mutation marker.
+  The cancelled lock wait had not started a lane.
+  Waited again until the lead confirmed t17 had landed.
+- Rebased only t18's ten commits onto `870beab4`.
+  This is `origin/main`, tagged `stack/t17`.
+  No unlanded t17 commit remains on this branch.
+- Conflict: `docs/roadmap/stack-v1/PROGRESS.md`.
+  Main adds t17's checked landing notes.
+  The ticket adds t18's impact and proof notes.
+  Kept both sets; no source conflict needed a choice.
+- Install: exit 0; no file changed.
+- The ticket's one gate chain passed, `GATE_EXIT 0`.
+  Build passed; check has zero errors and 28 warnings.
+  Stack: 114 tests in 12 files.
+  Tracker: 79 tests in nine files.
+- A clean `870beab4` worktree also builds and checks
+  with zero errors and 28 warnings, `MAIN_CHECK_EXIT 0`.
+  The clean worktree was removed after the check.
+- All 18 package test tasks pass through their own configs,
+  `ALL_TESTS_EXIT 0`.
+- Browser proof and seven browser helper tests pass,
+  `BROWSER_EXIT 0`.
+- The real entry serves HTTP 200 and exits 0 on SIGTERM.
+  Bad PORT exits 1 with exactly one boot failure line.
+  Its payload names only PORT; it creates no database.
+- SCIP finds no old helper; `rg` has no old caller.
+  The required lint has no S19, S27, S28, or S29 row.
+- Strict style census: OK; TSDoc has zero S26 rows.
+- Jev on `origin/main..HEAD`: zero source flags.
+  Stack: zero of 57 titles flagged; no promise gap.
+  New label lines: none.
+- The required `main..HEAD` run also reads unrelated
+  examples and landed Hono and server changes.
+  Local main is `600992f7`, behind the tested remote base.
+  Its 18 unit flags are outside t18's diff.
+  The remote-base run above checks only this ticket.
+  The directory lint's seven factory notes need no labels.
+- Logs: `/tmp/stack-t18-final-gate.log`,
+  `/tmp/stack-t18-final-browser.log`,
+  `/tmp/stack-t18-final-entry.log`, and
+  `/tmp/stack-t18-final-bad-port.log`.
+- The earlier mutation proof is from the paused base.
+  The current lane and validation are recorded below.
+
+### t18 current mutation proof — 2026-10-01
+
+- Ran once after t17 landed, alone under `/tmp/mutation.lock`.
+  Waited in this turn until the shared lock was free.
+  Kept the 60-second config and used two workers.
+
+```bash
+flock /tmp/mutation.lock \
+  vp run --no-cache stack#mutate --concurrency 2
+```
+
+```text
+Killed: 548
+Timeout: 3
+Survived: 89
+No coverage: 2
+Errors: 0
+MUTATION_EXIT 0
+```
+
+- Kills alone: 548 of 640, or 85.625 percent.
+  With the two uncovered rows: 548 of 642, or 85.36 percent.
+  Both exceed the floor of 85.
+  Stryker's score, which counts timeouts, is 85.83.
+- Timeouts: `src/publish.ts:97`, `src/trace.ts:220`,
+  and `src/trace.ts:221`.
+  These source files are unchanged by this ticket.
+- The first test run passed all 114 tests.
+  Source files remain unchanged after the lane.
+- Report: `packages/stack/reports/mutation/mutation.json`.
+  Saved a copy as `stack-t18-final-mutation.json`
+  in `/home/paseo/.cache/tinkered-briefs`.
+  Log: `/tmp/stack-t18-final-mutation.log`.
+- `pnpm validate`: all 48 lanes pass, `VALIDATE_EXIT 0`.
+  `allowBuilds.esbuild` was already true.
+  Restored `pnpm-workspace.yaml` after validation.
+- No new Jev labels or Core feedback.
+  No source or config edit followed the gate.
+- Final logs and the mutation report are also saved in
+  `/home/paseo/.cache/tinkered-briefs`.
+  Validation log: `/tmp/stack-t18-final-validate.log`.
+- Status: Review; next is lead review and landing.
+  Nothing was pushed.
+
+### t18 final main refresh — 2026-10-01
+
+- Main moved during the lock wait to `22b91ecf`.
+  Its four new commits give each example its own package.
+  Read ADR 0092 before the final refresh.
+- Rebased all twelve t18 commits onto that main.
+  This rebase has no conflicts.
+  Install passed; it changed no tracked file.
+- Compared the old checked head `821b1416` with the new head.
+  Stack's source, tests, configs, and README are byte-for-byte equal.
+  Core, Hono, Drizzle, NATS, and tracker are also byte-for-byte equal.
+  No mutation input or runtime dependency changed.
+  The one full mutation lane above still covers this code.
+- The browser and real-entry proof also cover identical code.
+  Their logs remain the `stack-t18-final-*` logs above.
+- Re-ran the ticket's full gate on `22b91ecf`, `GATE_EXIT 0`.
+  Build passed; check has zero errors and 28 warnings.
+  Stack: 114 tests in 12 files.
+  Tracker: 79 tests in nine files.
+- All 28 package test tasks pass, with no cached result,
+  `ALL_TESTS_EXIT 0`.
+- The updated `pnpm validate` passes all 48 lanes,
+  `VALIDATE_EXIT 0`.
+  Restored `pnpm-workspace.yaml` afterward.
+- The required lifetime lint still has no S19, S27, S28, or S29 row.
+  Jev on the remote-base diff has zero source flags.
+  Stack has zero of 57 test titles flagged and no promise gap.
+  The old live-signal title is unsure, not missing.
+  New label lines: none; Core feedback: none.
+- Latest logs: `/tmp/stack-t18-latest-gate.log`,
+  `/tmp/stack-t18-latest-all-tests.log`,
+  `/tmp/stack-t18-latest-jev.log`, and
+  `/tmp/stack-t18-latest-validate.log`.
+  Copies are in `/home/paseo/.cache/tinkered-briefs`.
+- Status: Review; next is lead review and landing.
+  Nothing was pushed.
