@@ -5183,3 +5183,43 @@ No build runs in that tree while the job waits or runs.
 - Strict style census passed.
 - Logs use `stack-t14-wave2-` under the briefs cache.
 - Next: whole Stack and NATS fault lanes, queued A/B, then all validation lanes.
+
+### t14 whole-lane findings and stronger dev proof
+
+- The first whole Stack lane on `d96fee94` finished.
+  Killed 679; timeout 3; survived 151; uncovered 10.
+  Strict score: `679 / (679 + 3 + 151 + 10) = 80.55%`.
+  One runner error is separate and is not a kill.
+  The lane is red; its raw report stays saved.
+- NATS stopped in its dry run before fault tests.
+  Its child looked for an ignored `dist` in the sandbox.
+  The child now follows the real `node_modules` path,
+  as the existing Stack fixture does.
+  All 36 public NATS tests passed with that fix.
+  The child checks built code; it does not count as a fault kill.
+  Main already excludes `src/testing.ts` from that lane.
+- I misread the watcher's fault span.
+  The whole condition replacement was killed.
+  The survivor replaces only `modules.length === 0`.
+  All old edits stayed inside the entry folder.
+  I stopped my unused diagnostic lock wait; no fault ran.
+- The fixture now matches the tracker:
+  `server/root.ts` imports `shared/value.ts`.
+  Existing reload promises and assertions stay.
+- The new HMR proof holds a browser socket on the dev port.
+  A client save reaches it and leaves the app root running.
+  Stopping closes that socket and answers zero.
+- Existing tests now check HTML's content type,
+  root error fields, and the local NATS port closing.
+- Core now owns each service close through `event.defer`.
+  Stop joins the app root before Vite, HTTP, NATS, and PGlite close.
+  The stop defer is added last even when startup fails.
+  Root cleanup still queries its borrowed database and flushes NATS.
+  Core keeps closing later services after a cleanup error.
+- Build and check pass: zero errors, the same 28 warnings.
+  All 14 dev tests pass with native cleanup.
+- Both read-only committee members agreed on the fault span
+  and checked the failed-start and socket close order.
+  No runner rule or mutation exclusion changed.
+- Next: optional report proof, full gate, whole fault lanes,
+  queued restart versus reload, and all validation lanes.

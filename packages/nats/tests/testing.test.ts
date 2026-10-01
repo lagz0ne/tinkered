@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import { connect } from "@nats-io/transport-node";
-import { cp, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -97,6 +97,7 @@ test.each(["absolute", "empty", "relative"])(
         process.execPath,
         ["--input-type=module", "-e", source],
         {
+          cwd: dirname(await realpath(new URL("../node_modules", import.meta.url))),
           env: {
             ...process.env,
             XDG_CACHE_HOME: setting === "absolute" ? cache : setting === "empty" ? "" : "relative",

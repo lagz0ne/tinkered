@@ -4,7 +4,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { getRequestListener } from "@hono/node-server";
 import { connect } from "@nats-io/transport-node";
-import { createScope, extension } from "@tinker/core";
+import { createScope, extension, type Scope } from "@tinker/core";
 import type { HonoScope } from "@tinker/hono";
 import type { Nats } from "@tinker/nats";
 import { startNatsServer } from "@tinker/nats/testing";
@@ -48,8 +48,12 @@ export async function runDev(options: Dev.Options, stop: AbortSignal): Promise<n
         label: "stack.dev",
         hooks: {
           start: async (event) => {
-            event.defer(() => host.close());
-            await host.open();
+            try {
+              await host.open(event.defer);
+            } finally {
+              /** Root cleanup must precede service cleanup, including after a failed start. */
+              event.defer(() => host.close());
+            }
           },
         },
       }),
@@ -75,7 +79,6 @@ class DevHost {
   private runner?: ModuleRunner;
   private client?: PGlite;
   private connection?: Nats.Wiring["connection"];
-  private cleanup: (() => Promise<unknown>)[] = [];
   private root?: { stop: AbortController; done: Promise<RootEnd> };
   private current?: Dev.App;
   private failure = "starting";
@@ -99,15 +102,25 @@ class DevHost {
     });
   }
 
-  async open(): Promise<void> {
+  async open(defer: Scope.ExtensionCtx["defer"]): Promise<void> {
     const settings = readSettings(this.env);
     this.url = `http://${settings.host.includes(":") ? `[${settings.host}]` : settings.host}:${settings.port}`;
     await mkdir(this.env.DATA_PATH!, { recursive: true });
-    this.client = new PGlite(this.env.DATA_PATH);
-    this.cleanup.push(() => this.client!.close());
-    await this.client.waitReady;
-    if (this.options.nats) await this.openNats();
-    await this.openVite();
+    const client = new PGlite(this.env.DATA_PATH);
+    this.client = client;
+    defer(() => client.close());
+    await client.waitReady;
+    if (this.options.nats) await this.openNats(defer);
+    /** Vite releases HMR sockets before this listener close is awaited. */
+    defer(
+      () =>
+        new Promise<void>((done, fail) => {
+          if (!this.listener.listening) return done();
+          this.listener.close((error) => (error ? fail(error) : done()));
+          this.listener.closeIdleConnections();
+        }),
+    );
+    await this.openVite(defer);
     await new Promise<void>((done, fail) => {
       this.listener.once("error", fail);
       this.listener.listen(settings.port, settings.host, () => {
@@ -118,19 +131,19 @@ class DevHost {
     await this.reload();
   }
 
-  private async openNats(): Promise<void> {
+  private async openNats(defer: Scope.ExtensionCtx["defer"]): Promise<void> {
     const server = await startNatsServer();
-    this.cleanup.push(() => server.close());
+    defer(() => server.close());
     this.env.NATS_URL = server.url;
     const connection = await connect({ servers: server.url });
     this.connection = connection;
-    this.cleanup.push(() => connection.close());
+    defer(() => connection.close());
   }
 
-  private async openVite(): Promise<void> {
+  private async openVite(defer: Scope.ExtensionCtx["defer"]): Promise<void> {
     const reload = () => this.reload();
     const serverDirectory = `${dirname(this.entry)}${sep}`;
-    this.vite = await createVite({
+    const vite = await createVite({
       root: this.options.root,
       appType: "custom",
       logLevel: "silent",
@@ -171,7 +184,8 @@ class DevHost {
         },
       ],
     });
-    this.cleanup.push(() => this.vite!.close());
+    this.vite = vite;
+    defer(() => vite.close());
   }
 
   /** The chain owns every watcher promise. A failure is a served 503, not an unhandled rejection. */
@@ -240,28 +254,10 @@ class DevHost {
     this.stopping = true;
     this.current = undefined;
     this.failure = "stopping";
-    try {
-      await this.pending;
-      const end = await this.stopRoot();
-      if (end && "error" in end) throw end.error;
-      if (end?.code) raise("DevRootStopped", { code: end.code });
-    } finally {
-      const closing = new Promise<void>((done, fail) => {
-        if (!this.listener.listening) return done();
-        this.listener.close((error) => (error ? fail(error) : done()));
-        this.listener.closeIdleConnections();
-      });
-      const errors: unknown[] = [];
-      for (const close of this.cleanup.reverse()) {
-        try {
-          await close();
-        } catch (error) {
-          errors.push(error);
-        }
-      }
-      await closing;
-      if (errors.length) raise("DevCleanupFailed", { errors });
-    }
+    await this.pending;
+    const end = await this.stopRoot();
+    if (end && "error" in end) throw end.error;
+    if (end?.code) raise("DevRootStopped", { code: end.code });
   }
 }
 

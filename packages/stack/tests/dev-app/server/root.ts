@@ -4,10 +4,10 @@ import { hono, route } from "@tinker/hono";
 import { nats, subscribe, type Nats } from "@tinker/nats";
 import { readExitCode } from "@tinker/stack";
 import type { Dev } from "@tinker/stack/dev";
-import type { DevProbe } from "../dev-fixtures.ts";
-import { value } from "./value.ts";
+import type { DevProbe } from "../../dev-fixtures.ts";
+import { value } from "../shared/value.ts";
 
-const probe: DevProbe = createRequire(import.meta.url)("./probe.cjs");
+const probe: DevProbe = createRequire(import.meta.url)("../probe.cjs");
 
 export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host: Dev.Wiring) {
   probe.clients.push(host.client);
@@ -44,6 +44,10 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
           start: async (event) => {
             const timer = setInterval(() => probe.ticks++, 60_000);
             probe.timers.add(timer);
+            event.defer(async () => {
+              await host.client.query("select * from kept");
+              await host.connection?.flush();
+            });
             event.defer(() => {
               clearInterval(timer);
               probe.timers.delete(timer);

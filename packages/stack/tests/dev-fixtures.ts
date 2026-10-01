@@ -59,7 +59,12 @@ export async function createDevFixture(nats = true, env: NodeJS.ProcessEnv = {})
   const directory = await createDevDirectory();
   const probe: DevProbe = require(join(directory, "probe.cjs"));
   const PORT = env.PORT ?? (await readFreePort());
-  const host = startFixture({ root: directory, entry: "root.ts", env: { ...env, PORT }, nats });
+  const host = startFixture({
+    root: directory,
+    entry: "server/root.ts",
+    env: { ...env, PORT },
+    nats,
+  });
   onTestFinished(async () => {
     probe.release.resolve();
     host.stop.abort();

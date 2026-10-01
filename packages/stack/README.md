@@ -444,13 +444,19 @@ its URL; the NATS piece borrows the host's one connection.
 Prod gets none of these defaults.
 
 - Dev serves the app and Vite client from one listener.
+- A client edit reaches HMR on the kept port and leaves the root running.
+  Stop closes an open HMR socket before returning.
 - Three server edits close old roots and keep the same
   database and NATS handles.
+  Root cleanup can still use both borrowed handles.
+  Stop closes the database, NATS connection, and local server.
 - A request in flight during an edit finishes on its old root.
 - Back-to-back saves serve each new server value.
 - A broken server edit serves 503 until a good edit.
 
 - A broken root entry stays editable on 503.
+  The error event preserves a thrown value or exit code.
+  A missing callable entry reports `BadDevEntry`.
 - Dev reports bad listen settings and answers one.
 - Dev refuses an occupied port without closing its owner.
 
