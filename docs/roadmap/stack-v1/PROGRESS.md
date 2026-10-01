@@ -3768,3 +3768,11 @@ await closing;
 - Log and JSON: `stack-t10-resume2-hono-mutation`
   in the briefs cache.
 - Next: tracker browser proof once uncached, then validation.
+
+### Second resume browser proof passes
+
+- Ran tracker `test:browser` exactly once, uncached.
+  Browser proof and 7 helper tests pass, `EXIT 0`.
+  Both task cache hits are zero.
+- Log: `stack-t10-resume2-browser.log` in the briefs cache.
+- Next: final `pnpm validate`, then review.
