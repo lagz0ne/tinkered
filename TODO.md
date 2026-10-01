@@ -50,6 +50,12 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
+- **authoring/package-roles** — apply the settled package rule.
+  Owner: authoring lead; Astra writer; Opus review READY.
+  Next: integrate current main and check the affected packages before landing.
+  Proof: full build, check, 29 test suites, 54 release checks, and prose pass.
+  [Track](docs/roadmap/authoring-model/PACKAGE-ROLES.md).
+
 Hook loggers replace the boot log workarounds.
 Next: lead review and landing; the writer never pushed.
 Verify: final gate EXIT 0; all 31 test tasks pass.

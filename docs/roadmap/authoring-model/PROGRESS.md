@@ -949,3 +949,37 @@ Proof: `vp run prose` passes with 0 hits across all 174 tracked docs.
 The phone-width check passes all five touched docs with 0 wide rows or lines.
 `git diff --check` passes.
 The lead's Process review passed all 48 tests and the strict style census.
+
+## Package roles across the workspace
+
+The user approved applying the settled roles to every current package.
+[Package list, source links, and proof](PACKAGE-ROLES.md).
+The review covers Core, 13 graph modules, and the Process and React host adapters.
+Every surviving package exposes Core itself, reusable graph units, or host bindings.
+
+The unused `utils` starter and its one lockfile entry are removed.
+It had no source callers or workspace dependents.
+All surviving runtime source, tests, and public APIs keep their saved bytes.
+Drizzle's README names its driver graph entry and its shared resource helpers.
+React's README names its view host adapter role.
+The authoring guide links the complete package list.
+
+Opus high review is READY on the removal and all 16 roles.
+The lead applied its wording fix for Hono's `stream()` helper.
+The Astra writer's install, full build, and check pass.
+The check reports 0 errors and 28 existing warnings.
+The lockfile diff removes only the starter importer.
+The lead's local link check resolves all 32 links in the touched guides.
+Jev lead review reports 0 flags; no labels or calibration state changed.
+Writer preflight treated deleted paths as an empty file list and scanned unrelated source.
+The writer stopped that advisory run; no unrelated fixes were made.
+
+The lead's full build and check pass, exit 0.
+All 29 package and example test suites pass, exit 0.
+All 54 release checks pass, exit 0.
+All six touched docs pass prose and phone-width checks.
+Prose reports 0 hits across 174 tracked docs.
+Focused strict census passes.
+All 728 surviving package, app, and example inputs match the reviewed base,
+except the two README role notes; existing runtime fault proof remains valid.
+Current-main integration and affected checks are pending.

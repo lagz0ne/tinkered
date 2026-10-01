@@ -1,5 +1,20 @@
 # @tinker/drizzle
 
+Drizzle is a graph module for database setup, transactions, and migrations.
+App code imports static units from the driver entry.
+For PGlite, use `@tinker/drizzle/pglite`:
+
+```ts
+import { database } from "@tinker/drizzle/pglite";
+import { transaction } from "@tinker/drizzle/pglite";
+import { migrate } from "@tinker/drizzle/pglite";
+```
+
+The root entry supplies `createQueryLogger` and `openTransaction`
+for app-authored resources using a native Drizzle database.
+Each driver keeps its own types and optional SDK dependencies.
+See the [package roles](../../docs/best-practices.md#give-the-package-a-job).
+
 Requires `drizzle-orm@^0.45.2` or `drizzle-orm@^1.0.0-rc.4`.
 This repo pins Drizzle ORM and Kit to `1.0.0-rc.4`.
 

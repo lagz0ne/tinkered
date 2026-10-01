@@ -1,5 +1,9 @@
 # @tinker/react
 
+React is a host adapter: it connects an app's Core graph to mounted views.
+The app declares the graph; this package binds reads, actions, and view lifetime.
+See the [package roles](../../docs/best-practices.md#give-the-package-a-job).
+
 A thin React binding for [`@tinker/core`](../core). It is **not a store** — core already owns
 state, reactivity, lifetime, and observability. This package only _subscribes_ and _provides_: it
 adds no store, no cache, no reducer, no query-key ([ADR 0030](../../docs/decisions/0030-react-is-a-thin-adapter-not-a-store.md)).

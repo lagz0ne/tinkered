@@ -50,6 +50,9 @@ A function that declares a graph, such as `harness()`, is a graph builder.
 Judge a package by the reusable job its public API supplies.
 Tags alone do not turn a helper library into a graph module.
 
+The [current package review](roadmap/authoring-model/PACKAGE-ROLES.md)
+lists each package's role and public graph or host binding.
+
 ## Keep lifetime with its owner
 
 The precedent is request middleware and a database transaction.
