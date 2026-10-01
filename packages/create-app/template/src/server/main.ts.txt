@@ -1,0 +1,44 @@
+import { resolve } from "node:path";
+import { createScope, extension, type Observe } from "@tinker/core";
+import { jsonLines, migrate, readExitCode, server } from "@tinker/stack";
+import { raise } from "../errors.ts";
+import { database, databaseConfig } from "./store.ts";
+import { migrations } from "./migrations.ts";
+import { createWeb } from "./routes.ts";
+
+export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Promise<number> {
+  let log: Observe.Logger | undefined;
+  const web = createWeb();
+  const scope = createScope({
+    signal: stop,
+    tags: [databaseConfig(env.DATA_PATH)],
+    observe: jsonLines((line) => process.stdout.write(`${line}\n`)),
+    extensions: [
+      server(web, { env, clientDir: resolve("dist/client") }),
+      extension({
+        label: "__APP_NAME__.settings",
+        hooks: {
+          start(event) {
+            log = event.log;
+            if (!env.DATA_PATH) raise("BadDataSettings", { keys: ["DATA_PATH"] });
+            return event.next();
+          },
+        },
+      }),
+      migrate(database, migrations),
+      web,
+    ],
+  });
+  const phase = await scope.ready.then(
+    () => "shutdown" as const,
+    () => "boot" as const,
+  );
+  return readExitCode(await scope.closed, log, phase);
+}
+
+if (import.meta.main) {
+  const stop = new AbortController();
+  process.once("SIGINT", () => stop.abort());
+  process.once("SIGTERM", () => stop.abort());
+  process.exitCode = await runServer(process.env, stop.signal);
+}

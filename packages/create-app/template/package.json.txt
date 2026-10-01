@@ -7,14 +7,23 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "vp pack",
-    "test": "vp test"
+    "build": "vp build --ssr src/server/main.ts --outDir dist/server",
+    "test": "vp test",
+    "start": "node dist/server/main.js",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@tinker/core": "workspace:*"
+    "@electric-sql/pglite": "0.5.8",
+    "@tinker/core": "workspace:*",
+    "@tinker/drizzle": "workspace:*",
+    "@tinker/hono": "workspace:*",
+    "@tinker/stack": "workspace:*",
+    "drizzle-orm": "1.0.0-rc.4",
+    "hono": "4.13.8"
   },
   "devDependencies": {
     "@types/node": "26.5.1",
+    "drizzle-kit": "1.0.0-rc.4",
     "typescript": "7.0.2",
     "vite-plus": "0.3.1"
   }

@@ -1,0 +1,10 @@
+type Payloads = { BadDataSettings: { keys: string[] }; BadNote: { input: unknown } };
+
+export declare namespace Errors {
+  type Name = keyof Payloads;
+  type Of<N extends Name> = Error & { kind: N; payload: Payloads[N] };
+}
+
+export function raise<N extends Errors.Name>(kind: N, payload: Payloads[N]): never {
+  throw Object.assign(new Error(kind), { kind, payload });
+}

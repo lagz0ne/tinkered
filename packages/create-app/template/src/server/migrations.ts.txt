@@ -1,0 +1,4 @@
+import { resolve } from "node:path";
+
+/** Both the built entry and tests run from the app folder. */
+export const migrations = { migrationsFolder: resolve("drizzle") };

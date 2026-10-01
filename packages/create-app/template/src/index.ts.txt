@@ -1,3 +1,6 @@
-import { operation } from "@tinker/core";
-
-export const readName = operation({ label: "name", run: () => "__APP_NAME__" });
+export const appName = "__APP_NAME__";
+export { database, databaseConfig, transaction } from "./server/store.ts";
+export { migrations } from "./server/migrations.ts";
+export { addNote, listNotes } from "./server/notes.ts";
+export { createWeb } from "./server/routes.ts";
+export { runServer } from "./server/main.ts";

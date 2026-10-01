@@ -1,13 +1,36 @@
 import { createScope } from "@tinker/core";
-import { expect, test } from "vite-plus/test";
-import { readName } from "../src/index.ts";
+import { checkDrift } from "@tinker/drizzle/migrations";
+import { createTestDatabase, type TestDatabase } from "@tinker/stack";
+import { beforeAll, afterAll, expect, test } from "vite-plus/test";
+import { databaseConfig, migrations, createWeb } from "../src/index.ts";
 
-test("the app runs an operation", async () => {
-  const scope = createScope();
+let template: TestDatabase.Handle;
+beforeAll(async () => {
+  template = await createTestDatabase(migrations);
+});
+afterAll(async () => {
+  await template.close();
+});
+
+test("a request saves a note through its operation", async () => {
+  const client = await template.clone();
+  const web = createWeb();
+  const scope = createScope({ tags: [databaseConfig({ client })], extensions: [web] });
   try {
     await scope.ready;
-    expect(await scope.run(readName)).toBe("__APP_NAME__");
+    await scope.resolve(web).request("/api/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "First note" }),
+    });
+    const reply = await scope.resolve(web).request("/api/notes");
+    expect(await reply.json()).toEqual([{ title: "First note" }]);
   } finally {
     await scope.close();
+    await client.close();
   }
+});
+
+test("schema code matches the migration files", async () => {
+  await checkDrift(new URL("../drizzle.config.ts", import.meta.url).pathname);
 });

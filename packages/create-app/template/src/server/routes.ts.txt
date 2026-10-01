@@ -1,0 +1,12 @@
+import { hono, route } from "@tinker/hono";
+import { addNote, listNotes } from "./notes.ts";
+
+export function createWeb() {
+  return hono([
+    route.get("/api/notes", listNotes),
+    route.post("/api/notes", addNote, {
+      input: (c) => c.req.json(),
+      respond: (note, c) => c.json(note, 201),
+    }),
+  ]).extension;
+}

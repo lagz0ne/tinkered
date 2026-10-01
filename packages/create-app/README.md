@@ -12,6 +12,8 @@ Its stack packages use `workspace:*`.
 
 ## Promises
 
+- The bin writes an app that installs, builds, checks,
+  and passes its tests.
 - Writes app-owned files under apps with the given name.
 - Refuses to overwrite an app's files.
 - Refuses a name that is not one lowercase app directory.

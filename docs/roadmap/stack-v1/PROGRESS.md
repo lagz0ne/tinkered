@@ -5770,3 +5770,14 @@ useEffect(() => props.ready?.(), [props.ready]);
 - Assumption: the starter is a small notes list.
 - Assumption: the command takes one app name without prompts.
 - No push; the lead reviews and lands.
+
+### t16 store and first request
+
+- The skeleton is saved in `b843e12b`.
+- Added static database and transaction resources.
+- Added one notes table and its first migration.
+- The HTTP save test and schema drift check pass.
+- A fresh workspace installs, builds, checks, and tests.
+- Generator tests: 12 passed; generated app: 2 passed.
+- Root check: 0 errors and 28 warnings.
+- Next: published cell, live sync, and server pages.
