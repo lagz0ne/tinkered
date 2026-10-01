@@ -79,9 +79,11 @@ export const { extension: web } = hono([
   }),
 ]);
 
-/** Read one locally emitted SSE frame without opening a port or making a network request. */
-export async function honoTour(): Promise<string> {
+if (import.meta.main) {
   const stop = new AbortController();
+  const requestStop = () => stop.abort();
+  process.once("SIGINT", requestStop);
+  process.once("SIGTERM", requestStop);
   const root = createScope({ signal: stop.signal, extensions: [web, src] });
   let output: string;
   let end: Scope.Result;
@@ -111,13 +113,13 @@ export async function honoTour(): Promise<string> {
   } finally {
     stop.abort();
     end = await root.closed;
+    process.off("SIGINT", requestStop);
+    process.off("SIGTERM", requestStop);
   }
   if (end.status === "failed") throw end.error;
   if (end.teardownErrors?.length) {
     const [error] = end.teardownErrors;
     throw error;
   }
-  return output;
+  process.stdout.write(`${output}\n`);
 }
-
-if (import.meta.main) process.stdout.write(`${await honoTour()}\n`);
