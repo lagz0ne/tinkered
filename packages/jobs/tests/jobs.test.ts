@@ -1,5 +1,5 @@
 import { createScope, data, operation, type Operation, type Observe } from "@tinker/core";
-import { hono, route } from "@tinker/hono";
+import { errorResponses, hono, route } from "@tinker/hono";
 import { sql } from "drizzle-orm";
 import { expect, test } from "vite-plus/test";
 import { isError, job } from "../src/index.ts";
@@ -87,6 +87,27 @@ test("a throwing POST request returns 500 and leaves no job or receipt", async (
   await clock.advance(1000);
   expect(await readStates(client)).toEqual([]);
   expect((await client.query("select * from receipts")).rows).toEqual([]);
+});
+
+test("a mapped 409 request leaves no job", async () => {
+  const { client, piece, tags } = await fixture([job("save", save)]);
+  const addThenRaise = operation({
+    label: "add then raise",
+    depends: { send: piece.send },
+    run: async ({ send }, { raise }) => {
+      await send.run({ input: { queue: "save", data: { value: "gone" } } });
+      raise("ReceiptConflict", {});
+    },
+  });
+  const web = hono([route.post("/", addThenRaise)], {
+    onError: errorResponses({ ReceiptConflict: 409 }),
+  }).extension;
+  const scope = createScope({ tags, extensions: [piece.extension, web] });
+  scopes.push(scope);
+  await scope.ready;
+  const response = await scope.resolve(web).request("/", { method: "POST" });
+  expect(response.status).toBe(409);
+  expect(await readStates(client)).toEqual([]);
 });
 
 test("a failing job retries then stays failed and logs one line", async () => {

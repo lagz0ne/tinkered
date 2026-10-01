@@ -4096,3 +4096,33 @@ EXIT 0
   The mapped 4xx job test still waits for that fix.
 - Stack mutation is queued after the done file.
   Next: its result, then `pnpm validate`.
+
+### t08 follow-up after t17 — 2026-10-01
+
+- The queued stack lane passed on the first resumed base.
+  Killed: 530; timeout: 2; survived: 86; no coverage: 1.
+  Killed share: 85.76%; Stryker score: 85.95%; `EXIT 0`.
+  Its log and JSON use `stack-t08-resume-stack-mutation`
+  in the briefs cache.
+- A fresh fetch found t17 on `origin/main` at `22b91ecf`.
+  Added the promised mapped 409 job test and README line.
+- Before t17, the test failed: the 409 left an active job.
+  After t17, the 409 leaves no job; no clock wait is needed.
+  Red proof: `stack-t08-resume-409-red.log`, `EXIT 1`.
+- Rebased onto `22b91ecf`.
+  Kept both track-note blocks and both Jev label sets.
+  The lockfile keeps main's separate example packages
+  and the jobs dependency entries.
+  Dropped only obsolete example dependencies in the conflict.
+- Main's Hono, stack, and Core source stays unchanged.
+  Install passed; restored `CLAUDE.md`.
+- Full gate: jobs 25, stack 111, tracker 79; `EXIT 0`.
+  Check: 0 errors, 28 warnings, matching a fresh main check.
+  Logs: `stack-t08-resume-final-gate.log` and
+  `stack-t08-resume-final-main-check.log`.
+- Jev: 0 flags and 0 README gaps in 25 tests.
+  The private clock's saved false label still applies.
+  Strict style census and prose pass.
+- Next: all package tests and validation, then fresh jobs
+  and stack mutation on this final base under the lock.
+  The lead owns review and landing; this writer never pushes.

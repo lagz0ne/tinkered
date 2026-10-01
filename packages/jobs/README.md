@@ -77,6 +77,7 @@ They never sleep or patch globals.
 - A rolled back request leaves no job.
 - An unknown queue fails without blocking the request or close.
 - A throwing POST request returns 500 and leaves no job or receipt.
+- A mapped 409 request leaves no job.
 - A failing job retries then stays failed and logs one line.
 - Each job gets its own session cell.
 - A cron row creates a job when the test clock reaches its schedule.
