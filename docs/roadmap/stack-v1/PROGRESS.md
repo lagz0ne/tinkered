@@ -5493,3 +5493,57 @@ No build runs in that tree while the job waits or runs.
 - Next: Stack mutation, release checks, then Review.
 - Proof logs and JSON are in ~/.cache/tinkered-briefs/.
 - Log prefix: start-log-.
+
+### start-log-cleanup final proof
+
+- Owner: stack/start-log-cleanup writer.
+- State: Review; the writer never pushed.
+- Final base: origin/main at 5487051b.
+- The last rebase picked up one docs-only commit.
+- Both rebases had no conflicts.
+- Reinstalled after the final rebase and repeated the full gate.
+- Build, check, all 31 test tasks without cache: EXIT 0.
+- Check: 0 errors and 28 warnings, matching clean main source.
+- Hono 93, Stack 136, jobs 26, tracker 87 tests pass.
+- All five changed source hashes still match the mutation runs.
+- No source or test changed after the first green gate.
+- Hono: 397 killed, 0 timeout, 60 survived; 86.87%.
+- Jobs: 128 killed, 5 timeout, 17 survived; 85.33%.
+- Stack: 267 killed, 0 timeout, 39 survived; 87.25%.
+- Shares use killed / (killed + timeout + survived).
+- Without coverage: Hono 2, jobs 3, Stack 3.
+- Every mutation lane has EXIT 0 and 0 error rows.
+- Stack recovered one Node SIGILL during its initial test run.
+- The runner retried it; the final report has no error rows.
+- Hono and Stack used 2 workers; Hono also used a 60-second timeout.
+- This is the only check setting change from the brief.
+- Each mutation run held /tmp/mutation.lock in the foreground.
+- pnpm validate passes all 54 lanes: EXIT 0.
+- Restored pnpm-workspace.yaml; it has no branch change.
+- Source rg finds no hono.errors, jobs.errors, direct listening sink,
+  readExitCode clock setting, or tracker Date.now setting.
+- The exact exported span tree now checks every span.
+- Its old hono.errors filter is gone.
+- NATS, live updates, and migrate already had no direct hook sink writes.
+- Trace forwarding and local drop warnings stay.
+- They avoid exporting a warning into its own failing queue.
+- The dev host had only the unused exit clock setting; removed it.
+- Messages and error fields stay unchanged.
+- Hook logs add extension labels: hono or hono:<name>, jobs,
+  stack.server, and issues.root for the tracker's final failure line.
+- readExitCode takes the kept hook logger instead of sink settings.
+- Server.Options no longer takes observe.
+- SCIP refs cover those callers; the old observe member has none.
+- Jev: 0 file flags, test flags, or README gaps.
+- New label: stateOutsideCell false for serveRequests.
+- Its request drain state belongs to the started Hono server.
+- The other five false labels already exist in the case bank.
+- The two noisy wrapsCallersStep notes owe no labels.
+- Existing Hono helper-count notes remain in unchanged test files.
+- Strict style census, TSDoc parser, prose, and diff checks pass.
+- Core feedback: none; no new Core workaround was needed.
+- Final logs: start-log-final-gate.log and start-log-validate.log.
+- Mutation logs and JSON: start-log-<package>-mutation.*.
+- The first Hono attempt is saved as start-log-hono-mutation-first.*.
+- All proof files are in ~/.cache/tinkered-briefs/.
+- Next: lead reviews and lands the branch.

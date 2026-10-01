@@ -45,16 +45,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/start-log-cleanup** — owner: stack/start-log-cleanup writer.
-  Drop boot and close log workarounds after Core 758efce5.
-  Next: use hook loggers, then rebase and run all checks.
-  Verify: no direct hook sink writes; no hono.errors span;
-  full gate, changed-file mutation >= 85, pnpm validate.
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 ## Review
+
+- **stack/start-log-cleanup** — owner: stack/start-log-cleanup writer.
+  Hook loggers replace the boot log workarounds.
+  Next: lead review and landing; the writer never pushed.
+  Verify: final gate EXIT 0; all 31 test tasks pass.
+  Killed shares: Hono 86.87%, jobs 85.33%, Stack 87.25%.
+  Validate: all 54 lanes pass on origin/main at 5487051b.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Next: lead reviews and lands the saved branch.
 Verify: gate `EXIT 0`; auth 25, mail 13, jobs 26;
