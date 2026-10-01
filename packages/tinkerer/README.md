@@ -369,7 +369,16 @@ config, bound by the composition root.
 - `ask` keeps a plain word after a boolean flag:
   `ask --json hello` sends `hello`.
 
+The shell is static; each Process call supplies its config.
+This example points at a local model server.
+
 ```ts
+import { operation } from "@tinker/core";
+import { argv, io, positionals } from "@tinker/process";
+import { main, type Process } from "@tinker/process";
+import { tinkerer } from "@tinker/tinkerer";
+
+const coder = tinkerer({ label: "coder" });
 const ask = operation({
   label: "ask",
   depends: {
@@ -382,37 +391,56 @@ const ask = operation({
     const prompt = positionals(argv, {
       values: ["--cwd", "--mode"],
     }).join(" ");
-    // stream the turn, exit
+    if (prompt === "") {
+      io.error("usage: ask <prompt>\n");
+      return 2;
+    }
+    const stop = text.watch((next, previous) => {
+      io.write(next.slice(previous.length));
+    });
+    try {
+      const reply = await turn.run({ input: prompt });
+      io.write("\n");
+      return reply.finish === "stop" ? 0 : 3;
+    } finally {
+      stop();
+    }
   },
 });
 
-const shell = {
+const shell: Process.Shell = {
   name: "tinkerer",
   version: "0.0.0",
   commands: [
     {
       name: "ask",
       description: "run one turn and stream the answer",
-      entry: () => ({
-        op: ask,
-        options: {
-          tags: [
-            coder.config({
-              model: "m",
-              baseUrl: "https://api",
-            }),
-          ],
-        },
-      }),
+      entry: () => ({ kind: "command", op: ask }),
     },
   ],
 };
+
+if (import.meta.main) {
+  process.exitCode = await main({
+    shell,
+    options: {
+      tags: [
+        coder.config({
+          model: "local",
+          baseUrl: "http://127.0.0.1:8080/v1",
+        }),
+      ],
+    },
+  });
+}
 ```
 
-The composition root binds config and runs the
-shell with `run` or `main`, or by hand when it also
-reads `--cwd` and `--mode` into the `cwd` and
-`mode` tags.
+`main` streams output and returns the exit code.
+The app sets `process.exitCode` so pending writes can finish.
+A test calls `run({ shell, args, io, options })`
+and keeps any output in its own writers.
+The composition root also binds `cwd` and `mode`
+when it reads those flags into settings.
 
 ## Log lines
 

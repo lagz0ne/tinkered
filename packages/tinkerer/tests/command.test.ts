@@ -53,28 +53,37 @@ function recording(seen: HttpRequest.Record[]): HttpClient.Backend {
   };
 }
 
-/** The binary: one `ask` route whose root carries the fake model and the config. */
-function shell(seen: HttpRequest.Record[] = []): Process.Shell {
-  return {
-    name: "tinkerer",
-    version: "0.0.0",
-    commands: [
-      {
-        name: "ask",
-        description: "run one turn and print the answer as it streams",
-        entry: () => ({
-          op: ask,
-          options: {
-            tags: [backend(recording(seen)), coder.config({ model: "m", baseUrl: "https://api" })],
-          },
-        }),
-      },
-    ],
-  };
+const shell: Process.Shell = {
+  name: "tinkerer",
+  version: "0.0.0",
+  commands: [
+    {
+      name: "ask",
+      description: "run one turn and print the answer as it streams",
+      entry: () => ({ kind: "command", op: ask }),
+    },
+  ],
+};
+
+async function runCommand(args: readonly string[], seen: HttpRequest.Record[] = []) {
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const code = await run({
+    shell,
+    args,
+    options: {
+      tags: [backend(recording(seen)), coder.config({ model: "m", baseUrl: "https://api" })],
+    },
+    io: {
+      write: (text) => stdout.push(text),
+      error: (text) => stderr.push(text),
+    },
+  });
+  return { code, stdout: stdout.join(""), stderr: stderr.join("") };
 }
 
 test("ask runs one turn and prints the answer with exit code 0", async () => {
-  const result = await run(shell(), ["ask", "read", "the", "readme"]);
+  const result = await runCommand(["ask", "read", "the", "readme"]);
   expect(result.code).toBe(0);
   expect(result.stdout).toBe(`${replyText}\n`);
   expect(result.stderr).toBe("");
@@ -82,15 +91,22 @@ test("ask runs one turn and prints the answer with exit code 0", async () => {
 
 test("ask writes the reply to io in pieces that join to the reply and a newline", async () => {
   const written: string[] = [];
-  const result = await run(shell(), ["ask", "read it"], { write: (s) => written.push(s) });
-  expect(result.code).toBe(0);
+  const code = await run({
+    shell,
+    args: ["ask", "read it"],
+    options: {
+      tags: [backend(recording([])), coder.config({ model: "m", baseUrl: "https://api" })],
+    },
+    io: { write: (text) => written.push(text), error: () => {} },
+  });
+  expect(code).toBe(0);
   expect(written.length).toBeGreaterThan(2);
   expect(written.join("")).toBe(`${replyText}\n`);
 });
 
 test("ask with no prompt exits 2 with its usage on stderr and sends no request", async () => {
   const seen: HttpRequest.Record[] = [];
-  const result = await run(shell(seen), ["ask"]);
+  const result = await runCommand(["ask"], seen);
   expect(result.code).toBe(2);
   expect(result.stderr).toBe("usage: ask <prompt>\n");
   expect(seen).toHaveLength(0);
@@ -98,7 +114,7 @@ test("ask with no prompt exits 2 with its usage on stderr and sends no request",
 
 test("ask joins the prompt words with spaces and drops --flags with their values", async () => {
   const seen: HttpRequest.Record[] = [];
-  await run(shell(seen), ["ask", "read", "--mode", "full-access", "the", "readme"]);
+  await runCommand(["ask", "read", "--mode", "full-access", "the", "readme"], seen);
   const body = seen[0]?.body;
   if (body === undefined || body.kind !== "text") throw new Error("expected a JSON body");
   const parsed = JSON.parse(body.text) as { messages: { role: string; content: string }[] };
@@ -110,7 +126,7 @@ test("ask joins the prompt words with spaces and drops --flags with their values
 
 test("ask keeps a plain word after a boolean flag: ask --json hello sends hello", async () => {
   const seen: HttpRequest.Record[] = [];
-  const result = await run(shell(seen), ["ask", "--json", "hello"]);
+  const result = await runCommand(["ask", "--json", "hello"], seen);
   expect(result.code).toBe(0);
   const body = seen[0]?.body;
   if (body === undefined || body.kind !== "text") throw new Error("expected a JSON body");
@@ -119,14 +135,14 @@ test("ask keeps a plain word after a boolean flag: ask --json hello sends hello"
 });
 
 test("an unknown command exits 2 and lists ask in the usage", async () => {
-  const result = await run(shell(), ["nope"]);
+  const result = await runCommand(["nope"]);
   expect(result.code).toBe(2);
   expect(result.stderr).toContain("  ask");
 });
 
 test("help lists ask with its description and sends no request", async () => {
   const seen: HttpRequest.Record[] = [];
-  const result = await run(shell(seen), ["help"]);
+  const result = await runCommand(["help"], seen);
   expect(result.code).toBe(0);
   expect(result.stdout).toContain("ask  run one turn and print the answer as it streams");
   expect(seen).toHaveLength(0);
