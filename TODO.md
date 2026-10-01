@@ -50,12 +50,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **authoring/package-roles** — apply the settled package rule.
-  Owner: authoring lead; Astra writer; Opus review READY.
-  Next: integrate current main and check the affected packages before landing.
-  Proof: full build, check, 29 test suites, 54 release checks, and prose pass.
-  [Track](docs/roadmap/authoring-model/PACKAGE-ROLES.md).
-
 Hook loggers replace the boot log workarounds.
 Next: lead review and landing; the writer never pushed.
 Verify: final gate EXIT 0; all 31 test tasks pass.
@@ -136,6 +130,12 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **authoring/package-roles** — all 16 package roles checked.
+  Removed unused `utils`; Drizzle and React entries name their roles.
+  Opus high review READY; build, check, full tests, and 54 release checks pass.
+  Current-main checks pass; all six docs pass prose and phone checks.
+  [Track](docs/roadmap/authoring-model/PACKAGE-ROLES.md).
 
 - **stack/start-log-cleanup** — the stack pieces log through their hook's logger now that core/start-log landed: hono's boot logger resource and its `hono.errors` span are gone; `readExitCode(result, log, phase)` takes a logger instead of `observe` plus `clock`; the server, live, migrate, nats, and jobs pieces drop their direct sink writes (the trace sink keeps its warnings local so they never feed its own queue). Log lines add `extension`. Proof: gate EXIT 0 (all 31 test tasks; 0 errors, 28 warnings), changed-file mutation hono 86.87% (397/0/60), jobs 85.33% (128/5/17), stack 87.25% (267/0/39), validate 54/54. Lead review. Sol writer 4f788859.
 - **process/role** — settled as app entry support.

@@ -1,7 +1,7 @@
 # Package roles
 
 Date: 2026-10-01.
-Status: Review; checked result waits for current-main integration.
+Status: Done; package roles, removal, and current-main checks pass.
 Owner: authoring lead.
 Writer: Astra xhigh; unused starter removal only.
 Reviewer: Opus high.
@@ -113,6 +113,7 @@ The Hono wording now names its `stream()` helper.
 No current source caller or workspace dependency uses the removed starter.
 The lockfile diff removes only its 24-line importer.
 
+The first full gate used base `5487051b`.
 Install, full build, and check pass, exit 0.
 Check reports 0 errors and 28 existing warnings.
 All 29 package and example test suites pass, exit 0.
@@ -123,9 +124,11 @@ Prose reports 0 hits across 174 tracked docs.
 The lead's 32-link check passes.
 Focused strict census passes; Jev lead review has 0 flags.
 
-All 728 surviving package, app, and example files match the reviewed base `5487051b`,
+All 728 surviving package, app, and example files match current-main base `7e75db1b`,
 except the two README role notes.
 No surviving runtime or test input changes, so its fault proof is retained.
 The removed unused starter has no remaining fault lane.
 
-Current-main integration and affected checks are pending.
+After rebasing on `7e75db1b`, install, full build, and check pass again.
+The affected suites pass: Hono 93, Stack 136, Jobs 26, and tracker 87.
+Prose and phone-width checks pass on the final docs.

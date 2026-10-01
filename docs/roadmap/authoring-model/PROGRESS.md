@@ -980,6 +980,9 @@ All 54 release checks pass, exit 0.
 All six touched docs pass prose and phone-width checks.
 Prose reports 0 hits across 174 tracked docs.
 Focused strict census passes.
-All 728 surviving package, app, and example inputs match the reviewed base,
+All 728 surviving package, app, and example inputs match current-main base `7e75db1b`,
 except the two README role notes; existing runtime fault proof remains valid.
-Current-main integration and affected checks are pending.
+The first full gate used `5487051b`.
+After the rebase, install, full build, and check pass again.
+Hono passes 93 tests; Stack 136; Jobs 26; tracker 87.
+Final prose and phone-width checks pass on all six touched docs.
