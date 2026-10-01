@@ -4,162 +4,182 @@ import { isError, raise } from "./errors.ts";
 import type { Errors } from "./errors.ts";
 
 export declare namespace Process {
-  /** Where a run writes. Bound as the `io` tag; a test binds a collector, `main` binds the process. */
+  /** Borrowed writers; callers choose whether to collect or stream their output. */
   export type Io = {
-    readonly write: (s: string) => void;
-    readonly error: (s: string) => void;
+    readonly write: (text: string) => void;
+    readonly error: (text: string) => void;
   };
-  /** A command: an operation that answers an exit code. What it needs (argv, env, io) it declares. */
   export type Command = Operation.Handle<number | Promise<number>, void>;
-  /** What routing answers for one command and its args: the operation plus anything its root
-   * needs beyond the process tags. A flag that must be a tag is bound here, before any scope. */
-  export type Entry = {
-    readonly op: Command;
-    readonly options?: Scope.Options;
-  };
-  /** One routed command. `entry` runs only after routing, so `help` loads nothing. */
+  export type Entry =
+    | { readonly kind: "command"; readonly op: Command; readonly options?: Scope.Options }
+    | { readonly kind: "service"; readonly options: Scope.Options };
+  /** Loading supplies graph units and config only. Services start through extensions. */
   export type Route = {
     readonly name: string;
     readonly description?: string;
-    readonly entry: (rest: readonly string[]) => Entry | PromiseLike<Entry>;
+    readonly entry: (input: {
+      readonly args: readonly string[];
+      readonly signal?: AbortSignal;
+    }) => Entry | PromiseLike<Entry>;
   };
   export type Shell = {
     readonly name: string;
     readonly version: string;
     readonly commands: readonly Route[];
   };
-  export type Result = {
-    readonly code: number;
-    readonly stdout: string;
-    readonly stderr: string;
+  export type RunOptions = {
+    readonly shell: Shell;
+    readonly args: readonly string[];
+    readonly io: Io;
+    readonly env?: Readonly<Record<string, string | undefined>>;
+    readonly signal?: AbortSignal;
+    readonly options?: Scope.Options;
+  };
+  export type MainOptions = {
+    readonly shell: Shell;
+    readonly args?: readonly string[];
+    readonly options?: Scope.Options;
   };
 }
 
-/** The arguments after the command name, bound once per run. */
+/** Arguments after the selected route name, bound once per run. */
 export const argv: Tag.Handle<readonly string[]> = tag({ label: "process.argv" });
-/** The process environment, bound once per run. */
+/** Environment values supplied by the caller; `run` never reads the host environment. */
 export const env: Tag.Handle<Readonly<Record<string, string | undefined>>> = tag({
   label: "process.env",
 });
-/** The run's writers. No `signal` tag: every operation has `ctx.signal`, and a run turns its
- * abort into a forced close of the root. */
 export const io: Tag.Handle<Process.Io> = tag({ label: "process.io" });
+/** Borrowed request to stop the root gracefully, including EOF during service start. */
+export const stop: Tag.Handle<() => void> = tag({ label: "process.stop" });
 
-/** The one place a root exists for a command: build it from the entry's options plus the
- * process tags, run the operation, close, answer the code. An abort force-closes the root, so
- * every `ctx.signal` below fires; the operation decides what that means by returning (a server:
- * 0) or by letting the cancellation throw (a one-shot: 130). A parse failure is a usage error. */
-export async function execute(
-  entry: Process.Entry,
-  rest: readonly string[],
-  out: Process.Io,
-  opts?: { readonly signal?: AbortSignal; readonly usage?: string },
-): Promise<number> {
-  const { signal, usage } = opts ?? {};
-  /** Read through a call, never a narrowed constant: the signal may abort mid-run. */
-  const cancelled = (): boolean => signal?.aborted === true;
+/** Own one root from start through cleanup. Command aborts force-close that root so data
+ * stays on its owner; a Core call signal would instead fork a child session. */
+async function execute(entry: Process.Entry, input: Process.RunOptions): Promise<number> {
+  const cancelled = (): boolean => input.signal?.aborted === true;
   if (cancelled()) return 130;
   const ended = new AbortController();
   const scope = createScope({
+    ...input.options,
     ...entry.options,
     signal: ended.signal,
-    tags: [argv(rest), env(readEnv()), io(out), entry.options?.tags],
+    tags: processBindings(entry, input, () => ended.abort()),
   });
   let stopping: Promise<Scope.Result> | undefined;
-  /** Command abort cancels active work; the completion signal only asks for graceful close. */
-  const stop = (): void => {
-    stopping = scope.close();
+  const abort = (): void => {
+    if (entry.kind === "command") stopping = scope.close();
+    else ended.abort();
   };
-  signal?.addEventListener("abort", stop, { once: true });
+  input.signal?.addEventListener("abort", abort, { once: true });
+  if (cancelled()) abort();
+  let code = 0;
   try {
-    if (cancelled()) stop();
     await scope.ready;
-    return readResult(await scope.settle(entry.op), out, cancelled(), usage);
+    if (entry.kind === "command") {
+      code = readResult(await scope.settle(entry.op), input);
+    }
   } catch (error: unknown) {
-    /** Only a failed start or a closed root lands here: `settle` itself never throws. */
-    return readFailure(error, out, cancelled(), usage);
+    code = readFailure(error, input);
   } finally {
-    signal?.removeEventListener("abort", stop);
-    ended.abort();
-    await scope.closed;
-    await stopping;
+    if (entry.kind === "command") ended.abort();
   }
+  const result = await scope.closed;
+  await stopping;
+  input.signal?.removeEventListener("abort", abort);
+  return readClosed(result, code, input.io);
 }
 
-/** What a settled run answers: its own code, 130 when cancelled (by the signal, or by a forced
- * close from inside the root), else what its failure answers. A panic and a managed error answer
- * the same: the process is the last place to recover. */
-function readResult(
-  result: RunResult<number>,
-  out: Process.Io,
-  cancelled: boolean,
-  usage: string | undefined,
-): number {
+function processBindings(
+  entry: Process.Entry,
+  input: Process.RunOptions,
+  requestStop: () => void,
+): Tag.Bindings {
+  return [
+    argv(input.args),
+    env(input.env ?? {}),
+    io(input.io),
+    stop(requestStop),
+    input.options?.tags,
+    entry.options?.tags,
+  ];
+}
+
+function readClosed(result: Scope.Result, code: number, out: Process.Io): number {
+  if (code === 0 && result.status === "failed") {
+    out.error(printError(result.error));
+    code = 1;
+  }
+  for (const error of result.teardownErrors ?? []) {
+    out.error(printError(error));
+    if (code === 0) code = 1;
+  }
+  return code;
+}
+
+function readResult(result: RunResult<number>, input: Process.RunOptions): number {
   if (result.status === "success") return result.value;
   if (result.status === "cancelled") return 130;
-  return readFailure(result.error, out, cancelled, usage);
+  return readFailure(result.error, input);
 }
 
-function readFailure(
-  error: unknown,
-  out: Process.Io,
-  cancelled: boolean,
-  usage: string | undefined,
-): number {
-  if (cancelled) return 130;
+function readFailure(error: unknown, input: Process.RunOptions): number {
+  if (input.signal?.aborted) return 130;
   if (isCoreError(error, "DataValidationFailed")) {
-    if (usage !== undefined) out.error(usage);
+    input.io.error(usageOf(input.shell));
     return 2;
   }
-  out.error(printError(error));
+  input.io.error(printError(error));
   return 1;
 }
 
-/** Route by plain lookup, answer help and version without a root, then execute. The seam a
- * test uses: read the `Result`, which collects both streams whether or not an `io` is given;
- * nothing touches the process. */
-export async function run(
-  shell: Process.Shell,
+/** Race only the wait, not the load. Promise.race observes a loader's later rejection even
+ * after cancellation has returned. Remove the listener on either outcome. */
+async function loadEntry(
+  route: Process.Route,
   args: readonly string[],
-  given?: Partial<Process.Io>,
-  signal?: AbortSignal,
-): Promise<Process.Result> {
-  let stdout = "";
-  let stderr = "";
-  const out: Process.Io = {
-    write: (s) => {
-      stdout += s;
-      given?.write?.(s);
-    },
-    error: (s) => {
-      stderr += s;
-      given?.error?.(s);
-    },
-  };
-  const done = (code: number): Process.Result => ({ code, stdout, stderr });
-  const usage = usageOf(shell);
+  signal: AbortSignal | undefined,
+): Promise<Process.Entry | undefined> {
+  let abort!: () => void;
+  const cancelled = new Promise<undefined>((resolve) => {
+    abort = () => resolve(undefined);
+  });
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    return await Promise.race([route.entry({ args, signal }), cancelled]);
+  } finally {
+    signal?.removeEventListener("abort", abort);
+  }
+}
+
+/** Route without a root, then await the selected entry and its cleanup. Output stays with
+ * the supplied writers; this function reads no host process facts. */
+export async function run(input: Process.RunOptions): Promise<number> {
+  const { shell, args, io: out, signal } = input;
+  const cancelled = (): boolean => signal?.aborted === true;
+  if (cancelled()) return 130;
   const [name, ...rest] = args;
-  if (name === undefined || name === "help" || name === "--help") {
-    out.write(usage);
-    return done(0);
+  if ([undefined, "help", "--help"].includes(name)) {
+    out.write(usageOf(shell));
+    return 0;
   }
   if (name === "--version") {
     out.write(`${shell.version}\n`);
-    return done(0);
+    return 0;
   }
   const route = shell.commands.find((row) => row.name === name);
   if (route === undefined) {
-    out.error(usage);
-    return done(2);
+    out.error(usageOf(shell));
+    return 2;
   }
-  let entry: Process.Entry;
+  let entry: Process.Entry | undefined;
   try {
-    entry = await route.entry(rest);
+    entry = await loadEntry(route, rest, signal);
   } catch (error: unknown) {
+    if (cancelled()) return 130;
     out.error(printError(error));
-    return done(1);
+    return 1;
   }
-  return done(await execute(entry, rest, out, { signal, usage }));
+  if (entry === undefined) return 130;
+  return execute(entry, { ...input, args: rest });
 }
 
 export function usageOf(shell: Process.Shell): string {
@@ -171,41 +191,47 @@ export function usageOf(shell: Process.Shell): string {
   return `usage: ${shell.name} <command>\n${rows.join("\n")}\n`;
 }
 
-/** The process pieces `main` needs, read off `globalThis` so the bundle keeps no `node:` import. */
+/** Read the optional process without adding a Node import to the package. */
 type Proc = {
   argv: string[];
   env: Record<string, string | undefined>;
-  exit(code: number): never;
   on(event: string, listener: () => void): unknown;
-  stdout: { write(s: string): unknown };
-  stderr: { write(s: string): unknown };
+  removeListener(event: string, listener: () => void): unknown;
+  stdout: { write(text: string): unknown };
+  stderr: { write(text: string): unknown };
 };
 
-function readProc(): Proc | undefined {
-  return (globalThis as { process?: Proc }).process;
-}
-
-function readEnv(): Readonly<Record<string, string | undefined>> {
-  return readProc()?.env ?? {};
-}
-
-/** The process edge and the only side effect in this package: read argv, wire SIGINT and
- * SIGTERM to one abort, run, exit with the code. Never returns. */
-export async function main(shell: Process.Shell, args?: readonly string[]): Promise<never> {
-  const proc = readProc();
-  if (proc === undefined)
-    raise("NoProcess", { reason: "main needs a process to read argv and exit" });
+/** The app sets `process.exitCode` from this result so pending stream writes can finish.
+ * Both listeners leave after the first stop: a second OS signal uses its normal action. */
+export async function main({ shell, args, options }: Process.MainOptions): Promise<number> {
+  const proc = (globalThis as { process?: Proc }).process;
+  if (proc === undefined) raise("NoProcess", { reason: "main needs a process to read argv" });
   const controller = new AbortController();
-  const abort = (): void => controller.abort();
+  const remove = (): void => {
+    proc.removeListener("SIGINT", abort);
+    proc.removeListener("SIGTERM", abort);
+  };
+  const abort = (): void => {
+    remove();
+    controller.abort();
+  };
   proc.on("SIGINT", abort);
   proc.on("SIGTERM", abort);
-  const result = await run(
-    shell,
-    args ?? proc.argv.slice(2),
-    { write: (s) => void proc.stdout.write(s), error: (s) => void proc.stderr.write(s) },
-    controller.signal,
-  );
-  return proc.exit(result.code);
+  try {
+    return await run({
+      shell,
+      args: args ?? proc.argv.slice(2),
+      env: { ...proc.env },
+      options,
+      io: {
+        write: (text) => void proc.stdout.write(text),
+        error: (text) => void proc.stderr.write(text),
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    remove();
+  }
 }
 
 /** A `-` is stdin, a plain word; any other word that starts with `-` is a flag. */

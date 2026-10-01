@@ -28,7 +28,13 @@ const checkCommand = operation({
 const shell: Process.Shell = {
   name: "tk",
   version: "0.0.0",
-  commands: [{ name: "check", description: "judge one file", entry: () => ({ op: checkCommand }) }],
+  commands: [
+    {
+      name: "check",
+      description: "judge one file",
+      entry: () => ({ kind: "command", op: checkCommand }),
+    },
+  ],
 };
 
 /** The span tree as `parent > child` lines, deepest last, in start order. */
@@ -47,22 +53,32 @@ function shape(spans: readonly Observe.Span[]): string[] {
 test("the graph produces the trace: the command operation and the operation it drives beneath it", async () => {
   const seen: Observe.Span[] = [];
   const file = fileURLToPath(import.meta.url);
-  const result = await run(
-    {
+  let stdout = "";
+  const result = await run({
+    shell: {
       ...shell,
       commands: [
         {
           ...shell.commands[0],
           entry: () => ({
+            kind: "command",
             op: checkCommand,
             options: { observe: { history: 10, export: (span) => seen.push(span) } },
           }),
         },
       ],
     },
-    ["check", file],
-  );
-  expect(result.code).toBe(0);
-  expect(JSON.parse(result.stdout)).toEqual({ length: readFileSync(file, "utf8").length });
+    args: ["check", file],
+    io: {
+      write: (text) => {
+        stdout += text;
+      },
+      error: (text) => {
+        throw new Error(text);
+      },
+    },
+  });
+  expect(result).toBe(0);
+  expect(JSON.parse(stdout)).toEqual({ length: readFileSync(file, "utf8").length });
   expect(shape(seen)).toEqual(["check", "  checkContents"]);
 });

@@ -1,99 +1,165 @@
 # @tinker/process
 
-The process is tags, a command is an operation that
-answers an exit code, and routing runs outside any
-scope (ADR 0056). This package is the entrypoint
-for every binary: one root per run, built for the
-routed command, closed when it answers.
-
-```text
-argv ─▶ run ─▶ help | --version | unknown   (no root)
-             └▶ route.entry(rest) ─▶ execute
-                   root { argv, env, io, + entry.options }
-                   scope.run(op) ─▶ code ─▶ close
-```
+A command is a Core operation that returns an exit code.
+A service starts through Core extensions and waits for its root to close.
+Process routes first, owns one root, and reads cleanup before returning.
 
 ```ts
-import { argv, io, main, operation } from "@tinker/process";
+import { operation } from "@tinker/core";
+import { io, main, type Process } from "@tinker/process";
 
-const checkCommand = operation({
-  label: "check",
-  depends: { argv: argv.required, io: io.required, check },
-  run: async ({ argv: args, io: out, check: judge }) => {
-    const report = await judge.run({ rawInput: args[0] });
-    out.write(checkLines(report));
+const ping = operation({
+  label: "ping",
+  depends: { io: io.required },
+  run: ({ io }) => {
+    io.write("pong\n");
     return 0;
   },
 });
 
-const shell = {
+const shell: Process.Shell = {
   name: "tk",
   version: "0.1.0",
   commands: [
     {
-      name: "check",
-      description: "check a file",
-      entry: () => ({ op: checkCommand }),
-    },
-    {
-      name: "serve",
-      entry: () => ({
-        op: waitForSignal,
-        options: { extensions: [server] },
-      }),
+      name: "ping",
+      entry: () => ({ kind: "command", op: ping }),
     },
   ],
 };
-if (import.meta.main) await main(shell);
+
+if (import.meta.main) {
+  process.exitCode = await main({ shell });
+}
 ```
 
-## Commands
+## Run with supplied facts
 
-A command is an operation that answers an exit
-code. The author declares it: the `argv`, `env`,
-and `io` tags in `depends`, the driven operation
-beside them, argv in through its parse, the
-answer out through `io`, the code owned.
+`run` takes one object and returns `Promise<number>`.
+It requires `shell`, `args`, and both `io` writers.
+It accepts `env`, `signal`, and common Core `options`.
+It reads no host process facts and keeps no output transcript.
 
-- Help lists the routes sorted with their
-  descriptions and loads nothing.
-- Help orders the routes by name, whatever
-  order they were declared in.
-- Help lists routes that share a name in
-  declared order.
-- `help` and `--help` print the usage with
-  exit 0.
-- `--version` answers the version with exit 0.
-- An unknown command prints usage to stderr with
-  exit 2 and loads nothing.
-- A declared command parses argv through the
-  operation's own parse and answers one JSON
-  line.
-- The author owns the output: a custom line,
-  and a void operation prints nothing.
-- An operation's parse failure prints usage to
-  stderr with exit 2.
-- A throwing operation prints its error to stderr
-  with exit 1.
-- A throwing loader is the run's failure with exit
-  1, and the next run retries it.
-- The selected loader runs once across two runs.
-- A command answers its own exit code, and its
-  `io` writes are collected in order.
-- A command that throws a non-Error prints it as
-  JSON with exit 1.
-- A command that throws `undefined` prints
-  `unknown` with exit 1.
-- `jsonLine` answers one JSON line and stays
-  undefined for a void value.
+```ts
+const output: string[] = [];
+const errors: string[] = [];
+const code = await run({
+  shell,
+  args: ["ping"],
+  env: {},
+  io: {
+    write: (text) => output.push(text),
+    error: (text) => errors.push(text),
+  },
+});
+```
 
-## Positionals
+- A command returns its own code and writes directly to the supplied writers.
+- Run binds the supplied args and env and otherwise uses an empty env.
+- The `argv` tag carries arguments after the selected route name.
+- Entry options override common options and tags combine after process facts.
+  Common tags follow Process tags; entry tags follow common tags.
+  Other Core options use ordinary field replacement.
+- A command with a signal writes to the root data its extensions read.
+- The graph produces the trace: the command operation and the operation it drives beneath it.
 
-`positionals(argv, opts?)` answers the plain
-words of argv, in order, so a row never filters
-by hand. A `--name` is a flag. A flag named in
-`opts.values` takes the next word as its value.
-`--name=value` is one word, so it is a flag.
+## Routes and commands
+
+Each route has a name, an optional description, and an `entry` callback.
+The callback receives `{ args, signal? }` and returns an entry or a promise.
+It supplies graph units and config; service work starts through extensions.
+
+- Help sorts routes by name and preserves duplicate order without loading.
+  No arguments, `help`, and `--help` print usage and return 0.
+- Version returns 0 without loading.
+  `--version` writes the shell version.
+- An unknown command prints usage to stderr with exit 2 and loads nothing.
+- Each run calls its selected loader with args and retries after failure.
+  Process adds no cache; native imports keep their own module cache.
+- A loader failure prints its error and returns 1.
+- A command parses argv through its operation and writes a JSON line.
+  The command owns all output; Process adds no success output.
+- An operation's parse failure prints usage to stderr with exit 2.
+- A command failure prints its error with exit 1.
+  Non-Error values print as JSON; `undefined` prints `unknown`.
+- A command that returns closes its root gracefully.
+- Failed setup finishes cleanup and calls each close hook once.
+- A successful command returns 1 when cleanup fails.
+- Cleanup failure keeps an earlier command exit code.
+- Cleanup failure follows the primary command error without hiding it.
+
+## Services and stop
+
+A service entry contains only Core options.
+There is no waiting command.
+Its extensions own startup and cleanup.
+
+```ts
+import { extension } from "@tinker/core";
+import { stop } from "@tinker/process";
+
+const stdio = extension({
+  label: "stdio",
+  hooks: {
+    start: (event) => {
+      const finish = event.resolve(stop.required);
+      process.stdin.once("end", finish);
+      process.stdin.resume();
+      event.defer(() => {
+        process.stdin.removeListener("end", finish);
+        process.stdin.pause();
+      });
+      return event.next();
+    },
+  },
+});
+
+const service: Process.Entry = {
+  kind: "service",
+  options: { extensions: [stdio] },
+};
+```
+
+The static `stop` tag supplies a borrowed `() => void` function.
+It asks Core to close the root gracefully, including during startup.
+Call it when stdin ends or a transport closes.
+
+- An already aborted call starts no loader and returns 130.
+- Abort during loading returns 130 before the loader ends and observes its late rejection.
+- An abort during extension start exits 130 without running the command.
+- Command abort force-closes its root and a cancelled command returns 130.
+  A command that handles the stop and returns keeps its own code.
+- A service signal waits for graceful cleanup before returning 0.
+- A service stop during startup finishes start and then cleans up.
+- A service whose start fails returns 1 after cleanup.
+- A service cleanup failure returns 1.
+- Stdin EOF stops a service and waits for cleanup.
+
+## Main
+
+`main({ shell, args?, options? })` is the OS entry.
+It returns a code for the guarded app entry to assign to `process.exitCode`.
+It never calls `process.exit`, so Node can finish pending writes.
+
+- Main lets each full 1 MiB pipe write finish before the app exits.
+- Main reads real args and env and removes both stop listeners after return.
+  It copies environment values before loading the selected entry.
+- Main accepts explicit args instead of host argv.
+- Main returns 2 for an unknown route and writes usage to stderr.
+- A real command SIGINT exits 130.
+- A service SIGINT or SIGTERM removes both listeners and closes gracefully.
+- A second OS signal terminates stalled service cleanup normally.
+
+## Helpers
+
+- `jsonLine` answers one JSON line and stays undefined for a void value.
+- `positionals` keeps the plain words in order and drops a `--flag`.
+- A flag named in `values` drops its value too.
+- `--name=value` is one flag, so it drops with no word after it.
+- `--` ends the flags, so every later word is plain.
+- `positionals` keeps a lone dash as a plain word.
+- `positionals` drops a single-dash flag.
+- A value flag at the end takes no word and drops alone.
 
 ```ts
 const [file, dir] = positionals(argv, {
@@ -101,121 +167,8 @@ const [file, dir] = positionals(argv, {
 });
 ```
 
-- `positionals` keeps the plain words in order
-  and drops a `--flag`.
-- A flag named in `values` drops its value too.
-- `--name=value` is one flag, so it drops with
-  no word after it.
-- `--` ends the flags, so every later word is
-  plain.
-- `positionals` keeps a lone `-` as a plain word.
-- `positionals` drops a single-dash flag.
-- A value flag at the end takes no word and drops alone.
-
-## Roots
-
-Every run builds one root for the routed command,
-from the process tags plus the entry's options. A
-flag that must be a tag is bound there, in routing,
-before any scope exists: a tagged call would open
-a child session whose cell writes never reach a
-watcher above it.
-
-- An entry's own options bind tags and extensions
-  on that command's root only.
-- The `argv` and `env` tags carry the rest of argv
-  and the process environment.
-- A throwing run leaves the next run unaffected.
-- The `env` tag reads an empty record when there
-  is no process.
-- A command run outside a process run fails with
-  `MissingTag` naming the process tag.
-- A command that answers closes its root
-  gracefully.
-- A command whose dependency panics or raises
-  exits 1, and its root still closes success.
-- An extension whose start fails prints its
-  error with exit 1 and never runs the command.
-- Failed setup finishes cleanup before answering;
-  each close hook runs once.
-
-## Signals
-
-An abort force-closes the root, so every
-`ctx.signal` below it fires. The operation decides
-what that means: return (a server: its own code)
-or let the cancellation throw (a one-shot: 130).
-
-- An abort force-closes the root, and a cancelled
-  one-shot exits 130.
-- A server that returns on the signal exits with
-  its own code, not 130.
-- A one-shot that throws its own error on the
-  signal exits 130 and prints nothing.
-- A root force-closed from inside (an extension
-  holding it) exits 130 and prints nothing.
-- An already-aborted signal exits 130 with empty
-  streams and no root.
-- An abort during extension start exits 130
-  without running the command.
-
-## Observation: the command and the operation it drives
-
-A command run is two spans: the command
-operation, and the operation it drives beneath
-it. No span code anywhere — the graph produces
-the trace (ADR 0058).
-
-```text
-check
-  checkContents
-```
-
-- The graph produces the trace: the command
-  operation and the operation it drives
-  beneath it.
-
-## Test recipe
-
-`run(shell, argv, io?, signal?)` answers
-`{ code, stdout, stderr }` and never touches the
-process. `execute(entry, rest, io, opts?)` runs
-one entry the same way.
-
-```ts
-const result = await run(shell, ["check", "a"]);
-expect(result.code).toBe(0);
-```
-
-- A run given only an error writer still collects
-  stdout.
-- A run given only a write writer still collects
-  stderr.
-- `execute` with no usage answers 2 on a parse
-  failure and prints nothing.
-
-## Main
-
-`main(shell)` is the process edge and the only
-side effect here: argv in, SIGINT and SIGTERM to
-one abort, exit with the code. Never returns.
-
-- `main` reads argv off the process, writes to its
-  streams, wires both signals, and exits with the
-  code.
-- `main` turns a fired signal into one abort,
-  so the run exits 130.
-- `main` passes explicit args through instead of
-  the process argv.
-- `main` exits 2 on an unknown command and prints
-  usage to the process stderr.
-- `main` without a process raises `NoProcess`.
-- The process smoke test: node runs the example
-  and help exits 0 with its usage.
-
 ## Errors
 
-`NoProcess { reason }` — `main` found no process to
-read argv from. Narrow with `isError(e,
-"NoProcess")`; everything else a command throws
-reaches stderr as its message.
+`NoProcess { reason }` means `main` found no host process.
+Narrow with `isError(error, "NoProcess")`.
+Other command failures reach the supplied error writer.
