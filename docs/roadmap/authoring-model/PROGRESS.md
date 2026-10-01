@@ -920,3 +920,8 @@ Its 10 timeouts remove required setup or cleanup or create endless waits or loop
 Targeted stop and failure checks killed all 23 faults without a timeout.
 All 54 deterministic release checks pass, exit 0.
 Fault source, test, and config hashes still match the saved inputs.
+
+Main fast-forwarded to `a2d25d8d` after the checked fault lanes.
+Its fresh install, build, check, 48 Process tests, and prose pass, exit 0.
+All fault input hashes match main too.
+The other pending notes keep their saved bytes; no peer work was staged.
