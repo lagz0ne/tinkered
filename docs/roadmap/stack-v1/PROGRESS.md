@@ -484,7 +484,7 @@ npx --no-install stryker run \
   Verify: the tracker's browser test sees the list
   in the first HTML and live updates after
   hydrate; the tracker's tests green.
-- **t16 the generator** -- [ ] blocked by: t01, t02, t11, t12, t13, t15
+- **t16 the generator** -- [ ] doing; owner: stack/t16 writer
   `vp create` writes a full app with every stack
   piece wired, each shown in its common case as an
   operation or a resource (ADR 0074). It is the
@@ -5760,3 +5760,13 @@ useEffect(() => props.ready?.(), [props.ready]);
 - Final fault logs and JSON are in the briefs cache:
   `stack-t15-mutation-stack-final` and
   `stack-t15-mutation-tracker-fifth`.
+
+### t16 writer start
+
+- Base: origin/main at `28564dbe`.
+- Branch: `stack/t16`; work stays in its own worktree.
+- Next: skeleton, then each piece with green app tests.
+- Verify: full gate, selected source faults, release checks.
+- Assumption: the starter is a small notes list.
+- Assumption: the command takes one app name without prompts.
+- No push; the lead reviews and lands.

@@ -1,0 +1,3 @@
+import { operation } from "@tinker/core";
+
+export const readName = operation({ label: "name", run: () => "__APP_NAME__" });

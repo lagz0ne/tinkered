@@ -1,0 +1,13 @@
+import { createScope } from "@tinker/core";
+import { expect, test } from "vite-plus/test";
+import { readName } from "../src/index.ts";
+
+test("the app runs an operation", async () => {
+  const scope = createScope();
+  try {
+    await scope.ready;
+    expect(await scope.run(readName)).toBe("__APP_NAME__");
+  } finally {
+    await scope.close();
+  }
+});

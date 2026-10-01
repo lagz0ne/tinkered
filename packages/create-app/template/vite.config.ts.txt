@@ -1,0 +1,6 @@
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
+  pack: { dts: { generator: "tsgo" } },
+  test: { exclude: ["**/node_modules/**", "**/dist/**"] },
+});

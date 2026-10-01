@@ -1,0 +1,30 @@
+{
+  "name": "@tinker/create-app",
+  "version": "0.0.0",
+  "private": true,
+  "bin": {
+    "create-app": "./bin/index.ts"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "template"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "test": "vp test",
+    "size": "vp pack && node ../../scripts/check-size.mjs 10240",
+    "mutate": "stryker run"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
+    "@types/node": "26.5.1",
+    "typescript": "7.0.2",
+    "vite-plus": "0.3.1"
+  }
+}

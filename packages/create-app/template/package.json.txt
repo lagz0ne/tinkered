@@ -1,0 +1,21 @@
+{
+  "name": "@tinker-app/__APP_NAME__",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "test": "vp test"
+  },
+  "dependencies": {
+    "@tinker/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.1",
+    "typescript": "7.0.2",
+    "vite-plus": "0.3.1"
+  }
+}
