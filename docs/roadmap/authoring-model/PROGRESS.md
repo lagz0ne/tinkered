@@ -758,7 +758,7 @@ Process: 50 tests pass; fault score 94.61, above the floor of 85.
 The merged code check passes with 0 errors and 28 existing warnings.
 The existing card moved from Ready to Done; no duplicate card was added.
 
-## Remove positional extension hooks — complete
+## Remove positional extension hooks — final merge checks
 
 The user asked for this migration after the package review landed.
 The impact block and package briefs are in [HOOKS.md](HOOKS.md).
@@ -792,3 +792,11 @@ Main fast-forwards to checked checkpoint `debbc428` while keeping local review n
 Its fresh install, build, check, all 28 test tasks, prose, and size pass, exit 0.
 All frozen source, test, and config inputs still match the fault-tested code.
 The card moves to Done; the final checkpoint tag is `core/tauthoring-hooks`.
+
+Remote main lands stack/t18 before the hooks push.
+The final merge keeps its root signal, exit helper, and every new behavior check.
+Source `7782bf97` passes build, check, all 28 test tasks, prose, and 48 release lanes.
+The final caller scan finds 207 calls, all in the event form.
+Core remains 16,275 bytes gzip at the 16,384-byte cap.
+The other 13 package inputs and built modules match their checked versions.
+Remaining: the fresh isolated Stack fault gate, main verification, and push.

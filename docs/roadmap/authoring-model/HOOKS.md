@@ -1,7 +1,7 @@
 # One extension hook shape
 
 Date: 2026-09-30.
-Status: Review; merging the newly landed shutdown code.
+Status: Doing; the merged shutdown code awaits its fault gate.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -230,3 +230,33 @@ Merge in a private checkout and convert any new flat hooks to event hooks.
 Stack source and tests need fresh normal checks and an isolated fault score.
 Other package scores may carry forward only when inputs and runtime modules match.
 The final build, check, consumer tests, prose, caller audit, and release lanes must rerun.
+
+## t18 merged source review and normal checks
+
+Source checkpoint `7782bf97` keeps t18's root signal and exit-code behavior.
+The tracker root matches remote main `23f0ccce` byte-for-byte.
+Stack's new exit helper, export, README, and telemetry tests also match main.
+The lead read the merged tests and the package diff against main.
+Their remaining changes use event hooks and keep each hook's reads and order.
+All t18 behavior checks remain; three added hooks use the event form.
+
+Frozen install, build, check, all 28 test tasks, and prose pass, exit 0.
+Stack has 114 passing tests; Hono has 86; the tracker has 79.
+Code check has 0 errors and 28 existing warnings in 558 files.
+All 48 deterministic release lanes pass, exit 0.
+Core is 16,275 bytes gzip at the 16,384-byte cap.
+The final scan finds 207 extension calls across 404 current source and doc files.
+Every config is a literal with no positional hook or spread.
+SCIP indexes all 14 packages with no failed index.
+It finds no removed extension method or `runUntilStop` reference.
+Changed source TSDoc has 0 rows in 13 files.
+The only strict source census hit remains Core's unchanged `panics[0]` read.
+The whole-range review has 0 flags; no new labels or calibration inputs changed.
+
+All 13 other packages keep their checked source, tests, config, and built modules.
+No package fault lane imports Stack; only the tracker app uses it.
+The complete lock file matches the earlier merged checkout.
+All 777 final code inputs are frozen before the fresh Stack fault lane.
+The new fault gate runs alone under `/tmp/mutation.lock` with cache off.
+Normal logs are `/tmp/tinkered-hooks-t18-{install,build,check,tests,prose,size,validate}.log`.
+Input proof is `/tmp/tinkered-hooks-t18-package-input-comparison.json`.
