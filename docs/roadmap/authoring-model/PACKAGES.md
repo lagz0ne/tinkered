@@ -1,7 +1,7 @@
 # Authoring rules across packages and apps
 
 Date: 2026-09-30.
-Status: Done; all checks pass; landed on main.
+Status: Review; Drizzle's corrected API awaits fresh fault proof.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -284,8 +284,8 @@ No timing change or claim is part of these tickets.
   The reusable DB belongs to a root or namespace.
   Each transaction belongs to a session and cleans up on close.
   The first review accepted the frame builder; the user corrected that finding.
-  Replace it with native static resource declarations and namespace settings.
-  Keep logger and transaction adapters inside resource factories.
+  Native static resource declarations and namespace settings now replace it.
+  Logger and transaction adapters stay inside resource factories.
 - **NATS** — `src/index.ts` and namespace and reuse tests.
   Namespace config chooses a root-owned connection.
   Incoming calls keep that connection's namespace.

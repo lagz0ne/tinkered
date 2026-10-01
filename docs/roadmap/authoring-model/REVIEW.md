@@ -155,9 +155,9 @@ Adding a hook argument alone does not make this migration happen.
   No engine is needed just to make two configured calls.
   Source: `packages/http/src/client.ts:177`.
 - **Drizzle:** the resource targets state the correct lifetime.
-  The public frame builder still hides the authored resource declarations.
-  The user rejected that wrapper on 2026-10-01.
-  The correction declares config, database, and transaction units directly.
+  The old public frame builder hid the authored resource declarations.
+  The user rejected it on 2026-10-01; the correction removes it.
+  Config, database, and transaction units are now declared directly.
   See [the current impact block](HOOKS.md).
 - **Harness:** shared SDK resources, a session-owned thread, and mutable output cells.
   Its two-agent namespace test passes.
