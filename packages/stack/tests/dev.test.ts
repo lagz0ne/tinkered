@@ -332,3 +332,27 @@ test("a page loaded by the dev wiring reloads its root on edit", async () => {
     .toBe('"Saved page"');
   expect((await closed).status).toBe("success");
 });
+
+test.each(["text/html", "application/json"])(
+  "dev serves client routes only when the request accepts HTML (%s)",
+  async (accept) => {
+    const host = await createDevFixture(false);
+    expect((await host.ready).kind).toBe("ready");
+    const response = await fetch(`${host.url}/client-page`, { headers: { accept } });
+    if (accept === "text/html") {
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain("/@vite/client");
+    } else {
+      expect(response.status).toBe(404);
+      expect(response.headers.get("content-type")).toContain("text/plain");
+    }
+  },
+);
+
+test("dev keeps the app's HTML 404 page when the browser accepts HTML", async () => {
+  const host = await createDevFixture(false);
+  expect((await host.ready).kind).toBe("ready");
+  const response = await fetch(`${host.url}/page-missing`, { headers: { accept: "text/html" } });
+  expect(response.status).toBe(404);
+  expect(await response.text()).toBe("<h1>Page not found</h1>");
+});

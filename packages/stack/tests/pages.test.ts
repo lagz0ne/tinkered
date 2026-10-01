@@ -227,3 +227,132 @@ test("a body failure errors the page and fails its session", async () => {
     await scope.close();
   }
 });
+
+test("an empty page commits before answering with the renderer's status and headers", async () => {
+  const committing = Promise.withResolvers<void>();
+  const committed = Promise.withResolvers<void>();
+  const saved = resource({
+    label: "saved",
+    target: "session",
+    factory(_deps, ctx) {
+      ctx.defer(async () => {
+        committing.resolve();
+        await committed.promise;
+      });
+      return "saved";
+    },
+  });
+  const page = pages({
+    component: Title,
+    read: operation({ label: "save", depends: { saved }, run: ({ saved }) => saved }),
+    render: async (_request, value) =>
+      new Response(null, { status: 204, headers: { "x-page": value } }),
+  });
+  const web = hono([], { mount: page.mount }).extension;
+  const scope = createScope({ extensions: [web, page.extension] });
+  try {
+    await scope.ready;
+    let answered = false;
+    const answer = Promise.resolve(scope.resolve(web).request("/")).then((response) => {
+      answered = true;
+      return response;
+    });
+    await committing.promise;
+    expect(answered).toBe(false);
+    committed.resolve();
+    const response = await answer;
+    expect(response.status).toBe(204);
+    expect(response.headers.get("x-page")).toBe("saved");
+    expect(await response.text()).toBe("");
+  } finally {
+    committed.resolve();
+    await scope.close();
+  }
+});
+
+test("the page extension leaves ordinary sessions free to read their cells", async () => {
+  const page = pages({ component: Title, read, render: async () => new Response("page") });
+  const scope = createScope({ extensions: [page.extension] });
+  try {
+    await scope.ready;
+    expect(await scope.session((session) => session.run(read))).toBe("Published title");
+  } finally {
+    await scope.close();
+  }
+});
+
+test("reusing a request after its page ends reads the new published value", async () => {
+  const page = pages({
+    component: Title,
+    read,
+    render: async (_request, value) => new Response(value),
+  });
+  const web = hono([], { mount: page.mount }).extension;
+  const scope = createScope({ extensions: [web, page.extension] });
+  try {
+    await scope.ready;
+    const request = new Request("http://localhost/list");
+    const app = scope.resolve(web);
+    expect(await (await app.fetch(request)).text()).toBe("Published title");
+    scope.controller(title).set("New title");
+    expect(await (await app.fetch(request)).text()).toBe("New title");
+  } finally {
+    await scope.close();
+  }
+});
+
+test("the renderer can read its finished body again during request cleanup", async () => {
+  const finished: boolean[] = [];
+  const source = resource({
+    label: "source",
+    target: "session",
+    factory(_deps, ctx) {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("page"));
+          controller.close();
+        },
+      });
+      ctx.defer(async () => {
+        const reader = body.getReader();
+        try {
+          finished.push((await reader.read()).done);
+        } finally {
+          reader.releaseLock();
+        }
+      });
+      return body;
+    },
+  });
+  const page = pages({
+    component: Title,
+    read: operation({ label: "read", depends: { source }, run: ({ source }) => source }),
+    render: async (_request, source) => new Response(source),
+  });
+  const web = hono([], { mount: page.mount }).extension;
+  const scope = createScope({ extensions: [web, page.extension] });
+  try {
+    await scope.ready;
+    expect(await (await scope.resolve(web).request("/")).text()).toBe("page");
+    expect(finished).toEqual([true]);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a page mount without its extension passes requests to the next route", async () => {
+  const page = pages({ component: Title, read, render: async () => new Response("page") });
+  const web = hono([], {
+    mount(app) {
+      page.mount(app);
+      app.get("*", (c) => c.text("fallback"));
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  try {
+    await scope.ready;
+    expect(await (await scope.resolve(web).request("/")).text()).toBe("fallback");
+  } finally {
+    await scope.close();
+  }
+});

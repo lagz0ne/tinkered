@@ -35,11 +35,14 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
     connection: host.connection,
   });
   const readPage = operation({ label: "readPage", run: () => page.title });
-  const web = hono([
-    route.get("/api/value", read),
-    route.get("/api/slow", slow),
-    route.get("/api/page", readPage),
-  ]).extension;
+  const web = hono(
+    [route.get("/api/value", read), route.get("/api/slow", slow), route.get("/api/page", readPage)],
+    {
+      mount(app) {
+        app.get("/page-missing", (c) => c.html("<h1>Page not found</h1>", 404));
+      },
+    },
+  ).extension;
   const scope = createScope({
     signal: stop,
     extensions: [

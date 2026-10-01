@@ -241,7 +241,8 @@ class DevHost {
     const app = this.current;
     if (!app) return new Response(this.failure, { status: 503 });
     const response = await app.fetch(request);
-    if (response.status !== 404 || request.method !== "GET") return response;
+    if (response.status !== 404 || request.method !== "GET" || isHtmlResponse(response))
+      return response;
     const url = new URL(request.url);
     if (url.pathname !== "/" && !request.headers.get("accept")?.includes("text/html")) {
       return response;
@@ -270,3 +271,8 @@ function readRoot(entry: Record<string, unknown>): Dev.Root {
 }
 
 type RootEnd = { code: number } | { error: unknown };
+
+/** An app's HTML 404 owns its page; Vite only fills an unhandled client route. */
+function isHtmlResponse(response: Response): boolean {
+  return response.headers.get("content-type")?.startsWith("text/html") === true;
+}

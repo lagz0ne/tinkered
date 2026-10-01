@@ -59,6 +59,9 @@ test("dev reload keeps saved issues, ends sync, and SIGTERM exits zero", async (
   });
   await expect.poll(() => output.match(/"kind":"ready"/g)?.length, { timeout: 30000 }).toBe(1);
   expect(await (await fetch(url)).text()).toContain("/@vite/client");
+  const missing = await fetch(`${url}/missing-page`, { headers: { accept: "text/html" } });
+  expect(missing.status).toBe(404);
+  expect(await missing.text()).toContain("<h1>Page not found</h1>");
   const saved = await (
     await fetch(`${url}/api/issues`, {
       method: "POST",

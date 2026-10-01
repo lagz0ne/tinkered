@@ -444,6 +444,8 @@ and imports the new root through Vite's runner.
 Only a ready root receives new requests.
 During reload or failed boot, app requests receive 503.
 A failed boot's answer includes the error.
+An app's HTML 404 page also keeps its body and status.
+Client routes get the loading shell only when they accept HTML.
 A good edit retries without restarting the process.
 
 Dev defaults are `127.0.0.1`, port `4311`, and
@@ -511,6 +513,16 @@ the renderer and the request session.
 - A renderer failure before headers reaches
   Hono's error answer.
 - A body failure errors the page and fails its session.
+- An empty page commits before answering with
+  the renderer's status and headers.
+- The page extension leaves ordinary sessions
+  free to read their cells.
+- Reusing a request after its page ends reads
+  the new published value.
+- The renderer can read its finished body again
+  during request cleanup.
+- A page mount without its extension passes
+  requests to the next route.
 
 The dev wiring's `load(path)` uses Vite's kept SSR runner.
 Its page imports join the server's reload graph.

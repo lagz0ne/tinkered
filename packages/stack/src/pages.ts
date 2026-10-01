@@ -22,7 +22,7 @@ const pageBody = operation({
     const cancel = () => {
       cancelled = reader.cancel();
     };
-    signal.addEventListener("abort", cancel, { once: true });
+    signal.addEventListener("abort", cancel);
     try {
       if (signal.aborted) cancel();
       for (;;) {
