@@ -3429,3 +3429,18 @@ await closing;
 - Saved log and JSON: `stack-t10-resume-auth-mutation`
   in the briefs cache, with `.log` and `.json` endings.
 - Next: the full rebased Hono lane under the same lock.
+
+### Rebased Hono mutation — 2026-10-01
+
+- One fresh full Hono lane, after auth, under the same lock.
+- Killed: 405; timeout: 0; survived: 62.
+- No coverage: 2; errors: 0; total: 469.
+- Killed-only score: `405 / 467 = 86.72%`; `EXIT 0`.
+- Stryker's score with uncovered changes is 86.35 percent.
+  Both scores pass the unchanged floor of 85.
+- Command: `vp run --no-cache hono#mutate`, with
+  `--timeoutMS 60000 --concurrency 2` under the lock.
+- All source files were tested; none were excluded.
+- Saved log and JSON: `stack-t10-resume-hono-mutation`
+  in the briefs cache, with `.log` and `.json` endings.
+- Next: finish validation, then hand the branch to the lead.
