@@ -4430,3 +4430,9 @@ EXIT 0
   to keep older source flags apart from this ticket's changes.
 - SCIP found `failJob` in jobs and its mail caller.
 - Core feedback: none; no Core workaround was needed.
+
+- Full repo tests: `vp run --no-cache -r test`
+  passed all 31 tasks, `EXIT 0`.
+  The tracker passed 79 tests; its jobs caller still works.
+  The tinkerer suite keeps its one old skipped test.
+- Only the locked mutation runs remain before the writer report.

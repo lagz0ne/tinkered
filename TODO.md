@@ -46,7 +46,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 - **stack/t09 mail** — Owner: writer stack/t09.
-  Next: add mail, its queue row, and public tests.
+  Next: finish locked jobs/mail mutation, then lead review.
   Verify: mail/jobs/stack gate, release lanes, mail mutation >= 85.
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
