@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { expect, onTestFinished, test } from "vite-plus/test";
 import { runServer } from "../src/index.ts";
 import { runDev, type Dev } from "@tinker/stack/dev";
+import { startNatsServer } from "@tinker/nats/testing";
 
 async function readFreePort(): Promise<number> {
   const listener = createServer();
@@ -149,12 +150,13 @@ test("dev reload keeps saved issues, ends sync, and SIGTERM exits zero", async (
 
 test.each(["HOST", "PORT", "DATA_PATH", "NATS_URL"])("prod refuses a missing %s", async (key) => {
   const directory = await mkdtemp(join(tmpdir(), "tracker-prod-"));
+  const bus = await startNatsServer();
   const stop = new AbortController();
   const env: NodeJS.ProcessEnv = {
     HOST: "127.0.0.1",
     PORT: String(await readFreePort()),
     DATA_PATH: join(directory, "db"),
-    NATS_URL: "nats://127.0.0.1:4222",
+    NATS_URL: bus.url,
   };
   delete env[key];
   let code: number | undefined;
@@ -164,7 +166,27 @@ test.each(["HOST", "PORT", "DATA_PATH", "NATS_URL"])("prod refuses a missing %s"
   onTestFinished(async () => {
     stop.abort();
     await done;
+    await bus.close();
     await rm(directory, { recursive: true, force: true });
   });
   await expect.poll(() => code, { timeout: 10000 }).toBe(1);
+});
+
+test("prod refuses an empty DATA_PATH with a working bus", async () => {
+  const bus = await startNatsServer();
+  const stop = new AbortController();
+  let code: number | undefined;
+  const done = runServer(
+    { HOST: "127.0.0.1", PORT: String(await readFreePort()), DATA_PATH: "", NATS_URL: bus.url },
+    stop.signal,
+  ).then((value) => {
+    code = value;
+  });
+  try {
+    await expect.poll(() => code, { timeout: 10000 }).toBe(1);
+  } finally {
+    stop.abort();
+    await done;
+    await bus.close();
+  }
 });

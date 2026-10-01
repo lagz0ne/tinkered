@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createScope } from "@tinker/core";
 import { startNatsServer } from "@tinker/nats/testing";
 import { expect, test } from "vite-plus/test";
+import { readPageAssets } from "@tinker-issue-tracker/server-pages";
 import {
   createIssue,
   issueServer,
@@ -113,8 +114,26 @@ test("runServer sends saved titles in the first HTML and stops with zero", async
     while (!(await reader.read()).done) {
       /** Drain the page so the request can commit. */
     }
+    const assets = await readPageAssets(join(process.cwd(), "dist", "client"));
+    for (const path of [assets.script, ...assets.styles]) {
+      expect((await fetch(`${base}${path}`)).status).toBe(200);
+    }
     stop.abort();
     expect(await ended).toBe(0);
+    const restart = new AbortController();
+    const restarted = runServer(
+      { HOST: "127.0.0.1", PORT: String(port), DATA_PATH: join(dir, "db"), NATS_URL: bus.url },
+      restart.signal,
+    );
+    try {
+      await expect
+        .poll(async () => (await fetch(`${base}/api/issues`)).status, { timeout: 10000 })
+        .toBe(200);
+      expect(parseIssueList(await (await fetch(`${base}/api/issues`)).json())).toEqual([saved]);
+    } finally {
+      restart.abort();
+      expect(await restarted).toBe(0);
+    }
   } finally {
     stop.abort();
     await ended;

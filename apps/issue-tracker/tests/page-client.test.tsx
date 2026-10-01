@@ -1,10 +1,13 @@
 import { expect, inject, test } from "vite-plus/test";
 import { bootPage } from "@tinker-issue-tracker/pages";
+import { isError as isSyncError } from "@tinker/sync";
+import { page } from "vite-plus/test/browser";
 
 /** Vitest's provided context is an open registry shared by setup and the browser. */
 declare module "vite-plus/test" {
   interface ProvidedContext {
     tracker: string;
+    unavailable: string;
   }
 }
 
@@ -45,11 +48,33 @@ test("hydrate keeps the first list, accepts a live snapshot, and stops the brows
       .poll(() => document.querySelector('[aria-label="issues"]')?.textContent)
       .toContain(title);
     expect(document.querySelector('[aria-label="issues"]')).toBe(before);
+    await page.getByRole("button", { name: new RegExp(title) }).click();
+    await expect
+      .poll(() => document.querySelector('[aria-label="issue detail"] h2')?.textContent)
+      .toBe(title);
+    await expect.element(page.getByRole("button", { name: "Draft a summary" })).toBeVisible();
   } finally {
     stop.abort();
     await done;
   }
   expect(document.querySelector("main")).toBeNull();
+});
+
+test("a failed first sync closes the hydrated root and returns SyncNotReady", async () => {
+  const response = await fetch(inject("tracker"));
+  showPage(new DOMParser().parseFromString(await response.text(), "text/html"));
+  const stop = new AbortController();
+  try {
+    const error = await bootPage({ baseUrl: inject("unavailable") }, stop.signal).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    if (!isSyncError(error, "SyncNotReady")) throw error;
+    expect(error.payload.missing).toEqual(["issues"]);
+    expect(document.querySelector("main")).toBeNull();
+  } finally {
+    stop.abort();
+  }
 });
 
 test("a missing page hydrates its 404 and stops the browser root", async () => {

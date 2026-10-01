@@ -30,10 +30,17 @@ export default defineConfig(({ mode }) => ({
           name: "browser",
           include: ["tests/page-?*.test.tsx"],
           globalSetup: "./tests/page-setup.ts",
+          fileParallelism: false,
           browser: {
             enabled: true,
             headless: true,
             provider: playwright(),
+            commands: {
+              selectPageServer({ project }, down: boolean) {
+                const context = project.getProvidedContext();
+                process.env.TINKERED_PAGE_TEST_URL = down ? context.unavailable : context.tracker;
+              },
+            },
             instances: [{ browser: "chromium" }],
           },
         },

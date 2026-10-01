@@ -424,3 +424,8 @@ These defaults never apply to `start` or `preview`.
 - A page keeps each API error reply and sync header.
 - The real page entry keeps its first list, follows sync,
   and stops on `pagehide`.
+- A failed first sync closes the hydrated root and returns
+  `SyncNotReady`.
+- A failed page entry keeps its style and reconnects
+  through the existing dead page.
+- Prod refuses an empty `DATA_PATH` with a working bus.

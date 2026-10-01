@@ -11,6 +11,7 @@ import {
   publishIssues,
   src,
   storeConfig,
+  draftTags,
 } from "../src/index.ts";
 
 export default async function setup(project: TestProject) {
@@ -23,7 +24,10 @@ export default async function setup(project: TestProject) {
   });
   const web = issueServer({ mount: page.mount });
   const scope = createScope({
-    tags: [storeConfig({ kind: "borrow", client })],
+    tags: [
+      storeConfig({ kind: "borrow", client }),
+      draftTags({ enabled: true, baseUrl: "http://127.0.0.1:1" }),
+    ],
     extensions: [web, page.extension, src, publish()],
   });
   await scope.ready;
@@ -47,6 +51,15 @@ export default async function setup(project: TestProject) {
   const address = listener.address();
   if (address === null || typeof address === "string") return scope.close();
   project.provide("tracker", `http://127.0.0.1:${address.port}`);
+  const unavailable = serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch: () => new Response("sync is down", { status: 503 }),
+  });
+  await new Promise<void>((resolve) => unavailable.once("listening", resolve));
+  const unavailableAddress = unavailable.address();
+  if (unavailableAddress === null || typeof unavailableAddress === "string") return scope.close();
+  project.provide("unavailable", `http://127.0.0.1:${unavailableAddress.port}`);
   const previous = process.env.TINKERED_PAGE_TEST_URL;
   process.env.TINKERED_PAGE_TEST_URL = `http://127.0.0.1:${address.port}`;
   return async () => {
@@ -55,6 +68,9 @@ export default async function setup(project: TestProject) {
     await scope.close();
     await new Promise<void>((resolve, reject) =>
       listener.close((error) => (error ? reject(error) : resolve())),
+    );
+    await new Promise<void>((resolve, reject) =>
+      unavailable.close((error) => (error ? reject(error) : resolve())),
     );
     await client.close();
     await database.close();
