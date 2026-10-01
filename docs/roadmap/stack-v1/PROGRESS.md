@@ -4180,3 +4180,21 @@ await pending.then((result) => result);
 `Scope.Settled<Promise<T>>` only declares a promise.
 The test uses `Promise.resolve` before `.then`.
 This is new type feedback; no Core source changed.
+
+### t08 refresh after t18
+
+- Fetched and rebased onto `origin/main` at `23f0ccce`.
+  The only conflicts were appended track notes.
+  Kept all t18 notes and jobs notes.
+- Main's stack and tracker source stays unchanged.
+  Install passed; restored `CLAUDE.md`.
+- Fresh gate: jobs 25, stack 114, tracker 79; `EXIT 0`.
+  Check: 0 errors, 28 warnings.
+  A fresh clean main check has the same 28 warnings.
+- Gate and main logs in the briefs cache:
+  `stack-t08-resume-t18-gate.log` and
+  `stack-t08-resume-t18-main-check.log`.
+- Jev still has 0 flags and 0 README gaps in 25 tests.
+  No source label changed.
+- Next: all tests and validation on this base,
+  then jobs and stack mutation under the lock.
