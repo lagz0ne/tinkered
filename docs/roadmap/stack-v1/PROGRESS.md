@@ -4140,3 +4140,43 @@ EXIT 0
 - Assumption: rerun both mutation lanes after the t17 rebase,
   since the tested Hono and stack behavior changed.
   Next: jobs, then stack, alone under `/tmp/mutation.lock`.
+
+### t08 mutation timeout check
+
+- First final-base jobs run: 127 killed, 7 timeout,
+  20 survived, 3 without coverage; `EXIT 0`.
+  Stryker score: 85.35%.
+  Killed share: 82.47%, below the required 85%.
+  This run does not meet the resume gate.
+- Kept its full log and JSON under
+  `stack-t08-resume-final-jobs-mutation-first`
+  in the briefs cache.
+- Four timeouts cover the unknown-queue test.
+  That test awaited the send before releasing its transaction.
+  It now polls the public result, closes in `finally`,
+  and joins the send after close.
+  It keeps the same managed error and payload checks.
+  No runtime code or mutation setting changed.
+- Gate after the test change: jobs 25, stack 111, tracker 79;
+  build and check pass, `EXIT 0`.
+  Check: 0 errors, 28 warnings, still matching main.
+  Log: `stack-t08-resume-final-gate-cleanup.log`.
+- Next: validate again, then both full mutation lanes.
+
+### t08 Core feedback: early failure from an async send
+
+The declared send result is a promise.
+TypeScript accepted `.then` on its settled result.
+The unknown-queue path returned a plain failed result instead.
+The first test revision failed with `then is not a function`.
+
+```ts
+const pending = request.settle(piece.send, {
+  input: { queue: "nope", data: {} },
+});
+await pending.then((result) => result);
+```
+
+`Scope.Settled<Promise<T>>` only declares a promise.
+The test uses `Promise.resolve` before `.then`.
+This is new type feedback; no Core source changed.

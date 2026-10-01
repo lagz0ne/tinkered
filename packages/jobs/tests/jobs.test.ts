@@ -1,4 +1,11 @@
-import { createScope, data, operation, type Operation, type Observe } from "@tinker/core";
+import {
+  createScope,
+  data,
+  operation,
+  type Operation,
+  type Observe,
+  type RunResult,
+} from "@tinker/core";
 import { errorResponses, hono, route } from "@tinker/hono";
 import { sql } from "drizzle-orm";
 import { expect, test } from "vite-plus/test";
@@ -56,14 +63,21 @@ test("an unknown queue fails without blocking the request or close", async () =>
   await scope.ready;
   const request = scope.createSession();
   await request.resolve(store.tx);
+  let result: RunResult<unknown> | undefined;
+  const sending = Promise.resolve(
+    request.settle(piece.send, { input: { queue: "nope", data: {} } }),
+  ).then((outcome) => {
+    result = outcome;
+  });
   try {
-    await request.run(piece.send, { input: { queue: "nope", data: {} } });
-    expect.unreachable();
-  } catch (error) {
-    if (!isError(error, "UnknownQueue")) throw error;
-    expect(error.payload).toEqual({ queue: "nope" });
+    await expect.poll(() => result).toBeDefined();
+    if (result?.status !== "failed") expect.unreachable();
+    if (!isError(result.error, "UnknownQueue")) throw result.error;
+    expect(result.error.payload).toEqual({ queue: "nope" });
+  } finally {
+    await request.close();
+    await sending;
   }
-  await request.close();
   await scope.close();
   expect(await readStates(client)).toEqual([]);
 });
