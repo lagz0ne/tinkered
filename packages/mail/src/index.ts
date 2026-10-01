@@ -108,14 +108,21 @@ export function mail<T extends Mail.Templates>(templates: T, wiring: Mail.Wiring
 
 function readUrl(value: string | undefined) {
   const url = URL.parse(String(value));
-  if (!url || url.protocol !== "smtp:" || !url.hostname || !url.username || !url.password) {
+  if (
+    !url ||
+    url.protocol !== "smtp:" ||
+    !url.hostname ||
+    Boolean(url.username) !== Boolean(url.password)
+  ) {
     raise("InvalidConfig", { key: "MAIL_URL" });
   }
   try {
     return {
       host: url.hostname,
       port: Number(url.port || 587),
-      auth: { user: decodeURIComponent(url.username), pass: decodeURIComponent(url.password) },
+      auth: url.username
+        ? { user: decodeURIComponent(url.username), pass: decodeURIComponent(url.password) }
+        : undefined,
     };
   } catch {
     raise("InvalidConfig", { key: "MAIL_URL" });

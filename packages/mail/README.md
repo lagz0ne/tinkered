@@ -58,7 +58,10 @@ Jobs uses the request's transaction to save the mail row.
 A throw or a raised error mapped to 4xx rolls it back.
 
 Production has no mail backend default.
-`MAIL_URL` must use `smtp://user:pass@host:port`.
+`MAIL_URL` must use `smtp://host:port`.
+Login is optional: `smtp://localhost:1025` works with Mailpit.
+For login, use `smtp://user:pass@host:port`.
+A user or password alone is bad config.
 It is checked at boot, before any transport is opened.
 Port 587 is used when the URL omits its port.
 URL-encoded credentials are decoded at boot.
@@ -102,5 +105,7 @@ const sentMail = mock.sent();
 - An open request adds mail while due jobs wait for PGlite.
 - A missing or bad MAIL_URL fails boot naming the key.
 - MAIL_URL sends over SMTP with its credentials and closes the connection.
+- An SMTP URL without login boots and sends mail.
+- An SMTP username without a password fails boot naming MAIL_URL.
 - Forced close aborts a mail job waiting on SMTP.
 - The graph traces queuing mail and delivering it.

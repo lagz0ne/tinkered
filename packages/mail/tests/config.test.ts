@@ -7,8 +7,7 @@ test("a missing or bad MAIL_URL fails boot naming the key", async () => {
     undefined,
     "bad",
     "http://user:pass@host:587",
-    "smtp://host:587",
-    "smtp://user@host:587",
+    "smtp://user:pass@:587",
     "smtp://:pass@host:587",
     "smtp://user:pass@host:70000",
     "smtp://%ZZ:pass@host:587",
@@ -27,4 +26,26 @@ test("a missing or bad MAIL_URL fails boot naming the key", async () => {
     }
     await scope.closed;
   }
+});
+
+test("an SMTP username without a password fails boot naming MAIL_URL", async () => {
+  const piece = mail(
+    {},
+    {
+      env: { MAIL_URL: "smtp://user@localhost:1025" },
+      from: "team@example.com",
+    },
+  );
+  const scope = createScope({
+    signal: new AbortController().signal,
+    extensions: [piece.extension],
+  });
+  try {
+    await scope.ready;
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "InvalidConfig")) throw error;
+    expect(error.payload).toEqual({ key: "MAIL_URL" });
+  }
+  await scope.closed;
 });
