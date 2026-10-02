@@ -23,7 +23,8 @@ Those proof choices stay outside the production resource factories.
 
 The fixed setup lives under `src/scaffold/`.
 It owns host lifetime, the native Start bridge, sync transport, and execution waits.
-Userland owns records, database resources, tables, input readers, actions, cells, and views.
+Userland owns records, database resources, feature tables, input readers, actions, cells, and views.
+Fixed setup owns sync tables and envelope schemas.
 Small entry files connect those parts at the names Start expects.
 
 An update item contains only the fixed setup files.
@@ -105,7 +106,7 @@ Do not overwrite `postgres-auth-mail-example` to update setup.
 That item contains the chosen services and your feature files.
 The `runtime` item has no registry dependencies and owns only `src/scaffold/`.
 Native entry and config files belong to the install-only `starter` item.
-The current setup contract is version 2; the source item version is `0.3.1`.
+The current setup contract is version 3; the source item version is `0.4.0`.
 SSE needs the database resource's native `listen` method and the new notify migration.
 The starter also installs the SSE and telemetry route entries and local Victoria Compose file.
 For this fresh scaffold, install the new starter; no old app migration is provided.
@@ -129,14 +130,17 @@ This proves the copy/update format, not yet the full app's registry items.
 
 ## Full app copy and update proof
 
-The actual registry contains three items and 82 files.
+The actual registry contains three items and 90 files.
 The official CLI builds their payloads from the selected source files.
-Every built payload and copied file matches the source bytes.
+Every built payload matches the source bytes.
+Copied files match after the consumer's lib alias is rewritten.
 The CLI resolves both namespaced dependencies into a fresh consumer folder.
 An exact-file dry run shows the setup change and changes no consumer file.
 Overwriting `runtime` restores setup and keeps an edited todo feature intact.
+Both edited seam files also stay unchanged.
 The installed consumer builds and passes its TypeScript check.
-All three HTTPS item addresses return 200 and match the built payloads.
+The prior release passed all three HTTPS item checks.
+The seam change is local until the lead publishes it.
 
 Run the proof again with:
 
@@ -145,7 +149,7 @@ vp run @tinker-start-scaffold#registry:build
 vp run @tinker-start-scaffold#test:registry
 ```
 
-Proof output: `/tmp/tinkered-start-registry-proof.json`.
+Proof output: `/tmp/start-seam-registry-proof.json`.
 The test runs a local HTTP server only for the real CLI copy check.
 That server and its temporary consumer close after the check.
 The registry itself is static JSON under `public/r/`.
@@ -159,3 +163,36 @@ Feature code uses data, tags, resources, and operations by default.
 The fixed native bridge owns middleware and scope lifetime.
 The starter copies `AGENTS.md` to the app root.
 Its rules require a TSDoc reason for work outside the four forms.
+
+## Setup contract 3: two value seams
+
+`src/scaffold/` imports user values only through these names:
+
+- `@/lib/tinker`: browser values and feature input readers.
+- `@/lib/tinker.server`: server graph values and proof presets.
+
+`@/routeTree.gen` is the generated Router tree.
+User code fills the scaffold's open `Register` in the browser seam.
+It supplies change, result, public snapshot, and private snapshot types.
+The fixed database handle names no feature schema.
+The sync tables retain unknown bodies.
+Feature readers check those bodies at the app's network and storage doors.
+Feature transport maps its own errors to messages.
+
+The two seam files belong to the install-once example item.
+Their targets are `@lib/tinker.ts` and `@lib/tinker.server.ts`.
+shadcn puts them under the consumer's configured lib folder.
+`runtime` owns neither seam file.
+Before updating an older install, add both seams and its `Register` once.
+Review the three files together: both seams and the runtime dry run.
+There is no automatic change to an older app's graph.
+
+The checked shadcn 4.21.0 skips import rewriting for `registry:file`.
+A real install with a different lib alias proved that skip.
+Eight fixed TypeScript files use `registry:lib` to get import rewriting.
+Their explicit targets keep them under `src/scaffold/`.
+Other fixed files keep `registry:file`.
+A real install uses `@/app-lib` and puts the seams in `src/app-lib/`.
+Static and dynamic seam imports are rewritten.
+That consumer builds and passes types.
+Both edited seams survive an explicit runtime overwrite.
