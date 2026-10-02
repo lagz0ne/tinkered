@@ -183,7 +183,14 @@ The two seam files belong to the install-once example item.
 Their targets are `@lib/tinker.ts` and `@lib/tinker.server.ts`.
 shadcn puts them under the consumer's configured lib folder.
 `runtime` owns neither seam file.
-Before updating an older install, add both seams and its `Register` once.
+Before updating an older install:
+
+- Add both seams and fill `Register` once.
+- Import `readReceipt` from your own transport file.
+- Keep sync table definitions only in `src/scaffold/backend/sync.schema.ts`.
+  Feature files import those fixed tables directly.
+- Build feature readers on the setup envelopes.
+
 Review the three files together: both seams and the runtime dry run.
 There is no automatic change to an older app's graph.
 
@@ -193,6 +200,10 @@ Eight fixed TypeScript files use `registry:lib` to get import rewriting.
 Their explicit targets keep them under `src/scaffold/`.
 Other fixed files keep `registry:file`.
 A real install uses `@/app-lib` and puts the seams in `src/app-lib/`.
-Static and dynamic seam imports are rewritten.
+Seam imports are rewritten.
 That consumer builds and passes types.
 Both edited seams survive an explicit runtime overwrite.
+
+The server seam imports the proof preset module with the other server values.
+The entry selects those presets only in proof mode.
+PGlite still loads inside its factory, when that preset runs.
