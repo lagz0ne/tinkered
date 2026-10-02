@@ -1,7 +1,8 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { preset, type Observe } from "@tinker/core";
+import { type Observe } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { run } from "@tinker/process";
 import { corpusPath, judge, shell, type Blueprint } from "../src/index.ts";
 

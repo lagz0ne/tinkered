@@ -2,13 +2,13 @@ import { expect, test } from "vite-plus/test";
 import {
   createScope,
   isError as isCoreError,
-  makeTestClock,
   operation,
   resource,
   tag,
   type Observe,
   type Operation,
 } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { hono, request, route } from "../src/index.ts";
 
 const tenant = tag<string>({ label: "tenant" });

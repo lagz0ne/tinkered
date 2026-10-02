@@ -1,6 +1,7 @@
 import { cloneDatabase } from "./database.ts";
 import { expect, test } from "vite-plus/test";
-import { createScope, preset, type Observe, type Operation, type Scope } from "@tinker/core";
+import { createScope, type Observe, type Operation, type Scope } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import {
   addComment,
   createIssue,

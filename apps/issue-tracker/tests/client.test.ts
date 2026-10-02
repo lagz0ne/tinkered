@@ -1,5 +1,6 @@
 import { setImmediate as nextTurn } from "node:timers/promises";
-import { createScope, extension, preset } from "@tinker/core";
+import { createScope, extension } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { isError as isSyncError, subscribe } from "@tinker/sync";
 import { expect, test } from "vite-plus/test";
 import {

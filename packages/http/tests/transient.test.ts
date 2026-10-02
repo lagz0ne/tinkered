@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, makeTestClock } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import {
   backend,
   config,

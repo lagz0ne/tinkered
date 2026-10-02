@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, preset, type Observe } from "@tinker/core";
+import { createScope, operation, type Observe } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import type { ThreadEvent, ThreadItem } from "@openai/codex-sdk";
 import { codex, harness, isError, type Harness } from "../src/index.ts";
 import {

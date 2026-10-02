@@ -1,5 +1,41 @@
 # @tinker/core
 
+## Test helpers
+
+The main entry exports no test helpers.
+Import them from `@tinker/core/testing`:
+
+```ts
+import { createScope, data } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
+import { makeTestRandom } from "@tinker/core/testing";
+import { preset } from "@tinker/core/testing";
+import type * as Core from "@tinker/core";
+import type { Clock, Random } from "@tinker/core/testing";
+
+const time: Clock.Options = { now: 100 };
+const seed: Random.Options = { seed: 42 };
+const clock: Clock.Test = makeTestClock(time);
+const random: Core.Random.Handle = makeTestRandom(seed);
+const source: Core.Clock.Handle = clock;
+const count = data({ initial: 0 });
+const scope = createScope({
+  clock: source,
+  random,
+  presets: [preset(count, 3)],
+});
+await scope.close();
+```
+
+`Clock.Handle` and `Random.Handle` stay in `@tinker/core`.
+`Clock.Test`, `Clock.Options`, and `Random.Options` live in
+`@tinker/core/testing`.
+`preset` also lives in `@tinker/core/testing`.
+`Scope.Preset` and the scope's `presets` option stay in
+`@tinker/core`.
+The test entry ships in the package beside the main entry.
+Test files and source files do not ship.
+
 ## Operation input
 
 Pass outside data with `scope.run(op, { rawInput: value })`. Core runs the operation's

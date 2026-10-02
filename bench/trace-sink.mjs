@@ -3,7 +3,8 @@
  * scope setup/close are outside that part; the receiver checks delivery. */
 import { once } from "node:events";
 import { createServer } from "node:http";
-import { createScope, makeTestClock, operation } from "../packages/core/dist/index.mjs";
+import { createScope, operation } from "../packages/core/dist/index.mjs";
+import { makeTestClock } from "../packages/core/dist/testing.mjs";
 import { traceSink } from "../packages/stack/dist/index.mjs";
 
 let received = 0;

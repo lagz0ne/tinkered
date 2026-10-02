@@ -1,4 +1,5 @@
-import { createScope, makeTestClock, operation } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 import { describeError, jsonLines } from "../src/index.ts";
 

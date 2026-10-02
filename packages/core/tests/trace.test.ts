@@ -1,10 +1,9 @@
+import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
 import { execFileSync } from "node:child_process";
 import { expect, test } from "vite-plus/test";
 import {
   createScope,
   extension,
-  makeTestClock,
-  makeTestRandom,
   namespace,
   operation,
   resource,

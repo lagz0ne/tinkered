@@ -5,7 +5,6 @@ import {
   data,
   extension,
   isError as isCoreError,
-  makeTestClock,
   namespace,
   operation,
   resource,
@@ -13,6 +12,7 @@ import {
   type Observe,
   type Scope,
 } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { emit, hono, isError, request, route, stream } from "../src/index.ts";
 
 const noSessionBody = operation({

@@ -52,6 +52,15 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
+- **core/testing-entry** — keep test helpers out of the main entry.
+  Owner: lead (Codex, Core package session); Sol writer.
+  Next: run the full Core checkpoint before marking Done.
+  Proof: main loads no test helpers; packed imports and types pass.
+  Build, check, all 32 test tasks, and all 56 release checks returned 0.
+  Clean commit: 24 build tasks; 31 test tasks; Core mutation 85.62.
+  Testing keeps virtual time, presets, and seeded IDs.
+  [Track](docs/roadmap/core-v1/PROGRESS.md#coretesting-entry).
+
 ## Blocked
 
 ## Parked

@@ -2,12 +2,12 @@ import {
   createScope,
   extension,
   isError,
-  makeTestClock,
   operation,
   resource,
   tag,
   type Operation,
 } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 import { isError as isStackError, jsonLines, readExitCode, traceSink } from "../src/index.ts";
 import { logs, Receiver, spans } from "./otlp-fixture.ts";

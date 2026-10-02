@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { createScope, makeTestClock } from "@tinker/core";
+import { createScope } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { backend, config, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
 import { expect, test } from "vite-plus/test";
 import { steer, tinkerer } from "../src/index.ts";

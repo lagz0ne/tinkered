@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, preset } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { expose } from "@tinker/mcp";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";

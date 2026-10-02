@@ -1,5 +1,6 @@
 import { expect, expectTypeOf, test } from "vite-plus/test";
-import { createScope, operation, preset, tag } from "@tinker/core";
+import { createScope, operation, tag } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { expose, mcp } from "@tinker/mcp";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";

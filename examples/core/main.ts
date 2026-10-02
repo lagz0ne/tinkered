@@ -1,4 +1,5 @@
-import { createScope, makeTestClock, type Scope } from "@tinker/core";
+import { createScope, type Scope } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { count, doubled, region, stamp, store } from "./index.ts";
 
 if (import.meta.main) {

@@ -1,15 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { Hono } from "hono";
-import {
-  createScope,
-  makeTestClock,
-  namespace,
-  operation,
-  resource,
-  tag,
-  type Clock,
-  type Resource,
-} from "@tinker/core";
+import { createScope, namespace, operation, resource, tag, type Resource } from "@tinker/core";
+import { makeTestClock, type Clock } from "@tinker/core/testing";
 import { emit, hono, isError, request, route, stream } from "../src/index.ts";
 
 const body = operation({

@@ -5,7 +5,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
-import { createScope, preset, type Observe, type Operation, type Scope } from "@tinker/core";
+import { createScope, type Observe, type Operation, type Scope } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { claudeCode } from "@tinker/harness";
 import {
   createIssue,

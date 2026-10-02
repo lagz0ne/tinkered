@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, preset } from "@tinker/core";
+import { createScope } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { claudeCode, type ClaudeCode } from "@tinker/harness";
 import { backend, HttpRequest, HttpResponse, isError, type HttpClient } from "@tinker/http";
 import type {

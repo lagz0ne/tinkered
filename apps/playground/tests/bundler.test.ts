@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, makeTestClock, preset, type Scope } from "@tinker/core";
+import { createScope, type Scope } from "@tinker/core";
+import { preset, makeTestClock } from "@tinker/core/testing";
 import { addFile, editFile } from "@/actions.ts";
 import { compiler } from "@/compiler.ts";
 import { bundler } from "@/services.ts";

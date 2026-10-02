@@ -6,7 +6,6 @@ import { drizzle } from "drizzle-orm/pglite";
 import {
   createScope,
   isError as isCoreError,
-  makeTestClock,
   namespace,
   operation,
   resource,
@@ -14,6 +13,7 @@ import {
   type Observe,
   type Resource,
 } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { createQueryLogger, openTransaction } from "../src/index.ts";
 
 const users = pgTable("users", {

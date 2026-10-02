@@ -36,8 +36,8 @@ const lanes = [
   ["ambient reads off ctx (no bare time/random)", `node scripts/check-ambient.mjs`],
   ["cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/core"],
   [
-    "both entries (pure universal bundle)",
-    `bash -c 'grep -qE "^import|from \\"node:" packages/core/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/core/dist/index.mjs\\").then(m=>process.exit(m.createScope?0:1))"'`,
+    "core runtime and testing entries (package imports only)",
+    "node scripts/check-core-entries.mjs",
   ],
   // @tinker/http (ADR 0035, http-v1 t05): the same three deterministic promises for the frame.
   ["http tests", `${VP} run --no-cache http#test`],

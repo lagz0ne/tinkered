@@ -38,7 +38,8 @@ be seeded with a controllable one, so time-dependent code is tested with no `Dat
 fake timers (ADR 0034). Nothing below needs a cast; see `examples/core/basic.ts`.
 
 ```ts
-import { createScope, data, makeTestClock, operation } from "@tinker/core";
+import { createScope, data, operation } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 
 const stamp = operation({
   label: "stamp",

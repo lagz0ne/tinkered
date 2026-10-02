@@ -1,14 +1,13 @@
 import { cloneDatabase } from "./database.ts";
 import {
   createScope,
-  makeTestRandom,
   originOf,
-  preset,
   resource,
   type Observe,
   type Operation,
   type Scope,
 } from "@tinker/core";
+import { preset, makeTestRandom } from "@tinker/core/testing";
 import { hono, route, type HonoScope } from "@tinker/hono";
 import { memoryPair, subscribe } from "@tinker/sync";
 import {

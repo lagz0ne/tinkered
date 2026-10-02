@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { createScope, preset } from "@tinker/core";
+import { createScope } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { run } from "@tinker/process";
 import {
   corpus,

@@ -1,9 +1,9 @@
+import { makeTestClock } from "@tinker/core/testing";
 import { inspect } from "node:util";
 import { expect, expectTypeOf, test } from "vite-plus/test";
 import {
   createScope,
   extension,
-  makeTestClock,
   namespace,
   operation,
   originOf,

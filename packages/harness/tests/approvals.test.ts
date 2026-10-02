@@ -1,12 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import {
-  createScope,
-  isError as isCoreError,
-  operation,
-  originOf,
-  preset,
-  tag,
-} from "@tinker/core";
+import { createScope, isError as isCoreError, operation, originOf, tag } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import type {
   Options,
   PermissionResult,

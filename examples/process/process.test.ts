@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { makeTestClock, type Clock } from "@tinker/core";
+import { type Clock } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { run, type Process } from "@tinker/process";
 import { shell } from "./index.ts";
 

@@ -1,11 +1,5 @@
-import {
-  createScope,
-  extension,
-  makeTestClock,
-  operation,
-  type Operation,
-  type Observe,
-} from "@tinker/core";
+import { createScope, extension, operation, type Operation, type Observe } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { hono } from "@tinker/hono";
 import { sql } from "drizzle-orm";
 import { expect, test } from "vite-plus/test";

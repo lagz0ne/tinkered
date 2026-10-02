@@ -51,10 +51,11 @@ calls: `query`, `tool`, and `createSdkMcpServer` (the last two are one-liners in
 registers tools; see `tests/fixtures.ts`):
 
 ```ts
-import { preset } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 
+const sdk = { ...toolSdk, query: fakeQuery };
 const scope = createScope({
-  presets: [preset(claudeCode.sdk, async () => ({ ...toolSdk, query: fakeQuery }))],
+  presets: [preset(claudeCode.sdk, async () => sdk)],
 });
 ```
 
@@ -166,10 +167,11 @@ await scope.close();
 The test recipe presets the lazy SDK module with a fake `Codex`:
 
 ```ts
-import { preset } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 
+const sdk = { Codex: FakeCodex };
 const scope = createScope({
-  presets: [preset(codex.sdk, async () => ({ Codex: FakeCodex }))],
+  presets: [preset(codex.sdk, async () => sdk)],
 });
 ```
 

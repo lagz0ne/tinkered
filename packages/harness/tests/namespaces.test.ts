@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, namespace, operation, preset } from "@tinker/core";
+import { createScope, namespace, operation } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
 import { readResult, readSystemInit, readTextDelta, readToolSdk, readToolUse } from "./fixtures.ts";

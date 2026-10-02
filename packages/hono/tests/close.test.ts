@@ -1,12 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import {
-  createScope,
-  extension,
-  makeTestClock,
-  operation,
-  resource,
-  type Observe,
-} from "@tinker/core";
+import { createScope, extension, operation, resource, type Observe } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { HTTPException } from "hono/http-exception";
 import { emit, errorResponses, hono, route, stream } from "../src/index.ts";
 

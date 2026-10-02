@@ -1,4 +1,5 @@
-import { createScope, extension, makeTestClock, operation, resource } from "@tinker/core";
+import { createScope, extension, operation, resource } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
 import { hono, route } from "@tinker/hono";
 import { expect, test } from "vite-plus/test";
 import { isError, traceSink, type TraceSink } from "../src/index.ts";

@@ -19,6 +19,7 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.mjs",
+    "./testing": "./dist/testing.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -26,7 +27,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "size": "vp pack && node ../../scripts/check-size.mjs 16384",
+    "size": "vp pack && node ../../scripts/check-core-entries.mjs",
     "dev": "vp pack --watch",
     "test": "vp test",
     "mutate": "stryker run",

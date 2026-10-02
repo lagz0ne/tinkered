@@ -453,3 +453,93 @@ EXIT=1
 
 Both now pass.
 Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
+
+## core/testing-entry
+
+- **Owner:** lead (Codex, Core package session); Sol writer.
+- **State:** Review.
+- **Next:** run the full Core checkpoint before marking Done.
+- **Verify:** main imports no test helpers; testing keeps virtual time and seeded IDs.
+  Build, check, workspace tests, package file list, and release checks must pass.
+- **Precedent:** Jobs, Mail, and NATS already ship a separate testing entry.
+- **Scope:** Core helper code, build, exports, and README.
+  Consumer changes only move test helper imports.
+- **Impact:** move `makeTestClock`, `makeTestRandom`, and `preset`
+  to `@tinker/core/testing`.
+  Move `Clock.Test`, `Clock.Options`, and `Random.Options` there too.
+  Keep `Clock.Handle` and `Random.Handle` on the main entry.
+- **Callers:** Core, Blueprint, Drizzle, Harness, Hono, HTTP, Jobs,
+  Stack, and Tinkerer tests.
+  Also the Core, Harness, Process, and React examples,
+  Playground, Issue Tracker, and Start Scaffold tests,
+  and `bench/trace-sink.mjs`.
+- **Before-code refs:** the existing SCIP indexes confirm Core, Drizzle,
+  Hono, HTTP, Stack, and Tinkerer callers.
+  A fresh text scan also finds Jobs, apps, examples, and the bench file.
+- **Preset refs:** SCIP confirms Core, Blueprint, Harness, and HTTP callers.
+  The factory is marked test-only; outside Core only tests import it.
+- **Review refs:** rebuild the affected package indexes after the build.
+  Old `index.ts` and `index.d.mts` helper symbols must have no references.
+- **Package files:** the existing file list excludes source and test files.
+  The testing entry and its types remain part of the same package.
+
+### Observed proof
+
+- Build, check, and all 32 workspace test tasks returned 0.
+  Build ran 25 tasks; check found 0 errors and 28 warnings.
+  Core passed 797 tests in 37 files.
+- The new entry test fails on old Core with all three helper exports.
+  It passes after the split.
+  The lead reran the failing test in the temporary writer tree.
+- The packed package has eight files and no source, tests, or maps.
+  A clean folder imports both public entries and passes TypeScript checks.
+- The built entry check confirms no main import reaches testing.
+  Clock injection, presets, and repeated seeded trace IDs work across entries.
+- The runtime size is 15,953 bytes gzip, under the unchanged 16,384-byte cap.
+  The check counts the main entry and every runtime file it imports.
+  The separate testing entry has its own file.
+- Fresh SCIP indexes show no refs to the old main-entry helper symbols
+  in Core, Blueprint, Drizzle, Harness, Hono, HTTP, Jobs, Stack, or Tinkerer.
+- New files pass strict style and the TSDoc parser.
+  Whole-Core strict hits match the old source counts; none were added.
+- Jev ran with its key removed and an empty token path.
+  No remote judge ran and no label was added.
+- All 56 release checks returned 0.
+  The entry, runtime size, promises, slots, graph, and ambient-read lanes passed.
+- The user asked to commit and push this part alone.
+  The scoped commit uses a clean tree; no tag is added.
+  `scripts/ticket.sh` was not run: it stages every changed file and commits,
+  and this workspace already holds other unsaved work.
+  It also runs every package's mutation lane.
+  The card stays in Review.
+
+- Final logs are in `/tmp/core-testing-build.log`,
+  `/tmp/core-testing-check.log`, `/tmp/core-testing-tests.log`,
+  `/tmp/core-testing-validate.log`, and `/tmp/core-testing-regression.log`.
+- The test tarball is `/tmp/core-testing-pack/tinker-core-0.0.0.tgz`.
+  The clean import and type proof is in `/tmp/core-testing-packed/consumer.ts`.
+- The temporary writer tree and branch were removed after the lead checked
+  that every source, test, doc, and config file was copied.
+
+- Follow-up caller scan found no old imports in package or example code.
+  It found one old clock import in the root README and two preset imports
+  in the Harness README.
+  All three doc imports are now fixed.
+  The full code and doc scan finds zero old helper imports.
+  Prose and diff checks pass.
+
+### Scoped commit checks
+
+- The exact commit files passed 24 build tasks, check, and 31 test tasks.
+  Check printed 0 errors and 28 warnings.
+  The new Start Scaffold app and other unsaved work are excluded.
+- Core mutation ran alone under `/tmp/mutation.lock` and returned 0.
+  Score: 85.62, above the required 85.
+  Killed: 2944; timed out: 32; survived: 480; no coverage: 20; errors: 3.
+- The Harness README recipes use a named fake SDK value.
+  Their code lines now meet both the phone width and formatter rules.
+- Package entry, prose, and diff checks pass.
+  The commit contains exactly 62 task files.
+- Clean logs use `/tmp/core-testing-commit-` followed by
+  `build.log`, `check.log`, `tests.log`, or `mutation.log`.
+  The full report is `/tmp/core-testing-commit-mutation.json`.

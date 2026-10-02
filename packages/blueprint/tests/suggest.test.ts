@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, isError as isCoreError, preset, type Scope } from "@tinker/core";
+import { createScope, isError as isCoreError, type Scope } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { run } from "@tinker/process";
 import {
   corpusPath,

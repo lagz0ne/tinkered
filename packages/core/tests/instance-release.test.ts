@@ -1,3 +1,4 @@
+import { preset } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 import {
   createScope,
@@ -5,7 +6,6 @@ import {
   isError,
   namespace,
   operation,
-  preset,
   resource,
   tag,
   type Observe,

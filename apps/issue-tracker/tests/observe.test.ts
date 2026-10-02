@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, preset } from "@tinker/core";
+import { createScope } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { readIssues, storeConfig, issueServer } from "../src/index.ts";
 import { jsonLines } from "@tinker/stack";
 import { mkdtempSync } from "node:fs";
