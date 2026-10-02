@@ -84,8 +84,13 @@ each, reset to any tag if a slice goes wrong.
    and drive it to `SHIP`:
 
    ```
-   paseo agent: codex/gpt-6-astra, thinking=xhigh, mode=full-access  (read-only reviewer)
-   round prompt: "review tag react/r<NN>; git show react/r<NN>; ticket issues/<NN>-*.md"
+   paseo agent: codex/gpt-6-astra
+   thinking=xhigh, mode=full-access
+   read-only reviewer
+   round prompt:
+     review tag react/r<NN>
+     git show react/r<NN>
+     ticket issues/<NN>-*.md
    ```
 
    The reviewer returns a coverage checklist + all findings at once (blocker/should-fix/nit)
@@ -104,9 +109,12 @@ each, reset to any tag if a slice goes wrong.
 for cross-reference as the code grows (indexes are gitignored under `.scip/`):
 
 ```bash
-cd packages/core  && scip-typescript index --output ../../.scip/core.scip
-cd packages/react && scip-typescript index --output ../../.scip/react.scip
-scip print --json .scip/react.scip | head   # inspect symbols/occurrences
+cd packages/core && \
+  scip-typescript index --output ../../.scip/core.scip
+cd packages/react && \
+  scip-typescript index --output ../../.scip/react.scip
+# inspect symbols/occurrences
+scip print --json .scip/react.scip | head
 ```
 
 ## Reset (git techniques)
@@ -119,25 +127,90 @@ scip print --json .scip/react.scip | head   # inspect symbols/occurrences
 
 Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its tag exists.
 
-| tag       | ticket                                  | blockers | status |
-| --------- | --------------------------------------- | -------- | ------ |
-| react/r01 | Browser harness + async fixture         | —        | [x]    |
-| react/r02 | `<ScopeProvider>` + `useScope`          | 01       | [x]    |
-| react/r03 | `useData` reactive read                 | 02       | [x]    |
-| react/r04 | `useController` write                   | 03       | [x]    |
-| react/r05 | `useData` selector + `isEqual`          | 03       | [x]    |
-| react/r06 | `useResource` sync value                | 02       | [x]    |
-| react/r07 | `useResource` async + Suspense          | 06, 01   | [x]    |
-| react/r08 | `useResource` failed build → boundary   | 07       | [x]    |
-| react/r09 | `useResolve` success path               | 02, 01   | [x]    |
-| react/r10 | `useResolve` error + `reset`            | 09       | [x]    |
-| react/r11 | `<SessionProvider>` lifecycle           | 04, 07   | [x]    |
-| react/r12 | `target:"session"` per-provider sharing | 11       | [x]    |
-| react/r13 | StrictMode double-mount safety          | 11       | [x]    |
-| react/r14 | `useRelease` + retry/reset              | 08       | [x]    |
-| react/r15 | `useSpans` read                         | 07, 09   | [x]    |
-| react/r16 | Opt-in React span emission              | 15       | [x]    |
-| react/r17 | v1 validation milestone                 | 01–16    | [x]    |
+- **react/r01**
+  ticket: Browser harness + async fixture
+  blockers: —
+  status: [x]
+
+- **react/r02**
+  ticket: `<ScopeProvider>` + `useScope`
+  blockers: 01
+  status: [x]
+
+- **react/r03**
+  ticket: `useData` reactive read
+  blockers: 02
+  status: [x]
+
+- **react/r04**
+  ticket: `useController` write
+  blockers: 03
+  status: [x]
+
+- **react/r05**
+  ticket: `useData` selector + `isEqual`
+  blockers: 03
+  status: [x]
+
+- **react/r06**
+  ticket: `useResource` sync value
+  blockers: 02
+  status: [x]
+
+- **react/r07**
+  ticket: `useResource` async + Suspense
+  blockers: 06, 01
+  status: [x]
+
+- **react/r08**
+  ticket: `useResource` failed build → boundary
+  blockers: 07
+  status: [x]
+
+- **react/r09**
+  ticket: `useResolve` success path
+  blockers: 02, 01
+  status: [x]
+
+- **react/r10**
+  ticket: `useResolve` error + `reset`
+  blockers: 09
+  status: [x]
+
+- **react/r11**
+  ticket: `<SessionProvider>` lifecycle
+  blockers: 04, 07
+  status: [x]
+
+- **react/r12**
+  ticket: `target:"session"` per-provider sharing
+  blockers: 11
+  status: [x]
+
+- **react/r13**
+  ticket: StrictMode double-mount safety
+  blockers: 11
+  status: [x]
+
+- **react/r14**
+  ticket: `useRelease` + retry/reset
+  blockers: 08
+  status: [x]
+
+- **react/r15**
+  ticket: `useSpans` read
+  blockers: 07, 09
+  status: [x]
+
+- **react/r16**
+  ticket: Opt-in React span emission
+  blockers: 15
+  status: [x]
+
+- **react/r17**
+  ticket: v1 validation milestone
+  blockers: 01–16
+  status: [x]
 
 Parallel frontier once r01→r02 land: **r03 ‖ r06 ‖ r09** are independent. Then r04,r05 off
 r03; r07→r08 off r06; r10 off r09; r11 needs r04+r07; r12,r13 off r11; r14 off r08; r15→r16.
@@ -164,4 +237,11 @@ push-on-open pending spans), not a v1 bolt-on. `useSpans` remains (reads core's 
 Core after the revert: mutation ~77% (≥ 60), size ~15 KB (cap 30), all deterministic `validate.mjs`
 lanes PASS. react bundle **3.1 KB gzip** (cap 10).
 
-Deferred (noted): react-package **mutation** lane (Stryker × browser mode is its own integration).
+**Mutation deferral cleared — checked 2026-09-30.**
+The Stryker browser lane landed at `3cb27e5c`.
+The floor rose to 85 at `887ee5e`; that isolated run scored 93.16.
+The current config still uses Chromium browser tests and two workers.
+The later authoring package run records React at 92.75, above the floor of 85.
+[Saved proof](../authoring-model/package-fault-proof.json).
+Only `react/observation` remains Parked.
+[Current review](../parked-review/PROGRESS.md#reactobservation).

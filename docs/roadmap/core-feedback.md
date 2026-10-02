@@ -33,8 +33,9 @@ find what core lacks or gets wrong. Contributors end each report with a **Core f
 lead records the candidates here with the integration that surfaced them. A candidate becomes a core
 ticket only after a second integration asks for it, or when the workaround is dishonest.
 
-[Blocked and parked review, 2026-09-19](blocked-and-parked-review.md): all remaining ideas
-reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../TODO.md).
+[Parked review, 2026-09-30](parked-review/PROGRESS.md#core-ideas) checks the open requests.
+The 2026-09-19 report is history.
+The live lane is `core/ideas` in [TODO.md](../../TODO.md).
 
 - An operation's `parse` failure should be `DataValidationFailed` like data/tag parses
   From: hono/t02
@@ -74,7 +75,7 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
 
 - One-shot sessions cost a full open/close per command; fine for a CLI, but the cost model for short-lived drivers deserves one sentence in the docs
   From: cli/t01
-  State: **done** — [CLI session cost note](../../packages/cli/README.md); no performance claim added
+  State: **done** — [Process command lifetime](../../packages/process/README.md); no performance claim added
 
 - On a forced close, core aborts signals, waits for in-flight ops to settle, THEN runs resource `defer`s — so a resource holding a process must stop on `ctx.signal`, never in its `defer` (a "defer interrupts the turn" deadlocks); one sentence on `Resource.Ctx.defer`/`signal`
   From: harness/t01
@@ -106,15 +107,15 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
 
 - A public discriminator for handles (`isResource(x)` / `isOperation(x)`) so a driver can accept "a loader function OR a resource handle" without its own `typeof` split per union
   From: cli/t03
-  State: open — first asker (cli); cli/t04 did NOT need it: rows carry `kind`, handles do not, so `"kind" in x` splits them cast-free
+  State: **closed — old CLI caller retired**; Process routes name command operations directly. The guards remain private; reopen for a current driver that needs them.
 
 - A driver that keeps its scope private (such as CLI `run`) needs `observe.export` configured before it starts. Correction: close itself does not block `scope.spans()`; retained history remains readable when the caller holds the handle.
   From: cli/t03
-  State: **done — corrected after source and runtime audit**; [core: Observation](../../packages/core/README.md#observation), [CLI](../../packages/cli/README.md)
+  State: **done — corrected after source and runtime audit**; [core: Observation](../../packages/core/README.md#observation), [Process](../../packages/process/README.md)
 
-- A session per tool call (like a request) is the honest unit but a fresh session each time; for hot tools the open/close cost deserves a probe (`session` scenario is ~1.6 µs)
+- A session per tool call is still the ownership rule in MCP. A caller with many short tool calls would need a current queued comparison before changing that rule.
   From: mcp/t01
-  State: open — measure before optimizing; same note as cli/t01's one-shot sessions
+  State: open — measure current MCP calls through the queue before optimizing; keep one session per request.
 
 - `tag.read(op)` off a live handle and `op.run({ rawInput })` through a subflow both read well — no friction (positive)
   From: mcp/t01
@@ -140,7 +141,7 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
   From: cli/t04
   State: **closed — current types already allow widening**; [core: Tags](../../packages/core/README.md#tags)
 
-- A public builder with an overload list (`command(meta)` vs `command(name, load, route?)`) needs the same overloads on the implementation function too: a `(...args: A | B)` impl is not assignable to the overloaded annotation. TypeScript, not core
+- A public builder with an overload list (`command(meta)` vs `command(name, load, route?)`) needs the same overloads on the implementation function too: a `(...args: A \| B)` impl is not assignable to the overloaded annotation. TypeScript, not core
   From: cli/t04
   State: tooling note
 
@@ -160,13 +161,13 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
   From: jev/impact
   State: advisory-layer rule — record in PLAN.md when jev/calibrate lands
 
-- A cell family (`(id) => Data.Cell<T>`, memoized per id) as a core unit; today `@tinker/sync` builds it from `data()` + a Map
+- The original Core-family idea minted a cell per id. Sync now declares one cell and keeps a namespace-key directory; Core owns each root's values and watchers.
   From: sync (ADR 0048)
-  State: open — first asker; react (`useData(todo(id))`) may be the second
+  State: **closed — replaced by namespace-backed families**; Sync declares one cell and returns a namespace per id. The authoring review confirms stable graph nodes and values owned by each root.
 
-- `scope.onMount(fn)`: a scope hook when a cell gains its first watcher, with cleanup on the last — Jotai's `onMount`, RxJS `refCount`. Sync already registers requested identities and late family members; the remaining ask is watcher-driven registration/unregister. SCIP: `addWatcher`, core `src/index.ts:926`.
+- `scope.onMount(fn)` would run when a cell gains its first watcher and clean up on the last. Sync registers requested identities and late namespace-family members today; watcher-driven unregister is still absent.
   From: sync (ADR 0048)
-  State: parked — one asker; [review](blocked-and-parked-review.md) corrects the old whole-family claim
+  State: parked — one asker; requested identities and late members already register. First/last watcher registration and unregister remain open.
 
 - `data({ label, initial, parse, eq, meta })` was enough to build a cell family outside core (a Map of members, each an ordinary cell); nothing missing (positive)
   From: sync/t01
@@ -220,9 +221,9 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
   From: core/t32
   State: none — noted
 
-- A rejected extension start runs structural cleanup and `ctx.defer` directly; it does not automatically enter the extension `close` hook chain. A later explicit `scope.close()` does enter that chain. The proposed rule to skip the failing extension's hook was based on the wrong automatic-close path.
+- The old proposal to skip a failing extension's close hook used the pre-ADR 0085 cleanup path. A failed start now enters the root close chain once and waits for cleanup before rejecting `ready`.
   From: sync/t06 (ADR 0050)
-  State: **closed — false premise**, verified through source and built public entries; [probe and review](blocked-and-parked-review.md#proof-and-source-anchors). Sync still needs safe repeated transport shutdown
+  State: **closed — superseded by core/root-lifetime** (ADR 0085); the fresh public probe sees the close hook once before `ready` rejects, and a repeated close does not repeat it.
 
 - A transport may call close listeners synchronously. To report startup failure, a driver must reject its pending startup promise with the error value through a saved reject function, and handle that promise from creation; throwing from the listener is not promise settlement.
   From: sync/t06
@@ -244,9 +245,9 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
   From: core/t34
   State: none — noted for t35 (`write` wraps `controller(cell).set` the same way)
 
-- Write hooks on the root controller leave operation dependency writes and session writes on the plain layer path. Extending hooks to those callers would need a layer-level hook lookup with an unhooked fast path, measured before adoption; the root handle cache cannot intercept them.
+- The old root-only write hook left session and operation dependency writes outside its chain. Layer-level write hooks now cover those paths; the no-hook path remains plain.
   From: core/t35 (ADR 0050)
-  State: open — documented v1 limit; wait for a driver asking for those writes to be wrapped
+  State: **done** — core/ext-hooks-every-layer, 2026-09-25; run and write hooks follow session and dependency paths. Resolve hooks remain root-only.
 
 - The public transport, `SyncNotReady.missing`, `SyncConflict.key`, and separate family identities were enough to test startup and cleanup after the extension conversion; no new core feature or workaround was needed.
   From: sync/t07
@@ -262,7 +263,7 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
 
 - Tracker saves need one authority-owned queue and an explicit root write after session close; a per-caller saver would create independent transaction queues.
   From: tracker/t01
-  State: app composition — [bridge](../../apps/issue-tracker/src/server/bridge.ts) verified by create/live and process-restart proofs. No new core API requested.
+  State: app composition — [original T01 proof](issue-tracker-v1/PROGRESS.md#t01-complete--2026-09-19) verified by create/live and process-restart proofs. No new core API requested.
 
 - Async sync sends need an owned queue and close notifications before awaiting readiness. Installing EventSource error handling after ready left Loading on a dropped first snapshot.
   From: tracker/t01
@@ -303,7 +304,6 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
 - MCP metadata imports the SDK, so browser HTTP operations stay separate from Node tool declarations. Node operations delegate to HTTP and reuse the domain input readers.
   From: tracker/t03
   State: app composition — final browser asset scan and real live-tool browser proof passed; no duplicated database handlers.
-
 
 - A harness turn status can become done before its session cleanup has been inspected. The tracker watches running/text in that child, then reports terminal success only after awaiting close and checking its result.
   From: tracker/t04
@@ -361,7 +361,6 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
   From: tracker reshape/client-b 2026-09-20
   State: **done** — fix/stream-null `6c96adc`: `stream()` raises `NoBody { status }`, never `null`
 
-
 T05 final writer feedback also checked CLI argv testing: `@tinker/cli` already supplies
 the public in-process seam. The browser proof intentionally starts the real tools child
 to verify its entrypoint. No new helper or core ticket was requested.
@@ -388,11 +387,11 @@ to verify its entrypoint. No new helper or core ticket was requested.
 
 - `tools/jev`: each new judge bank means editing two lookups by hand — `judgePair(id, cases, bank)` in `evals/lint.mjs` and the `LINT[judge] ?? TESTS[judge] ?? TEST_PAIR[judge] ?? SURVIVORS[judge] ?? JUDGES[judge]` chain in `calibrate.mjs`; miss one and calibration throws on `undefined.q` for the new judge. Ask: one `BANKS` registry both read by judge id (`JUDGES` lives in `lib.mjs`, so it moves or is re-exported).
   From: jev/survivors 2026-09-21 (second asker after jev/tests)
-  State: **ticket** — jev/banks-registry in Ready
+  State: **done** — jev/banks-registry; `BANKS` and `judgeOf` in `tools/jev/bank.mjs` are used by labels, calibration, and evals.
 
 - A cli `respond` cannot set the exit code, so a blocking result must `raise` — the value never reaches `respond`, and the only wire to stderr is the error message. Wanted: a row-level `fail: (value) => { code, text }`, or `respond` receiving `(value, ctx)`. Today `check` returns `{ nodes, findings }` and throws `BlueprintRejected` with the finding lines as its message.
   From: blueprint/t01 2026-09-21 (first asker)
-  State: candidate — a second driver row that wants "print the value, exit 1" makes it a cli ticket
+  State: **closed — replaced by @tinker/process**; commands return their exit code and write through `process.io`. A public probe printed a value and returned 1 without raising.
 
 - A fast close (no `onClose` hook, no other close work) never reads `layer.secondary`, so a throwing operation `defer` vanishes from the close result: `const op = operation({ run: (_d, ctx) => { ctx.defer(() => { throw boom; }); return 1; } }); const s = createScope(); s.run(op); (await s.close()).teardownErrors // undefined` — add `s.onClose(() => {})` and it is `[boom]`.
   From: mutation/core-85 2026-09-21 (lead-verified)
@@ -404,7 +403,7 @@ to verify its entrypoint. No new helper or core ticket was requested.
 
 - A sync resource `scope.resolve(r)` and a sync op `scope.run(op)` return plain values, so `return await scope.resolve(r)` inside `try/finally` (close the scope after) trips the `await-thenable` lint; writers drop the `await`, which breaks the day the factory turns async.
   From: blueprint/t02 2026-09-21 (first asker)
-  State: candidate — the test recipe in `docs/best-practices.md` could show the `try { return await … } finally { close }` shape with the lint rule set to allow it, or core could type sync results as `T | Promise<T>` at the seam
+  State: candidate — the test recipe in `docs/best-practices.md` could show the `try { return await … } finally { close }` shape with the lint rule set to allow it, or core could type sync results as `T \| Promise<T>` at the seam
 
 - For an async `run`, `Operation.Handle<T, I>` and `Operation.Handle<Promise<T>, I>` both compile against `operation({ run: async … })`; only the second types `scope.run(op)` as a promise at the call site. The factory signature (`R & Scope.AsyncBody<D>`) does not say which to write; the writer found it by grepping `packages/http`.
   From: blueprint/t03 2026-09-21 (first asker)
@@ -420,7 +419,7 @@ to verify its entrypoint. No new helper or core ticket was requested.
 
 - A cli `respond` cannot write to stderr on a code-0 outcome: `answerSelected` calls `collected.stderr` only on usage (2) or a thrown error (1), so an advisory note beside a success (`verify`'s "body templates skipped: no key") has no channel but stdout.
   From: blueprint/t07 2026-09-21 (first asker; kin of the t01 row "respond cannot set the exit code")
-  State: candidate — `respond` returning `{ stdout, stderr?, code? }` would close both rows at once
+  State: **closed — replaced by @tinker/process**; `io.error` writes at any exit code. A public probe returned 0 with a stderr note.
 
 - A slot annotation types an operation's `ctx.input` with no parse and no cast (`const g: Tinkerer.Gate = operation({ label, run })` — the target type flows into the generic). Nothing documents it, so an author reaches for a cast or writes a builder that narrows the slot instead. Wanted: one line in core's README under Operations
   From: tinkerer (ADR 0057) — first asker; `gate()` was the builder it produced
@@ -434,13 +433,13 @@ to verify its entrypoint. No new helper or core ticket was requested.
   From: http/t07 (2026-09-22) and the ns stack probe -- two askers
   State: ticket -- folds into the ns work (ADR 0059): the `(layer, ns, unit)` run attaches `ns` to the operation span
 
-- The untagged `scope.run(op)` overload returns `T` synchronously while its TSDoc reads "always async" and its tagged sibling returns a promise, so the natural `await scope.run(op)` on a sync body trips `await-thenable`. Writing the random tests I hit 9 such warnings and dropped the `await` — which breaks the day the body turns async. Failing shape: `const draws = await createScope({ random: makeTestRandom({ seed: 1 }) }).run(drawNext);`. Wanted: the untagged `run` return `Promise<Awaited<T>>` too, or the TSDoc say the untagged path is sync.
+- The old TSDoc said every tagged call was async while a plain run returned its body's type. ADR 0072 now states when an owned call returns a value or waits; the untagged type stays as the body's type.
   From: random-v1/t01 2026-09-22 (**second asker** after blueprint/t02)
-  State: candidate — same sync-`T`-vs-`Promise` seam as the blueprint/t02 and t03 rows above; a second asker now, worth a core ticket to align the untagged overload with its doc
+  State: **closed — contract now states sync results** (ADR 0072); untagged runs keep the body's type, and owned calls may return a value or promise. The older `await-thenable` concern stays in the blueprint/t02 row.
 
 - The step line's `ms` reads the observe clock (`observe.clock`, default `Date.now`), not the scope's `clock`. The hand-derived `ms` it replaced in hono, mcp, and sync read `ctx.clock`, so a scope built with `makeTestClock` no longer controls those numbers; a hono test dropped its test clock. Wanted: `observe.clock` defaults to the scope's `clock`.
   From: graph/t01 review 2026-09-24 (first asker)
-  State: candidate
+  State: **done** — clock-v1/obs-clock, `57bb9df8`; `makeObs` defaults to the scope clock. The fresh probe freezes both span and log time at 1234.
 
 - A write to one named bucket re-resolves EVERY namespace watcher on that cell (`flushNsWatchers`), so a cell shared by many namespaces pays O(watchers) per write. Measured with sync's `family` (one cell, one namespace per member): 0.12 ms per write at 100 watched members, 0.97 ms at 10000; correct every time. Wanted: index each watcher by the keys in its chain (plus a default-fallthrough set), so a named write to `X` wakes only watchers that can resolve through `X`.
   From: sync family onto ns (namespace-v1/t06, 2026-09-23) -- first asker
@@ -464,7 +463,7 @@ to verify its entrypoint. No new helper or core ticket was requested.
 
 - The commit hook's `vp check --fix` reflows TypeScript inside `.md` code fences to the formatter's 100-character width, so the writing-style rule "code fences under 60 characters" cannot hold: a fence broken at 60 is joined back (probe: `ctx.signal.addEventListener("abort", () => resolve(0), { once: true }),`, 74 characters, now in `packages/mcp/README.md`). The prose lint does not check lines inside fences. Wanted: the formatter skips `.md` fences, or runs with a 60 width for them, or the prose lint reports long fence lines.
   From: nw/docs 2026-09-24 (first asker)
-  State: candidate
+  State: partly done — prose lint reports long fenced lines through `--wide`. Formatter reflow is still open; run the width check after formatting.
 
 - A `.then` promise whose async handler rejects after close stopped waiting, but before the layer is finished, may miss the close result; after the root finishes it reaches the host's unhandled-rejection hook, so it is not silent.
   From: core/caught-subflow review 2026-09-24
@@ -474,7 +473,7 @@ to verify its entrypoint. No new helper or core ticket was requested.
   From: process/positionals 2026-09-25 (first asker)
   State: candidate
 
-- `settle` on an op typed `Handle<unknown, unknown>` is typed as a sync `RunResult` (`Settled<unknown>` collapses), so callers wrap it in `Promise.resolve` to satisfy `await-thenable`. Wanted: `Settled<unknown>` = `RunResult<unknown> | Promise<RunResult<unknown>>`.
+- `settle` on an op typed `Handle<unknown, unknown>` is typed as a sync `RunResult` (`Settled<unknown>` collapses), so callers wrap it in `Promise.resolve` to satisfy `await-thenable`. Wanted: `Settled<unknown>` = `RunResult<unknown> \| Promise<RunResult<unknown>>`.
   From: errors/t02-mcp review 2026-09-25
   State: **done** — errors/settle-types
 
@@ -486,7 +485,7 @@ to verify its entrypoint. No new helper or core ticket was requested.
   From: errors/t02-http review 2026-09-25
   State: note
 
-- A generic caller cannot pass "a call or none" to an overloaded `settle`: `flow.settle(call)` with `call: Scope.Invocation<I> | undefined` fails (TS2769), so hono's `settleFlow` casts the argument. `{ rawInput: undefined }` compiles but sends a call object where a void route sends none.
+- A generic caller cannot pass "a call or none" to an overloaded `settle`: `flow.settle(call)` with `call: Scope.Invocation<I> \| undefined` fails (TS2769), so hono's `settleFlow` casts the argument. `{ rawInput: undefined }` compiles but sends a call object where a void route sends none.
   From: errors/settle-types review 2026-09-26 (hono, first asker)
   State: open
 
@@ -516,8 +515,7 @@ to verify its entrypoint. No new helper or core ticket was requested.
 
 - A graceful close does not abort an extension's `ctx.signal`, so an extension whose `start` awaits a resource cannot tell the scope began closing: sync's `subscribe` keeps a `closing` flag set by its close hook (a rule-13 smell forced by core). Wanted: a signal or state an extension `start` can read that says "the scope is closing" on a graceful close too. The close hook gets no scope, so per-scope close state must live on the piece.
   From: sync/transport-unit review 2026-09-27; stack/t07 review 2026-09-29 (second asker)
-  State: **ticket** — core/close-hook-scope (after core/start-log)
-
+  State: **ticket** — core/close-hook-scope; ADR 0089 gives close events owner-bound access and NATS no longer patches `scope.close`. Sync still needs its `closing` flag, and graceful-close state remains open.
 
 ## Writer learning round, 2026-09-22
 
@@ -591,19 +589,14 @@ throwing parser surfaces as DataValidationFailed, so an operation that
 untyped code can reach reads `ctx.rawInput` (set for both call styles)
 and checks it. locker-01 and cinema-01: no payload miss.
 Proof: kitchen-01 worker-3-attempt-1 check-1, teacher 52/53.
+
 - A rejected `ready` settles before its forced close does: core starts the close and rejects `ready` at once, so a root that only awaits `ready` can exit while cleanup still runs. Every root must catch, `await scope.close()`, then rethrow (ADR 0078 §6). ADR 0050 does not say which settles first. Wanted: `ready` rejects only after the forced close ends, or a documented way to wait for it.
   From: tracker/entry-root 2026-09-29 (probe: `ready` rejected while `close` was still pending)
   State: **done** — core/root-lifetime (ADR 0085): `ready` waits for cleanup and close hooks
 
 - An extension's `start` ctx logs nowhere: `ctx.log` there is `OFF_LOG`, so a boot line is dropped even with an observe sink. Stack pieces write to the sink directly. The hono workaround (a resource's logger) adds one `hono.errors` span per scope at boot; it goes when core/start-log lands.
   From: stack/t05, stack/t02 (hono.errors span), stack/t07
-  State: **done** — core/start-log (2026-10-01, 758efce5); the stack pieces drop their workarounds in stack/start-log-cleanup
-
-- A tagged `settle` that ended in place returns a plain `Result`, yet TypeScript lets the caller
-  write `.then` on it; at runtime `pending.then` is not a function (ADR 0072 returns
-  `T | Promise<Awaited<T>>`). The jobs test wraps it in `Promise.resolve(pending)` first.
-  From: stack/t08
-  State: candidate
+  State: **ticket** — core/start-log (after stack/t04)
 
 - W3C `traceparent` parsing and formatting now lives in three packages (hono reads it, http writes it, nats does both). One shared helper, beside the trace types, would keep them in step.
   From: stack/t04 (hono, http), stack/t13 (nats)
@@ -612,8 +605,6 @@ Proof: kitchen-01 worker-3-attempt-1 check-1, teacher 52/53.
 - Span times are whole milliseconds (the clock's `currentTimeMillis`), so a span under 1 ms exports with 0 duration; tracing wants sub-ms times.
   From: stack/t13 review
   State: candidate
-
-
 
 ## A call needs its own stop, 2026-09-30
 
@@ -625,9 +616,9 @@ Stopping the whole conversation would discard the work that must continue.
 const running = session.settle(coder.turn, {
   input: "start",
 });
-session.controller(coder.inbox).update((entries) => [
-  ...entries, steer("switch"),
-]);
+session.controller(coder.inbox).update((entries) => {
+  return [...entries, steer("switch")];
+});
 await running;
 ```
 
