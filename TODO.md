@@ -40,10 +40,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **core/close-hook-scope** — an extension can tell the scope began closing, on a graceful close too (a signal or state its start can read), and its close hook gets the scope. Two askers: sync/subscribe (a `closing` flag set by its close hook) and stack/t07 (nats replaces core's `scope.close` on its handle as a stopgap). Also (ADR 0085): a root's close hooks run once, cannot skip cleanup or replace its outcome, and a hook's throw becomes a teardown error; then `closed` counts it. Next: brief a writer after stack/t04 and core/start-log (one core card at a time). Verify: sync drops its `closing` flag and nats drops its `scope.close` patch; core tests; `scripts/ticket.sh`; `pnpm validate`.
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
-- **stack/span-kinds** — OTLP span kind from the driver: hono marks server spans, http client spans, nats producer and consumer spans; today every span exports INTERNAL. Next: settle where the kind hint lives (ADR 0076 §5 left it open) after core/traceparent. Verify: the sink test sees SERVER / CLIENT / PRODUCER / CONSUMER per driver.
-
-- **sync/eq-undefined** — sync's start calls a family's typed `eq(a, b)` with `undefined`, so `eq: (a, b) => a.length === b.length` throws; the generated starter uses JSON equality to dodge it (found by stack/t16). Next: a sync test with a typed `eq`, then guard the first compare. Verify: the test fails on main and passes; sync tests; changed-files mutation ≥ 85.
-- **auth/sendmail-type** — adding a template to `mail()` beside `authTemplates` makes `auth(…, { sendMail: post.sendMail(…) })` fail with TS2322; the starter wraps a narrow enqueue operation instead (found by stack/t16). Next: type auth's `sendMail` slot over the auth templates only. Verify: a type test with an extra template compiles; auth tests.
 
 ## Doing
 
@@ -68,6 +64,112 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/primitive-registry** — keep the four-form Start registry.
+  Owner: lead (Codex, Start scaffold session); Sol source-registry writer.
+  Proof: build, check, all kept tests, and real copy/update pass in main.
+  Three items copy 82 exact files, including portable authoring rules.
+  New code outside the four forms must give a TSDoc reason.
+  All 14 old catalog addresses return 404; kept payloads match source.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#keep-the-plain-start-registry).
+
+- **start/owned-source** — copied integrations, native SSE, and Victoria storage.
+  Owner: lead (Codex, Start scaffold session); Astra SSE writer;
+  Sol Victoria writer and Sol source-registry writer.
+  Proof: build, check, all kept workspace tests, and 30 app seams pass.
+  Both real registry installs/updates preserve feature files.
+  Browser sync, stored traces/logs from all three sides, and idle SSE shutdown pass.
+  Only Core and React libraries remain; old app and nine dependent examples are removed.
+  Source files and 95 integration/tool test files stay owned and runnable.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#observed-main-proof).
+
+- **start/public-private-sync** — public and private pages use one sync and mutation model.
+  Owner: lead (Codex, Start scaffold session); Astra writer.
+  Saved: `a8102d62`; reviewed app copied into main.
+  Proof: build 25 tasks; check 0 errors and 28 existing warnings; all 32 test tasks pass.
+  Nineteen app seams, native middleware, import guards, two-tab auth/sync, and Node exit pass.
+  Real registry copies 67 files; dry run changes none; setup update keeps an edited feature.
+  Installed consumer build/types and exact highlighted source preview pass.
+  Only two approved proof-preset census exceptions; all other strict rows are zero.
+  OTEL export, live network services, and full live graph inspection are outside this proof.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#public-and-private-sync-proof).
+
+- **start/sync-result-design** — one update path and results for the required work.
+  Owner: lead (Codex, Start scaffold session).
+  Proof: reviewed graph and result shape; partial keeps the saved profile usable.
+  Prose has 0 hits in 176 tracked docs and all five touched docs.
+  Three track docs have no wide rows or code lines; diff check passes.
+  Design only; runtime seam and browser proof remain pending.
+  [Track](docs/roadmap/start-scaffold/PROGRESS.md#shared-state-and-execution-results).
+
+- **start/failure-input** — infer the failure context from its input reader.
+  Owner: lead (Codex, Start scaffold session); Astra writer.
+  Saved: `4dde3c8c`; the reviewed todo view is copied into the main workspace.
+  Proof: build 25 tasks; check 0 errors and 28 existing warnings;
+  all 32 test tasks pass, including eleven app tests; census and TSDoc pass.
+  Failure text, retry, Core span, browser Pino, and exact source tabs pass.
+  The error reader returns a string; ctx has no type annotation.
+  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+
+- **start/lazy-libraries** — load service libraries only when their unit runs.
+  Owner: lead (Codex, Start scaffold session); Astra writer.
+  Saved: `a667de7d`; thirteen reviewed files copied into the main workspace.
+  Proof: cold import fails before and passes after; build 25 tasks;
+  check 0 errors and 28 existing warnings; all 32 test tasks pass, including
+  eleven app tests; native middleware, import guard, census, and TSDoc pass.
+  Browser Pino, saving and retry, private lists, account switch, and reload pass.
+  Seven exact source tabs and the linked graph pass on a phone.
+  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+
+- **start/database-userland** — show the app-owned database resource.
+  Owner: lead (Codex, Start scaffold session).
+  Proof: seven exact source tabs, phone width, colors, and no page errors pass.
+  The database box links to its source; its arrow is bound to backend actions.
+  Existing box positions and links are kept; prose and authored census pass.
+  The preview reveals existing code; no app TypeScript changed.
+  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+
+- **start/input-states** — inferred todo input and named flow states.
+  Owner: lead (Codex, Start scaffold session); Astra writer.
+  Saved: `1a14da25`; reviewed and copied into the main workspace.
+  Proof: build 25 tasks; check 0 errors and 28 existing warnings;
+  all 32 test tasks pass, including eleven app tests; TSDoc, census, and prose pass.
+  Saving disables controls; failure clears on retry; failed Core span and reload pass.
+  Private account CRUD, account switch, and six exact source tabs pass.
+  The write infers input from its reader and takes the owner from a resource.
+  The browser flow is one idle, saving, or failed Core data object.
+  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+
+- **start/input-user** — Core input reads and a current-user resource.
+  Owner: lead (Codex, Start scaffold session); Astra writer.
+  Saved: `0ef74c28`; reviewed and copied into the main workspace.
+  Proof: the old input read fails the browser span check; the fix passes;
+  build 25 tasks; check 0 errors and 28 existing warnings;
+  all 32 package test tasks pass one at a time, including eleven app tests;
+  middleware, import guard, TSDoc, census, and prose pass;
+  phone CRUD, account switch, input retry, and six source tabs pass.
+  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+
+- **start/todos** — one private todo list per account.
+  Owner: lead (Codex, Start scaffold session); Astra writer.
+  Saved: `85a93399`; copied and reviewed in the main workspace.
+  Proof: build 25 tasks; check 0 errors, 28 existing warnings;
+  all 32 package test tasks pass one at a time; eleven app tests;
+  native middleware, import guard, TSDoc, strict census, and prose pass;
+  phone CRUD, reload, account switch, and blank-title retry pass.
+  The code preview shows six highlighted feature files and the editable graph.
+  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+
+- **start/poc** — native Start scope bridge and runnable Core/React proof.
+  Owner: lead (Codex, Start scaffold session); Astra writer.
+  Better Auth, Drizzle, mail, Pino, and shadcn are wired.
+  Proof: build 25 tasks; check 0 errors, 28 existing warnings;
+  all 32 test tasks pass when run one at a time; eight app tests;
+  unbound bridge, native dedupe, concurrent SSR, and import guard pass;
+  phone auth/save/spans pass; prose, TSDoc, and strict census pass.
+  The source preview embeds the editable graph and highlights one file at a time.
+  Native live inspection and cross-side trace work remain open.
+  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **stack/t16 generator** — `vp create stack-app` (`@tinker/create-app`, registered in the root `vite.config.ts`) writes a full app into `apps/<name>` on `workspace:*`: server, migrate step and first migration, static store, a synced cell, live updates over NATS, a job and a cron row, mail with a React Email template, auth (sign-up, sign-in, verify, reset), a server-rendered list page, the trace sink, and the dev host; settings read at the root with a `.env.example`; each piece one row. Its tests generate an app in a temp place, then build, check, and test it (28 starter tests, a real browser test) and remove it. Proof: gate EXIT 0 (generator 12, tracker 128; 0 errors, 28 warnings), changed-file mutation 87.27% (48/0/7), validate 56/56. Lead review. Sol writer 04639f26. [track](docs/roadmap/stack-v1/PROGRESS.md).
 

@@ -1,5 +1,53 @@
 # Core feedback from authoring
 
+## Live scope inspection — 2026-10-02
+
+Asked by `start/poc`.
+Status: first caller; native API design still open.
+The proof panel labels its completed spans as a snapshot.
+It does not claim to show every live node or graph edge.
+
+An app extension cannot recover those facts from `resolve`.
+The hook sees the root read, but not its dependency or session read.
+The lead ran this case against built Core:
+
+```ts
+let reads = 0;
+const child = resource({ factory: () => 1 });
+const parent = resource({
+  depends: { child },
+  factory: ({ child }) => child + 1,
+});
+const watch = extension({
+  hooks: {
+    resolve(event) {
+      reads += 1;
+      return event.next();
+    },
+  },
+});
+const stop = new AbortController();
+const root = createScope({
+  signal: stop.signal,
+  extensions: [watch],
+});
+await root.ready;
+root.resolve(parent);
+const session = root.createSession();
+session.resolve(parent);
+await session.close();
+stop.abort();
+await root.closed;
+```
+
+Observed: both values are 2; `reads` is 1.
+The hook does not report the child's edge or the session's reuse.
+React's `useSpans` also returns a snapshot without subscribing.
+Live graph and active-work facts need a native Core surface.
+The app adds no helper that guesses those missing facts.
+Proof: `/tmp/tinkered-start-native-inspection-gap.log`.
+[Design](start-scaffold/DESIGN.md#observation-and-devtool).
+
 ## React namespace reset — 2026-09-30
 
 Found by `react/namespaces`.

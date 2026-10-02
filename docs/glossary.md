@@ -390,3 +390,10 @@ New sections are lists, one term per item (vertical layout,
 
 - **call signal** — Stops one action and its child work; the caller stays alive.
 - **tool scope** — Owns a logger, observer, or devtools graph.
+
+## Start execution results
+
+- **execution ID** — The ID of one change request, shared by its change and result events.
+- **completion goal** — The work an operation requires before it can report complete.
+- **execution result** — The complete, partial, or failed result for one completion goal.
+- **partial result** — A result where some required work succeeded and other required work failed.
