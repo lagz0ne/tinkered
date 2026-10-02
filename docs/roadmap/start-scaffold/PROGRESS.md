@@ -823,3 +823,35 @@ No new TypeScript exception was added.
 Jev labels stay in this track because the ticket bars shared-tool edits.
 The lead merges those labels and calibrates them at landing.
 The writer did not push, publish, or mark the board card Done.
+
+### Start seam: lead fix round
+
+The lead found duplicate sync tables in `drizzle-kit generate`.
+The new copied-app schema check is red before the fix and green after it.
+The user schema keeps only the feature counter table.
+Feature operations import fixed sync tables directly.
+Generation says `No schema changes` and creates no new migration files or folders.
+
+The seam guard now handles import-type expressions through the parser's source field.
+It refuses the app's own package, subpaths, string module declarations,
+import-equals, glob imports, and outside triple-slash reference paths.
+Thirteen forbidden probes exit 1 and name their paths.
+The legal Core import-type probe exits 0.
+The real fixed tree also exits 0.
+
+The entry uses static proof preset imports.
+PGlite still loads only inside its factory in proof mode.
+The metadata and README now say that.
+Contract 3 notes include receipt imports, fixed table ownership, and envelope readers.
+The unused stream schema is gone, repeated imports are merged,
+and README guarantees are back in the guarantee list.
+
+All fix-round gates return 0.
+Check has zero errors and the same 28 warnings.
+All 30 app tests pass; validate passes all 16 lanes.
+The note fixture and real registry install/update still pass.
+The changed-source census needs no exception.
+Five repeat Jev findings are labeled false with their reasons in this track.
+
+[Current proof and gate logs](SEAM-PROOF.md).
+The writer saved the fix round for lead review and did not push.
