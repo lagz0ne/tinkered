@@ -34,11 +34,6 @@ function packages() {
         src: join("packages", name, "src"),
         tests: join("packages", name, "tests"),
       })),
-    ...readdirSync(join(ROOT, "registry/src")).map((name) => ({
-      name,
-      src: join("registry/src", name),
-      tests: join("registry/tests", name),
-    })),
     { name: "blueprint", src: "tools/blueprint/src", tests: "tools/blueprint/tests" },
   ];
 }

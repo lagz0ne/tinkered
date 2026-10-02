@@ -38,7 +38,6 @@ const MARK = /(^|\s)@ambientSource(?=\s|$)/;
 const PATHS = [
   "packages/*/src/*.ts",
   "packages/*/src/**/*.ts",
-  "registry/src/**/*.ts",
   "tools/blueprint/src/**/*.ts",
   "tools/blueprint/tinker/**/*.ts",
   "examples/**/*.ts",

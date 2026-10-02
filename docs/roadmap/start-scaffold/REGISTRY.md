@@ -105,7 +105,7 @@ Do not overwrite `postgres-auth-mail-example` to update setup.
 That item contains the chosen services and your feature files.
 The `runtime` item has no registry dependencies and owns only `src/scaffold/`.
 Native entry and config files belong to the install-only `starter` item.
-The current setup contract is version 2; the source item version is `0.3.0`.
+The current setup contract is version 2; the source item version is `0.3.1`.
 SSE needs the database resource's native `listen` method and the new notify migration.
 The starter also installs the SSE and telemetry route entries and local Victoria Compose file.
 For this fresh scaffold, install the new starter; no old app migration is provided.
@@ -129,7 +129,7 @@ This proves the copy/update format, not yet the full app's registry items.
 
 ## Full app copy and update proof
 
-The actual registry contains three items and 81 files.
+The actual registry contains three items and 82 files.
 The official CLI builds their payloads from the selected source files.
 Every built payload and copied file matches the source bytes.
 The CLI resolves both namespaced dependencies into a fresh consumer folder.
@@ -151,11 +151,11 @@ That server and its temporary consumer close after the check.
 The registry itself is static JSON under `public/r/`.
 The Node host serves it at `/r/` with JSON headers and no stale release cache.
 
-## Other copied integrations
+## Plain authoring
 
 Only Core and React remain Tinker libraries.
-The [source catalog](../../../registry/README.md) keeps 13 integration items.
-Each app owns its selected `src/tinker/<item>/` files.
-Items declare a fixed graph and the native dependencies they use.
-The Start scaffold does not import that catalog or another integration package.
-Its setup already lives in copied `src/scaffold/` files.
+The Start registry keeps the three items above.
+Feature code uses data, tags, resources, and operations by default.
+The fixed native bridge owns middleware and scope lifetime.
+The starter copies `AGENTS.md` to the app root.
+Its rules require a TSDoc reason for work outside the four forms.

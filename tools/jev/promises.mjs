@@ -6,7 +6,7 @@
 //
 //   node tools/jev/promises.mjs <pkg> [--json out.json] [--top N] [--floor P]
 //   N candidates per title (default 6); a `none` below confidence P (default 0.7) prints as unsure, not a gap
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadKey, ask, pct, resolvePick } from "./lib.mjs";
 
@@ -20,9 +20,8 @@ const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) +
 const TOP = Number(opt("--top", 6));
 const jsonOut = opt("--json");
 const FLOOR = Number(opt("--floor", 0.7));
-const sourceItem = existsSync(join("registry/tests", pkg));
 const dir = pkg === "blueprint" ? "tools/blueprint" : join("packages", pkg);
-const testDir = sourceItem ? join("registry/tests", pkg) : join(dir, "tests");
+const testDir = join(dir, "tests");
 
 /** Every `test("…")` title under the package's tests. */
 function readTitles() {
@@ -53,10 +52,7 @@ function chunksOf(raw) {
 function readPromises() {
   const out = [];
   let fence = false;
-  for (const raw of readFileSync(
-    sourceItem ? join("registry/docs", `${pkg}.md`) : join(dir, "README.md"),
-    "utf8",
-  ).split("\n")) {
+  for (const raw of readFileSync(join(dir, "README.md"), "utf8").split("\n")) {
     if (raw.trim().startsWith("```")) fence = !fence;
     else if (!fence && isProseLine(raw)) out.push(...chunksOf(raw));
   }

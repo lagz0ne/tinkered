@@ -732,3 +732,67 @@ HTTPS payload proof is `/tmp/tinkered-owned-registry-https-proof.json`.
 The current [app preview](https://p-50f124fdfa9c.preview.tini.works)
 and [source page](https://p-df4b02e60895.preview.tini.works) stay running.
 These are temporary previews, not production services.
+
+## Keep the plain Start registry
+
+The user asked to remove most registry items.
+Keep the version whose user code declares data, tags, resources, and operations.
+The Start app already uses that form for its backend and frontend.
+Its fixed middleware bridge still owns scope lifetime.
+
+Remove the old 13-item source catalog and its copied public payloads.
+Keep the three Start items: setup, chosen services, and first install.
+Auth, Postgres, mail, SSE, and Victoria stay in the copied app source.
+Core and React exports stay unchanged.
+Blueprint keeps its own process source and checks.
+
+The [writer brief](PRIMITIVE-REGISTRY-BRIEF.md) lists the removed owners.
+Writer commit: `d5947847`, from a fresh worktree based on `a4727997`.
+The lead read the cleanup diff and requested one scope-gate fix.
+Retired copied-driver exemptions are gone; the fixed Start bridge remains allowed.
+The lead transferred only the 265 reviewed task paths into main.
+Other active Core and writing changes were preserved.
+
+The starter now copies portable `AGENTS.md` authoring rules.
+All three source items are version `0.3.1`; setup contract stays 2.
+The install contains 82 files, including those rules.
+New code outside the four forms must explain in TSDoc why they cannot own the work.
+The current authoring guide links to actual kept feature units.
+It no longer points authors at removed service factories or packages.
+
+The lead checked 22 backend and frontend files.
+Their 45 graph units use data, tags, resources, and operations.
+They declare no feature extension.
+Framework hooks remain in fixed setup.
+The feature source passes strict style census.
+
+Observed main checks:
+
+- Install and nine workspace build tasks: exit 0.
+- Check: exit 0, zero errors, and the same 28 warnings.
+- All eight kept workspace test tasks: exit 0.
+  The 30 Start operation and resource seams pass.
+- Real shadcn install: three items and 82 exact source files.
+  Dry run changes no file; setup update keeps an edited feature.
+  The installed consumer builds and passes types.
+- Graph, ambient reads, scope ownership, and Blueprint corpus checks: exit 0.
+- Prose and diff checks: exit 0.
+- All 16 kept deterministic validation lanes: exit 0.
+- All three HTTPS items match the built payloads.
+  The 14 removed catalog addresses return 404.
+  The production build contains only the kept registry payloads.
+
+The writer also observed native Start boundary, middleware, SSE, and import checks pass.
+No kept app TypeScript changed.
+One existing Blueprint test still needs a live key and stays skipped.
+Deletion leaves no changed TypeScript for advisory preflight.
+Its empty-list fallback reviewed unchanged examples; those flags are outside this task.
+
+The removed source-only followups were `stack/span-kinds`,
+`sync/eq-undefined`, and `auth/sendmail-type`.
+Their former owners no longer exist, so those cards leave Ready.
+Core followups stay with their current owners.
+
+Main logs use `/tmp/tinkered-primitive-main-`.
+Registry proof is `/tmp/tinkered-start-registry-proof.json`.
+HTTPS removal proof is `/tmp/tinkered-primitive-main-https-proof.json`.

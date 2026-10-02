@@ -13,11 +13,10 @@ mkdir -p "$ROOT/.scip"
 cmd="${1:?usage: scripts/scip.sh index|refs|symbols ...}"
 shift
 
-all_pkgs() { for d in "$ROOT"/packages/*/; do basename "$d"; done; echo source-registry; echo blueprint; }
+all_pkgs() { for d in "$ROOT"/packages/*/; do basename "$d"; done; echo blueprint; }
 
 pkg_dir() {
   case "$1" in
-    source-registry) echo "$ROOT/registry" ;;
     blueprint) echo "$ROOT/tools/blueprint" ;;
     *) echo "$ROOT/packages/$1" ;;
   esac

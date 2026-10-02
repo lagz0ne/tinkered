@@ -26,12 +26,7 @@ const mark = (id) => (CALIBRATION[id]?.status === "noisy" ? "~" : "");
 
 /** A package name expands to its test files; a path passes through. */
 function readFiles(target) {
-  const dir =
-    target === "blueprint"
-      ? "tools/blueprint/tests"
-      : existsSync(join("registry/tests", target))
-        ? join("registry/tests", target)
-        : join("packages", target, "tests");
+  const dir = target === "blueprint" ? "tools/blueprint/tests" : join("packages", target, "tests");
   if (existsSync(dir))
     return readdirSync(dir)
       .filter((f) => /\.test\.tsx?$/.test(f))

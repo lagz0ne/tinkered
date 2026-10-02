@@ -24,8 +24,8 @@ void describe("S19 repo lane", () => {
     "function render(root: Root) {}",
   ].join("\n");
 
-  void it("checks roots and wrapped handle types in apps, examples, and stack", () => {
-    for (const file of [APP, "examples/basic.ts", "registry/src/stack/stop.ts", `/repo/${APP}`])
+  void it("checks roots and wrapped handle types in apps and examples", () => {
+    for (const file of [APP, "examples/basic.ts", `/repo/${APP}`])
       assert.deepEqual(
         lifetimeRows(source, file).map((r) => [r.id, r.line]),
         [
@@ -39,16 +39,16 @@ void describe("S19 repo lane", () => {
 
   void it("keeps driver helpers and tests out of the repo lane, with the writer src lane intact", () => {
     for (const file of [
-      "registry/src/hono/index.ts",
+      "tools/blueprint/src/index.ts",
       "src/app.ts",
       "apps/tracker/scripts/build.ts",
     ])
       assert.deepEqual(lifetimeRows(source, file), [], file);
-    assert.equal(lifetimeRows(source, "registry/src/hono/index.ts", true).length, 3);
+    assert.equal(lifetimeRows(source, "tools/blueprint/src/index.ts", true).length, 3);
     for (const file of [
       "apps/tracker/src/app.test.ts",
       "examples/tests/fixture.ts",
-      "registry/src/stack/stop.spec.ts",
+      "apps/start-scaffold/src/scaffold/backend/lifetime.spec.ts",
     ])
       for (const writer of [false, true])
         assert.deepEqual(lifetimeRows(source, file, writer), [], file);
@@ -92,7 +92,7 @@ void describe("S29 lifetimeByHand", () => {
   void it("checks ready in tests too and leaves every core file out of both lanes", () => {
     for (const file of [
       "apps/tracker/tests/fixture.ts",
-      "registry/tests/sync/sync.test.ts",
+      "apps/start-scaffold/tests/sync.test.ts",
       "src/app.spec.ts",
       "tests/app.browser.ts",
     ])
@@ -117,8 +117,8 @@ void describe("S29 lifetimeByHand", () => {
     for (const file of [
       APP,
       "examples/basic.ts",
-      "registry/src/process/index.ts",
-      "registry/src/stack/stop.ts",
+      "tools/blueprint/tinker/process/index.ts",
+      "packages/react/src/index.ts",
     ])
       assert.equal(lifetimeRows(stop, file).length, 6, file);
     for (const file of [

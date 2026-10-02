@@ -1,7 +1,7 @@
 # tinkered
 
 Core and React are the two Tinker libraries.
-Other integrations are [source apps copy and own](registry/README.md).
+Start feature code uses data, tags, resources, and operations.
 The [Start scaffold](apps/start-scaffold/README.md) has public pages,
 private lists, SSE sync, and local Victoria trace and log storage.
 

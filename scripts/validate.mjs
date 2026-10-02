@@ -5,17 +5,7 @@ import { execSync } from "node:child_process";
 const VP = "/home/paseo/.local/vp/bin/vp";
 const strip = "node --experimental-strip-types";
 const lanes = [
-  ["mail tests", `${VP} run --no-cache source-registry#test -- --project mail`],
-  ["mail source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/mail"],
-  ["auth tests", `${VP} run --no-cache source-registry#test -- --project auth`],
-  ["auth source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/auth"],
-  ["jobs tests", `${VP} run --no-cache source-registry#test -- --project jobs`],
-  ["jobs source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/jobs"],
-  ["nats tests", `${VP} run --no-cache source-registry#test -- --project nats`],
-  ["nats source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/nats"],
   ["lint/types/format/complexity", `${VP} check`],
-  ["stack tests", `${VP} run --no-cache source-registry#test -- --project stack`],
-  ["stack source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/stack"],
   ["tests", `${VP} run --no-cache core#test`],
   ["core size (<= 16 KiB gzip)", `${VP} run --no-cache core#size`],
   ["promises (0 sync / <=10 async)", `${strip} bench/promises.mjs`],
@@ -37,44 +27,11 @@ const lanes = [
     "core runtime and testing entries (package imports only)",
     "node scripts/check-core-entries.mjs",
   ],
-  // Copied http (ADR 0035, http-v1 t05): the same three deterministic promises for the frame.
-  ["http tests", `${VP} run --no-cache source-registry#test -- --project http`],
-  ["http source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/http"],
-  // Copied hono (ADR 0039/0040/0051, drivers t03): same promises; `hono` is a peer import, `node:` is not.
-  ["hono tests", `${VP} run --no-cache source-registry#test -- --project hono`],
-  ["hono source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/hono"],
-  // Copied drizzle (ADR 0041, drizzle-v1 t02): same promises; drizzle-orm is types-only at runtime.
-  ["drizzle tests", `${VP} run --no-cache source-registry#test -- --project drizzle`],
-  [
-    "drizzle source size (<= 10 kB gzip)",
-    "node scripts/check-size.mjs 10240 registry/dist/drizzle",
-  ],
-  // Copied process (ADR 0056): same promises; only `main` touches the process, so dist stays pure.
-  ["process tests", `${VP} run --no-cache source-registry#test -- --project process`],
-  [
-    "process source size (<= 10 kB gzip)",
-    "node scripts/check-size.mjs 10240 registry/dist/process",
-  ],
   // Copied blueprint (ADR 0052, blueprint-v1 t01/t05): the size promise; zod, yaml,
   // and @tinker/* stay out of dist at runtime; the binary ships its corpus and evals.
   ["blueprint tests", `${VP} run --no-cache blueprint#test`],
   ["blueprint size (<= 20 kB gzip)", `${VP} run --no-cache blueprint#size`],
-  ["blueprint source retains corpus and evals", "node registry/scripts/check-tool-files.mjs"],
-  // Copied harness (ADR 0043, harness-v1 t05): same promises; the SDKs, zod, and the MCP SDK never reach dist at runtime.
-  ["harness tests", `${VP} run --no-cache source-registry#test -- --project harness`],
-  [
-    "harness source size (<= 10 kB gzip)",
-    "node scripts/check-size.mjs 10240 registry/dist/harness",
-  ],
-  // Copied mcp (ADR 0046, mcp-v1 t02): same promises; zod is types-only at runtime,
-  // the SDK reaches dist only through server/mcp.js.
-  ["mcp tests", `${VP} run --no-cache source-registry#test -- --project mcp`],
-  ["mcp source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/mcp"],
-  ["copied source import boundaries", "node registry/scripts/check-imports.mjs"],
-  // Copied sync (ADR 0048, sync-v1 t05): same promises; the transport is
-  // userland's, so dist imports only @tinker/core at runtime.
-  ["sync tests", `${VP} run --no-cache source-registry#test -- --project sync`],
-  ["sync source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/sync"],
+  ["blueprint source retains corpus and evals", "node tools/blueprint/scripts/check-corpus.mjs"],
   [
     "two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)",
     "scripts/two-hands.sh",
@@ -97,10 +54,7 @@ for (const [name, cmd, show] of lanes) {
     if (out) console.log(out.replace(/^/gm, "        "));
   }
 }
-console.log(
-  "Mutation lanes: core and react remain library lanes. " +
-    "Source-item configs live in registry/configs; run each alone (floor 85).",
-);
+console.log("Mutation lanes: run core and react alone (floor 85).");
 console.log(
   `Timing lanes:  run via \`benchctl exec -- ${strip} bench/<lane>.mjs\` from a clean worktree (the queue; never by hand).\n` +
     `               bench/warm-read.mjs: a warm read is O(1) in chain depth (moved out of core#test, tests/busy-host-flake).`,

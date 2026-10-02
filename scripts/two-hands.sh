@@ -6,8 +6,8 @@
 # not a driver — is a leak. Prints the offending lines; exit 1 on any.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-allowed='^(packages/(core|react)/src/|registry/src/(auth|hono|stack|nats|jobs|mail|mcp|sync|harness|drizzle|http)/|registry/tests/|packages/[^/]+/tests/|tools/blueprint/tests/|apps/[^/]+/tests/|apps/[^/]+/src/(scaffold/|tinker/(auth|hono|stack|nats|jobs|mail|mcp|sync|harness|drizzle|http)/|client/App\.tsx$))'
-hits=$(git ls-files --cached --others --exclude-standard 'registry/*.ts' 'tools/blueprint/*.ts' 'apps/*.ts' 'apps/*.tsx' 'examples/*.ts' 'examples/*.tsx' 'packages/*.ts' 'packages/*.tsx' \
+allowed='^(packages/(core|react)/src/|packages/[^/]+/tests/|tools/blueprint/tests/|apps/[^/]+/tests/|apps/[^/]+/src/scaffold/)'
+hits=$(git ls-files --cached --others --exclude-standard 'tools/blueprint/*.ts' 'apps/*.ts' 'apps/*.tsx' 'examples/*.ts' 'examples/*.tsx' 'packages/*.ts' 'packages/*.tsx' \
   | grep -vE "$allowed" \
   | xargs grep -L "createScope(" 2>/dev/null \
   | xargs grep -n "Scope\.Handle" 2>/dev/null || true)

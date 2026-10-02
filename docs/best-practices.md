@@ -2,89 +2,67 @@
 
 Declare the graph once.
 A graph is the set of named units and their dependencies.
-Reuse it across roots, sessions, and namespace instances.
+Reuse its declarations across roots and sessions.
+Only Core and React are Tinker libraries.
+Apps own their chosen integration source.
 
-Call a graph builder such as `harness()` once for the authored configuration.
-Expose database and transaction resources as static declarations.
-Do not hide them inside a store frame builder.
-It must leave live state with the instance that owns it.
+## Start with four forms
 
-## Pick the unit by what it does
-
-- **Tag** — fixed settings and labels.
-  Bind URLs, tokens, paths, and mode choices here.
-- **Data** — mutable state that callers read or watch.
-  Operations and extensions write it through bound controllers.
+- **Tag** — fixed settings or facts injected by the entry.
+  Put URLs, keys, paths, and mode choices here.
+- **Data** — changing records, drafts, and visible progress.
+  Write through its bound controller.
+  Use a `kind` union when states carry different values.
 - **Resource** — a reusable value with setup and cleanup.
-  Declare dependencies and release owned work with `defer`.
+  Declare its dependencies and release owned work with `ctx.defer`.
+  Load native libraries inside its factory.
 - **Operation** — an action with input and a result.
-  Validate outside input once, then use typed facts.
-- **Extension** — the engine that drives a module's goal.
-  Wrap work, act on state, and use the current owner and namespace.
-- **Namespace** — a key with fixed tags.
-  It selects settings and keeps instance state apart.
+  Reads, writes, sends, retries, and sync actions use this form.
+  Declare the input reader and let Core infer input and context types.
 
-A pure helper may take and return values.
-View state and editor handles may belong to their mounted view.
-Do not add an extension to a pure helper or a thin view adapter.
+These four are the default for new app work.
+Do not build a service factory or helper around a feature graph.
+Its entry points are static units.
+An action runs through an operation so Core can observe and stop it.
+A resource may retain a native client and private work state.
+Do not hide a feature action behind an unobserved resource method.
+Saved records and visible progress belong in data.
 
-## Give the package a job
+The Start scaffold shows the filled-in form:
 
-- **Graph module** — supplies reusable graph units or a builder that declares them.
-  Use an extension when the module must drive work toward its goal.
-  HTTP supplies actions; Drizzle's PGlite entry supplies resources and a migration action.
-- **Host adapter** — connects an app's graph to process or view inputs and lifetime.
-  Process supplies command line entry support.
-  React connects Core state and sessions to mounted views.
-- **Helper library** — supplies plain functions that take and return values.
-  Keep helpers in the package that uses them.
-  A helper-only library does not earn a `@tinker/*` package.
+- [Database resource](../apps/start-scaffold/src/backend/database.ts).
+- [Current-user resource](../apps/start-scaffold/src/backend/auth.ts).
+- [Mail settings, client, and send action](../apps/start-scaffold/src/backend/mail.ts).
+- [Todo actions](../apps/start-scaffold/src/backend/todos.ts).
+- [Browser records and settings](../apps/start-scaffold/src/frontend/state.ts).
+- [Todo view and its action state](../apps/start-scaffold/src/frontend/Todos.tsx).
 
-The precedent is a Unix main entry: read inputs, run work, clean up, return a code.
-Process is that app entry adapter; the app supplies the graph.
-Its tags carry args, env, writers, and a stop request into that graph.
-Its shared job is routing and waiting for Core cleanup before returning a code.
-Formatting and parsing helpers support that job.
+## Challenge every other form
 
-A function that declares a graph, such as `harness()`, is a graph builder.
-Judge a package by the reusable job its public API supplies.
-Tags alone do not turn a helper library into a graph module.
+Before adding another form, explain why none of the four can own the work.
+Put the reason in TSDoc beside the declaration.
+Shorter code or a familiar class is not a reason.
+Never pass a scope, session, or context bag to a helper.
 
-The [current package review](roadmap/authoring-model/PACKAGE-ROLES.md)
-lists each package's role and public graph or host binding.
+Some code meets an outside contract:
+
+- Framework entries and adapters connect native lifetime and callbacks.
+- React components render data and invoke operations through hooks.
+- Input readers validate raw values at the operation or network door.
+- Error declarations, database schemas, and wire encoders describe values.
+
+Value helpers have no app effects or mutable app state.
+Review every other form against the four choices before keeping it.
+Do not add a helper that runs or wires the graph.
 
 ## Keep lifetime with its owner
 
 The precedent is request middleware and a database transaction.
-A request opens a session; its end commits or rolls back its work.
-A database resource opens lazily from its namespace settings.
-Its transaction resource uses that same database and belongs to the session.
-SDK helpers inside a factory may connect, log, or bridge a transaction callback.
-They do not create a second graph or own a scope.
+Middleware opens a request session and keeps it until the response body ends.
+An action owns its transaction until commit or rollback.
 A root owns the resources shared by its sessions.
-
-Import reusable static units from their package.
-For PGlite, the package supplies its settings and native resources:
-
-```ts
-import { namespace } from "@tinker/core";
-import { config } from "@tinker/drizzle/pglite";
-
-const issues = namespace({
-  tags: [
-    config({
-      kind: "open",
-      url: "./data/issues",
-    }),
-  ],
-});
-```
-
-App actions depend on `transaction` to share their session's work.
-The exported `migrate` action owns its transaction until commit or rollback.
-An app extension runs it before continuing startup.
-App tables and actions stay in the app.
-See the filled-in [Drizzle guide](../packages/drizzle/README.md).
+Factories open clients lazily; `ctx.defer` closes what they own.
+Tables and feature actions stay in userland.
 
 Resource targets choose sharing:
 
@@ -92,185 +70,51 @@ Resource targets choose sharing:
 - `namespace`: one value per namespace in that root.
 - `session`: one value per session and namespace.
 
-A namespace does not start or stop an instance.
+A namespace is a key with fixed tags; it chooses settings and keeps state apart.
+It does not start or stop an instance.
 End its scope or session to discard live state.
-Keep watches, readers, queues, and tool controllers with that owner.
-A reusable definition must not retain them after close.
+Keep watches, readers, queues, and pending work with that owner.
+A reusable declaration must not retain them after close.
 
-## Give extensions bound access
+## Keep framework hooks in fixed setup
 
-Object hooks receive one lazy event.
-Its `kind` selects the payload; `next()` continues the chain.
-Access follows the actual owner and namespace of the work.
+An extension connects work that must follow Core's lifetime or native hooks.
+It is fixed setup, not another feature authoring form.
+Its hooks live inside `hooks` and receive one bound event.
+`next()` continues the chain; the event gives access to the current owner.
+Resolve hooks wrap direct root reads only, not dependency or session reads.
+Use a setup resource when those paths need readiness.
 
-```ts
-const managed = tag({
-  label: "managed",
-  default: false,
-});
-const calls = data({ label: "calls", initial: 0 });
-const engine = extension({
-  label: "service.engine",
-  hooks: {
-    run(event) {
-      if (event.resolve(managed)) {
-        event.controller(calls).update((n) => n + 1);
-      }
-      return event.next();
-    },
-  },
-});
-const github = namespace({ tags: managed(true) });
-```
+The [Start bridge](../apps/start-scaffold/src/scaffold/start.ts)
+binds middleware to its scope and fails fast when unbound.
+Start dedupes the shared middleware object.
+The app uses native context at that bridge rather than a hidden current scope.
+Feature modules receive declared dependencies, never the scope handle.
 
-A run hook can wait before or after `next()` and own cleanup.
-Use `event.resolve(resource)` for setup the engine needs.
-Resolve hooks wrap direct root reads only.
-They do not cover dependency or session reads.
-Use an explicit setup resource when those paths need readiness.
+## Give observation its own graph
 
-Declare all extension hooks inside `hooks`.
-Each hook takes one bound event.
+Observer callbacks receive spans and logs, not the scope that made them.
+A separate telemetry root owns export work.
+The app borrows its observer configuration.
+Close the app first, then close telemetry to send the final records.
+Leave observation off in telemetry to avoid tracing its own exports.
 
-## Observation has its own graph
+The [copied telemetry graph](../apps/start-scaffold/src/scaffold/telemetry/index.ts)
+uses tags for settings, data for history and health, a queue resource,
+and operations for ingest and export.
+Its fixed hook binds Core observation.
+Pino supplies logs; Victoria stores traces and logs.
 
-Observer callbacks accept spans and logs.
-They do not receive the owner that created that work.
-Give a queued observer its own telemetry scope.
+## Keep the entry small
 
-That scope owns the trace extension, queue resource, and export actions.
-The app borrows the observer config resolved by the extension.
-Close the app first, then close telemetry to send the final spans.
-Leave observation off in telemetry unless self-observation is intended.
-
-```ts
-const tracing = traceSink();
-const toolStop = new AbortController();
-const telemetry = createScope({
-  signal: toolStop.signal,
-  extensions: [tracing],
-  tags: tracing.config({
-    env: {
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318",
-      OTEL_SERVICE_NAME: "service-tools",
-    },
-    write: (line) => process.stdout.write(`${line}\n`),
-  }),
-});
-await telemetry.ready;
-const appStop = new AbortController();
-const app = createScope({
-  signal: appStop.signal,
-  observe: telemetry.resolve(tracing),
-});
-appStop.abort();
-await app.closed;
-toolStop.abort();
-await telemetry.closed;
-```
-
-Import `traceSink` from `@tinker/stack`.
-Logger and devtools graphs may use the same ownership rule.
-They keep their own extension, resources, state, and actions.
-
-## One agent, two services
-
-Keep the conversation in one session.
-Select the service namespace on each HTTP call.
-Both services use the same `send` declaration.
-
-```ts
-const github = namespace({
-  tags: httpConfig({
-    baseUrl: "https://api.github.com",
-    headers: { authorization: "Bearer github-token" },
-  }),
-});
-const cloudflare = namespace({
-  tags: httpConfig({
-    baseUrl: "https://api.cloudflare.com/client/v4",
-    headers: { authorization: "Bearer cloudflare-token" },
-  }),
-});
-await send.run({
-  ns: github,
-  input: HttpRequest.get("/repos/octocat/Hello-World"),
-});
-await send.run({
-  ns: cloudflare,
-  input: HttpRequest.get("/zones"),
-});
-```
-
-These are separate settings, with one HTTP graph.
-They may share a root-owned workspace resource.
-See the complete [Harness example](../examples/harness/SERVICES.md).
-
-## Keep the root small
-
-The entry file reads process or browser inputs and wires the graph.
+The entry reads process or browser inputs and wires the graph.
 It owns output and stop signals.
-Use Core's root lifetime: pass a signal and await `closed`.
+Use Core's root lifetime: pass the original signal and await `closed`.
 Do not close a root again after its `ready` rejects.
 Do not pass its handle through app helpers.
-
-An executable example runs only inside `if (import.meta.main)`.
-Its index exports static graph units, not a helper that runs the whole example.
-Its tests create small roots from those units.
-The main guard owns process listeners, output, and cleanup.
-Process `main` owns a selected command or service root.
-The guarded app sets the returned code so pending output can finish.
-
-```ts
-if (import.meta.main) {
-  process.exitCode = await main({ shell });
-}
-```
-
-A command entry names an operation that answers an exit code.
-A service entry names extensions and waits for native root cleanup.
-Its extension resolves Process `stop.required` to stop on EOF.
-Keep shell metadata static; put run settings in the Process call.
-
-```ts
-import { createScope, operation } from "@tinker/core";
-import type { Scope } from "@tinker/core";
-
-const hello = operation({
-  label: "hello",
-  run: () => "hello",
-});
-
-if (import.meta.main) {
-  const stop = new AbortController();
-  const requestStop = () => stop.abort();
-  process.once("SIGINT", requestStop);
-  process.once("SIGTERM", requestStop);
-  const root = createScope({ signal: stop.signal });
-  let message: string;
-  let end: Scope.Result;
-  try {
-    await root.ready;
-    message = root.run(hello);
-  } finally {
-    stop.abort();
-    end = await root.closed;
-    process.removeListener("SIGINT", requestStop);
-    process.removeListener("SIGTERM", requestStop);
-  }
-  if (end.status === "failed") throw end.error;
-  if (end.teardownErrors?.length) {
-    const [error] = end.teardownErrors;
-    throw error;
-  }
-  process.stdout.write(`${message}\n`);
-}
-```
-
+An executable entry runs only inside `if (import.meta.main)`.
+Framework entries use the filenames and exports their framework requires.
 Declare domain operations and resources outside request bodies.
-Helpers over values may parse, format, or transform those values.
-A driver receives the root through its extension event.
-App code calls declared actions through dependencies.
 
 ## Handle results at the right place
 
@@ -278,46 +122,29 @@ Use `run()` when failure should reach the owner.
 Use `settle()` when the caller handles a failed or cancelled result.
 Catching a run rejection does not recover that failure for the owner.
 
-Give one action a call signal when it must stop on its own.
-The call gets a child session, as a tagged call does.
+A call signal gives that action a child session.
 Session resources and data writes stay with that child.
-Namespaces still select the settings for that work.
-
-```ts
-const stepStop = new AbortController();
-const pending = step.settle({
-  input: "check the services",
-  signal: stepStop.signal,
-});
-stepStop.abort();
-const result = await pending;
-if (result.status === "failed") throw result.error;
-```
-
-Abort stops child work that uses `ctx.signal`, including HTTP retries.
+Work that uses `ctx.signal` stops when that call is cancelled.
 The call waits for cleanup before answering.
-A handled cancelled result keeps the parent conversation alive.
-Keep conversation cells in the parent and consume the step's result there.
 Finish streamed work before returning from a signal-owned action.
+The native response bridge owns work that must outlive the route return.
 
-After a commit, publish from committed storage through a root controller.
-Keep the request namespace on that controller.
-Do not publish from the session's draft cells.
+Saved records change through committed sync events.
+Apply the saved change before completing the local execution wait.
+Keep dirty text separate from saved records.
+A partial result keeps committed data usable when later work fails.
+See the [current data flow](roadmap/start-scaffold/STATE-SYNC.md).
 
 ## Check the public promise
 
-A test creates its own root, runs the public action, and reads the result.
+A test creates a small scope and runs the exported operation or resource.
+Feature tests do not boot the whole Start stack.
+Use real dependencies or public fakes; never patch globals or mock code.
+Control time with Core's test clock rather than sleeping.
 A regression must fail before its fix.
-Use real dependencies or public fakes; do not patch globals or mock code.
-
-An app test presets the app's endpoint operation.
-An HTTP integration test may bind a recording backend.
-The service example checks the real HTTP graph through that backend.
-Use a controlled clock for time; do not sleep to wait for state.
 
 Run build before check and consumer tests.
 Run prose after changing Markdown.
-Record the observed proof on the board.
-
-The [package and app review](roadmap/authoring-model/PACKAGES.md)
-tracks the current source paths, fixes, and checks.
+Record observed proof on the board.
+The starter copies its [authoring rules](../apps/start-scaffold/AGENTS.md)
+so future feature work follows the same recipe.

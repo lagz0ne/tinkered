@@ -452,7 +452,7 @@ function noWrapperHits(source, program, file, writer) {
   const writerSource = writer && SRC_PATH.test(file);
   return [
     ...(writerSource ? builderCallsInFunctions(program, builderNames(program)) : []),
-    ...(writerSource || /(^|\/)(apps\/[^/]+\/src\/|examples\/|registry\/src\/stack\/)/.test(file)
+    ...(writerSource || /(^|\/)(apps\/[^/]+\/src\/|examples\/)/.test(file)
       ? handleParams(source, program)
       : []),
   ];
@@ -469,8 +469,7 @@ function noWrapperHits(source, program, file, writer) {
 
 const CORE_SRC = /(^|\/)packages\/core\/src\//;
 const USERLAND = /(^|\/)(apps|examples)\//;
-const PACKAGE_SRC =
-  /(^|\/)(?:packages\/[^/]+\/src\/|registry\/src\/|tools\/blueprint\/(?:src|tinker)\/)/;
+const PACKAGE_SRC = /(^|\/)(?:packages\/[^/]+\/src\/|tools\/blueprint\/(?:src|tinker)\/)/;
 const BROWSER_ENTRY = /\.tsx$|(^|\/)client\//;
 const GLOBALS = new Set(["globalThis", "window", "self"]);
 const RANDOM = new Map([
