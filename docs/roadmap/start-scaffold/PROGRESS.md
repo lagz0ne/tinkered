@@ -25,7 +25,7 @@ The reviewed code is now in `apps/start-scaffold` in the main workspace.
 [Run and read the proof](../../../apps/start-scaffold/README.md).
 [Open the temporary preview](https://p-6b63623651fe.preview.tini.works).
 [Edit the scope bridge](https://tldraw.tini.works/r/68c409f0ab62460c9394a5c99f1f0635).
-[Read the scaffold source](https://p-32fb45e2fd6a.preview.tini.works/scaffold.html).
+[Read the scaffold source](https://p-df4b02e60895.preview.tini.works/scaffold.html).
 
 ## Findings
 
@@ -114,7 +114,7 @@ No app TypeScript changed for this correction.
 The same editable graph now has a linked Database resource box.
 Its arrow is bound to the backend actions and the database.
 The previous five boxes keep their positions and links.
-[Source page](https://p-32fb45e2fd6a.preview.tini.works/#todo-database).
+[Source page](https://p-df4b02e60895.preview.tini.works/#todo-database).
 [Editable graph](https://tldraw.tini.works/r/314eb38f07b44c469c2007bef0c558ea).
 
 The browser proves all seven tabs match their real source files.
@@ -429,7 +429,7 @@ There are no page errors.
 The source page shows seven exact files with colors and no line numbers.
 The embedded editor renders on phone and desktop.
 The same database box now says Lazy database resource and links to its source.
-[Source page](https://p-32fb45e2fd6a.preview.tini.works/#todo-database).
+[Source page](https://p-df4b02e60895.preview.tini.works/#todo-database).
 [Editable graph](https://tldraw.tini.works/r/314eb38f07b44c469c2007bef0c558ea).
 
 The user also asks whether refreshing data depends on the URL.
@@ -474,7 +474,7 @@ It also sees Pino emit the successful todo action span.
 There are no page errors.
 All seven highlighted source tabs match the real files exactly.
 The embedded graph still renders on phone and desktop.
-[Review the todo view](https://p-32fb45e2fd6a.preview.tini.works/#todo-view).
+[Review the todo view](https://p-df4b02e60895.preview.tini.works/#todo-view).
 
 Main logs use `/tmp/tinkered-failure-input-main-` and name each gate.
 Browser logs use `/tmp/tinkered-failure-input-` with flow or source.
@@ -594,7 +594,7 @@ Dependency installation is a prerequisite, not part of this proof.
 All three public HTTPS item addresses match their built payloads.
 The [registry commands and ownership](REGISTRY.md) name the checked version.
 
-The [source page](https://p-32fb45e2fd6a.preview.tini.works) shows 13 highlighted userland files.
+The [source page](https://p-df4b02e60895.preview.tini.works) shows 13 highlighted userland files.
 Only one file is open at a time; setup stays hidden and there are no line numbers.
 Every displayed source matches its real file.
 The [same editable graph](https://tldraw.tini.works/r/314eb38f07b44c469c2007bef0c558ea)
@@ -730,5 +730,5 @@ The browser result is `/tmp/tinkered-sync-browser-proof.json`.
 Storage readback is `/tmp/tinkered-victoria-readback-proof.json`.
 HTTPS payload proof is `/tmp/tinkered-owned-registry-https-proof.json`.
 The current [app preview](https://p-50f124fdfa9c.preview.tini.works)
-and [source page](https://p-32fb45e2fd6a.preview.tini.works) stay running.
+and [source page](https://p-df4b02e60895.preview.tini.works) stay running.
 These are temporary previews, not production services.

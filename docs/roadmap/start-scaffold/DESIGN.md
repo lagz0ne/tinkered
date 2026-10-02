@@ -11,7 +11,7 @@ The current transport is native SSE, woken by Postgres after commit.
 Core traces and Pino logs export to a local Victoria stack.
 The [registry split](REGISTRY.md) keeps fixed setup updates away from feature files.
 
-[Current feature code and graph](https://p-32fb45e2fd6a.preview.tini.works).
+[Current feature code and graph](https://p-df4b02e60895.preview.tini.works).
 [Edit the sync graph](https://tldraw.tini.works/r/314eb38f07b44c469c2007bef0c558ea).
 [Edit the storage graph](https://tldraw.tini.works/r/6da0f43503124591b21cba7b73233f8d).
 The original [scope bridge sketch](https://diashort.tini.works/d/6bb9fd78)
