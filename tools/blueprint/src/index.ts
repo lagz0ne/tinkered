@@ -1,0 +1,662 @@
+import { operation, resource, tag, type Operation, type Resource, type Tag } from "@tinker/core";
+import { argv, io, jsonLine, positionals, type Process } from "../tinker/process/index.ts";
+import {
+  createGateway,
+  experimental_evaluate as evaluate,
+  type Experimental_EvaluationModel as EvaluationModel,
+} from "ai";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import {
+  bodyFindings,
+  findingLine,
+  goldenCasesOf,
+  gradeTemplate,
+  median,
+  parseCheckInput,
+  parseSuggestInput,
+  parseVerifyInput,
+  readBlueprint,
+  readCorpus,
+  readEval,
+  readTemplate,
+  runCheck,
+  templateQuestion,
+  verifyChecks,
+  type Blueprint,
+} from "./blueprint.ts";
+import { raise } from "./errors.ts";
+import { readUnits } from "./extract.ts";
+
+export { isError } from "./blueprint.ts";
+export type { Errors } from "./blueprint.ts";
+export {
+  goldenCasesOf,
+  gradeTemplate,
+  median,
+  plainChecks,
+  readBlueprint,
+  readCorpus,
+  readEval,
+  readTemplate,
+  verifyChecks,
+} from "./blueprint.ts";
+export { readUnits } from "./extract.ts";
+export type { Blueprint } from "./blueprint.ts";
+
+/** Where the templates live. Default: the shipped `corpus/` folder, resolved from
+ * this module; a test rebinds it to a fixture. */
+export const corpusPath: Tag.Handle<string> = tag({
+  label: "corpusPath",
+  default: new URL("../corpus/", import.meta.url).pathname,
+});
+
+/** The corpus resource: reads every `*.yaml` under `corpusPath` once per scope.
+ * A bad template fails the build with `InvalidTemplate`. */
+export const corpus: Resource.Handle<Blueprint.Corpus> = resource({
+  label: "corpus",
+  depends: { dir: corpusPath },
+  factory: ({ dir }) => {
+    const files = readdirSync(dir)
+      .filter((file) => file.endsWith(".yaml"))
+      .sort();
+    return readCorpus(
+      files.map((file) => readTemplate(readFileSync(join(dir, file), "utf8"), file)),
+    );
+  },
+});
+
+/** Where the evals live. Default: the shipped `evals/` folder, resolved from
+ * this module; a test rebinds it to a fixture. */
+export const evalsPath: Tag.Handle<string> = tag({
+  label: "evalsPath",
+  default: new URL("../evals/", import.meta.url).pathname,
+});
+
+function readEvalFiles(folder: string): readonly Blueprint.Eval[] {
+  if (!existsSync(folder)) return [];
+  return readdirSync(folder)
+    .filter((file) => file.endsWith(".yaml"))
+    .sort()
+    .map((file) => readEval(readFileSync(join(folder, file), "utf8"), join(folder, file)));
+}
+
+/** `evalsPath/golden.yaml`, parsed as a plain blueprint (not an eval file) — a known-clean
+ * design every template also grades against. `undefined` when the folder ships none. */
+function readGolden(dir: string): Blueprint.Graph | undefined {
+  const file = join(dir, "golden.yaml");
+  return existsSync(file) ? readBlueprint(readFileSync(file, "utf8")) : undefined;
+}
+
+/** The package's own golden pair (ADR 0055 §5): `blueprint.yaml` and `src/`, resolved next to
+ * this module, as the `verify` cli row resolves them from argv. `undefined` when either is
+ * missing — the shipped `dist` build carries no `src` (`package.json`'s `files`), so an
+ * installed package grades a `body` template with no golden pair. */
+function readOwnPair():
+  | { readonly graph: Blueprint.Graph; readonly units: readonly Blueprint.Unit[] }
+  | undefined {
+  const file = new URL("../blueprint.yaml", import.meta.url).pathname;
+  const dir = new URL("../src/", import.meta.url).pathname;
+  if (!existsSync(file) || !existsSync(dir)) return undefined;
+  return { graph: readBlueprint(readFileSync(file, "utf8")), units: walk(dir) };
+}
+
+/** The eval-set resource: reads the `.yaml` files under `evalsPath/<id>/bad` and
+ * `evalsPath/<id>/clean` once per scope into a map keyed by template id, plus golden cases
+ * for every template it applies to (ADR 0052 decision 5, amended): `golden.yaml`'s for every
+ * template, and, for a `body` template only, the package's own golden pair's (ADR 0055 §5 —
+ * `goldenCasesOf` resolves each case's `body` from `ownPair.units`). A bad eval file fails
+ * the build with `InvalidEval`. */
+export const evalSet: Resource.Handle<
+  ReadonlyMap<
+    string,
+    {
+      readonly bad: readonly Blueprint.Eval[];
+      readonly clean: readonly Blueprint.Eval[];
+      readonly golden: readonly Blueprint.Eval[];
+    }
+  >
+> = resource({
+  label: "evalSet",
+  depends: { dir: evalsPath, corpus },
+  factory: ({ dir, corpus }) => {
+    const golden = readGolden(dir);
+    const needsBody = corpus.templates.some((template) => template.needs.includes("body"));
+    const ownPair = needsBody ? readOwnPair() : undefined;
+    const ids = readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    return new Map(
+      ids.map((id) => {
+        const template = corpus.templates.find((candidate) => candidate.id === id);
+        const needsBodyGolden = template !== undefined && template.needs.includes("body");
+        return [
+          id,
+          {
+            bad: readEvalFiles(join(dir, id, "bad")),
+            clean: readEvalFiles(join(dir, id, "clean")),
+            golden: [
+              ...(template && golden ? goldenCasesOf(template, golden, "golden.yaml") : []),
+              ...(template && needsBodyGolden && ownPair
+                ? goldenCasesOf(template, ownPair.graph, "blueprint.yaml", ownPair.units)
+                : []),
+            ],
+          },
+        ];
+      }),
+    );
+  },
+});
+
+/** The Jev engine: which model, which key. Bound at the root when a key exists;
+ * a test never binds it — `judge` takes it as `engine.optional`. */
+export const engine: Tag.Handle<Blueprint.Engine> = tag({ label: "engine" });
+
+const RATE_LIMITED = /rate|429/i;
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** One `setTimeout`, awaited, cleared when `signal` aborts — nothing outlives the call. */
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function askGateway(
+  model: EvaluationModel,
+  state: Blueprint.NodeState | Blueprint.PairState | Blueprint.WordsState,
+  questions: Readonly<Record<string, Blueprint.Question>>,
+  signal: AbortSignal,
+): Promise<Readonly<Record<string, Blueprint.Answer>>> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const { answers } = await evaluate({ model, state, questions, abortSignal: signal });
+      return answers;
+    } catch (error: unknown) {
+      if (!RATE_LIMITED.test(messageOf(error))) throw error;
+      await wait(8000 * (attempt + 1), signal);
+    }
+  }
+  raise("JevUnavailable", {}, "blueprint: gave up after rate-limit retries");
+}
+
+function judgeFrom(engineValue: Blueprint.Engine): Blueprint.Judge {
+  const model = createGateway({ apiKey: engineValue.apiKey }).evaluationModel(engineValue.model);
+  return { ask: (state, questions, signal) => askGateway(model, state, questions, signal) };
+}
+
+/** One Jev client per scope. With no engine bound, the build fails `NoKey`. */
+export const judge: Resource.Handle<Blueprint.Judge> = resource({
+  label: "judge",
+  depends: { engine: engine.optional },
+  factory: ({ engine: bound }) => {
+    if (!bound.present)
+      raise("NoKey", {}, "blueprint: no key (set AI_GATEWAY_API_KEY or --key-file <path>)");
+    return judgeFrom(bound.value);
+  },
+});
+
+/** The Jev client `verify` asks `body` templates with, `undefined` with no engine bound — unlike
+ * `judge`, this never fails `NoKey`: `verify` stays useful with no key (ADR 0055 §4). A
+ * resource carries no `.optional` edge, so this is `verify`'s own way to make the engine
+ * optional; a test presets it directly with a fake. */
+export const bodyJudge: Resource.Handle<Blueprint.Judge | undefined> = resource({
+  label: "bodyJudge",
+  depends: { engine: engine.optional },
+  factory: ({ engine: bound }) => (bound.present ? judgeFrom(bound.value) : undefined),
+});
+
+function verbatim(template: Blueprint.Template): string {
+  const lines = [
+    `id: ${template.id}`,
+    `scope: ${template.scope}`,
+    `applies: ${template.applies.join(", ")}`,
+    `needs: ${template.needs.join(", ")}`,
+    `status: ${template.status}`,
+    `ask: ${template.ask}`,
+  ];
+  if (template.kind === "boolean") {
+    lines.push(
+      `kind: boolean`,
+      `threshold: ${template.threshold}`,
+      `true: ${template.true}`,
+      `false: ${template.false}`,
+    );
+  } else {
+    lines.push(`kind: choice`, `minConfidence: ${template.minConfidence}`);
+    if (template.compare !== undefined) lines.push(`compare: ${template.compare}`);
+    for (const [option, meaning] of Object.entries(template.choices)) {
+      lines.push(`${option}: ${meaning}`);
+      const shape = template.shapes?.[option];
+      if (shape !== undefined) lines.push(`shape.${option}: ${shape}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function markdown(template: Blueprint.Template): string {
+  const lines = [
+    `- **${template.id}** — ${template.ask}`,
+    `  applies: ${template.applies.join(", ")}`,
+    `  needs: ${template.needs.join(", ")}`,
+    `  status: ${template.status}`,
+  ];
+  if (template.kind === "boolean") {
+    lines.push(`  true: ${template.true}`, `  false: ${template.false}`);
+  } else {
+    if (template.compare !== undefined) lines.push(`  compare: ${template.compare}`);
+    for (const [option, meaning] of Object.entries(template.choices)) {
+      lines.push(`  ${option}: ${meaning}`);
+      const shape = template.shapes?.[option];
+      if (shape !== undefined) lines.push(`  shape.${option}: ${shape}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function parseMd(raw: unknown): { md: boolean } {
+  return {
+    md: typeof raw === "object" && raw !== null && "md" in raw && raw.md === true,
+  };
+}
+
+/** The operation: input `{ md: boolean }`, depends `{ corpus }`, returns the templates
+ * beside the flag — `respond` sees only the value, so the value carries what it needs. */
+export const explain: Operation.Handle<
+  { readonly md: boolean; readonly templates: readonly Blueprint.Template[] },
+  { md: boolean }
+> = operation({
+  label: "explain",
+  input: parseMd,
+  depends: { corpus },
+  run: ({ corpus }, ctx) => ({ md: ctx.input.md, templates: corpus.templates }),
+});
+
+/** The operation: input `{ graph, json }`, depends `{ corpus, judge }`, returns the report
+ * beside the flag — `respond` sees only the value, so the value carries what it needs (as
+ * `explain` above). Throws `BlueprintRejected { findings }` when any finding blocks — the
+ * cli maps a throw to exit 1 with the message on stderr, and the message is the finding
+ * lines, one per line. */
+export const check: Operation.Handle<
+  Promise<{ readonly json: boolean; readonly report: Blueprint.Report }>,
+  { readonly graph: Blueprint.Graph; readonly json: boolean }
+> = operation({
+  label: "check",
+  input: parseCheckInput,
+  depends: { corpus, judge },
+  run: async ({ corpus, judge }, ctx) => {
+    const report = await runCheck(ctx.input.graph, corpus, judge, ctx.signal);
+    if (report.findings.some((finding) => finding.blocking))
+      raise(
+        "BlueprintRejected",
+        { findings: report.findings.map(findingLine) },
+        report.findings.map(findingLine).join("\n"),
+      );
+    return { json: ctx.input.json, report };
+  },
+});
+
+function checkLines(report: Blueprint.Report): string {
+  const lines = [
+    ...report.findings.map(findingLine),
+    `ok: ${report.nodes} nodes, ${report.findings.length} findings`,
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+/** The operation: input `{ graph, units, json }`, depends `{ corpus, bodyJudge }` — a plain diff
+ * between a blueprint file and the code's declared units (ADR 0055 §2, §3), plus one
+ * `judge.ask` per node for every applicable `body` template when `bodyJudge` is present (§4).
+ * `verify` never depends on `judge`: that resource fails `NoKey` with none, but `verify` stays
+ * useful without a key, skipping the body templates instead. Throws `BlueprintRejected` when
+ * any finding blocks: every plain finding does; a body-template hit blocks only past `proven`
+ * (as `check`). */
+export const verify: Operation.Handle<
+  Promise<{
+    readonly json: boolean;
+    readonly report: Blueprint.VerifyReport;
+    readonly bodySkipped: boolean;
+  }>,
+  {
+    readonly graph: Blueprint.Graph;
+    readonly units: readonly Blueprint.Unit[];
+    readonly json: boolean;
+  }
+> = operation({
+  label: "verify",
+  input: parseVerifyInput,
+  depends: { corpus, bodyJudge },
+  run: async ({ corpus, bodyJudge }, ctx) => {
+    const plain = verifyChecks(ctx.input.graph, ctx.input.units);
+    const body =
+      bodyJudge === undefined
+        ? []
+        : await bodyFindings(ctx.input.graph, ctx.input.units, corpus, bodyJudge, ctx.signal);
+    const findings = [...plain, ...body];
+    const report: Blueprint.VerifyReport = {
+      nodes: ctx.input.graph.nodes.length,
+      units: ctx.input.units.length,
+      findings,
+    };
+    if (findings.some((finding) => finding.blocking))
+      raise(
+        "BlueprintRejected",
+        { findings: findings.map(findingLine) },
+        findings.map(findingLine).join("\n"),
+      );
+    return { json: ctx.input.json, report, bodySkipped: bodyJudge === undefined };
+  },
+});
+
+/** One line per finding, then `ok: N nodes, M units, K findings`, then — with no engine bound —
+ * `body templates skipped: no key` (the old cli row had no stderr channel for a
+ * code-0 command, only for a thrown error or usage — see the report's deviations). */
+function verifyLines(report: Blueprint.VerifyReport, bodySkipped: boolean): string {
+  const lines = [
+    ...report.findings.map(findingLine),
+    `ok: ${report.nodes} nodes, ${report.units} units, ${report.findings.length} findings`,
+    ...(bodySkipped ? ["body templates skipped: no key"] : []),
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+/** Every `*.ts` file under `dir`, recursively, relative to `dir` — never `*.test.ts` or
+ * `*.d.ts` (source only; a test or a type-only declaration names no runtime unit). */
+function tsFilesUnder(dir: string, base: string = dir): readonly string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return tsFilesUnder(full, base);
+    if (
+      !entry.name.endsWith(".ts") ||
+      entry.name.endsWith(".test.ts") ||
+      entry.name.endsWith(".d.ts")
+    )
+      return [];
+    return [relative(base, full)];
+  });
+}
+
+/** Every declared unit under `dir` — the walk and the parse both happen here, the process
+ * edge, not in `verify`'s `run` (ADR 0055 §2). */
+function walk(dir: string): readonly Blueprint.Unit[] {
+  return tsFilesUnder(dir).flatMap((file) =>
+    readUnits(readFileSync(join(dir, file), "utf8"), file),
+  );
+}
+
+/** The two non-flag argv entries `verify` takes: the blueprint file, then the source dir. The
+ * root reads `--key-file`'s path before the row sees argv, so that path must not read as one. */
+function verifyArgs(argv: readonly string[]): { readonly file: string; readonly dir: string } {
+  const [file, dir] = positionals(argv, { values: ["--key-file"] });
+  return { file: file ?? "", dir: dir ?? "" };
+}
+
+/** The operation: no input, depends `{ corpus, judge, evalSet }`, grades every shipped
+ * template against its evals (ADR 0052 decision 5). Same code path `blueprint evals` prints. */
+export const evals: Operation.Handle<Promise<readonly Blueprint.Grade[]>, void> = operation({
+  label: "evals",
+  depends: { corpus, judge, evalSet },
+  run: async ({ corpus, judge, evalSet }, ctx) => {
+    const grades: Blueprint.Grade[] = [];
+    for (const template of corpus.templates) {
+      const set = evalSet.get(template.id) ?? { bad: [], clean: [], golden: [] };
+      grades.push(await gradeTemplate(template, set, judge, ctx.signal));
+    }
+    return grades;
+  },
+});
+
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function gradeLine(grade: Blueprint.Grade, idWidth: number): string {
+  const mark = grade.status === "proven" ? "✓" : grade.status === "noisy" ? "✗" : "~";
+  return (
+    `${mark} ${grade.id.padEnd(idWidth)}  ${grade.status.padEnd(11)}` +
+    `  bad ${grade.bad.length} (med ${pct(median(grade.bad))})` +
+    `  clean ${grade.clean.length} (med ${pct(median(grade.clean))})` +
+    `  sep ${pct(grade.sep)}  ordered ${pct(grade.ordered)}` +
+    `  golden ${grade.goldenHits.length}/${grade.goldenTotal}`
+  );
+}
+
+function evalsLines(grades: readonly Blueprint.Grade[]): string {
+  const idWidth = Math.max(0, ...grades.map((grade) => grade.id.length));
+  return `${grades.map((grade) => gradeLine(grade, idWidth)).join("\n")}\n`;
+}
+
+/** One choice template by id off the loaded corpus. Throws `NoTemplate` when the
+ * corpus does not carry it — an invariant of the shipped corpus, only reachable
+ * with `corpusPath` rebound to a folder missing `unitFits` or `target`. */
+function choiceTemplateById(
+  corpus: Blueprint.Corpus,
+  id: string,
+): Blueprint.Template & { readonly kind: "choice" } {
+  const found = corpus.templates.find((template) => template.id === id);
+  if (found === undefined || found.kind !== "choice")
+    raise("NoTemplate", { id }, `blueprint: suggest needs the "${id}" template`);
+  return found;
+}
+
+function confidenceOf(answer: Blueprint.Answer): number {
+  return answer.type === "choice" ? (answer.probabilities?.[answer.choice] ?? 0) : 0;
+}
+
+/** The operation: input `{ words }`, depends `{ corpus, judge }` — asks `unitFits` once;
+ * on a confident `resource` pick, asks `target` once more. Returns the two raw answers
+ * beside each template's `minConfidence` (`respond` needs it to tell confident from
+ * unclear) and, on a confident pick, the shape text for it. */
+export const suggest: Operation.Handle<
+  Promise<{
+    readonly unit: Blueprint.Answer;
+    readonly unitMinConfidence: number;
+    readonly target?: Blueprint.Answer;
+    readonly targetMinConfidence?: number;
+    readonly shape?: string;
+  }>,
+  { readonly words: string }
+> = operation({
+  label: "suggest",
+  input: parseSuggestInput,
+  depends: { corpus, judge },
+  run: async ({ corpus, judge }, ctx) => {
+    const state: Blueprint.WordsState = { description: ctx.input.words };
+    const unitFits = choiceTemplateById(corpus, "unitFits");
+    const unitAnswers = await judge.ask(
+      state,
+      { unitFits: templateQuestion(unitFits) },
+      ctx.signal,
+    );
+    const unit = unitAnswers.unitFits;
+    const confident = confidenceOf(unit) >= unitFits.minConfidence;
+    const shape = confident && unit.type === "choice" ? unitFits.shapes?.[unit.choice] : undefined;
+    if (!confident || unit.type !== "choice" || unit.choice !== "resource")
+      return { unit, unitMinConfidence: unitFits.minConfidence, shape };
+    const target = choiceTemplateById(corpus, "target");
+    const targetAnswers = await judge.ask(state, { target: templateQuestion(target) }, ctx.signal);
+    return {
+      unit,
+      unitMinConfidence: unitFits.minConfidence,
+      target: targetAnswers.target,
+      targetMinConfidence: target.minConfidence,
+      shape,
+    };
+  },
+});
+
+const LABEL_WIDTH = 9;
+
+function labeled(label: string, value: string): string {
+  return `${`${label}:`.padEnd(LABEL_WIDTH)}${value}`;
+}
+
+function distribution(answer: Blueprint.Answer): string {
+  if (answer.type !== "choice") return "";
+  return Object.entries(answer.probabilities ?? {})
+    .sort(([, left], [, right]) => right - left)
+    .map(([choice, p]) => `${choice} ${pct(p)}`)
+    .join(", ");
+}
+
+function unitPickText(answer: Blueprint.Answer, minConfidence: number): string {
+  if (answer.type !== "choice") return "";
+  const confidence = confidenceOf(answer);
+  return confidence >= minConfidence
+    ? `${answer.choice} (${pct(confidence)})`
+    : `unclear (${answer.choice} only ${pct(confidence)}) — decide with the one law`;
+}
+
+function targetPickText(answer: Blueprint.Answer, minConfidence: number): string {
+  if (answer.type !== "choice") return "";
+  const confidence = confidenceOf(answer);
+  return confidence >= minConfidence
+    ? `${answer.choice} (${pct(confidence)})`
+    : `unclear (${answer.choice} only ${pct(confidence)})`;
+}
+
+function suggestLines(result: {
+  readonly unit: Blueprint.Answer;
+  readonly unitMinConfidence: number;
+  readonly target?: Blueprint.Answer;
+  readonly targetMinConfidence?: number;
+  readonly shape?: string;
+}): string {
+  const lines = [labeled("unit", unitPickText(result.unit, result.unitMinConfidence))];
+  if (result.shape !== undefined) lines.push(labeled("shape", result.shape));
+  if (result.target !== undefined && result.targetMinConfidence !== undefined)
+    lines.push(labeled("target", targetPickText(result.target, result.targetMinConfidence)));
+  lines.push(labeled("all", distribution(result.unit)));
+  return `${lines.join("\n")}\n`;
+}
+
+function fileArg(argv: readonly string[]): string | undefined {
+  return positionals(argv, { values: ["--key-file"] })[0];
+}
+
+/** Each command's name, read once: the row's `name` and the operation's span label take the same
+ * value, so a route and its trace never drift.
+ *
+ * A named constant, not a literal, because the golden pair links a node to a unit by a literal
+ * `label` (ADR 0055 §5): the library operation each command drives already owns that name, and
+ * one pair cannot carry two nodes of it. `readUnits` skips a unit whose label is not a literal
+ * (the diff cannot name it), so the binary's adapters stay out of the pair's 12 units. */
+const checkName = "check";
+const explainName = "explain";
+const evalsName = "evals";
+const suggestName = "suggest";
+const verifyName = "verify";
+
+/** The `check` command's operation, declared once (ADR 0057): argv in (the file beside `--json`,
+ * read off disk at the root), the driven operation's report out, its own exit code owned. A
+ * `proven` hit still raises `BlueprintRejected`, which routing maps to exit 1. */
+const checkCommand: Process.Command = operation({
+  label: checkName,
+  depends: { argv: argv.required, io: io.required, check },
+  run: async ({ argv: args, io: out, check: judge }) => {
+    const { json, report } = await judge.run({
+      rawInput: {
+        text: readFileSync(fileArg(args) ?? "", "utf8"),
+        json: args.includes("--json"),
+      },
+    });
+    out.write(json ? (jsonLine(report) ?? "") : checkLines(report));
+    return 0;
+  },
+});
+
+const explainCommand: Process.Command = operation({
+  label: explainName,
+  depends: { argv: argv.required, io: io.required, explain },
+  run: ({ argv: args, io: out, explain: flow }) => {
+    const report = flow.run({ rawInput: { md: args.includes("--md") } });
+    out.write(
+      report.md
+        ? `${report.templates.map(markdown).join("\n\n")}\n`
+        : `${report.templates.map(verbatim).join("\n\n")}\n`,
+    );
+    return 0;
+  },
+});
+
+const evalsCommand: Process.Command = operation({
+  label: evalsName,
+  depends: { io: io.required, evals },
+  run: async ({ io: out, evals: flow }) => {
+    out.write(evalsLines(await flow.run()));
+    return 0;
+  },
+});
+
+const suggestCommand: Process.Command = operation({
+  label: suggestName,
+  depends: { argv: argv.required, io: io.required, suggest },
+  run: async ({ argv: args, io: out, suggest: flow }) => {
+    out.write(suggestLines(await flow.run({ rawInput: { words: args.join(" ") } })));
+    return 0;
+  },
+});
+
+const verifyCommand: Process.Command = operation({
+  label: verifyName,
+  depends: { argv: argv.required, io: io.required, verify },
+  run: async ({ argv: args, io: out, verify: flow }) => {
+    const { file, dir } = verifyArgs(args);
+    const { json, report, bodySkipped } = await flow.run({
+      rawInput: {
+        text: readFileSync(file, "utf8"),
+        units: walk(dir),
+        dir,
+        json: args.includes("--json"),
+      },
+    });
+    out.write(json ? (jsonLine(report) ?? "") : verifyLines(report, bodySkipped));
+    return 0;
+  },
+});
+
+/** Bind common Core settings in the Process call; routes share these command identities. */
+export const shell: Process.Shell = {
+  name: "blueprint",
+  version: "0.0.0",
+  commands: [
+    {
+      name: checkName,
+      description: "judge one blueprint file with Jev over the shipped question templates",
+      entry: () => ({ kind: "command", op: checkCommand }),
+    },
+    {
+      name: explainName,
+      description: "print every template verbatim, or as a markdown list with --md",
+      entry: () => ({ kind: "command", op: explainCommand }),
+    },
+    {
+      name: evalsName,
+      description: "grade every template against its evals with the judge (needs a key)",
+      entry: () => ({ kind: "command", op: evalsCommand }),
+    },
+    {
+      name: suggestName,
+      description: "which unit fits a sentence, with the shape to write (needs a key)",
+      entry: () => ({ kind: "command", op: suggestCommand }),
+    },
+    {
+      name: verifyName,
+      description:
+        "diff a blueprint file's nodes against the code's declared units, plus body templates with a key",
+      entry: () => ({ kind: "command", op: verifyCommand }),
+    },
+  ],
+};

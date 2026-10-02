@@ -141,7 +141,7 @@ void describe("plain rules in a source file", () => {
 
   void it("S18 fires on a sync family made inside a function", () => {
     const src = [
-      'import { family } from "@tinker/sync";',
+      'import { family } from "../src/tinker/sync/index.ts";',
       "const todos = (label: string) => family({ label, initial: '' });",
     ].join("\n");
     assert.deepEqual(hits(src, SRC), [["S18", 2]]);

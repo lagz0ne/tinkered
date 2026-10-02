@@ -1,0 +1,228 @@
+# copied mcp source
+
+Code samples below are files at the app root.
+They import the app-owned source under `src/tinker`.
+
+A tool is an operation plus its description facts; harnesses reach it over MCP
+through a driver (ADR 0046, ADR 0051).
+
+```text
+harness calls a tool
+  MCP driver opens a session
+    inline operation calls the exposed operation
+      answerTool returns the result
+```
+
+Declare a tool row — an ordinary operation plus its static facts. `Mcp.Tool`
+is `description` plus the zod shape, with optional `name` (defaults to the
+operation label) and optional `respond` (defaults to one JSON text content).
+`tools` takes a `Many` list: nested lists and `false` rows are legal, and
+only the reachable rows register.
+
+```ts
+import { operation } from "@tinker/core";
+import { expose, mcp } from "./src/tinker/mcp/index.ts";
+import { z } from "zod";
+
+const schema = { q: z.string() };
+
+const search = operation({
+  label: "search",
+  input: z.object(schema).parse,
+  run: (_deps, ctx) => [`hit:${ctx.input.q}`],
+});
+
+const ext = mcp({
+  name: "coder",
+  version: "1.0.0",
+  tools: [
+    expose(search, {
+      description: "search the index",
+      schema,
+    }),
+  ],
+});
+```
+
+Install the extension, resolve the server once ready, connect the transport
+you want:
+
+```text
+import { createScope } from "@tinker/core";
+const { StdioServerTransport: Transport } = await import(
+  "@modelcontextprotocol/sdk/server/stdio.js"
+);
+
+const scope = createScope({ extensions: [ext] });
+await scope.ready;
+const server = scope.resolve(ext);
+await server.connect(new Transport());
+```
+
+`listTools` answers one entry per registered row: its name, its
+description, and its schema keys.
+
+The stdio entry through `src/tinker/process/index.ts` is a service graph.
+The MCP extension serves tools; a stdio extension connects its transport.
+Process waits for native root cleanup.
+A harness runs `node cli.ts mcp`:
+
+```ts
+import { extension, tag } from "@tinker/core";
+import { main, stop, type Process } from "./src/tinker/process/index.ts";
+import type { Readable, Writable } from "node:stream";
+
+const streams = tag<{
+  input: Readable;
+  output: Writable;
+}>({ label: "coder.streams" });
+
+const stdio = extension({
+  label: "coder.stdio",
+  hooks: {
+    async start(event) {
+      await event.next();
+      const server = event.resolve(ext);
+      const ports = event.resolve(streams.required);
+      const { input, output } = ports;
+      const end = event.resolve(stop.required);
+      input.once("end", end);
+      server.server.onclose = end;
+      event.defer(async () => {
+        input.removeListener("end", end);
+        server.server.onclose = undefined;
+        await server.close();
+      });
+      await server.connect(new Transport(input, output));
+      if (input.readableEnded) end();
+    },
+  },
+});
+
+const shell: Process.Shell = {
+  name: "coder",
+  version: "1.0.0",
+  commands: [
+    {
+      name: "mcp",
+      entry: () => ({
+        kind: "service",
+        options: { extensions: [stdio, ext] },
+      }),
+    },
+  ],
+};
+
+if (import.meta.main) {
+  process.exitCode = await main({
+    shell,
+    options: {
+      tags: streams({
+        input: process.stdin,
+        output: process.stdout,
+      }),
+    },
+  });
+}
+```
+
+`ext` and `Transport` come from the earlier snippets.
+The guarded app binds its borrowed streams once.
+`connect()` only opens the transport; the service root owns its lifetime.
+Stdin EOF and server close call the same static `stop` port.
+The extension removes its listeners before closing the transport.
+No stop cell or waiting operation is needed.
+
+Two `mcp()` extensions on one scope are two servers (ADR 0060):
+
+- Both share a `target: "scope"` resource: a write through one
+  is the other's next read.
+- Every call opens its own session, so per-call state never
+  crosses between the two.
+- One `scope.close()` closes both, each server's own close running
+  once; a second close runs neither again.
+- A tool name declared on both answers from the server that got
+  the request.
+
+A root extension that serves a server goes before it in the list
+(`[stdio, ext]` above): its `next()` then settles that server's
+`start` before `scope.resolve(ext)` reads it. One such extension per
+server, all on the one scope, gives the two-server shape.
+
+Two servers start in the order `[stdioApp, app, stdioAdmin, admin]`:
+one stdio root per `mcp()` server, each root before its server.
+Each label is `mcp:<name>`: a root listed after `admin` fails `ready` with
+`NotResolved {"label":"mcp:admin"}`.
+
+The tool row rides the process too: the `mcp` command installs the driver
+extension and serves it. The MCP edge parses the zod shape; a command is an
+ordinary operation that reads the `argv` tag and owns its parse (ADR 0042,
+0056).
+
+Harness adapters take the same `expose` rows and share one reader:
+`answerTool(meta, value)` maps a value to a tool result exactly the way the
+driver answers a call. `meta` here is the row's tool facts, not a unit field:
+an operation carries no meta.
+
+Each call runs as a session with an inline operation `mcp search` (span, one
+`mcp tool` line with tool and ok, the operation as its subflow).
+Core writes a separate step line with the operation's label, `ms`, and outcome.
+The inline operation's input is the call's arguments: an extension `run` hook
+sees them.
+The value goes back
+through `respond` (default: one JSON text content; `undefined` answers no
+content); a failure answers
+`{ isError: true, content: [text] }` — a parse failure answers `invalid input`.
+The call recovers through `settle` (ADR 0067): a panic or a raised error
+answers the same way, and the call's session closes `success`.
+A `respond` that throws answers `isError` with its text; the `mcp tool` line
+still says `ok: true` (the operation succeeded), and the `mcp search` span fails.
+A call cut short by a forced `scope.close()` answers `isError` with the
+cancel reason's text; the `mcp search` span fails with that reason.
+
+Point a harness at the process. Claude:
+
+```ts
+claudeCode.options({
+  mcpServers: {
+    coder: { command: "node", args: ["tools.ts"] },
+  },
+});
+```
+
+Codex:
+
+```ts
+const options = {
+  config: {
+    mcp_servers: {
+      coder: { command: "node", args: ["tools.ts"] },
+    },
+  },
+};
+```
+
+Drive it in a test for real — the in-memory pair plus the SDK's own client:
+
+```text
+const { Client } = await import(
+  "@modelcontextprotocol/sdk/client/index.js"
+);
+const { InMemoryTransport } = await import(
+  "@modelcontextprotocol/sdk/inMemory.js"
+);
+
+const [clientTransport, serverTransport] =
+  InMemoryTransport.createLinkedPair();
+await server.connect(serverTransport);
+const client = new Client({ name: "test", version: "0" });
+await client.connect(clientTransport);
+await client.listTools();
+await client.callTool({
+  name: "search",
+  arguments: { q: "owls" },
+});
+```
+
+The MCP SDK and zod are peers, never bundled. A tool is always a row: an op
+not handed in as an `expose` row is never advertised.

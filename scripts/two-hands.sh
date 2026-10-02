@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # The two-hands gate (ADR 0051): `Scope.Handle` may appear only in a composition root
 # (a file that calls `createScope`, or a test), in `@tinker/core` and `@tinker/react` (they define
-# and provide it), and inside a driver package's `src` (its `start` hand and the private
+# and provide it), and inside copied driver source (its `start` hand and the private
 # helpers that hand feeds). Anywhere else — an app module, an example, a package that is
 # not a driver — is a leak. Prints the offending lines; exit 1 on any.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-allowed='^(packages/(core|react|auth|hono|stack|nats|jobs|mail|cli|mcp|sync|harness|drizzle|http)/src/|packages/[^/]+/tests/|apps/[^/]+/tests/|apps/[^/]+/src/client/App\.tsx$)'
-hits=$(git ls-files 'apps/*.ts' 'apps/*.tsx' 'examples/*.ts' 'examples/*.tsx' 'packages/*.ts' 'packages/*.tsx' \
+allowed='^(packages/(core|react)/src/|registry/src/(auth|hono|stack|nats|jobs|mail|mcp|sync|harness|drizzle|http)/|registry/tests/|packages/[^/]+/tests/|tools/blueprint/tests/|apps/[^/]+/tests/|apps/[^/]+/src/(scaffold/|tinker/(auth|hono|stack|nats|jobs|mail|mcp|sync|harness|drizzle|http)/|client/App\.tsx$))'
+hits=$(git ls-files --cached --others --exclude-standard 'registry/*.ts' 'tools/blueprint/*.ts' 'apps/*.ts' 'apps/*.tsx' 'examples/*.ts' 'examples/*.tsx' 'packages/*.ts' 'packages/*.tsx' \
   | grep -vE "$allowed" \
   | xargs grep -L "createScope(" 2>/dev/null \
   | xargs grep -n "Scope\.Handle" 2>/dev/null || true)

@@ -1,0 +1,57 @@
+graph TD
+  subgraph Frontend
+    FE["Frontend entry<br/>owns stop signal"]
+    VS["View scope<br/>one per SSR request or tab"]
+    UI["React hooks<br/>useData and useRun"]
+    FO["Operations<br/>signIn, loadProfile, saveProfile"]
+    FD["Data<br/>profile, draft, pending, errors"]
+    FE --> VS --> UI --> FO
+    UI --> FD
+    FO -->|writes| FD
+  end
+
+  SF["Start boundary<br/>server functions and auth route"]
+  FO -->|typed calls| SF
+
+  subgraph Backend
+    BE["Server entry<br/>owns stop signal"]
+    BR["Server root<br/>shared resources"]
+    MW["Start request middleware<br/>owns request session"]
+    BO["Operations<br/>readSession, authorize, saveProfile"]
+    AR["Session resources<br/>auth, principal, write transaction"]
+    DB["Scope resources<br/>Postgres pool and Drizzle"]
+    MA["sendMail operation<br/>awaits SMTP acceptance"]
+    SM["SMTP resource<br/>owned by server root"]
+    ST["Tags<br/>DB, auth and mail settings"]
+    EN["Request end<br/>stream ends or caller cancels"]
+    BE --> BR --> MW
+    SF --> MW --> BO --> AR --> DB
+    BR -. owns .-> DB
+    BR -. owns .-> SM
+    AR -->|auth callback| MA --> SM
+    ST -. binds .-> DB
+    ST -. binds .-> AR
+    ST -. binds .-> SM
+    MW --> EN
+  end
+
+  subgraph Observation
+    OB["Core observation<br/>spans, logs and lifecycle events"]
+    OT["Telemetry scope<br/>separate from app work"]
+    PI["Pino resource<br/>Node or browser writer"]
+    DT["Devtool data<br/>graph, live work and metrics"]
+    OB --> OT
+    OT --> PI
+    OT --> DT
+  end
+  VS -. automatic .-> OB
+  BR -. automatic .-> OB
+
+  classDef op fill:#dbeafe,stroke:#2563eb,color:#172554
+  classDef res fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef state fill:#fef3c7,stroke:#d97706,color:#78350f
+  classDef host fill:#f3e8ff,stroke:#9333ea,color:#581c87
+  class FO,BO,MA op
+  class AR,DB,SM,PI res
+  class FD,DT,ST state
+  class FE,VS,BE,BR,MW,SF,EN,OT,OB host

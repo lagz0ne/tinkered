@@ -5,19 +5,17 @@ import { execSync } from "node:child_process";
 const VP = "/home/paseo/.local/vp/bin/vp";
 const strip = "node --experimental-strip-types";
 const lanes = [
-  ["create-app tests", `${VP} run --no-cache create-app#test`],
-  ["create-app size (<= 10 kB gzip)", `${VP} run --no-cache create-app#size`],
-  ["mail tests", `${VP} run --no-cache mail#test`],
-  ["mail size (<= 10 kB gzip)", `${VP} run --no-cache mail#size`],
-  ["auth tests", `${VP} run --no-cache auth#test`],
-  ["auth size (<= 10 kB gzip)", `${VP} run --no-cache auth#size`],
-  ["jobs tests", `${VP} run --no-cache jobs#test`],
-  ["jobs size (<= 10 kB gzip)", `${VP} run --no-cache jobs#size`],
-  ["nats tests", `${VP} run --no-cache nats#test`],
-  ["nats size (<= 10 kB gzip)", `${VP} run --no-cache nats#size`],
+  ["mail tests", `${VP} run --no-cache source-registry#test -- --project mail`],
+  ["mail source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/mail"],
+  ["auth tests", `${VP} run --no-cache source-registry#test -- --project auth`],
+  ["auth source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/auth"],
+  ["jobs tests", `${VP} run --no-cache source-registry#test -- --project jobs`],
+  ["jobs source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/jobs"],
+  ["nats tests", `${VP} run --no-cache source-registry#test -- --project nats`],
+  ["nats source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/nats"],
   ["lint/types/format/complexity", `${VP} check`],
-  ["stack tests", `${VP} run --no-cache stack#test`],
-  ["stack size (<= 10 kB gzip)", `${VP} run --no-cache stack#size`],
+  ["stack tests", `${VP} run --no-cache source-registry#test -- --project stack`],
+  ["stack source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/stack"],
   ["tests", `${VP} run --no-cache core#test`],
   ["core size (<= 16 KiB gzip)", `${VP} run --no-cache core#size`],
   ["promises (0 sync / <=10 async)", `${strip} bench/promises.mjs`],
@@ -30,7 +28,7 @@ const lanes = [
   ["core hot names at V8 slot <= 255 (release block last)", "node scripts/check-slots.mjs", "show"],
   // The graph produces the trace (ADR 0058): no hand-rolled span outside core, and a package
   // that declares operations ships a span-tree test.
-  ["graph (span-tree per package, no hand-rolled span)", `${strip} scripts/check-graph.mjs`],
+  ["graph (span-tree per source owner, no hand-rolled span)", `${strip} scripts/check-graph.mjs`],
   // Ambient time/random (ADR 0034, 0062): read "now" and randomness off ctx, never a hidden
   // global; only the systemClock/systemRandom declarations carry the `@ambientSource` TSDoc tag.
   ["ambient reads off ctx (no bare time/random)", `node scripts/check-ambient.mjs`],
@@ -39,78 +37,47 @@ const lanes = [
     "core runtime and testing entries (package imports only)",
     "node scripts/check-core-entries.mjs",
   ],
-  // @tinker/http (ADR 0035, http-v1 t05): the same three deterministic promises for the frame.
-  ["http tests", `${VP} run --no-cache http#test`],
-  ["http size (<= 10 kB gzip)", `${VP} run --no-cache http#size`],
-  ["http cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/http"],
+  // Copied http (ADR 0035, http-v1 t05): the same three deterministic promises for the frame.
+  ["http tests", `${VP} run --no-cache source-registry#test -- --project http`],
+  ["http source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/http"],
+  // Copied hono (ADR 0039/0040/0051, drivers t03): same promises; `hono` is a peer import, `node:` is not.
+  ["hono tests", `${VP} run --no-cache source-registry#test -- --project hono`],
+  ["hono source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/hono"],
+  // Copied drizzle (ADR 0041, drizzle-v1 t02): same promises; drizzle-orm is types-only at runtime.
+  ["drizzle tests", `${VP} run --no-cache source-registry#test -- --project drizzle`],
   [
-    "http pure universal bundle",
-    `bash -c 'grep -qE "from \\"node:" packages/http/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/http/dist/index.mjs\\").then(m=>process.exit(m.send&&m.attempt?0:1))"'`,
+    "drizzle source size (<= 10 kB gzip)",
+    "node scripts/check-size.mjs 10240 registry/dist/drizzle",
   ],
-  // @tinker/hono (ADR 0039/0040/0051, drivers t03): same promises; `hono` is a peer import, `node:` is not.
-  ["hono tests", `${VP} run --no-cache hono#test`],
-  ["hono size (<= 10 kB gzip)", `${VP} run --no-cache hono#size`],
-  ["hono cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/hono"],
+  // Copied process (ADR 0056): same promises; only `main` touches the process, so dist stays pure.
+  ["process tests", `${VP} run --no-cache source-registry#test -- --project process`],
   [
-    "hono pure universal bundle",
-    `bash -c 'grep -qE "from \\"node:" packages/hono/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/hono/dist/index.mjs\\").then(m=>process.exit(m.hono&&m.route&&m.stream?0:1))"'`,
+    "process source size (<= 10 kB gzip)",
+    "node scripts/check-size.mjs 10240 registry/dist/process",
   ],
-  // @tinker/drizzle (ADR 0041, drizzle-v1 t02): same promises; drizzle-orm is types-only at runtime.
-  ["drizzle tests", `${VP} run --no-cache drizzle#test`],
-  ["drizzle size (<= 10 kB gzip)", `${VP} run --no-cache drizzle#size`],
-  ["drizzle cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/drizzle"],
-  [
-    "drizzle pure universal bundle (no node:, no drizzle-orm at runtime)",
-    `bash -c 'grep -qE "from \\"node:|drizzle-orm" packages/drizzle/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/drizzle/dist/index.mjs\\").then(m=>process.exit(m.openTransaction&&m.createQueryLogger?0:1))"'`,
-  ],
-  // @tinker/process (ADR 0056): same promises; only `main` touches the process, so dist stays pure.
-  ["process tests", `${VP} run --no-cache process#test`],
-  ["process size (<= 10 kB gzip)", `${VP} run --no-cache process#size`],
-  [
-    "process cast-free examples (0 casts)",
-    "node scripts/check-example-casts.mjs examples/process-cli",
-  ],
-  [
-    "process pure universal bundle",
-    `bash -c 'grep -qE "from \\"node:" packages/process/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/process/dist/index.mjs\\").then(m=>process.exit(m.run&&m.main?0:1))"'`,
-  ],
-  // @tinker/blueprint (ADR 0052, blueprint-v1 t01/t05): the size promise; zod, yaml,
+  // Copied blueprint (ADR 0052, blueprint-v1 t01/t05): the size promise; zod, yaml,
   // and @tinker/* stay out of dist at runtime; the binary ships its corpus and evals.
   ["blueprint tests", `${VP} run --no-cache blueprint#test`],
   ["blueprint size (<= 20 kB gzip)", `${VP} run --no-cache blueprint#size`],
+  ["blueprint source retains corpus and evals", "node registry/scripts/check-tool-files.mjs"],
+  // Copied harness (ADR 0043, harness-v1 t05): same promises; the SDKs, zod, and the MCP SDK never reach dist at runtime.
+  ["harness tests", `${VP} run --no-cache source-registry#test -- --project harness`],
   [
-    "blueprint pack lists corpus and evals",
-    `bash -c 'cd packages/blueprint && npm pack --dry-run 2>&1 | grep -q "corpus/unitFits.yaml" && npm pack --dry-run 2>&1 | grep -q "evals/golden.yaml"'`,
+    "harness source size (<= 10 kB gzip)",
+    "node scripts/check-size.mjs 10240 registry/dist/harness",
   ],
-  // @tinker/harness (ADR 0043, harness-v1 t05): same promises; the SDKs, zod, and the MCP SDK never reach dist at runtime.
-  ["harness tests", `${VP} run --no-cache harness#test`],
-  ["harness size (<= 10 kB gzip)", `${VP} run --no-cache harness#size`],
-  ["harness cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/harness"],
-  [
-    "harness pure universal bundle (SDKs only behind import(); no zod/MCP at runtime)",
-    `bash -c 'grep -qE "from \\"(node:|@anthropic-ai/claude-agent-sdk|@openai/codex-sdk|zod|@modelcontextprotocol)" packages/harness/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/harness/dist/index.mjs\\").then(m=>process.exit(m.harness&&m.claudeCode&&m.codex?0:1))"'`,
-  ],
-  // @tinker/mcp (ADR 0046, mcp-v1 t02): same promises; zod is types-only at runtime,
+  // Copied mcp (ADR 0046, mcp-v1 t02): same promises; zod is types-only at runtime,
   // the SDK reaches dist only through server/mcp.js.
-  ["mcp tests", `${VP} run --no-cache mcp#test`],
-  ["mcp size (<= 10 kB gzip)", `${VP} run --no-cache mcp#size`],
-  ["mcp cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/mcp"],
-  [
-    "mcp pure bundle (runtime imports: @tinker/core + the SDK's server/mcp.js only)",
-    `bash -c 'grep -qE "from \\"(node:|zod)" packages/mcp/dist/index.mjs && exit 1; grep -E "from \\"@modelcontextprotocol/sdk/" packages/mcp/dist/index.mjs | grep -v "server/mcp.js" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/mcp/dist/index.mjs\\").then(m=>process.exit(m.mcp&&m.expose&&m.answerTool?0:1))"'`,
-  ],
-  // @tinker/sync (ADR 0048, sync-v1 t05): same promises; the transport is
+  ["mcp tests", `${VP} run --no-cache source-registry#test -- --project mcp`],
+  ["mcp source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/mcp"],
+  ["copied source import boundaries", "node registry/scripts/check-imports.mjs"],
+  // Copied sync (ADR 0048, sync-v1 t05): same promises; the transport is
   // userland's, so dist imports only @tinker/core at runtime.
-  ["sync tests", `${VP} run --no-cache sync#test`],
-  ["sync size (<= 10 kB gzip)", `${VP} run --no-cache sync#size`],
-  ["sync cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/sync"],
+  ["sync tests", `${VP} run --no-cache source-registry#test -- --project sync`],
+  ["sync source size (<= 10 kB gzip)", "node scripts/check-size.mjs 10240 registry/dist/sync"],
   [
     "two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)",
     "scripts/two-hands.sh",
-  ],
-  [
-    "sync pure bundle (runtime import: @tinker/core only)",
-    `bash -c 'grep -oE "from \\"[^\\"]+\\"" packages/sync/dist/index.mjs | sort -u | grep -v "from \\"@tinker/core\\"" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/sync/dist/index.mjs\\").then(m=>process.exit(m.source&&m.subscribe&&m.family&&m.memoryPair?0:1))"'`,
   ],
 ];
 
@@ -131,7 +98,8 @@ for (const [name, cmd, show] of lanes) {
   }
 }
 console.log(
-  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache process#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` and \`${VP} run --no-cache stack#mutate\` and \`${VP} run --no-cache nats#mutate\` and \`${VP} run --no-cache auth#mutate\` and \`${VP} run --no-cache jobs#mutate\` and \`${VP} run --no-cache mail#mutate\` ALONE (break >= 85 for every package (user, 2026-09-24); measured alone 2026-09-21: core 86.07, react 93.16; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, process 83.43, harness 76.05, mcp 82.86, sync 79.67).`,
+  "Mutation lanes: core and react remain library lanes. " +
+    "Source-item configs live in registry/configs; run each alone (floor 85).",
 );
 console.log(
   `Timing lanes:  run via \`benchctl exec -- ${strip} bench/<lane>.mjs\` from a clean worktree (the queue; never by hand).\n` +

@@ -48,7 +48,7 @@ const MESSAGES = {
   "S22.settle":
     "a settle's Result is dropped: settle recovers a panic, so an unread Result hides it (ADR 0067); read the Result, or call run and let the scope own the failure",
   S23: "hand-made subscribe: keep the value in a data cell; readers watch it or read it with useData",
-  S24: "raw fetch: send through an @tinker/http endpoint operation so config, retry, spans, and the backend tag apply",
+  S24: "raw fetch: send through a copied HTTP endpoint operation so config, retry, spans, and the backend tag apply",
   S25: "component state: make it a data cell and read it with useData; write it from an operation",
   S26: "malformed TSDoc: the TSDoc parser rejects this doc",
   "S26.param": "a @param names no parameter of the declaration it documents",
@@ -65,7 +65,7 @@ const FIXES = {
   S22: "`const r = await load.settle({ input: id })`",
   "S22.settle": "`const r = await load.settle({ input: id })`, then branch on `r.status`",
   S23: '`const status = data<WireStatus>({ label: "wire.status", initial: "connecting" })`',
-  S24: "an endpoint operation, like `postIssue` in apps/issue-tracker/src/client/api.ts",
+  S24: "an endpoint operation, declared with the copied HTTP source in src/tinker/http/index.ts",
   S25: '`const running = data({ label: "bench.running", initial: false })`',
   S26: "escape `@`, `{`, `}`, and `>` in prose with a backslash, or put code in backticks on one line: `` `@tinker/core` ``, `{@link createScope}`",
   "S26.param": "`@param input - …` with the parameter's own name, or delete the line",
@@ -83,7 +83,8 @@ const INTERNALS = new Set(["isFrozen", "getPrototypeOf", "getOwnPropertyDescript
 const BARE_ERRORS = new Set(["Error", "TypeError", "RangeError"]);
 const ERROR_MATCHERS = new Set(["toBeInstanceOf", "toThrowErrorMatchingInlineSnapshot"]);
 const SLEEPS = new Set(["setTimeout", "sleep"]);
-const PUBLIC_ENTRY = /^index(\.(ts|tsx|js))?$/;
+const PUBLIC_ENTRY =
+  /^(?:[a-z-]+\/)?(?:index|testing|sse|pglite|migrations|dev|pages)(\.(ts|tsx|js))?$/;
 const PRIVATE_SRC = /^(\.\.\/)+src\/(.+)$/;
 const TS_DIRECTIVE = /^[\s*/]*@ts-(ignore|expect-error)\b/m;
 const LINT_DIRECTIVE = /^[\s*/]*(eslint|oxlint|biome)-disable/m;
@@ -344,7 +345,6 @@ function parseRow(errors, starts) {
  *  from wiring rows inside a function by design (ADR 0051, ADR 0060). */
 const UNIT_BUILDERS = new Map([
   ["@tinker/core", new Set(["data", "operation", "resource", "tag"])],
-  ["@tinker/sync", new Set(["family"])],
 ]);
 const HANDLE_TYPE =
   /\b(DataController|Controller|Scope\.Handle|Scope\.RootHandle|Scope\.Session|Session)\b/;
@@ -366,7 +366,17 @@ function builderNames(program) {
   const names = [...UNIT_BUILDERS].flatMap(([module, wanted]) =>
     importedNames(program, module, wanted),
   );
-  return new Set(names);
+  const sync = program.body
+    .filter(
+      (n) =>
+        n.type === "ImportDeclaration" &&
+        n.source.value.startsWith(".") &&
+        /(?:^|\/)sync\/index\.ts$/.test(n.source.value),
+    )
+    .flatMap((n) => n.specifiers ?? [])
+    .filter((sp) => sp.type === "ImportSpecifier" && sp.imported?.name === "family")
+    .map((sp) => sp.local.name);
+  return new Set([...names, ...sync]);
 }
 
 /** Is this node a call to one of the named builders. */
@@ -442,7 +452,7 @@ function noWrapperHits(source, program, file, writer) {
   const writerSource = writer && SRC_PATH.test(file);
   return [
     ...(writerSource ? builderCallsInFunctions(program, builderNames(program)) : []),
-    ...(writerSource || /(^|\/)(apps\/[^/]+\/src\/|examples\/|packages\/stack\/src\/)/.test(file)
+    ...(writerSource || /(^|\/)(apps\/[^/]+\/src\/|examples\/|registry\/src\/stack\/)/.test(file)
       ? handleParams(source, program)
       : []),
   ];
@@ -459,7 +469,8 @@ function noWrapperHits(source, program, file, writer) {
 
 const CORE_SRC = /(^|\/)packages\/core\/src\//;
 const USERLAND = /(^|\/)(apps|examples)\//;
-const PACKAGE_SRC = /(^|\/)packages\/[^/]+\/src\//;
+const PACKAGE_SRC =
+  /(^|\/)(?:packages\/[^/]+\/src\/|registry\/src\/|tools\/blueprint\/(?:src|tinker)\/)/;
 const BROWSER_ENTRY = /\.tsx$|(^|\/)client\//;
 const GLOBALS = new Set(["globalThis", "window", "self"]);
 const RANDOM = new Map([

@@ -26,23 +26,38 @@ const asked = process.argv.slice(2);
 /** Every workspace package with a `src`, minus core (which owns observation). */
 function packages() {
   const dir = join(ROOT, "packages");
-  return readdirSync(dir).filter((name) => name !== "core" && existsSync(join(dir, name, "src")));
+  return [
+    ...readdirSync(dir)
+      .filter((name) => name !== "core" && existsSync(join(dir, name, "src")))
+      .map((name) => ({
+        name,
+        src: join("packages", name, "src"),
+        tests: join("packages", name, "tests"),
+      })),
+    ...readdirSync(join(ROOT, "registry/src")).map((name) => ({
+      name,
+      src: join("registry/src", name),
+      tests: join("registry/tests", name),
+    })),
+    { name: "blueprint", src: "tools/blueprint/src", tests: "tools/blueprint/tests" },
+  ];
 }
 
 /** Every tracked .ts under a directory. */
 function sources(dir) {
   if (!existsSync(dir)) return [];
-  return execSync(`git ls-files '${dir}'`, { cwd: ROOT, encoding: "utf8" })
+  return execSync(`git ls-files --cached --others --exclude-standard '${dir}'`, {
+    cwd: ROOT,
+    encoding: "utf8",
+  })
     .split("\n")
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".d.ts"));
 }
 
 const failures = [];
 
-for (const name of asked.length > 0 ? asked : packages()) {
-  const src = join("packages", name, "src");
-  const tests = join("packages", name, "tests");
-
+const owners = packages().filter((owner) => asked.length === 0 || asked.includes(owner.name));
+for (const { name, src, tests } of owners) {
   for (const file of sources(src)) {
     const text = readFileSync(join(ROOT, file), "utf8");
     text.split("\n").forEach((line, at) => {
@@ -61,14 +76,14 @@ for (const name of asked.length > 0 ? asked : packages()) {
   const asserts = sources(tests).some((file) => file.includes("span-tree"));
   if (declares && !asserts) {
     failures.push(
-      `packages/${name}  declares operations but ships no span-tree test — the graph is not ` +
+      `${name}  declares operations but ships no span-tree test — the graph is not ` +
         `asserted to produce the trace (ADR 0058)`,
     );
   }
 }
 
 if (failures.length === 0) {
-  console.log(`check-graph: OK (${(asked.length > 0 ? asked : packages()).length} package(s))`);
+  console.log(`check-graph: OK (${owners.length} package(s))`);
   process.exit(0);
 }
 console.error(`check-graph: ${failures.length} violation(s)\n`);

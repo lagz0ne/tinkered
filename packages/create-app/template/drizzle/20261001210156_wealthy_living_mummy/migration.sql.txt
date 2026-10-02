@@ -1,3 +1,0 @@
-CREATE TABLE "notes" (
-	"title" text PRIMARY KEY
-);

@@ -1,6 +1,9 @@
-# Vite+ Monorepo Starter
+# tinkered
 
-A starter for creating a Vite+ monorepo.
+Core and React are the two Tinker libraries.
+Other integrations are [source apps copy and own](registry/README.md).
+The [Start scaffold](apps/start-scaffold/README.md) has public pages,
+private lists, SSE sync, and local Victoria trace and log storage.
 
 [Authoring packages and apps](docs/best-practices.md)
 explains units, owners, and namespace instances.

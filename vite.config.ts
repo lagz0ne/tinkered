@@ -1,11 +1,6 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  create: {
-    templates: [
-      { name: "stack-app", description: "A full Tinkered web app", template: "@tinker/create-app" },
-    ],
-  },
   staged: {
     "*": "vp check --fix",
     "*.md": "node scripts/prose-lint.mjs",

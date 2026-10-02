@@ -1,0 +1,390 @@
+import { expect, test } from "vite-plus/test";
+import { createScope, operation, type Observe } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
+import type {
+  Options,
+  SDKMessage,
+  SDKPartialAssistantMessage,
+  SDKStatusMessage,
+} from "@anthropic-ai/claude-agent-sdk";
+import {
+  claudeCode,
+  harness,
+  isError,
+  type ClaudeCode,
+  type Harness,
+} from "../../src/harness/index.ts";
+import {
+  parsePrompt,
+  readAssistantText,
+  readScript,
+  readScriptCost,
+  readUserText,
+  type Script,
+  readToolSdk,
+} from "./fixtures.ts";
+
+/** One `query` call a test fake saw: the prompt plus the options it opened with. */
+type Seen = { readonly prompt: string; readonly options: Options | undefined };
+
+/** A fake SDK module: each `query` records its call, then yields the next script's messages —
+ * checking the call's abort signal before every yield, so a forced close lands mid-turn. With
+ * no script left, the stream parks on `gate` instead (for the mid-turn close test). */
+function fakeSdk(scripts: Script[], seen: Seen[], gate?: Gate): ClaudeCode.Sdk {
+  return {
+    ...readToolSdk(),
+    query: ({ prompt, options }) => {
+      seen.push({ prompt, options });
+      const script = scripts.shift();
+      const messages = script === undefined ? [] : script.messages;
+      return readStream(messages, options?.abortController?.signal, gate);
+    },
+  };
+}
+
+/** A parked stream's release: the test resolves it after the close under test settles. */
+type Gate = { readonly promise: Promise<void> };
+
+/** Yield recorded messages, then park on `gate` while given; an abort rejects first. */
+async function* readStream(
+  messages: readonly SDKMessage[],
+  signal: AbortSignal | undefined,
+  gate?: Gate,
+): AsyncGenerator<SDKMessage> {
+  for (const message of messages) {
+    if (signal?.aborted === true) throw signal.reason;
+    yield message;
+  }
+  if (gate === undefined) return;
+  if (signal?.aborted === true) throw signal.reason;
+  const abort = new Promise<never>((_resolve, reject) => {
+    signal?.addEventListener("abort", () => reject(signal?.reason), { once: true });
+  });
+  await Promise.race([gate.promise, abort]);
+}
+
+/** Run one turn of `ask` on a scope whose `sdk` resource is the fake scripts. */
+function readSetup(scripts: Script[], seen: Seen[]) {
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
+  const scope = createScope({
+    presets: [preset(claudeCode.sdk, async () => fakeSdk(scripts, seen))],
+  });
+  return { coder, ask, scope };
+}
+
+test("a turn streams text and fills the ambient cells", async () => {
+  const seen: Seen[] = [];
+  const script = readScript("Hello");
+  const { coder, ask, scope } = readSetup([script], seen);
+  const session = scope.createSession();
+  const statusSeen: Harness.Status[] = [];
+  const textSeen: string[] = [];
+  session.controller(coder.status).watch((next) => statusSeen.push(next));
+  session.controller(coder.text).watch((next) => textSeen.push(next));
+  const result = await session.run(ask, { input: "hello" });
+  expect(result).toBe(script.messages[script.messages.length - 1]);
+  expect(statusSeen).toEqual(["running", "done"]);
+  expect(textSeen).toEqual(["Hel", "Hello"]);
+  expect(session.resolve(coder.items)).toEqual([
+    { kind: "tool_use", id: "tu-1", status: "started", source: script.messages[3] },
+    { kind: "tool_result", id: "tu-1", status: "completed", source: script.messages[4] },
+  ]);
+  expect(session.resolve(coder.usage)).toEqual({ input: 10, cached: 2, output: 5, cost: 0.01 });
+  expect(session.resolve(coder.id)).toBe("s-1");
+  expect(session.resolve(coder.events)).toEqual(script.messages);
+  expect(seen.length).toBe(1);
+  await scope.close();
+});
+
+test("two turns in one session resume the first session id", async () => {
+  const seen: Seen[] = [];
+  const { coder, ask, scope } = readSetup(
+    [readScript("one"), readScript("two"), readScript("three")],
+    seen,
+  );
+  const session = scope.createSession();
+  await session.run(ask, { input: "a" });
+  await session.run(ask, { input: "b" });
+  expect(session.resolve(coder.text)).toBe("Hello");
+  expect(seen.length).toBe(2);
+  expect(seen[0].options?.resume).toBe(undefined);
+  expect(seen[1].options?.resume).toBe("s-1");
+  const other = scope.createSession();
+  await other.run(ask, { input: "c" });
+  expect(seen.length).toBe(3);
+  expect(seen[2].options?.resume).toBe(undefined);
+  await scope.close();
+});
+
+test("a resume binding opens the first turn on that id", async () => {
+  const seen: Seen[] = [];
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
+  const scope = createScope({
+    presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("hi")], seen))],
+  });
+  const session = scope.createSession({ tags: [coder.resume("s-9")] });
+  await session.run(ask, { input: "hello" });
+  expect(seen[0].options?.resume).toBe("s-9");
+  await scope.close();
+});
+
+test("options merge nearest-first and force partial messages", async () => {
+  const seen: Seen[] = [];
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
+  const scope = createScope({
+    tags: [claudeCode.options({ model: "a", cwd: "/x" })],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("hi")], seen))],
+  });
+  const session = scope.createSession({ tags: [claudeCode.options({ model: "b" })] });
+  await session.run(ask, { input: "hello" });
+  expect(seen[0].options?.model).toBe("b");
+  expect(seen[0].options?.cwd).toBe("/x");
+  expect(seen[0].options?.includePartialMessages).toBe(true);
+  expect(seen[0].options?.abortController instanceof AbortController).toBe(true);
+  await scope.close();
+});
+
+test("the nearer options binding wins every key it sets", async () => {
+  const seen: Seen[] = [];
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
+  const scope = createScope({
+    tags: [claudeCode.options({ model: "a", cwd: "/far", maxTurns: 1 })],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("hi")], seen))],
+  });
+  const session = scope.createSession({
+    tags: [claudeCode.options({ model: "b", cwd: "/near" })],
+  });
+  await session.run(ask, { input: "hello" });
+  expect(seen[0].options?.model).toBe("b");
+  expect(seen[0].options?.cwd).toBe("/near");
+  expect(seen[0].options?.maxTurns).toBe(1);
+  await scope.close();
+});
+
+test("a forced close mid-turn rejects the turn and cancels the close", async () => {
+  const seen: Seen[] = [];
+  let release!: () => void;
+  const gate = {
+    promise: new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+  };
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
+  const logs: Observe.Log[] = [];
+  const scope = createScope({
+    observe: { history: 20, log: (entry) => logs.push(entry) },
+    presets: [preset(claudeCode.sdk, async () => fakeSdk([], seen, gate))],
+  });
+  const session = scope.createSession();
+  await session.resolve(coder.thread);
+  const statusSeen: Harness.Status[] = [];
+  session.controller(coder.status).watch((next) => statusSeen.push(next));
+  const settled = session.run(ask, { input: "hello" }).then(
+    () => "resolved",
+    () => "rejected",
+  );
+  const end = await session.close();
+  release();
+  expect(await settled).toBe("rejected");
+  expect(end.status).toBe("cancelled");
+  expect(statusSeen).toEqual(["running"]);
+  const lines = logs.filter((entry) => entry.message === "harness turn");
+  expect(lines.length).toBe(1);
+  expect(lines[0].attributes.status).toBe("cancelled");
+  expect(seen[0].options?.abortController?.signal.aborted).toBe(true);
+  await scope.close();
+});
+
+test("with observe, the send span carries the adapter and one harness turn line logs done", async () => {
+  const seen: Seen[] = [];
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
+  const logs: Observe.Log[] = [];
+  const scope = createScope({
+    observe: { history: 20, log: (entry) => logs.push(entry) },
+    presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("hi")], seen))],
+  });
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  const send = scope.spans().find((span) => span.name === "coder.send");
+  expect(send?.attributes.adapter).toBe("claudeCode");
+  const lines = logs.filter((entry) => entry.message === "harness turn");
+  expect(lines.length).toBe(1);
+  expect(lines[0].attributes).toEqual({ harness: "coder", status: "done" });
+  const step = logs.find((entry) => entry.message === "coder.send");
+  expect(step?.attributes).toMatchObject({ outcome: "ok", ms: expect.any(Number) });
+  await scope.close();
+});
+
+test("the author's run maps the result, not the frame", async () => {
+  const seen: Seen[] = [];
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result.subtype === "success" ? result.result : "error";
+    },
+  });
+  const scope = createScope({
+    presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("Hello")], seen))],
+  });
+  const session = scope.createSession();
+  const result: string = await session.run(ask, { input: "hello" });
+  expect(result).toBe("Hello");
+  await scope.close();
+});
+
+test("a stream event that is not a text delta adds no text", async () => {
+  const script = readScript("Hello");
+  const thinking: SDKPartialAssistantMessage = {
+    ...(script.messages[1] as SDKPartialAssistantMessage),
+    event: { type: "message_stop" },
+  };
+  const other: SDKPartialAssistantMessage = {
+    ...(script.messages[1] as SDKPartialAssistantMessage),
+    event: {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "signature_delta", signature: "x" },
+    },
+  };
+  const mixed: Script = {
+    messages: [script.messages[0], thinking, other, ...script.messages.slice(1)],
+  };
+  const { coder, ask, scope } = readSetup([mixed], []);
+  const session = scope.createSession();
+  const textSeen: string[] = [];
+  session.controller(coder.text).watch((next) => textSeen.push(next));
+  await session.run(ask, { input: "hello" });
+  expect(textSeen).toEqual(["Hel", "Hello"]);
+  await scope.close();
+});
+
+test("an assistant message without a tool call adds no tool item", async () => {
+  const script = readScript("Hello");
+  const mixed: Script = {
+    messages: [script.messages[0], readAssistantText("noted"), ...script.messages.slice(1)],
+  };
+  const { coder, ask, scope } = readSetup([mixed], []);
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.items).filter((item) => item.kind === "tool_use")).toEqual([
+    { kind: "tool_use", id: "tu-1", status: "started", source: script.messages[3] },
+  ]);
+  await scope.close();
+});
+
+test("the usage cell keeps the result's own cost", async () => {
+  const { coder, ask, scope } = readSetup([readScriptCost("Hello", 0.5)], []);
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.usage)?.cost).toBe(0.5);
+  await scope.close();
+});
+
+test("a stream that ends with no result rejects TurnEnded", async () => {
+  const script = readScript("Hello");
+  const cut: Script = { messages: script.messages.slice(0, -1) };
+  const { coder, ask, scope } = readSetup([cut], []);
+  const session = scope.createSession();
+  const outcome = await session.run(ask, { input: "hello" }).then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  if (!isError(outcome, "TurnEnded")) throw outcome;
+  expect(outcome.payload.harness).toBe("claudeCode");
+  expect(session.resolve(coder.id)).toBe("s-1");
+  await scope.close();
+});
+
+test("a non-init system message leaves the id cell alone", async () => {
+  const status: SDKStatusMessage = {
+    type: "system",
+    subtype: "status",
+    status: "compacting",
+    uuid: "11111111-2222-4333-8444-555555555555",
+    session_id: "s-2",
+  };
+  const script = readScript("Hello");
+  const mixed: Script = { messages: [status, ...script.messages] };
+  const { coder, ask, scope } = readSetup([mixed], []);
+  const session = scope.createSession();
+  const seen: string[] = [];
+  session.controller(coder.id).watch((next) => {
+    if (next !== undefined) seen.push(next);
+  });
+  await session.run(ask, { input: "hello" });
+  expect(seen).toEqual(["s-1"]);
+  expect(session.resolve(coder.id)).toBe("s-1");
+  await scope.close();
+});
+
+test("a user message with plain text adds a tool result item only for tool answers", async () => {
+  const script = readScript("Hello");
+  const mixed: Script = {
+    messages: [script.messages[0], readUserText("just thinking"), ...script.messages.slice(1)],
+  };
+  const { coder, ask, scope } = readSetup([mixed], []);
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.items).filter((item) => item.kind === "tool_result")).toEqual([
+    { kind: "tool_result", id: "tu-1", status: "completed", source: script.messages[4] },
+  ]);
+  await scope.close();
+});

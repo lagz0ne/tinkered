@@ -1,0 +1,45 @@
+{
+  "name": "blueprint",
+  "version": "0.0.0",
+  "private": true,
+  "description": "blueprint: the binary that checks a tinker app's YAML declaration file against Jev over shipped question templates, and suggests which unit a sentence fits.",
+  "homepage": "https://github.com/author/library#readme",
+  "bugs": {
+    "url": "https://github.com/author/library/issues"
+  },
+  "license": "MIT",
+  "author": "Author Name <author.name@mail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/author/library.git"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "vp pack",
+    "size": "vp pack && node ../../scripts/check-size.mjs 20480 dist",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "mutate": "stryker run",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@tinker/core": "workspace:*",
+    "ai": "catalog:",
+    "oxc-parser": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
+    "@tinker/core": "workspace:*",
+    "@types/node": "^26.1.1",
+    "bumpp": "^11.1.0",
+    "typescript": "^7.0.2",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

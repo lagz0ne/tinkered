@@ -1,3 +1,0 @@
-CREATE TABLE "receipts" (
-	"title" text PRIMARY KEY
-);

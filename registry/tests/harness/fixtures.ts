@@ -1,0 +1,388 @@
+import { z } from "zod";
+
+/** Parse a test author's prompt input: a plain string. */
+export function parsePrompt(raw: unknown): string {
+  return z.string().parse(raw);
+}
+
+import type {
+  SDKAssistantMessage,
+  SDKMessage,
+  SDKPartialAssistantMessage,
+  SDKResultMessage,
+  SDKSystemMessage,
+  SDKUserMessage,
+} from "@anthropic-ai/claude-agent-sdk";
+import type { ClaudeCode, OpenAiCodex } from "../../src/harness/index.ts";
+import type {
+  CodexOptions,
+  Input,
+  ThreadEvent,
+  ThreadItem,
+  ThreadOptions,
+  TurnOptions,
+  Usage,
+} from "@openai/codex-sdk";
+
+/** One recorded turn: the messages a fake `query` yields for it. */
+export type Script = { readonly messages: readonly SDKMessage[] };
+
+/** A recorded session id shared by every fixture message of one turn. */
+const sessionId = "s-1";
+
+/** A recorded client uuid shared by every fixture message that carries one. */
+const uuid = "11111111-2222-4333-8444-555555555555";
+
+/** The usage block every fixture result carries: 10 in, 2 cached, 5 out. */
+function readUsage(): SDKResultMessage["usage"] {
+  return {
+    input_tokens: 10,
+    output_tokens: 5,
+    cache_read_input_tokens: 2,
+    cache_creation_input_tokens: 0,
+    cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 0 },
+    fallback_credit: { status: { type: "redeemed" } },
+    inference_geo: "none",
+    iterations: [],
+    output_tokens_details: { thinking_tokens: 0 },
+    server_tool_use: { web_fetch_requests: 0, web_search_requests: 0 },
+    service_tier: "standard",
+    speed: "standard",
+  };
+}
+
+/** A recorded `system` init: the session id lands as soon as the turn opens. */
+export function readSystemInit(): SDKSystemMessage {
+  return {
+    type: "system",
+    subtype: "init",
+    apiKeySource: "none",
+    claude_code_version: "0.0.0",
+    cwd: "/x",
+    tools: [],
+    mcp_servers: [],
+    model: "m",
+    permissionMode: "default",
+    slash_commands: [],
+    output_style: "default",
+    skills: [],
+    plugins: [],
+    uuid,
+    session_id: sessionId,
+  };
+}
+
+/** A recorded text delta inside its stream event. */
+export function readTextDelta(text: string): SDKPartialAssistantMessage {
+  return {
+    type: "stream_event",
+    event: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text } },
+    parent_tool_use_id: null,
+    uuid,
+    session_id: sessionId,
+  };
+}
+
+/** A recorded assistant message carrying one `tool_use` block. */
+export function readToolUse(): SDKAssistantMessage {
+  return {
+    type: "assistant",
+    message: {
+      id: "msg-1",
+      type: "message",
+      role: "assistant",
+      model: "m",
+      content: [{ type: "tool_use", id: "tu-1", name: "Read", input: {} }],
+      stop_reason: null,
+      stop_sequence: null,
+      usage: {
+        input_tokens: 1,
+        output_tokens: 1,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+        cache_creation: null,
+        fallback_credit: null,
+        inference_geo: null,
+        iterations: null,
+        output_tokens_details: null,
+        server_tool_use: null,
+        service_tier: null,
+        speed: null,
+      },
+      container: null,
+      context_management: null,
+      diagnostics: null,
+      stop_details: null,
+    },
+    parent_tool_use_id: null,
+    uuid,
+    session_id: sessionId,
+  };
+}
+
+/** A recorded user message carrying plain text: no tool answer lands in `items`. */
+export function readUserText(text: string): SDKUserMessage {
+  return {
+    type: "user",
+    message: { role: "user", content: text },
+    parent_tool_use_id: null,
+  };
+}
+
+/** A recorded user message carrying the tool's answer. */
+export function readToolResult(): SDKUserMessage {
+  return {
+    type: "user",
+    message: {
+      role: "user",
+      content: [{ type: "tool_result", tool_use_id: "tu-1", content: "ok" }],
+    },
+    parent_tool_use_id: null,
+  };
+}
+
+/** A recorded assistant message with no tool call: no tool item lands in `items`. */
+export function readAssistantText(text: string): SDKAssistantMessage {
+  return {
+    type: "assistant",
+    message: {
+      id: "msg-2",
+      type: "message",
+      role: "assistant",
+      model: "m",
+      content: [{ type: "text", text, citations: null }],
+      stop_reason: null,
+      stop_sequence: null,
+      usage: {
+        input_tokens: 1,
+        output_tokens: 1,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+        cache_creation: null,
+        fallback_credit: null,
+        inference_geo: null,
+        iterations: null,
+        output_tokens_details: null,
+        server_tool_use: null,
+        service_tier: null,
+        speed: null,
+      },
+      container: null,
+      context_management: null,
+      diagnostics: null,
+      stop_details: null,
+    },
+    parent_tool_use_id: null,
+    uuid,
+    session_id: sessionId,
+  };
+}
+
+/** A recorded success result: the fixture text, 10/2/5 usage, cost 0.01, id `s-1`. */
+export function readResult(text: string): SDKResultMessage {
+  return {
+    type: "result",
+    subtype: "success",
+    duration_ms: 1,
+    duration_api_ms: 1,
+    is_error: false,
+    num_turns: 1,
+    result: text,
+    stop_reason: null,
+    total_cost_usd: 0.01,
+    usage: readUsage(),
+    modelUsage: {},
+    permission_denials: [],
+    uuid,
+    session_id: sessionId,
+  };
+}
+
+/** A recorded success result carrying its own cost: the usage cell keeps the dollars. */
+export function readResultCost(text: string, cost: number): SDKResultMessage {
+  return { ...readResult(text), total_cost_usd: cost };
+}
+
+/** A recorded turn with the result's own cost. */
+export function readScriptCost(text: string, cost: number): Script {
+  return {
+    messages: [
+      readSystemInit(),
+      readTextDelta("Hel"),
+      readTextDelta("lo"),
+      readToolUse(),
+      readToolResult(),
+      readResultCost(text, cost),
+    ],
+  };
+}
+
+/** A recorded turn: init, two text deltas, a tool call and its answer, then the result. */
+export function readScript(text: string): Script {
+  return {
+    messages: [
+      readSystemInit(),
+      readTextDelta("Hel"),
+      readTextDelta("lo"),
+      readToolUse(),
+      readToolResult(),
+      readResult(text),
+    ],
+  };
+}
+
+/** One recorded Codex turn: the events a fake `runStreamed` yields for it. */
+export type CodexScript = { readonly events: readonly ThreadEvent[] };
+
+/** The usage block every Codex fixture completion carries: 10 in, 2 cached, 5 out. */
+function readCodexUsage(): Usage {
+  return {
+    input_tokens: 10,
+    cached_input_tokens: 2,
+    cache_write_input_tokens: 0,
+    output_tokens: 5,
+    reasoning_output_tokens: 1,
+  };
+}
+
+/** One recorded agent message item carrying the turn text so far. */
+function readAgentMessage(id: string, text: string): ThreadItem {
+  return { id, type: "agent_message", text };
+}
+
+/** One recorded command item: `ls`, still running or done with its output. */
+export function readCommand(status: "in_progress" | "completed" | "failed"): ThreadItem {
+  if (status === "in_progress")
+    return { id: "c-1", type: "command_execution", command: "ls", aggregated_output: "", status };
+  return {
+    id: "c-1",
+    type: "command_execution",
+    command: "ls",
+    aggregated_output: "a\n",
+    exit_code: 0,
+    status,
+  };
+}
+
+/** A recorded Codex turn: started, an agent message growing Hel → Hello, a command, completion. */
+export function readCodexScript(): CodexScript {
+  return {
+    events: [
+      { type: "thread.started", thread_id: "t-1" },
+      { type: "turn.started" },
+      { type: "item.started", item: readAgentMessage("m-1", "") },
+      { type: "item.updated", item: readAgentMessage("m-1", "Hel") },
+      { type: "item.updated", item: readAgentMessage("m-1", "Hello") },
+      { type: "item.started", item: readCommand("in_progress") },
+      { type: "item.completed", item: readCommand("completed") },
+      { type: "item.completed", item: readAgentMessage("m-1", "Hello") },
+      { type: "turn.completed", usage: readCodexUsage() },
+    ],
+  };
+}
+
+/** A recorded Codex turn that fails: started, then `turn.failed` with the reason. */
+export function readCodexFailure(): CodexScript {
+  return {
+    events: [
+      { type: "thread.started", thread_id: "t-1" },
+      { type: "turn.started" },
+      { type: "turn.failed", error: { message: "boom" } },
+    ],
+  };
+}
+
+/** A recorded Codex turn that ends with no completion: usage stays missing. */
+export function readCodexCut(): CodexScript {
+  return {
+    events: [
+      { type: "thread.started", thread_id: "t-1" },
+      { type: "turn.started" },
+      { type: "item.completed", item: readAgentMessage("m-1", "Hello") },
+    ],
+  };
+}
+
+/** The two tool members of the Claude seam for a fake that never registers tools: `tool` keeps
+ * the definition, `createSdkMcpServer` returns a stdio config (a legit `McpServerConfig`). */
+export function readToolSdk(): Pick<ClaudeCode.Sdk, "tool" | "createSdkMcpServer"> {
+  return {
+    tool: (name, description, schema, handler) => ({
+      name,
+      description,
+      inputSchema: schema,
+      handler,
+    }),
+    createSdkMcpServer: () => ({ type: "stdio", command: "fake" }),
+  };
+}
+
+/** One `runStreamed` call a fake Codex thread saw: the input plus the turn options. */
+export type CodexTurn = { readonly input: Input; readonly turnOptions: TurnOptions | undefined };
+
+/** One `Codex` construction a fake saw: which constructor call plus its thread calls. */
+export type CodexClient = {
+  readonly options: CodexOptions | undefined;
+  readonly started: ThreadOptions[];
+  readonly resumed: { readonly id: string; readonly options: ThreadOptions | undefined }[];
+};
+
+/** What one Codex test owns: every turn the fake threads saw plus every `Codex` construction. */
+export type CodexSeen = { turns: CodexTurn[]; clients: CodexClient[] };
+
+/** A parked Codex stream's release: the test resolves it after the close under test settles. */
+export type CodexGate = { readonly promise: Promise<void> };
+
+/** A fake Codex thread: yields the next script's events, checking the turn signal before each one. */
+function readCodexThread(
+  scripts: CodexScript[],
+  seen: CodexSeen,
+  gate?: CodexGate,
+): OpenAiCodex.Thread {
+  return {
+    runStreamed: async (input, turnOptions) => {
+      seen.turns.push({ input, turnOptions });
+      const script = scripts.shift();
+      return { events: readCodexEvents(script?.events ?? [], turnOptions?.signal, gate) };
+    },
+  };
+}
+
+/** A fake Codex SDK module: constructions land in the test's `seen.clients`. */
+export function readCodexSdk(scripts: CodexScript[], seen: CodexSeen, gates?: CodexGate[]) {
+  return {
+    Codex: class {
+      client: CodexClient;
+      constructor(options?: CodexOptions) {
+        this.client = { options, started: [], resumed: [] };
+        seen.clients.push(this.client);
+      }
+      startThread(options?: ThreadOptions) {
+        this.client.started.push(options ?? {});
+        return readCodexThread(scripts, seen, gates?.shift());
+      }
+      resumeThread(id: string, options?: ThreadOptions) {
+        this.client.resumed.push({ id, options });
+        return readCodexThread(scripts, seen, gates?.shift());
+      }
+    },
+  };
+}
+
+/** Yield recorded Codex events, then park on `gate` while given; an abort rejects first. */
+async function* readCodexEvents(
+  events: readonly ThreadEvent[],
+  signal: AbortSignal | undefined,
+  gate?: CodexGate,
+): AsyncGenerator<ThreadEvent> {
+  for (const event of events) {
+    if (signal?.aborted === true) throw signal.reason;
+    yield event;
+  }
+  if (gate === undefined) return;
+  if (signal?.aborted === true) throw signal.reason;
+  const abort = new Promise<never>((_resolve, reject) => {
+    signal?.addEventListener("abort", () => reject(signal?.reason), { once: true });
+  });
+  await Promise.race([gate.promise, abort]);
+}

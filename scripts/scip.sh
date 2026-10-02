@@ -13,13 +13,21 @@ mkdir -p "$ROOT/.scip"
 cmd="${1:?usage: scripts/scip.sh index|refs|symbols ...}"
 shift
 
-all_pkgs() { for d in "$ROOT"/packages/*/; do basename "$d"; done; }
+all_pkgs() { for d in "$ROOT"/packages/*/; do basename "$d"; done; echo source-registry; echo blueprint; }
+
+pkg_dir() {
+  case "$1" in
+    source-registry) echo "$ROOT/registry" ;;
+    blueprint) echo "$ROOT/tools/blueprint" ;;
+    *) echo "$ROOT/packages/$1" ;;
+  esac
+}
 
 case "$cmd" in
   index)
     pkgs=("$@"); [ ${#pkgs[@]} -eq 0 ] && mapfile -t pkgs < <(all_pkgs)
     for p in "${pkgs[@]}"; do
-      (cd "$ROOT/packages/$p" && scip-typescript index --output "$ROOT/.scip/$p.scip" >/dev/null 2>&1 \
+      (cd "$(pkg_dir "$p")" && scip-typescript index --output "$ROOT/.scip/$p.scip" >/dev/null 2>&1 \
         && echo "indexed $p -> .scip/$p.scip" || echo "FAILED $p (run scip-typescript index in packages/$p to see why)")
     done
     ;;

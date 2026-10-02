@@ -1,0 +1,333 @@
+[
+  {
+    "name": "auth",
+    "entries": ["index.ts"],
+    "dependencies": {
+      "@better-auth/core": "1.7.6",
+      "@better-auth/drizzle-adapter": "1.7.6",
+      "@tinker/core": "workspace:*",
+      "better-auth": "1.7.6",
+      "drizzle-orm": "1.0.0-rc.4",
+      "react": "19.3.0",
+      "react-email": "6.11.0"
+    },
+    "devDependencies": {
+      "@electric-sql/pglite": "^0.5.8",
+      "@hono/node-server": "1.19.17",
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@types/node": "26.5.1",
+      "@types/react": "19.3.0",
+      "auth": "1.7.6",
+      "drizzle-kit": "1.0.0-rc.4",
+      "hono": "^4.13.8",
+      "typescript": "7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": ["hono"],
+    "testTimeout": 60000,
+    "hookTimeout": 60000,
+    "fileParallelism": false,
+    "budget": 10240
+  },
+  {
+    "name": "drizzle",
+    "entries": ["index.ts", "migrations.ts", "pglite.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*",
+      "@electric-sql/pglite": "^0.5.8",
+      "drizzle-orm": "^0.45.2 || ^1.0.0-rc.4"
+    },
+    "devDependencies": {
+      "@electric-sql/pglite": "^0.5.8",
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@tinker/core": "workspace:*",
+      "@types/node": "^26.1.1",
+      "bumpp": "^11.1.0",
+      "drizzle-kit": "1.0.0-rc.4",
+      "drizzle-orm": "1.0.0-rc.4",
+      "typescript": "^7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": [],
+    "testTimeout": 30000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "harness",
+    "entries": ["index.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*",
+      "@anthropic-ai/claude-agent-sdk": "^0.3.275",
+      "@openai/codex-sdk": "^0.155.0"
+    },
+    "devDependencies": {
+      "@anthropic-ai/claude-agent-sdk": "^0.3.275",
+      "@modelcontextprotocol/sdk": "^1.29.0",
+      "@openai/codex-sdk": "^0.155.0",
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@tinker/core": "workspace:*",
+      "@types/node": "^26.1.1",
+      "bumpp": "^11.1.0",
+      "typescript": "^7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1",
+      "zod": "^4.0.0"
+    },
+    "items": ["mcp"],
+    "testTimeout": 5000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "hono",
+    "entries": ["index.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*",
+      "hono": ">=4"
+    },
+    "devDependencies": {
+      "@electric-sql/pglite": "0.5.8",
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@tinker/core": "workspace:*",
+      "@types/node": "^26.1.1",
+      "bumpp": "^11.1.0",
+      "drizzle-orm": "1.0.0-rc.4",
+      "hono": "^4.13.8",
+      "typescript": "^7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": [],
+    "testTimeout": 5000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "http",
+    "entries": ["index.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*"
+    },
+    "devDependencies": {
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@tinker/core": "workspace:*",
+      "@types/node": "^26.1.1",
+      "bumpp": "^11.1.0",
+      "typescript": "^7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": [],
+    "testTimeout": 5000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "jobs",
+    "entries": ["index.ts", "testing.ts"],
+    "dependencies": {
+      "@electric-sql/pglite": "0.5.8",
+      "@tinker/core": "workspace:*",
+      "drizzle-orm": "1.0.0-rc.4",
+      "pg-boss": "12.35.0"
+    },
+    "devDependencies": {
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@types/node": "^24",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": [],
+    "testTimeout": 30000,
+    "hookTimeout": 60000,
+    "fileParallelism": false,
+    "budget": 10240
+  },
+  {
+    "name": "mail",
+    "entries": ["index.ts", "testing.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*",
+      "@upyo/core": "0.6.0",
+      "@upyo/mock": "0.6.0",
+      "@upyo/smtp": "0.6.0",
+      "react": "19.3.0",
+      "react-email": "6.11.0"
+    },
+    "devDependencies": {
+      "@electric-sql/pglite": "0.5.8",
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@types/node": "^24",
+      "@types/react": "19.3.0",
+      "drizzle-orm": "1.0.0-rc.4",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": ["jobs"],
+    "testTimeout": 30000,
+    "hookTimeout": 60000,
+    "fileParallelism": false,
+    "budget": 10240
+  },
+  {
+    "name": "mcp",
+    "entries": ["index.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*",
+      "@modelcontextprotocol/sdk": "^1.29.0",
+      "zod": "^4.0.0"
+    },
+    "devDependencies": {
+      "@modelcontextprotocol/sdk": "^1.29.0",
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@tinker/core": "workspace:*",
+      "@types/node": "^26.1.1",
+      "bumpp": "^11.1.0",
+      "typescript": "^7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1",
+      "zod": "^4.0.0"
+    },
+    "items": [],
+    "testTimeout": 5000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "nats",
+    "entries": ["index.ts", "testing.ts"],
+    "dependencies": {
+      "@nats-io/transport-node": "3.4.0",
+      "@tinker/core": "workspace:*"
+    },
+    "devDependencies": {
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@types/node": "26.1.1",
+      "typescript": "7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": [],
+    "testTimeout": 15000,
+    "hookTimeout": 120000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "process",
+    "entries": ["index.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*"
+    },
+    "devDependencies": {
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@tinker/core": "workspace:*",
+      "@types/node": "^26.1.1",
+      "bumpp": "^11.1.0",
+      "typescript": "^7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": [],
+    "testTimeout": 5000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "stack",
+    "entries": ["index.ts", "dev.ts", "pages.ts"],
+    "dependencies": {
+      "@electric-sql/pglite": "^0.5.8",
+      "@hono/node-server": "1.19.17",
+      "@nats-io/transport-node": "3.4.0",
+      "@tinker/core": "workspace:*",
+      "@tinker/react": "workspace:*",
+      "drizzle-orm": "1.0.0-rc.4",
+      "react": "^19.3.0",
+      "vite-plus": "0.3.1"
+    },
+    "devDependencies": {
+      "@electric-sql/pglite": "^0.5.8",
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@types/node": "26.5.1",
+      "@types/react": "^19",
+      "@types/react-dom": "^19",
+      "react-dom": "^19.3.0",
+      "typescript": "7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": ["drizzle", "hono", "nats"],
+    "testTimeout": 30000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "sync",
+    "entries": ["index.ts", "sse.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*"
+    },
+    "devDependencies": {
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@tinker/core": "workspace:*",
+      "@types/node": "^26.1.1",
+      "bumpp": "^11.1.0",
+      "hono": "^4.13.8",
+      "typescript": "^7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1"
+    },
+    "items": [],
+    "testTimeout": 5000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  },
+  {
+    "name": "tinkerer",
+    "entries": ["index.ts"],
+    "dependencies": {
+      "@tinker/core": "workspace:*",
+      "zod": "^4.0.0"
+    },
+    "devDependencies": {
+      "@stryker-mutator/core": "^10.0.0",
+      "@stryker-mutator/vitest-runner": "^10.0.0",
+      "@tinker/core": "workspace:*",
+      "@types/node": "^26.1.1",
+      "bumpp": "^11.1.0",
+      "typescript": "^7.0.2",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+      "vite-plus": "0.3.1",
+      "zod": "^4.0.0"
+    },
+    "items": ["http"],
+    "testTimeout": 5000,
+    "hookTimeout": 10000,
+    "fileParallelism": true,
+    "budget": 10240
+  }
+]

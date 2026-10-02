@@ -25,7 +25,7 @@ void describe("S19 repo lane", () => {
   ].join("\n");
 
   void it("checks roots and wrapped handle types in apps, examples, and stack", () => {
-    for (const file of [APP, "examples/basic.ts", "packages/stack/src/stop.ts", `/repo/${APP}`])
+    for (const file of [APP, "examples/basic.ts", "registry/src/stack/stop.ts", `/repo/${APP}`])
       assert.deepEqual(
         lifetimeRows(source, file).map((r) => [r.id, r.line]),
         [
@@ -39,16 +39,16 @@ void describe("S19 repo lane", () => {
 
   void it("keeps driver helpers and tests out of the repo lane, with the writer src lane intact", () => {
     for (const file of [
-      "packages/hono/src/index.ts",
+      "registry/src/hono/index.ts",
       "src/app.ts",
       "apps/tracker/scripts/build.ts",
     ])
       assert.deepEqual(lifetimeRows(source, file), [], file);
-    assert.equal(lifetimeRows(source, "packages/hono/src/index.ts", true).length, 3);
+    assert.equal(lifetimeRows(source, "registry/src/hono/index.ts", true).length, 3);
     for (const file of [
       "apps/tracker/src/app.test.ts",
       "examples/tests/fixture.ts",
-      "packages/stack/src/stop.spec.ts",
+      "registry/src/stack/stop.spec.ts",
     ])
       for (const writer of [false, true])
         assert.deepEqual(lifetimeRows(source, file, writer), [], file);
@@ -92,7 +92,7 @@ void describe("S29 lifetimeByHand", () => {
   void it("checks ready in tests too and leaves every core file out of both lanes", () => {
     for (const file of [
       "apps/tracker/tests/fixture.ts",
-      "packages/sync/tests/sync.test.ts",
+      "registry/tests/sync/sync.test.ts",
       "src/app.spec.ts",
       "tests/app.browser.ts",
     ])
@@ -117,8 +117,8 @@ void describe("S29 lifetimeByHand", () => {
     for (const file of [
       APP,
       "examples/basic.ts",
-      "packages/process/src/index.ts",
-      "packages/stack/src/stop.ts",
+      "registry/src/process/index.ts",
+      "registry/src/stack/stop.ts",
     ])
       assert.equal(lifetimeRows(stop, file).length, 6, file);
     for (const file of [

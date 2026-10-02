@@ -13,7 +13,7 @@ void test("code at the cap fits one call; one character more does not", () => {
 void test("core's index.ts is too big for one call; blueprint.ts fits", () => {
   const read = (path) => readFileSync(join(HERE, "../..", path), "utf8");
   assert.equal(fitsOneCall(read("packages/core/src/index.ts")), false);
-  assert.equal(fitsOneCall(read("packages/blueprint/src/blueprint.ts")), true);
+  assert.equal(fitsOneCall(read("tools/blueprint/src/blueprint.ts")), true);
 });
 
 void test("preflight and review both guard the whole-file call with the size check", () => {

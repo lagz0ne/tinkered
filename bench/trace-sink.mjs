@@ -5,7 +5,7 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { createScope, operation } from "../packages/core/dist/index.mjs";
 import { makeTestClock } from "../packages/core/dist/testing.mjs";
-import { traceSink } from "../packages/stack/dist/index.mjs";
+import { traceSink } from "../registry/dist/stack/index.mjs";
 
 let received = 0;
 const collector = createServer((request, response) => {
