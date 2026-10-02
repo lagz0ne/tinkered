@@ -796,3 +796,30 @@ Core followups stay with their current owners.
 Main logs use `/tmp/tinkered-primitive-main-`.
 Registry proof is `/tmp/tinkered-start-registry-proof.json`.
 HTTPS removal proof is `/tmp/tinkered-primitive-main-https-proof.json`.
+
+## Start seam saved for review
+
+The writer kept all work in `../tinkered-start-seam` on `start/seam`.
+The fixed folder now reaches user values through two alias imports.
+An app-owned `Register` supplies its feature body types.
+The copied scaffold compiles with a note app that has no example feature bodies.
+The repeatable seam check rejects a planted outside path and passes the real tree.
+
+The real shadcn 4.21.0 skips import rewriting for `registry:file`.
+Eight fixed files use `registry:lib` with fixed scaffold targets instead.
+Install-once seams use `@lib/...` targets.
+The alternate-alias consumer builds and passes types.
+Both edited seams survive a runtime update.
+Source version is `0.4.0`; setup contract is 3.
+
+All full gates returned 0.
+Check has zero errors and the same 28 warnings.
+All 30 app tests pass within all eight workspace test tasks.
+Validate passes all 16 lanes.
+The prior proof-preset and generated-source census exceptions remain.
+No new TypeScript exception was added.
+
+[Full proof, gates, and assumptions](SEAM-PROOF.md).
+Jev labels stay in this track because the ticket bars shared-tool edits.
+The lead merges those labels and calibrates them at landing.
+The writer did not push, publish, or mark the board card Done.

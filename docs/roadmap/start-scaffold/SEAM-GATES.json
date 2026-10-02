@@ -1,0 +1,82 @@
+[
+  {
+    "gate": "build",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-build.log"
+  },
+  {
+    "gate": "check",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-check.log"
+  },
+  {
+    "gate": "workspace-tests",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-workspace-tests.log"
+  },
+  {
+    "gate": "boundary",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-boundary.log"
+  },
+  {
+    "gate": "middleware",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-middleware.log"
+  },
+  {
+    "gate": "imports",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-imports.log"
+  },
+  {
+    "gate": "seam",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-seam.log"
+  },
+  {
+    "gate": "fixture",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-fixture.log"
+  },
+  {
+    "gate": "registry-build",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-registry-build.log"
+  },
+  {
+    "gate": "registry",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-registry.log"
+  },
+  {
+    "gate": "app-types",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-app-types.log"
+  },
+  {
+    "gate": "census",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-census.log"
+  },
+  {
+    "gate": "tsdoc",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-tsdoc.log"
+  },
+  {
+    "gate": "prose",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-prose.log"
+  },
+  {
+    "gate": "validate",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-validate.log"
+  },
+  {
+    "gate": "diff",
+    "exit": 0,
+    "log": "/tmp/start-seam-final-diff.log"
+  }
+]
