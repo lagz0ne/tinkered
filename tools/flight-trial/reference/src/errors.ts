@@ -5,6 +5,8 @@ export declare namespace Errors {
     TodoMissing: Record<string, never>;
     SignInRequired: Record<string, never>;
     BadInput: { reason: string };
+    BookingDenied: { id: string };
+    ServiceRejected: { service: string; status: number };
     Rollback: Record<string, never>;
     AuthFailed: { message: string };
   };

@@ -104,3 +104,26 @@ export const holdUpdates = resource({
     });
   },
 });
+export const payHold = operation({
+  label: "pay saved flight hold",
+  input: z.string(),
+  depends: { sync: syncClient, notice: bookingNotice.controller },
+  async run({ sync, notice }, ctx) {
+    const executionId = ctx.random.uuid();
+    const result = await sync.execute(
+      executionId,
+      async (signal) => {
+        const response = await fetch("/api/flights/pay", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ executionId, bookingId: ctx.input }),
+          signal,
+        });
+        if (!response.ok) return { kind: "rejected" as const, message: "Payment request refused" };
+        return response.json();
+      },
+      ctx.signal,
+    );
+    notice.set(result.kind === "failed" ? result.message : "Processing");
+  },
+});

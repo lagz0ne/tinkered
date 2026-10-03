@@ -989,3 +989,46 @@ Final round 3 proof:
 
 Reference logs above are under `tools/flight-trial/reference/`.
 The full workspace tests and validate follow the last round.
+
+### Round 4 ready
+
+Packet 4 is frozen at this ready step.
+Next: round 5 confirmation mail.
+Payments save their intent before confirmation can send a webhook.
+Repeated requests reuse the saved execution and take no extra payment calls.
+Only signed webhooks choose the final booking state.
+A private stream lock orders webhook effects and tab updates.
+An expired hold refunds in full, once.
+
+Proof:
+
+- Reference pass 1: exit 0, `.logs/r4-pass-1.log`; 13 checks pass.
+- Reference pass 2: exit 0, `.logs/r4-pass-2.log`; 13 checks pass.
+- Bypassed signature check: exit 1, `.logs/r4-break.log`.
+  Only the forged-event check fails.
+- Driver: exit 0, `/tmp/flight-rounds-r4-proof.log`.
+- Good, broken, restored builds: exit 0, `.logs/r4-build-good.log`,
+  `.logs/r4-build-break.log`, and `.logs/r4-build-restored.log`.
+- Reference step build: exit 0, `/tmp/flight-rounds-r4-build-step.log`.
+- Fixed check: exit 0, `/tmp/flight-rounds-r4-check-fixed.log`.
+- Schema: exit 0, `/tmp/flight-rounds-r4-schema.log`.
+- Style: exit 0, `/tmp/flight-rounds-r4-style.log`.
+- Prose: exit 0, `/tmp/flight-rounds-r4-prose.log`.
+
+Reference logs above are under `tools/flight-trial/reference/`.
+The first check found one excess branch, exit 1.
+Log: `/tmp/flight-rounds-r4-check-step.log`.
+Filtering the saved booking by owner removed that branch.
+
+Assumptions:
+
+- Price strings are exact USD amounts; charge and refund use cents.
+- This service sends one signature and two payment event kinds.
+- Signatures allow at most five minutes of clock difference.
+- A failed payment leaves its hold until expiry.
+  The traveler can search and hold again to try another payment.
+- The service has no automatic webhook retries.
+  Grader controls send the repeated and late events.
+- Private HTTP pay requests use a booking ID and an execution UUID.
+- Safe repeat proof covers concurrent requests in this one app process.
+  The trial does not test a crash between saved intent and confirmation.

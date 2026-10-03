@@ -68,6 +68,12 @@ const checks = {
     to: "merged.set(row.id, row)",
     fails: "r2 a cheaper late fare merges and a failed supplier keeps good rows",
   },
+  4: {
+    file: "src/backend/payment-signature.ts",
+    from: 'return timingSafeEqual(expected, Buffer.from(parts.digest, "hex"))',
+    to: "return true",
+    fails: "r4 payment waits for a valid signed webhook and syncs across tabs",
+  },
   3: {
     file: "src/backend/bookings.ts",
     from: "if (current.total_amount !== selected.total_amount)",

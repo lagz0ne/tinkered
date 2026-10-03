@@ -1,7 +1,8 @@
-import { useData, useResource } from "@tinker/react";
-import { holdUpdates } from "./bookings.ts";
+import { useData, useResource, useRun } from "@tinker/react";
+import { holdUpdates, payHold } from "./bookings.ts";
 import { profile, bookingRows } from "./state.ts";
 export function BookingsPage() {
+  const pay = useRun(payHold);
   const account = useData(profile);
   const rows = useData(bookingRows);
   useResource(holdUpdates);
@@ -20,11 +21,19 @@ export function BookingsPage() {
         <table aria-label="Bookings">
           <thead>
             <tr>
-              {["Booking", "Flight", "Supplier", "Price", "State", "Expires", "Order"].map(
-                (name) => (
-                  <th key={name}>{name}</th>
-                ),
-              )}
+              {[
+                "Booking",
+                "Flight",
+                "Supplier",
+                "Price",
+                "State",
+                "Expires",
+                "Order",
+                "Payment",
+                "Action",
+              ].map((name) => (
+                <th key={name}>{name}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -37,6 +46,12 @@ export function BookingsPage() {
                 <td>{row.state}</td>
                 <td>{row.expires}</td>
                 <td>{row.orderId}</td>
+                <td>{row.paymentId ?? "-"}</td>
+                <td>
+                  {row.state === "Held" && (
+                    <button onClick={() => pay.run({ input: row.id })}>Pay {row.id}</button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

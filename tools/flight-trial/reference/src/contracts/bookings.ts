@@ -19,9 +19,12 @@ export const bookingRecord = z.object({
   orderId: z.string(),
   price: z.string(),
   expires: z.string(),
-  state: z.enum(["Held", "Expired"]),
+  paymentId: z.string().nullable(),
+  state: z.enum(["Held", "Expired", "Processing", "Confirmed", "Payment failed", "Refunded"]),
 });
 export const holdCommand = z.object({ executionId: z.uuid(), offerId: z.string() });
 export declare namespace Bookings {
   type Row = z.infer<typeof bookingRecord>;
 }
+
+export const bookingCommand = z.object({ executionId: z.uuid(), bookingId: z.uuid() });

@@ -124,7 +124,7 @@ export const refreshBookings = operation({
   },
   async run({ list, supplier, save }) {
     for (const row of await list.run()) {
-      if (row.state !== "Held") continue;
+      if (row.state !== "Held" && row.state !== "Payment failed") continue;
       const response = await supplier.run({
         input: { supplier: row.offer.supplier, path: `/air/orders/${row.orderId}` },
       });

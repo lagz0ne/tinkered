@@ -44,6 +44,7 @@ checks=tools/writer-trial/teacher/flight
 node --env-file=grader.env "$checks/check.mjs" 1
 node --env-file=grader.env "$checks/check.mjs" 2
 node --env-file=grader.env "$checks/check.mjs" 3
+node --env-file=grader.env "$checks/check.mjs" 4
 ```
 
 Use the same settings for the reference proof:
@@ -53,6 +54,7 @@ checks=tools/writer-trial/teacher/flight
 node --env-file=grader.env "$checks/canaries.mjs" 1
 node --env-file=grader.env "$checks/canaries.mjs" 2
 node --env-file=grader.env "$checks/canaries.mjs" 3
+node --env-file=grader.env "$checks/canaries.mjs" 4
 ```
 
 Each planted break must fail its named behavior.
