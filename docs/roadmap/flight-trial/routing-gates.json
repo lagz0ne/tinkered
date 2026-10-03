@@ -1,0 +1,174 @@
+{
+  "branch": "trial/services-routing",
+  "base": "92b8937f",
+  "sourceCommit": "896fd848e462227938ff1158c9502face891eaca",
+  "gates": [
+    {
+      "gate": "install",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-install.log"
+    },
+    {
+      "gate": "build",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-build.log"
+    },
+    {
+      "gate": "check",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-check.log"
+    },
+    {
+      "gate": "flight-trial tests",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-test.log"
+    },
+    {
+      "gate": "workspace tests",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-workspace-tests.log"
+    },
+    {
+      "gate": "gate chain",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-gate.log"
+    },
+    {
+      "gate": "four-process HTTP proof",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-process.log"
+    },
+    {
+      "gate": "strict style census",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-style.log"
+    },
+    {
+      "gate": "TSDoc",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-tsdoc.log"
+    },
+    {
+      "gate": "routing and plain forms audit",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-routing-audit.log"
+    },
+    {
+      "gate": "graph audit",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-graph.log"
+    },
+    {
+      "gate": "prose",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-prose.log"
+    },
+    {
+      "gate": "validate",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-validate.log"
+    },
+    {
+      "gate": "Jev preflight",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-jev-preflight.log"
+    },
+    {
+      "gate": "Jev new test review",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-jev-tests.log"
+    },
+    {
+      "gate": "Jev README review",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-jev-promises.log"
+    },
+    {
+      "gate": "Jev labels",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-jev-labels.log"
+    },
+    {
+      "gate": "full mutation",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-final-mutate.log"
+    }
+  ],
+  "regression": {
+    "red": {
+      "exit": 1,
+      "log": "tools/flight-trial/.logs/routing-rule-name-red.log"
+    },
+    "green": {
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/routing-rule-name-green.log"
+    },
+    "HEAD": {
+      "red": {
+        "exit": 1,
+        "log": "tools/flight-trial/.logs/routing-head-red.log"
+      },
+      "green": {
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/routing-head-green-test.log"
+      }
+    }
+  },
+  "interruptedMutation": [
+    {
+      "exit": 130,
+      "log": "tools/flight-trial/.logs/routing-mutate-first.log",
+      "reason": "Stopped for the wire route field review fix."
+    },
+    {
+      "exit": 130,
+      "log": "tools/flight-trial/.logs/routing-mutate-second.log",
+      "reason": "Stopped for the HEAD fallback wire fix."
+    }
+  ],
+  "mutation": {
+    "status": "passed",
+    "log": "tools/flight-trial/.logs/routing-final-mutate.log",
+    "lock": "/tmp/mutation.lock",
+    "floor": 85,
+    "sourceFiles": 9,
+    "excluded": [],
+    "exit": 0,
+    "score": 88.46,
+    "mutants": 1508,
+    "counts": {
+      "NoCoverage": 35,
+      "Killed": 1284,
+      "Survived": 139,
+      "Timeout": 50
+    },
+    "report": "tools/flight-trial/.logs/routing-final-mutation.json",
+    "summary": "tools/flight-trial/.logs/routing-final-mutation-summary.json"
+  },
+  "plainFunctions": {
+    "before": [
+      "http.ts:reply",
+      "http.ts:reject",
+      "supplier/index.ts:readCurrent",
+      "supplier/index.ts:createState",
+      "payment/index.ts:createState",
+      "payment/index.ts:rejectPayment"
+    ],
+    "after": [
+      "http.ts:reply",
+      "http.ts:reject",
+      "http.ts:rejectPayment",
+      "supplier/index.ts:readCurrent",
+      "supplier/index.ts:createState",
+      "payment/index.ts:createState"
+    ],
+    "processEntries": ["supplier/main.ts:main", "payment/main.ts:main"]
+  },
+  "coreFeedback": "None.",
+  "tests": {
+    "total": 88,
+    "existingUnchanged": 86,
+    "newRegressionTests": 2
+  },
+  "readyFor": "lead review"
+}

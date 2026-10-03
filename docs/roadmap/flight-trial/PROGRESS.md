@@ -1346,3 +1346,53 @@ HEAD fix proof, under `tools/flight-trial/.logs/`:
   `routing-head-green-check.log`, and `routing-head-green-test.log`.
 - Both new tests have red proof before their wire fix.
   Every original test is unchanged.
+
+### Services routing: saved for lead review
+
+Source commits:
+
+- `94945b46`: Hono and Node adapter from the workspace catalog.
+- `e25ff31f`: Hono routes, shared middleware, owned listener.
+- `f0df08f8`: wire route names cannot be replaced by an extra body field.
+- `896fd848`: shared middleware preserves the old HEAD 404 reply.
+
+Every final gate has observed exit 0.
+The full list and each exact log path are in `routing-gates.json`.
+The workspace build ran before check and all tests.
+All 88 package tests passed; the original 86 remain unchanged.
+Both new wire regression tests have red proof before their fix.
+Check has zero errors and 28 warnings.
+Workspace tests, four-process proof, strict style, TSDoc, routing audit,
+graph audit, prose, and all 16 validation lanes passed.
+Jev source, new-test, README, and label checks all exited 0.
+The two new tests have no Jev test flags.
+README review has zero confident gaps among 88 titles.
+Its three unsure titles have the existing README promises noted above.
+Every source flag is answered in `routing-jev-labels.jsonl`.
+
+Full mutation passed at 88.46 percent, exit 0.
+It ran alone under `/tmp/mutation.lock`.
+All nine source files were included; the floor stayed at 85.
+No file, mutant, or new source was excluded.
+The report contains 1508 mutants.
+Counts: 1284 Killed, 35 NoCoverage, 139 Survived, 50 Timeout.
+The two earlier interrupted runs have exit 130 and are not score proof.
+No code or test changes followed the passing run.
+
+Final mutation proof, under `tools/flight-trial/.logs/`:
+
+- `routing-final-mutate.log`.
+- `routing-final-mutation.json`: the full report.
+- `routing-final-mutation-summary.json`: counts by file.
+
+The plain list is six before and after:
+`reply`, `reject`, `readCurrent`, both `createState` functions,
+and `rejectPayment`.
+Only `rejectPayment` moved, from payment to shared HTTP code.
+Both `main` entries remain separate from that pure list.
+`PLAIN.md` and the routing audit record their paths and call sites.
+
+Core feedback: none.
+No changes to Core, apps, or `tools/writer-trial/`.
+No push; the branch waits for the lead's review.
+The board card stays with the lead because it is outside the allowed paths.
