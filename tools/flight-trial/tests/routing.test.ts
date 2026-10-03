@@ -1,5 +1,5 @@
 import { createScope } from "@tinker/core";
-import { afterEach, expect, test } from "vite-plus/test";
+import { afterEach, beforeEach, expect, test } from "vite-plus/test";
 import {
   supplierApp,
   paymentApp,
@@ -12,15 +12,9 @@ import {
   webhookSecret,
 } from "../src/index.ts";
 
-const running: { stop: AbortController; closed: Promise<unknown> }[] = [];
-afterEach(async () => {
-  for (const service of running.splice(0)) {
-    service.stop.abort();
-    await service.closed;
-  }
-});
-
-test("route rules reject a missing route even when the body has a name", async () => {
+const running: { stop: AbortController; closed: Promise<unknown>; url: string; name: string }[] =
+  [];
+beforeEach(async () => {
   for (const app of [supplierApp, paymentApp]) {
     const stop = new AbortController();
     const scope = createScope({
@@ -36,9 +30,25 @@ test("route rules reject a missing route even when the body has a name", async (
         webhookSecret("routing-test"),
       ],
     });
-    running.push({ stop, closed: scope.closed });
     await scope.ready;
     const { url } = scope.resolve(app);
+    running.push({
+      stop,
+      closed: scope.closed,
+      url,
+      name: app === supplierApp ? "supplier" : "payment",
+    });
+  }
+});
+afterEach(async () => {
+  for (const service of running.splice(0)) {
+    service.stop.abort();
+    await service.closed;
+  }
+});
+
+test("route rules reject a missing route even when the body has a name", async () => {
+  for (const { url } of running) {
     const response = await fetch(`${url}/control/routes`, {
       method: "POST",
       headers: { authorization: "Bearer grader", "content-type": "application/json" },
@@ -54,24 +64,7 @@ test("route rules reject a missing route even when the body has a name", async (
 });
 
 test("HEAD calls keep the missing-route reply", async () => {
-  for (const app of [supplierApp, paymentApp]) {
-    const stop = new AbortController();
-    const scope = createScope({
-      signal: stop.signal,
-      extensions: app,
-      tags: [
-        supplierId("supplier-a"),
-        port(0),
-        host("127.0.0.1"),
-        controlToken("grader"),
-        stopSignal(stop.signal),
-        webhookUrl("http://127.0.0.1:1"),
-        webhookSecret("routing-test"),
-      ],
-    });
-    running.push({ stop, closed: scope.closed });
-    await scope.ready;
-    const { url } = scope.resolve(app);
+  for (const { url } of running) {
     const response = await fetch(`${url}/control/calls`, {
       method: "HEAD",
       headers: { authorization: "Bearer grader" },
