@@ -71,20 +71,17 @@ export function checkFlight({
       ["exec", "-i", app, "timeout", "30", "tar", "-xf", "-", "-C", "/work"],
       readFileSync(archive),
     );
+    const resetExit = resetRouter(app, own);
     scaffoldExit = checkScaffold(app, scaffold, seam);
     const plainResult = checkFlightPlain(app, plain);
-    ownExit = checkOwn(app, own);
+    ownExit = checkOwn(app, own) || resetExit;
     teacherExit = checkTeacher(state, app, round, image, teacher, teacherDir);
     try {
       teacher.push(run(["exec", app, "cat", "/tmp/app.log"]));
     } catch {}
-    const generatedRouterHash = run([
-      "exec",
-      app,
-      "node",
-      "-e",
-      "console.log(require('node:crypto').createHash('sha256').update(require('node:fs').readFileSync('/work/src/routeTree.gen.ts')).digest('hex'))",
-    ]).trim();
+    const router = checkRouter(app, own);
+    ownExit = Math.max(ownExit, router.exit);
+    const generatedRouterHash = router.hash;
     return { ownExit, teacherExit, scaffoldExit, ...plainResult, generatedRouterHash, images };
   } finally {
     writeFileSync(join(logDir, "own.log"), own.join(""));
@@ -92,6 +89,28 @@ export function checkFlight({
     writeFileSync(join(logDir, "scaffold.log"), seam.join(""));
     writeFileSync(join(logDir, "plain.log"), plain.join(""));
     stopFlight(state);
+  }
+}
+
+function resetRouter(app, own) {
+  try {
+    run(["cp", join(here, "flight-router.mjs"), `${app}:/tmp/flight-router.mjs`]);
+    own.push(run(["exec", app, "node", "/tmp/flight-router.mjs", "reset"]));
+    return 0;
+  } catch (error) {
+    own.push(`${error.stdout ?? ""}${error.stderr ?? ""}\nEXIT 1 router reset\n`);
+    return 1;
+  }
+}
+
+function checkRouter(app, own) {
+  try {
+    const hash = run(["exec", app, "node", "/tmp/flight-router.mjs", "hash"]).trim();
+    own.push("EXIT 0 fresh generated router\n");
+    return { hash, exit: 0 };
+  } catch (error) {
+    own.push(`${error.stdout ?? ""}${error.stderr ?? ""}\nEXIT 1 fresh generated router\n`);
+    return { hash: null, exit: 1 };
   }
 }
 
