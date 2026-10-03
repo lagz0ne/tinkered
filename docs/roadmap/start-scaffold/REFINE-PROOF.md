@@ -267,10 +267,12 @@ event: account
 data: {"kind":"account-change"}
 ```
 
-The failing assertion is:
+The failing assertion is shown wrapped below:
 
-```ts
-expect(new TextDecoder().decode((await waiting).value)).toBe(
+```text
+expect(
+  new TextDecoder().decode((await waiting).value),
+).toBe(
   'event: account\ndata: {"kind":"account-change"}\n\n',
 );
 ```

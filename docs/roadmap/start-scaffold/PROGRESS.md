@@ -893,6 +893,7 @@ A new quiet-stream test proves heartbeat auth without a session wake.
 Both regressions have saved red and green runs.
 The four app skills and registry copies have the lead's corrections.
 All 35 app tests and the fresh copied project's 35 tests pass.
-All workspace tests and budget lanes pass.
+Workspace tests: 1,106 passed, 1 skipped.
+All 16 budget lanes pass.
 Proof and exit codes are in `REFINE-PROOF.md` and `REFINE-GATES.json`.
 This stays saved for lead review; the writer did not land or push it.
