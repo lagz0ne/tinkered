@@ -188,29 +188,61 @@ await test("frozen Jev loads after deleting an owned source copy of its packages
   }
 });
 
-await test("check refuses unavailable Jev before running own or teacher containers", () => {
-  const root = mkdtempSync(join(tmpdir(), "jev-check-"));
-  try {
-    const trial = join(root, ".local/share/tinker-writer-trial/temp-jev-check");
-    const frozen = freezeTrial(trial, "stock");
-    rmSync(join(trial, "frozen/jev/node_modules"), { recursive: true, force: true });
-    writeFileSync(
-      join(trial, "manifest.json"),
-      JSON.stringify({
-        suite: "stock",
-        frozen,
-        workers: [{ attempts: [{ round: 1, attempt: 1, archive: join(trial, "source.tar.gz") }] }],
-      }),
-    );
-    const result = spawnSync(
-      process.execPath,
-      [join(trialDir, "review.mjs"), "check", "temp-jev-check", "1", "1"],
-      { env: { ...process.env, HOME: root }, encoding: "utf8" },
-    );
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /Jev unavailable/);
-    assert.equal(existsSync(join(trial, "check-1")), false);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+for (const failure of ["broken package link", "missing shape-only package"]) {
+  await test(`check records unavailable Jev and still runs own and teacher with ${failure}`, () => {
+    const root = mkdtempSync(join(tmpdir(), "jev-check-"));
+    try {
+      const trial = join(root, ".local/share/tinker-writer-trial/temp-jev-check");
+      const frozen = freezeTrial(trial, "stock");
+      const modules = join(trial, "frozen/jev/node_modules");
+      if (failure === "broken package link") {
+        rmSync(modules, { recursive: true });
+        symlinkSync(join(root, "deleted-checkout/node_modules"), modules);
+      } else rmSync(join(modules, "@microsoft/tsdoc"));
+      const archive = join(trial, "source.tar");
+      execFileSync("tar", ["-cf", archive, "--files-from", "/dev/null"]);
+      const manifest = join(trial, "manifest.json");
+      writeFileSync(
+        manifest,
+        JSON.stringify({
+          suite: "stock",
+          frozen,
+          image: `sha256:${"0".repeat(64)}`,
+          workers: [{ attempts: [{ round: 1, attempt: 1, archive }] }],
+        }),
+      );
+      // Use the real Docker CLI with no daemon. It cannot reach any live trial.
+      const env = {
+        ...process.env,
+        HOME: root,
+        DOCKER_CONFIG: join(root, "docker-config"),
+        DOCKER_HOST: `unix://${join(root, "no-docker.sock")}`,
+      };
+      delete env.DOCKER_CONTEXT;
+      delete env.DOCKER_TLS_VERIFY;
+      const result = spawnSync(
+        process.execPath,
+        [join(trialDir, "review.mjs"), "check", "temp-jev-check", "1", "1"],
+        { env, encoding: "utf8", timeout: 30000 },
+      );
+      assert.equal(result.status, 1);
+      const attempt = JSON.parse(readFileSync(manifest, "utf8")).workers[0].attempts[0];
+      assert.equal(attempt.checks?.length, 1);
+      const check = attempt.checks[0];
+      assert.equal(check.ownExit, 1);
+      assert.equal(check.teacherExit, 1);
+      assert.equal(check.jevExit, 1);
+      assert.equal(check.jev, "unavailable");
+      assert.equal(check.machine, "machine-fail");
+      assert.equal(attempt.machine, "machine-fail");
+      const report = JSON.parse(readFileSync(check.jevFile, "utf8"));
+      assert.equal(report.gate.status, "unavailable");
+      assert.match(report.gate.reasons.join("\n"), /Jev unavailable: frozen modules cannot load/);
+      assert.match(readFileSync(check.ownLog, "utf8"), /Cannot connect to the Docker daemon/);
+      assert.match(readFileSync(check.teacherLog, "utf8"), /Cannot connect to the Docker daemon/);
+      assert.match(readFileSync(join(check.dir, "machine.txt"), "utf8"), /jev: 1 \(unavailable\)/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}

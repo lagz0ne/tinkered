@@ -63,8 +63,10 @@ The frozen Jev owns copies of its installed packages and their dependencies.
 Package links stay inside the frozen Jev folder.
 Create imports `lib.mjs`, `bank.mjs`, `extract.mjs`, and `shape.mjs` in a fresh process.
 It proves their packages load before saving the manifest.
-Check repeats that import before starting any check containers.
+Check repeats that import before running own and teacher checks.
 A failed import is unavailable, never a pass.
+Own and teacher checks still run when Jev is unavailable.
+Check records the Jev failure and `machine-fail` beside their exits.
 If freezing fails, create removes its unfinished `frozen/` folder so it can retry.
 Existing frozen trials still refuse a silent refresh.
 
@@ -503,4 +505,5 @@ T08 names the test rule for error checks inside assertions.
 - create refuses an unavailable question bank even when lib loads.
 - failed package copy removes frozen so create can retry.
 - failed module load removes frozen so create can retry.
-- check refuses unavailable Jev before running own or teacher containers.
+- check records unavailable Jev and still runs own and teacher with broken package link.
+- check records unavailable Jev and still runs own and teacher with missing shape-only package.

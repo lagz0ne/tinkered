@@ -263,7 +263,14 @@ if (command === "save") {
   const want = at === -1 ? latestAttempt(rows, round).attempt : Number(process.argv[at + 1]);
   const row = rows.find((a) => a.round === round && a.attempt === want);
   if (!row) throw new Error(`No saved attempt ${want} for round ${round}`);
-  if (manifest.frozen) verifyJevLoads(frozenPath("jev"));
+  let jevLoadFailure = null;
+  if (manifest.frozen) {
+    try {
+      verifyJevLoads(frozenPath("jev"));
+    } catch (error) {
+      jevLoadFailure = { reports: [], gate: gateOf({ file: null, error: error.message }) };
+    }
+  }
   const checker = checkerFor(suite, round);
   // Fail fast when the checker is missing: unavailable, never a pass.
   // No container is started in that case.
@@ -341,9 +348,11 @@ if (command === "save") {
       .map((a) => readFileSync(a.events, "utf8"))
       .join("\n");
     const flightChecks = flightGate(flight);
-    const jev = flightChecks
-      ? { reports: [], gate: flightChecks }
-      : await judgeSnapshot(row.archive, writerAnswers(eventText), flight?.generatedRouterHash);
+    const jev =
+      jevLoadFailure ??
+      (flightChecks
+        ? { reports: [], gate: flightChecks }
+        : await judgeSnapshot(row.archive, writerAnswers(eventText), flight?.generatedRouterHash));
     gate = jev.gate;
     jevExit = gate.status === "pass" ? 0 : 1;
     writeFileSync(jevFile, JSON.stringify(jev, null, 2) + "\n");
