@@ -3,9 +3,13 @@ import { z } from "zod";
 import { app, supplierId, holdMs } from "./index.ts";
 import { port, host, controlToken, stopSignal } from "../http.ts";
 
-/** This process entry owns its root and process signals; resources own the service. */
-if (import.meta.main) {
-  const supplier = z.enum(["supplier-a", "supplier-b", "supplier-c"]).parse(process.argv.at(2));
+/**
+ * This entry owns its root and process signals; resources own the service.
+ * @param env - Settings from the process environment; needed to configure the root tags.
+ * @param name - Supplier name from the process argument; needed to choose its fixture stock.
+ */
+export async function main(env: NodeJS.ProcessEnv, name: string | undefined): Promise<number> {
+  const supplier = z.enum(["supplier-a", "supplier-b", "supplier-c"]).parse(name);
   const settings = z
     .object({
       PORT: z.coerce.number().int().min(0).max(65535),
@@ -13,7 +17,7 @@ if (import.meta.main) {
       CONTROL_TOKEN: z.string().min(1),
       HOLD_MS: z.coerce.number().int().positive().default(1000),
     })
-    .parse(process.env);
+    .parse(env);
   const stop = new AbortController();
   const halt = () => stop.abort();
   process.once("SIGINT", halt);
@@ -38,6 +42,9 @@ if (import.meta.main) {
   process.off("SIGTERM", halt);
   if (ended.status !== "success") {
     process.stderr.write(`${JSON.stringify({ closed: ended })}\n`);
-    process.exitCode = 1;
+    return 1;
   }
+  return 0;
 }
+
+if (import.meta.main) process.exitCode = await main(process.env, process.argv.at(2));

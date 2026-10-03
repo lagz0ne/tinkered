@@ -930,3 +930,36 @@ Proof: `fix-review-final-base.log`.
 Main later gained only the two new authoring-rule doc commits.
 The initial base remains an ancestor; current main is not yet an ancestor.
 So landing also needs a rebase onto those new docs.
+
+### Mutation lift: process entry lifecycle
+
+The lead keeps the floor at 85 and authorizes the entry-function fallback.
+Stryker's Vitest setup records coverage in its own process namespace.
+It does not collect a child's coverage or pass its active case to that child.
+The local runner and instrumenter source confirm both facts.
+
+Impact: `src/index.ts` adds `supplierMain` and `paymentMain` exports.
+Only their `main.ts` files create service scopes.
+Each function takes plain environment settings and returns an exit code.
+Supplier also takes the one supplier-name argument.
+The guarded process calls keep the launcher and process proof callers unchanged.
+`tests/entries.test.ts` is the new public entry caller.
+This is the lead's explicit fallback and follows ADR 0078.
+`PLAIN.md` records the two process entries apart from the six pure helpers.
+
+One HTTP lifecycle test per service runs its real child on port zero,
+then the same exported entry in process on a free port.
+It waits for control HTTP, makes service calls, sends SIGTERM,
+and checks exit zero and a closed port.
+The in-process fixture emits the same Node SIGTERM event.
+Supplier checks its configured hold deadline.
+Payment checks the configured webhook URL, delay, and signing secret.
+All child processes, probe ports, and webhook sockets belong to resources.
+No global value is patched and no service state is read by a test.
+
+Initial entry tests passed: exit 0, `lift-entry-test.log`.
+The first check found formatting only: exit 1, `lift-entry-check.log`.
+Logs remain under `tools/flight-trial/.logs/`.
+The corrected check passed: exit 0, `lift-entry-check-green.log`.
+The full package passed all 83 tests: exit 0, `lift-entry-full-test-green.log`.
+TSDoc passed: exit 0, `lift-entry-tsdoc.log`.

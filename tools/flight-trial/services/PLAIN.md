@@ -24,6 +24,24 @@ Wire types live next to the primitives that use them.
 Callbacks inside a primitive are part of that primitive.
 Process signal callbacks belong to their entry point.
 
+The lead's mutation-lift instruction permits exported entry functions
+when Stryker cannot follow child coverage.
+Each `main` stays in its process entry file and returns an exit code.
+This follows ADR 0078 and leaves the pure helper list at six.
+
+## Process entries: `main`
+
+- Payment `main(env: NodeJS.ProcessEnv)`:
+  settings from the process environment or HTTP lifecycle fixture;
+  needed to configure the root tags.
+- Supplier `main(env: NodeJS.ProcessEnv, name: string | undefined)`:
+  the same settings source and use;
+  name from the process argument or lifecycle fixture;
+  needed to choose the supplier stock.
+- Call sites: each guarded process entry and the HTTP lifecycle fixture.
+- These entries own IO, their scopes, process signals, and exit results
+  under the user's explicit test fallback.
+
 Core feedback: shared unit with a slot.
 Each service repeats its dispatch operation and listener resource.
 A plain builder must not take an operation handle.

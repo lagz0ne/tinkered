@@ -149,6 +149,9 @@ Each supplier and payment run in their own process and Core scope.
 State lives in Core data cells.
 Resources own HTTP listeners and watchers.
 Operations own calls, seat writes, and webhook sends.
+Each process entry serves its settings and closes cleanly on SIGTERM.
+Entry lifecycle tests cover real child processes and the exported entry functions.
+The entry functions return exit codes.
 Tags hold ports, supplier IDs, secrets, tokens, and short delays.
 
 Build the workspace first.
