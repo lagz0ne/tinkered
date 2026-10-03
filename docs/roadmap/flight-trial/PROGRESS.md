@@ -832,5 +832,101 @@ The workspace command was:
   --concurrency-limit 1 -r test
 ```
 
-The second strict mutation lane will use the same lock,
-the same nine source files, and the unchanged floor of 85.
+The second strict mutation lane scored 80.82 percent and exited 1.
+Log: `fix-strict-mutate-second.log`.
+Report: `fix-strict-mutation-second.json`.
+It used the same lock, nine source files, and floor of 85.
+There were 1,231 killed cases, 46 timeouts, 205 survivors,
+98 without coverage, and no runner errors.
+
+### Final review step and handoff
+
+The user asked for a saved green step and an end to test growth.
+The current code step is committed as `9ca8bb65`.
+The real-clock README line is committed as `c1f323db`.
+Both commits passed their hooks; no stash was used.
+
+Internal graph calls now use `rawInput` so Core runs each input reader.
+There are no `ctx: Operation.Ctx` annotations in the services.
+Bad input still returns the named Duffel or Stripe wire error.
+Pending payment key work lives in a resource map.
+Its route call removes the key in `finally`, including a thrown route.
+The parallel same-key and pipelined same-key HTTP tests pass.
+
+Delay operations return the stopped reply when their wait ends on stop.
+Dispatch skips call-log writes after stop.
+Outgoing webhook sends also skip a late log write after stop.
+This fixes a disposed-cell write that changed payment's stopped reply to 500.
+The failing HTTP proof is `fix-strict-stop-red.log`, exit 1.
+The passing full package proof is `fix-review-final-test.log`, exit 0.
+
+The strict graph still has six plain functions.
+`tools/flight-trial/services/PLAIN.md` lists their inputs and call sites.
+Only the two service process entries call `createScope`.
+There are no classes, testing imports, shared start helpers,
+or old service wiring names.
+Core feedback remains: shared unit with a slot.
+The launcher HTTP proof starts four distinct processes,
+drives each service and control API, and stops all four cleanly.
+
+Each must-fix has its failing proof and a fresh passing proof:
+
+- Route replacement and repeat: `fix-m1-red.log`, exit 1.
+  Passing: `fix-review-final-m1-green.log`, exit 0, two tests.
+- Completion after reset: `fix-m2-red.log`, exit 1.
+  Passing: `fix-review-final-m2-green.log`, exit 0, one test.
+- Real-time webhook signature: `fix-m3-red.log`, exit 1.
+  Passing: `fix-review-final-m3-green.log`, exit 0, one test.
+
+All logs below are under `tools/flight-trial/.logs/`.
+Final code gates each exited 0:
+
+- Workspace build: `fix-review-final-build.log`.
+- Workspace check: `fix-review-final-check.log`.
+  Zero errors; 28 workspace warnings.
+- Package test: `fix-review-final-test.log`; all 81 passed.
+- Workspace tests: `fix-review-final-workspace-test.log`; all nine tasks passed.
+  The runner used `--concurrency-limit 1` before the task name.
+- Strict style census: `fix-review-final-style.log`; every strict row is zero.
+- Prose: `fix-review-final-prose.log`.
+- Validation: `fix-review-final-validate.log`; all 16 lanes passed.
+- Process HTTP proof: `fix-review-final-process.log`.
+- Graph audit: `fix-review-final-graph.log`.
+- TSDoc parser: `fix-review-final-tsdoc.log`; no S26 rows.
+
+Jev preflight exited 0: `fix-review-final-jev-preflight.log`.
+It has no file flags and eight flagged units.
+They match the resource ownership and stop reasons listed above.
+Test review exited 0: `fix-review-final-jev-tests.log`; no flags in 50 tests.
+The first test and promise review targets were wrong and exited 1.
+Their logs end in `jev-tests-path-error.log` and `jev-promises-path-error.log`.
+The retries use the two test files and `../tools/flight-trial`.
+README review logs use `fix-review-final-jev-promises`.
+The real-clock promise gap was filled in `c1f323db`.
+The `never` promise already says the intent stays processing until a manual send.
+The form metadata promise now states that unsafe nested keys are skipped.
+Final README review exited 0: `fix-review-final-jev-promises-complete.log`.
+There are no confident gaps in 81 titles.
+Its one unsure `never` title has the existing processing and manual-send promise.
+
+The final full mutation lane ran alone under `/tmp/mutation.lock`.
+It exited 1 at 82.79 percent; the floor remains 85.
+Log: `fix-review-final-mutate.log`.
+Report: `fix-review-final-mutation.json`.
+Counts: `fix-review-final-mutation-summary.json`.
+It includes all nine source files and all 1,586 cases.
+There are 1,295 killed cases, 18 timeouts, 180 survivors,
+93 without coverage, and no runner errors.
+The two process entry files account for 56 cases without coverage.
+Their HTTP launcher proof is outside the mutation test runner.
+Supplier has 76 survivors, payment 63, shared HTTP 31, and data 10.
+At this case count, 36 more cases must be caught to reach 85.
+Nothing was excluded and no mutation setting was changed.
+This floor gap remains for the lead; no further tests were added after `9ca8bb65`.
+
+The first requested fetch and rebase completed with exit 0.
+Its target was `c4615b40`; the branch reflog records that finish.
+Proof: `fix-review-final-base.log`.
+Main later gained only the two new authoring-rule doc commits.
+The initial base remains an ancestor; current main is not yet an ancestor.
+So landing also needs a rebase onto those new docs.

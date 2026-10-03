@@ -315,6 +315,7 @@ The small shapes follow
 [Stripe's PaymentIntents](https://docs.stripe.com/api/payment_intents).
 Payment accepts JSON or form bodies.
 Form bodies read nested bracket keys and booleans.
+Form metadata keeps plain values and skips unsafe nested keys.
 They keep metadata and automatic payment settings.
 It returns Stripe objects directly, without a `data` wrapper.
 Bad payment input and missing resources return Stripe errors.
