@@ -26,6 +26,8 @@ const FRESH_CHECKERS = {
   gym: "gym-acceptance.mjs",
 };
 export const checkerFor = (suite, round) => {
+  if (suite === "flight" && [1, 2, 3, 4, 5].includes(round))
+    return { script: "flight-check.mjs", args: [String(round)] };
   if (suite === "booking") return bookingChecker(round);
   if (Object.hasOwn(FRESH_CHECKERS, suite) && round === 1)
     return { script: FRESH_CHECKERS[suite], args: [] };

@@ -246,3 +246,41 @@ void describe("frozen copies", () => {
     );
   });
 });
+
+void describe("flight frozen packets", () => {
+  void it("stages only frozen flight packets and refuses a missing later round", () => {
+    const root = mkdtempSync(join(tmpdir(), "flight-suite-"));
+    const packets = mkdtempSync(join(tmpdir(), "flight-packets-"));
+    try {
+      writeFileSync(join(packets, "01-search.md"), "# Round 1: search\n");
+      writeFileSync(join(packets, "02-metasearch.md"), "# Round 2: metasearch\n");
+      const frozen = freezeTrial(root, "flight", packets);
+      assert.match(readFrozenTask(root, frozen, "flight", 1), /Round 1/);
+      assert.doesNotMatch(readFrozenTask(root, frozen, "flight", 1), /Round 2/);
+      assert.match(readFrozenTask(root, frozen, "flight", 2), /Round 2/);
+      assert.throws(() => readFrozenTask(root, frozen, "flight", 3), /ENOENT/);
+      assert.equal(verifyFrozen(root, frozen), true);
+      assert.match(
+        readFrozenGuidelines(root, frozen, "flight"),
+        /Keep `src\/scaffold\/` unchanged/,
+      );
+      assert.deepEqual(roundsFor("flight"), [1, 2, 3, 4, 5]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(packets, { recursive: true, force: true });
+    }
+  });
+  void it("refuses create without a real first flight packet", () => {
+    const root = mkdtempSync(join(tmpdir(), "flight-missing-"));
+    const packets = mkdtempSync(join(tmpdir(), "flight-empty-"));
+    try {
+      assert.throws(
+        () => freezeTrial(root, "flight", packets),
+        /Missing packet: flight\/01-search.md/,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(packets, { recursive: true, force: true });
+    }
+  });
+});
