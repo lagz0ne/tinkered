@@ -2610,3 +2610,11 @@ The saved image still has the older Core build.
 Its browser proof keeps the secure-origin flag.
 New images built with `f847c99c` no longer need that flag.
 Old flight images and proof folders stay until the gates pass.
+
+The trusted-origin run also proved round 3.
+Both full gates exited 0.
+The planted break exited 1 on
+`r3 a changed price is refused before any hold order`.
+Own checks, scaffold, strict plain check, and Jev exited 0.
+The nine saved rows now point to `reference-trusted-final`.
+Round 4 is running.
