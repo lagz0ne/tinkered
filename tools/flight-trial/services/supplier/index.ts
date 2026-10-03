@@ -23,6 +23,7 @@ import {
 export declare namespace Supplier {
   type Offer = {
     id: string;
+    expires_at: string;
     flight_id: string;
     cabin_class: Flights.Cabin["cabin"];
     fare_class: string;
@@ -131,15 +132,21 @@ function readCurrent(
   };
 }
 const expireHolds = operation({
-  label: "release expired supplier holds",
+  label: "release expired supplier quotes and holds",
   depends: { state: state.controller, clock },
   run({ state, clock }) {
+    const now = clock.currentTimeMillis();
     state.update((current) => {
       let next = current;
+      for (const offer of Object.values(current.offers)) {
+        if (Date.parse(offer.expires_at) > now) continue;
+        if (next === current) next = { ...current, offers: { ...current.offers } };
+        delete next.offers[offer.id];
+      }
       for (const order of Object.values(current.orders)) {
         if (
           !order.payment_status.awaiting_payment ||
-          Date.parse(order.payment_status.payment_required_by!) > clock.currentTimeMillis()
+          Date.parse(order.payment_status.payment_required_by!) > now
         )
           continue;
         const stock = structuredClone(next.stock[order.flight_id]);
@@ -214,26 +221,28 @@ function createState(offers: Flights.Offer[], scenario: string): Supplier.State 
 const search = operation({
   label: "search supplier flights",
   input: (raw) => searchSchema.safeParse(raw),
-  depends: { state: state.controller },
-  run({ state }, ctx) {
+  depends: { state: state.controller, clock },
+  run({ state, clock }, ctx) {
     const parsed = ctx.input;
     if (!parsed.success) return reject("invalid_offer_request");
     const slice = parsed.data.data.slices.at(0)!;
     const current = state.get();
+    const deadline = clock.currentTimeMillis() + 30 * 60 * 1000;
     const offers: Supplier.Offer[] = [];
-    for (const stock of Object.values(current.stock)) {
+    for (const stock of Object.values(current.stock).filter(
+      (entry) =>
+        entry.flight.origin === slice.origin &&
+        entry.flight.destination === slice.destination &&
+        entry.flight.date === slice.departure_date,
+    )) {
       const flight = stock.flight;
-      if (
-        flight.origin !== slice.origin ||
-        flight.destination !== slice.destination ||
-        flight.date !== slice.departure_date
-      )
-        continue;
       const cabin = stock.cabins.find((entry) => entry.cabin === parsed.data.data.cabin_class)!;
       if (cabin.seatsAvailable < parsed.data.data.passengers.length) continue;
       for (const fare of cabin.fares) {
         const offer: Supplier.Offer = {
-          id: `off_${ctx.random.uuid()}`,
+          /** The opaque ID keeps its deadline so dropped quotes need no growing tombstone list. */
+          id: `off_${deadline}_${ctx.random.uuid()}`,
+          expires_at: new Date(deadline).toISOString(),
           flight_id: flight.id,
           cabin_class: cabin.cabin,
           fare_class: fare.fareClass,
@@ -259,7 +268,8 @@ const search = operation({
         offers.push(offer);
       }
     }
-    const retained = [...Object.values(current.offers), ...offers].slice(-1024);
+    const retained = [...Object.values(current.offers), ...offers];
+    if (retained.length > 65536) return reject("offer_limit_reached", 429);
     state.set({
       ...current,
       offers: Object.fromEntries(retained.map((offer) => [offer.id, offer])),
@@ -276,7 +286,10 @@ const order = operation({
     const parsed = ctx.input;
     if (!parsed.success) return reject("invalid_order");
     const current = state.get();
-    const offer = current.offers[parsed.data.data.selected_offers.at(0)!];
+    const id = parsed.data.data.selected_offers.at(0)!;
+    if (Number(id.split("_").at(1)) <= clock.currentTimeMillis())
+      return reject("offer_expired", 409);
+    const offer = current.offers[id];
     if (!offer) return reject("offer_not_found", 404);
     const stock = current.stock[offer.flight_id];
     const quotedCabin = stock.cabins.find((entry) => entry.cabin === offer.cabin_class)!;
@@ -294,18 +307,17 @@ const order = operation({
     )!;
     cabin.seatsAvailable -= parsed.data.data.passengers.length;
     const held = parsed.data.data.type === "hold";
+    const paymentDeadline = held
+      ? new Date(clock.currentTimeMillis() + holdMs).toISOString()
+      : null;
     const booked: Supplier.Order = {
       id: `ord_${ctx.random.uuid()}`,
       type: parsed.data.data.type,
       payment_status: {
         awaiting_payment: held,
-        payment_required_by: held
-          ? new Date(clock.currentTimeMillis() + holdMs).toISOString()
-          : null,
+        payment_required_by: paymentDeadline,
         paid_at: held ? null : new Date(clock.currentTimeMillis()).toISOString(),
-        price_guarantee_expires_at: held
-          ? new Date(clock.currentTimeMillis() + holdMs).toISOString()
-          : null,
+        price_guarantee_expires_at: paymentDeadline,
       },
       selected_offers: [offer.id],
       total_amount: (Number(offer.total_amount) * parsed.data.data.passengers.length).toFixed(2),
@@ -426,10 +438,13 @@ const supplierControl = operation({
 const lookup = operation({
   label: "read supplier offer or order",
   input: requestSchema,
-  depends: { state: state.controller },
-  run({ state }, ctx) {
+  depends: { state: state.controller, clock },
+  run({ state, clock }, ctx) {
     if (ctx.input.route.startsWith("GET /air/offers/")) {
-      const offer = state.get().offers[ctx.input.path.split("/").at(-1)!];
+      const id = ctx.input.path.split("/").at(-1)!;
+      if (Number(id.split("_").at(1)) <= clock.currentTimeMillis())
+        return reject("offer_expired", 409);
+      const offer = state.get().offers[id];
       if (!offer) return reject("offer_not_found", 404);
       const cabin = state
         .get()
@@ -455,8 +470,8 @@ const action = operation({
     lookup: lookup.controller,
   },
   async run({ expire, search, order, pay, control, lookup }, ctx) {
-    if (ctx.input.path.startsWith("/control/")) return control.run({ rawInput: ctx.input });
     expire.run();
+    if (ctx.input.path.startsWith("/control/")) return control.run({ rawInput: ctx.input });
     if (ctx.input.route === "POST /air/offer_requests")
       return search.run({ rawInput: ctx.input.body });
     if (ctx.input.route === "POST /air/orders") return order.run({ rawInput: ctx.input.body });

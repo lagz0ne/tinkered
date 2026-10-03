@@ -215,9 +215,11 @@ All supplier success replies put the result under `data`.
 Prices are decimal strings in USD.
 Each offer also has `flight_id`, `cabin_class`, `fare_class`, and `available_seats`.
 A search makes a fresh offer ID and keeps its quoted price.
-The service keeps the newest 1,024 offers.
-Older offer IDs return HTTP 404.
-Stored offer count and state bytes stay bounded after many searches.
+Expired offers are removed before the next service or control call.
+Offer count and state bytes stay bounded across expired search batches.
+The service keeps at most 65,536 live offers.
+At that limit, a new search returns HTTP 429 `offer_limit_reached`.
+It never removes a valid quote to admit a new search.
 The grader can read both with `GET /control/state`.
 Search returns data flights shared by suppliers A and B on LHR to AMS.
 Each supplier starts with all stock from `offers(supplier)`.
@@ -243,6 +245,13 @@ POST /air/offer_requests
 
 The reply has `data.id` and `data.offers`.
 Offer request IDs start with `orq_`.
+Each offer has an ISO `expires_at`, 30 minutes from the service clock.
+A quote still works after 200 further searches while it is valid.
+At or after its deadline, booking or reading it returns HTTP 409
+with Duffel-shaped `offer_expired`.
+Its opaque ID keeps the deadline after its stored data is removed.
+This follows [Duffel’s offer lifetime](https://duffel.com/docs/api/v2/offers)
+and [expiry error](https://duffel.com/docs/api/overview/response-handling).
 Economy is the default cabin.
 One adult is the default passenger.
 The trial counts every passenger as one seat.

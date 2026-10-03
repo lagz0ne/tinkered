@@ -1010,6 +1010,17 @@ All 16 validation lanes passed: exit 0, `lift-final-validate.log`.
 The four-process HTTP proof passed: exit 0, `lift-final-process.log`.
 Jev test review passed: exit 0, `lift-final-jev-tests.log`; no flags in 28 tests.
 
+### Landing review: quote lifetime and plain errors
+
+Owner: Codex; branch `trial/flight-services`.
+Next: keep valid quotes through many searches; remove error classes.
+Verify: 200 HTTP searches keep the first quote bookable.
+After its service-clock deadline, booking returns `offer_expired`.
+Expired quote data is removed without keeping a growing ID list.
+All landing gates and the locked mutation lane must pass.
+The package floor stays at 85, with nothing excluded.
+Fetch and rebase onto `origin/main` passed with exit 0.
+
 ### Mutation floor closed
 
 Code commits: `af26d518` for the entry lifecycle tests,
@@ -1055,3 +1066,21 @@ The two unsure titles have existing README promises:
 `never` leaves the intent processing until a manual send,
 and an expired business hold restores its own cabin for the default one adult.
 Final TSDoc: exit 0, `lift-final-tsdoc.log`; no S26 rows.
+
+### Landing step: quote lifetime
+
+Offers carry `expires_at`, 30 minutes from the service clock.
+No unexpired quote is removed to make room for another search.
+At 65,536 live quotes, new searches return a Duffel-shaped HTTP 429.
+Each opaque quote ID keeps its deadline after its stored data is dropped.
+Booking or reading a dropped expired quote returns `offer_expired`.
+The existing expiry operation removes expired quotes before the next call.
+It copies the offer map only when it removes a quote.
+The two HTTP proofs cover early booking after 200 searches
+and equal state size across two expired batches of 200 searches.
+The regression failed with HTTP 404 before the fix.
+Red: `land-offer-red.log`, exit 1.
+Green: `land-offer-green-fixed.log`, exit 0; 86 tests.
+Build, check, and prose passed with exit 0.
+Logs: `land-offer-build.log`, `land-offer-check-fixed.log`,
+and `land-offer-prose.log`, under `tools/flight-trial/.logs/`.

@@ -8,6 +8,7 @@ const offersSchema = z.object({
     offers: z.array(
       z.object({
         id: z.string().startsWith("off_"),
+        expires_at: z.iso.datetime(),
         flight_id: z.string().min(1),
         cabin_class: z.enum(["economy", "business"]),
         fare_class: z.enum(["saver", "standard", "flex"]),
@@ -1196,6 +1197,47 @@ test("only an unpaid hold can accept a payment", async () => {
   }
 });
 
+test("an early quote survives 200 searches and expires on the service clock", async () => {
+  const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
+    await import("../src/index.ts");
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
+  await post(url, "/control/clock", { now: 10000 });
+  const first = (await search(url)).at(0)!;
+  for (let i = 1; i < 200; i++) await search(url);
+  const body = { data: { selected_offers: [first.id], type: "instant" } };
+  expect((await post(url, "/air/orders", body)).status).toBe(201);
+  const quote = z
+    .object({ data: z.object({ expires_at: z.iso.datetime() }) })
+    .parse(await (await fetch(`${url}/air/offers/${first.id}`)).json()).data;
+  expect(quote.expires_at).toBe("1970-01-01T00:30:10.000Z");
+  await post(url, "/control/clock", { now: Date.parse(quote.expires_at) });
+  const expired = await post(url, "/air/orders", body);
+  expect(expired.status).toBe(409);
+  expect(await expired.json()).toEqual({
+    errors: [{ type: "invalid_request_error", code: "offer_expired", title: "offer_expired" }],
+  });
+  expect((await fetch(`${url}/air/offers/${first.id}`)).status).toBe(409);
+  const retained = await fetch(`${url}/control/state`, {
+    headers: { authorization: "Bearer grader" },
+  });
+  expect(await retained.json()).toMatchObject({ data: { offers: 0 } });
+}, 20000);
+
 test("stored offer count and state bytes stay bounded after many searches", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
     await import("../src/index.ts");
@@ -1215,21 +1257,31 @@ test("stored offer count and state bytes stay bounded after many searches", asyn
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
   const { url } = scopeUrl.resolve(supplierApp);
+  await post(url, "/control/clock", { now: 10000000 });
   const count = (await search(url)).length;
-  for (let i = 0; i < Math.ceil(1024 / count); i++) await search(url);
+  for (let i = 1; i < 200; i++) await search(url);
   const schema = z.object({ data: z.object({ offers: z.number(), bytes: z.number() }) });
   const before = schema.parse(
     await (
       await fetch(`${url}/control/state`, { headers: { authorization: "Bearer grader" } })
     ).json(),
   ).data;
+  expect(before.offers).toBe(200 * count);
+  await post(url, "/control/clock", { advanceMs: 30 * 60 * 1000 });
+  const empty = schema.parse(
+    await (
+      await fetch(`${url}/control/state`, { headers: { authorization: "Bearer grader" } })
+    ).json(),
+  ).data;
+  expect(empty.offers).toBe(0);
+  expect(empty.bytes).toBeLessThan(before.bytes);
   for (let i = 0; i < 200; i++) await search(url);
   const after = schema.parse(
     await (
       await fetch(`${url}/control/state`, { headers: { authorization: "Bearer grader" } })
     ).json(),
   ).data;
-  expect(after).toEqual({ offers: 1024, bytes: before.bytes });
+  expect(after).toEqual(before);
 }, 20000);
 
 test("search accepts supported passenger kinds and rejects an unknown kind", async () => {
