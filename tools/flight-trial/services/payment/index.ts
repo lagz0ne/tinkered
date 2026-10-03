@@ -8,6 +8,7 @@ import {
   reply,
   rules,
   httpRequests,
+  controlRoutes,
   errorShape,
   listener,
   rejectPayment,
@@ -418,6 +419,7 @@ export const app = extension({
     async start(event) {
       const scope = event.scope.createSession({ tags: [errorShape("stripe")] });
       const http = await httpRequests.hooks!.start!({ ...event, scope });
+      scope.resolve(controlRoutes);
       await scope.run(resetScenario, { rawInput: { name: "default" } });
       scope.resolve(webhooks);
       const pendingKeys = scope.resolve(inFlight);
@@ -458,12 +460,14 @@ export const app = extension({
         return c.var.json(result);
       });
       http.post("/v1/payment_intents/:id/confirm", (c) => {
+        /** The raw path keeps percent-encoding exact on the wire; c.req.param decodes it. */
         const result = c.var.scope.run(confirm, {
           rawInput: { id: new URL(c.req.url).pathname.split("/").at(-2)! },
         });
         return c.var.json(result);
       });
       http.get("/v1/payment_intents/:id", (c) => {
+        /** The raw path keeps percent-encoding exact on the wire; c.req.param decodes it. */
         const result = c.var.scope.run(readIntent, {
           rawInput: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
         });

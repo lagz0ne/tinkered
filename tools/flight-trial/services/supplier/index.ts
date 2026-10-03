@@ -1,7 +1,17 @@
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights.ts";
-import { calls, clock, reject, reply, rules, httpRequests, errorShape, listener } from "../http.ts";
+import {
+  calls,
+  clock,
+  reject,
+  reply,
+  rules,
+  httpRequests,
+  controlRoutes,
+  errorShape,
+  listener,
+} from "../http.ts";
 
 export declare namespace Supplier {
   type Offer = {
@@ -412,6 +422,7 @@ export const app = extension({
         c.var.scope.run(expireHolds);
         await next();
       });
+      scope.resolve(controlRoutes);
       http.post("/control/scenario", async (c) => {
         const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
         return c.var.json(result);
@@ -429,12 +440,14 @@ export const app = extension({
         return c.var.json(result);
       });
       http.get("/air/offers/:id{.*}", (c) => {
+        /** The raw path keeps percent-encoding exact on the wire; c.req.param decodes it. */
         const result = c.var.scope.run(readOffer, {
           rawInput: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
         });
         return c.var.json(result);
       });
       http.get("/air/orders/:id{.*}", (c) => {
+        /** The raw path keeps percent-encoding exact on the wire; c.req.param decodes it. */
         const result = c.var.scope.run(readOrder, {
           rawInput: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
         });

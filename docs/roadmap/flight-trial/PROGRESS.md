@@ -1504,3 +1504,18 @@ Log: `tools/flight-trial/.logs/expiry-red.log`.
 The rewind returns 200; the test requires 404 `offer_not_found`.
 The workspace build passed first, exit 0.
 Log: `tools/flight-trial/.logs/expiry-base-build.log`.
+
+The shared HTTP hook now registers only the middleware stack.
+A shared resource registers the three common control routes.
+The supplier resolves it after adding its deadline middleware.
+Payment resolves it at the same point as before.
+No plain function was added; the count stays six.
+Both services explain why their ID reads keep the raw path.
+`PLAIN.md` again promises a deadline check on each HTTP call.
+
+Green rewind proof: exit 0, `expiry-green.log`.
+All 96 package tests pass, exit 0, `expiry-tests.log`.
+Build, check, four-process proof, prose, strict style, and TSDoc pass.
+Check prints zero errors and the same 28 warnings.
+All logs are under `tools/flight-trial/.logs/`.
+Mutation was not run; the lead runs it.

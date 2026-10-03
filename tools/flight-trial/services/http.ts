@@ -382,7 +382,7 @@ export const middleware = resource({
   },
 });
 
-/** Service start hooks borrow their event here; all HTTP setup has one owner. */
+/** Service start hooks borrow their event here; the HTTP stack has one owner. */
 export const httpRequests = extension({
   label: "shared HTTP requests",
   hooks: {
@@ -404,22 +404,32 @@ export const httpRequests = extension({
       http.use("/control/:rest{.*}", shared.token);
       http.use("*", shared.body);
       http.use("*", shared.rule);
-      http.post("/control/clock", (c) => {
-        const result = c.var.scope.run(setClock, { rawInput: c.var.body });
-        return c.var.json(result);
-      });
-      http.get("/control/calls", (c) => {
-        const result = c.var.scope.run(readCalls);
-        return c.var.json(result);
-      });
-      http.post("/control/routes", (c) => {
-        const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
-        const { route: name, ...settings } = parsed.success ? parsed.data : {};
-        const result = c.var.scope.run(setRoute, { rawInput: { ...settings, name } });
-        return c.var.json(result);
-      });
       return http;
     },
+  },
+});
+
+/** Services register their own middleware before resolving these shared control routes. */
+export const controlRoutes = resource({
+  label: "shared HTTP control routes",
+  target: "session",
+  depends: { http: web },
+  factory({ http }) {
+    http.post("/control/clock", (c) => {
+      const result = c.var.scope.run(setClock, { rawInput: c.var.body });
+      return c.var.json(result);
+    });
+    http.get("/control/calls", (c) => {
+      const result = c.var.scope.run(readCalls);
+      return c.var.json(result);
+    });
+    http.post("/control/routes", (c) => {
+      const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
+      const { route: name, ...settings } = parsed.success ? parsed.data : {};
+      const result = c.var.scope.run(setRoute, { rawInput: { ...settings, name } });
+      return c.var.json(result);
+    });
+    return http;
   },
 });
 

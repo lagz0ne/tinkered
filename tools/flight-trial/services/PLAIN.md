@@ -19,7 +19,7 @@ The routing tests share their setup in `beforeEach`.
 Tests use HTTP to drive and read each service.
 There is no shared start helper.
 
-Each supplier handler checks quote and hold deadlines before it reads or edits state.
+Each HTTP call checks quote and hold deadlines before it reads or edits state.
 No separate supplier timer or watcher repeats that work.
 Resources own the listeners, clock, waits, payment watchers,
 and map of pending payment work.
@@ -53,7 +53,8 @@ Each service binds an error-shape tag in one owned session.
 Its start hook borrows the shared HTTP extension hook.
 That one hook binds the scope through Hono middleware.
 It registers the token check before body decoding and rule waits.
-It also registers the clock, calls, and route-rule control paths once.
+The shared control-route resource registers clock, calls, and route-rule paths once.
+The supplier resolves it after registering its deadline check.
 Each handler reads only its values and runs one operation.
 Common middleware runs separate operations to start and save calls and rules.
 Body decoding runs in `decodeBody`.
