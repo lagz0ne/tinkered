@@ -191,6 +191,7 @@ if (action === "create") {
         join(seed, ".oxfmtrc.json"),
         '{\n  "ignorePatterns": ["src/routeTree.gen.ts", "FEEDBACK.md", "TASK.md"]\n}\n',
       );
+      writeFileSync(join(seed, ".prettierignore"), "TASK.md\nFEEDBACK.md\nsrc/routeTree.gen.ts\n");
       const env = Object.entries(flightEnvironment())
         .map(([key, value]) => `${key}=${value}`)
         .join("\n");
@@ -323,17 +324,15 @@ if (action === "create") {
     if (w.status === "cleaned") throw new Error("Create a fresh trial before staging");
     run("docker", ["start", w.container]);
     run("docker", ["cp", taskFile, `${w.container}:/work/TASK.md`]);
-    // Packets are frozen inputs, not writer prose; older saved images need this too.
-    if (suite === "flight") {
+    // Vite+ reads .prettierignore even when vite.config.ts owns formatter settings.
+    if (suite === "flight")
       run("docker", [
         "exec",
         w.container,
         "node",
         "-e",
-        "const fs=require('node:fs');const p='/work/.oxfmtrc.json';const c=JSON.parse(fs.readFileSync(p));c.ignorePatterns=[...new Set([...(c.ignorePatterns??[]),'TASK.md'])];fs.writeFileSync(p,JSON.stringify(c,null,2)+'\\n');",
+        "require('node:fs').appendFileSync('/work/.prettierignore','\\nTASK.md\\nFEEDBACK.md\\nsrc/routeTree.gen.ts\\n');",
       ]);
-      run("docker", ["exec", w.container, "vp", "fmt", ".oxfmtrc.json"]);
-    }
     const ext = join(w.dir, ".pi/extensions/trial");
     copyTrialTools(manifest.frozen ? join(root, manifest.frozen.dir, "tools") : here, ext);
     const cfgPath = join(ext, "worker.json");

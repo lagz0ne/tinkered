@@ -55,6 +55,7 @@ export function prepareFlight(repo, home, config, build) {
   execFileSync(join(repo, "node_modules/.bin/vp"), ["fmt", join(seed, ".oxfmtrc.json")], {
     stdio: "inherit",
   });
+  writeFileSync(join(seed, ".prettierignore"), "TASK.md\nFEEDBACK.md\nsrc/routeTree.gen.ts\n");
   const scaffold = {};
   for (const file of registry.items.find((item) => item.name === "runtime").files)
     scaffold[file.path] = sha256File(join(seed, file.path));

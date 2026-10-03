@@ -132,6 +132,8 @@ It copies their files, tests, all five skills, and `AGENTS.md`.
 It uses the default `@/lib` alias.
 Core and React are packed tarballs, with no workspace links.
 Generated router files and frozen `TASK.md` are ignored by formatting.
+The image and stage write `.prettierignore`.
+Vite+ reads this file when the scaffold's Vite config owns formatting.
 The image's seam script has its own read-only package link.
 Flight runs one Vitest worker at a time to fit the memory limit.
 Each new tag saves its build folder and `image.tar`.
