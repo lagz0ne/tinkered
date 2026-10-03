@@ -2,7 +2,7 @@ import { once } from "node:events";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
-import { data, operation, resource, tag, type Scope } from "@tinker/core";
+import { data, extension, operation, resource, tag, type Scope } from "@tinker/core";
 import { failFlightService } from "../src/errors.ts";
 import { z } from "zod";
 
@@ -359,6 +359,55 @@ export const middleware = resource({
           });
       }),
     };
+  },
+});
+
+/** Service start hooks borrow their event here; all HTTP setup has one owner. */
+export const httpRequests = extension({
+  label: "shared HTTP requests",
+  hooks: {
+    async start({ scope, next }) {
+      await next();
+      const http = scope.resolve(web);
+      const shared = scope.resolve(middleware);
+      http.use("*", async (c, next) => {
+        c.set("scope", scope);
+        c.set("control", false);
+        await next();
+      });
+      http.use("/control/:rest{.*}", async (c, next) => {
+        c.set("control", true);
+        await next();
+      });
+      http.use("*", shared.log);
+      http.use("/control/:rest{.*}", shared.token);
+      http.use("*", shared.body);
+      http.use("*", shared.rule);
+      http.post("/control/clock", (c) => {
+        const result = c.var.scope.run(setClock, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.get("/control/calls", (c) => {
+        const result = c.var.scope.run(readCalls);
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/control/routes", (c) => {
+        const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
+        const { route: name, ...settings } = parsed.success ? parsed.data : {};
+        const result = c.var.scope.run(setRoute, { rawInput: { ...settings, name } });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      return http;
+    },
   },
 });
 

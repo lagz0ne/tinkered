@@ -7,12 +7,9 @@ import {
   reject,
   reply,
   rules,
+  httpRequests,
   web,
-  middleware,
   listener,
-  readCalls,
-  setRoute,
-  setClock,
   rejectPayment,
   stopSignal,
   type Wire,
@@ -405,26 +402,15 @@ const intentKey = operation({
 export const app = extension({
   label: "start payment app",
   hooks: {
-    async start({ scope, next }) {
-      await next();
+    async start(event) {
+      const { scope } = event;
+      scope.resolve(web).use("*", async (c, next) => {
+        c.set("payment", true);
+        await next();
+      });
+      const http = await httpRequests.hooks!.start!(event);
       await scope.run(resetScenario, { rawInput: { name: "default" } });
       scope.resolve(webhooks);
-      const http = scope.resolve(web);
-      const shared = scope.resolve(middleware);
-      http.use("*", async (c, next) => {
-        c.set("scope", scope);
-        c.set("payment", true);
-        c.set("control", false);
-        await next();
-      });
-      http.use("/control/:rest{.*}", async (c, next) => {
-        c.set("control", true);
-        await next();
-      });
-      http.use("*", shared.log);
-      http.use("/control/:rest{.*}", shared.token);
-      http.use("*", shared.body);
-      http.use("*", shared.rule);
       http.use("/v1/:rest{.*}", async (c, next) => {
         const key = c.req.header("idempotency-key");
         if (!key || c.req.method !== "POST") return next();
@@ -453,29 +439,6 @@ export const app = extension({
       });
       http.post("/control/scenario", async (c) => {
         const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
-      });
-      http.post("/control/clock", (c) => {
-        const result = c.var.scope.run(setClock, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
-      });
-      http.get("/control/calls", (c) => {
-        const result = c.var.scope.run(readCalls);
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
-      });
-      http.post("/control/routes", (c) => {
-        const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
-        const { route: name, ...settings } = parsed.success ? parsed.data : {};
-        const result = c.var.scope.run(setRoute, { rawInput: { ...settings, name } });
         return new Response(JSON.stringify(result.body), {
           status: result.status,
           headers: result.headers,

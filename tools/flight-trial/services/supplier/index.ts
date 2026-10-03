@@ -1,19 +1,7 @@
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights.ts";
-import {
-  calls,
-  clock,
-  reject,
-  reply,
-  rules,
-  web,
-  middleware,
-  listener,
-  readCalls,
-  setRoute,
-  setClock,
-} from "../http.ts";
+import { calls, clock, reject, reply, rules, httpRequests, web, listener } from "../http.ts";
 
 export declare namespace Supplier {
   type Offer = {
@@ -416,54 +404,20 @@ const readOrder = operation({
 export const app = extension({
   label: "start supplier app",
   hooks: {
-    async start({ scope, next }) {
-      await next();
-      await scope.run(resetScenario, { rawInput: { name: "default" } });
-      const http = scope.resolve(web);
-      const shared = scope.resolve(middleware);
-      http.use("*", async (c, next) => {
-        c.set("scope", scope);
+    async start(event) {
+      const { scope } = event;
+      scope.resolve(web).use("*", async (c, next) => {
         c.set("payment", false);
-        c.set("control", false);
         await next();
       });
-      http.use("/control/:rest{.*}", async (c, next) => {
-        c.set("control", true);
-        await next();
-      });
-      http.use("*", shared.log);
-      http.use("/control/:rest{.*}", shared.token);
-      http.use("*", shared.body);
-      http.use("*", shared.rule);
+      const http = await httpRequests.hooks!.start!(event);
+      await scope.run(resetScenario, { rawInput: { name: "default" } });
       http.use("*", async (c, next) => {
         c.var.scope.run(expireHolds);
         await next();
       });
       http.post("/control/scenario", async (c) => {
         const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
-      });
-      http.post("/control/clock", (c) => {
-        const result = c.var.scope.run(setClock, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
-      });
-      http.get("/control/calls", (c) => {
-        const result = c.var.scope.run(readCalls);
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
-      });
-      http.post("/control/routes", (c) => {
-        const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
-        const { route: name, ...settings } = parsed.success ? parsed.data : {};
-        const result = c.var.scope.run(setRoute, { rawInput: { ...settings, name } });
         return new Response(JSON.stringify(result.body), {
           status: result.status,
           headers: result.headers,
