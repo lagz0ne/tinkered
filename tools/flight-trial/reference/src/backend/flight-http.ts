@@ -10,11 +10,12 @@ export const callSupplier = operation({
       "supplier-b": settings.SUPPLIER_B_URL,
       "supplier-c": settings.SUPPLIER_C_URL,
     };
-    return fetch(`${urls[ctx.input.supplier]}${ctx.input.path}`, {
+    const response = await fetch(`${urls[ctx.input.supplier]}${ctx.input.path}`, {
       method: ctx.input.body === undefined ? "GET" : "POST",
       headers: { "content-type": "application/json" },
       ...(ctx.input.body === undefined ? {} : { body: JSON.stringify(ctx.input.body) }),
       signal: ctx.signal,
     });
+    return { ok: response.ok, status: response.status, body: (await response.json()) as unknown };
   },
 });

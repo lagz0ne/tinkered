@@ -43,7 +43,7 @@ export const holdFlight = operation({
       const response = await supplier.run({
         input: { supplier: selected.supplier, path: `/air/offers/${selected.id}` },
       });
-      const current = offerReply.parse(await response.json()).data;
+      const current = offerReply.parse(response.body).data;
       let message: string | undefined;
       if (current.total_amount !== selected.total_amount) message = "Price changed";
       else if (current.available_seats === 0) message = "Sold out";
@@ -57,7 +57,7 @@ export const holdFlight = operation({
         });
         if (!ordered.ok) message = "Sold out";
         else {
-          const saved = orderReply.parse(await ordered.json()).data;
+          const saved = orderReply.parse(ordered.body).data;
           await tx.insert(booking).values({
             id: ctx.input.executionId,
             ownerId: currentUser.id,
@@ -129,7 +129,7 @@ export const refreshBookings = operation({
         input: { supplier: row.offer.supplier, path: `/air/orders/${row.orderId}` },
       });
       if (!response.ok) continue;
-      const order = orderReply.parse(await response.json()).data;
+      const order = orderReply.parse(response.body).data;
       if (!order.payment_status.awaiting_payment && order.payment_status.paid_at === null)
         await save.run({ input: { row, state: "Expired" } });
     }
@@ -151,7 +151,7 @@ export const readFlightSeats = operation({
           input: { supplier: selected.supplier, path: `/air/offers/${id}` },
         });
         if (!response.ok) return { id, seats: selected.available_seats };
-        return { id, seats: offerReply.parse(await response.json()).data.available_seats };
+        return { id, seats: offerReply.parse(response.body).data.available_seats };
       }),
     );
   },
