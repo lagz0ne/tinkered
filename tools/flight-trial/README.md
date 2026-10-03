@@ -218,7 +218,7 @@ A search makes a fresh offer ID and keeps its quoted price.
 Expired offers are removed before the next service or control call.
 Offer count and state bytes stay bounded across expired search batches.
 The service keeps at most 65,536 live offers.
-At that limit, a new search returns HTTP 429 `offer_limit_reached`.
+A search that would go over that limit returns HTTP 429 `offer_limit_reached`.
 It never removes a valid quote to admit a new search.
 The grader can read both with `GET /control/state`.
 Search returns data flights shared by suppliers A and B on LHR to AMS.
@@ -246,7 +246,8 @@ POST /air/offer_requests
 The reply has `data.id` and `data.offers`.
 Offer request IDs start with `orq_`.
 Each offer has an ISO `expires_at`, 30 minutes from the service clock.
-A quote still works after 200 further searches while it is valid.
+Dropping an expired quote keeps every newer quote that is still valid.
+A valid quote still works after 200 searches.
 At or after its deadline, booking or reading it returns HTTP 409
 with Duffel-shaped `offer_expired`.
 Its opaque ID keeps the deadline after its stored data is removed.
@@ -398,6 +399,8 @@ Authorization: Bearer flight-local-control
 Control uses its own `/control/` path prefix.
 Service calls need no token on the private trial network.
 Holds expire on real time before the grader sets a clock.
+Each HTTP call checks hold deadlines before reading or changing state.
+The deadline check also precedes grader edits; a hold needs no timer.
 The test clock starts only when the grader chooses it.
 Switch to it before starting timed work.
 Advancing before setting a clock starts a test clock from real time.

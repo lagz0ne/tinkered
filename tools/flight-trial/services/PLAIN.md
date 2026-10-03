@@ -18,7 +18,9 @@ Each test creates its own scope with tags and the app extension.
 Tests use HTTP to drive and read each service.
 There is no shared start helper.
 
-Resources own the listeners, clock, waits, watchers,
+Each HTTP call checks quote and hold deadlines before it reads or edits state.
+No separate supplier timer or watcher repeats that work.
+Resources own the listeners, clock, waits, payment watchers,
 and map of pending payment work.
 Data holds plain settled state.
 Operation input readers parse the wire input.

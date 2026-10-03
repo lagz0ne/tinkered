@@ -131,6 +131,7 @@ function readCurrent(
     available_seats: seatsAvailable,
   };
 }
+/** HTTP is the state boundary; deadline cleanup precedes reads and grader edits alike. */
 const expireHolds = operation({
   label: "release expired supplier quotes and holds",
   depends: { state: state.controller, clock },
@@ -166,38 +167,6 @@ const expireHolds = operation({
       }
       return next;
     });
-  },
-});
-const expire = operation({
-  label: "expire supplier hold",
-  input: z.object({ deadline: z.number() }),
-  depends: { clock, stop: stopSignal, expire: expireHolds.controller },
-  async run({ clock, stop, expire }, ctx) {
-    const signal = AbortSignal.any([stop, ctx.signal]);
-    try {
-      await clock.sleep(Math.max(0, ctx.input.deadline - clock.currentTimeMillis()), signal);
-    } catch (error) {
-      if (!signal.aborted) throw error;
-      return;
-    }
-    if (!signal.aborted) expire.run();
-  },
-});
-const holds = resource({
-  label: "watch supplier holds",
-  depends: { state: state.controller, expire: expire.controller },
-  factory({ state, expire }, ctx) {
-    ctx.defer(
-      state.watch((next, previous) => {
-        const order = Object.values(next.orders).find(
-          (entry) => entry.payment_status.awaiting_payment && !previous.orders[entry.id],
-        );
-        if (order)
-          return expire.run({
-            rawInput: { deadline: Date.parse(order.payment_status.payment_required_by!) },
-          });
-      }),
-    );
   },
 });
 
@@ -634,7 +603,6 @@ export const app = extension({
           body: { name: "default" },
         },
       });
-      scope.resolve(holds);
       return scope.resolve(http);
     },
   },

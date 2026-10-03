@@ -714,9 +714,17 @@ test("bad supplier requests return a named Duffel error", async () => {
       },
     ],
   });
-  expect((await fetch(`${url}/air/offers/missing`)).status).toBe(404);
-  expect((await fetch(`${url}/air/orders/missing`)).status).toBe(404);
-  expect((await fetch(`${url}/unknown`)).status).toBe(404);
+  for (const missing of [
+    { path: "/air/offers/missing", code: "offer_not_found" },
+    { path: "/air/orders/missing", code: "not_found" },
+    { path: "/unknown", code: "not_found" },
+  ]) {
+    const response = await fetch(`${url}${missing.path}`);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      errors: [{ type: "invalid_request_error", code: missing.code, title: missing.code }],
+    });
+  }
 });
 
 test("a hold accepts only its exact amount and keeps its payment fields", async () => {
@@ -1225,17 +1233,33 @@ test("an early quote survives 200 searches and expires on the service clock", as
     .object({ data: z.object({ expires_at: z.iso.datetime() }) })
     .parse(await (await fetch(`${url}/air/offers/${first.id}`)).json()).data;
   expect(quote.expires_at).toBe("1970-01-01T00:30:10.000Z");
+  await post(url, "/control/clock", { advanceMs: 1 });
+  const fresh = await search(url);
+  const newest = fresh.at(0)!;
   await post(url, "/control/clock", { now: Date.parse(quote.expires_at) });
   const expired = await post(url, "/air/orders", body);
   expect(expired.status).toBe(409);
   expect(await expired.json()).toEqual({
     errors: [{ type: "invalid_request_error", code: "offer_expired", title: "offer_expired" }],
   });
-  expect((await fetch(`${url}/air/offers/${first.id}`)).status).toBe(409);
+  const expiredLookup = await fetch(`${url}/air/offers/${first.id}`);
+  expect(expiredLookup.status).toBe(409);
+  expect(await expiredLookup.json()).toEqual({
+    errors: [{ type: "invalid_request_error", code: "offer_expired", title: "offer_expired" }],
+  });
   const retained = await fetch(`${url}/control/state`, {
     headers: { authorization: "Bearer grader" },
   });
-  expect(await retained.json()).toMatchObject({ data: { offers: 0 } });
+  expect(await retained.json()).toMatchObject({ data: { offers: fresh.length } });
+  const live = await fetch(`${url}/air/offers/${newest.id}`);
+  expect(live.status).toBe(200);
+  expect(await live.json()).toMatchObject({
+    data: { id: newest.id, expires_at: newest.expires_at },
+  });
+  expect(
+    (await post(url, "/air/orders", { data: { selected_offers: [newest.id], type: "instant" } }))
+      .status,
+  ).toBe(201);
 }, 20000);
 
 test("stored offer count and state bytes stay bounded after many searches", async () => {

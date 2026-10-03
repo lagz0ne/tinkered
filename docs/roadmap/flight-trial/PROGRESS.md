@@ -1096,3 +1096,29 @@ No class remains in the service code or error registry.
 Build, check, and all 86 tests passed with exit 0.
 Logs: `land-errors-build.log`, `land-errors-check.log`,
 and `land-errors-test.log`, under `tools/flight-trial/.logs/`.
+
+### Landing step: one deadline check at the HTTP boundary
+
+The first full landing mutation run scored 84.17 percent, exit 1.
+It included all nine source files and all 1,605 mutants.
+Counts: 1,339 killed, 12 timed out, 209 survived, 45 uncovered.
+Logs and full report: `land-mutate-first.log`, `land-mutation-first.json`.
+The floor of 85 and the source list are unchanged.
+
+Every service or control action already checks quote and hold deadlines
+before reading or editing state.
+The separate hold wait operation and watcher repeated that check.
+They had no further HTTP behavior to prove; both are removed.
+No timer or watcher is moved outside a resource.
+Payment keeps its resource-owned timers and watcher for outgoing webhooks.
+The supplier's only expiry work stays in its data-writing operation.
+The existing late grader seat-edit test still passes.
+
+The quote test now keeps a newer valid batch while deleting an expired one.
+It books a retained quote after that cleanup.
+Both expired lookup and missing lookup checks assert the exact wire errors.
+No new test title is added; all 86 tests pass.
+Build and check pass too.
+Logs: `land-cleanup-build.log`, `land-cleanup-check.log`,
+and `land-cleanup-test.log`, each exit 0.
+All logs are under `tools/flight-trial/.logs/`.
