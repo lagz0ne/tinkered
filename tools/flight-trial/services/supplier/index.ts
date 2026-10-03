@@ -7,7 +7,6 @@ import {
   tag,
   type Operation,
 } from "@tinker/core";
-import { preset } from "@tinker/core/testing";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights.ts";
 import {
@@ -181,16 +180,31 @@ function readCurrent(current: Supplier.State, offer: Supplier.Offer): Supplier.O
   };
 }
 
-/** A pure copy lets both the timer and a request release overdue seats once. */
+/** Stock stays shared except for the flight changed by this operation. */
+function copyStock(current: Supplier.State, flightId: string): Supplier.State {
+  return {
+    ...current,
+    stock: { ...current.stock, [flightId]: structuredClone(current.stock[flightId]) },
+  };
+}
+
+/** An expired hold releases seats once; unchanged stock and quotes stay shared. */
 function expireOrders(current: Supplier.State, now: number): Supplier.State {
-  const next = structuredClone(current);
-  for (const order of Object.values(next.orders)) {
+  let next = current;
+  for (const order of Object.values(current.orders)) {
     if (
       !order.payment_status.awaiting_payment ||
       Date.parse(order.payment_status.payment_required_by!) > now
     )
       continue;
-    order.payment_status.awaiting_payment = false;
+    next = copyStock(next, order.flight_id);
+    next.orders = {
+      ...next.orders,
+      [order.id]: {
+        ...order,
+        payment_status: { ...order.payment_status, awaiting_payment: false },
+      },
+    };
     const cabin = next.stock[order.flight_id].cabins.find(
       (entry) => entry.cabin === order.cabin_class,
     )!;
@@ -233,7 +247,7 @@ const holds = resource({
   },
 });
 
-/** The reader transfers deep copies; this pure builder gives the preset its own complete stock. */
+/** The reader transfers deep copies; this pure builder gives the scenario its own complete stock. */
 function createState(offers: Flights.Offer[], scenario: string): Supplier.State {
   const stock: Record<string, Supplier.Stock> = {};
   for (const flight of offers) {
@@ -250,7 +264,7 @@ const search = operation({
     const parsed = searchSchema.safeParse(ctx.input.body);
     if (!parsed.success) return reject("invalid_offer_request");
     const slice = parsed.data.data.slices.at(0)!;
-    const current = structuredClone(state.get());
+    const current = state.get();
     const offers: Supplier.Offer[] = [];
     for (const stock of Object.values(current.stock)) {
       const flight = stock.flight;
@@ -264,11 +278,14 @@ const search = operation({
       if (cabin.seatsAvailable < parsed.data.data.passengers.length) continue;
       for (const fare of cabin.fares) {
         const offer = createOffer(flight, cabin, fare, `off_${ctx.random.uuid()}`);
-        current.offers[offer.id] = offer;
         offers.push(offer);
       }
     }
-    state.set(current);
+    const retained = [...Object.values(current.offers), ...offers].slice(-1024);
+    state.set({
+      ...current,
+      offers: Object.fromEntries(retained.map((offer) => [offer.id, offer])),
+    });
     return reply(201, { data: { id: `orq_${ctx.random.uuid()}`, offers } });
   },
 });
@@ -279,14 +296,15 @@ const order = operation({
   run({ state, holdMs, clock }, ctx: Operation.Ctx<Service.Request>) {
     const parsed = orderSchema.safeParse(ctx.input.body);
     if (!parsed.success) return reject("invalid_order");
-    const current = structuredClone(state.get());
+    const current = state.get();
     const offer = current.offers[parsed.data.data.selected_offers.at(0)!];
     if (!offer) return reject("offer_not_found", 404);
     const fresh = readCurrent(current, offer);
     if (fresh.total_amount !== offer.total_amount) return reject("offer_price_changed", 409);
     if (fresh.available_seats < parsed.data.data.passengers.length)
       return reject("offer_sold_out", 409);
-    const cabin = current.stock[offer.flight_id].cabins.find(
+    const next = copyStock(current, offer.flight_id);
+    const cabin = next.stock[offer.flight_id].cabins.find(
       (entry) => entry.cabin === offer.cabin_class,
     )!;
     cabin.seatsAvailable -= parsed.data.data.passengers.length;
@@ -311,8 +329,7 @@ const order = operation({
       cabin_class: offer.cabin_class,
       passengers: parsed.data.data.passengers.length,
     };
-    current.orders[booked.id] = booked;
-    state.set(current);
+    state.set({ ...next, orders: { ...current.orders, [booked.id]: booked } });
     return reply(201, { data: booked });
   },
 });
@@ -323,15 +340,27 @@ const pay = operation({
   run({ state, clock }, ctx: Operation.Ctx<Service.Request>) {
     const parsed = paySchema.safeParse(ctx.input.body);
     if (!parsed.success) return reject("invalid_payment");
-    const current = structuredClone(state.get());
+    const current = state.get();
     const order = current.orders[parsed.data.data.order_id];
     if (!order) return reject("order_not_found", 404);
     if (!order.payment_status.awaiting_payment && !order.payment_status.paid_at)
       return reject("order_expired", 409);
+    if (!order.payment_status.awaiting_payment) return reject("order_not_awaiting_payment", 409);
     if (parsed.data.data.payment.amount !== order.total_amount) return reject("incorrect_amount");
-    order.payment_status.awaiting_payment = false;
-    order.payment_status.paid_at = new Date(clock.currentTimeMillis()).toISOString();
-    state.set(current);
+    state.set({
+      ...current,
+      orders: {
+        ...current.orders,
+        [order.id]: {
+          ...order,
+          payment_status: {
+            ...order.payment_status,
+            awaiting_payment: false,
+            paid_at: new Date(clock.currentTimeMillis()).toISOString(),
+          },
+        },
+      },
+    });
     return reply(201, {
       data: {
         id: `pay_${ctx.random.uuid()}`,
@@ -360,13 +389,7 @@ const supplierControl = operation({
     if (ctx.input.route === "POST /control/scenario") {
       const parsed = scenarioSchema.safeParse(ctx.input.body);
       if (!parsed.success) return reject("invalid_scenario");
-      /** Core applies presets at scope creation; this short scope transfers the new scenario data. */
-      const seed = createScope({
-        presets: [preset(state, createState(reader.offers(supplierId), parsed.data.name))],
-      });
-      supplierState.set(seed.resolve(state));
-      const ended = await seed.close({ graceful: true });
-      if (ended.status !== "success") return reject("scenario_failed", 500);
+      supplierState.set(createState(reader.offers(supplierId), parsed.data.name));
       rules.set({});
       calls.set([]);
       return reply(200, { data: { name: parsed.data.name } });
@@ -374,12 +397,22 @@ const supplierControl = operation({
     if (ctx.input.route === "POST /control/flights") {
       const parsed = changeSchema.safeParse(ctx.input.body);
       if (!parsed.success) return reject("invalid_flight_change");
-      const current = structuredClone(supplierState.get());
-      const stock = current.stock[parsed.data.flight_id];
-      if (!stock) return reject("flight_not_found", 404);
+      const current = supplierState.get();
+      if (!current.stock[parsed.data.flight_id]) return reject("flight_not_found", 404);
+      const next = copyStock(current, parsed.data.flight_id);
+      const stock = next.stock[parsed.data.flight_id];
       changeStock(stock, parsed.data);
-      supplierState.set(current);
+      supplierState.set(next);
       return reply(200, { data: parsed.data });
+    }
+    if (ctx.input.route === "GET /control/state") {
+      const current = supplierState.get();
+      return reply(200, {
+        data: {
+          offers: Object.keys(current.offers).length,
+          bytes: Buffer.byteLength(JSON.stringify(current)),
+        },
+      });
     }
     return common.run({ input: ctx.input });
   },
