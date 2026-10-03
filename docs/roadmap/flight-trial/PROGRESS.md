@@ -2490,3 +2490,23 @@ The prepared trial is `flight-integration-01`, staged at packet 1.
 No model run started.
 Both images have idle keepers and saved tar files.
 Old flight images and proof folders stay until the new full run passes.
+
+### Integration: resume after the landed startup fix
+
+The lead fixed the scaffold in `1ff5402f`.
+The rebase first exited 1 on the two old merge conflicts.
+Both keep main outside this writer's paths.
+The final rebase continue exited 0.
+The rebase kept both reviewed branch histories.
+A stale harness launcher added by the merge was removed to match main.
+
+The reference now copies the fixed scaffold from main.
+Assumption: use fresh `.2` image tags and keep old saved images
+until the five-round proof and workspace gates pass.
+The writer image includes main's new tab-lifetime test.
+
+The Jev promise tool reads a `tests/` folder and `.test.ts` names.
+Assumption: scan a saved copy of the harness test files and README,
+with `.mjs` copied to `.ts` for this title-only scan.
+This keeps the scanner unchanged and reads the real test titles.
+Also scan the reference proof folder with its shipped tests.
