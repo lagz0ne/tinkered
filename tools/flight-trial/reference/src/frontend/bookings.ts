@@ -1,4 +1,4 @@
-import { resource, operation } from "@tinker/core";
+import { resource, operation, type Operation } from "@tinker/core";
 import { z } from "zod";
 import { syncClient } from "../scaffold/frontend/sync.ts";
 import { profile, bookingNotice } from "./state.ts";
@@ -37,8 +37,8 @@ import { tabStop } from "../scaffold/frontend/owner.ts";
 const watchSeats = operation({
   label: "watch flight seats",
   depends: { rows: flightRows.controller, stop: tabStop },
-  async run({ rows, stop }, ctx) {
-    const signal = AbortSignal.any([ctx.signal, stop]);
+  async run({ rows, stop }, ctx: Operation.Ctx<AbortSignal>) {
+    const signal = AbortSignal.any([ctx.signal, stop, ctx.input]);
     try {
       while (!signal.aborted) {
         const ids = rows.get().map((row) => row.id);
@@ -70,7 +70,7 @@ export const seatUpdates = resource({
   depends: { watch: watchSeats.controller },
   factory({ watch }, ctx) {
     const stop = new AbortController();
-    const pending = watch.run({ signal: stop.signal });
+    const pending = watch.run({ input: stop.signal });
     ctx.defer(async () => {
       stop.abort();
       await pending;
@@ -80,8 +80,8 @@ export const seatUpdates = resource({
 const watchHolds = operation({
   label: "watch holds",
   depends: { stop: tabStop },
-  async run({ stop }, ctx) {
-    const signal = AbortSignal.any([ctx.signal, stop]);
+  async run({ stop }, ctx: Operation.Ctx<AbortSignal>) {
+    const signal = AbortSignal.any([ctx.signal, stop, ctx.input]);
     try {
       while (!signal.aborted) {
         await fetch("/api/flights/bookings", { signal });
@@ -97,7 +97,7 @@ export const holdUpdates = resource({
   depends: { watch: watchHolds.controller },
   factory({ watch }, ctx) {
     const stop = new AbortController();
-    const pending = watch.run({ signal: stop.signal });
+    const pending = watch.run({ input: stop.signal });
     ctx.defer(async () => {
       stop.abort();
       await pending;

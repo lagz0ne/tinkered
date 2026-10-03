@@ -936,3 +936,28 @@ Proof:
 - Style census: exit 0, `/tmp/flight-rounds-r3-style.log`.
 - Old round 3 proof: exit 1, `/tmp/flight-rounds-r3-proof.log`.
   Empty search passes; the old HTTP adapter still broke hold replies.
+
+### Round 3 live-write repair
+
+The seat watcher now writes into the page's own scope.
+Passing a call signal had opened a child session with private data writes.
+The call now borrows its stop signal as input instead.
+The seat API already returned zero; the old page still showed one.
+The same race check now passes.
+Supplier calls also consume JSON before their operation ends.
+Their callers receive an owned plain reply, with no live response body.
+The copied checks needed the missing `components.json` file.
+
+Proof:
+
+- Round 3 pass 1: exit 0, reference `.logs/r3-pass-1.log`.
+- Round 3 pass 2: exit 0, reference `.logs/r3-pass-2.log`.
+- Removed price check: exit 1, reference `.logs/r3-break.log`.
+- Proof driver: exit 0, `/tmp/flight-rounds-r3-proof.log`.
+- Watch check: exit 0, `/tmp/flight-rounds-r3-watch-check.log`.
+- Scaffold seams: exit 0, `/tmp/flight-rounds-r3-seam.log`.
+- Browser import guard: exit 0, `/tmp/flight-rounds-r3-boundary.log`.
+- Schema check: exit 0, `/tmp/flight-rounds-r3-schema.log`.
+
+The earlier round 3 proof log path now holds the passing rerun.
+The failed attempts are described above; they did not count as ready.
