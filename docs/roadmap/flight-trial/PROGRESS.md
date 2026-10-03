@@ -1519,3 +1519,24 @@ Build, check, four-process proof, prose, strict style, and TSDoc pass.
 Check prints zero errors and the same 28 warnings.
 All logs are under `tools/flight-trial/.logs/`.
 Mutation was not run; the lead runs it.
+
+Final proof for source commit `c0075622` is in `routing-gates.json`.
+That file keeps the prior gate run under `previousGateRun`.
+Workspace tests pass, exit 0, `expiry-workspace-tests.log`.
+All 16 validation lanes pass, exit 0, `expiry-validate.log`.
+No source or test changed after these checks.
+
+Jev preflight, test review, README review, and labels all exit 0.
+The new control-route resource and all ten routing tests have no flags.
+The ten source labels are false, with reasons in the track's label bank.
+Nine match saved cases without changes.
+The added `startIntentKey` case owns no separate stop path:
+the HTTP listener drains accepted calls, and payment middleware
+resolves each pending key in `finally`, including a thrown handler.
+The label tool copy changes only its bank path and local imports,
+as in the earlier fix round; shared Jev files stay unchanged.
+The seven README gaps are the same wire cases answered above.
+The new rewind test matches the README's control-call expiry promise.
+
+Next: lead review and mutation.
+Core feedback: none from this fix.

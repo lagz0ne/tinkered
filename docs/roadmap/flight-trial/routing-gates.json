@@ -20,7 +20,7 @@
     ],
     "processEntries": ["supplier/main.ts:main", "payment/main.ts:main"]
   },
-  "sourceCommit": "28f63ed99e9cd2d3537c8286c7d6a0aef0897329",
+  "sourceCommit": "c00756221c4298be83affa37f77c9d96f2ced0f1",
   "fixCommits": [
     "1eec707f fix(flight-trial): register shared HTTP stack and controls once",
     "978da056 fix(flight-trial): decode HTTP bodies through an operation",
@@ -29,98 +29,103 @@
     "57617f63 fix(flight-trial): write JSON replies and headers in one place",
     "7f1bce11 fix(flight-trial): separate start and save operations",
     "3494445d fix(flight-trial): finish payment keys and close all connections",
-    "28f63ed9 fix(flight-trial): preserve encoded paths and failure wire replies"
+    "28f63ed9 fix(flight-trial): preserve encoded paths and failure wire replies",
+    "4bf29e90 test(flight-trial): prove control clock rewind restores expired offers",
+    "c0075622 fix(flight-trial): expire supplier state before shared controls"
   ],
   "gates": [
     {
-      "gate": "install",
-      "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-install.log",
-      "command": ["vp", "install"]
-    },
-    {
       "gate": "build",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-build.log",
+      "log": "tools/flight-trial/.logs/expiry-build.log",
       "command": ["vp", "run", "-r", "build"]
     },
     {
       "gate": "check",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-check.log",
+      "log": "tools/flight-trial/.logs/expiry-check.log",
       "command": ["vp", "check"]
     },
     {
       "gate": "flight-trial tests",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-flight-trial-tests.log",
-      "command": ["vp", "run", "flight-trial#test"]
-    },
-    {
-      "gate": "workspace tests",
-      "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-workspace-tests.log",
-      "command": ["vp", "run", "-r", "test"]
-    },
-    {
-      "gate": "gate chain",
-      "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-gate.log"
+      "log": "tools/flight-trial/.logs/expiry-tests.log",
+      "command": ["vp", "test"],
+      "cwd": "tools/flight-trial"
     },
     {
       "gate": "four-process HTTP proof",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-process.log"
+      "log": "tools/flight-trial/.logs/expiry-process.log",
+      "command": ["node", "tools/flight-trial/scripts/check-services.mjs"]
+    },
+    {
+      "gate": "workspace tests",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/expiry-workspace-tests.log",
+      "command": ["vp", "run", "-r", "test"]
     },
     {
       "gate": "strict style census",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-style.log"
+      "log": "tools/flight-trial/.logs/expiry-style.log",
+      "command": [
+        "bash",
+        ".agents/skills/coding-convention/scripts/style-census.sh",
+        "tools/flight-trial/services",
+        "tools/flight-trial/tests",
+        "--strict"
+      ]
     },
     {
       "gate": "TSDoc",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-tsdoc.log"
-    },
-    {
-      "gate": "routing and plain forms audit",
-      "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-routing-audit.log"
-    },
-    {
-      "gate": "graph audit",
-      "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-graph.log"
+      "log": "tools/flight-trial/.logs/expiry-tsdoc.log",
+      "command": [
+        "node",
+        "tools/jev/docs.mjs",
+        "tools/flight-trial/services/http.ts",
+        "tools/flight-trial/services/supplier/index.ts",
+        "tools/flight-trial/services/payment/index.ts",
+        "tools/flight-trial/tests/routing.test.ts"
+      ]
     },
     {
       "gate": "prose",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-prose.log"
-    },
-    {
-      "gate": "validate",
-      "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-validate.log"
+      "log": "tools/flight-trial/.logs/expiry-prose.log",
+      "command": ["vp", "run", "prose"]
     },
     {
       "gate": "Jev preflight",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-jev-preflight.log"
+      "log": "tools/flight-trial/.logs/expiry-jev-preflight.log",
+      "command": ["node", "tools/jev/preflight.mjs", "e55ddac2..c0075622"]
     },
     {
       "gate": "Jev new test review",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-jev-tests.log"
+      "log": "tools/flight-trial/.logs/expiry-jev-tests.log",
+      "command": ["node", "tools/jev/tests.mjs", "tools/flight-trial/tests/routing.test.ts"]
     },
     {
       "gate": "Jev README review",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-jev-promises.log"
+      "log": "tools/flight-trial/.logs/expiry-jev-promises.log",
+      "command": ["node", "tools/jev/promises.mjs", "../tools/flight-trial"]
     },
     {
       "gate": "Jev labels",
       "exit": 0,
-      "log": "tools/flight-trial/.logs/review-final-jev-labels.log"
+      "log": "tools/flight-trial/.logs/expiry-jev-labels.log",
+      "command": ["node", "tools/flight-trial/.logs/expiry-label.mjs"],
+      "note": "Ten false labels with --why; nine unchanged cases already in the track bank. Full arguments and reasons are recorded in that bank."
+    },
+    {
+      "gate": "validate",
+      "exit": 0,
+      "log": "tools/flight-trial/.logs/expiry-validate.log",
+      "command": ["pnpm", "validate"]
     }
   ],
   "regression": {
@@ -131,6 +136,20 @@
     "remaining wire cases": {
       "exit": 1,
       "log": "tools/flight-trial/.logs/review-4-red.log"
+    },
+    "control clock rewind": {
+      "base": "e55ddac208e86a94e667c91c91cb386c9f37874e",
+      "command": ["vp", "test", "tests/routing.test.ts", "-t", "a control clock rewind"],
+      "cwd": "tools/flight-trial",
+      "red": {
+        "exit": 1,
+        "log": "tools/flight-trial/.logs/expiry-red.log",
+        "observed": "Expected 404, received 200"
+      },
+      "green": {
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/expiry-green.log"
+      }
     }
   },
   "diagnostics": {
@@ -145,18 +164,19 @@
     }
   },
   "mutation": {
-    "status": "pending",
+    "status": "not run in this fix; lead owns the lane",
     "lock": "/tmp/mutation.lock",
     "floor": 85,
     "sourceFiles": 9,
     "excluded": [],
-    "log": "tools/flight-trial/.logs/review-final-mutate.log"
+    "log": "tools/flight-trial/.logs/review-final-mutate.log",
+    "sourceCommit": "c00756221c4298be83affa37f77c9d96f2ced0f1"
   },
   "tests": {
-    "total": 95,
+    "total": 96,
     "existingUnchanged": 86,
-    "newRegressionTests": 9,
-    "addedThisFixRound": 7
+    "newRegressionTests": 10,
+    "addedThisFixRound": 1
   },
   "jev": {
     "sourceFlagsAnswered": 10,
@@ -165,5 +185,112 @@
     "bank": "docs/roadmap/flight-trial/routing-jev-labels.jsonl"
   },
   "coreFeedback": "Core extension config has no nested extension list. Service start hooks borrow their owned event for the one shared HTTP hook.",
-  "readyFor": "full locked mutation"
+  "readyFor": "lead review and mutation",
+  "previousGateRun": {
+    "sourceCommit": "28f63ed99e9cd2d3537c8286c7d6a0aef0897329",
+    "gates": [
+      {
+        "gate": "install",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-install.log",
+        "command": ["vp", "install"]
+      },
+      {
+        "gate": "build",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-build.log",
+        "command": ["vp", "run", "-r", "build"]
+      },
+      {
+        "gate": "check",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-check.log",
+        "command": ["vp", "check"]
+      },
+      {
+        "gate": "flight-trial tests",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-flight-trial-tests.log",
+        "command": ["vp", "run", "flight-trial#test"]
+      },
+      {
+        "gate": "workspace tests",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-workspace-tests.log",
+        "command": ["vp", "run", "-r", "test"]
+      },
+      {
+        "gate": "gate chain",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-gate.log"
+      },
+      {
+        "gate": "four-process HTTP proof",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-process.log"
+      },
+      {
+        "gate": "strict style census",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-style.log"
+      },
+      {
+        "gate": "TSDoc",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-tsdoc.log"
+      },
+      {
+        "gate": "routing and plain forms audit",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-routing-audit.log"
+      },
+      {
+        "gate": "graph audit",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-graph.log"
+      },
+      {
+        "gate": "prose",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-prose.log"
+      },
+      {
+        "gate": "validate",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-validate.log"
+      },
+      {
+        "gate": "Jev preflight",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-jev-preflight.log"
+      },
+      {
+        "gate": "Jev new test review",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-jev-tests.log"
+      },
+      {
+        "gate": "Jev README review",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-jev-promises.log"
+      },
+      {
+        "gate": "Jev labels",
+        "exit": 0,
+        "log": "tools/flight-trial/.logs/review-final-jev-labels.log"
+      }
+    ],
+    "tests": {
+      "total": 96,
+      "existingUnchanged": 86,
+      "newRegressionTests": 10,
+      "addedThisFixRound": 1
+    },
+    "jev": {
+      "sourceFlagsAnswered": 10,
+      "routingTestFlags": 0,
+      "READMEGapsAnsweredInProgress": 7,
+      "bank": "docs/roadmap/flight-trial/routing-jev-labels.jsonl"
+    }
+  }
 }
