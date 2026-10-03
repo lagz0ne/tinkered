@@ -416,11 +416,7 @@ export const app = extension({
           body: c.var.body,
         });
         const result = await c.var.scope.run(intentKey, { rawInput: { key, fingerprint } });
-        if (result)
-          return new Response(JSON.stringify(result.body), {
-            status: result.status,
-            headers: result.headers,
-          });
+        if (result) return c.var.json(result);
         await next();
         await c.var.scope.run(intentKey, {
           rawInput: {
@@ -436,56 +432,35 @@ export const app = extension({
       });
       http.post("/control/scenario", async (c) => {
         const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/v1/payment_intents", (c) => {
         const result = c.var.scope.run(createIntent, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/v1/payment_intents/:id/confirm", (c) => {
         const result = c.var.scope.run(confirm, { rawInput: { id: c.req.param("id") } });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.get("/v1/payment_intents/:id", (c) => {
         const result = c.var.scope.run(readIntent, { rawInput: { id: c.req.param("id") } });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/v1/refunds", (c) => {
         const result = c.var.scope.run(refund, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/control/payment", (c) => {
         const result = c.var.scope.run(setPlan, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/control/webhooks", (c) => {
         const result = c.var.scope.run(controlWebhook, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.notFound((c) => {
-        if (c.var.control) return c.json(reject("not_found", 404).body, 404);
-        return c.json(rejectPayment("resource_missing", 404).body, 404);
+        if (c.var.control) return c.var.json(reject("not_found", 404));
+        return c.var.json(rejectPayment("resource_missing", 404));
       });
       return scope.resolve(listener);
     },

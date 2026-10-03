@@ -414,61 +414,37 @@ export const app = extension({
       });
       http.post("/control/scenario", async (c) => {
         const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/air/offer_requests", (c) => {
         const result = c.var.scope.run(search, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/air/orders", (c) => {
         const result = c.var.scope.run(order, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/air/payments", (c) => {
         const result = c.var.scope.run(pay, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.get("/air/offers/:id", (c) => {
         const result = c.var.scope.run(readOffer, { rawInput: { id: c.req.param("id") } });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.get("/air/orders/:id", (c) => {
         const result = c.var.scope.run(readOrder, { rawInput: { id: c.req.param("id") } });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/control/flights", (c) => {
         const result = c.var.scope.run(changeFlight, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.get("/control/state", (c) => {
         const result = c.var.scope.run(readState);
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
-      http.notFound((c) => c.json(reject("not_found", 404).body, 404));
+      http.notFound((c) => c.var.json(reject("not_found", 404)));
       return scope.resolve(listener);
     },
   },

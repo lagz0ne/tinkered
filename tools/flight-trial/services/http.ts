@@ -8,7 +8,12 @@ import { z } from "zod";
 
 export declare namespace Wire {
   type Env = {
-    Variables: { scope: Scope.Handle; body: unknown; control: boolean };
+    Variables: {
+      scope: Scope.Handle;
+      json: (result: Reply) => Response;
+      body: unknown;
+      control: boolean;
+    };
   };
   type Reply = { status: number; body: unknown; headers?: Record<string, string> };
   type Form = { [key: string]: string | boolean | Form };
@@ -305,6 +310,11 @@ export const middleware = resource({
   depends: { stop: stopSignal },
   factory({ stop }) {
     return {
+      json: (result: Wire.Reply): Response =>
+        new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: { "content-type": "application/json", ...result.headers },
+        }),
       log: createMiddleware<Wire.Env>(async (c, next) => {
         const id = c.var.scope.run(recordCall, {
           rawInput: {
@@ -314,7 +324,6 @@ export const middleware = resource({
         });
         await next();
         if (!stop.aborted) c.var.scope.run(recordCall, { rawInput: { id, status: c.res.status } });
-        c.header("content-type", "application/json");
         c.header("transfer-encoding", "chunked");
       }),
       token: createMiddleware<Wire.Env>(async (c, next) => {
@@ -324,7 +333,7 @@ export const middleware = resource({
             rawInput: { token: c.req.header("authorization") },
           })
         )
-          return c.json(reject("unauthorized", 401).body, 401);
+          return c.var.json(reject("unauthorized", 401));
         await next();
       }),
       body: createMiddleware<Wire.Env>(async (c, next) => {
@@ -350,10 +359,7 @@ export const middleware = resource({
         const selected = await c.var.scope.run(routeRule, { rawInput: params });
         if (selected.response) {
           const response = selected.response;
-          c.res = new Response(JSON.stringify(response.body), {
-            status: response.status,
-            headers: response.headers,
-          });
+          c.res = c.var.json(response);
         } else if (c.req.method === "HEAD") {
           c.res = await c.notFound();
         } else {
@@ -386,6 +392,7 @@ export const httpRequests = extension({
       const shared = scope.resolve(middleware);
       http.use("*", async (c, next) => {
         c.set("scope", scope);
+        c.set("json", shared.json);
         c.set("control", false);
         await next();
       });
@@ -399,26 +406,17 @@ export const httpRequests = extension({
       http.use("*", shared.rule);
       http.post("/control/clock", (c) => {
         const result = c.var.scope.run(setClock, { rawInput: c.var.body });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.get("/control/calls", (c) => {
         const result = c.var.scope.run(readCalls);
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       http.post("/control/routes", (c) => {
         const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
         const { route: name, ...settings } = parsed.success ? parsed.data : {};
         const result = c.var.scope.run(setRoute, { rawInput: { ...settings, name } });
-        return new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: result.headers,
-        });
+        return c.var.json(result);
       });
       return http;
     },
@@ -433,10 +431,8 @@ export const listener = resource({
   async factory({ web, port, host, shape }, ctx) {
     web.onError((error, c) => {
       ctx.log.error("HTTP request failed", { error });
-      return c.json(
-        (shape === "stripe" ? rejectPayment("internal_error", 500) : reject("internal_error", 500))
-          .body,
-        500,
+      return c.var.json(
+        shape === "stripe" ? rejectPayment("internal_error", 500) : reject("internal_error", 500),
       );
     });
     const server = serve({ fetch: web.fetch, port, hostname: host, overrideGlobalObjects: false });
