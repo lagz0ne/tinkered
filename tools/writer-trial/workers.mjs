@@ -189,7 +189,7 @@ if (action === "create") {
       run("docker", ["exec", container, "sh", "-c", "cp -R /home/pwuser/flight-seed/. /work/"]);
       writeFileSync(
         join(seed, ".oxfmtrc.json"),
-        '{\n  "ignorePatterns": ["src/routeTree.gen.ts", "FEEDBACK.md"]\n}\n',
+        '{\n  "ignorePatterns": ["src/routeTree.gen.ts", "FEEDBACK.md", "TASK.md"]\n}\n',
       );
       const env = Object.entries(flightEnvironment())
         .map(([key, value]) => `${key}=${value}`)
