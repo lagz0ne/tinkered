@@ -24,13 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **trial/services-routing** — the trial services route through Hono, not Tinker (ADR 0101).
-  Owner: lead (Claude, Start scaffold session).
-  Next: after services lands, a writer moves each route into Hono;
-  handlers read their params and call `.run` on one operation; drop the dispatch operations.
-  Verify: no operation takes a whole request; HTTP behavior and all tests unchanged;
-  the four-process proof and mutation (85) pass.
-
 - **trial/deepseek-baseline** — run DeepSeek through the rounds.
   Next: after the rounds land.
   Verify: the baseline is the number of rounds passed in order.
@@ -53,6 +46,22 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **trial/flight-integration** — join rounds and harness on main; prove the whole trial.
+  Owner: lead (Claude, Start scaffold session); Sol integration writer.
+  Worktree: `../tinkered-flight-integration`, branch `trial/flight-integration`.
+  Next: merge rounds, then harness; rebuild images; ship `SERVICES.md`.
+  Verify: the reference passes rounds 1-5 twice through the full gate;
+  one planted break per round fails it by name; isolation proof passes.
+  [Brief](docs/roadmap/flight-trial/INTEGRATION-BRIEF.md).
+
+- **trial/services-routing** — the trial services route through Hono, not Tinker (ADR 0101).
+  Owner: lead (Claude, Start scaffold session); Sol routing writer.
+  Worktree: `../tinkered-services-routing`, branch `trial/services-routing`.
+  Next: move each route into Hono; handlers read their params and `.run` one operation.
+  Verify: no operation takes a whole request; wire contract and tests unchanged;
+  the four-process proof and mutation (85) pass.
+  [Brief](docs/roadmap/flight-trial/ROUTING-BRIEF.md).
 
 - **trial/flight-rounds** — five round packets, hidden checks, and a reference answer.
   Owner: lead (Claude, Start scaffold session); Sol rounds writer.
