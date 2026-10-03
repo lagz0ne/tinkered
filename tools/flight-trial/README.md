@@ -331,6 +331,7 @@ POST /v1/payment_intents
 Confirm it with `POST /v1/payment_intents/:id/confirm` and `{}`.
 Confirm returns `processing`.
 A watcher on the intent data sends a webhook later.
+A confirmation sends its webhook on real time before the grader sets a clock.
 Success sends `payment_intent.succeeded`.
 Failure sends `payment_intent.payment_failed`.
 Read the current intent with `GET /v1/payment_intents/:id`.
