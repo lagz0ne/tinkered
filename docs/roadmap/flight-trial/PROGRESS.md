@@ -1088,3 +1088,110 @@ Mail proof assumptions:
   This proof makes no crash claim between SMTP acceptance and the DB save.
 - The first send and retry use the saved account email and flight values.
   No account verification or scaffold auth rule was changed.
+
+### Gates after the strict services rebase
+
+Rebase onto `bc4a00e5` exited 0.
+Log: `/tmp/flight-rounds-rebase-strict-services.log`.
+Install and workspace build exited 0:
+`/tmp/flight-rounds-install-strict-services.log`,
+`/tmp/flight-rounds-build-strict-services.log`.
+Services alone passed 72 tests, exit 0:
+`/tmp/flight-rounds-services-tests-solo.log`.
+Full parallel tests still hit the same services timeout, exit 1:
+`/tmp/flight-rounds-final-tests-retry.log`,
+`/tmp/flight-rounds-final-tests-services-rebase.log`.
+The same full task set passed with one task at a time, exit 0:
+`/tmp/flight-rounds-final-tests-serial-fixed.log`.
+Command: `vp run --concurrency-limit 1 -r test`.
+An earlier command put the option after `test`.
+Vitest rejected it, exit 1: `/tmp/flight-rounds-final-tests-serial.log`.
+This is a task runner option and belongs before the task name.
+No test timeout or source file was changed.
+
+Restored validate passed all 16 lanes, exit 0:
+`/tmp/flight-rounds-final-validate-restored.log`.
+Reference typecheck exited 0:
+`/tmp/flight-rounds-reference-typecheck.log`.
+The first typecheck command used a missing root binary, exit 127.
+The successful command uses the reference's linked binary.
+TSDoc check read 62 authored files with zero rows, exit 0:
+`/tmp/flight-rounds-final-tsdoc.log`.
+Seam proof and browser boundary checks exited 0:
+`/tmp/flight-rounds-final-seam.log`,
+`/tmp/flight-rounds-final-boundary.log`.
+Packets 1–2 and packet 3 byte checks exited 0:
+`/tmp/flight-rounds-frozen-12.log`,
+`/tmp/flight-rounds-frozen-3.log`.
+The only packet 4 change is the lead-approved check line:
+`/tmp/flight-rounds-packet4-approved-addition.log`.
+Forbidden source directories equal the services base, exit 0:
+`/tmp/flight-rounds-scope-proof.log`.
+
+### Jev answers before the strict scaffold copy
+
+`main..HEAD` preflight exited 0:
+`/tmp/flight-rounds-jev-preflight.log`.
+It lists 3 file flags and 46 unit flags across inherited and authored code.
+No package tests were changed, so package test and promise judges do not apply.
+Teacher checks are public HTTP and browser checks in `.mjs` files.
+Label reasons stay here because `tools/jev/` is outside this ticket's paths.
+The lead may place these answers in the label bank.
+
+- `memoKeyIgnoresInput`, old server entry: false for the fixed single process config.
+  The stricter server entry will replace the module getter when the scaffold lands.
+- `configNotTag`, feature flights and payment: false.
+  Supplier URLs and payment secret are required tags.
+  Relative app routes, Duffel paths, currency, cabin, and fare rules are fixed contracts.
+- `stopOnlyInDefer`, hold/state/seat operations: false.
+  These operations start no work that lives after the call.
+  Supplier fetch reads `ctx.signal`; the native DB call is awaited.
+- `effectWithoutDefer`, seat and hold watchers: false.
+  A resource starts each operation and stops and waits in its deferred cleanup.
+  The watcher also reads root, tab, call, and borrowed stop signals.
+- `stopOnlyInDefer`, watcher and search resources: false.
+  The watcher reads all four signals; search reads call and stop signals.
+  Deferred stop releases the retained cancel handle.
+- `effectWithoutDefer`, search operation: false.
+  It consumes the body before returning and its graph tracks the run.
+  The retained stop handle belongs to a resource.
+- DB, auth, mail, notification, and sync flags repeat the copied scaffold flags.
+  Pool and SMTP cleanup are deferred; URLs and secrets are tags.
+  Protocol cursors, revision counters, and keyed pending sends are private bookkeeping.
+  Profile retry's typed execution guard is part of the scaffold contract.
+  The strict scaffold copy and its checks will decide the entry and body ownership forms.
+- Service flags are outside this ticket's source paths.
+  The strict services commits already replaced its plain service helpers.
+  The old `S21` wall-time line is also in that earlier services version.
+- The noisy `~wrapsCallersStep` and the `ℹ` notes owe no labels.
+
+### Core feedback from the hold repair
+
+A call signal makes a child session, so this root-write assertion fails:
+
+```ts
+const value = data({ initial: 0 });
+const change = operation({
+  depends: { value: value.controller },
+  run({ value }) {
+    value.set(1);
+  },
+});
+const root = createScope();
+await root.run(change, {
+  signal: new AbortController().signal,
+});
+const saved = root.resolve(value);
+await root.close({ graceful: true });
+assert.equal(saved, 1);
+```
+
+The failed assertion prints actual 0 and expected 1, exit 1:
+`/tmp/flight-rounds-core-signal-probe.log`.
+Borrowing the stop signal through operation input keeps the write in the root.
+That public Core probe prints 1 and exits 0:
+`/tmp/flight-rounds-core-input-probe.log`.
+The live seat and hold watchers use that borrowed input.
+The first draft read the root after close and failed with Disposed instead.
+The corrected probe captures the value before closing, then checks it.
+No Core or React source was changed.
