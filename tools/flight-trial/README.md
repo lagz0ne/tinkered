@@ -213,6 +213,7 @@ Prices are decimal strings in USD.
 Each offer also has `flight_id`, `cabin_class`, `fare_class`, and `available_seats`.
 A search makes a fresh offer ID and keeps its quoted price.
 The same fixture flight appears at suppliers A and B on LHR to AMS.
+Each supplier starts with all stock from `offers(supplier)`.
 Each supplier owns its own seat stock.
 Fare classes share that supplier's flight and cabin stock.
 
@@ -392,7 +393,7 @@ Filter by service route to count app calls.
 A control call without the grader token returns HTTP 401.
 
 Supplier also accepts the `last-seat` scenario.
-It gives each cabin one seat when first searched.
+It gives every cabin one seat when the scenario starts.
 Set a price or seat count before or after search:
 
 ```text
@@ -408,8 +409,8 @@ POST /control/flights
 
 Price changes affect the chosen fare class.
 Seat changes affect the cabin and all its fares.
-Saved changes apply when a flight is first searched.
-Unknown flight IDs can be stored but return no invented flights.
+All stock is loaded before HTTP starts.
+Unknown flight IDs return `flight_not_found`, with HTTP 404.
 
 Payment also accepts the `payment-failed` scenario.
 Choose the result and delivery plan before confirming an intent:

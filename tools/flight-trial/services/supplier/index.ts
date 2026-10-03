@@ -72,7 +72,6 @@ export declare namespace Supplier {
     stock: Record<string, Stock>;
     offers: Record<string, Offer>;
     orders: Record<string, Order>;
-    changes: Change[];
   };
 }
 
@@ -80,7 +79,7 @@ const supplierId = tag<Flights.Supplier["id"]>({ label: "supplier ID" });
 const holdMs = tag({ label: "hold duration", default: 1000 });
 const state = data<Supplier.State>({
   label: "supplier state",
-  initial: { stock: {}, offers: {}, orders: {}, changes: [] },
+  initial: { stock: {}, offers: {}, orders: {} },
 });
 const reader = resource({ label: "flight fixture", factory: () => readFlights() });
 const scenarioSchema = z.object({ name: z.enum(["default", "last-seat"]) });
@@ -222,39 +221,33 @@ const holds = resource({
   },
 });
 
-/** A pure fixture copy has no lifetime; the search operation owns its resulting stock. */
-function createStock(
-  current: Supplier.State,
-  flight: Flights.Offer,
-  scenario: string,
-): Supplier.Stock {
-  let stock = current.stock[flight.id];
-  if (!stock) {
-    stock = { flight, cabins: structuredClone(flight.cabins) };
-    if (scenario === "last-seat") for (const cabin of stock.cabins) cabin.seatsAvailable = 1;
-    for (const change of current.changes.filter((entry) => entry.flight_id === flight.id))
-      changeStock(stock, change);
-    current.stock[flight.id] = stock;
+/** The reader transfers deep copies; this pure builder gives the preset its own complete stock. */
+function createState(offers: Flights.Offer[], scenario: string): Supplier.State {
+  const stock: Record<string, Supplier.Stock> = {};
+  for (const flight of offers) {
+    if (scenario === "last-seat") for (const cabin of flight.cabins) cabin.seatsAvailable = 1;
+    stock[flight.id] = { flight, cabins: flight.cabins };
   }
-  return stock;
+  return { stock, offers: {}, orders: {} };
 }
 
 const search = operation({
   label: "search supplier flights",
-  depends: { reader, state: state.controller, supplierId, scenario },
-  async run({ reader, state, supplierId, scenario }, ctx: Operation.Ctx<Service.Request>) {
+  depends: { state: state.controller },
+  run({ state }, ctx: Operation.Ctx<Service.Request>) {
     const parsed = searchSchema.safeParse(ctx.input.body);
     if (!parsed.success) return reject("invalid_offer_request");
     const slice = parsed.data.data.slices.at(0)!;
     const current = structuredClone(state.get());
     const offers: Supplier.Offer[] = [];
-    for (const flight of reader.search({
-      supplier: supplierId,
-      origin: slice.origin,
-      destination: slice.destination,
-      date: slice.departure_date,
-    })) {
-      const stock = createStock(current, flight, scenario);
+    for (const stock of Object.values(current.stock)) {
+      const flight = stock.flight;
+      if (
+        flight.origin !== slice.origin ||
+        flight.destination !== slice.destination ||
+        flight.date !== slice.departure_date
+      )
+        continue;
       const cabin = stock.cabins.find((entry) => entry.cabin === parsed.data.data.cabin_class)!;
       if (cabin.seatsAvailable < parsed.data.data.passengers.length) continue;
       for (const fare of cabin.fares) {
@@ -338,9 +331,11 @@ const supplierControl = operation({
     rules: rules.controller,
     calls: calls.controller,
     common: control.controller,
+    reader,
+    supplierId,
   },
   async run(
-    { supplierState, supplierScenario, rules, calls, common },
+    { supplierState, supplierScenario, rules, calls, common, reader, supplierId },
     ctx: Operation.Ctx<Service.Request>,
   ) {
     if (ctx.input.route === "POST /control/scenario") {
@@ -349,7 +344,7 @@ const supplierControl = operation({
       /** Core applies presets at scope creation; this short scope transfers the new scenario data. */
       const seed = createScope({
         presets: [
-          preset(state, { stock: {}, offers: {}, orders: {}, changes: [] }),
+          preset(state, createState(reader.offers(supplierId), parsed.data.name)),
           preset(scenario, parsed.data.name),
         ],
       });
@@ -365,9 +360,9 @@ const supplierControl = operation({
       const parsed = changeSchema.safeParse(ctx.input.body);
       if (!parsed.success) return reject("invalid_flight_change");
       const current = structuredClone(supplierState.get());
-      current.changes.push(parsed.data);
       const stock = current.stock[parsed.data.flight_id];
-      if (stock) changeStock(stock, parsed.data);
+      if (!stock) return reject("flight_not_found", 404);
+      changeStock(stock, parsed.data);
       supplierState.set(current);
       return reply(200, { data: parsed.data });
     }
@@ -422,6 +417,13 @@ const app = extension({
   hooks: {
     async start({ scope, next }) {
       await next();
+      await scope.run(supplierControl, {
+        input: {
+          route: "POST /control/scenario",
+          path: "/control/scenario",
+          body: { name: "default" },
+        },
+      });
       scope.resolve(holds);
       return scope.resolve(http);
     },
@@ -441,7 +443,6 @@ export async function startSupplier(options: Supplier.Options) {
       supplierId(options.supplier),
       holdMs(options.holdMs ?? 1000),
     ],
-    presets: [preset(state, { stock: {}, offers: {}, orders: {}, changes: [] })],
   });
   await scope.ready;
   const listening = scope.resolve(app);

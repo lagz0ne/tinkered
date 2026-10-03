@@ -230,3 +230,24 @@ test("holds expire on real time before the grader sets a clock", async () => {
     })
     .toBe("expired");
 });
+
+test("the grader can change a loaded flight before its first search", async () => {
+  const url = await start();
+  const flightId = "1756-LHR-AMS-2027-01-15-1";
+  const changed = await post(url, "/control/flights", {
+    flight_id: flightId,
+    cabin_class: "economy",
+    seats: 0,
+  });
+  expect(changed.status).toBe(200);
+  expect((await search(url)).some((offer) => offer.flight_id === flightId)).toBe(false);
+  expect(
+    (
+      await post(url, "/control/flights", {
+        flight_id: "missing-flight",
+        cabin_class: "economy",
+        seats: 1,
+      })
+    ).status,
+  ).toBe(404);
+});
