@@ -88,7 +88,7 @@ export const control = operation({
   run({ rules, calls, clock }, ctx: Operation.Ctx<Service.Request>) {
     const request = ctx.input;
     if (request.route === "GET /control/calls")
-      return reply(200, { data: calls.map(({ id, ...call }) => call) });
+      return reply(200, { data: calls.map(({ id: _id, ...call }) => call) });
     if (request.route === "POST /control/routes") {
       const parsed = routeSchema.safeParse(request.body);
       if (!parsed.success) return reject("invalid_route_rule");

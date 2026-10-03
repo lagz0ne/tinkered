@@ -302,7 +302,7 @@ const resetScenario = operation({
     /** Presets apply on a fresh scope; the control call transfers its seeded state to this app. */
     const seed = createScope({ presets: [preset(state, initial)] });
     paymentState.set(seed.resolve(state));
-    const ended = await seed.close();
+    const ended = await seed.close({ graceful: true });
     if (ended.status !== "success") return reject("scenario_failed", 500);
     rules.set({});
     calls.set([]);
@@ -409,7 +409,7 @@ const action = operation({
     });
     state.update((current) => ({
       ...current,
-      keys: { ...current.keys, [request.key!]: { fingerprint, reply: response } },
+      keys: { ...current.keys, [request.key!]: { fingerprint, reply: structuredClone(response) } },
     }));
     return response;
   },

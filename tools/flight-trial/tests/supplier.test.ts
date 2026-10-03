@@ -6,12 +6,28 @@ const offersSchema = z.object({
   data: z.object({
     offers: z.array(
       z.object({
-        id: z.string(),
-        flight_id: z.string(),
+        id: z.string().startsWith("off_"),
+        flight_id: z.string().min(1),
+        cabin_class: z.enum(["economy", "business"]),
+        fare_class: z.enum(["saver", "standard", "flex"]),
+        total_amount: z.string().regex(/^\d+\.\d{2}$/),
+        total_currency: z.literal("USD"),
+        available_seats: z.number().int().nonnegative(),
         slices: z.array(
           z.object({
-            origin: z.object({ iata_code: z.string() }),
-            destination: z.object({ iata_code: z.string() }),
+            origin: z.object({ iata_code: z.string().length(3) }),
+            destination: z.object({ iata_code: z.string().length(3) }),
+            segments: z
+              .array(
+                z.object({
+                  id: z.string().min(1),
+                  departing_at: z.iso.datetime(),
+                  arriving_at: z.iso.datetime(),
+                  marketing_carrier: z.object({ id: z.string().min(1) }),
+                  marketing_carrier_flight_number: z.string().regex(/^\d{1,4}$/),
+                }),
+              )
+              .length(1),
           }),
         ),
       }),
@@ -20,8 +36,14 @@ const offersSchema = z.object({
 });
 const orderSchema = z.object({
   data: z.object({
-    id: z.string(),
-    total_amount: z.string(),
+    id: z.string().startsWith("ord_"),
+    type: z.enum(["instant", "hold"]),
+    selected_offers: z.array(z.string()).length(1),
+    flight_id: z.string().min(1),
+    cabin_class: z.enum(["economy", "business"]),
+    passengers: z.number().int().positive(),
+    total_currency: z.literal("USD"),
+    total_amount: z.string().regex(/^\d+\.\d{2}$/),
     payment_required_by: z.string().optional(),
     status: z.string(),
   }),
@@ -113,9 +135,16 @@ test("an expired hold frees its seat on the service clock", async () => {
     ).json(),
   );
   expect(held.data.payment_required_by).toBe("1970-01-01T00:00:11.000Z");
-  await post(url, "/control/clock", { advanceMs: 1001 });
+  await post(url, "/control/clock", { advanceMs: 1000 });
   const expired = await (await fetch(`${url}/air/orders/${held.data.id}`)).json();
   expect(expired).toMatchObject({ data: { status: "expired" } });
+  const payment = await post(url, "/air/payments", {
+    data: { order_id: held.data.id, amount: held.data.total_amount, currency: "USD" },
+  });
+  expect(payment.status).toBe(409);
+  expect(await payment.json()).toEqual({
+    errors: [{ type: "invalid_request_error", code: "order_expired", title: "order_expired" }],
+  });
   expect(
     (await post(url, "/air/orders", { data: { selected_offers: [offer.id], type: "instant" } }))
       .status,
@@ -189,16 +218,20 @@ test("the call log counts a delayed call before it ends and records its final st
       await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
     ).json(),
   );
-  expect(log.data).toContainEqual({ route: "POST /air/offer_requests", time: 10000, status: 503 });
+  expect(log.data.filter((call) => call.route === "POST /air/offer_requests")).toEqual([
+    { route: "POST /air/offer_requests", time: 10000, status: 503 },
+  ]);
 });
 
 test("control can repeat a route reply without taking another seat", async () => {
   const url = await start();
   await post(url, "/control/scenario", { name: "last-seat" });
-  await post(url, "/control/routes", { route: "POST /air/orders", repeat: 1 });
+  const rule = await post(url, "/control/routes", { route: "POST /air/orders", repeat: 2 });
+  expect(await rule.json()).toEqual({ data: { route: "POST /air/orders", delayMs: 0, repeat: 2 } });
   const offer = (await search(url)).at(0)!;
   const body = { data: { selected_offers: [offer.id], type: "instant" } };
   const first = await (await post(url, "/air/orders", body)).json();
+  expect(await (await post(url, "/air/orders", body)).json()).toEqual(first);
   expect(await (await post(url, "/air/orders", body)).json()).toEqual(first);
   expect((await post(url, "/air/orders", body)).status).toBe(409);
 });
@@ -250,4 +283,322 @@ test("the grader can change a loaded flight before its first search", async () =
       })
     ).status,
   ).toBe(404);
+});
+
+test("a business group pays its fare for each passenger and uses only that cabin", async () => {
+  const url = await start();
+  const economy = (await search(url)).at(0)!;
+  await post(url, "/control/flights", {
+    flight_id: economy.flight_id,
+    cabin_class: "business",
+    fare_class: "flex",
+    seats: 2,
+    amount_cents: 12345,
+  });
+  const response = await post(url, "/air/offer_requests", {
+    data: {
+      ...searchBody.data,
+      cabin_class: "business",
+      passengers: [{ type: "adult" }, { type: "child" }],
+    },
+  });
+  const offers = offersSchema.parse(await response.json()).data.offers;
+  const offer = offers.find(
+    (entry) => entry.flight_id === economy.flight_id && entry.fare_class === "flex",
+  )!;
+  expect(offer).toMatchObject({
+    cabin_class: "business",
+    available_seats: 2,
+    total_amount: "123.45",
+  });
+  const booked = await post(url, "/air/orders", {
+    data: {
+      selected_offers: [offer.id],
+      type: "instant",
+      passengers: [{ id: "adult" }, { id: "child" }],
+    },
+  });
+  expect(booked.status).toBe(201);
+  const order = orderSchema.parse(await booked.json()).data;
+  expect(order).toMatchObject({
+    type: "instant",
+    status: "paid",
+    selected_offers: [offer.id],
+    flight_id: economy.flight_id,
+    cabin_class: "business",
+    passengers: 2,
+    total_amount: "246.90",
+    total_currency: "USD",
+  });
+  expect(order.payment_required_by).toBeUndefined();
+  expect(await (await fetch(`${url}/air/offers/${offer.id}`)).json()).toMatchObject({
+    data: { available_seats: 0 },
+  });
+  expect(await (await fetch(`${url}/air/offers/${economy.id}`)).json()).toMatchObject({
+    data: { available_seats: economy.available_seats, total_amount: economy.total_amount },
+  });
+  expect(await (await fetch(`${url}/air/orders/${order.id}`)).json()).toEqual({ data: order });
+});
+
+test("search filters the date and the whole group's seat count", async () => {
+  const url = await start();
+  const first = (await search(url)).at(0)!;
+  await post(url, "/control/flights", {
+    flight_id: first.flight_id,
+    cabin_class: "economy",
+    seats: 2,
+  });
+  const group = await post(url, "/air/offer_requests", {
+    data: {
+      ...searchBody.data,
+      passengers: [{ type: "adult" }, { type: "adult" }, { type: "adult" }],
+    },
+  });
+  expect(
+    offersSchema
+      .parse(await group.json())
+      .data.offers.some((offer) => offer.flight_id === first.flight_id),
+  ).toBe(false);
+  const nextDay = await post(url, "/air/offer_requests", {
+    data: {
+      ...searchBody.data,
+      slices: [{ origin: "LHR", destination: "AMS", departure_date: "2027-01-16" }],
+    },
+  });
+  const offers = offersSchema.parse(await nextDay.json()).data.offers;
+  expect(offers.length).toBeGreaterThan(0);
+  expect(
+    offers.every((offer) =>
+      offer.slices.every((slice) =>
+        slice.segments.every((segment) => segment.departing_at.startsWith("2027-01-16")),
+      ),
+    ),
+  ).toBe(true);
+  expect(
+    offers.every((offer) =>
+      offer.slices.every((slice) =>
+        slice.segments.every(
+          (segment) => Date.parse(segment.arriving_at) > Date.parse(segment.departing_at),
+        ),
+      ),
+    ),
+  ).toBe(true);
+  const missing = await post(url, "/air/offer_requests", {
+    data: { slices: [{ origin: "ZZZ", destination: "AMS", departure_date: "2027-01-15" }] },
+  });
+  expect(offersSchema.parse(await missing.json()).data.offers).toEqual([]);
+});
+
+test("bad supplier requests return a named Duffel error", async () => {
+  const url = await start();
+  const cases = [
+    { path: "/air/offer_requests", body: {}, status: 400, code: "invalid_offer_request" },
+    {
+      path: "/air/offer_requests",
+      body: { data: { ...searchBody.data, slices: [] } },
+      status: 400,
+      code: "invalid_offer_request",
+    },
+    { path: "/air/orders", body: {}, status: 400, code: "invalid_order" },
+    {
+      path: "/air/orders",
+      body: { data: { selected_offers: ["missing"], type: "instant" } },
+      status: 404,
+      code: "offer_not_found",
+    },
+    { path: "/air/payments", body: {}, status: 400, code: "invalid_payment" },
+    {
+      path: "/air/payments",
+      body: { data: { order_id: "missing", amount: "1.00", currency: "USD" } },
+      status: 404,
+      code: "order_not_found",
+    },
+  ];
+  for (const entry of cases) {
+    const response = await post(url, entry.path, entry.body);
+    expect(response.status).toBe(entry.status);
+    expect(await response.json()).toEqual({
+      errors: [{ type: "invalid_request_error", code: entry.code, title: entry.code }],
+    });
+  }
+  const broken = await fetch(`${url}/air/offer_requests`, { method: "POST", body: "{" });
+  expect(broken.status).toBe(400);
+  expect(await broken.json()).toEqual({
+    errors: [
+      {
+        type: "invalid_request_error",
+        code: "invalid_offer_request",
+        title: "invalid_offer_request",
+      },
+    ],
+  });
+  expect((await fetch(`${url}/air/offers/missing`)).status).toBe(404);
+  expect((await fetch(`${url}/air/orders/missing`)).status).toBe(404);
+  expect((await fetch(`${url}/unknown`)).status).toBe(404);
+});
+
+test("a hold accepts only its exact amount and keeps its payment fields", async () => {
+  const url = await start();
+  await post(url, "/control/clock", { now: 10000 });
+  const offer = (await search(url)).at(0)!;
+  const held = orderSchema.parse(
+    await (
+      await post(url, "/air/orders", { data: { selected_offers: [offer.id], type: "hold" } })
+    ).json(),
+  ).data;
+  const wrong = await post(url, "/air/payments", {
+    data: { order_id: held.id, amount: "0.01", currency: "USD" },
+  });
+  expect(wrong.status).toBe(400);
+  expect(await wrong.json()).toEqual({
+    errors: [
+      { type: "invalid_request_error", code: "incorrect_amount", title: "incorrect_amount" },
+    ],
+  });
+  const paid = await post(url, "/air/payments", {
+    data: { order_id: held.id, amount: held.total_amount, currency: "USD", type: "balance" },
+  });
+  expect(paid.status).toBe(201);
+  expect(await paid.json()).toMatchObject({
+    data: {
+      id: expect.stringMatching(/^pay_/),
+      order_id: held.id,
+      amount: held.total_amount,
+      currency: "USD",
+    },
+  });
+  expect(await (await fetch(`${url}/air/orders/${held.id}`)).json()).toMatchObject({
+    data: { status: "paid" },
+  });
+});
+
+test("a scenario reset restores stock and clears quotes, orders, route rules and calls", async () => {
+  const url = await start();
+  await post(url, "/control/clock", { now: 10000 });
+  const offer = (await search(url)).at(0)!;
+  const booked = orderSchema.parse(
+    await (
+      await post(url, "/air/orders", { data: { selected_offers: [offer.id], type: "instant" } })
+    ).json(),
+  ).data;
+  await post(url, "/control/flights", {
+    flight_id: offer.flight_id,
+    cabin_class: "economy",
+    seats: 0,
+    amount_cents: 1,
+  });
+  await post(url, "/control/routes", { route: "POST /air/offer_requests", status: 503 });
+  const reset = await post(url, "/control/scenario", { name: "default" });
+  expect(reset.status).toBe(200);
+  expect(await reset.json()).toEqual({ data: { name: "default" } });
+  const log = logSchema.parse(
+    await (
+      await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+    ).json(),
+  );
+  expect(log.data.filter((call) => call.status !== 0)).toEqual([
+    { route: "POST /control/scenario", time: 10000, status: 200 },
+  ]);
+  expect((await fetch(`${url}/air/offers/${offer.id}`)).status).toBe(404);
+  expect((await fetch(`${url}/air/orders/${booked.id}`)).status).toBe(404);
+  expect(
+    (await search(url)).find(
+      (entry) => entry.flight_id === offer.flight_id && entry.fare_class === offer.fare_class,
+    ),
+  ).toMatchObject({ total_amount: offer.total_amount, available_seats: offer.available_seats });
+});
+
+test("the grader rejects bad flight, route, scenario and clock changes", async () => {
+  const url = await start();
+  const cases = [
+    { path: "/control/flights", body: { seats: -1 }, code: "invalid_flight_change" },
+    { path: "/control/scenario", body: { name: "missing" }, code: "invalid_scenario" },
+    {
+      path: "/control/routes",
+      body: { route: "POST /air/orders", status: 399 },
+      code: "invalid_route_rule",
+    },
+    {
+      path: "/control/routes",
+      body: { route: "POST /air/orders", status: 600 },
+      code: "invalid_route_rule",
+    },
+    { path: "/control/clock", body: { advanceMs: -1 }, code: "invalid_clock" },
+  ];
+  for (const entry of cases) {
+    const response = await post(url, entry.path, entry.body);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      errors: [{ type: "invalid_request_error", code: entry.code, title: entry.code }],
+    });
+  }
+  const unknown = await post(url, "/control/missing", {});
+  expect(unknown.status).toBe(404);
+  expect(await unknown.json()).toEqual({
+    errors: [{ type: "invalid_request_error", code: "not_found", title: "not_found" }],
+  });
+  const clock = await post(url, "/control/clock", { now: 10000 });
+  expect(await clock.json()).toEqual({ data: { now: 10000 } });
+  expect(await (await post(url, "/control/clock", { advanceMs: 500 })).json()).toEqual({
+    data: { now: 10500 },
+  });
+});
+
+test("an expired hold does not undo a later grader seat edit", async () => {
+  const url = await start();
+  await post(url, "/control/clock", { now: 10000 });
+  const offer = (await search(url)).at(0)!;
+  await post(url, "/air/orders", { data: { selected_offers: [offer.id], type: "hold" } });
+  await post(url, "/control/clock", { advanceMs: 1000 });
+  const changed = await post(url, "/control/flights", {
+    flight_id: offer.flight_id,
+    cabin_class: "economy",
+    seats: 0,
+  });
+  expect(changed.status).toBe(200);
+  expect((await search(url)).some((entry) => entry.flight_id === offer.flight_id)).toBe(false);
+});
+
+test("stopping a service ends its virtual waits and closes its HTTP port", async () => {
+  const url = await start();
+  await post(url, "/control/clock", { now: 10000 });
+  await post(url, "/control/routes", { route: "POST /air/offer_requests", delayMs: 1000 });
+  const pending = post(url, "/air/offer_requests", searchBody).then(
+    (response) => response.status,
+    () => 0,
+  );
+  await expect
+    .poll(async () => {
+      const log = logSchema.parse(
+        await (
+          await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+        ).json(),
+      );
+      return log.data.some(
+        (call) => call.route === "POST /air/offer_requests" && call.status === 0,
+      );
+    })
+    .toBe(true);
+  const app = running.at(-1)!;
+  app.stop.abort();
+  expect(await app.closed).toMatchObject({ status: "success" });
+  await pending;
+  await expect(fetch(`${url}/air/offers/missing`)).rejects.toThrow();
+});
+
+test("advancing before setting a clock starts a test clock from real time", async () => {
+  const url = await start();
+  const before = Date.now();
+  const first = z
+    .object({ data: z.object({ now: z.number() }) })
+    .parse(await (await post(url, "/control/clock", { advanceMs: 1000 })).json()).data.now;
+  expect(first).toBeGreaterThanOrEqual(before + 1000);
+  expect(first).toBeLessThanOrEqual(Date.now() + 1000);
+  expect(await (await post(url, "/control/clock", { advanceMs: 1000 })).json()).toEqual({
+    data: { now: first + 1000 },
+  });
+  await post(url, "/control/clock", { now: first + 5000 });
+  expect(await (await post(url, "/control/clock", { advanceMs: 1 })).json()).toEqual({
+    data: { now: first + 5001 },
+  });
 });

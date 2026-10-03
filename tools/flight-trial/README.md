@@ -239,6 +239,12 @@ Economy is the default cabin.
 One adult is the default passenger.
 The trial counts every passenger as one seat.
 The offers include saver, standard, and flex fares.
+Search checks the route, date, cabin, and the whole group's seat count.
+Each slice has one segment with departure and arrival times.
+The segment gives the airline ID and a one-to-four-digit flight number.
+The saved number includes the airline prefix; the HTTP number leaves it out.
+This follows [Duffel's segment shape](https://duffel.com/docs/api/v2/offers).
+Bad supplier requests return a named Duffel error before changing stock.
 
 Read a current quote with `GET /air/offers/:id`.
 It returns the current price and seats.
@@ -262,8 +268,12 @@ POST /air/orders
 
 `type` is `hold` or `instant`.
 Orders take seats at once.
+A business group pays its chosen fare for each passenger.
+It uses only that cabin's seats.
+Orders keep the selected offer, flight, cabin, and passenger count.
 A hold has `status: held` and `payment_required_by`.
 It expires at that time and frees its seats.
+An expired hold does not undo a later grader seat edit.
 An instant order has `status: paid`.
 Read either with `GET /air/orders/:id`.
 
@@ -293,6 +303,10 @@ The small shapes follow
 [Stripe's PaymentIntents](https://docs.stripe.com/api/payment_intents).
 Payment accepts JSON or form bodies.
 It returns Stripe objects directly, without a `data` wrapper.
+Bad payment input and missing resources return Stripe errors.
+Currency codes have three letters and are saved in lowercase.
+A repeated confirmation keeps one delivery.
+An intent key keeps its original reply after the intent changes.
 Create an intent with whole cents:
 
 ```text
@@ -331,7 +345,9 @@ POST /v1/refunds
 An optional `amount` chooses a partial refund in cents.
 Without it, the service refunds the remaining amount.
 A refund key returns the same refund on repeat.
+Partial refunds share the paid limit only with the same intent.
 Total refunds cannot exceed the paid amount.
+An unconfirmed or failed payment cannot be refunded.
 Errors use `error: { type, code, message }`.
 The trial does not model cards or bank accounts.
 
@@ -348,8 +364,14 @@ Service calls need no token on the private trial network.
 Holds expire on real time before the grader sets a clock.
 The test clock starts only when the grader chooses it.
 Switch to it before starting timed work.
+Advancing before setting a clock starts a test clock from real time.
+Stopping a service ends its virtual waits and closes its HTTP port.
 A scenario reset keeps the current clock.
 It clears service state, route rules, and the call log.
+A supplier scenario reset restores stock and clears quotes and orders.
+A payment scenario reset clears intents, keys, route faults, and old deliveries.
+The grader rejects bad flight, route, scenario, clock, and webhook plan changes.
+Unknown intent IDs also fail.
 Core applies presets on a short seed scope.
 The control operation transfers its seeded data to the live service.
 The HTTP listener and its scope stay open.
@@ -446,6 +468,8 @@ POST /control/webhooks
 This replaces that intent's pending webhook plan.
 A manual `now` sends at once.
 A manual `never` cancels the pending send.
+Manual late and twice plans change only the chosen intent.
+A failed outcome uses the default confirmation plan if no mode is given.
 The grader can cancel a pending webhook and send it now later.
 Already sent events stay in the log.
 

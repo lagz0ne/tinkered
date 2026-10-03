@@ -120,7 +120,6 @@ const paySchema = z.object({
     type: z.literal("balance").default("balance"),
   }),
 });
-const scenario = data({ label: "supplier scenario", initial: "default" });
 
 /** A pure stock edit runs inside the controlling operation; it owns no work. */
 function changeStock(stock: Supplier.Stock, change: Supplier.Change): void {
@@ -156,7 +155,7 @@ function createOffer(
             departing_at: flight.departsAt,
             arriving_at: flight.arrivesAt,
             marketing_carrier: { id: String(flight.airlineId) },
-            marketing_carrier_flight_number: flight.flightNumber,
+            marketing_carrier_flight_number: flight.flightNumber.slice(2),
           },
         ],
       },
@@ -327,7 +326,6 @@ const supplierControl = operation({
   label: "control supplier",
   depends: {
     supplierState: state.controller,
-    supplierScenario: scenario.controller,
     rules: rules.controller,
     calls: calls.controller,
     common: control.controller,
@@ -335,7 +333,7 @@ const supplierControl = operation({
     supplierId,
   },
   async run(
-    { supplierState, supplierScenario, rules, calls, common, reader, supplierId },
+    { supplierState, rules, calls, common, reader, supplierId },
     ctx: Operation.Ctx<Service.Request>,
   ) {
     if (ctx.input.route === "POST /control/scenario") {
@@ -343,14 +341,10 @@ const supplierControl = operation({
       if (!parsed.success) return reject("invalid_scenario");
       /** Core applies presets at scope creation; this short scope transfers the new scenario data. */
       const seed = createScope({
-        presets: [
-          preset(state, createState(reader.offers(supplierId), parsed.data.name)),
-          preset(scenario, parsed.data.name),
-        ],
+        presets: [preset(state, createState(reader.offers(supplierId), parsed.data.name))],
       });
       supplierState.set(seed.resolve(state));
-      supplierScenario.set(seed.resolve(scenario));
-      const ended = await seed.close();
+      const ended = await seed.close({ graceful: true });
       if (ended.status !== "success") return reject("scenario_failed", 500);
       rules.set({});
       calls.set([]);
