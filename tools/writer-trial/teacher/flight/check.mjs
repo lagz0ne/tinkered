@@ -1,6 +1,7 @@
 import { settings, chromium } from "./common.mjs";
 import { round1 } from "./round-1.mjs";
 import { round2 } from "./round-2.mjs";
+import { round3 } from "./round-3.mjs";
 const suite = settings();
 const browser = await chromium.launch({
   headless: true,
@@ -25,6 +26,7 @@ const test = async (name, body) => {
 try {
   await round1(suite, test);
   if (suite.round >= 2) await round2(suite, test);
+  if (suite.round >= 3) await round3(suite, test);
 } finally {
   await browser.close();
 }

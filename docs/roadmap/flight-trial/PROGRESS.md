@@ -908,3 +908,31 @@ The final report will include its exit code.
 
 Next: round 3 holds.
 Verify: two browser users race; exactly one supplier hold succeeds.
+
+### Round 3 handoff repair
+
+Owner: Codex, resumed writer.
+Next: rebase onto the service wire fixes, then prove round 3.
+Verify: two passes and a named planted failure.
+The inherited empty-search bug is fixed.
+The reference keeps Node's built-in Response objects.
+Hono's default replacement makes `Response.json()` fail TanStack's check.
+The supplier contract uses nested `payment_status` fields.
+Packets 1 and 2 are unchanged.
+
+Assumptions:
+
+- The board stays with the lead, outside this writer's paths.
+- Existing proof containers belong to this flight proof.
+- A local Docker exec relay reaches them after the workspace rebuild.
+- The relay changes no host or Docker settings.
+- The reference's HTTP serve adapter may keep native web objects.
+- Hold expiry means no awaiting payment and no paid time.
+
+Proof:
+
+- Workspace build: exit 0, `/tmp/flight-rounds-takeover-build.log`.
+- Shape check: exit 0, `/tmp/flight-rounds-r3-shapes-check.log`.
+- Style census: exit 0, `/tmp/flight-rounds-r3-style.log`.
+- Old round 3 proof: exit 1, `/tmp/flight-rounds-r3-proof.log`.
+  Empty search passes; the old HTTP adapter still broke hold replies.

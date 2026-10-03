@@ -43,12 +43,18 @@ export const bootstrapPrivate = operation({
           .where(eq(user.id, currentUser.id))
       ).at(0);
       if (!profile) raise("SignInRequired", {});
+      const { booking } = await import("./bookings.schema.ts");
+      const bookings = await tx
+        .select()
+        .from(booking)
+        .where(eq(booking.ownerId, currentUser.id))
+        .orderBy(asc(booking.id));
       const todos = await tx
         .select({ id: todo.id, title: todo.title, done: todo.done })
         .from(todo)
         .where(eq(todo.ownerId, currentUser.id))
         .orderBy(asc(todo.id));
-      return { stream: currentUser.id, revision, profile, todos };
+      return { stream: currentUser.id, revision, profile, todos, bookings };
     });
   },
 });

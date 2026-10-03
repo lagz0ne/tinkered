@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bookingRecord } from "./bookings.ts";
 import {
   eventEnvelope,
   snapshotEnvelope,
@@ -22,7 +23,7 @@ const profileRecord = z.object({
 });
 const todoRecord = z.object({ id: z.number(), title: z.string(), done: z.boolean() });
 const result = z.union([
-  z.object({ kind: z.literal("complete"), action: z.enum(["counter", "todo"]) }),
+  z.object({ kind: z.literal("complete"), action: z.enum(["counter", "todo", "booking"]) }),
   z.object({ kind: z.literal("complete"), action: z.literal("profile"), profileId: z.string() }),
   z.object({
     kind: z.literal("partial"),
@@ -32,7 +33,7 @@ const result = z.union([
   }),
   z.object({
     kind: z.literal("failed"),
-    action: z.enum(["counter", "todo", "profile"]),
+    action: z.enum(["counter", "todo", "profile", "booking"]),
     message: z.string(),
   }),
 ]);
@@ -40,6 +41,7 @@ const change = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("counter"), value: z.number() }),
   z.object({ kind: z.literal("profile"), profile: profileRecord }),
   z.object({ kind: z.literal("todos"), rows: z.array(todoRecord) }),
+  z.object({ kind: z.literal("bookings"), rows: z.array(bookingRecord) }),
 ]);
 const event = eventEnvelope.extend({
   payload: z.discriminatedUnion("kind", [
@@ -59,6 +61,7 @@ const snapshot = snapshotEnvelope.extend({
       revision: z.number().int().min(0),
       profile: profileRecord,
       todos: z.array(todoRecord),
+      bookings: z.array(bookingRecord),
     })
     .nullable(),
 });

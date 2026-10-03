@@ -1,3 +1,4 @@
+import { bookingRows } from "./state.ts";
 import { resource } from "@tinker/core";
 import { profile, todos, counter, nameDraft, profileResult } from "./state.ts";
 import type { Sync } from "../contracts/sync.ts";
@@ -9,12 +10,14 @@ export const records = resource({
     todos: todos.controller,
     counter: counter.controller,
     draft: nameDraft.controller,
+    bookings: bookingRows.controller,
     result: profileResult.controller,
   },
-  factory: ({ profile, todos, counter, draft, result }) => ({
+  factory: ({ profile, todos, counter, draft, result, bookings }) => ({
     resetPrivate() {
       profile.set(null);
       todos.set([]);
+      bookings.set([]);
       draft.set(undefined);
       result.set(null);
     },
@@ -25,6 +28,7 @@ export const records = resource({
       if (value.revision < after) return;
       profile.set(value.profile);
       todos.set(value.todos);
+      bookings.set(value.bookings);
     },
     change(change: Sync.Change) {
       switch (change.kind) {
@@ -33,6 +37,9 @@ export const records = resource({
           break;
         case "profile":
           profile.set(change.profile);
+          break;
+        case "bookings":
+          bookings.set(change.rows);
           break;
         case "todos":
           todos.set(change.rows);
@@ -51,6 +58,7 @@ export const records = resource({
                 revision: Math.max(0, privateRevision),
                 profile: saved,
                 todos: todos.get(),
+                bookings: bookings.get(),
               },
       };
     },

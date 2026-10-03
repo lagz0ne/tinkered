@@ -3,6 +3,7 @@ export default defineConfig({
   dialect: "postgresql",
   schema: [
     "./src/backend/schema.ts",
+    "./src/backend/bookings.schema.ts",
     "./src/backend/todos.schema.ts",
     "./src/backend/sync.schema.ts",
     "./src/scaffold/backend/sync.schema.ts",

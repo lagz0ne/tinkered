@@ -2,12 +2,14 @@ import { operation, type Operation } from "@tinker/core";
 import { z } from "zod";
 import { offer, type Flights } from "../contracts/flights.ts";
 import { flightSettings } from "./flight-settings.server.ts";
+import { flightQuote } from "./bookings.schema.ts";
+import { database } from "./database.ts";
 const searchReply = z.object({ data: z.object({ offers: z.array(offer) }) });
 export const searchFlights = operation({
   label: "search flights",
-  depends: { settings: flightSettings },
+  depends: { settings: flightSettings, database },
   async run(
-    { settings },
+    { settings, database },
     ctx: Operation.Ctx<{
       query: Flights.Query;
       send: (event: Flights.Event) => void;
@@ -43,6 +45,13 @@ export const searchFlights = operation({
             return;
           }
           const result = searchReply.parse(await response.json());
+          if (result.data.offers.length)
+            await database.insert(flightQuote).values(
+              result.data.offers.map((entry) => ({
+                id: entry.id,
+                offer: { ...entry, supplier },
+              })),
+            );
           ctx.input.send({
             supplier,
             status: "done",

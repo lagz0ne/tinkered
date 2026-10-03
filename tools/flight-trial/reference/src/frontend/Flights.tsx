@@ -1,4 +1,4 @@
-import { useData, useRun } from "@tinker/react";
+import { useData, useRun, useResource } from "@tinker/react";
 import { Link } from "@tanstack/react-router";
 import {
   flightDraft,
@@ -8,7 +8,12 @@ import {
   editFlightDraft,
   findFlights,
 } from "./flights.ts";
+import { bookingNotice } from "./state.ts";
+import { holdSeat, seatUpdates } from "./bookings.ts";
 export function FlightsPage() {
+  useResource(seatUpdates);
+  const hold = useRun(holdSeat);
+  const held = useData(bookingNotice);
   const draft = useData(flightDraft);
   const rows = useData(flightRows);
   const progress = useData(flightProgress);
@@ -18,6 +23,8 @@ export function FlightsPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4">
       <h1>Flights</h1>
+      <a href="/bookings">Bookings</a>
+      <p role="alert">{held}</p>
       <Link to="/">Account</Link>
       <form
         onSubmit={(event) => {
@@ -81,6 +88,15 @@ export function FlightsPage() {
                 <td>{row.total_amount} USD</td>
                 <td>{row.supplier}</td>
                 <td>{row.available_seats}</td>
+                <td>
+                  {row.available_seats === 0 ? (
+                    "Sold out"
+                  ) : (
+                    <button onClick={() => hold.run({ input: row.id })}>
+                      Hold {row.flight_id}
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

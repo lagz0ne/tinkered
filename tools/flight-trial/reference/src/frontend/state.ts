@@ -16,3 +16,7 @@ export const profileResult = data<{ executionId: string; result: Sync.Result } |
   label: "profile.result",
   initial: null,
 });
+
+import type { Bookings } from "../contracts/bookings.ts";
+export const bookingRows = data<Bookings.Row[]>({ label: "saved flight bookings", initial: [] });
+export const bookingNotice = data({ label: "booking notice", initial: "" });
