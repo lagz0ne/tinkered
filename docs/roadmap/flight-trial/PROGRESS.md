@@ -2510,3 +2510,18 @@ Assumption: scan a saved copy of the harness test files and README,
 with `.mjs` copied to `.ts` for this title-only scan.
 This keeps the scanner unchanged and reads the real test titles.
 Also scan the reference proof folder with its shipped tests.
+
+The title-only snapshot also strips `void` before `it()` or `test()`.
+The titles stay exact; 58 titles are found across ten real test files.
+The first valid harness promise scan found 22 missing README lines.
+Those checked rules are now stated in the harness README.
+The real scaffold test folder scan exited 0 with one advisory gap:
+`the server side has no page and binds without listening`.
+That new main test is outside this writer's changed tests.
+Its source uses `pageEvents(undefined)` on the server.
+No app README change is made by this writer.
+
+The repeat promise scan exited 0 and found four more README gaps.
+Those four lines are also now stated in the harness README.
+All flagged titles from both valid scans have a saved README line.
+The promise scan is advisory; unsure rows are not defects.

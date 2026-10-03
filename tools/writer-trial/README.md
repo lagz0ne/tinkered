@@ -431,3 +431,36 @@ Later checks are not run; do not count them as failures or passes.
 These checks sample the task rules; they do not cover every rule.
 The empty starter was rejected by the isolated runner.
 Accepted learning apps pass repair 29/29 and transfer 43/43.
+
+## Saved answer and check promises
+
+The harness also promises these checked rules.
+S17 names the plain rule for type assertions.
+T08 names the test rule for error checks inside assertions.
+
+- gives the teacher the writer's answer for the same file bytes.
+- keeps the writer's last answer for the same bytes.
+- never reuses a report with a unit Jev did not judge.
+- skips lines that are not complete Jev events.
+- cleanup waits for the pending retry save on the active round.
+- claims once, fails busy, releases.
+- is unavailable with exit 2 for a link that leaves the folder.
+- is unavailable with exit 2 when the folder has nothing to judge.
+- passes a proven judge answer below its threshold.
+- is unavailable when a file could not be judged.
+- lets one unavailable file outrank a blocking file.
+- is unavailable when no file was judged.
+- names the first line of the unit a Jev hit is on.
+- tells the writer how to clear a plain rule break with its message.
+- blocks on a type assertion in writer source (S17).
+- blocks on isError inside expect in a test file (T08).
+- sends each test as title, causes, asserts, narrows, and body.
+- uses the median of three asks for a proven judge within the margin.
+- covers every reference app there is.
+- keeps booking clauses out of the default rules.
+- stages the frozen gate beside the broker so the worker broker loads.
+- refuses create without a real first flight packet.
+- gives nothing once the file bytes changed.
+- blocks on a shape finding with exit 1 and names its rule, line, and fix.
+- passes a clean folder with exit 0.
+- tells the writer how to clear a blocking Jev hit with the judge's fix line.
