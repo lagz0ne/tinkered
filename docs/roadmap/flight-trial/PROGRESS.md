@@ -961,3 +961,31 @@ Proof:
 
 The earlier round 3 proof log path now holds the passing rerun.
 The failed attempts are described above; they did not count as ready.
+
+### Round 3 ready
+
+Packet 3 is frozen at this ready step.
+Next: round 4 payments.
+The branch includes service fixes through `d934d2b1`.
+The first rebase stopped on this progress file with exit 1.
+Both writers' notes were kept; its continuation exited 0.
+Later rebases also exited 0.
+No stash was used.
+Packets 1 and 2 match `610144d0` byte for byte.
+
+Final round 3 proof:
+
+- Driver: exit 0, `/tmp/flight-rounds-r3-final-proof.log`.
+- Reference pass 1: exit 0, `.logs/r3-pass-1.log`; nine checks pass.
+- Reference pass 2: exit 0, `.logs/r3-pass-2.log`; nine checks pass.
+- Missing price check: exit 1, `.logs/r3-break.log`.
+  Only the named stale-price check fails; the seat race passes.
+- Good, broken, and restored builds: exit 0.
+  Logs: `.logs/r3-build-good.log`, `.logs/r3-build-break.log`,
+  and `.logs/r3-build-restored.log`.
+- Workspace build: exit 0, `/tmp/flight-rounds-r3-ready-build.log`.
+- Check: exit 0, `/tmp/flight-rounds-r3-ready-check.log`.
+- Style: exit 0, `/tmp/flight-rounds-r3-ready-style.log`.
+
+Reference logs above are under `tools/flight-trial/reference/`.
+The full workspace tests and validate follow the last round.

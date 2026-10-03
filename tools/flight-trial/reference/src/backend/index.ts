@@ -22,3 +22,5 @@ export {
   replayPublic,
   replayPrivate,
 } from "./sync.ts";
+export { searchFlights } from "./flight-search.ts";
+export { holdFlight, listBookings, refreshBookings, readFlightSeats } from "./bookings.ts";
