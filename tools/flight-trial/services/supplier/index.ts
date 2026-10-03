@@ -428,12 +428,16 @@ export const app = extension({
         const result = c.var.scope.run(pay, { rawInput: c.var.body });
         return c.var.json(result);
       });
-      http.get("/air/offers/:id", (c) => {
-        const result = c.var.scope.run(readOffer, { rawInput: { id: c.req.param("id") } });
+      http.get("/air/offers/:id{.*}", (c) => {
+        const result = c.var.scope.run(readOffer, {
+          rawInput: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
+        });
         return c.var.json(result);
       });
-      http.get("/air/orders/:id", (c) => {
-        const result = c.var.scope.run(readOrder, { rawInput: { id: c.req.param("id") } });
+      http.get("/air/orders/:id{.*}", (c) => {
+        const result = c.var.scope.run(readOrder, {
+          rawInput: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
+        });
         return c.var.json(result);
       });
       http.post("/control/flights", (c) => {

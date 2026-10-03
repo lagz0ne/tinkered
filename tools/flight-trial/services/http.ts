@@ -300,7 +300,7 @@ export const decodeBody = operation({
 
 export const web = resource({
   label: "service Hono app",
-  factory: () => new Hono<Wire.Env>(),
+  factory: () => new Hono<Wire.Env>({ getPath: (request) => new URL(request.url).pathname }),
 });
 
 /** The service extension installs these after its scope binding, before its routes. */
@@ -322,8 +322,9 @@ export const middleware = resource({
           },
         });
         await next();
-        if (!stop.aborted) c.var.scope.run(saveCall, { rawInput: { id, status: c.res.status } });
-        c.header("transfer-encoding", "chunked");
+        if (!stop.aborted && !c.error)
+          c.var.scope.run(saveCall, { rawInput: { id, status: c.res.status } });
+        if (c.req.method !== "HEAD") c.header("transfer-encoding", "chunked");
       }),
       token: createMiddleware<Wire.Env>(async (c, next) => {
         c.set("control", true);
@@ -364,7 +365,7 @@ export const middleware = resource({
         } else {
           await next();
         }
-        if (selected.revision)
+        if (selected.revision && !c.error)
           c.var.scope.run(saveRule, {
             rawInput: {
               ...params,

@@ -458,11 +458,15 @@ export const app = extension({
         return c.var.json(result);
       });
       http.post("/v1/payment_intents/:id/confirm", (c) => {
-        const result = c.var.scope.run(confirm, { rawInput: { id: c.req.param("id") } });
+        const result = c.var.scope.run(confirm, {
+          rawInput: { id: new URL(c.req.url).pathname.split("/").at(-2)! },
+        });
         return c.var.json(result);
       });
       http.get("/v1/payment_intents/:id", (c) => {
-        const result = c.var.scope.run(readIntent, { rawInput: { id: c.req.param("id") } });
+        const result = c.var.scope.run(readIntent, {
+          rawInput: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
+        });
         return c.var.json(result);
       });
       http.post("/v1/refunds", (c) => {
