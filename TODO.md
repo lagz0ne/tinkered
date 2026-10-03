@@ -43,15 +43,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/seam** — the fixed scaffold reaches user code only through two seams.
-  Owner: lead (Claude, Start scaffold session); Sol seam writer.
-  Worktree: `../tinkered-start-seam`, branch `start/seam`.
-  Next: the writer builds the alias and `Register` seams.
-  Verify: no scaffold import leaves `src/scaffold/` except the seams;
-  a fixture app with a different payload type-checks the scaffold;
-  shadcn rewrites the seam import under another alias.
-  [Brief](docs/roadmap/start-scaffold/SEAM-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -73,6 +64,17 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/seam** — the fixed scaffold reaches user code only through two seams.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `2bc502be`.
+  Values go through `@/lib/tinker` and `@/lib/tinker.server`; types through `Register`.
+  Proof: build, check, 30 app tests, all workspace tests, and validate pass.
+  Seam check refuses 13 planted import forms; a note-only fixture type-checks the scaffold.
+  shadcn rewrites seams under `@/app-lib`; a `runtime` update keeps both seams.
+  `test:schema` fails on the old duplicate tables and passes now.
+  Two-tab browser sync, sign-out, SSE, and telemetry pass; 0 page errors.
+  Open: deep `lib` aliases and the mail assumption in setup.
+  [Proof](docs/roadmap/start-scaffold/SEAM-PROOF.md).
 
 - **start/primitive-registry** — keep the four-form Start registry.
   Owner: lead (Codex, Start scaffold session); Sol source-registry writer.

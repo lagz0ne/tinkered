@@ -202,8 +202,8 @@ Log: `/tmp/start-seam-review-jev.log`.
 Five repeat findings are labeled false with a reason.
 They concern the retained process root, completed receipts,
 and resource state used to hold pending work.
-Their exact judge states and reasons join the earlier labels in
-[SEAM-JEV-LABELS.jsonl](SEAM-JEV-LABELS.jsonl).
+At landing, all 20 labels joined the shared bank in
+[cases.jsonl](../../../tools/jev/cases.jsonl).
 Printed label lines: `/tmp/start-seam-review-labels.log`.
 No test file changed in this fix round.
 The earlier test and promise judge results remain recorded in their original logs.
