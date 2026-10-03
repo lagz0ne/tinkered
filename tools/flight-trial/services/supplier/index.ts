@@ -51,11 +51,15 @@ export declare namespace Supplier {
   type Order = {
     id: string;
     type: "instant" | "hold";
-    status: "held" | "paid" | "expired";
     selected_offers: string[];
     total_amount: string;
     total_currency: "USD";
-    payment_required_by?: string;
+    payment_status: {
+      awaiting_payment: boolean;
+      payment_required_by: string | null;
+      paid_at: string | null;
+      price_guarantee_expires_at: string | null;
+    };
     flight_id: string;
     cabin_class: Flights.Cabin["cabin"];
     passengers: number;
@@ -115,9 +119,11 @@ const changeSchema = z.object({
 const paySchema = z.object({
   data: z.object({
     order_id: z.string(),
-    amount: z.string(),
-    currency: z.literal("USD"),
-    type: z.literal("balance").default("balance"),
+    payment: z.object({
+      amount: z.string(),
+      currency: z.literal("USD"),
+      type: z.literal("balance"),
+    }),
   }),
 });
 
@@ -179,8 +185,12 @@ function readCurrent(current: Supplier.State, offer: Supplier.Offer): Supplier.O
 function expireOrders(current: Supplier.State, now: number): Supplier.State {
   const next = structuredClone(current);
   for (const order of Object.values(next.orders)) {
-    if (order.status !== "held" || Date.parse(order.payment_required_by!) > now) continue;
-    order.status = "expired";
+    if (
+      !order.payment_status.awaiting_payment ||
+      Date.parse(order.payment_status.payment_required_by!) > now
+    )
+      continue;
+    order.payment_status.awaiting_payment = false;
     const cabin = next.stock[order.flight_id].cabins.find(
       (entry) => entry.cabin === order.cabin_class,
     )!;
@@ -196,7 +206,10 @@ const expire = operation({
     if (
       !(await sleepUntilStopped(
         clock,
-        Math.max(0, Date.parse(ctx.input.payment_required_by!) - clock.currentTimeMillis()),
+        Math.max(
+          0,
+          Date.parse(ctx.input.payment_status.payment_required_by!) - clock.currentTimeMillis(),
+        ),
         stop,
         ctx.signal,
       ))
@@ -212,7 +225,7 @@ const holds = resource({
     ctx.defer(
       state.watch((next, previous) => {
         const order = Object.values(next.orders).find(
-          (entry) => entry.status === "held" && !previous.orders[entry.id],
+          (entry) => entry.payment_status.awaiting_payment && !previous.orders[entry.id],
         );
         if (order) return expire.run({ input: order });
       }),
@@ -281,16 +294,22 @@ const order = operation({
     const booked: Supplier.Order = {
       id: `ord_${ctx.random.uuid()}`,
       type: parsed.data.data.type,
-      status: held ? "held" : "paid",
+      payment_status: {
+        awaiting_payment: held,
+        payment_required_by: held
+          ? new Date(clock.currentTimeMillis() + holdMs).toISOString()
+          : null,
+        paid_at: held ? null : new Date(clock.currentTimeMillis()).toISOString(),
+        price_guarantee_expires_at: held
+          ? new Date(clock.currentTimeMillis() + holdMs).toISOString()
+          : null,
+      },
       selected_offers: [offer.id],
       total_amount: (Number(offer.total_amount) * parsed.data.data.passengers.length).toFixed(2),
       total_currency: "USD",
       flight_id: offer.flight_id,
       cabin_class: offer.cabin_class,
       passengers: parsed.data.data.passengers.length,
-      ...(held
-        ? { payment_required_by: new Date(clock.currentTimeMillis() + holdMs).toISOString() }
-        : {}),
     };
     current.orders[booked.id] = booked;
     state.set(current);
@@ -300,16 +319,18 @@ const order = operation({
 
 const pay = operation({
   label: "pay supplier hold",
-  depends: { state: state.controller },
-  run({ state }, ctx: Operation.Ctx<Service.Request>) {
+  depends: { state: state.controller, clock },
+  run({ state, clock }, ctx: Operation.Ctx<Service.Request>) {
     const parsed = paySchema.safeParse(ctx.input.body);
     if (!parsed.success) return reject("invalid_payment");
     const current = structuredClone(state.get());
     const order = current.orders[parsed.data.data.order_id];
     if (!order) return reject("order_not_found", 404);
-    if (order.status === "expired") return reject("order_expired", 409);
-    if (parsed.data.data.amount !== order.total_amount) return reject("incorrect_amount");
-    order.status = "paid";
+    if (!order.payment_status.awaiting_payment && !order.payment_status.paid_at)
+      return reject("order_expired", 409);
+    if (parsed.data.data.payment.amount !== order.total_amount) return reject("incorrect_amount");
+    order.payment_status.awaiting_payment = false;
+    order.payment_status.paid_at = new Date(clock.currentTimeMillis()).toISOString();
     state.set(current);
     return reply(201, {
       data: {
