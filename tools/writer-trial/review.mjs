@@ -42,7 +42,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
@@ -126,16 +126,7 @@ process.on("exit", () => {
 });
 const manifest = JSON.parse(readFileSync(manifestPath));
 const suite = suiteFor(manifest);
-const teacherAt = process.argv.indexOf("--teacher-dir");
-const teacherDir = teacherAt === -1 ? join(here, "teacher/flight") : process.argv[teacherAt + 1];
-if (
-  teacherAt !== -1 &&
-  (suite !== "flight" ||
-    !teacherDir ||
-    basename(teacherDir) !== "flight" ||
-    !existsSync(join(teacherDir, "check.mjs")))
-)
-  throw new Error("Pass --teacher-dir <flight checks folder>");
+const teacherDir = join(here, "teacher/flight");
 const worker = manifest.workers[workerNum - 1];
 if (!worker) throw new Error(`No worker ${workerNum} in this trial`);
 if (manifest.round !== undefined && manifest.round !== round)
@@ -310,7 +301,6 @@ if (command === "save") {
         images: manifest.flightImages,
         scaffold: JSON.parse(readFileSync(frozenPath("scaffold.json"))),
         logDir: checkDir,
-        teacherDir,
       });
       ownExit = flight.ownExit;
       teacherExit = flight.teacherExit;

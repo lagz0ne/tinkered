@@ -37,15 +37,7 @@ const sandbox = [
 ];
 
 /** Submitted files stay in an app container; teacher code and credentials stay in a separate one. */
-export function checkFlight({
-  archive,
-  round,
-  image,
-  images,
-  scaffold,
-  logDir,
-  teacherDir = join(here, "teacher/flight"),
-}) {
+export function checkFlight({ archive, round, image, images, scaffold, logDir }) {
   const prefix = `flight-check-${Date.now().toString(36)}-${process.pid}`;
   const own = [],
     teacher = [],
@@ -83,7 +75,7 @@ export function checkFlight({
     scaffoldExit = checkScaffold(app, scaffold, seam);
     const plainResult = checkFlightPlain(app, plain);
     ownExit = checkOwn(app, own) || resetExit;
-    teacherExit = checkTeacher(state, app, round, image, teacher, teacherDir);
+    teacherExit = checkTeacher(state, app, round, image, teacher);
     try {
       teacher.push(run(["exec", app, "cat", "/tmp/app.log"]));
     } catch {}
@@ -187,7 +179,8 @@ function checkOwn(app, own) {
   return ownExit;
 }
 
-function checkTeacher(state, app, round, image, teacher, teacherDir) {
+function checkTeacher(state, app, round, image, teacher) {
+  const teacherDir = join(here, "teacher/flight");
   let teacherExit = 0;
   try {
     run(["exec", "-d", app, "sh", "-c", "npm run start > /tmp/app.log 2>&1"]);
