@@ -271,10 +271,14 @@ Orders take seats at once.
 A business group pays its chosen fare for each passenger.
 It uses only that cabin's seats.
 Orders keep the selected offer, flight, cabin, and passenger count.
-A hold has `status: held` and `payment_required_by`.
+An order has `payment_status` with four fields:
+`awaiting_payment`, `payment_required_by`, `paid_at`,
+and `price_guarantee_expires_at`.
+A hold starts with `awaiting_payment: true` and a deadline.
 It expires at that time and frees its seats.
 An expired hold does not undo a later grader seat edit.
-An instant order has `status: paid`.
+An instant order has `awaiting_payment: false` and `paid_at`.
+Orders have no top-level `status` or `payment_required_by`.
 Read either with `GET /air/orders/:id`.
 
 Pay a hold with the order's exact total:
@@ -284,9 +288,11 @@ POST /air/payments
 {
   "data": {
     "order_id": "ord_returned_by_order",
-    "amount": "123.00",
-    "currency": "USD",
-    "type": "balance"
+    "payment": {
+      "amount": "123.00",
+      "currency": "USD",
+      "type": "balance"
+    }
   }
 }
 ```

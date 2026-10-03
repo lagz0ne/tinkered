@@ -44,8 +44,12 @@ const orderSchema = z.object({
     passengers: z.number().int().positive(),
     total_currency: z.literal("USD"),
     total_amount: z.string().regex(/^\d+\.\d{2}$/),
-    payment_required_by: z.string().optional(),
-    status: z.string(),
+    payment_status: z.object({
+      awaiting_payment: z.boolean(),
+      payment_required_by: z.string().nullable(),
+      paid_at: z.string().nullable(),
+      price_guarantee_expires_at: z.string().nullable(),
+    }),
   }),
 });
 const logSchema = z.object({
@@ -134,12 +138,17 @@ test("an expired hold frees its seat on the service clock", async () => {
       await post(url, "/air/orders", { data: { selected_offers: [offer.id], type: "hold" } })
     ).json(),
   );
-  expect(held.data.payment_required_by).toBe("1970-01-01T00:00:11.000Z");
+  expect(held.data.payment_status.payment_required_by).toBe("1970-01-01T00:00:11.000Z");
   await post(url, "/control/clock", { advanceMs: 1000 });
   const expired = await (await fetch(`${url}/air/orders/${held.data.id}`)).json();
-  expect(expired).toMatchObject({ data: { status: "expired" } });
+  expect(expired).toMatchObject({
+    data: { payment_status: { awaiting_payment: false, paid_at: null } },
+  });
   const payment = await post(url, "/air/payments", {
-    data: { order_id: held.data.id, amount: held.data.total_amount, currency: "USD" },
+    data: {
+      order_id: held.data.id,
+      payment: { amount: held.data.total_amount, currency: "USD", type: "balance" },
+    },
   });
   expect(payment.status).toBe(409);
   expect(await payment.json()).toEqual({
@@ -180,7 +189,10 @@ test("a paid hold keeps its seat after the hold time", async () => {
     ).json(),
   );
   const payment = await post(url, "/air/payments", {
-    data: { order_id: held.data.id, amount: held.data.total_amount, currency: "USD" },
+    data: {
+      order_id: held.data.id,
+      payment: { amount: held.data.total_amount, currency: "USD", type: "balance" },
+    },
   });
   expect(payment.status).toBe(201);
   await post(url, "/control/clock", { advanceMs: 1001 });
@@ -259,9 +271,9 @@ test("holds expire on real time before the grader sets a clock", async () => {
       const current = orderSchema.parse(
         await (await fetch(`${url}/air/orders/${held.data.id}`)).json(),
       );
-      return current.data.status;
+      return current.data.payment_status.awaiting_payment;
     })
-    .toBe("expired");
+    .toBe(false);
 });
 
 test("the grader can change a loaded flight before its first search", async () => {
@@ -322,7 +334,7 @@ test("a business group pays its fare for each passenger and uses only that cabin
   const order = orderSchema.parse(await booked.json()).data;
   expect(order).toMatchObject({
     type: "instant",
-    status: "paid",
+    payment_status: { awaiting_payment: false, paid_at: expect.any(String) },
     selected_offers: [offer.id],
     flight_id: economy.flight_id,
     cabin_class: "business",
@@ -330,7 +342,7 @@ test("a business group pays its fare for each passenger and uses only that cabin
     total_amount: "246.90",
     total_currency: "USD",
   });
-  expect(order.payment_required_by).toBeUndefined();
+  expect(order.payment_status.payment_required_by).toBeNull();
   expect(await (await fetch(`${url}/air/offers/${offer.id}`)).json()).toMatchObject({
     data: { available_seats: 0 },
   });
@@ -409,7 +421,12 @@ test("bad supplier requests return a named Duffel error", async () => {
     { path: "/air/payments", body: {}, status: 400, code: "invalid_payment" },
     {
       path: "/air/payments",
-      body: { data: { order_id: "missing", amount: "1.00", currency: "USD" } },
+      body: {
+        data: {
+          order_id: "missing",
+          payment: { amount: "1.00", currency: "USD", type: "balance" },
+        },
+      },
       status: 404,
       code: "order_not_found",
     },
@@ -447,7 +464,7 @@ test("a hold accepts only its exact amount and keeps its payment fields", async 
     ).json(),
   ).data;
   const wrong = await post(url, "/air/payments", {
-    data: { order_id: held.id, amount: "0.01", currency: "USD" },
+    data: { order_id: held.id, payment: { amount: "0.01", currency: "USD", type: "balance" } },
   });
   expect(wrong.status).toBe(400);
   expect(await wrong.json()).toEqual({
@@ -456,7 +473,10 @@ test("a hold accepts only its exact amount and keeps its payment fields", async 
     ],
   });
   const paid = await post(url, "/air/payments", {
-    data: { order_id: held.id, amount: held.total_amount, currency: "USD", type: "balance" },
+    data: {
+      order_id: held.id,
+      payment: { amount: held.total_amount, currency: "USD", type: "balance" },
+    },
   });
   expect(paid.status).toBe(201);
   expect(await paid.json()).toMatchObject({
@@ -468,7 +488,7 @@ test("a hold accepts only its exact amount and keeps its payment fields", async 
     },
   });
   expect(await (await fetch(`${url}/air/orders/${held.id}`)).json()).toMatchObject({
-    data: { status: "paid" },
+    data: { payment_status: { awaiting_payment: false, paid_at: "1970-01-01T00:00:10.000Z" } },
   });
 });
 
