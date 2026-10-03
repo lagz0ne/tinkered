@@ -54,8 +54,23 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Owner: lead (Claude, Start scaffold session).
   Trial `flight-deepseek-01`; writer `pi/writer-gateway/deepseek/deepseek-v4.1-flash`, high.
   Baseline: **0** (round 1 failed; hidden checks 1 of 3; own checks and Jev passed).
-  Next: user decides whether to retry round 1 with feedback.
+  Next: retries with teacher feedback, up to 3 tries a round (user 2026-10-03).
+  Verify: each try's save, check, and feedback in PROGRESS.
   [Proof](docs/roadmap/flight-trial/PROGRESS.md#deepseek-baseline-2026-10-03).
+
+- **start/starter-casts** — starter files ship no code that Jev blocks.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-starter-casts`. Found by DeepSeek round 1.
+  Next: remove the two casts in `src/server.ts`; `inputValidator` to `validator`.
+  Verify: the app gate shows no blocking item in starter files; all gates.
+  [Brief](docs/roadmap/start-scaffold/STARTER-CASTS-BRIEF.md).
+
+- **trial/jev-link** — a trial never depends on the checkout that made it.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-jev-link`. Found by DeepSeek round 1.
+  Next: give the frozen Jev its own packages; prove it loads at create and check.
+  Verify: the new test fails on the old code; writer-trial tests pass.
+  [Brief](docs/roadmap/flight-trial/JEV-LINK-BRIEF.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
