@@ -2356,7 +2356,7 @@ The original Postgres and Mailpit containers were left running.
 
 Writer: Codex.
 Branch: `trial/flight-integration`.
-Next: prove rounds 1 to 5 once on the landed Hono services image.
+Next: lead review; then start the Hono trial at packet 1.
 Verify: rounds 1 to 5 pass twice; five planted breaks fail.
 
 Assumptions:
@@ -2782,3 +2782,32 @@ The teacher reports 10/10 and 17/17 checks.
 Own, scaffold, plain, and Jev checks also exited 0.
 Four rows are saved in `INTEGRATION-HONO-RESULTS.json`.
 Round 5 is running.
+
+### Integration: Hono follow-up complete
+
+The Hono reference run exited 0.
+Rounds 1 to 5 each passed once through the full gate.
+Own, teacher, scaffold, plain, and Jev checks all exited 0.
+Teacher counts were 3/3, 6/6, 10/10, 17/17, and 21/21.
+No planted break was rerun, as the lead asked.
+All five rows are saved in `INTEGRATION-HONO-RESULTS.json`.
+Run log: `tools/writer-trial/.logs/hono-reference-final.log`.
+Saved-result check: `hono-reference-verified.log`, exit 0,
+under `tools/writer-trial/.logs/`.
+It checks the five passes, the new image ID, and the frozen files.
+
+The new services ID is
+`sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7`.
+Its tar and idle keeper remain.
+`INTEGRATION-IMAGES.json` records the exact tag and saved tar path.
+`INTEGRATION-GATES.md` records the full current proof and workspace gates.
+
+The fresh prepared trial is `flight-integration-hono-01`.
+It is staged at packet 1 and pins the new Hono image.
+No model run started.
+The earlier two-pass proof and its five named breaks remain saved.
+The earlier cleanup is complete; prior final proof images stay for replay.
+
+Status: Review.
+No work remains in this writer's brief or the Hono follow-up.
+The lead owns review and landing; nothing was pushed.
