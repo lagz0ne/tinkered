@@ -1,10 +1,20 @@
 # Flight integration proof
 
 Branch: `trial/flight-integration`.
-Main: `f847c99c`.
-Status: Review; all required proof, workspace gates, and cleanup pass.
+Main: `0da81a82`.
+Status: the two-pass proof is complete; the Hono follow-up is next.
 
-## Five rounds
+## Hono services follow-up
+
+The rebase onto `0da81a82` exited 0.
+Log: `tools/writer-trial/.logs/hono-rebase-continue-2.log`.
+The services image rebuild and tar save exited 0.
+Log: `tools/writer-trial/.logs/hono-services-image.log`.
+The new services ID is
+`sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7`.
+One full gate per round is next, with `--once` and no planted breaks.
+
+## Five rounds before Hono
 
 PID 640336 finished with exit 0.
 Log: `tools/writer-trial/.logs/resume-reference-trusted-final.log`.
@@ -91,8 +101,8 @@ Exact IDs and tar paths are in
 
 - Writer: `tinker-writer-flight:20261003.integration.3`.
   ID: `sha256:e12f8a3c62fae5b765a901f006b64aef100de1d3ed6299a1aa558dcbd0bb41a5`.
-- Services: `tinker-flight-services:20261003.integration.3`.
-  ID: `sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b`.
+- Services: `tinker-flight-services:20261003160955833`.
+  ID: `sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7`.
 - Postgres:
   `sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537`.
 - Mailpit:

@@ -1,10 +1,14 @@
 {
   "main": "1ff5402f",
   "writerTag": "tinker-writer-flight:20261003.integration.3",
-  "servicesTag": "tinker-flight-services:20261003.integration.3",
+  "servicesTag": "tinker-flight-services:20261003160955833",
   "writerId": "sha256:e12f8a3c62fae5b765a901f006b64aef100de1d3ed6299a1aa558dcbd0bb41a5",
-  "servicesId": "sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b",
+  "servicesId": "sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7",
   "writerTar": "/home/paseo/.local/share/tinker-writer-trial/image-20261003.integration.3/image.tar",
-  "servicesTar": "/home/paseo/.local/share/tinker-writer-trial/image-20261003.integration.3/services/image.tar",
-  "tabLifetimeTest": true
+  "servicesTar": "/home/paseo/.local/share/tinker-writer-trial/services-20261003160955833/image.tar",
+  "tabLifetimeTest": true,
+  "previousServicesTag": "tinker-flight-services:20261003.integration.3",
+  "previousServicesId": "sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b",
+  "previousServicesTar": "/home/paseo/.local/share/tinker-writer-trial/image-20261003.integration.3/services/image.tar",
+  "servicesMain": "0da81a82"
 }

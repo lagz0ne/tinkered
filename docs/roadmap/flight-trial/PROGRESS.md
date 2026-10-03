@@ -2356,7 +2356,7 @@ The original Postgres and Mailpit containers were left running.
 
 Writer: Codex.
 Branch: `trial/flight-integration`.
-Next: lead review; start the prepared writer only after that review.
+Next: prove rounds 1 to 5 once on the landed Hono services image.
 Verify: rounds 1 to 5 pass twice; five planted breaks fail.
 
 Assumptions:
@@ -2725,3 +2725,27 @@ Log: `tools/writer-trial/.logs/takeover-reference-retained.log`, exit 0.
 Status: Review.
 All work in the integration brief is saved with passing proof.
 The lead owns review and landing; this writer did not push.
+
+### Integration: Hono services follow-up
+
+The lead landed services routing at `0da81a82` and asked for one more pass.
+The rebase finished with exit 0 after the two known merge conflicts.
+Main's Hono service files were kept.
+Both tracks' progress notes were kept.
+Trial source bytes stayed unchanged by the rebase.
+Logs: `hono-rebase-continue-2.log` and `hono-rebase-scope.log`, exit 0,
+under `tools/writer-trial/.logs/`.
+
+Install and workspace build exited 0 after the rebase.
+The requested services rebuild command exited 0.
+It saved the new image tar and started its idle keeper.
+Log: `tools/writer-trial/.logs/hono-services-image.log`.
+The new tag, ID, and tar path are in `INTEGRATION-IMAGES.json`.
+The old services ID and tar path stay there as prior proof inputs.
+The writer image is unchanged.
+
+Assumption: add `--once` to the existing reference runner.
+It runs the same own, teacher, scaffold, plain, and Jev gates.
+It selects only `pass-1` for each round, with no planted break.
+The default still runs two passes and a named break per round.
+The Hono run uses a fresh `reference-hono-final` proof folder.
