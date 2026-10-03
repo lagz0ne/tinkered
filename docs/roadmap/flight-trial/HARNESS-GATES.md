@@ -175,8 +175,6 @@ The writer gets 403 for Chaos requests.
   Log: `/tmp/flight-harness-20261003/logs/prose-mail-step.log`.
 - **check-mail-step**: exit 0.
   Log: `/tmp/flight-harness-20261003/logs/check-mail-step.log`.
-- **cleanup-proof**: exit 0.
-  Log: `/tmp/flight-harness-20261003/logs/cleanup-proof.log`.
 - **export-legacy-proof**: exit 0.
   Log: `/tmp/flight-harness-20261003/logs/export-legacy-proof.log`.
 - **export-scaffold-proof**: exit 0.

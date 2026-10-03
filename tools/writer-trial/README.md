@@ -195,7 +195,7 @@ SUPPLIER_A_URL=http://control-supplier-a:4310
 SUPPLIER_B_URL=http://control-supplier-b:4310
 SUPPLIER_C_URL=http://control-supplier-c:4310
 PAYMENT_URL=http://control-payment:4310
-MAILPIT_URL=http://mailpit:8025
+MAILPIT_URL=http://control-mailpit:8025
 ```
 
 `CONTROL_TOKEN` is a new random token for each run.
