@@ -242,6 +242,7 @@ The offers include saver, standard, and flex fares.
 Read a current quote with `GET /air/offers/:id`.
 It returns the current price and seats.
 An order still checks the original search price.
+A price change makes a searched offer stale.
 Changed prices cause `offer_price_changed`, with HTTP 409.
 Sold-out cabins cause `offer_sold_out`, with HTTP 409.
 The last seat goes to only one of two parallel orders.
@@ -343,6 +344,7 @@ Authorization: Bearer flight-local-control
 
 Control uses its own `/control/` path prefix.
 Service calls need no token on the private trial network.
+Holds expire on real time before the grader sets a clock.
 The test clock starts only when the grader chooses it.
 Switch to it before starting timed work.
 A scenario reset keeps the current clock.

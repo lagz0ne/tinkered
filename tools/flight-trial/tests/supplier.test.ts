@@ -23,6 +23,7 @@ const orderSchema = z.object({
     id: z.string(),
     total_amount: z.string(),
     payment_required_by: z.string().optional(),
+    status: z.string(),
   }),
 });
 const logSchema = z.object({
@@ -42,7 +43,7 @@ afterEach(async () => {
     await app.closed;
   }
 });
-async function start(supplier: "supplier-a" | "supplier-b" = "supplier-a") {
+async function start(supplier: "supplier-a" | "supplier-b" = "supplier-a", holdMs = 1000) {
   const stop = new AbortController();
   const app = await startSupplier({
     supplier,
@@ -50,6 +51,7 @@ async function start(supplier: "supplier-a" | "supplier-b" = "supplier-a") {
     host: "127.0.0.1",
     controlToken: "grader",
     signal: stop.signal,
+    holdMs,
   });
   running.push({ stop, closed: app.closed });
   return app.url;
@@ -207,4 +209,22 @@ test("control needs the grader token", async () => {
     body: JSON.stringify({ name: "last-seat" }),
   });
   expect(response.status).toBe(401);
+});
+
+test("holds expire on real time before the grader sets a clock", async () => {
+  const url = await start("supplier-a", 5);
+  const offer = (await search(url)).at(0)!;
+  const held = orderSchema.parse(
+    await (
+      await post(url, "/air/orders", { data: { selected_offers: [offer.id], type: "hold" } })
+    ).json(),
+  );
+  await expect
+    .poll(async () => {
+      const current = orderSchema.parse(
+        await (await fetch(`${url}/air/orders/${held.data.id}`)).json(),
+      );
+      return current.data.status;
+    })
+    .toBe("expired");
 });
