@@ -4,116 +4,99 @@
 
 Writer: Sol.
 Branch: `trial/jev-link`.
-Base: `3fce5703`.
-Status: saved for lead review; repo gates have the starting commit's failure.
-Next: review the commits and set up the reference app's local packages.
-Verify: frozen Jev loads after its source checkout is removed.
-The new test must fail on the old code and pass with the fix.
+Base: `c4cfde63`.
+Rebased source commits: `731ecc3e` and `45c618df`.
+Status: saved for lead review; all final gates pass.
+Next: review the four fixes.
+Verify: frozen Jev loads after its source packages are removed.
+Failed create can retry; unavailable Jev still records the other checks.
 The existing board card stays with the lead.
 `TODO.md` is outside this writer's allowed paths.
 
-Assumptions:
+Root check follows `4e22a62e`.
+The flight reference app is checked inside its image.
+The old install notes and repo failures are replaced by this review proof.
 
-- Copy each installed package and its installed dependencies into the trial.
-- Keep relative package links inside `frozen/jev/node_modules`.
-- Copy installed peers and optional packages too.
-- Missing optional packages can stay absent, as in the source install.
-- Use a fresh process for the load proof, so an old import cannot hide a break.
-- Test a copied source folder with its own removable package link.
-  The real checkout's installed packages stay in place.
-- Also seed a source folder with owned package copies.
-  Delete those copied packages and import the frozen Jev again.
-- Refuse check before containers start when frozen Jev cannot load.
-  Keep all judge rules, saved answers, and score rules unchanged.
-- Existing trials are read as saved; do not repair or refresh them here.
-- Run only the local writer-trial test files.
-  The live readiness and limits checks need a real trial and containers.
-- Leave the running DeepSeek trial, its folder, and its containers alone.
+### Review fixes
 
-Path audit:
+- **Fix 1:** import every Jev module the broker loads.
+  The fresh process imports `lib.mjs`, `bank.mjs`, `extract.mjs`, and `shape.mjs`.
+  Shape also loads `plain.mjs`, TSDoc, the parser, and its native binding.
+  The new tests remove a shape-only package and the native binding.
+  Another test breaks the question bank while lib still loads.
+  Commit: `f42c635d`.
+- **Fix 2:** remove the unfinished frozen folder when freezing fails.
+  The copy and load failure tests both repair the source and retry create.
+  Other files in the trial root stay intact.
+  An existing frozen trial still refuses refresh before cleanup can run.
+  Commit: `e19dbeb8`.
+- **Fix 3:** keep the Jev load failure while own and teacher checks run.
+  Check writes `jev.json`, the manifest row, and `machine.txt`.
+  Jev is `unavailable`, its exit is 1, and the machine result is `machine-fail`.
+  This follows the lead's decision for trials with broken package links.
+  Available trials keep their gate rules, saved answers, and score rules.
+  Commit: `c29cf5dd`.
+- **Fix 4:** use the rebased base and current gate proof here.
+  The old setup command is removed.
 
-- `workers.mjs` linked frozen packages into the creating checkout.
-- `harness/run-reference.mjs` made the same link.
-  Both now use the package copy made by `freezeTrial`.
+### Test setup and paths
+
+- All test trials and copied source folders use temp roots.
+- The real checkout's installed packages stay in place.
+- Check tests use the real Docker CLI with a missing socket in the temp root.
+  `HOME` and `DOCKER_CONFIG` also point into that root.
+  Docker context and TLS overrides are cleared for that child process.
+  Own and teacher each try their check and record the missing-daemon failure.
+  The test reads both logs and the saved unavailable Jev result.
+- Package links stay inside the frozen Jev folder.
 - Worker config points to frozen Jev, worker events, and named containers.
-  None points to a checkout.
-- Image package links point inside the saved container image.
-- Flight teacher checks still read the caller's checkout and check pinned hashes.
-  Keep that rule: changing it would change existing grading.
-- Package source paths are used only during the copy.
-  The frozen package links carry no source path.
-
-Working proof under `tools/writer-trial/.logs/jev-link/`:
-
-- Old code regression: exit 1, `red.log`; all three new tests fail.
-- New code regression: exit 0, `green-step.log`; all three pass.
-- Workspace build: exit 0, `build-step.log`.
-- Writer-trial tests: exit 0, `tests-step.log`; all 83 pass.
-- Changed-file check: exit 0, `check-ticket.log`; no warnings or errors.
-- Prose: exit 0, `prose-step.log`; no hits.
-- Workspace tests: exit 0, `workspace-tests.log`.
-- Tool setup: exit 0, `env-doctor.log` and `install.log`.
-  Doctor passes; install says already up to date.
-- First check: exit 1, `check-step.log`; formatter found one file.
-  The file was formatted before the changed-file check passed.
-- Build after formatting: exit 0, `build-green-step.log`.
-- Broad check: exit 1, `check-green-step.log`.
-  It has 409 errors and 31 warnings, chiefly missing reference app packages.
-- Starting commit proof: build exit 0, `base-build.log`.
-  Check exit 1, `base-check.log`; the same 409 errors and 31 warnings.
-- Older local main proof: build exit 0, `main-build.log`.
-  Check exit 0, `main-check.log`; 28 warnings.
-  That main predates the reference app added to the starting commit.
-
-Gate assumptions:
-
-- Compare this ticket with its given starting commit, `3fce5703`.
-  Local main is older and lacks the new reference app.
-- Use disposable detached worktrees for the baseline checks.
-  Borrow installed package folders; remove each worktree after its checks.
-- Keep the reference app's missing local packages outside this ticket.
-  The brief allows no source or setup change in that folder.
-- The broad check remains red on the starting commit and this branch.
-  Report that failure, plus the green check over every changed source file.
-
-Final proof under `tools/writer-trial/.logs/jev-link/`:
-
-- Source step commit: `e94c1b69`.
-  Hook exit 0, `commit-source.log`.
-- Old production code with the current four tests: exit 1, `final-red.log`.
-  All four fail, including the owned-package deletion test.
-  The old suite, workers, and review come unchanged from `3fce5703`.
-  The new package copier is present only to build the test's source fixture.
-- Writer-trial tests: exit 0, `final-green.log`; all 84 pass.
-  These include all four new tests and the existing gate and score tests.
-- Build before the test proof: exit 0, `proof-build.log`.
-- Changed-file check: exit 0, `proof-check.log`.
-  Every changed source file passes with no warnings or errors.
-- Final gate chain: exit 1, `final-gate.log`.
-  Build exit 0, `final-build.log`.
-  Check exit 1, `final-check.log`; 409 errors and 31 warnings.
-  The chain stops at check; the tests were run separately above.
-- Workspace tests: exit 0, `workspace-tests.log`.
-- Prose: exit 0, `final-prose.log`.
-- Jev preflight: exit 0, `jev-preflight.log`; no flags.
-  Range: `3fce5703..HEAD`.
-  Jev selects TypeScript source; this ticket changes MJS files.
-  No package TypeScript tests changed, so tests and promises judges have no targets.
-  No label lines are owed; no Jev files were changed.
-- Validate: exit 1, `validate.log`.
-  Only the broad check fails; the other 15 lanes pass.
-- No mutation lane, live reference run, or Docker command was needed.
+- The reference runner uses the same package freeze.
+- Image package links point inside their saved container image.
+- Flight teacher hashes, gate rules, and saved-answer reuse are unchanged.
+- The DeepSeek trial and its runner checkout are untouched.
 - No push or stash was used.
 
-The lead's next setup command, from the repo root:
+### Review step proof
 
-```bash
-ln -s ../../../apps/start-scaffold/node_modules \
-  tools/flight-trial/reference/node_modules
-```
+Logs are under `tools/writer-trial/.logs/jev-link/`.
+Each red run happened before its code fix.
 
-Then build the reference app to make its router file and rerun the repo gates.
-That setup is outside this ticket's allowed paths and was not done here.
+- Fix 1 red: exit 1, `review-fix1-red.log`; three tests fail.
+- Fix 1 green: exit 0, `review-fix1-green.log`; three tests pass.
+- Fix 1 build, check, prose: exit 0 each.
+  Logs: `review-fix1-build.log`, `review-fix1-check.log`, `review-fix1-prose.log`.
+- Fix 2 red: exit 1, `review-fix2-red.log`; both new tests fail.
+- Fix 2 green: exit 0, `review-fix2-green.log`.
+  Both retry tests and the existing frozen-copy test pass.
+- Fix 2 build, check, prose: exit 0 each.
+  Logs: `review-fix2-build.log`, `review-fix2-check.log`, `review-fix2-prose.log`.
+- Fix 3 red: exit 1, `review-fix3-red.log`; both new tests fail.
+- Fix 3 green: exit 0, `review-fix3-green.log`; both tests pass.
+- Fix 3 build, check, prose: exit 0 each.
+  Logs: `review-fix3-build.log`, `review-fix3-check.log`, `review-fix3-prose.log`.
+- Each source commit hook exits 0.
+  Logs: `review-fix1-commit.log`, `review-fix2-commit.log`, `review-fix3-commit.log`.
+
+### Final review proof
+
+Logs are under `tools/writer-trial/.logs/jev-link/`.
+The full chain runs in order and stops if a gate fails.
+
+- Full gate chain: exit 0, `review-final-gate.log`.
+- Workspace build: exit 0, `review-final-build.log`.
+- Check: exit 0, `review-final-check.log`.
+  Zero errors and 28 warnings; no new warnings.
+- Writer-trial tests: exit 0, `review-final-tests.log`; all 91 pass.
+  This includes the full gate, score, freeze, and retry tests.
+- Prose: exit 0, `review-final-prose.log`; no hits.
+- Validate: exit 0, `review-final-validate.log`; all 16 lanes pass.
+- Jev preflight: exit 0, `review-final-jev.log`; no TypeScript targets.
+  Range: `c4cfde63..HEAD`.
+  No package TypeScript tests changed, so tests and promises judges have no targets.
+  No label lines are owed; no Jev files were changed.
+- Each gate's exit and log path is also in `review-final-exits.json`.
+- Final diff and scope check: exit 0, `review-final-scope.log`.
+  Every changed path is allowed; teacher files are unchanged.
 
 Core feedback: none; this change uses no Core API.
 
