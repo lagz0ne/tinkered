@@ -1,0 +1,6 @@
+.work/
+.toolchain/
+.logs/
+.tanstack/
+src/routeTree.gen.ts
+.cache/

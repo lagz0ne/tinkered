@@ -834,3 +834,46 @@ The workspace command was:
 
 The second strict mutation lane will use the same lock,
 the same nine source files, and the unchanged floor of 85.
+## trial/flight-rounds
+
+Writer: Codex.
+Branch: `trial/flight-rounds`.
+Base: `0f0a83fe`.
+The board stays with the lead; it is outside this writer's paths.
+Next: finish round 2 proof, then ship the staged ready commit.
+Verify: reference passes twice; a wrong answer fails by name.
+
+### Round 1 reference
+
+The answer copies the Start scaffold and adds public flight search.
+The teacher uses only the page and the HTTP services.
+Reference logs are in `tools/flight-trial/reference/.logs/`.
+
+- Round 1 pass 1: exit 0, `r1-pass-1.log`.
+- Round 1 pass 2: exit 0, `r1-pass-2.log`.
+- Planted wrong price: exit 1, `r1-break.log`.
+- Proof driver: exit 0, `/tmp/flight-rounds-r1-proof.log`.
+- Workspace build: exit 0, `/tmp/flight-rounds-r1-build.log`.
+- Reference build: exit 0, `/tmp/flight-rounds-reference-r1-build.log`.
+- Check: exit 0, `/tmp/flight-rounds-r1-check.log`.
+  Zero errors and 29 warnings; none from this work.
+- Prose: exit 0, `/tmp/flight-rounds-r1-prose.log`.
+
+Assumptions:
+
+- Search shows economy saver fares for one adult.
+- Shared flight IDs merge across suppliers.
+- The service supplies the full UTC times shown on the page.
+- Reference proof can use its own copy of the scaffold.
+- Root declaration builds need the browser's DOM type declarations.
+  The reference has a compiler directive for those types.
+- The scaffold dependencies are linked into this private reference.
+- A separate cache folder avoids shared Vite cache writes.
+- Flight controls can return the known `scenario_failed` reset error.
+  State was written before that error; logs and rules were not reset.
+  Checks clear used rules and count from a saved log position.
+  Other control errors still fail.
+
+The reference uses ClientOnly for its new page.
+This shows the controls after the browser can handle their clicks.
+No scaffold file was changed for this.

@@ -1,0 +1,9 @@
+export FLIGHT_PLAYWRIGHT_MODULE="$PWD/tools/flight-trial/reference/.toolchain/node_modules/playwright/index.mjs"
+export CHROMIUM_EXECUTABLE="${CHROMIUM_EXECUTABLE:-$HOME/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome}"
+export APP_URL=http://127.0.0.1:4390
+export SUPPLIER_A_URL=http://127.0.0.1:4391
+export SUPPLIER_B_URL=http://127.0.0.1:4392
+export SUPPLIER_C_URL=http://127.0.0.1:4393
+export PAYMENT_URL=http://127.0.0.1:4394
+export CONTROL_TOKEN=flight-local-control
+export MAILPIT_URL=http://192.168.48.2:8025
