@@ -208,7 +208,10 @@ The app gets different URLs through the filter.
 Holds last 60 seconds unless the teacher moves the service clock.
 `FLIGHT_CHECK_SETTINGS` also holds the round and all URLs as JSON.
 Teacher files come only from the repo's `teacher/flight/` folder.
-Their hashes are saved beside each result.
+Create freezes their file hashes and one hash for the full set.
+A changed, added, missing, or unpinned teacher makes a check unavailable.
+The grader receives the same bytes that passed the hash check.
+The hash for all teacher files is saved beside each reference result.
 The teacher's `grader.env` has the app's WEBHOOK_SECRET.
 Creation freezes `flight-services.md` and copies it as `SERVICES.md`.
 

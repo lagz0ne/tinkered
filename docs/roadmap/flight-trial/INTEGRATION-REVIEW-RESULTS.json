@@ -1,0 +1,102 @@
+[
+  {
+    "round": 1,
+    "label": "pass-1",
+    "exit": 0,
+    "jevExit": 0,
+    "machine": "machine-pass",
+    "ownExit": 0,
+    "teacherExit": 0,
+    "scaffoldExit": 0,
+    "plainExit": 0,
+    "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+    "images": {
+      "image": "sha256:798c43f875b1054fa29f2a31eedbe7c06461dc7b85f7194674c4146faae82f7a",
+      "servicesImage": "sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7",
+      "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+      "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+    },
+    "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-review-final/round-1/pass-1"
+  },
+  {
+    "round": 2,
+    "label": "pass-1",
+    "exit": 0,
+    "jevExit": 0,
+    "machine": "machine-pass",
+    "ownExit": 0,
+    "teacherExit": 0,
+    "scaffoldExit": 0,
+    "plainExit": 0,
+    "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+    "images": {
+      "image": "sha256:798c43f875b1054fa29f2a31eedbe7c06461dc7b85f7194674c4146faae82f7a",
+      "servicesImage": "sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7",
+      "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+      "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+    },
+    "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-review-final/round-2/pass-1"
+  },
+  {
+    "round": 3,
+    "label": "pass-1",
+    "exit": 0,
+    "jevExit": 0,
+    "machine": "machine-pass",
+    "ownExit": 0,
+    "teacherExit": 0,
+    "scaffoldExit": 0,
+    "plainExit": 0,
+    "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+    "images": {
+      "image": "sha256:798c43f875b1054fa29f2a31eedbe7c06461dc7b85f7194674c4146faae82f7a",
+      "servicesImage": "sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7",
+      "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+      "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+    },
+    "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-review-final/round-3/pass-1"
+  },
+  {
+    "round": 4,
+    "label": "pass-1",
+    "exit": 0,
+    "jevExit": 0,
+    "machine": "machine-pass",
+    "ownExit": 0,
+    "teacherExit": 0,
+    "scaffoldExit": 0,
+    "plainExit": 0,
+    "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+    "images": {
+      "image": "sha256:798c43f875b1054fa29f2a31eedbe7c06461dc7b85f7194674c4146faae82f7a",
+      "servicesImage": "sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7",
+      "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+      "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+    },
+    "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-review-final/round-4/pass-1"
+  },
+  {
+    "round": 5,
+    "label": "pass-1",
+    "exit": 0,
+    "jevExit": 0,
+    "machine": "machine-pass",
+    "ownExit": 0,
+    "teacherExit": 0,
+    "scaffoldExit": 0,
+    "plainExit": 0,
+    "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+    "images": {
+      "image": "sha256:798c43f875b1054fa29f2a31eedbe7c06461dc7b85f7194674c4146faae82f7a",
+      "servicesImage": "sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7",
+      "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+      "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+    },
+    "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-review-final/round-5/pass-1"
+  }
+]

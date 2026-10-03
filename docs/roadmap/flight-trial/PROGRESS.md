@@ -2884,3 +2884,54 @@ The idle image keeper is running.
 Assumption: prepare the writer context, then build and save only that image.
 This keeps the current Hono services image fixed, as requested.
 The exact build steps are saved in `.logs/review-writer-image.mjs`.
+
+### Integration review fixes: final proof and fresh stage
+
+The isolation proof on the new writer image exited 0.
+It includes the new gateway probes and a signed callback check.
+Log: `tools/writer-trial/.logs/review-isolation.log`.
+The old network red log remains saved with exit 1.
+
+The new `--once` reference run exited 0 through all five full gates.
+Each round passed own, teacher, scaffold, plain, and Jev checks.
+Teacher counts were 3/3, 6/6, 10/10, 17/17, and 21/21.
+No planted break was rerun.
+All five result files save the same frozen teacher hash.
+Run log: `tools/writer-trial/.logs/review-reference.log`.
+Saved-result check: `review-reference-verified.log`, exit 0,
+under `tools/writer-trial/.logs/`.
+Rows: `INTEGRATION-REVIEW-RESULTS.json`.
+
+The workspace gate chain exited 0.
+Install, build, check, all package tests, harness tests, prose,
+and `pnpm validate` each exited 0.
+The check has zero errors and the same 28 warnings as before.
+All nine package tasks ran without cache hits and passed.
+All 80 harness tests and 16 validation lanes passed.
+Log: `tools/writer-trial/.logs/review-workspace-gates.log`.
+Jev preflight for this fix round exited 0 with no new source flags.
+Log: `tools/writer-trial/.logs/review-jev-preflight.log`.
+No TypeScript source or tests changed in this fix round.
+The prior labels and style census remain saved.
+
+Removed `flight-integration-hono-01` after the green proof.
+Its Paseo project, containers, volume, networks, trust entry, and folder are gone.
+Its host files were archived before removal.
+Log: `tools/writer-trial/.logs/review-cleanup-old.log`, exit 0.
+
+Created `flight-deepseek-01` and staged packet 1.
+The create, stage, and saved-state checks each exited 0.
+Logs under `tools/writer-trial/.logs/`:
+`review-ready-create.log`, `review-ready-stage.log`, and `review-ready-proof.log`.
+It pins the new writer, current Hono services, and proved teacher hash.
+Both networks inhibit host IPv4.
+It has the scaffold, five skills, tests, service guide, and packet 1 only.
+It has no teacher files, model agent, or saved attempt.
+No model run started.
+
+`INTEGRATION-GATES.md` now records the current proof and each gate log.
+`INTEGRATION-IMAGES.json` records both image IDs and saved tars.
+The final proof docs prose check exited 0:
+`tools/writer-trial/.logs/review-proof-prose.log`.
+Status: Review; all requested fixes and proofs are saved.
+The lead owns review and landing; nothing was pushed.
