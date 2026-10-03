@@ -104,7 +104,7 @@ A copy sits in
 (`image.tar.gz`); `docker load` restores the same ID.
 Do not rebuild halfway through a comparison.
 
-Creation adds four Paseo projects and workspaces.
+Create adds a Paseo project and workspace for each configured model.
 It trusts only their teacher-owned extension folders in Pi.
 Workers cannot write those host folders through their tools.
 Staging copies only the current and earlier packets.

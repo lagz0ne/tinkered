@@ -1,7 +1,8 @@
 # Flight harness progress
 
-- **trial/flight-harness** — Doing; owner: Codex writer.
-  Next: finish the full round 5 teacher proof and record every gate.
+- **trial/flight-harness** — Review; owner: Codex writer.
+  Next: lead merges the rounds, services, and strict scaffold.
+  Then prepare a new image tag and rerun the full flight check.
   Verify: reference passes; scaffold edit blocks.
   The card stays here within the ticket's path limits.
 
@@ -26,6 +27,8 @@
 - Round 2 reference source is read from `610144d0`.
 - The reference adds feature source to the image's starter.
   The starter's package file and tests stay in place.
+  Round 5 includes its committed migrations too.
+  Its two private snapshot fixtures add empty `bookings` lists.
 - Registry targets use the starter's default aliases.
 - Each worker needs its own services and database.
 - Teacher controls need a second private network.
@@ -165,3 +168,86 @@ The first report stays saved.
 - Each keeper name includes its image ID.
 - Docker proof: exit 0, `dependency-keepers.log`.
 - Trial cleanup keeps these image keepers.
+
+## Reference copy repair
+
+The first full round 5 proof copied source without its new migrations.
+Own checks failed on missing tables and two typed snapshot fixtures.
+Teacher searches then failed; the teacher command timed out at exit 124.
+The full check exited 1: `check-round-5-final.log`.
+This failed attempt stays saved.
+
+Feedback copies the committed `drizzle/` files with the source.
+The two existing private snapshot fixtures add `bookings: []`.
+No test or scaffold file is removed.
+The fixed proof uses a new saved attempt, not a changed old archive.
+
+## Current full gate limits
+
+The corrected round 5 attempt keeps source and migrations together.
+Its standalone tests and build exit 0.
+Its own check still missed the reference's `drizzle.config.ts`.
+The copy now includes that file too.
+It names the added booking schema, matching the saved migration snapshot.
+
+The teacher passes all six round 1 and 2 cases on that attempt.
+The anonymous hold refusal also passes.
+Later hold, seat race, and payment cases fail.
+The teacher reaches its 280 second limit at exit 124.
+Full check: exit 1, `check-round-5-complete.log`.
+These are real failed results, not passing later-round claims.
+No model baseline is earned.
+
+The app and services still use pinned image tag `20261003.5`.
+The services source there predates the newer service fixes.
+The lead must merge the service, round, and strict scaffold work first.
+Then choose a fresh image tag, build, and rerun.
+Do not rebuild the saved tag or refresh frozen packets.
+
+Jev for this ticket's range has no TypeScript source flags.
+The wider `main..HEAD` scan includes inherited scaffold and service flags.
+Their files did not change in this ticket.
+No label bank is changed outside the allowed paths.
+The style census for the round 1 reference exits 0.
+No TypeScript source is authored in this harness change.
+
+## Final own check and handoff
+
+The complete reference copy passes its own check at exit 0.
+Log: `own-reference-5-final.log`.
+This includes typecheck, all starter tests, seam, browser boundary, and schema.
+The fixed Drizzle config gives `No schema changes`.
+This does not erase the earlier full teacher failures.
+
+The harness code is saved for lead review.
+The required stage 1 commit is `f3e931a0`.
+The later stages and score record are implemented.
+The new plain check deliberately stays unavailable in the old image.
+No current full flight gate is claimed as passing.
+
+The lead's next step is a fresh image after the branches merge:
+
+```bash
+node tools/writer-trial/prepare.mjs \
+  --suite flight --build
+```
+
+First choose new app and services tags in `config.json`.
+The saved tag `20261003.5` must not be rebuilt.
+Create a fresh trial so all merged packets freeze together.
+The defaults use `flight/` and `teacher/flight/` after merge.
+The path overrides are only for proof before that merge.
+
+[Every recorded gate](./HARNESS-GATES.md) names its exit and log.
+No push, main merge, or shared source change was made.
+All authored paths stay within the ticket.
+
+## Cleanup proof
+
+All six proof trials from this session are cleaned.
+Their projects, workspaces, containers, volumes, and worker folders are gone.
+Saved attempts, exports, frozen inputs, hashes, and logs stay outside them.
+The app, service, Postgres, and Mailpit image keepers remain.
+The previous writer's older proof trials are left in place.
+Cleanup proof: exit 0, `cleanup-proof.log`.
+Saved hashes after cleanup: exit 0, `saved-final-clean.log`.
