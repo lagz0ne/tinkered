@@ -8,7 +8,7 @@ export function flightEnvironment() {
     HOST: "0.0.0.0",
     PORT: "4318",
     VITEST_MAX_WORKERS: "1",
-    PUBLIC_ORIGIN: "http://app:4318",
+    PUBLIC_ORIGIN: "http://flight-app:4318",
     AUTH_SECRET: "flight-trial-local-auth-secret-at-least-32-characters",
     DATABASE_URL: "postgres://flight:flight-local-only@postgres:5432/flight",
     SMTP_HOST: "mailpit",

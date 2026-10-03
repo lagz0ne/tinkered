@@ -32,6 +32,8 @@
 import { createHash } from "node:crypto";
 import {
   copyFileSync,
+  lstatSync,
+  realpathSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -40,7 +42,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
@@ -49,6 +51,8 @@ import {
   readFrozenGuidelines,
   readFrozenTask,
   suiteFor,
+  sha256File,
+  listFiles,
   verifyFrozen,
 } from "./suite.mjs";
 import {
@@ -65,12 +69,14 @@ import {
 import { isJudgedPath, jevAsk } from "./broker.mjs";
 import { judgeFile } from "./folder.mjs";
 import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
+import { checkFlight } from "./flight-check.mjs";
 import { writerAnswers } from "./answers.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 
 // The teacher helpers each suite checker loads, hashed beside it.
 const TEACHER_HELPERS = {
+  "flight-check.mjs": ["flight-network.mjs", "flight-proxy.mjs"],
   "evaluate.mjs": ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"],
   "acceptance.mjs": [
     "teacher/acceptance.mjs",
@@ -112,6 +118,16 @@ process.on("exit", () => {
 });
 const manifest = JSON.parse(readFileSync(manifestPath));
 const suite = suiteFor(manifest);
+const teacherAt = process.argv.indexOf("--teacher-dir");
+const teacherDir = teacherAt === -1 ? join(here, "teacher/flight") : process.argv[teacherAt + 1];
+if (
+  teacherAt !== -1 &&
+  (suite !== "flight" ||
+    !teacherDir ||
+    basename(teacherDir) !== "flight" ||
+    !existsSync(join(teacherDir, "check.mjs")))
+)
+  throw new Error("Pass --teacher-dir <flight checks folder>");
 const worker = manifest.workers[workerNum - 1];
 if (!worker) throw new Error(`No worker ${workerNum} in this trial`);
 if (manifest.round !== undefined && manifest.round !== round)
@@ -243,6 +259,7 @@ if (command === "save") {
   // A missing helper is recorded unavailable here; own checks
   // still run apart below and the teacher run fails the same way.
   const evidence = checkerEvidence(checker, row.archive, manifest.image);
+  if (suite === "flight") addFlightEvidence(evidence);
   writeFileSync(join(checkDir, "evidence.json"), JSON.stringify(evidence, null, 2) + "\n");
   if (evidence.unavailable)
     writeFileSync(
@@ -253,19 +270,41 @@ if (command === "save") {
   // every teacher case. Each exit is recorded on its own.
   let ownExit = null;
   let teacherExit = null;
-  try {
-    runOwnChecks(row.archive, manifest.image, ownLog);
-    ownExit = 0;
-  } catch (error) {
-    ownExit = 1;
-    writeFileSync(ownLog, `${readFileSync(ownLog, "utf8")}\n${error.message}\n`);
-  }
-  try {
-    runTeacherChecker(checker, row.archive, manifest.image, teacherLog);
-    teacherExit = 0;
-  } catch (error) {
-    teacherExit = 1;
-    writeFileSync(teacherLog, `${readFileSync(teacherLog, "utf8")}\n${error.message}\n`);
+  let flight = null;
+  if (suite === "flight") {
+    try {
+      flight = checkFlight({
+        archive: row.archive,
+        round,
+        image: manifest.image,
+        images: manifest.flightImages,
+        scaffold: JSON.parse(readFileSync(frozenPath("scaffold.json"))),
+        logDir: checkDir,
+        teacherDir,
+      });
+      ownExit = flight.ownExit;
+      teacherExit = flight.teacherExit;
+    } catch (error) {
+      ownExit = teacherExit = 1;
+      flight = { scaffoldExit: 1, unavailable: error.message, unscored: true };
+      writeFileSync(ownLog, `Unavailable: ${error.message}\n`);
+      writeFileSync(teacherLog, `Unavailable: ${error.message}\n`);
+    }
+  } else {
+    try {
+      runOwnChecks(row.archive, manifest.image, ownLog);
+      ownExit = 0;
+    } catch (error) {
+      ownExit = 1;
+      writeFileSync(ownLog, `${readFileSync(ownLog, "utf8")}\n${error.message}\n`);
+    }
+    try {
+      runTeacherChecker(checker, row.archive, manifest.image, teacherLog);
+      teacherExit = 0;
+    } catch (error) {
+      teacherExit = 1;
+      writeFileSync(teacherLog, `${readFileSync(teacherLog, "utf8")}\n${error.message}\n`);
+    }
   }
   // The Jev gate reads the saved snapshot with the frozen Jev copy
   // and judge list. Old trials without frozen/ skip it: their
@@ -279,7 +318,24 @@ if (command === "save") {
       .filter((a) => a.round === round && a.events && existsSync(a.events))
       .map((a) => readFileSync(a.events, "utf8"))
       .join("\n");
-    const jev = await judgeSnapshot(row.archive, writerAnswers(eventText));
+    const jev = flight?.scaffoldExit
+      ? {
+          reports: [],
+          gate: {
+            status: "block",
+            blocking: [
+              {
+                rule: "flight-scaffold",
+                file: "src/scaffold/",
+                message: "Keep the scaffold unchanged and pass its seam check",
+                fix: "Restore the original scaffold",
+              },
+            ],
+            advice: [],
+            reasons: flight.unavailable ? [flight.unavailable] : [],
+          },
+        }
+      : await judgeSnapshot(row.archive, writerAnswers(eventText), flight?.generatedRouterHash);
     gate = jev.gate;
     jevExit = gate.status === "pass" ? 0 : 1;
     writeFileSync(jevFile, JSON.stringify(jev, null, 2) + "\n");
@@ -295,6 +351,7 @@ if (command === "save") {
     jevExit,
     jev: jevStatus,
     evidence,
+    ...(flight ? { flight } : {}),
     ownLog,
     teacherLog,
     jevFile: gate === null ? null : jevFile,
@@ -397,26 +454,52 @@ function checkerEvidence(checker, archive, image) {
   return evidence;
 }
 
+function addFlightEvidence(evidence) {
+  for (const file of listFiles(teacherDir))
+    evidence.files[`flight-teacher/${file}`] = sha256File(join(teacherDir, file));
+  for (const file of ["check.mjs", `round-${round}.mjs`])
+    if (!existsSync(join(teacherDir, file))) evidence.unavailable = `teacher/flight/${file}`;
+  evidence.flightImages = manifest.flightImages;
+}
+
 // The Jev gate over one saved snapshot, with the frozen Jev copy
 // and the frozen judge list. The archive's src/ and tests/ .ts(x)
 // files are extracted into a temp folder on the host and only read,
 // never run. Any failure is an unavailable gate, never a pass.
-async function judgeSnapshot(archive, answers) {
+async function judgeSnapshot(archive, answers, generatedRouterHash) {
   const jevDir = frozenPath("jev");
   const judges = frozenConfigFor(root, manifest.frozen).judges;
   const tmp = mkdtempSync(join(tmpdir(), "writer-trial-jev-"));
   try {
     const files = extractJudged(archive, tmp);
+    const starter = suite === "flight" ? JSON.parse(readFileSync(frozenPath("starter.json"))) : {};
     const ask = await jevAsk(jevDir);
     const reports = [];
-    for (const file of files)
-      reports.push(await judgeFile(tmp, file, { jevDir, judges, ask, answers }));
+    for (const file of files) {
+      if (suite === "flight" && isStarterFile(tmp, file, starter, generatedRouterHash)) {
+        reports.push({
+          file,
+          rows: [],
+          plainFindings: [],
+          trustedRegistry: file !== "src/routeTree.gen.ts",
+          generatedRouter: file === "src/routeTree.gen.ts",
+        });
+      } else reports.push(await judgeFile(tmp, file, { jevDir, judges, ask, answers, suite }));
+    }
     return { jevDir, judges, reports, gate: gateFiles(reports) };
   } catch (error) {
     return { jevDir, judges, reports: [], gate: gateOf({ file: null, error: error.message }) };
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+function isStarterFile(tmp, file, starter, generatedRouterHash) {
+  const path = join(tmp, file);
+  if (!lstatSync(path).isFile() || !realpathSync(path).startsWith(`${tmp}/`)) return false;
+  return (
+    (file === "src/routeTree.gen.ts" ? generatedRouterHash : starter[file]) === sha256File(path)
+  );
 }
 
 // Extract only the judged members; tar never writes anything else.

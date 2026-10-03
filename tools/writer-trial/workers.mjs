@@ -10,10 +10,19 @@ import {
   readFrozenGuidelines,
   readFrozenTask,
   suiteFor,
+  SUITES,
+  sha256File,
   taskRounds,
   validRounds,
   verifyFrozen,
 } from "./suite.mjs";
+import {
+  environmentArgs,
+  flightEnvironment,
+  pinFlightImages,
+  startFlight,
+  stopFlight,
+} from "./flight-network.mjs";
 import { cleanupReady } from "./attempts.mjs";
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = resolve(here, "../..");
@@ -30,29 +39,32 @@ if (action === "create") {
   const suite = process.argv.includes("--suite")
     ? process.argv[process.argv.indexOf("--suite") + 1]
     : "booking";
-  if (
-    !["booking", "stock", "plan", "loans", "ballot", "kitchen", "locker", "cinema", "gym"].includes(
-      suite,
-    )
-  )
-    throw new Error(
-      "Use --suite booking, --suite stock, --suite plan, --suite loans, --suite ballot, --suite kitchen, --suite locker, --suite cinema, or --suite gym",
-    );
+  if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   if (existsSync(manifestPath)) throw new Error("Trial already exists; inspect its manifest");
+  const flightImages = suite === "flight" ? pinFlightImages(config) : null;
   mkdirSync(root, { recursive: true, mode: 0o700 });
   // Suite copies are the only source of staged rules, task, and tools.
   // Nothing here reads the mutable repo after this point.
-  const frozen = freezeTrial(root, suite);
+  const packetAt = process.argv.indexOf("--packet-dir");
+  if (packetAt !== -1 && suite !== "flight") throw new Error("--packet-dir needs --suite flight");
+  const frozen = freezeTrial(root, suite, packetAt === -1 ? undefined : process.argv[packetAt + 1]);
   const jevDir = join(root, "frozen/jev");
   symlinkSync(join(repo, "tools/jev/node_modules"), join(jevDir, "node_modules"));
   const manifest = {
     name,
     createdAt: new Date().toISOString(),
     sourceCommit: run("git", ["-C", repo, "rev-parse", "HEAD"]).trim(),
-    image: run("docker", ["image", "inspect", config.image, "--format", "{{.Id}}"]).trim(),
+    image: run("docker", [
+      "image",
+      "inspect",
+      suite === "flight" ? config.flight.image : config.image,
+      "--format",
+      "{{.Id}}",
+    ]).trim(),
     phase: "readiness",
     suite,
     frozen,
+    ...(flightImages ? { flightImages } : {}),
     workers: [],
   };
   save(manifest);
@@ -76,6 +88,10 @@ if (action === "create") {
     };
     manifest.workers.push(worker);
     save(manifest);
+    if (suite === "flight") {
+      worker.flight = startFlight(container, flightImages);
+      save(manifest);
+    }
     run("docker", ["volume", "create", "--label", `tinker.writer-trial=${name}`, volume]);
     run("docker", [
       "create",
@@ -84,7 +100,10 @@ if (action === "create") {
       "--label",
       `tinker.writer-trial=${name}`,
       "--network",
-      "none",
+      worker.flight?.network ?? "none",
+      ...(worker.flight
+        ? ["--network-alias", "app", "--network-alias", "flight-app", ...environmentArgs()]
+        : []),
       "--read-only",
       "--cap-drop",
       "ALL",
@@ -163,14 +182,39 @@ if (action === "create") {
       join(seed, "index.html"),
       '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>\n',
     );
+    if (suite === "flight") {
+      rmSync(seed, { recursive: true, force: true });
+      mkdirSync(seed);
+      run("docker", ["exec", container, "sh", "-c", "cp -R /home/pwuser/flight-seed/. /work/"]);
+      writeFileSync(
+        join(seed, ".oxfmtrc.json"),
+        '{\n  "ignorePatterns": ["src/routeTree.gen.ts", "FEEDBACK.md"]\n}\n',
+      );
+      const env = Object.entries(flightEnvironment())
+        .map(([key, value]) => `${key}=${value}`)
+        .join("\n");
+      writeFileSync(join(seed, ".env"), env + "\n");
+      for (const file of ["scaffold.json", "starter.json"]) {
+        const baseline = join(root, frozen.dir, file);
+        run("docker", ["cp", `${container}:/home/pwuser/${file}`, baseline]);
+        frozen.files[file] = sha256File(baseline);
+      }
+      save(manifest);
+    }
     // Seeds stage the full tested rules, not the old short text.
     writeFileSync(join(seed, "GUIDELINES.md"), readFrozenGuidelines(root, frozen, suite));
     writeFileSync(
       join(seed, "TASK.md"),
       "# Readiness only\n\nNo scored task has started.\nFollow the teacher's small tool check, then stop.\n",
     );
-    writeFileSync(join(seed, ".gitignore"), "node_modules/\ndist/\n.vite/\n");
+    writeFileSync(
+      join(seed, ".gitignore"),
+      suite === "flight"
+        ? "node_modules/\ndist/\n.env\n.vite/\nsrc/routeTree.gen.ts\n"
+        : "node_modules/\ndist/\n.vite/\n",
+    );
     run("docker", ["cp", `${seed}/.`, `${container}:/work`]);
+    if (suite === "flight") run("docker", ["exec", container, "vp", "fmt", ".oxfmtrc.json"]);
     run("docker", ["exec", container, "git", "init", "-q", "/work"]);
     run("docker", ["exec", container, "git", "-C", "/work", "add", "."]);
     run("docker", [
@@ -185,7 +229,7 @@ if (action === "create") {
       "user.email=trial@local",
       "commit",
       "-qm",
-      "Blank starter; no example code",
+      suite === "flight" ? "Start registry starter" : "Blank starter; no example code",
     ]);
     // Tool copies stay frozen: create must not read the repo.
     copyTrialTools(join(root, frozen.dir, "tools"), ext);
@@ -198,6 +242,7 @@ if (action === "create") {
       JSON.stringify(
         {
           container,
+          suite,
           events: join(root, `${slug}.jsonl`),
           jevDir,
           limits: config.smokeLimits,
@@ -241,7 +286,12 @@ if (action === "create") {
       throw new Error(`Unexpected workspace response: ${JSON.stringify(workspace)}`);
     worker.status = "prepared";
     save(manifest);
-    console.log(JSON.stringify(worker));
+    console.log(
+      JSON.stringify({
+        ...worker,
+        ...(worker.flight ? { flight: { ...worker.flight, token: "teacher-owned" } } : {}),
+      }),
+    );
   }
 } else if (action === "stage") {
   const round = Number(process.argv[4]);
@@ -278,6 +328,7 @@ if (action === "create") {
     // Frozen trials read limits from the frozen copy, not live config.
     cfg.limits = limitsFor(manifest, config, root);
     cfg.events = join(root, `${w.container}-round-${round}.jsonl`);
+    if (suite === "flight") writeFileSync(cfg.events, "", { flag: "wx" });
     writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
     writeFileSync(
       join(w.dir, "AGENTS.md"),
@@ -327,6 +378,7 @@ if (action === "create") {
     delete trust[w.dir];
     writeFileSync(trustPath, JSON.stringify(trust, null, 2) + "\n");
     rmSync(w.dir, { recursive: true, force: true });
+    if (w.flight) stopFlight(w.flight);
     w.status = "cleaned";
     save(manifest);
   }
