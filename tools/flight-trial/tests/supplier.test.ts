@@ -516,9 +516,7 @@ test("a scenario reset restores stock and clears quotes, orders, route rules and
       await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
     ).json(),
   );
-  expect(log.data.filter((call) => call.status !== 0)).toEqual([
-    { route: "POST /control/scenario", time: 10000, status: 200 },
-  ]);
+  expect(log.data.filter((call) => call.status !== 0)).toEqual([]);
   expect((await fetch(`${url}/air/offers/${offer.id}`)).status).toBe(404);
   expect((await fetch(`${url}/air/orders/${booked.id}`)).status).toBe(404);
   expect(
@@ -621,4 +619,113 @@ test("advancing before setting a clock starts a test clock from real time", asyn
   expect(await (await post(url, "/control/clock", { advanceMs: 1 })).json()).toEqual({
     data: { now: first + 5001 },
   });
+});
+
+test("a delayed call cannot restore a replaced route rule", async () => {
+  const url = await start();
+  await post(url, "/control/clock", { now: 10000 });
+  await post(url, "/control/routes", {
+    route: "POST /air/offer_requests",
+    delayMs: 100,
+    status: 503,
+  });
+  const pending = post(url, "/air/offer_requests", searchBody);
+  await expect
+    .poll(async () => {
+      const log = logSchema.parse(
+        await (
+          await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+        ).json(),
+      );
+      return log.data.filter(
+        (call) => call.route === "POST /air/offer_requests" && call.status === 0,
+      ).length;
+    })
+    .toBe(1);
+  await post(url, "/control/routes", { route: "POST /air/offer_requests", status: 502 });
+  await post(url, "/control/clock", { advanceMs: 100 });
+  await pending;
+  const next = post(url, "/air/offer_requests", searchBody);
+  await expect
+    .poll(async () => {
+      const log = logSchema.parse(
+        await (
+          await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+        ).json(),
+      );
+      return log.data.filter((call) => call.route === "POST /air/offer_requests").length;
+    })
+    .toBe(2);
+  await post(url, "/control/clock", { advanceMs: 100 });
+  expect((await next).status).toBe(502);
+});
+
+test("parallel delayed calls consume only the chosen number of repeats", async () => {
+  const url = await start();
+  await post(url, "/control/scenario", { name: "last-seat" });
+  await post(url, "/control/clock", { now: 10000 });
+  const offer = (await search(url)).at(0)!;
+  await post(url, "/control/routes", { route: "POST /air/orders", delayMs: 100, repeat: 1 });
+  const body = { data: { selected_offers: [offer.id], type: "instant" } };
+  const first = post(url, "/air/orders", body);
+  await expect
+    .poll(async () => {
+      const log = logSchema.parse(
+        await (
+          await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+        ).json(),
+      );
+      return log.data.filter((call) => call.route === "POST /air/orders" && call.status === 0)
+        .length;
+    })
+    .toBe(1);
+  await post(url, "/control/clock", { advanceMs: 100 });
+  expect((await first).status).toBe(201);
+  const a = post(url, "/air/orders", body);
+  const b = post(url, "/air/orders", body);
+  await expect
+    .poll(async () => {
+      const log = logSchema.parse(
+        await (
+          await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+        ).json(),
+      );
+      return log.data.filter((call) => call.route === "POST /air/orders" && call.status === 0)
+        .length;
+    })
+    .toBe(2);
+  await post(url, "/control/clock", { advanceMs: 100 });
+  expect(
+    (await Promise.all([a, b])).map((response) => response.status).sort((a, b) => a - b),
+  ).toEqual([201, 409]);
+});
+
+test("a call finishing after reset cannot return to the new call log", async () => {
+  const url = await start();
+  await post(url, "/control/clock", { now: 10000 });
+  await post(url, "/control/routes", {
+    route: "POST /air/offer_requests",
+    delayMs: 100,
+    status: 503,
+  });
+  const pending = post(url, "/air/offer_requests", searchBody);
+  await expect
+    .poll(async () => {
+      const log = logSchema.parse(
+        await (
+          await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+        ).json(),
+      );
+      return log.data.some((call) => call.route === "POST /air/offer_requests");
+    })
+    .toBe(true);
+  await post(url, "/control/scenario", { name: "default" });
+  await post(url, "/control/clock", { advanceMs: 100 });
+  await pending;
+  const log = logSchema.parse(
+    await (
+      await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+    ).json(),
+  );
+  expect(log.data.filter((call) => call.route === "POST /air/offer_requests")).toEqual([]);
 });
