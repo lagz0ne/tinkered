@@ -1,0 +1,516 @@
+{
+  "branch": "start/starter-casts",
+  "base": "3fce570304f38394e5418b03d9a516ed6d273bc8",
+  "sourceCommits": [
+    "829a8d437a0dd5293724c73b78f7a61fd7d20207 fix(start): type the owned entry and narrow router close",
+    "b34b85d52d70e51940b42bf493d90d71daf32755 fix(start): use the pinned Start validator API",
+    "58af498a5bf14b45ba8459ef824f7034040edeff fix(start): narrow page events and bind the telemetry backend"
+  ],
+  "status": "Saved for lead review; root check and raw generated-file gate remain red.",
+  "gates": [
+    {
+      "name": "build",
+      "command": ["vp", "run", "-r", "build"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-build.log"
+    },
+    {
+      "name": "check",
+      "command": ["vp", "check"],
+      "exit": 1,
+      "log": "/tmp/starter-casts-check.log"
+    },
+    {
+      "name": "all-tests",
+      "command": ["vp", "run", "-r", "test"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-all-tests.log"
+    },
+    {
+      "name": "validate",
+      "command": ["pnpm", "validate"],
+      "exit": 1,
+      "log": "/tmp/starter-casts-validate.log"
+    },
+    {
+      "name": "types",
+      "command": ["vp", "run", "@tinker-start-scaffold#typecheck"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-types.log"
+    },
+    {
+      "name": "plain",
+      "command": ["vp", "run", "@tinker-start-scaffold#check:plain"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-plain.log"
+    },
+    {
+      "name": "seam",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:seam"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-seam.log"
+    },
+    {
+      "name": "boundary",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:boundary"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-boundary.log"
+    },
+    {
+      "name": "schema",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:schema"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-schema.log"
+    },
+    {
+      "name": "imports",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:imports"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-imports.log"
+    },
+    {
+      "name": "prose",
+      "command": ["vp", "run", "prose"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-prose.log"
+    },
+    {
+      "name": "initial-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-initial-build.log"
+    },
+    {
+      "name": "base-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-base-build.log"
+    },
+    {
+      "name": "base-check",
+      "command": ["vp", "check"],
+      "exit": 1,
+      "log": "/tmp/starter-casts-base-check.log"
+    },
+    {
+      "name": "base-validate-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-base-validate-build.log"
+    },
+    {
+      "name": "base-validate",
+      "command": ["pnpm", "validate"],
+      "exit": 1,
+      "log": "/tmp/starter-casts-base-validate.log"
+    },
+    {
+      "name": "gate-chain",
+      "command": [
+        "vp run -r build && vp check && vp run @tinker-start-scaffold#test && vp run -r test"
+      ],
+      "exit": 1,
+      "log": "/tmp/starter-casts-gate-chain.log"
+    },
+    {
+      "name": "app-check",
+      "command": [
+        "vp",
+        "check",
+        "apps/start-scaffold",
+        "docs/roadmap/start-scaffold/PROGRESS.md",
+        "docs/roadmap/start-scaffold/STARTER-CASTS-GATES.json"
+      ],
+      "exit": 0,
+      "log": "/tmp/starter-casts-app-check.log"
+    },
+    {
+      "name": "app-tests",
+      "command": ["vp", "run", "@tinker-start-scaffold#test"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-step3-tests.log"
+    },
+    {
+      "name": "plain-proof",
+      "command": ["vp", "run", "@tinker-start-scaffold#check:plain", "--", "--prove"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-step2-plain-proof.log"
+    },
+    {
+      "name": "registry-build",
+      "command": ["vp", "run", "@tinker-start-scaffold#registry:build"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-registry-build.log"
+    },
+    {
+      "name": "registry",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:registry"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-registry.log"
+    },
+    {
+      "name": "registry-payloads",
+      "command": ["node", "--input-type=module", "-"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-registry-payloads.log",
+      "purpose": "assert all 110 emitted registry files equal final source"
+    },
+    {
+      "name": "middleware",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:middleware"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-step1-middleware.log"
+    },
+    {
+      "name": "style",
+      "command": [
+        "bash",
+        ".agents/skills/coding-convention/scripts/style-census.sh",
+        "apps/start-scaffold/src/server.ts",
+        "apps/start-scaffold/src/transport/counter.functions.ts",
+        "apps/start-scaffold/src/transport/profile.functions.ts",
+        "apps/start-scaffold/src/transport/todos.functions.ts",
+        "apps/start-scaffold/src/scaffold/frontend/owner.ts",
+        "apps/start-scaffold/src/scaffold/telemetry/delivery.ts",
+        "apps/start-scaffold/src/scaffold/telemetry/index.ts",
+        "apps/start-scaffold/tests/telemetry.test.ts",
+        "--strict"
+      ],
+      "exit": 0,
+      "log": "/tmp/starter-casts-style.log"
+    },
+    {
+      "name": "TSDoc",
+      "command": [
+        "node",
+        "tools/jev/docs.mjs",
+        "apps/start-scaffold/src/server.ts",
+        "apps/start-scaffold/src/scaffold/frontend/owner.ts",
+        "apps/start-scaffold/src/scaffold/telemetry/delivery.ts",
+        "apps/start-scaffold/src/scaffold/telemetry/index.ts",
+        "apps/start-scaffold/src/transport/counter.functions.ts",
+        "apps/start-scaffold/src/transport/profile.functions.ts",
+        "apps/start-scaffold/src/transport/todos.functions.ts",
+        "apps/start-scaffold/tests/telemetry.test.ts"
+      ],
+      "exit": 0,
+      "log": "/tmp/starter-casts-tsdoc.log"
+    },
+    {
+      "name": "authored-shapes",
+      "command": ["node", "--input-type=module", "-"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-authored-shapes.log",
+      "purpose": "plainFindingsFor on every tracked app source and test file"
+    },
+    {
+      "name": "owned-app-gate",
+      "command": ["python3", "-"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-owned-app-gate.log",
+      "purpose": "assert no blocking or unavailable check for tracked app files; verify final source hashes"
+    },
+    {
+      "name": "regression-before-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-regression-before-build.log"
+    },
+    {
+      "name": "regression-before",
+      "command": [
+        "vp",
+        "test",
+        "tests/telemetry.test.ts",
+        "-t",
+        "telemetry sends through the scope-bound HTTP backend"
+      ],
+      "exit": 1,
+      "log": "/tmp/starter-casts-regression-before.log",
+      "cwd": "/home/paseo/next/tinkered-starter-casts/apps/start-scaffold"
+    },
+    {
+      "name": "regression-after-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-regression-after-build.log"
+    },
+    {
+      "name": "regression-after",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "--",
+        "-t",
+        "telemetry sends through the scope-bound HTTP backend"
+      ],
+      "exit": 0,
+      "log": "/tmp/starter-casts-regression-after.log"
+    },
+    {
+      "name": "jev-preflight",
+      "command": ["node", "tools/jev/preflight.mjs", "origin/main"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-jev-preflight.log"
+    },
+    {
+      "name": "jev-tests",
+      "command": ["node", "tools/jev/tests.mjs", "apps/start-scaffold/tests/telemetry.test.ts"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-jev-tests.log"
+    },
+    {
+      "name": "jev-promises",
+      "command": ["node", "tools/jev/promises.mjs", "../apps/start-scaffold"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-jev-promises.log"
+    },
+    {
+      "name": "env-doctor",
+      "command": ["vp", "env", "doctor"],
+      "exit": 0,
+      "log": "/tmp/starter-casts-env-doctor.log"
+    },
+    {
+      "name": "app-gate-before",
+      "command": [
+        "node",
+        "tools/writer-trial/app-gate.mjs",
+        "apps/start-scaffold",
+        "--json",
+        "/tmp/starter-casts-app-gate-before.json"
+      ],
+      "exit": 1,
+      "log": "/tmp/starter-casts-app-gate-before.log"
+    },
+    {
+      "name": "app-gate-after",
+      "command": [
+        "node",
+        "tools/writer-trial/app-gate.mjs",
+        "apps/start-scaffold",
+        "--json",
+        "/tmp/starter-casts-app-gate-after.json"
+      ],
+      "exit": 1,
+      "log": "/tmp/starter-casts-app-gate-after.log"
+    }
+  ],
+  "appGate": [
+    {
+      "name": "before",
+      "rawExit": 1,
+      "ownedBlocking": 6,
+      "unownedBlocking": 7,
+      "unownedFiles": ["src/routeTree.gen.ts"],
+      "unavailable": 0,
+      "ownedFindings": [
+        {
+          "file": "src/scaffold/frontend/owner.ts",
+          "line": 15,
+          "rule": "S17",
+          "message": "type assertion in source hides what the value really is: narrow it with a check, or fix the type; `as const` and `[] as T[]` are fine",
+          "fix": "type assertion in source hides what the value really is: narrow it with a check, or fix the type; `as const` and `[] as T[]` are fine"
+        },
+        {
+          "file": "src/scaffold/telemetry/delivery.ts",
+          "line": 23,
+          "rule": "S24",
+          "message": "raw fetch: send through a copied HTTP endpoint operation so config, retry, spans, and the backend tag apply. Fix: an endpoint operation, declared with the copied HTTP source in src/tinker/http/index.ts",
+          "fix": "raw fetch: send through a copied HTTP endpoint operation so config, retry, spans, and the backend tag apply. Fix: an endpoint operation, declared with the copied HTTP source in src/tinker/http/index.ts"
+        },
+        {
+          "file": "src/scaffold/telemetry/delivery.ts",
+          "line": 62,
+          "rule": "S24",
+          "message": "raw fetch: send through a copied HTTP endpoint operation so config, retry, spans, and the backend tag apply. Fix: an endpoint operation, declared with the copied HTTP source in src/tinker/http/index.ts",
+          "fix": "raw fetch: send through a copied HTTP endpoint operation so config, retry, spans, and the backend tag apply. Fix: an endpoint operation, declared with the copied HTTP source in src/tinker/http/index.ts"
+        },
+        {
+          "file": "src/scaffold/telemetry/delivery.ts",
+          "line": 80,
+          "rule": "S24",
+          "message": "raw fetch: send through a copied HTTP endpoint operation so config, retry, spans, and the backend tag apply. Fix: an endpoint operation, declared with the copied HTTP source in src/tinker/http/index.ts",
+          "fix": "raw fetch: send through a copied HTTP endpoint operation so config, retry, spans, and the backend tag apply. Fix: an endpoint operation, declared with the copied HTTP source in src/tinker/http/index.ts"
+        },
+        {
+          "file": "src/server.ts",
+          "line": 22,
+          "rule": "S17",
+          "message": "type assertion in source hides what the value really is: narrow it with a check, or fix the type; `as const` and `[] as T[]` are fine",
+          "fix": "type assertion in source hides what the value really is: narrow it with a check, or fix the type; `as const` and `[] as T[]` are fine"
+        },
+        {
+          "file": "src/server.ts",
+          "line": 102,
+          "rule": "S17",
+          "message": "type assertion in source hides what the value really is: narrow it with a check, or fix the type; `as const` and `[] as T[]` are fine",
+          "fix": "type assertion in source hides what the value really is: narrow it with a check, or fix the type; `as const` and `[] as T[]` are fine"
+        }
+      ],
+      "log": "/tmp/starter-casts-app-gate-before.log",
+      "report": "/tmp/starter-casts-app-gate-before.json",
+      "totalBlocking": 13
+    },
+    {
+      "name": "after",
+      "rawExit": 1,
+      "ownedBlocking": 0,
+      "unownedBlocking": 7,
+      "unownedFiles": ["src/routeTree.gen.ts"],
+      "unavailable": 0,
+      "ownedFindings": [],
+      "log": "/tmp/starter-casts-app-gate-after.log",
+      "report": "/tmp/starter-casts-app-gate-after.json",
+      "totalBlocking": 7
+    }
+  ],
+  "consumer": {
+    "cli": "shadcn@4.21.0",
+    "items": 3,
+    "files": 110,
+    "payloads": "exact source",
+    "install": "source with lib alias rewritten to @/app-lib",
+    "aliasRewrite": "seam imports rewritten",
+    "seamUpdate": "both edited seam files unchanged",
+    "dryRun": "unchanged",
+    "setupUpdate": "passed",
+    "editedFeature": "unchanged",
+    "consumerBuild": "passed",
+    "consumerTypes": "passed",
+    "dependencies": "Core and React packed tarballs; independent npm install; no workspace links",
+    "projectTests": "passed",
+    "projectGates": "plain, seam, browser imports, schema passed",
+    "skills": "all five, plus AGENTS.md",
+    "maintainerFiles": "none",
+    "proofMode": "none",
+    "gates": [
+      {
+        "name": "pack-core",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-1-pack-core.log"
+      },
+      {
+        "name": "pack-react",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-2-pack-react.log"
+      },
+      {
+        "name": "install-tarballs",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-3-install-tarballs.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:35423/r/{name}.json",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_35423_r__name__json.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-5-dlx----shadcn_4_21_0-add-_tinker-start_starter---yes---overwrite.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-6-dlx----shadcn_4_21_0-add-_tinker-start_runtime---dry-run---diff-src_scaffold_frontend_index_ts.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-7-dlx----shadcn_4_21_0-add-_tinker-start_runtime---yes---overwrite.log"
+      },
+      {
+        "name": "install-starter",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-8-install-starter.log"
+      },
+      {
+        "name": "build",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-9-build.log"
+      },
+      {
+        "name": "typecheck",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-10-typecheck.log"
+      },
+      {
+        "name": "test",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-11-test.log"
+      },
+      {
+        "name": "check:plain",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-12-check_plain.log"
+      },
+      {
+        "name": "test:seam",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-13-test_seam.log"
+      },
+      {
+        "name": "test:boundary",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-14-test_boundary.log"
+      },
+      {
+        "name": "test:schema",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-15-test_schema.log"
+      }
+    ]
+  },
+  "appTests": 40,
+  "consumerTests": 38,
+  "allRepoTests": {
+    "passed": 1209,
+    "skipped": 1
+  },
+  "plainFunctions": 17,
+  "plainPlantedFailures": 81,
+  "baseAndBranchCheck": {
+    "errors": 409,
+    "warnings": 31
+  },
+  "validate": {
+    "passedLanes": 15,
+    "failedLane": "lint/types/format/complexity",
+    "baseExit": 1,
+    "branchExit": 1
+  },
+  "jev": {
+    "fileFlags": 0,
+    "unitFlags": 2,
+    "testFlags": 0,
+    "promiseGaps": 0,
+    "promiseUnsure": 1,
+    "answersRecordedIn": "PROGRESS.md",
+    "answers": [
+      {
+        "unit": "tabLifetime",
+        "judge": "stateOutsideCell",
+        "label": false
+      },
+      {
+        "unit": "delivery",
+        "judge": "configNotTag",
+        "label": false
+      }
+    ]
+  },
+  "mutation": {
+    "run": false,
+    "reason": "The app has no mutation script; the brief requests no full mutation lane."
+  },
+  "limits": {
+    "changedPaths": ["apps/start-scaffold/", "docs/roadmap/start-scaffold/"],
+    "trialStoreTouched": false,
+    "containerCommandsRun": false,
+    "stashUsed": false,
+    "pushed": false
+  },
+  "cwd": "/home/paseo/next/tinkered-starter-casts"
+}

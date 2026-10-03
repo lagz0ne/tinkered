@@ -1303,3 +1303,24 @@ The app has no mutation lane; no mutation job was run.
 
 The card is saved for the lead's review.
 The lead must fix the root check setup and the gate's treatment of generated files before claiming every gate is green.
+
+### Step 4: registry and handoff
+
+The registry is rebuilt from the final starter files.
+All 110 emitted files match their source by exact content.
+The independent copied starter passes build, types, 38 tests, plain, seam, boundary, and schema.
+The full repo passes 1,209 tests, with one existing skipped test.
+App types, check, 40 tests, plain, seam, boundary, schema, imports, native middleware, TSDoc, strict census, and prose exit 0.
+Registry build and consumer checks exit 0.
+The full required chain exits 1 at root vp check; the tests pass in their separate recorded run.
+Root check and validate have the same failures on the pinned base.
+The complete command, exit-code, and log list is in STARTER-CASTS-GATES.json.
+Long jobs ran in the foreground and were awaited in this turn.
+
+Source commits:
+
+- 829a8d43: type the owned entry and narrow router close.
+- b34b85d5: use the pinned Start validator API.
+- 58af498a: narrow page events and bind the telemetry backend.
+
+This proof commit saves the rebuilt registry and this record for review.
