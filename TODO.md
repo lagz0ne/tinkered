@@ -24,13 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/strict-forms** — the scaffold enforces ADR 0099: plain functions are rare and justified.
-  Owner: lead (Claude, Start scaffold session).
-  Next: a check script in the starter (no classes; no Core handle, ctx, clock, signal, or IO params;
-  at most three params; one caller fails), a plain-function list, and the `tinker-forms` skill updated.
-  Apply it to the scaffold and the trial reference; the flight gate runs it on the writer's code.
-  Verify: a planted class, a clock param, and a one-caller function each fail the check.
-
 - **trial/deepseek-baseline** — run DeepSeek through the rounds.
   Next: after the rounds land.
   Verify: the baseline is the number of rounds passed in order.
@@ -53,6 +46,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **start/strict-forms** — the scaffold enforces ADR 0099: plain functions are rare and justified.
+  Owner: strict-forms writer.
+  Next: a check script in the starter (no classes; no Core handle, ctx, clock, signal, or IO params;
+  at most three params; one caller fails), a plain-function list, and the `tinker-forms` skill updated.
+  Scope: this scaffold; the lead owns the flight gate and trial reference.
+  Also: only entries own roots; services stay in the graph.
+  Verify: a planted class, a clock param, and a one-caller function each fail the check.
 
 - **trial/flight-rounds** — five round packets, hidden checks, and a reference answer.
   Owner: lead (Claude, Start scaffold session); Sol rounds writer.

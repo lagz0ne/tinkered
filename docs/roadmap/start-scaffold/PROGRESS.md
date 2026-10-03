@@ -897,3 +897,13 @@ Workspace tests: 1,106 passed, 1 skipped.
 All 16 budget lanes pass.
 Proof and exit codes are in `REFINE-PROOF.md` and `REFINE-GATES.json`.
 This stays saved for lead review; the writer did not land or push it.
+
+## Strict forms
+
+Owner: strict-forms writer.
+Rule: ADR 0099, plus services stay in the graph.
+Next: ship the plain check, shrink helpers, and prove the copied starter.
+Verify: planted failures, real tree, consumer, app tests, and repo gates.
+Assume: tests do not count as app call sites.
+Assume: native callbacks meet their caller's contract.
+Assume: resource methods keep their owner's private work.
