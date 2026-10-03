@@ -39,7 +39,7 @@
   ],
   "flight": {
     "image": "tinker-writer-flight:20261003.integration.1",
-    "servicesImage": "tinker-flight-services:20261003.integration.1",
+    "servicesImage": "tinker-flight-services:20261003131759497",
     "postgresImage": "postgres:17-alpine",
     "mailpitImage": "axllent/mailpit:v1.27"
   }

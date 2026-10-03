@@ -14,6 +14,14 @@ const test = async (name, body) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
+  page.on("pageerror", (error) => console.log(`BROWSER_ERROR ${name}: ${error.stack}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") console.log(`BROWSER_CONSOLE ${name}: ${message.text()}`);
+  });
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      console.log(`BROWSER_HTTP ${response.status()} ${response.url()}`);
+  });
   try {
     await body(page, context, browser);
     cases.push({ name, pass: true });

@@ -10,7 +10,7 @@ import { jevAsk } from "../broker.mjs";
 import { judgeFile, judgedFiles } from "../folder.mjs";
 import { gateFiles, flightGate, machineVerdict } from "../gate.mjs";
 import { sourceHashOf } from "../answers.mjs";
-import { sha256File } from "../suite.mjs";
+import { sha256File, freezeTrial, verifyFrozen } from "../suite.mjs";
 
 const repo = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const config = JSON.parse(readFileSync(join(repo, "tools/writer-trial/config.json")));
@@ -57,7 +57,18 @@ const plants = {
   },
 };
 const results = [];
-const frozen = join(homedir(), ".local/share/tinker-writer-trial/flight-integration-01/frozen");
+mkdirSync(proof, { recursive: true });
+const frozenInfo = freezeTrial(proof, "flight");
+const frozen = join(proof, frozenInfo.dir);
+for (const file of ["scaffold.json", "starter.json"]) {
+  cpSync(join(context, file), join(frozen, file));
+  frozenInfo.files[file] = sha256File(join(frozen, file));
+}
+symlinkSync(join(repo, "tools/jev/node_modules"), join(frozen, "jev/node_modules"));
+writeFileSync(
+  join(proof, "manifest.json"),
+  JSON.stringify({ images, frozen: frozenInfo }, null, 2) + "\n",
+);
 const jevDir = join(frozen, "jev");
 const judges = JSON.parse(readFileSync(join(frozen, "config.json"))).judges;
 const starter = JSON.parse(readFileSync(join(frozen, "starter.json")));
@@ -97,7 +108,13 @@ for (const round of rounds) {
       recursive: true,
       filter: (path) => !path.endsWith("routeTree.gen.ts"),
     });
-  for (const file of ["PLAIN.md", "vite.config.ts", "tsconfig.json", "components.json"])
+  for (const file of [
+    "PLAIN.md",
+    "vite.config.ts",
+    "tsconfig.json",
+    "components.json",
+    "drizzle.config.ts",
+  ])
     cpSync(join(reference, file), join(project, file));
   writeFileSync(
     join(project, ".env"),
@@ -128,6 +145,16 @@ for (const round of rounds) {
       assert.equal(source.split(plant.from).length - 1, 1, "One planted-break anchor");
       writeFileSync(path, source.replace(plant.from, plant.to));
     }
+    execFileSync(
+      join(repo, "node_modules/.bin/vp"),
+      [
+        "fmt",
+        join(project, "src/backend/flight-search.ts"),
+        syncTest,
+        join(project, plants[round].file),
+      ],
+      { cwd: repo, stdio: "inherit" },
+    );
     const archive = join(logs, "source.tar");
     execFileSync("tar", ["-C", project, "-cf", archive, "."]);
     const result = checkFlight({
@@ -138,6 +165,7 @@ for (const round of rounds) {
       scaffold,
       logDir: logs,
     });
+    verifyFrozen(proof, frozenInfo);
     const jev = { gate: flightGate(result) };
     const judged = jev.gate ? jev : await judgeProject(project);
     writeFileSync(join(logs, "jev.json"), JSON.stringify(judged, null, 2) + "\n");
