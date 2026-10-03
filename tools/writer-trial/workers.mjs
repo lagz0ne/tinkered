@@ -25,7 +25,7 @@ import {
   stopFlight,
 } from "./flight-network.mjs";
 import { cleanupReady } from "./attempts.mjs";
-import { flightScore } from "./flight-score.mjs";
+import { stageableFlightWorkers } from "./flight-stage.mjs";
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = resolve(here, "../..");
 const home = join(homedir(), ".local/share/tinker-writer-trial");
@@ -310,7 +310,15 @@ if (action === "create") {
   const manifest = JSON.parse(readFileSync(manifestPath));
   // Old trials have no suite: legacy stays at rounds 1-4.
   const suite = suiteFor(manifest);
-  if (suite === "flight") assertFlightRunning(manifest.workers, manifest.round);
+  const staging =
+    suite === "flight"
+      ? stageableFlightWorkers(manifest.workers, manifest.round)
+      : { ready: manifest.workers, skipped: [] };
+  for (const { worker, reason } of staging.skipped) {
+    worker.stagedRound ??= manifest.round;
+    console.log(`Skip ${worker.container}: ${reason}`);
+  }
+  if (!staging.ready.length) throw new Error("No flight workers can stage this round");
   const valid = manifest.frozen ? taskRounds(suite) : validRounds(manifest);
   if (!valid.includes(round)) throw new Error(`Stage needs round ${valid.join(", ")} for ${suite}`);
   if (manifest.round && round !== manifest.round + 1) throw new Error("Stage the next round only");
@@ -330,7 +338,7 @@ if (action === "create") {
         .join("\n\n---\n\n");
   const taskFile = join(root, "current-task.md");
   writeFileSync(taskFile, task);
-  for (const w of manifest.workers) {
+  for (const w of staging.ready) {
     if (w.status === "cleaned") throw new Error("Create a fresh trial before staging");
     run("docker", ["start", w.container]);
     run("docker", ["cp", taskFile, `${w.container}:/work/TASK.md`]);
@@ -357,6 +365,7 @@ if (action === "create") {
       "# Writer trial\n\nYour project is /work through work_shell.\nRead TASK.md and GUIDELINES.md there. Complete only the current round.\n",
     );
     w.status = "staged";
+    w.stagedRound = round;
   }
   manifest.phase = limitsFor(manifest, config, root).disabled ? "completion" : "scored";
   manifest.round = round;
@@ -385,7 +394,12 @@ if (action === "create") {
   if (!manifest.exportedAt) throw new Error("Export results before cleanup");
   // New trials save attempts through review.mjs: cleanup needs every
   // worker's current attempt saved first. Old export-only trials skip this.
-  if (manifest.frozen && manifest.round) cleanupReady(manifest.workers, manifest.round);
+  if (manifest.frozen && manifest.round) {
+    if (suiteFor(manifest) === "flight") {
+      for (const worker of manifest.workers)
+        cleanupReady([worker], worker.stagedRound ?? manifest.round);
+    } else cleanupReady(manifest.workers, manifest.round);
+  }
   for (const w of manifest.workers) {
     if (w.status === "cleaned") continue;
     if (w.workspaceId) run("paseo", ["workspace", "archive", w.workspaceId, "--json"]);
@@ -408,17 +422,3 @@ if (action === "create") {
   save(manifest);
   console.log("Archived workspaces; deleted projects, containers, volumes, and worker folders.");
 } else throw new Error("Use create, stage, export, or cleanup");
-
-/** Teacher reference proofs have no agent IDs; scored model runs stop at their first failure. */
-function assertFlightRunning(workers, completedRound = 0) {
-  for (const worker of workers) {
-    if (!(worker.attempts ?? []).some((attempt) => Boolean(attempt.agentId))) continue;
-    const score = flightScore(worker.attempts);
-    if (score.status === "stopped")
-      throw new Error(
-        `Flight stopped at round ${score.firstFailedRound}; baseline ${score.baseline}`,
-      );
-    if (score.passedRounds < completedRound)
-      throw new Error(`Check round ${completedRound} before staging the next flight round`);
-  }
-}
