@@ -64,14 +64,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
-  Owner: lead (Claude, Start scaffold session); Sol data writer.
-  Worktree: `../tinkered-flight-data`, branch `trial/flight-data`.
-  Next: Opus reviewer checks `6b9e3155`; then the lead lands.
-  Verify: the same seed gives the same hash; another seed differs;
-  overlapping flights appear at two suppliers; pinned source hashes match.
-  [Brief](docs/roadmap/flight-trial/DATA-BRIEF.md).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -88,6 +80,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `0b278b73`.
+  `tools/flight-trial/data/`: 60 OpenFlights airports, 149 airlines, 4,058 routes, credited (ODbL).
+  A seeded generator makes 10,996 flights over three overlapping suppliers.
+  Proof: same seed, same JSON hash; another seed differs; pinned hashes match;
+  31 tests; mutation 94.72% (lead rerun, alone); validate passes.
+  [Proof](docs/roadmap/flight-trial/PROGRESS.md).
 
 - **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `67324417`.
