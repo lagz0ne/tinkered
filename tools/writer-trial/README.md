@@ -22,7 +22,11 @@ repo history, package tests, or worked examples are copied.
 No teacher checks or other submissions are mounted.
 The host checkout is absent from the container.
 Network access is off for the blank project suites.
-Flight has private local networks with no outside route.
+Flight has private local networks with no default route.
+Their bridges have no host IPv4 address.
+The isolation proof checks the first address in the writer subnet:
+ports 2377, 7946, 5355, 22, and 80 must refuse connections.
+It also checks that `172.17.0.1:80` refuses a connection.
 
 Pi runs through Paseo on the host.
 Its only active tools are `work_shell` and `jev`.

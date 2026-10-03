@@ -169,7 +169,16 @@ function createNetwork(name) {
     const bytes = randomBytes(2);
     const subnet = `10.203.${bytes[0]}.${(bytes[1] % 16) * 16}/28`;
     try {
-      run(["network", "create", "--internal", "--subnet", subnet, name]);
+      run([
+        "network",
+        "create",
+        "--internal",
+        "-o",
+        "com.docker.network.bridge.inhibit_ipv4=true",
+        "--subnet",
+        subnet,
+        name,
+      ]);
       return;
     } catch (error) {
       if (!String(error.stderr).includes("overlap")) throw error;

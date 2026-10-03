@@ -2811,3 +2811,16 @@ The earlier cleanup is complete; prior final proof images stay for replay.
 Status: Review.
 No work remains in this writer's brief or the Hono follow-up.
 The lead owns review and landing; nothing was pushed.
+
+### Integration review fix 1: host gateway
+
+The new probe failed on the old network code with exit 1.
+Host ports 2377, 7946, and 5355 accepted writer connections.
+Log: `tools/writer-trial/.logs/review-gateway-red.log`.
+Both internal networks now inhibit the bridge IPv4 address.
+Docker accepted `com.docker.network.bridge.inhibit_ipv4=true`.
+No host, Docker daemon, or firewall settings changed.
+The same proof passed with exit 0 after the fix.
+Log: `tools/writer-trial/.logs/review-gateway-option.log`.
+The probe checks gateway ports 2377, 7946, 5355, 22, and 80.
+The earlier no-host-route claim was too broad and is corrected.

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { lookup } from "node:dns/promises";
 import { readFileSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { Client } from "pg";
 import nodemailer from "nodemailer";
 import { connect } from "node:net";
@@ -12,7 +13,27 @@ console.log("PASS external DNS lookup fails");
 const routes = readFileSync("/proc/net/route", "utf8").trim().split("\n").slice(1);
 assert.ok(routes.every((line) => line.trim().split(/\s+/)[1] !== "00000000"));
 await assert.rejects(unreachable("172.17.0.1", 80));
-console.log("PASS no default route or route to 172.17.0.1");
+console.log("PASS no default route; 172.17.0.1:80 refuses a connection");
+const address = Object.values(networkInterfaces())
+  .flat()
+  .find((entry) => entry.family === "IPv4" && !entry.internal);
+assert.ok(address, "writer has an IPv4 interface");
+const mask = address.netmask.split(".").map(Number);
+const subnet = address.address.split(".").map((part, index) => Number(part) & mask[index]);
+subnet[3] += 1;
+const gateway = subnet.join(".");
+const reachable = [];
+for (const port of [2377, 7946, 5355, 22, 80]) {
+  const connected = await unreachable(gateway, port).then(
+    () => true,
+    () => false,
+  );
+  console.log(
+    `${connected ? "FAIL" : "PASS"} writer subnet gateway ${gateway}:${port} ${connected ? "connects" : "refuses a connection"}`,
+  );
+  if (connected) reachable.push(port);
+}
+assert.deepEqual(reachable, [], "writer must not connect to host gateway ports");
 await assert.rejects(
   fetch("http://control-mailpit:8025/api/v1/chaos", { signal: AbortSignal.timeout(2000) }),
 );

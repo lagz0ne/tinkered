@@ -99,6 +99,15 @@ The worker has the scaffold, five skills, shipped tests, and packet 1 only.
 It has `SERVICES.md`, `PLAIN.md`, and `check:plain`.
 It has no teacher files.
 Internet, private controls, and writer Mailpit Chaos are refused.
+The old proof did not test the writer subnet gateway.
+The new probe found open host ports 2377, 7946, and 5355; exit 1.
+Red log: `tools/writer-trial/.logs/review-gateway-red.log`.
+Both internal networks now use `com.docker.network.bridge.inhibit_ipv4=true`.
+Docker accepted the option; no host settings were changed.
+The new proof checks no default route and refused `172.17.0.1:80`.
+It also checks the first address in the writer subnet:
+ports 2377, 7946, 5355, 22, and 80 must refuse connections.
+Green log: `tools/writer-trial/.logs/review-gateway-option.log`, exit 0.
 Service APIs, Postgres, SMTP, and signed callbacks work.
 
 Prepared trial: `flight-integration-hono-01`, staged at packet 1.
