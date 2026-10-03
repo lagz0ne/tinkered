@@ -95,3 +95,52 @@ await test("missing plain alone earns no round and no baseline", () => {
     { status: "pending", passedRounds: 0, firstFailedRound: null, baseline: null },
   );
 });
+
+await test("keeps real failures from saved checks written before the plain flag existed", () => {
+  const flight = {
+    plainExit: 1,
+    unscored: true,
+    unavailable: "Image check:plain script unavailable",
+    scaffoldExit: 0,
+    ownExit: 1,
+    teacherExit: 0,
+  };
+  assert.deepEqual(
+    flightScore([{ round: 1, checks: [{ machine: "machine-fail", flight }] }, passed(1)]),
+    { status: "stopped", passedRounds: 0, firstFailedRound: 1, baseline: 0 },
+  );
+  assert.equal(
+    flightScore([
+      {
+        round: 1,
+        checks: [
+          {
+            machine: "machine-fail",
+            flight: {
+              ...flight,
+              ownExit: 0,
+            },
+          },
+        ],
+      },
+    ]).status,
+    "pending",
+  );
+  assert.equal(
+    flightScore([
+      {
+        round: 1,
+        checks: [
+          {
+            machine: "machine-fail",
+            flight: {
+              ...flight,
+              unavailable: "Docker setup failed",
+            },
+          },
+        ],
+      },
+    ]).status,
+    "pending",
+  );
+});

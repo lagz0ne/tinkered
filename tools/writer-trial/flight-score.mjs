@@ -22,8 +22,11 @@ export function flightScore(attempts) {
 
 /** A missing plain checker cannot erase failures from checks that did run. */
 function failedAlongsideMissingPlain(flight) {
+  const missingPlain =
+    flight.plainUnavailable === true ||
+    (flight.plainExit === 1 && flight.unavailable === "Image check:plain script unavailable");
   return (
-    flight.plainUnavailable === true &&
+    missingPlain &&
     [flight.scaffoldExit, flight.ownExit, flight.teacherExit].some((exit) => exit === 1)
   );
 }
