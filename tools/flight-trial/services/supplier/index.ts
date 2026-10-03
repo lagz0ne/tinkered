@@ -213,10 +213,10 @@ const holds = resource({
   factory({ state, expire }, ctx) {
     ctx.defer(
       state.watch((next, previous) => {
-        for (const order of Object.values(next.orders)) {
-          if (order.status === "held" && !previous.orders[order.id])
-            void expire.run({ input: order });
-        }
+        const order = Object.values(next.orders).find(
+          (entry) => entry.status === "held" && !previous.orders[entry.id],
+        );
+        if (order) return expire.run({ input: order });
       }),
     );
   },

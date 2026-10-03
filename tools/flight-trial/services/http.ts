@@ -11,6 +11,7 @@ import {
 } from "@tinker/core";
 import { makeTestClock, type Clock as TestClock } from "@tinker/core/testing";
 import { z } from "zod";
+import { failFlightService } from "../src/errors.ts";
 
 export declare namespace Service {
   type Request = { route: string; path: string; body: unknown; key?: string; token?: string };
@@ -191,7 +192,8 @@ export function createHttp(action: Operation.Handle<Promise<Service.Reply>, Serv
         );
       });
       const address = server.address();
-      if (address === null || typeof address === "string") return ctx.raise("InvalidAddress", {});
+      if (address === null || typeof address === "string")
+        failFlightService({ reason: "The listener has no TCP address" });
       return { url: `http://${host}:${address.port}` };
     },
   });

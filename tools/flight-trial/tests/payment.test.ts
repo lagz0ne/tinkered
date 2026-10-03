@@ -164,3 +164,16 @@ test("payment accepts Stripe form bodies", async () => {
     currency: "usd",
   });
 });
+
+test("the grader can cancel a pending webhook and send it now", async () => {
+  const url = await start();
+  const intent = await confirm(url);
+  await post(url, "/control/webhooks", { intent_id: intent.id, mode: "never" });
+  await post(url, "/control/clock", { advanceMs: 10000 });
+  expect(received).toEqual([]);
+  expect(await (await fetch(`${url}/v1/payment_intents/${intent.id}`)).json()).toMatchObject({
+    status: "processing",
+  });
+  await post(url, "/control/webhooks", { intent_id: intent.id, mode: "now" });
+  await expect.poll(() => received.length).toBe(1);
+});
