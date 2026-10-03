@@ -330,3 +330,55 @@ Working-step proof, under `tools/flight-trial/.logs/`:
 - Source hashes: exit 0, `lift-sources-step.log`.
 - Seed JSON hashes: exit 0, `lift-seeds-step.log`.
 - Strict style census: exit 0, `lift-style-step.log`.
+
+Mutation proof:
+
+The lane ran alone in this worktree under `/tmp/mutation.lock`.
+No other work ran here until it finished.
+The shell refused the requested `rm -rf` command before it ran.
+A path-checked cleanup removed only `.stryker-tmp` instead.
+The mutation command itself used the requested lock and package script.
+
+Log: `tools/flight-trial/.logs/lift-mutate-1.log`.
+Exit: 0.
+The package score is 94.72 percent; the floor stays 85.
+
+- All files: 232 killed, one timeout, nine survived, four without coverage.
+- `schema.ts`: 100.00 percent; 33 killed, none survived or without coverage.
+- `flights.ts`: 95.10 percent; 193 killed, one timeout, six survived, four without coverage.
+- `errors.ts`: 66.67 percent; six killed, three survived, none without coverage.
+
+Remaining misses are the generator's source-file failure paths,
+negative error-guard cases, and a random cutoff equality.
+The cutoff changes less-than to less-than-or-equal at 0.35.
+Core's random cannot produce exactly that value.
+No guard-only test was added.
+The threshold applies to the whole package, as in its config.
+
+Final proof, under `tools/flight-trial/.logs/`:
+
+- Workspace build: exit 0, `lift-final-build.log`.
+- Check: exit 0, `lift-final-check.log`; zero errors and 28 warnings.
+  None are in this package.
+- Package tests: exit 0, `lift-final-test.log`; 31 pass.
+- Source check: exit 0, `lift-final-sources.log`.
+- Seed check: exit 0, `lift-final-seeds.log`.
+- Data bytes compared with `dbf8d072`: exit 0, `lift-final-data-bytes.log`.
+  Every saved data file is unchanged.
+- Strict style census: exit 0, `lift-final-style.log`.
+- Jev preflight: exit 0, `lift-jev-preflight.log`; no flags, one operation note.
+  Range: `origin/main..HEAD` after the lead's rebase.
+- Jev tests: exit 0, `lift-jev-tests.log`; no flags in all 31 tests.
+- Jev promises: exit 0, `lift-jev-promises.log`; no README gaps.
+- Validate: exit 0, `lift-final-validate.log`; all 16 lanes pass.
+- Prose: exit 0, `lift-final-prose.log`.
+
+The gzip hash is still
+`b038094f27c92202af9fbbfb86197cc9a47cd1b5d0f70717ee4ba74245d5d3bd`.
+The seed 97 JSON hash is still
+`6148b99dbd2e24c33c0d0e5e1b52d1b13e29c96637813f11f14201b928b19e2e`.
+The source subset hash is still
+`965edecf15344a8736e56b846473c3a6a5920f345aa8b8955c101ffeb74a4f66`.
+Saved data stays at 843,591 bytes.
+No mutation config, threshold, file list, or lockfile changed.
+Core feedback: none.
