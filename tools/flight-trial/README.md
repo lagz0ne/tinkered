@@ -212,6 +212,10 @@ All supplier success replies put the result under `data`.
 Prices are decimal strings in USD.
 Each offer also has `flight_id`, `cabin_class`, `fare_class`, and `available_seats`.
 A search makes a fresh offer ID and keeps its quoted price.
+The service keeps the newest 1,024 offers.
+Older offer IDs return HTTP 404.
+Stored offer count and state bytes stay bounded after many searches.
+The grader can read both with `GET /control/state`.
 Search returns data flights shared by suppliers A and B on LHR to AMS.
 Each supplier starts with all stock from `offers(supplier)`.
 Each supplier owns its own seat stock.
@@ -298,6 +302,8 @@ POST /air/payments
 ```
 
 A paid hold keeps its seat after the hold time.
+Only an unpaid hold can accept a payment.
+A paid hold or instant order returns HTTP 409.
 An expired hold cannot be paid.
 Errors have Duffel's `errors: [{ type, code, title }]` shape.
 The trial skips passenger identity checks and instant payment details.
@@ -380,8 +386,7 @@ A supplier scenario reset restores stock and clears quotes and orders.
 A payment scenario reset clears intents, keys, route faults, and old deliveries.
 The grader rejects bad flight, route, scenario, clock, and webhook plan changes.
 Unknown intent IDs also fail.
-Core applies presets on a short seed scope.
-The control operation transfers its seeded data to the live service.
+The control operation writes a fresh plain scenario value.
 The HTTP listener and its scope stay open.
 
 All four services accept:

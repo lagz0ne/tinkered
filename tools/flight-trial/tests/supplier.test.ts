@@ -729,3 +729,53 @@ test("a call finishing after reset cannot return to the new call log", async () 
   );
   expect(log.data.filter((call) => call.route === "POST /air/offer_requests")).toEqual([]);
 });
+
+test("only an unpaid hold can accept a payment", async () => {
+  const url = await start();
+  await post(url, "/control/clock", { now: 10000 });
+  const offer = (await search(url)).at(0)!;
+  for (const type of ["hold", "instant"]) {
+    const booked = orderSchema.parse(
+      await (
+        await post(url, "/air/orders", { data: { selected_offers: [offer.id], type } })
+      ).json(),
+    ).data;
+    const body = {
+      data: {
+        order_id: booked.id,
+        payment: { type: "balance", amount: booked.total_amount, currency: "USD" },
+      },
+    };
+    if (type === "hold") expect((await post(url, "/air/payments", body)).status).toBe(201);
+    const response = await post(url, "/air/payments", body);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      errors: [
+        {
+          type: "invalid_request_error",
+          code: "order_not_awaiting_payment",
+          title: "order_not_awaiting_payment",
+        },
+      ],
+    });
+  }
+});
+
+test("stored offer count and state bytes stay bounded after many searches", async () => {
+  const url = await start();
+  const count = (await search(url)).length;
+  for (let i = 0; i < Math.ceil(1024 / count); i++) await search(url);
+  const schema = z.object({ data: z.object({ offers: z.number(), bytes: z.number() }) });
+  const before = schema.parse(
+    await (
+      await fetch(`${url}/control/state`, { headers: { authorization: "Bearer grader" } })
+    ).json(),
+  ).data;
+  for (let i = 0; i < 200; i++) await search(url);
+  const after = schema.parse(
+    await (
+      await fetch(`${url}/control/state`, { headers: { authorization: "Bearer grader" } })
+    ).json(),
+  ).data;
+  expect(after).toEqual({ offers: 1024, bytes: before.bytes });
+});
