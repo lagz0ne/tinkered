@@ -2356,7 +2356,7 @@ The original Postgres and Mailpit containers were left running.
 
 Writer: Codex.
 Branch: `trial/flight-integration`.
-Next: fix the landed scaffold's late cleanup, then rerun the proof.
+Next: finish the trusted browser proof, then rebase and run all gates.
 Verify: rounds 1 to 5 pass twice; five planted breaks fail.
 
 Assumptions:
@@ -2593,3 +2593,20 @@ The full Chromium UUID probe exited 0 and prints `secure: true`.
 Log: `tools/writer-trial/.logs/resume-flight-http-full-chromium-green.log`.
 The earlier full Chromium probe failed before these writable paths
 were set; its crashpad error is kept in its red log.
+
+### Integration: capacity-error handoff
+
+The next writer took over at `05f73935` with a clean worktree.
+The existing reference process is PID 640336.
+It runs from `reference-trusted-final`; no second run was started.
+Rounds 1 and 2 each passed twice with exit 0.
+Each planted break exited 1 on its named round check.
+The updated rows are in `INTEGRATION-RESULTS.json`.
+Round 3 is running.
+
+Assumption: keep the current image fixed through this proof.
+After success, rebase onto `origin/main` for `f847c99c`.
+The saved image still has the older Core build.
+Its browser proof keeps the secure-origin flag.
+New images built with `f847c99c` no longer need that flag.
+Old flight images and proof folders stay until the gates pass.

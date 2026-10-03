@@ -16,7 +16,7 @@
       "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
       "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
     },
-    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-resume-final/round-1/pass-1"
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-trusted-final/round-1/pass-1"
   },
   {
     "round": 1,
@@ -35,7 +35,7 @@
       "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
       "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
     },
-    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-resume-final/round-1/pass-2"
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-trusted-final/round-1/pass-2"
   },
   {
     "round": 1,
@@ -54,7 +54,7 @@
       "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
       "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
     },
-    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-resume-final/round-1/break"
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-trusted-final/round-1/break"
   },
   {
     "round": 2,
@@ -73,7 +73,7 @@
       "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
       "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
     },
-    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-resume-final/round-2/pass-1"
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-trusted-final/round-2/pass-1"
   },
   {
     "round": 2,
@@ -92,7 +92,7 @@
       "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
       "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
     },
-    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-resume-final/round-2/pass-2"
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-trusted-final/round-2/pass-2"
   },
   {
     "round": 2,
@@ -111,6 +111,6 @@
       "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
       "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
     },
-    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-resume-final/round-2/break"
+    "logs": "/home/paseo/next/tinkered-flight-integration/tools/writer-trial/.logs/reference-trusted-final/round-2/break"
   }
 ]
