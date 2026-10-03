@@ -1,9 +1,19 @@
+import { createScope, resource } from "@tinker/core";
 import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { afterAll, afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
-import { startPayment } from "../src/index.ts";
+import {
+  paymentApp,
+  webhookUrl as webhookUrlTag,
+  webhookSecret,
+  webhookDelayMs,
+  port,
+  host,
+  controlToken,
+  stopSignal,
+} from "../src/index.ts";
 
 const intentSchema = z.object({
   id: z.string().startsWith("pi_"),
@@ -16,21 +26,39 @@ const intentSchema = z.object({
   latest_charge: z.string().nullable(),
 });
 const secret = "trial-webhook-secret";
-const received: { body: string; signature: string }[] = [];
 const running: { stop: AbortController; closed: Promise<unknown> }[] = [];
-const inbox = createServer(async (request, response) => {
-  let body = "";
-  for await (const chunk of request) body += String(chunk);
-  received.push({ body, signature: String(request.headers["stripe-signature"]) });
-  response.end("ok");
+const inbox = resource({
+  label: "test webhook inbox",
+  async factory(_deps, ctx) {
+    const received: { body: string; signature: string }[] = [];
+    const server = createServer(async (request, response) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) chunks.push(chunk);
+      received.push({
+        body: Buffer.concat(chunks).toString("utf8"),
+        signature: String(request.headers["stripe-signature"]),
+      });
+      response.end("ok");
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    ctx.defer(async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+    const address = server.address();
+    return {
+      received,
+      webhookUrl: `http://127.0.0.1:${typeof address === "object" ? address?.port : 0}`,
+    };
+  },
 });
-inbox.listen(0, "127.0.0.1");
-await once(inbox, "listening");
-const address = inbox.address();
-const webhookUrl = `http://127.0.0.1:${typeof address === "object" ? address?.port : 0}`;
+const inboxStop = new AbortController();
+const inboxScope = createScope({ signal: inboxStop.signal });
+const { received, webhookUrl } = await inboxScope.resolve(inbox);
 afterAll(async () => {
-  inbox.closeAllConnections();
-  await new Promise<void>((resolve) => inbox.close(() => resolve()));
+  inboxStop.abort();
+  await inboxScope.closed;
 });
 afterEach(async () => {
   for (const app of running.splice(0)) {
@@ -39,20 +67,6 @@ afterEach(async () => {
   }
   received.length = 0;
 });
-async function start() {
-  const stop = new AbortController();
-  const app = await startPayment({
-    port: 0,
-    host: "127.0.0.1",
-    controlToken: "grader",
-    signal: stop.signal,
-    webhookUrl,
-    secret,
-  });
-  running.push({ stop, closed: app.closed });
-  await post(app.url, "/control/clock", { now: 10000 });
-  return app.url;
-}
 async function post(url: string, path: string, body: unknown, key?: string) {
   return fetch(`${url}${path}`, {
     method: "POST",
@@ -75,7 +89,24 @@ async function confirm(url: string) {
 }
 
 test("a confirmed intent sends a signed success webhook", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const intent = await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
   await expect.poll(() => received.length).toBe(1);
@@ -97,7 +128,24 @@ test("a confirmed intent sends a signed success webhook", async () => {
 });
 
 test("parallel calls with one key return the same intent", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const body = { amount: 12300, currency: "usd" };
   const responses = await Promise.all([
     post(url, "/v1/payment_intents", body, "same"),
@@ -118,7 +166,24 @@ test("parallel calls with one key return the same intent", async () => {
 });
 
 test("a late webhook waits for the chosen time", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/payment", { mode: "late", delayMs: 1000 });
   const intent = await confirm(url);
   await post(url, "/control/clock", { advanceMs: 999 });
@@ -131,7 +196,24 @@ test("a late webhook waits for the chosen time", async () => {
 });
 
 test("twice sends the same signed event twice", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/payment", { mode: "twice" });
   await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
@@ -141,7 +223,24 @@ test("twice sends the same signed event twice", async () => {
 });
 
 test("the failed scenario sends a payment failure webhook", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/scenario", { name: "payment-failed" });
   await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
@@ -153,7 +252,24 @@ test("the failed scenario sends a payment failure webhook", async () => {
 });
 
 test("never sends nothing until the grader asks for a webhook now", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/payment", { mode: "never" });
   const intent = await confirm(url);
   await post(url, "/control/clock", { advanceMs: 10000 });
@@ -163,7 +279,24 @@ test("never sends nothing until the grader asks for a webhook now", async () => 
 });
 
 test("refund keys return the same refund and cannot refund more than paid", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const intent = await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
   await expect.poll(() => received.length).toBe(1);
@@ -175,7 +308,24 @@ test("refund keys return the same refund and cannot refund more than paid", asyn
 });
 
 test("payment accepts Stripe form bodies", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const response = await fetch(`${url}/v1/payment_intents`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -191,7 +341,24 @@ test("payment accepts Stripe form bodies", async () => {
 });
 
 test("the grader can cancel a pending webhook and send it now", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const intent = await confirm(url);
   await post(url, "/control/webhooks", { intent_id: intent.id, mode: "never" });
   await post(url, "/control/clock", { advanceMs: 10000 });
@@ -204,7 +371,24 @@ test("the grader can cancel a pending webhook and send it now", async () => {
 });
 
 test("an injected payment failure uses Stripe's error shape", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/routes", { route: "POST /v1/payment_intents", status: 503 });
   const response = await post(url, "/v1/payment_intents", { amount: 900, currency: "usd" });
   expect(response.status).toBe(503);
@@ -214,7 +398,24 @@ test("an injected payment failure uses Stripe's error shape", async () => {
 });
 
 test("repeated confirmation keeps one delivery and a key keeps its original reply", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const body = { amount: 1200, currency: "USD" };
   const first = intentSchema.parse(
     await (await post(url, "/v1/payment_intents", body, "create-once")).json(),
@@ -266,7 +467,24 @@ test("repeated confirmation keeps one delivery and a key keeps its original repl
 });
 
 test("partial refunds share the paid limit only with the same intent", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const first = await confirm(url);
   const other = await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
@@ -299,7 +517,24 @@ test("partial refunds share the paid limit only with the same intent", async () 
 });
 
 test("bad payment input and missing resources return Stripe errors", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const cases = [
     { path: "/v1/payment_intents", body: {}, status: 400, code: "invalid_payment_intent" },
     {
@@ -362,7 +597,24 @@ test("bad payment input and missing resources return Stripe errors", async () =>
 });
 
 test("a payment scenario reset clears intents, keys, route faults and old deliveries", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const body = { amount: 900, currency: "usd" };
   const first = intentSchema.parse(
     await (await post(url, "/v1/payment_intents", body, "reset-key")).json(),
@@ -389,7 +641,24 @@ test("a payment scenario reset clears intents, keys, route faults and old delive
 });
 
 test("the grader rejects an unknown intent and invalid webhook plans", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const missing = await post(url, "/control/webhooks", { intent_id: "missing", mode: "now" });
   expect(missing.status).toBe(404);
   expect(await missing.json()).toEqual({
@@ -414,7 +683,24 @@ test("the grader rejects an unknown intent and invalid webhook plans", async () 
 });
 
 test("manual late and twice plans change only the chosen intent", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/payment", { mode: "late", delayMs: 100 });
   const first = await confirm(url);
   const other = await confirm(url);
@@ -448,7 +734,24 @@ test("manual late and twice plans change only the chosen intent", async () => {
 });
 
 test("a failed outcome uses the default confirmation plan", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
   const plan = await post(url, "/control/payment", { outcome: "failed" });
   expect(await plan.json()).toEqual({ data: { outcome: "failed", mode: "now", delayMs: 1000 } });
   const intent = await confirm(url);

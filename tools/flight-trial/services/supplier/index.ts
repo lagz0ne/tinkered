@@ -1,4 +1,7 @@
-import { createScope, data, extension, operation, resource, tag } from "@tinker/core";
+import { createServer } from "node:http";
+import { once } from "node:events";
+import { failFlightService } from "../../src/errors.ts";
+import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights.ts";
 import {
@@ -6,7 +9,7 @@ import {
   clock,
   control,
   controlToken,
-  createHttp,
+  decodeBody,
   host,
   port,
   reject,
@@ -14,12 +17,10 @@ import {
   rules,
   requestSchema,
   stopSignal,
-  sleepUntilStopped,
-  type Service,
+  type Wire,
 } from "../http.ts";
 
 export declare namespace Supplier {
-  type Options = Service.Options & { supplier: Flights.Supplier["id"]; holdMs?: number };
   type Offer = {
     id: string;
     flight_id: string;
@@ -57,13 +58,6 @@ export declare namespace Supplier {
     passengers: number;
   };
   type Stock = { flight: Flights.Offer; cabins: Flights.Cabin[] };
-  type Change = {
-    flight_id: string;
-    cabin_class: Flights.Cabin["cabin"];
-    seats?: number;
-    amount_cents?: number;
-    fare_class: "saver" | "standard" | "flex";
-  };
   type State = {
     stock: Record<string, Stock>;
     offers: Record<string, Offer>;
@@ -71,11 +65,11 @@ export declare namespace Supplier {
   };
 }
 
-const supplierId = tag<Flights.Supplier["id"]>({ label: "supplier ID" });
-const holdMs = tag({ label: "hold duration", default: 1000 });
+export const supplierId = tag<Flights.Supplier["id"]>({ label: "supplier ID" });
+export const holdMs = tag({ label: "hold duration", default: 1000 });
 const state = data<Supplier.State>({
   label: "supplier state",
-  initial: { stock: {}, offers: {}, orders: {} },
+  initial: createState([], "default"),
 });
 const reader = resource({ label: "flight fixture", factory: () => readFlights() });
 const scenarioSchema = z.object({ name: z.enum(["default", "last-seat"]) });
@@ -119,108 +113,67 @@ const paySchema = z.object({
   }),
 });
 
-/** A pure stock edit runs inside the controlling operation; it owns no work. */
-function changeStock(stock: Supplier.Stock, change: Supplier.Change): void {
-  const cabin = stock.cabins.find((entry) => entry.cabin === change.cabin_class);
-  if (!cabin) return;
-  if (change.seats !== undefined) cabin.seatsAvailable = change.seats;
-  const fare = cabin.fares.find((entry) => entry.fareClass === change.fare_class);
-  if (fare && change.amount_cents !== undefined) fare.amountCents = change.amount_cents;
-}
-
-/** The wire shape is a pure view of fixture data owned by the search operation. */
-function createOffer(
-  flight: Flights.Offer,
-  cabin: Flights.Cabin,
-  fare: Flights.Cabin["fares"][number],
-  id: string,
+/**
+ * Keeps the quoted wire fields while showing current price and seats.
+ * @param offer - Stored quote from lookup or booking; needed for its wire fields.
+ * @param amountCents - Matching stock fare from the operation; needed for the current price.
+ * @param seatsAvailable - Matching stock cabin from the operation; needed for available seats.
+ */
+function readCurrent(
+  offer: Supplier.Offer,
+  amountCents: number,
+  seatsAvailable: number,
 ): Supplier.Offer {
   return {
-    id,
-    flight_id: flight.id,
-    cabin_class: cabin.cabin,
-    fare_class: fare.fareClass,
-    total_amount: (fare.amountCents / 100).toFixed(2),
-    total_currency: "USD",
-    available_seats: cabin.seatsAvailable,
-    slices: [
-      {
-        origin: { iata_code: flight.origin },
-        destination: { iata_code: flight.destination },
-        segments: [
-          {
-            id: flight.id,
-            departing_at: flight.departsAt,
-            arriving_at: flight.arrivesAt,
-            marketing_carrier: { id: String(flight.airlineId) },
-            marketing_carrier_flight_number: flight.flightNumber.slice(2),
-          },
-        ],
-      },
-    ],
-  };
-}
-
-/** A pure view keeps a quoted price separate from the current stock price. */
-function readCurrent(current: Supplier.State, offer: Supplier.Offer): Supplier.Offer {
-  const stock = current.stock[offer.flight_id];
-  const cabin = stock.cabins.find((entry) => entry.cabin === offer.cabin_class)!;
-  const fare = cabin.fares.find((entry) => entry.fareClass === offer.fare_class)!;
-  return {
     ...offer,
-    total_amount: (fare.amountCents / 100).toFixed(2),
-    available_seats: cabin.seatsAvailable,
+    total_amount: (amountCents / 100).toFixed(2),
+    available_seats: seatsAvailable,
   };
 }
-
-/** Stock stays shared except for the flight changed by this operation. */
-function copyStock(current: Supplier.State, flightId: string): Supplier.State {
-  return {
-    ...current,
-    stock: { ...current.stock, [flightId]: structuredClone(current.stock[flightId]) },
-  };
-}
-
-/** An expired hold releases seats once; unchanged stock and quotes stay shared. */
-function expireOrders(current: Supplier.State, now: number): Supplier.State {
-  let next = current;
-  for (const order of Object.values(current.orders)) {
-    if (
-      !order.payment_status.awaiting_payment ||
-      Date.parse(order.payment_status.payment_required_by!) > now
-    )
-      continue;
-    next = copyStock(next, order.flight_id);
-    next.orders = {
-      ...next.orders,
-      [order.id]: {
-        ...order,
-        payment_status: { ...order.payment_status, awaiting_payment: false },
-      },
-    };
-    const cabin = next.stock[order.flight_id].cabins.find(
-      (entry) => entry.cabin === order.cabin_class,
-    )!;
-    cabin.seatsAvailable += order.passengers;
-  }
-  return next;
-}
-
+const expireHolds = operation({
+  label: "release expired supplier holds",
+  depends: { state: state.controller, clock },
+  run({ state, clock }) {
+    state.update((current) => {
+      let next = current;
+      for (const order of Object.values(current.orders)) {
+        if (
+          !order.payment_status.awaiting_payment ||
+          Date.parse(order.payment_status.payment_required_by!) > clock.currentTimeMillis()
+        )
+          continue;
+        const stock = structuredClone(next.stock[order.flight_id]);
+        const cabin = stock.cabins.find((entry) => entry.cabin === order.cabin_class)!;
+        cabin.seatsAvailable += order.passengers;
+        next = {
+          ...next,
+          stock: { ...next.stock, [order.flight_id]: stock },
+          orders: {
+            ...next.orders,
+            [order.id]: {
+              ...order,
+              payment_status: { ...order.payment_status, awaiting_payment: false },
+            },
+          },
+        };
+      }
+      return next;
+    });
+  },
+});
 const expire = operation({
   label: "expire supplier hold",
   input: z.object({ deadline: z.number() }),
-  depends: { state: state.controller, clock, stop: stopSignal },
-  async run({ state, clock, stop }, ctx) {
-    if (
-      !(await sleepUntilStopped(
-        clock,
-        Math.max(0, ctx.input.deadline - clock.currentTimeMillis()),
-        stop,
-        ctx.signal,
-      ))
-    )
+  depends: { clock, stop: stopSignal, expire: expireHolds.controller },
+  async run({ clock, stop, expire }, ctx) {
+    const signal = AbortSignal.any([stop, ctx.signal]);
+    try {
+      await clock.sleep(Math.max(0, ctx.input.deadline - clock.currentTimeMillis()), signal);
+    } catch (error) {
+      if (!signal.aborted) throw error;
       return;
-    state.update((current) => expireOrders(current, clock.currentTimeMillis()));
+    }
+    if (!signal.aborted) expire.run();
   },
 });
 const holds = resource({
@@ -241,11 +194,18 @@ const holds = resource({
   },
 });
 
-/** The reader transfers deep copies; this pure builder gives the scenario its own complete stock. */
+/**
+ * Builds stock from plain fixture values without changing the reader's copies.
+ * @param offers - Fixture offers from the reader or the empty initial value; needed for stock.
+ * @param scenario - Parsed control choice or the initial default; needed for starting seats.
+ */
 function createState(offers: Flights.Offer[], scenario: string): Supplier.State {
   const stock: Record<string, Supplier.Stock> = {};
-  for (const flight of offers) {
-    if (scenario === "last-seat") for (const cabin of flight.cabins) cabin.seatsAvailable = 1;
+  for (const source of offers) {
+    const flight =
+      scenario === "last-seat"
+        ? { ...source, cabins: source.cabins.map((cabin) => ({ ...cabin, seatsAvailable: 1 })) }
+        : source;
     stock[flight.id] = { flight, cabins: flight.cabins };
   }
   return { stock, offers: {}, orders: {} };
@@ -272,7 +232,30 @@ const search = operation({
       const cabin = stock.cabins.find((entry) => entry.cabin === parsed.data.data.cabin_class)!;
       if (cabin.seatsAvailable < parsed.data.data.passengers.length) continue;
       for (const fare of cabin.fares) {
-        const offer = createOffer(flight, cabin, fare, `off_${ctx.random.uuid()}`);
+        const offer: Supplier.Offer = {
+          id: `off_${ctx.random.uuid()}`,
+          flight_id: flight.id,
+          cabin_class: cabin.cabin,
+          fare_class: fare.fareClass,
+          total_amount: (fare.amountCents / 100).toFixed(2),
+          total_currency: "USD",
+          available_seats: cabin.seatsAvailable,
+          slices: [
+            {
+              origin: { iata_code: flight.origin },
+              destination: { iata_code: flight.destination },
+              segments: [
+                {
+                  id: flight.id,
+                  departing_at: flight.departsAt,
+                  arriving_at: flight.arrivesAt,
+                  marketing_carrier: { id: String(flight.airlineId) },
+                  marketing_carrier_flight_number: flight.flightNumber.slice(2),
+                },
+              ],
+            },
+          ],
+        };
         offers.push(offer);
       }
     }
@@ -295,11 +278,17 @@ const order = operation({
     const current = state.get();
     const offer = current.offers[parsed.data.data.selected_offers.at(0)!];
     if (!offer) return reject("offer_not_found", 404);
-    const fresh = readCurrent(current, offer);
+    const stock = current.stock[offer.flight_id];
+    const quotedCabin = stock.cabins.find((entry) => entry.cabin === offer.cabin_class)!;
+    const fare = quotedCabin.fares.find((entry) => entry.fareClass === offer.fare_class)!;
+    const fresh = readCurrent(offer, fare.amountCents, quotedCabin.seatsAvailable);
     if (fresh.total_amount !== offer.total_amount) return reject("offer_price_changed", 409);
     if (fresh.available_seats < parsed.data.data.passengers.length)
       return reject("offer_sold_out", 409);
-    const next = copyStock(current, offer.flight_id);
+    const next = {
+      ...current,
+      stock: { ...current.stock, [offer.flight_id]: structuredClone(stock) },
+    };
     const cabin = next.stock[offer.flight_id].cabins.find(
       (entry) => entry.cabin === offer.cabin_class,
     )!;
@@ -397,8 +386,12 @@ const changeFlight = operation({
     if (!parsed.success) return reject("invalid_flight_change");
     const current = supplierState.get();
     if (!current.stock[parsed.data.flight_id]) return reject("flight_not_found", 404);
-    const next = copyStock(current, parsed.data.flight_id);
-    changeStock(next.stock[parsed.data.flight_id], parsed.data);
+    const changed = structuredClone(current.stock[parsed.data.flight_id]);
+    const cabin = changed.cabins.find((entry) => entry.cabin === parsed.data.cabin_class)!;
+    if (parsed.data.seats !== undefined) cabin.seatsAvailable = parsed.data.seats;
+    const fare = cabin.fares.find((entry) => entry.fareClass === parsed.data.fare_class)!;
+    if (parsed.data.amount_cents !== undefined) fare.amountCents = parsed.data.amount_cents;
+    const next = { ...current, stock: { ...current.stock, [parsed.data.flight_id]: changed } };
     supplierState.set(next);
     return reply(200, { data: parsed.data });
   },
@@ -437,9 +430,12 @@ const lookup = operation({
   run({ state }, ctx) {
     if (ctx.input.route.startsWith("GET /air/offers/")) {
       const offer = state.get().offers[ctx.input.path.split("/").at(-1)!];
-      return offer
-        ? reply(200, { data: readCurrent(state.get(), offer) })
-        : reject("offer_not_found", 404);
+      if (!offer) return reject("offer_not_found", 404);
+      const cabin = state
+        .get()
+        .stock[offer.flight_id].cabins.find((entry) => entry.cabin === offer.cabin_class)!;
+      const fare = cabin.fares.find((entry) => entry.fareClass === offer.fare_class)!;
+      return reply(200, { data: readCurrent(offer, fare.amountCents, cabin.seatsAvailable) });
     }
     const booked = state.get().orders[ctx.input.path.split("/").at(-1)!];
     return ctx.input.route.startsWith("GET /air/orders/") && booked
@@ -451,17 +447,16 @@ const action = operation({
   label: "supplier API",
   input: requestSchema,
   depends: {
-    state: state.controller,
-    clock,
+    expire: expireHolds.controller,
     search: search.controller,
     order: order.controller,
     pay: pay.controller,
     control: supplierControl.controller,
     lookup: lookup.controller,
   },
-  async run({ state, clock, search, order, pay, control, lookup }, ctx) {
+  async run({ expire, search, order, pay, control, lookup }, ctx) {
     if (ctx.input.path.startsWith("/control/")) return control.run({ input: ctx.input });
-    state.update((current) => expireOrders(current, clock.currentTimeMillis()));
+    expire.run();
     if (ctx.input.route === "POST /air/offer_requests")
       return search.run({ rawInput: ctx.input.body });
     if (ctx.input.route === "POST /air/orders") return order.run({ rawInput: ctx.input.body });
@@ -469,10 +464,149 @@ const action = operation({
     return lookup.run({ input: ctx.input });
   },
 });
-const http = createHttp(action);
+const applyRoute = operation({
+  label: "apply route rule",
+  input: z.object({
+    request: requestSchema,
+    revision: z.string().optional(),
+    stopped: z.boolean(),
+  }),
+  depends: { action: action.controller, rules: rules.controller },
+  async run({ action, rules }, ctx) {
+    const { request, revision, stopped } = ctx.input;
+    let selected: Wire.Rule | undefined;
+    rules.update((all) => {
+      const current = all[request.route];
+      if (!revision || current?.revision !== revision) return all;
+      selected = current;
+      return current.saved && current.repeat > 0
+        ? { ...all, [request.route]: { ...current, repeat: current.repeat - 1 } }
+        : all;
+    });
+    let response: Wire.Reply;
+    if (stopped) response = reject("service_stopped", 503);
+    else if (selected?.saved && selected.repeat > 0) response = selected.saved;
+    else if (selected?.status) response = reject("injected_failure", selected.status);
+    else response = await action.run({ input: request });
+    if (revision)
+      rules.update((all) => {
+        const current = all[request.route];
+        return current?.revision === revision
+          ? { ...all, [request.route]: { ...current, saved: response } }
+          : all;
+      });
+    return response;
+  },
+});
+const delayRoute = operation({
+  label: "delay service route",
+  input: requestSchema,
+  depends: { rules, clock, stop: stopSignal, apply: applyRoute.controller },
+  async run({ rules, clock, stop, apply }, ctx) {
+    const rule = rules[ctx.input.route];
+    const signal = AbortSignal.any([stop, ctx.signal]);
+    let stopped = false;
+    if (rule?.delayMs) {
+      try {
+        await clock.sleep(rule.delayMs, signal);
+        stopped = signal.aborted;
+      } catch (error) {
+        if (!signal.aborted) throw error;
+        stopped = true;
+      }
+    }
+    return apply.run({ input: { request: ctx.input, revision: rule?.revision, stopped } });
+  },
+});
+const dispatch = operation({
+  label: "serve supplier HTTP request",
+  input: requestSchema,
+  depends: {
+    action: action.controller,
+    route: delayRoute.controller,
+    calls: calls.controller,
+    clock,
+    token: controlToken,
+  },
+  async run({ action, route, calls, clock, token }, ctx) {
+    const request = ctx.input;
+    const time = clock.currentTimeMillis();
+    const id = ctx.random.uuid();
+    calls.update((all) => [
+      ...all,
+      {
+        id,
+        kind: request.path.startsWith("/control/") ? "control" : "service",
+        route: request.route,
+        time,
+        status: 0,
+      },
+    ]);
+    const response = request.path.startsWith("/control/")
+      ? request.token === `Bearer ${token}`
+        ? await action.run({ input: request })
+        : reject("unauthorized", 401)
+      : await route.run({ input: request });
+    calls.update((all) =>
+      all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
+    );
+    return response;
+  },
+});
+const http = resource({
+  label: "supplier HTTP listener",
+  depends: { dispatch: dispatch.controller, decode: decodeBody.controller, port, host },
+  async factory({ dispatch, decode, port, host }, ctx) {
+    const server = createServer(async (request, response) => {
+      try {
+        const path = new URL(request.url ?? "/", "http://localhost").pathname;
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(chunk);
+        const body = await decode.run({
+          input: {
+            bytes: Buffer.concat(chunks).toString("utf8"),
+            form:
+              request.headers["content-type"]?.startsWith("application/x-www-form-urlencoded") ??
+              false,
+          },
+        });
+        const result = await dispatch.run({
+          rawInput: {
+            path,
+            route: `${request.method} ${path}`,
+            body,
+            key: z.string().optional().parse(request.headers["idempotency-key"]),
+            token: z.string().optional().parse(request.headers.authorization),
+          },
+        });
+        response.writeHead(result.status, {
+          "content-type": "application/json",
+          ...result.headers,
+        });
+        response.end(JSON.stringify(result.body));
+      } catch (error) {
+        ctx.log.error("HTTP request failed", { error });
+        response.writeHead(500, { "content-type": "application/json" });
+        response.end(JSON.stringify(reject("internal_error", 500).body));
+      }
+    });
+    server.listen(port, host);
+    await once(server, "listening");
+    ctx.defer(async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    });
+    const address = server.address();
+    if (address === null || typeof address === "string")
+      failFlightService({ reason: "The listener has no TCP address" });
+    return { url: `http://${host}:${address.port}` };
+  },
+});
 
 /** Startup belongs to Core so a failed listener closes its root and all built resources. */
-const app = extension({
+export const app = extension({
   label: "start supplier app",
   hooks: {
     async start({ scope, next }) {
@@ -489,22 +623,3 @@ const app = extension({
     },
   },
 });
-
-/** The caller owns the stop signal; Core owns the scope and listener until closed. */
-export async function startSupplier(options: Supplier.Options) {
-  const scope = createScope({
-    signal: options.signal,
-    extensions: app,
-    tags: [
-      port(options.port),
-      host(options.host),
-      controlToken(options.controlToken),
-      stopSignal(options.signal),
-      supplierId(options.supplier),
-      holdMs(options.holdMs ?? 1000),
-    ],
-  });
-  await scope.ready;
-  const listening = scope.resolve(app);
-  return { ...listening, closed: scope.closed };
-}

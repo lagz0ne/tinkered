@@ -1,12 +1,15 @@
+import { createServer } from "node:http";
+import { once } from "node:events";
+import { failFlightService } from "../../src/errors.ts";
 import { createHmac } from "node:crypto";
-import { createScope, data, extension, operation, resource, tag } from "@tinker/core";
+import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import {
   calls,
   clock,
   control,
   controlToken,
-  createHttp,
+  decodeBody,
   host,
   port,
   reject,
@@ -14,12 +17,10 @@ import {
   rules,
   requestSchema,
   stopSignal,
-  sleepUntilStopped,
-  type Service,
+  type Wire,
 } from "../http.ts";
 
 export declare namespace Payment {
-  type Options = Service.Options & { webhookUrl: string; secret: string; webhookDelayMs?: number };
   type Intent = {
     id: string;
     object: "payment_intent";
@@ -47,8 +48,8 @@ export declare namespace Payment {
     currency: string;
     status: "succeeded";
   };
-  type Pending = { fingerprint: string; response: Promise<Service.Reply> };
-  type Saved = { fingerprint: string; reply: Service.Reply };
+  type Pending = { fingerprint: string; response: Promise<Wire.Reply> };
+  type Saved = { fingerprint: string; reply: Wire.Reply };
   type Plan = {
     outcome: "succeeded" | "failed";
     mode: "now" | "late" | "twice" | "never";
@@ -63,9 +64,9 @@ export declare namespace Payment {
   };
 }
 
-const webhookUrl = tag<string>({ label: "webhook URL" });
-const secret = tag<string>({ label: "webhook secret" });
-const webhookDelayMs = tag({ label: "webhook delay", default: 20 });
+export const webhookUrl = tag<string>({ label: "webhook URL" });
+export const secret = tag<string>({ label: "webhook secret" });
+export const webhookDelayMs = tag({ label: "webhook delay", default: 20 });
 /** Each scenario owns a fresh plain value. */
 function createState(): Payment.State {
   return {
@@ -102,29 +103,14 @@ const sendSchema = z.object({
 });
 const scenarioSchema = z.object({ name: z.enum(["default", "payment-failed"]) });
 
-/** Pure wire shaping keeps Stripe errors separate from Duffel errors. */
-function rejectPayment(code: string, status = 400, type = "invalid_request_error"): Service.Reply {
+/**
+ * Shapes a Stripe error from plain choices.
+ * @param code - Error choice from the operation; needed for code and message.
+ * @param status - HTTP choice from the operation; needed for the response code.
+ * @param type - Stripe error family from the operation; needed for wire compatibility.
+ */
+function rejectPayment(code: string, status = 400, type = "invalid_request_error"): Wire.Reply {
   return reply(status, { error: { type, code, message: code } });
-}
-
-/** Only the controlling operation writes state; the watcher owns delivery work. */
-function schedule(
-  current: Payment.State,
-  intent: Payment.Intent,
-  plan: Payment.Plan,
-  now: number,
-  delayMs: number,
-  id: string,
-): void {
-  if (plan.mode === "never") return;
-  current.deliveries[id] = {
-    id,
-    intentId: intent.id,
-    at: now + (plan.mode === "late" ? plan.delayMs : delayMs),
-    copies: plan.mode === "twice" ? 2 : 1,
-    outcome: plan.outcome,
-    sent: false,
-  };
 }
 
 const sendWebhook = operation({
@@ -162,26 +148,16 @@ const sendWebhook = operation({
     }
   },
 });
-const deliver = operation({
+const finishDelivery = operation({
   label: "send payment webhook",
   input: z.object({ id: z.string(), intentId: z.string(), at: z.number() }),
   depends: {
     state: state.controller,
     clock,
     secret,
-    stop: stopSignal,
     send: sendWebhook.controller,
   },
-  async run({ state, clock, secret, stop, send }, ctx) {
-    if (
-      !(await sleepUntilStopped(
-        clock,
-        Math.max(0, ctx.input.at - clock.currentTimeMillis()),
-        stop,
-        ctx.signal,
-      ))
-    )
-      return;
+  async run({ state, clock, secret, send }, ctx) {
     const current = structuredClone(state.get());
     const delivery = current.deliveries[ctx.input.id];
     const intent = current.intents[ctx.input.intentId];
@@ -205,6 +181,21 @@ const deliver = operation({
     await send.run({
       input: { body, signature: `t=${timestamp},v1=${signature}`, copies: delivery.copies },
     });
+  },
+});
+const deliver = operation({
+  label: "wait for payment webhook",
+  input: z.object({ id: z.string(), intentId: z.string(), at: z.number() }),
+  depends: { clock, stop: stopSignal, finish: finishDelivery.controller },
+  async run({ clock, stop, finish }, ctx) {
+    const signal = AbortSignal.any([stop, ctx.signal]);
+    try {
+      await clock.sleep(Math.max(0, ctx.input.at - clock.currentTimeMillis()), signal);
+    } catch (error) {
+      if (!signal.aborted) throw error;
+      return;
+    }
+    if (!signal.aborted) await finish.run({ input: ctx.input });
   },
 });
 const webhooks = resource({
@@ -254,14 +245,18 @@ const confirm = operation({
     if (intent.status === "processing" || intent.status === "succeeded") return reply(200, intent);
     intent.status = "processing";
     const response = structuredClone(intent);
-    schedule(
-      current,
-      intent,
-      current.plan,
-      clock.currentTimeMillis(),
-      webhookDelayMs,
-      `evt_${ctx.random.uuid()}`,
-    );
+    const plan = current.plan;
+    if (plan.mode !== "never") {
+      const deliveryId = `evt_${ctx.random.uuid()}`;
+      current.deliveries[deliveryId] = {
+        id: deliveryId,
+        intentId: intent.id,
+        at: clock.currentTimeMillis() + (plan.mode === "late" ? plan.delayMs : webhookDelayMs),
+        copies: plan.mode === "twice" ? 2 : 1,
+        outcome: plan.outcome,
+        sent: false,
+      };
+    }
     state.set(current);
     return reply(200, response);
   },
@@ -321,17 +316,23 @@ const controlWebhook = operation({
     const current = structuredClone(state.get());
     const intent = current.intents[parsed.data.intent_id];
     if (!intent) return rejectPayment("resource_missing", 404);
-    for (const delivery of Object.values(current.deliveries)) {
-      if (delivery.intentId === intent.id && !delivery.sent) delete current.deliveries[delivery.id];
+    for (const delivery of Object.values(current.deliveries).filter(
+      (entry) => entry.intentId === intent.id && !entry.sent,
+    )) {
+      delete current.deliveries[delivery.id];
     }
-    schedule(
-      current,
-      intent,
-      { ...current.plan, ...parsed.data },
-      clock.currentTimeMillis(),
-      0,
-      `evt_${ctx.random.uuid()}`,
-    );
+    const plan = { ...current.plan, ...parsed.data };
+    if (plan.mode !== "never") {
+      const id = `evt_${ctx.random.uuid()}`;
+      current.deliveries[id] = {
+        id,
+        intentId: intent.id,
+        at: clock.currentTimeMillis() + (plan.mode === "late" ? plan.delayMs : 0),
+        copies: plan.mode === "twice" ? 2 : 1,
+        outcome: plan.outcome,
+        sent: false,
+      };
+    }
     state.set(current);
     return reply(200, { data: parsed.data });
   },
@@ -433,10 +434,149 @@ const action = operation({
     }
   },
 });
-const http = createHttp(action, rejectPayment);
+const applyRoute = operation({
+  label: "apply route rule",
+  input: z.object({
+    request: requestSchema,
+    revision: z.string().optional(),
+    stopped: z.boolean(),
+  }),
+  depends: { action: action.controller, rules: rules.controller },
+  async run({ action, rules }, ctx) {
+    const { request, revision, stopped } = ctx.input;
+    let selected: Wire.Rule | undefined;
+    rules.update((all) => {
+      const current = all[request.route];
+      if (!revision || current?.revision !== revision) return all;
+      selected = current;
+      return current.saved && current.repeat > 0
+        ? { ...all, [request.route]: { ...current, repeat: current.repeat - 1 } }
+        : all;
+    });
+    let response: Wire.Reply;
+    if (stopped) response = rejectPayment("service_stopped", 503);
+    else if (selected?.saved && selected.repeat > 0) response = selected.saved;
+    else if (selected?.status) response = rejectPayment("injected_failure", selected.status);
+    else response = await action.run({ input: request });
+    if (revision)
+      rules.update((all) => {
+        const current = all[request.route];
+        return current?.revision === revision
+          ? { ...all, [request.route]: { ...current, saved: response } }
+          : all;
+      });
+    return response;
+  },
+});
+const delayRoute = operation({
+  label: "delay service route",
+  input: requestSchema,
+  depends: { rules, clock, stop: stopSignal, apply: applyRoute.controller },
+  async run({ rules, clock, stop, apply }, ctx) {
+    const rule = rules[ctx.input.route];
+    const signal = AbortSignal.any([stop, ctx.signal]);
+    let stopped = false;
+    if (rule?.delayMs) {
+      try {
+        await clock.sleep(rule.delayMs, signal);
+        stopped = signal.aborted;
+      } catch (error) {
+        if (!signal.aborted) throw error;
+        stopped = true;
+      }
+    }
+    return apply.run({ input: { request: ctx.input, revision: rule?.revision, stopped } });
+  },
+});
+const dispatch = operation({
+  label: "serve payment HTTP request",
+  input: requestSchema,
+  depends: {
+    action: action.controller,
+    route: delayRoute.controller,
+    calls: calls.controller,
+    clock,
+    token: controlToken,
+  },
+  async run({ action, route, calls, clock, token }, ctx) {
+    const request = ctx.input;
+    const time = clock.currentTimeMillis();
+    const id = ctx.random.uuid();
+    calls.update((all) => [
+      ...all,
+      {
+        id,
+        kind: request.path.startsWith("/control/") ? "control" : "service",
+        route: request.route,
+        time,
+        status: 0,
+      },
+    ]);
+    const response = request.path.startsWith("/control/")
+      ? request.token === `Bearer ${token}`
+        ? await action.run({ input: request })
+        : reject("unauthorized", 401)
+      : await route.run({ input: request });
+    calls.update((all) =>
+      all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
+    );
+    return response;
+  },
+});
+const http = resource({
+  label: "payment HTTP listener",
+  depends: { dispatch: dispatch.controller, decode: decodeBody.controller, port, host },
+  async factory({ dispatch, decode, port, host }, ctx) {
+    const server = createServer(async (request, response) => {
+      try {
+        const path = new URL(request.url ?? "/", "http://localhost").pathname;
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(chunk);
+        const body = await decode.run({
+          input: {
+            bytes: Buffer.concat(chunks).toString("utf8"),
+            form:
+              request.headers["content-type"]?.startsWith("application/x-www-form-urlencoded") ??
+              false,
+          },
+        });
+        const result = await dispatch.run({
+          rawInput: {
+            path,
+            route: `${request.method} ${path}`,
+            body,
+            key: z.string().optional().parse(request.headers["idempotency-key"]),
+            token: z.string().optional().parse(request.headers.authorization),
+          },
+        });
+        response.writeHead(result.status, {
+          "content-type": "application/json",
+          ...result.headers,
+        });
+        response.end(JSON.stringify(result.body));
+      } catch (error) {
+        ctx.log.error("HTTP request failed", { error });
+        response.writeHead(500, { "content-type": "application/json" });
+        response.end(JSON.stringify(rejectPayment("internal_error", 500).body));
+      }
+    });
+    server.listen(port, host);
+    await once(server, "listening");
+    ctx.defer(async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    });
+    const address = server.address();
+    if (address === null || typeof address === "string")
+      failFlightService({ reason: "The listener has no TCP address" });
+    return { url: `http://${host}:${address.port}` };
+  },
+});
 
 /** Startup belongs to Core so a failed listener closes its root and all built resources. */
-const app = extension({
+export const app = extension({
   label: "start payment app",
   hooks: {
     async start({ scope, next }) {
@@ -449,23 +589,3 @@ const app = extension({
     },
   },
 });
-
-/** The caller owns the stop signal; Core owns all webhook work and socket cleanup. */
-export async function startPayment(options: Payment.Options) {
-  const scope = createScope({
-    signal: options.signal,
-    extensions: app,
-    tags: [
-      port(options.port),
-      host(options.host),
-      controlToken(options.controlToken),
-      stopSignal(options.signal),
-      webhookUrl(options.webhookUrl),
-      secret(options.secret),
-      webhookDelayMs(options.webhookDelayMs ?? 20),
-    ],
-  });
-  await scope.ready;
-  const listening = scope.resolve(app);
-  return { ...listening, closed: scope.closed };
-}

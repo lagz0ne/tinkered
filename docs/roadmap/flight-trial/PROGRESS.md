@@ -624,11 +624,13 @@ It checks the raw census has only the three required preset calls.
 - Compose uses Postgres 17 and Mailpit 1.27, with a named Postgres volume.
   Ports 55432, 51025, and 58025 avoid the existing Victoria ports.
 - The mail client runs on Compose's network because the workspace has a separate loopback.
-- Command entries use built `dist` and live under `scripts/`, as the data commands do.
+- Data command entries use built `dist` and live under `scripts/`.
+- Service process entries now live under `services/` and run the graph source.
 - Jev uses file and relative package paths because the name form does not find this tool.
 - Jev label reasons stay in this allowed progress file for the lead to place in the bank.
 - The board stays with the lead; there is no push from this writer.
-- Source presets take precedence over S16 because the brief requires them.
+- The first writer used source presets to follow the old brief.
+  The review round removed them; S16 now passes.
 
 ### Core feedback
 
@@ -671,6 +673,104 @@ assert.equal(ended.status, "success");
 ```
 
 The returned cancelled value is in `services-seed-close-probe.log`, exit 0.
-Scenario seed scopes now use `seed.close({ graceful: true })`.
+The first writer changed seed scopes to `seed.close({ graceful: true })`.
+The review round removed those scopes and writes plain scenario data instead.
 The previous HTTP reset failure and passing fix are in the regression logs above.
 This follows Core's close rule; no Core change is requested.
+
+### Review fix round: strict graph impact
+
+Owner: Codex; branch `trial/flight-services`.
+The first fix lane passed at 90.30 percent.
+The A/B lane passed at 89.20 percent.
+Both used the unchanged floor of 85 and the package lock.
+Logs: `fix-mutate-1.log` and `fix-ab-mutate.log`.
+They are under `tools/flight-trial/.logs/`.
+
+The user added strict v0 and the graph-only rule after those lanes.
+Their checks will run again after this change.
+
+Impact, written before removing the start functions:
+
+- Remove `startSupplier` and `startPayment` from the package entry.
+- Export each app extension and its tags for test entry points.
+- Update `src/index.ts`, both service tests, and the launcher.
+- Replace `scripts/service.mjs` with two service process entries.
+- Each process entry alone creates its scope and owns OS signals.
+- Tests create scopes directly and then use only HTTP.
+- No caller exists outside `tools/flight-trial/`.
+  The repo search found only those files and the two definitions.
+- Check the removed names again after the change.
+
+Core feedback: shared unit with a slot.
+The shared HTTP builder took an operation handle and made units.
+Strict v0 forbids that builder, so each service declares the units.
+A shared declared unit with a slot for the service action would avoid the copies.
+No Core change is part of this card.
+
+### Strict v0 and graph-only fix
+
+Each service now declares its dispatch operation and listener resource.
+The clock resource owns a plain object; no class remains in services.
+Each wait operation uses its own dependencies and signals.
+One-caller helpers and whole-state helper inputs are gone.
+`PLAIN.md` lists the six remaining pure functions,
+the source and use of each parameter, and their call sites.
+Each has at least two callers and at most three plain parameters.
+
+`startSupplier` and `startPayment` are gone.
+Only `services/supplier/main.ts` and `services/payment/main.ts`
+create process scopes and own process signals and exit.
+The launcher runs those files.
+Tests create scopes directly with tags and app extensions.
+Even the test webhook inbox is owned by a resource.
+Service tests still drive and read only HTTP.
+Wire types now live in `Wire`; the wiring namespace is gone.
+A still has inferred operation input and no context annotations.
+B still has a resource-owned map for pending payment calls.
+Its entries are removed in `finally`, including thrown routes.
+
+First proof: 72 tests passed, exit 0, `fix-strict-test-first.log`.
+Launcher proof: four separate processes answered service and control HTTP,
+then stopped cleanly, exit 0, `fix-strict-process.log`.
+
+Strict Jev review: exit 0, `fix-strict-jev-preflight.log`.
+It has no file flags and ten flagged units.
+Test review: exit 0, `fix-strict-jev-tests.log`; no flags in 41 service tests.
+TSDoc parser: exit 0, `fix-strict-tsdoc.log`; five files and no S26 rows.
+Graph audit: exit 0, `fix-strict-graph.log`.
+It finds no context annotations, testing imports, old start helpers,
+old wiring names, or classes, and exactly six plain functions.
+
+The path limit keeps Jev labels and reasons in this progress file.
+Labels for the strict review:
+
+- `stateOutsideCell`: false, `http.ts#clock`.
+  The user requires a resource-owned plain clock object.
+  Its private time and wait set belong to that resource.
+- `inputDefaultMasks`: false, `http.ts#decodeBody`.
+  Empty bodies support confirmation calls.
+  Leaf input readers still return the wire error for missing required fields.
+- `stopOnlyInDefer`: false, `payment/index.ts#finishDelivery`.
+  The waiting operation checks the combined stop signal before calling it.
+  The sending operation uses that stop signal for fetch.
+- `stopOnlyInDefer`: false, `payment/index.ts#webhooks`.
+  This resource owns the subscription; its delivery operation owns the wait.
+  Scope stop ends that wait, and deferred cleanup removes the subscription.
+- `stateOutsideCell` and `stopOnlyInDefer`: false, `payment/index.ts#inFlight`.
+  The user explicitly requires this private live-work map in a resource.
+  Operations own and await the routes, and remove keys in `finally`.
+  Resource cleanup clears the empty map.
+- `stopOnlyInDefer`: false, `payment/index.ts#action`.
+  It awaits Core route work and owns no timer or socket.
+  Route waits and sends observe stop through their dependencies.
+- `stopOnlyInDefer` and `ignoresAbortAfterAwait`: false, both `http` resources.
+  The resources own Node listeners and close all sockets on cleanup.
+  Core owns the dispatched operations; their waits observe stop.
+  The four-process HTTP proof and pending-call stop tests pass.
+- `stopOnlyInDefer`: false, `supplier/index.ts#holds`.
+  It owns the watch subscription; the expiry operation owns the wait.
+  That operation reads the combined stop signal before releasing seats.
+- `noOpRejected`: false, `supplier/index.ts#pay`.
+  Duffel rejects orders that are not awaiting payment.
+  Tests prove paid holds, instant orders, and expired holds return 409.

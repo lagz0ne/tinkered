@@ -30,7 +30,13 @@ async function main() {
   ]) {
     const child = spawn(
       process.execPath,
-      [new URL("service.mjs", import.meta.url).pathname, service.name],
+      [
+        new URL(
+          `../services/${service.name === "payment" ? "payment" : "supplier"}/main.ts`,
+          import.meta.url,
+        ).pathname,
+        service.name,
+      ],
       {
         env: { ...process.env, PORT: String(service.port), CONTROL_TOKEN: settings.CONTROL_TOKEN },
         stdio: ["ignore", "pipe", "inherit"],
