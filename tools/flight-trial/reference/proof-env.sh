@@ -7,3 +7,4 @@ export SUPPLIER_C_URL=http://127.0.0.1:4393
 export PAYMENT_URL=http://127.0.0.1:4394
 export CONTROL_TOKEN=flight-local-control
 export MAILPIT_URL=http://127.0.0.1:58025
+export WEBHOOK_SECRET=flight-reference-webhook-secret

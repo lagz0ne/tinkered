@@ -70,5 +70,12 @@ POST /api/flights/pay
 A repeat with the same execution ID repeats no effects.
 An anonymous request returns HTTP 401.
 Another traveler's booking returns HTTP 403.
-The route returns a receipt with `executionId`.
+The route returns HTTP 200 for an allowed traveler,
+also when nothing is charged.
+It returns this receipt:
+
+```json
+{ "executionId": "b031d4b0-2036-4fba-85c7-cde90db2b001" }
+```
+
 The page's saved events carry its result.

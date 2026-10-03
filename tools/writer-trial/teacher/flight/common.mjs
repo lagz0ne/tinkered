@@ -20,6 +20,7 @@ export function settings() {
     "CONTROL_TOKEN",
   ])
     assert.ok(process.env[name], `Missing ${name}`);
+  if (round >= 4) assert.ok(process.env.WEBHOOK_SECRET, "Missing WEBHOOK_SECRET");
   if (round >= 5) assert.ok(process.env.MAILPIT_URL, "Missing MAILPIT_URL");
   return {
     round,
@@ -31,6 +32,7 @@ export function settings() {
     })),
     payment: process.env.PAYMENT_URL,
     mailpit: process.env.MAILPIT_URL,
+    webhookSecret: process.env.WEBHOOK_SECRET,
   };
 }
 export async function control(suite, url, path, body) {
@@ -41,14 +43,6 @@ export async function control(suite, url, path, body) {
     signal: AbortSignal.timeout(10000),
   });
   const reply = await response.json();
-  if (
-    path === "scenario" &&
-    response.status === 500 &&
-    reply.errors?.[0]?.code === "scenario_failed"
-  ) {
-    console.log("NOTE service reset applied state but returned scenario_failed");
-    return reply;
-  }
   assert.ok(response.ok, `Control ${path} failed with HTTP ${response.status}`);
   return reply;
 }
@@ -115,7 +109,7 @@ export function cheapest(offers) {
 }
 export async function search(page, app, destination = "AMS", date = "2027-01-15") {
   await page.goto(`${app}/flights`, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await expect(page.getByRole("heading", { name: "Flights", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Search", exact: true })).toBeVisible();
   await page.getByLabel("Origin", { exact: true }).fill("LHR");
   await page.getByLabel("Destination", { exact: true }).fill(destination);
   await page.getByLabel("Departure date", { exact: true }).fill(date);

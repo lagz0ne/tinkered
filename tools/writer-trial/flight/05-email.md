@@ -11,8 +11,9 @@ Repeated payment webhooks send no extra email.
 
 Use the subject `Flight booking <Booking>`.
 The plain text has the booking ID, flight ID, supplier order ID,
-supplier, held price in USD, and full UTC departure and arrival times.
-Use the same saved values the Bookings table shows.
+supplier, held price in USD, and departure and arrival times.
+Use departure and arrival exactly as the Flights table showed Departs and Arrives.
+Use the same saved booking, order, supplier, and price values as Bookings.
 
 Add an Email column to the Bookings table.
 Its values are Not sent, Sent, and Failed.
@@ -43,5 +44,12 @@ POST /api/flights/email
 An anonymous request returns HTTP 401.
 Another traveler's booking returns HTTP 403.
 A repeat with the same execution ID sends no extra email.
-Return a receipt with `executionId`.
+The route returns HTTP 200 for an allowed traveler,
+also when nothing is sent.
+It returns this receipt:
+
+```json
+{ "executionId": "b031d4b0-2036-4fba-85c7-cde90db2b002" }
+```
+
 Saved events carry the complete or partial result.

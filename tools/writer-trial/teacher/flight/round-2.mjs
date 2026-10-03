@@ -116,7 +116,10 @@ export async function round2(suite, test) {
         .poll(async () => (await calls(suite, supplier.url, "POST /air/offer_requests")).length)
         .toBe(2);
     await expect
-      .poll(async () => (await table(page, "Flights")).every((row) => row.To === "JFK"))
+      .poll(async () => {
+        const rows = await table(page, "Flights");
+        return rows.some((row) => row.To === "JFK") && rows.every((row) => row.To !== "AMS");
+      })
       .toBe(true);
     await control(suite, suite.suppliers[1].url, "clock", { advanceMs: 1000 });
     await complete(page);

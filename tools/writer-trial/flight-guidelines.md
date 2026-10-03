@@ -15,7 +15,7 @@ The harness supplies these settings:
 - `SUPPLIER_A_URL`, `SUPPLIER_B_URL`, and `SUPPLIER_C_URL`.
 - `PAYMENT_URL` and `WEBHOOK_SECRET`.
 
-The supplier and payment wire contracts are in `SERVICES.md`.
+Read the shipped `SERVICES.md` for supplier and payment HTTP contracts.
 Use their HTTP APIs with real clients.
 Do not load the flight fixture into the app.
 Do not call `/control/` from app code.
@@ -30,6 +30,5 @@ The teacher never reads the app's private code or records.
 Test through exported operations and real pages.
 Run build before check and tests.
 Run the supplied seam, browser import, and schema checks.
-Use Jev on changed source and tests.
 Fix blocking findings; fix or explain other findings.
 Report exact commands and results, then stop.

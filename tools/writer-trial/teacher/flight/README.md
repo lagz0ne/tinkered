@@ -28,6 +28,7 @@ SUPPLIER_C_URL=http://127.0.0.1:4393
 PAYMENT_URL=http://127.0.0.1:4394
 CONTROL_TOKEN=flight-local-control
 MAILPIT_URL=http://127.0.0.1:58025
+WEBHOOK_SECRET=flight-reference-webhook-secret
 ```
 
 Supplier and payment URLs serve both service and control paths.
@@ -62,19 +63,6 @@ node --env-file=grader.env "$checks/canaries.mjs" 5
 Each planted break must fail its named behavior.
 A missing browser, page, or control API cannot prove a planted break.
 
-## Service reset issue
-
-At the given services commit, scenario reset writes its state,
-then returns HTTP 500 with `scenario_failed`.
-Its short seed scope closes as cancelled before it was ready.
-The reset does not clear route rules or call logs on this path.
-The checks accept only that exact reset error.
-They clear the routes they use and save a call-log position.
-Call counts start at that position.
-The later page and HTTP checks prove the changed service state.
-Any other control error fails.
-The lead can remove this allowance after the service fix lands.
-
 ## Mail failure proof
 
 Round 5 needs Mailpit with `MP_ENABLE_CHAOS=true`.
@@ -85,7 +73,9 @@ It uses Mailpit inbox search and message reads to prove delivery.
 A disabled Chaos API fails setup; it never counts as a planted failure.
 See [Mailpit's Chaos guide](https://mailpit.axllent.org/docs/integration/chaos/).
 
-The teacher needs no SMTP password or webhook secret.
+The teacher needs no SMTP password.
+Its WEBHOOK_SECRET must match the app and payment service.
+It signs old events, changed-byte events, and fresh replays.
 The app gets those settings from its own `.env`.
 Only the service controls and Mailpit API are used to inject faults.
 

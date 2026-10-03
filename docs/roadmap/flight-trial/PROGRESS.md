@@ -841,7 +841,7 @@ Writer: Codex.
 Branch: `trial/flight-rounds`.
 Base: `0f0a83fe`.
 The board stays with the lead; it is outside this writer's paths.
-Next: finish round 2 proof, then ship the staged ready commit.
+Next: finish the lead review fixes, then rerun all five round proofs.
 Verify: reference passes twice; a wrong answer fails by name.
 
 ### Round 1 reference
@@ -1439,3 +1439,38 @@ No package, app, or service source was changed by this writer.
 The lead owns the board, landing, and mutation runs.
 All assumptions and failed attempts are recorded above.
 Next: lead review, then run the independent harness on the ready branch.
+
+### Lead review: one fix round
+
+Review base: `98e6fa56`.
+Packets 1–3 stay byte-frozen; packets 4–5 may change.
+The review finds hidden UI and browser transport assumptions in the checks.
+It also finds supplier polling that breaks packet 2's refresh rule.
+Next: make the checks follow the packets, replace polling with hold events,
+and prove every round and each new payment break.
+
+The writer-facing service doc is `tools/writer-trial/flight-services.md`.
+It contains only the supplier and payment HTTP sections of the service README.
+Grader-only sentences were removed; no control paths, token, ports,
+scenarios, or clock controls are shipped in it.
+The harness must copy this file into the writer app as `SERVICES.md`.
+The lead owns that harness change.
+The harness image must also ship the scaffold's committed `check:plain` script,
+its TypeScript API dependency, and its checked `PLAIN.md` list.
+The writer rules no longer require Jev, which is absent from that image.
+
+Assumptions for this fix round:
+
+- Page controls and saved rows prove actions; browser request paths do not.
+- An empty history may omit its table once the page load completes.
+  Nonempty history checks poll for the saved rows.
+- Bookings expiry is checked on load or reload, not by live supplier polling.
+- Public seat events contain only supplier, flight, cabin, and remaining seats.
+  They expose no private booking or traveler data.
+- Idle proof uses a three-second wall-time condition and call logs.
+  It does not move a service clock or sleep.
+- The teacher secret must match the app and payment service.
+  This is needed to prove correct old signatures, exact bytes, and fresh repeats.
+- Button checks and route-repeat checks use separate bookings.
+  Each repeat case supplies one teacher-owned execution ID.
+- Mail times must match the saved Flights display values exactly.
