@@ -15,7 +15,8 @@
     "check": "vp check",
     "generate": "node scripts/generate.mjs",
     "check:sources": "node scripts/check-sources.mjs",
-    "mutate": "stryker run"
+    "mutate": "stryker run",
+    "services": "node scripts/start-services.mjs"
   },
   "dependencies": {
     "@tinker/core": "workspace:*",
