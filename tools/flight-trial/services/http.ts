@@ -1,8 +1,15 @@
-import { data, operation, resource, tag } from "@tinker/core";
+import { once } from "node:events";
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
+import { data, operation, resource, tag, type Scope } from "@tinker/core";
+import { failFlightService } from "../src/errors.ts";
 import { z } from "zod";
 
 export declare namespace Wire {
-  type Request = z.infer<typeof requestSchema>;
+  type Env = {
+    Variables: { scope: Scope.Handle; payment: boolean; body: unknown; control: boolean };
+  };
   type Reply = { status: number; body: unknown; headers?: Record<string, string> };
   type Form = { [key: string]: string | boolean | Form };
   type Call = {
@@ -16,13 +23,6 @@ export declare namespace Wire {
   type Rules = Record<string, Rule>;
 }
 
-export const requestSchema = z.object({
-  route: z.string(),
-  path: z.string(),
-  body: z.unknown(),
-  key: z.string().optional(),
-  token: z.string().optional(),
-});
 export const stopSignal = tag<AbortSignal>({ label: "service stop signal" });
 export const port = tag({ label: "service port", default: 0 });
 export const host = tag({ label: "service host", default: "127.0.0.1" });
@@ -93,7 +93,7 @@ export function reject(code: string, status = 400): Wire.Reply {
 }
 
 const routeSchema = z.object({
-  route: z.string().min(1),
+  name: z.string().min(1),
   delayMs: z.number().int().nonnegative().default(0),
   status: z.number().int().min(400).max(599).optional(),
   repeat: z.number().int().nonnegative().default(0),
@@ -103,22 +103,22 @@ const clockSchema = z.union([
   z.object({ advanceMs: z.number().int().nonnegative() }),
 ]);
 
-const setRoute = operation({
+export const setRoute = operation({
   label: "set route rule",
   input: (raw) => routeSchema.safeParse(raw),
   depends: { rules: rules.controller },
   run({ rules }, ctx) {
     const parsed = ctx.input;
     if (!parsed.success) return reject("invalid_route_rule");
-    const { route, ...rule } = parsed.data;
+    const { name, ...rule } = parsed.data;
     rules.update((previous) => ({
       ...previous,
-      [route]: { ...rule, revision: ctx.random.uuid() },
+      [name]: { ...rule, revision: ctx.random.uuid() },
     }));
-    return reply(200, { data: parsed.data });
+    return reply(200, { data: { route: name, ...rule } });
   },
 });
-const setClock = operation({
+export const setClock = operation({
   label: "set service time",
   input: (raw) => clockSchema.safeParse(raw),
   depends: { clock },
@@ -130,47 +130,255 @@ const setClock = operation({
     return reply(200, { data: { now: clock.currentTimeMillis() } });
   },
 });
-export const control = operation({
-  label: "control common settings",
-  input: requestSchema,
-  depends: { routes: setRoute.controller, time: setClock.controller, calls },
-  async run({ routes, time, calls }, ctx) {
-    const request = ctx.input;
-    if (request.route === "GET /control/calls")
-      return reply(200, { data: calls.map(({ id: _id, ...call }) => call) });
-    if (request.route === "POST /control/routes") return routes.run({ rawInput: request.body });
-    if (request.route === "POST /control/clock") return time.run({ rawInput: request.body });
-    return reject("not_found", 404);
+export const readCalls = operation({
+  label: "read HTTP calls",
+  depends: { calls },
+  run({ calls }) {
+    return reply(200, { data: calls.map(({ id: _id, ...call }) => call) });
   },
 });
 
-/** Both listeners give this operation owned UTF-8 text; it owns no socket. */
-export const decodeBody = operation({
-  label: "decode HTTP body",
-  input: z.object({ bytes: z.string(), form: z.boolean() }),
-  run(_deps, ctx): unknown {
-    if (!ctx.input.bytes) return {};
-    try {
-      if (!ctx.input.form) return JSON.parse(ctx.input.bytes);
-      const body: Wire.Form = {};
-      const booleans: Record<string, boolean> = { true: true, false: false };
-      for (const [key, value] of new URLSearchParams(ctx.input.bytes)) {
-        const parts = key.split(/[[\]]/).filter(Boolean);
-        if (parts.some((part) => ["__proto__", "constructor", "prototype"].includes(part)))
-          continue;
-        const current = parts.slice(0, -1).reduce((parent, part) => {
-          const nested = parent[part];
-          if (typeof nested === "object") return nested;
-          const next: Wire.Form = {};
-          parent[part] = next;
-          return next;
-        }, body);
-        const name = parts.at(-1);
-        if (name) current[name] = Object.hasOwn(booleans, value) ? booleans[value] : value;
-      }
-      return body;
-    } catch {
-      return null;
+/**
+ * Shapes a Stripe error from plain choices.
+ * @param code - Error choice from the operation; needed for code and message.
+ * @param status - HTTP choice from the operation; needed for the response code.
+ * @param type - Stripe error family from the operation; needed for wire compatibility.
+ */
+export function rejectPayment(
+  code: string,
+  status = 400,
+  type = "invalid_request_error",
+): Wire.Reply {
+  return reply(status, { error: { type, code, message: code } });
+}
+
+const recordCall = operation({
+  label: "record HTTP call",
+  input: z.union([
+    z.object({ name: z.string(), kind: z.enum(["control", "service"]) }),
+    z.object({ id: z.string(), status: z.number() }),
+  ]),
+  depends: { calls: calls.controller, clock },
+  run({ calls, clock }, ctx) {
+    if ("id" in ctx.input) {
+      const { id, status } = ctx.input;
+      calls.update((all) => all.map((call) => (call.id === id ? { ...call, status } : call)));
+      return id;
     }
+    const { kind, name } = ctx.input;
+    const id = ctx.random.uuid();
+    calls.update((all) => [
+      ...all,
+      {
+        id,
+        kind,
+        route: name,
+        time: clock.currentTimeMillis(),
+        status: 0,
+      },
+    ]);
+    return id;
+  },
+});
+const checkToken = operation({
+  label: "check control token",
+  input: z.object({ token: z.string().optional() }),
+  depends: { token: controlToken },
+  run({ token }, ctx) {
+    return ctx.input.token === `Bearer ${token}`;
+  },
+});
+const ruleSchema = z.object({
+  name: z.string(),
+  payment: z.boolean(),
+  revision: z.string().optional(),
+  response: z
+    .object({
+      status: z.number(),
+      body: z.unknown(),
+      headers: z.record(z.string(), z.string()).optional(),
+    })
+    .optional(),
+});
+/** Rule names index data only; Hono owns the action between the two calls. */
+const applyRule = operation({
+  label: "read or save HTTP rule",
+  input: ruleSchema,
+  depends: { rules: rules.controller },
+  run({ rules }, ctx): { revision?: string; response?: Wire.Reply } {
+    const { name, payment, revision, response } = ctx.input;
+    if (response) {
+      rules.update((all) => {
+        const current = all[name];
+        return current?.revision === revision
+          ? { ...all, [name]: { ...current, saved: response } }
+          : all;
+      });
+      return {};
+    }
+    let selected: Wire.Rule | undefined;
+    rules.update((all) => {
+      const current = all[name];
+      if (!revision || current?.revision !== revision) return all;
+      selected = current;
+      return current.saved && current.repeat > 0
+        ? { ...all, [name]: { ...current, repeat: current.repeat - 1 } }
+        : all;
+    });
+    if (!selected) return { revision };
+    if (selected.saved && selected.repeat > 0) return { revision, response: selected.saved };
+    if (!selected.status) return { revision };
+    return {
+      revision,
+      response: payment
+        ? rejectPayment("injected_failure", selected.status)
+        : reject("injected_failure", selected.status),
+    };
+  },
+});
+const routeRule = operation({
+  label: "wait for HTTP rule",
+  input: ruleSchema,
+  depends: { rules, clock, stop: stopSignal, apply: applyRule.controller },
+  async run({ rules, clock, stop, apply }, ctx) {
+    if (ctx.input.response) return apply.run({ input: ctx.input });
+    const rule = rules[ctx.input.name] ?? { delayMs: 0, revision: undefined };
+    const signal = AbortSignal.any([stop, ctx.signal]);
+    if (rule.delayMs) {
+      try {
+        await clock.sleep(rule.delayMs, signal);
+      } catch (error) {
+        if (!signal.aborted) throw error;
+      }
+      if (signal.aborted)
+        return {
+          response: ctx.input.payment
+            ? rejectPayment("service_stopped", 503)
+            : reject("service_stopped", 503),
+        };
+    }
+    return apply.run({ input: { ...ctx.input, revision: rule.revision } });
+  },
+});
+
+export const web = resource({
+  label: "service Hono app",
+  factory: () => new Hono<Wire.Env>(),
+});
+
+/** The service extension installs these after its scope binding, before its routes. */
+export const middleware = resource({
+  label: "shared HTTP middleware",
+  depends: { stop: stopSignal },
+  factory({ stop }) {
+    return {
+      log: createMiddleware<Wire.Env>(async (c, next) => {
+        const id = c.var.scope.run(recordCall, {
+          rawInput: {
+            name: `${c.req.method} ${c.req.path}`,
+            kind: c.var.control ? "control" : "service",
+          },
+        });
+        await next();
+        if (!stop.aborted) c.var.scope.run(recordCall, { rawInput: { id, status: c.res.status } });
+        c.header("content-type", "application/json");
+        c.header("transfer-encoding", "chunked");
+      }),
+      token: createMiddleware<Wire.Env>(async (c, next) => {
+        c.set("control", true);
+        if (
+          !c.var.scope.run(checkToken, {
+            rawInput: { token: c.req.header("authorization") },
+          })
+        )
+          return c.json(reject("unauthorized", 401).body, 401);
+        await next();
+      }),
+      body: createMiddleware<Wire.Env>(async (c, next) => {
+        const bytes = await c.req.text();
+        let body: unknown = {};
+        if (bytes) {
+          try {
+            if (!c.req.header("content-type")?.startsWith("application/x-www-form-urlencoded")) {
+              body = JSON.parse(bytes);
+            } else {
+              const form: Wire.Form = {};
+              const booleans: Record<string, boolean> = { true: true, false: false };
+              new URLSearchParams(bytes).forEach((value, key) => {
+                const parts = key.split(/[[\]]/).filter(Boolean);
+                if (parts.some((part) => ["__proto__", "constructor", "prototype"].includes(part)))
+                  return;
+                const current = parts.slice(0, -1).reduce((parent, part) => {
+                  const nested = parent[part];
+                  if (typeof nested === "object") return nested;
+                  const next: Wire.Form = {};
+                  parent[part] = next;
+                  return next;
+                }, form);
+                const name = parts.at(-1);
+                if (name) current[name] = Object.hasOwn(booleans, value) ? booleans[value] : value;
+              });
+              body = form;
+            }
+          } catch {
+            body = null;
+          }
+        }
+        c.set("body", body);
+        await next();
+      }),
+      rule: createMiddleware<Wire.Env>(async (c, next) => {
+        if (c.var.control) return next();
+        const params = { name: `${c.req.method} ${c.req.path}`, payment: c.var.payment };
+        const selected = await c.var.scope.run(routeRule, { rawInput: params });
+        if (selected.response) {
+          const response = selected.response;
+          c.res = new Response(JSON.stringify(response.body), {
+            status: response.status,
+            headers: response.headers,
+          });
+        } else {
+          await next();
+        }
+        if (selected.revision)
+          await c.var.scope.run(routeRule, {
+            rawInput: {
+              ...params,
+              revision: selected.revision,
+              response: {
+                status: c.res.status,
+                body: await c.res.clone().json(),
+                headers: Object.fromEntries(c.res.headers),
+              },
+            },
+          });
+      }),
+    };
+  },
+});
+
+/** The extension finishes Hono setup before resolving this owned Node listener. */
+export const listener = resource({
+  label: "service HTTP listener",
+  depends: { web, port, host },
+  async factory({ web, port, host }, ctx) {
+    web.onError((error, c) => {
+      ctx.log.error("HTTP request failed", { error });
+      return c.json(
+        (c.var.payment ? rejectPayment("internal_error", 500) : reject("internal_error", 500)).body,
+        500,
+      );
+    });
+    const server = serve({ fetch: web.fetch, port, hostname: host, overrideGlobalObjects: false });
+    await once(server, "listening");
+    ctx.defer(async () => {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    });
+    const address = server.address();
+    if (address === null || typeof address === "string")
+      failFlightService({ reason: "The listener has no TCP address" });
+    return { url: `http://${host}:${address.port}` };
   },
 });

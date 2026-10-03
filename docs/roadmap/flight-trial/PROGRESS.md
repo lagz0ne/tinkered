@@ -1216,3 +1216,53 @@ Assumptions:
   No public Core symbol changes, so no SCIP impact block is needed.
 - Store ticket-local Jev labels under this track.
   The shared case file is outside the allowed paths.
+
+### Services routing: Hono owns routes
+
+Removed both dispatch, action, lookup, control, and route trees.
+Removed the whole-request schema and body decoding operation.
+Hono handlers read body values or one ID and run one operation.
+The payment key middleware reads its header and keeps its reply.
+The extension gives middleware the existing service scope.
+The shared resource owns the Node adapter and closes its port.
+No scope is made outside the two process entries.
+
+The pure helper list is still six, before and after:
+
+- `reply`, `reject`, and `rejectPayment`.
+- Supplier `readCurrent` and `createState`.
+- Payment `createState`.
+
+`rejectPayment` moved to `http.ts` for shared fault replies.
+The two `main` process entries stay separate from the pure list.
+No tests changed.
+
+Assumptions and fixed wire details:
+
+- A native `Response` carries the operation's body, status, and headers.
+  It accepts a number without a cast to Hono's status type.
+- Keep chunked replies and the exact JSON content type.
+  The unchanged pipelined HTTP test checks that framing.
+- Disable the adapter's global Request and Response changes.
+  The resource serves its own app without changing process globals.
+- Close the listener after accepted responses finish.
+  Killing its sockets early lost the promised stopped reply.
+- Hono's automatic HEAD-to-GET fallback is disabled for these routes.
+  The old services returned a missing-route reply for HEAD.
+- Unknown payment control paths keep the common Duffel error shape.
+- Use Hono path patterns that require the final prefix slash.
+  A wildcard also matched `/control`, which the old token guard did not.
+  `/control/:rest{.*}` keeps the old control boundary.
+
+Step proof, under `tools/flight-trial/.logs/`:
+
+- Setup install, build, and prose: exit 0.
+  Logs: `routing-install.log`, `routing-setup-build.log`,
+  and `routing-setup-prose.log`.
+- Build, check, all 86 unchanged tests, and strict style: exit 0.
+  Logs: `routing-green-build.log`, `routing-green-check.log`,
+  `routing-green-test.log`, and `routing-green-style.log`.
+- Check: zero errors and the same 28 warnings as the saved base proof.
+- Early framing and stop failures are in `routing-code-test.log`.
+  The stopped reply then returned 500 in `routing-fix-test.log`.
+  Both logs exit 1; the unchanged tests pass after the fixes.

@@ -23,7 +23,7 @@ No separate supplier timer or watcher repeats that work.
 Resources own the listeners, clock, waits, payment watchers,
 and map of pending payment work.
 Data holds plain settled state.
-Operation input readers parse the wire input.
+Hono middleware reads bodies before operation input readers parse their values.
 Wire types live next to the primitives that use them.
 Callbacks inside a primitive are part of that primitive.
 Process signal callbacks belong to their entry point.
@@ -47,8 +47,11 @@ This follows ADR 0078 and leaves the pure helper list at six.
   under the user's explicit test fallback.
 
 Core feedback: shared unit with a slot.
-Each service repeats its dispatch operation and listener resource.
-A plain builder must not take an operation handle.
+The shared listener resource serves one Hono app per service.
+Each extension binds its scope through Hono middleware.
+Each handler reads only its values and runs one operation.
+Common middleware owns the call log, token check, bodies, and route rules.
+No operation takes a whole request or chooses work by route name.
 
 ## `http.ts`: `reply`
 
@@ -76,7 +79,7 @@ A plain builder must not take an operation handle.
   sets the current price.
 - `seatsAvailable: number`: matching stock cabin from the operation;
   sets the current seat count.
-- Call sites: `order.run` and `lookup.run`.
+- Call sites: `order.run` and `readOffer.run`.
 
 ## `supplier/index.ts`: `createState`
 
@@ -92,7 +95,7 @@ A plain builder must not take an operation handle.
 - Returns fresh plain empty payment state.
 - Call sites: `state.initial` and `resetScenario.run`.
 
-## `payment/index.ts`: `rejectPayment`
+## `http.ts`: `rejectPayment`
 
 - `code: string`: error choice from the calling operation;
   supplies the Stripe error code and message.
@@ -101,4 +104,4 @@ A plain builder must not take an operation handle.
 - `type: string`: Stripe error family from the calling operation;
   supplies the wire error type.
 - Call sites: payment create, confirm, refund, webhook control,
-  route, key handling, and listener operations.
+  lookup, key handling, shared rule, and listener operations.

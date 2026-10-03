@@ -1,23 +1,18 @@
-import { createServer } from "node:http";
-import { once } from "node:events";
-import { failFlightService } from "../../src/errors.ts";
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights.ts";
 import {
   calls,
   clock,
-  control,
-  controlToken,
-  decodeBody,
-  host,
-  port,
   reject,
   reply,
   rules,
-  requestSchema,
-  stopSignal,
-  type Wire,
+  web,
+  middleware,
+  listener,
+  readCalls,
+  setRoute,
+  setClock,
 } from "../http.ts";
 
 export declare namespace Supplier {
@@ -377,233 +372,155 @@ const changeFlight = operation({
     return reply(200, { data: parsed.data });
   },
 });
-const supplierControl = operation({
-  label: "control supplier",
-  input: requestSchema,
-  depends: {
-    supplierState: state.controller,
-    common: control.controller,
-    reset: resetScenario.controller,
-    change: changeFlight.controller,
-  },
-  async run({ supplierState, common, reset, change }, ctx) {
-    if (ctx.input.route === "POST /control/scenario")
-      return reset.run({ rawInput: ctx.input.body });
-    if (ctx.input.route === "POST /control/flights")
-      return change.run({ rawInput: ctx.input.body });
-    if (ctx.input.route === "GET /control/state") {
-      const current = supplierState.get();
-      return reply(200, {
-        data: {
-          offers: Object.keys(current.offers).length,
-          bytes: Buffer.byteLength(JSON.stringify(current)),
-        },
-      });
-    }
-    return common.run({ rawInput: ctx.input });
-  },
-});
-
-const lookup = operation({
-  label: "read supplier offer or order",
-  input: requestSchema,
-  depends: { state: state.controller, clock },
-  run({ state, clock }, ctx) {
-    if (ctx.input.route.startsWith("GET /air/offers/")) {
-      const id = ctx.input.path.split("/").at(-1)!;
-      if (Number(id.split("_").at(1)) <= clock.currentTimeMillis())
-        return reject("offer_expired", 409);
-      const offer = state.get().offers[id];
-      if (!offer) return reject("offer_not_found", 404);
-      const cabin = state
-        .get()
-        .stock[offer.flight_id].cabins.find((entry) => entry.cabin === offer.cabin_class)!;
-      const fare = cabin.fares.find((entry) => entry.fareClass === offer.fare_class)!;
-      return reply(200, { data: readCurrent(offer, fare.amountCents, cabin.seatsAvailable) });
-    }
-    const booked = state.get().orders[ctx.input.path.split("/").at(-1)!];
-    return ctx.input.route.startsWith("GET /air/orders/") && booked
-      ? reply(200, { data: booked })
-      : reject("not_found", 404);
-  },
-});
-const action = operation({
-  label: "supplier API",
-  input: requestSchema,
-  depends: {
-    expire: expireHolds.controller,
-    search: search.controller,
-    order: order.controller,
-    pay: pay.controller,
-    control: supplierControl.controller,
-    lookup: lookup.controller,
-  },
-  async run({ expire, search, order, pay, control, lookup }, ctx) {
-    expire.run();
-    if (ctx.input.path.startsWith("/control/")) return control.run({ rawInput: ctx.input });
-    if (ctx.input.route === "POST /air/offer_requests")
-      return search.run({ rawInput: ctx.input.body });
-    if (ctx.input.route === "POST /air/orders") return order.run({ rawInput: ctx.input.body });
-    if (ctx.input.route === "POST /air/payments") return pay.run({ rawInput: ctx.input.body });
-    return lookup.run({ rawInput: ctx.input });
-  },
-});
-const applyRoute = operation({
-  label: "apply route rule",
-  input: z.object({
-    request: requestSchema,
-    revision: z.string().optional(),
-  }),
-  depends: { action: action.controller, rules: rules.controller },
-  async run({ action, rules }, ctx) {
-    const { request, revision } = ctx.input;
-    let selected: Wire.Rule | undefined;
-    rules.update((all) => {
-      const current = all[request.route];
-      if (!revision || current?.revision !== revision) return all;
-      selected = current;
-      return current.saved && current.repeat > 0
-        ? { ...all, [request.route]: { ...current, repeat: current.repeat - 1 } }
-        : all;
-    });
-    let response: Wire.Reply;
-    if (selected?.saved && selected.repeat > 0) response = selected.saved;
-    else if (selected?.status) response = reject("injected_failure", selected.status);
-    else response = await action.run({ rawInput: request });
-    if (revision)
-      rules.update((all) => {
-        const current = all[request.route];
-        return current?.revision === revision
-          ? { ...all, [request.route]: { ...current, saved: response } }
-          : all;
-      });
-    return response;
-  },
-});
-const delayRoute = operation({
-  label: "delay service route",
-  input: requestSchema,
-  depends: { rules, clock, stop: stopSignal, apply: applyRoute.controller },
-  async run({ rules, clock, stop, apply }, ctx) {
-    const rule = rules[ctx.input.route];
-    const signal = AbortSignal.any([stop, ctx.signal]);
-    let stopped = false;
-    if (rule?.delayMs) {
-      try {
-        await clock.sleep(rule.delayMs, signal);
-        stopped = signal.aborted;
-      } catch (error) {
-        if (!signal.aborted) throw error;
-        stopped = true;
-      }
-    }
-    if (stopped) return reject("service_stopped", 503);
-    return apply.run({ rawInput: { request: ctx.input, revision: rule?.revision } });
-  },
-});
-const dispatch = operation({
-  label: "serve supplier HTTP request",
-  input: requestSchema,
-  depends: {
-    action: action.controller,
-    route: delayRoute.controller,
-    calls: calls.controller,
-    clock,
-    token: controlToken,
-    stop: stopSignal,
-  },
-  async run({ action, route, calls, clock, token, stop }, ctx) {
-    const request = ctx.input;
-    const time = clock.currentTimeMillis();
-    const id = ctx.random.uuid();
-    calls.update((all) => [
-      ...all,
-      {
-        id,
-        kind: request.path.startsWith("/control/") ? "control" : "service",
-        route: request.route,
-        time,
-        status: 0,
+const readState = operation({
+  label: "read supplier state size",
+  depends: { state },
+  run({ state }) {
+    return reply(200, {
+      data: {
+        offers: Object.keys(state.offers).length,
+        bytes: Buffer.byteLength(JSON.stringify(state)),
       },
-    ]);
-    const response = request.path.startsWith("/control/")
-      ? request.token === `Bearer ${token}`
-        ? await action.run({ rawInput: request })
-        : reject("unauthorized", 401)
-      : await route.run({ rawInput: request });
-    if (!stop.aborted)
-      calls.update((all) =>
-        all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
-      );
-    return response;
-  },
-});
-const http = resource({
-  label: "supplier HTTP listener",
-  depends: { dispatch: dispatch.controller, decode: decodeBody.controller, port, host },
-  async factory({ dispatch, decode, port, host }, ctx) {
-    const server = createServer(async (request, response) => {
-      try {
-        const path = new URL(request.url ?? "/", "http://localhost").pathname;
-        const chunks: Buffer[] = [];
-        for await (const chunk of request) chunks.push(chunk);
-        const body = await decode.run({
-          rawInput: {
-            bytes: Buffer.concat(chunks).toString("utf8"),
-            form:
-              request.headers["content-type"]?.startsWith("application/x-www-form-urlencoded") ??
-              false,
-          },
-        });
-        const result = await dispatch.run({
-          rawInput: {
-            path,
-            route: `${request.method} ${path}`,
-            body,
-            key: z.string().optional().parse(request.headers["idempotency-key"]),
-            token: z.string().optional().parse(request.headers.authorization),
-          },
-        });
-        response.writeHead(result.status, {
-          "content-type": "application/json",
-          ...result.headers,
-        });
-        response.end(JSON.stringify(result.body));
-      } catch (error) {
-        ctx.log.error("HTTP request failed", { error });
-        response.writeHead(500, { "content-type": "application/json" });
-        response.end(JSON.stringify(reject("internal_error", 500).body));
-      }
     });
-    server.listen(port, host);
-    await once(server, "listening");
-    ctx.defer(async () => {
-      server.closeAllConnections();
-      await new Promise<void>((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
-      );
-    });
-    const address = server.address();
-    if (address === null || typeof address === "string")
-      failFlightService({ reason: "The listener has no TCP address" });
-    return { url: `http://${host}:${address.port}` };
   },
 });
 
-/** Startup belongs to Core so a failed listener closes its root and all built resources. */
+const readOffer = operation({
+  label: "read supplier offer",
+  input: z.object({ id: z.string() }),
+  depends: { state, clock },
+  run({ state, clock }, ctx) {
+    const { id } = ctx.input;
+    if (Number(id.split("_").at(1)) <= clock.currentTimeMillis())
+      return reject("offer_expired", 409);
+    const offer = state.offers[id];
+    if (!offer) return reject("offer_not_found", 404);
+    const cabin = state.stock[offer.flight_id].cabins.find(
+      (entry) => entry.cabin === offer.cabin_class,
+    )!;
+    const fare = cabin.fares.find((entry) => entry.fareClass === offer.fare_class)!;
+    return reply(200, { data: readCurrent(offer, fare.amountCents, cabin.seatsAvailable) });
+  },
+});
+const readOrder = operation({
+  label: "read supplier order",
+  input: z.object({ id: z.string() }),
+  depends: { state },
+  run({ state }, ctx) {
+    const booked = state.orders[ctx.input.id];
+    return booked ? reply(200, { data: booked }) : reject("not_found", 404);
+  },
+});
+
+/** Startup supplies the scope to middleware; the resource owns the listener. */
 export const app = extension({
   label: "start supplier app",
   hooks: {
     async start({ scope, next }) {
       await next();
-      await scope.run(supplierControl, {
-        rawInput: {
-          route: "POST /control/scenario",
-          path: "/control/scenario",
-          body: { name: "default" },
-        },
+      await scope.run(resetScenario, { rawInput: { name: "default" } });
+      const http = scope.resolve(web);
+      const shared = scope.resolve(middleware);
+      http.use("*", async (c, next) => {
+        c.set("scope", scope);
+        c.set("payment", false);
+        c.set("control", false);
+        await next();
       });
-      return scope.resolve(http);
+      http.use("/control/:rest{.*}", async (c, next) => {
+        c.set("control", true);
+        await next();
+      });
+      http.use("*", shared.log);
+      http.use("/control/:rest{.*}", shared.token);
+      http.use("*", shared.body);
+      http.use("*", shared.rule);
+      http.use("*", async (c, next) => {
+        c.var.scope.run(expireHolds);
+        await next();
+      });
+      http.on("HEAD", "*", (c) => c.notFound());
+      http.post("/control/scenario", async (c) => {
+        const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/control/clock", (c) => {
+        const result = c.var.scope.run(setClock, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.get("/control/calls", (c) => {
+        const result = c.var.scope.run(readCalls);
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/control/routes", (c) => {
+        const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
+        const { route: name, ...settings } = parsed.success ? parsed.data : {};
+        const result = c.var.scope.run(setRoute, { rawInput: { name, ...settings } });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/air/offer_requests", (c) => {
+        const result = c.var.scope.run(search, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/air/orders", (c) => {
+        const result = c.var.scope.run(order, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/air/payments", (c) => {
+        const result = c.var.scope.run(pay, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.get("/air/offers/:id", (c) => {
+        const result = c.var.scope.run(readOffer, { rawInput: { id: c.req.param("id") } });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.get("/air/orders/:id", (c) => {
+        const result = c.var.scope.run(readOrder, { rawInput: { id: c.req.param("id") } });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/control/flights", (c) => {
+        const result = c.var.scope.run(changeFlight, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.get("/control/state", (c) => {
+        const result = c.var.scope.run(readState);
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.notFound((c) => c.json(reject("not_found", 404).body, 404));
+      return scope.resolve(listener);
     },
   },
 });

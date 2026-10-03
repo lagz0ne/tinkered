@@ -1,21 +1,19 @@
-import { createServer } from "node:http";
-import { once } from "node:events";
-import { failFlightService } from "../../src/errors.ts";
 import { createHmac } from "node:crypto";
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import {
   calls,
   clock,
-  control,
-  controlToken,
-  decodeBody,
-  host,
-  port,
   reject,
   reply,
   rules,
-  requestSchema,
+  web,
+  middleware,
+  listener,
+  readCalls,
+  setRoute,
+  setClock,
+  rejectPayment,
   stopSignal,
   type Wire,
 } from "../http.ts";
@@ -47,7 +45,11 @@ export declare namespace Payment {
     currency: string;
     status: "succeeded";
   };
-  type Pending = { fingerprint: string; response: Promise<Wire.Reply> };
+  type Pending = {
+    fingerprint: string;
+    response: Promise<Wire.Reply>;
+    resolve: (reply: Wire.Reply) => void;
+  };
   type Saved = { fingerprint: string; reply: Wire.Reply };
   type Plan = {
     outcome: "succeeded" | "failed";
@@ -101,16 +103,6 @@ const sendSchema = z.object({
   delayMs: z.number().int().nonnegative().default(1000),
 });
 const scenarioSchema = z.object({ name: z.enum(["default", "payment-failed"]) });
-
-/**
- * Shapes a Stripe error from plain choices.
- * @param code - Error choice from the operation; needed for code and message.
- * @param status - HTTP choice from the operation; needed for the response code.
- * @param type - Stripe error family from the operation; needed for wire compatibility.
- */
-function rejectPayment(code: string, status = 400, type = "invalid_request_error"): Wire.Reply {
-  return reply(status, { error: { type, code, message: code } });
-}
 
 const sendWebhook = operation({
   label: "deliver signed webhook",
@@ -236,10 +228,10 @@ const createIntent = operation({
 });
 const confirm = operation({
   label: "confirm payment intent",
-  input: requestSchema,
+  input: z.object({ id: z.string() }),
   depends: { state: state.controller, clock, webhookDelayMs },
   run({ state, clock, webhookDelayMs }, ctx) {
-    const id = ctx.input.path.split("/").at(-2)!;
+    const { id } = ctx.input;
     const current = structuredClone(state.get());
     const intent = current.intents[id];
     if (!intent) return rejectPayment("resource_missing", 404);
@@ -347,45 +339,13 @@ const setPlan = operation({
     return reply(200, { data: parsed.data });
   },
 });
-const paymentControl = operation({
-  label: "control payment",
-  input: requestSchema,
-  depends: {
-    common: control.controller,
-    webhook: controlWebhook.controller,
-    reset: resetScenario.controller,
-    plan: setPlan.controller,
-  },
-  async run({ common, reset, webhook, plan }, ctx) {
-    if (ctx.input.route === "POST /control/scenario")
-      return reset.run({ rawInput: ctx.input.body });
-    if (ctx.input.route === "POST /control/payment") return plan.run({ rawInput: ctx.input.body });
-    if (ctx.input.route === "POST /control/webhooks")
-      return webhook.run({ rawInput: ctx.input.body });
-    return common.run({ rawInput: ctx.input });
-  },
-});
-const route = operation({
-  label: "payment route",
-  input: requestSchema,
-  depends: {
-    create: createIntent.controller,
-    confirm: confirm.controller,
-    refund: refund.controller,
-    state,
-    control: paymentControl.controller,
-  },
-  async run({ create, confirm, refund, state, control }, ctx) {
-    if (ctx.input.path.startsWith("/control/")) return control.run({ rawInput: ctx.input });
-    if (ctx.input.route === "POST /v1/payment_intents")
-      return create.run({ rawInput: ctx.input.body });
-    if (ctx.input.route === "POST /v1/refunds") return refund.run({ rawInput: ctx.input.body });
-    if (/^POST \/v1\/payment_intents\/[^/]+\/confirm$/.test(ctx.input.route))
-      return confirm.run({ rawInput: ctx.input });
-    const intent = state.intents[ctx.input.path.split("/").at(-1)!];
-    return /^GET \/v1\/payment_intents\/[^/]+$/.test(ctx.input.route) && intent
-      ? reply(200, intent)
-      : rejectPayment("resource_missing", 404);
+const readIntent = operation({
+  label: "read payment intent",
+  input: z.object({ id: z.string() }),
+  depends: { state },
+  run({ state }, ctx) {
+    const intent = state.intents[ctx.input.id];
+    return intent ? reply(200, intent) : rejectPayment("resource_missing", 404);
   },
 });
 /** Live calls belong to this resource; payment data stores only settled wire replies. */
@@ -397,195 +357,178 @@ const inFlight = resource({
     return pending;
   },
 });
-const action = operation({
-  label: "payment API",
-  input: requestSchema,
-  depends: { state: state.controller, route: route.controller, inFlight },
-  async run({ state, route, inFlight }, ctx) {
-    const request = ctx.input;
-    if (!request.key || !request.route.startsWith("POST /v1/"))
-      return route.run({ rawInput: request });
-    const fingerprint = JSON.stringify({ route: request.route, body: request.body });
-    const previous = state.get().keys[request.key];
+/** The key fingerprints are facts supplied by Hono, never operation choices. */
+const intentKey = operation({
+  label: "retain payment reply for key",
+  input: z.object({
+    key: z.string(),
+    fingerprint: z.string(),
+    response: z
+      .object({
+        status: z.number(),
+        body: z.unknown(),
+        headers: z.record(z.string(), z.string()).optional(),
+      })
+      .optional(),
+  }),
+  depends: { state: state.controller, inFlight },
+  async run({ state, inFlight }, ctx): Promise<Wire.Reply | undefined> {
+    const { key, fingerprint, response } = ctx.input;
+    if (response) {
+      state.update((current) => ({
+        ...current,
+        keys: { ...current.keys, [key]: { fingerprint, reply: structuredClone(response) } },
+      }));
+      inFlight.get(key)!.resolve(response);
+      inFlight.delete(key);
+      return;
+    }
+    const previous = state.get().keys[key];
     if (previous)
       return previous.fingerprint === fingerprint
         ? { ...previous.reply, headers: { "Idempotent-Replayed": "true" } }
         : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
-    const pending = inFlight.get(request.key);
+    const pending = inFlight.get(key);
     if (pending)
       return pending.fingerprint === fingerprint
         ? { ...(await pending.response), headers: { "Idempotent-Replayed": "true" } }
         : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
-    const responsePromise = route.run({ rawInput: request });
-    inFlight.set(request.key, { fingerprint, response: responsePromise });
-    try {
-      const response = await responsePromise;
-      state.update((current) => ({
-        ...current,
-        keys: {
-          ...current.keys,
-          [request.key!]: { fingerprint, reply: structuredClone(response) },
-        },
-      }));
-      return response;
-    } finally {
-      inFlight.delete(request.key);
-    }
-  },
-});
-const applyRoute = operation({
-  label: "apply route rule",
-  input: z.object({
-    request: requestSchema,
-    revision: z.string().optional(),
-  }),
-  depends: { action: action.controller, rules: rules.controller },
-  async run({ action, rules }, ctx) {
-    const { request, revision } = ctx.input;
-    let selected: Wire.Rule | undefined;
-    rules.update((all) => {
-      const current = all[request.route];
-      if (!revision || current?.revision !== revision) return all;
-      selected = current;
-      return current.saved && current.repeat > 0
-        ? { ...all, [request.route]: { ...current, repeat: current.repeat - 1 } }
-        : all;
+    let resolve!: (reply: Wire.Reply) => void;
+    const responsePromise = new Promise<Wire.Reply>((done) => {
+      resolve = done;
     });
-    let response: Wire.Reply;
-    if (selected?.saved && selected.repeat > 0) response = selected.saved;
-    else if (selected?.status) response = rejectPayment("injected_failure", selected.status);
-    else response = await action.run({ rawInput: request });
-    if (revision)
-      rules.update((all) => {
-        const current = all[request.route];
-        return current?.revision === revision
-          ? { ...all, [request.route]: { ...current, saved: response } }
-          : all;
-      });
-    return response;
-  },
-});
-const delayRoute = operation({
-  label: "delay service route",
-  input: requestSchema,
-  depends: { rules, clock, stop: stopSignal, apply: applyRoute.controller },
-  async run({ rules, clock, stop, apply }, ctx) {
-    const rule = rules[ctx.input.route];
-    const signal = AbortSignal.any([stop, ctx.signal]);
-    let stopped = false;
-    if (rule?.delayMs) {
-      try {
-        await clock.sleep(rule.delayMs, signal);
-        stopped = signal.aborted;
-      } catch (error) {
-        if (!signal.aborted) throw error;
-        stopped = true;
-      }
-    }
-    if (stopped) return rejectPayment("service_stopped", 503);
-    return apply.run({ rawInput: { request: ctx.input, revision: rule?.revision } });
-  },
-});
-const dispatch = operation({
-  label: "serve payment HTTP request",
-  input: requestSchema,
-  depends: {
-    action: action.controller,
-    route: delayRoute.controller,
-    calls: calls.controller,
-    clock,
-    token: controlToken,
-    stop: stopSignal,
-  },
-  async run({ action, route, calls, clock, token, stop }, ctx) {
-    const request = ctx.input;
-    const time = clock.currentTimeMillis();
-    const id = ctx.random.uuid();
-    calls.update((all) => [
-      ...all,
-      {
-        id,
-        kind: request.path.startsWith("/control/") ? "control" : "service",
-        route: request.route,
-        time,
-        status: 0,
-      },
-    ]);
-    const response = request.path.startsWith("/control/")
-      ? request.token === `Bearer ${token}`
-        ? await action.run({ rawInput: request })
-        : reject("unauthorized", 401)
-      : await route.run({ rawInput: request });
-    if (!stop.aborted)
-      calls.update((all) =>
-        all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
-      );
-    return response;
-  },
-});
-const http = resource({
-  label: "payment HTTP listener",
-  depends: { dispatch: dispatch.controller, decode: decodeBody.controller, port, host },
-  async factory({ dispatch, decode, port, host }, ctx) {
-    const server = createServer(async (request, response) => {
-      try {
-        const path = new URL(request.url ?? "/", "http://localhost").pathname;
-        const chunks: Buffer[] = [];
-        for await (const chunk of request) chunks.push(chunk);
-        const body = await decode.run({
-          rawInput: {
-            bytes: Buffer.concat(chunks).toString("utf8"),
-            form:
-              request.headers["content-type"]?.startsWith("application/x-www-form-urlencoded") ??
-              false,
-          },
-        });
-        const result = await dispatch.run({
-          rawInput: {
-            path,
-            route: `${request.method} ${path}`,
-            body,
-            key: z.string().optional().parse(request.headers["idempotency-key"]),
-            token: z.string().optional().parse(request.headers.authorization),
-          },
-        });
-        response.writeHead(result.status, {
-          "content-type": "application/json",
-          ...result.headers,
-        });
-        response.end(JSON.stringify(result.body));
-      } catch (error) {
-        ctx.log.error("HTTP request failed", { error });
-        response.writeHead(500, { "content-type": "application/json" });
-        response.end(JSON.stringify(rejectPayment("internal_error", 500).body));
-      }
-    });
-    server.listen(port, host);
-    await once(server, "listening");
-    ctx.defer(async () => {
-      server.closeAllConnections();
-      await new Promise<void>((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
-      );
-    });
-    const address = server.address();
-    if (address === null || typeof address === "string")
-      failFlightService({ reason: "The listener has no TCP address" });
-    return { url: `http://${host}:${address.port}` };
+    inFlight.set(key, { fingerprint, response: responsePromise, resolve });
   },
 });
 
-/** Startup belongs to Core so a failed listener closes its root and all built resources. */
+/** Startup supplies the scope to middleware; the resource owns the listener. */
 export const app = extension({
   label: "start payment app",
   hooks: {
     async start({ scope, next }) {
       await next();
-      await scope.run(resetScenario, {
-        rawInput: { name: "default" },
-      });
+      await scope.run(resetScenario, { rawInput: { name: "default" } });
       scope.resolve(webhooks);
-      return scope.resolve(http);
+      const http = scope.resolve(web);
+      const shared = scope.resolve(middleware);
+      http.use("*", async (c, next) => {
+        c.set("scope", scope);
+        c.set("payment", true);
+        c.set("control", false);
+        await next();
+      });
+      http.use("/control/:rest{.*}", async (c, next) => {
+        c.set("control", true);
+        await next();
+      });
+      http.use("*", shared.log);
+      http.use("/control/:rest{.*}", shared.token);
+      http.use("*", shared.body);
+      http.use("*", shared.rule);
+      http.use("/v1/:rest{.*}", async (c, next) => {
+        const key = c.req.header("idempotency-key");
+        if (!key || c.req.method !== "POST") return next();
+        const fingerprint = JSON.stringify({
+          route: `${c.req.method} ${c.req.path}`,
+          body: c.var.body,
+        });
+        const result = await c.var.scope.run(intentKey, { rawInput: { key, fingerprint } });
+        if (result)
+          return new Response(JSON.stringify(result.body), {
+            status: result.status,
+            headers: result.headers,
+          });
+        await next();
+        await c.var.scope.run(intentKey, {
+          rawInput: {
+            key,
+            fingerprint,
+            response: {
+              status: c.res.status,
+              body: await c.res.clone().json(),
+              headers: Object.fromEntries(c.res.headers),
+            },
+          },
+        });
+      });
+      http.on("HEAD", "*", (c) => c.notFound());
+      http.post("/control/scenario", async (c) => {
+        const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/control/clock", (c) => {
+        const result = c.var.scope.run(setClock, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.get("/control/calls", (c) => {
+        const result = c.var.scope.run(readCalls);
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/control/routes", (c) => {
+        const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
+        const { route: name, ...settings } = parsed.success ? parsed.data : {};
+        const result = c.var.scope.run(setRoute, { rawInput: { name, ...settings } });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/v1/payment_intents", (c) => {
+        const result = c.var.scope.run(createIntent, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/v1/payment_intents/:id/confirm", (c) => {
+        const result = c.var.scope.run(confirm, { rawInput: { id: c.req.param("id") } });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.get("/v1/payment_intents/:id", (c) => {
+        const result = c.var.scope.run(readIntent, { rawInput: { id: c.req.param("id") } });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/v1/refunds", (c) => {
+        const result = c.var.scope.run(refund, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/control/payment", (c) => {
+        const result = c.var.scope.run(setPlan, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.post("/control/webhooks", (c) => {
+        const result = c.var.scope.run(controlWebhook, { rawInput: c.var.body });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: result.headers,
+        });
+      });
+      http.notFound((c) => {
+        if (c.var.control) return c.json(reject("not_found", 404).body, 404);
+        return c.json(rejectPayment("resource_missing", 404).body, 404);
+      });
+      return scope.resolve(listener);
     },
   },
 });
