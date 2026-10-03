@@ -242,9 +242,12 @@ POST /air/offer_requests
 ```
 
 The reply has `data.id` and `data.offers`.
+Offer request IDs start with `orq_`.
 Economy is the default cabin.
 One adult is the default passenger.
 The trial counts every passenger as one seat.
+Search accepts `adult`, `child`, and `infant_without_seat` passenger kinds.
+Other passenger kinds return a named Duffel error.
 The offers include saver, standard, and flex fares.
 Search checks the route, date, cabin, and the whole group's seat count.
 Each slice has one segment with departure and arrival times.
@@ -283,6 +286,7 @@ An order has `payment_status` with four fields:
 and `price_guarantee_expires_at`.
 A hold starts with `awaiting_payment: true` and a deadline.
 It expires at that time and frees its seats.
+A business hold frees its own cabin when it expires.
 An expired hold does not undo a later grader seat edit.
 An instant order has `awaiting_payment: false` and `paid_at`.
 Orders have no top-level `status` or `payment_required_by`.
@@ -459,6 +463,8 @@ POST /control/flights
 Price changes affect the chosen fare class.
 Seat changes affect the cabin and all its fares.
 All stock is loaded before HTTP starts.
+Stock changes keep fields they do not set.
+The stock change reply echoes the accepted fields, including the default saver fare.
 Unknown flight IDs return `flight_not_found`, with HTTP 404.
 
 Payment also accepts the `payment-failed` scenario.

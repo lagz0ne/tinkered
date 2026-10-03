@@ -38,7 +38,6 @@ export declare namespace Payment {
     at: number;
     copies: number;
     outcome: "succeeded" | "failed";
-    sent: boolean;
   };
   type Refund = {
     id: string;
@@ -149,9 +148,10 @@ const sendWebhook = operation({
     }
   },
 });
+/** New event IDs each get one timer; creation and reset keep each event with its intent. */
 const finishDelivery = operation({
   label: "send payment webhook",
-  input: z.object({ id: z.string(), intentId: z.string(), at: z.number() }),
+  input: z.object({ id: z.string() }),
   depends: {
     state: state.controller,
     clock,
@@ -161,9 +161,9 @@ const finishDelivery = operation({
   async run({ state, clock, secret, send }, ctx) {
     const current = structuredClone(state.get());
     const delivery = current.deliveries[ctx.input.id];
-    const intent = current.intents[ctx.input.intentId];
-    if (!delivery || !intent || delivery.sent) return;
-    delivery.sent = true;
+    if (!delivery) return;
+    const intent = current.intents[delivery.intentId];
+    delete current.deliveries[delivery.id];
     intent.status = delivery.outcome === "succeeded" ? "succeeded" : "requires_payment_method";
     if (delivery.outcome === "succeeded") intent.latest_charge = `ch_${intent.id}`;
     state.set(current);
@@ -196,7 +196,7 @@ const deliver = operation({
       if (!signal.aborted) throw error;
       return;
     }
-    if (!signal.aborted) await finish.run({ rawInput: ctx.input });
+    if (!signal.aborted) await finish.run({ rawInput: { id: ctx.input.id } });
   },
 });
 const webhooks = resource({
@@ -206,7 +206,7 @@ const webhooks = resource({
     ctx.defer(
       state.watch((next, previous) => {
         const delivery = Object.values(next.deliveries).find(
-          (entry) => !entry.sent && !previous.deliveries[entry.id],
+          (entry) => !previous.deliveries[entry.id],
         );
         if (delivery) return deliver.run({ rawInput: delivery });
       }),
@@ -255,7 +255,6 @@ const confirm = operation({
         at: clock.currentTimeMillis() + (plan.mode === "late" ? plan.delayMs : webhookDelayMs),
         copies: plan.mode === "twice" ? 2 : 1,
         outcome: plan.outcome,
-        sent: false,
       };
     }
     state.set(current);
@@ -318,7 +317,7 @@ const controlWebhook = operation({
     const intent = current.intents[parsed.data.intent_id];
     if (!intent) return rejectPayment("resource_missing", 404);
     for (const delivery of Object.values(current.deliveries).filter(
-      (entry) => entry.intentId === intent.id && !entry.sent,
+      (entry) => entry.intentId === intent.id,
     )) {
       delete current.deliveries[delivery.id];
     }
@@ -331,7 +330,6 @@ const controlWebhook = operation({
         at: clock.currentTimeMillis() + (plan.mode === "late" ? plan.delayMs : 0),
         copies: plan.mode === "twice" ? 2 : 1,
         outcome: plan.outcome,
-        sent: false,
       };
     }
     state.set(current);

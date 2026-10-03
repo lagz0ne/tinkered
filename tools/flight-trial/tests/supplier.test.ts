@@ -4,6 +4,7 @@ import { z } from "zod";
 
 const offersSchema = z.object({
   data: z.object({
+    id: z.string().startsWith("orq_"),
     offers: z.array(
       z.object({
         id: z.string().startsWith("off_"),
@@ -247,7 +248,7 @@ test("price changes make a searched offer stale", async () => {
     amount_cents: 1,
   });
   expect(await (await fetch(`${url}/air/offers/${offer.id}`)).json()).toMatchObject({
-    data: { total_amount: "0.01" },
+    data: { total_amount: "0.01", available_seats: offer.available_seats },
   });
   const response = await post(url, "/air/orders", {
     data: { selected_offers: [offer.id], type: "instant" },
@@ -468,16 +469,45 @@ test("the grader can change a loaded flight before its first search", async () =
     seats: 0,
   });
   expect(changed.status).toBe(200);
+  expect(await changed.json()).toEqual({
+    data: { flight_id: flightId, cabin_class: "economy", fare_class: "saver", seats: 0 },
+  });
+  expect((await search(url)).some((offer) => offer.flight_id === flightId)).toBe(false);
+  const missing = await post(url, "/control/flights", {
+    flight_id: "missing-flight",
+    cabin_class: "economy",
+    seats: 1,
+  });
+  expect(missing.status).toBe(404);
+  expect(await missing.json()).toEqual({
+    errors: [
+      { type: "invalid_request_error", code: "flight_not_found", title: "flight_not_found" },
+    ],
+  });
+  expect(
+    (
+      await post(url, "/control/flights", {
+        flight_id: flightId,
+        cabin_class: "economy",
+        amount_cents: 123,
+      })
+    ).status,
+  ).toBe(200);
   expect((await search(url)).some((offer) => offer.flight_id === flightId)).toBe(false);
   expect(
     (
       await post(url, "/control/flights", {
-        flight_id: "missing-flight",
+        flight_id: flightId,
         cabin_class: "economy",
-        seats: 1,
+        seats: 2,
       })
     ).status,
-  ).toBe(404);
+  ).toBe(200);
+  expect(
+    (await search(url)).filter(
+      (offer) => offer.flight_id === flightId && offer.fare_class === "saver",
+    ),
+  ).toMatchObject([{ available_seats: 2, total_amount: "1.23" }]);
 });
 
 test("a business group pays its fare for each passenger and uses only that cabin", async () => {
@@ -1201,3 +1231,93 @@ test("stored offer count and state bytes stay bounded after many searches", asyn
   ).data;
   expect(after).toEqual({ offers: 1024, bytes: before.bytes });
 }, 20000);
+
+test("search accepts supported passenger kinds and rejects an unknown kind", async () => {
+  const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
+    await import("../src/index.ts");
+  const stop = new AbortController();
+  const scope = createScope({
+    signal: stop.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stop.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop, closed: scope.closed });
+  await scope.ready;
+  const { url } = scope.resolve(supplierApp);
+  const supported = await post(url, "/air/offer_requests", {
+    data: {
+      ...searchBody.data,
+      passengers: [{ type: "adult" }, { type: "child" }, { type: "infant_without_seat" }],
+    },
+  });
+  expect(supported.status).toBe(201);
+  expect(offersSchema.parse(await supported.json()).data.offers.length).toBeGreaterThan(0);
+  const unknown = await post(url, "/air/offer_requests", {
+    data: { ...searchBody.data, passengers: [{ type: "visitor" }] },
+  });
+  expect(unknown.status).toBe(400);
+  expect(await unknown.json()).toEqual({
+    errors: [
+      {
+        type: "invalid_request_error",
+        code: "invalid_offer_request",
+        title: "invalid_offer_request",
+      },
+    ],
+  });
+});
+
+test("an expired business hold restores its cabin for the default one passenger", async () => {
+  const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
+    await import("../src/index.ts");
+  const stop = new AbortController();
+  const scope = createScope({
+    signal: stop.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stop.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop, closed: scope.closed });
+  await scope.ready;
+  const { url } = scope.resolve(supplierApp);
+  expect((await post(url, "/control/clock", { now: 10000 })).status).toBe(200);
+  expect((await post(url, "/control/scenario", { name: "last-seat" })).status).toBe(200);
+  const body = { data: { slices: searchBody.data.slices, cabin_class: "business" } };
+  const offer = offersSchema
+    .parse(await (await post(url, "/air/offer_requests", body)).json())
+    .data.offers.at(0)!;
+  expect(offer.cabin_class).toBe("business");
+  const held = await post(url, "/air/orders", {
+    data: { selected_offers: [offer.id], type: "hold" },
+  });
+  expect(held.status).toBe(201);
+  expect(orderSchema.parse(await held.json()).data.payment_status.payment_required_by).toBe(
+    "1970-01-01T00:00:11.000Z",
+  );
+  const taken = offersSchema.parse(await (await post(url, "/air/offer_requests", body)).json());
+  expect(taken.data.offers.filter((quote) => quote.flight_id === offer.flight_id)).toEqual([]);
+  expect((await post(url, "/control/clock", { advanceMs: 1000 })).status).toBe(200);
+  await expect
+    .poll(async () => {
+      const quotes = offersSchema.parse(
+        await (await post(url, "/air/offer_requests", body)).json(),
+      );
+      return quotes.data.offers
+        .filter((quote) => quote.flight_id === offer.flight_id)
+        .map((quote) => quote.available_seats);
+    })
+    .toEqual([1, 1, 1]);
+});

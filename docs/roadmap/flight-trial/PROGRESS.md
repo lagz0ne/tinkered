@@ -963,3 +963,49 @@ Logs remain under `tools/flight-trial/.logs/`.
 The corrected check passed: exit 0, `lift-entry-check-green.log`.
 The full package passed all 83 tests: exit 0, `lift-entry-full-test-green.log`.
 TSDoc passed: exit 0, `lift-entry-tsdoc.log`.
+
+The targeted entry diagnostic confirms that Stryker runs both new tests.
+It caught 29 of 56 entry cases; only six lack coverage now.
+Payment entry: 14 killed, 11 survivors, three without coverage.
+Supplier entry: 15 killed, ten survivors, three without coverage.
+There are no runner errors or timeouts.
+The subset score is 51.79 and exit 1; this is not the full package gate.
+Log: `lift-entry-mutate-fixed.log`; report: `lift-entry-mutation.json`.
+The first CLI brace pattern was split at its comma and found no files.
+That failed diagnostic is `lift-entry-mutate.log`, exit 1.
+The retry uses `services/*/main.ts`.
+No stored mutation setting changed.
+The green entry step is committed as `af26d518`.
+
+### Mutation lift: supplier promises and dead payment state
+
+Supplier had the most surviving cases, at 76.
+The HTTP proofs now require the offer request ID prefix,
+the named missing-flight error, and the accepted stock-change reply.
+Price-only changes preserve seats; seat-only changes preserve the price.
+Two new tests cover supported passenger kinds and business hold expiry.
+The latter also checks the default one-person search after a seat is taken.
+The README states those existing wire promises.
+
+Payment delivery state held a redundant `sent` flag.
+Only confirmation and manual control add event IDs.
+Both add each event beside its existing intent in one state write.
+Reset clears both maps in one write.
+The watch starts one timer for each new event ID.
+So the completion operation needs only the event ID and a missing-event check.
+Cancellation can remove the event while its timer waits; that check remains.
+The intent-missing and already-sent checks have no live path.
+Completed events now leave the pending map; the call log retains the send record.
+The unused flag and its tests in the watch and cancellation filter are removed.
+Impact is inside payment's producers, watch, wait, and completion operations.
+No HTTP shape changes and no public caller reads that private state.
+
+Workspace build: exit 0, `lift-seam-build.log`.
+Workspace check: exit 0, `lift-seam-check.log`; zero errors and 28 warnings.
+All 85 package tests passed: exit 0, `lift-seam-test.log`.
+All workspace tests passed: exit 0, `lift-final-workspace-test.log`.
+Strict style passed: exit 0, `lift-final-style.log`.
+Prose passed: exit 0, `lift-final-prose.log`.
+All 16 validation lanes passed: exit 0, `lift-final-validate.log`.
+The four-process HTTP proof passed: exit 0, `lift-final-process.log`.
+Jev test review passed: exit 0, `lift-final-jev-tests.log`; no flags in 28 tests.
