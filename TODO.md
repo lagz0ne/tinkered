@@ -72,15 +72,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   overlapping flights appear at two suppliers; pinned source hashes match.
   [Brief](docs/roadmap/flight-trial/DATA-BRIEF.md).
 
-- **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
-  Owner: lead (Claude, Start scaffold session); Sol refine writer.
-  Worktree: `../tinkered-start-refine`, branch `start/refine`.
-  Next: lead lands; Opus reviewer READY at `67324417`.
-  Verify: a waste test fails before and passes after;
-  a clean shadcn consumer installs, builds, and tests with no manual step;
-  the compose stack signs up, saves a todo, and Mailpit shows the mail.
-  [Brief](docs/roadmap/start-scaffold/REFINE-BRIEF.md).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -97,6 +88,16 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `67324417`.
+  Stream checks login once per change; sign-in and redirect load data once.
+  Proof mode left the app; dev runs on compose (Postgres, Mailpit, Victoria).
+  Ships tests, test scripts, project checks, `AGENTS.md`, and five skills.
+  Proof: waste tests fail on old code and pass now; 35 app tests;
+  a clean shadcn project installs, builds, and passes 35 tests from tarballs;
+  compose sign-up, saved todo, and Mailpit mail pass; validate passes.
+  [Proof](docs/roadmap/start-scaffold/REFINE-PROOF.md).
 
 - **start/seam** — the fixed scaffold reaches user code only through two seams.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `2bc502be`.
