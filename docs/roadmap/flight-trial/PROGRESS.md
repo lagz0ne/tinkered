@@ -1084,3 +1084,15 @@ Green: `land-offer-green-fixed.log`, exit 0; 86 tests.
 Build, check, and prose passed with exit 0.
 Logs: `land-offer-build.log`, `land-offer-check-fixed.log`,
 and `land-offer-prose.log`, under `tools/flight-trial/.logs/`.
+
+### Landing step: plain error values
+
+Both registry classes are replaced by plain `Error` values.
+Each carries a `kind` and the same typed payload as before.
+The package `isError` guard narrows by `kind`.
+Callers remain the fixture reader, both HTTP listeners,
+and the public data failure test.
+No class remains in the service code or error registry.
+Build, check, and all 86 tests passed with exit 0.
+Logs: `land-errors-build.log`, `land-errors-check.log`,
+and `land-errors-test.log`, under `tools/flight-trial/.logs/`.

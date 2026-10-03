@@ -6,6 +6,8 @@ It takes at most three plain values.
 Each value is the smallest piece the function needs.
 Each parameter has a TSDoc line with its source and use.
 No service has a class.
+The package error registry also uses plain errors with a `kind` and payload.
+Its `isError` guard follows the Start scaffold; it needs no error class.
 
 Services live in the graph of tags, data, resources,
 operations, and extensions.
