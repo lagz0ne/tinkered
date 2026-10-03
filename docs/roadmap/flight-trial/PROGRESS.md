@@ -2618,3 +2618,11 @@ The planted break exited 1 on
 Own checks, scaffold, strict plain check, and Jev exited 0.
 The nine saved rows now point to `reference-trusted-final`.
 Round 4 is running.
+
+Trusted browser proof: round 3 passed twice with exit 0.
+Its planted price-check break exited 1 on
+`r3 a changed price is refused before any hold order`.
+Own checks, scaffold, plain check, and Jev exited 0 in all three runs.
+Both good browser passes report 10/10 checks.
+Logs: `reference-trusted-final/round-3/` under the writer log folder.
+Round 4 is running.
