@@ -291,3 +291,42 @@ The workspace already allows the esbuild build step for validate.
 No workspace config change was needed.
 The mutation lane stays with the lead at landing.
 Core feedback: none.
+
+### Landing mutation lift
+
+The lead rebased the branch onto `origin/main`.
+The three earlier fix commits now end at `dbf8d072`.
+The lead's first lane scored 32.02 percent.
+Log: `/tmp/flight-data-land-mutate.log`.
+
+The tests loaded the reader and generator before the tests started.
+Those reads now happen inside each test.
+New public seam tests cover the saved seed 97 JSON bytes,
+one known flight, all three supplier prices, unknown suppliers,
+and corrupt or wrong-shaped reader input.
+
+The reader has a gzip-byte overload for real input:
+
+```ts
+const reader = await readFlights(gzipBytes);
+```
+
+Assumption: this requested bad-input behavior needs a byte input seam.
+It does not restore the old unused file-path argument.
+Tests borrow bytes from their own fixtures; saved data is never changed.
+The reader borrows those bytes and owns the parsed records.
+Unknown supplier names return an empty list.
+Corrupt gzip is now a named error, as corrupt JSON already was.
+Error payloads keep the file and reason.
+The unused error message format is gone.
+The missing-airline-code fallback is gone: all pinned codes have two characters.
+No data, threshold, or mutation file list changed.
+
+Working-step proof, under `tools/flight-trial/.logs/`:
+
+- Workspace build: exit 0, `lift-build-step.log`.
+- Check: exit 0, `lift-check-step.log`; 28 warnings.
+- Reader and generator tests: exit 0, `lift-test-step.log`; 31 pass.
+- Source hashes: exit 0, `lift-sources-step.log`.
+- Seed JSON hashes: exit 0, `lift-seeds-step.log`.
+- Strict style census: exit 0, `lift-style-step.log`.

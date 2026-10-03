@@ -11,12 +11,12 @@ export declare namespace Flights {
   type Cabin = z.infer<typeof cabinSchema>;
   type Supplier = z.infer<typeof supplierSchema>;
   type Data = z.infer<typeof dataSchema>;
-  type Query = { supplier: Supplier["id"]; origin: string; destination: string; date: string };
+  type Query = { supplier: string; origin: string; destination: string; date: string };
   type Offer = Flight & { offerId: string; supplier: Supplier["id"]; currency: "USD" };
   /** Each result is a deep copy. The service owns it and may change fares and seats. */
   type Reader = {
     search(query: Query): Offer[];
-    offers(supplier: Supplier["id"]): Offer[];
+    offers(supplier: string): Offer[];
   };
 }
 
@@ -38,10 +38,18 @@ async function readSource(): Promise<Flights.Source> {
 }
 
 /** Dates are UTC departure dates. Loading needs no network or current clock. */
-export async function readFlights(): Promise<Flights.Reader> {
+export function readFlights(): Promise<Flights.Reader>;
+export function readFlights(bytes: Uint8Array): Promise<Flights.Reader>;
+export async function readFlights(bytes?: Uint8Array): Promise<Flights.Reader> {
   const file = new URL("flights.json.gz", dataDirectory);
-  const bytes = await readFile(file);
-  const parsed = dataSchema.safeParse(readJson(gunzipSync(bytes), file.href));
+  const compressed = bytes ?? (await readFile(file));
+  let json: Uint8Array;
+  try {
+    json = gunzipSync(compressed);
+  } catch {
+    return failFlightData({ file: file.href, reason: "Invalid gzip" });
+  }
+  const parsed = dataSchema.safeParse(readJson(json, file.href));
   if (!parsed.success) failFlightData({ file: file.href, reason: parsed.error.message });
   const data = parsed.data;
   return {
@@ -157,11 +165,6 @@ function createSuppliers(airlines: Flights.Source["airlines"]): Flights.Supplier
   ];
 }
 
-function createFlightNumber(airline: Flights.Source["airlines"][number], number: number): string {
-  const code = airline.code === "\\N" || airline.code === "" ? `OF${airline.id}` : airline.code;
-  return `${code}${number}`;
-}
-
 /** Returns owned data. The uint32 seed replays Core's mulberry32 stream. */
 export async function generateFlights(seed: number): Promise<Flights.Data> {
   const source = await readSource();
@@ -186,7 +189,7 @@ export async function generateFlights(seed: number): Promise<Flights.Data> {
         flights.push({
           id: `${route.airlineId}-${route.origin}-${route.destination}-${date}-${departure + 1}`,
           airlineId: route.airlineId,
-          flightNumber: createFlightNumber(airline, routeIndex * 2 + departure + 1),
+          flightNumber: `${airline.code}${routeIndex * 2 + departure + 1}`,
           origin: route.origin,
           destination: route.destination,
           date,

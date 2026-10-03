@@ -17,6 +17,9 @@ From the workspace root:
 ```
 
 The default seed is 97.
+Seed 97 produces the saved flight JSON bytes.
+It gives the known flight its fixed fares, seats, and times.
+Each supplier applies its exact markup and fee.
 A seed is an integer from 0 through 4294967295.
 The same seed writes the same JSON bytes; another seed changes them.
 Compression bytes can differ across systems; JSON hashes are the proof.
@@ -32,6 +35,28 @@ node tools/flight-trial/scripts/generate.mjs \
 
 Import `readFlights` and `Flights` from `flight-trial`.
 The reader loads the saved data once.
+It can also read gzip bytes supplied by its caller:
+
+```ts
+import { readFile } from "node:fs/promises";
+import { readFlights } from "flight-trial";
+
+const path = "tools/flight-trial/data/flights.json.gz";
+const reader = await readFlights(await readFile(path));
+```
+
+The reader borrows the bytes and keeps its own parsed data.
+Corrupt gzip and JSON throw the named error `InvalidFlightData`.
+Its payload has the file and reason.
+Reasons for corrupt input are Invalid gzip and Invalid JSON.
+Wrong-shaped data reports the field in that reason.
+The reader rejects currency other than USD, missing flight data,
+unknown supplier names in saved data, and unknown cabins or fare classes.
+It rejects negative or fractional counts and prices,
+nonpositive or fractional airline IDs, and seeds outside the 32 bit range.
+It accepts zero counts and both seed bounds.
+It rejects invalid dates and timestamps,
+and airport codes with extra or lowercase letters.
 It needs no network and no current clock.
 Search with exact airport codes and UTC departure dates:
 
@@ -55,6 +80,8 @@ Offers lists every flight the supplier carries.
 Offers uses the same prices as search.
 A known route returns only matching flights.
 A route with no service returns no flights.
+An unknown supplier returns no offers.
+A supplier without matching airlines returns no offers.
 The same flight appears at two suppliers with their own prices.
 A nearly full flight has one to three seats in each cabin.
 No flight lands before it leaves.
@@ -87,7 +114,7 @@ Each cabin has saver, standard, and flex prices in USD cents.
 - Supplier B adds 4.5 percent.
 - Supplier C adds 1 percent plus 500 cents.
 - Each airline is at two suppliers, by sorted airline ID.
-- Missing airline codes use OF plus the OpenFlights ID.
+- All kept airlines in the pinned source have two-character codes.
 - Flight numbers repeat daily for the same route and departure slot.
 - Flight numbers have one to four digits after the airline code.
 - Flight numbers are unique per airline and date.

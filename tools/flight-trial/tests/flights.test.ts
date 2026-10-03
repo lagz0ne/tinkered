@@ -1,11 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { generateFlights, readFlights, type Flights } from "../src/index.ts";
 
-const reader = await readFlights();
-const generated = await generateFlights(97);
 const suppliers: Flights.Supplier["id"][] = ["supplier-a", "supplier-b", "supplier-c"];
-const allOffers = suppliers.flatMap((supplier) => reader.offers(supplier));
-const flights = [...new Map(allOffers.map((offer) => [offer.id, offer])).values()];
 const query: Flights.Query = {
   supplier: "supplier-a",
   origin: "LHR",
@@ -13,7 +9,13 @@ const query: Flights.Query = {
   date: "2027-01-15",
 };
 
-test("a known route returns only matching flights", () => {
+async function readAllOffers(): Promise<Flights.Offer[]> {
+  const reader = await readFlights();
+  return suppliers.flatMap((supplier) => reader.offers(supplier));
+}
+
+test("a known route returns only matching flights", async () => {
+  const reader = await readFlights();
   const offers = reader.search(query);
   expect(offers.length).toBeGreaterThan(0);
   for (const offer of offers) {
@@ -26,7 +28,8 @@ test("a known route returns only matching flights", () => {
   }
 });
 
-test("the same flight appears at two suppliers with their own prices", () => {
+test("the same flight appears at two suppliers with their own prices", async () => {
+  const reader = await readFlights();
   const a = reader.search(query).find((offer) => offer.airlineId === 1355);
   const c = reader.search({ ...query, supplier: "supplier-c" }).find((offer) => offer.id === a?.id);
   if (!a || !c) throw new Error("Expected a shared British Airways flight");
@@ -39,7 +42,8 @@ test("the same flight appears at two suppliers with their own prices", () => {
   );
 });
 
-test("a nearly full flight has one to three seats in each cabin", () => {
+test("a nearly full flight has one to three seats in each cabin", async () => {
+  const allOffers = await readAllOffers();
   const offer = allOffers.find((entry) => entry.cabins.every((cabin) => cabin.seatsAvailable <= 3));
   if (!offer) throw new Error("Expected a nearly full flight in the supplier's offers");
   for (const cabin of offer.cabins) {
@@ -48,14 +52,16 @@ test("a nearly full flight has one to three seats in each cabin", () => {
   }
 });
 
-test("no flight lands before it leaves", () => {
+test("no flight lands before it leaves", async () => {
+  const allOffers = await readAllOffers();
   const badOfferIds = allOffers
     .filter((offer) => Date.parse(offer.arrivesAt) <= Date.parse(offer.departsAt))
     .map((offer) => offer.offerId);
   expect(badOfferIds).toEqual([]);
 });
 
-test("changing an offer does not change later reads", () => {
+test("changing an offer does not change later reads", async () => {
+  const reader = await readFlights();
   const offers = reader.offers(query.supplier);
   const before = structuredClone(offers);
   for (const offer of offers) {
@@ -75,11 +81,14 @@ test("changing an offer does not change later reads", () => {
   );
 });
 
-test("a route with no service returns no flights", () => {
+test("a route with no service returns no flights", async () => {
+  const reader = await readFlights();
   expect(reader.search({ ...query, destination: "ZZZ" })).toEqual([]);
 });
 
-test("offers lists every flight the supplier carries", () => {
+test("offers lists every flight the supplier carries", async () => {
+  const reader = await readFlights();
+  const generated = await generateFlights(97);
   for (const supplier of generated.suppliers) {
     const expectedIds = generated.flights
       .filter((flight) => supplier.airlineIds.includes(flight.airlineId))
@@ -91,7 +100,8 @@ test("offers lists every flight the supplier carries", () => {
   }
 });
 
-test("offers uses the same prices as search", () => {
+test("offers uses the same prices as search", async () => {
+  const reader = await readFlights();
   const matching = reader
     .offers(query.supplier)
     .filter(
@@ -103,7 +113,8 @@ test("offers uses the same prices as search", () => {
   expect(matching).toEqual(reader.search(query));
 });
 
-test("flight numbers repeat daily for the same route and departure slot", () => {
+test("flight numbers repeat daily for the same route and departure slot", async () => {
+  const flights = [...new Map((await readAllOffers()).map((offer) => [offer.id, offer])).values()];
   const firstDay = new Map(
     flights
       .filter((flight) => flight.date === "2027-01-15")
@@ -119,14 +130,16 @@ test("flight numbers repeat daily for the same route and departure slot", () => 
   expect(changedIds).toEqual([]);
 });
 
-test("flight numbers have one to four digits after the airline code", () => {
+test("flight numbers have one to four digits after the airline code", async () => {
+  const flights = [...new Map((await readAllOffers()).map((offer) => [offer.id, offer])).values()];
   const badIds = flights
     .filter((flight) => !/^[A-Z0-9]{2}[1-9][0-9]{0,3}$/.test(flight.flightNumber))
     .map((flight) => flight.id);
   expect(badIds).toEqual([]);
 });
 
-test("flight numbers are unique per airline and date", () => {
+test("flight numbers are unique per airline and date", async () => {
+  const flights = [...new Map((await readAllOffers()).map((offer) => [offer.id, offer])).values()];
   const seen = new Set<string>();
   const duplicateIds: string[] = [];
   for (const flight of flights) {

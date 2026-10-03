@@ -7,7 +7,7 @@ class FlightDataError extends Error {
   payload: FlightDataErrors.Payload;
 
   constructor(payload: FlightDataErrors.Payload) {
-    super(`${payload.file}: ${payload.reason}`);
+    super(payload.reason);
     this.payload = payload;
   }
 }
