@@ -48,27 +48,27 @@ Every broken run passed scaffold, plain, and Jev checks.
 ## Workspace gates after the rebase
 
 All log names below start at `tools/writer-trial/.logs/`.
-The full chain is `takeover-final-gates.log`, exit 0.
+The latest chain is `hono-workspace-gates.log`, exit 0, on `0da81a82`.
 
-- Install: 0, `final-install.log`.
-- Build: 0, `final-build.log`.
-- `vp check`: 0, `final-check.log`.
+- Install: 0, `hono-final-install.log`.
+- Build: 0, `hono-final-build.log`.
+- `vp check`: 0, `hono-final-check.log`.
   Zero errors and 28 warnings.
-- All package tests: 0, `final-tests.log`.
+- All package tests: 0, `hono-final-tests.log`.
   All nine tasks pass.
-- Harness tests: 0, `final-writer-tests.log`.
+- Harness tests: 0, `hono-final-writer-tests.log`.
   All 79 tests pass.
-- Prose: 0, `final-prose.log`.
-- `pnpm validate`: 0, `final-validate.log`.
+- Prose: 0, `hono-final-prose.log`.
+- `pnpm validate`: 0, `hono-final-validate.log`.
   All 16 lanes pass.
-- Rebase: 0, `takeover-rebase-continue-3.log`.
+- Latest rebase: 0, `hono-rebase-continue-2.log`.
   Earlier stops and their merge conflicts remain in the rebase logs.
 - Jev preflight: 0, `takeover-jev-preflight.log`.
   No file flags; advice on 24 units was checked against saved labels.
 - New Jev labels: 0, `takeover-jev-labels.log`.
   Six false labels explain unchanged starter code.
 - Strict style census: 0, `takeover-style.log`.
-- Scope and byte check: 0, `takeover-rebase-scope.log`.
+- Scope and byte check: 0, `hono-rebase-scope.log`.
   Main is an ancestor; proved trial files match their prior bytes.
 
 ## Image, stage, and isolation proof

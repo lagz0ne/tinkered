@@ -2749,3 +2749,13 @@ It runs the same own, teacher, scaffold, plain, and Jev gates.
 It selects only `pass-1` for each round, with no planted break.
 The default still runs two passes and a named break per round.
 The Hono run uses a fresh `reference-hono-final` proof folder.
+
+The Hono follow-up workspace gate chain exited 0.
+Install, build, check, all package tests, harness tests, prose,
+and `pnpm validate` each exited 0 on `0da81a82`.
+The check reports zero errors and 28 warnings in 590 files.
+All nine package tasks, 79 harness tests, and 16 validation lanes passed.
+Log: `tools/writer-trial/.logs/hono-workspace-gates.log`.
+The first runner check found formatting in the generated config;
+formatting was fixed before the green check and the image commit.
+The five-round Hono reference run is still running.
