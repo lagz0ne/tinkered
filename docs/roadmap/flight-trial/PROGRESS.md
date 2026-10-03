@@ -2646,3 +2646,19 @@ Its round 3 proof commit `21b7e1af` is kept.
 The takeover writer asked it to leave edits and the rebase alone,
 keep PID 640336 alive, and report that process's final exit.
 No duplicate reference process was started.
+
+Trusted browser proof: round 5 passed twice with exit 0.
+Its planted mail-retry break exited 1 on
+`r5 failed mail keeps the booking valid and retry sends once`.
+Own checks, scaffold, plain check, and Jev exited 0 in all three runs.
+Both good browser passes report 21/21 checks.
+Logs: `reference-trusted-final/round-5/` under the writer log folder.
+
+PID 640336 finished with exit 0.
+The prior writer captured and reported that exit from its running command.
+The full log ends with `PASS full reference gates and named planted breaks`.
+The saved-result check also exited 0:
+`tools/writer-trial/.logs/takeover-reference-verified.log`.
+It checked ten full passes, five named breaks, image IDs, and frozen files.
+All 15 rows are now in `INTEGRATION-RESULTS.json`.
+Next: rebase onto main, run all workspace gates, then remove old proofs.
