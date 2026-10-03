@@ -10,6 +10,17 @@ export const trialDir = fileURLToPath(new URL(".", import.meta.url));
 export const repoDir = resolve(trialDir, "../..");
 
 export const SUITES = {
+  flight: {
+    rounds: [1, 2, 3, 4, 5],
+    tasks: [
+      "flight/01-search.md",
+      "flight/02-metasearch.md",
+      "flight/03-hold.md",
+      "flight/04-pay.md",
+      "flight/05-email.md",
+    ],
+    guidelines: ["flight-guidelines.md"],
+  },
   booking: {
     rounds: [1, 2, 3, 4, 5],
     // Cumulative: round N stages packets 1..N.
@@ -92,6 +103,10 @@ export const taskRounds = (suite) => roundsFor(suite);
 
 // A fresh-round suite stages one task file, named as its frozen source.
 export const taskFileFor = (suite, round) => {
+  if (suite === "flight") {
+    if (!roundsFor(suite).includes(round)) throw new Error(`Suite flight has no round ${round}`);
+    return SUITES.flight.tasks[round - 1].split("/").pop();
+  }
   if (suite !== "booking" && SUITES[suite]) {
     if (round !== 1) throw new Error(`Suite ${suite} has no round ${round}`);
     return SUITES[suite].tasks[0].split("/").pop();
@@ -112,7 +127,7 @@ export const taskSourcesFor = (suite, round) => {
   if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   if (!SUITES[suite].rounds.includes(round))
     throw new Error(`Suite ${suite} has no round ${round}`);
-  if (suite === "booking") return SUITES.booking.tasks.slice(0, round);
+  if (["booking", "flight"].includes(suite)) return SUITES[suite].tasks.slice(0, round);
   return [...SUITES[suite].tasks];
 };
 
@@ -133,7 +148,7 @@ export const assembleGuidelines = (suite) =>
 
 // Freeze task, rules, and tool copies for one trial. New trials
 // require the shape helper; old trials without frozen/ keep working.
-export const freezeTrial = (root, suite) => {
+export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
   if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   const frozen = join(root, "frozen");
   if (existsSync(frozen)) throw new Error("Frozen copies exist; preserve them, do not refresh");
@@ -147,8 +162,7 @@ export const freezeTrial = (root, suite) => {
     copyFileSync(src, join(frozen, dest));
     files[dest] = sha256File(src);
   };
-  for (const task of taskSourcesFor(suite, SUITES[suite].rounds.at(-1)))
-    put(join(trialDir, task), `tasks/${task.split("/").pop()}`);
+  freezeTasks(suite, packetDir, put);
   for (const guide of guidelineSourcesFor(suite)) put(join(trialDir, guide), `rules/${guide}`);
   for (const tool of TRIAL_TOOLS) put(join(trialDir, tool), `tools/${tool}`);
   // Limits drift after create when stage reads live config.
@@ -157,6 +171,16 @@ export const freezeTrial = (root, suite) => {
   for (const file of JEV_FROZEN) put(join(repoDir, "tools/jev", file), `jev/${file}`);
   return { dir: "frozen", files };
 };
+
+function freezeTasks(suite, packetDir, put) {
+  for (const task of taskSourcesFor(suite, SUITES[suite].rounds.at(-1))) {
+    const source =
+      suite === "flight" ? join(packetDir, task.split("/").pop()) : join(trialDir, task);
+    if (existsSync(source)) put(source, `tasks/${task.split("/").pop()}`);
+    else if (suite !== "flight" || task === SUITES.flight.tasks[0])
+      throw new Error(`Missing packet: ${task}`);
+  }
+}
 
 export const frozenConfigFor = (root, frozen) =>
   JSON.parse(readFileSync(join(root, frozen.dir, "config.json"), "utf8"));

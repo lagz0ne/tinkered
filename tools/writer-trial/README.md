@@ -2,11 +2,12 @@
 
 Tools to run model writers on a task, in isolation, and score them.
 Writers use only core and React from Tinker.
-Three suites, one repeatable flow per suite:
+Suites share one repeatable flow:
 
 - **Booking** — grows over rounds 1-5.
 - **Stock** — one fresh round.
 - **Plan** — one fresh round with course prerequisites.
+- **Flight** — Start scaffold and real local services, rounds 1-5.
 
 ## What workers can see
 
@@ -20,7 +21,8 @@ No `examples/`, `apps/`, tracker code, source maps,
 repo history, package tests, or worked examples are copied.
 No teacher checks or other submissions are mounted.
 The host checkout is absent from the container.
-Network access is off.
+Network access is off for the blank project suites.
+Flight has private local networks with no outside route.
 
 Pi runs through Paseo on the host.
 Its only active tools are `work_shell` and `jev`.
@@ -102,11 +104,132 @@ A copy sits in
 (`image.tar.gz`); `docker load` restores the same ID.
 Do not rebuild halfway through a comparison.
 
-Creation adds four Paseo projects and workspaces.
+Create adds a Paseo project and workspace for each configured model.
 It trusts only their teacher-owned extension folders in Pi.
 Workers cannot write those host folders through their tools.
 Staging copies only the current and earlier packets.
 Neither command starts an agent.
+
+## Flight setup
+
+Flight uses its own image; the other suites keep their image.
+Build the workspace before preparing it:
+
+```bash
+./node_modules/.bin/vp run -r build
+runner=tools/writer-trial
+node "$runner/prepare.mjs" --suite flight --build
+node "$runner/workers.mjs" create flight-01 --suite flight
+node "$runner/workers.mjs" stage flight-01 1
+```
+
+Flight pins Playwright 1.63.0, as the reference proof does.
+Other suites keep Playwright 1.55.0.
+The browser uses `flight-app`.
+Chromium tried HTTPS for the host name `app` in the proof.
+The image reads the Start registry's starter and its required items.
+It copies their files, tests, all five skills, and `AGENTS.md`.
+It uses the default `@/lib` alias.
+Core and React are packed tarballs, with no workspace links.
+Generated router files and frozen `TASK.md` are ignored by formatting.
+The image and stage write `.prettierignore`.
+Vite+ reads this file when the scaffold's Vite config owns formatting.
+The image's seam script has its own read-only package link.
+Flight runs one Vitest worker at a time to fit the memory limit.
+Each new tag saves its build folder and `image.tar`.
+Keeper containers hold the app, services, Postgres, and Mailpit images.
+Create also keeps the dependency images for older saved app images.
+Keepers use no network and survive trial cleanup.
+A saved tag refuses rebuild; choose a new tag in `config.json`.
+The manifest pins app, services, Postgres, and Mailpit image IDs.
+
+Each worker has its own Postgres, Mailpit, and four service processes.
+Its app network and the teacher's control network are private.
+Mailpit enables its Chaos API for the round 5 teacher's send-failure proof.
+The default send failure chance stays zero.
+A filter exposes only `/air/` and `/v1/` service routes.
+Control paths return HTTP 403, even with a token.
+Service containers have no address on the writer's network.
+Payment sends signed callbacks to `/webhooks/stripe` through the filter.
+The writer gets service URLs and app settings in `.env`.
+It never gets the control token or teacher files.
+No ports are published on the host.
+
+`check` makes fresh services and runs the app from the saved archive.
+It runs build first to create the Start router's generated file.
+Then it runs the writer's check, test, and build.
+Teacher checks run in a separate container on both networks.
+The scaffold gate also runs the image's `check:plain` on `/work`.
+It uses the trusted package and script, not the writer's copy.
+Missing `check:plain` fails as unavailable and earns no score.
+An available script's findings block the gate.
+Saved images keep their bytes; add the script with a new image tag.
+The app has only its own network.
+All check containers and networks are removed after the run.
+`scaffold.log` names the hash and seam results.
+
+The flight gate blocks changed, missing, added, or linked scaffold files.
+It runs the image's seam script, not the writer's copy.
+Exact starter source bytes are teacher-owned baseline files.
+They are read and named in `jev.json`, without asking Jev again.
+The generated `src/routeTree.gen.ts` is also named there
+when its saved bytes match the router made by the fresh build.
+Changed source and tests use the same frozen Jev gate as other suites.
+The untouched registry has S17 and S24 findings under that gate;
+this baseline rule lets the required starter pass without editing it.
+
+Packets come from `flight/`; checks come from `teacher/flight/`.
+Round 1 must exist before create.
+Missing later packets are not frozen or staged.
+A missing teacher round fails unavailable and earns no score.
+Create a fresh trial after new packets land.
+Before the branches merge, `create --packet-dir` can read a saved
+flight packet folder; its files are frozen and hashed as usual.
+
+Teacher commands use `teacher/flight/check.mjs` with the round number.
+The grader alone gets these settings:
+
+```text
+APP_URL=http://flight-app:4318
+SUPPLIER_A_URL=http://control-supplier-a:4310
+SUPPLIER_B_URL=http://control-supplier-b:4310
+SUPPLIER_C_URL=http://control-supplier-c:4310
+PAYMENT_URL=http://control-payment:4310
+MAILPIT_URL=http://control-mailpit:8025
+```
+
+`CONTROL_TOKEN` is a new random token for each run.
+These teacher URLs serve both service and control paths.
+The app gets different URLs through the filter.
+Holds last 60 seconds unless the teacher moves the service clock.
+`FLIGHT_CHECK_SETTINGS` also holds the round and all URLs as JSON.
+A check can use `--teacher-dir` to read a saved teacher folder;
+its files are hashed beside the result.
+This supports proof from the parallel rounds branch before landing.
+The folder's last path part must be `flight`.
+
+Flight permits native HTTP clients, including `fetch`.
+Its Jev gate omits S24, which requires the old copied HTTP helper.
+That helper is absent from the Start registry.
+The same rule applies to writer advice and saved checks.
+The other suites keep S24.
+
+The teacher command must exit nonzero when any check fails.
+The app is already built and running when the command starts.
+The worker image includes Playwright and its browser.
+The harness never launches the model; launch stays through Paseo.
+
+Flight writes `score.json` after save, check, and feedback.
+It also keeps each worker's score in the manifest.
+The first failed round stays failed after retries.
+The baseline is the count of passed rounds before that failure.
+Missing teacher rounds, network setup failures, and old placeholders
+have no score.
+A model run with a saved agent ID stops staging after a failure.
+Its current round must pass before it can stage the next one.
+Teacher reference proofs have no agent ID and may test later stages.
+Their score record says `modelRun: false`.
+They are not a model baseline.
 
 ## Launch through Paseo
 

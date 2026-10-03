@@ -2370,3 +2370,9 @@ Assumptions:
 
 Rounds merge exited 1 for conflicts.
 Those conflicts are now resolved with main's services kept.
+
+Harness merge exited 1 for conflicts.
+Main's files outside the allowed paths are kept.
+The harness proof stays in `HARNESS-PROGRESS.md`.
+The flight rules keep the rounds' HTTP rules and the harness' app rules.
+Workspace and reference builds exited 0 before the rounds commit.

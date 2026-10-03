@@ -21,7 +21,7 @@ const original = JSON.parse(readFileSync(join(worker.dir, ".pi/extensions/trial/
 
 async function harness(limits) {
   const dir = mkdtempSync(join(tmpdir(), "writer-limits-"));
-  for (const file of ["extension.mjs", "broker.mjs"])
+  for (const file of ["extension.mjs", "broker.mjs", "gate.mjs"])
     copyFileSync(new URL(file, import.meta.url), join(dir, file));
   writeFileSync(
     join(dir, "worker.json"),

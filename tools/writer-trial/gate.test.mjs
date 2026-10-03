@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { confirmNearBar, judgeSource } from "./broker.mjs";
-import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
+import { gateFiles, gateOf, machineVerdict, flightGate } from "./gate.mjs";
 
 const jevSource = fileURLToPath(new URL("../jev/", import.meta.url));
 
@@ -60,6 +60,20 @@ void describe("the Jev gate", () => {
     );
   });
   after(() => rmSync(jevDir, { recursive: true, force: true }));
+
+  void it("permits native fetch for flight while keeping the old suites' HTTP rule", async () => {
+    const input = {
+      source: 'export const load = () => fetch("http://supplier-a:4311/air/offers/id");',
+      file: "src/load.ts",
+      jevDir,
+      judges: [],
+      ask: fakeAsk([]),
+    };
+    const flight = await judgeSource({ ...input, suite: "flight" });
+    const stock = await judgeSource({ ...input, suite: "stock" });
+    assert.equal(gateOf(flight).status, "pass");
+    assert.ok(gateOf(stock).blocking.some((item) => item.rule === "S24"));
+  });
 
   void it("blocks on a hit from a proven judge", () => {
     const gate = gateOf(report({ findings: [finding("partialStub", 0.8, "proven")] }));
@@ -322,5 +336,25 @@ void describe("a blocking answer near its bar", () => {
     );
     assert.equal(p.advice, 0.52);
     assert.deepEqual(asked, []);
+  });
+});
+
+void describe("flight checks", () => {
+  void it("missing flight plain check stays unavailable even with a clean scaffold", () => {
+    const gate = flightGate({
+      scaffoldExit: 0,
+      plainExit: 1,
+      unavailable: "Image check:plain script unavailable",
+    });
+    assert.equal(gate.status, "unavailable");
+    assert.equal(machineVerdict({ ownExit: 0, teacherExit: 0, gate }), "machine-fail");
+  });
+  void it("a failed available flight plain check blocks", () => {
+    const gate = flightGate({ scaffoldExit: 0, plainExit: 1 });
+    assert.equal(gate.status, "block");
+    assert.equal(gate.blocking[0].rule, "flight-plain");
+  });
+  void it("passing flight scaffold and plain checks still require the source gate", () => {
+    assert.equal(flightGate({ scaffoldExit: 0, plainExit: 0 }), null);
   });
 });

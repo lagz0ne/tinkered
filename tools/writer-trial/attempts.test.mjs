@@ -22,6 +22,11 @@ import {
 
 void describe("checker routing", () => {
   void it("uses rounds for booking 1-3, repair, transfer, and each fresh suite", () => {
+    for (const round of [1, 2, 3, 4, 5])
+      assert.deepEqual(checkerFor("flight", round), {
+        script: "flight-check.mjs",
+        args: [String(round)],
+      });
     assert.deepEqual(checkerFor("booking", 1), {
       script: "evaluate.mjs",
       args: ["1"],
