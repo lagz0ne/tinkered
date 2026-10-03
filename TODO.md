@@ -50,15 +50,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/deepseek-baseline** — DeepSeek builds the flight app, round by round.
-  Owner: lead (Claude, Start scaffold session).
-  Trial `flight-deepseek-01`; writer `pi/writer-gateway/deepseek/deepseek-v4.1-flash`, high.
-  Baseline: **0** (round 1 failed; hidden checks 1 of 3; own checks and Jev passed).
-  Retries: round 1 passed on try 2 (3 of 3); round 2 on try 1 (6 of 6); round 3 on try 1 (10 of 10). Round 4 passed on try 2 (17 of 17). Round 5 running.
-  Next: retries with teacher feedback, up to 3 tries a round (user 2026-10-03).
-  Verify: each try's save, check, and feedback in PROGRESS.
-  [Proof](docs/roadmap/flight-trial/PROGRESS.md#deepseek-baseline-2026-10-03).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -80,6 +71,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/deepseek-baseline** — DeepSeek builds the flight app, round by round.
+  Owner: lead (Claude, Start scaffold session).
+  Trial `flight-deepseek-01`; writer `pi/writer-gateway/deepseek/deepseek-v4.1-flash`, high.
+  Baseline **0** (round 1 failed first try). With one teacher note a round,
+  all 5 rounds pass in 7 tries (hidden checks 3, 6, 10, 17, 21); about $1.96.
+  [Proof](docs/roadmap/flight-trial/PROGRESS.md#deepseek-baseline-2026-10-03).
 
 - **trial/jev-link** — a trial never depends on the checkout that made it.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.

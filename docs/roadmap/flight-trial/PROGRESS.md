@@ -3093,4 +3093,25 @@ Later rounds are staged with `stage --explore` (`275cae5c`).
 - Round 4, try 2 (agent `e09fcf8f`): **pass**, hidden checks 17 of 17.
   It moved the pay decision into one locked transaction,
   with a test that failed before (2 intents) and passes after (1).
-- Round 5, try 1 (agent `58b5f54a`): running.
+- Round 5, try 1 (agent `58b5f54a`): **pass**, hidden checks 21 of 21.
+  One confirmation mail per paid booking; a failed send keeps the booking
+  confirmed, marks the email Failed, and offers a retry.
+
+### Result
+
+- Baseline (first try only): **0**. `score.json` keeps it.
+- With one teacher note a round: **all 5 rounds pass**, in 7 tries.
+  Rounds 2, 3, and 5 passed first try; rounds 1 and 4 needed a second.
+- Writer cost: about $1.96 for all 7 tries ($0.07 to $0.43 a try).
+- Own checks, `check:plain` (17 of 17 plain functions), the seam check,
+  and Jev passed on every saved try.
+- Every failure was a real app bug or a missed packet line,
+  never the scaffold rules: notices shown as one-of states (round 1);
+  a check-then-act race on repeated payments, and a Pay button
+  left on expired holds (round 4).
+
+Harness faults found and fixed during the run:
+the Jev link into a removed worktree (`trial/jev-link`),
+starter casts that Jev blocked (`start/starter-casts`),
+no way to stage past a first failure (`--explore`),
+and a stale `FEEDBACK.md` left between rounds (follow-up).
