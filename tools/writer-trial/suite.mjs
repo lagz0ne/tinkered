@@ -163,14 +163,44 @@ export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
     files[dest] = sha256File(src);
   };
   freezeTasks(suite, packetDir, put);
-  for (const guide of guidelineSourcesFor(suite)) put(join(trialDir, guide), `rules/${guide}`);
-  for (const tool of TRIAL_TOOLS) put(join(trialDir, tool), `tools/${tool}`);
+  const copies = [
+    ...guidelineSourcesFor(suite).map((guide) => [join(trialDir, guide), `rules/${guide}`]),
+    ...TRIAL_TOOLS.map((tool) => [join(trialDir, tool), `tools/${tool}`]),
+    ...JEV_FROZEN.map((file) => [join(repoDir, "tools/jev", file), `jev/${file}`]),
+  ];
+  for (const [source, target] of copies) put(source, target);
   // Limits drift after create when stage reads live config.
   // New trials freeze config.json and read limits from the copy.
   put(join(trialDir, "config.json"), "config.json");
-  for (const file of JEV_FROZEN) put(join(repoDir, "tools/jev", file), `jev/${file}`);
-  return { dir: "frozen", files };
+  return {
+    dir: "frozen",
+    files,
+    ...(suite === "flight" ? { teacher: flightTeacherSnapshot().pins } : {}),
+  };
 };
+
+function flightTeacherSnapshot() {
+  const teacher = join(trialDir, "teacher/flight");
+  const files = Object.fromEntries(
+    listFiles(teacher).map((file) => [file, readFileSync(join(teacher, file))]),
+  );
+  const hashes = Object.fromEntries(
+    Object.entries(files).map(([file, bytes]) => [file, sha256Text(bytes)]),
+  );
+  return { files, pins: { files: hashes, hash: sha256Text(JSON.stringify(hashes)) } };
+}
+
+/** Read and hash the same bytes that the grader will receive. */
+export function readFlightTeacher(pins, round) {
+  if (!pins?.hash || !pins.files)
+    throw new Error("Teacher hashes unavailable: create a new flight trial");
+  const snapshot = flightTeacherSnapshot();
+  if (pins.hash !== sha256Text(JSON.stringify(pins.files)) || snapshot.pins.hash !== pins.hash)
+    throw new Error("Teacher files unavailable: checkout differs from hashes frozen at create");
+  for (const file of ["check.mjs", `round-${round}.mjs`])
+    if (!snapshot.files[file]) throw new Error(`Teacher file unavailable: ${file}`);
+  return { files: snapshot.files, hash: pins.hash };
+}
 
 function freezeTasks(suite, packetDir, put) {
   if (suite === "flight") put(join(trialDir, "flight-services.md"), "rules/SERVICES.md");

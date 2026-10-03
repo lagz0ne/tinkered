@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readFlightTeacher } from "./suite.mjs";
 import {
   environmentArgs,
   flightEnvironment,
@@ -37,7 +38,16 @@ const sandbox = [
 ];
 
 /** Submitted files stay in an app container; teacher code and credentials stay in a separate one. */
-export function checkFlight({ archive, round, image, images, scaffold, logDir }) {
+export function checkFlight({ archive, round, image, images, scaffold, logDir, teacherPins }) {
+  let snapshot;
+  try {
+    snapshot = readFlightTeacher(teacherPins, round);
+  } catch (error) {
+    const result = unavailableTeacher(error, teacherPins);
+    for (const name of ["own", "teacher", "scaffold", "plain"])
+      writeFileSync(join(logDir, `${name}.log`), `${result.unavailable}\nEXIT 1\n`);
+    return result;
+  }
   const prefix = `flight-check-${Date.now().toString(36)}-${process.pid}`;
   const own = [],
     teacher = [],
@@ -75,14 +85,30 @@ export function checkFlight({ archive, round, image, images, scaffold, logDir })
     scaffoldExit = checkScaffold(app, scaffold, seam);
     const plainResult = checkFlightPlain(app, plain);
     ownExit = checkOwn(app, own) || resetExit;
-    teacherExit = checkTeacher(state, app, round, image, teacher);
+    teacherExit = checkTeacher(state, app, round, image, teacher, snapshot.files);
     try {
       teacher.push(run(["exec", app, "cat", "/tmp/app.log"]));
     } catch {}
     const router = checkRouter(app, own);
     ownExit = Math.max(ownExit, router.exit);
     const generatedRouterHash = router.hash;
-    return { ownExit, teacherExit, scaffoldExit, ...plainResult, generatedRouterHash, images };
+    const result = {
+      ownExit,
+      teacherExit,
+      scaffoldExit,
+      ...plainResult,
+      generatedRouterHash,
+      images,
+      teacherHash: snapshot.hash,
+    };
+    try {
+      readFlightTeacher(teacherPins, round);
+    } catch (error) {
+      const unavailable = unavailableTeacher(error, teacherPins);
+      teacher.push(`${unavailable.unavailable}\nEXIT 1\n`);
+      return { ...result, ...unavailable };
+    }
+    return result;
   } finally {
     writeFileSync(join(logDir, "own.log"), own.join(""));
     writeFileSync(join(logDir, "teacher.log"), teacher.join(""));
@@ -90,6 +116,17 @@ export function checkFlight({ archive, round, image, images, scaffold, logDir })
     writeFileSync(join(logDir, "plain.log"), plain.join(""));
     stopFlight(state);
   }
+}
+
+function unavailableTeacher(error, pins) {
+  return {
+    ownExit: null,
+    teacherExit: 1,
+    scaffoldExit: null,
+    unscored: true,
+    unavailable: `Teacher check unavailable: ${error.message}`,
+    teacherHash: pins?.hash ?? null,
+  };
 }
 
 function resetRouter(app, own) {
@@ -179,8 +216,7 @@ function checkOwn(app, own) {
   return ownExit;
 }
 
-function checkTeacher(state, app, round, image, teacher) {
-  const teacherDir = join(here, "teacher/flight");
+function checkTeacher(state, app, round, image, teacher, files) {
   let teacherExit = 0;
   try {
     run(["exec", "-d", app, "sh", "-c", "npm run start > /tmp/app.log 2>&1"]);
@@ -217,12 +253,7 @@ function checkTeacher(state, app, round, image, teacher) {
       "-e",
       "const end=Date.now()+60000;let ready=false;while(Date.now()<end){try{const r=await fetch('http://app:4318');if(r.ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error('app not ready');",
     ]);
-    if (
-      !existsSync(join(teacherDir, "check.mjs")) ||
-      !existsSync(join(teacherDir, `round-${round}.mjs`))
-    )
-      throw new Error(`Teacher round ${round} unavailable: ${teacherDir}`);
-    copyTeacher(grader, teacherDir);
+    copyTeacher(grader, files);
     const env = {
       FLIGHT_CHECK_SETTINGS: JSON.stringify(settings),
       APP_URL: settings.appUrl,
@@ -260,18 +291,27 @@ function checkTeacher(state, app, round, image, teacher) {
   return teacherExit;
 }
 
-function copyTeacher(container, path) {
-  const bytes = execFileSync("tar", ["-C", dirname(path), "-cf", "-", basename(path)], {
-    maxBuffer: 16e6,
-  });
-  run(["exec", "-i", container, "tar", "-xf", "-", "-C", "/work"], bytes);
+function copyTeacher(container, files) {
+  run(
+    [
+      "exec",
+      "-i",
+      container,
+      "node",
+      "--input-type=module",
+      "-e",
+      "import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';import {dirname,join} from 'node:path';for(const [file,bytes] of JSON.parse(readFileSync(0,'utf8'))){const path=join('/work/flight',file);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,Buffer.from(bytes,'base64'));}",
+    ],
+    JSON.stringify(Object.entries(files).map(([file, bytes]) => [file, bytes.toString("base64")])),
+  );
 }
 
 if (import.meta.main) {
-  const [archive, round, image, configFile, scaffoldFile, logDir] = process.argv.slice(2);
-  if (!logDir)
+  const [archive, round, image, configFile, scaffoldFile, logDir, manifestFile] =
+    process.argv.slice(2);
+  if (!manifestFile)
     throw new Error(
-      "flight-check <archive> <round> <image> <images.json> <scaffold.json> <log-dir>",
+      "flight-check <archive> <round> <image> <images.json> <scaffold.json> <log-dir> <manifest.json>",
     );
   const result = checkFlight({
     archive,
@@ -280,6 +320,7 @@ if (import.meta.main) {
     images: JSON.parse(readFileSync(configFile)),
     scaffold: JSON.parse(readFileSync(scaffoldFile)),
     logDir,
+    teacherPins: JSON.parse(readFileSync(manifestFile)).frozen?.teacher,
   });
   console.log(JSON.stringify(result));
   process.exitCode =

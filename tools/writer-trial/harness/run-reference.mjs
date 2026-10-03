@@ -166,6 +166,7 @@ for (const round of rounds) {
       images,
       scaffold,
       logDir: logs,
+      teacherPins: frozenInfo.teacher,
     });
     verifyFrozen(proof, frozenInfo);
     const jev = { gate: flightGate(result) };

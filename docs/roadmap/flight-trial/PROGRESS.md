@@ -2833,3 +2833,21 @@ The test checks every top-level frozen entry.
 Logs under `tools/writer-trial/.logs/`:
 `review-root-path-red.log`, exit 1 before the fix;
 `review-root-path-green.log`, exit 0 after it, 11 tests pass.
+
+### Integration review fix 2: teacher hashes
+
+Create now saves every teacher file hash and one hash for the full set.
+Checks compare the live files with that saved set before starting Docker.
+Changed, added, missing, or unpinned files make the check unavailable.
+Those checks earn no score and cannot pass.
+The grader receives the same bytes that passed the hash check.
+A second comparison catches changes made while the check ran.
+Every new reference result saves `teacherHash`.
+Existing trials without teacher pins need a fresh create.
+
+The test uses a separate checkout copy and calls the real checker.
+It covers changed, added, missing, and unpinned teacher files.
+It checks unavailable status and no score for each case.
+Logs under `tools/writer-trial/.logs/`:
+`review-teacher-red.log`, exit 1 before the fix;
+`review-teacher-green.log`, exit 0 after it, 20 tests pass.

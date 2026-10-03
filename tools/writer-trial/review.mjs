@@ -52,7 +52,7 @@ import {
   readFrozenTask,
   suiteFor,
   sha256File,
-  listFiles,
+  readFlightTeacher,
   verifyFrozen,
 } from "./suite.mjs";
 import {
@@ -126,7 +126,6 @@ process.on("exit", () => {
 });
 const manifest = JSON.parse(readFileSync(manifestPath));
 const suite = suiteFor(manifest);
-const teacherDir = join(here, "teacher/flight");
 const worker = manifest.workers[workerNum - 1];
 if (!worker) throw new Error(`No worker ${workerNum} in this trial`);
 if (manifest.round !== undefined && manifest.round !== round)
@@ -301,6 +300,7 @@ if (command === "save") {
         images: manifest.flightImages,
         scaffold: JSON.parse(readFileSync(frozenPath("scaffold.json"))),
         logDir: checkDir,
+        teacherPins: manifest.frozen?.teacher,
       });
       ownExit = flight.ownExit;
       teacherExit = flight.teacherExit;
@@ -461,10 +461,14 @@ function checkerEvidence(checker, archive, image) {
 }
 
 function addFlightEvidence(evidence) {
-  for (const file of listFiles(teacherDir))
-    evidence.files[`flight-teacher/${file}`] = sha256File(join(teacherDir, file));
-  for (const file of ["check.mjs", `round-${round}.mjs`])
-    if (!existsSync(join(teacherDir, file))) evidence.unavailable = `teacher/flight/${file}`;
+  evidence.teacherHash = manifest.frozen?.teacher?.hash ?? null;
+  try {
+    readFlightTeacher(manifest.frozen?.teacher, round);
+    for (const [file, hash] of Object.entries(manifest.frozen.teacher.files))
+      evidence.files[`flight-teacher/${file}`] = hash;
+  } catch (error) {
+    evidence.unavailable = `Teacher check unavailable: ${error.message}`;
+  }
   evidence.flightImages = manifest.flightImages;
 }
 
