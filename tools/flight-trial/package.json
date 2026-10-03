@@ -19,7 +19,9 @@
     "services": "node scripts/start-services.mjs"
   },
   "dependencies": {
+    "@hono/node-server": "catalog:",
     "@tinker/core": "workspace:*",
+    "hono": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

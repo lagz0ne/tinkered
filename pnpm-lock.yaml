@@ -170,6 +170,9 @@ catalogs:
     '@happy-dom/global-registrator':
       specifier: ^20.14.5
       version: 20.14.5
+    '@hono/node-server':
+      specifier: 1.19.17
+      version: 1.19.17
     '@inferdi/inferdi':
       specifier: ^6.1.0
       version: 6.1.0
@@ -194,6 +197,9 @@ catalogs:
     effect:
       specifier: ^3.22.2
       version: 3.22.2
+    hono:
+      specifier: 4.13.8
+      version: 4.13.8
     mitata:
       specifier: ^1.0.34
       version: 1.0.34
@@ -661,9 +667,15 @@ importers:
 
   tools/flight-trial:
     dependencies:
+      '@hono/node-server':
+        specifier: 'catalog:'
+        version: 1.19.17(hono@4.13.8)
       '@tinker/core':
         specifier: workspace:*
         version: link:../../packages/core
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.8
       zod:
         specifier: 'catalog:'
         version: 4.6.2

@@ -1191,3 +1191,28 @@ The full report and gate index are saved as
 and `land-final-gates.json` under `tools/flight-trial/.logs/`.
 The red offer regression and green full suite are retained in
 `land-offer-red.log` (exit 1) and `land-final-test.log` (exit 0).
+
+### Services routing: start
+
+Owner: Sol writer; branch `trial/services-routing`.
+Base: `92b8937f`.
+Next: move routes to Hono and keep the HTTP replies fixed.
+Verify: build, check, tests, process proof, prose, strict style,
+plain forms, and full mutation at 85 or more.
+The board card already exists and stays with the lead.
+
+Assumptions:
+
+- Route rule names are plain keys, not operation choices.
+  Operations may read a rule by its name.
+  Only Hono chooses the operation for a request.
+- Keep the bracket-key form reader in small Hono middleware.
+  Hono dot keys differ from the fixed Stripe-style bracket keys.
+- Shared middleware may run its one operation before and after `next()`.
+  This records pending calls and saves replies without dispatch.
+- Use the versions already locked for the Start scaffold:
+  Hono 4.13.8 and its Node adapter 1.19.17.
+- Keep six pure helpers and two process entries.
+  No public Core symbol changes, so no SCIP impact block is needed.
+- Store ticket-local Jev labels under this track.
+  The shared case file is outside the allowed paths.
