@@ -3086,4 +3086,8 @@ Later rounds are staged with `stage --explore` (`275cae5c`).
   It holds seats, saves bookings in a new table, and pushes
   sold-out changes to other open pages over the sync stream.
   The two-traveler race for the last seat passed.
-- Round 4, try 1 (agent `3450b4c4`): running.
+- Round 4, try 1 (agent `3450b4c4`): fail, hidden checks 15 of 17.
+  Rounds 1 to 3 still pass. Two real bugs:
+  two requests with one execution ID, sent at the same moment,
+  made 2 create-intent calls; and an `Expired` booking kept its Pay button.
+- Round 4, try 2 (agent `e09fcf8f`): running.
