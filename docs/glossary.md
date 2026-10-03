@@ -397,3 +397,10 @@ New sections are lists, one term per item (vertical layout,
 - **completion goal** — The work an operation requires before it can report complete.
 - **execution result** — The complete, partial, or failed result for one completion goal.
 - **partial result** — A result where some required work succeeded and other required work failed.
+
+## Flight trial (ADR 0097)
+
+- **trial round** — One staged step of the trial app; it passes only when every check passes.
+- **trial baseline** — The number of rounds a writer passes in order before the first failure.
+- **control endpoint** — A fake service's grader-only route that delays, fails, or repeats replies.
+- **webhook sender** — Our local service that signs and sends Stripe-format payment events.

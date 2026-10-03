@@ -24,6 +24,31 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
+  Owner: lead (Claude, Start scaffold session).
+  Next: brief a writer.
+  Check login once per change, not per stream pull.
+  Load the snapshot once per sign-in and once per redirect.
+  Remove our proof notes, previews, and review docs.
+  Ship `.agents/skills/` that teach the four forms and the seams.
+  Verify: a span-count test fails before and passes after; all app gates pass.
+
+- **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
+  Next: import OpenFlights airports, airlines, and routes; credit them.
+  Verify: the same seed gives the same schedules, fares, and seats.
+
+- **trial/flight-services** — Postgres, Mailpit, stripe-mock, webhook sender, three suppliers.
+  Next: Duffel-shaped suppliers with control endpoints; no internet.
+  Verify: the grader can delay, fail, and repeat each reply.
+
+- **trial/flight-rounds** — five rounds: search, metasearch, hold, pay, email.
+  Next: round packets and hidden checks after the services land.
+  Verify: a lead-written answer passes every round; span counts catch waste.
+
+- **trial/deepseek-baseline** — run DeepSeek through the rounds.
+  Next: after the rounds land.
+  Verify: the baseline is the number of rounds passed in order.
+
 - **core/graceful-writes** — active calls keep state open during graceful close.
   Asked by: Harness and Tinkerer live entries.
   Next: a Core writer fixes the delayed controller write after the active card.

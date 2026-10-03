@@ -74,3 +74,5 @@ by a new decision that names the old one.
 - [0095](0095-drizzle-publishes-static-units-for-each-database.md): Drizzle publishes static database units.
 
 - [0096](0096-process-runs-commands-and-service-graphs.md): Process runs commands and service graphs.
+
+- [0097](0097-flight-trial-uses-real-local-services.md): the flight trial uses real local services.
