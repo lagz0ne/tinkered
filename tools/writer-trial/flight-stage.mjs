@@ -17,6 +17,8 @@ function stopReason(worker, completedRound) {
   if (score.status === "stopped")
     return `Flight stopped at round ${score.firstFailedRound}; baseline ${score.baseline}`;
   if (score.passedRounds < completedRound)
-    return `Check round ${completedRound} before staging the next flight round`;
+    throw new Error(
+      `Check round ${completedRound} for ${worker.model} before staging the next flight round`,
+    );
   return null;
 }

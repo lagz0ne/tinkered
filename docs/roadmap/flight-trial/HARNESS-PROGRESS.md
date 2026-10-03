@@ -289,8 +289,9 @@ No `packages/`, `apps/`, or `tools/flight-trial/` file changed.
   The driver also checks private service controls and signed callbacks.
   `isolation-final.log` exits 0.
   [The gate record](./HARNESS-GATES.md) gives the exact command.
-- **6, each worker stages alone**: a stopped or unchecked model is skipped.
+- **6, each worker stages alone**: only a stopped model is skipped.
   Passing workers can stage the next round.
+  Unchecked models still need their current check before the round can advance.
   Cleanup checks each worker's last staged round.
   `stage-tests.log` covers stopped, passing, unchecked, and reference workers.
 - **7, small helpers**: the scaffold probe is a file copied at check time.
