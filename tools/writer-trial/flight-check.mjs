@@ -62,6 +62,8 @@ export function checkFlight({
       "app",
       "--network-alias",
       "flight-app",
+      "--dns",
+      "127.0.0.1",
       ...sandbox,
       ...environmentArgs(),
       image,

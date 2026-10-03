@@ -1,9 +1,54 @@
 import assert from "node:assert/strict";
+import { lookup } from "node:dns/promises";
+import { readFileSync } from "node:fs";
 import { Client } from "pg";
 import nodemailer from "nodemailer";
 import { connect } from "node:net";
 import { createServer } from "node:http";
 import { createHmac } from "node:crypto";
+
+await assert.rejects(lookup("example.com"));
+console.log("PASS external DNS lookup fails");
+const routes = readFileSync("/proc/net/route", "utf8").trim().split("\n").slice(1);
+assert.ok(routes.every((line) => line.trim().split(/\s+/)[1] !== "00000000"));
+await assert.rejects(unreachable("172.17.0.1", 80));
+console.log("PASS no default route or route to 172.17.0.1");
+await assert.rejects(
+  fetch("http://control-mailpit:8025/api/v1/chaos", { signal: AbortSignal.timeout(2000) }),
+);
+await assert.rejects(unreachable(process.argv[3], 8025));
+console.log("PASS real Mailpit is private by name and IP");
+for (const path of [
+  "/api/v1/chaos",
+  "/api/v1/chaos/",
+  "/api/v1/chaos?probe=1",
+  "/api%2Fv1%2Fchaos",
+]) {
+  const response = await fetch("http://mailpit:8025" + path, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+    signal: AbortSignal.timeout(2000),
+  });
+  assert.equal(response.status, 403);
+}
+console.log("PASS writer Mailpit Chaos PUT refused");
+
+function unreachable(host, port) {
+  return new Promise((resolve, reject) => {
+    const socket = connect({ host, port });
+    socket.setTimeout(2000);
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve();
+    });
+    socket.once("error", reject);
+    socket.once("timeout", () => {
+      socket.destroy();
+      reject(new Error("private IP is unreachable"));
+    });
+  });
+}
 
 for (const url of ["https://example.com", "https://1.1.1.1"]) {
   await assert.rejects(fetch(url, { signal: AbortSignal.timeout(2000) }));

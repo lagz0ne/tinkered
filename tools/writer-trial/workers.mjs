@@ -105,7 +105,15 @@ if (action === "create") {
       "--network",
       worker.flight?.network ?? "none",
       ...(worker.flight
-        ? ["--network-alias", "app", "--network-alias", "flight-app", ...environmentArgs()]
+        ? [
+            "--network-alias",
+            "app",
+            "--network-alias",
+            "flight-app",
+            "--dns",
+            "127.0.0.1",
+            ...environmentArgs(),
+          ]
         : []),
       "--read-only",
       "--cap-drop",

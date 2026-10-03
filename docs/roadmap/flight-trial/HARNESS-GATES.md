@@ -6,6 +6,20 @@ The first two checks predate the required plain gate.
 Expected refusals still record exit 1.
 No failure is relabeled as a pass.
 
+## Repeat the isolation proof
+
+Run from the worktree root:
+
+```bash
+node tools/writer-trial/harness/run-isolation.mjs
+```
+
+This uses the saved image tags in `config.json`.
+It removes its containers, networks, and volume when done.
+The writer has local service names but no outside DNS.
+The teacher can set Mailpit Chaos.
+The writer gets 403 for Chaos requests.
+
 ## Earlier gates
 
 - **Round 1 reference, before plain gate**: exit 0.
