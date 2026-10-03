@@ -1,13 +1,5 @@
 import { createHmac } from "node:crypto";
-import {
-  createScope,
-  data,
-  extension,
-  operation,
-  resource,
-  tag,
-  type Operation,
-} from "@tinker/core";
+import { createScope, data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import {
   calls,
@@ -20,6 +12,7 @@ import {
   reject,
   reply,
   rules,
+  requestSchema,
   stopSignal,
   sleepUntilStopped,
   type Service,
@@ -135,11 +128,9 @@ function schedule(
 
 const sendWebhook = operation({
   label: "deliver signed webhook",
+  input: z.object({ body: z.string(), signature: z.string(), copies: z.number() }),
   depends: { webhookUrl, clock, calls: calls.controller, stop: stopSignal },
-  async run(
-    { webhookUrl, clock, calls, stop },
-    ctx: Operation.Ctx<{ body: string; signature: string; copies: number }>,
-  ) {
+  async run({ webhookUrl, clock, calls, stop }, ctx) {
     for (let copy = 0; copy < ctx.input.copies; copy++) {
       let status = 0;
       try {
@@ -172,6 +163,7 @@ const sendWebhook = operation({
 });
 const deliver = operation({
   label: "send payment webhook",
+  input: z.object({ id: z.string(), intentId: z.string(), at: z.number() }),
   depends: {
     state: state.controller,
     clock,
@@ -179,7 +171,7 @@ const deliver = operation({
     stop: stopSignal,
     send: sendWebhook.controller,
   },
-  async run({ state, clock, secret, stop, send }, ctx: Operation.Ctx<Payment.Delivery>) {
+  async run({ state, clock, secret, stop, send }, ctx) {
     if (
       !(await sleepUntilStopped(
         clock,
@@ -197,7 +189,7 @@ const deliver = operation({
     intent.status = delivery.outcome === "succeeded" ? "succeeded" : "requires_payment_method";
     if (delivery.outcome === "succeeded") intent.latest_charge = `ch_${intent.id}`;
     state.set(current);
-    const timestamp = Math.floor(Date.now() / 1000);
+    const timestamp = Math.floor(ctx.clock.currentTimeMillis() / 1000);
     const body = JSON.stringify({
       id: delivery.id,
       object: "event",
@@ -231,9 +223,10 @@ const webhooks = resource({
 
 const createIntent = operation({
   label: "create payment intent",
+  input: (raw) => intentSchema.safeParse(raw),
   depends: { state: state.controller },
-  run({ state }, ctx: Operation.Ctx<Service.Request>) {
-    const parsed = intentSchema.safeParse(ctx.input.body);
+  run({ state }, ctx) {
+    const parsed = ctx.input;
     if (!parsed.success) return rejectPayment("invalid_payment_intent");
     const id = `pi_${ctx.random.uuid()}`;
     const intent: Payment.Intent = {
@@ -250,8 +243,9 @@ const createIntent = operation({
 });
 const confirm = operation({
   label: "confirm payment intent",
+  input: requestSchema,
   depends: { state: state.controller, clock, webhookDelayMs },
-  run({ state, clock, webhookDelayMs }, ctx: Operation.Ctx<Service.Request>) {
+  run({ state, clock, webhookDelayMs }, ctx) {
     const id = ctx.input.path.split("/").at(-2)!;
     const current = structuredClone(state.get());
     const intent = current.intents[id];
@@ -273,9 +267,10 @@ const confirm = operation({
 });
 const refund = operation({
   label: "refund payment",
+  input: (raw) => refundSchema.safeParse(raw),
   depends: { state: state.controller },
-  run({ state }, ctx: Operation.Ctx<Service.Request>) {
-    const parsed = refundSchema.safeParse(ctx.input.body);
+  run({ state }, ctx) {
+    const parsed = ctx.input;
     if (!parsed.success) return rejectPayment("invalid_refund");
     const current = structuredClone(state.get());
     const intent = current.intents[parsed.data.payment_intent];
@@ -302,9 +297,10 @@ const refund = operation({
 });
 const resetScenario = operation({
   label: "start payment scenario",
+  input: (raw) => scenarioSchema.safeParse(raw),
   depends: { paymentState: state.controller, rules: rules.controller, calls: calls.controller },
-  async run({ paymentState, rules, calls }, ctx: Operation.Ctx<Service.Request>) {
-    const parsed = scenarioSchema.safeParse(ctx.input.body);
+  async run({ paymentState, rules, calls }, ctx) {
+    const parsed = ctx.input;
     if (!parsed.success) return reject("invalid_scenario");
     const initial = createState();
     if (parsed.data.name === "payment-failed") initial.plan.outcome = "failed";
@@ -316,9 +312,10 @@ const resetScenario = operation({
 });
 const controlWebhook = operation({
   label: "choose intent webhook delivery",
+  input: (raw) => sendSchema.safeParse(raw),
   depends: { state: state.controller, clock },
-  run({ state, clock }, ctx: Operation.Ctx<Service.Request>) {
-    const parsed = sendSchema.safeParse(ctx.input.body);
+  run({ state, clock }, ctx) {
+    const parsed = ctx.input;
     if (!parsed.success) return reject("invalid_webhook_plan");
     const current = structuredClone(state.get());
     const intent = current.intents[parsed.data.intent_id];
@@ -338,28 +335,38 @@ const controlWebhook = operation({
     return reply(200, { data: parsed.data });
   },
 });
+const setPlan = operation({
+  label: "choose payment plan",
+  input: (raw) => planSchema.safeParse(raw),
+  depends: { state: state.controller },
+  run({ state }, ctx) {
+    const parsed = ctx.input;
+    if (!parsed.success) return reject("invalid_payment_plan");
+    state.update((current) => ({ ...current, plan: parsed.data }));
+    return reply(200, { data: parsed.data });
+  },
+});
 const paymentControl = operation({
   label: "control payment",
+  input: requestSchema,
   depends: {
-    state: state.controller,
     common: control.controller,
     webhook: controlWebhook.controller,
     reset: resetScenario.controller,
+    plan: setPlan.controller,
   },
-  async run({ state, common, reset, webhook }, ctx: Operation.Ctx<Service.Request>) {
-    if (ctx.input.route === "POST /control/scenario") return reset.run({ input: ctx.input });
-    if (ctx.input.route === "POST /control/payment") {
-      const parsed = planSchema.safeParse(ctx.input.body);
-      if (!parsed.success) return reject("invalid_payment_plan");
-      state.update((current) => ({ ...current, plan: parsed.data }));
-      return reply(200, { data: parsed.data });
-    }
-    if (ctx.input.route === "POST /control/webhooks") return webhook.run({ input: ctx.input });
+  async run({ common, reset, webhook, plan }, ctx) {
+    if (ctx.input.route === "POST /control/scenario")
+      return reset.run({ rawInput: ctx.input.body });
+    if (ctx.input.route === "POST /control/payment") return plan.run({ rawInput: ctx.input.body });
+    if (ctx.input.route === "POST /control/webhooks")
+      return webhook.run({ rawInput: ctx.input.body });
     return common.run({ input: ctx.input });
   },
 });
 const route = operation({
   label: "payment route",
+  input: requestSchema,
   depends: {
     create: createIntent.controller,
     confirm: confirm.controller,
@@ -367,10 +374,11 @@ const route = operation({
     state,
     control: paymentControl.controller,
   },
-  async run({ create, confirm, refund, state, control }, ctx: Operation.Ctx<Service.Request>) {
+  async run({ create, confirm, refund, state, control }, ctx) {
     if (ctx.input.path.startsWith("/control/")) return control.run({ input: ctx.input });
-    if (ctx.input.route === "POST /v1/payment_intents") return create.run({ input: ctx.input });
-    if (ctx.input.route === "POST /v1/refunds") return refund.run({ input: ctx.input });
+    if (ctx.input.route === "POST /v1/payment_intents")
+      return create.run({ rawInput: ctx.input.body });
+    if (ctx.input.route === "POST /v1/refunds") return refund.run({ rawInput: ctx.input.body });
     if (/^POST \/v1\/payment_intents\/[^/]+\/confirm$/.test(ctx.input.route))
       return confirm.run({ input: ctx.input });
     const intent = state.intents[ctx.input.path.split("/").at(-1)!];
@@ -385,8 +393,9 @@ const inFlight = data<Record<string, { fingerprint: string; response: Promise<Se
 });
 const action = operation({
   label: "payment API",
+  input: requestSchema,
   depends: { state: state.controller, route: route.controller, inFlight: inFlight.controller },
-  async run({ state, route, inFlight }, ctx: Operation.Ctx<Service.Request>) {
+  async run({ state, route, inFlight }, ctx) {
     const request = ctx.input;
     if (!request.key || !request.route.startsWith("POST /v1/"))
       return route.run({ input: request });
@@ -434,11 +443,7 @@ const app = extension({
     async start({ scope, next }) {
       await next();
       await scope.run(resetScenario, {
-        input: {
-          route: "POST /control/scenario",
-          path: "/control/scenario",
-          body: { name: "default" },
-        },
+        rawInput: { name: "default" },
       });
       scope.resolve(webhooks);
       return scope.resolve(http);

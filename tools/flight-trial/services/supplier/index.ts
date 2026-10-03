@@ -1,12 +1,4 @@
-import {
-  createScope,
-  data,
-  extension,
-  operation,
-  resource,
-  tag,
-  type Operation,
-} from "@tinker/core";
+import { createScope, data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights.ts";
 import {
@@ -20,6 +12,7 @@ import {
   reject,
   reply,
   rules,
+  requestSchema,
   stopSignal,
   sleepUntilStopped,
   type Service,
@@ -215,15 +208,13 @@ function expireOrders(current: Supplier.State, now: number): Supplier.State {
 
 const expire = operation({
   label: "expire supplier hold",
+  input: z.object({ deadline: z.number() }),
   depends: { state: state.controller, clock, stop: stopSignal },
-  async run({ state, clock, stop }, ctx: Operation.Ctx<Supplier.Order>) {
+  async run({ state, clock, stop }, ctx) {
     if (
       !(await sleepUntilStopped(
         clock,
-        Math.max(
-          0,
-          Date.parse(ctx.input.payment_status.payment_required_by!) - clock.currentTimeMillis(),
-        ),
+        Math.max(0, ctx.input.deadline - clock.currentTimeMillis()),
         stop,
         ctx.signal,
       ))
@@ -241,7 +232,10 @@ const holds = resource({
         const order = Object.values(next.orders).find(
           (entry) => entry.payment_status.awaiting_payment && !previous.orders[entry.id],
         );
-        if (order) return expire.run({ input: order });
+        if (order)
+          return expire.run({
+            input: { deadline: Date.parse(order.payment_status.payment_required_by!) },
+          });
       }),
     );
   },
@@ -259,9 +253,10 @@ function createState(offers: Flights.Offer[], scenario: string): Supplier.State 
 
 const search = operation({
   label: "search supplier flights",
+  input: (raw) => searchSchema.safeParse(raw),
   depends: { state: state.controller },
-  run({ state }, ctx: Operation.Ctx<Service.Request>) {
-    const parsed = searchSchema.safeParse(ctx.input.body);
+  run({ state }, ctx) {
+    const parsed = ctx.input;
     if (!parsed.success) return reject("invalid_offer_request");
     const slice = parsed.data.data.slices.at(0)!;
     const current = state.get();
@@ -292,9 +287,10 @@ const search = operation({
 
 const order = operation({
   label: "book supplier order",
+  input: (raw) => orderSchema.safeParse(raw),
   depends: { state: state.controller, holdMs, clock },
-  run({ state, holdMs, clock }, ctx: Operation.Ctx<Service.Request>) {
-    const parsed = orderSchema.safeParse(ctx.input.body);
+  run({ state, holdMs, clock }, ctx) {
+    const parsed = ctx.input;
     if (!parsed.success) return reject("invalid_order");
     const current = state.get();
     const offer = current.offers[parsed.data.data.selected_offers.at(0)!];
@@ -336,9 +332,10 @@ const order = operation({
 
 const pay = operation({
   label: "pay supplier hold",
+  input: (raw) => paySchema.safeParse(raw),
   depends: { state: state.controller, clock },
-  run({ state, clock }, ctx: Operation.Ctx<Service.Request>) {
-    const parsed = paySchema.safeParse(ctx.input.body);
+  run({ state, clock }, ctx) {
+    const parsed = ctx.input;
     if (!parsed.success) return reject("invalid_payment");
     const current = state.get();
     const order = current.orders[parsed.data.data.order_id];
@@ -372,39 +369,54 @@ const pay = operation({
   },
 });
 
-const supplierControl = operation({
-  label: "control supplier",
+const resetScenario = operation({
+  label: "start supplier scenario",
+  input: (raw) => scenarioSchema.safeParse(raw),
   depends: {
     supplierState: state.controller,
     rules: rules.controller,
     calls: calls.controller,
-    common: control.controller,
     reader,
     supplierId,
   },
-  async run(
-    { supplierState, rules, calls, common, reader, supplierId },
-    ctx: Operation.Ctx<Service.Request>,
-  ) {
-    if (ctx.input.route === "POST /control/scenario") {
-      const parsed = scenarioSchema.safeParse(ctx.input.body);
-      if (!parsed.success) return reject("invalid_scenario");
-      supplierState.set(createState(reader.offers(supplierId), parsed.data.name));
-      rules.set({});
-      calls.set([]);
-      return reply(200, { data: { name: parsed.data.name } });
-    }
-    if (ctx.input.route === "POST /control/flights") {
-      const parsed = changeSchema.safeParse(ctx.input.body);
-      if (!parsed.success) return reject("invalid_flight_change");
-      const current = supplierState.get();
-      if (!current.stock[parsed.data.flight_id]) return reject("flight_not_found", 404);
-      const next = copyStock(current, parsed.data.flight_id);
-      const stock = next.stock[parsed.data.flight_id];
-      changeStock(stock, parsed.data);
-      supplierState.set(next);
-      return reply(200, { data: parsed.data });
-    }
+  async run({ supplierState, rules, calls, reader, supplierId }, ctx) {
+    const parsed = ctx.input;
+    if (!parsed.success) return reject("invalid_scenario");
+    supplierState.set(createState(reader.offers(supplierId), parsed.data.name));
+    rules.set({});
+    calls.set([]);
+    return reply(200, { data: { name: parsed.data.name } });
+  },
+});
+const changeFlight = operation({
+  label: "change supplier flight",
+  input: (raw) => changeSchema.safeParse(raw),
+  depends: { supplierState: state.controller },
+  run({ supplierState }, ctx) {
+    const parsed = ctx.input;
+    if (!parsed.success) return reject("invalid_flight_change");
+    const current = supplierState.get();
+    if (!current.stock[parsed.data.flight_id]) return reject("flight_not_found", 404);
+    const next = copyStock(current, parsed.data.flight_id);
+    changeStock(next.stock[parsed.data.flight_id], parsed.data);
+    supplierState.set(next);
+    return reply(200, { data: parsed.data });
+  },
+});
+const supplierControl = operation({
+  label: "control supplier",
+  input: requestSchema,
+  depends: {
+    supplierState: state.controller,
+    common: control.controller,
+    reset: resetScenario.controller,
+    change: changeFlight.controller,
+  },
+  async run({ supplierState, common, reset, change }, ctx) {
+    if (ctx.input.route === "POST /control/scenario")
+      return reset.run({ rawInput: ctx.input.body });
+    if (ctx.input.route === "POST /control/flights")
+      return change.run({ rawInput: ctx.input.body });
     if (ctx.input.route === "GET /control/state") {
       const current = supplierState.get();
       return reply(200, {
@@ -420,8 +432,9 @@ const supplierControl = operation({
 
 const lookup = operation({
   label: "read supplier offer or order",
+  input: requestSchema,
   depends: { state: state.controller },
-  run({ state }, ctx: Operation.Ctx<Service.Request>) {
+  run({ state }, ctx) {
     if (ctx.input.route.startsWith("GET /air/offers/")) {
       const offer = state.get().offers[ctx.input.path.split("/").at(-1)!];
       return offer
@@ -436,6 +449,7 @@ const lookup = operation({
 });
 const action = operation({
   label: "supplier API",
+  input: requestSchema,
   depends: {
     state: state.controller,
     clock,
@@ -445,15 +459,13 @@ const action = operation({
     control: supplierControl.controller,
     lookup: lookup.controller,
   },
-  async run(
-    { state, clock, search, order, pay, control, lookup },
-    ctx: Operation.Ctx<Service.Request>,
-  ) {
+  async run({ state, clock, search, order, pay, control, lookup }, ctx) {
     if (ctx.input.path.startsWith("/control/")) return control.run({ input: ctx.input });
     state.update((current) => expireOrders(current, clock.currentTimeMillis()));
-    if (ctx.input.route === "POST /air/offer_requests") return search.run({ input: ctx.input });
-    if (ctx.input.route === "POST /air/orders") return order.run({ input: ctx.input });
-    if (ctx.input.route === "POST /air/payments") return pay.run({ input: ctx.input });
+    if (ctx.input.route === "POST /air/offer_requests")
+      return search.run({ rawInput: ctx.input.body });
+    if (ctx.input.route === "POST /air/orders") return order.run({ rawInput: ctx.input.body });
+    if (ctx.input.route === "POST /air/payments") return pay.run({ rawInput: ctx.input.body });
     return lookup.run({ input: ctx.input });
   },
 });
