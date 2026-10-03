@@ -58,10 +58,12 @@ export const clock = resource({
   },
 });
 
+/** Wire values are pure copies; the HTTP resource owns the socket. */
 export function reply(status: number, body: unknown): Service.Reply {
   return { status, body };
 }
 
+/** Pure error shaping does not throw into the service scope. */
 export function reject(code: string, status = 400): Service.Reply {
   return reply(status, { errors: [{ type: "invalid_request_error", code, title: code }] });
 }
@@ -195,6 +197,7 @@ export function createHttp(action: Operation.Handle<Promise<Service.Reply>, Serv
   });
 }
 
+/** The dispatch operation owns this pure choice and awaits any work it selects. */
 async function applyRule(
   rule: Service.Rule | undefined,
   request: Service.Request,

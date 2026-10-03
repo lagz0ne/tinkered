@@ -1,5 +1,13 @@
 import { createHmac } from "node:crypto";
-import { createScope, data, operation, resource, tag, type Operation } from "@tinker/core";
+import {
+  createScope,
+  data,
+  extension,
+  operation,
+  resource,
+  tag,
+  type Operation,
+} from "@tinker/core";
 import { preset } from "@tinker/core/testing";
 import { z } from "zod";
 import {
@@ -63,6 +71,7 @@ export declare namespace Payment {
 const webhookUrl = tag<string>({ label: "webhook URL" });
 const secret = tag<string>({ label: "webhook secret" });
 const webhookDelayMs = tag({ label: "webhook delay", default: 20 });
+/** Each scenario owns a fresh plain value for its preset. */
 function createState(): Payment.State {
   return {
     intents: {},
@@ -96,10 +105,12 @@ const sendSchema = z.object({
 });
 const scenarioSchema = z.object({ name: z.enum(["default", "payment-failed"]) });
 
+/** Pure wire shaping keeps Stripe errors separate from Duffel errors. */
 function rejectPayment(code: string, status = 400): Service.Reply {
   return reply(status, { error: { type: "invalid_request_error", code, message: code } });
 }
 
+/** Only the controlling operation writes state; the watcher owns delivery work. */
 function schedule(
   current: Payment.State,
   intent: Payment.Intent,
@@ -397,10 +408,23 @@ const action = operation({
 });
 const http = createHttp(action);
 
+/** Startup belongs to Core so a failed listener closes its root and all built resources. */
+const app = extension({
+  label: "start payment app",
+  hooks: {
+    async start({ scope, next }) {
+      await next();
+      scope.resolve(webhooks);
+      return scope.resolve(http);
+    },
+  },
+});
+
 /** The caller owns the stop signal; Core owns all webhook work and socket cleanup. */
 export async function startPayment(options: Payment.Options) {
   const scope = createScope({
     signal: options.signal,
+    extensions: app,
     tags: [
       port(options.port),
       host(options.host),
@@ -413,7 +437,6 @@ export async function startPayment(options: Payment.Options) {
     presets: [preset(state, createState())],
   });
   await scope.ready;
-  scope.resolve(webhooks);
-  const listening = await scope.resolve(http);
+  const listening = scope.resolve(app);
   return { ...listening, closed: scope.closed };
 }

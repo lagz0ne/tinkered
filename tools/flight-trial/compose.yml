@@ -1,0 +1,24 @@
+name: flight-trial
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: flight
+      POSTGRES_PASSWORD: flight-local-only
+      POSTGRES_DB: flight
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - flight-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flight -d flight"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:${SMTP_PORT:-51025}:1025"
+      - "127.0.0.1:${MAILPIT_PORT:-58025}:8025"
+volumes:
+  flight-postgres:
