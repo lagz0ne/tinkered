@@ -56,7 +56,7 @@ export async function round5(suite, test) {
     );
     for (const response of repeated) {
       assert.equal(response.status(), 200, "An allowed email route returns HTTP 200");
-      assert.deepEqual(await response.json(), { executionId: data.executionId });
+      assert.equal((await response.json()).executionId, data.executionId);
     }
     await expect.poll(async () => (await table(page, "Bookings"))[0]?.Email).toBe("Sent");
     await expect(
@@ -64,7 +64,7 @@ export async function round5(suite, test) {
     ).toHaveCount(0);
     const later = await context.request.post(`${suite.app}/api/flights/email`, { data });
     assert.equal(later.status(), 200);
-    assert.deepEqual(await later.json(), { executionId: data.executionId });
+    assert.equal((await later.json()).executionId, data.executionId);
     await assertConfirmation(suite, email, row);
     assert.equal((await calls(suite, suite.payment, "POST /v1/payment_intents")).length, 1);
     assert.equal((await calls(suite, suite.suppliers[0].url, "POST /air/orders")).length, 1);

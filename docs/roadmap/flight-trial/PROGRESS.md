@@ -1529,3 +1529,42 @@ Saved source gates, all exit 0:
 - Boundary: `/tmp/flight-rounds-review-source-boundary.log`.
 
 Next: run proof 1, 2, 4, and 5, including every new break, then final gates.
+
+### Review proof: search and payment
+
+Round 1 passes 3/3 twice, each exit 0.
+The price break fails by name, exit 1.
+Round 2 passes 6/6 twice, each exit 0.
+The duplicate-row break fails by name, exit 1.
+Both drivers and every build exit 0:
+`/tmp/flight-rounds-review-r1-proof.log`,
+`/tmp/flight-rounds-review-r2-proof.log`.
+The original round 3 behavior and idle proof are green above.
+
+The first round 4 run passed the new signature and route-repeat cases,
+then lost its supplier, payment, and database relay processes.
+The app stopped and later fetches failed.
+That run is not proof; its driver exited 13:
+`/tmp/flight-rounds-review-r4-proof.log`.
+Its first pass exited 1: reference `.logs/r4-pass-1.log` before the rerun.
+The stop routine had subscribed after the server had already exited.
+It now saves logs and restores source even when the server has already ended.
+All containers were still healthy; new owned service and relay processes were started.
+Assumption: the lead's Chaos Mailpit container may be reused until proof ends.
+The lead explicitly permits stopping that container afterward.
+Owned service logs: `/tmp/flight-rounds-review-owned-services.log`,
+`/tmp/flight-rounds-review-owned-relay.log`.
+
+The owned-service round 4 passes 17/17 twice, each exit 0.
+All three breaks fail by their named case, each exit 1:
+bad digest, ignored timestamp, and missing refund.
+Driver and every good, broken, and restored build exit 0:
+`/tmp/flight-rounds-review-r4-proof-owned.log`.
+Reference logs: `.logs/r4-pass-1.log`, `r4-pass-2.log`,
+`r4-break.log`, `r4-break-timestamp.log`, `r4-break-refund.log`.
+Each red log names the failed packet promise.
+
+Receipt checks compare the returned execution ID, not the whole JSON object.
+Assumption: harmless extra receipt fields are allowed.
+No packet says its receipt is a closed object shape.
+Next: round 5 proof and final gates.

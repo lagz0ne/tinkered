@@ -60,6 +60,9 @@ node --env-file=grader.env "$checks/canaries.mjs" 4
 node --env-file=grader.env "$checks/canaries.mjs" 5
 ```
 
+Round 1 proof stages supplier A only, then restores the full reference.
+Round 4 also plants ignored timestamp and missing refund breaks.
+Round 5 raises through the real failed-send path before saving a partial result.
 Each planted break must fail its named behavior.
 A missing browser, page, or control API cannot prove a planted break.
 

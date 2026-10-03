@@ -72,14 +72,14 @@ export async function round4(suite, test) {
     );
     for (const response of repeated) {
       assert.equal(response.status(), 200, "An allowed payment route returns HTTP 200");
-      assert.deepEqual(await response.json(), { executionId: data.executionId });
+      assert.equal((await response.json()).executionId, data.executionId);
     }
     const pending = await state(page, "Processing");
     await control(suite, suite.payment, "webhooks", { intent_id: pending.Payment, mode: "now" });
     await state(page, "Confirmed");
     const later = await context.request.post(`${suite.app}/api/flights/pay`, { data });
     assert.equal(later.status(), 200);
-    assert.deepEqual(await later.json(), { executionId: data.executionId });
+    assert.equal((await later.json()).executionId, data.executionId);
     assert.equal((await calls(suite, suite.payment, "POST /v1/payment_intents")).length, 1);
     assert.equal(
       (await calls(suite, suite.payment, /^POST \/v1\/payment_intents\/[^/]+\/confirm$/)).length,

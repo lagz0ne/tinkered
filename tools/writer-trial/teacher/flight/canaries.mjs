@@ -49,9 +49,11 @@ async function start() {
 }
 async function stop(label) {
   if (!server) return;
-  const ended = new Promise((done) => server.once("exit", done));
-  server.kill("SIGTERM");
-  await ended;
+  if (server.exitCode === null && server.signalCode === null) {
+    const ended = new Promise((done) => server.once("exit", done));
+    server.kill("SIGTERM");
+    await ended;
+  }
   await writeFile(`${logs}/r${round}-server-${label}.log`, serverOutput.join(""));
   server = undefined;
 }
