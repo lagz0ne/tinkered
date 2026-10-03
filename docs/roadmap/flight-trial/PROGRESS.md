@@ -156,3 +156,21 @@ Saved data sizes:
 
 Core feedback: none.
 Its testing entry provided seeded random without a workaround.
+
+### Review fix round
+
+Lead review: `6b9e3155`.
+M1 keeps the random handle and calls `random.next()`.
+Cabin draws use a callback that calls the same handle.
+This removes the package's unbound-method warning.
+No output bytes changed from M1 alone.
+
+M1 proof, under `tools/flight-trial/.logs/`:
+
+- Workspace build: exit 0, `review-m1-build.log`.
+- Check: exit 0, `review-m1-check.log`; 28 warnings, none in this tool.
+- Reader tests: exit 0, `review-m1-test.log`; six passed.
+- Old saved gzip and seeded runs: exit 0, `review-m1-seeds.log`.
+
+The M1-only seed 97 hash is still
+`980a84b24a0d56c4203d17f2a3b7e9448174a388664eafa781fe9da0961e0671`.

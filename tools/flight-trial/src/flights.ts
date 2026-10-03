@@ -148,7 +148,7 @@ function createFlightNumber(airline: Flights.Source["airlines"][number], number:
 /** Returns owned data. The uint32 seed replays Core's mulberry32 stream. */
 export async function generateFlights(seed: number): Promise<Flights.Data> {
   const source = await readSource();
-  const { next } = makeTestRandom({ seed });
+  const random = makeTestRandom({ seed });
   const dates = ["2027-01-15", "2027-01-16"];
   const airports = new Map(source.airports.map((airport) => [airport.code, airport]));
   const airlines = new Map(source.airlines.map((airline) => [airline.id, airline]));
@@ -160,10 +160,10 @@ export async function generateFlights(seed: number): Promise<Flights.Data> {
     if (!origin || !destination || !airline)
       failFlightData({ file: "source.json", reason: "Route references missing data" });
     const { distanceKm, durationMinutes } = measureRoute(origin, destination);
-    const departuresPerDay = next() < 0.35 ? 2 : 1;
+    const departuresPerDay = random.next() < 0.35 ? 2 : 1;
     for (const date of dates) {
       for (let departure = 0; departure < departuresPerDay; departure++) {
-        const minute = 360 + departure * 480 + Math.floor(next() * 480);
+        const minute = 360 + departure * 480 + Math.floor(random.next() * 480);
         const departsAt = new Date(`${date}T00:00:00.000Z`).getTime() + minute * 60000;
         const nearlyFull = flights.length % 47 === 0;
         flights.push({
@@ -178,8 +178,8 @@ export async function generateFlights(seed: number): Promise<Flights.Data> {
           distanceKm,
           durationMinutes,
           cabins: [
-            createCabin("economy", distanceKm, nearlyFull, next),
-            createCabin("business", distanceKm, nearlyFull, next),
+            createCabin("economy", distanceKm, nearlyFull, () => random.next()),
+            createCabin("business", distanceKm, nearlyFull, () => random.next()),
           ],
         });
       }
