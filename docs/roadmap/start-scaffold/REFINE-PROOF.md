@@ -86,3 +86,20 @@ Log: `/tmp/start-refine-render-green.log`.
 The changed callers are `profile.tsx`, `todos.tsx`,
 `__root.tsx`, the fixed router context, and scope tests.
 All paths are under `apps/start-scaffold`.
+
+## Reconnect during sign-in
+
+The sign-in test now holds the real auth reply.
+A route load and reconnect start while that reply is held.
+The old barrier released before the sign-in snapshot was applied.
+The test failed with 2 loads, expected 1, exit 1.
+Log: `/tmp/start-refine-auth-race-red.log`.
+
+The auth owner now loads its snapshot before releasing the barrier.
+Waiting routes and reconnects then see the applied snapshot.
+Bootstrap returns its applied owner version to the snapshot owner.
+A later account exit cannot mark its new lifetime as already loaded.
+The caller changes are sign-in, the snapshot owner, and bootstrap.
+The router and scope tests also call bootstrap and keep its result.
+All 33 app tests pass, exit 0.
+Log: `/tmp/start-refine-auth-race-green.log`.
