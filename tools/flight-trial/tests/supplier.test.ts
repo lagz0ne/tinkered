@@ -161,7 +161,7 @@ test("a paid hold keeps its seat after the hold time", async () => {
   expect(response.status).toBe(409);
 });
 
-test("control delays a route until the service clock moves and logs the failure", async () => {
+test("the call log counts a delayed call before it ends and records its final status", async () => {
   const url = await start();
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/routes", {
@@ -177,9 +177,11 @@ test("control delays a route until the service clock moves and logs the failure"
           await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
         ).json(),
       );
-      return log.data.some((call: { route: string }) => call.route === "POST /air/offer_requests");
+      return log.data.some(
+        (call) => call.route === "POST /air/offer_requests" && call.status === 0,
+      );
     })
-    .toBe(false);
+    .toBe(true);
   await post(url, "/control/clock", { advanceMs: 500 });
   expect((await pending).status).toBe(503);
   const log = logSchema.parse(

@@ -384,7 +384,9 @@ Omit `status` to run the route after the delay.
 `repeat` replays that many calls after the first reply, without another action.
 A repeated order reply takes no extra seats.
 Setting a route again clears its saved reply.
-The log records the route, request start time, and final status.
+The call log counts a delayed call before it ends and records its final status.
+Each call has its route, request start time, and status.
+For service and control calls, status zero means the call is still pending.
 The log includes control calls and payment webhook sends.
 Filter by service route to count app calls.
 A control call without the grader token returns HTTP 401.

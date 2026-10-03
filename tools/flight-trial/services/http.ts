@@ -18,6 +18,7 @@ export declare namespace Service {
   type Reply = { status: number; body: unknown };
   type Failure = (code: string, status?: number) => Reply;
   type Call = { route: string; time: number; status: number };
+  type Entry = Call & { id: string };
   type Rule = { delayMs: number; status?: number; repeat: number; saved?: Reply };
   type Rules = Record<string, Rule>;
   type Options = { port: number; host: string; controlToken: string; signal: AbortSignal };
@@ -27,7 +28,7 @@ export const stopSignal = tag<AbortSignal>({ label: "service stop signal" });
 export const port = tag({ label: "service port", default: 0 });
 export const host = tag({ label: "service host", default: "127.0.0.1" });
 export const controlToken = tag<string>({ label: "control token" });
-export const calls = data<Service.Call[]>({ label: "HTTP calls", initial: [] });
+export const calls = data<Service.Entry[]>({ label: "HTTP calls", initial: [] });
 export const rules = data<Service.Rules>({ label: "route rules", initial: {} });
 const testClock = data<TestClock.Test | undefined>({
   label: "service test clock",
@@ -86,7 +87,8 @@ export const control = operation({
   depends: { rules: rules.controller, calls, clock },
   run({ rules, calls, clock }, ctx: Operation.Ctx<Service.Request>) {
     const request = ctx.input;
-    if (request.route === "GET /control/calls") return reply(200, { data: calls });
+    if (request.route === "GET /control/calls")
+      return reply(200, { data: calls.map(({ id, ...call }) => call) });
     if (request.route === "POST /control/routes") {
       const parsed = routeSchema.safeParse(request.body);
       if (!parsed.success) return reject("invalid_route_rule");
@@ -147,6 +149,8 @@ export function createHttp(
     async run({ action, rules, calls, clock, token, stop }, ctx: Operation.Ctx<Service.Request>) {
       const request = ctx.input;
       const time = clock.currentTimeMillis();
+      const id = ctx.random.uuid();
+      calls.update((all) => [...all, { id, route: request.route, time, status: 0 }]);
       let response: Service.Reply;
       if (request.path.startsWith("/control/")) {
         response =
@@ -155,9 +159,13 @@ export function createHttp(
             : reject("unauthorized", 401);
       } else {
         const rule = rules.get()[request.route];
-        if (rule?.delayMs && !(await sleepUntilStopped(clock, rule.delayMs, stop, ctx.signal)))
-          return reject("service_stopped", 503);
-        response = await applyRule(rule, request, action, failure);
+        const stopped =
+          rule &&
+          rule.delayMs > 0 &&
+          !(await sleepUntilStopped(clock, rule.delayMs, stop, ctx.signal));
+        response = stopped
+          ? failure("service_stopped", 503)
+          : await applyRule(rule, request, action, failure);
         if (rule)
           rules.update((all) => ({
             ...all,
@@ -168,7 +176,12 @@ export function createHttp(
             },
           }));
       }
-      calls.update((all) => [...all, { route: request.route, time, status: response.status }]);
+      calls.update((all) => {
+        const completed = { id, route: request.route, time, status: response.status };
+        return all.some((call) => call.id === id)
+          ? all.map((call) => (call.id === id ? completed : call))
+          : [...all, completed];
+      });
       return response;
     },
   });
