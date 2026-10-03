@@ -47,6 +47,7 @@ export declare namespace Payment {
     currency: string;
     status: "succeeded";
   };
+  type Pending = { fingerprint: string; response: Promise<Service.Reply> };
   type Saved = { fingerprint: string; reply: Service.Reply };
   type Plan = {
     outcome: "succeeded" | "failed";
@@ -387,14 +388,19 @@ const route = operation({
       : rejectPayment("resource_missing", 404);
   },
 });
-const inFlight = data<Record<string, { fingerprint: string; response: Promise<Service.Reply> }>>({
+/** Live calls belong to this resource; payment data stores only settled wire replies. */
+const inFlight = resource({
   label: "in-flight payment keys",
-  initial: {},
+  factory(_deps, ctx) {
+    const pending = new Map<string, Payment.Pending>();
+    ctx.defer(() => pending.clear());
+    return pending;
+  },
 });
 const action = operation({
   label: "payment API",
   input: requestSchema,
-  depends: { state: state.controller, route: route.controller, inFlight: inFlight.controller },
+  depends: { state: state.controller, route: route.controller, inFlight },
   async run({ state, route, inFlight }, ctx) {
     const request = ctx.input;
     if (!request.key || !request.route.startsWith("POST /v1/"))
@@ -405,16 +411,13 @@ const action = operation({
       return previous.fingerprint === fingerprint
         ? { ...previous.reply, headers: { "Idempotent-Replayed": "true" } }
         : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
-    const pending = inFlight.get()[request.key];
+    const pending = inFlight.get(request.key);
     if (pending)
       return pending.fingerprint === fingerprint
         ? { ...(await pending.response), headers: { "Idempotent-Replayed": "true" } }
         : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
     const responsePromise = route.run({ input: request });
-    inFlight.update((all) => ({
-      ...all,
-      [request.key!]: { fingerprint, response: responsePromise },
-    }));
+    inFlight.set(request.key, { fingerprint, response: responsePromise });
     try {
       const response = await responsePromise;
       state.update((current) => ({
@@ -426,11 +429,7 @@ const action = operation({
       }));
       return response;
     } finally {
-      inFlight.update((all) => {
-        const next = { ...all };
-        delete next[request.key!];
-        return next;
-      });
+      inFlight.delete(request.key);
     }
   },
 });
