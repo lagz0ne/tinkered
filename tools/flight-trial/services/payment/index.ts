@@ -135,16 +135,17 @@ const sendWebhook = operation({
       } catch (error) {
         ctx.log.error("webhook delivery failed", { error });
       }
-      calls.update((previous) => [
-        ...previous,
-        {
-          id: ctx.random.uuid(),
-          kind: "webhook",
-          route: "POST webhook",
-          time: clock.currentTimeMillis(),
-          status,
-        },
-      ]);
+      if (!stop.aborted)
+        calls.update((previous) => [
+          ...previous,
+          {
+            id: ctx.random.uuid(),
+            kind: "webhook",
+            route: "POST webhook",
+            time: clock.currentTimeMillis(),
+            status,
+          },
+        ]);
     }
   },
 });
@@ -179,7 +180,7 @@ const finishDelivery = operation({
     });
     const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
     await send.run({
-      input: { body, signature: `t=${timestamp},v1=${signature}`, copies: delivery.copies },
+      rawInput: { body, signature: `t=${timestamp},v1=${signature}`, copies: delivery.copies },
     });
   },
 });
@@ -195,7 +196,7 @@ const deliver = operation({
       if (!signal.aborted) throw error;
       return;
     }
-    if (!signal.aborted) await finish.run({ input: ctx.input });
+    if (!signal.aborted) await finish.run({ rawInput: ctx.input });
   },
 });
 const webhooks = resource({
@@ -207,7 +208,7 @@ const webhooks = resource({
         const delivery = Object.values(next.deliveries).find(
           (entry) => !entry.sent && !previous.deliveries[entry.id],
         );
-        if (delivery) return deliver.run({ input: delivery });
+        if (delivery) return deliver.run({ rawInput: delivery });
       }),
     );
   },
@@ -363,7 +364,7 @@ const paymentControl = operation({
     if (ctx.input.route === "POST /control/payment") return plan.run({ rawInput: ctx.input.body });
     if (ctx.input.route === "POST /control/webhooks")
       return webhook.run({ rawInput: ctx.input.body });
-    return common.run({ input: ctx.input });
+    return common.run({ rawInput: ctx.input });
   },
 });
 const route = operation({
@@ -377,12 +378,12 @@ const route = operation({
     control: paymentControl.controller,
   },
   async run({ create, confirm, refund, state, control }, ctx) {
-    if (ctx.input.path.startsWith("/control/")) return control.run({ input: ctx.input });
+    if (ctx.input.path.startsWith("/control/")) return control.run({ rawInput: ctx.input });
     if (ctx.input.route === "POST /v1/payment_intents")
       return create.run({ rawInput: ctx.input.body });
     if (ctx.input.route === "POST /v1/refunds") return refund.run({ rawInput: ctx.input.body });
     if (/^POST \/v1\/payment_intents\/[^/]+\/confirm$/.test(ctx.input.route))
-      return confirm.run({ input: ctx.input });
+      return confirm.run({ rawInput: ctx.input });
     const intent = state.intents[ctx.input.path.split("/").at(-1)!];
     return /^GET \/v1\/payment_intents\/[^/]+$/.test(ctx.input.route) && intent
       ? reply(200, intent)
@@ -405,7 +406,7 @@ const action = operation({
   async run({ state, route, inFlight }, ctx) {
     const request = ctx.input;
     if (!request.key || !request.route.startsWith("POST /v1/"))
-      return route.run({ input: request });
+      return route.run({ rawInput: request });
     const fingerprint = JSON.stringify({ route: request.route, body: request.body });
     const previous = state.get().keys[request.key];
     if (previous)
@@ -417,7 +418,7 @@ const action = operation({
       return pending.fingerprint === fingerprint
         ? { ...(await pending.response), headers: { "Idempotent-Replayed": "true" } }
         : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
-    const responsePromise = route.run({ input: request });
+    const responsePromise = route.run({ rawInput: request });
     inFlight.set(request.key, { fingerprint, response: responsePromise });
     try {
       const response = await responsePromise;
@@ -439,11 +440,10 @@ const applyRoute = operation({
   input: z.object({
     request: requestSchema,
     revision: z.string().optional(),
-    stopped: z.boolean(),
   }),
   depends: { action: action.controller, rules: rules.controller },
   async run({ action, rules }, ctx) {
-    const { request, revision, stopped } = ctx.input;
+    const { request, revision } = ctx.input;
     let selected: Wire.Rule | undefined;
     rules.update((all) => {
       const current = all[request.route];
@@ -454,10 +454,9 @@ const applyRoute = operation({
         : all;
     });
     let response: Wire.Reply;
-    if (stopped) response = rejectPayment("service_stopped", 503);
-    else if (selected?.saved && selected.repeat > 0) response = selected.saved;
+    if (selected?.saved && selected.repeat > 0) response = selected.saved;
     else if (selected?.status) response = rejectPayment("injected_failure", selected.status);
-    else response = await action.run({ input: request });
+    else response = await action.run({ rawInput: request });
     if (revision)
       rules.update((all) => {
         const current = all[request.route];
@@ -485,7 +484,8 @@ const delayRoute = operation({
         stopped = true;
       }
     }
-    return apply.run({ input: { request: ctx.input, revision: rule?.revision, stopped } });
+    if (stopped) return rejectPayment("service_stopped", 503);
+    return apply.run({ rawInput: { request: ctx.input, revision: rule?.revision } });
   },
 });
 const dispatch = operation({
@@ -497,8 +497,9 @@ const dispatch = operation({
     calls: calls.controller,
     clock,
     token: controlToken,
+    stop: stopSignal,
   },
-  async run({ action, route, calls, clock, token }, ctx) {
+  async run({ action, route, calls, clock, token, stop }, ctx) {
     const request = ctx.input;
     const time = clock.currentTimeMillis();
     const id = ctx.random.uuid();
@@ -514,12 +515,13 @@ const dispatch = operation({
     ]);
     const response = request.path.startsWith("/control/")
       ? request.token === `Bearer ${token}`
-        ? await action.run({ input: request })
+        ? await action.run({ rawInput: request })
         : reject("unauthorized", 401)
-      : await route.run({ input: request });
-    calls.update((all) =>
-      all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
-    );
+      : await route.run({ rawInput: request });
+    if (!stop.aborted)
+      calls.update((all) =>
+        all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
+      );
     return response;
   },
 });
@@ -533,7 +535,7 @@ const http = resource({
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(chunk);
         const body = await decode.run({
-          input: {
+          rawInput: {
             bytes: Buffer.concat(chunks).toString("utf8"),
             form:
               request.headers["content-type"]?.startsWith("application/x-www-form-urlencoded") ??

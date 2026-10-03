@@ -40,25 +40,25 @@ export const clock = resource({
       currentTimeMillis() {
         return now ?? ctx.clock.currentTimeMillis();
       },
-      sleep(ms: number, signal?: AbortSignal): Promise<void> {
+      sleep(ms: number, signal: AbortSignal): Promise<void> {
         if (now === undefined) return ctx.clock.sleep(ms, signal);
         return new Promise<void>((resolve, reject) => {
-          if (signal?.aborted) return reject(signal.reason);
+          if (signal.aborted) return reject(signal.reason);
           if (ms <= 0) return resolve();
           const wait = {
             at: handle.currentTimeMillis() + ms,
             wake: () => {
               waits.delete(wait);
-              signal?.removeEventListener("abort", abort);
+              signal.removeEventListener("abort", abort);
               resolve();
             },
           };
           const abort = () => {
             waits.delete(wait);
-            reject(signal?.reason);
+            reject(signal.reason);
           };
           waits.add(wait);
-          signal?.addEventListener("abort", abort, { once: true });
+          signal.addEventListener("abort", abort, { once: true });
         });
       },
       setTime(value: number) {

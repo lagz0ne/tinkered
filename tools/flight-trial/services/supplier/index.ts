@@ -187,7 +187,7 @@ const holds = resource({
         );
         if (order)
           return expire.run({
-            input: { deadline: Date.parse(order.payment_status.payment_required_by!) },
+            rawInput: { deadline: Date.parse(order.payment_status.payment_required_by!) },
           });
       }),
     );
@@ -419,7 +419,7 @@ const supplierControl = operation({
         },
       });
     }
-    return common.run({ input: ctx.input });
+    return common.run({ rawInput: ctx.input });
   },
 });
 
@@ -455,13 +455,13 @@ const action = operation({
     lookup: lookup.controller,
   },
   async run({ expire, search, order, pay, control, lookup }, ctx) {
-    if (ctx.input.path.startsWith("/control/")) return control.run({ input: ctx.input });
+    if (ctx.input.path.startsWith("/control/")) return control.run({ rawInput: ctx.input });
     expire.run();
     if (ctx.input.route === "POST /air/offer_requests")
       return search.run({ rawInput: ctx.input.body });
     if (ctx.input.route === "POST /air/orders") return order.run({ rawInput: ctx.input.body });
     if (ctx.input.route === "POST /air/payments") return pay.run({ rawInput: ctx.input.body });
-    return lookup.run({ input: ctx.input });
+    return lookup.run({ rawInput: ctx.input });
   },
 });
 const applyRoute = operation({
@@ -469,11 +469,10 @@ const applyRoute = operation({
   input: z.object({
     request: requestSchema,
     revision: z.string().optional(),
-    stopped: z.boolean(),
   }),
   depends: { action: action.controller, rules: rules.controller },
   async run({ action, rules }, ctx) {
-    const { request, revision, stopped } = ctx.input;
+    const { request, revision } = ctx.input;
     let selected: Wire.Rule | undefined;
     rules.update((all) => {
       const current = all[request.route];
@@ -484,10 +483,9 @@ const applyRoute = operation({
         : all;
     });
     let response: Wire.Reply;
-    if (stopped) response = reject("service_stopped", 503);
-    else if (selected?.saved && selected.repeat > 0) response = selected.saved;
+    if (selected?.saved && selected.repeat > 0) response = selected.saved;
     else if (selected?.status) response = reject("injected_failure", selected.status);
-    else response = await action.run({ input: request });
+    else response = await action.run({ rawInput: request });
     if (revision)
       rules.update((all) => {
         const current = all[request.route];
@@ -515,7 +513,8 @@ const delayRoute = operation({
         stopped = true;
       }
     }
-    return apply.run({ input: { request: ctx.input, revision: rule?.revision, stopped } });
+    if (stopped) return reject("service_stopped", 503);
+    return apply.run({ rawInput: { request: ctx.input, revision: rule?.revision } });
   },
 });
 const dispatch = operation({
@@ -527,8 +526,9 @@ const dispatch = operation({
     calls: calls.controller,
     clock,
     token: controlToken,
+    stop: stopSignal,
   },
-  async run({ action, route, calls, clock, token }, ctx) {
+  async run({ action, route, calls, clock, token, stop }, ctx) {
     const request = ctx.input;
     const time = clock.currentTimeMillis();
     const id = ctx.random.uuid();
@@ -544,12 +544,13 @@ const dispatch = operation({
     ]);
     const response = request.path.startsWith("/control/")
       ? request.token === `Bearer ${token}`
-        ? await action.run({ input: request })
+        ? await action.run({ rawInput: request })
         : reject("unauthorized", 401)
-      : await route.run({ input: request });
-    calls.update((all) =>
-      all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
-    );
+      : await route.run({ rawInput: request });
+    if (!stop.aborted)
+      calls.update((all) =>
+        all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
+      );
     return response;
   },
 });
@@ -563,7 +564,7 @@ const http = resource({
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(chunk);
         const body = await decode.run({
-          input: {
+          rawInput: {
             bytes: Buffer.concat(chunks).toString("utf8"),
             form:
               request.headers["content-type"]?.startsWith("application/x-www-form-urlencoded") ??
@@ -612,7 +613,7 @@ export const app = extension({
     async start({ scope, next }) {
       await next();
       await scope.run(supplierControl, {
-        input: {
+        rawInput: {
           route: "POST /control/scenario",
           path: "/control/scenario",
           body: { name: "default" },
