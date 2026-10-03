@@ -1,7 +1,7 @@
 # Flight reference answer
 
 This private answer starts from `apps/start-scaffold` at `0f0a83fe`.
-The copy includes the strict Start source at `1486bc00`.
+The copy includes the strict Start source at `5d5f2fad`.
 Its response bodies and telemetry queue are resources.
 Each round adds feature files and changes the app's open files.
 The teacher never mounts this answer into a writer's container.
@@ -36,3 +36,12 @@ The harness isolates submitted code before starting it.
 `canaries.mjs` passes the reference twice, then plants one break.
 It checks that the named behavior fails, then restores the file.
 Its logs land in this folder's `.logs/`.
+
+The browser page-close listener is also a resource.
+It removes its listener when the router's owner closes.
+Run the strict check from the worktree root:
+
+```bash
+ref=tools/flight-trial/reference
+npm --prefix "$ref" run check:plain
+```

@@ -1265,3 +1265,70 @@ The check draft passed 97 files and 22 plain functions, exit 0:
 `/tmp/flight-rounds-draft-plain-strict-copy.log`.
 The committed strict check is still due from the scaffold writer.
 It must pass before the round 5 ready commit.
+
+### Committed strict check and browser lifetime
+
+The reference now carries the exact `check-plain.mjs` from `5d5f2fad`.
+Its five final source changes were applied, exit 0:
+`/tmp/flight-rounds-strict-final-apply-check.log`,
+`/tmp/flight-rounds-strict-final-apply.log`.
+JSON parsing is in operation input callbacks, so Core manages a bad input.
+The browser page-close listener was still outside a resource in the copied source.
+The reference now owns and removes that listener from a resource.
+The router entry supplies its existing close callback through a tag.
+This keeps the same pagehide behavior and closes both roots.
+
+The draft list check first rejected the old printed list, exit 1:
+`/tmp/flight-rounds-page-resource-draft-plain.log`.
+The committed check regenerated `PLAIN.md` after its entries were read.
+It passes 97 files and 22 plain functions, exit 0:
+`/tmp/flight-rounds-canonical-plain.log`.
+Command: `npm --prefix tools/flight-trial/reference run check:plain`.
+Vite+ does not find this private package's task outside workspace globs.
+The first `run.mjs run check:plain` invocation exited 1 with Task not found.
+The check's direct Node command and npm script both pass.
+The same check's 26 planted failures each exited 1 by their rule name.
+Its proof driver exited 0:
+`/tmp/flight-rounds-final-plain-proof.log`.
+Each red log is `/tmp/start-plain-proof-<case>.log`.
+The driver names every case and full path.
+
+The page-resource and final source answer each passed 16/16 twice, exit 0 each.
+Each planted mail break failed only its named case, exit 1.
+Drivers and all builds exited 0:
+`/tmp/flight-rounds-r5-final-proof.log`,
+`/tmp/flight-rounds-r5-canonical-proof.log`.
+The latest logs are reference `.logs/r5-pass-1.log`, `r5-pass-2.log`,
+`r5-break.log`, `r5-build-good.log`, `r5-build-break.log`, `r5-build-restored.log`.
+The final check exited 0 with zero authored warnings:
+`/tmp/flight-rounds-canonical-check.log`.
+
+The workspace build and serial full tests exited 0:
+`/tmp/flight-rounds-final-strict-build.log`,
+`/tmp/flight-rounds-final-strict-tests.log`.
+All-source TSDoc read 97 files with zero rows, exit 0:
+`/tmp/flight-rounds-final-all-tsdoc.log`.
+Schema, all-source strict style, prose, and typecheck exited 0:
+`/tmp/flight-rounds-final-schema.log`,
+`/tmp/flight-rounds-final-style.log`,
+`/tmp/flight-rounds-final-prose.log`,
+`/tmp/flight-rounds-final-typecheck.log`.
+Validate passed all 16 lanes, exit 0:
+`/tmp/flight-rounds-final-strict-validate.log`.
+Jev exited 0, two file flags and 47 unit flags:
+`/tmp/flight-rounds-final-jev.log`.
+The earlier answers still apply to fixed paths, awaited native IO, and private bookkeeping.
+The leakedInternal file flag and inputDefaultMasks reader flag are in inherited services.
+The latest services graph commit replaces that version.
+The reference no longer has the old scope getter, queue class, or free delivery function.
+The browser listener is now owned even though the check did not flag it.
+The strict services commits arrived during this proof.
+Next: rebase the saved reference onto them and rerun proof before ready.
+
+The first save was rejected by prose for a word on its banned list.
+Prose and commit exited 1; no commit was made.
+The following rebase also exited 1 because the save had not succeeded.
+Logs: `/tmp/flight-rounds-canonical-prose.log`,
+`/tmp/flight-rounds-canonical-commit.log`,
+`/tmp/flight-rounds-rebase-latest-services.log`.
+The prose line was fixed before retrying the save.

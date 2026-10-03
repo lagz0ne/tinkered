@@ -88,3 +88,7 @@ See [Mailpit's Chaos guide](https://mailpit.axllent.org/docs/integration/chaos/)
 The teacher needs no SMTP password or webhook secret.
 The app gets those settings from its own `.env`.
 Only the service controls and Mailpit API are used to inject faults.
+
+The harness also runs the scaffold checks on the submitted source.
+That includes `check:plain`; page checks alone do not replace it.
+The private reference runs the same committed check.
