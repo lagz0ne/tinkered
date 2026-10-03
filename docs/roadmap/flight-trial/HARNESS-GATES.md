@@ -243,3 +243,86 @@ The writer gets 403 for Chaos requests.
   Log: `/tmp/flight-harness-20261003/logs/cleanup-proof.log`.
 - **saved-final-clean**: exit 0.
   Log: `/tmp/flight-harness-20261003/logs/saved-final-clean.log`.
+
+## Review fix round
+
+All jobs ran in the foreground.
+The saved image tags were not rebuilt.
+The first Mailpit probe failed because Docker refused a copy into a read-only root.
+Helper loading now writes through `docker exec` into `/tmp`.
+Both real review checks exit 1 by design.
+The reference has no score because the plain checker is absent.
+The broken-router attempt records round 1 failed with baseline 0.
+
+- **broken-check**: exit 1.
+  Log: `/tmp/flight-harness-review-20261003/logs/broken-check.log`.
+- **broken-proof**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/broken-proof.log`.
+- **broken-setup**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/broken-setup.log`.
+- **cleanup-reference**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/cleanup-reference.log`.
+- **cleanup-review-proof**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/cleanup-review-proof.log`.
+- **create-reference**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/create-reference.log`.
+- **export-reference**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/export-reference.log`.
+- **feedback-broken**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/feedback-broken.log`.
+- **gate-tests**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/gate-tests.log`.
+- **harness-tests-final**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/harness-tests-final.log`.
+- **harness-tests-reviewed**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/harness-tests-reviewed.log`.
+- **harness-tests**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/harness-tests.log`.
+- **isolation-final**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/isolation-final.log`.
+- **isolation**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/isolation.log`.
+- **legacy-plain-score-test**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/legacy-plain-score-test.log`.
+- **live-score-proof**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/live-score-proof.log`.
+- **mail-control-proof-first**: exit 1.
+  Log: `/tmp/flight-harness-review-20261003/logs/mail-control-proof-first.log`.
+- **mail-control-proof**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/mail-control-proof.log`.
+- **mail-proxy-check**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/mail-proxy-check.log`.
+- **plain-real-errors-test**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/plain-real-errors-test.log`.
+- **plain-score-tests**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/plain-score-tests.log`.
+- **prose-cleanup-row**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/prose-cleanup-row.log`.
+- **prose-isolation**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/prose-isolation.log`.
+- **reference-check**: exit 1.
+  Log: `/tmp/flight-harness-review-20261003/logs/reference-check.log`.
+- **reference-proof**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/reference-proof.log`.
+- **reference-setup**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/reference-setup.log`.
+- **router-test**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/router-test.log`.
+- **save-broken**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/save-broken.log`.
+- **save-reference**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/save-reference.log`.
+- **score-proofs-reviewed**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/score-proofs-reviewed.log`.
+- **stage-reference**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/stage-reference.log`.
+- **stage-tests**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/stage-tests.log`.
+- **vp-check-final**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/vp-check-final.log`.
+- **vp-check-reviewed**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/vp-check-reviewed.log`.
+- **vp-check**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/vp-check.log`.
+- **prose-reviewed**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/prose-reviewed.log`.

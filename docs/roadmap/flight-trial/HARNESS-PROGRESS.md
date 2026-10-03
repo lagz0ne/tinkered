@@ -251,3 +251,97 @@ The app, service, Postgres, and Mailpit image keepers remain.
 The previous writer's older proof trials are left in place.
 Cleanup proof: exit 0, `cleanup-proof.log`.
 Saved hashes after cleanup: exit 0, `saved-final-clean.log`.
+
+## Review fix round after edc35fd4
+
+The review fixes are saved in separate commits.
+All long jobs ran in the foreground.
+No saved image tag was rebuilt.
+No `packages/`, `apps/`, or `tools/flight-trial/` file changed.
+
+### Review items and proof
+
+- **1 and 4, fresh router**: remove the submitted router before either build.
+  Missing files, links, and directories fail the own check.
+  The missing router no longer throws through the setup catch.
+  `router-test.log` checks real files.
+  `broken-check.log` has own exit 1 and no router hash.
+  `broken-proof.log` proves both builds failed and round 1 is scored failed.
+- **2, plain availability and score**: read only the image's script entry.
+  Check that entry with `test -f` before running it.
+  Error words from a running checker cannot mark it unavailable.
+  `plain-real-errors-test.log` uses real missing imports and files.
+  `plain-score-tests.log` keeps scaffold, own, and teacher failures.
+  `legacy-plain-score-test.log` covers older saved missing-script records.
+  `live-score-proof.log` checks the current score code against the saved attempt.
+- **3, Mailpit Chaos**: Mailpit lives on the control network.
+  The writer's proxy passes SMTP and inbox requests.
+  Chaos paths return 403 for every method.
+  The teacher uses `http://control-mailpit:8025` and can set Chaos.
+  `mail-control-proof.log` proves writer 403 and teacher 200.
+  `isolation-final.log` also proves SMTP and inbox access.
+- **5, repeatable isolation**: the Node driver is committed under `harness/`.
+  It starts the same writer setup as `workers.mjs`.
+  It always tears down its flight setup.
+  Outside DNS fails through the writer's local DNS setting.
+  There is no default route or route to `172.17.0.1`.
+  Real Mailpit is unreachable by name and IP.
+  The driver also checks private service controls and signed callbacks.
+  `isolation-final.log` exits 0.
+  [The gate record](./HARNESS-GATES.md) gives the exact command.
+- **6, each worker stages alone**: a stopped or unchecked model is skipped.
+  Passing workers can stage the next round.
+  Cleanup checks each worker's last staged round.
+  `stage-tests.log` covers stopped, passing, unchecked, and reference workers.
+- **7, small helpers**: the scaffold probe is a file copied at check time.
+  Its hash is in each check's `evidence.json`.
+  The three flight gate tests now sit in one `describe` block.
+  `gate-tests.log` exits 0.
+- **8, one cleanup row**: the older `cleanup-proof` entry appears once.
+  This fix round uses new log names and keeps the first failed probe.
+
+### Real saved-attempt proofs
+
+Trial: `flight-harness-review-01`.
+Its first attempt restores the saved round 1 reference archive.
+Own, teacher, and scaffold exits are all 0.
+Plain is unavailable in image `20261003.5`.
+The full review exit is 1.
+The score is pending with no baseline.
+`reference-proof.log` exits 0.
+
+The second attempt removes `src/routeTree.gen.ts` before save.
+Its Vite config throws before either build can make that file.
+Own exit is 1; teacher and scaffold exits are 0.
+The plain check still reports unavailable.
+The score records first failed round 1 and baseline 0.
+`broken-proof.log` and `live-score-proof.log` exit 0.
+The `unscored` flag marks the missing plain check.
+It cannot erase failures from checks that ran.
+
+All 79 harness tests pass.
+`vp check` exits 0.
+Every proof container, network, and volume is gone.
+Saved attempt hashes still match.
+App and service image IDs for `20261003.5` are unchanged.
+`cleanup-review-proof.log` exits 0.
+All logs are under `/tmp/flight-harness-review-20261003/logs/`.
+
+### Assumptions for this fix round
+
+- The saved reference from `flight-harness-proof-06` is the round 1 input.
+  Its source is restored without a model run.
+  The saved native session is copied into the new proof attempt.
+  The reports name this as a harness proof.
+- Packets and teacher checks use the saved `610144d0` files.
+  The proof uses the existing packet and teacher path overrides.
+  Frozen files are not refreshed.
+- A reference with no agent ID remains free to stage later rounds.
+  A model run stops at its first scored failure.
+  Other models may move on when their own checks pass.
+- The trusted plain entry is the scaffold's Node script in the image.
+  A missing script or entry earns no round.
+  A checker that ran and failed counts as a plain failure.
+- The missing plain script and older service image are known limits.
+  They remain unchanged for this review.
+  The lead must use a fresh tag after the plain and service changes land.
