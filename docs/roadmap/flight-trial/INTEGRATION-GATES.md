@@ -12,7 +12,10 @@ The services image rebuild and tar save exited 0.
 Log: `tools/writer-trial/.logs/hono-services-image.log`.
 The new services ID is
 `sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7`.
-One full gate per round is next, with `--once` and no planted breaks.
+Rounds 1 and 2 passed with exit 0; rounds 3 to 5 are running.
+The run uses `--once` with no planted breaks.
+Rows: [INTEGRATION-HONO-RESULTS.json](INTEGRATION-HONO-RESULTS.json).
+Log: `tools/writer-trial/.logs/hono-reference-final.log`.
 
 ## Five rounds before Hono
 
@@ -77,11 +80,11 @@ These saved proofs use the final `.3` writer image.
 Their log names also start at `tools/writer-trial/.logs/`.
 
 - Image build and saved tars: 0, `resume-images-final-build.log`.
-- Create: 0, `resume-ready-create.log`.
-- Stage 1: 0, `resume-ready-stage-1.log`.
-- Worker folder proof: 0, `resume-ready-workspace-proof.log`.
-- Frozen files: 0, `resume-ready-frozen-proof.log`.
-- Isolation: 0, `resume-final-isolation.log`.
+- Latest create: 0, `hono-ready-create.log`.
+- Latest stage 1: 0, `hono-ready-stage.log`.
+- Latest worker folder proof: 0, `hono-ready-proof.log`.
+- Latest frozen files and image pins: 0, `hono-ready-pin.log`.
+- Latest isolation: 0, `hono-isolation.log`.
 
 The worker has the scaffold, five skills, shipped tests, and packet 1 only.
 It has `SERVICES.md`, `PLAIN.md`, and `check:plain`.
@@ -89,10 +92,10 @@ It has no teacher files.
 Internet, private controls, and writer Mailpit Chaos are refused.
 Service APIs, Postgres, SMTP, and signed callbacks work.
 
-Prepared trial: `flight-integration-ready-01`, staged at packet 1.
+Prepared trial: `flight-integration-hono-01`, staged at packet 1.
 No model run started.
 Manifest:
-`/home/paseo/.local/share/tinker-writer-trial/flight-integration-ready-01/manifest.json`.
+`/home/paseo/.local/share/tinker-writer-trial/flight-integration-hono-01/manifest.json`.
 
 ## Images and saved copies
 

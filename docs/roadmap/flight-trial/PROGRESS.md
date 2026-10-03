@@ -2759,3 +2759,20 @@ Log: `tools/writer-trial/.logs/hono-workspace-gates.log`.
 The first runner check found formatting in the generated config;
 formatting was fixed before the green check and the image commit.
 The five-round Hono reference run is still running.
+
+Hono rounds 1 and 2 each passed the full gate with exit 0.
+The saved rows are in `INTEGRATION-HONO-RESULTS.json`.
+Round 3 is running; no planted breaks are selected.
+
+The Hono isolation proof exited 0: `hono-isolation.log`.
+It blocks internet, private controls, and writer Mailpit Chaos.
+SMTP, Postgres, service APIs, and signed callbacks work.
+
+Assumption: a fresh prepared trial must pin the newly proved image.
+Created and staged `flight-integration-hono-01` at packet 1.
+No model run started.
+Create, stage, worker-folder, frozen-file, and image-pin checks exited 0.
+Logs: `hono-ready-create.log`, `hono-ready-stage.log`,
+`hono-ready-proof.log`, and `hono-ready-pin.log`,
+all under `tools/writer-trial/.logs/`.
+The older ready trial stays as the prior services proof.
