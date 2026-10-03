@@ -2,7 +2,13 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { environmentArgs, flightNames, startFlight, stopFlight } from "./flight-network.mjs";
+import {
+  environmentArgs,
+  flightEnvironment,
+  flightNames,
+  startFlight,
+  stopFlight,
+} from "./flight-network.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const run = (args, input) =>
@@ -233,15 +239,22 @@ function checkTeacher(state, app, round, image, teacher, teacherDir) {
       SUPPLIER_C_URL: settings.controlUrls["supplier-c"],
       PAYMENT_URL: settings.controlUrls.payment,
       MAILPIT_URL: settings.mailpitUrl,
+      WEBHOOK_SECRET: flightEnvironment().WEBHOOK_SECRET,
     };
+    run(
+      ["exec", "-i", grader, "sh", "-c", "cat > /work/grader.env"],
+      Object.entries(env)
+        .map(([key, value]) => `${key}='${value}'`)
+        .join("\n") + "\n",
+    );
     teacher.push(
       run([
         "exec",
-        ...Object.entries(env).flatMap(([key, value]) => ["-e", `${key}=${value}`]),
         grader,
         "timeout",
         "280",
         "node",
+        "--env-file=/work/grader.env",
         "/work/flight/check.mjs",
         String(round),
       ]),
