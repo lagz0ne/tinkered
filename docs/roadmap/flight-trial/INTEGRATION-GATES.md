@@ -17,6 +17,8 @@ The runner exited 0; the saved-result check also exited 0.
 Each round passed own, teacher, scaffold, plain, and Jev checks.
 Teacher counts were 3/3, 6/6, 10/10, 17/17, and 21/21.
 The run uses `--once` with no planted breaks.
+Round 1 uses one supplier on purpose; its packet asks for one.
+The later rounds use all three suppliers.
 Rows: [INTEGRATION-HONO-RESULTS.json](INTEGRATION-HONO-RESULTS.json).
 Log: `tools/writer-trial/.logs/hono-reference-final.log`.
 Result check: `tools/writer-trial/.logs/hono-reference-verified.log`, exit 0.
@@ -49,6 +51,8 @@ Each folder has `result.json`, `own.log`, `teacher.log`,
   Break: `r5 failed mail keeps the booking valid and retry sends once`.
 
 All ten good runs passed own, teacher, scaffold, plain, and Jev checks.
+Pass 2 reuses pass 1 Jev answers for unchanged file bytes.
+It reruns the other checks; it is not a second independent Jev vote.
 The five broken runs failed their named browser checks.
 The round 4 break also made TypeScript reject unused `timingSafeEqual`.
 Its browser reached the forged event and failed the signature check.
@@ -133,7 +137,8 @@ Keepers and both saved tars stay in place.
 The proved writer image still packs Core from `1ff5402f`.
 Its teacher uses full Chromium and trusts the private app origin.
 Main's `f847c99c` fixes UUIDs on plain HTTP pages.
-The secure-origin flag is no longer required with that Core build.
+The secure-origin flag stays.
+It is harmless with the new Core build and was needed for the old image.
 The proved image was kept fixed through all rounds.
 
 Rebuild services after another service change with:

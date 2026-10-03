@@ -2856,3 +2856,12 @@ Logs under `tools/writer-trial/.logs/`:
 
 One constant now supplies the app, payment service, and teacher.
 The final isolation proof will check the signed callback again.
+
+### Integration review fix 6: proof limits
+
+Round 1 uses one supplier on purpose, as its packet asks.
+Pass 2 reuses pass 1 Jev answers for unchanged file bytes.
+The secure-origin flag stays in the teacher browser.
+It is harmless with the new Core build and was needed for the old image.
+This corrects the earlier note about removing the flag.
+These limits are now stated in `INTEGRATION-GATES.md`.
