@@ -1009,3 +1009,49 @@ Prose passed: exit 0, `lift-final-prose.log`.
 All 16 validation lanes passed: exit 0, `lift-final-validate.log`.
 The four-process HTTP proof passed: exit 0, `lift-final-process.log`.
 Jev test review passed: exit 0, `lift-final-jev-tests.log`; no flags in 28 tests.
+
+### Mutation floor closed
+
+Code commits: `af26d518` for the entry lifecycle tests,
+and `522ccc9f` for supplier wire proofs and dead payment state removal.
+The first full lane after those steps passed at 85.70 percent, exit 0.
+It ran alone under `/tmp/mutation.lock` with the unchanged floor of 85.
+All nine source files remain included; nothing is excluded.
+No code or test changes followed the passing lane.
+
+Log: `lift-final-mutate.log`.
+Full report: `lift-final-mutation.json`.
+Counts and file scores: `lift-final-mutation-summary.json`.
+The 1,573 cases include 1,331 killed, 17 timeouts,
+182 survivors, 43 without coverage, and zero runner errors.
+Removing the dead payment state removed 13 cases from the code.
+The entry tests catch 29 cases that previously had no coverage.
+Twelve supplier survivors now show `Killed`, not timeout.
+Their old and new IDs are in `lift-supplier-kill-proof.json`.
+
+File scores:
+
+- `services/http.ts`: 83.54 percent.
+- `services/payment/index.ts`: 85.41 percent.
+- `services/payment/main.ts`: 50.00 percent.
+- `services/supplier/index.ts`: 86.63 percent.
+- `services/supplier/main.ts`: 53.57 percent.
+- `src/errors.ts`: 50.00 percent.
+- `src/flights.ts`: 95.10 percent.
+- `src/schema.ts`: 100.00 percent.
+- `src/index.ts`: included; it has no mutation cases.
+
+The breaking floor applies to the full package score.
+No file score or remaining case was excluded to reach it.
+All 85 tests and the workspace build, check, tests,
+strict style census, prose, validation, and process proof passed.
+Their exit codes and log paths are in `lift-final-gates.json`.
+
+Final Jev preflight: exit 0, `lift-final-jev-preflight.log`.
+Its eight flagged units use the same ownership and stop reasons above.
+Final README review: exit 0, `lift-final-jev-promises.log`.
+It has no confident gaps in 85 titles.
+The two unsure titles have existing README promises:
+`never` leaves the intent processing until a manual send,
+and an expired business hold restores its own cabin for the default one adult.
+Final TSDoc: exit 0, `lift-final-tsdoc.log`; no S26 rows.
