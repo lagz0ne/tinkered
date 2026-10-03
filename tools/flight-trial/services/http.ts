@@ -261,6 +261,37 @@ const routeRule = operation({
   },
 });
 
+/** Both listeners give this operation owned UTF-8 text; it owns no socket. */
+export const decodeBody = operation({
+  label: "decode HTTP body",
+  input: z.object({ bytes: z.string(), form: z.boolean() }),
+  run(_deps, ctx): unknown {
+    if (!ctx.input.bytes) return {};
+    try {
+      if (!ctx.input.form) return JSON.parse(ctx.input.bytes);
+      const body: Wire.Form = {};
+      const booleans: Record<string, boolean> = { true: true, false: false };
+      for (const [key, value] of new URLSearchParams(ctx.input.bytes)) {
+        const parts = key.split(/[[\]]/).filter(Boolean);
+        if (parts.some((part) => ["__proto__", "constructor", "prototype"].includes(part)))
+          continue;
+        const current = parts.slice(0, -1).reduce((parent, part) => {
+          const nested = parent[part];
+          if (typeof nested === "object") return nested;
+          const next: Wire.Form = {};
+          parent[part] = next;
+          return next;
+        }, body);
+        const name = parts.at(-1);
+        if (name) current[name] = Object.hasOwn(booleans, value) ? booleans[value] : value;
+      }
+      return body;
+    } catch {
+      return null;
+    }
+  },
+});
+
 export const web = resource({
   label: "service Hono app",
   factory: () => new Hono<Wire.Env>(),
@@ -295,36 +326,17 @@ export const middleware = resource({
         await next();
       }),
       body: createMiddleware<Wire.Env>(async (c, next) => {
-        const bytes = await c.req.text();
-        let body: unknown = {};
-        if (bytes) {
-          try {
-            if (!c.req.header("content-type")?.startsWith("application/x-www-form-urlencoded")) {
-              body = JSON.parse(bytes);
-            } else {
-              const form: Wire.Form = {};
-              const booleans: Record<string, boolean> = { true: true, false: false };
-              new URLSearchParams(bytes).forEach((value, key) => {
-                const parts = key.split(/[[\]]/).filter(Boolean);
-                if (parts.some((part) => ["__proto__", "constructor", "prototype"].includes(part)))
-                  return;
-                const current = parts.slice(0, -1).reduce((parent, part) => {
-                  const nested = parent[part];
-                  if (typeof nested === "object") return nested;
-                  const next: Wire.Form = {};
-                  parent[part] = next;
-                  return next;
-                }, form);
-                const name = parts.at(-1);
-                if (name) current[name] = Object.hasOwn(booleans, value) ? booleans[value] : value;
-              });
-              body = form;
-            }
-          } catch {
-            body = null;
-          }
-        }
-        c.set("body", body);
+        c.set(
+          "body",
+          c.var.scope.run(decodeBody, {
+            rawInput: {
+              bytes: await c.req.text(),
+              form:
+                c.req.header("content-type")?.startsWith("application/x-www-form-urlencoded") ??
+                false,
+            },
+          }),
+        );
         await next();
       }),
       rule: createMiddleware<Wire.Env>(async (c, next) => {
