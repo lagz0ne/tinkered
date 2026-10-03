@@ -382,3 +382,143 @@ The source subset hash is still
 Saved data stays at 843,591 bytes.
 No mutation config, threshold, file list, or lockfile changed.
 Core feedback: none.
+
+## trial/flight-services
+
+Writer: Sol.
+Branch: `trial/flight-services`.
+Status: work in progress; the lead's data landing is still pending.
+The board stays with the lead; it is outside this writer's paths.
+
+### Services and process steps
+
+Suppliers A, B, and C run as separate Core apps behind HTTP.
+Payment runs as a fourth Core app.
+Each process owns its data, scope, clock, and HTTP listener.
+Tags hold its port, host, supplier ID, token, secret, and delays.
+Operations own the service and grader actions.
+Data watchers start hold expiry and signed webhook sends.
+A startup extension puts listener failures under Core's root lifetime.
+Its TSDoc gives that reason.
+
+The start command starts four children and prints their URLs and process IDs.
+A stop signal closes every child scope.
+One child's early exit stops the whole group.
+Compose runs Postgres 17 and Mailpit 1.27 on a private network.
+The proof used the separate `flight-services-proof` project.
+Its containers, network, and proof volume were removed after the check.
+
+Saved steps:
+
+- `fe533149`: supplier and payment apps, with HTTP tests.
+- `a07ada4e`: four processes, Compose, and live service proof.
+- `fbe85b0c`: manual webhook plans replace pending sends.
+
+### Proof before the reader update
+
+All logs below are under `tools/flight-trial/.logs/`.
+These gates must run again after the requested rebase.
+
+- Core build: exit 0, `services-core-build.log`.
+- Workspace build: exit 0, `services-prebase-build.log`.
+- Check: exit 0, `services-prebase-check.log`.
+  Zero errors and 29 warnings, matching the data branch.
+- Package tests: exit 0, `services-clock-tests.log`; 24 passed.
+- All workspace tests: exit 0, `services-prebase-workspace-tests.log`.
+- Build, check, package and workspace test chain: exit 0, `services-prebase-gate.log`.
+- Prose: exit 0, `services-prose-step.log`.
+- README width: exit 0, `services-prose-width.log`; zero wide lines.
+- Validate: exit 0, `services-prebase-validate.log`; all 16 lanes passed.
+- Compose pull: exit 0, `services-compose-pull.log`.
+- Compose up: exit 0, `services-compose-up.log`.
+- Compose status: exit 0, `services-compose-status.log`; both healthy.
+- Postgres SQL: exit 0, `services-postgres-proof.log`; SELECT returned 1.
+- Mailpit SMTP and inbox: exit 0, `services-mailpit-network-proof.log`.
+- Four-process proof: exit 0, `services-process-proof.log`.
+  Four distinct process IDs answered their service and control APIs.
+  The parent and its four children then stopped cleanly.
+- Compose cleanup: exit 0, `services-compose-cleanup.log`.
+- Pending-send regression without the fix: exit 1, `services-cancel-regression-fixed.log`.
+- Pending-send regression with the fix: exit 0, `services-control-final-tests.log`.
+- TSDoc shape: exit 0, `services-tsdoc.log`.
+
+The first mail check used the workspace container's loopback address.
+That is a different address from the Docker host's loopback address.
+It failed with exit 1, `services-mailpit-proof.log`.
+The final mail check ran a Node client on the Compose network and passed.
+No host services or Docker settings changed.
+
+The first regression check saw a count of one before both sends reached the inbox.
+It passed with exit 0, `services-cancel-regression.log`, so it proved too little.
+The test now checks that the cancelled intent stays processing through HTTP.
+It fails without the cancellation code and passes with it.
+
+### Jev before the reader update
+
+- Test review: exit 0, `services-jev-tests.log`; no flags.
+- README promises: exit 0, `services-jev-promises.log`.
+  One flag asked for a plain line promising stale prices.
+  The README now says a price change makes a searched offer stale.
+- Full preflight: exit 0, `services-jev-main-preflight.log`.
+  Its range includes inherited scaffold work outside this ticket.
+  This writer did not change or label those files.
+
+The ticket's false labels and reasons are recorded here for the lead.
+The path limit forbids writes to `tools/jev/cases.jsonl` or `calibration.json`.
+No labels were added to that bank.
+
+- `memoKeyIgnoresInput`: false, `tools/flight-trial/services/http.ts`.
+  The grader's repeat rule repeats a route reply even when the next body differs.
+  It is a fault the grader asked to inject, not a service cache.
+- `inputDefaultMasks`: false, `http.ts#readRequest`.
+  Empty bodies support confirm calls.
+  Route schemas still reject missing amounts, slices, and control fields.
+- `stateOutsideCell`: false, `payment/index.ts#schedule`.
+  It edits the operation's owned copy, then that operation writes the Core cell.
+  It retains no state outside the cell.
+- `configNotTag`: false, `payment/index.ts#sendWebhook`.
+  URL, secret, clock, and stop signal come from tags or resources.
+  The body and signature belong to this one send.
+  HTTP method and content type are fixed wire facts.
+- `stopOnlyInDefer`: false, `payment/index.ts#webhooks` and `supplier/index.ts#holds`.
+  These resources own subscriptions, removed by their defers.
+  The operations they start own waits and read both stop signals.
+- `stateOutsideCell`: false, `supplier/index.ts#createStock`.
+  It edits owned stock in the operation's copy before the Core cell write.
+  The all-offers reader step will replace this helper.
+
+Paths after `http.ts` above are under `tools/flight-trial/services/`.
+The `~wrapsCallersStep` hit is a noisy judge and needs no label.
+
+Style census: exit 1, `services-style.log`; only S16 hit.
+The ticket explicitly requires source `preset` calls.
+That instruction overrides the skill's test-only preset rule.
+All other strict style rows are zero.
+
+### Core feedback
+
+A root stop signal asks for graceful close.
+It does not cancel a running operation's `ctx.signal`.
+This short probe leaves `closed` pending until the virtual wait ends:
+
+```ts
+const stop = new AbortController();
+const clock = makeTestClock();
+const wait = operation({
+  label: "wait",
+  async run(_, ctx) {
+    await ctx.clock.sleep(100, ctx.signal);
+  },
+});
+const scope = createScope({ clock, signal: stop.signal });
+const pending = scope.run(wait);
+stop.abort();
+await scope.closed;
+```
+
+The probe's early-close assertion failed as expected.
+Advancing the clock by 100 let the root close with success.
+Proof: exit 0, `services-core-feedback.log`.
+Service background waits also read the caller's stop signal.
+They finish without error on stop so Core can drain the root.
+This follows Core's graceful-close rule; no Core change is requested.
