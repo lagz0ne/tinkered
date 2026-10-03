@@ -2525,3 +2525,11 @@ The repeat promise scan exited 0 and found four more README gaps.
 Those four lines are also now stated in the harness README.
 All flagged titles from both valid scans have a saved README line.
 The promise scan is advisory; unsure rows are not defects.
+
+The `.2` image used the starter registry's old test list.
+It omitted main's new `tab-lifetime.test.ts`.
+The first round's own check and all three browser checks passed,
+but this attempt was stopped with exit 130 before the Jev result.
+It is not counted as a full-gate pass.
+The image script now copies every shipped app test into its seed.
+A fresh `.3` image and proof include the landed lifetime test.

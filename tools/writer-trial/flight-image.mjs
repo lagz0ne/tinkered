@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { listFiles, sha256File } from "./suite.mjs";
 import { prepareServices, buildServices } from "./flight-services-image.mjs";
@@ -33,6 +33,7 @@ export function prepareFlight(repo, home, config, build) {
     included.add(name);
   };
   copyItem("starter");
+  cpSync(join(app, "tests"), join(seed, "tests"), { recursive: true });
   copyFileSync(join(app, "components.json"), join(seed, "components.json"));
   const pkg = JSON.parse(readFileSync(join(seed, "package.json")));
   for (const name of ["core", "react"]) {
