@@ -158,7 +158,7 @@ The final preflight has one file flag and ten flagged units.
 Each is explained and labeled false.
 They name owned clients, transport state, native cleanup,
 or repeated execution work that is promised to be a no-op.
-[Exact label states and reasons](REFINE-JEV.jsonl).
+At landing, the new labels joined the shared bank in [cases.jsonl](../../../tools/jev/cases.jsonl).
 Log: `/tmp/start-refine-jev-labels-final.log`.
 
 Labels stay in this track because shared-tool edits are barred.
