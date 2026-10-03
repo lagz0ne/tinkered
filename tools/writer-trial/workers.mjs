@@ -316,7 +316,9 @@ if (action === "create") {
   const suite = suiteFor(manifest);
   const staging =
     suite === "flight"
-      ? stageableFlightWorkers(manifest.workers, manifest.round)
+      ? stageableFlightWorkers(manifest.workers, manifest.round, {
+          explore: process.argv.includes("--explore"),
+        })
       : { ready: manifest.workers, skipped: [] };
   for (const { worker, reason } of staging.skipped) {
     worker.stagedRound ??= manifest.round;
@@ -342,6 +344,9 @@ if (action === "create") {
         .join("\n\n---\n\n");
   const taskFile = join(root, "current-task.md");
   writeFileSync(taskFile, task);
+  // Exploring past a first failure is recorded; the score keeps that failure.
+  if (process.argv.includes("--explore"))
+    for (const w of staging.ready) w.explore = { from: w.explore?.from ?? round };
   for (const w of staging.ready) {
     if (w.status === "cleaned") throw new Error("Create a fresh trial before staging");
     run("docker", ["start", w.container]);

@@ -33,3 +33,26 @@ await test("reference proofs stay stageable and all stopped models give no ready
   const reference = { attempts: [{ round: 1, checks: [{ machine: "machine-fail" }] }] };
   assert.deepEqual(stageableFlightWorkers([stopped, reference], 1).ready, [reference]);
 });
+await test("explore stages a stopped model only after its failed round passed a retry", () => {
+  const tries = (...machines) =>
+    machines.map((machine, i) => ({
+      round: 1,
+      attempt: i + 1,
+      agentId: "run",
+      checks: [{ machine }],
+    }));
+  const retried = { model: "retried", attempts: tries("machine-fail", "machine-pass") };
+  const stillFailing = { model: "failing", attempts: tries("machine-fail", "machine-fail") };
+  assert.equal(stageableFlightWorkers([retried], 1).ready.length, 0);
+  const explored = stageableFlightWorkers([retried, stillFailing], 1, { explore: true });
+  assert.deepEqual(explored.ready, [retried]);
+  assert.match(explored.skipped[0].reason, /latest try for round 1 did not pass/);
+  const unchecked = {
+    model: "unchecked",
+    attempts: [...tries("machine-fail"), { round: 1, attempt: 2, agentId: "run", checks: [] }],
+  };
+  assert.throws(
+    () => stageableFlightWorkers([unchecked], 1, { explore: true }),
+    /Check round 1 for unchecked/,
+  );
+});

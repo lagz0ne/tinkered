@@ -94,6 +94,11 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **lead/flight-explore** — a retried model can go past its first failure without changing its score.
+  Owner: lead (Claude, Start scaffold session). Needed for the DeepSeek retries (user 2026-10-03).
+  `workers.mjs stage <trial> <round> --explore` stages once every earlier round's latest try passed.
+  Proof: the new stage test fails without the change, passes now; 81 harness tests; check; prose.
+
 - **trial/flight-integration** — rounds and harness joined on main; the whole trial proven.
   Owner: lead (Claude, Start scaffold session); Sol writer, then Astra (Sol at capacity); Opus reviewer.
   Also closes `trial/flight-rounds` (READY `10ff6e72`) and `trial/flight-harness` (READY `6a2209ea`).

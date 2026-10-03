@@ -256,6 +256,10 @@ Missing teacher rounds, network setup failures, and old placeholders
 have no score.
 A model run with a saved agent ID stops staging after a failure.
 Its current round must pass before it can stage the next one.
+`stage <trial> <round> --explore` lets a stopped model go on
+once the latest try of every earlier round passed.
+It marks the worker `explore` and never changes the score:
+the first failure stays the baseline.
 Teacher reference proofs have no agent ID and may test later stages.
 Their score record says `modelRun: false`.
 They are not a model baseline.
