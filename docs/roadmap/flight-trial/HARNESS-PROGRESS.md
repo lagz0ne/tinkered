@@ -1,7 +1,7 @@
 # Flight harness progress
 
 - **trial/flight-harness** — Doing; owner: Codex writer.
-  Next: round 2, the scaffold edit proof, and the score record.
+  Next: finish the full round 5 teacher proof and record every gate.
   Verify: reference passes; scaffold edit blocks.
   The card stays here within the ticket's path limits.
 
@@ -19,7 +19,9 @@
 - The lead merges packets and checks from the rounds branch.
 - Before merge, freeze packets through `--packet-dir`.
 - Before merge, read checks through `--teacher-dir`.
-- Packets and checks are read from `610144d0`.
+- Round 1 and 2 packets and checks are read from `610144d0`.
+- A fresh later-stage trial freezes all five from `16f68fd4`.
+  The older frozen trial stays unchanged.
 - Round 1 reference source is read from `6b0ba61c`.
 - Round 2 reference source is read from `610144d0`.
 - The reference adds feature source to the image's starter.
@@ -94,7 +96,9 @@ The score keeps every earlier failure.
 
 The harness supports stages 1 through 5.
 The given rounds commit has real packets and checks for 1 and 2 only.
-Rounds 3 through 5 stay unavailable until those files land.
+That old frozen trial refuses round 3 with exit 1.
+The later rounds branch now has all five in `16f68fd4`.
+A fresh trial stages all five with exit 0.
 No placeholder can earn a round.
 
 ## Plain gate
@@ -118,3 +122,37 @@ No placeholder can earn a round.
 The earlier round 1 pass predates the new plain gate.
 Current checks cannot pass until an image ships the real script.
 This is the lead's required unavailable state.
+
+## Later stages
+
+- All five real packets stage with exit 0.
+  Logs: `later-stage-1.log` through `later-stage-5.log`.
+- Saves and exports for rounds 1 through 4: exit 0.
+  These are staging probes with no feature answer or agent.
+- Stage 5 gets the full reference source from `16f68fd4`.
+  It leaves the scaffold bytes unchanged.
+- Round 2 with the final packet ignore: own and teacher exit 0.
+  Teacher cases: six of six pass.
+  The full gate exits 1 as unavailable for missing `check:plain`.
+  Log: `check-round-2-final.log`.
+- Vite+ ignored the earlier `.oxfmtrc.json` rule.
+  The real packet format proof now uses `.prettierignore`.
+  Log: `packet-stage-2-final.log`, exit 0.
+- Mailpit enables its Chaos API for a real refused SMTP send.
+  The default failure chance stays zero.
+  API proof: `mailpit-chaos.log`, exit 0.
+- Workspace tests: exit 0, `workspace-tests-final.log`.
+- Validate: all 16 lanes pass, exit 0, `validate-final.log`.
+- Stock readiness: nine checks pass, exit 0.
+  Log: `readiness-legacy-final.log`.
+- Stock limits: five checks pass, exit 0.
+  Log: `limits-legacy-final.log`.
+- All 29 repo check warnings name files unchanged from the brief commit.
+  Log: `scope-proof.log`, exit 0.
+
+Session and report files are fixtures for the harness proofs.
+No live model session was run.
+Their raw bytes and hashes still exercise the normal save path.
+The first round 5 report used the staging fixture by mistake.
+Feedback saves the proper reference report in a new attempt.
+The first report stays saved.

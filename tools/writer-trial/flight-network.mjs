@@ -75,6 +75,8 @@ export function startFlight(prefix, images) {
       "/var/run/postgresql:rw,nosuid,size=16m,uid=70,gid=70",
     ]);
     start("mailpit", state.network, ["mailpit"], images.mailpitImage, [
+      "-e",
+      "MP_ENABLE_CHAOS=true",
       "--read-only",
       "--tmpfs",
       "/tmp:rw,nosuid,size=64m",

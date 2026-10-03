@@ -143,6 +143,8 @@ The manifest pins app, services, Postgres, and Mailpit image IDs.
 
 Each worker has its own Postgres, Mailpit, and four service processes.
 Its app network and the teacher's control network are private.
+Mailpit enables its Chaos API for the round 5 teacher's send-failure proof.
+The default send failure chance stays zero.
 A filter exposes only `/air/` and `/v1/` service routes.
 Control paths return HTTP 403, even with a token.
 Service containers have no address on the writer's network.
