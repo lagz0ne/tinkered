@@ -15,10 +15,11 @@ The two `main.ts` files are process entry points.
 Only those files create a service scope and own process signals.
 Tests are entry points too.
 Each test creates its own scope with tags and the app extension.
+The routing tests share their setup in `beforeEach`.
 Tests use HTTP to drive and read each service.
 There is no shared start helper.
 
-Each HTTP call checks quote and hold deadlines before it reads or edits state.
+Each supplier handler checks quote and hold deadlines before it reads or edits state.
 No separate supplier timer or watcher repeats that work.
 Resources own the listeners, clock, waits, payment watchers,
 and map of pending payment work.
@@ -48,9 +49,19 @@ This follows ADR 0078 and leaves the pure helper list at six.
 
 Core feedback: shared unit with a slot.
 The shared listener resource serves one Hono app per service.
-Each extension binds its scope through Hono middleware.
+Each service binds an error-shape tag in one owned session.
+Its start hook borrows the shared HTTP extension hook.
+That one hook binds the scope through Hono middleware.
+It registers the token check before body decoding and rule waits.
+It also registers the clock, calls, and route-rule control paths once.
 Each handler reads only its values and runs one operation.
-Common middleware owns the call log, token check, bodies, and route rules.
+Common middleware runs separate operations to start and save calls and rules.
+Body decoding runs in `decodeBody`.
+One resource callback writes JSON and sets the content type.
+Payment keys have separate start and save operations.
+Their middleware always resolves or deletes a pending key in `finally`.
+The listener tracks response completion before closing all connections.
+It aborts an unfinished incoming body on the stop signal.
 No operation takes a whole request or chooses work by route name.
 
 ## `http.ts`: `reply`

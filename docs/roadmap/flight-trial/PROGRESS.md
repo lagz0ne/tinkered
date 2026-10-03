@@ -1413,3 +1413,79 @@ Assumption: bind the error shape in one service session.
 The root owns that session and closes it on the same stop signal.
 The listener and payment watcher use that session's state and tags.
 This keeps the old public test setup and the six plain functions.
+
+All eight fixes now have their own commits.
+The retry test first failed with a saved 500, exit 1.
+Log: `tools/flight-trial/.logs/review-3-red.log`.
+The remaining wire tests first found seven failures, exit 1.
+Log: `tools/flight-trial/.logs/review-4-red.log`.
+
+All 95 package tests now pass, exit 0.
+The original 86 tests are unchanged.
+Log: `tools/flight-trial/.logs/review-4-test.log`.
+Build and check passed before those tests.
+Check has zero errors and the same 28 warnings.
+Strict style and TSDoc passed, exit 0.
+Logs: `review-style.log` and `review-tsdoc.log` in the same folder.
+
+The body decoder keeps the old JSON and form rules.
+A rule starts by waiting and selecting; a separate operation saves its reply.
+No start operation accepts a response to switch its job.
+The extra old save-forwarding step is gone.
+A handler throw cannot save a rule reply or a payment reply.
+Its log entry stays at status zero.
+
+The listener owns its pending response promises.
+It waits for their finish or close events, then closes all connections.
+An unfinished body is destroyed on stop so it cannot hold shutdown open.
+This keeps the old delayed-call 503 reply and the forced socket cleanup.
+
+Assumption: use a real missing Core driver to test a handler throw.
+The test extension runs an operation with an unbound required tag.
+Core raises its managed error; Hono makes the wire reply.
+No service cells, service operations, HTTP code, or globals are patched.
+
+Jev accepted all nine routing test titles, exit 0.
+All ten source flags have a label and a reason in `routing-jev-labels.jsonl`.
+The source review, test review, README review, and label commands exited 0.
+
+README review found seven gaps for the new wire tests.
+The lead's fixed wire contract promises each of these cases:
+
+- A thrown payment handler lets the same key retry.
+- An empty offer ID keeps the `offer_not_found` reply.
+- A deep offer path keeps the `offer_not_found` reply.
+- Call logs keep percent encoded paths.
+- Route rules keep percent encoded keys.
+- A thrown handler leaves the call log status at zero.
+- A thrown handler cannot seed a route replay.
+
+These are bug checks for the lead's brief, not new product features.
+The package README is outside the allowed paths and stays unchanged.
+The README checker has no label judge in `tools/jev/bank.mjs`.
+Its seven flags are answered here.
+
+A Start plain-checker probe exited 1.
+Log: `tools/flight-trial/.logs/review-final-plain.log`.
+It assumes Start entry names, bans this trial's pure data initial values,
+requires literal `From` and `why` words in param docs,
+and counts a resource's wake callback as a plain function.
+It cannot run unchanged on the flight service layout.
+The routing audit checks this brief's rules with the TypeScript parser instead.
+It passed at six plain functions, with every helper's params and callers checked.
+Log: `tools/flight-trial/.logs/review-final-routing-audit.log`.
+The Start checker and all shared check scripts are unchanged.
+
+Core feedback: extension config has no nested extension list.
+This shape has an unknown `extensions` field:
+
+```ts
+extension({
+  label: "supplier",
+  extensions: httpRequests,
+});
+```
+
+The service start hook borrows its owned event for the shared start hook.
+The shared hook owns the one HTTP stack and the common control routes.
+No extra scope helper is needed.
