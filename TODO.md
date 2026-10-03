@@ -53,8 +53,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **trial/deepseek-baseline** — DeepSeek builds the flight app, round by round.
   Owner: lead (Claude, Start scaffold session).
   Trial `flight-deepseek-01`; writer `pi/writer-gateway/deepseek/deepseek-v4.1-flash`, high.
-  Next: round 1 runs; then save, check, feedback; a pass stages the next round.
-  Verify: the baseline is the number of rounds passed in order (`score.json`).
+  Baseline: **0** (round 1 failed; hidden checks 1 of 3; own checks and Jev passed).
+  Next: user decides whether to retry round 1 with feedback.
+  [Proof](docs/roadmap/flight-trial/PROGRESS.md#deepseek-baseline-2026-10-03).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).

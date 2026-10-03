@@ -2935,3 +2935,38 @@ The final proof docs prose check exited 0:
 `tools/writer-trial/.logs/review-proof-prose.log`.
 Status: Review; all requested fixes and proofs are saved.
 The lead owns review and landing; nothing was pushed.
+
+## DeepSeek baseline, 2026-10-03
+
+Trial `flight-deepseek-01`, made from `8993474b`.
+Writer: `pi/writer-gateway/deepseek/deepseek-v4.1-flash`, thinking high.
+Agent: `cc4af911`. Images: app `798c43f8`, services `daaf65a9`.
+Teacher hash: `ef01fd5e`.
+
+Baseline: **0**. Round 1 failed; `score.json` records it.
+
+What DeepSeek built: a `/flights` page, one supplier operation,
+one server function, 7 new tests, and a browser script.
+Its own check, test, build, and `check:plain` passed.
+Jev passed on all 11 changed files.
+It fixed two starter type casts in `src/server.ts` that Jev blocked.
+
+Hidden checks, round 1:
+
+- Pass: public search shows real fares and asks supplier A once.
+- Fail: empty route replaces old rows.
+  It waits for `Search complete` after a search with no flights.
+- Fail: a supplier failure is shown and the form works again.
+  It waits for `Search complete` after a failed search.
+
+Cause: DeepSeek made the notices one-of states.
+Packet 1 lines 30-31 say "When the supplier has answered,
+show Search complete. If there are no flights, show No flights."
+So an empty answer shows both.
+The failure case is less clear: line 32 does not say
+whether a failed supplier counts as "answered".
+
+Incident: the writer's Jev link pointed into the integration
+worktree, which the lead removed after launch.
+Jev failed for the first pass; the lead fixed the link
+and resumed the agent for the Jev step only.
