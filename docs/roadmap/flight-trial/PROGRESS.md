@@ -3090,4 +3090,7 @@ Later rounds are staged with `stage --explore` (`275cae5c`).
   Rounds 1 to 3 still pass. Two real bugs:
   two requests with one execution ID, sent at the same moment,
   made 2 create-intent calls; and an `Expired` booking kept its Pay button.
-- Round 4, try 2 (agent `e09fcf8f`): running.
+- Round 4, try 2 (agent `e09fcf8f`): **pass**, hidden checks 17 of 17.
+  It moved the pay decision into one locked transaction,
+  with a test that failed before (2 intents) and passes after (1).
+- Round 5, try 1 (agent `58b5f54a`): running.
