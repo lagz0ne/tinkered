@@ -1540,3 +1540,833 @@ The new rewind test matches the README's control-call expiry promise.
 
 Next: lead review and mutation.
 Core feedback: none from this fix.
+
+## trial/flight-rounds
+
+Writer: Codex.
+Branch: `trial/flight-rounds`.
+Base: `0f0a83fe`.
+The board stays with the lead; it is outside this writer's paths.
+Next: lead review of the fix proof, then wire the writer image.
+Verify: reference passes twice; a wrong answer fails by name.
+
+### Round 1 reference
+
+The answer copies the Start scaffold and adds public flight search.
+The teacher uses only the page and the HTTP services.
+Reference logs are in `tools/flight-trial/reference/.logs/`.
+
+- Round 1 pass 1: exit 0, `r1-pass-1.log`.
+- Round 1 pass 2: exit 0, `r1-pass-2.log`.
+- Planted wrong price: exit 1, `r1-break.log`.
+- Proof driver: exit 0, `/tmp/flight-rounds-r1-proof.log`.
+- Workspace build: exit 0, `/tmp/flight-rounds-r1-build.log`.
+- Reference build: exit 0, `/tmp/flight-rounds-reference-r1-build.log`.
+- Check: exit 0, `/tmp/flight-rounds-r1-check.log`.
+  Zero errors and 29 warnings; none from this work.
+- Prose: exit 0, `/tmp/flight-rounds-r1-prose.log`.
+
+Assumptions:
+
+- Search shows economy saver fares for one adult.
+- Shared flight IDs merge across suppliers.
+- The service supplies the full UTC times shown on the page.
+- Reference proof can use its own copy of the scaffold.
+- Root declaration builds need the browser's DOM type declarations.
+  The reference has a compiler directive for those types.
+- The scaffold dependencies are linked into this private reference.
+- A separate cache folder avoids shared Vite cache writes.
+- Flight controls can return the known `scenario_failed` reset error.
+  State was written before that error; logs and rules were not reset.
+  Checks clear used rules and count from a saved log position.
+  Other control errors still fail.
+
+The reference uses ClientOnly for its new page.
+This shows the controls after the browser can handle their clicks.
+No scaffold file was changed for this.
+
+### Rounds 1 and 2 ready
+
+Packets 1 and 2 are final at this step.
+The reference now searches all three suppliers at once.
+Each reply updates the page before slower replies finish.
+Shared flights keep the cheapest offer.
+A new search aborts the old browser request and ignores its late replies.
+
+Proof logs in `tools/flight-trial/reference/.logs/`:
+
+- Round 2 pass 1: exit 0, `r2-pass-1.log`; six checks pass.
+- Round 2 pass 2: exit 0, `r2-pass-2.log`; six checks pass.
+- Planted duplicate rows: exit 1, `r2-break.log`.
+  The cheaper late fare check fails with duplicate flight rows.
+- Proof driver: exit 0, `/tmp/flight-rounds-r2-proof.log`.
+- Reference build: exit 0, `/tmp/flight-rounds-reference-r2-build.log`.
+- Check: exit 0, `/tmp/flight-rounds-r2-check.log`; 29 warnings.
+- Prose: exit 0, `/tmp/flight-rounds-r2-prose.log`.
+- Style census: exit 0, `/tmp/flight-rounds-r2-style.log`.
+  It checks authored folders and skips the generated route tree.
+
+The first full workspace test run had two supplier test timeouts.
+Log: `/tmp/flight-rounds-r2-workspace-tests.log`, exit 1.
+The build after it passed, so the shell's last exit was 0.
+That does not make the earlier test run green.
+A fresh full workspace test run follows without other heavy checks.
+The final report will include its exit code.
+
+Next: round 3 holds.
+Verify: two browser users race; exactly one supplier hold succeeds.
+
+### Round 3 handoff repair
+
+Owner: Codex, resumed writer.
+Next: rebase onto the service wire fixes, then prove round 3.
+Verify: two passes and a named planted failure.
+The inherited empty-search bug is fixed.
+The reference keeps Node's built-in Response objects.
+Hono's default replacement makes `Response.json()` fail TanStack's check.
+The supplier contract uses nested `payment_status` fields.
+Packets 1 and 2 are unchanged.
+
+Assumptions:
+
+- The board stays with the lead, outside this writer's paths.
+- Existing proof containers belong to this flight proof.
+- A local Docker exec relay reaches them after the workspace rebuild.
+- The relay changes no host or Docker settings.
+- The reference's HTTP serve adapter may keep native web objects.
+- Hold expiry means no awaiting payment and no paid time.
+
+Proof:
+
+- Workspace build: exit 0, `/tmp/flight-rounds-takeover-build.log`.
+- Shape check: exit 0, `/tmp/flight-rounds-r3-shapes-check.log`.
+- Style census: exit 0, `/tmp/flight-rounds-r3-style.log`.
+- Old round 3 proof: exit 1, `/tmp/flight-rounds-r3-proof.log`.
+  Empty search passes; the old HTTP adapter still broke hold replies.
+
+### Round 3 live-write repair
+
+The seat watcher now writes into the page's own scope.
+Passing a call signal had opened a child session with private data writes.
+The call now borrows its stop signal as input instead.
+The seat API already returned zero; the old page still showed one.
+The same race check now passes.
+Supplier calls also consume JSON before their operation ends.
+Their callers receive an owned plain reply, with no live response body.
+The copied checks needed the missing `components.json` file.
+
+Proof:
+
+- Round 3 pass 1: exit 0, reference `.logs/r3-pass-1.log`.
+- Round 3 pass 2: exit 0, reference `.logs/r3-pass-2.log`.
+- Removed price check: exit 1, reference `.logs/r3-break.log`.
+- Proof driver: exit 0, `/tmp/flight-rounds-r3-proof.log`.
+- Watch check: exit 0, `/tmp/flight-rounds-r3-watch-check.log`.
+- Scaffold seams: exit 0, `/tmp/flight-rounds-r3-seam.log`.
+- Browser import guard: exit 0, `/tmp/flight-rounds-r3-boundary.log`.
+- Schema check: exit 0, `/tmp/flight-rounds-r3-schema.log`.
+
+The earlier round 3 proof log path now holds the passing rerun.
+The failed attempts are described above; they did not count as ready.
+
+### Round 3 ready
+
+Packet 3 is frozen at this ready step.
+Next: round 4 payments.
+The branch includes service fixes through `d934d2b1`.
+The first rebase stopped on this progress file with exit 1.
+Both writers' notes were kept; its continuation exited 0.
+Later rebases also exited 0.
+No stash was used.
+Packets 1 and 2 match `610144d0` byte for byte.
+
+Final round 3 proof:
+
+- Driver: exit 0, `/tmp/flight-rounds-r3-final-proof.log`.
+- Reference pass 1: exit 0, `.logs/r3-pass-1.log`; nine checks pass.
+- Reference pass 2: exit 0, `.logs/r3-pass-2.log`; nine checks pass.
+- Missing price check: exit 1, `.logs/r3-break.log`.
+  Only the named stale-price check fails; the seat race passes.
+- Good, broken, and restored builds: exit 0.
+  Logs: `.logs/r3-build-good.log`, `.logs/r3-build-break.log`,
+  and `.logs/r3-build-restored.log`.
+- Workspace build: exit 0, `/tmp/flight-rounds-r3-ready-build.log`.
+- Check: exit 0, `/tmp/flight-rounds-r3-ready-check.log`.
+- Style: exit 0, `/tmp/flight-rounds-r3-ready-style.log`.
+
+Reference logs above are under `tools/flight-trial/reference/`.
+The full workspace tests and validate follow the last round.
+
+### Round 4 ready
+
+Packet 4 is frozen at this ready step.
+Next: round 5 confirmation mail.
+Payments save their intent before confirmation can send a webhook.
+Repeated requests reuse the saved execution and take no extra payment calls.
+Only signed webhooks choose the final booking state.
+A private stream lock orders webhook effects and tab updates.
+An expired hold refunds in full, once.
+
+Proof:
+
+- Reference pass 1: exit 0, `.logs/r4-pass-1.log`; 13 checks pass.
+- Reference pass 2: exit 0, `.logs/r4-pass-2.log`; 13 checks pass.
+- Bypassed signature check: exit 1, `.logs/r4-break.log`.
+  Only the forged-event check fails.
+- Driver: exit 0, `/tmp/flight-rounds-r4-proof.log`.
+- Good, broken, restored builds: exit 0, `.logs/r4-build-good.log`,
+  `.logs/r4-build-break.log`, and `.logs/r4-build-restored.log`.
+- Reference step build: exit 0, `/tmp/flight-rounds-r4-build-step.log`.
+- Fixed check: exit 0, `/tmp/flight-rounds-r4-check-fixed.log`.
+- Schema: exit 0, `/tmp/flight-rounds-r4-schema.log`.
+- Style: exit 0, `/tmp/flight-rounds-r4-style.log`.
+- Prose: exit 0, `/tmp/flight-rounds-r4-prose.log`.
+
+Reference logs above are under `tools/flight-trial/reference/`.
+The first check found one excess branch, exit 1.
+Log: `/tmp/flight-rounds-r4-check-step.log`.
+Filtering the saved booking by owner removed that branch.
+
+Assumptions:
+
+- Price strings are exact USD amounts; charge and refund use cents.
+- This service sends one signature and two payment event kinds.
+- Signatures allow at most five minutes of clock difference.
+- A failed payment leaves its hold until expiry.
+  The traveler can search and hold again to try another payment.
+- The service has no automatic webhook retries.
+  Grader controls send the repeated and late events.
+- Private HTTP pay requests use a booking ID and an execution UUID.
+- Safe repeat proof covers concurrent requests in this one app process.
+  The trial does not test a crash between saved intent and confirmation.
+
+### Round 5 mail proof and late strict rules
+
+Round 5 sends one real SMTP confirmation after the signed payment result.
+A failed send saves a partial result and keeps the booking Confirmed.
+Retry shares the saved execution and updates the same private stream.
+A second tab and reload keep the mail state.
+Anonymous retry returns 401; another traveler gets 403.
+A refunded payment sends no mail.
+
+The first proof passed 16/16 twice, each exit 0.
+The planted mail break failed only the failed-mail case, exit 1.
+The driver and all three reference builds exited 0.
+Logs: `/tmp/flight-rounds-r5-proof.log` and reference
+`.logs/r5-pass-1.log`, `r5-pass-2.log`, `r5-break.log`,
+`r5-build-good.log`, `r5-build-break.log`, `r5-build-restored.log`.
+Schema and style checks exited 0 in
+`/tmp/flight-rounds-r5-schema.log` and
+`/tmp/flight-rounds-r5-style.log`.
+Prose exited 0 in `/tmp/flight-rounds-r5-prose-step.log`.
+
+The lead's late note adds ADR 0099 and 0100 to this reference.
+Packets 1–3 remain frozen.
+The note permits adding the scaffold check requirement to packets 4–5.
+Signature verification now owns its secret and clock in an operation.
+Supplier payment and refund choice are an operation.
+The one-caller merge, event reader, and mail text helpers were inlined.
+The remaining price comparator has two callers and per-param TSDoc.
+The scaffold strict writer has not committed its check yet.
+The new check and server entry update are the next step before round 5 ready.
+
+The workspace build exited 0 in `/tmp/flight-rounds-final-build.log`.
+The first full test run exited 1 in `/tmp/flight-rounds-final-tests.log`:
+services' many-search bound test reached its five-second timeout.
+It ran beside the browser proof; rerun without that browser job.
+The first validate exited 1 in `/tmp/flight-rounds-final-validate.log`.
+Its only red lane was format: it ran while the planted break was present.
+The restored source must pass before the final gate.
+
+Mail proof assumptions:
+
+- Sent means SMTP accepted the mail, not that the traveler read it.
+- Mailpit needs Chaos enabled at startup to prove a real SMTP failure.
+  [Mailpit documents the startup flag](https://mailpit.axllent.org/docs/integration/chaos/).
+- The existing Mailpit had Chaos disabled.
+  This proof starts its own temporary container from the same local image.
+  It changes no Docker config and stops only that owned container.
+- The local relay can choose this mail host through `FLIGHT_PROOF_MAIL_HOST`.
+  App SMTP stays on the same local port; teacher uses `MAILPIT_URL`.
+- The teacher clears its sender fault after every failure case.
+  Mailpit's control and inbox URLs have no auth in this local proof.
+- Saved execution rows prevent repeated finished sends.
+  The resource shares only unfinished sends in one process.
+  This proof makes no crash claim between SMTP acceptance and the DB save.
+- The first send and retry use the saved account email and flight values.
+  No account verification or scaffold auth rule was changed.
+
+### Gates after the strict services rebase
+
+Rebase onto `bc4a00e5` exited 0.
+Log: `/tmp/flight-rounds-rebase-strict-services.log`.
+Install and workspace build exited 0:
+`/tmp/flight-rounds-install-strict-services.log`,
+`/tmp/flight-rounds-build-strict-services.log`.
+Services alone passed 72 tests, exit 0:
+`/tmp/flight-rounds-services-tests-solo.log`.
+Full parallel tests still hit the same services timeout, exit 1:
+`/tmp/flight-rounds-final-tests-retry.log`,
+`/tmp/flight-rounds-final-tests-services-rebase.log`.
+The same full task set passed with one task at a time, exit 0:
+`/tmp/flight-rounds-final-tests-serial-fixed.log`.
+Command: `vp run --concurrency-limit 1 -r test`.
+An earlier command put the option after `test`.
+Vitest rejected it, exit 1: `/tmp/flight-rounds-final-tests-serial.log`.
+This is a task runner option and belongs before the task name.
+No test timeout or source file was changed.
+
+Restored validate passed all 16 lanes, exit 0:
+`/tmp/flight-rounds-final-validate-restored.log`.
+Reference typecheck exited 0:
+`/tmp/flight-rounds-reference-typecheck.log`.
+The first typecheck command used a missing root binary, exit 127.
+The successful command uses the reference's linked binary.
+TSDoc check read 62 authored files with zero rows, exit 0:
+`/tmp/flight-rounds-final-tsdoc.log`.
+Seam proof and browser boundary checks exited 0:
+`/tmp/flight-rounds-final-seam.log`,
+`/tmp/flight-rounds-final-boundary.log`.
+Packets 1–2 and packet 3 byte checks exited 0:
+`/tmp/flight-rounds-frozen-12.log`,
+`/tmp/flight-rounds-frozen-3.log`.
+The only packet 4 change is the lead-approved check line:
+`/tmp/flight-rounds-packet4-approved-addition.log`.
+Forbidden source directories equal the services base, exit 0:
+`/tmp/flight-rounds-scope-proof.log`.
+
+### Jev answers before the strict scaffold copy
+
+`main..HEAD` preflight exited 0:
+`/tmp/flight-rounds-jev-preflight.log`.
+It lists 3 file flags and 46 unit flags across inherited and authored code.
+No package tests were changed, so package test and promise judges do not apply.
+Teacher checks are public HTTP and browser checks in `.mjs` files.
+Label reasons stay here because `tools/jev/` is outside this ticket's paths.
+The lead may place these answers in the label bank.
+
+- `memoKeyIgnoresInput`, old server entry: false for the fixed single process config.
+  The stricter server entry will replace the module getter when the scaffold lands.
+- `configNotTag`, feature flights and payment: false.
+  Supplier URLs and payment secret are required tags.
+  Relative app routes, Duffel paths, currency, cabin, and fare rules are fixed contracts.
+- `stopOnlyInDefer`, hold/state/seat operations: false.
+  These operations start no work that lives after the call.
+  Supplier fetch reads `ctx.signal`; the native DB call is awaited.
+- `effectWithoutDefer`, seat and hold watchers: false.
+  A resource starts each operation and stops and waits in its deferred cleanup.
+  The watcher also reads root, tab, call, and borrowed stop signals.
+- `stopOnlyInDefer`, watcher and search resources: false.
+  The watcher reads all four signals; search reads call and stop signals.
+  Deferred stop releases the retained cancel handle.
+- `effectWithoutDefer`, search operation: false.
+  It consumes the body before returning and its graph tracks the run.
+  The retained stop handle belongs to a resource.
+- DB, auth, mail, notification, and sync flags repeat the copied scaffold flags.
+  Pool and SMTP cleanup are deferred; URLs and secrets are tags.
+  Protocol cursors, revision counters, and keyed pending sends are private bookkeeping.
+  Profile retry's typed execution guard is part of the scaffold contract.
+  The strict scaffold copy and its checks will decide the entry and body ownership forms.
+- Service flags are outside this ticket's source paths.
+  The strict services commits already replaced its plain service helpers.
+  The old `S21` wall-time line is also in that earlier services version.
+- The noisy `~wrapsCallersStep` and the `ℹ` notes owe no labels.
+
+### Core feedback from the hold repair
+
+A call signal makes a child session, so this root-write assertion fails:
+
+```ts
+const value = data({ initial: 0 });
+const change = operation({
+  depends: { value: value.controller },
+  run({ value }) {
+    value.set(1);
+  },
+});
+const root = createScope();
+await root.run(change, {
+  signal: new AbortController().signal,
+});
+const saved = root.resolve(value);
+await root.close({ graceful: true });
+assert.equal(saved, 1);
+```
+
+The failed assertion prints actual 0 and expected 1, exit 1:
+`/tmp/flight-rounds-core-signal-probe.log`.
+Borrowing the stop signal through operation input keeps the write in the root.
+That public Core probe prints 1 and exits 0:
+`/tmp/flight-rounds-core-input-probe.log`.
+The live seat and hold watchers use that borrowed input.
+The first draft read the root after close and failed with Disposed instead.
+The corrected probe captures the value before closing, then checks it.
+No Core or React source was changed.
+
+### Search body ownership under ADR 0100
+
+The search response body and stop handle now belong to a request resource.
+Its opening operation borrows the parsed query and supplier settings.
+Only the background search call binds the supplier tag.
+Binding a tag on the opening call made a shorter child session.
+That first attempt closed the body too soon and failed all six browser cases.
+Driver exit 1: `/tmp/flight-rounds-stream-resource-proof-first.log`.
+Teacher detail: `/tmp/flight-rounds-stream-resource-first-pass.log`.
+The corrected request owner passed 6/6 twice, each exit 0.
+The planted duplicate-row break failed its named case, exit 1.
+Driver and good, broken, restored builds exited 0:
+`/tmp/flight-rounds-stream-resource-proof.log`,
+reference `.logs/r2-build-good.log`, `r2-build-break.log`, `r2-build-restored.log`.
+Teacher logs: reference `.logs/r2-pass-1.log`, `r2-pass-2.log`, `r2-break.log`.
+Check exited 0: `/tmp/flight-rounds-stream-resource-check-fixed.log`.
+This changes the reference's ownership form, not frozen packets 1–3.
+
+The strict check draft was read in the other worktree without editing it.
+Its interim rows were used only to prepare this reference.
+The final proof must use the committed check.
+The check uses the TypeScript 5.9 API; the repo CLI is TypeScript 7.
+The private reference tool folder installed `typescript-api@npm:typescript@5.9.3`.
+Install exit 0: `/tmp/flight-rounds-private-typescript-install.log`.
+The installed tool resolves under this worktree and touches no system directory.
+The draft plain list is not a ready artifact yet.
+
+### Strict Start source copied into the reference
+
+The strict writer committed source `1486bc00`.
+Its source diff from the original `0f0a83fe` was applied to the reference.
+The three-way apply kept the flight changes with no conflicts, exit 0:
+`/tmp/flight-rounds-strict-scaffold-apply-src.log`.
+The first apply also named copied tests that this answer does not carry.
+It exited 1 and applied nothing:
+`/tmp/flight-rounds-strict-scaffold-apply.log`.
+The source-only apply was the correction.
+No `apps/` file changed in this worktree.
+
+The copied server entry owns its roots.
+Response bodies and the telemetry queue now belong to resources.
+One-caller readers use schema objects.
+The plain function list records params and call sites.
+The reference's own supplier readers take only their needed string keys.
+Its own price comparator has per-param TSDoc.
+The TypeScript API uses private dependency links, not edits to `apps/`.
+`run.mjs` also passes extra command args to the reference CLI.
+
+Check and typecheck exited 0:
+`/tmp/flight-rounds-strict-check-fixed.log`,
+`/tmp/flight-rounds-strict-copy-typecheck.log`.
+The earlier copied-source check had one await-thenable warning.
+The search body's opening result is synchronous, so the excess await was removed.
+That earlier log is `/tmp/flight-rounds-strict-copy-check.log`, exit 0.
+Seam proof and browser boundary checks exited 0:
+`/tmp/flight-rounds-strict-seam.log`,
+`/tmp/flight-rounds-strict-boundary.log`.
+
+The full flight answer passed 16/16 twice with this strict source, exit 0 each.
+The planted mail break failed only its named case, exit 1.
+All good, broken, and restored builds exited 0.
+Driver: `/tmp/flight-rounds-r5-strict-proof.log`, exit 0.
+Logs: reference `.logs/r5-pass-1.log`, `r5-pass-2.log`, `r5-break.log`,
+`r5-build-good.log`, `r5-build-break.log`, `r5-build-restored.log`.
+This reruns every earlier round after the ownership changes.
+The check draft passed 97 files and 22 plain functions, exit 0:
+`/tmp/flight-rounds-draft-plain-strict-copy.log`.
+The committed strict check is still due from the scaffold writer.
+It must pass before the round 5 ready commit.
+
+### Committed strict check and browser lifetime
+
+The reference now carries the exact `check-plain.mjs` from `5d5f2fad`.
+Its five final source changes were applied, exit 0:
+`/tmp/flight-rounds-strict-final-apply-check.log`,
+`/tmp/flight-rounds-strict-final-apply.log`.
+JSON parsing is in operation input callbacks, so Core manages a bad input.
+The browser page-close listener was still outside a resource in the copied source.
+The reference now owns and removes that listener from a resource.
+The router entry supplies its existing close callback through a tag.
+This keeps the same pagehide behavior and closes both roots.
+
+The draft list check first rejected the old printed list, exit 1:
+`/tmp/flight-rounds-page-resource-draft-plain.log`.
+The committed check regenerated `PLAIN.md` after its entries were read.
+It passes 97 files and 22 plain functions, exit 0:
+`/tmp/flight-rounds-canonical-plain.log`.
+Command: `npm --prefix tools/flight-trial/reference run check:plain`.
+Vite+ does not find this private package's task outside workspace globs.
+The first `run.mjs run check:plain` invocation exited 1 with Task not found.
+The check's direct Node command and npm script both pass.
+The same check's 26 planted failures each exited 1 by their rule name.
+Its proof driver exited 0:
+`/tmp/flight-rounds-final-plain-proof.log`.
+Each red log is `/tmp/start-plain-proof-<case>.log`.
+The driver names every case and full path.
+
+The page-resource and final source answer each passed 16/16 twice, exit 0 each.
+Each planted mail break failed only its named case, exit 1.
+Drivers and all builds exited 0:
+`/tmp/flight-rounds-r5-final-proof.log`,
+`/tmp/flight-rounds-r5-canonical-proof.log`.
+The latest logs are reference `.logs/r5-pass-1.log`, `r5-pass-2.log`,
+`r5-break.log`, `r5-build-good.log`, `r5-build-break.log`, `r5-build-restored.log`.
+The final check exited 0 with zero authored warnings:
+`/tmp/flight-rounds-canonical-check.log`.
+
+The workspace build and serial full tests exited 0:
+`/tmp/flight-rounds-final-strict-build.log`,
+`/tmp/flight-rounds-final-strict-tests.log`.
+All-source TSDoc read 97 files with zero rows, exit 0:
+`/tmp/flight-rounds-final-all-tsdoc.log`.
+Schema, all-source strict style, prose, and typecheck exited 0:
+`/tmp/flight-rounds-final-schema.log`,
+`/tmp/flight-rounds-final-style.log`,
+`/tmp/flight-rounds-final-prose.log`,
+`/tmp/flight-rounds-final-typecheck.log`.
+Validate passed all 16 lanes, exit 0:
+`/tmp/flight-rounds-final-strict-validate.log`.
+Jev exited 0, two file flags and 47 unit flags:
+`/tmp/flight-rounds-final-jev.log`.
+The earlier answers still apply to fixed paths, awaited native IO, and private bookkeeping.
+The leakedInternal file flag and inputDefaultMasks reader flag are in inherited services.
+The latest services graph commit replaces that version.
+The reference no longer has the old scope getter, queue class, or free delivery function.
+The browser listener is now owned even though the check did not flag it.
+The strict services commits arrived during this proof.
+Next: rebase the saved reference onto them and rerun proof before ready.
+
+The first save was rejected by prose for a word on its banned list.
+Prose and commit exited 1; no commit was made.
+The following rebase also exited 1 because the save had not succeeded.
+Logs: `/tmp/flight-rounds-canonical-prose.log`,
+`/tmp/flight-rounds-canonical-commit.log`,
+`/tmp/flight-rounds-rebase-latest-services.log`.
+The prose line was fixed before retrying the save.
+
+### Final service rebase and page account load
+
+The saved branch was rebased onto services `ce22a63f`.
+The first retry stopped on this progress file, exit 1.
+Both writers' notes were kept; continuation exited 0.
+No stash was used.
+Logs: `/tmp/flight-rounds-rebase-latest-services-fixed.log`,
+`/tmp/flight-rounds-rebase-latest-continue.log`.
+Install, workspace build, and serial full tests exited 0:
+`/tmp/flight-rounds-final-install.log`,
+`/tmp/flight-rounds-final-rebased-build.log`,
+`/tmp/flight-rounds-final-rebased-tests.log`.
+
+The first final flight proof passed 16/16 once, exit 0.
+Its second pass failed one hold case with Sign in required, exit 1.
+The proof driver exited 1 and restored the source and build, exit 0.
+Logs: `/tmp/flight-rounds-r5-ready-proof.log`,
+`/tmp/flight-rounds-r5-ready-auth-failure.log`.
+Flights had no page loader, so its account was still empty when a fast search ended.
+The background sync eventually loaded it, after the hold click.
+Flights now loads the account snapshot before showing its controls.
+This uses the same loader as Bookings and the account page.
+The checks and frozen packets were not changed to hide the failure.
+Assumption: the public Flights page may load the viewer's private account snapshot.
+The existing account and booking pages already use that scoped snapshot.
+
+The corrected flight proof passed 16/16 twice, each exit 0.
+The planted mail break failed only its named case, exit 1.
+Driver and all good, broken, and restored builds exited 0:
+`/tmp/flight-rounds-r5-ready-proof-fixed.log`.
+Teacher logs: reference `.logs/r5-pass-1.log`, `r5-pass-2.log`, `r5-break.log`.
+Build logs: reference `.logs/r5-build-good.log`, `r5-build-break.log`,
+`r5-build-restored.log`.
+
+The first last check found doc spacing, exit 1:
+`/tmp/flight-rounds-ready-check.log`.
+The first strict style command included the generated route file, exit 1:
+`/tmp/flight-rounds-ready-style.log`.
+Authored files pass, exit 0:
+`/tmp/flight-rounds-ready-style-fixed.log`.
+The strict check found old type spacing in its function list, exit 1:
+`/tmp/flight-rounds-ready-plain.log`.
+Regenerating the list passed strict checking but failed Markdown format.
+Logs: `/tmp/flight-rounds-ready-plain-fixed.log`, exit 0,
+`/tmp/flight-rounds-ready-check-fixed.log`, exit 1.
+The supplier environment now has a named plain type.
+That keeps the exact committed check's list in a form the formatter accepts.
+No check rule was changed.
+Assumption: generated router code is excluded from authored style checks.
+The published strict check also excludes generated code and declarations.
+
+The last page-load change has no new Jev flags, exit 0:
+`/tmp/flight-rounds-ready-jev.log`.
+The full-branch answers remain above.
+TSDoc, typecheck, seam proof, boundary, and schema checks exited 0:
+`/tmp/flight-rounds-ready-tsdoc.log`,
+`/tmp/flight-rounds-ready-typecheck.log`,
+`/tmp/flight-rounds-ready-seam.log`,
+`/tmp/flight-rounds-ready-boundary.log`,
+`/tmp/flight-rounds-ready-schema.log`.
+Forbidden directories match services `ce22a63f`, exit 0:
+`/tmp/flight-rounds-final-scope.log`.
+Frozen packets 1–2 and 3 match their ready commits, exit 0:
+`/tmp/flight-rounds-final-frozen-12.log`,
+`/tmp/flight-rounds-final-frozen-3.log`.
+
+### Round 5 ready
+
+Packet 5 is frozen at this ready step.
+Rounds 3, 4, and 5 have each passed twice and caught their planted break.
+The full round 5 check reruns every earlier round after the strict changes.
+The last page-loader repair passed 16/16 twice and the mail break failed.
+The only later source change names a TypeScript type; emitted behavior is unchanged.
+The answer uses the exact committed strict check from `5d5f2fad`.
+It passes 97 files and 22 plain functions.
+The same check's 26 planted bad forms were each caught with exit 1.
+Its proof driver exited 0: `/tmp/flight-rounds-final-plain-proof.log`.
+
+Last gates, all exit 0:
+
+- Check: `/tmp/flight-rounds-done-check.log`.
+  Zero errors, 28 existing warnings, no authored warnings.
+- Plain check: `/tmp/flight-rounds-done-plain.log`.
+- Typecheck: `/tmp/flight-rounds-done-typecheck.log`.
+- TSDoc: `/tmp/flight-rounds-done-tsdoc.log`; 97 files, zero S26 rows.
+- Authored style: `/tmp/flight-rounds-done-style.log`.
+- Prose: `/tmp/flight-rounds-done-prose.log`.
+- Validate: `/tmp/flight-rounds-done-validate.log`; all 16 lanes pass.
+- Jev last change: `/tmp/flight-rounds-done-jev.log`; no flags.
+  Full-branch Jev and its answers are above.
+- Seam proof: `/tmp/flight-rounds-ready-seam.log`.
+- Browser boundary: `/tmp/flight-rounds-ready-boundary.log`.
+- Schema: `/tmp/flight-rounds-ready-schema.log`.
+- Workspace build: `/tmp/flight-rounds-final-rebased-build.log`.
+- Full tests: `/tmp/flight-rounds-final-rebased-tests.log`; nine tasks, run serially.
+- Reference good, broken, restored builds: reference `.logs/r5-build-*.log`.
+- Rebase onto services: `/tmp/flight-rounds-rebase-latest-continue.log`.
+- Install: `/tmp/flight-rounds-final-install.log`.
+- Scope and frozen checks: `/tmp/flight-rounds-final-scope.log`,
+  `/tmp/flight-rounds-final-frozen-12.log`, `/tmp/flight-rounds-final-frozen-3.log`.
+
+No package, app, or service source was changed by this writer.
+The lead owns the board, landing, and mutation runs.
+All assumptions and failed attempts are recorded above.
+Next: lead review, then run the independent harness on the ready branch.
+
+### Lead review: one fix round
+
+Review base: `98e6fa56`.
+Packets 1–3 stay byte-frozen; packets 4–5 may change.
+The review finds hidden UI and browser transport assumptions in the checks.
+It also finds supplier polling that breaks packet 2's refresh rule.
+Next: make the checks follow the packets, replace polling with hold events,
+and prove every round and each new payment break.
+
+The writer-facing service doc is `tools/writer-trial/flight-services.md`.
+It contains only the supplier and payment HTTP sections of the service README.
+Grader-only sentences were removed; no control paths, token, ports,
+scenarios, or clock controls are shipped in it.
+The harness must copy this file into the writer app as `SERVICES.md`.
+The lead owns that harness change.
+The harness image must also ship the scaffold's committed `check:plain` script,
+its TypeScript API dependency, and its checked `PLAIN.md` list.
+The writer rules no longer require Jev, which is absent from that image.
+
+Assumptions for this fix round:
+
+- Page controls and saved rows prove actions; browser request paths do not.
+- An empty history may omit its table once the page load completes.
+  Nonempty history checks poll for the saved rows.
+- Bookings expiry is checked on load or reload, not by live supplier polling.
+- Public seat events contain only supplier, flight, cabin, and remaining seats.
+  They expose no private booking or traveler data.
+- Idle proof uses a three-second wall-time condition and call logs.
+  It does not move a service clock or sleep.
+- The teacher secret must match the app and payment service.
+  This is needed to prove correct old signatures, exact bytes, and fresh repeats.
+- Button checks and route-repeat checks use separate bookings.
+  Each repeat case supplies one teacher-owned execution ID.
+- Mail times must match the saved Flights display values exactly.
+
+### Hold events and fair action checks
+
+The results and Bookings polling resources and their refresh routes are gone.
+A hold transaction publishes a public seat change in the saved event stream.
+Only matching supplier, flight, and cabin rows change in an open results page.
+The public stream lock keeps parallel app holds and seat events in order.
+Bookings reads supplier expiry once per page load through a server function.
+There is no background supplier offer or order polling.
+
+Search waits for the packet's Search button, not an unnamed heading.
+The race winner comes from Held history; the loser needs visible Sold out text.
+Held setup polls a second history tab so navigation cannot cancel its hold.
+Expiry checks reload inside their poll.
+An empty history accepts an absent or empty table after the browser load event.
+Table headers and cells are read in one DOM snapshot.
+The first run read them across hydration and got an empty object, exit 1:
+`/tmp/flight-rounds-review-r3-proof.log`,
+`/tmp/flight-rounds-review-r3-first-pass.log`.
+The fixed round 3 passes 10/10 twice, each exit 0.
+Its planted price break fails by name, exit 1.
+Driver and all builds exit 0:
+`/tmp/flight-rounds-review-r3-proof-fixed.log`.
+
+Payment and email button checks observe Processing and Sent, not request paths.
+Separate route cases create a teacher execution ID and repeat it concurrently,
+then once after the result, checking HTTP 200 and the exact receipt.
+They count real supplier, payment, refund, and Mailpit effects.
+Packet 4–5 now name HTTP 200 and show filled receipts.
+Packet 5's mail times are the saved Flights Departs and Arrives strings.
+The time check reads those shown values before clicking Hold.
+
+The signature checks add correct old signatures, changed request bytes,
+and a fresh correctly signed repeat of the same result event for a real intent.
+Assumption: the teacher may sign a result for that real service intent.
+It sends the same event ID and body again with a fresh timestamp.
+The service's own repeated deliveries remain covered in their original case.
+The proof driver keeps the old bad-digest break and adds timestamp and refund breaks.
+Its mail break now raises through the real failed-send path before saving partial.
+
+Round 1 proof stages the reference's supplier list to A only.
+Assumption: this reproduces the first packet's scope using the current strict source.
+The driver changes no teacher rule and restores the full source in finally.
+Round 2 and later proofs use the full three-supplier answer.
+
+Saved source gates, all exit 0:
+
+- Check: `/tmp/flight-rounds-review-source-check-first.log`.
+- Plain: `/tmp/flight-rounds-review-source-plain.log`; 96 files, 22 plain functions.
+- Types: `/tmp/flight-rounds-review-source-types.log`.
+- Style: `/tmp/flight-rounds-review-source-style.log`.
+- Seam proof: `/tmp/flight-rounds-review-source-seam.log`.
+- Boundary: `/tmp/flight-rounds-review-source-boundary.log`.
+
+Next: run proof 1, 2, 4, and 5, including every new break, then final gates.
+
+### Review proof: search and payment
+
+Round 1 passes 3/3 twice, each exit 0.
+The price break fails by name, exit 1.
+Round 2 passes 6/6 twice, each exit 0.
+The duplicate-row break fails by name, exit 1.
+Both drivers and every build exit 0:
+`/tmp/flight-rounds-review-r1-proof.log`,
+`/tmp/flight-rounds-review-r2-proof.log`.
+The original round 3 behavior and idle proof are green above.
+
+The first round 4 run passed the new signature and route-repeat cases,
+then lost its supplier, payment, and database relay processes.
+The app stopped and later fetches failed.
+That run is not proof; its driver exited 13:
+`/tmp/flight-rounds-review-r4-proof.log`.
+Its first pass exited 1: reference `.logs/r4-pass-1.log` before the rerun.
+The stop routine had subscribed after the server had already exited.
+It now saves logs and restores source even when the server has already ended.
+All containers were still healthy; new owned service and relay processes were started.
+Assumption: the lead's Chaos Mailpit container may be reused until proof ends.
+The lead explicitly permits stopping that container afterward.
+Owned service logs: `/tmp/flight-rounds-review-owned-services.log`,
+`/tmp/flight-rounds-review-owned-relay.log`.
+
+The owned-service round 4 passes 17/17 twice, each exit 0.
+All three breaks fail by their named case, each exit 1:
+bad digest, ignored timestamp, and missing refund.
+Driver and every good, broken, and restored build exit 0:
+`/tmp/flight-rounds-review-r4-proof-owned.log`.
+Reference logs: `.logs/r4-pass-1.log`, `r4-pass-2.log`,
+`r4-break.log`, `r4-break-timestamp.log`, `r4-break-refund.log`.
+Each red log names the failed packet promise.
+
+Receipt checks compare the returned execution ID, not the whole JSON object.
+Assumption: harmless extra receipt fields are allowed.
+No packet says its receipt is a closed object shape.
+Next: round 5 proof and final gates.
+
+### Lead review fixes complete
+
+Round 5 passes 21/21 twice, each exit 0.
+Its new email-route case proves concurrent and later repeats use one execution.
+The improved failed-send break fails the original named partial-mail case, exit 1.
+Driver and all good, broken, and restored builds exit 0:
+`/tmp/flight-rounds-review-r5-proof.log`.
+Reference logs: `.logs/r5-pass-1.log`, `r5-pass-2.log`, `r5-break.log`.
+Every earlier round is rerun by this proof.
+
+Review items:
+
+1. Service HTTP doc added; the lead must ship it as `SERVICES.md`.
+2. Search waits for the Search button.
+3. Held setup and race winners use saved history; losers need visible Sold out.
+4. Buttons are checked by outcomes; route repeats use their own execution IDs.
+5. Expiry polls reload before reading.
+6. Supplier polling is removed; hold events update live seats.
+   Idle results prove zero supplier offer GETs over a wall-time condition.
+7. Empty history accepts no table or an empty table after page load.
+8. Packets 4–5 specify HTTP 200 and show filled receipt bodies.
+9. Teacher settings include WEBHOOK_SECRET.
+   Old signatures, changed bytes, and fresh real-intent result repeats are covered.
+   Old bad-digest and new timestamp breaks are both caught.
+10. Mail time strings match the Flights display values saved before Hold.
+11. Jev was removed from writer rules.
+    The lead must ship the committed scaffold `check:plain` script and its tools.
+12. The reset-error allowance and its teacher doc section are gone.
+13. The new-search poll needs a JFK row and rejects AMS rows.
+14. The mail break uses the real failed-send path; the refund break is caught too.
+15. The rounds section's stale next step is updated.
+
+Final gates, each exit 0:
+
+- `vp check`: `/tmp/flight-rounds-review-final-check.log`.
+  Zero errors, 28 existing warnings, none from authored changes.
+- Reference `check:plain`: `/tmp/flight-rounds-review-final-plain.log`.
+  It checks 96 files and 22 plain functions.
+- Typecheck: `/tmp/flight-rounds-review-final-types.log`.
+- Style: `/tmp/flight-rounds-review-final-style.log`.
+- TSDoc: `/tmp/flight-rounds-review-final-tsdoc.log`; 96 files and zero S26 rows.
+- Workspace build: `/tmp/flight-rounds-review-workspace-build.log`.
+- Full tests: `/tmp/flight-rounds-review-workspace-tests.log`; nine tasks run serially.
+- Validate: `/tmp/flight-rounds-review-final-validate.log`; all 16 lanes.
+- Scope: `/tmp/flight-rounds-review-scope.log`.
+- Frozen packets 1–3: `/tmp/flight-rounds-review-frozen.log`.
+- Diff whitespace: `/tmp/flight-rounds-review-diff-check.log`.
+- Jev: `/tmp/flight-rounds-review-final-jev.log`.
+  No file flags; five unit flags are answered below.
+
+Jev answers:
+
+- `stopOnlyInDefer`, holdFlight and saveBookingState: false.
+  They await their work inside the operation and start no background task.
+  Supplier calls consume their response under their call signal.
+  Native DB calls are awaited; the pool belongs to its resource.
+- `configNotTag`, holdSeat, payHold, and retryConfirmation: false.
+  Their relative app routes are fixed packet contracts, not settings.
+  Supplier and payment URLs and secrets remain required backend tags.
+- Deleted route files print missing-path notes; no source remains to judge there.
+  The label bank is outside this writer's allowed paths.
+  The lead can use these reasons in its labels.
+
+Assumptions are listed in this fix round's earlier sections.
+No stash, package, app, or service source change was made.
+No frozen packet was edited.
+Next: lead copies the service doc as `SERVICES.md`, adds `check:plain` to the image,
+and supplies the matching WEBHOOK_SECRET to the teacher before harness proof.
+
+Last doc prose and handoff check exited 0:
+`/tmp/flight-rounds-review-final-prose.log`,
+`/tmp/flight-rounds-review-handoff-check.log`.
+The owned supplier/payment group and relay stopped with exit 0.
+The lead's allowed Chaos Mailpit container stopped with exit 0:
+`/tmp/flight-rounds-review-cleanup.log`.
+The original Postgres and Mailpit containers were left running.
+
+## trial/flight-integration
+
+Writer: Codex.
+Branch: `trial/flight-integration`.
+Next: merge harness, rebuild images, run the full proof.
+Verify: rounds 1 to 5 pass twice; five planted breaks fail.
+
+Assumptions:
+
+- Main owns all service code, data code, and service tests.
+- Keep main for older merged files outside the allowed paths.
+- Keep both writers' round and harness proof notes.
+- The existing Doing card stays with the lead.
+- This writer does not edit the board outside the brief's limits.
+- Only replaced flight images and proof folders may be removed.
+
+Rounds merge exited 1 for conflicts.
+Those conflicts are now resolved with main's services kept.
