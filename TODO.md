@@ -24,10 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **trial/flight-rounds** — five rounds: search, metasearch, hold, pay, email.
-  Next: round packets and hidden checks after the services land.
-  Verify: a lead-written answer passes every round; span counts catch waste.
-
 - **trial/deepseek-baseline** — run DeepSeek through the rounds.
   Next: after the rounds land.
   Verify: the baseline is the number of rounds passed in order.
@@ -50,6 +46,21 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **trial/flight-rounds** — five round packets, hidden checks, and a reference answer.
+  Owner: lead (Claude, Start scaffold session); Sol rounds writer.
+  Worktree: `../tinkered-flight-rounds`, on the services branch.
+  Next: rounds 1-2 ready first (user chose a staged start), then 3-5.
+  Verify: the reference passes every round; a planted break fails each round.
+  [Brief](docs/roadmap/flight-trial/ROUNDS-BRIEF.md).
+
+- **trial/flight-harness** — a `flight` suite in `tools/writer-trial` with real local services.
+  Owner: lead (Claude, Start scaffold session); Sol harness writer.
+  Worktree: `../tinkered-flight-harness`, on the services branch.
+  Next: stage 1 ready first, then later stages and the score record.
+  Verify: no internet or control API from the writer's container;
+  an edited `src/scaffold/` file fails the gate.
+  [Brief](docs/roadmap/flight-trial/HARNESS-BRIEF.md).
 
 - **trial/flight-services** — payment and three suppliers as Tinker apps behind HTTP (ADR 0098).
   Owner: lead (Claude, Start scaffold session); Sol services writer.
