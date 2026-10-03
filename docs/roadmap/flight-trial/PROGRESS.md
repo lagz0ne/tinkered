@@ -2376,3 +2376,34 @@ Main's files outside the allowed paths are kept.
 The harness proof stays in `HARNESS-PROGRESS.md`.
 The flight rules keep the rounds' HTTP rules and the harness' app rules.
 Workspace and reference builds exited 0 before the rounds commit.
+
+### Integration: landed scaffold and teacher settings
+
+The rounds merge is `b31299f9`.
+The harness merge is saved after it.
+Packets 1 to 5 still match `10ff6e72` byte for byte.
+Main's service, data, and service-test files are unchanged.
+
+Creation now freezes the service guide and copies `SERVICES.md`.
+The teacher reads repo files only.
+Its `grader.env` receives the same WEBHOOK_SECRET as the app.
+Scaffold hash sorting now supplies a compare function.
+The services image copies the landed native TypeScript process entries.
+It packs current dependencies, so a later Hono dependency is included.
+The new rebuild command is in the writer-trial README.
+Each image gets an idle keeper and its saved tar.
+
+The reference used an older scaffold and its older callback API.
+Assumption: the full gate must use main's exact scaffold bytes.
+The reference now copies main's scaffold, process entry, and shipped tests.
+Feature calls use the current sync request API.
+Native flight requests belong to a resource.
+Settings use schemas directly; repeated fare comparisons are inlined.
+The strict plain-function cap stays at 17, with no exclusions.
+The reference uses the same strict check as the image.
+
+The first strict check failed on the old callbacks and plain functions.
+Log: `tools/writer-trial/.logs/integration-reference-plain-errors.log`.
+The corrected list check exited 0.
+The first code check found old settings types and a missing resource label.
+Both are fixed before proof.

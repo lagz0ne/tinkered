@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { openFlightSearch } from "../backend/flight-stream.ts";
-import { readFlightSettings } from "../backend/flight-settings.server.ts";
+import { flightSettingsSchema } from "../backend/flight-settings.server.ts";
 import { searchInput } from "../contracts/flights.ts";
 import { startRequests } from "../scaffold/start.ts";
 import { readResult } from "../scaffold/backend/result.server.ts";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/flights/search")({
         if (!query.success) return new Response("Bad search", { status: 400 });
         return readResult(
           context.session.settle(openFlightSearch, {
-            input: { query: query.data, settings: readFlightSettings(process.env) },
+            input: { query: query.data, settings: flightSettingsSchema.parse(process.env) },
           }),
         );
       },

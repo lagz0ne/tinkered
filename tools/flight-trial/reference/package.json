@@ -18,15 +18,11 @@
     "test": "vp test",
     "db:generate": "drizzle-kit generate",
     "test:boundary": "node scripts/check-boundary.mjs",
-    "test:imports": "node maintain/check-imports.mjs",
-    "test:middleware": "node maintain/check-middleware.mjs",
-    "registry:build": "node maintain/build-registry.mjs",
-    "test:registry": "node maintain/check-registry.mjs",
     "test:seam": "node scripts/check-seam.mjs --prove",
-    "test:seam:fixture": "node maintain/check-seam-fixture.mjs",
     "test:schema": "node scripts/check-schema.mjs",
-    "typecheck": "tsc --noEmit",
-    "check:plain": "node scripts/check-plain.mjs"
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "check:plain": "node scripts/check-plain.mjs",
+    "check": "vp check && vp run typecheck && vp run test && vp run check:plain && vp run test:seam && vp run test:boundary && vp run test:schema"
   },
   "dependencies": {
     "@hono/node-server": "1.19.17",

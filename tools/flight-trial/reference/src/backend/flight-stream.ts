@@ -1,5 +1,5 @@
 import { operation, resource, type Operation } from "@tinker/core";
-import { flightSettings, readFlightSettings } from "./flight-settings.server.ts";
+import { flightSettings, flightSettingsSchema } from "./flight-settings.server.ts";
 import { searchFlights } from "./flight-search.ts";
 import { backendStop, requestStop } from "../scaffold/backend/lifetime.ts";
 import type { Flights } from "../contracts/flights.ts";
@@ -13,7 +13,10 @@ const flightSearchStream = resource({
     const signal = AbortSignal.any([stop.signal, requestStop, backendStop, ctx.signal]);
     ctx.defer(() => stop.abort());
     return {
-      open(input: { query: Flights.Query; settings: ReturnType<typeof readFlightSettings> }) {
+      open(input: {
+        query: Flights.Query;
+        settings: ReturnType<typeof flightSettingsSchema.parse>;
+      }) {
         const stream = new ReadableStream<Uint8Array>({
           async start(controller) {
             const result = await search.settle({
@@ -48,7 +51,10 @@ export const openFlightSearch = operation({
   depends: { stream: flightSearchStream },
   run(
     { stream },
-    ctx: Operation.Ctx<{ query: Flights.Query; settings: ReturnType<typeof readFlightSettings> }>,
+    ctx: Operation.Ctx<{
+      query: Flights.Query;
+      settings: ReturnType<typeof flightSettingsSchema.parse>;
+    }>,
   ) {
     return stream.open(ctx.input);
   },

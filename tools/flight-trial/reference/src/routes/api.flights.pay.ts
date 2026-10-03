@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { payBooking } from "../backend/payments.ts";
 import { readAccount } from "../backend/auth.ts";
 import { startRequests } from "../scaffold/start.ts";
-import { flightSettings, readFlightSettings } from "../backend/flight-settings.server.ts";
-import { paymentSettings, readPaymentSettings } from "../backend/payment-http.ts";
+import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server.ts";
+import { paymentSettings, paymentSettingsSchema } from "../backend/payment-http.ts";
 import { readResult } from "../scaffold/backend/result.server.ts";
 import { isError } from "../errors.ts";
 export const Route = createFileRoute("/api/flights/pay")({
@@ -19,8 +19,8 @@ export const Route = createFileRoute("/api/flights/pay")({
         const result = await context.session.settle(payBooking, {
           rawInput: await request.json(),
           tags: [
-            flightSettings(readFlightSettings(process.env)),
-            paymentSettings(readPaymentSettings(process.env)),
+            flightSettings(flightSettingsSchema.parse(process.env)),
+            paymentSettings(paymentSettingsSchema.parse(process.env)),
           ],
           signal: context.signal,
         });

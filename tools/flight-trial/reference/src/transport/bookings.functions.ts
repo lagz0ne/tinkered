@@ -3,7 +3,7 @@ import { startRequests } from "../scaffold/start.ts";
 import { readResult } from "../scaffold/backend/result.server.ts";
 import { readAccount } from "../backend/auth.ts";
 import { refreshBookings } from "../backend/bookings.ts";
-import { flightSettings, readFlightSettings } from "../backend/flight-settings.server.ts";
+import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server.ts";
 export const refreshFlightBookings = createServerFn({ method: "GET" })
   .middleware([startRequests.middleware])
   .handler(async ({ context }) => {
@@ -13,7 +13,7 @@ export const refreshFlightBookings = createServerFn({ method: "GET" })
     if (account === null) return { ok: true };
     return readResult(
       await context.session.settle(refreshBookings, {
-        tags: flightSettings(readFlightSettings(process.env)),
+        tags: flightSettings(flightSettingsSchema.parse(process.env)),
         signal: context.signal,
       }),
     );

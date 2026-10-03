@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { receivePayment } from "../backend/payments.ts";
 import { startRequests } from "../scaffold/start.ts";
-import { flightSettings, readFlightSettings } from "../backend/flight-settings.server.ts";
-import { paymentSettings, readPaymentSettings } from "../backend/payment-http.ts";
+import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server.ts";
+import { paymentSettings, paymentSettingsSchema } from "../backend/payment-http.ts";
 import { readResult } from "../scaffold/backend/result.server.ts";
 export const Route = createFileRoute("/webhooks/stripe")({
   server: {
@@ -16,8 +16,8 @@ export const Route = createFileRoute("/webhooks/stripe")({
               signature: request.headers.get("Stripe-Signature"),
             },
             tags: [
-              flightSettings(readFlightSettings(process.env)),
-              paymentSettings(readPaymentSettings(process.env)),
+              flightSettings(flightSettingsSchema.parse(process.env)),
+              paymentSettings(paymentSettingsSchema.parse(process.env)),
             ],
             signal: context.signal,
           }),

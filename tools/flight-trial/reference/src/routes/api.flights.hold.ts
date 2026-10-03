@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { holdFlight } from "../backend/bookings.ts";
 import { startRequests } from "../scaffold/start.ts";
-import { flightSettings, readFlightSettings } from "../backend/flight-settings.server.ts";
+import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server.ts";
 import { readResult } from "../scaffold/backend/result.server.ts";
 export const Route = createFileRoute("/api/flights/hold")({
   server: {
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/flights/hold")({
           readResult(
             await context.session.settle(holdFlight, {
               rawInput: await request.json(),
-              tags: flightSettings(readFlightSettings(process.env)),
+              tags: flightSettings(flightSettingsSchema.parse(process.env)),
               signal: context.signal,
             }),
           ),

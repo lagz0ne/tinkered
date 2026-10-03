@@ -27,17 +27,6 @@ export const editFlightDraft = operation({
     draft.set(ctx.input);
   },
 });
-/** Order shown flight rows by price, flight, then supplier.
- * @param a - From the saved display rows; for the candidate price and flight.
- * @param b - From the saved display rows; for the comparison price and flight.
- */
-function compareRows(a: Flights.Row, b: Flights.Row) {
-  return (
-    Number(a.total_amount) - Number(b.total_amount) ||
-    a.flight_id.localeCompare(b.flight_id) ||
-    a.supplier.localeCompare(b.supplier)
-  );
-}
 export const findFlights = operation({
   label: "find flights",
   depends: {
@@ -76,9 +65,19 @@ export const findFlights = operation({
             const merged = new Map(all.map((row) => [row.flight_id, row]));
             for (const row of event.offers) {
               const previous = merged.get(row.flight_id);
-              if (!previous || compareRows(row, previous) < 0) merged.set(row.flight_id, row);
+              if (
+                !previous ||
+                (Number(row.total_amount) - Number(previous.total_amount) ||
+                  row.supplier.localeCompare(previous.supplier)) < 0
+              )
+                merged.set(row.flight_id, row);
             }
-            return [...merged.values()].sort(compareRows);
+            return [...merged.values()].sort(
+              (a, b) =>
+                Number(a.total_amount) - Number(b.total_amount) ||
+                a.flight_id.localeCompare(b.flight_id) ||
+                a.supplier.localeCompare(b.supplier),
+            );
           });
           end = buffer.indexOf("\n");
         }
