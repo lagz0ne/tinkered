@@ -158,19 +158,11 @@ export function rejectPayment(
   return reply(status, { error: { type, code, message: code } });
 }
 
-const recordCall = operation({
-  label: "record HTTP call",
-  input: z.union([
-    z.object({ name: z.string(), kind: z.enum(["control", "service"]) }),
-    z.object({ id: z.string(), status: z.number() }),
-  ]),
+const startCall = operation({
+  label: "start HTTP call",
+  input: z.object({ name: z.string(), kind: z.enum(["control", "service"]) }),
   depends: { calls: calls.controller, clock },
   run({ calls, clock }, ctx) {
-    if ("id" in ctx.input) {
-      const { id, status } = ctx.input;
-      calls.update((all) => all.map((call) => (call.id === id ? { ...call, status } : call)));
-      return id;
-    }
     const { kind, name } = ctx.input;
     const id = ctx.random.uuid();
     calls.update((all) => [
@@ -186,6 +178,15 @@ const recordCall = operation({
     return id;
   },
 });
+const saveCall = operation({
+  label: "save HTTP call status",
+  input: z.object({ id: z.string(), status: z.number() }),
+  depends: { calls: calls.controller },
+  run({ calls }, ctx) {
+    const { id, status } = ctx.input;
+    calls.update((all) => all.map((call) => (call.id === id ? { ...call, status } : call)));
+  },
+});
 const checkToken = operation({
   label: "check control token",
   input: z.object({ token: z.string().optional() }),
@@ -194,33 +195,18 @@ const checkToken = operation({
     return ctx.input.token === `Bearer ${token}`;
   },
 });
-const ruleSchema = z.object({
-  name: z.string(),
-  revision: z.string().optional(),
-  response: z
-    .object({
-      status: z.number(),
-      body: z.unknown(),
-      headers: z.record(z.string(), z.string()).optional(),
-    })
-    .optional(),
+const replySchema = z.object({
+  status: z.number(),
+  body: z.unknown(),
+  headers: z.record(z.string(), z.string()).optional(),
 });
 /** Rule names index data only; Hono owns the action between the two calls. */
 const applyRule = operation({
-  label: "read or save HTTP rule",
-  input: ruleSchema,
+  label: "select HTTP rule",
+  input: z.object({ name: z.string(), revision: z.string().optional() }),
   depends: { rules: rules.controller, shape: errorShape },
   run({ rules, shape }, ctx): { revision?: string; response?: Wire.Reply } {
-    const { name, revision, response } = ctx.input;
-    if (response) {
-      rules.update((all) => {
-        const current = all[name];
-        return current?.revision === revision
-          ? { ...all, [name]: { ...current, saved: response } }
-          : all;
-      });
-      return {};
-    }
+    const { name, revision } = ctx.input;
     let selected: Wire.Rule | undefined;
     rules.update((all) => {
       const current = all[name];
@@ -242,12 +228,25 @@ const applyRule = operation({
     };
   },
 });
+const saveRule = operation({
+  label: "save HTTP rule reply",
+  input: z.object({ name: z.string(), revision: z.string(), response: replySchema }),
+  depends: { rules: rules.controller },
+  run({ rules }, ctx) {
+    const { name, revision, response } = ctx.input;
+    rules.update((all) => {
+      const current = all[name];
+      return current?.revision === revision
+        ? { ...all, [name]: { ...current, saved: response } }
+        : all;
+    });
+  },
+});
 const routeRule = operation({
   label: "wait for HTTP rule",
-  input: ruleSchema,
+  input: z.object({ name: z.string() }),
   depends: { rules, clock, stop: stopSignal, apply: applyRule.controller, shape: errorShape },
   async run({ rules, clock, stop, apply, shape }, ctx) {
-    if (ctx.input.response) return apply.run({ input: ctx.input });
     const rule = rules[ctx.input.name] ?? { delayMs: 0, revision: undefined };
     const signal = AbortSignal.any([stop, ctx.signal]);
     if (rule.delayMs) {
@@ -316,14 +315,14 @@ export const middleware = resource({
           headers: { "content-type": "application/json", ...result.headers },
         }),
       log: createMiddleware<Wire.Env>(async (c, next) => {
-        const id = c.var.scope.run(recordCall, {
+        const id = c.var.scope.run(startCall, {
           rawInput: {
             name: `${c.req.method} ${c.req.path}`,
             kind: c.var.control ? "control" : "service",
           },
         });
         await next();
-        if (!stop.aborted) c.var.scope.run(recordCall, { rawInput: { id, status: c.res.status } });
+        if (!stop.aborted) c.var.scope.run(saveCall, { rawInput: { id, status: c.res.status } });
         c.header("transfer-encoding", "chunked");
       }),
       token: createMiddleware<Wire.Env>(async (c, next) => {
@@ -366,7 +365,7 @@ export const middleware = resource({
           await next();
         }
         if (selected.revision)
-          await c.var.scope.run(routeRule, {
+          c.var.scope.run(saveRule, {
             rawInput: {
               ...params,
               revision: selected.revision,

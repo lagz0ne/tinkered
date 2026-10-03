@@ -356,31 +356,15 @@ const inFlight = resource({
   },
 });
 /** The key fingerprints are facts supplied by Hono, never operation choices. */
-const intentKey = operation({
-  label: "retain payment reply for key",
+const startIntentKey = operation({
+  label: "start payment key",
   input: z.object({
     key: z.string(),
     fingerprint: z.string(),
-    response: z
-      .object({
-        status: z.number(),
-        body: z.unknown(),
-        headers: z.record(z.string(), z.string()).optional(),
-      })
-      .optional(),
   }),
   depends: { state: state.controller, inFlight },
   async run({ state, inFlight }, ctx): Promise<Wire.Reply | undefined> {
-    const { key, fingerprint, response } = ctx.input;
-    if (response) {
-      state.update((current) => ({
-        ...current,
-        keys: { ...current.keys, [key]: { fingerprint, reply: structuredClone(response) } },
-      }));
-      inFlight.get(key)!.resolve(response);
-      inFlight.delete(key);
-      return;
-    }
+    const { key, fingerprint } = ctx.input;
     const previous = state.get().keys[key];
     if (previous)
       return previous.fingerprint === fingerprint
@@ -396,6 +380,29 @@ const intentKey = operation({
       resolve = done;
     });
     inFlight.set(key, { fingerprint, response: responsePromise, resolve });
+  },
+});
+
+const saveIntentKey = operation({
+  label: "save payment key reply",
+  input: z.object({
+    key: z.string(),
+    fingerprint: z.string(),
+    response: z.object({
+      status: z.number(),
+      body: z.unknown(),
+      headers: z.record(z.string(), z.string()).optional(),
+    }),
+  }),
+  depends: { state: state.controller, inFlight },
+  run({ state, inFlight }, ctx) {
+    const { key, fingerprint, response } = ctx.input;
+    state.update((current) => ({
+      ...current,
+      keys: { ...current.keys, [key]: { fingerprint, reply: structuredClone(response) } },
+    }));
+    inFlight.get(key)!.resolve(response);
+    inFlight.delete(key);
   },
 });
 
@@ -415,10 +422,10 @@ export const app = extension({
           route: `${c.req.method} ${c.req.path}`,
           body: c.var.body,
         });
-        const result = await c.var.scope.run(intentKey, { rawInput: { key, fingerprint } });
+        const result = await c.var.scope.run(startIntentKey, { rawInput: { key, fingerprint } });
         if (result) return c.var.json(result);
         await next();
-        await c.var.scope.run(intentKey, {
+        c.var.scope.run(saveIntentKey, {
           rawInput: {
             key,
             fingerprint,
