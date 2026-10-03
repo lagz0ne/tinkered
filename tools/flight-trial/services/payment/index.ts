@@ -8,7 +8,6 @@ import {
   tag,
   type Operation,
 } from "@tinker/core";
-import { preset } from "@tinker/core/testing";
 import { z } from "zod";
 import {
   calls,
@@ -71,7 +70,7 @@ export declare namespace Payment {
 const webhookUrl = tag<string>({ label: "webhook URL" });
 const secret = tag<string>({ label: "webhook secret" });
 const webhookDelayMs = tag({ label: "webhook delay", default: 20 });
-/** Each scenario owns a fresh plain value for its preset. */
+/** Each scenario owns a fresh plain value. */
 function createState(): Payment.State {
   return {
     intents: {},
@@ -299,11 +298,7 @@ const resetScenario = operation({
     if (!parsed.success) return reject("invalid_scenario");
     const initial = createState();
     if (parsed.data.name === "payment-failed") initial.plan.outcome = "failed";
-    /** Presets apply on a fresh scope; the control call transfers its seeded state to this app. */
-    const seed = createScope({ presets: [preset(state, initial)] });
-    paymentState.set(seed.resolve(state));
-    const ended = await seed.close({ graceful: true });
-    if (ended.status !== "success") return reject("scenario_failed", 500);
+    paymentState.set(initial);
     rules.set({});
     calls.set([]);
     return reply(200, { data: { name: parsed.data.name } });
@@ -422,6 +417,13 @@ const app = extension({
   hooks: {
     async start({ scope, next }) {
       await next();
+      await scope.run(resetScenario, {
+        input: {
+          route: "POST /control/scenario",
+          path: "/control/scenario",
+          body: { name: "default" },
+        },
+      });
       scope.resolve(webhooks);
       return scope.resolve(http);
     },
@@ -442,7 +444,6 @@ export async function startPayment(options: Payment.Options) {
       secret(options.secret),
       webhookDelayMs(options.webhookDelayMs ?? 20),
     ],
-    presets: [preset(state, createState())],
   });
   await scope.ready;
   const listening = scope.resolve(app);

@@ -9,7 +9,6 @@ import {
   type Operation,
   type Scope,
 } from "@tinker/core";
-import { makeTestClock, type Clock as TestClock } from "@tinker/core/testing";
 import { z } from "zod";
 import { failFlightService } from "../src/errors.ts";
 
@@ -31,35 +30,61 @@ export const host = tag({ label: "service host", default: "127.0.0.1" });
 export const controlToken = tag<string>({ label: "control token" });
 export const calls = data<Service.Entry[]>({ label: "HTTP calls", initial: [] });
 export const rules = data<Service.Rules>({ label: "route rules", initial: {} });
-const testClock = data<TestClock.Test | undefined>({
-  label: "service test clock",
-  initial: undefined,
-});
+/** Real waits stay on Core's clock; grader time owns only the waits started after a switch. */
+class ServiceClock {
+  private real: Clock.Handle;
+  private now?: number;
+  private waits = new Set<Service.Wait>();
 
-/** The clock must switch without replacing the HTTP resource or losing pending virtual waits. */
+  constructor(real: Clock.Handle) {
+    this.real = real;
+  }
+
+  currentTimeMillis() {
+    return this.now ?? this.real.currentTimeMillis();
+  }
+
+  currentTimeNanos() {
+    return this.now === undefined ? this.real.currentTimeNanos() : BigInt(this.now) * 1_000_000n;
+  }
+
+  sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    if (this.now === undefined) return this.real.sleep(ms, signal);
+    return new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) return reject(signal.reason);
+      if (ms <= 0) return resolve();
+      const wait = {
+        at: this.currentTimeMillis() + ms,
+        wake: () => {
+          this.waits.delete(wait);
+          signal?.removeEventListener("abort", abort);
+          resolve();
+        },
+      };
+      const abort = () => {
+        this.waits.delete(wait);
+        reject(signal?.reason);
+      };
+      this.waits.add(wait);
+      signal?.addEventListener("abort", abort, { once: true });
+    });
+  }
+
+  setTime(now: number) {
+    this.now = now;
+    for (const wait of [...this.waits].sort((a, b) => a.at - b.at)) {
+      if (wait.at <= now) wait.wake();
+    }
+  }
+
+  advance(ms: number) {
+    this.setTime(this.currentTimeMillis() + ms);
+  }
+}
+
 export const clock = resource({
   label: "service clock",
-  depends: { test: testClock.controller },
-  factory({ test }, ctx) {
-    const handle: Clock.Handle = {
-      currentTimeMillis: () => (test.get() ?? ctx.clock).currentTimeMillis(),
-      currentTimeNanos: () => (test.get() ?? ctx.clock).currentTimeNanos(),
-      sleep: (ms, signal) => (test.get() ?? ctx.clock).sleep(ms, signal),
-    };
-    return {
-      ...handle,
-      setTime(now: number) {
-        const current = test.get();
-        if (current) current.setTime(now);
-        else test.set(makeTestClock({ now }));
-      },
-      advance(ms: number) {
-        const current = test.get() ?? makeTestClock({ now: ctx.clock.currentTimeMillis() });
-        test.set(current);
-        current.advance(ms);
-      },
-    };
-  },
+  factory: (_deps, ctx) => new ServiceClock(ctx.clock),
 });
 
 /** Wire values are pure copies; the HTTP resource owns the socket. */
