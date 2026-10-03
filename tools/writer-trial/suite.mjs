@@ -3,7 +3,7 @@
 // one fresh round each.
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const trialDir = fileURLToPath(new URL(".", import.meta.url));
@@ -156,7 +156,7 @@ export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
   if (!existsSync(shapePath)) throw new Error("Shape helper required for new trials");
   const files = {};
   const put = (src, dest) => {
-    mkdirSync(join(frozen, dest.slice(0, dest.lastIndexOf("/"))), {
+    mkdirSync(dirname(join(frozen, dest)), {
       recursive: true,
     });
     copyFileSync(src, join(frozen, dest));

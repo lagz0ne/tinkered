@@ -1,7 +1,7 @@
 // Suite freeze and staging reads. No docker, no Paseo, no network.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -207,6 +207,13 @@ void describe("frozen copies", () => {
     try {
       const frozen = freezeTrial(root, "stock");
       assert.ok(frozen.files["config.json"]);
+      assert.deepEqual(readdirSync(join(root, frozen.dir)).sort(), [
+        "config.json",
+        "jev",
+        "rules",
+        "tasks",
+        "tools",
+      ]);
       // A changed live config object cannot move the frozen read.
       const live = { limits: { ...frozenConfigFor(root, frozen).limits, toolCalls: 1 } };
       assert.notEqual(live.limits.toolCalls, limitsFor({ frozen }, live, root).toolCalls);

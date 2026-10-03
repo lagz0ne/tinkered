@@ -2824,3 +2824,12 @@ The same proof passed with exit 0 after the fix.
 Log: `tools/writer-trial/.logs/review-gateway-option.log`.
 The probe checks gateway ports 2377, 7946, 5355, 22, and 80.
 The earlier no-host-route claim was too broad and is corrected.
+
+### Integration review fix 5: frozen root files
+
+The frozen config now creates its parent with `dirname`.
+It no longer creates an empty `config.jso` folder.
+The test checks every top-level frozen entry.
+Logs under `tools/writer-trial/.logs/`:
+`review-root-path-red.log`, exit 1 before the fix;
+`review-root-path-green.log`, exit 0 after it, 11 tests pass.
