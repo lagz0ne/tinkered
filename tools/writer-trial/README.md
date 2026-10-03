@@ -203,10 +203,20 @@ These teacher URLs serve both service and control paths.
 The app gets different URLs through the filter.
 Holds last 60 seconds unless the teacher moves the service clock.
 `FLIGHT_CHECK_SETTINGS` also holds the round and all URLs as JSON.
-A check can use `--teacher-dir` to read a saved teacher folder;
-its files are hashed beside the result.
-This supports proof from the parallel rounds branch before landing.
-The folder's last path part must be `flight`.
+Teacher files come only from the repo's `teacher/flight/` folder.
+Their hashes are saved beside each result.
+The teacher's `grader.env` has the app's WEBHOOK_SECRET.
+Creation freezes `flight-services.md` and copies it as `SERVICES.md`.
+
+Rebuild services after a service change with:
+
+```bash
+node tools/writer-trial/flight-services-image.mjs
+```
+
+This builds Core, packs current service dependencies, and saves a new image.
+It keeps the image in an idle container and saves its tar.
+It updates only the services tag in `config.json` after success.
 
 Flight permits native HTTP clients, including `fetch`.
 Its Jev gate omits S24, which requires the old copied HTTP helper.

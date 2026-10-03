@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { listFiles, sha256File } from "./suite.mjs";
+import { prepareServices, buildServices } from "./flight-services-image.mjs";
 import { keepFlightDependencies } from "./flight-network.mjs";
 
 export function prepareFlight(repo, home, config, build) {
@@ -9,6 +10,8 @@ export function prepareFlight(repo, home, config, build) {
   if (existsSync(join(context, "image.json"))) {
     throw new Error(`Flight image already saved: ${context}; use a new tag to rebuild`);
   }
+  mkdirSync(context, { recursive: true });
+  writeFileSync(join(context, ".dockerignore"), "services/\nimage.tar\nimage.json\n");
   const seed = join(context, "seed");
   mkdirSync(seed, { recursive: true });
   const app = join(repo, "apps/start-scaffold");
@@ -87,44 +90,9 @@ CMD ["sleep", "infinity"]
 `,
   );
   const services = join(context, "services");
-  mkdirSync(services, { recursive: true });
-  cpSync(join(repo, "tools/flight-trial/dist"), join(services, "dist"), { recursive: true });
-  cpSync(join(repo, "tools/flight-trial/data"), join(services, "data"), { recursive: true });
-  mkdirSync(join(services, "scripts"), { recursive: true });
-  copyFileSync(
-    join(repo, "tools/flight-trial/scripts/service.mjs"),
-    join(services, "scripts/service.mjs"),
-  );
-  copyFileSync(join(seed, "core.tgz"), join(services, "core.tgz"));
-  copyFileSync(join(repo, "tools/writer-trial/flight-proxy.mjs"), join(services, "proxy.mjs"));
-  writeFileSync(
-    join(services, "package.json"),
-    JSON.stringify({
-      private: true,
-      type: "module",
-      dependencies: {
-        "@tinker/core": "file:./core.tgz",
-        zod: JSON.parse(
-          readFileSync(join(repo, "tools/flight-trial/node_modules/zod/package.json")),
-        ).version,
-      },
-    }),
-  );
-  writeFileSync(
-    join(services, "Dockerfile"),
-    `FROM node:24-trixie-slim
-WORKDIR /service
-COPY . .
-RUN npm install --ignore-scripts --no-audit --no-fund
-USER node
-CMD ["node", "scripts/service.mjs"]
-`,
-  );
+  prepareServices(repo, services);
   if (!build) return context;
-  for (const [dir, image] of [
-    [context, config.flight.image],
-    [services, config.flight.servicesImage],
-  ]) {
+  for (const [dir, image] of [[context, config.flight.image]]) {
     execFileSync("docker", ["build", "-t", image, dir], { stdio: "inherit" });
     const keeper = `tinker-flight-keep-${image.split(":").at(-1)}-${dir === context ? "app" : "services"}`;
     execFileSync(
@@ -148,12 +116,10 @@ CMD ["node", "scripts/service.mjs"]
       { stdio: "inherit" },
     );
   }
-  for (const [dir, image] of [
-    [context, config.flight.image],
-    [services, config.flight.servicesImage],
-  ]) {
+  for (const [dir, image] of [[context, config.flight.image]]) {
     execFileSync("docker", ["save", "-o", join(dir, "image.tar"), image]);
   }
+  buildServices(services, config.flight.servicesImage);
   keepFlightDependencies(config.flight);
   const inspect = (image) =>
     execFileSync("docker", ["image", "inspect", image, "--format", "{{.Id}}"], {
