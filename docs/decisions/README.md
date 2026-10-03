@@ -82,3 +82,5 @@ by a new decision that names the old one.
 - [0099](0099-strict-forms-first.md): strict forms first; plain functions are exceptions.
 
 - [0100](0100-no-service-outside-the-graph.md): no service outside the graph.
+
+- [0101](0101-routing-belongs-to-the-framework.md): routing belongs to the framework.

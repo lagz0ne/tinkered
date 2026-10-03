@@ -24,6 +24,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **trial/services-routing** — the trial services route through Hono, not Tinker (ADR 0101).
+  Owner: lead (Claude, Start scaffold session).
+  Next: after services lands, a writer moves each route into Hono;
+  handlers read their params and call `.run` on one operation; drop the dispatch operations.
+  Verify: no operation takes a whole request; HTTP behavior and all tests unchanged;
+  the four-process proof and mutation (85) pass.
+
 - **trial/deepseek-baseline** — run DeepSeek through the rounds.
   Next: after the rounds land.
   Verify: the baseline is the number of rounds passed in order.
