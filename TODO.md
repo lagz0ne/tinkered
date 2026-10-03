@@ -24,15 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
-  Owner: lead (Claude, Start scaffold session).
-  Next: brief a writer.
-  Check login once per change, not per stream pull.
-  Load the snapshot once per sign-in and once per redirect.
-  Remove our proof notes, previews, and review docs.
-  Ship `.agents/skills/` that teach the four forms and the seams.
-  Verify: a span-count test fails before and passes after; all app gates pass.
-
 - **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
   Next: import OpenFlights airports, airlines, and routes; credit them.
   Verify: the same seed gives the same schedules, fares, and seats.
@@ -68,6 +59,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
+  Owner: lead (Claude, Start scaffold session); Sol refine writer.
+  Worktree: `../tinkered-start-refine`, branch `start/refine`.
+  Next: the writer fixes the stream and snapshot waste, trims, and adds skills.
+  Verify: a waste test fails before and passes after;
+  a clean shadcn consumer installs, builds, and tests with no manual step;
+  the compose stack signs up, saves a todo, and Mailpit shows the mail.
+  [Brief](docs/roadmap/start-scaffold/REFINE-BRIEF.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
