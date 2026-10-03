@@ -43,6 +43,9 @@ Its logs land in this folder's `.logs/`.
 
 The browser page-close listener is also a resource.
 It removes its listener when the router's owner closes.
+A real page hide closes the tab once even when `bind()` runs
+after the factory returns.
+On the server, no page listener starts; binding still works.
 Run the strict check from the worktree root:
 
 ```bash

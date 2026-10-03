@@ -2528,9 +2528,9 @@ The promise scan is advisory; unsure rows are not defects.
 
 The `.2` image used the starter registry's old test list.
 It omitted main's new `tab-lifetime.test.ts`.
-The first round's own check and all three browser checks passed,
-but this attempt was stopped with exit 130 before the Jev result.
-It is not counted as a full-gate pass.
+The `.2` round 1, pass 1 full gate exited 0.
+The run was stopped with exit 130 during pass 2.
+It does not count toward the final `.3` image's proof.
 The image script now copies every shipped app test into its seed.
 A fresh `.3` image and proof include the landed lifetime test.
 
@@ -2541,3 +2541,12 @@ The image's tab-lifetime test matches main byte for byte.
 Create, stage 1, and worker folder proof for `flight-integration-03`
 all exited 0, including an explicit check for that new test.
 No model run started.
+
+The reference promise scan reads its real saved project folder.
+It exited 0 and found 39 titles, including both new lifetime tests.
+Both new titles were advisory gaps in the copied app README.
+The reference README now states both behaviors.
+The new listener-state label is false:
+`tabLifetime` owns a close callback and its page listener,
+not state rendered by a view.
+The label is saved in `INTEGRATION-JEV.jsonl`.
