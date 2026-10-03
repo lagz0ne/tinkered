@@ -110,6 +110,10 @@ function resetRouter(app, own) {
 
 function checkRouter(app, own) {
   try {
+    run(
+      ["exec", "-i", app, "sh", "-c", "cat > /tmp/flight-router.mjs"],
+      readFileSync(join(here, "flight-router.mjs")),
+    );
     const hash = run(["exec", app, "node", "/tmp/flight-router.mjs", "hash"]).trim();
     own.push("EXIT 0 fresh generated router\n");
     return { hash, exit: 0 };
@@ -121,8 +125,11 @@ function checkRouter(app, own) {
 
 function checkScaffold(app, scaffold, seam) {
   try {
-    const probe = `const fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path');const expected=JSON.parse(process.argv[1]);const found={};function walk(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isSymbolicLink())throw Error('scaffold link '+p);if(e.isDirectory())walk(p);else found[p.slice('/work/'.length)]=crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');}}if(fs.realpathSync('/work/src/scaffold')!=='/work/src/scaffold')throw Error('scaffold link');walk('/work/src/scaffold');if(JSON.stringify(Object.entries(found).sort())!==JSON.stringify(Object.entries(expected).sort()))throw Error('src/scaffold changed');console.log('PASS src/scaffold exact bytes');`;
-    seam.push(run(["exec", app, "node", "-e", probe, JSON.stringify(scaffold)]));
+    run(
+      ["exec", "-i", app, "sh", "-c", "cat > /tmp/flight-scaffold.mjs"],
+      readFileSync(join(here, "flight-scaffold.mjs")),
+    );
+    seam.push(run(["exec", app, "node", "/tmp/flight-scaffold.mjs", JSON.stringify(scaffold)]));
     seam.push(
       run([
         "exec",

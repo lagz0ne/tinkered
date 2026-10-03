@@ -82,6 +82,7 @@ const TEACHER_HELPERS = {
     "flight-proxy.mjs",
     "flight-router.mjs",
     "flight-plain.mjs",
+    "flight-scaffold.mjs",
     "gate.mjs",
   ],
   "evaluate.mjs": ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"],
