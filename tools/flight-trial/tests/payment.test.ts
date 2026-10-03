@@ -177,3 +177,13 @@ test("the grader can cancel a pending webhook and send it now", async () => {
   await post(url, "/control/webhooks", { intent_id: intent.id, mode: "now" });
   await expect.poll(() => received.length).toBe(1);
 });
+
+test("an injected payment failure uses Stripe's error shape", async () => {
+  const url = await start();
+  await post(url, "/control/routes", { route: "POST /v1/payment_intents", status: 503 });
+  const response = await post(url, "/v1/payment_intents", { amount: 900, currency: "usd" });
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({
+    error: { type: "invalid_request_error", code: "injected_failure", message: "injected_failure" },
+  });
+});

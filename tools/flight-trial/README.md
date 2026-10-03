@@ -379,6 +379,7 @@ GET /control/calls
 Route names are the HTTP method, a space, and the exact path.
 A route delay uses that service's clock.
 `status` injects a failure from 400 through 599.
+An injected payment failure uses Stripe's error shape.
 Omit `status` to run the route after the delay.
 `repeat` replays that many calls after the first reply, without another action.
 A repeated order reply takes no extra seats.

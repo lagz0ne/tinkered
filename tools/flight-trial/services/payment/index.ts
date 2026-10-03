@@ -414,7 +414,7 @@ const action = operation({
     return response;
   },
 });
-const http = createHttp(action);
+const http = createHttp(action, rejectPayment);
 
 /** Startup belongs to Core so a failed listener closes its root and all built resources. */
 const app = extension({
