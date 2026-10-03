@@ -211,10 +211,10 @@ const webhooks = resource({
   factory({ state, deliver }, ctx) {
     ctx.defer(
       state.watch((next, previous) => {
-        for (const delivery of Object.values(next.deliveries)) {
-          if (!delivery.sent && !previous.deliveries[delivery.id])
-            void deliver.run({ input: delivery });
-        }
+        const delivery = Object.values(next.deliveries).find(
+          (entry) => !entry.sent && !previous.deliveries[entry.id],
+        );
+        if (delivery) return deliver.run({ input: delivery });
       }),
     );
   },
@@ -309,15 +309,39 @@ const resetScenario = operation({
     return reply(200, { data: { name: parsed.data.name } });
   },
 });
+const controlWebhook = operation({
+  label: "choose intent webhook delivery",
+  depends: { state: state.controller, clock },
+  run({ state, clock }, ctx: Operation.Ctx<Service.Request>) {
+    const parsed = sendSchema.safeParse(ctx.input.body);
+    if (!parsed.success) return reject("invalid_webhook_plan");
+    const current = structuredClone(state.get());
+    const intent = current.intents[parsed.data.intent_id];
+    if (!intent) return rejectPayment("resource_missing", 404);
+    for (const delivery of Object.values(current.deliveries)) {
+      if (delivery.intentId === intent.id && !delivery.sent) delete current.deliveries[delivery.id];
+    }
+    schedule(
+      current,
+      intent,
+      { ...current.plan, ...parsed.data },
+      clock.currentTimeMillis(),
+      0,
+      `evt_${ctx.random.uuid()}`,
+    );
+    state.set(current);
+    return reply(200, { data: parsed.data });
+  },
+});
 const paymentControl = operation({
   label: "control payment",
   depends: {
     state: state.controller,
-    clock,
     common: control.controller,
+    webhook: controlWebhook.controller,
     reset: resetScenario.controller,
   },
-  async run({ state, clock, common, reset }, ctx: Operation.Ctx<Service.Request>) {
+  async run({ state, common, reset, webhook }, ctx: Operation.Ctx<Service.Request>) {
     if (ctx.input.route === "POST /control/scenario") return reset.run({ input: ctx.input });
     if (ctx.input.route === "POST /control/payment") {
       const parsed = planSchema.safeParse(ctx.input.body);
@@ -325,23 +349,7 @@ const paymentControl = operation({
       state.update((current) => ({ ...current, plan: parsed.data }));
       return reply(200, { data: parsed.data });
     }
-    if (ctx.input.route === "POST /control/webhooks") {
-      const parsed = sendSchema.safeParse(ctx.input.body);
-      if (!parsed.success) return reject("invalid_webhook_plan");
-      const current = structuredClone(state.get());
-      const intent = current.intents[parsed.data.intent_id];
-      if (!intent) return rejectPayment("resource_missing", 404);
-      schedule(
-        current,
-        intent,
-        { ...current.plan, ...parsed.data },
-        clock.currentTimeMillis(),
-        0,
-        `evt_${ctx.random.uuid()}`,
-      );
-      state.set(current);
-      return reply(200, { data: parsed.data });
-    }
+    if (ctx.input.route === "POST /control/webhooks") return webhook.run({ input: ctx.input });
     return common.run({ input: ctx.input });
   },
 });
