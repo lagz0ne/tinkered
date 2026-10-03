@@ -156,3 +156,12 @@ Their raw bytes and hashes still exercise the normal save path.
 The first round 5 report used the staging fixture by mistake.
 Feedback saves the proper reference report in a new attempt.
 The first report stays saved.
+
+## Image keepers
+
+- App and services keep their saved image keepers.
+- Create and image prepare also keep Postgres and Mailpit in use.
+- These keepers use no network and a read-only root.
+- Each keeper name includes its image ID.
+- Docker proof: exit 0, `dependency-keepers.log`.
+- Trial cleanup keeps these image keepers.

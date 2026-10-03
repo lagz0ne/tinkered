@@ -20,6 +20,7 @@ import {
   environmentArgs,
   flightEnvironment,
   pinFlightImages,
+  keepFlightDependencies,
   startFlight,
   stopFlight,
 } from "./flight-network.mjs";
@@ -42,6 +43,7 @@ if (action === "create") {
     : "booking";
   if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   if (existsSync(manifestPath)) throw new Error("Trial already exists; inspect its manifest");
+  if (suite === "flight") keepFlightDependencies(config.flight);
   const flightImages = suite === "flight" ? pinFlightImages(config) : null;
   mkdirSync(root, { recursive: true, mode: 0o700 });
   // Suite copies are the only source of staged rules, task, and tools.

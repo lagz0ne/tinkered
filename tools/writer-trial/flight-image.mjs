@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { listFiles, sha256File } from "./suite.mjs";
+import { keepFlightDependencies } from "./flight-network.mjs";
 
 export function prepareFlight(repo, home, config, build) {
   const context = join(home, `image-${config.flight.image.split(":").at(-1)}`);
@@ -153,6 +154,7 @@ CMD ["node", "scripts/service.mjs"]
   ]) {
     execFileSync("docker", ["save", "-o", join(dir, "image.tar"), image]);
   }
+  keepFlightDependencies(config.flight);
   const inspect = (image) =>
     execFileSync("docker", ["image", "inspect", image, "--format", "{{.Id}}"], {
       encoding: "utf8",

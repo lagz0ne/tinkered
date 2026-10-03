@@ -187,3 +187,37 @@ export const pinFlightImages = (config) =>
       run(["image", "inspect", tag, "--format", "{{.Id}}"]),
     ]),
   );
+
+/** Keep dependency images in use after the last trial is cleaned up. */
+export function keepFlightDependencies(images) {
+  for (const key of ["postgresImage", "mailpitImage"]) {
+    const id = run(["image", "inspect", images[key], "--format", "{{.Id}}"]);
+    const name = `tinker-flight-keep-${key.replace("Image", "")}-${id.slice(7, 19)}`;
+    const found = run(["ps", "-a", "--filter", `name=^${name}$`, "--format", "{{.Image}}"]);
+    if (!found)
+      run([
+        "create",
+        "--name",
+        name,
+        "--restart",
+        "unless-stopped",
+        "--network",
+        "none",
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "--memory",
+        "64m",
+        "--entrypoint",
+        "/bin/sh",
+        id,
+        "-c",
+        "exec sleep infinity",
+      ]);
+    const actual = run(["inspect", name, "--format", "{{.Image}}"]);
+    if (actual !== id) throw new Error(`Keeper ${name} has a different image`);
+    run(["start", name]);
+  }
+}

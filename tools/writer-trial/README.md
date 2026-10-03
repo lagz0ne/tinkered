@@ -137,7 +137,9 @@ Vite+ reads this file when the scaffold's Vite config owns formatting.
 The image's seam script has its own read-only package link.
 Flight runs one Vitest worker at a time to fit the memory limit.
 Each new tag saves its build folder and `image.tar`.
-A keeper container holds each app and service image.
+Keeper containers hold the app, services, Postgres, and Mailpit images.
+Create also keeps the dependency images for older saved app images.
+Keepers use no network and survive trial cleanup.
 A saved tag refuses rebuild; choose a new tag in `config.json`.
 The manifest pins app, services, Postgres, and Mailpit image IDs.
 
