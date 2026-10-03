@@ -402,5 +402,5 @@ New sections are lists, one term per item (vertical layout,
 
 - **trial round** — One staged step of the trial app; it passes only when every check passes.
 - **trial baseline** — The number of rounds a writer passes in order before the first failure.
-- **control endpoint** — A fake service's grader-only route that delays, fails, or repeats replies.
-- **webhook sender** — Our local service that signs and sends Stripe-format payment events.
+- **trial service** — A Tinker app in its own scope that plays a third party over HTTP (ADR 0098).
+- **control API** — A trial service's grader-only HTTP face; it writes the service's own data.

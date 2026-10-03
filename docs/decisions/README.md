@@ -76,3 +76,5 @@ by a new decision that names the old one.
 - [0096](0096-process-runs-commands-and-service-graphs.md): Process runs commands and service graphs.
 
 - [0097](0097-flight-trial-uses-real-local-services.md): the flight trial uses real local services.
+
+- [0098](0098-trial-services-are-tinker-apps-behind-http.md): trial services are Tinker apps behind HTTP.

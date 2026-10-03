@@ -37,9 +37,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: import OpenFlights airports, airlines, and routes; credit them.
   Verify: the same seed gives the same schedules, fares, and seats.
 
-- **trial/flight-services** — Postgres, Mailpit, stripe-mock, webhook sender, three suppliers.
-  Next: Duffel-shaped suppliers with control endpoints; no internet.
-  Verify: the grader can delay, fail, and repeat each reply.
+- **trial/flight-services** — payment and three suppliers as Tinker apps behind HTTP (ADR 0098).
+  Next: each service owns data from the fixture, a service API, and a control API.
+  Verify: the grader delays, fails, and repeats replies only through the control API;
+  watchers deliver webhooks and price changes to the app over HTTP.
 
 - **trial/flight-rounds** — five rounds: search, metasearch, hold, pay, email.
   Next: round packets and hidden checks after the services land.
