@@ -12,7 +12,7 @@ Commit: `7d1a611e070295dba776d6afb86e57d0d1aa1cef`.
 The file URLs, SHA-256 hashes, and sizes are in
 `tools/flight-trial/data/manifest.json`.
 The source check fetches each pinned file and checks its hash.
-It rebuilds the subset and compares every byte.
+It rebuilds the subset and compares the data without spacing.
 
 Assumptions:
 
@@ -77,7 +77,8 @@ Proof, all under `tools/flight-trial/.logs/`:
 - Check: exit 0, `check-code.log`; zero errors, 29 warnings.
 - Reader tests: exit 0, `test-code.log`; six passed.
 - Style census: exit 0, `style-code.log`.
-- Source hashes and size: exit 0, `sources-code.log`.
+- Source hashes and size: `sources-code.log` failed after the commit hook changed JSON spacing.
+  The source check step below records the fix.
 - Seed hashes: exit 0, `seeds-code.log`.
 - Prose: exit 0, `prose-code.log`.
 
@@ -87,4 +88,17 @@ The seed 98 gzip hash:
 `158933a8ad90c15ae6d6680bcbb3593efbc3e3ff08711c7fe8722b71e84c5dad`.
 Seed 97 has 10,996 flights and 563,628 compressed bytes.
 Its uncompressed JSON has 7,111,928 bytes.
-The source subset has 234,614 bytes.
+The source subset has 289,080 saved bytes.
+
+### Source check step
+
+The commit hook formats JSON, so it changed the subset's saved bytes.
+The pinned OpenFlights files still have the same hashes.
+The manifest now records the formatted subset's hash and size.
+The check compares rebuilt data after parsing both JSON files.
+This ignores spacing while still checking every stored value.
+It also checks the saved file hash against the manifest.
+
+Assumption: source subset spacing may follow the repo formatter.
+Proof: source check exit 0, `.logs/sources-fixed.log`.
+The full data directory has 854,736 bytes after the hook.

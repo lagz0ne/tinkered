@@ -19,7 +19,7 @@
   },
   "selection": "Top 60 airports by incident non-codeshare nonstop route count; numeric airport ID breaks ties. Keep known airline IDs, then unique directed airline routes within those airports.",
   "subset": {
-    "sha256": "be57e49c76d538ee8388be56b3b26a5de681fe634d14c8c76454633049009c48",
-    "bytes": 234614
+    "sha256": "965edecf15344a8736e56b846473c3a6a5920f345aa8b8955c101ffeb74a4f66",
+    "bytes": 289080
   }
 }

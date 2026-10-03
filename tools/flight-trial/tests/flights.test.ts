@@ -10,7 +10,6 @@ const query: Flights.Query = {
   date: "2027-01-15",
 };
 
-/** Fares share each cabin's stock. Services can copy it into their own data. */
 test("a known route returns only matching flights", () => {
   const offers = reader.search(query);
   expect(offers.length).toBeGreaterThan(0);

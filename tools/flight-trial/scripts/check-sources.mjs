@@ -12,7 +12,7 @@ for (const [name, bytes] of Object.entries(files)) {
 const subset = await readFile(new URL("source.json", data));
 if (
   hash(subset) !== manifest.subset.sha256 ||
-  encodeSource(selectSource(files)) !== subset.toString()
+  encodeSource(selectSource(files)) !== encodeSource(JSON.parse(subset.toString()))
 ) {
   throw new Error("Source subset differs from the pinned data");
 }
