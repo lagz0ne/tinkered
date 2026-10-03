@@ -1,7 +1,7 @@
 name: flight-trial
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     environment:
       POSTGRES_USER: flight
       POSTGRES_PASSWORD: flight-local-only
@@ -16,7 +16,7 @@ services:
       timeout: 3s
       retries: 30
   mailpit:
-    image: axllent/mailpit:v1.27
+    image: axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
     ports:
       - "127.0.0.1:${SMTP_PORT:-51025}:1025"
       - "127.0.0.1:${MAILPIT_PORT:-58025}:8025"
