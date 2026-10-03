@@ -1122,3 +1122,72 @@ Build and check pass too.
 Logs: `land-cleanup-build.log`, `land-cleanup-check.log`,
 and `land-cleanup-test.log`, each exit 0.
 All logs are under `tools/flight-trial/.logs/`.
+
+### Landing proof: 85.76 percent
+
+Commits: `04dc483e` quote lifetime; `b887586d` plain errors;
+`af3fedf4` one deadline check at the HTTP boundary.
+The ready commit `d81d6cda` became `0c84b012` after the clean rebase.
+Fetch and rebase exited 0; install exited 0.
+
+The final package mutation lane passed at 85.76 percent, exit 0.
+It ran alone under `/tmp/mutation.lock`.
+All nine source files stayed included; the floor remains 85.
+There are no exclusions or threshold changes.
+All 1,573 mutants completed: 1,330 killed, 19 timed out,
+179 survived, 45 uncovered, zero errors.
+No code or test changes followed that passing run.
+
+The redundant supplier wait and watcher contained 31 mutants:
+11 killed, one timed out, and 19 survived in the first landing run.
+Their removal keeps expiry at the same HTTP state boundary.
+The stronger HTTP checks killed four real survivors:
+expired cleanup losing a newer quote, expired lookup losing its error code,
+and missing offer or order lookup losing its error code.
+Proof: `land-dead-hold-mutants.json`, `land-quote-kill-proof.json`.
+
+Final file scores:
+
+- `services/http.ts`: 80.38 percent.
+- `services/payment/index.ts`: 86.12 percent.
+- `services/payment/main.ts`: 50.00 percent.
+- `services/supplier/index.ts`: 87.48 percent.
+- `services/supplier/main.ts`: 53.57 percent.
+- `src/errors.ts`: 41.18 percent.
+- `src/flights.ts`: 95.10 percent.
+- `src/schema.ts`: 100.00 percent.
+- `src/index.ts`: included, exports only, zero mutants.
+
+Each final gate exited 0:
+build, check, all 86 flight-trial tests, four-process HTTP proof,
+strict style census, prose, all 16 validation lanes,
+TSDoc, graph audit, and the full package mutation lane.
+Logs: `land-final-build.log`, `land-final-check.log`,
+`land-final-test.log`, `land-final-process.log`,
+`land-final-style.log`, `land-final-prose.log`,
+`land-final-validate.log`, `land-final-tsdoc.log`,
+`land-final-graph.log`, and `land-final-mutate.log`.
+The check has zero errors and the same 28 workspace warnings.
+No class remains in the services or error registry.
+Operation inputs stay inferred; the pure helper list stays at six.
+
+Jev checks exited 0.
+Test review has zero flags across 27 supplier tests.
+README review has zero confident gaps across all 86 test titles.
+The two unsure titles are already promised by the README:
+no automatic webhook in never mode, and release of an expired business hold.
+Preflight has zero file flags and two flagged units.
+The pay operation returns promised Duffel wire refusals;
+it does not signal a failed Core operation for those replies.
+The listener resource defers its own close after listening;
+the native signal and HTTP stop tests prove socket closure.
+Those three false labels are saved with the earlier watcher label
+in `land-jev-labels.jsonl`; the shared case file is untouched.
+Logs: `land-final-jev-preflight.log`, `land-final-jev-tests.log`,
+and `land-final-jev-promises.log`.
+
+The full report and gate index are saved as
+`land-final-mutation.json`, `land-final-mutation-summary.json`,
+and `land-final-gates.json` under `tools/flight-trial/.logs/`.
+The red offer regression and green full suite are retained in
+`land-offer-red.log` (exit 1) and `land-final-test.log` (exit 0).
