@@ -106,10 +106,12 @@ Do not overwrite `postgres-auth-mail-example` to update setup.
 That item contains the chosen services and your feature files.
 The `runtime` item has no registry dependencies and owns only `src/scaffold/`.
 Native entry and config files belong to the install-only `starter` item.
-The current setup contract is version 3; the source item version is `0.4.0`.
+The current setup contract is version 4; the source item version is `0.6.0`.
+The shipped README names the entry and lib changes required before a runtime update.
 SSE needs the database resource's native `listen` method and the new notify migration.
 The starter also installs the SSE and telemetry route entries and local Victoria Compose file.
-For this fresh scaffold, install the new starter; no old app migration is provided.
+For a fresh app, install the new starter.
+For an existing app, follow the shipped README.
 
 The consumer proof borrows the app's installed dependencies.
 It copies `package.json`, `components.json`, and `tsconfig.json` as prerequisites.

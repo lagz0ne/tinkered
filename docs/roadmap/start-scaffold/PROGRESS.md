@@ -907,3 +907,110 @@ Verify: planted failures, real tree, consumer, app tests, and repo gates.
 Assume: tests do not count as app call sites.
 Assume: native callbacks meet their caller's contract.
 Assume: resource methods keep their owner's private work.
+
+### Strict forms result
+
+Branch: `start/strict-forms`, based on `8867c44f`.
+Plain functions: 45 before, 19 after, under the final alias and callback rule.
+Classes in src: one before, zero after.
+The list is shipped in `apps/start-scaffold/PLAIN.md`.
+The server entry owns its roots, signals, lazy start promise, and close.
+The fixed backend entry now declares only `setup`.
+The queue, delivery, log writer, and response bodies are resources.
+Single-use JSON readers are inline operation input callbacks.
+The native HTTP proof rejects bad JSON cursors with 400 again.
+
+The checker uses a pinned TypeScript 5.9 API to follow symbols and aliases.
+TypeScript 7 has no compatible `ts.sys` API in this install.
+The typecheck script calls the TypeScript 7 binary by its package path.
+This keeps the API package's same-named binary out of that choice.
+
+The source items are version `0.6.0`, with setup contract 4.
+The shipped README states how to move the server entry and lib seams.
+A fixed-runtime-only overwrite cannot update those install-only files.
+
+### Assumptions
+
+- The ticket covers src, including the fixed scaffold and sample features.
+  Tests, maintain scripts, and generated files are outside the plain check.
+- Two sites means two direct calls or callback registrations in src.
+  Tests, imports, and re-exports alone do not count.
+  Several calls in one function may count as several sites.
+- Core callbacks, native callbacks, React components, and root entries meet their caller's contract.
+  Resource methods and returned callbacks keep their owner's private work.
+  Named helpers still need the strict rule unless handed to such an owner.
+- React components have a capital name, JSX, and at most one props param.
+  Their nested helpers are still checked.
+- The server entry may retain its lazy start promise in its entry object.
+  It starts nothing at import; no helper owns or returns its scope.
+- Raw readers may take unknown values at the input door.
+  Settled Core results are plain records, not live handles.
+  Environment values are copied into a plain record at the entry.
+- The check catches known service creation and direct effects.
+  Review still checks purity, hidden library effects, and each param's size.
+- The census skips generated route source and the test-only preset file.
+  It checks every authored src file and every app test file.
+- This app has no mutation script or Stryker config.
+  There is no app mutation lane to run under flock.
+- The lead owns the trial reference, flight gate, landing, and push.
+  This writer changed no packages, tools, or other apps.
+
+### Gates
+
+Each final gate passed by exit code.
+The full gate list is in `STRICT-FORMS-GATES.json` beside this file.
+Each planted failure returned exit 1 by its rule name.
+The proof command itself returned exit 0 for all 26 cases.
+The independent consumer passed build, types, 36 tests, plain, seam, boundary, and schema checks.
+The native HTTP proof passed bad cursors, replay, request isolation, and host close.
+The full repo tests passed under each package's own config.
+`vp check` ended with zero errors and 28 warnings.
+`pnpm validate` passed all 16 lanes.
+The byte-budget test failed on the rewritten counter before its fix, then passed.
+
+### Jev answers for the lead
+
+Preflight found no file flags and seven flagged units.
+Tests had no flags; all 36 titles had a README line, with two unsure picks.
+The user barred changes to tools, so this writer did not write labels there.
+These are the proposed false labels and their reasons:
+
+- `notifyProfile`: `noOpRejected`.
+  Mail failure is a partial business result; the saved profile stays usable.
+- `responseBodies`: `effectWithoutDefer`, `stopOnlyInDefer`, `ignoresAbortAfterAwait`.
+  The body transfers to its native consumer, which closes or cancels its session.
+  Stream completion and cancellation are proved at the public seam.
+- `snapshotLoader`: `ignoresAbortAfterAwait`.
+  The captured account version guards application of a late snapshot.
+  Account exit and held sign-in loads are covered by scope tests.
+- `eventSource`: `effectWithoutDefer`, `configNotTag`.
+  Its factory defers connection close; its fixed eight-frame bound is a transport rule.
+- `streamChanges`: `effectWithoutDefer`.
+  Its child operations and resources own and close each connection.
+- `delivery`: `configNotTag`.
+  Storage URLs and service settings are already in `telemetrySettings`.
+  Browser path, content type, and log field names are fixed wire rules.
+- `queue`: `stateOutsideCell`, `configNotTag`, `stopOnlyInDefer`, `ignoresAbortAfterAwait`.
+  Private retained work belongs to a resource; visible health belongs to data.
+  Settings are tags; bounds are fixed wire rules.
+  Factory defer, the close hook, and owned stop signals end timers and requests.
+  A deadline stops further sends; publishing ends before scope shutdown.
+
+### Core feedback
+
+A throwing schema transform can escape `settle` through standard validation.
+The native HTTP proof exited 1 with a SyntaxError on `not-json`.
+
+```ts
+input: z.string().transform((raw) => JSON.parse(raw));
+```
+
+The honest workaround puts JSON parsing in the operation's input callback.
+Core then returns a managed input failure and the route answers 400.
+
+```ts
+input: (raw: unknown) => JSON.parse(z.string().parse(raw));
+```
+
+No other missing Core form was needed.
+Resources own the queue and its private methods without classes or scope getters.

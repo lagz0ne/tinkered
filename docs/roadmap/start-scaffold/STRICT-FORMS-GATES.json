@@ -1,0 +1,133 @@
+{
+  "branch": "start/strict-forms",
+  "base": "8867c44f",
+  "plainBefore": 45,
+  "plainAfter": 19,
+  "classBefore": 1,
+  "classAfter": 0,
+  "plantedFailures": 26,
+  "appTests": 36,
+  "warnings": 28,
+  "gates": [
+    {
+      "name": "build",
+      "code": 0,
+      "log": "/tmp/strict-forms-build-inputs.log"
+    },
+    {
+      "name": "check",
+      "code": 0,
+      "log": "/tmp/strict-forms-check-handoff.log"
+    },
+    {
+      "name": "types",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/types.log"
+    },
+    {
+      "name": "app-tests",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/app-tests.log"
+    },
+    {
+      "name": "plain",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/plain.log"
+    },
+    {
+      "name": "seam",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/seam.log"
+    },
+    {
+      "name": "boundary",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/boundary.log"
+    },
+    {
+      "name": "schema",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/schema.log"
+    },
+    {
+      "name": "seam-fixture",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/seam-fixture.log"
+    },
+    {
+      "name": "census",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/census.log"
+    },
+    {
+      "name": "prose",
+      "code": 0,
+      "log": "/tmp/strict-forms-prose-final.log"
+    },
+    {
+      "name": "all-tests",
+      "code": 0,
+      "log": "/tmp/strict-forms-gates/all-tests.log"
+    },
+    {
+      "name": "plain-prove",
+      "code": 0,
+      "log": "/tmp/strict-forms-plain-prove-final.log"
+    },
+    {
+      "name": "registry-build",
+      "code": 0,
+      "log": "/tmp/strict-forms-registry-build-release.log"
+    },
+    {
+      "name": "consumer",
+      "code": 0,
+      "log": "/tmp/strict-forms-consumer-release.log"
+    },
+    {
+      "name": "middleware",
+      "code": 0,
+      "log": "/tmp/strict-forms-middleware-fixed.log"
+    },
+    {
+      "name": "validate",
+      "code": 0,
+      "log": "/tmp/strict-forms-validate.log"
+    },
+    {
+      "name": "jev-preflight",
+      "code": 0,
+      "log": "/tmp/strict-forms-jev-preflight.log"
+    },
+    {
+      "name": "jev-tests",
+      "code": 0,
+      "log": "/tmp/strict-forms-jev-tests.log"
+    },
+    {
+      "name": "jev-promises",
+      "code": 0,
+      "log": "/tmp/strict-forms-jev-promises.log"
+    },
+    {
+      "name": "tsdoc",
+      "code": 0,
+      "log": "/tmp/strict-forms-docs-work.log"
+    },
+    {
+      "name": "mutation",
+      "code": 0,
+      "log": "/tmp/strict-forms-mutation.log",
+      "status": "no app lane"
+    }
+  ],
+  "mutation": "no app lane",
+  "regressionRed": {
+    "code": 1,
+    "log": "/tmp/strict-forms-byte-budget-red.log"
+  },
+  "nativeInputRed": {
+    "code": 1,
+    "log": "/tmp/strict-forms-middleware.log"
+  }
+}

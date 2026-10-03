@@ -47,14 +47,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/strict-forms** — the scaffold enforces ADR 0099: plain functions are rare and justified.
-  Owner: strict-forms writer.
-  Next: a check script in the starter (no classes; no Core handle, ctx, clock, signal, or IO params;
-  at most three params; one caller fails), a plain-function list, and the `tinker-forms` skill updated.
-  Scope: this scaffold; the lead owns the flight gate and trial reference.
-  Also: only entries own roots; services stay in the graph.
-  Verify: a planted class, a clock param, and a one-caller function each fail the check.
-
 - **trial/flight-rounds** — five round packets, hidden checks, and a reference answer.
   Owner: lead (Claude, Start scaffold session); Sol rounds writer.
   Worktree: `../tinkered-flight-rounds`, on the services branch.
@@ -82,6 +74,13 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **start/strict-forms** — saved for lead review.
+  Owner: strict-forms writer.
+  Next: lead reviews the strict check, graph-owned services, and setup contract 4.
+  Verify: all writer gates exit 0; 26 planted failures exit 1 by name; the clean consumer passes.
+  Plain functions: 45 to 19; classes in src: one to zero; app tests: 36 green.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#strict-forms-result).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
