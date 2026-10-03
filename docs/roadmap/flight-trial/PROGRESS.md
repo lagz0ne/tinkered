@@ -51,11 +51,14 @@ Assumptions:
 - There are two cabins, economy and business.
 - Fare classes share the cabin's remaining seats.
 - Each route has one or two departures per day.
-- Distance uses a 6,371 km sphere.
-- Duration uses 800 km per hour plus 30 minutes.
+- A seeded 35 percent choice gives two departures on both dates.
+- First departures fall from 06:00 through 13:59 UTC.
+- Second departures fall from 14:00 through 21:59 UTC.
+- Distance uses a 6,371 km sphere and rounds to whole km.
+- Duration uses 800 km per hour plus 30 minutes, rounded up.
 - Cabins have 180 and 24 seats.
 - Every 47th flight has one to three seats left per cabin.
-- Other cabins have 20 to 90 percent of seats left.
+- Other cabins use 20 to 90 percent of seats, rounded down.
 - Base price is 3,500 cents plus nine cents per km.
 - Business uses a factor of 2.8 before seeded price changes.
 - Seeded prices vary from 90 to 110 percent of that base.
@@ -102,3 +105,54 @@ It also checks the saved file hash against the manifest.
 Assumption: source subset spacing may follow the repo formatter.
 Proof: source check exit 0, `.logs/sources-fixed.log`.
 The full data directory has 854,736 bytes after the hook.
+
+### Final proof
+
+Status: saved for lead review.
+No push, mutation lane, or Core change was needed.
+The board stays with the lead; it is outside this writer's allowed paths.
+
+Final logs are under `tools/flight-trial/.logs/`.
+
+- Build, check, and reader-test chain: exit 0, `final-gate.log`.
+- Workspace build: exit 0, `final-build.log`.
+- Check: exit 0, `final-check.log`; zero errors, 29 warnings.
+- Reader tests: exit 0, `final-test.log`; six passed.
+- All workspace tests: exit 0, `final-workspace-tests.log`.
+- Prose: exit 0, `final-prose.log`.
+- Prose width check: exit 0, `prose-wide.log`; zero wide lines.
+- Source hashes, subset, and size: exit 0, `final-sources.log`.
+- Seed replay and saved data: exit 0, `final-seeds.log`.
+- Style census: exit 0, `final-style.log`.
+- Validate: exit 0, `final-validate.log`; all 16 lanes pass.
+- Jev source review: exit 0, `jev-ticket-preflight.log`; no flags.
+- Jev test review: exit 0, `jev-tests.log`; no flags.
+- Jev README promises: exit 0, `jev-promises.log`; no gaps.
+
+The first check found excess branches in the generator.
+A flight-number helper fixed it.
+The log is `check-step.log`, exit 1; final check is green.
+The first post-commit source check failed on JSON spacing.
+The log is `sources-code.log`, exit 1; final source check is green.
+
+The requested Jev range `main..HEAD` included earlier scaffold work.
+That run was stopped with exit 143, `jev-preflight.log`.
+Assumption: review this ticket from its given start commit instead.
+The range `24e47d75..HEAD` covers only this writer's work.
+It has one note: the generator reads like an operation.
+It is a data build step; no Tinker service is made here.
+No flags need labels, so no other tool's files were changed.
+
+Saved data sizes:
+
+- `source.json`: 289,080 bytes.
+- `flights.json.gz`: 563,628 bytes.
+- `manifest.json`: 1,188 bytes.
+- `LICENSE.md`: 840 bytes.
+- Total: 854,736 bytes, below 1,000,000.
+- Source: 60 airports, 149 airlines, 4,058 routes.
+- Default flights: 10,996 over two departure dates.
+- Uncompressed default flights: 7,111,928 bytes.
+
+Core feedback: none.
+Its testing entry provided seeded random without a workaround.

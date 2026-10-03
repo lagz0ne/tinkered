@@ -67,7 +67,7 @@ Each cabin has saver, standard, and flex prices in USD cents.
 - Duration uses 800 km per hour plus 30 minutes.
 - Economy has 180 seats; business has 24.
 - Every 47th flight has one to three seats left per cabin.
-- Other cabins have 20 to 90 percent of seats left.
+- Other cabins use 20 to 90 percent of seats, rounded down.
 - Base fares use distance and a small seeded price change.
 - Business costs 2.8 times economy before that change.
 - Standard costs 1.2 times saver; flex costs 1.5 times saver.
