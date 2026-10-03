@@ -24,6 +24,7 @@ import {
   stopFlight,
 } from "./flight-network.mjs";
 import { cleanupReady } from "./attempts.mjs";
+import { flightScore } from "./flight-score.mjs";
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = resolve(here, "../..");
 const home = join(homedir(), ".local/share/tinker-writer-trial");
@@ -298,6 +299,7 @@ if (action === "create") {
   const manifest = JSON.parse(readFileSync(manifestPath));
   // Old trials have no suite: legacy stays at rounds 1-4.
   const suite = suiteFor(manifest);
+  if (suite === "flight") assertFlightRunning(manifest.workers, manifest.round);
   const valid = manifest.frozen ? taskRounds(suite) : validRounds(manifest);
   if (!valid.includes(round)) throw new Error(`Stage needs round ${valid.join(", ")} for ${suite}`);
   if (manifest.round && round !== manifest.round + 1) throw new Error("Stage the next round only");
@@ -386,3 +388,17 @@ if (action === "create") {
   save(manifest);
   console.log("Archived workspaces; deleted projects, containers, volumes, and worker folders.");
 } else throw new Error("Use create, stage, export, or cleanup");
+
+/** Teacher reference proofs have no agent IDs; scored model runs stop at their first failure. */
+function assertFlightRunning(workers, completedRound = 0) {
+  for (const worker of workers) {
+    if (!(worker.attempts ?? []).some((attempt) => Boolean(attempt.agentId))) continue;
+    const score = flightScore(worker.attempts);
+    if (score.status === "stopped")
+      throw new Error(
+        `Flight stopped at round ${score.firstFailedRound}; baseline ${score.baseline}`,
+      );
+    if (score.passedRounds < completedRound)
+      throw new Error(`Check round ${completedRound} before staging the next flight round`);
+  }
+}

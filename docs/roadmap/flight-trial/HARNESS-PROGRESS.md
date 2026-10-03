@@ -68,3 +68,31 @@ The browser now uses `flight-app`.
 The image and teacher files stay pinned and hashed.
 The proof's source commit predates the completed harness commit.
 Frozen hashes and image IDs name the tested bytes.
+
+## Scaffold gate and score
+
+- Edited scaffold: app and teacher exit 0; gate exit 1.
+  Rule: `flight-scaffold`.
+  Log: `check-scaffold-probe.log`.
+- Feedback and second save: exit 0.
+  The first failure stays round 1; baseline stays zero.
+- Scored model stop: stage exits 1 with the first failure.
+  Log: `score-stop-probe.log`.
+- Ungraded model round: stage exits 1 until checked.
+  Log: `score-pending-probe.log`.
+- Score unit checks: exit 0, `score-unit.log`.
+  A retry pass cannot erase a failed round.
+  Five passed rounds give baseline five.
+
+Both stage guard probes use a temporary test agent ID.
+They restore the exact manifest bytes after the probe.
+Reference proofs have no model agent IDs.
+Their record says `modelRun: false`; it is no model baseline.
+Scored runs must save their agent ID, as the launch rules require.
+Proof runs may stage later rounds to test the harness.
+The score keeps every earlier failure.
+
+The harness supports stages 1 through 5.
+The given rounds commit has real packets and checks for 1 and 2 only.
+Rounds 3 through 5 stay unavailable until those files land.
+No placeholder can earn a round.

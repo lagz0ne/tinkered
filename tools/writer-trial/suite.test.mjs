@@ -270,6 +270,24 @@ void describe("flight frozen packets", () => {
       rmSync(packets, { recursive: true, force: true });
     }
   });
+  void it("stages all five flight packets in order when they are present", () => {
+    const root = mkdtempSync(join(tmpdir(), "flight-five-"));
+    const packets = mkdtempSync(join(tmpdir(), "flight-five-packets-"));
+    try {
+      for (const round of roundsFor("flight"))
+        writeFileSync(join(packets, taskFileFor("flight", round)), `# Round ${round}\n`);
+      const frozen = freezeTrial(root, "flight", packets);
+      const task = readFrozenTask(root, frozen, "flight", 5);
+      assert.deepEqual(
+        [...task.matchAll(/# Round (\d)/g)].map((match) => Number(match[1])),
+        [1, 2, 3, 4, 5],
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(packets, { recursive: true, force: true });
+    }
+  });
+
   void it("refuses create without a real first flight packet", () => {
     const root = mkdtempSync(join(tmpdir(), "flight-missing-"));
     const packets = mkdtempSync(join(tmpdir(), "flight-empty-"));

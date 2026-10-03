@@ -208,6 +208,18 @@ The app is already built and running when the command starts.
 The worker image includes Playwright and its browser.
 The harness never launches the model; launch stays through Paseo.
 
+Flight writes `score.json` after save, check, and feedback.
+It also keeps each worker's score in the manifest.
+The first failed round stays failed after retries.
+The baseline is the count of passed rounds before that failure.
+Missing teacher rounds, network setup failures, and old placeholders
+have no score.
+A model run with a saved agent ID stops staging after a failure.
+Its current round must pass before it can stage the next one.
+Teacher reference proofs have no agent ID and may test later stages.
+Their score record says `modelRun: false`.
+They are not a model baseline.
+
 ## Launch through Paseo
 
 Use the workspace IDs in the trial's `manifest.json`.

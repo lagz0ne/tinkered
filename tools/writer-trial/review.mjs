@@ -70,6 +70,7 @@ import { isJudgedPath, jevAsk } from "./broker.mjs";
 import { judgeFile } from "./folder.mjs";
 import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
 import { checkFlight } from "./flight-check.mjs";
+import { flightScore } from "./flight-score.mjs";
 import { writerAnswers } from "./answers.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -134,7 +135,29 @@ if (manifest.round !== undefined && manifest.round !== round)
   throw new Error(`Trial is on round ${manifest.round}; save that round first`);
 if (manifest.frozen) verifyFrozen(root, manifest.frozen);
 
-const saveManifest = () => writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+const saveManifest = () => {
+  if (suite === "flight") {
+    for (const item of manifest.workers) item.score = flightScore(item.attempts ?? []);
+    writeFileSync(
+      join(root, "score.json"),
+      JSON.stringify(
+        {
+          trial: name,
+          sourceCommit: manifest.sourceCommit,
+          images: manifest.flightImages,
+          workers: manifest.workers.map((item) => ({
+            model: item.model,
+            modelRun: (item.attempts ?? []).some((attempt) => Boolean(attempt.agentId)),
+            ...item.score,
+          })),
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+  }
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+};
 const rows = (worker.attempts ??= []);
 const flag = (key) => {
   const at = process.argv.indexOf(`--${key}`);
