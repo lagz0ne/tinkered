@@ -100,6 +100,14 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/uuid-fallback** — `ctx.random.uuid()` works on plain-http browser pages.
+  Owner: lead (Claude, Start scaffold session). Found by `trial/flight-integration`; user asked for the fix.
+  Browsers give `crypto.randomUUID` to secure pages only, so the system source threw there.
+  It now builds a v4 id from `crypto.getRandomValues` when `randomUUID` is missing.
+  Proof: the new `random.test.ts` case fails with `crypto.randomUUID is not a function`
+  on the old source and passes now; a native-path case kills the rest.
+  Gates: check, 799 Core tests, all tests, validate, prose; changed lines mutation 100%.
+
 - **start/tab-defer** — the tab close watcher no longer defers after its factory ends.
   Owner: lead (Claude, Start scaffold session). Found by `trial/flight-integration`.
   `bind` called `ctx.defer` late, so Core threw `Disposed` and the page stayed blank.

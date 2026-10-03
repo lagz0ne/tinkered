@@ -1781,7 +1781,18 @@ const systemClock: Clock.Handle = {
  *
  * @ambientSource */
 const systemRandom = {
-  source: { next: () => Math.random(), uuid: () => crypto.randomUUID() },
+  source: {
+    next: () => Math.random(),
+    // Browsers give `randomUUID` to secure pages only; plain http still has `getRandomValues`.
+    uuid: () => {
+      if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+      const b = crypto.getRandomValues(new Uint8Array(16));
+      b[6] = (b[6]! & 15) | 64;
+      b[8] = (b[8]! & 63) | 128;
+      const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+      return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+    },
+  },
   seed: () => {
     const [a, b, c, d] = crypto.getRandomValues(new Int32Array(4));
     return { a: a!, b: b!, c: c!, d: d! || 1 };

@@ -53,6 +53,28 @@ test("a scope with no random option reads the system source", () => {
   expect(id).not.toBe(id2);
 });
 
+test("the system source uses the native randomUUID when the page has it", () => {
+  const native = "00000000-0000-4000-8000-000000000000";
+  Object.defineProperty(crypto, "randomUUID", { value: () => native, configurable: true });
+  try {
+    expect(createScope().run(drawUuid)).toEqual([native, native, native]);
+  } finally {
+    Reflect.deleteProperty(crypto, "randomUUID");
+  }
+});
+
+test("the system source still makes v4 ids where randomUUID is missing (plain-http browser pages)", () => {
+  Object.defineProperty(crypto, "randomUUID", { value: undefined, configurable: true });
+  try {
+    const ids = createScope().run(drawUuid);
+    for (const id of ids) expect(id).toMatch(V4);
+    expect(new Set(ids).size).toBe(ids.length);
+  } finally {
+    Reflect.deleteProperty(crypto, "randomUUID");
+  }
+  expect(typeof crypto.randomUUID).toBe("function");
+});
+
 test("a child session inherits the parent scope's injected random", async () => {
   const scope = createScope({ random: makeTestRandom({ seed: 7 }) });
   const inChild = await scope.session((child) => child.run(drawNext));
