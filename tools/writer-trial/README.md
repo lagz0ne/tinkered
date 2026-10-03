@@ -218,6 +218,18 @@ This builds Core, packs current service dependencies, and saves a new image.
 It keeps the image in an idle container and saves its tar.
 It updates only the services tag in `config.json` after success.
 
+After a services rebuild, run one full reference pass per round:
+
+```bash
+runner=tools/writer-trial/harness/run-reference.mjs
+proof=tools/writer-trial/.logs/reference-services
+node "$runner" "$proof" --once
+```
+
+This checks rounds 1 to 5 and skips planted breaks.
+Without `--once`, each round passes twice and runs its named break.
+Each proof needs a fresh folder; saved results are never overwritten.
+
 Flight permits native HTTP clients, including `fetch`.
 Its Jev gate omits S24, which requires the old copied HTTP helper.
 That helper is absent from the Start registry.

@@ -23,7 +23,9 @@ const context = join(
 const scaffold = JSON.parse(readFileSync(join(context, "scaffold.json")));
 const reference = join(repo, "tools/flight-trial/reference");
 const proof = resolve(process.argv[2] ?? join(repo, "tools/writer-trial/.logs/reference"));
-const rounds = process.argv[3] ? [Number(process.argv[3])] : [1, 2, 3, 4, 5];
+const rounds =
+  process.argv[3] && process.argv[3] !== "--once" ? [Number(process.argv[3])] : [1, 2, 3, 4, 5];
+const labels = process.argv.includes("--once") ? ["pass-1"] : ["pass-1", "pass-2", "break"];
 const plants = {
   1: {
     file: "src/frontend/Flights.tsx",
@@ -135,7 +137,7 @@ for (const round of rounds) {
     assert.equal(source.split(anchor).length - 1, 1, "One supplier-list anchor");
     writeFileSync(path, source.replace(anchor, "].slice(0, 1).map(async ({ supplier, url }) => {"));
   }
-  for (const label of ["pass-1", "pass-2", "break"]) {
+  for (const label of labels) {
     const logs = join(root, label);
     mkdirSync(logs);
     if (label === "break") {
@@ -181,7 +183,7 @@ for (const round of rounds) {
     results.push(row);
     writeFileSync(join(proof, "results.json"), JSON.stringify(results, null, 2) + "\n");
     console.log(`ROUND ${round} ${label} EXIT ${exit}; ${logs}`, JSON.stringify(row));
-    if (label !== "break") assert.equal(exit, 0, "Full reference gate must pass twice");
+    if (label !== "break") assert.equal(exit, 0, "Full reference gate must pass");
     else {
       assert.equal(result.teacherExit, 1, "Teacher must reject the planted break");
       const output = readFileSync(join(logs, "teacher.log"), "utf8");
@@ -199,4 +201,8 @@ for (const round of rounds) {
     }
   }
 }
-console.log("PASS full reference gates and named planted breaks");
+console.log(
+  process.argv.includes("--once")
+    ? "PASS full reference gates once per round"
+    : "PASS full reference gates and named planted breaks",
+);
