@@ -1,6 +1,15 @@
+import { createScope } from "@tinker/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
-import { startSupplier } from "../src/index.ts";
+import {
+  supplierApp,
+  supplierId,
+  holdMs,
+  port,
+  host,
+  controlToken,
+  stopSignal,
+} from "../src/index.ts";
 
 const offersSchema = z.object({
   data: z.object({
@@ -76,19 +85,6 @@ afterEach(async () => {
     await app.closed;
   }
 });
-async function start(supplier: "supplier-a" | "supplier-b" = "supplier-a", holdMs = 1000) {
-  const stop = new AbortController();
-  const app = await startSupplier({
-    supplier,
-    port: 0,
-    host: "127.0.0.1",
-    controlToken: "grader",
-    signal: stop.signal,
-    holdMs,
-  });
-  running.push({ stop, closed: app.closed });
-  return app.url;
-}
 async function post(url: string, path: string, body: unknown) {
   return fetch(`${url}${path}`, {
     method: "POST",
@@ -104,8 +100,38 @@ async function search(url: string) {
 }
 
 test("search returns data flights shared by suppliers A and B", async () => {
-  const a = await start();
-  const b = await start("supplier-b");
+  const stopA = new AbortController();
+  const scopeA = createScope({
+    signal: stopA.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopA.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopA, closed: scopeA.closed });
+  await scopeA.ready;
+  const { url: a } = scopeA.resolve(supplierApp);
+  const stopB = new AbortController();
+  const scopeB = createScope({
+    signal: stopB.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopB.signal),
+      supplierId("supplier-b"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopB, closed: scopeB.closed });
+  await scopeB.ready;
+  const { url: b } = scopeB.resolve(supplierApp);
   const offers = await search(a);
   const other = await search(b);
   expect(offers.length).toBeGreaterThan(0);
@@ -122,7 +148,22 @@ test("search returns data flights shared by suppliers A and B", async () => {
 });
 
 test("only one of two parallel orders takes the last seat", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/scenario", { name: "last-seat" });
   const offer = (await search(url)).at(0)!;
   const body = { data: { selected_offers: [offer.id], type: "instant" } };
@@ -136,7 +177,22 @@ test("only one of two parallel orders takes the last seat", async () => {
 });
 
 test("an expired hold frees its seat on the service clock", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/scenario", { name: "last-seat" });
   await post(url, "/control/clock", { now: 10000 });
   const offer = (await search(url)).at(0)!;
@@ -168,7 +224,22 @@ test("an expired hold frees its seat on the service clock", async () => {
 });
 
 test("price changes make a searched offer stale", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const offer = (await search(url)).at(0)!;
   await post(url, "/control/flights", {
     flight_id: offer.flight_id,
@@ -186,7 +257,22 @@ test("price changes make a searched offer stale", async () => {
 });
 
 test("a paid hold keeps its seat after the hold time", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/scenario", { name: "last-seat" });
   await post(url, "/control/clock", { now: 10000 });
   const offer = (await search(url)).at(0)!;
@@ -210,7 +296,22 @@ test("a paid hold keeps its seat after the hold time", async () => {
 });
 
 test("the call log counts a delayed call before it ends and records its final status", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/routes", {
     route: "POST /air/offer_requests",
@@ -243,7 +344,22 @@ test("the call log counts a delayed call before it ends and records its final st
 });
 
 test("control can repeat a route reply without taking another seat", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/scenario", { name: "last-seat" });
   const rule = await post(url, "/control/routes", { route: "POST /air/orders", repeat: 2 });
   expect(await rule.json()).toEqual({ data: { route: "POST /air/orders", delayMs: 0, repeat: 2 } });
@@ -256,7 +372,22 @@ test("control can repeat a route reply without taking another seat", async () =>
 });
 
 test("control needs the grader token", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const response = await fetch(`${url}/control/scenario`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -266,7 +397,22 @@ test("control needs the grader token", async () => {
 });
 
 test("holds expire on real time before the grader sets a clock", async () => {
-  const url = await start("supplier-a", 5);
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(5),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const offer = (await search(url)).at(0)!;
   const held = orderSchema.parse(
     await (
@@ -284,7 +430,22 @@ test("holds expire on real time before the grader sets a clock", async () => {
 });
 
 test("the grader can change a loaded flight before its first search", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const flightId = "1756-LHR-AMS-2027-01-15-1";
   const changed = await post(url, "/control/flights", {
     flight_id: flightId,
@@ -305,7 +466,22 @@ test("the grader can change a loaded flight before its first search", async () =
 });
 
 test("a business group pays its fare for each passenger and uses only that cabin", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const economy = (await search(url)).at(0)!;
   await post(url, "/control/flights", {
     flight_id: economy.flight_id,
@@ -360,7 +536,22 @@ test("a business group pays its fare for each passenger and uses only that cabin
 });
 
 test("search filters the date and the whole group's seat count", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const first = (await search(url)).at(0)!;
   await post(url, "/control/flights", {
     flight_id: first.flight_id,
@@ -409,7 +600,22 @@ test("search filters the date and the whole group's seat count", async () => {
 });
 
 test("bad supplier requests return a named Duffel error", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const cases = [
     { path: "/air/offer_requests", body: {}, status: 400, code: "invalid_offer_request" },
     {
@@ -462,7 +668,22 @@ test("bad supplier requests return a named Duffel error", async () => {
 });
 
 test("a hold accepts only its exact amount and keeps its payment fields", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/clock", { now: 10000 });
   const offer = (await search(url)).at(0)!;
   const held = orderSchema.parse(
@@ -500,7 +721,22 @@ test("a hold accepts only its exact amount and keeps its payment fields", async 
 });
 
 test("a scenario reset restores stock and clears quotes, orders, route rules and calls", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/clock", { now: 10000 });
   const offer = (await search(url)).at(0)!;
   const booked = orderSchema.parse(
@@ -535,7 +771,22 @@ test("a scenario reset restores stock and clears quotes, orders, route rules and
 });
 
 test("the grader rejects bad flight, route, scenario and clock changes", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const cases = [
     { path: "/control/flights", body: { seats: -1 }, code: "invalid_flight_change" },
     { path: "/control/scenario", body: { name: "missing" }, code: "invalid_scenario" },
@@ -571,7 +822,22 @@ test("the grader rejects bad flight, route, scenario and clock changes", async (
 });
 
 test("an expired hold does not undo a later grader seat edit", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/clock", { now: 10000 });
   const offer = (await search(url)).at(0)!;
   await post(url, "/air/orders", { data: { selected_offers: [offer.id], type: "hold" } });
@@ -586,7 +852,22 @@ test("an expired hold does not undo a later grader seat edit", async () => {
 });
 
 test("stopping a service ends its virtual waits and closes its HTTP port", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/routes", { route: "POST /air/offer_requests", delayMs: 1000 });
   const pending = post(url, "/air/offer_requests", searchBody).then(
@@ -613,7 +894,22 @@ test("stopping a service ends its virtual waits and closes its HTTP port", async
 });
 
 test("advancing before setting a clock starts a test clock from real time", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const before = Date.now();
   const first = z
     .object({ data: z.object({ now: z.number() }) })
@@ -630,7 +926,22 @@ test("advancing before setting a clock starts a test clock from real time", asyn
 });
 
 test("a delayed call cannot restore a replaced route rule", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/routes", {
     route: "POST /air/offer_requests",
@@ -669,7 +980,22 @@ test("a delayed call cannot restore a replaced route rule", async () => {
 });
 
 test("parallel delayed calls consume only the chosen number of repeats", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/scenario", { name: "last-seat" });
   await post(url, "/control/clock", { now: 10000 });
   const offer = (await search(url)).at(0)!;
@@ -709,7 +1035,22 @@ test("parallel delayed calls consume only the chosen number of repeats", async (
 });
 
 test("a call finishing after reset cannot return to the new call log", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/routes", {
     route: "POST /air/offer_requests",
@@ -739,7 +1080,22 @@ test("a call finishing after reset cannot return to the new call log", async () 
 });
 
 test("only an unpaid hold can accept a payment", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   await post(url, "/control/clock", { now: 10000 });
   const offer = (await search(url)).at(0)!;
   for (const type of ["hold", "instant"]) {
@@ -770,7 +1126,22 @@ test("only an unpaid hold can accept a payment", async () => {
 });
 
 test("stored offer count and state bytes stay bounded after many searches", async () => {
-  const url = await start();
+  const stopUrl = new AbortController();
+  const scopeUrl = createScope({
+    signal: stopUrl.signal,
+    extensions: supplierApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stopUrl.signal),
+      supplierId("supplier-a"),
+      holdMs(1000),
+    ],
+  });
+  running.push({ stop: stopUrl, closed: scopeUrl.closed });
+  await scopeUrl.ready;
+  const { url } = scopeUrl.resolve(supplierApp);
   const count = (await search(url)).length;
   for (let i = 0; i < Math.ceil(1024 / count); i++) await search(url);
   const schema = z.object({ data: z.object({ offers: z.number(), bytes: z.number() }) });
