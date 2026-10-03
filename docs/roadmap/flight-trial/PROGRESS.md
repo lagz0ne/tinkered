@@ -2776,3 +2776,9 @@ Logs: `hono-ready-create.log`, `hono-ready-stage.log`,
 `hono-ready-proof.log`, and `hono-ready-pin.log`,
 all under `tools/writer-trial/.logs/`.
 The older ready trial stays as the prior services proof.
+
+Hono rounds 3 and 4 each passed the full gate with exit 0.
+The teacher reports 10/10 and 17/17 checks.
+Own, scaffold, plain, and Jev checks also exited 0.
+Four rows are saved in `INTEGRATION-HONO-RESULTS.json`.
+Round 5 is running.

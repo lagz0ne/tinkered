@@ -2,7 +2,7 @@
 
 Branch: `trial/flight-integration`.
 Main: `0da81a82`.
-Status: the two-pass proof is complete; the Hono follow-up is next.
+Status: Hono rounds 1 to 4 passed; the final round is running.
 
 ## Hono services follow-up
 
@@ -12,7 +12,7 @@ The services image rebuild and tar save exited 0.
 Log: `tools/writer-trial/.logs/hono-services-image.log`.
 The new services ID is
 `sha256:daaf65a9b1d6bb8cc1d821a0e3deac56735b4480d57a8ac9bdc32b28b01542b7`.
-Rounds 1 and 2 passed with exit 0; rounds 3 to 5 are running.
+Rounds 1 to 4 passed with exit 0; round 5 is running.
 The run uses `--once` with no planted breaks.
 Rows: [INTEGRATION-HONO-RESULTS.json](INTEGRATION-HONO-RESULTS.json).
 Log: `tools/writer-trial/.logs/hono-reference-final.log`.
