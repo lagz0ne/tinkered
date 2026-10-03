@@ -43,7 +43,8 @@ export function checkFlight({
   const prefix = `flight-check-${Date.now().toString(36)}-${process.pid}`;
   const own = [],
     teacher = [],
-    seam = [];
+    seam = [],
+    plain = [];
   const state = startFlight(prefix, images);
   let ownExit = 0,
     teacherExit = 0,
@@ -71,6 +72,7 @@ export function checkFlight({
       readFileSync(archive),
     );
     scaffoldExit = checkScaffold(app, scaffold, seam);
+    const plainResult = checkFlightPlain(app, plain);
     ownExit = checkOwn(app, own);
     teacherExit = checkTeacher(state, app, round, image, teacher, teacherDir);
     try {
@@ -83,11 +85,12 @@ export function checkFlight({
       "-e",
       "console.log(require('node:crypto').createHash('sha256').update(require('node:fs').readFileSync('/work/src/routeTree.gen.ts')).digest('hex'))",
     ]).trim();
-    return { ownExit, teacherExit, scaffoldExit, generatedRouterHash, images };
+    return { ownExit, teacherExit, scaffoldExit, ...plainResult, generatedRouterHash, images };
   } finally {
     writeFileSync(join(logDir, "own.log"), own.join(""));
     writeFileSync(join(logDir, "teacher.log"), teacher.join(""));
     writeFileSync(join(logDir, "scaffold.log"), seam.join(""));
+    writeFileSync(join(logDir, "plain.log"), plain.join(""));
     stopFlight(state);
   }
 }
@@ -111,6 +114,49 @@ function checkScaffold(app, scaffold, seam) {
     return 1;
   }
   return 0;
+}
+
+/** Run the image's trusted script on the submitted project, never a writer's replacement. */
+export function checkFlightPlain(app, log) {
+  try {
+    const available = run([
+      "exec",
+      app,
+      "node",
+      "-e",
+      "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('/home/pwuser/flight-seed/package.json'));console.log(p.scripts?.['check:plain'] ? 'available' : 'missing');",
+    ]).trim();
+    if (available !== "available") {
+      log.push("Unavailable: image has no check:plain script\nEXIT 1 check:plain\n");
+      return { plainExit: 1, unavailable: "Image check:plain script unavailable", unscored: true };
+    }
+    log.push(
+      "RUN trusted npm run check:plain -- /work\n",
+      run([
+        "exec",
+        "--workdir",
+        "/home/pwuser/flight-seed",
+        "-e",
+        "npm_config_cache=/tmp/npm",
+        app,
+        "timeout",
+        "280",
+        "npm",
+        "run",
+        "check:plain",
+        "--",
+        "/work",
+      ]),
+      "EXIT 0 check:plain\n",
+    );
+    return { plainExit: 0 };
+  } catch (error) {
+    const output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
+    log.push(`${output}\nEXIT ${error.status ?? 1} check:plain\n`);
+    if (/Cannot find (?:module|package)|MODULE_NOT_FOUND|ENOENT/.test(output) || !error.status)
+      return { plainExit: 1, unavailable: "Image check:plain could not run", unscored: true };
+    return { plainExit: 1 };
+  }
 }
 
 function checkOwn(app, own) {
@@ -226,5 +272,6 @@ if (import.meta.main) {
     logDir,
   });
   console.log(JSON.stringify(result));
-  process.exitCode = result.ownExit || result.teacherExit || result.scaffoldExit;
+  process.exitCode =
+    result.ownExit || result.teacherExit || result.scaffoldExit || result.plainExit;
 }

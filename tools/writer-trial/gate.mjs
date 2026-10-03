@@ -88,3 +88,30 @@ export function machineVerdict({ ownExit, teacherExit, gate }) {
   const gatePass = gate === null || gate.status === "pass";
   return ownExit === 0 && teacherExit === 0 && gatePass ? "machine-pass" : "machine-fail";
 }
+
+/** The scaffold and plain checks block flight; a missing check stays unavailable. */
+export function flightGate(flight) {
+  if (!flight) return null;
+  const blocking = [];
+  if (flight.scaffoldExit)
+    blocking.push({
+      rule: "flight-scaffold",
+      file: "src/scaffold/",
+      message: "Keep the scaffold unchanged and pass its seam check",
+      fix: "Restore the original scaffold",
+    });
+  if (flight.plainExit)
+    blocking.push({
+      rule: "flight-plain",
+      file: "src/",
+      message: "Pass the scaffold check:plain script on the writer project",
+      fix: "Fix the plain check findings and update PLAIN.md",
+    });
+  if (!blocking.length && !flight.unavailable) return null;
+  return {
+    status: flight.unavailable ? "unavailable" : "block",
+    blocking,
+    advice: [],
+    reasons: flight.unavailable ? [flight.unavailable] : [],
+  };
+}

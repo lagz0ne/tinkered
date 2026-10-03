@@ -131,7 +131,7 @@ The image reads the Start registry's starter and its required items.
 It copies their files, tests, all five skills, and `AGENTS.md`.
 It uses the default `@/lib` alias.
 Core and React are packed tarballs, with no workspace links.
-Generated router files are ignored by the format check.
+Generated router files and frozen `TASK.md` are ignored by formatting.
 The image's seam script has its own read-only package link.
 Flight runs one Vitest worker at a time to fit the memory limit.
 Each new tag saves its build folder and `image.tar`.
@@ -153,6 +153,11 @@ No ports are published on the host.
 It runs build first to create the Start router's generated file.
 Then it runs the writer's check, test, and build.
 Teacher checks run in a separate container on both networks.
+The scaffold gate also runs the image's `check:plain` on `/work`.
+It uses the trusted package and script, not the writer's copy.
+Missing `check:plain` fails as unavailable and earns no score.
+An available script's findings block the gate.
+Saved images keep their bytes; add the script with a new image tag.
 The app has only its own network.
 All check containers and networks are removed after the run.
 `scaffold.log` names the hash and seam results.

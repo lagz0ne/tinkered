@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { confirmNearBar, judgeSource } from "./broker.mjs";
-import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
+import { gateFiles, gateOf, machineVerdict, flightGate } from "./gate.mjs";
 
 const jevSource = fileURLToPath(new URL("../jev/", import.meta.url));
 
@@ -337,4 +337,22 @@ void describe("a blocking answer near its bar", () => {
     assert.equal(p.advice, 0.52);
     assert.deepEqual(asked, []);
   });
+});
+
+await it("missing flight plain check stays unavailable even with a clean scaffold", () => {
+  const gate = flightGate({
+    scaffoldExit: 0,
+    plainExit: 1,
+    unavailable: "Image check:plain script unavailable",
+  });
+  assert.equal(gate.status, "unavailable");
+  assert.equal(machineVerdict({ ownExit: 0, teacherExit: 0, gate }), "machine-fail");
+});
+await it("a failed available flight plain check blocks", () => {
+  const gate = flightGate({ scaffoldExit: 0, plainExit: 1 });
+  assert.equal(gate.status, "block");
+  assert.equal(gate.blocking[0].rule, "flight-plain");
+});
+await it("passing flight scaffold and plain checks still require the source gate", () => {
+  assert.equal(flightGate({ scaffoldExit: 0, plainExit: 0 }), null);
 });

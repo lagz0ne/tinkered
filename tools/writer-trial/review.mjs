@@ -68,7 +68,7 @@ import {
 } from "./attempts.mjs";
 import { isJudgedPath, jevAsk } from "./broker.mjs";
 import { judgeFile } from "./folder.mjs";
-import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
+import { gateFiles, gateOf, machineVerdict, flightGate } from "./gate.mjs";
 import { checkFlight } from "./flight-check.mjs";
 import { flightScore } from "./flight-score.mjs";
 import { writerAnswers } from "./answers.mjs";
@@ -77,7 +77,7 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 
 // The teacher helpers each suite checker loads, hashed beside it.
 const TEACHER_HELPERS = {
-  "flight-check.mjs": ["flight-network.mjs", "flight-proxy.mjs"],
+  "flight-check.mjs": ["flight-network.mjs", "flight-proxy.mjs", "gate.mjs"],
   "evaluate.mjs": ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"],
   "acceptance.mjs": [
     "teacher/acceptance.mjs",
@@ -341,23 +341,9 @@ if (command === "save") {
       .filter((a) => a.round === round && a.events && existsSync(a.events))
       .map((a) => readFileSync(a.events, "utf8"))
       .join("\n");
-    const jev = flight?.scaffoldExit
-      ? {
-          reports: [],
-          gate: {
-            status: "block",
-            blocking: [
-              {
-                rule: "flight-scaffold",
-                file: "src/scaffold/",
-                message: "Keep the scaffold unchanged and pass its seam check",
-                fix: "Restore the original scaffold",
-              },
-            ],
-            advice: [],
-            reasons: flight.unavailable ? [flight.unavailable] : [],
-          },
-        }
+    const flightChecks = flightGate(flight);
+    const jev = flightChecks
+      ? { reports: [], gate: flightChecks }
       : await judgeSnapshot(row.archive, writerAnswers(eventText), flight?.generatedRouterHash);
     gate = jev.gate;
     jevExit = gate.status === "pass" ? 0 : 1;

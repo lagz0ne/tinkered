@@ -96,3 +96,25 @@ The harness supports stages 1 through 5.
 The given rounds commit has real packets and checks for 1 and 2 only.
 Rounds 3 through 5 stay unavailable until those files land.
 No placeholder can earn a round.
+
+## Plain gate
+
+- The new gate runs the image's `check:plain` on the writer project.
+- It runs next to the scaffold seam check.
+- A missing script fails as unavailable, never as a pass.
+- A missing script earns no round and no model baseline.
+- The saved image `20261003.5` has no `check:plain`.
+  The real Docker probe confirms unavailable.
+  Log: `plain-unavailable.log`, exit 0 for the refusal proof.
+- The strict forms writer is adding the real script.
+  Its project-root argument lets the trusted script read `/work`.
+  We do not copy unfinished script source into a saved image.
+- Future image builds omit frozen `TASK.md` from formatting.
+  Staging adds that rule for older saved flight images too.
+  Round 2's packet bytes otherwise trigger formatting failure.
+- Harness tests and check: exit 0.
+  Logs: `harness-plain.log`, `check-plain-step.log`.
+
+The earlier round 1 pass predates the new plain gate.
+Current checks cannot pass until an image ships the real script.
+This is the lead's required unavailable state.

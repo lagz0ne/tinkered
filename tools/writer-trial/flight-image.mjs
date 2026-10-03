@@ -50,7 +50,7 @@ export function prepareFlight(repo, home, config, build) {
   );
   writeFileSync(
     join(seed, ".oxfmtrc.json"),
-    '{\n  "ignorePatterns": ["src/routeTree.gen.ts", "FEEDBACK.md"]\n}\n',
+    '{\n  "ignorePatterns": ["src/routeTree.gen.ts", "FEEDBACK.md", "TASK.md"]\n}\n',
   );
   execFileSync(join(repo, "node_modules/.bin/vp"), ["fmt", join(seed, ".oxfmtrc.json")], {
     stdio: "inherit",
