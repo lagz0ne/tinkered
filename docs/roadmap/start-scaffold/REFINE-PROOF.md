@@ -65,3 +65,24 @@ Logs use `/tmp/start-refine-part2-` and `/tmp/start-refine-part3-`.
   The project compose ports remain on loopback.
 - The local proof uses the sample secret and its own test accounts.
   A project owner must replace that secret before real use.
+
+## A redirect before a tab exists
+
+The first redirect test shared one scope.
+A fresh server visit can use a separate scope for the public render.
+The stronger test uses two render scopes.
+Its old account check loaded a snapshot before redirecting.
+It failed with 2 loads, expected 1, exit 1.
+Log: `/tmp/start-refine-render-red.log`.
+
+Private routes now call `context.account()` before bootstrap.
+A signed-out account redirects without a snapshot.
+The public page loads the single snapshot it needs.
+A signed-in route still bootstraps its saved records.
+The tab's loaded records can answer later account guards.
+All 33 app tests pass, exit 0.
+Log: `/tmp/start-refine-render-green.log`.
+
+The changed callers are `profile.tsx`, `todos.tsx`,
+`__root.tsx`, the fixed router context, and scope tests.
+All paths are under `apps/start-scaffold`.
