@@ -16,6 +16,7 @@ import { failFlightService } from "../src/errors.ts";
 export declare namespace Service {
   type Request = { route: string; path: string; body: unknown; key?: string; token?: string };
   type Reply = { status: number; body: unknown };
+  type Failure = (code: string, status?: number) => Reply;
   type Call = { route: string; time: number; status: number };
   type Rule = { delayMs: number; status?: number; repeat: number; saved?: Reply };
   type Rules = Record<string, Rule>;
@@ -128,8 +129,11 @@ async function readRequest(request: IncomingMessage): Promise<Service.Request> {
   };
 }
 
-/** Node owns socket events; the resource owns their operation promises until shutdown. */
-export function createHttp(action: Operation.Handle<Promise<Service.Reply>, Service.Request>) {
+/** Node owns socket events; the resource owns request work. The caller supplies its wire error shape. */
+export function createHttp(
+  action: Operation.Handle<Promise<Service.Reply>, Service.Request>,
+  failure: Service.Failure = reject,
+) {
   const dispatch = operation({
     label: "serve HTTP request",
     depends: {
@@ -153,7 +157,7 @@ export function createHttp(action: Operation.Handle<Promise<Service.Reply>, Serv
         const rule = rules.get()[request.route];
         if (rule?.delayMs && !(await sleepUntilStopped(clock, rule.delayMs, stop, ctx.signal)))
           return reject("service_stopped", 503);
-        response = await applyRule(rule, request, action);
+        response = await applyRule(rule, request, action, failure);
         if (rule)
           rules.update((all) => ({
             ...all,
@@ -180,7 +184,7 @@ export function createHttp(action: Operation.Handle<Promise<Service.Reply>, Serv
         } catch (error) {
           ctx.log.error("HTTP request failed", { error });
           response.writeHead(500, { "content-type": "application/json" });
-          response.end(JSON.stringify(reject("internal_error", 500).body));
+          response.end(JSON.stringify(failure("internal_error", 500).body));
         }
       });
       server.listen(port, host);
@@ -204,9 +208,10 @@ async function applyRule(
   rule: Service.Rule | undefined,
   request: Service.Request,
   action: Scope.OperationController<Promise<Service.Reply>, Service.Request>,
+  failure: Service.Failure,
 ): Promise<Service.Reply> {
   if (rule?.saved && rule.repeat > 0) return rule.saved;
-  if (rule?.status) return reject("injected_failure", rule.status);
+  if (rule?.status) return failure("injected_failure", rule.status);
   return action.run({ input: request });
 }
 
