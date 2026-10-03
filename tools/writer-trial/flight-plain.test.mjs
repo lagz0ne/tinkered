@@ -14,16 +14,18 @@ await test("only absent trusted plain scripts are unavailable; missing writer fi
     assert.equal(runPlain(seed, seed).plainUnavailable, true);
     writeFileSync(packagePath, JSON.stringify({ scripts: { "check:plain": "node check.mjs" } }));
     assert.equal(runPlain(seed, seed).plainUnavailable, true);
-    writeFileSync(
-      join(seed, "check.mjs"),
-      'console.error("ENOENT Cannot find module MODULE_NOT_FOUND"); process.exitCode = 1;',
-    );
-    const result = runPlain(seed, seed);
-    assert.equal(result.plainExit, 1);
-    assert.equal(result.unscored, undefined);
-    assert.equal(result.unavailable, undefined);
-    assert.match(result.output, /ENOENT Cannot find module MODULE_NOT_FOUND/);
-    assert.equal(flightGate({ scaffoldExit: 0, ...result }).status, "block");
+    for (const source of [
+      'import "./missing-writer-file.mjs";',
+      'import { readFileSync } from "node:fs"; readFileSync("./missing-writer-file");',
+    ]) {
+      writeFileSync(join(seed, "check.mjs"), source);
+      const result = runPlain(seed, seed);
+      assert.equal(result.plainExit, 1);
+      assert.equal(result.unscored, undefined);
+      assert.equal(result.unavailable, undefined);
+      assert.match(result.output, /ENOENT|Cannot find module/);
+      assert.equal(flightGate({ scaffoldExit: 0, ...result }).status, "block");
+    }
     writeFileSync(join(seed, "check.mjs"), 'console.log("plain passed");');
     assert.equal(runPlain(seed, seed).plainExit, 0);
   } finally {
