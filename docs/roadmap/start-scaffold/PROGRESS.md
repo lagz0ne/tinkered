@@ -1182,3 +1182,44 @@ The card stays in Review for the lead.
 - 4291d670 fix(start): ship owned watcher and direct factories
 
 The final proof commit updates this record, the gate JSON, and the card.
+
+## Starter casts: start/starter-casts
+
+Owner: Sol writer; lead owns review and landing.
+Next: remove both server casts, use validator, and rebuild the registry.
+Verify: app gate before and after; plain, seam, registry, build, types, tests, and prose.
+
+### Assumptions
+
+- The existing Doing card is the task card.
+  The brief bars edits to TODO.md, so the lead moves it after review.
+- The worktree is installed at origin/main, 3fce5703.
+  No pull or install is needed.
+- The pinned Start client has validator and uses the same input check as inputValidator.
+  The starter check must accept the new builder name and count its reader callers.
+- Start erases the router factory's added close method at its callback boundary.
+  Treat close as an optional native property and check it before use.
+  Keep its type tied to getRouter; add no helper or cast.
+- The app has no mutation script.
+  No full mutation run is required for this card.
+- The brief bars edits to tools.
+  Any Jev answers owed to the lead stay here, with their reasons.
+- The trial store and trial containers are outside this work.
+
+### Step 1: server types
+
+Both server casts are replaced by types.
+The native router boundary checks its optional close method.
+The entry owns an optional start promise without an assertion.
+No plain function was added.
+The existing render, body, and catch paths still call router close.
+
+The first root check found 409 errors and 31 warnings.
+The untouched pinned origin/main tree also exits 1 with those counts.
+Logs: /tmp/starter-casts-base-build.log and /tmp/starter-casts-base-check.log.
+The base is 3fce5703, the main commit named in the task.
+To stay in this worktree, the check briefly restored both edited files from that commit.
+It restored the writer's saved bytes in a finally block; no stash was used.
+The errors are in the trial reference tree and other unchanged tool files.
+The task bars changing those files.
+vp env doctor exits 0; /tmp/starter-casts-env-doctor.log.
