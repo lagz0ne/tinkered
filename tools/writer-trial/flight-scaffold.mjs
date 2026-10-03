@@ -18,7 +18,8 @@ export function checkScaffoldFiles(expected, root = "/work") {
   }
   walk(directory);
   if (
-    JSON.stringify(Object.entries(found).sort()) !== JSON.stringify(Object.entries(expected).sort())
+    JSON.stringify(Object.entries(found).sort(([a], [b]) => a.localeCompare(b))) !==
+    JSON.stringify(Object.entries(expected).sort(([a], [b]) => a.localeCompare(b)))
   )
     throw new Error("src/scaffold changed");
 }
