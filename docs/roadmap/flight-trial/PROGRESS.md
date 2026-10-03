@@ -1222,3 +1222,46 @@ The private reference tool folder installed `typescript-api@npm:typescript@5.9.3
 Install exit 0: `/tmp/flight-rounds-private-typescript-install.log`.
 The installed tool resolves under this worktree and touches no system directory.
 The draft plain list is not a ready artifact yet.
+
+### Strict Start source copied into the reference
+
+The strict writer committed source `1486bc00`.
+Its source diff from the original `0f0a83fe` was applied to the reference.
+The three-way apply kept the flight changes with no conflicts, exit 0:
+`/tmp/flight-rounds-strict-scaffold-apply-src.log`.
+The first apply also named copied tests that this answer does not carry.
+It exited 1 and applied nothing:
+`/tmp/flight-rounds-strict-scaffold-apply.log`.
+The source-only apply was the correction.
+No `apps/` file changed in this worktree.
+
+The copied server entry owns its roots.
+Response bodies and the telemetry queue now belong to resources.
+One-caller readers use schema objects.
+The plain function list records params and call sites.
+The reference's own supplier readers take only their needed string keys.
+Its own price comparator has per-param TSDoc.
+The TypeScript API uses private dependency links, not edits to `apps/`.
+`run.mjs` also passes extra command args to the reference CLI.
+
+Check and typecheck exited 0:
+`/tmp/flight-rounds-strict-check-fixed.log`,
+`/tmp/flight-rounds-strict-copy-typecheck.log`.
+The earlier copied-source check had one await-thenable warning.
+The search body's opening result is synchronous, so the excess await was removed.
+That earlier log is `/tmp/flight-rounds-strict-copy-check.log`, exit 0.
+Seam proof and browser boundary checks exited 0:
+`/tmp/flight-rounds-strict-seam.log`,
+`/tmp/flight-rounds-strict-boundary.log`.
+
+The full flight answer passed 16/16 twice with this strict source, exit 0 each.
+The planted mail break failed only its named case, exit 1.
+All good, broken, and restored builds exited 0.
+Driver: `/tmp/flight-rounds-r5-strict-proof.log`, exit 0.
+Logs: reference `.logs/r5-pass-1.log`, `r5-pass-2.log`, `r5-break.log`,
+`r5-build-good.log`, `r5-build-break.log`, `r5-build-restored.log`.
+This reruns every earlier round after the ownership changes.
+The check draft passed 97 files and 22 plain functions, exit 0:
+`/tmp/flight-rounds-draft-plain-strict-copy.log`.
+The committed strict check is still due from the scaffold writer.
+It must pass before the round 5 ready commit.

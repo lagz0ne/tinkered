@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/flights/search")({
         const query = searchInput.safeParse(Object.fromEntries(new URL(request.url).searchParams));
         if (!query.success) return new Response("Bad search", { status: 400 });
         return readResult(
-          await context.session.settle(openFlightSearch, {
+          context.session.settle(openFlightSearch, {
             input: { query: query.data, settings: readFlightSettings(process.env) },
           }),
         );

@@ -1,7 +1,8 @@
 # Flight reference answer
 
 This private answer starts from `apps/start-scaffold` at `0f0a83fe`.
-The copied scaffold files stay unchanged.
+The copy includes the strict Start source at `1486bc00`.
+Its response bodies and telemetry queue are resources.
 Each round adds feature files and changes the app's open files.
 The teacher never mounts this answer into a writer's container.
 
@@ -18,7 +19,8 @@ node "$ref/run.mjs" build
 node "$ref/run.mjs" start
 ```
 
-The link already exists in the writer's proof worktree.
+The proof worktree uses its own folder of dependency links.
+That keeps its TypeScript API tool separate from `apps/`.
 Set the database and SMTP addresses to the real local services.
 The reference uses the same account and database code as the scaffold.
 Use a separate Postgres database for the reference proof.

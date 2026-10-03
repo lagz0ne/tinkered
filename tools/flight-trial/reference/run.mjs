@@ -1,12 +1,13 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-const command = process.argv[2] ?? "dev";
+const args = process.argv.slice(2);
+const command = args.shift() ?? "dev";
 const root = fileURLToPath(new URL(".", import.meta.url));
 const child = spawn(
   process.execPath,
   command === "start"
     ? ["--env-file=.env", "scripts/serve.mjs"]
-    : ["--env-file=.env", "node_modules/vite-plus/bin/vp", command],
+    : ["--env-file=.env", "node_modules/vite-plus/bin/vp", command, ...args],
   {
     cwd: root,
     stdio: "inherit",
