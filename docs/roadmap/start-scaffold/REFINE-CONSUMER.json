@@ -34,9 +34,9 @@
       "log": "/tmp/start-refine-consumer-3-install-tarballs.log"
     },
     {
-      "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:43525/r/{name}.json",
+      "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:36587/r/{name}.json",
       "code": 0,
-      "log": "/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_43525_r__name__json.log"
+      "log": "/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_36587_r__name__json.log"
     },
     {
       "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",

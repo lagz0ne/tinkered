@@ -885,3 +885,14 @@ The raw folder census flags generated router text and test-only presets.
 Strict authored source and scope tests pass with no hits.
 Jev labels stay in this track for the lead to merge and calibrate.
 The writer did not push, publish, or change the board.
+
+## Refine lead fix round
+
+Private guards now check the server and clear an old account.
+A new quiet-stream test proves heartbeat auth without a session wake.
+Both regressions have saved red and green runs.
+The four app skills and registry copies have the lead's corrections.
+All 35 app tests and the fresh copied project's 35 tests pass.
+All workspace tests and budget lanes pass.
+Proof and exit codes are in `REFINE-PROOF.md` and `REFINE-GATES.json`.
+This stays saved for lead review; the writer did not land or push it.

@@ -3,62 +3,62 @@
     {
       "gate": "build",
       "code": 0,
-      "log": "/tmp/start-refine-final-build.log"
+      "log": "/tmp/start-refine-review-build.log"
     },
     {
       "gate": "check",
       "code": 0,
-      "log": "/tmp/start-refine-final-check.log"
+      "log": "/tmp/start-refine-review-check.log"
     },
     {
       "gate": "workspace-tests",
       "code": 0,
-      "log": "/tmp/start-refine-final-workspace-tests.log"
+      "log": "/tmp/start-refine-review-workspace-tests.log"
     },
     {
       "gate": "types",
       "code": 0,
-      "log": "/tmp/start-refine-final-types.log"
+      "log": "/tmp/start-refine-review-types.log"
     },
     {
       "gate": "boundary",
       "code": 0,
-      "log": "/tmp/start-refine-final-boundary.log"
+      "log": "/tmp/start-refine-review-boundary.log"
     },
     {
       "gate": "imports",
       "code": 0,
-      "log": "/tmp/start-refine-final-imports.log"
+      "log": "/tmp/start-refine-review-imports.log"
     },
     {
       "gate": "middleware",
       "code": 0,
-      "log": "/tmp/start-refine-final-middleware.log"
+      "log": "/tmp/start-refine-review-middleware.log"
     },
     {
       "gate": "seam",
       "code": 0,
-      "log": "/tmp/start-refine-final-seam.log"
+      "log": "/tmp/start-refine-review-seam.log"
     },
     {
       "gate": "note",
       "code": 0,
-      "log": "/tmp/start-refine-final-note.log"
+      "log": "/tmp/start-refine-review-note.log"
     },
     {
       "gate": "schema",
       "code": 0,
-      "log": "/tmp/start-refine-final-schema.log"
+      "log": "/tmp/start-refine-review-schema.log"
     },
     {
       "gate": "prose",
       "code": 0,
-      "log": "/tmp/start-refine-final-prose.log"
+      "log": "/tmp/start-refine-review-prose.log"
     },
     {
       "gate": "validate",
       "code": 0,
-      "log": "/tmp/start-refine-final-validate.log"
+      "log": "/tmp/start-refine-review-validate.log"
     },
     {
       "gate": "install",
@@ -68,12 +68,12 @@
     {
       "gate": "registry-build",
       "code": 0,
-      "log": "/tmp/start-refine-final-registry-build.log"
+      "log": "/tmp/start-refine-review-registry-build.log"
     },
     {
       "gate": "clean-consumer",
       "code": 0,
-      "log": "/tmp/start-refine-clean-consumer.log"
+      "log": "/tmp/start-refine-review-clean-consumer.log"
     },
     {
       "gate": "compose-proof",
@@ -88,47 +88,62 @@
     {
       "gate": "authored-strict-census",
       "code": 0,
-      "log": "/tmp/start-refine-census-authored.log"
+      "log": "/tmp/start-refine-review-authored-strict-census.log"
     },
     {
       "gate": "raw-folder-census",
       "code": 1,
-      "log": "/tmp/start-refine-census-raw.log"
+      "log": "/tmp/start-refine-review-raw-folder-census.log"
     },
     {
       "gate": "TSDoc",
       "code": 0,
-      "log": "/tmp/start-refine-tsdoc.log"
+      "log": "/tmp/start-refine-review-TSDoc.log"
     },
     {
       "gate": "jev-preflight",
       "code": 0,
-      "log": "/tmp/start-refine-jev-preflight-final.log"
+      "log": "/tmp/start-refine-review-jev-preflight.log"
     },
     {
       "gate": "jev-tests",
       "code": 0,
-      "log": "/tmp/start-refine-jev-tests-final.log"
+      "log": "/tmp/start-refine-review-jev-tests.log"
     },
     {
       "gate": "jev-promises",
       "code": 0,
-      "log": "/tmp/start-refine-jev-promises-final.log"
+      "log": "/tmp/start-refine-review-jev-promises.log"
     },
     {
       "gate": "jev-labels",
       "code": 0,
-      "log": "/tmp/start-refine-jev-labels-final.log"
+      "log": "/tmp/start-refine-review-jev-labels.log"
     },
     {
       "gate": "prose-wide",
       "code": 0,
-      "log": "/tmp/start-refine-prose-wide.log"
+      "log": "/tmp/start-refine-review-prose-wide.log"
     },
     {
       "gate": "diff-check",
       "code": 0,
-      "log": "/tmp/start-refine-diff-check.log"
+      "log": "/tmp/start-refine-review-diff-check.log"
+    },
+    {
+      "gate": "app-tests",
+      "code": 0,
+      "log": "/tmp/start-refine-review-app-tests.log"
+    },
+    {
+      "gate": "skills-prose",
+      "code": 0,
+      "log": "/tmp/start-refine-review-skills-prose.log"
+    },
+    {
+      "gate": "jev-preflight-full",
+      "code": 0,
+      "log": "/tmp/start-refine-review-jev-preflight-full.log"
     }
   ],
   "consumer": [
@@ -148,9 +163,9 @@
       "log": "/tmp/start-refine-consumer-3-install-tarballs.log"
     },
     {
-      "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:43525/r/{name}.json",
+      "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:36587/r/{name}.json",
       "code": 0,
-      "log": "/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_43525_r__name__json.log"
+      "log": "/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_36587_r__name__json.log"
     },
     {
       "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",
@@ -295,11 +310,208 @@
       "gate": "core-type-feedback",
       "code": 1,
       "log": "/tmp/start-refine-core-feedback-red.log"
+    },
+    {
+      "gate": "stale-account-guard",
+      "code": 1,
+      "log": "/tmp/start-refine-review-account-red.log",
+      "assertion": "expect(await browser.run(checkAccount)).toBeNull();",
+      "location": "tests/waste.test.ts:237"
+    },
+    {
+      "gate": "removed-heartbeat-auth",
+      "code": 1,
+      "log": "/tmp/start-refine-review-heartbeat-red.log",
+      "assertion": "expect(new TextDecoder().decode((await waiting).value)).toBe(account-change frame);",
+      "location": "tests/sse.test.ts:343"
     }
   ],
   "greenWaste": {
-    "gate": "all-three-waste-tests-with-all-app-tests",
+    "gate": "all-four-waste-tests-with-all-app-tests",
     "code": 0,
-    "log": "/tmp/start-refine-auth-race-green.log"
+    "log": "/tmp/start-refine-review-app-tests.log",
+    "tests": 35
+  },
+  "fixRound": {
+    "base": "afa2cf83",
+    "gates": [
+      {
+        "gate": "build",
+        "code": 0,
+        "log": "/tmp/start-refine-review-build.log"
+      },
+      {
+        "gate": "check",
+        "code": 0,
+        "log": "/tmp/start-refine-review-check.log"
+      },
+      {
+        "gate": "app-tests",
+        "code": 0,
+        "log": "/tmp/start-refine-review-app-tests.log"
+      },
+      {
+        "gate": "seam",
+        "code": 0,
+        "log": "/tmp/start-refine-review-seam.log"
+      },
+      {
+        "gate": "boundary",
+        "code": 0,
+        "log": "/tmp/start-refine-review-boundary.log"
+      },
+      {
+        "gate": "schema",
+        "code": 0,
+        "log": "/tmp/start-refine-review-schema.log"
+      },
+      {
+        "gate": "clean-consumer",
+        "code": 0,
+        "log": "/tmp/start-refine-review-clean-consumer.log"
+      },
+      {
+        "gate": "prose",
+        "code": 0,
+        "log": "/tmp/start-refine-review-prose.log"
+      },
+      {
+        "gate": "workspace-tests",
+        "code": 0,
+        "log": "/tmp/start-refine-review-workspace-tests.log"
+      },
+      {
+        "gate": "types",
+        "code": 0,
+        "log": "/tmp/start-refine-review-types.log"
+      },
+      {
+        "gate": "imports",
+        "code": 0,
+        "log": "/tmp/start-refine-review-imports.log"
+      },
+      {
+        "gate": "middleware",
+        "code": 0,
+        "log": "/tmp/start-refine-review-middleware.log"
+      },
+      {
+        "gate": "note",
+        "code": 0,
+        "log": "/tmp/start-refine-review-note.log"
+      },
+      {
+        "gate": "authored-strict-census",
+        "code": 0,
+        "log": "/tmp/start-refine-review-authored-strict-census.log"
+      },
+      {
+        "gate": "TSDoc",
+        "code": 0,
+        "log": "/tmp/start-refine-review-TSDoc.log"
+      },
+      {
+        "gate": "jev-preflight",
+        "code": 0,
+        "log": "/tmp/start-refine-review-jev-preflight.log"
+      },
+      {
+        "gate": "jev-tests",
+        "code": 0,
+        "log": "/tmp/start-refine-review-jev-tests.log"
+      },
+      {
+        "gate": "jev-promises",
+        "code": 0,
+        "log": "/tmp/start-refine-review-jev-promises.log"
+      },
+      {
+        "gate": "validate",
+        "code": 0,
+        "log": "/tmp/start-refine-review-validate.log"
+      },
+      {
+        "gate": "registry-build",
+        "code": 0,
+        "log": "/tmp/start-refine-review-registry-build.log"
+      },
+      {
+        "gate": "skills-prose",
+        "code": 0,
+        "log": "/tmp/start-refine-review-skills-prose.log"
+      },
+      {
+        "gate": "jev-preflight-full",
+        "code": 0,
+        "log": "/tmp/start-refine-review-jev-preflight-full.log"
+      },
+      {
+        "gate": "jev-labels",
+        "code": 0,
+        "log": "/tmp/start-refine-review-jev-labels.log"
+      },
+      {
+        "gate": "prose-wide",
+        "code": 0,
+        "log": "/tmp/start-refine-review-prose-wide.log"
+      },
+      {
+        "gate": "diff-check",
+        "code": 0,
+        "log": "/tmp/start-refine-review-diff-check.log"
+      }
+    ],
+    "expectedFailures": [
+      {
+        "gate": "stale-account-guard",
+        "code": 1,
+        "log": "/tmp/start-refine-review-account-red.log",
+        "assertion": "expect(await browser.run(checkAccount)).toBeNull();",
+        "location": "tests/waste.test.ts:237"
+      },
+      {
+        "gate": "removed-heartbeat-auth",
+        "code": 1,
+        "log": "/tmp/start-refine-review-heartbeat-red.log",
+        "assertion": "expect(new TextDecoder().decode((await waiting).value)).toBe(account-change frame);",
+        "location": "tests/sse.test.ts:343"
+      }
+    ],
+    "green": [
+      {
+        "gate": "account-green",
+        "code": 0,
+        "log": "/tmp/start-refine-review-account-green.log",
+        "tests": 4
+      },
+      {
+        "gate": "heartbeat-green",
+        "code": 0,
+        "log": "/tmp/start-refine-review-heartbeat-green.log",
+        "tests": 5
+      }
+    ],
+    "counts": {
+      "app": 35,
+      "appFiles": 8,
+      "waste": 4,
+      "sse": 5,
+      "consumer": 35,
+      "workspacePassed": 1106,
+      "workspaceSkipped": 1,
+      "checkErrors": 0,
+      "checkWarnings": 28,
+      "budgetLanes": 16
+    },
+    "rawCensus": {
+      "gate": "raw-folder-census",
+      "code": 1,
+      "log": "/tmp/start-refine-review-raw-folder-census.log"
+    },
+    "assumptions": [
+      "Heartbeat auth is the fallback when no session wake arrives; the SSE fixture drops only the session trigger in its test database.",
+      "The existing strict census scope excludes the generated route tree and tests/presets.ts.",
+      "The prior compose proof remains recorded; compose and mail code did not change in this fix round."
+    ]
   }
 }

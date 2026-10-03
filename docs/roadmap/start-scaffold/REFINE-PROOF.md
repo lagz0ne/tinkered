@@ -29,7 +29,7 @@ Old account events keep their old version and are ignored.
 
 ## Assumptions
 
-- A route can reuse the tab's saved records while SSE updates them.
+- A route can reuse saved records after its server account check.
   Account exit starts a new snapshot lifetime.
 - The writer records proof here and leaves the board to the lead.
   The brief bars edits outside the app, track, and lockfile.
@@ -79,7 +79,8 @@ Private routes now call `context.account()` before bootstrap.
 A signed-out account redirects without a snapshot.
 The public page loads the single snapshot it needs.
 A signed-in route still bootstraps its saved records.
-The tab's loaded records can answer later account guards.
+That version reused the cached account in later guards.
+The fix round below replaces that check with a server read.
 All 33 app tests pass, exit 0.
 Log: `/tmp/start-refine-render-green.log`.
 
@@ -209,3 +210,115 @@ No Core change was needed.
   This work claims counts, not speed or size changes.
 - The lead owns board changes, review, calibration, and landing.
   The writer did not push or publish.
+
+## Lead fix round at afa2cf83
+
+Private route guards always ask `snapshotSource.account`.
+A changed account calls `sync.leave()` before returning.
+This clears private records, cancels waits, and ends snapshot reuse.
+An unchanged account keeps the same loaded snapshot.
+The callers are `checkAccount`, the fixed router context,
+and the guards in `src/routes/profile.tsx` and `src/routes/todos.tsx`.
+These paths are under `apps/start-scaffold`.
+
+### Stale route guard: red then green
+
+The new scope test signs Ada up through `handleAuth`.
+The browser snapshot source reads the server with a mutable cookie.
+It loads Ada, then another tab signs Ada out and clears that cookie.
+On `afa2cf83`, the guard still returns Ada's ID.
+Red exit 1: `/tmp/start-refine-review-account-red.log`.
+The failing assertion is at `tests/waste.test.ts:237`:
+
+```ts
+expect(await browser.run(checkAccount)).toBeNull();
+```
+
+After the fix, it returns null and clears cached private records.
+The next load returns a fresh signed-out snapshot.
+All 4 waste tests pass, exit 0.
+Green: `/tmp/start-refine-review-account-green.log`.
+The original session and snapshot counts remain 2, 1, and 1.
+The README now promises server account checks before snapshot reuse.
+
+### Quiet stream: red then green
+
+The new SSE test uses Core's `makeTestClock`.
+It opens Ada's private stream and reads the connected frame.
+It signs Ada out without changing saved app data.
+At 10 seconds it expects account-change, then done.
+
+The first version passed even without the heartbeat auth check.
+Sign-out wakes the stream through `sync_session_changed`.
+That wake hid the missing heartbeat check.
+Control log: `/tmp/start-refine-review-heartbeat-control.log`.
+
+Assumption: heartbeat auth is the fallback when no session wake arrives.
+The test drops only that trigger in its own PGlite database.
+It keeps real auth, SQL, stream delivery, and Core time.
+Production triggers are unchanged.
+
+Removing the heartbeat auth clause now fails, exit 1.
+Red: `/tmp/start-refine-review-heartbeat-red.log`.
+At `tests/sse.test.ts:343`, it gets `: heartbeat` instead of:
+
+```text
+event: account
+data: {"kind":"account-change"}
+```
+
+The failing assertion is:
+
+```ts
+expect(new TextDecoder().decode((await waiting).value)).toBe(
+  'event: account\ndata: {"kind":"account-change"}\n\n',
+);
+```
+
+The original clause was restored before the green run.
+All 5 SSE tests pass, exit 0.
+Green: `/tmp/start-refine-review-heartbeat-green.log`.
+
+### Skills and copied files
+
+The four changed skills name the fixed exports and their real paths.
+They teach `eventHistory.lock`, `find`, and `append` in one transaction.
+They name backend and frontend export files for scope tests.
+They show the account check before private route bootstrap.
+They keep reconnects held until a sign-in snapshot is applied.
+They say `proofMail` records sends and point to held/refused fixtures.
+Registry payloads were rebuilt after these changes.
+
+All 35 app tests pass in 8 files, exit 0.
+Build and `vp check` pass with 0 errors and 28 warnings.
+Workspace tests pass: 1,106 passed, 1 skipped.
+All 16 budget lanes pass.
+The seam proof, browser imports, schema, and prose checks pass.
+Types, lazy imports, middleware, and note fixture checks also pass.
+[Gate exit codes and exact logs](REFINE-GATES.json).
+Review logs use `/tmp/start-refine-review-`.
+
+The fresh shadcn consumer copied 109 files from all 3 items.
+It used packed Core and React with an independent npm install.
+It has no workspace link and passed all 35 shipped tests.
+All 14 consumer steps passed, including build, types, and project checks.
+[Fresh consumer results](REFINE-CONSUMER.json).
+The compose files and mail path did not change in this fix round.
+The earlier [Mailpit proof](REFINE-COMPOSE.json) remains recorded above.
+
+Assumption: the existing census scope still applies.
+It excludes the generated route tree and the test preset fixture.
+Strict authored census and changed TSDoc pass.
+The repeated raw folder scan exits 1 with only those excluded files.
+Log: `/tmp/start-refine-review-raw-folder-census.log`.
+No Core/React change, shared-tool edit, push, or publish was needed.
+
+The full `main..HEAD` Jev preflight has one file flag
+and eleven flagged units; all are explained and labeled false.
+Two labels were added for the current snapshot owner and stream queue.
+Labels remain in this track under the brief's path limit.
+The lead merges them and runs calibration at landing.
+Jev tests has zero flags across 35 entries.
+Jev promises has zero missing README lines and one unsure match.
+Log: `/tmp/start-refine-review-jev-labels.log`.
+No new Core feedback came from this fix round.
