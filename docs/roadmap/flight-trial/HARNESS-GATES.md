@@ -326,3 +326,26 @@ The broken-router attempt records round 1 failed with baseline 0.
   Log: `/tmp/flight-harness-review-20261003/logs/vp-check.log`.
 - **prose-reviewed**: exit 0.
   Log: `/tmp/flight-harness-review-20261003/logs/prose-reviewed.log`.
+
+### Last stage guard check
+
+Only stopped workers are skipped.
+Unchecked workers keep the prior check-before-stage rule.
+The first test run kept an old expected list and failed.
+The corrected test passes.
+Both logs are kept.
+
+- **stage-guard-test**: exit 1.
+  Log: `/tmp/flight-harness-review-20261003/logs/stage-guard-test.log`.
+- **stage-guard-test-fixed**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/stage-guard-test-fixed.log`.
+- **prose-stage-guard**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/prose-stage-guard.log`.
+- **vp-check-head**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/vp-check-head.log`.
+- **harness-tests-head**: exit 0, 79 tests passed.
+  Log: `/tmp/flight-harness-review-20261003/logs/harness-tests-head.log`.
+- **cleanup-head**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/cleanup-head.log`.
+- **prose-head**: exit 0.
+  Log: `/tmp/flight-harness-review-20261003/logs/prose-head.log`.
