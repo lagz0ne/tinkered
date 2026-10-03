@@ -21,8 +21,8 @@ const deliverBookingMail = operation({
     const stored = (
       await database.select().from(execution).where(eq(execution.id, ctx.input.executionId))
     ).at(0);
+    if (stored?.result) return { executionId: ctx.input.executionId };
     if (!stored?.notification) raise("RetryNotAvailable", {});
-    if (stored.result) return { executionId: ctx.input.executionId };
     const sent = await send.settle({ rawInput: stored.notification });
     const emailState: Bookings.Row["emailState"] = sent.status === "success" ? "Sent" : "Failed";
     const result: Sync.Result =
