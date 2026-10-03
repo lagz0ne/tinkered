@@ -2533,3 +2533,11 @@ but this attempt was stopped with exit 130 before the Jev result.
 It is not counted as a full-gate pass.
 The image script now copies every shipped app test into its seed.
 A fresh `.3` image and proof include the landed lifetime test.
+
+The final `.3` writer and services image build exited 0.
+Both saved tar files exist and both idle keepers are running.
+Image IDs and saved paths are in `INTEGRATION-IMAGES.json`.
+The image's tab-lifetime test matches main byte for byte.
+Create, stage 1, and worker folder proof for `flight-integration-03`
+all exited 0, including an explicit check for that new test.
+No model run started.

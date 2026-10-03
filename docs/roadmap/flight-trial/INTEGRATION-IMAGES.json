@@ -1,0 +1,10 @@
+{
+  "main": "1ff5402f",
+  "writerTag": "tinker-writer-flight:20261003.integration.3",
+  "servicesTag": "tinker-flight-services:20261003.integration.3",
+  "writerId": "sha256:e12f8a3c62fae5b765a901f006b64aef100de1d3ed6299a1aa558dcbd0bb41a5",
+  "servicesId": "sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b",
+  "writerTar": "/home/paseo/.local/share/tinker-writer-trial/image-20261003.integration.3/image.tar",
+  "servicesTar": "/home/paseo/.local/share/tinker-writer-trial/image-20261003.integration.3/services/image.tar",
+  "tabLifetimeTest": true
+}
