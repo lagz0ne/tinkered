@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const run = (args) => execFileSync("docker", args, { encoding: "utf8", timeout: 120000 }).trim();
+const run = (args, input) =>
+  execFileSync("docker", args, { input, encoding: "utf8", timeout: 120000 }).trim();
 export const flightNames = ["supplier-a", "supplier-b", "supplier-c", "payment"];
 export function flightEnvironment() {
   return {
@@ -74,7 +76,7 @@ export function startFlight(prefix, images) {
       "--tmpfs",
       "/var/run/postgresql:rw,nosuid,size=16m,uid=70,gid=70",
     ]);
-    start("mailpit", state.network, ["mailpit"], images.mailpitImage, [
+    start("mailpit", state.controlNetwork, ["control-mailpit"], images.mailpitImage, [
       "-e",
       "MP_ENABLE_CHAOS=true",
       "--read-only",
@@ -95,19 +97,27 @@ export function startFlight(prefix, images) {
       "ALL",
       "--security-opt",
       "no-new-privileges",
+      "--tmpfs",
+      "/tmp:rw,nosuid,size=64m",
       images.servicesImage,
-      "node",
-      "proxy.mjs",
+      "sleep",
+      "infinity",
     ]);
     state.containers.push(proxy);
     run([
       "network",
       "connect",
-      ...flightNames.flatMap((name) => ["--alias", name]),
+      ...[...flightNames, "mailpit"].flatMap((name) => ["--alias", name]),
       state.network,
       proxy,
     ]);
     run(["start", proxy]);
+    // Load the reviewed helper without changing a saved image tag.
+    run(
+      ["exec", "-i", proxy, "sh", "-c", "cat > /tmp/proxy.mjs"],
+      readFileSync(new URL("./flight-proxy.mjs", import.meta.url)),
+    );
+    run(["exec", "-d", proxy, "node", "/tmp/proxy.mjs"]);
     for (const name of flightNames)
       start(
         name,

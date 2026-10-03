@@ -1,4 +1,5 @@
 import { createServer, request as forward } from "node:http";
+import { createServer as tcpServer, connect } from "node:net";
 
 /** Only these API paths cross from the writer network to the services network. */
 const allowed = {
@@ -69,3 +70,51 @@ const webhook = createServer((request, response) => {
 });
 webhook.listen(4300, "service-proxy");
 servers.push(webhook);
+
+/** The writer may use the inbox, but only the teacher may change Chaos. */
+const inbox = createServer((request, response) => {
+  const url = new URL(request.url, "http://local");
+  let path;
+  try {
+    path = decodeURIComponent(url.pathname).replace(/\/+/g, "/");
+  } catch {
+    response.writeHead(400);
+    response.end();
+    return;
+  }
+  if (path.startsWith("/api/v1/chaos")) {
+    response.writeHead(403);
+    response.end("Teacher controls are private\n");
+    return;
+  }
+  const upstream = forward(
+    {
+      hostname: "control-mailpit",
+      port: 8025,
+      method: request.method,
+      path: url.pathname + url.search,
+      headers: request.headers,
+    },
+    (reply) => {
+      response.writeHead(reply.statusCode, reply.headers);
+      reply.pipe(response);
+    },
+  );
+  upstream.on("error", () => {
+    response.writeHead(502);
+    response.end();
+  });
+  request.pipe(upstream);
+});
+inbox.listen(8025, "mailpit");
+servers.push(inbox);
+const smtp = tcpServer((socket) => {
+  const upstream = connect({ host: "control-mailpit", port: 1025 });
+  socket.pipe(upstream).pipe(socket);
+  socket.on("error", () => upstream.destroy());
+  upstream.on("error", () => socket.destroy());
+  socket.on("close", () => upstream.destroy());
+  upstream.on("close", () => socket.destroy());
+});
+smtp.listen(1025, "mailpit");
+servers.push(smtp);

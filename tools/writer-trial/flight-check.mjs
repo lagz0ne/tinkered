@@ -199,7 +199,7 @@ function checkTeacher(state, app, round, image, teacher, teacherDir) {
       serviceUrls: Object.fromEntries(
         flightNames.map((name, i) => [name, `http://${name}:${4311 + i}`]),
       ),
-      mailpitUrl: "http://mailpit:8025",
+      mailpitUrl: "http://control-mailpit:8025",
     };
     run([
       "exec",
