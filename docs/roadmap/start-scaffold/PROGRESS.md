@@ -855,3 +855,33 @@ Five repeat Jev findings are labeled false with their reasons in this track.
 
 [Current proof and gate logs](SEAM-PROOF.md).
 The writer saved the fix round for lead review and did not push.
+
+## Start refine saved for review
+
+Writer branch: `start/refine`, based on `314c64ec`.
+The stream checks the session once per wake and on heartbeats.
+Sign-in owns its snapshot until it is applied, then releases reconnects.
+Signed-out private redirects check only the account.
+Tests prove one snapshot even across separate server renders.
+
+App source has no proof mode or Core testing import.
+Tests, project gates, local compose services, and five skills are copied.
+Maintainer proofs stay outside the registry.
+The owner README gives start, layout, rules, and tested promises.
+
+All required gate chains return 0.
+Check has zero errors and the same 28 warnings.
+All 33 app tests pass within all workspace test tasks.
+All 16 validate lanes pass.
+The 109-file clean shadcn consumer installs packed Core and React.
+It builds, checks types, runs every shipped test, and passes project gates.
+The real compose browser signs up and reloads its saved Postgres todo.
+Mailpit's API and browser inbox show the profile mail.
+The temporary test stack is removed; existing Victoria stays running.
+
+[Full proof, red/green counts, logs, and assumptions](REFINE-PROOF.md).
+[Every gate's exit code and log path](REFINE-GATES.json).
+The raw folder census flags generated router text and test-only presets.
+Strict authored source and scope tests pass with no hits.
+Jev labels stay in this track for the lead to merge and calibrate.
+The writer did not push, publish, or change the board.

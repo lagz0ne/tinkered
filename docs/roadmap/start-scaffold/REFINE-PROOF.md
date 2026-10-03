@@ -100,6 +100,112 @@ Waiting routes and reconnects then see the applied snapshot.
 Bootstrap returns its applied owner version to the snapshot owner.
 A later account exit cannot mark its new lifetime as already loaded.
 The caller changes are sign-in, the snapshot owner, and bootstrap.
-The router and scope tests also call bootstrap and keep its result.
+Router hydration and existing tests still await bootstrap.
+The snapshot owner uses its returned version.
 All 33 app tests pass, exit 0.
 Log: `/tmp/start-refine-auth-race-green.log`.
+
+## Final observed proof
+
+The final gate chain returns 0 after the auth race fix.
+All 33 app tests pass within all workspace test tasks.
+Check has zero errors and the same 28 warnings.
+All 16 validate lanes pass.
+[Every gate, exit code, and log path](REFINE-GATES.json).
+
+The real shadcn 4.21.0 copies 109 files into a fresh consumer.
+Core and React are packed tarballs installed with npm.
+Neither installed package links to the workspace.
+Install, build, types, 33 tests, seam, browser imports,
+and schema generation each return 0.
+Both edited seams and a feature survive a runtime update.
+All five skills and `AGENTS.md` are present.
+No maintainer file or proof mode is copied.
+[Consumer proof and all step logs](REFINE-CONSUMER.json).
+
+The compose browser visits `/profile` while signed out.
+It redirects to `/`, then signs up through real auth.
+It saves a todo through real Postgres and sees it after reload.
+It saves a profile and receives a complete mail result.
+Mailpit's API and browser inbox both show the profile mail.
+The inbox also shows the signup email check.
+There are zero page errors and no phone overflow.
+The built host exits 0 on SIGTERM.
+[Mailpit message IDs and results](REFINE-COMPOSE.json).
+The temporary browser container and owned compose stack are removed.
+The existing local Victoria processes were left alone.
+
+## Style and advisory checks
+
+Strict census of authored source and scope tests returns 0.
+Log: `/tmp/start-refine-census-authored.log`.
+TSDoc parses 24 changed files with zero rows, exit 0.
+Log: `/tmp/start-refine-tsdoc.log`.
+
+The raw folder scan returns 1.
+Log: `/tmp/start-refine-census-raw.log`.
+Its hits are the generated router's comments and lint marker,
+and two test-only preset calls in `tests/presets.ts`.
+The strict authored scan excludes that generated file and test fixture.
+App source imports no Core testing entry.
+This is a scope assumption for the census, not a changed lint rule.
+
+Jev tests has zero flags across 33 tests.
+Jev promises has zero missing README lines and one unsure match.
+Two missing close promises were added to the owner README.
+The final preflight has one file flag and ten flagged units.
+Each is explained and labeled false.
+They name owned clients, transport state, native cleanup,
+or repeated execution work that is promised to be a no-op.
+[Exact label states and reasons](REFINE-JEV.jsonl).
+Log: `/tmp/start-refine-jev-labels-final.log`.
+
+Labels stay in this track because shared-tool edits are barred.
+The label tool ignored its bank override on a normal write.
+Only its added rows were moved here; the shared bank was restored.
+The lead merges new rows and runs calibration at landing.
+No shared judge rule or Core/React source changed.
+
+## Core type feedback
+
+A sync factory depending on async resources failed with `TS2322`.
+That made its callers see an unknown value too.
+The attempted shape was:
+
+```ts
+const snapshotLoader = resource({
+  label: "sync.snapshotLoader",
+  depends: {
+    sync: syncClient,
+    apply: applyBootstrap,
+    source: snapshotSource,
+  },
+  factory: ({ sync }) => ({
+    snapshot: () => sync.snapshot(),
+  }),
+});
+```
+
+Making the factory async fixed it.
+The filled snippet was run again in a temporary file.
+It fails with `TS2322`, exit 1.
+Log: `/tmp/start-refine-core-feedback-red.log`.
+The temporary file was removed after that check.
+No Core change was needed.
+
+## Other proof assumptions
+
+- shadcn starts from its normal components config and type config.
+  The consumer script creates them and installs the tarballs itself.
+  It uses `@/app-lib` to prove seam import rewriting.
+- The waste test uses signup in the shared sign-in action.
+  Both auth modes use the same snapshot owner and barrier.
+  Existing backend scope tests also exercise actual sign-in.
+- Native middleware proof injects presets only in its temporary copy.
+  The app entry and installed consumer use Postgres and SMTP.
+- Project type and test scripts keep this app's self-package exports.
+  A later package rename must update those test import paths.
+- Mutation and timing lanes were not requested by this ticket.
+  This work claims counts, not speed or size changes.
+- The lead owns board changes, review, calibration, and landing.
+  The writer did not push or publish.

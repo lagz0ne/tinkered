@@ -1,0 +1,305 @@
+{
+  "workspace": [
+    {
+      "gate": "build",
+      "code": 0,
+      "log": "/tmp/start-refine-final-build.log"
+    },
+    {
+      "gate": "check",
+      "code": 0,
+      "log": "/tmp/start-refine-final-check.log"
+    },
+    {
+      "gate": "workspace-tests",
+      "code": 0,
+      "log": "/tmp/start-refine-final-workspace-tests.log"
+    },
+    {
+      "gate": "types",
+      "code": 0,
+      "log": "/tmp/start-refine-final-types.log"
+    },
+    {
+      "gate": "boundary",
+      "code": 0,
+      "log": "/tmp/start-refine-final-boundary.log"
+    },
+    {
+      "gate": "imports",
+      "code": 0,
+      "log": "/tmp/start-refine-final-imports.log"
+    },
+    {
+      "gate": "middleware",
+      "code": 0,
+      "log": "/tmp/start-refine-final-middleware.log"
+    },
+    {
+      "gate": "seam",
+      "code": 0,
+      "log": "/tmp/start-refine-final-seam.log"
+    },
+    {
+      "gate": "note",
+      "code": 0,
+      "log": "/tmp/start-refine-final-note.log"
+    },
+    {
+      "gate": "schema",
+      "code": 0,
+      "log": "/tmp/start-refine-final-schema.log"
+    },
+    {
+      "gate": "prose",
+      "code": 0,
+      "log": "/tmp/start-refine-final-prose.log"
+    },
+    {
+      "gate": "validate",
+      "code": 0,
+      "log": "/tmp/start-refine-final-validate.log"
+    },
+    {
+      "gate": "install",
+      "code": 0,
+      "log": "/tmp/start-refine-install.log"
+    },
+    {
+      "gate": "registry-build",
+      "code": 0,
+      "log": "/tmp/start-refine-final-registry-build.log"
+    },
+    {
+      "gate": "clean-consumer",
+      "code": 0,
+      "log": "/tmp/start-refine-clean-consumer.log"
+    },
+    {
+      "gate": "compose-proof",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-proof-run.log"
+    },
+    {
+      "gate": "compose-down",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-down.log"
+    },
+    {
+      "gate": "authored-strict-census",
+      "code": 0,
+      "log": "/tmp/start-refine-census-authored.log"
+    },
+    {
+      "gate": "raw-folder-census",
+      "code": 1,
+      "log": "/tmp/start-refine-census-raw.log"
+    },
+    {
+      "gate": "TSDoc",
+      "code": 0,
+      "log": "/tmp/start-refine-tsdoc.log"
+    },
+    {
+      "gate": "jev-preflight",
+      "code": 0,
+      "log": "/tmp/start-refine-jev-preflight-final.log"
+    },
+    {
+      "gate": "jev-tests",
+      "code": 0,
+      "log": "/tmp/start-refine-jev-tests-final.log"
+    },
+    {
+      "gate": "jev-promises",
+      "code": 0,
+      "log": "/tmp/start-refine-jev-promises-final.log"
+    },
+    {
+      "gate": "jev-labels",
+      "code": 0,
+      "log": "/tmp/start-refine-jev-labels-final.log"
+    },
+    {
+      "gate": "prose-wide",
+      "code": 0,
+      "log": "/tmp/start-refine-prose-wide.log"
+    },
+    {
+      "gate": "diff-check",
+      "code": 0,
+      "log": "/tmp/start-refine-diff-check.log"
+    }
+  ],
+  "consumer": [
+    {
+      "name": "pack-core",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-1-pack-core.log"
+    },
+    {
+      "name": "pack-react",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-2-pack-react.log"
+    },
+    {
+      "name": "install-tarballs",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-3-install-tarballs.log"
+    },
+    {
+      "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:43525/r/{name}.json",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_43525_r__name__json.log"
+    },
+    {
+      "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-5-dlx----shadcn_4_21_0-add-_tinker-start_starter---yes---overwrite.log"
+    },
+    {
+      "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-6-dlx----shadcn_4_21_0-add-_tinker-start_runtime---dry-run---diff-src_scaffold_frontend_index_ts.log"
+    },
+    {
+      "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-7-dlx----shadcn_4_21_0-add-_tinker-start_runtime---yes---overwrite.log"
+    },
+    {
+      "name": "install-starter",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-8-install-starter.log"
+    },
+    {
+      "name": "build",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-9-build.log"
+    },
+    {
+      "name": "typecheck",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-10-typecheck.log"
+    },
+    {
+      "name": "test",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-11-test.log"
+    },
+    {
+      "name": "test:seam",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-12-test_seam.log"
+    },
+    {
+      "name": "test:boundary",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-13-test_boundary.log"
+    },
+    {
+      "name": "test:schema",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-14-test_schema.log"
+    }
+  ],
+  "compose": [
+    {
+      "name": "pull",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-pull.log"
+    },
+    {
+      "name": "up",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-up.log"
+    },
+    {
+      "name": "browser-image",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-browser-image.log"
+    },
+    {
+      "name": "pack-core",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-pack-core.log"
+    },
+    {
+      "name": "pack-react",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-pack-react.log"
+    },
+    {
+      "name": "container-create",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-container-create.log"
+    },
+    {
+      "name": "container-copy",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-container-copy.log"
+    },
+    {
+      "name": "container-start",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-container-start.log"
+    },
+    {
+      "name": "container-owner",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-container-owner.log"
+    },
+    {
+      "name": "container-install",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-container-install.log"
+    },
+    {
+      "name": "browser",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-browser.log"
+    },
+    {
+      "name": "copy-proof-json",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-copy-proof-json.log"
+    },
+    {
+      "name": "copy-host-log",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-copy-host-log.log"
+    },
+    {
+      "name": "container-remove",
+      "code": 0,
+      "log": "/tmp/start-refine-compose-container-remove.log"
+    }
+  ],
+  "expectedFailures": [
+    {
+      "gate": "initial-waste",
+      "code": 1,
+      "log": "/tmp/start-refine-waste-red.log"
+    },
+    {
+      "gate": "separate-render-waste",
+      "code": 1,
+      "log": "/tmp/start-refine-render-red.log"
+    },
+    {
+      "gate": "held-auth-waste",
+      "code": 1,
+      "log": "/tmp/start-refine-auth-race-red.log"
+    },
+    {
+      "gate": "core-type-feedback",
+      "code": 1,
+      "log": "/tmp/start-refine-core-feedback-red.log"
+    }
+  ],
+  "greenWaste": {
+    "gate": "all-three-waste-tests-with-all-app-tests",
+    "code": 0,
+    "log": "/tmp/start-refine-auth-race-green.log"
+  }
+}

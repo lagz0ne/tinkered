@@ -1,0 +1,32 @@
+{
+  "signedOutRedirect": "profile redirected to public page before signup",
+  "signup": "passed through browser and real auth",
+  "todo": "saved and present after reload through real Postgres",
+  "profile": "saved with complete mail result",
+  "mailpit": [
+    {
+      "id": "NAh8JgRND2Yma5YEUqQbd3",
+      "subject": "Your profile was updated",
+      "to": [
+        {
+          "Name": "",
+          "Address": "refine-96adec07-57ff-4864-bd17-62e23d6d383b@example.com"
+        }
+      ]
+    },
+    {
+      "id": "XwAAm2wzbFqe4dcx9avUgv",
+      "subject": "Check your email",
+      "to": [
+        {
+          "Name": "",
+          "Address": "refine-96adec07-57ff-4864-bd17-62e23d6d383b@example.com"
+        }
+      ]
+    }
+  ],
+  "mailpitBrowser": "message seen in Mailpit inbox",
+  "pageErrors": [],
+  "phoneOverflow": false,
+  "services": "compose Postgres, Mailpit, VictoriaTraces, VictoriaLogs"
+}
