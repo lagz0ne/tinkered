@@ -2626,3 +2626,23 @@ Own checks, scaffold, plain check, and Jev exited 0 in all three runs.
 Both good browser passes report 10/10 checks.
 Logs: `reference-trusted-final/round-3/` under the writer log folder.
 Round 4 is running.
+
+Trusted browser proof: round 4 passed twice with exit 0.
+Its planted signature break exited 1 on
+`r4 payment waits for a valid signed webhook and syncs across tabs`.
+Both good browser passes report 17/17 checks.
+Scaffold, plain check, and Jev exited 0 in all three runs.
+The break also made the app's own check exit 1:
+`timingSafeEqual` became unused after removing the signature comparison.
+The browser reached the forged event and rejected the broken app by name.
+Its test and build still passed.
+Assumption: this meets the brief's named-break rule;
+the brief does not require the broken app's own check to pass.
+Logs: `reference-trusted-final/round-4/` under the writer log folder.
+Round 5 is running.
+
+The prior writer resumed while the takeover writer was working.
+Its round 3 proof commit `21b7e1af` is kept.
+The takeover writer asked it to leave edits and the rebase alone,
+keep PID 640336 alive, and report that process's final exit.
+No duplicate reference process was started.
