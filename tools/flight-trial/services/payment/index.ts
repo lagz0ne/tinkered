@@ -156,7 +156,7 @@ const sendWebhook = operation({
       }
       calls.update((previous) => [
         ...previous,
-        { route: "POST webhook", time: clock.currentTimeMillis(), status },
+        { id: ctx.random.uuid(), route: "POST webhook", time: clock.currentTimeMillis(), status },
       ]);
     }
   },
