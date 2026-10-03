@@ -2356,7 +2356,7 @@ The original Postgres and Mailpit containers were left running.
 
 Writer: Codex.
 Branch: `trial/flight-integration`.
-Next: finish the trusted browser proof, then rebase and run all gates.
+Next: finish workspace gates, then remove replaced images and proof folders.
 Verify: rounds 1 to 5 pass twice; five planted breaks fail.
 
 Assumptions:
@@ -2662,3 +2662,28 @@ The saved-result check also exited 0:
 It checked ten full passes, five named breaks, image IDs, and frozen files.
 All 15 rows are now in `INTEGRATION-RESULTS.json`.
 Next: rebase onto main, run all workspace gates, then remove old proofs.
+
+### Integration: rebase onto the UUID fix
+
+The rebase onto `origin/main` at `f847c99c` finished with exit 0.
+The first attempts stopped on the two known old merge conflicts.
+Main's services, data, tests, and other out-of-scope files were kept.
+The trial files match the proved pre-rebase tree byte for byte.
+Scope proof: `tools/writer-trial/.logs/takeover-rebase-scope.log`, exit 0.
+
+Core now builds a v4 UUID with `crypto.getRandomValues`
+when a plain HTTP page has no `crypto.randomUUID`.
+The secure-origin flag is no longer required with this Core build.
+Assumption: keep the already proved `.3` image fixed.
+It still packs the older Core, so its teacher keeps the flag.
+A later image rebuild can drop the flag and test plain HTTP directly.
+No Core, app, or service source was changed by this writer.
+
+The post-rebase workspace gate chain exited 0.
+Install, build, check, all package tests, harness tests, prose,
+and `pnpm validate` each exited 0.
+The check has zero errors and 28 warnings.
+Nine package tasks, 79 harness tests, and all 16 validation lanes passed.
+Log: `tools/writer-trial/.logs/takeover-final-gates.log`.
+The current gate and image list is in `INTEGRATION-GATES.md`.
+Next: remove replaced images and proof folders, keeping final proof.

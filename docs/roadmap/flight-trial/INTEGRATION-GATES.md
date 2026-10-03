@@ -1,139 +1,114 @@
 # Flight integration proof
 
 Branch: `trial/flight-integration`.
-Base: `92b8937f`.
-Status: blocked on the landed scaffold's browser startup.
-The code checks pass; the full five-round proof does not.
+Main: `f847c99c`.
+Status: all required proof and workspace gates pass; cleanup is next.
 
-## Saved commits
+## Five rounds
 
-- `b31299f9`: merge reviewed rounds; keep landed services.
-- `3d370462`: merge reviewed harness; keep main outside allowed paths.
-- `a3a82a02`: freeze and copy `SERVICES.md`.
-- `fa9f5a50`: give the teacher the app's WEBHOOK_SECRET.
-- `1a3b9d5f`: sort scaffold paths with a compare function.
-- `a48a7946`: remove `--teacher-dir`.
-- `635bcb27`: build and save writer and services images.
-- `75236f79`: move the reference to the landed strict scaffold.
-- `650f6051`: use shipped tests and the frozen gate for proof.
-- `7d282124`: return completed mail before retry guards.
-- `26c31e52`: freeze proof inputs and save browser failure details.
+PID 640336 finished with exit 0.
+Log: `tools/writer-trial/.logs/resume-reference-trusted-final.log`.
+Saved rows: [INTEGRATION-RESULTS.json](INTEGRATION-RESULTS.json).
+The full saved-result check also exited 0:
+`tools/writer-trial/.logs/takeover-reference-verified.log`.
 
-## Gates by exit code
+Each round has `pass-1`, `pass-2`, and `break` under
+`tools/writer-trial/.logs/reference-trusted-final/round-N/`.
+Each folder has `result.json`, `own.log`, `teacher.log`,
+`scaffold.log`, `plain.log`, and `jev.json`.
 
-All relative log paths below start at `tools/writer-trial/.logs/`.
-The workspace chain printed `EXIT 0` in `integration-gate-chain.log`.
+- Round 1: 0, 0, 1.
+  Break: `r1 public search shows real fares and asks each active supplier once`.
+- Round 2: 0, 0, 1.
+  Break: `r2 a cheaper late fare merges and a failed supplier keeps good rows`.
+- Round 3: 0, 0, 1.
+  Break: `r3 a changed price is refused before any hold order`.
+- Round 4: 0, 0, 1.
+  Break: `r4 payment waits for a valid signed webhook and syncs across tabs`.
+- Round 5: 0, 0, 1.
+  Break: `r5 failed mail keeps the booking valid and retry sends once`.
 
-- Install: 0, `integration-install.log`.
-- Workspace build: 0, `integration-gate-build.log`.
-- `vp check`: 0, `integration-gate-check.log`.
-  Zero errors; 28 warnings, matching the base check.
-- All package tests: 0, `integration-gate-tests.log`.
+All ten good runs passed own, teacher, scaffold, plain, and Jev checks.
+The five broken runs failed their named browser checks.
+The round 4 break also made TypeScript reject unused `timingSafeEqual`.
+Its browser reached the forged event and failed the signature check.
+The other four broken apps passed their own checks.
+Every broken run passed scaffold, plain, and Jev checks.
+
+## Workspace gates after the rebase
+
+All log names below start at `tools/writer-trial/.logs/`.
+The full chain is `takeover-final-gates.log`, exit 0.
+
+- Install: 0, `final-install.log`.
+- Build: 0, `final-build.log`.
+- `vp check`: 0, `final-check.log`.
+  Zero errors and 28 warnings.
+- All package tests: 0, `final-tests.log`.
   All nine tasks pass.
-- Writer harness tests: 0, `integration-gate-writer-tests.log`.
+- Harness tests: 0, `final-writer-tests.log`.
   All 79 tests pass.
-- Prose: 0, `integration-gate-prose.log`.
-- `pnpm validate`: 0, `integration-gate-validate.log`.
+- Prose: 0, `final-prose.log`.
+- `pnpm validate`: 0, `final-validate.log`.
   All 16 lanes pass.
-- Strict style census: 0, `integration-gate-style.log`.
-- Reference strict plain check: 0, `integration-final-plain.log`.
-  17 plain helpers; cap 17.
-- Both image builds and tar saves: 0, `integration-images-build.log`.
-- Standalone services rebuild: 0, `integration-services-rebuild-command.log`.
-- Create: 0, `integration-create.log`.
-- Stage 1: 0, `integration-stage-1.log`.
-- Worker folder proof: 0, `integration-workspace-proof-green.log`.
-  Scaffold, skills, tests, packed packages, and packet 1 only.
-  `SERVICES.md`, `PLAIN.md`, and `check:plain` are present.
-  No teacher files are present.
-- Isolation proof: 0, `integration-isolation.log`.
-  Internet, private controls, and writer Mailpit Chaos are refused.
-  Service APIs, Postgres, SMTP, and signed callbacks work.
-- Jev preflight: 0, `integration-jev-preflight.log`.
-- Jev harness tests: 0, `integration-jev-tests.log`.
-- Jev final mail source: 0, `integration-jev-final-source.log`.
-- Jev labels: 0, `integration-jev-labels.log`.
-  Mail fix label: 0, `integration-mail-jev-label.log`.
-  Saved labels: [INTEGRATION-JEV.jsonl](INTEGRATION-JEV.jsonl).
-- Jev promise scan: 1, `integration-jev-promises.log`.
-  It assumes `tools/writer-trial/tests`, which does not exist.
-  The harness test files live at the package root.
-- Full reference run: 1, `integration-reference-final-v2.log`.
-  It stops on round 1, pass 1.
-- Public Core failure probe: 1, `integration-late-defer-red.log`.
-  This is the expected failure that proves the late-cleanup error.
-- Browser failure stack capture: 0, `integration-browser-stack-final.log`.
-  The capture worked; the app stayed blank with `Disposed`.
-- Final doc prose: 0, `integration-handoff-prose.log`.
-- Final scope and frozen-packet check: 0, `integration-handoff-scope.log`.
+- Rebase: 0, `takeover-rebase-continue-3.log`.
+  Earlier stops and their merge conflicts remain in the rebase logs.
+- Scope and byte check: 0, `takeover-rebase-scope.log`.
+  Main is an ancestor; proved trial files match their prior bytes.
 
-Round 1, pass 1 logs start at
-`tools/writer-trial/.logs/reference-final-v2/round-1/pass-1/`.
+## Image, stage, and isolation proof
 
-- Own check: 0, `own.log`; all 37 shipped tests pass.
-- Teacher: 1, `teacher.log`; all three checks fail on startup.
-- Exact scaffold seam: 0, `scaffold.log`; 27 files match.
-- Strict plain check: 0, `plain.log`; cap 17 holds.
-- Frozen Jev gate: 0, `jev.json`; no blockers.
-- Full result: 1, `result.json`; `machine-fail`.
+These saved proofs use the final `.3` writer image.
+Their log names also start at `tools/writer-trial/.logs/`.
 
-Round 1, pass 2, rounds 2 to 5, and planted breaks did not run.
-The proof stops at the first full-gate failure.
-Earlier setup failures remain in their own log folders.
-They are not counted as passes.
+- Image build and saved tars: 0, `resume-images-final-build.log`.
+- Create: 0, `resume-ready-create.log`.
+- Stage 1: 0, `resume-ready-stage-1.log`.
+- Worker folder proof: 0, `resume-ready-workspace-proof.log`.
+- Frozen files: 0, `resume-ready-frozen-proof.log`.
+- Isolation: 0, `resume-final-isolation.log`.
+
+The worker has the scaffold, five skills, shipped tests, and packet 1 only.
+It has `SERVICES.md`, `PLAIN.md`, and `check:plain`.
+It has no teacher files.
+Internet, private controls, and writer Mailpit Chaos are refused.
+Service APIs, Postgres, SMTP, and signed callbacks work.
+
+Prepared trial: `flight-integration-ready-01`, staged at packet 1.
+No model run started.
+Manifest:
+`/home/paseo/.local/share/tinker-writer-trial/flight-integration-ready-01/manifest.json`.
 
 ## Images and saved copies
 
-Writer tag: `tinker-writer-flight:20261003.integration.1`.
-Writer ID:
-`sha256:55f5fed4c6a984e6189ff8f526da7cc32c5ecfc681308c22c8ffc0c9f9db5d37`.
-Writer tar:
-`/home/paseo/.local/share/tinker-writer-trial/image-20261003.integration.1/image.tar`.
+Exact IDs and tar paths are in
+[INTEGRATION-IMAGES.json](INTEGRATION-IMAGES.json).
 
-Services tag: `tinker-flight-services:20261003131759497`.
-Services ID:
-`sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b`.
-Services tar:
-`/home/paseo/.local/share/tinker-writer-trial/services-20261003131759497/image.tar`.
-The initial `20261003.integration.1` services tag has the same ID.
-Its first saved tar also stays in the writer image folder's `services/`.
+- Writer: `tinker-writer-flight:20261003.integration.3`.
+  ID: `sha256:e12f8a3c62fae5b765a901f006b64aef100de1d3ed6299a1aa558dcbd0bb41a5`.
+- Services: `tinker-flight-services:20261003.integration.3`.
+  ID: `sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b`.
+- Postgres:
+  `sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537`.
+- Mailpit:
+  `sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75`.
 
-Postgres ID:
-`sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537`.
-Mailpit ID:
-`sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75`.
+Keepers and both saved tars stay in place.
+The proved image still packs Core from `1ff5402f`.
+Its teacher uses full Chromium and trusts the private app origin.
+Main's `f847c99c` fixes UUIDs on plain HTTP pages.
+The secure-origin flag is no longer required with that Core build.
+The proved image was kept fixed through all rounds.
 
-Both new images have idle keepers.
-Old images and proof folders stay until the new full proof passes.
-The prepared trial is `flight-integration-01`.
-Its manifest is
-`/home/paseo/.local/share/tinker-writer-trial/flight-integration-01/manifest.json`.
-It is staged at packet 1; no model run started.
-
-## Missing fix and next run
-
-The missing fix is at
-`apps/start-scaffold/src/scaffold/frontend/router.tsx:28`.
-`tabLifetime.bind()` registers cleanup after its factory returned.
-Core raises `Disposed` with reason `resource factory already finished`.
-Main, the reference, and the image have the same scaffold bytes.
-The brief forbids this writer from changing apps or Core.
-
-Lead: register that cleanup while the resource factory is open.
-Rebuild the writer image with a new tag and copy the fixed scaffold
-into the reference before running the proof in a fresh folder.
-
-```bash
-node tools/writer-trial/harness/run-reference.mjs \
-  tools/writer-trial/.logs/reference-after-start-fix
-```
-
-After the Hono routes land, rebuild the services image with one command:
+After the Hono routes land, rebuild services with:
 
 ```bash
 node tools/writer-trial/flight-services-image.mjs
 ```
 
-That command builds Core, packs current service dependencies,
-saves a tar, starts an idle keeper, and updates the services tag.
-It changes no service source.
+## Review notes
+
+Prior Jev answers stay in [INTEGRATION-JEV.jsonl](INTEGRATION-JEV.jsonl).
+No source or test code was changed in the takeover.
+No mutation lane is required by this brief.
+Nothing was pushed.
