@@ -6,6 +6,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   realpathSync,
   rmSync,
@@ -85,6 +86,52 @@ await test("create refuses an unavailable frozen Jev before publishing a trial",
   try {
     const { tools, jev } = sourceCopy(root);
     writeFileSync(join(jev, "lib.mjs"), "import 'missing-jev-package';\n");
+    const copy = await import(pathToFileURL(join(tools, "suite.mjs")).href);
+    assert.throws(() => copy.freezeTrial(join(root, "trial"), "stock"), /Jev unavailable/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+await test("create refuses a missing shape-only package even when lib loads", async () => {
+  const root = mkdtempSync(join(tmpdir(), "jev-shape-package-"));
+  try {
+    const { tools, jev } = sourceCopy(root);
+    const pkg = JSON.parse(readFileSync(join(jev, "package.json"), "utf8"));
+    delete pkg.dependencies["@microsoft/tsdoc"];
+    writeFileSync(join(jev, "package.json"), JSON.stringify(pkg));
+    load(jev);
+    const copy = await import(pathToFileURL(join(tools, "suite.mjs")).href);
+    assert.throws(() => copy.freezeTrial(join(root, "trial"), "stock"), /Jev unavailable/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+await test("create refuses a missing parser native binding even when lib loads", async () => {
+  const root = mkdtempSync(join(tmpdir(), "jev-native-package-"));
+  try {
+    const { tools, jev } = sourceCopy(root);
+    rmSync(join(jev, "node_modules"));
+    const { freezeJevPackages } = await import("./jev-packages.mjs");
+    freezeJevPackages(join(repoDir, "tools/jev"), jev);
+    const parser = realpathSync(join(jev, "node_modules/oxc-parser"));
+    const bindings = join(parser, "node_modules/@oxc-parser");
+    for (const name of readdirSync(bindings)) rmSync(join(bindings, name));
+    load(jev);
+    const copy = await import(pathToFileURL(join(tools, "suite.mjs")).href);
+    assert.throws(() => copy.freezeTrial(join(root, "trial"), "stock"), /Jev unavailable/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+await test("create refuses an unavailable question bank even when lib loads", async () => {
+  const root = mkdtempSync(join(tmpdir(), "jev-bank-package-"));
+  try {
+    const { tools, jev } = sourceCopy(root);
+    writeFileSync(join(jev, "bank.mjs"), "import 'missing-bank-package';\n");
+    load(jev);
     const copy = await import(pathToFileURL(join(tools, "suite.mjs")).href);
     assert.throws(() => copy.freezeTrial(join(root, "trial"), "stock"), /Jev unavailable/);
   } finally {

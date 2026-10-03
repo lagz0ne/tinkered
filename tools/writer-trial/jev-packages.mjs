@@ -50,7 +50,7 @@ function copyDependencies(source, target, linkPackage) {
   }
 }
 
-/** A fresh process proves the frozen lib loads even if this process cached it earlier. */
+/** A fresh process loads every Jev module the broker imports, without cached imports. */
 export function verifyJevLoads(jevDir) {
   try {
     execFileSync(
@@ -58,12 +58,16 @@ export function verifyJevLoads(jevDir) {
       [
         "--input-type=module",
         "-e",
-        "await import(process.argv[1])",
-        pathToFileURL(join(jevDir, "lib.mjs")).href,
+        "for (const path of process.argv.slice(1)) await import(path)",
+        ...["lib.mjs", "bank.mjs", "extract.mjs", "shape.mjs"].map(
+          (file) => pathToFileURL(join(jevDir, file)).href,
+        ),
       ],
       { encoding: "utf8", timeout: 30000, stdio: "pipe" },
     );
   } catch (error) {
-    throw new Error(`Jev unavailable: frozen lib cannot load (${error.stderr ?? error.message})`);
+    throw new Error(
+      `Jev unavailable: frozen modules cannot load (${error.stderr ?? error.message})`,
+    );
   }
 }

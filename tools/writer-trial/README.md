@@ -61,7 +61,8 @@ task, full rules, tool copies, limits, and the Jev copy.
 It records hashes and refuses a silent refresh.
 The frozen Jev owns copies of its installed packages and their dependencies.
 Package links stay inside the frozen Jev folder.
-Create imports its `lib.mjs` in a fresh process before saving the manifest.
+Create imports `lib.mjs`, `bank.mjs`, `extract.mjs`, and `shape.mjs` in a fresh process.
+It proves their packages load before saving the manifest.
 Check repeats that import before starting any check containers.
 A failed import is unavailable, never a pass.
 
@@ -495,4 +496,7 @@ T08 names the test rule for error checks inside assertions.
 - frozen Jev still loads after deleting the source checkout and its package link.
 - frozen Jev loads after deleting an owned source copy of its packages.
 - create refuses an unavailable frozen Jev before publishing a trial.
+- create refuses a missing shape-only package even when lib loads.
+- create refuses a missing parser native binding even when lib loads.
+- create refuses an unavailable question bank even when lib loads.
 - check refuses unavailable Jev before running own or teacher containers.
