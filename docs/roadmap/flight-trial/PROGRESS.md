@@ -841,7 +841,7 @@ Writer: Codex.
 Branch: `trial/flight-rounds`.
 Base: `0f0a83fe`.
 The board stays with the lead; it is outside this writer's paths.
-Next: finish the lead review fixes, then rerun all five round proofs.
+Next: lead review of the fix proof, then wire the writer image.
 Verify: reference passes twice; a wrong answer fails by name.
 
 ### Round 1 reference
@@ -1568,3 +1568,80 @@ Receipt checks compare the returned execution ID, not the whole JSON object.
 Assumption: harmless extra receipt fields are allowed.
 No packet says its receipt is a closed object shape.
 Next: round 5 proof and final gates.
+
+### Lead review fixes complete
+
+Round 5 passes 21/21 twice, each exit 0.
+Its new email-route case proves concurrent and later repeats use one execution.
+The improved failed-send break fails the original named partial-mail case, exit 1.
+Driver and all good, broken, and restored builds exit 0:
+`/tmp/flight-rounds-review-r5-proof.log`.
+Reference logs: `.logs/r5-pass-1.log`, `r5-pass-2.log`, `r5-break.log`.
+Every earlier round is rerun by this proof.
+
+Review items:
+
+1. Service HTTP doc added; the lead must ship it as `SERVICES.md`.
+2. Search waits for the Search button.
+3. Held setup and race winners use saved history; losers need visible Sold out.
+4. Buttons are checked by outcomes; route repeats use their own execution IDs.
+5. Expiry polls reload before reading.
+6. Supplier polling is removed; hold events update live seats.
+   Idle results prove zero supplier offer GETs over a wall-time condition.
+7. Empty history accepts no table or an empty table after page load.
+8. Packets 4–5 specify HTTP 200 and show filled receipt bodies.
+9. Teacher settings include WEBHOOK_SECRET.
+   Old signatures, changed bytes, and fresh real-intent result repeats are covered.
+   Old bad-digest and new timestamp breaks are both caught.
+10. Mail time strings match the Flights display values saved before Hold.
+11. Jev was removed from writer rules.
+    The lead must ship the committed scaffold `check:plain` script and its tools.
+12. The reset-error allowance and its teacher doc section are gone.
+13. The new-search poll needs a JFK row and rejects AMS rows.
+14. The mail break uses the real failed-send path; the refund break is caught too.
+15. The rounds section's stale next step is updated.
+
+Final gates, each exit 0:
+
+- `vp check`: `/tmp/flight-rounds-review-final-check.log`.
+  Zero errors, 28 existing warnings, none from authored changes.
+- Reference `check:plain`: `/tmp/flight-rounds-review-final-plain.log`.
+  It checks 96 files and 22 plain functions.
+- Typecheck: `/tmp/flight-rounds-review-final-types.log`.
+- Style: `/tmp/flight-rounds-review-final-style.log`.
+- TSDoc: `/tmp/flight-rounds-review-final-tsdoc.log`; 96 files and zero S26 rows.
+- Workspace build: `/tmp/flight-rounds-review-workspace-build.log`.
+- Full tests: `/tmp/flight-rounds-review-workspace-tests.log`; nine tasks run serially.
+- Validate: `/tmp/flight-rounds-review-final-validate.log`; all 16 lanes.
+- Scope: `/tmp/flight-rounds-review-scope.log`.
+- Frozen packets 1–3: `/tmp/flight-rounds-review-frozen.log`.
+- Diff whitespace: `/tmp/flight-rounds-review-diff-check.log`.
+- Jev: `/tmp/flight-rounds-review-final-jev.log`.
+  No file flags; five unit flags are answered below.
+
+Jev answers:
+
+- `stopOnlyInDefer`, holdFlight and saveBookingState: false.
+  They await their work inside the operation and start no background task.
+  Supplier calls consume their response under their call signal.
+  Native DB calls are awaited; the pool belongs to its resource.
+- `configNotTag`, holdSeat, payHold, and retryConfirmation: false.
+  Their relative app routes are fixed packet contracts, not settings.
+  Supplier and payment URLs and secrets remain required backend tags.
+- Deleted route files print missing-path notes; no source remains to judge there.
+  The label bank is outside this writer's allowed paths.
+  The lead can use these reasons in its labels.
+
+Assumptions are listed in this fix round's earlier sections.
+No stash, package, app, or service source change was made.
+No frozen packet was edited.
+Next: lead copies the service doc as `SERVICES.md`, adds `check:plain` to the image,
+and supplies the matching WEBHOOK_SECRET to the teacher before harness proof.
+
+Last doc prose and handoff check exited 0:
+`/tmp/flight-rounds-review-final-prose.log`,
+`/tmp/flight-rounds-review-handoff-check.log`.
+The owned supplier/payment group and relay stopped with exit 0.
+The lead's allowed Chaos Mailpit container stopped with exit 0:
+`/tmp/flight-rounds-review-cleanup.log`.
+The original Postgres and Mailpit containers were left running.
