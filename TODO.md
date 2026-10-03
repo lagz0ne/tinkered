@@ -24,10 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
-  Next: import OpenFlights airports, airlines, and routes; credit them.
-  Verify: the same seed gives the same schedules, fares, and seats.
-
 - **trial/flight-services** — payment and three suppliers as Tinker apps behind HTTP (ADR 0098).
   Next: each service owns data from the fixture, a service API, and a control API.
   Verify: the grader delays, fails, and repeats replies only through the control API;
@@ -60,19 +56,27 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
-  Owner: lead (Claude, Start scaffold session); Sol refine writer.
-  Worktree: `../tinkered-start-refine`, branch `start/refine`.
-  Next: the writer fixes the stream and snapshot waste, trims, and adds skills.
-  Verify: a waste test fails before and passes after;
-  a clean shadcn consumer installs, builds, and tests with no manual step;
-  the compose stack signs up, saves a todo, and Mailpit shows the mail.
-  [Brief](docs/roadmap/start-scaffold/REFINE-BRIEF.md).
+- **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
+  Owner: lead (Claude, Start scaffold session); Sol data writer.
+  Worktree: `../tinkered-flight-data`, branch `trial/flight-data`.
+  Next: the writer builds `tools/flight-trial/data/` and its seeded generator.
+  Verify: the same seed gives the same hash; another seed differs;
+  overlapping flights appear at two suppliers; pinned source hashes match.
+  [Brief](docs/roadmap/flight-trial/DATA-BRIEF.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
+  Owner: lead (Claude, Start scaffold session); Sol refine writer.
+  Worktree: `../tinkered-start-refine`, branch `start/refine`.
+  Next: lead lands; Opus reviewer READY at `67324417`.
+  Verify: a waste test fails before and passes after;
+  a clean shadcn consumer installs, builds, and tests with no manual step;
+  the compose stack signs up, saves a todo, and Mailpit shows the mail.
+  [Brief](docs/roadmap/start-scaffold/REFINE-BRIEF.md).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
