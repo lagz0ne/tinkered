@@ -251,3 +251,43 @@ New sizes:
 
 The earlier proof and hashes above describe the version before this review.
 The review proof here describes the new saved fixture.
+
+Final review gates ran in the foreground, one at a time.
+All final logs below are under `tools/flight-trial/.logs/`.
+
+- Workspace build: exit 0, `review-final-build.log`.
+- Check: exit 0, `review-final-check.log`.
+  It prints zero errors and 28 warnings.
+  None are in `tools/flight-trial`.
+- Reader tests: exit 0, `review-final-test.log`; all 11 pass.
+- Source hashes and subset: exit 0, `review-final-sources.log`.
+  The subset hash stays unchanged; total data is below one MB.
+- JSON seed proof: exit 0, `review-final-seeds.log`.
+  Both seed 97 JSON hashes match; seed 98 differs.
+  Saved JSON matches the manifest and the fresh seed 97 JSON.
+- Prose: exit 0, `review-final-prose.log`.
+- Strict style census: exit 0, `review-final-style.log`.
+- Jev preflight: exit 0, `review-final-jev-preflight.log`.
+  Range: `24e47d75..HEAD`; no flags, one operation note.
+- Jev tests by name: exit 1, `review-final-jev-tests-name.log`.
+  The tool tries to open `flight-trial` as a file.
+- Jev tests by file: exit 0, `review-final-jev-tests.log`.
+  All 11 entries have no flags.
+- Jev promises by name: exit 1, `review-final-jev-promises-name.log`.
+  The tool tries to read `packages/flight-trial/tests`.
+- Jev promises by path: exit 0, `review-final-jev-promises.log`.
+  All 11 titles have README lines.
+- Validate: exit 0, `review-final-validate.log`; all 16 lanes pass.
+
+Assumption: use the Jev tools' supported path forms for this private tool.
+The checks use the same test file and README as the requested name forms.
+The test command uses `tools/flight-trial/tests/flights.test.ts`.
+The promises command uses `../tools/flight-trial`.
+No Jev files were changed; they are outside the allowed paths.
+There are no flags to label.
+The operation note still describes a data build step, not a live service.
+
+The workspace already allows the esbuild build step for validate.
+No workspace config change was needed.
+The mutation lane stays with the lead at landing.
+Core feedback: none.
