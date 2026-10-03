@@ -54,6 +54,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Owner: lead (Claude, Start scaffold session).
   Trial `flight-deepseek-01`; writer `pi/writer-gateway/deepseek/deepseek-v4.1-flash`, high.
   Baseline: **0** (round 1 failed; hidden checks 1 of 3; own checks and Jev passed).
+  Retries: round 1 passed on try 2 (3 of 3). Round 2 running.
   Next: retries with teacher feedback, up to 3 tries a round (user 2026-10-03).
   Verify: each try's save, check, and feedback in PROGRESS.
   [Proof](docs/roadmap/flight-trial/PROGRESS.md#deepseek-baseline-2026-10-03).

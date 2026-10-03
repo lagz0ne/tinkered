@@ -2970,3 +2970,14 @@ Incident: the writer's Jev link pointed into the integration
 worktree, which the lead removed after launch.
 Jev failed for the first pass; the lead fixed the link
 and resumed the agent for the Jev step only.
+
+### Retries (user, 2026-10-03: "1, be more autonomous")
+
+Retries measure how far DeepSeek gets with one teacher note a round.
+The baseline stays 0. Up to 3 tries a round.
+Later rounds are staged with `stage --explore` (`275cae5c`).
+
+- Round 1, try 2 (agent `e56bd6c9`): **pass**, hidden checks 3 of 3.
+  Feedback named the two failed cases and the notice rule.
+  DeepSeek now shows `Search complete` beside the outcome line.
+- Round 2, try 1 (agent `aa50f105`): running.
