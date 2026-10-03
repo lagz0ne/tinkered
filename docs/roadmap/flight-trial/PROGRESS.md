@@ -2550,3 +2550,11 @@ The new listener-state label is false:
 `tabLifetime` owns a close callback and its page listener,
 not state rendered by a view.
 The label is saved in `INTEGRATION-JEV.jsonl`.
+
+Final image proof: round 1 passed twice with exit 0.
+Its planted fare break exited 1 on
+`r1 public search shows real fares and asks each active supplier once`.
+Own checks, exact scaffold, strict plain check, and Jev all exited 0
+for both good passes and the planted break.
+Results are saved in `INTEGRATION-RESULTS.json`.
+Rounds 2 to 5 are still running; old proof folders stay.
