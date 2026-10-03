@@ -31,10 +31,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Core tests, `scripts/ticket.sh`, `pnpm validate` pass.
   [Feedback](docs/roadmap/core-feedback.md#shared-unit-with-a-slot-2026-10-03).
 
-- **trial/deepseek-baseline** — run DeepSeek through the rounds.
-  Next: after the rounds land.
-  Verify: the baseline is the number of rounds passed in order.
-
 - **core/graceful-writes** — active calls keep state open during graceful close.
   Asked by: Harness and Tinkerer live entries.
   Next: a Core writer fixes the delayed controller write after the active card.
@@ -54,28 +50,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/flight-integration** — join rounds and harness on main; prove the whole trial.
-  Owner: lead (Claude, Start scaffold session); Sol integration writer.
-  Worktree: `../tinkered-flight-integration`, branch `trial/flight-integration`.
-  Next: merge rounds, then harness; rebuild images; ship `SERVICES.md`.
-  Verify: the reference passes rounds 1-5 twice through the full gate;
-  one planted break per round fails it by name; isolation proof passes.
-  [Brief](docs/roadmap/flight-trial/INTEGRATION-BRIEF.md).
-
-- **trial/flight-rounds** — five round packets, hidden checks, and a reference answer.
-  Owner: lead (Claude, Start scaffold session); Sol rounds writer.
-  Worktree: `../tinkered-flight-rounds`, on the services branch.
-  Next: rounds 1-2 ready first (user chose a staged start), then 3-5.
-  Verify: the reference passes every round; a planted break fails each round.
-  [Brief](docs/roadmap/flight-trial/ROUNDS-BRIEF.md).
-
-- **trial/flight-harness** — a `flight` suite in `tools/writer-trial` with real local services.
-  Owner: lead (Claude, Start scaffold session); Sol harness writer.
-  Worktree: `../tinkered-flight-harness`, on the services branch.
-  Next: stage 1 ready first, then later stages and the score record.
-  Verify: no internet or control API from the writer's container;
-  an edited `src/scaffold/` file fails the gate.
-  [Brief](docs/roadmap/flight-trial/HARNESS-BRIEF.md).
+- **trial/deepseek-baseline** — DeepSeek builds the flight app, round by round.
+  Owner: lead (Claude, Start scaffold session).
+  Trial `flight-deepseek-01`; writer `pi/writer-gateway/deepseek/deepseek-v4.1-flash`, high.
+  Next: round 1 runs; then save, check, feedback; a pass stages the next round.
+  Verify: the baseline is the number of rounds passed in order (`score.json`).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
@@ -98,6 +77,15 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/flight-integration** — rounds and harness joined on main; the whole trial proven.
+  Owner: lead (Claude, Start scaffold session); Sol writer, then Astra (Sol at capacity); Opus reviewer.
+  Also closes `trial/flight-rounds` (READY `10ff6e72`) and `trial/flight-harness` (READY `6a2209ea`).
+  The writer's network gives the host no address; teacher files are pinned by hash at create.
+  Proof: the reference passes rounds 1-5 twice, then once on the Hono services and new Core image;
+  one planted break per round fails it by name; the reviewer scanned all ports on the gateway.
+  Found and fixed on the way: `start/tab-defer`, `core/uuid-fallback`.
+  [Gates](docs/roadmap/flight-trial/INTEGRATION-GATES.md).
 
 - **trial/services-routing** — the trial services route through Hono, not Tinker (ADR 0101).
   Owner: lead (Claude, Start scaffold session); Sol writer, Astra fix writer; Opus reviewer.
