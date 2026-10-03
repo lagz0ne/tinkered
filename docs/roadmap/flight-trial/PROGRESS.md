@@ -2579,8 +2579,17 @@ Log: `tools/writer-trial/.logs/resume-flight-http-uuid-red.log`.
 
 Assumption: give the teacher the browser features a HTTPS app gets.
 Chrome now trusts only the app address from APP_URL.
-The native UUID probe with that setting exits 0.
+The first native UUID probe with that flag also exits 1.
 Log: `tools/writer-trial/.logs/resume-flight-http-uuid-green.log`.
+That file's old green name does not mean it passed.
 No Core, app, service, or reference source change is needed.
 A fresh full run uses the corrected teacher setting.
 Old proof folders and images still stay until that run passes.
+
+The default headless shell ignores the trusted-address flag.
+The teacher now chooses full Chromium with `channel: "chromium"`.
+Its config and cache paths are `/tmp` because the image is read-only.
+The full Chromium UUID probe exited 0 and prints `secure: true`.
+Log: `tools/writer-trial/.logs/resume-flight-http-full-chromium-green.log`.
+The earlier full Chromium probe failed before these writable paths
+were set; its crashpad error is kept in its red log.

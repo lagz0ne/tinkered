@@ -93,3 +93,10 @@ The app can then use `crypto.randomUUID()` to make execution IDs.
 A normal HTTPS app has this browser feature.
 The isolated HTTP trial needs the matching Chrome launch setting.
 This changes no teacher assertion, app code, or network rule.
+
+The teacher uses full Chromium through `channel: "chromium"`.
+Its config and cache paths are `/tmp` in the read-only container.
+The default headless shell did not honor the trusted-address flag
+in the saved browser probe.
+See [Playwright's browser modes](https://playwright.dev/docs/browsers)
+and [Chromium's local testing rule](https://www.chromium.org/Home/chromium-security/deprecating-powerful-features-on-insecure-origins/).

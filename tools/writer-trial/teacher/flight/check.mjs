@@ -6,8 +6,10 @@ import { round4 } from "./round-4.mjs";
 import { round3 } from "./round-3.mjs";
 const suite = settings();
 const browser = await chromium.launch({
+  channel: "chromium",
   headless: true,
   args: [`--unsafely-treat-insecure-origin-as-secure=${new URL(suite.app).origin}`],
+  env: { ...process.env, XDG_CONFIG_HOME: "/tmp", XDG_CACHE_HOME: "/tmp" },
   ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}),
 });
 const cases = [];
