@@ -19,8 +19,9 @@ export declare namespace Service {
   type Failure = (code: string, status?: number) => Reply;
   type Call = { route: string; time: number; status: number };
   type Entry = Call & { id: string };
-  type Rule = { delayMs: number; status?: number; repeat: number; saved?: Reply };
+  type Rule = { revision: string; delayMs: number; status?: number; repeat: number; saved?: Reply };
   type Rules = Record<string, Rule>;
+  type Wait = { at: number; wake: () => void };
   type Options = { port: number; host: string; controlToken: string; signal: AbortSignal };
 }
 
@@ -93,7 +94,10 @@ export const control = operation({
       const parsed = routeSchema.safeParse(request.body);
       if (!parsed.success) return reject("invalid_route_rule");
       const { route, ...rule } = parsed.data;
-      rules.update((previous) => ({ ...previous, [route]: rule }));
+      rules.update((previous) => ({
+        ...previous,
+        [route]: { ...rule, revision: ctx.random.uuid() },
+      }));
       return reply(200, { data: parsed.data });
     }
     if (request.route === "POST /control/clock") {
@@ -163,25 +167,29 @@ export function createHttp(
           rule &&
           rule.delayMs > 0 &&
           !(await sleepUntilStopped(clock, rule.delayMs, stop, ctx.signal));
+        let selected: Service.Rule | undefined;
+        rules.update((all) => {
+          const current = all[request.route];
+          if (!rule || current?.revision !== rule.revision) return all;
+          selected = current;
+          return current.saved && current.repeat > 0
+            ? { ...all, [request.route]: { ...current, repeat: current.repeat - 1 } }
+            : all;
+        });
         response = stopped
           ? failure("service_stopped", 503)
-          : await applyRule(rule, request, action, failure);
+          : await applyRule(selected, request, action, failure);
         if (rule)
-          rules.update((all) => ({
-            ...all,
-            [request.route]: {
-              ...rule,
-              saved: response,
-              repeat: rule.saved ? Math.max(0, rule.repeat - 1) : rule.repeat,
-            },
-          }));
+          rules.update((all) => {
+            const current = all[request.route];
+            return current?.revision === rule.revision
+              ? { ...all, [request.route]: { ...current, saved: response } }
+              : all;
+          });
       }
-      calls.update((all) => {
-        const completed = { id, route: request.route, time, status: response.status };
-        return all.some((call) => call.id === id)
-          ? all.map((call) => (call.id === id ? completed : call))
-          : [...all, completed];
-      });
+      calls.update((all) =>
+        all.map((call) => (call.id === id ? { ...call, status: response.status } : call)),
+      );
       return response;
     },
   });
@@ -216,7 +224,7 @@ export function createHttp(
   });
 }
 
-/** The dispatch operation owns this pure choice and awaits any work it selects. */
+/** The dispatch operation owns the choice and awaits the selected action. */
 async function applyRule(
   rule: Service.Rule | undefined,
   request: Service.Request,

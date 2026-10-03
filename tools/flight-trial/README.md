@@ -330,6 +330,8 @@ Read the current intent with `GET /v1/payment_intents/:id`.
 Each webhook has a `Stripe-Signature` header.
 It holds `t=<unix>,v1=<hex signature>`.
 The signature is HMAC-SHA256 over `t.body`, with the shared secret.
+The signature uses real time to meet Stripe's 300 second limit.
+The event's `created` field uses the service clock.
 Use the exact body bytes to check it.
 The service logs each delivery status; zero means the HTTP send failed.
 It makes no automatic retries.
@@ -414,6 +416,9 @@ Omit `status` to run the route after the delay.
 A repeated order reply takes no extra seats.
 Setting a route again clears its saved reply.
 The call log counts a delayed call before it ends and records its final status.
+A call finishing after reset cannot return to the new call log.
+A delayed call cannot restore a replaced or cleared route rule.
+Parallel delayed calls consume only the chosen number of repeats.
 Each call has its route, request start time, and status.
 For service and control calls, status zero means the call is still pending.
 The log includes control calls and payment webhook sends.
