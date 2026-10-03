@@ -1282,3 +1282,67 @@ The first mutation run was stopped after this review finding.
 Its exit is 130; log: `routing-mutate-first.log`.
 It is not a score proof for the final code.
 The final lane will run all source files again under the lock.
+
+### Services routing: final checks before mutation
+
+Source commits: `94945b46`, `e25ff31f`, and `f0df08f8`.
+All gates in `routing-gates.json` have observed exit 0.
+The full chain rebuilt the workspace before check and tests.
+All 87 package tests and all workspace test tasks passed.
+Check has zero errors and 28 warnings.
+The four-process proof answered both APIs and stopped all children.
+Strict style, TSDoc, routing audit, graph audit, and prose passed.
+All 16 validation lanes passed.
+
+Jev source review exited 0.
+Each flag has a reason in `routing-jev-labels.jsonl`.
+The source judges found resource state and stop paths to review.
+The resource owns live clock waits, pending keys, and listener closure.
+The stop operation checks its signal after waits.
+The stopped HTTP test proves its promised reply reaches the caller.
+Private module exports connect the services, not the package API.
+Expected Duffel refusals remain returned HTTP replies.
+
+Jev new-test review found no flags.
+README review found no confident gaps among 87 titles.
+Its four unsure titles already follow the saved README:
+
+- Never mode waits for manual webhook control.
+- Bad route changes are rejected; the wire field is `route`.
+- The listed passenger kinds are supported.
+- An expired business hold frees its cabin for the default adult.
+
+The label tool writes only its fixed shared bank path.
+Assumption: copy it to an ignored log path and change only that destination.
+Its parser, state, label IDs, and arguments remain the tool's own.
+This keeps the allowed paths fixed and gives the lead labels to merge.
+No shared Jev file changed.
+Core feedback: none.
+The full locked mutation lane is still running.
+
+### Services routing: stop Hono's HEAD fallback
+
+Hono sends HEAD through its GET matcher before looking at routes.
+An explicit HEAD route does not stop that fallback.
+Shared middleware now checks the native method and returns the old 404.
+Service route rules still run before that reply.
+The two unused HEAD route rows are removed.
+
+The new HEAD HTTP test failed with 200 instead of 404.
+Red log: `routing-head-red.log`, exit 1.
+It checks both services through their public control API.
+The original 86 tests remain unchanged.
+The second mutation run was stopped for this wire fix, exit 130.
+Its log is `routing-mutate-second.log`.
+The final mutation run will include every source file again.
+
+HEAD fix proof, under `tools/flight-trial/.logs/`:
+
+- First check found that Hono's missing-route reply may be a promise.
+  Await that reply before assigning it to the response.
+  Log: `routing-head-check.log`, exit 1.
+- Build, check, and all 88 tests then passed, exit 0.
+  Logs: `routing-head-green-build.log`,
+  `routing-head-green-check.log`, and `routing-head-green-test.log`.
+- Both new tests have red proof before their wire fix.
+  Every original test is unchanged.

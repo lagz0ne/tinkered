@@ -439,7 +439,6 @@ export const app = extension({
         c.var.scope.run(expireHolds);
         await next();
       });
-      http.on("HEAD", "*", (c) => c.notFound());
       http.post("/control/scenario", async (c) => {
         const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
         return new Response(JSON.stringify(result.body), {

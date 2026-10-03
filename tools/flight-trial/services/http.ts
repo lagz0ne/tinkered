@@ -328,7 +328,10 @@ export const middleware = resource({
         await next();
       }),
       rule: createMiddleware<Wire.Env>(async (c, next) => {
-        if (c.var.control) return next();
+        if (c.var.control) {
+          if (c.req.method === "HEAD") return c.notFound();
+          return next();
+        }
         const params = { name: `${c.req.method} ${c.req.path}`, payment: c.var.payment };
         const selected = await c.var.scope.run(routeRule, { rawInput: params });
         if (selected.response) {
@@ -337,6 +340,8 @@ export const middleware = resource({
             status: response.status,
             headers: response.headers,
           });
+        } else if (c.req.method === "HEAD") {
+          c.res = await c.notFound();
         } else {
           await next();
         }

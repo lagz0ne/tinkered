@@ -52,3 +52,30 @@ test("route rules reject a missing route even when the body has a name", async (
     });
   }
 });
+
+test("HEAD calls keep the missing-route reply", async () => {
+  for (const app of [supplierApp, paymentApp]) {
+    const stop = new AbortController();
+    const scope = createScope({
+      signal: stop.signal,
+      extensions: app,
+      tags: [
+        supplierId("supplier-a"),
+        port(0),
+        host("127.0.0.1"),
+        controlToken("grader"),
+        stopSignal(stop.signal),
+        webhookUrl("http://127.0.0.1:1"),
+        webhookSecret("routing-test"),
+      ],
+    });
+    running.push({ stop, closed: scope.closed });
+    await scope.ready;
+    const { url } = scope.resolve(app);
+    const response = await fetch(`${url}/control/calls`, {
+      method: "HEAD",
+      headers: { authorization: "Bearer grader" },
+    });
+    expect(response.status).toBe(404);
+  }
+});
