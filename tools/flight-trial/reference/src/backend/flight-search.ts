@@ -14,7 +14,11 @@ export const searchFlights = operation({
     }>,
   ) {
     await Promise.all(
-      [{ supplier: "supplier-a", url: settings.SUPPLIER_A_URL }].map(async ({ supplier, url }) => {
+      [
+        { supplier: "supplier-a", url: settings.SUPPLIER_A_URL },
+        { supplier: "supplier-b", url: settings.SUPPLIER_B_URL },
+        { supplier: "supplier-c", url: settings.SUPPLIER_C_URL },
+      ].map(async ({ supplier, url }) => {
         try {
           const response = await fetch(`${url}/air/offer_requests`, {
             method: "POST",

@@ -877,3 +877,34 @@ Assumptions:
 The reference uses ClientOnly for its new page.
 This shows the controls after the browser can handle their clicks.
 No scaffold file was changed for this.
+
+### Rounds 1 and 2 ready
+
+Packets 1 and 2 are final at this step.
+The reference now searches all three suppliers at once.
+Each reply updates the page before slower replies finish.
+Shared flights keep the cheapest offer.
+A new search aborts the old browser request and ignores its late replies.
+
+Proof logs in `tools/flight-trial/reference/.logs/`:
+
+- Round 2 pass 1: exit 0, `r2-pass-1.log`; six checks pass.
+- Round 2 pass 2: exit 0, `r2-pass-2.log`; six checks pass.
+- Planted duplicate rows: exit 1, `r2-break.log`.
+  The cheaper late fare check fails with duplicate flight rows.
+- Proof driver: exit 0, `/tmp/flight-rounds-r2-proof.log`.
+- Reference build: exit 0, `/tmp/flight-rounds-reference-r2-build.log`.
+- Check: exit 0, `/tmp/flight-rounds-r2-check.log`; 29 warnings.
+- Prose: exit 0, `/tmp/flight-rounds-r2-prose.log`.
+- Style census: exit 0, `/tmp/flight-rounds-r2-style.log`.
+  It checks authored folders and skips the generated route tree.
+
+The first full workspace test run had two supplier test timeouts.
+Log: `/tmp/flight-rounds-r2-workspace-tests.log`, exit 1.
+The build after it passed, so the shell's last exit was 0.
+That does not make the earlier test run green.
+A fresh full workspace test run follows without other heavy checks.
+The final report will include its exit code.
+
+Next: round 3 holds.
+Verify: two browser users race; exactly one supplier hold succeeds.

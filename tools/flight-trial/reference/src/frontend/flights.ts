@@ -60,7 +60,7 @@ export const findFlights = operation({
     const signal = AbortSignal.any([ctx.signal, stop.signal]);
     rows.set([]);
     notice.set("Searching");
-    progress.set({ "supplier-a": "pending" });
+    progress.set({ "supplier-a": "pending", "supplier-b": "pending", "supplier-c": "pending" });
     try {
       const response = await fetch(
         `/api/flights/search?${new URLSearchParams(searchInput.parse(draft)).toString()}`,
