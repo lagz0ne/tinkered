@@ -138,42 +138,12 @@ function checkScaffold(app, scaffold, seam) {
 /** Run the image's trusted script on the submitted project, never a writer's replacement. */
 export function checkFlightPlain(app, log) {
   try {
-    const available = run([
-      "exec",
-      app,
-      "node",
-      "-e",
-      "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('/home/pwuser/flight-seed/package.json'));console.log(p.scripts?.['check:plain'] ? 'available' : 'missing');",
-    ]).trim();
-    if (available !== "available") {
-      log.push("Unavailable: image has no check:plain script\nEXIT 1 check:plain\n");
-      return { plainExit: 1, unavailable: "Image check:plain script unavailable", unscored: true };
-    }
-    log.push(
-      "RUN trusted npm run check:plain -- /work\n",
-      run([
-        "exec",
-        "--workdir",
-        "/home/pwuser/flight-seed",
-        "-e",
-        "npm_config_cache=/tmp/npm",
-        app,
-        "timeout",
-        "280",
-        "npm",
-        "run",
-        "check:plain",
-        "--",
-        "/work",
-      ]),
-      "EXIT 0 check:plain\n",
-    );
-    return { plainExit: 0 };
+    run(["cp", join(here, "flight-plain.mjs"), `${app}:/tmp/flight-plain.mjs`]);
+    const { output, ...result } = JSON.parse(run(["exec", app, "node", "/tmp/flight-plain.mjs"]));
+    log.push(output);
+    return result;
   } catch (error) {
-    const output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
-    log.push(`${output}\nEXIT ${error.status ?? 1} check:plain\n`);
-    if (/Cannot find (?:module|package)|MODULE_NOT_FOUND|ENOENT/.test(output) || !error.status)
-      return { plainExit: 1, unavailable: "Image check:plain could not run", unscored: true };
+    log.push(`${error.stdout ?? ""}${error.stderr ?? ""}\nEXIT ${error.status ?? 1} check:plain\n`);
     return { plainExit: 1 };
   }
 }

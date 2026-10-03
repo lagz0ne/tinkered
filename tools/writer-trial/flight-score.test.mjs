@@ -53,3 +53,45 @@ await test("records a full five-round pass", () => {
     baseline: 5,
   });
 });
+
+await test("missing plain does not erase a scaffold, own, or teacher failure", () => {
+  for (const failed of ["scaffoldExit", "ownExit", "teacherExit"]) {
+    const flight = {
+      plainExit: 1,
+      plainUnavailable: true,
+      unscored: true,
+      unavailable: "Image check:plain unavailable",
+      scaffoldExit: 0,
+      ownExit: 0,
+      teacherExit: 0,
+      [failed]: 1,
+    };
+    assert.deepEqual(
+      flightScore([{ round: 1, checks: [{ machine: "machine-fail", flight }] }, passed(1)]),
+      { status: "stopped", passedRounds: 0, firstFailedRound: 1, baseline: 0 },
+    );
+  }
+});
+await test("missing plain alone earns no round and no baseline", () => {
+  assert.deepEqual(
+    flightScore([
+      {
+        round: 1,
+        checks: [
+          {
+            machine: "machine-fail",
+            flight: {
+              plainExit: 1,
+              plainUnavailable: true,
+              unscored: true,
+              scaffoldExit: 0,
+              ownExit: 0,
+              teacherExit: 0,
+            },
+          },
+        ],
+      },
+    ]),
+    { status: "pending", passedRounds: 0, firstFailedRound: null, baseline: null },
+  );
+});

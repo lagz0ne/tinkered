@@ -77,7 +77,13 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 
 // The teacher helpers each suite checker loads, hashed beside it.
 const TEACHER_HELPERS = {
-  "flight-check.mjs": ["flight-network.mjs", "flight-proxy.mjs", "flight-router.mjs", "gate.mjs"],
+  "flight-check.mjs": [
+    "flight-network.mjs",
+    "flight-proxy.mjs",
+    "flight-router.mjs",
+    "flight-plain.mjs",
+    "gate.mjs",
+  ],
   "evaluate.mjs": ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"],
   "acceptance.mjs": [
     "teacher/acceptance.mjs",

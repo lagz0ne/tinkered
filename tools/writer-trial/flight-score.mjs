@@ -7,7 +7,9 @@ export function flightScore(attempts) {
       .flatMap((attempt) => attempt.checks ?? [])
       .filter(
         (check) =>
-          !check.flight?.placeholder && !check.flight?.unscored && !check.evidence?.unavailable,
+          !check.flight?.placeholder &&
+          !check.evidence?.unavailable &&
+          (!check.flight?.unscored || failedAlongsideMissingPlain(check.flight)),
       );
     if (!checks.length)
       return { status: "pending", passedRounds, firstFailedRound: null, baseline: null };
@@ -16,4 +18,12 @@ export function flightScore(attempts) {
     passedRounds++;
   }
   return { status: "complete", passedRounds, firstFailedRound: null, baseline: passedRounds };
+}
+
+/** A missing plain checker cannot erase failures from checks that did run. */
+function failedAlongsideMissingPlain(flight) {
+  return (
+    flight.plainUnavailable === true &&
+    [flight.scaffoldExit, flight.ownExit, flight.teacherExit].some((exit) => exit === 1)
+  );
 }
