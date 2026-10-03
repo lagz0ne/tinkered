@@ -834,6 +834,7 @@ The workspace command was:
 
 The second strict mutation lane will use the same lock,
 the same nine source files, and the unchanged floor of 85.
+
 ## trial/flight-rounds
 
 Writer: Codex.
@@ -1332,3 +1333,109 @@ Logs: `/tmp/flight-rounds-canonical-prose.log`,
 `/tmp/flight-rounds-canonical-commit.log`,
 `/tmp/flight-rounds-rebase-latest-services.log`.
 The prose line was fixed before retrying the save.
+
+### Final service rebase and page account load
+
+The saved branch was rebased onto services `ce22a63f`.
+The first retry stopped on this progress file, exit 1.
+Both writers' notes were kept; continuation exited 0.
+No stash was used.
+Logs: `/tmp/flight-rounds-rebase-latest-services-fixed.log`,
+`/tmp/flight-rounds-rebase-latest-continue.log`.
+Install, workspace build, and serial full tests exited 0:
+`/tmp/flight-rounds-final-install.log`,
+`/tmp/flight-rounds-final-rebased-build.log`,
+`/tmp/flight-rounds-final-rebased-tests.log`.
+
+The first final flight proof passed 16/16 once, exit 0.
+Its second pass failed one hold case with Sign in required, exit 1.
+The proof driver exited 1 and restored the source and build, exit 0.
+Logs: `/tmp/flight-rounds-r5-ready-proof.log`,
+`/tmp/flight-rounds-r5-ready-auth-failure.log`.
+Flights had no page loader, so its account was still empty when a fast search ended.
+The background sync eventually loaded it, after the hold click.
+Flights now loads the account snapshot before showing its controls.
+This uses the same loader as Bookings and the account page.
+The checks and frozen packets were not changed to hide the failure.
+Assumption: the public Flights page may load the viewer's private account snapshot.
+The existing account and booking pages already use that scoped snapshot.
+
+The corrected flight proof passed 16/16 twice, each exit 0.
+The planted mail break failed only its named case, exit 1.
+Driver and all good, broken, and restored builds exited 0:
+`/tmp/flight-rounds-r5-ready-proof-fixed.log`.
+Teacher logs: reference `.logs/r5-pass-1.log`, `r5-pass-2.log`, `r5-break.log`.
+Build logs: reference `.logs/r5-build-good.log`, `r5-build-break.log`,
+`r5-build-restored.log`.
+
+The first last check found doc spacing, exit 1:
+`/tmp/flight-rounds-ready-check.log`.
+The first strict style command included the generated route file, exit 1:
+`/tmp/flight-rounds-ready-style.log`.
+Authored files pass, exit 0:
+`/tmp/flight-rounds-ready-style-fixed.log`.
+The strict check found old type spacing in its function list, exit 1:
+`/tmp/flight-rounds-ready-plain.log`.
+Regenerating the list passed strict checking but failed Markdown format.
+Logs: `/tmp/flight-rounds-ready-plain-fixed.log`, exit 0,
+`/tmp/flight-rounds-ready-check-fixed.log`, exit 1.
+The supplier environment now has a named plain type.
+That keeps the exact committed check's list in a form the formatter accepts.
+No check rule was changed.
+Assumption: generated router code is excluded from authored style checks.
+The published strict check also excludes generated code and declarations.
+
+The last page-load change has no new Jev flags, exit 0:
+`/tmp/flight-rounds-ready-jev.log`.
+The full-branch answers remain above.
+TSDoc, typecheck, seam proof, boundary, and schema checks exited 0:
+`/tmp/flight-rounds-ready-tsdoc.log`,
+`/tmp/flight-rounds-ready-typecheck.log`,
+`/tmp/flight-rounds-ready-seam.log`,
+`/tmp/flight-rounds-ready-boundary.log`,
+`/tmp/flight-rounds-ready-schema.log`.
+Forbidden directories match services `ce22a63f`, exit 0:
+`/tmp/flight-rounds-final-scope.log`.
+Frozen packets 1–2 and 3 match their ready commits, exit 0:
+`/tmp/flight-rounds-final-frozen-12.log`,
+`/tmp/flight-rounds-final-frozen-3.log`.
+
+### Round 5 ready
+
+Packet 5 is frozen at this ready step.
+Rounds 3, 4, and 5 have each passed twice and caught their planted break.
+The full round 5 check reruns every earlier round after the strict changes.
+The last page-loader repair passed 16/16 twice and the mail break failed.
+The only later source change names a TypeScript type; emitted behavior is unchanged.
+The answer uses the exact committed strict check from `5d5f2fad`.
+It passes 97 files and 22 plain functions.
+The same check's 26 planted bad forms were each caught with exit 1.
+Its proof driver exited 0: `/tmp/flight-rounds-final-plain-proof.log`.
+
+Last gates, all exit 0:
+
+- Check: `/tmp/flight-rounds-done-check.log`.
+  Zero errors, 28 existing warnings, no authored warnings.
+- Plain check: `/tmp/flight-rounds-done-plain.log`.
+- Typecheck: `/tmp/flight-rounds-done-typecheck.log`.
+- TSDoc: `/tmp/flight-rounds-done-tsdoc.log`; 97 files, zero S26 rows.
+- Authored style: `/tmp/flight-rounds-done-style.log`.
+- Prose: `/tmp/flight-rounds-done-prose.log`.
+- Validate: `/tmp/flight-rounds-done-validate.log`; all 16 lanes pass.
+- Jev last change: `/tmp/flight-rounds-done-jev.log`; no flags.
+  Full-branch Jev and its answers are above.
+- Seam proof: `/tmp/flight-rounds-ready-seam.log`.
+- Browser boundary: `/tmp/flight-rounds-ready-boundary.log`.
+- Schema: `/tmp/flight-rounds-ready-schema.log`.
+- Workspace build: `/tmp/flight-rounds-final-rebased-build.log`.
+- Full tests: `/tmp/flight-rounds-final-rebased-tests.log`; nine tasks, run serially.
+- Reference good, broken, restored builds: reference `.logs/r5-build-*.log`.
+- Rebase onto services: `/tmp/flight-rounds-rebase-latest-continue.log`.
+- Install: `/tmp/flight-rounds-final-install.log`.
+- Scope and frozen checks: `/tmp/flight-rounds-final-scope.log`,
+  `/tmp/flight-rounds-final-frozen-12.log`, `/tmp/flight-rounds-final-frozen-3.log`.
+
+No package, app, or service source was changed by this writer.
+The lead owns the board, landing, and mutation runs.
+All assumptions and failed attempts are recorded above.
+Next: lead review, then run the independent harness on the ready branch.

@@ -5,11 +5,7 @@ Sites include direct calls and callbacks passed to their owner.
 Tests and generated files do not count.
 
 - **src/backend/flight-settings.server.ts#readFlightSettings**
-  - `env`: `{
-SUPPLIER_A_URL?: string;
-SUPPLIER_B_URL?: string;
-SUPPLIER_C_URL?: string;
-}`. From the HTTP entry environment; for the three supplier URLs.
+  - `env`: `FlightSettings.Environment`. From the HTTP entry environment; for the three supplier URLs.
   - Sites:
     - `src/routes/api.flights.bookings.ts`: 1 site(s).
     - `src/routes/api.flights.current.ts`: 1 site(s).
