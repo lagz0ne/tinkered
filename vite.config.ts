@@ -13,6 +13,8 @@ export default defineConfig({
       complexity: ["error", { max: 8 }],
     },
     options: { typeAware: true, typeCheck: true },
+    // The flight reference answer is its own app; run-reference checks it in the trial image.
+    ignorePatterns: ["tools/flight-trial/reference/**"],
   },
   run: {
     cache: { scripts: false, tasks: true },
