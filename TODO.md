@@ -59,13 +59,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: each try's save, check, and feedback in PROGRESS.
   [Proof](docs/roadmap/flight-trial/PROGRESS.md#deepseek-baseline-2026-10-03).
 
-- **trial/jev-link** — a trial never depends on the checkout that made it.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-jev-link`. Found by DeepSeek round 1.
-  Next: give the frozen Jev its own packages; prove it loads at create and check.
-  Verify: the new test fails on the old code; writer-trial tests pass.
-  [Brief](docs/roadmap/flight-trial/JEV-LINK-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -87,6 +80,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/jev-link** — a trial never depends on the checkout that made it.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
+  Found in DeepSeek round 1: the frozen Jev linked its packages into a removed worktree.
+  `create` now copies Jev's packages (about 32 MB) and proves every broker module loads.
+  A failed create removes its `frozen/`; at `check`, an unloadable Jev is "unavailable", never a pass.
+  Proof: 7 new tests, each red on the old code; 91 harness tests; build, check, validate.
 
 - **start/starter-casts** — starter files ship no code that Jev blocks.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
