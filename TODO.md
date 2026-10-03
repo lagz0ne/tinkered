@@ -75,13 +75,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **start/strict-forms** — saved for lead review.
-  Owner: strict-forms writer.
-  Next: lead reviews the strict check, graph-owned services, and setup contract 4.
-  Verify: all writer gates exit 0; 81 planted failures exit 1 by name; the clean consumer passes.
-  Plain functions: 19 to 17 after the fix; classes in src: zero; app tests: 37 green.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#strict-forms-lead-fix-round).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -98,6 +91,15 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/strict-forms** — the scaffold enforces ADR 0099 and 0100.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `6a840ac8`.
+  Ships `check:plain` and `PLAIN.md`: no classes, no Core handles or IO in plain params,
+  at most three params, two callers, `createScope` only in entries; cap 17 plain functions.
+  Plain functions 45 to 17; the skills teach the rule with a real example.
+  Proof: 81 planted cases fail by name; 37 app tests; a clean consumer passes;
+  run from another folder fails before `a282fb82` and passes after; validate passes.
+  Open signal: no Core form for a private resource procedure (repeated inline steps).
 
 - **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `0b278b73`.
