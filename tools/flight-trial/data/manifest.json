@@ -21,5 +21,14 @@
   "subset": {
     "sha256": "965edecf15344a8736e56b846473c3a6a5920f345aa8b8955c101ffeb74a4f66",
     "bytes": 289080
+  },
+  "generated": {
+    "file": "flights.json.gz",
+    "seed": 97,
+    "sha256": "b038094f27c92202af9fbbfb86197cc9a47cd1b5d0f70717ee4ba74245d5d3bd",
+    "jsonSha256": "6148b99dbd2e24c33c0d0e5e1b52d1b13e29c96637813f11f14201b928b19e2e",
+    "bytes": 552178,
+    "jsonBytes": 7110562,
+    "flights": 10996
   }
 }

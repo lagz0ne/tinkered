@@ -7,5 +7,5 @@ export default defineConfig({
     dts: { generator: "tsgo" },
     exports: false,
   },
-  test: { exclude: ["**/node_modules/**", "**/dist/**"] },
+  test: { exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**"] },
 });

@@ -174,3 +174,80 @@ M1 proof, under `tools/flight-trial/.logs/`:
 
 The M1-only seed 97 hash is still
 `980a84b24a0d56c4203d17f2a3b7e9448174a388664eafa781fe9da0961e0671`.
+
+Review changes after M1:
+
+- M2: `offers(supplier)` returns all that supplier's offers as deep copies.
+  It and search use one pricing function.
+  Services can seed their owned data from it.
+- M3: source sorting uses plain code-point comparisons.
+  The subset hash stays unchanged.
+- S4: the manifest records the generated JSON hash.
+  Seed proof compares JSON hashes after removing saved gzip compression.
+  Gzip hashes are reference values only.
+- S5: the unused reader file parameter is gone.
+- S6: docs say starting seats match and owners change their own copies.
+- S7: two numbers per sorted route make each departure number repeat daily.
+  The saved seed 97 data was rebuilt.
+- S8: counts and positive integers have names that match their checks.
+  Cents is used only for money.
+- S9: arrival checks list bad offer IDs across all three suppliers.
+  Near-full checks print the actual cabin seat numbers.
+  Query lists are no longer built by walking the generator output.
+- S10: mutation config, script, dependencies, and excludes are in place.
+  The floor is 85; the lead runs that lane at landing.
+  The writer did not run it.
+
+Assumptions:
+
+- Flight numbers keep their two-character airline prefix in this snapshot.
+- Each sorted route reserves two numbers, one per departure slot.
+- The largest possible suffix here is 8,116.
+- JSON bytes include the saved trailing newline.
+- Saved gzip bytes may differ by system or zlib version.
+- Services own seats separately after reading the same starting fixture.
+
+Working-step proof, under `tools/flight-trial/.logs/`:
+
+- Install: exit 0, `review-install.log`.
+- Workspace build: exit 0, `review-build-step.log`.
+- Check: exit 0, `review-check-step.log`; 28 warnings.
+- Reader tests: exit 0, `review-test-step.log`; 11 passed.
+- Source hashes and subset: exit 0, `review-sources-step.log`.
+- Seed JSON proof: exit 0, `review-seeds-step.log`.
+- Prose: exit 0, `review-prose-step.log`.
+- Style census: exit 0, `review-style-step.log`.
+
+Regression proof:
+
+- Old fixture: exit 1, `review-number-regression.log`.
+  The daily-repeat and one-to-four-digit tests both fail.
+- New fixture: exit 0, `review-test-step.log`; all 11 pass.
+- Changed gzip OS header, old check: exit 1, `review-os-header-old.log`.
+- Changed gzip OS header, JSON check: exit 0, `review-os-header-new.log`.
+  The saved gzip was restored after both checks.
+
+New seed 97 JSON hash, equal in both runs:
+`6148b99dbd2e24c33c0d0e5e1b52d1b13e29c96637813f11f14201b928b19e2e`.
+Seed 98 JSON hash:
+`72b5169c65d387a703f3bb0f07cee96c988963c3e76de97a06cf716b777b4355`.
+Seed 97 gzip hash on this system:
+`b038094f27c92202af9fbbfb86197cc9a47cd1b5d0f70717ee4ba74245d5d3bd`.
+Seed 98 gzip hash on this system:
+`9214ac999483dd40c288cca8aff14a87077265afadec7cf53c6e666bd7efde41`.
+The source subset hash stays
+`965edecf15344a8736e56b846473c3a6a5920f345aa8b8955c101ffeb74a4f66`.
+
+New sizes:
+
+- Seed 97: 10,996 flights.
+- Seed 97 JSON: 7,110,562 bytes.
+- Seed 97 gzip: 552,178 bytes.
+- Seed 98: 11,078 flights; gzip 556,770 bytes.
+- Source subset: 289,080 bytes.
+- Manifest: 1,493 bytes.
+- Data license: 840 bytes.
+- Total saved data: 843,591 bytes.
+
+The earlier proof and hashes above describe the version before this review.
+The review proof here describes the new saved fixture.

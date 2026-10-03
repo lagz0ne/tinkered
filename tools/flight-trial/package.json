@@ -14,13 +14,16 @@
     "test": "vp test",
     "check": "vp check",
     "generate": "node scripts/generate.mjs",
-    "check:sources": "node scripts/check-sources.mjs"
+    "check:sources": "node scripts/check-sources.mjs",
+    "mutate": "stryker run"
   },
   "dependencies": {
     "@tinker/core": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

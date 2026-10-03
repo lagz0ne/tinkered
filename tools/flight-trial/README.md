@@ -18,7 +18,8 @@ From the workspace root:
 
 The default seed is 97.
 A seed is an integer from 0 through 4294967295.
-The same seed writes the same bytes; another seed changes them.
+The same seed writes the same JSON bytes; another seed changes them.
+Compression bytes can differ across systems; JSON hashes are the proof.
 The output is compressed JSON at `data/flights.json.gz`.
 To write another file:
 
@@ -44,14 +45,25 @@ const offers = reader.search({
 });
 ```
 
+To seed a supplier service, read every offer it carries:
+
+```ts
+const supplierOffers = reader.offers("supplier-a");
+```
+
+Offers lists every flight the supplier carries.
+Offers uses the same prices as search.
 A known route returns only matching flights.
 A route with no service returns no flights.
 The same flight appears at two suppliers with their own prices.
 A nearly full flight has one to three seats in each cabin.
 No flight lands before it leaves.
-Changing a search result does not change the next search.
+Changing an offer does not change later reads.
 Each result is a deep copy owned by its caller.
 Services may keep and change that copy.
+The same flight starts with the same seats at both suppliers.
+Each owner changes its own copy of the seats.
+A hold at supplier A does not lower seats at supplier B.
 
 `id` names the flight across suppliers.
 `offerId` names the supplier's offer.
@@ -76,6 +88,10 @@ Each cabin has saver, standard, and flex prices in USD cents.
 - Supplier C adds 1 percent plus 500 cents.
 - Each airline is at two suppliers, by sorted airline ID.
 - Missing airline codes use OF plus the OpenFlights ID.
+- Flight numbers repeat daily for the same route and departure slot.
+- Flight numbers have one to four digits after the airline code.
+- Flight numbers are unique per airline and date.
+- Sorted routes each reserve two numbers, one per departure slot.
 
 The source selection rule and source hashes are in `data/manifest.json`.
 The subset keeps 60 airports with the most routes.
@@ -95,4 +111,7 @@ The source check fetches the pinned files.
 It checks their SHA-256 hashes and rebuilds the subset.
 It checks the total saved data is less than 1,000,000 bytes.
 The seed check writes two runs at seed 97 and one at seed 98.
-It checks their hashes and the saved default data.
+It checks the JSON hashes and the saved default data.
+The default JSON hash is saved in `data/manifest.json`.
+The check hashes saved JSON after removing gzip compression.
+Gzip hashes are printed for reference only.

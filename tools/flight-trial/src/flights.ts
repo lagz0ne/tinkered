@@ -14,7 +14,10 @@ export declare namespace Flights {
   type Query = { supplier: Supplier["id"]; origin: string; destination: string; date: string };
   type Offer = Flight & { offerId: string; supplier: Supplier["id"]; currency: "USD" };
   /** Each result is a deep copy. The service owns it and may change fares and seats. */
-  type Reader = { search(query: Query): Offer[] };
+  type Reader = {
+    search(query: Query): Offer[];
+    offers(supplier: Supplier["id"]): Offer[];
+  };
 }
 
 const dataDirectory = new URL("../data/", import.meta.url);
@@ -35,43 +38,57 @@ async function readSource(): Promise<Flights.Source> {
 }
 
 /** Dates are UTC departure dates. Loading needs no network or current clock. */
-export async function readFlights(
-  file: string | URL = new URL("flights.json.gz", dataDirectory),
-): Promise<Flights.Reader> {
+export async function readFlights(): Promise<Flights.Reader> {
+  const file = new URL("flights.json.gz", dataDirectory);
   const bytes = await readFile(file);
-  const parsed = dataSchema.safeParse(readJson(gunzipSync(bytes), String(file)));
-  if (!parsed.success) failFlightData({ file: String(file), reason: parsed.error.message });
+  const parsed = dataSchema.safeParse(readJson(gunzipSync(bytes), file.href));
+  if (!parsed.success) failFlightData({ file: file.href, reason: parsed.error.message });
   const data = parsed.data;
   return {
     search(query) {
-      const supplier = data.suppliers.find((entry) => entry.id === query.supplier);
-      if (!supplier) return [];
-      return data.flights
-        .filter(
-          (flight) =>
-            flight.origin === query.origin &&
-            flight.destination === query.destination &&
-            flight.date === query.date &&
-            supplier.airlineIds.includes(flight.airlineId),
-        )
-        .map((flight) => {
-          const offer = structuredClone(flight);
-          for (const cabin of offer.cabins) {
-            for (const fare of cabin.fares) {
-              fare.amountCents =
-                Math.round(fare.amountCents * (1 + supplier.markupBasisPoints / 10000)) +
-                supplier.feeCents;
-            }
-          }
-          return {
-            ...offer,
-            offerId: `${supplier.id}:${flight.id}`,
-            supplier: supplier.id,
-            currency: data.currency,
-          };
-        });
+      const flights = data.flights.filter(
+        (flight) =>
+          flight.origin === query.origin &&
+          flight.destination === query.destination &&
+          flight.date === query.date,
+      );
+      return createOffers(
+        flights,
+        data.suppliers.find((supplier) => supplier.id === query.supplier),
+      );
+    },
+    offers(supplier) {
+      return createOffers(
+        data.flights,
+        data.suppliers.find((entry) => entry.id === supplier),
+      );
     },
   };
+}
+
+function createOffers(
+  flights: Flights.Flight[],
+  supplier: Flights.Supplier | undefined,
+): Flights.Offer[] {
+  if (!supplier) return [];
+  return flights
+    .filter((flight) => supplier.airlineIds.includes(flight.airlineId))
+    .map((flight) => {
+      const offer = structuredClone(flight);
+      for (const cabin of offer.cabins) {
+        for (const fare of cabin.fares) {
+          fare.amountCents =
+            Math.round(fare.amountCents * (1 + supplier.markupBasisPoints / 10000)) +
+            supplier.feeCents;
+        }
+      }
+      return {
+        ...offer,
+        offerId: `${supplier.id}:${flight.id}`,
+        supplier: supplier.id,
+        currency: "USD",
+      };
+    });
 }
 
 /** Haversine on a 6,371 km sphere; thirty minutes covers taxi and climb. */
@@ -116,7 +133,7 @@ function createCabin(
   };
 }
 
-/** Every airline belongs to two suppliers; flight IDs and seat stock stay shared. */
+/** Each airline is at two suppliers with the same starting seats. Owners change their own copies. */
 function createSuppliers(airlines: Flights.Source["airlines"]): Flights.Supplier[] {
   return [
     {
@@ -153,7 +170,7 @@ export async function generateFlights(seed: number): Promise<Flights.Data> {
   const airports = new Map(source.airports.map((airport) => [airport.code, airport]));
   const airlines = new Map(source.airlines.map((airline) => [airline.id, airline]));
   const flights: Flights.Flight[] = [];
-  for (const route of source.routes) {
+  for (const [routeIndex, route] of source.routes.entries()) {
     const origin = airports.get(route.origin);
     const destination = airports.get(route.destination);
     const airline = airlines.get(route.airlineId);
@@ -169,7 +186,7 @@ export async function generateFlights(seed: number): Promise<Flights.Data> {
         flights.push({
           id: `${route.airlineId}-${route.origin}-${route.destination}-${date}-${departure + 1}`,
           airlineId: route.airlineId,
-          flightNumber: createFlightNumber(airline, flights.length + 1),
+          flightNumber: createFlightNumber(airline, routeIndex * 2 + departure + 1),
           origin: route.origin,
           destination: route.destination,
           date,

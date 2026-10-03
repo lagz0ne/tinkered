@@ -89,8 +89,8 @@ export function selectSource(files) {
   const sortedRoutes = [...kept.values()].sort(
     (a, b) =>
       a.airlineId - b.airlineId ||
-      a.origin.localeCompare(b.origin, "en") ||
-      a.destination.localeCompare(b.destination, "en"),
+      (a.origin < b.origin ? -1 : a.origin > b.origin ? 1 : 0) ||
+      (a.destination < b.destination ? -1 : a.destination > b.destination ? 1 : 0),
   );
   const airlineIds = new Set(sortedRoutes.map((route) => route.airlineId));
   return {
