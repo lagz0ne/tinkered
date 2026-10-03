@@ -94,7 +94,10 @@ export function checkFlight({
 
 function resetRouter(app, own) {
   try {
-    run(["cp", join(here, "flight-router.mjs"), `${app}:/tmp/flight-router.mjs`]);
+    run(
+      ["exec", "-i", app, "sh", "-c", "cat > /tmp/flight-router.mjs"],
+      readFileSync(join(here, "flight-router.mjs")),
+    );
     own.push(run(["exec", app, "node", "/tmp/flight-router.mjs", "reset"]));
     return 0;
   } catch (error) {
@@ -138,7 +141,10 @@ function checkScaffold(app, scaffold, seam) {
 /** Run the image's trusted script on the submitted project, never a writer's replacement. */
 export function checkFlightPlain(app, log) {
   try {
-    run(["cp", join(here, "flight-plain.mjs"), `${app}:/tmp/flight-plain.mjs`]);
+    run(
+      ["exec", "-i", app, "sh", "-c", "cat > /tmp/flight-plain.mjs"],
+      readFileSync(join(here, "flight-plain.mjs")),
+    );
     const { output, ...result } = JSON.parse(run(["exec", app, "node", "/tmp/flight-plain.mjs"]));
     log.push(output);
     return result;
