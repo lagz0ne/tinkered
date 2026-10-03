@@ -100,6 +100,13 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **start/tab-defer** — the tab close watcher no longer defers after its factory ends.
+  Owner: lead (Claude, Start scaffold session). Found by `trial/flight-integration`.
+  `bind` called `ctx.defer` late, so Core threw `Disposed` and the page stayed blank.
+  The listener now starts in the factory; the page comes in through the `pageEvents` tag.
+  Proof: `tests/tab-lifetime.test.ts` fails with `Disposed` on the old shape, passes now;
+  plain check, registry, build, `vp check`, all tests, prose green.
+
 - **trial/flight-services** — payment and three suppliers as Tinker apps behind HTTP (ADR 0098).
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer.
   Duffel-shaped suppliers A, B, C and a Stripe-shaped payment, each its own process.
