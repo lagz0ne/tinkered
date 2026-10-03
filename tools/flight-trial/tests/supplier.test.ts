@@ -53,7 +53,14 @@ const orderSchema = z.object({
   }),
 });
 const logSchema = z.object({
-  data: z.array(z.object({ route: z.string(), time: z.number(), status: z.number() })),
+  data: z.array(
+    z.object({
+      kind: z.enum(["service", "control", "webhook"]),
+      route: z.string(),
+      time: z.number(),
+      status: z.number(),
+    }),
+  ),
 });
 const searchBody = {
   data: {
@@ -231,7 +238,7 @@ test("the call log counts a delayed call before it ends and records its final st
     ).json(),
   );
   expect(log.data.filter((call) => call.route === "POST /air/offer_requests")).toEqual([
-    { route: "POST /air/offer_requests", time: 10000, status: 503 },
+    { kind: "service", route: "POST /air/offer_requests", time: 10000, status: 503 },
   ]);
 });
 
@@ -517,6 +524,7 @@ test("a scenario reset restores stock and clears quotes, orders, route rules and
     ).json(),
   );
   expect(log.data.filter((call) => call.status !== 0)).toEqual([]);
+  expect(log.data.every((call) => call.kind === "control")).toBe(true);
   expect((await fetch(`${url}/air/offers/${offer.id}`)).status).toBe(404);
   expect((await fetch(`${url}/air/orders/${booked.id}`)).status).toBe(404);
   expect(

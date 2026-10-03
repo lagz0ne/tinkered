@@ -314,6 +314,8 @@ It does not support order cancellation or multiple slices.
 The small shapes follow
 [Stripe's PaymentIntents](https://docs.stripe.com/api/payment_intents).
 Payment accepts JSON or form bodies.
+Form bodies read nested bracket keys and booleans.
+They keep metadata and automatic payment settings.
 It returns Stripe objects directly, without a `data` wrapper.
 Bad payment input and missing resources return Stripe errors.
 Currency codes have three letters and are saved in lowercase.
@@ -345,7 +347,9 @@ It makes no automatic retries.
 Set `Idempotency-Key` on payment POST calls to make a call safe to repeat.
 Parallel calls with one key return the same intent.
 Later calls return the first reply for that key.
-Reusing a key with a changed route or body returns HTTP 409.
+Reusing a key with a changed route or body returns HTTP 400.
+Its error type is `idempotency_error`.
+Replays have the header `Idempotent-Replayed: true`.
 Keys stay until a scenario reset or process stop.
 The trial compares the decoded body as JSON, including key order.
 
@@ -424,7 +428,8 @@ The call log counts a delayed call before it ends and records its final status.
 A call finishing after reset cannot return to the new call log.
 A delayed call cannot restore a replaced or cleared route rule.
 Parallel delayed calls consume only the chosen number of repeats.
-Each call has its route, request start time, and status.
+Each call has its route, request start time, status, and `kind`.
+The kind is `service`, `control`, or `webhook`.
 For service and control calls, status zero means the call is still pending.
 The log includes control calls and payment webhook sends.
 Filter by service route to count app calls.
