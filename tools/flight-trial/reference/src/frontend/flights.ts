@@ -28,8 +28,8 @@ export const editFlightDraft = operation({
   },
 });
 /** Order shown flight rows by price, flight, then supplier.
- * @param a - A saved display row from a merge or sort; it is the candidate.
- * @param b - A saved display row from a merge or sort; it is the comparison.
+ * @param a - From the saved display rows; for the candidate price and flight.
+ * @param b - From the saved display rows; for the comparison price and flight.
  */
 function compareRows(a: Flights.Row, b: Flights.Row) {
   return (

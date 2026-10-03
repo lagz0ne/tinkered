@@ -28,3 +28,4 @@ export { holdFlight, listBookings, refreshBookings, readFlightSeats } from "./bo
 export { payBooking, receivePayment } from "./payments.ts";
 
 export { sendBookingMail, retryBookingMail } from "./booking-mail.ts";
+export { openFlightSearch } from "./flight-stream.ts";

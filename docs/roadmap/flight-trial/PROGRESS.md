@@ -1195,3 +1195,30 @@ The live seat and hold watchers use that borrowed input.
 The first draft read the root after close and failed with Disposed instead.
 The corrected probe captures the value before closing, then checks it.
 No Core or React source was changed.
+
+### Search body ownership under ADR 0100
+
+The search response body and stop handle now belong to a request resource.
+Its opening operation borrows the parsed query and supplier settings.
+Only the background search call binds the supplier tag.
+Binding a tag on the opening call made a shorter child session.
+That first attempt closed the body too soon and failed all six browser cases.
+Driver exit 1: `/tmp/flight-rounds-stream-resource-proof-first.log`.
+Teacher detail: `/tmp/flight-rounds-stream-resource-first-pass.log`.
+The corrected request owner passed 6/6 twice, each exit 0.
+The planted duplicate-row break failed its named case, exit 1.
+Driver and good, broken, restored builds exited 0:
+`/tmp/flight-rounds-stream-resource-proof.log`,
+reference `.logs/r2-build-good.log`, `r2-build-break.log`, `r2-build-restored.log`.
+Teacher logs: reference `.logs/r2-pass-1.log`, `r2-pass-2.log`, `r2-break.log`.
+Check exited 0: `/tmp/flight-rounds-stream-resource-check-fixed.log`.
+This changes the reference's ownership form, not frozen packets 1–3.
+
+The strict check draft was read in the other worktree without editing it.
+Its interim rows were used only to prepare this reference.
+The final proof must use the committed check.
+The check uses the TypeScript 5.9 API; the repo CLI is TypeScript 7.
+The private reference tool folder installed `typescript-api@npm:typescript@5.9.3`.
+Install exit 0: `/tmp/flight-rounds-private-typescript-install.log`.
+The installed tool resolves under this worktree and touches no system directory.
+The draft plain list is not a ready artifact yet.
