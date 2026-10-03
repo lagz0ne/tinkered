@@ -2980,4 +2980,6 @@ Later rounds are staged with `stage --explore` (`275cae5c`).
 - Round 1, try 2 (agent `e56bd6c9`): **pass**, hidden checks 3 of 3.
   Feedback named the two failed cases and the notice rule.
   DeepSeek now shows `Search complete` beside the outcome line.
-- Round 2, try 1 (agent `aa50f105`): running.
+- Round 2, try 1 (agent `aa50f105`): **pass**, hidden checks 6 of 6
+  (round 1's three again, plus three for metasearch).
+- Round 3, try 1 (agent `735eccbf`): running.
