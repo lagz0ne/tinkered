@@ -1,133 +1,858 @@
 {
   "branch": "start/strict-forms",
-  "base": "8867c44f",
-  "plainBefore": 45,
-  "plainAfter": 19,
-  "classBefore": 1,
+  "base": "8ba8ac25",
+  "reviewedHead": "1729cb03",
+  "testedSourceHead": "4291d670578da315cbf55932cace7542fc470f69",
+  "plainBefore": 19,
+  "plainAfter": 17,
+  "plainMax": 17,
+  "plainOriginalBefore": 45,
+  "countNote": "45 used the original site-based rule; 19 was the first review list; 17 is the final caller-based list.",
+  "classBefore": 0,
   "classAfter": 0,
-  "plantedFailures": 26,
-  "appTests": 36,
+  "plantedFailures": 81,
+  "appTests": 37,
+  "allTests": 1139,
+  "allTestsSkipped": 1,
   "warnings": 28,
   "gates": [
     {
       "name": "build",
       "code": 0,
-      "log": "/tmp/strict-forms-build-inputs.log"
+      "log": "/tmp/strict-fix-build.log"
     },
     {
       "name": "check",
       "code": 0,
-      "log": "/tmp/strict-forms-check-handoff.log"
+      "log": "/tmp/strict-fix-check.log"
     },
     {
       "name": "types",
       "code": 0,
-      "log": "/tmp/strict-forms-gates/types.log"
+      "log": "/tmp/strict-fix-types.log"
     },
     {
       "name": "app-tests",
       "code": 0,
-      "log": "/tmp/strict-forms-gates/app-tests.log"
-    },
-    {
-      "name": "plain",
-      "code": 0,
-      "log": "/tmp/strict-forms-gates/plain.log"
-    },
-    {
-      "name": "seam",
-      "code": 0,
-      "log": "/tmp/strict-forms-gates/seam.log"
-    },
-    {
-      "name": "boundary",
-      "code": 0,
-      "log": "/tmp/strict-forms-gates/boundary.log"
-    },
-    {
-      "name": "schema",
-      "code": 0,
-      "log": "/tmp/strict-forms-gates/schema.log"
-    },
-    {
-      "name": "seam-fixture",
-      "code": 0,
-      "log": "/tmp/strict-forms-gates/seam-fixture.log"
-    },
-    {
-      "name": "census",
-      "code": 0,
-      "log": "/tmp/strict-forms-gates/census.log"
-    },
-    {
-      "name": "prose",
-      "code": 0,
-      "log": "/tmp/strict-forms-prose-final.log"
-    },
-    {
-      "name": "all-tests",
-      "code": 0,
-      "log": "/tmp/strict-forms-gates/all-tests.log"
+      "log": "/tmp/strict-fix-app-tests.log"
     },
     {
       "name": "plain-prove",
       "code": 0,
-      "log": "/tmp/strict-forms-plain-prove-final.log"
+      "log": "/tmp/strict-fix-plain-prove.log"
+    },
+    {
+      "name": "plain",
+      "code": 0,
+      "log": "/tmp/strict-fix-plain.log"
+    },
+    {
+      "name": "seam",
+      "code": 0,
+      "log": "/tmp/strict-fix-seam.log"
     },
     {
       "name": "registry-build",
       "code": 0,
-      "log": "/tmp/strict-forms-registry-build-release.log"
+      "log": "/tmp/strict-fix-registry-build.log"
     },
     {
       "name": "consumer",
       "code": 0,
-      "log": "/tmp/strict-forms-consumer-release.log"
+      "log": "/tmp/strict-fix-consumer.log"
     },
     {
       "name": "middleware",
       "code": 0,
-      "log": "/tmp/strict-forms-middleware-fixed.log"
+      "log": "/tmp/strict-fix-middleware.log"
     },
     {
-      "name": "validate",
+      "name": "boundary",
       "code": 0,
-      "log": "/tmp/strict-forms-validate.log"
+      "log": "/tmp/strict-fix-boundary.log"
     },
     {
-      "name": "jev-preflight",
+      "name": "schema",
       "code": 0,
-      "log": "/tmp/strict-forms-jev-preflight.log"
+      "log": "/tmp/strict-fix-schema.log"
     },
     {
-      "name": "jev-tests",
+      "name": "seam-fixture",
       "code": 0,
-      "log": "/tmp/strict-forms-jev-tests.log"
+      "log": "/tmp/strict-fix-seam-fixture.log"
     },
     {
-      "name": "jev-promises",
+      "name": "census",
       "code": 0,
-      "log": "/tmp/strict-forms-jev-promises.log"
+      "log": "/tmp/strict-fix-census.log"
     },
     {
       "name": "tsdoc",
       "code": 0,
-      "log": "/tmp/strict-forms-docs-work.log"
+      "log": "/tmp/strict-fix-tsdoc.log"
     },
     {
-      "name": "mutation",
+      "name": "prose",
       "code": 0,
-      "log": "/tmp/strict-forms-mutation.log",
-      "status": "no app lane"
+      "log": "/tmp/strict-fix-prose.log"
+    },
+    {
+      "name": "all-tests",
+      "code": 0,
+      "log": "/tmp/strict-fix-all-tests.log"
+    },
+    {
+      "name": "validate",
+      "code": 0,
+      "log": "/tmp/strict-fix-validate.log"
+    },
+    {
+      "name": "jev-preflight",
+      "code": 0,
+      "log": "/tmp/strict-fix-jev-preflight.log"
+    },
+    {
+      "name": "jev-tests",
+      "code": 0,
+      "log": "/tmp/strict-fix-jev-tests.log"
+    },
+    {
+      "name": "jev-promises",
+      "code": 0,
+      "log": "/tmp/strict-fix-jev-promises.log"
     }
   ],
-  "mutation": "no app lane",
-  "regressionRed": {
-    "code": 1,
-    "log": "/tmp/strict-forms-byte-budget-red.log"
+  "planted": [
+    {
+      "name": "entry-hidden-fetch",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-entry-hidden-fetch.log"
+    },
+    {
+      "name": "wrapped-factory",
+      "rule": "unnamed-plain",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-wrapped-factory.log"
+    },
+    {
+      "name": "entry-service",
+      "rule": "service-owner",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-entry-service.log"
+    },
+    {
+      "name": "entry-hidden-controller",
+      "rule": "service-owner",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-entry-hidden-controller.log"
+    },
+    {
+      "name": "unit-param",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-unit-param.log"
+    },
+    {
+      "name": "class",
+      "rule": "no-class",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-class.log"
+    },
+    {
+      "name": "clock",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-clock.log"
+    },
+    {
+      "name": "signal",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-signal.log"
+    },
+    {
+      "name": "handle",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-handle.log"
+    },
+    {
+      "name": "ctx",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-ctx.log"
+    },
+    {
+      "name": "io",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-io.log"
+    },
+    {
+      "name": "four-params",
+      "rule": "three-params",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-four-params.log"
+    },
+    {
+      "name": "one-site",
+      "rule": "two-sites",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-one-site.log"
+    },
+    {
+      "name": "no-doc",
+      "rule": "param-doc",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-no-doc.log"
+    },
+    {
+      "name": "scope-factory",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-factory.log"
+    },
+    {
+      "name": "module-handle",
+      "rule": "module-handle",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-handle.log"
+    },
+    {
+      "name": "scope-getter",
+      "rule": "exported-scope",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-getter.log"
+    },
+    {
+      "name": "service-module",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-service-module.log"
+    },
+    {
+      "name": "service-plain",
+      "rule": "service-owner",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-service-plain.log"
+    },
+    {
+      "name": "scope-arrow",
+      "rule": "exported-scope",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-arrow.log"
+    },
+    {
+      "name": "module-clock",
+      "rule": "module-handle",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-clock.log"
+    },
+    {
+      "name": "module-nested-root",
+      "rule": "module-handle",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-nested-root.log"
+    },
+    {
+      "name": "scope-reexport",
+      "rule": "exported-scope",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-reexport.log"
+    },
+    {
+      "name": "plain-callback",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-callback.log"
+    },
+    {
+      "name": "clock-bag",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-clock-bag.log"
+    },
+    {
+      "name": "scope-local-alias",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-local-alias.log"
+    },
+    {
+      "name": "scope-namespace",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-namespace.log"
+    },
+    {
+      "name": "plain-await",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-await.log"
+    },
+    {
+      "name": "zero-site",
+      "rule": "two-sites",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-zero-site.log"
+    },
+    {
+      "name": "class-expression",
+      "rule": "no-class",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-class-expression.log"
+    },
+    {
+      "name": "object-arrow",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-object-arrow.log"
+    },
+    {
+      "name": "object-method",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-object-method.log"
+    },
+    {
+      "name": "freeze-arrow",
+      "rule": "unnamed-plain",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-freeze-arrow.log"
+    },
+    {
+      "name": "hidden-method",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-hidden-method.log"
+    },
+    {
+      "name": "or-arrow",
+      "rule": "unnamed-plain",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-or-arrow.log"
+    },
+    {
+      "name": "nullish-arrow",
+      "rule": "unnamed-plain",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-nullish-arrow.log"
+    },
+    {
+      "name": "src-callback",
+      "rule": "unnamed-plain",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-src-callback.log"
+    },
+    {
+      "name": "one-caller-two-calls",
+      "rule": "two-sites",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-one-caller-two-calls.log"
+    },
+    {
+      "name": "self-call",
+      "rule": "two-sites",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-self-call.log"
+    },
+    {
+      "name": "non-call-use",
+      "rule": "two-sites",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-non-call-use.log"
+    },
+    {
+      "name": "scope-element",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-element.log"
+    },
+    {
+      "name": "scope-parentheses",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-parentheses.log"
+    },
+    {
+      "name": "scope-comma",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-comma.log"
+    },
+    {
+      "name": "scope-call",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-call.log"
+    },
+    {
+      "name": "scope-array",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-array.log"
+    },
+    {
+      "name": "scope-cast",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-cast.log"
+    },
+    {
+      "name": "scope-reflect",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-reflect.log"
+    },
+    {
+      "name": "scope-entry-module",
+      "rule": "scope-entry-only",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-entry-module.log"
+    },
+    {
+      "name": "holder-const",
+      "rule": "module-handle",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-holder-const.log"
+    },
+    {
+      "name": "holder-stop",
+      "rule": "module-handle",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-holder-stop.log"
+    },
+    {
+      "name": "holder-pool",
+      "rule": "module-handle",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-holder-pool.log"
+    },
+    {
+      "name": "scope-accessor",
+      "rule": "exported-scope",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-accessor.log"
+    },
+    {
+      "name": "scope-property",
+      "rule": "exported-scope",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-scope-property.log"
+    },
+    {
+      "name": "plain-any",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-any.log"
+    },
+    {
+      "name": "plain-generic",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-generic.log"
+    },
+    {
+      "name": "plain-unknown-cast",
+      "rule": "plain-cast",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-unknown-cast.log"
+    },
+    {
+      "name": "request-options",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-request-options.log"
+    },
+    {
+      "name": "pick-options",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-pick-options.log"
+    },
+    {
+      "name": "event-options",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-event-options.log"
+    },
+    {
+      "name": "component-clock",
+      "rule": "component-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-component-clock.log"
+    },
+    {
+      "name": "component-await",
+      "rule": "component-await",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-component-await.log"
+    },
+    {
+      "name": "component-bag",
+      "rule": "component-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-component-bag.log"
+    },
+    {
+      "name": "module-mail",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-mail.log"
+    },
+    {
+      "name": "module-auth",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-auth.log"
+    },
+    {
+      "name": "module-broadcast",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-broadcast.log"
+    },
+    {
+      "name": "module-frame",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-frame.log"
+    },
+    {
+      "name": "module-listener",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-listener.log"
+    },
+    {
+      "name": "option-timer",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-option-timer.log"
+    },
+    {
+      "name": "module-unknown-call",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-unknown-call.log"
+    },
+    {
+      "name": "module-zod-parse",
+      "rule": "module-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-module-zod-parse.log"
+    },
+    {
+      "name": "plain-native-effect-0",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-native-effect-0.log"
+    },
+    {
+      "name": "plain-native-effect-1",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-native-effect-1.log"
+    },
+    {
+      "name": "plain-native-effect-2",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-native-effect-2.log"
+    },
+    {
+      "name": "plain-native-effect-3",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-native-effect-3.log"
+    },
+    {
+      "name": "plain-native-effect-4",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-native-effect-4.log"
+    },
+    {
+      "name": "plain-native-effect-5",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-native-effect-5.log"
+    },
+    {
+      "name": "plain-native-effect-6",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-native-effect-6.log"
+    },
+    {
+      "name": "plain-native-effect-7",
+      "rule": "plain-effect",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-native-effect-7.log"
+    },
+    {
+      "name": "src-resource-callback",
+      "rule": "plain-param",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-src-resource-callback.log"
+    },
+    {
+      "name": "plain-cap",
+      "rule": "plain-max",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-plain-cap.log"
+    },
+    {
+      "name": "list",
+      "rule": "plain-list",
+      "code": 1,
+      "log": "/tmp/start-plain-proof-list.log"
+    }
+  ],
+  "consumer": {
+    "cli": "shadcn@4.21.0",
+    "items": 3,
+    "files": 110,
+    "payloads": "exact source",
+    "install": "source with lib alias rewritten to @/app-lib",
+    "aliasRewrite": "seam imports rewritten",
+    "seamUpdate": "both edited seam files unchanged",
+    "dryRun": "unchanged",
+    "setupUpdate": "passed",
+    "editedFeature": "unchanged",
+    "consumerBuild": "passed",
+    "consumerTypes": "passed",
+    "dependencies": "Core and React packed tarballs; independent npm install; no workspace links",
+    "projectTests": "passed",
+    "projectGates": "plain, seam, browser imports, schema passed",
+    "skills": "all five, plus AGENTS.md",
+    "maintainerFiles": "none",
+    "proofMode": "none",
+    "gates": [
+      {
+        "name": "pack-core",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-1-pack-core.log"
+      },
+      {
+        "name": "pack-react",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-2-pack-react.log"
+      },
+      {
+        "name": "install-tarballs",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-3-install-tarballs.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:40139/r/{name}.json",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_40139_r__name__json.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-5-dlx----shadcn_4_21_0-add-_tinker-start_starter---yes---overwrite.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-6-dlx----shadcn_4_21_0-add-_tinker-start_runtime---dry-run---diff-src_scaffold_frontend_index_ts.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-7-dlx----shadcn_4_21_0-add-_tinker-start_runtime---yes---overwrite.log"
+      },
+      {
+        "name": "install-starter",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-8-install-starter.log"
+      },
+      {
+        "name": "build",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-9-build.log"
+      },
+      {
+        "name": "typecheck",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-10-typecheck.log"
+      },
+      {
+        "name": "test",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-11-test.log"
+      },
+      {
+        "name": "check:plain",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-12-check_plain.log"
+      },
+      {
+        "name": "test:seam",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-13-test_seam.log"
+      },
+      {
+        "name": "test:boundary",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-14-test_boundary.log"
+      },
+      {
+        "name": "test:schema",
+        "code": 0,
+        "log": "/tmp/start-refine-consumer-15-test_schema.log"
+      }
+    ]
   },
-  "nativeInputRed": {
+  "mutation": {
+    "status": "no app lane",
+    "presenceCode": 0,
+    "log": "/tmp/strict-fix-mutation.log"
+  },
+  "regressionRed": {
+    "name": "scope shutdown cancels response bodies left open",
     "code": 1,
-    "log": "/tmp/strict-forms-middleware.log"
+    "log": "/tmp/strict-fix-body-red.log",
+    "oldSource": "181f7f96"
+  },
+  "regressionGreen": {
+    "code": 0,
+    "log": "/tmp/strict-fix-app-tests.log"
+  },
+  "firstReview": {
+    "branch": "start/strict-forms",
+    "base": "8867c44f",
+    "plainBefore": 45,
+    "plainAfter": 19,
+    "classBefore": 1,
+    "classAfter": 0,
+    "plantedFailures": 26,
+    "appTests": 36,
+    "warnings": 28,
+    "gates": [
+      {
+        "name": "build",
+        "code": 0,
+        "log": "/tmp/strict-forms-build-inputs.log"
+      },
+      {
+        "name": "check",
+        "code": 0,
+        "log": "/tmp/strict-forms-check-handoff.log"
+      },
+      {
+        "name": "types",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/types.log"
+      },
+      {
+        "name": "app-tests",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/app-tests.log"
+      },
+      {
+        "name": "plain",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/plain.log"
+      },
+      {
+        "name": "seam",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/seam.log"
+      },
+      {
+        "name": "boundary",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/boundary.log"
+      },
+      {
+        "name": "schema",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/schema.log"
+      },
+      {
+        "name": "seam-fixture",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/seam-fixture.log"
+      },
+      {
+        "name": "census",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/census.log"
+      },
+      {
+        "name": "prose",
+        "code": 0,
+        "log": "/tmp/strict-forms-prose-final.log"
+      },
+      {
+        "name": "all-tests",
+        "code": 0,
+        "log": "/tmp/strict-forms-gates/all-tests.log"
+      },
+      {
+        "name": "plain-prove",
+        "code": 0,
+        "log": "/tmp/strict-forms-plain-prove-final.log"
+      },
+      {
+        "name": "registry-build",
+        "code": 0,
+        "log": "/tmp/strict-forms-registry-build-release.log"
+      },
+      {
+        "name": "consumer",
+        "code": 0,
+        "log": "/tmp/strict-forms-consumer-release.log"
+      },
+      {
+        "name": "middleware",
+        "code": 0,
+        "log": "/tmp/strict-forms-middleware-fixed.log"
+      },
+      {
+        "name": "validate",
+        "code": 0,
+        "log": "/tmp/strict-forms-validate.log"
+      },
+      {
+        "name": "jev-preflight",
+        "code": 0,
+        "log": "/tmp/strict-forms-jev-preflight.log"
+      },
+      {
+        "name": "jev-tests",
+        "code": 0,
+        "log": "/tmp/strict-forms-jev-tests.log"
+      },
+      {
+        "name": "jev-promises",
+        "code": 0,
+        "log": "/tmp/strict-forms-jev-promises.log"
+      },
+      {
+        "name": "tsdoc",
+        "code": 0,
+        "log": "/tmp/strict-forms-docs-work.log"
+      },
+      {
+        "name": "mutation",
+        "code": 0,
+        "log": "/tmp/strict-forms-mutation.log",
+        "status": "no app lane"
+      }
+    ],
+    "mutation": "no app lane",
+    "regressionRed": {
+      "code": 1,
+      "log": "/tmp/strict-forms-byte-budget-red.log"
+    },
+    "nativeInputRed": {
+      "code": 1,
+      "log": "/tmp/strict-forms-middleware.log"
+    }
   }
 }

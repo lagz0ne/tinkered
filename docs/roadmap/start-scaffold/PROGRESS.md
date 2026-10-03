@@ -910,6 +910,8 @@ Assume: resource methods keep their owner's private work.
 
 ### Strict forms result
 
+This records the first review; the lead fix round is below.
+
 Branch: `start/strict-forms`, based on `8867c44f`.
 Plain functions: 45 before, 19 after, under the final alias and callback rule.
 Classes in src: one before, zero after.
@@ -1012,5 +1014,171 @@ Core then returns a managed input failure and the route answers 400.
 input: (raw: unknown) => JSON.parse(z.string().parse(raw));
 ```
 
-No other missing Core form was needed.
-Resources own the queue and its private methods without classes or scope getters.
+This fix round records a missing private resource procedure below.
+Resources own the queue and retained work without classes or scope getters.
+
+## Strict forms lead fix round
+
+Reviewed head: 1729cb03; lead verdict: not ready.
+Rebased onto origin/main at 8ba8ac25 and read ADR 0100.
+The fix keeps services in the graph and makes each check exception narrow.
+The shipped list drops from 19 entries to 17; PLAIN_MAX is 17.
+The old 45-entry count used the first review's site-based rule.
+It is not a count under this round's caller rule.
+
+### Review items
+
+1. Hidden object methods and arrow properties now get the plain rules.
+   Only returned public resource methods, Core callbacks, and native contracts get their exception.
+   Snapshot loads and HTTP posts are inline in their owners.
+   Native send functions and data records replace signal-taking helpers at sync.execute callers.
+   The sync skill shows that call and the public account-change methods.
+2. The queue returns only ingest, start, flush, and close.
+   Deadline waits, delivery, bounds, and health updates stay inside those public methods.
+   No resolver can bypass flush dedupe through send.
+3. cn accepts rest ClassValue params again.
+   Button, card, and input use normal shadcn calls.
+4. The check counts distinct callers and ignores self-calls and value uses.
+   Collection callbacks belong to their enclosing caller.
+   Span time and field encoding are inline in the observer span hook.
+5. Any Core createScope reference outside the real root entry functions fails.
+   Imports alone are allowed; wrappers and aliases give no exception.
+   Module-level roots in an entry file fail too.
+6. Let and const holders are checked, including nested and promised handles and native clients.
+   Exported accessors and arrow properties returning a scope fail.
+7. Any params, unconstrained type params, forbidden casts, and library signal bags fail.
+   Unknown remains valid for input doors and error guards.
+8. React props cannot carry handles or signals; await in the component body fails.
+9. Module calls follow a declaration allow-list.
+   Import-time resource option values have no graph owner.
+   Plain bodies reject direct time, random, storage, fetch, and console effects.
+   Entry files no longer grant a service exception; only root stop controllers are allowed.
+   The tabLifetime resource owns and releases the browser pagehide listener.
+10. responseBodies tracks open readers and cancels them through ctx.defer.
+    A public-seam test proves scope close cancels a body left open.
+11. The forms skill states the final rules and shows the actual public start method.
+    It says why the resource may own a timer callback while a plain function may not.
+12. The README now uses the server entry's requestContext.scope.resolve line.
+13. The fixed cap rejects list growth even after regenerating PLAIN.md.
+    Raising it needs a decision.
+
+### Core feedback from the fix
+
+- Missing form: a private procedure attached to a resource, sharing that resource's native state.
+  Current returned methods are public; exposing send lets callers skip flush dedupe.
+  A plain helper cannot take clock, signal, controllers, or its owner's held state.
+  The honest workaround repeats deadline and snapshot work inside public methods.
+  A future Core form must keep that work private and owned without exporting a scope.
+
+### Assumptions for this round
+
+- A factory's returned value includes its arrow body, a directly returned local object,
+  and Object.assign adding native methods to that value.
+  An extension hook's returned public value follows the same ownership rule.
+  Run and input callbacks do not gain this returned-method exception.
+  Listed entries' returned public native methods keep their entry contract.
+  Entry names must match the top-level function or the server entry object's fetch member.
+- Inline native callbacks have a callee declared outside src, or are JSX attributes.
+  Native option objects may provide that callee's named callbacks.
+  Named lifetime callbacks may be registered with a resource's native public contract.
+  Inline functions passed to source methods are plain functions.
+- Map, filter, flatMap, reduce, and promise callbacks count under their enclosing caller.
+  Framework boundary callbacks remain distinct callers.
+  Module code is one caller per file.
+  Anonymous caller names use their parent and order, so copying and formatting keep the list true.
+- Declared Core units may be module metadata, not resolved live handles.
+  Their handles still cannot be plain params or React props.
+  Only the server entry.owned promise may hold its root context at module scope.
+- React's initial render scheduling stays in src/client.tsx, the native client entry.
+  Module declarations include the exact schema and framework builders used by this app.
+- Resource-owned listener stop signals make driver release safe to repeat.
+  The native release callback may finish synchronously or return a promise.
+- This app still has no mutation lane.
+  The lead owns landing and push; no packages, tools, or other apps changed.
+- The source version stays 0.6.0 and setup contract stays 4.
+  This branch has not been published; the README now covers the full upgrade.
+
+### Jev answers from the fix
+
+Preflight exits 0: no file flags and 12 flagged units.
+Tests exits 0: none of the 37 tests has a flag.
+Promises exits 0: all 37 titles have a README promise; one pick is unsure.
+The user bars changes to tools, so these false labels stay here for the lead:
+
+- database: effectWithoutDefer, configNotTag, stopOnlyInDefer, ignoresAbortAfterAwait.
+  Its factory defers pool close; settings are a tag.
+  Each listener has an owned stop signal that removes callbacks and releases its client.
+  Core owns a late factory result, and scope tests prove listener shutdown.
+- migrate: configNotTag.
+  The migrations folder comes from the databaseSettings tag.
+- notifyProfile: noOpRejected.
+  Failed mail is a partial business result; the saved profile stays usable.
+- responseBodies: stateOutsideCell, stopOnlyInDefer, ignoresAbortAfterAwait.
+  Open readers are native work owned by the resource, not visible state.
+  Consumer completion, cancellation, and ctx.defer all end that work.
+  The cancelled flag guards a late pull; the new scope-close test fails on the old code.
+- notifications: stateOutsideCell, stopOnlyInDefer, ignoresAbortAfterAwait.
+  Listener records and wake versions are private native state.
+  Broken, closed, and connection identity checks reject late or stale subscriptions.
+  Its deferred stop closes the active driver connection.
+- eventStream: stateOutsideCell, ignoresAbortAfterAwait.
+  Cursor and controller state belongs to its request resource.
+  Every awaited auth step checks ended before publishing; native close ends the body.
+  Replay, account change, heartbeat auth, and host close pass their tests.
+- snapshotLoader: stateOutsideCell, ignoresAbortAfterAwait.
+  Load and auth-hold promises are private native work, not visible saved state.
+  Account version and stop state prevent a late snapshot from applying.
+- eventSource: effectWithoutDefer, configNotTag.
+  It defers native connection close; its eight-frame bound is a wire rule.
+- streamChanges: effectWithoutDefer.
+  Its child operations and resources own each connection and close it on exit.
+- syncClient: stateOutsideCell.
+  Execution wait records are private native work; visible records are data.
+- delivery: configNotTag, S24 at each of its three fetch calls.
+  URLs and service settings are tags; path and content types are wire rules.
+  This starter has no copied HTTP source; its owned delivery resource performs native HTTP.
+  Flush runs as an operation, and browser ingest has its own operation boundary.
+- queue: stateOutsideCell, configNotTag, handRolledLifetime, stopOnlyInDefer, ignoresAbortAfterAwait.
+  Retained records and timer promises are private owned work; health is data.
+  Settings are tags; its record and byte bounds are fixed wire limits.
+  Close, factory defer, and owned stop signals end work; deadlines prevent later sends.
+  Public flush keeps dedupe, and public close awaits all tracked work.
+
+### Fix proof
+
+Final gate results are in STRICT-FORMS-GATES.json beside this file.
+All required gate commands exit 0.
+All 81 planted failures exit 1 by rule name, including list growth under --list.
+The real tree has 17 plain functions and no classes in src.
+App and consumer each pass all 37 tests.
+The full repo tests pass: 1,139 tests, with one existing skipped test.
+The consumer copies all 110 files with no workspace links or proof mode.
+Build, types, plain, seam, boundary, schema, and native middleware all pass.
+The strict authored census and TSDoc pass; prose has zero hits.
+vp check has zero errors and 28 warnings; all 16 validate lanes pass.
+The new reader-close test exits 1 on the old body and 0 with the fix.
+The app has no mutation lane; the presence check runs alone under flock.
+Long jobs ran in the foreground; the writer waited for every job to end.
+The card stays in Review for the lead.
+
+### Fix commits
+
+- 176f7f96 fix(start): restore shadcn class helper calls
+- c4055231 fix(start): cancel open response readers on scope close
+- 07d12725 fix(start): inline telemetry HTTP work in delivery
+- cacdd518 fix(start): keep queue work private and inline span encoders
+- 0b8b13dc fix(start): keep snapshot work in its resource
+- 507dbb77 fix(start): keep native listener work in resource owners
+- c51ff16c fix(start): use native callbacks for entry teardown
+- 0983fc77 docs(start): teach strict callers and graph ownership
+- 6ef02818 fix(start): enforce strict forms on every function shape
+- defa8ec0 docs(start): list allowed schema declarations
+- 34897e5e docs(start): show public snapshot and sync calls
+- 248d786f fix(start): ship strict forms fixes in registry payloads
+- 434eb4c1 fix(start): put platform work inside direct resource factories
+- 1722e6a4 fix(start): own the tab close watcher in a resource
+- 4e6d3516 fix(start): narrow factory and entry exceptions
+- 82f10dc4 fix(start): reject primitive handles in helper params
+- 4291d670 fix(start): ship owned watcher and direct factories
+
+The final proof commit updates this record, the gate JSON, and the card.

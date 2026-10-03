@@ -78,9 +78,9 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 - **start/strict-forms** — saved for lead review.
   Owner: strict-forms writer.
   Next: lead reviews the strict check, graph-owned services, and setup contract 4.
-  Verify: all writer gates exit 0; 26 planted failures exit 1 by name; the clean consumer passes.
-  Plain functions: 45 to 19; classes in src: one to zero; app tests: 36 green.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#strict-forms-result).
+  Verify: all writer gates exit 0; 81 planted failures exit 1 by name; the clean consumer passes.
+  Plain functions: 19 to 17 after the fix; classes in src: zero; app tests: 37 green.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#strict-forms-lead-fix-round).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
