@@ -2558,3 +2558,9 @@ Own checks, exact scaffold, strict plain check, and Jev all exited 0
 for both good passes and the planted break.
 Results are saved in `INTEGRATION-RESULTS.json`.
 Rounds 2 to 5 are still running; old proof folders stay.
+
+Final image proof: round 2 passed twice with exit 0.
+Its planted merge-key break exited 1 on
+`r2 a cheaper late fare merges and a failed supplier keeps good rows`.
+The broken app's own checks, seam, plain check, and Jev exited 0.
+Round 3 is now running.
