@@ -85,3 +85,11 @@ Only the service controls and Mailpit API are used to inject faults.
 The harness also runs the scaffold checks on the submitted source.
 That includes `check:plain`; page checks alone do not replace it.
 The private reference runs the same committed check.
+
+## Private browser address
+
+Chrome trusts the one private app address from APP_URL.
+The app can then use `crypto.randomUUID()` to make execution IDs.
+A normal HTTPS app has this browser feature.
+The isolated HTTP trial needs the matching Chrome launch setting.
+This changes no teacher assertion, app code, or network rule.

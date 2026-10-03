@@ -2564,3 +2564,23 @@ Its planted merge-key break exited 1 on
 `r2 a cheaper late fare merges and a failed supplier keeps good rows`.
 The broken app's own checks, seam, plain check, and Jev exited 0.
 Round 3 is now running.
+
+The full run stopped at round 3, pass 1, with exit 1.
+The app's own checks, seam, plain check, and Jev exited 0.
+Two browser checks failed: changed price and the last-seat race.
+Red log: `tools/writer-trial/.logs/resume-reference-final.log`.
+
+The hold fails before its HTTP request.
+Core's default UUID source calls `crypto.randomUUID()`.
+Chrome has no such function on the private HTTP app address.
+The browser probe exits 1 and prints
+`crypto.randomUUID is not a function`.
+Log: `tools/writer-trial/.logs/resume-flight-http-uuid-red.log`.
+
+Assumption: give the teacher the browser features a HTTPS app gets.
+Chrome now trusts only the app address from APP_URL.
+The native UUID probe with that setting exits 0.
+Log: `tools/writer-trial/.logs/resume-flight-http-uuid-green.log`.
+No Core, app, service, or reference source change is needed.
+A fresh full run uses the corrected teacher setting.
+Old proof folders and images still stay until that run passes.

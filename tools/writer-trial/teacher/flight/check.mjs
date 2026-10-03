@@ -7,6 +7,7 @@ import { round3 } from "./round-3.mjs";
 const suite = settings();
 const browser = await chromium.launch({
   headless: true,
+  args: [`--unsafely-treat-insecure-origin-as-secure=${new URL(suite.app).origin}`],
   ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}),
 });
 const cases = [];
