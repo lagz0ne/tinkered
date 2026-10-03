@@ -8,8 +8,9 @@ import { bookingCommand, supplierOrder, type Bookings } from "../contracts/booki
 import { eventHistory } from "../scaffold/backend/events.ts";
 import { execution } from "../scaffold/backend/sync.schema.ts";
 import { callSupplier } from "./flight-http.ts";
-import { callPayment, paymentSettings } from "./payment-http.ts";
+import { callPayment } from "./payment-http.ts";
 import { verifyPaymentSignature } from "./payment-signature.ts";
+import { sendBookingMail } from "./booking-mail.ts";
 import { raise } from "../errors.ts";
 const orderReply = z.object({ data: supplierOrder });
 const intent = z.object({
@@ -22,18 +23,6 @@ const event = z.object({
   type: z.enum(["payment_intent.succeeded", "payment_intent.payment_failed"]),
   data: z.object({ object: intent }),
 });
-/** Wire JSON is read once after its signature was checked; malformed input gets HTTP 400. */
-function readPaymentEvent(bytes: Uint8Array) {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(new TextDecoder().decode(bytes));
-  } catch (error) {
-    if (!(error instanceof SyntaxError)) throw error;
-    return undefined;
-  }
-  const parsed = event.safeParse(raw);
-  return parsed.success ? parsed.data : undefined;
-}
 export const payBooking = operation({
   label: "pay flight booking",
   input: bookingCommand,
@@ -130,66 +119,74 @@ export const refundBooking = operation({
       raise("BadInput", { reason: "Refund amount differs from the booking price" });
   },
 });
+/** The supplier hold decides whether a successful charge buys the seat or needs a full refund. */
+const fulfillBooking = operation({
+  label: "fulfill successful flight payment",
+  depends: { supplier: callSupplier.controller, refund: refundBooking.controller },
+  async run({ supplier, refund }, ctx: Operation.Ctx<Bookings.Row & { paymentId: string }>) {
+    const response = await supplier.run({
+      input: { supplier: ctx.input.offer.supplier, path: `/air/orders/${ctx.input.orderId}` },
+    });
+    const order = orderReply.parse(response.body).data;
+    let paid = order.payment_status.paid_at !== null;
+    if (order.payment_status.awaiting_payment) {
+      const payment = await supplier.run({
+        input: {
+          supplier: ctx.input.offer.supplier,
+          path: "/air/payments",
+          body: {
+            data: {
+              order_id: ctx.input.orderId,
+              payment: { type: "balance", amount: ctx.input.price, currency: "USD" },
+            },
+          },
+        },
+      });
+      if (!payment.ok && payment.status !== 409)
+        raise("ServiceRejected", { service: "supplier payment", status: payment.status });
+      paid = payment.ok;
+    }
+    if (!paid) await refund.run({ input: ctx.input });
+    return paid ? ("Confirmed" as const) : ("Refunded" as const);
+  },
+});
 export const receivePayment = operation({
   label: "receive flight payment result",
   depends: {
     database,
-    settings: paymentSettings,
+    verify: verifyPaymentSignature.controller,
     history: eventHistory,
-    supplier: callSupplier.controller,
-    refund: refundBooking.controller,
+    fulfill: fulfillBooking.controller,
+    mail: sendBookingMail.controller,
   },
   async run(
-    { database, settings, history, supplier, refund },
+    { database, verify, history, fulfill, mail },
     ctx: Operation.Ctx<{ body: Uint8Array; signature: string | null }>,
   ) {
-    if (
-      !verifyPaymentSignature(
-        ctx.input.body,
-        ctx.input.signature,
-        settings.WEBHOOK_SECRET,
-        ctx.clock.currentTimeMillis(),
-      )
-    )
+    if (!verify.run({ input: ctx.input })) return { status: 400, accepted: false };
+    let raw: unknown;
+    try {
+      raw = JSON.parse(new TextDecoder().decode(ctx.input.body));
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
       return { status: 400, accepted: false };
-    const received = readPaymentEvent(ctx.input.body);
-    if (!received) return { status: 400, accepted: false };
+    }
+    const parsed = event.safeParse(raw);
+    if (!parsed.success) return { status: 400, accepted: false };
+    const received = parsed.data;
     const matched = (
       await database.select().from(booking).where(eq(booking.paymentId, received.data.object.id))
     ).at(0);
     if (!matched) return { status: 200, accepted: true };
     if (received.data.object.amount !== Math.round(Number(matched.price) * 100))
       return { status: 400, accepted: false };
-    await database.transaction(async (tx) => {
+    const confirmed = await database.transaction(async (tx) => {
       await history.lock(tx, matched.ownerId);
       const row = (await tx.select().from(booking).where(eq(booking.id, matched.id))).at(0)!;
       if (row.state !== "Processing") return;
       let state: Bookings.Row["state"] = "Payment failed";
       if (received.type === "payment_intent.succeeded") {
-        const response = await supplier.run({
-          input: { supplier: row.offer.supplier, path: `/air/orders/${row.orderId}` },
-        });
-        const order = orderReply.parse(response.body).data;
-        let paid = order.payment_status.paid_at !== null;
-        if (order.payment_status.awaiting_payment) {
-          const payment = await supplier.run({
-            input: {
-              supplier: row.offer.supplier,
-              path: "/air/payments",
-              body: {
-                data: {
-                  order_id: row.orderId,
-                  payment: { type: "balance", amount: row.price, currency: "USD" },
-                },
-              },
-            },
-          });
-          if (!payment.ok && payment.status !== 409)
-            raise("ServiceRejected", { service: "supplier payment", status: payment.status });
-          paid = payment.ok;
-        }
-        if (!paid) await refund.run({ input: { ...row, paymentId: received.data.object.id } });
-        state = paid ? "Confirmed" : "Refunded";
+        state = await fulfill.run({ input: { ...row, paymentId: received.data.object.id } });
       }
       await tx.update(booking).set({ state }).where(eq(booking.id, row.id));
       const executionId = ctx.random.uuid();
@@ -203,7 +200,9 @@ export const receivePayment = operation({
         { kind: "change", change: { kind: "bookings", rows } },
         { kind: "result", result: { kind: "complete", action: "booking" } },
       ]);
+      return state === "Confirmed" ? { bookingId: row.id, ownerId: row.ownerId } : undefined;
     });
+    if (confirmed) await mail.run({ input: { ...confirmed, executionId: ctx.random.uuid() } });
     return { status: 200, accepted: true };
   },
 });

@@ -26,3 +26,5 @@ export { searchFlights } from "./flight-search.ts";
 export { holdFlight, listBookings, refreshBookings, readFlightSeats } from "./bookings.ts";
 
 export { payBooking, receivePayment } from "./payments.ts";
+
+export { sendBookingMail, retryBookingMail } from "./booking-mail.ts";

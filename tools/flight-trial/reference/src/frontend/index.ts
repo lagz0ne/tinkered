@@ -5,3 +5,5 @@ export { findFlights, editFlightDraft } from "./flights.ts";
 export { holdSeat } from "./bookings.ts";
 
 export { payHold } from "./bookings.ts";
+
+export { retryConfirmation } from "./bookings.ts";

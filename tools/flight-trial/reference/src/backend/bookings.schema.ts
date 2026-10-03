@@ -11,6 +11,7 @@ export const booking = pgTable("flight_booking", {
   orderId: text("order_id").notNull(),
   price: text().notNull(),
   expires: text().notNull(),
+  emailState: text("email_state").$type<Bookings.Row["emailState"]>().notNull().default("Not sent"),
   paymentId: text("payment_id").unique(),
   state: text().$type<Bookings.Row["state"]>().notNull(),
 });

@@ -1,6 +1,9 @@
 import { operation, tag, type Operation } from "@tinker/core";
 import { z } from "zod";
 const settings = z.object({ PAYMENT_URL: z.url(), WEBHOOK_SECRET: z.string().min(1) });
+/** Parse the fixed process settings.
+ * @param env - Values from the HTTP entry process environment; these configure payment and signature verification.
+ */
 export const readPaymentSettings = (env: NodeJS.ProcessEnv) => settings.parse(env);
 export const paymentSettings = tag<z.infer<typeof settings>>({ label: "flight payment settings" });
 /** The call owns the fetch body and transfers only parsed JSON to its caller. */

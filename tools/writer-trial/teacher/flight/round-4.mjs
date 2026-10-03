@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { account, table, control, calls, expect } from "./common.mjs";
 import { target, hold, history } from "./round-3.mjs";
-export async function heldBooking(page, suite, scenario = "default") {
+export async function heldBooking(
+  page,
+  suite,
+  scenario = "default",
+  email = `${randomUUID()}@example.test`,
+) {
   const flight = await target(suite, scenario);
-  await account(page, suite.app, `${randomUUID()}@example.test`);
+  await account(page, suite.app, email);
   await hold(page, suite, flight);
   await expect(page.getByRole("alert")).toHaveText("Held");
   const rows = await history(page, suite.app);

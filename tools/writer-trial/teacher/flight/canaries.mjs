@@ -68,6 +68,12 @@ const checks = {
     to: "merged.set(row.id, row)",
     fails: "r2 a cheaper late fare merges and a failed supplier keeps good rows",
   },
+  5: {
+    file: "src/backend/booking-mail.ts",
+    from: ".set({ emailState })",
+    to: '.set({ emailState, state: emailState === "Failed" ? "Expired" : "Confirmed" })',
+    fails: "r5 failed mail keeps the booking valid and retry sends once",
+  },
   4: {
     file: "src/backend/payment-signature.ts",
     from: 'return timingSafeEqual(expected, Buffer.from(parts.digest, "hex"))',

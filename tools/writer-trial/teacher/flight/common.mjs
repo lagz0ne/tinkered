@@ -20,6 +20,7 @@ export function settings() {
     "CONTROL_TOKEN",
   ])
     assert.ok(process.env[name], `Missing ${name}`);
+  if (round >= 5) assert.ok(process.env.MAILPIT_URL, "Missing MAILPIT_URL");
   return {
     round,
     app: process.env.APP_URL,

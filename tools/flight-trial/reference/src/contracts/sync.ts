@@ -23,6 +23,12 @@ const profileRecord = z.object({
 });
 const todoRecord = z.object({ id: z.number(), title: z.string(), done: z.boolean() });
 const result = z.union([
+  z.object({
+    kind: z.literal("partial"),
+    action: z.literal("booking"),
+    bookingId: z.string(),
+    notification: z.object({ kind: z.literal("failed"), message: z.string() }),
+  }),
   z.object({ kind: z.literal("complete"), action: z.enum(["counter", "todo", "booking"]) }),
   z.object({ kind: z.literal("complete"), action: z.literal("profile"), profileId: z.string() }),
   z.object({

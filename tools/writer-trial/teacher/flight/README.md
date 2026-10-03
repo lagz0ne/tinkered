@@ -45,6 +45,7 @@ node --env-file=grader.env "$checks/check.mjs" 1
 node --env-file=grader.env "$checks/check.mjs" 2
 node --env-file=grader.env "$checks/check.mjs" 3
 node --env-file=grader.env "$checks/check.mjs" 4
+node --env-file=grader.env "$checks/check.mjs" 5
 ```
 
 Use the same settings for the reference proof:
@@ -55,6 +56,7 @@ node --env-file=grader.env "$checks/canaries.mjs" 1
 node --env-file=grader.env "$checks/canaries.mjs" 2
 node --env-file=grader.env "$checks/canaries.mjs" 3
 node --env-file=grader.env "$checks/canaries.mjs" 4
+node --env-file=grader.env "$checks/canaries.mjs" 5
 ```
 
 Each planted break must fail its named behavior.
@@ -72,3 +74,17 @@ Call counts start at that position.
 The later page and HTTP checks prove the changed service state.
 Any other control error fails.
 The lead can remove this allowance after the service fix lands.
+
+## Mail failure proof
+
+Round 5 needs Mailpit with `MP_ENABLE_CHAOS=true`.
+Chaos means Mailpit can refuse a real SMTP send.
+Its default failure chance stays zero.
+The teacher uses `PUT /api/v1/chaos` to set and clear a sender failure.
+It uses Mailpit inbox search and message reads to prove delivery.
+A disabled Chaos API fails setup; it never counts as a planted failure.
+See [Mailpit's Chaos guide](https://mailpit.axllent.org/docs/integration/chaos/).
+
+The teacher needs no SMTP password or webhook secret.
+The app gets those settings from its own `.env`.
+Only the service controls and Mailpit API are used to inject faults.

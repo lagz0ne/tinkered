@@ -5,5 +5,8 @@ const settings = z.object({
   SUPPLIER_B_URL: z.url(),
   SUPPLIER_C_URL: z.url(),
 });
+/** Parse the fixed process settings.
+ * @param env - Values from the HTTP entry process environment; these configure suppliers.
+ */
 export const readFlightSettings = (env: NodeJS.ProcessEnv) => settings.parse(env);
 export const flightSettings = tag<z.infer<typeof settings>>({ label: "flight.settings" });

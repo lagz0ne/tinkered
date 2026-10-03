@@ -27,22 +27,16 @@ export const editFlightDraft = operation({
     draft.set(ctx.input);
   },
 });
-/** Price and supplier text order are pure display choices. */
+/** Order shown flight rows by price, flight, then supplier.
+ * @param a - A saved display row from a merge or sort; it is the candidate.
+ * @param b - A saved display row from a merge or sort; it is the comparison.
+ */
 function compareRows(a: Flights.Row, b: Flights.Row) {
   return (
     Number(a.total_amount) - Number(b.total_amount) ||
     a.flight_id.localeCompare(b.flight_id) ||
     a.supplier.localeCompare(b.supplier)
   );
-}
-/** Each search retains owned rows; merging is a pure value choice. */
-function mergeRows(rows: Flights.Row[], offers: Flights.Row[]) {
-  const merged = new Map(rows.map((row) => [row.flight_id, row]));
-  for (const row of offers) {
-    const previous = merged.get(row.flight_id);
-    if (!previous || compareRows(row, previous) < 0) merged.set(row.flight_id, row);
-  }
-  return [...merged.values()].sort(compareRows);
 }
 export const findFlights = operation({
   label: "find flights",
@@ -78,7 +72,14 @@ export const findFlights = operation({
           const event = searchEvent.parse(JSON.parse(buffer.slice(0, end)));
           buffer = buffer.slice(end + 1);
           progress.update((all) => ({ ...all, [event.supplier]: event.status }));
-          rows.update((all) => mergeRows(all, event.offers));
+          rows.update((all) => {
+            const merged = new Map(all.map((row) => [row.flight_id, row]));
+            for (const row of event.offers) {
+              const previous = merged.get(row.flight_id);
+              if (!previous || compareRows(row, previous) < 0) merged.set(row.flight_id, row);
+            }
+            return [...merged.values()].sort(compareRows);
+          });
           end = buffer.indexOf("\n");
         }
       }

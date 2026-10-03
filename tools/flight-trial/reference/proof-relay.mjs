@@ -1,12 +1,13 @@
 import { createServer } from "node:net";
 import { spawn } from "node:child_process";
 /** The rebuilt workspace reaches real proof containers through Docker exec, with no host or network changes. */
+const mailHost = process.env.FLIGHT_PROOF_MAIL_HOST ?? "mailpit";
 const servers = [];
 const children = new Set();
 for (const { port, host, target } of [
   { port: 55432, host: "127.0.0.1", target: 5432 },
-  { port: 51025, host: "mailpit", target: 1025 },
-  { port: 58025, host: "mailpit", target: 8025 },
+  { port: 51025, host: mailHost, target: 1025 },
+  { port: 58025, host: mailHost, target: 8025 },
 ]) {
   const server = createServer((socket) => {
     const child = spawn(

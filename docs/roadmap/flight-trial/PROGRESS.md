@@ -1032,3 +1032,59 @@ Assumptions:
 - Private HTTP pay requests use a booking ID and an execution UUID.
 - Safe repeat proof covers concurrent requests in this one app process.
   The trial does not test a crash between saved intent and confirmation.
+
+### Round 5 mail proof and late strict rules
+
+Round 5 sends one real SMTP confirmation after the signed payment result.
+A failed send saves a partial result and keeps the booking Confirmed.
+Retry shares the saved execution and updates the same private stream.
+A second tab and reload keep the mail state.
+Anonymous retry returns 401; another traveler gets 403.
+A refunded payment sends no mail.
+
+The first proof passed 16/16 twice, each exit 0.
+The planted mail break failed only the failed-mail case, exit 1.
+The driver and all three reference builds exited 0.
+Logs: `/tmp/flight-rounds-r5-proof.log` and reference
+`.logs/r5-pass-1.log`, `r5-pass-2.log`, `r5-break.log`,
+`r5-build-good.log`, `r5-build-break.log`, `r5-build-restored.log`.
+Schema and style checks exited 0 in
+`/tmp/flight-rounds-r5-schema.log` and
+`/tmp/flight-rounds-r5-style.log`.
+Prose exited 0 in `/tmp/flight-rounds-r5-prose-step.log`.
+
+The lead's late note adds ADR 0099 and 0100 to this reference.
+Packets 1–3 remain frozen.
+The note permits adding the scaffold check requirement to packets 4–5.
+Signature verification now owns its secret and clock in an operation.
+Supplier payment and refund choice are an operation.
+The one-caller merge, event reader, and mail text helpers were inlined.
+The remaining price comparator has two callers and per-param TSDoc.
+The scaffold strict writer has not committed its check yet.
+The new check and server entry update are the next step before round 5 ready.
+
+The workspace build exited 0 in `/tmp/flight-rounds-final-build.log`.
+The first full test run exited 1 in `/tmp/flight-rounds-final-tests.log`:
+services' many-search bound test reached its five-second timeout.
+It ran beside the browser proof; rerun without that browser job.
+The first validate exited 1 in `/tmp/flight-rounds-final-validate.log`.
+Its only red lane was format: it ran while the planted break was present.
+The restored source must pass before the final gate.
+
+Mail proof assumptions:
+
+- Sent means SMTP accepted the mail, not that the traveler read it.
+- Mailpit needs Chaos enabled at startup to prove a real SMTP failure.
+  [Mailpit documents the startup flag](https://mailpit.axllent.org/docs/integration/chaos/).
+- The existing Mailpit had Chaos disabled.
+  This proof starts its own temporary container from the same local image.
+  It changes no Docker config and stops only that owned container.
+- The local relay can choose this mail host through `FLIGHT_PROOF_MAIL_HOST`.
+  App SMTP stays on the same local port; teacher uses `MAILPIT_URL`.
+- The teacher clears its sender fault after every failure case.
+  Mailpit's control and inbox URLs have no auth in this local proof.
+- Saved execution rows prevent repeated finished sends.
+  The resource shares only unfinished sends in one process.
+  This proof makes no crash claim between SMTP acceptance and the DB save.
+- The first send and retry use the saved account email and flight values.
+  No account verification or scaffold auth rule was changed.

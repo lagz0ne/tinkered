@@ -20,6 +20,7 @@ export const bookingRecord = z.object({
   price: z.string(),
   expires: z.string(),
   paymentId: z.string().nullable(),
+  emailState: z.enum(["Not sent", "Sent", "Failed"]),
   state: z.enum(["Held", "Expired", "Processing", "Confirmed", "Payment failed", "Refunded"]),
 });
 export const holdCommand = z.object({ executionId: z.uuid(), offerId: z.string() });

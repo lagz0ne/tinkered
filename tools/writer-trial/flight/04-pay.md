@@ -1,5 +1,6 @@
 # Round 4: pay a hold
 
+Pass the scaffold checks, including `check:plain`.
 Keep rounds 1 through 3 working.
 A signed-in traveler can pay a Held booking at `/bookings`.
 Its button is named `Pay <Booking>`.

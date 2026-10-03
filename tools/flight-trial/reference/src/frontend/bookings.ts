@@ -127,3 +127,26 @@ export const payHold = operation({
     notice.set(result.kind === "failed" ? result.message : "Processing");
   },
 });
+export const retryConfirmation = operation({
+  label: "retry saved flight confirmation",
+  input: z.string(),
+  depends: { sync: syncClient, notice: bookingNotice.controller },
+  async run({ sync, notice }, ctx) {
+    const executionId = ctx.random.uuid();
+    const result = await sync.execute(
+      executionId,
+      async (signal) => {
+        const response = await fetch("/api/flights/email", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ executionId, bookingId: ctx.input }),
+          signal,
+        });
+        if (!response.ok) return { kind: "rejected" as const, message: "Email retry refused" };
+        return response.json();
+      },
+      ctx.signal,
+    );
+    notice.set(result.kind === "partial" ? result.notification.message : "Email sent");
+  },
+});
