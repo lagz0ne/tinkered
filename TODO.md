@@ -24,11 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **trial/flight-services** — payment and three suppliers as Tinker apps behind HTTP (ADR 0098).
-  Next: each service owns data from the fixture, a service API, and a control API.
-  Verify: the grader delays, fails, and repeats replies only through the control API;
-  watchers deliver webhooks and price changes to the app over HTTP.
-
 - **trial/flight-rounds** — five rounds: search, metasearch, hold, pay, email.
   Next: round packets and hidden checks after the services land.
   Verify: a lead-written answer passes every round; span counts catch waste.
@@ -56,18 +51,26 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
-  Owner: lead (Claude, Start scaffold session); Sol data writer.
-  Worktree: `../tinkered-flight-data`, branch `trial/flight-data`.
-  Next: the writer builds `tools/flight-trial/data/` and its seeded generator.
-  Verify: the same seed gives the same hash; another seed differs;
-  overlapping flights appear at two suppliers; pinned source hashes match.
-  [Brief](docs/roadmap/flight-trial/DATA-BRIEF.md).
+- **trial/flight-services** — payment and three suppliers as Tinker apps behind HTTP (ADR 0098).
+  Owner: lead (Claude, Start scaffold session); Sol services writer.
+  Worktree: `../tinkered-flight-services`, branch `trial/flight-services` on the data branch.
+  Next: the writer builds Duffel- and Stripe-shaped APIs plus a control API.
+  Verify: tests use only HTTP; the last seat goes to one order; holds expire;
+  webhooks are signed and sent late or twice on request; the call log counts calls.
+  [Brief](docs/roadmap/flight-trial/SERVICES-BRIEF.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **trial/flight-data** — real routes, extended by a fixed seed (ADR 0097).
+  Owner: lead (Claude, Start scaffold session); Sol data writer.
+  Worktree: `../tinkered-flight-data`, branch `trial/flight-data`.
+  Next: Opus reviewer checks `6b9e3155`; then the lead lands.
+  Verify: the same seed gives the same hash; another seed differs;
+  overlapping flights appear at two suppliers; pinned source hashes match.
+  [Brief](docs/roadmap/flight-trial/DATA-BRIEF.md).
 
 - **start/refine** — the scaffold keeps only what a new project needs, plus its skills.
   Owner: lead (Claude, Start scaffold session); Sol refine writer.
