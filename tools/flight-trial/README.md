@@ -244,7 +244,7 @@ Each slice has one segment with departure and arrival times.
 The segment gives the airline ID and a one-to-four-digit flight number.
 The saved number includes the airline prefix; the HTTP number leaves it out.
 This follows [Duffel's segment shape](https://duffel.com/docs/api/v2/offers).
-Bad supplier requests return a named Duffel error before changing stock.
+Bad supplier requests return a named Duffel error.
 
 Read a current quote with `GET /air/offers/:id`.
 It returns the current price and seats.

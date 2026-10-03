@@ -387,7 +387,7 @@ Core feedback: none.
 
 Writer: Sol.
 Branch: `trial/flight-services`.
-Status: final mutation and gates in progress.
+Status: saved for lead review; all numbered proof is complete.
 The board stays with the lead; it is outside this writer's paths.
 
 ### Services and reader steps
@@ -423,6 +423,7 @@ Saved steps after the rebase:
 - `16b38cd6`: supplier state uses all offers from the landed reader.
 - `0f0a83fe`: child command entry lives with the launcher.
 - `295fa075`: HTTP fields, groups, refunds, resets, and bad requests.
+- `4d64d5c7`: post-rebase proof, assumptions, and review answers.
 
 The last code step fixed three bugs found by HTTP tests.
 The flight-number field now omits the saved airline prefix.
@@ -438,26 +439,29 @@ All logs below are under `tools/flight-trial/.logs/`.
 1. The tests start all suppliers and payment on free ports.
    Calls after startup use service HTTP and control HTTP only.
    The payment inbox is a real HTTP server.
-   Working test proof: exit 0, `services-lift-fixed-tests.log`; 67 tests pass.
+   Final test proof: exit 0, `services-final-tests.log`; 67 tests pass.
 2. Supplier HTTP tests prove shared A and B flights, one winner in a parallel seat race,
    and hold expiry at its deadline with a returned seat.
    They also prove cabin stock, group totals, stale prices, and stock edits before search.
-   The same working test log has exit 0.
+   The same final test log has exit 0.
 3. Payment HTTP tests check the exact body signature with the shared secret.
    They prove parallel and later key replay, late and twice delivery, and refunds.
    Manual plans change only the chosen intent.
-   The same working test log has exit 0.
+   The same final test log has exit 0.
 4. Control HTTP tests prove a delayed call is logged while pending.
    Its one log entry then holds the final failure status and start time.
    They also prove repeat counts, token checks, clocks, and scenario resets.
-   The same working test log has exit 0.
+   The same final test log has exit 0.
 5. Compose starts Postgres and Mailpit with the images pulled just before use.
    Postgres runs real SQL; Mailpit accepts SMTP and exposes the message in its inbox API.
    Four distinct child process IDs answer service and control HTTP.
    Their parent and all four children then stop cleanly.
    The proof project, its containers, network, and volume were removed.
-6. The final workspace build, check, tests, prose, and validate must finish after mutation.
-   The logs and exit codes will be recorded here before handoff.
+6. The final build, check, package and workspace test chain has exit 0.
+   Log: `services-final-gate.log`.
+   Check has zero errors and 28 warnings, with none in this package.
+   Validate has exit 0 and all 16 lanes pass.
+   Prose and width proof are recorded in the final gates below.
 
 Live proof:
 
@@ -467,22 +471,36 @@ Live proof:
 - Postgres SQL: exit 0, `services-final-postgres.log`; SELECT returned 1.
 - Mail client image pull: exit 0, `services-final-mail-client-pull.log`.
 - Mailpit SMTP and inbox: exit 0, `services-final-mailpit.log`.
-- Four-process HTTP proof: exit 0, `services-postbase-process-proof.log`.
+- Four-process HTTP proof: exit 0, `services-final-process-proof.log`.
 - Compose cleanup: exit 0, `services-final-compose-cleanup.log`.
 
-### Checks seen after the rebase
+### Final gates after the rebase
 
 - Rebase: exit 0, `services-rebase-success.log`.
 - Install: exit 0, `services-postbase-install.log`.
 - Core build: exit 0, `services-postbase-core-build.log`.
-- Working workspace build: exit 0, `services-lift-final-build.log`.
-- Working check: exit 0, `services-lift-final-check.log`.
+- Workspace build: exit 0, `services-final-build.log`.
+- Check: exit 0, `services-final-check.log`.
   It has zero errors and 28 warnings, matching main's data proof.
   None are in this package.
-- Working package tests: exit 0, `services-lift-fixed-tests.log`; 67 pass.
-- Working prose: exit 0, `services-lift-final-prose.log`.
+- Package tests: exit 0, `services-final-tests.log`; 67 pass.
+- All workspace tests: exit 0, `services-final-workspace-tests.log`.
+- Full gate chain: exit 0, `services-final-gate.log`.
+- Validate: exit 0, `services-final-validate.log`; all 16 lanes pass.
+- Prose: exit 0, `services-final-prose.log`.
+- README and progress width: exit 0, `services-final-prose-width.log`; no wide lines.
 - Source hashes and subset: exit 0, `services-final-sources.log`.
+- Seed JSON hashes: exit 0, `services-final-seeds.log`.
+- Saved data and data scripts compared with main: exit 0, `services-final-data-diff.log`.
+  The diff is empty.
 - TSDoc shape: exit 0, `services-final-tsdoc.log`; no S26 rows.
+
+The first final workspace test run hit a five-second timeout in the group test.
+Validate was running beside it.
+The gate was then run alone and passed with no code or timeout change.
+First chain: exit 1, `services-final-gate-first.log`.
+First workspace tests: exit 1, `services-final-workspace-tests-first.log`.
+The final passing logs above keep the full output.
 
 Regression proof:
 
@@ -510,7 +528,19 @@ The first services run scored 73.59 percent, with exit 1.
 Log: `services-mutation-first.log`.
 Its JSON report is saved as `services-mutation-first.json`.
 The new tests cover missing public behavior; they do not read helpers or cells.
-The second full run is still in progress.
+The final full run scored 92.72 percent, with exit 0.
+Log: `services-mutation-second.log`.
+Its JSON is saved as `services-mutation-final.json`.
+There are 1,046 killed cases, 75 timeouts, 68 survivors, and 20 without coverage.
+No case has a runner error.
+The service files alone score 92.59 percent.
+Supplier is 95.81; payment is 92.21; shared HTTP is 87.91.
+The floor applies to the package, as in the unchanged threshold.
+A comparison matches 137 old misses to final `[Killed]` rows.
+It counts no timeout as a killed row.
+Proof: exit 0, `services-mutation-kill-proof.log`.
+The complete remaining cases stay in the JSON report for review.
+No guard-only or metadata test was added.
 The shell refused `rm -rf`; a path-checked cleanup removed only `.stryker-tmp` instead.
 No file, static mutant, or threshold was excluded to raise the score.
 
@@ -526,7 +556,9 @@ No file, static mutant, or threshold was excluded to raise the score.
   The shared-flight line was made explicit.
 - Second promise review: exit 0, `services-final-jev-promises-fixed.log`.
   It found one different gap about stock edits before search.
-  That README line is now explicit; its final check is pending.
+  That README line is now explicit.
+- Final promise review: exit 0, `services-final-jev-promises-complete.log`.
+  All 67 titles have README lines; none are unsure.
 
 The false labels below give each flag its reason.
 The path limit forbids changing `tools/jev/cases.jsonl` or `calibration.json`.
@@ -557,10 +589,12 @@ These paths start at `tools/flight-trial/services/`.
 The `~wrapsCallersStep` hit is noisy and needs no label.
 Inherited scaffold flags stay with that card's lead.
 
-Strict style census: exit 1, `services-lift-style.log`; only S16 has hits.
+Strict style census: exit 1, `services-final-style.log`; only S16 has hits.
 Its three source `preset` calls are explicitly required by this ticket.
 That user instruction overrides the skill's test-only preset rule.
 Every other strict row is zero.
+Exception proof: exit 0, `services-style-exception-proof.log`.
+It checks the raw census has only the three required preset calls.
 
 ### Assumptions and limits
 
@@ -577,7 +611,9 @@ Every other strict row is zero.
 - Holds last 1,000 ms and confirmation webhooks wait 20 ms by default.
 - A late plan defaults to 1,000 ms; manual now sends at once.
 - Last-seat seeds every cabin with one seat; default restores the reader's full stock.
+- Real time is the default; switch to the test clock before starting timed work.
 - Scenario reset keeps the current clock and clears state, rules, and calls.
+- Route rules name the exact HTTP method and path, rather than a path pattern.
 - Route repeat replays the saved reply across bodies; setting the rule again clears it.
 - Payment keys last until reset or stop and compare decoded JSON, including key order.
 - Webhooks make no automatic retries; a failed HTTP send logs status zero.
@@ -622,7 +658,19 @@ Service waits also read the caller's stop signal so Core can drain the root.
 No Core change is requested.
 
 A plain `seed.close()` returns cancelled, even when the seed owns only data.
-Proof: exit 0, `services-seed-close-probe.log`.
+This incorrect success check fails:
+
+```ts
+const state = data({ label: "seed", initial: {} });
+const seed = createScope({
+  presets: [preset(state, {})],
+});
+seed.resolve(state);
+const ended = await seed.close();
+assert.equal(ended.status, "success");
+```
+
+The returned cancelled value is in `services-seed-close-probe.log`, exit 0.
 Scenario seed scopes now use `seed.close({ graceful: true })`.
 The previous HTTP reset failure and passing fix are in the regression logs above.
 This follows Core's close rule; no Core change is requested.
