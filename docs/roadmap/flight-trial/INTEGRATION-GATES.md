@@ -2,7 +2,7 @@
 
 Branch: `trial/flight-integration`.
 Main: `f847c99c`.
-Status: all required proof and workspace gates pass; cleanup is next.
+Status: Review; all required proof, workspace gates, and cleanup pass.
 
 ## Five rounds
 
@@ -110,6 +110,20 @@ After the Hono routes land, rebuild services with:
 ```bash
 node tools/writer-trial/flight-services-image.mjs
 ```
+
+## Cleanup
+
+Cleanup: 0, `tools/writer-trial/.logs/takeover-cleanup.log`.
+The exact removed paths and IDs are in
+[INTEGRATION-CLEANUP.json](INTEGRATION-CLEANUP.json).
+Old proof files were archived before removal under
+`tools/writer-trial/.logs/cleanup-archives/`.
+The final trial, proof, image keepers, and saved tars remain.
+
+- Retained reference proof: 0,
+  `tools/writer-trial/.logs/takeover-reference-retained.log`.
+- Retained staged worker and frozen files: 0,
+  `tools/writer-trial/.logs/takeover-ready-retained.log`.
 
 ## Review notes
 

@@ -2356,7 +2356,7 @@ The original Postgres and Mailpit containers were left running.
 
 Writer: Codex.
 Branch: `trial/flight-integration`.
-Next: finish workspace gates, then remove replaced images and proof folders.
+Next: lead review; start the prepared writer only after that review.
 Verify: rounds 1 to 5 pass twice; five planted breaks fail.
 
 Assumptions:
@@ -2696,3 +2696,32 @@ The strict source census exited 0: `takeover-style.log`.
 Logs are under `tools/writer-trial/.logs/`.
 No code or shared Jev bank was changed; the lead can import these labels.
 No calibration run is claimed before landing.
+
+### Integration: final cleanup and review handoff
+
+Cleanup exited 0: `tools/writer-trial/.logs/takeover-cleanup.log`.
+The removed paths and image IDs are in `INTEGRATION-CLEANUP.json`.
+It removed 12 replaced trial folders, 7 old reference folders,
+15 old image tags, and 8 old saved image folders.
+
+Every removed trial had no model agent ID.
+Before removal, its host files and any live worker files were archived.
+The old reference folders were also archived before removal.
+Archives stay in `tools/writer-trial/.logs/cleanup-archives/`.
+No model attempt or session was invented for these setup proofs.
+The old workspace entries, containers, networks, volumes,
+and their exact trust entries were removed with the replaced trial folders.
+The stock-suite legacy proof was left alone.
+
+The `.3` writer and services images, their keepers, and both tars remain.
+Postgres and Mailpit image keepers remain.
+The final proof and `flight-integration-ready-01` remain.
+The prepared trial is still at packet 1; no model run has started.
+Its frozen-file and worker-folder checks passed after cleanup.
+Log: `tools/writer-trial/.logs/takeover-ready-retained.log`, exit 0.
+The final reference result check passed again after cleanup.
+Log: `tools/writer-trial/.logs/takeover-reference-retained.log`, exit 0.
+
+Status: Review.
+All work in the integration brief is saved with passing proof.
+The lead owns review and landing; this writer did not push.

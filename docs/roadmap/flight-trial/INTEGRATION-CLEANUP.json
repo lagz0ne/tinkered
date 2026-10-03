@@ -1,0 +1,138 @@
+{
+  "trials": [
+    "flight-harness-current-01",
+    "flight-harness-later-01",
+    "flight-harness-proof-02",
+    "flight-harness-proof-03",
+    "flight-harness-proof-04",
+    "flight-harness-proof-05",
+    "flight-harness-proof-06",
+    "flight-harness-review-01",
+    "flight-harness-scaffold-01",
+    "flight-integration-01",
+    "flight-integration-02",
+    "flight-integration-03"
+  ],
+  "referenceFolders": [
+    "tools/writer-trial/.logs/reference-final",
+    "tools/writer-trial/.logs/reference-final-v2",
+    "tools/writer-trial/.logs/reference-resume-final",
+    "tools/writer-trial/.logs/reference-resume-full",
+    "tools/writer-trial/.logs/reference-run-1",
+    "tools/writer-trial/.logs/reference-run-2",
+    "tools/writer-trial/.logs/reference-run-3"
+  ],
+  "imageTags": [
+    {
+      "tag": "tinker-writer-flight:20261003.1",
+      "id": "sha256:b7d336e413fb234ae9a74ede7c0bce3fc93397ed4e5c77019544d5b67332652c"
+    },
+    {
+      "tag": "tinker-flight-services:20261003.1",
+      "id": "sha256:d7f4bd8fcf33e875e33e11ad0bdc36879f4a82f040f588ee70fd43c4aa93495a"
+    },
+    {
+      "tag": "tinker-writer-flight:20261003.2",
+      "id": "sha256:0e8a02537271fbfbb3da65412f4bcff6b722075494a9b7a1d2bf5b71a9b88415"
+    },
+    {
+      "tag": "tinker-flight-services:20261003.2",
+      "id": "sha256:76f07bd6c8d0399a082d4a2edf5e31487402b3efb64ecf0be231a017e0e38ccd"
+    },
+    {
+      "tag": "tinker-writer-flight:20261003.3",
+      "id": "sha256:6b5cd3b6ae1f89f470b8d1c4ec8a43d292ce8771129830e58497ac6fc4b9e0ad"
+    },
+    {
+      "tag": "tinker-flight-services:20261003.3",
+      "id": "sha256:76f07bd6c8d0399a082d4a2edf5e31487402b3efb64ecf0be231a017e0e38ccd"
+    },
+    {
+      "tag": "tinker-writer-flight:20261003.4",
+      "id": "sha256:4de52801b7a2d5675b4f6fd1111ec7ab0ef22a257ff35b60547203a12881e57a"
+    },
+    {
+      "tag": "tinker-flight-services:20261003.4",
+      "id": "sha256:a0b85e5b8d7b057d5604f64fb2205fae4b405e39f060c0b8b09936ec0b8b0214"
+    },
+    {
+      "tag": "tinker-writer-flight:20261003.5",
+      "id": "sha256:6a5c0381d11a895acc6939936ce2293f561763bcbc15168816412d7dea827a8e"
+    },
+    {
+      "tag": "tinker-flight-services:20261003.5",
+      "id": "sha256:a0b85e5b8d7b057d5604f64fb2205fae4b405e39f060c0b8b09936ec0b8b0214"
+    },
+    {
+      "tag": "tinker-writer-flight:20261003.integration.1",
+      "id": "sha256:55f5fed4c6a984e6189ff8f526da7cc32c5ecfc681308c22c8ffc0c9f9db5d37"
+    },
+    {
+      "tag": "tinker-flight-services:20261003.integration.1",
+      "id": "sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b"
+    },
+    {
+      "tag": "tinker-writer-flight:20261003.integration.2",
+      "id": "sha256:d043612f3bbee9ff4eb4cb3f9976d09aef5da5e913ed3bf412b410654de4c48d"
+    },
+    {
+      "tag": "tinker-flight-services:20261003.integration.2",
+      "id": "sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b"
+    },
+    {
+      "tag": "tinker-flight-services:20261003131759497",
+      "id": "sha256:2de8a2b426bc14c0bb4357724586e06176a07edb339ddcb69c2b2fa3c0f1013b"
+    }
+  ],
+  "imageFolders": [
+    "/home/paseo/.local/share/tinker-writer-trial/image-20261003.1",
+    "/home/paseo/.local/share/tinker-writer-trial/image-20261003.2",
+    "/home/paseo/.local/share/tinker-writer-trial/image-20261003.3",
+    "/home/paseo/.local/share/tinker-writer-trial/image-20261003.4",
+    "/home/paseo/.local/share/tinker-writer-trial/image-20261003.5",
+    "/home/paseo/.local/share/tinker-writer-trial/image-20261003.integration.1",
+    "/home/paseo/.local/share/tinker-writer-trial/image-20261003.integration.2",
+    "/home/paseo/.local/share/tinker-writer-trial/services-20261003131759497"
+  ],
+  "keepers": [
+    "tinker-flight-keep-20261003.1-app",
+    "tinker-flight-keep-20261003.1-services",
+    "tinker-flight-keep-20261003.2-app",
+    "tinker-flight-keep-20261003.2-services",
+    "tinker-flight-keep-20261003.3-app",
+    "tinker-flight-keep-20261003.3-services",
+    "tinker-flight-keep-20261003.4-app",
+    "tinker-flight-keep-20261003.4-services",
+    "tinker-flight-keep-20261003.5-app",
+    "tinker-flight-keep-20261003.5-services",
+    "tinker-flight-keep-20261003.integration.1-app",
+    "tinker-flight-keep-20261003.integration.1-services",
+    "tinker-flight-keep-20261003.integration.2-app",
+    "tinker-flight-keep-20261003.integration.2-services",
+    "tinker-flight-keep-20261003131759497-services"
+  ],
+  "archives": [
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-current-01-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-later-01-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-proof-02-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-proof-03-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-proof-04-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-proof-05-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-proof-06-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-review-01-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-harness-scaffold-01-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-integration-01-work.tar",
+    "tools/writer-trial/.logs/cleanup-archives/flight-integration-01-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-integration-02-work.tar",
+    "tools/writer-trial/.logs/cleanup-archives/flight-integration-02-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/flight-integration-03-work.tar",
+    "tools/writer-trial/.logs/cleanup-archives/flight-integration-03-host.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/reference-final.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/reference-final-v2.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/reference-resume-final.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/reference-resume-full.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/reference-run-1.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/reference-run-2.tar.gz",
+    "tools/writer-trial/.logs/cleanup-archives/reference-run-3.tar.gz"
+  ]
+}
