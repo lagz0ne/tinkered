@@ -2865,3 +2865,22 @@ The secure-origin flag stays in the teacher browser.
 It is harmless with the new Core build and was needed for the old image.
 This corrects the earlier note about removing the flag.
 These limits are now stated in `INTEGRATION-GATES.md`.
+
+### Integration review fix 3: new writer image
+
+The writer image rebuild and tar save exited 0.
+Log: `tools/writer-trial/.logs/review-writer-image.log`.
+The build used main `0da81a82`, which includes Core fix `f847c99c`.
+Core, React, and scaffold source bytes match that main.
+The packed Core bytes match the current workspace build.
+The image contains the `getRandomValues` fallback.
+The secure-origin flag stays.
+
+Writer tag: `tinker-writer-flight:20261003.integration.4`.
+Writer ID:
+`sha256:798c43f875b1054fa29f2a31eedbe7c06461dc7b85f7194674c4146faae82f7a`.
+The tar path and Core hash are in `INTEGRATION-IMAGES.json`.
+The idle image keeper is running.
+Assumption: prepare the writer context, then build and save only that image.
+This keeps the current Hono services image fixed, as requested.
+The exact build steps are saved in `.logs/review-writer-image.mjs`.

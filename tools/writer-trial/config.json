@@ -38,7 +38,7 @@
     "wrapsCallersStep"
   ],
   "flight": {
-    "image": "tinker-writer-flight:20261003.integration.3",
+    "image": "tinker-writer-flight:20261003.integration.4",
     "servicesImage": "tinker-flight-services:20261003160955833",
     "postgresImage": "postgres:17-alpine",
     "mailpitImage": "axllent/mailpit:v1.27"
