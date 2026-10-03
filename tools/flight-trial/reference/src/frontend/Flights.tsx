@@ -1,4 +1,4 @@
-import { useData, useRun, useResource } from "@tinker/react";
+import { useData, useRun } from "@tinker/react";
 import { Link } from "@tanstack/react-router";
 import {
   flightDraft,
@@ -9,9 +9,8 @@ import {
   findFlights,
 } from "./flights.ts";
 import { bookingNotice } from "./state.ts";
-import { holdSeat, seatUpdates } from "./bookings.ts";
+import { holdSeat } from "./bookings.ts";
 export function FlightsPage() {
-  useResource(seatUpdates);
   const hold = useRun(holdSeat);
   const held = useData(bookingNotice);
   const draft = useData(flightDraft);

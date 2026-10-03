@@ -1,5 +1,5 @@
 import { operation, type Operation } from "@tinker/core";
-import { eq, asc, inArray } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { z } from "zod";
 import { database } from "./database.ts";
 import { currentUser } from "./auth.ts";
@@ -40,10 +40,12 @@ export const holdFlight = operation({
     await database.transaction(async (tx) => {
       await history.lock(tx, currentUser.id);
       if (await history.find(tx, ctx.input.executionId, currentUser.id)) return;
+      await history.lock(tx, "public");
       const response = await supplier.run({
         input: { supplier: selected.supplier, path: `/air/offers/${selected.id}` },
       });
       const current = offerReply.parse(response.body).data;
+      let seats = current.available_seats;
       let message: string | undefined;
       if (current.total_amount !== selected.total_amount) message = "Price changed";
       else if (current.available_seats === 0) message = "Sold out";
@@ -55,9 +57,12 @@ export const holdFlight = operation({
             body: { data: { selected_offers: [selected.id], type: "hold" } },
           },
         });
-        if (!ordered.ok) message = "Sold out";
-        else {
+        if (!ordered.ok) {
+          message = "Sold out";
+          seats = 0;
+        } else {
           const saved = orderReply.parse(ordered.body).data;
+          seats = Math.max(0, current.available_seats - 1);
           await tx.insert(booking).values({
             id: ctx.input.executionId,
             ownerId: currentUser.id,
@@ -68,6 +73,22 @@ export const holdFlight = operation({
             state: "Held",
           });
         }
+      }
+      if (message !== "Price changed") {
+        const seatExecutionId = ctx.random.uuid();
+        await tx.insert(execution).values({ id: seatExecutionId, stream: "public" });
+        await history.append(tx, "public", seatExecutionId, [
+          {
+            kind: "change",
+            change: {
+              kind: "flightSeats",
+              supplier: selected.supplier,
+              flightId: selected.flight_id,
+              cabin: selected.cabin_class,
+              seats,
+            },
+          },
+        ]);
       }
       await tx.insert(execution).values({ id: ctx.input.executionId, stream: currentUser.id });
       const rows = await tx
@@ -134,25 +155,5 @@ export const refreshBookings = operation({
         await save.run({ input: { row, state: "Expired" } });
     }
     return { ok: true };
-  },
-});
-export const readFlightSeats = operation({
-  label: "read current flight seats",
-  input: z.array(z.string()),
-  depends: { database, supplier: callSupplier.controller },
-  async run({ database, supplier }, ctx) {
-    const quotes = await database
-      .select()
-      .from(flightQuote)
-      .where(inArray(flightQuote.id, ctx.input));
-    return Promise.all(
-      quotes.map(async ({ id, offer: selected }) => {
-        const response = await supplier.run({
-          input: { supplier: selected.supplier, path: `/air/offers/${id}` },
-        });
-        if (!response.ok) return { id, seats: selected.available_seats };
-        return { id, seats: offerReply.parse(response.body).data.available_seats };
-      }),
-    );
   },
 });

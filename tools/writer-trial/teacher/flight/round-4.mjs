@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHmac } from "node:crypto";
 import { account, table, control, calls, expect } from "./common.mjs";
 import { target, hold, history } from "./round-3.mjs";
 export async function heldBooking(
@@ -10,39 +10,136 @@ export async function heldBooking(
 ) {
   const flight = await target(suite, scenario);
   await account(page, suite.app, email);
-  await hold(page, suite, flight);
-  await expect(page.getByRole("alert")).toHaveText("Held");
-  const rows = await history(page, suite.app);
+  const shown = await hold(page, suite, flight);
+  const savedPage = await page.context().newPage();
+  try {
+    await expect
+      .poll(
+        async () =>
+          (await history(savedPage, suite.app)).filter((row) => row.State === "Held").length,
+      )
+      .toBe(1);
+  } finally {
+    await savedPage.close();
+  }
+  await history(page, suite.app);
+  await expect
+    .poll(async () => (await table(page, "Bookings")).filter((row) => row.State === "Held").length)
+    .toBe(1);
+  const rows = await table(page, "Bookings");
   assert.equal(rows.length, 1, "The traveler must have one saved hold");
-  return rows[0];
+  return { ...rows[0], Departs: shown.Departs, Arrives: shown.Arrives };
 }
 export async function pay(page, suite, row) {
-  const request = page.waitForRequest(
-    (r) => r.url() === `${suite.app}/api/flights/pay` && r.method() === "POST",
-  );
   await page.getByRole("button", { name: `Pay ${row.Booking}`, exact: true }).click();
-  const sent = (await request).postDataJSON();
   await expect.poll(async () => (await table(page, "Bookings"))[0]?.State).toBe("Processing");
-  return sent;
 }
 export async function state(page, value) {
   await expect.poll(async () => (await table(page, "Bookings"))[0]?.State).toBe(value);
   return (await table(page, "Bookings"))[0];
 }
+async function signedWebhook(suite, body, options = {}) {
+  const timestamp = options.timestamp ?? Math.floor(Date.now() / 1000);
+  const digest = createHmac("sha256", suite.webhookSecret)
+    .update(`${timestamp}.${body}`)
+    .digest("hex");
+  return fetch(`${suite.app}/webhooks/stripe`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "Stripe-Signature": `t=${timestamp},v1=${digest}`,
+    },
+    body: options.sentBody ?? body,
+  });
+}
+async function successEvent(suite, paymentId) {
+  const intent = await (await fetch(`${suite.payment}/v1/payment_intents/${paymentId}`)).json();
+  return JSON.stringify({
+    id: `evt_${randomUUID()}`,
+    object: "event",
+    created: Math.floor(Date.now() / 1000),
+    type: "payment_intent.succeeded",
+    data: { object: { ...intent, status: "succeeded" } },
+  });
+}
 export async function round4(suite, test) {
+  await test("r4 the payment route repeats one execution without extra charges", async (page, context) => {
+    const row = await heldBooking(page, suite);
+    await control(suite, suite.payment, "payment", { mode: "never" });
+    const data = { executionId: randomUUID(), bookingId: row.Booking };
+    const repeated = await Promise.all(
+      [1, 2].map(() => context.request.post(`${suite.app}/api/flights/pay`, { data })),
+    );
+    for (const response of repeated) {
+      assert.equal(response.status(), 200, "An allowed payment route returns HTTP 200");
+      assert.deepEqual(await response.json(), { executionId: data.executionId });
+    }
+    const pending = await state(page, "Processing");
+    await control(suite, suite.payment, "webhooks", { intent_id: pending.Payment, mode: "now" });
+    await state(page, "Confirmed");
+    const later = await context.request.post(`${suite.app}/api/flights/pay`, { data });
+    assert.equal(later.status(), 200);
+    assert.deepEqual(await later.json(), { executionId: data.executionId });
+    assert.equal((await calls(suite, suite.payment, "POST /v1/payment_intents")).length, 1);
+    assert.equal(
+      (await calls(suite, suite.payment, /^POST \/v1\/payment_intents\/[^/]+\/confirm$/)).length,
+      1,
+    );
+    assert.equal((await calls(suite, suite.suppliers[0].url, "POST /air/payments")).length, 1);
+    assert.equal((await calls(suite, suite.payment, "POST /v1/refunds")).length, 0);
+  });
+  await test("r4 an old signed webhook changes nothing", async (page) => {
+    const row = await heldBooking(page, suite);
+    await control(suite, suite.payment, "payment", { mode: "never" });
+    await pay(page, suite, row);
+    const pending = await state(page, "Processing");
+    const body = await successEvent(suite, pending.Payment);
+    const response = await signedWebhook(suite, body, {
+      timestamp: Math.floor(Date.now() / 1000) - 600,
+    });
+    assert.equal(response.status, 400, "A correct signature with an old timestamp must be refused");
+    assert.equal((await table(page, "Bookings"))[0].State, "Processing");
+    assert.equal((await calls(suite, suite.suppliers[0].url, "POST /air/payments")).length, 0);
+    assert.equal((await calls(suite, suite.payment, "POST /v1/refunds")).length, 0);
+    await page.reload({ waitUntil: "load" });
+    await state(page, "Processing");
+  });
+  await test("r4 signatures use exact bytes and fresh event replays add no effects", async (page) => {
+    const row = await heldBooking(page, suite);
+    await control(suite, suite.payment, "payment", { mode: "never" });
+    await pay(page, suite, row);
+    const pending = await state(page, "Processing");
+    const body = await successEvent(suite, pending.Payment);
+    const changed = await signedWebhook(suite, body, { sentBody: `${body} ` });
+    assert.equal(changed.status, 400, "A signature over different bytes must be refused");
+    assert.equal((await table(page, "Bookings"))[0].State, "Processing");
+    assert.equal((await calls(suite, suite.suppliers[0].url, "POST /air/payments")).length, 0);
+    assert.equal((await calls(suite, suite.payment, "POST /v1/refunds")).length, 0);
+    const first = await signedWebhook(suite, body);
+    assert.equal(
+      first.status,
+      200,
+      "The real intent's correctly signed fresh result must be accepted",
+    );
+    await state(page, "Confirmed");
+    const replay = await signedWebhook(suite, body, {
+      timestamp: Math.floor(Date.now() / 1000) + 1,
+    });
+    assert.equal(replay.status, 200, "A fresh signature may replay the same saved event");
+    assert.equal((await calls(suite, suite.suppliers[0].url, "POST /air/payments")).length, 1);
+    assert.equal((await calls(suite, suite.payment, "POST /v1/payment_intents")).length, 1);
+    assert.equal((await calls(suite, suite.payment, "POST /v1/refunds")).length, 0);
+    await page.reload({ waitUntil: "load" });
+    await state(page, "Confirmed");
+  });
   await test("r4 payment waits for a valid signed webhook and syncs across tabs", async (page, context) => {
     const row = await heldBooking(page, suite);
     const twin = await context.newPage();
     await history(twin, suite.app);
     await control(suite, suite.payment, "payment", { mode: "never" });
-    const sent = await pay(page, suite, row);
+    await pay(page, suite, row);
     const pending = await state(twin, "Processing");
     assert.match(pending.Payment, /^pi_/, "Save the real payment intent ID");
-    const repeated = await Promise.all(
-      [1, 2].map(() => context.request.post(`${suite.app}/api/flights/pay`, { data: sent })),
-    );
-    for (const response of repeated)
-      assert.equal(response.status(), 200, "A pay receipt can repeat safely");
     const intent = await (
       await fetch(`${suite.payment}/v1/payment_intents/${pending.Payment}`)
     ).json();
@@ -93,12 +190,12 @@ export async function round4(suite, test) {
     assert.equal(
       (await calls(suite, suite.payment, "POST /v1/payment_intents")).length,
       1,
-      "Repeated pay requests create one intent",
+      "The pay action creates one intent",
     );
     assert.equal(
       (await calls(suite, suite.payment, /^POST \/v1\/payment_intents\/[^/]+\/confirm$/)).length,
       1,
-      "Repeated pay requests confirm only once",
+      "The pay action confirms only once",
     );
     assert.equal((await calls(suite, suite.payment, "POST /v1/refunds")).length, 0);
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -168,7 +265,12 @@ export async function round4(suite, test) {
       await otherContext.close();
     }
     await control(suite, suite.suppliers[0].url, "clock", { advanceMs: 3600000 });
-    await state(page, "Expired");
+    await expect
+      .poll(async () => {
+        await page.reload({ waitUntil: "load" });
+        return (await table(page, "Bookings"))[0]?.State;
+      })
+      .toBe("Expired");
     await expect(page.getByRole("button", { name: `Pay ${row.Booking}`, exact: true })).toHaveCount(
       0,
     );

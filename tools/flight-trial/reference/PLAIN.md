@@ -7,12 +7,11 @@ Tests and generated files do not count.
 - **src/backend/flight-settings.server.ts#readFlightSettings**
   - `env`: `FlightSettings.Environment`. From the HTTP entry environment; for the three supplier URLs.
   - Sites:
-    - `src/routes/api.flights.bookings.ts`: 1 site(s).
-    - `src/routes/api.flights.current.ts`: 1 site(s).
     - `src/routes/api.flights.hold.ts`: 1 site(s).
     - `src/routes/api.flights.pay.ts`: 1 site(s).
     - `src/routes/api.flights.search.ts`: 1 site(s).
     - `src/routes/webhooks.stripe.ts`: 1 site(s).
+    - `src/transport/bookings.functions.ts`: 1 site(s).
 
 - **src/backend/payment-http.ts#readPaymentSettings**
   - `env`: `{ PAYMENT_URL?: string; WEBHOOK_SECRET?: string }`. From the HTTP entry environment; for payment calls and signature verification.
@@ -100,8 +99,6 @@ Tests and generated files do not count.
   - `result`: `RunResult<T>`. From a settled boundary call; why: return its value or raise its failure.
   - Sites:
     - `src/routes/api.auth.$.ts`: 2 site(s).
-    - `src/routes/api.flights.bookings.ts`: 1 site(s).
-    - `src/routes/api.flights.current.ts`: 1 site(s).
     - `src/routes/api.flights.email.ts`: 2 site(s).
     - `src/routes/api.flights.hold.ts`: 1 site(s).
     - `src/routes/api.flights.pay.ts`: 2 site(s).
@@ -110,6 +107,7 @@ Tests and generated files do not count.
     - `src/routes/api.telemetry.ts`: 1 site(s).
     - `src/routes/webhooks.stripe.ts`: 1 site(s).
     - `src/scaffold/sync.functions.ts`: 2 site(s).
+    - `src/transport/bookings.functions.ts`: 2 site(s).
     - `src/transport/profile.functions.ts`: 1 site(s).
     - `src/transport/todos.functions.ts`: 1 site(s).
 

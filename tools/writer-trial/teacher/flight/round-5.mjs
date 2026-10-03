@@ -31,18 +31,46 @@ async function assertConfirmation(suite, email, row) {
   const message = await response.json();
   for (const text of [row.Booking, row.Flight, row.Order, row.Supplier, row.Price])
     assert.ok(message.Text.includes(text), `Confirmation must include ${text}`);
-  const order = (await (await fetch(`${suite.suppliers[0].url}/air/orders/${row.Order}`)).json())
-    .data;
-  const offers = await fetch(`${suite.suppliers[0].url}/air/offers/${order.selected_offers[0]}`);
-  const offer = (await offers.json()).data;
-  for (const time of [
-    offer.slices[0].segments[0].departing_at,
-    offer.slices[0].segments[0].arriving_at,
-  ])
-    assert.ok(message.Text.includes(time), "Confirmation must include the full UTC flight times");
+  for (const time of [row.Departs, row.Arrives])
+    assert.ok(message.Text.includes(time), "Confirmation must match the Flights display times");
 }
 export async function round5(suite, test) {
   await chaos(suite);
+  await test("r5 the email route repeats one execution without extra sends", async (page, context) => {
+    const email = `${randomUUID()}@example.test`;
+    const row = await heldBooking(page, suite, "default", email);
+    await control(suite, suite.payment, "payment", { mode: "never" });
+    await pay(page, suite, row);
+    const pending = await state(page, "Processing");
+    try {
+      await chaos(suite, { Sender: { ErrorCode: 451, Probability: 100 } });
+      await control(suite, suite.payment, "webhooks", { intent_id: pending.Payment, mode: "now" });
+      await expect.poll(async () => (await table(page, "Bookings"))[0]?.Email).toBe("Failed");
+      assert.equal((await table(page, "Bookings"))[0].State, "Confirmed");
+    } finally {
+      await chaos(suite);
+    }
+    const data = { executionId: randomUUID(), bookingId: row.Booking };
+    const repeated = await Promise.all(
+      [1, 2].map(() => context.request.post(`${suite.app}/api/flights/email`, { data })),
+    );
+    for (const response of repeated) {
+      assert.equal(response.status(), 200, "An allowed email route returns HTTP 200");
+      assert.deepEqual(await response.json(), { executionId: data.executionId });
+    }
+    await expect.poll(async () => (await table(page, "Bookings"))[0]?.Email).toBe("Sent");
+    await expect(
+      page.getByRole("button", { name: `Retry email ${row.Booking}`, exact: true }),
+    ).toHaveCount(0);
+    const later = await context.request.post(`${suite.app}/api/flights/email`, { data });
+    assert.equal(later.status(), 200);
+    assert.deepEqual(await later.json(), { executionId: data.executionId });
+    await assertConfirmation(suite, email, row);
+    assert.equal((await calls(suite, suite.payment, "POST /v1/payment_intents")).length, 1);
+    assert.equal((await calls(suite, suite.suppliers[0].url, "POST /air/orders")).length, 1);
+    assert.equal((await calls(suite, suite.suppliers[0].url, "POST /air/payments")).length, 1);
+    assert.equal((await calls(suite, suite.payment, "POST /v1/refunds")).length, 0);
+  });
   await test("r5 a confirmed booking sends one real confirmation", async (page, context) => {
     const email = `${randomUUID()}@example.test`;
     const row = await heldBooking(page, suite, "default", email);
@@ -120,15 +148,7 @@ export async function round5(suite, test) {
       } finally {
         await otherContext.close();
       }
-      const request = page.waitForRequest(
-        (r) => r.url() === `${suite.app}/api/flights/email` && r.method() === "POST",
-      );
       await page.getByRole("button", { name: `Retry email ${row.Booking}`, exact: true }).click();
-      const sent = (await request).postDataJSON();
-      const repeats = await Promise.all(
-        [1, 2].map(() => context.request.post(`${suite.app}/api/flights/email`, { data: sent })),
-      );
-      for (const response of repeats) assert.equal(response.status(), 200);
       await expect.poll(async () => (await table(twin, "Bookings"))[0]?.Email).toBe("Sent");
       const final = (await table(twin, "Bookings"))[0];
       assert.equal(final.State, "Confirmed");

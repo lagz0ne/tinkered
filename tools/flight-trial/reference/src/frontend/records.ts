@@ -1,3 +1,4 @@
+import { flightRows } from "./flights.ts";
 import { bookingRows } from "./state.ts";
 import { resource } from "@tinker/core";
 import { profile, todos, counter, nameDraft, profileResult } from "./state.ts";
@@ -11,9 +12,10 @@ export const records = resource({
     counter: counter.controller,
     draft: nameDraft.controller,
     bookings: bookingRows.controller,
+    flights: flightRows.controller,
     result: profileResult.controller,
   },
-  factory: ({ profile, todos, counter, draft, result, bookings }) => ({
+  factory: ({ profile, todos, counter, draft, result, bookings, flights }) => ({
     resetPrivate() {
       profile.set(null);
       todos.set([]);
@@ -32,6 +34,17 @@ export const records = resource({
     },
     change(change: Sync.Change) {
       switch (change.kind) {
+        case "flightSeats":
+          flights.update((rows) =>
+            rows.map((row) =>
+              row.supplier === change.supplier &&
+              row.flight_id === change.flightId &&
+              row.cabin_class === change.cabin
+                ? { ...row, available_seats: change.seats }
+                : row,
+            ),
+          );
+          break;
         case "counter":
           counter.set(change.value);
           break;

@@ -116,18 +116,22 @@ export async function search(page, app, destination = "AMS", date = "2027-01-15"
   await page.getByRole("button", { name: "Search", exact: true }).click();
 }
 export async function table(page, name) {
-  const grid = page.getByRole("table", { name, exact: true });
-  const headers = await grid.getByRole("columnheader").allTextContents();
-  const rows = await grid.getByRole("row").all();
-  const records = [];
-  for (const row of rows) {
-    const cells = await row.getByRole("cell").allTextContents();
-    if (cells.length)
-      records.push(
-        Object.fromEntries(headers.map((header, index) => [header.trim(), cells[index]?.trim()])),
+  return page.getByRole("table", { name, exact: true }).evaluateAll((grids) => {
+    const grid = grids[0];
+    if (!grid) return [];
+    const headers = [...grid.querySelectorAll('th:not([scope="row"]), [role="columnheader"]')].map(
+      (cell) => cell.textContent.trim(),
+    );
+    if (!headers.length) return [];
+    return [...grid.querySelectorAll('tr, [role="row"]')].flatMap((row) => {
+      const cells = [...row.querySelectorAll('td, [role="cell"]')].map((cell) =>
+        cell.textContent.trim(),
       );
-  }
-  return records;
+      return cells.length
+        ? [Object.fromEntries(headers.map((header, index) => [header, cells[index]]))]
+        : [];
+    });
+  });
 }
 export async function complete(page) {
   await expect(page.getByText("Search complete", { exact: true })).toBeVisible();

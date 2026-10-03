@@ -1,5 +1,5 @@
-import { useData, useResource, useRun } from "@tinker/react";
-import { holdUpdates, payHold, retryConfirmation } from "./bookings.ts";
+import { useData, useRun } from "@tinker/react";
+import { payHold, retryConfirmation } from "./bookings.ts";
 import { profile, bookingRows, bookingNotice } from "./state.ts";
 export function BookingsPage() {
   const retry = useRun(retryConfirmation);
@@ -7,7 +7,6 @@ export function BookingsPage() {
   const pay = useRun(payHold);
   const account = useData(profile);
   const rows = useData(bookingRows);
-  useResource(holdUpdates);
   if (!account)
     return (
       <main>

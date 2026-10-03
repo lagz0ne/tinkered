@@ -23,7 +23,7 @@ export {
   replayPrivate,
 } from "./sync.ts";
 export { searchFlights } from "./flight-search.ts";
-export { holdFlight, listBookings, refreshBookings, readFlightSeats } from "./bookings.ts";
+export { holdFlight, listBookings, refreshBookings } from "./bookings.ts";
 
 export { payBooking, receivePayment } from "./payments.ts";
 

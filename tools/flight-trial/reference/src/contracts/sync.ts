@@ -43,6 +43,13 @@ const result = z.union([
   }),
 ]);
 const change = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("flightSeats"),
+    supplier: z.string(),
+    flightId: z.string(),
+    cabin: z.enum(["economy", "business"]),
+    seats: z.number().int().nonnegative(),
+  }),
   z.object({ kind: z.literal("counter"), value: z.number() }),
   z.object({ kind: z.literal("profile"), profile: profileRecord }),
   z.object({ kind: z.literal("todos"), rows: z.array(todoRecord) }),

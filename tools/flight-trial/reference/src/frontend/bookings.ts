@@ -1,8 +1,7 @@
-import { resource, operation, type Operation } from "@tinker/core";
+import { operation } from "@tinker/core";
 import { z } from "zod";
 import { syncClient } from "../scaffold/frontend/sync.ts";
 import { profile, bookingNotice } from "./state.ts";
-import { flightRows } from "./flights.ts";
 import { raise } from "../errors.ts";
 export const holdSeat = operation({
   label: "hold seat",
@@ -30,78 +29,6 @@ export const holdSeat = operation({
       ctx.signal,
     );
     notice.set(result.kind === "failed" ? result.message : "Held");
-  },
-});
-const seatsReply = z.array(z.object({ id: z.string(), seats: z.number() }));
-import { tabStop } from "../scaffold/frontend/owner.ts";
-const watchSeats = operation({
-  label: "watch flight seats",
-  depends: { rows: flightRows.controller, stop: tabStop },
-  async run({ rows, stop }, ctx: Operation.Ctx<AbortSignal>) {
-    const signal = AbortSignal.any([ctx.signal, stop, ctx.input]);
-    try {
-      while (!signal.aborted) {
-        const ids = rows.get().map((row) => row.id);
-        if (ids.length) {
-          const response = await fetch("/api/flights/current", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(ids),
-            signal,
-          });
-          const seats = seatsReply.parse(await response.json());
-          rows.update((all) =>
-            all.map((row) => ({
-              ...row,
-              available_seats:
-                seats.find((entry) => entry.id === row.id)?.seats ?? row.available_seats,
-            })),
-          );
-        }
-        await ctx.clock.sleep(500, signal);
-      }
-    } catch (error) {
-      if (!signal.aborted) throw error;
-    }
-  },
-});
-export const seatUpdates = resource({
-  label: "flight seat updates",
-  depends: { watch: watchSeats.controller },
-  factory({ watch }, ctx) {
-    const stop = new AbortController();
-    const pending = watch.run({ input: stop.signal });
-    ctx.defer(async () => {
-      stop.abort();
-      await pending;
-    });
-  },
-});
-const watchHolds = operation({
-  label: "watch holds",
-  depends: { stop: tabStop },
-  async run({ stop }, ctx: Operation.Ctx<AbortSignal>) {
-    const signal = AbortSignal.any([ctx.signal, stop, ctx.input]);
-    try {
-      while (!signal.aborted) {
-        await fetch("/api/flights/bookings", { signal });
-        await ctx.clock.sleep(500, signal);
-      }
-    } catch (error) {
-      if (!signal.aborted) throw error;
-    }
-  },
-});
-export const holdUpdates = resource({
-  label: "hold updates",
-  depends: { watch: watchHolds.controller },
-  factory({ watch }, ctx) {
-    const stop = new AbortController();
-    const pending = watch.run({ input: stop.signal });
-    ctx.defer(async () => {
-      stop.abort();
-      await pending;
-    });
   },
 });
 export const payHold = operation({

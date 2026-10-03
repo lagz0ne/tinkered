@@ -70,8 +70,8 @@ const checks = {
   },
   5: {
     file: "src/backend/booking-mail.ts",
-    from: ".set({ emailState })",
-    to: '.set({ emailState, state: emailState === "Failed" ? "Expired" : "Confirmed" })',
+    from: "const sent = await send.settle({ rawInput: stored.notification });",
+    to: 'const sent = await send.settle({ rawInput: stored.notification });\n    if (sent.status !== "success") raise("RetryNotAvailable", {});',
     fails: "r5 failed mail keeps the booking valid and retry sends once",
   },
   4: {
@@ -113,34 +113,79 @@ async function check(label) {
   console.log(`${label}: exit ${code}; ${log}`);
   return { code, cases: results.cases };
 }
-const planted = checks[round];
-const path = `${root}${planted.file}`;
-const before = await readFile(path, "utf8");
-assert.equal(
-  before.split(planted.from).length - 1,
-  1,
-  "The planted break must have one exact anchor",
-);
+const plants = [checks[round]];
+if (round === 4)
+  plants.push(
+    {
+      file: "src/backend/payment-signature.ts",
+      from: "if (!parts || Math.abs(Number(parts.time) * 1000 - ctx.clock.currentTimeMillis()) > 300000)",
+      to: "if (!parts)",
+      fails: "r4 an old signed webhook changes nothing",
+      label: "break-timestamp",
+    },
+    {
+      file: "src/backend/payments.ts",
+      from: "if (!paid) await refund.run({ input: ctx.input });",
+      to: 'if (!paid) return "Refunded" as const;',
+      fails: "r4 late success after hold expiry refunds once",
+      label: "break-refund",
+    },
+  );
+const originals = new Map();
+for (const planted of plants) {
+  const path = `${root}${planted.file}`;
+  const before = await readFile(path, "utf8");
+  originals.set(path, before);
+  assert.equal(
+    before.split(planted.from).length - 1,
+    1,
+    "The planted break must have one exact anchor",
+  );
+}
+let stage;
+if (round === 1) {
+  const path = `${root}src/backend/flight-search.ts`;
+  const before = await readFile(path, "utf8");
+  const from = "].map(async ({ supplier, url }) => {";
+  assert.equal(
+    before.split(from).length - 1,
+    1,
+    "Round 1 staging must have one supplier-list anchor",
+  );
+  originals.set(path, before);
+  stage = { path, body: before.replace(from, "].slice(0, 1).map(async ({ supplier, url }) => {") };
+}
 try {
+  if (stage) {
+    await writeFile(stage.path, stage.body);
+    console.log("Round 1 stage: supplier A only; the final source is restored afterward");
+  }
   await build("good");
   await start();
   for (const label of ["pass-1", "pass-2"])
     assert.equal((await check(label)).code, 0, "Reference must pass twice");
   await stop("good");
-  await writeFile(path, before.replace(planted.from, planted.to));
-  await build("break");
-  await start();
-  const result = await check("break");
-  assert.equal(result.code, 1, "The planted break must fail");
-  const caught = result.cases.find((entry) => entry.name === planted.fails);
-  assert.equal(caught?.pass, false, `The planted break must fail ${planted.fails}`);
-  assert.ok(
-    !/Control .*failed|page.goto|Executable|heading/.test(caught.error),
-    "A setup failure is not proof",
-  );
-  console.log(`CANARY-PASS r${round}: ${planted.fails}`);
+  for (const planted of plants) {
+    const path = `${root}${planted.file}`;
+    const before = originals.get(path);
+    const label = planted.label ?? "break";
+    await writeFile(path, before.replace(planted.from, planted.to));
+    await build(label);
+    await start();
+    const result = await check(label);
+    assert.equal(result.code, 1, "The planted break must fail");
+    const caught = result.cases.find((entry) => entry.name === planted.fails);
+    assert.equal(caught?.pass, false, `The planted break must fail ${planted.fails}`);
+    assert.ok(
+      !/Control .*failed|page.goto|Executable|heading/.test(caught.error),
+      "A setup failure is not proof",
+    );
+    console.log(`CANARY-PASS r${round} ${label}: ${planted.fails}`);
+    await stop(label);
+    await writeFile(path, before);
+  }
 } finally {
-  await stop("break");
-  await writeFile(path, before);
+  await stop("unfinished");
+  for (const [path, before] of originals) await writeFile(path, before);
   await build("restored");
 }

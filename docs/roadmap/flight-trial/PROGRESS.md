@@ -1474,3 +1474,58 @@ Assumptions for this fix round:
 - Button checks and route-repeat checks use separate bookings.
   Each repeat case supplies one teacher-owned execution ID.
 - Mail times must match the saved Flights display values exactly.
+
+### Hold events and fair action checks
+
+The results and Bookings polling resources and their refresh routes are gone.
+A hold transaction publishes a public seat change in the saved event stream.
+Only matching supplier, flight, and cabin rows change in an open results page.
+The public stream lock keeps parallel app holds and seat events in order.
+Bookings reads supplier expiry once per page load through a server function.
+There is no background supplier offer or order polling.
+
+Search waits for the packet's Search button, not an unnamed heading.
+The race winner comes from Held history; the loser needs visible Sold out text.
+Held setup polls a second history tab so navigation cannot cancel its hold.
+Expiry checks reload inside their poll.
+An empty history accepts an absent or empty table after the browser load event.
+Table headers and cells are read in one DOM snapshot.
+The first run read them across hydration and got an empty object, exit 1:
+`/tmp/flight-rounds-review-r3-proof.log`,
+`/tmp/flight-rounds-review-r3-first-pass.log`.
+The fixed round 3 passes 10/10 twice, each exit 0.
+Its planted price break fails by name, exit 1.
+Driver and all builds exit 0:
+`/tmp/flight-rounds-review-r3-proof-fixed.log`.
+
+Payment and email button checks observe Processing and Sent, not request paths.
+Separate route cases create a teacher execution ID and repeat it concurrently,
+then once after the result, checking HTTP 200 and the exact receipt.
+They count real supplier, payment, refund, and Mailpit effects.
+Packet 4–5 now name HTTP 200 and show filled receipts.
+Packet 5's mail times are the saved Flights Departs and Arrives strings.
+The time check reads those shown values before clicking Hold.
+
+The signature checks add correct old signatures, changed request bytes,
+and a fresh correctly signed repeat of the same result event for a real intent.
+Assumption: the teacher may sign a result for that real service intent.
+It sends the same event ID and body again with a fresh timestamp.
+The service's own repeated deliveries remain covered in their original case.
+The proof driver keeps the old bad-digest break and adds timestamp and refund breaks.
+Its mail break now raises through the real failed-send path before saving partial.
+
+Round 1 proof stages the reference's supplier list to A only.
+Assumption: this reproduces the first packet's scope using the current strict source.
+The driver changes no teacher rule and restores the full source in finally.
+Round 2 and later proofs use the full three-supplier answer.
+
+Saved source gates, all exit 0:
+
+- Check: `/tmp/flight-rounds-review-source-check-first.log`.
+- Plain: `/tmp/flight-rounds-review-source-plain.log`; 96 files, 22 plain functions.
+- Types: `/tmp/flight-rounds-review-source-types.log`.
+- Style: `/tmp/flight-rounds-review-source-style.log`.
+- Seam proof: `/tmp/flight-rounds-review-source-seam.log`.
+- Boundary: `/tmp/flight-rounds-review-source-boundary.log`.
+
+Next: run proof 1, 2, 4, and 5, including every new break, then final gates.

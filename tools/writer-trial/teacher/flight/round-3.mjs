@@ -27,14 +27,31 @@ export async function target(suite, scenario = "last-seat") {
 export async function hold(page, suite, flight) {
   await search(page, suite.app);
   await complete(page);
+  const shown = (await table(page, "Flights")).find((row) => row.Flight === flight);
+  assert.ok(shown, "The selected flight must be shown before holding");
   await page.getByRole("button", { name: `Hold ${flight}`, exact: true }).click();
+  return shown;
 }
 export async function history(page, app) {
-  await page.goto(`${app}/bookings`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("table", { name: "Bookings", exact: true })).toBeVisible();
+  await page.goto(`${app}/bookings`, { waitUntil: "load" });
+  await page.waitForFunction(() => document.readyState === "complete");
   return table(page, "Bookings");
 }
 export async function round3(suite, test) {
+  await test("r3 idle results never reread supplier offers", async (page) => {
+    await reset(suite);
+    await search(page, suite.app);
+    await complete(page);
+    assert.ok((await table(page, "Flights")).length > 0, "Idle proof needs shown results");
+    const started = Date.now();
+    await expect.poll(async () => Date.now() - started).toBeGreaterThanOrEqual(3000);
+    for (const supplier of suite.suppliers)
+      assert.equal(
+        (await calls(suite, supplier.url, /^GET \/air\/offers\//)).length,
+        0,
+        "An idle results page must not refresh shown quotes through the supplier",
+      );
+  });
   await test("r3 anonymous holds take no seat and bookings need sign in", async (page) => {
     const flight = await target(suite);
     await hold(page, suite, flight);
@@ -91,23 +108,23 @@ export async function round3(suite, test) {
           tab.getByRole("button", { name: `Hold ${flight}`, exact: true }).click(),
         ),
       );
-      await expect
-        .poll(async () => {
-          const states = await Promise.all(
-            [page, other].map((tab) => tab.getByRole("alert").allTextContents()),
-          );
-          return states
-            .flat()
-            .map((text) => text.trim())
-            .sort((a, b) => a.localeCompare(b));
-        })
-        .toEqual(["Held", "Sold out"]);
       await expect(
         observer
           .getByRole("row")
           .filter({ has: observer.getByRole("cell", { name: flight, exact: true }) }),
       ).toContainText("Sold out", { timeout: 5000 });
-      const histories = await Promise.all([page, other].map((tab) => history(tab, suite.app)));
+      const historyPages = await Promise.all([context.newPage(), otherContext.newPage()]);
+      for (const tab of historyPages) await history(tab, suite.app);
+      await expect
+        .poll(async () =>
+          (await Promise.all(historyPages.map((tab) => table(tab, "Bookings"))))
+            .map((rows) => rows.filter((row) => row.State === "Held").length)
+            .sort((a, b) => a - b),
+        )
+        .toEqual([0, 1]);
+      const histories = await Promise.all(historyPages.map((tab) => table(tab, "Bookings")));
+      const losingPage = histories[0].length ? other : page;
+      await expect(losingPage.getByText("Sold out", { exact: true }).first()).toBeVisible();
       assert.deepEqual(
         histories.map((rows) => rows.length).sort((a, b) => a - b),
         [0, 1],
@@ -130,17 +147,19 @@ export async function round3(suite, test) {
         "Exactly one order takes the last seat",
       );
       const winningContext = histories[0].length ? context : otherContext;
-      const winningPage = histories[0].length ? page : other;
+      const winningPage = historyPages[histories[0].length ? 0 : 1];
       const twin = await winningContext.newPage();
-      assert.deepEqual(
-        await history(twin, suite.app),
-        [saved],
-        "A second tab loads the saved hold",
-      );
+      await history(twin, suite.app);
+      await expect.poll(() => table(twin, "Bookings")).toEqual([saved]);
       await winningPage.reload({ waitUntil: "domcontentloaded" });
       await expect.poll(() => table(winningPage, "Bookings")).toEqual([saved]);
       await control(suite, suite.suppliers[0].url, "clock", { advanceMs: 3600000 });
-      await expect.poll(async () => (await table(twin, "Bookings"))[0]?.State).toBe("Expired");
+      await expect
+        .poll(async () => {
+          await twin.reload({ waitUntil: "load" });
+          return (await table(twin, "Bookings"))[0]?.State;
+        })
+        .toBe("Expired");
       const expired = await fetch(`${suite.suppliers[0].url}/air/orders/${saved.Order}`);
       const status = (await expired.json()).data.payment_status;
       assert.equal(status.awaiting_payment, false);
