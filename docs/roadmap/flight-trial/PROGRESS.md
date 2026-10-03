@@ -2356,7 +2356,7 @@ The original Postgres and Mailpit containers were left running.
 
 Writer: Codex.
 Branch: `trial/flight-integration`.
-Next: merge harness, rebuild images, run the full proof.
+Next: fix the landed scaffold's late cleanup, then rerun the proof.
 Verify: rounds 1 to 5 pass twice; five planted breaks fail.
 
 Assumptions:
@@ -2431,3 +2431,62 @@ The earlier separate app test run passed all 37 tests.
 The strict census passed when run on source and test files only.
 The first broad census counted a generated router and the test fixture
 as production code; its output is kept beside the corrected run.
+
+### Integration: saved proof, blocked on scaffold startup
+
+The full workspace gate chain exited 0.
+The writer harness passed all 79 tests.
+The reference's own gate passed all 37 shipped tests.
+Its schema, build, seam, strict plain check, and frozen Jev gate passed.
+
+The round 1 teacher exited 1 on browser startup.
+All three checks hit `Disposed` before the app renders.
+The full reference run exited 1 and stopped at round 1, pass 1.
+Round 1, pass 2, rounds 2 to 5, and the five planted breaks are not proven.
+Logs, image IDs, saved tar paths, and next commands are in
+[INTEGRATION-GATES.md](INTEGRATION-GATES.md).
+
+The failing code is
+`apps/start-scaffold/src/scaffold/frontend/router.tsx:28`.
+The reference and writer image use main's exact scaffold bytes.
+`tabLifetime.bind()` calls `ctx.defer()` after its factory has returned.
+Core rejects that call with reason `resource factory already finished`.
+The browser stack names `defer` and `Object.bind`.
+The public Core probe prints the same error and exits 1.
+
+Core feedback, with the failing shape:
+
+```ts
+const listener = resource({
+  label: "late cleanup proof",
+  factory: (_deps, ctx) => ({
+    bind: () => ctx.defer(() => {}),
+  }),
+});
+const scope = createScope();
+await scope.ready;
+scope.resolve(listener).bind();
+```
+
+Assumption: keep the exact scaffold rule and the brief's path limits.
+The lead must move cleanup registration into the scaffold's factory.
+This writer does not change Core, apps, or service code to mask the error.
+The lead then rebuilds the writer image with a new tag,
+copies the fixed scaffold into the reference, and runs the saved proof.
+
+Jev labels are saved in `INTEGRATION-JEV.jsonl` under the allowed doc path.
+There are 34 false labels and one true label.
+The true label covers a completed mail retry refused by a later guard.
+That guard now runs after the completed-result check.
+The lead can import these labels when landing.
+The shared Jev bank is unchanged; no calibration is claimed.
+
+The Jev promise scan exited 1 because it assumes a `tests/` folder.
+The writer harness keeps its `.test.mjs` files at the package root.
+This missing-folder result is recorded, not counted as a pass.
+No mutation lane is required by this integration brief.
+
+The prepared trial is `flight-integration-01`, staged at packet 1.
+No model run started.
+Both images have idle keepers and saved tar files.
+Old flight images and proof folders stay until the new full run passes.
