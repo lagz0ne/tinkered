@@ -59,13 +59,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: each try's save, check, and feedback in PROGRESS.
   [Proof](docs/roadmap/flight-trial/PROGRESS.md#deepseek-baseline-2026-10-03).
 
-- **start/starter-casts** — starter files ship no code that Jev blocks.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-starter-casts`. Found by DeepSeek round 1.
-  Next: remove the two casts in `src/server.ts`; `inputValidator` to `validator`.
-  Verify: the app gate shows no blocking item in starter files; all gates.
-  [Brief](docs/roadmap/start-scaffold/STARTER-CASTS-BRIEF.md).
-
 - **trial/jev-link** — a trial never depends on the checkout that made it.
   Owner: lead (Claude, Start scaffold session); Sol writer.
   Worktree: `../tinkered-jev-link`. Found by DeepSeek round 1.
@@ -94,6 +87,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/starter-casts** — starter files ship no code that Jev blocks.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
+  Found by DeepSeek round 1: it edited `src/server.ts` and Jev blocked two casts it did not write.
+  The casts are gone with real types; `inputValidator` is now `validator`.
+  Proof: app gate blockers in starter files 6 to 0; plain, seam, registry, 40 app tests;
+  build, check, all tests, validate after rebase. Open: a missing router `close` raises
+  `StartScopeMissing` (wrong name; never reached); two HTML previews still show `inputValidator`.
 
 - **lead/flight-explore** — a retried model can go past its first failure without changing its score.
   Owner: lead (Claude, Start scaffold session). Needed for the DeepSeek retries (user 2026-10-03).
