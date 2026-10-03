@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 const run = (args, input) =>
   execFileSync("docker", args, { input, encoding: "utf8", timeout: 120000 }).trim();
 export const flightNames = ["supplier-a", "supplier-b", "supplier-c", "payment"];
+const WEBHOOK_SECRET = "flight-local-secret";
 export function flightEnvironment() {
   return {
     HOST: "0.0.0.0",
@@ -22,7 +23,7 @@ export function flightEnvironment() {
     SUPPLIER_B_URL: "http://supplier-b:4312",
     SUPPLIER_C_URL: "http://supplier-c:4313",
     PAYMENT_URL: "http://payment:4314",
-    WEBHOOK_SECRET: "flight-local-secret",
+    WEBHOOK_SECRET,
     VICTORIA_TRACES_URL: "http://victoria-traces:10428/insert/opentelemetry/v1/traces",
     VICTORIA_LOGS_URL: "http://victoria-logs:9428/insert/jsonline",
     OTEL_SERVICE_NAME: "flight-trial",
@@ -135,7 +136,7 @@ export function startFlight(prefix, images) {
           "-e",
           "WEBHOOK_URL=http://service-proxy:4300/webhooks/stripe",
           "-e",
-          "WEBHOOK_SECRET=flight-local-secret",
+          `WEBHOOK_SECRET=${WEBHOOK_SECRET}`,
           "-e",
           "HOLD_MS=60000",
         ],

@@ -2851,3 +2851,8 @@ It checks unavailable status and no score for each case.
 Logs under `tools/writer-trial/.logs/`:
 `review-teacher-red.log`, exit 1 before the fix;
 `review-teacher-green.log`, exit 0 after it, 20 tests pass.
+
+### Integration review fix 4: one webhook secret
+
+One constant now supplies the app, payment service, and teacher.
+The final isolation proof will check the signed callback again.
