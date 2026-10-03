@@ -5,7 +5,7 @@ import { z } from "zod";
 import { failFlightService } from "../src/errors.ts";
 
 export declare namespace Service {
-  type Request = { route: string; path: string; body: unknown; key?: string; token?: string };
+  type Request = z.infer<typeof requestSchema>;
   type Reply = { status: number; body: unknown; headers?: Record<string, string> };
   type Failure = (code: string, status?: number) => Reply;
   type Form = { [key: string]: string | boolean | Form };
@@ -21,6 +21,14 @@ export declare namespace Service {
   type Wait = { at: number; wake: () => void };
   type Options = { port: number; host: string; controlToken: string; signal: AbortSignal };
 }
+
+export const requestSchema = z.object({
+  route: z.string(),
+  path: z.string(),
+  body: z.unknown(),
+  key: z.string().optional(),
+  token: z.string().optional(),
+});
 
 export const stopSignal = tag<AbortSignal>({ label: "service stop signal" });
 export const port = tag({ label: "service port", default: 0 });
@@ -102,30 +110,43 @@ const clockSchema = z.union([
   z.object({ advanceMs: z.number().int().nonnegative() }),
 ]);
 
+const setRoute = operation({
+  label: "set route rule",
+  input: (raw) => routeSchema.safeParse(raw),
+  depends: { rules: rules.controller },
+  run({ rules }, ctx) {
+    const parsed = ctx.input;
+    if (!parsed.success) return reject("invalid_route_rule");
+    const { route, ...rule } = parsed.data;
+    rules.update((previous) => ({
+      ...previous,
+      [route]: { ...rule, revision: ctx.random.uuid() },
+    }));
+    return reply(200, { data: parsed.data });
+  },
+});
+const setClock = operation({
+  label: "set service time",
+  input: (raw) => clockSchema.safeParse(raw),
+  depends: { clock },
+  run({ clock }, ctx) {
+    const parsed = ctx.input;
+    if (!parsed.success) return reject("invalid_clock");
+    if ("now" in parsed.data) clock.setTime(parsed.data.now);
+    else clock.advance(parsed.data.advanceMs);
+    return reply(200, { data: { now: clock.currentTimeMillis() } });
+  },
+});
 export const control = operation({
   label: "control common settings",
-  depends: { rules: rules.controller, calls, clock },
-  run({ rules, calls, clock }, ctx: Operation.Ctx<Service.Request>) {
+  input: requestSchema,
+  depends: { routes: setRoute.controller, time: setClock.controller, calls },
+  async run({ routes, time, calls }, ctx) {
     const request = ctx.input;
     if (request.route === "GET /control/calls")
       return reply(200, { data: calls.map(({ id: _id, ...call }) => call) });
-    if (request.route === "POST /control/routes") {
-      const parsed = routeSchema.safeParse(request.body);
-      if (!parsed.success) return reject("invalid_route_rule");
-      const { route, ...rule } = parsed.data;
-      rules.update((previous) => ({
-        ...previous,
-        [route]: { ...rule, revision: ctx.random.uuid() },
-      }));
-      return reply(200, { data: parsed.data });
-    }
-    if (request.route === "POST /control/clock") {
-      const parsed = clockSchema.safeParse(request.body);
-      if (!parsed.success) return reject("invalid_clock");
-      if ("now" in parsed.data) clock.setTime(parsed.data.now);
-      else clock.advance(parsed.data.advanceMs);
-      return reply(200, { data: { now: clock.currentTimeMillis() } });
-    }
+    if (request.route === "POST /control/routes") return routes.run({ rawInput: request.body });
+    if (request.route === "POST /control/clock") return time.run({ rawInput: request.body });
     return reject("not_found", 404);
   },
 });
@@ -184,6 +205,7 @@ export function createHttp(
 ) {
   const dispatch = operation({
     label: "serve HTTP request",
+    input: requestSchema,
     depends: {
       action: action.controller,
       rules: rules.controller,
@@ -192,7 +214,7 @@ export function createHttp(
       token: controlToken,
       stop: stopSignal,
     },
-    async run({ action, rules, calls, clock, token, stop }, ctx: Operation.Ctx<Service.Request>) {
+    async run({ action, rules, calls, clock, token, stop }, ctx) {
       const request = ctx.input;
       const time = clock.currentTimeMillis();
       const id = ctx.random.uuid();
@@ -250,7 +272,7 @@ export function createHttp(
     async factory({ dispatch, port, host }, ctx) {
       const server = createServer(async (request, response) => {
         try {
-          const result = await dispatch.run({ input: await readRequest(request) });
+          const result = await dispatch.run({ rawInput: await readRequest(request) });
           response.writeHead(result.status, {
             "content-type": "application/json",
             ...result.headers,
