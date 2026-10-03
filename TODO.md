@@ -24,6 +24,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/extension-slot** — one extension can include another, or a unit can take a slot.
+  Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
+  Next: design first (find the precedent); brief a Core writer after the trial baseline.
+  Verify: the trial services drop the hand call `httpRequests.hooks!.start!`;
+  Core tests, `scripts/ticket.sh`, `pnpm validate` pass.
+  [Feedback](docs/roadmap/core-feedback.md#shared-unit-with-a-slot-2026-10-03).
+
 - **trial/deepseek-baseline** — run DeepSeek through the rounds.
   Next: after the rounds land.
   Verify: the baseline is the number of rounds passed in order.
@@ -54,14 +61,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: the reference passes rounds 1-5 twice through the full gate;
   one planted break per round fails it by name; isolation proof passes.
   [Brief](docs/roadmap/flight-trial/INTEGRATION-BRIEF.md).
-
-- **trial/services-routing** — the trial services route through Hono, not Tinker (ADR 0101).
-  Owner: lead (Claude, Start scaffold session); Sol routing writer.
-  Worktree: `../tinkered-services-routing`, branch `trial/services-routing`.
-  Next: move each route into Hono; handlers read their params and `.run` one operation.
-  Verify: no operation takes a whole request; wire contract and tests unchanged;
-  the four-process proof and mutation (85) pass.
-  [Brief](docs/roadmap/flight-trial/ROUTING-BRIEF.md).
 
 - **trial/flight-rounds** — five round packets, hidden checks, and a reference answer.
   Owner: lead (Claude, Start scaffold session); Sol rounds writer.
@@ -99,6 +98,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/services-routing** — the trial services route through Hono, not Tinker (ADR 0101).
+  Owner: lead (Claude, Start scaffold session); Sol writer, Astra fix writer; Opus reviewer.
+  Each handler reads its params and runs one operation; the dispatch operations are gone.
+  The shared Hono stack and control routes live once, in `services/http.ts`.
+  Proof: 78 old-versus-new HTTP calls match (reviewer); 96 tests; four-process proof;
+  expiry rewind fails on `e55ddac2`, passes now; mutation 91.89% (91.11% counting timeouts as misses).
+  [Proof](docs/roadmap/flight-trial/PROGRESS.md).
 
 - **core/uuid-fallback** — `ctx.random.uuid()` works on plain-http browser pages.
   Owner: lead (Claude, Start scaffold session). Found by `trial/flight-integration`; user asked for the fix.

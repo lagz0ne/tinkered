@@ -781,8 +781,8 @@ If Hono validates before `.run`, this need ends.
 
 ## Shared unit with a slot, 2026-10-03
 
-Asked by `trial/flight-services`.
-Status: first caller.
+Asked by `trial/flight-services`, then `trial/services-routing`.
+Status: second caller; now card `core/extension-slot`.
 
 The supplier and payment services share a call log,
 route rules, and a listener, about 170 lines.
@@ -790,3 +790,15 @@ Only the service's own action differs.
 A shared builder that takes an operation handle breaks ADR 0099.
 So each service declares its own copy.
 A declared unit with a slot for the action would remove the copies.
+
+Second ask, from `trial/services-routing`:
+the shared Hono stack is one extension, `httpRequests`.
+Core's extension config has no nested extension list.
+So each service's start hook calls the shared hook by hand:
+
+```ts
+await httpRequests.hooks!.start!({ ...event, scope });
+```
+
+This skips how Core composes extensions.
+Installing `httpRequests` beside an app would register it twice.
