@@ -1,4 +1,4 @@
-import { createScope } from "@tinker/core";
+import { createScope, extension, operation, resource, tag } from "@tinker/core";
 import { afterEach, beforeEach, expect, test } from "vite-plus/test";
 import {
   supplierApp,
@@ -12,14 +12,48 @@ import {
   webhookSecret,
 } from "../src/index.ts";
 
-const running: { stop: AbortController; closed: Promise<unknown>; url: string; name: string }[] =
-  [];
+/** The real graph rejects a missing driver; no HTTP code or globals are patched. */
+const unavailable = tag<string>({ label: "unavailable routing driver" });
+const failedDriver = operation({
+  label: "failed routing driver",
+  depends: { unavailable },
+  run({ unavailable }) {
+    return unavailable;
+  },
+});
+const failures = resource({
+  label: "routing failure fixture",
+  factory: () => ({ remaining: 0 }),
+});
+const failingCalls = extension({
+  label: "routing failure driver",
+  hooks: {
+    run(event) {
+      if (event.op.label === "create payment intent" || event.op.label === "read supplier offer") {
+        const fault = event.resolve(failures);
+        if (fault.remaining > 0) {
+          fault.remaining--;
+          return event.run(failedDriver);
+        }
+      }
+      return event.next();
+    },
+  },
+});
+
+const running: {
+  stop: AbortController;
+  closed: Promise<unknown>;
+  url: string;
+  name: string;
+  fault: { remaining: number };
+}[] = [];
 beforeEach(async () => {
   for (const app of [supplierApp, paymentApp]) {
     const stop = new AbortController();
     const scope = createScope({
       signal: stop.signal,
-      extensions: app,
+      extensions: [failingCalls, app],
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -37,6 +71,7 @@ beforeEach(async () => {
       closed: scope.closed,
       url,
       name: app === supplierApp ? "supplier" : "payment",
+      fault: scope.resolve(failures),
     });
   }
 });
@@ -71,4 +106,23 @@ test("HEAD calls keep the missing-route reply", async () => {
     });
     expect(response.status).toBe(404);
   }
+});
+
+test("a thrown payment handler lets the same key retry", async () => {
+  const service = running.find((service) => service.name === "payment")!;
+  service.fault.remaining = 1;
+  const params = {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "retry-failed-handler" },
+    body: JSON.stringify({ amount: 900, currency: "usd" }),
+  };
+  const failed = await fetch(`${service.url}/v1/payment_intents`, params);
+  expect(failed.status).toBe(500);
+  expect(await failed.json()).toEqual({
+    error: { type: "invalid_request_error", code: "internal_error", message: "internal_error" },
+  });
+  const retried = await fetch(`${service.url}/v1/payment_intents`, params);
+  expect(retried.status).toBe(200);
+  expect(retried.headers.get("Idempotent-Replayed")).toBeNull();
+  expect(await retried.json()).toMatchObject({ amount: 900, currency: "usd" });
 });

@@ -426,17 +426,44 @@ export const httpRequests = extension({
 export const listener = resource({
   label: "service HTTP listener",
   target: "session",
-  depends: { web, port, host, shape: errorShape },
-  async factory({ web, port, host, shape }, ctx) {
+  depends: { web, port, host, shape: errorShape, stop: stopSignal },
+  async factory({ web, port, host, shape, stop }, ctx) {
     web.onError((error, c) => {
       ctx.log.error("HTTP request failed", { error });
       return c.var.json(
         shape === "stripe" ? rejectPayment("internal_error", 500) : reject("internal_error", 500),
       );
     });
-    const server = serve({ fetch: web.fetch, port, hostname: host, overrideGlobalObjects: false });
+    const pending = new Set<Promise<void>>();
+    const server = serve({
+      fetch(request, env) {
+        const abortBody = () => {
+          if (!env.incoming.complete) env.incoming.destroy();
+        };
+        const finished = new Promise<void>((resolve) => {
+          const complete = () => {
+            env.outgoing.removeListener("finish", complete);
+            env.outgoing.removeListener("close", complete);
+            stop.removeEventListener("abort", abortBody);
+            pending.delete(finished);
+            resolve();
+          };
+          env.outgoing.once("finish", complete);
+          env.outgoing.once("close", complete);
+        });
+        pending.add(finished);
+        stop.addEventListener("abort", abortBody, { once: true });
+        if (stop.aborted) abortBody();
+        return web.fetch(request);
+      },
+      port,
+      hostname: host,
+      overrideGlobalObjects: false,
+    });
     await once(server, "listening");
     ctx.defer(async () => {
+      await Promise.all(pending);
+      if ("closeAllConnections" in server) server.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       );

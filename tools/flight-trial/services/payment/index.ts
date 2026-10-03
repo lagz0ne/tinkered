@@ -44,8 +44,8 @@ export declare namespace Payment {
   };
   type Pending = {
     fingerprint: string;
-    response: Promise<Wire.Reply>;
-    resolve: (reply: Wire.Reply) => void;
+    response: Promise<Wire.Reply | undefined>;
+    resolve: (reply: Wire.Reply | undefined) => void;
   };
   type Saved = { fingerprint: string; reply: Wire.Reply };
   type Plan = {
@@ -365,21 +365,27 @@ const startIntentKey = operation({
   depends: { state: state.controller, inFlight },
   async run({ state, inFlight }, ctx): Promise<Wire.Reply | undefined> {
     const { key, fingerprint } = ctx.input;
-    const previous = state.get().keys[key];
-    if (previous)
-      return previous.fingerprint === fingerprint
-        ? { ...previous.reply, headers: { "Idempotent-Replayed": "true" } }
-        : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
-    const pending = inFlight.get(key);
-    if (pending)
-      return pending.fingerprint === fingerprint
-        ? { ...(await pending.response), headers: { "Idempotent-Replayed": "true" } }
-        : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
-    let resolve!: (reply: Wire.Reply) => void;
-    const responsePromise = new Promise<Wire.Reply>((done) => {
-      resolve = done;
-    });
-    inFlight.set(key, { fingerprint, response: responsePromise, resolve });
+    for (;;) {
+      const previous = state.get().keys[key];
+      if (previous)
+        return previous.fingerprint === fingerprint
+          ? { ...previous.reply, headers: { "Idempotent-Replayed": "true" } }
+          : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
+      const pending = inFlight.get(key);
+      if (pending) {
+        if (pending.fingerprint !== fingerprint)
+          return rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
+        const response = await pending.response;
+        if (response) return { ...response, headers: { "Idempotent-Replayed": "true" } };
+        continue;
+      }
+      let resolve!: (reply: Wire.Reply | undefined) => void;
+      const response = new Promise<Wire.Reply | undefined>((done) => {
+        resolve = done;
+      });
+      inFlight.set(key, { fingerprint, response, resolve });
+      return;
+    }
   },
 });
 
@@ -402,7 +408,6 @@ const saveIntentKey = operation({
       keys: { ...current.keys, [key]: { fingerprint, reply: structuredClone(response) } },
     }));
     inFlight.get(key)!.resolve(response);
-    inFlight.delete(key);
   },
 });
 
@@ -415,6 +420,7 @@ export const app = extension({
       const http = await httpRequests.hooks!.start!({ ...event, scope });
       await scope.run(resetScenario, { rawInput: { name: "default" } });
       scope.resolve(webhooks);
+      const pendingKeys = scope.resolve(inFlight);
       http.use("/v1/:rest{.*}", async (c, next) => {
         const key = c.req.header("idempotency-key");
         if (!key || c.req.method !== "POST") return next();
@@ -424,18 +430,24 @@ export const app = extension({
         });
         const result = await c.var.scope.run(startIntentKey, { rawInput: { key, fingerprint } });
         if (result) return c.var.json(result);
-        await next();
-        c.var.scope.run(saveIntentKey, {
-          rawInput: {
-            key,
-            fingerprint,
-            response: {
-              status: c.res.status,
-              body: await c.res.clone().json(),
-              headers: Object.fromEntries(c.res.headers),
-            },
-          },
-        });
+        try {
+          await next();
+          if (!c.error)
+            c.var.scope.run(saveIntentKey, {
+              rawInput: {
+                key,
+                fingerprint,
+                response: {
+                  status: c.res.status,
+                  body: await c.res.clone().json(),
+                  headers: Object.fromEntries(c.res.headers),
+                },
+              },
+            });
+        } finally {
+          pendingKeys.get(key)?.resolve(undefined);
+          pendingKeys.delete(key);
+        }
       });
       http.post("/control/scenario", async (c) => {
         const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
