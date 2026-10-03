@@ -61,6 +61,20 @@ void describe("the Jev gate", () => {
   });
   after(() => rmSync(jevDir, { recursive: true, force: true }));
 
+  void it("permits native fetch for flight while keeping the old suites' HTTP rule", async () => {
+    const input = {
+      source: 'export const load = () => fetch("http://supplier-a:4311/air/offers/id");',
+      file: "src/load.ts",
+      jevDir,
+      judges: [],
+      ask: fakeAsk([]),
+    };
+    const flight = await judgeSource({ ...input, suite: "flight" });
+    const stock = await judgeSource({ ...input, suite: "stock" });
+    assert.equal(gateOf(flight).status, "pass");
+    assert.ok(gateOf(stock).blocking.some((item) => item.rule === "S24"));
+  });
+
   void it("blocks on a hit from a proven judge", () => {
     const gate = gateOf(report({ findings: [finding("partialStub", 0.8, "proven")] }));
     assert.equal(gate.status, "block");

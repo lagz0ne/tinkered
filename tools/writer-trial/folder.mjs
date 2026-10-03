@@ -10,7 +10,7 @@ import { reusedAnswer } from "./answers.mjs";
 /** One file's report, or an error report (unavailable). A link or a path that leaves
  *  `root` is never followed. `answers` holds the writer's reports to reuse for
  *  unchanged bytes (an empty Map reuses none). */
-export async function judgeFile(root, file, { jevDir, judges, ask, answers }) {
+export async function judgeFile(root, file, { jevDir, judges, ask, answers, suite }) {
   const path = join(root, file);
   try {
     if (!lstatSync(path).isFile() || !realpathSync(path).startsWith(`${realpathSync(root)}/`))
@@ -20,7 +20,7 @@ export async function judgeFile(root, file, { jevDir, judges, ask, answers }) {
     // Same bytes the writer already asked about: keep the writer's answer.
     return (
       reusedAnswer(answers, file, source) ??
-      (await judgeSource({ source, file, jevDir, judges, ask }))
+      (await judgeSource({ source, file, jevDir, judges, ask, suite }))
     );
   } catch (error) {
     return { file, error: error.message };
