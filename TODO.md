@@ -69,14 +69,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   an edited `src/scaffold/` file fails the gate.
   [Brief](docs/roadmap/flight-trial/HARNESS-BRIEF.md).
 
-- **trial/flight-services** — payment and three suppliers as Tinker apps behind HTTP (ADR 0098).
-  Owner: lead (Claude, Start scaffold session); Sol services writer.
-  Worktree: `../tinkered-flight-services`, branch `trial/flight-services` on the data branch.
-  Next: the writer builds Duffel- and Stripe-shaped APIs plus a control API.
-  Verify: tests use only HTTP; the last seat goes to one order; holds expire;
-  webhooks are signed and sent late or twice on request; the call log counts calls.
-  [Brief](docs/roadmap/flight-trial/SERVICES-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -98,6 +90,15 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/flight-services** — payment and three suppliers as Tinker apps behind HTTP (ADR 0098).
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer.
+  Duffel-shaped suppliers A, B, C and a Stripe-shaped payment, each its own process.
+  Each has a service API and a token-guarded control API with a call log.
+  Proof: tests use only HTTP; four-process proof; strict forms (ADR 0099, 0100);
+  build, check, tests, prose green (lead rerun); mutation 85.76%.
+  Next: routing moves to Hono in `trial/services-routing` (ADR 0101).
+  [Proof](docs/roadmap/flight-trial/PROGRESS.md).
 
 - **start/strict-forms** — the scaffold enforces ADR 0099 and 0100.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `6a840ac8`.

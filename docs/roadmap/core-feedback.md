@@ -759,3 +759,34 @@ It does not abort the hook's signal at that point.
 
 Proof: `stack-t15-stop-hydrate-red.log` in the briefs cache.
 The fixed browser test and all 123 tracker tests pass.
+
+## Bad input as a wire reply, 2026-10-03
+
+Asked by `trial/flight-services`.
+Status: first caller; may go away with `trial/services-routing`.
+
+A wire service must answer bad input with its own 400 body.
+An `input:` reader that throws fails the run instead.
+So 12 readers return a `safeParse` result,
+and each `run` checks `success` first:
+
+```ts
+input: (raw) => orderSchema.safeParse(raw),
+run(deps, ctx) {
+  if (!ctx.input.success) return reject("bad");
+```
+
+ADR 0101 moves parsing to the framework.
+If Hono validates before `.run`, this need ends.
+
+## Shared unit with a slot, 2026-10-03
+
+Asked by `trial/flight-services`.
+Status: first caller.
+
+The supplier and payment services share a call log,
+route rules, and a listener, about 170 lines.
+Only the service's own action differs.
+A shared builder that takes an operation handle breaks ADR 0099.
+So each service declares its own copy.
+A declared unit with a slot for the action would remove the copies.
