@@ -404,3 +404,8 @@ New sections are lists, one term per item (vertical layout,
 - **trial baseline** — The number of rounds a writer passes in order before the first failure.
 - **trial service** — A Tinker app in its own scope that plays a third party over HTTP (ADR 0098).
 - **control API** — A trial service's grader-only HTTP face; it writes the service's own data.
+
+## Strict forms (ADR 0099)
+
+- **plain function** — A function that is not a tag, data, resource, operation, or extension.
+- **plain-function list** — The checked list of allowed plain functions, with params and call sites; it only shrinks.

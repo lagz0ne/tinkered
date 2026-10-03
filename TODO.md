@@ -24,6 +24,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/strict-forms** — the scaffold enforces ADR 0099: plain functions are rare and justified.
+  Owner: lead (Claude, Start scaffold session).
+  Next: a check script in the starter (no classes; no Core handle, ctx, clock, signal, or IO params;
+  at most three params; one caller fails), a plain-function list, and the `tinker-forms` skill updated.
+  Apply it to the scaffold and the trial reference; the flight gate runs it on the writer's code.
+  Verify: a planted class, a clock param, and a one-caller function each fail the check.
+
 - **trial/deepseek-baseline** — run DeepSeek through the rounds.
   Next: after the rounds land.
   Verify: the baseline is the number of rounds passed in order.
