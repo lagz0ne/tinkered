@@ -1223,3 +1223,12 @@ It restored the writer's saved bytes in a finally block; no stash was used.
 The errors are in the trial reference tree and other unchanged tool files.
 The task bars changing those files.
 vp env doctor exits 0; /tmp/starter-casts-env-doctor.log.
+
+### Step 2: current Start validator
+
+All four server-function validators now use validator.
+The forms skill and shipped plain check use that same name.
+The pinned Start client aliases both names to the same check.
+No input behavior changes.
+Step 1 passed the app types, scoped check, 39 tests, plain, and prose gates.
+The root check's base failure is recorded above.
