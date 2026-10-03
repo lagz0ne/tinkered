@@ -1266,3 +1266,19 @@ Step proof, under `tools/flight-trial/.logs/`:
 - Early framing and stop failures are in `routing-code-test.log`.
   The stopped reply then returned 500 in `routing-fix-test.log`.
   Both logs exit 1; the unchanged tests pass after the fixes.
+
+### Services routing: keep the route field at the wire boundary
+
+Review found that an extra `name` body field could replace `route`.
+The first handler spread fields after the renamed value.
+Put the wire route last so an extra field cannot replace it.
+A missing route still returns HTTP 400 `invalid_route_rule`.
+One new HTTP test checks that reply through both service apps.
+The original 86 tests remain unchanged.
+
+Red proof: `routing-rule-name-red.log`, exit 1.
+The old handler returned 200 where the wire contract requires 400.
+The first mutation run was stopped after this review finding.
+Its exit is 130; log: `routing-mutate-first.log`.
+It is not a score proof for the final code.
+The final lane will run all source files again under the lock.

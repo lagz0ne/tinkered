@@ -464,7 +464,7 @@ export const app = extension({
       http.post("/control/routes", (c) => {
         const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
         const { route: name, ...settings } = parsed.success ? parsed.data : {};
-        const result = c.var.scope.run(setRoute, { rawInput: { name, ...settings } });
+        const result = c.var.scope.run(setRoute, { rawInput: { ...settings, name } });
         return new Response(JSON.stringify(result.body), {
           status: result.status,
           headers: result.headers,
