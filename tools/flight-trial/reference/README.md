@@ -1,7 +1,7 @@
 # Flight reference answer
 
 This private answer starts from `apps/start-scaffold` at `0f0a83fe`.
-The copy includes the strict Start source at `5d5f2fad`.
+The copy now includes main's strict Start source at `92b8937f`.
 Its response bodies and telemetry queue are resources.
 Each round adds feature files and changes the app's open files.
 The teacher never mounts this answer into a writer's container.
@@ -32,6 +32,10 @@ It passes stop signals to that child and waits for its exit.
 The teacher README gives the settings and round commands.
 Run checks only against trusted local code here.
 The harness isolates submitted code before starting it.
+
+The full integration runner uses the image's shipped scaffold tests.
+It adds empty bookings to the sync test fixtures for the flight shape.
+It runs the same frozen Jev gate and trusts only exact starter bytes.
 
 `canaries.mjs` passes the reference twice, then plants one break.
 It checks that the named behavior fails, then restores the file.

@@ -2407,3 +2407,27 @@ Log: `tools/writer-trial/.logs/integration-reference-plain-errors.log`.
 The corrected list check exited 0.
 The first code check found old settings types and a missing resource label.
 Both are fixed before proof.
+
+### Integration: proof setup
+
+The five requested steps are saved as separate commits.
+Both images and their tar files are saved.
+Create and stage 1 exited 0.
+The sealed network proof exited 0.
+The worker folder proof exited 0.
+Logs are under `tools/writer-trial/.logs/`.
+
+The first reference archive omitted its dependency link and failed.
+The proof now adds the image's read-only dependency link.
+The runner uses the same frozen Jev judges as saved trial checks.
+Exact starter bytes keep their existing teacher-owned trust.
+
+Copied reference tests were picked up by the parent service test config.
+That config has no app aliases, so the workspace test failed.
+The duplicate tests are removed from the repo.
+The proof archive instead keeps the image's shipped tests and test config.
+It adds empty bookings to the two existing sync fixtures.
+The earlier separate app test run passed all 37 tests.
+The strict census passed when run on source and test files only.
+The first broad census counted a generated router and the test fixture
+as production code; its output is kept beside the corrected run.
