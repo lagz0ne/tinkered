@@ -86,8 +86,10 @@ test("a confirmed intent sends a signed success webhook", async () => {
     type: "payment_intent.succeeded",
     data: { object: { ...intent, status: "succeeded", latest_charge: `ch_${intent.id}` } },
   });
-  const signature = createHmac("sha256", secret).update(`10.${event.body}`).digest("hex");
-  expect(event.signature).toBe(`t=10,v1=${signature}`);
+  const timestamp = Number(event.signature.split(",").at(0)!.slice(2));
+  expect(Math.abs(Date.now() / 1000 - timestamp)).toBeLessThan(300);
+  const signature = createHmac("sha256", secret).update(`${timestamp}.${event.body}`).digest("hex");
+  expect(event.signature).toBe(`t=${timestamp},v1=${signature}`);
   expect(await (await fetch(`${url}/v1/payment_intents/${intent.id}`)).json()).toMatchObject({
     status: "succeeded",
   });

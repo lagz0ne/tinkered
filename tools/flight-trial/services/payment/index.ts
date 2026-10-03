@@ -188,11 +188,11 @@ const deliver = operation({
     intent.status = delivery.outcome === "succeeded" ? "succeeded" : "requires_payment_method";
     if (delivery.outcome === "succeeded") intent.latest_charge = `ch_${intent.id}`;
     state.set(current);
-    const timestamp = Math.floor(clock.currentTimeMillis() / 1000);
+    const timestamp = Math.floor(Date.now() / 1000);
     const body = JSON.stringify({
       id: delivery.id,
       object: "event",
-      created: timestamp,
+      created: Math.floor(clock.currentTimeMillis() / 1000),
       type:
         delivery.outcome === "succeeded"
           ? "payment_intent.succeeded"
