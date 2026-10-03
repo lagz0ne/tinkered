@@ -53,6 +53,11 @@ The full chain is `takeover-final-gates.log`, exit 0.
   All 16 lanes pass.
 - Rebase: 0, `takeover-rebase-continue-3.log`.
   Earlier stops and their merge conflicts remain in the rebase logs.
+- Jev preflight: 0, `takeover-jev-preflight.log`.
+  No file flags; advice on 24 units was checked against saved labels.
+- New Jev labels: 0, `takeover-jev-labels.log`.
+  Six false labels explain unchanged starter code.
+- Strict style census: 0, `takeover-style.log`.
 - Scope and byte check: 0, `takeover-rebase-scope.log`.
   Main is an ancestor; proved trial files match their prior bytes.
 

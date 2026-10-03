@@ -2687,3 +2687,12 @@ Nine package tasks, 79 harness tests, and all 16 validation lanes passed.
 Log: `tools/writer-trial/.logs/takeover-final-gates.log`.
 The current gate and image list is in `INTEGRATION-GATES.md`.
 Next: remove replaced images and proof folders, keeping final proof.
+
+The fresh Jev preflight exited 0 with no file flags.
+It gave advice on 24 units; six judge/unit pairs were new.
+Those six pairs were read against the unchanged starter source.
+All six have false labels with a source-based reason in `INTEGRATION-JEV.jsonl`.
+The strict source census exited 0: `takeover-style.log`.
+Logs are under `tools/writer-trial/.logs/`.
+No code or shared Jev bank was changed; the lead can import these labels.
+No calibration run is claimed before landing.
