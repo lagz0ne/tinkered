@@ -11,6 +11,10 @@ for (const skill of [
 ])
   assert.ok(existsSync(`.agents/skills/${skill}/SKILL.md`), skill);
 assert.ok(readdirSync("tests").length >= 9);
+assert.ok(existsSync("PLAIN.md"));
+assert.ok(existsSync("scripts/check-plain.mjs"));
+assert.match(readFileSync("SERVICES.md", "utf8"), /supplier|payment/i);
+assert.ok(JSON.parse(readFileSync("package.json")).scripts["check:plain"]);
 const task = readFileSync("TASK.md", "utf8");
 assert.match(task, /round 1/i);
 assert.doesNotMatch(task, /round [2-5]/i);

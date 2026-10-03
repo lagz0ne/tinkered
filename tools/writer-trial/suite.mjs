@@ -173,6 +173,7 @@ export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
 };
 
 function freezeTasks(suite, packetDir, put) {
+  if (suite === "flight") put(join(trialDir, "flight-services.md"), "rules/SERVICES.md");
   for (const task of taskSourcesFor(suite, SUITES[suite].rounds.at(-1))) {
     const source =
       suite === "flight" ? join(packetDir, task.split("/").pop()) : join(trialDir, task);

@@ -260,6 +260,7 @@ void describe("flight frozen packets", () => {
       assert.match(readFrozenTask(root, frozen, "flight", 2), /Round 2/);
       assert.throws(() => readFrozenTask(root, frozen, "flight", 3), /ENOENT/);
       assert.equal(verifyFrozen(root, frozen), true);
+      assert.ok(frozen.files["rules/SERVICES.md"]);
       assert.match(
         readFrozenGuidelines(root, frozen, "flight"),
         /Keep `src\/scaffold\/` unchanged/,

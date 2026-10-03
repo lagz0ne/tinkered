@@ -206,6 +206,10 @@ if (action === "create") {
         .map(([key, value]) => `${key}=${value}`)
         .join("\n");
       writeFileSync(join(seed, ".env"), env + "\n");
+      writeFileSync(
+        join(seed, "SERVICES.md"),
+        readFileSync(join(root, frozen.dir, "rules/SERVICES.md")),
+      );
       for (const file of ["scaffold.json", "starter.json"]) {
         const baseline = join(root, frozen.dir, file);
         run("docker", ["cp", `${container}:/home/pwuser/${file}`, baseline]);
