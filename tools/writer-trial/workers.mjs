@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, symlinkSync, existsSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve, join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -52,7 +52,6 @@ if (action === "create") {
   if (packetAt !== -1 && suite !== "flight") throw new Error("--packet-dir needs --suite flight");
   const frozen = freezeTrial(root, suite, packetAt === -1 ? undefined : process.argv[packetAt + 1]);
   const jevDir = join(root, "frozen/jev");
-  symlinkSync(join(repo, "tools/jev/node_modules"), join(jevDir, "node_modules"));
   const manifest = {
     name,
     createdAt: new Date().toISOString(),

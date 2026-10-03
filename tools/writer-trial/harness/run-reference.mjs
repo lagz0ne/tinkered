@@ -66,7 +66,6 @@ for (const file of ["scaffold.json", "starter.json"]) {
   cpSync(join(context, file), join(frozen, file));
   frozenInfo.files[file] = sha256File(join(frozen, file));
 }
-symlinkSync(join(repo, "tools/jev/node_modules"), join(frozen, "jev/node_modules"));
 writeFileSync(
   join(proof, "manifest.json"),
   JSON.stringify({ images, frozen: frozenInfo }, null, 2) + "\n",

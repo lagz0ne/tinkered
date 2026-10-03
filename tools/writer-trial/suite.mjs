@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { freezeJevPackages, verifyJevLoads } from "./jev-packages.mjs";
 
 export const trialDir = fileURLToPath(new URL(".", import.meta.url));
 export const repoDir = resolve(trialDir, "../..");
@@ -172,6 +173,9 @@ export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
   // Limits drift after create when stage reads live config.
   // New trials freeze config.json and read limits from the copy.
   put(join(trialDir, "config.json"), "config.json");
+  const jev = join(frozen, "jev");
+  freezeJevPackages(join(repoDir, "tools/jev"), jev);
+  verifyJevLoads(jev);
   return {
     dir: "frozen",
     files,

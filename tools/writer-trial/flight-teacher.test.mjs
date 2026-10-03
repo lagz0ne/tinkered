@@ -26,7 +26,7 @@ void it("freezes teacher hashes at create and makes changed teacher checks unava
     );
 
     // An isolated checkout lets the real checker see teacher edits without touching the repo.
-    for (const file of ["suite.mjs", "flight-check.mjs", "flight-network.mjs"])
+    for (const file of ["suite.mjs", "jev-packages.mjs", "flight-check.mjs", "flight-network.mjs"])
       copyFileSync(join(trialDir, file), join(root, file));
     const teacher = join(root, "teacher/flight");
     cpSync(join(trialDir, "teacher/flight"), teacher, { recursive: true });

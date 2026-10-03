@@ -72,6 +72,7 @@ import { gateFiles, gateOf, machineVerdict, flightGate } from "./gate.mjs";
 import { checkFlight } from "./flight-check.mjs";
 import { flightScore } from "./flight-score.mjs";
 import { writerAnswers } from "./answers.mjs";
+import { verifyJevLoads } from "./jev-packages.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 
@@ -262,6 +263,7 @@ if (command === "save") {
   const want = at === -1 ? latestAttempt(rows, round).attempt : Number(process.argv[at + 1]);
   const row = rows.find((a) => a.round === round && a.attempt === want);
   if (!row) throw new Error(`No saved attempt ${want} for round ${round}`);
+  if (manifest.frozen) verifyJevLoads(frozenPath("jev"));
   const checker = checkerFor(suite, round);
   // Fail fast when the checker is missing: unavailable, never a pass.
   // No container is started in that case.

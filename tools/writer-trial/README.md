@@ -59,6 +59,11 @@ node tools/writer-trial/workers.mjs \
 `create` freezes one suite into the trial:
 task, full rules, tool copies, limits, and the Jev copy.
 It records hashes and refuses a silent refresh.
+The frozen Jev owns copies of its installed packages and their dependencies.
+Package links stay inside the frozen Jev folder.
+Create imports its `lib.mjs` in a fresh process before saving the manifest.
+Check repeats that import before starting any check containers.
+A failed import is unavailable, never a pass.
 
 - **Booking** — the default suite.
   Stages rounds 1-5 from frozen packets.
@@ -487,3 +492,6 @@ T08 names the test rule for error checks inside assertions.
 - blocks on a shape finding with exit 1 and names its rule, line, and fix.
 - passes a clean folder with exit 0.
 - tells the writer how to clear a blocking Jev hit with the judge's fix line.
+- frozen Jev still loads after deleting the source checkout and its package link.
+- create refuses an unavailable frozen Jev before publishing a trial.
+- check refuses unavailable Jev before running own or teacher containers.

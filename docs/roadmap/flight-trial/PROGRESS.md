@@ -1,5 +1,81 @@
 # Flight trial progress
 
+## trial/jev-link
+
+Writer: Sol.
+Branch: `trial/jev-link`.
+Base: `3fce5703`.
+Status: source step saved for review; final gates next.
+Next: run the final gate chain, Jev, and validate.
+Verify: frozen Jev loads after its source checkout is removed.
+The new test must fail on the old code and pass with the fix.
+The existing board card stays with the lead.
+`TODO.md` is outside this writer's allowed paths.
+
+Assumptions:
+
+- Copy each installed package and its installed dependencies into the trial.
+- Keep relative package links inside `frozen/jev/node_modules`.
+- Copy installed peers and optional packages too.
+- Missing optional packages can stay absent, as in the source install.
+- Use a fresh process for the load proof, so an old import cannot hide a break.
+- Test a copied source folder with its own removable package link.
+  The real checkout's installed packages stay in place.
+- Refuse check before containers start when frozen Jev cannot load.
+  Keep all judge rules, saved answers, and score rules unchanged.
+- Existing trials are read as saved; do not repair or refresh them here.
+- Run only the local writer-trial test files.
+  The live readiness and limits checks need a real trial and containers.
+- Leave the running DeepSeek trial, its folder, and its containers alone.
+
+Path audit:
+
+- `workers.mjs` linked frozen packages into the creating checkout.
+- `harness/run-reference.mjs` made the same link.
+  Both now use the package copy made by `freezeTrial`.
+- Worker config points to frozen Jev, worker events, and named containers.
+  None points to a checkout.
+- Image package links point inside the saved container image.
+- Flight teacher checks still read the caller's checkout and check pinned hashes.
+  Keep that rule: changing it would change existing grading.
+- Package source paths are used only during the copy.
+  The frozen package links carry no source path.
+
+Working proof under `tools/writer-trial/.logs/jev-link/`:
+
+- Old code regression: exit 1, `red.log`; all three new tests fail.
+- New code regression: exit 0, `green-step.log`; all three pass.
+- Workspace build: exit 0, `build-step.log`.
+- Writer-trial tests: exit 0, `tests-step.log`; all 83 pass.
+- Changed-file check: exit 0, `check-ticket.log`; no warnings or errors.
+- Prose: exit 0, `prose-step.log`; no hits.
+- Workspace tests: exit 0, `workspace-tests.log`.
+- Tool setup: exit 0, `env-doctor.log` and `install.log`.
+  Doctor passes; install says already up to date.
+- First check: exit 1, `check-step.log`; formatter found one file.
+  The file was formatted before the changed-file check passed.
+- Build after formatting: exit 0, `build-green-step.log`.
+- Broad check: exit 1, `check-green-step.log`.
+  It has 409 errors and 31 warnings, chiefly missing reference app packages.
+- Starting commit proof: build exit 0, `base-build.log`.
+  Check exit 1, `base-check.log`; the same 409 errors and 31 warnings.
+- Older local main proof: build exit 0, `main-build.log`.
+  Check exit 0, `main-check.log`; 28 warnings.
+  That main predates the reference app added to the starting commit.
+
+Gate assumptions:
+
+- Compare this ticket with its given starting commit, `3fce5703`.
+  Local main is older and lacks the new reference app.
+- Use disposable detached worktrees for the baseline checks.
+  Borrow installed package folders; remove each worktree after its checks.
+- Keep the reference app's missing local packages outside this ticket.
+  The brief allows no source or setup change in that folder.
+- The broad check remains red on the starting commit and this branch.
+  Report that failure, plus the green check over every changed source file.
+
+Core feedback: none; this change uses no Core API.
+
 ## trial/flight-data
 
 Writer: Sol.
