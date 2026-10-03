@@ -762,3 +762,70 @@ test("a failed outcome uses the default confirmation plan", async () => {
     data: { object: { id: intent.id, status: "requires_payment_method", latest_charge: null } },
   });
 });
+
+test("parallel delayed payment calls consume one saved route reply", async () => {
+  const stop = new AbortController();
+  const scope = createScope({
+    signal: stop.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stop.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+    ],
+  });
+  running.push({ stop, closed: scope.closed });
+  await scope.ready;
+  const { url } = scope.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
+  await post(url, "/control/routes", {
+    route: "POST /v1/payment_intents",
+    delayMs: 100,
+    repeat: 1,
+  });
+  const logs = z.object({ data: z.array(z.object({ route: z.string(), status: z.number() })) });
+  const firstCall = post(url, "/v1/payment_intents", { amount: 900, currency: "usd" });
+  await expect
+    .poll(async () => {
+      const log = logs.parse(
+        await (
+          await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+        ).json(),
+      );
+      return log.data.filter(
+        (call) => call.route === "POST /v1/payment_intents" && call.status === 0,
+      ).length;
+    })
+    .toBe(1);
+  await post(url, "/control/clock", { advanceMs: 100 });
+  const original = intentSchema.parse(await (await firstCall).json());
+  const parallel = Promise.all([
+    post(url, "/v1/payment_intents", { amount: 901, currency: "usd" }),
+    post(url, "/v1/payment_intents", { amount: 902, currency: "usd" }),
+  ]);
+  await expect
+    .poll(async () => {
+      const log = logs.parse(
+        await (
+          await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
+        ).json(),
+      );
+      return log.data.filter(
+        (call) => call.route === "POST /v1/payment_intents" && call.status === 0,
+      ).length;
+    })
+    .toBe(2);
+  await post(url, "/control/clock", { advanceMs: 100 });
+  const responses = await parallel;
+  expect(responses.map((response) => response.status)).toEqual([200, 200]);
+  const intents = await Promise.all(
+    responses.map(async (response) => intentSchema.parse(await response.json())),
+  );
+  expect(intents.filter((intent) => intent.id === original.id)).toHaveLength(1);
+  expect(intents.find((intent) => intent.id === original.id)).toEqual(original);
+  expect([901, 902]).toContain(intents.find((intent) => intent.id !== original.id)!.amount);
+});

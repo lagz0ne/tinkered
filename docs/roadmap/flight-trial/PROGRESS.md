@@ -774,3 +774,63 @@ Labels for the strict review:
 - `noOpRejected`: false, `supplier/index.ts#pay`.
   Duffel rejects orders that are not awaiting payment.
   Tests prove paid holds, instant orders, and expired holds return 409.
+
+### Payment listener test gap
+
+The first strict mutation lane scored 84.81 percent and exited 1.
+Log: `fix-strict-mutate.log`; saved report: `fix-strict-mutation-first.json`.
+It checked all nine source files and all 1,580 cases.
+There were 1,295 killed, 45 timeouts, 131 survivors,
+109 without coverage, and no runner errors.
+The floor stays 85 and no source file or case is excluded.
+The new process entries remain in the lane.
+
+Splitting the listeners gave payment its own route handling.
+Its HTTP tests did not yet prove parallel delayed route repeats.
+A new test saves an intent reply, starts two delayed calls with new bodies,
+and proves exactly one call uses that saved reply.
+The other call creates a new intent for its own amount.
+This follows the existing README promise for parallel repeats.
+
+Removing the payment repeat decrement makes that test fail:
+exit 1, `fix-strict-repeat-red.log`.
+Restoring the code passes it: exit 0, `fix-strict-repeat-green.log`.
+The full package has 73 passing tests:
+exit 0, `fix-strict-repeat-test.log`.
+
+Workspace checks first hit the bounded-state test's five-second limit.
+Logs: `fix-strict-workspace-test-first.log`
+and `fix-strict-workspace-test-serial.log`, both exit 1.
+The first retry put the runner flag after the task name,
+so Vitest received an unknown flag: `fix-strict-workspace-test-option.log`, exit 1.
+The correct runner command puts its option before the task name.
+
+The bounded-state test makes hundreds of real HTTP calls.
+It now has a 20-second test limit so that batch can finish on a shared host.
+Its offer count and byte-size assertions are unchanged.
+This is a test limit, not a claim about service speed.
+No production code, fixture, or mutation setting changed.
+
+The new payment test has no Jev flags:
+exit 0, `fix-strict-jev-repeat-tests.log`, 18 tests reviewed.
+README review has no confident gaps:
+exit 0, `fix-strict-jev-promises.log`, 73 titles.
+Its one unsure reset line is already stated in README:
+reset restores stock and clears service state, rules, and the call log.
+
+The final gate chain after the test changes passed:
+workspace build, check, 73 package tests, all workspace tests,
+strict style census, prose, and all 16 validation lanes.
+Each exited 0.
+Logs use `fix-strict-final-` under `tools/flight-trial/.logs/`:
+`build.log`, `check.log`, `test.log`, `workspace-test.log`,
+`style.log`, `prose.log`, and `validate.log`.
+The workspace command was:
+
+```bash
+./node_modules/.bin/vp run \
+  --concurrency-limit 1 -r test
+```
+
+The second strict mutation lane will use the same lock,
+the same nine source files, and the unchanged floor of 85.
