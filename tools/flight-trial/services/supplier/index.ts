@@ -1,4 +1,12 @@
-import { createScope, data, operation, resource, tag, type Operation } from "@tinker/core";
+import {
+  createScope,
+  data,
+  extension,
+  operation,
+  resource,
+  tag,
+  type Operation,
+} from "@tinker/core";
 import { preset } from "@tinker/core/testing";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights.ts";
@@ -115,6 +123,7 @@ const paySchema = z.object({
 });
 const scenario = data({ label: "supplier scenario", initial: "default" });
 
+/** A pure stock edit runs inside the controlling operation; it owns no work. */
 function changeStock(stock: Supplier.Stock, change: Supplier.Change): void {
   const cabin = stock.cabins.find((entry) => entry.cabin === change.cabin_class);
   if (!cabin) return;
@@ -123,6 +132,7 @@ function changeStock(stock: Supplier.Stock, change: Supplier.Change): void {
   if (fare && change.amount_cents !== undefined) fare.amountCents = change.amount_cents;
 }
 
+/** The wire shape is a pure view of fixture data owned by the search operation. */
 function createOffer(
   flight: Flights.Offer,
   cabin: Flights.Cabin,
@@ -155,6 +165,7 @@ function createOffer(
   };
 }
 
+/** A pure view keeps a quoted price separate from the current stock price. */
 function readCurrent(current: Supplier.State, offer: Supplier.Offer): Supplier.Offer {
   const stock = current.stock[offer.flight_id];
   const cabin = stock.cabins.find((entry) => entry.cabin === offer.cabin_class)!;
@@ -166,6 +177,7 @@ function readCurrent(current: Supplier.State, offer: Supplier.Offer): Supplier.O
   };
 }
 
+/** A pure copy lets both the timer and a request release overdue seats once. */
 function expireOrders(current: Supplier.State, now: number): Supplier.State {
   const next = structuredClone(current);
   for (const order of Object.values(next.orders)) {
@@ -404,10 +416,23 @@ const action = operation({
 });
 const http = createHttp(action);
 
+/** Startup belongs to Core so a failed listener closes its root and all built resources. */
+const app = extension({
+  label: "start supplier app",
+  hooks: {
+    async start({ scope, next }) {
+      await next();
+      scope.resolve(holds);
+      return scope.resolve(http);
+    },
+  },
+});
+
 /** The caller owns the stop signal; Core owns the scope and listener until closed. */
 export async function startSupplier(options: Supplier.Options) {
   const scope = createScope({
     signal: options.signal,
+    extensions: app,
     tags: [
       port(options.port),
       host(options.host),
@@ -419,7 +444,6 @@ export async function startSupplier(options: Supplier.Options) {
     presets: [preset(state, { stock: {}, offers: {}, orders: {}, changes: [] })],
   });
   await scope.ready;
-  scope.resolve(holds);
-  const listening = await scope.resolve(http);
+  const listening = scope.resolve(app);
   return { ...listening, closed: scope.closed };
 }
