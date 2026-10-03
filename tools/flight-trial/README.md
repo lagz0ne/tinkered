@@ -212,7 +212,7 @@ All supplier success replies put the result under `data`.
 Prices are decimal strings in USD.
 Each offer also has `flight_id`, `cabin_class`, `fare_class`, and `available_seats`.
 A search makes a fresh offer ID and keeps its quoted price.
-The same fixture flight appears at suppliers A and B on LHR to AMS.
+Search returns data flights shared by suppliers A and B on LHR to AMS.
 Each supplier starts with all stock from `offers(supplier)`.
 Each supplier owns its own seat stock.
 Fare classes share that supplier's flight and cabin stock.
@@ -416,6 +416,7 @@ A control call without the grader token returns HTTP 401.
 
 Supplier also accepts the `last-seat` scenario.
 It gives every cabin one seat when the scenario starts.
+The grader can change a loaded flight before its first search.
 Set a price or seat count before or after search:
 
 ```text
@@ -450,6 +451,7 @@ POST /control/payment
 `mode` is `now`, `late`, `twice`, or `never`.
 `now` uses the configured 20 ms confirmation delay.
 `late` uses `delayMs` instead.
+A late webhook waits for the chosen time.
 `twice` sends the same signed event twice.
 `never` leaves the intent processing and sends no webhook.
 A changed payment plan applies to the next confirmation.

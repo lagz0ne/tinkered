@@ -387,10 +387,10 @@ Core feedback: none.
 
 Writer: Sol.
 Branch: `trial/flight-services`.
-Status: work in progress; the lead's data landing is still pending.
+Status: final mutation and gates in progress.
 The board stays with the lead; it is outside this writer's paths.
 
-### Services and process steps
+### Services and reader steps
 
 Suppliers A, B, and C run as separate Core apps behind HTTP.
 Payment runs as a fourth Core app.
@@ -400,106 +400,205 @@ Operations own the service and grader actions.
 Data watchers start hold expiry and signed webhook sends.
 A startup extension puts listener failures under Core's root lifetime.
 Its TSDoc gives that reason.
+The command entries live in `scripts/`, beside the data commands.
+All service implementation files are in the mutation list.
 
-The start command starts four children and prints their URLs and process IDs.
-A stop signal closes every child scope.
-One child's early exit stops the whole group.
-Compose runs Postgres 17 and Mailpit 1.27 on a private network.
-The proof used the separate `flight-services-proof` project.
-Its containers, network, and proof volume were removed after the check.
+The rebase onto `origin/main` completed with exit 0.
+Its data landing base is `28f52488`.
+Old data commits dropped out as already applied.
+Conflicts kept main's data, reader, scripts, and mutation setup.
+The reader is now `readFlights()` with no file argument.
+Each supplier loads its complete stock from `offers(supplier)` before HTTP starts.
+The same saved data and starting seats stay in place.
+No saved data files or data scripts changed.
 
-Saved steps:
+Saved steps after the rebase:
 
-- `fe533149`: supplier and payment apps, with HTTP tests.
-- `a07ada4e`: four processes, Compose, and live service proof.
-- `fbe85b0c`: manual webhook plans replace pending sends.
+- `2d244d47`: supplier and payment Core apps, with HTTP tests.
+- `dc8ac7a5`: four processes, Compose, and live service proof.
+- `60b7a3d7`: manual webhook plans replace pending sends.
+- `b0e6601b`: real clocks, gate proof, and Core feedback.
+- `21836d86`: injected payment errors keep Stripe's shape.
+- `f18c64c6`: the call log counts requests before they end.
+- `16b38cd6`: supplier state uses all offers from the landed reader.
+- `0f0a83fe`: child command entry lives with the launcher.
+- `295fa075`: HTTP fields, groups, refunds, resets, and bad requests.
 
-### Proof before the reader update
+The last code step fixed three bugs found by HTTP tests.
+The flight-number field now omits the saved airline prefix.
+Scenario seed scopes close with `graceful: true`.
+A saved payment reply is copied so later intent changes cannot change it.
+The unused supplier scenario cell was removed.
+The stock cell holds all scenario data.
+
+### Numbered proof
 
 All logs below are under `tools/flight-trial/.logs/`.
-These gates must run again after the requested rebase.
 
-- Core build: exit 0, `services-core-build.log`.
-- Workspace build: exit 0, `services-prebase-build.log`.
-- Check: exit 0, `services-prebase-check.log`.
-  Zero errors and 29 warnings, matching the data branch.
-- Package tests: exit 0, `services-clock-tests.log`; 24 passed.
-- All workspace tests: exit 0, `services-prebase-workspace-tests.log`.
-- Build, check, package and workspace test chain: exit 0, `services-prebase-gate.log`.
-- Prose: exit 0, `services-prose-step.log`.
-- README width: exit 0, `services-prose-width.log`; zero wide lines.
-- Validate: exit 0, `services-prebase-validate.log`; all 16 lanes passed.
-- Compose pull: exit 0, `services-compose-pull.log`.
-- Compose up: exit 0, `services-compose-up.log`.
-- Compose status: exit 0, `services-compose-status.log`; both healthy.
-- Postgres SQL: exit 0, `services-postgres-proof.log`; SELECT returned 1.
-- Mailpit SMTP and inbox: exit 0, `services-mailpit-network-proof.log`.
-- Four-process proof: exit 0, `services-process-proof.log`.
-  Four distinct process IDs answered their service and control APIs.
-  The parent and its four children then stopped cleanly.
-- Compose cleanup: exit 0, `services-compose-cleanup.log`.
-- Pending-send regression without the fix: exit 1, `services-cancel-regression-fixed.log`.
-- Pending-send regression with the fix: exit 0, `services-control-final-tests.log`.
-- TSDoc shape: exit 0, `services-tsdoc.log`.
+1. The tests start all suppliers and payment on free ports.
+   Calls after startup use service HTTP and control HTTP only.
+   The payment inbox is a real HTTP server.
+   Working test proof: exit 0, `services-lift-fixed-tests.log`; 67 tests pass.
+2. Supplier HTTP tests prove shared A and B flights, one winner in a parallel seat race,
+   and hold expiry at its deadline with a returned seat.
+   They also prove cabin stock, group totals, stale prices, and stock edits before search.
+   The same working test log has exit 0.
+3. Payment HTTP tests check the exact body signature with the shared secret.
+   They prove parallel and later key replay, late and twice delivery, and refunds.
+   Manual plans change only the chosen intent.
+   The same working test log has exit 0.
+4. Control HTTP tests prove a delayed call is logged while pending.
+   Its one log entry then holds the final failure status and start time.
+   They also prove repeat counts, token checks, clocks, and scenario resets.
+   The same working test log has exit 0.
+5. Compose starts Postgres and Mailpit with the images pulled just before use.
+   Postgres runs real SQL; Mailpit accepts SMTP and exposes the message in its inbox API.
+   Four distinct child process IDs answer service and control HTTP.
+   Their parent and all four children then stop cleanly.
+   The proof project, its containers, network, and volume were removed.
+6. The final workspace build, check, tests, prose, and validate must finish after mutation.
+   The logs and exit codes will be recorded here before handoff.
 
-The first mail check used the workspace container's loopback address.
-That is a different address from the Docker host's loopback address.
-It failed with exit 1, `services-mailpit-proof.log`.
-The final mail check ran a Node client on the Compose network and passed.
-No host services or Docker settings changed.
+Live proof:
 
-The first regression check saw a count of one before both sends reached the inbox.
-It passed with exit 0, `services-cancel-regression.log`, so it proved too little.
-The test now checks that the cancelled intent stays processing through HTTP.
-It fails without the cancellation code and passes with it.
+- Compose image pull: exit 0, `services-final-compose-pull.log`.
+- Compose up: exit 0, `services-final-compose-up.log`.
+- Compose status: exit 0, `services-final-compose-status.log`; both healthy.
+- Postgres SQL: exit 0, `services-final-postgres.log`; SELECT returned 1.
+- Mail client image pull: exit 0, `services-final-mail-client-pull.log`.
+- Mailpit SMTP and inbox: exit 0, `services-final-mailpit.log`.
+- Four-process HTTP proof: exit 0, `services-postbase-process-proof.log`.
+- Compose cleanup: exit 0, `services-final-compose-cleanup.log`.
 
-### Jev before the reader update
+### Checks seen after the rebase
 
-- Test review: exit 0, `services-jev-tests.log`; no flags.
-- README promises: exit 0, `services-jev-promises.log`.
-  One flag asked for a plain line promising stale prices.
-  The README now says a price change makes a searched offer stale.
-- Full preflight: exit 0, `services-jev-main-preflight.log`.
-  Its range includes inherited scaffold work outside this ticket.
-  This writer did not change or label those files.
+- Rebase: exit 0, `services-rebase-success.log`.
+- Install: exit 0, `services-postbase-install.log`.
+- Core build: exit 0, `services-postbase-core-build.log`.
+- Working workspace build: exit 0, `services-lift-final-build.log`.
+- Working check: exit 0, `services-lift-final-check.log`.
+  It has zero errors and 28 warnings, matching main's data proof.
+  None are in this package.
+- Working package tests: exit 0, `services-lift-fixed-tests.log`; 67 pass.
+- Working prose: exit 0, `services-lift-final-prose.log`.
+- Source hashes and subset: exit 0, `services-final-sources.log`.
+- TSDoc shape: exit 0, `services-final-tsdoc.log`; no S26 rows.
 
-The ticket's false labels and reasons are recorded here for the lead.
-The path limit forbids writes to `tools/jev/cases.jsonl` or `calibration.json`.
-No labels were added to that bank.
+Regression proof:
 
-- `memoKeyIgnoresInput`: false, `tools/flight-trial/services/http.ts`.
-  The grader's repeat rule repeats a route reply even when the next body differs.
-  It is a fault the grader asked to inject, not a service cache.
+- Old flight-number field: exit 1, `services-number-regression.log`.
+- Old reset and saved-reply behavior: exit 1, `services-lift-tests.log`.
+  The scenario reset and original-reply tests fail.
+- Fixed code: exit 0, `services-lift-fixed-tests.log`.
+- Missing pending-call entry: exit 1, `services-call-log-regression.log`.
+- Wrong injected payment error shape: exit 1, `services-errors-regression-fixed.log`.
+- Missing manual-send cancellation: exit 1, `services-cancel-regression-fixed.log`.
+
+The first cancellation test checked the inbox too soon and passed without the fix.
+Log: `services-cancel-regression.log`, exit 0.
+It now reads the intent through HTTP and proves it stays processing after cancellation.
+The first host mail check used the workspace container's loopback address and failed.
+Log: `services-mailpit-proof.log`, exit 1.
+The passing checks use the Compose network; no host setting changed.
+
+### Mutation
+
+The file list covers `src/**/*.ts` and `services/**/*.ts`.
+The breaking floor stays 85.
+Each full run holds `/tmp/mutation.lock` and runs in the foreground.
+The first services run scored 73.59 percent, with exit 1.
+Log: `services-mutation-first.log`.
+Its JSON report is saved as `services-mutation-first.json`.
+The new tests cover missing public behavior; they do not read helpers or cells.
+The second full run is still in progress.
+The shell refused `rm -rf`; a path-checked cleanup removed only `.stryker-tmp` instead.
+No file, static mutant, or threshold was excluded to raise the score.
+
+### Jev and style
+
+- Full requested preflight: exit 0, `services-final-jev-preflight.log`.
+  `main..HEAD` includes earlier scaffold work outside this ticket.
+- Ticket preflight: exit 0, `services-final-jev-ticket.log`.
+  `origin/main..HEAD` covers only this writer's work.
+  It has no file flags and six non-noisy unit flags.
+- Test review: exit 0, `services-final-jev-tests.log`; no flags in 36 service tests.
+- README promise review: exit 0, `services-final-jev-promises.log`.
+  The shared-flight line was made explicit.
+- Second promise review: exit 0, `services-final-jev-promises-fixed.log`.
+  It found one different gap about stock edits before search.
+  That README line is now explicit; its final check is pending.
+
+The false labels below give each flag its reason.
+The path limit forbids changing `tools/jev/cases.jsonl` or `calibration.json`.
+No label was written to that bank.
+
 - `inputDefaultMasks`: false, `http.ts#readRequest`.
   Empty bodies support confirm calls.
-  Route schemas still reject missing amounts, slices, and control fields.
+  Route schemas reject missing amounts, slices, and control fields through HTTP tests.
 - `stateOutsideCell`: false, `payment/index.ts#schedule`.
-  It edits the operation's owned copy, then that operation writes the Core cell.
+  It edits the operation's owned copy before that operation writes the Core cell.
   It retains no state outside the cell.
+- `stateOutsideCell`: false, `supplier/index.ts#changeStock`.
+  It edits the control operation's owned copy before the Core cell write.
 - `configNotTag`: false, `payment/index.ts#sendWebhook`.
-  URL, secret, clock, and stop signal come from tags or resources.
-  The body and signature belong to this one send.
-  HTTP method and content type are fixed wire facts.
+  URL, clock, and stop signal come from tags or resources; the signing secret is a tag.
+  Body and signature belong to one call; method and content type are fixed wire facts.
 - `stopOnlyInDefer`: false, `payment/index.ts#webhooks` and `supplier/index.ts#holds`.
-  These resources own subscriptions, removed by their defers.
-  The operations they start own waits and read both stop signals.
-- `stateOutsideCell`: false, `supplier/index.ts#createStock`.
-  It edits owned stock in the operation's copy before the Core cell write.
-  The all-offers reader step will replace this helper.
+  The resources own subscriptions and remove them in defers.
+  Their owned operations read both stop signals and finish on stop.
+- `stopOnlyInDefer`: false, `payment/index.ts#action`, in the full requested run.
+  It awaits owned route work and stores key replies.
+  It owns no socket or background wait; those operations read the stop signal.
+- Earlier `memoKeyIgnoresInput`: false, `http.ts`.
+  The grader's route repeat deliberately replays across different bodies.
+  It is a requested injected fault, not a service cache.
 
-Paths after `http.ts` above are under `tools/flight-trial/services/`.
-The `~wrapsCallersStep` hit is a noisy judge and needs no label.
+These paths start at `tools/flight-trial/services/`.
+The `~wrapsCallersStep` hit is noisy and needs no label.
+Inherited scaffold flags stay with that card's lead.
 
-Style census: exit 1, `services-style.log`; only S16 hit.
-The ticket explicitly requires source `preset` calls.
-That instruction overrides the skill's test-only preset rule.
-All other strict style rows are zero.
+Strict style census: exit 1, `services-lift-style.log`; only S16 has hits.
+Its three source `preset` calls are explicitly required by this ticket.
+That user instruction overrides the skill's test-only preset rule.
+Every other strict row is zero.
+
+### Assumptions and limits
+
+- APIs keep the requested small Duffel and Stripe shapes, not their full feature sets.
+- Supplier searches use one direct slice.
+- Every passenger uses one seat; an omitted passenger list means one passenger.
+- Passenger identity, order cancellation, and instant card details are out of scope.
+- Supplier state is owned separately after loading the same starting fixture.
+- Fare classes share the seats of one flight and cabin.
+- Offer IDs are fresh quotes; orders check the original price against current stock.
+- Prices are decimal USD strings; payment and refund amounts use whole cents.
+- Duffel carrier IDs are the saved OpenFlights numeric IDs, written as strings.
+- Duffel's flight-number field omits the saved two-character airline prefix.
+- Holds last 1,000 ms and confirmation webhooks wait 20 ms by default.
+- A late plan defaults to 1,000 ms; manual now sends at once.
+- Last-seat seeds every cabin with one seat; default restores the reader's full stock.
+- Scenario reset keeps the current clock and clears state, rules, and calls.
+- Route repeat replays the saved reply across bodies; setting the rule again clears it.
+- Payment keys last until reset or stop and compare decoded JSON, including key order.
+- Webhooks make no automatic retries; a failed HTTP send logs status zero.
+- Service and control log status zero means pending; control calls are also logged.
+- The service calls need no token on the private trial network; all control calls do.
+- Local ports, credentials, secret, token, and receiver URL are documented defaults.
+  The trial runner must set its actual webhook receiver URL.
+- Compose uses Postgres 17 and Mailpit 1.27, with a named Postgres volume.
+  Ports 55432, 51025, and 58025 avoid the existing Victoria ports.
+- The mail client runs on Compose's network because the workspace has a separate loopback.
+- Command entries use built `dist` and live under `scripts/`, as the data commands do.
+- Jev uses file and relative package paths because the name form does not find this tool.
+- Jev label reasons stay in this allowed progress file for the lead to place in the bank.
+- The board stays with the lead; there is no push from this writer.
+- Source presets take precedence over S16 because the brief requires them.
 
 ### Core feedback
 
 A root stop signal asks for graceful close.
 It does not cancel a running operation's `ctx.signal`.
-This short probe leaves `closed` pending until the virtual wait ends:
+This probe leaves `closed` pending until its virtual wait ends:
 
 ```ts
 const stop = new AbortController();
@@ -516,9 +615,14 @@ stop.abort();
 await scope.closed;
 ```
 
-The probe's early-close assertion failed as expected.
+The early-close assertion failed as expected.
 Advancing the clock by 100 let the root close with success.
 Proof: exit 0, `services-core-feedback.log`.
-Service background waits also read the caller's stop signal.
-They finish without error on stop so Core can drain the root.
-This follows Core's graceful-close rule; no Core change is requested.
+Service waits also read the caller's stop signal so Core can drain the root.
+No Core change is requested.
+
+A plain `seed.close()` returns cancelled, even when the seed owns only data.
+Proof: exit 0, `services-seed-close-probe.log`.
+Scenario seed scopes now use `seed.close({ graceful: true })`.
+The previous HTTP reset failure and passing fix are in the regression logs above.
+This follows Core's close rule; no Core change is requested.
