@@ -5,8 +5,8 @@
 Writer: Sol.
 Branch: `trial/jev-link`.
 Base: `3fce5703`.
-Status: source step saved for review; final gates next.
-Next: run the final gate chain, Jev, and validate.
+Status: saved for lead review; repo gates have the starting commit's failure.
+Next: review the commits and set up the reference app's local packages.
 Verify: frozen Jev loads after its source checkout is removed.
 The new test must fail on the old code and pass with the fix.
 The existing board card stays with the lead.
@@ -21,6 +21,8 @@ Assumptions:
 - Use a fresh process for the load proof, so an old import cannot hide a break.
 - Test a copied source folder with its own removable package link.
   The real checkout's installed packages stay in place.
+- Also seed a source folder with owned package copies.
+  Delete those copied packages and import the frozen Jev again.
 - Refuse check before containers start when frozen Jev cannot load.
   Keep all judge rules, saved answers, and score rules unchanged.
 - Existing trials are read as saved; do not repair or refresh them here.
@@ -73,6 +75,45 @@ Gate assumptions:
   The brief allows no source or setup change in that folder.
 - The broad check remains red on the starting commit and this branch.
   Report that failure, plus the green check over every changed source file.
+
+Final proof under `tools/writer-trial/.logs/jev-link/`:
+
+- Source step commit: `e94c1b69`.
+  Hook exit 0, `commit-source.log`.
+- Old production code with the current four tests: exit 1, `final-red.log`.
+  All four fail, including the owned-package deletion test.
+  The old suite, workers, and review come unchanged from `3fce5703`.
+  The new package copier is present only to build the test's source fixture.
+- Writer-trial tests: exit 0, `final-green.log`; all 84 pass.
+  These include all four new tests and the existing gate and score tests.
+- Build before the test proof: exit 0, `proof-build.log`.
+- Changed-file check: exit 0, `proof-check.log`.
+  Every changed source file passes with no warnings or errors.
+- Final gate chain: exit 1, `final-gate.log`.
+  Build exit 0, `final-build.log`.
+  Check exit 1, `final-check.log`; 409 errors and 31 warnings.
+  The chain stops at check; the tests were run separately above.
+- Workspace tests: exit 0, `workspace-tests.log`.
+- Prose: exit 0, `final-prose.log`.
+- Jev preflight: exit 0, `jev-preflight.log`; no flags.
+  Range: `3fce5703..HEAD`.
+  Jev selects TypeScript source; this ticket changes MJS files.
+  No package TypeScript tests changed, so tests and promises judges have no targets.
+  No label lines are owed; no Jev files were changed.
+- Validate: exit 1, `validate.log`.
+  Only the broad check fails; the other 15 lanes pass.
+- No mutation lane, live reference run, or Docker command was needed.
+- No push or stash was used.
+
+The lead's next setup command, from the repo root:
+
+```bash
+ln -s ../../../apps/start-scaffold/node_modules \
+  tools/flight-trial/reference/node_modules
+```
+
+Then build the reference app to make its router file and rerun the repo gates.
+That setup is outside this ticket's allowed paths and was not done here.
 
 Core feedback: none; this change uses no Core API.
 

@@ -92,6 +92,27 @@ await test("create refuses an unavailable frozen Jev before publishing a trial",
   }
 });
 
+await test("frozen Jev loads after deleting an owned source copy of its packages", async () => {
+  const root = mkdtempSync(join(tmpdir(), "jev-package-copy-"));
+  try {
+    const { source, tools, jev } = sourceCopy(root);
+    rmSync(join(jev, "node_modules"));
+    const { freezeJevPackages } = await import("./jev-packages.mjs");
+    freezeJevPackages(join(repoDir, "tools/jev"), jev);
+    assertOwnedLinks(jev, source);
+    load(jev);
+    const copy = await import(pathToFileURL(join(tools, "suite.mjs")).href);
+    const trial = join(root, "trial");
+    copy.freezeTrial(trial, "stock");
+    rmSync(join(jev, "node_modules"), { recursive: true });
+    load(join(trial, "frozen/jev"));
+    load(join(trial, "frozen/jev"), "shape.mjs");
+    assertOwnedLinks(join(trial, "frozen/jev"), trial);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 await test("check refuses unavailable Jev before running own or teacher containers", () => {
   const root = mkdtempSync(join(tmpdir(), "jev-check-"));
   try {

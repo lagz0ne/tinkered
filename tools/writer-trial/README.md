@@ -493,5 +493,6 @@ T08 names the test rule for error checks inside assertions.
 - passes a clean folder with exit 0.
 - tells the writer how to clear a blocking Jev hit with the judge's fix line.
 - frozen Jev still loads after deleting the source checkout and its package link.
+- frozen Jev loads after deleting an owned source copy of its packages.
 - create refuses an unavailable frozen Jev before publishing a trial.
 - check refuses unavailable Jev before running own or teacher containers.
