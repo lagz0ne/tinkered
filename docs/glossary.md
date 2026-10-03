@@ -409,3 +409,4 @@ New sections are lists, one term per item (vertical layout,
 
 - **plain function** — A function that is not a tag, data, resource, operation, or extension.
 - **plain-function list** — The checked list of allowed plain functions, with params and call sites; it only shrinks.
+- **entry point** — The one file that creates a root scope and owns its stop signal and exit (ADR 0100).

@@ -80,3 +80,5 @@ by a new decision that names the old one.
 - [0098](0098-trial-services-are-tinker-apps-behind-http.md): trial services are Tinker apps behind HTTP.
 
 - [0099](0099-strict-forms-first.md): strict forms first; plain functions are exceptions.
+
+- [0100](0100-no-service-outside-the-graph.md): no service outside the graph.
