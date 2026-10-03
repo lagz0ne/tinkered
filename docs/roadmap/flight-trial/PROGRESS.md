@@ -1489,3 +1489,18 @@ extension({
 The service start hook borrows its owned event for the shared start hook.
 The shared hook owns the one HTTP stack and the common control routes.
 No extra scope helper is needed.
+
+### Services routing: control expiry fix
+
+Owner: Codex writer; branch `trial/services-routing`.
+Starting head: `e55ddac2`.
+Next: prove the clock rewind bug through HTTP, then fix route order.
+Verify: red test exit 1, green test exit 0, build, check,
+all flight tests, four-process proof, prose, and strict style.
+The lead owns mutation and the board card.
+
+Red proof on unchanged `e55ddac2` service code: exit 1.
+Log: `tools/flight-trial/.logs/expiry-red.log`.
+The rewind returns 200; the test requires 404 `offer_not_found`.
+The workspace build passed first, exit 0.
+Log: `tools/flight-trial/.logs/expiry-base-build.log`.

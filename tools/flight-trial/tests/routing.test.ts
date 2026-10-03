@@ -45,6 +45,17 @@ const failingCalls = extension({
 const logSchema = z.object({
   data: z.array(z.object({ route: z.string(), status: z.number() })),
 });
+const offersSchema = z.object({
+  data: z.object({ offers: z.array(z.object({ id: z.string() })).nonempty() }),
+});
+
+async function post(url: string, path: string, body: unknown) {
+  return fetch(`${url}${path}`, {
+    method: "POST",
+    headers: { authorization: "Bearer grader", "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
 
 const running: {
   stop: AbortController;
@@ -112,6 +123,30 @@ test("HEAD calls keep the missing-route reply", async () => {
     expect(response.status).toBe(404);
     expect(response.headers.get("transfer-encoding")).toBeNull();
   }
+});
+
+test("a control clock rewind cannot restore an expired offer", async () => {
+  const { url } = running.find((service) => service.name === "supplier")!;
+  const start = await post(url, "/control/clock", { now: 1_000_000 });
+  expect(start.status).toBe(200);
+  await start.arrayBuffer();
+  const search = await post(url, "/air/offer_requests", {
+    data: {
+      slices: [{ origin: "LHR", destination: "AMS", departure_date: "2027-01-15" }],
+    },
+  });
+  expect(search.status).toBe(201);
+  const { data } = offersSchema.parse(await search.json());
+  for (const now of [1_000_000 + 31 * 60_000, 1_000_000]) {
+    const clock = await post(url, "/control/clock", { now });
+    expect(clock.status).toBe(200);
+    await clock.arrayBuffer();
+  }
+  const response = await fetch(`${url}/air/offers/${data.offers[0].id}`);
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({
+    errors: [{ type: "invalid_request_error", code: "offer_not_found", title: "offer_not_found" }],
+  });
 });
 
 test("a thrown payment handler lets the same key retry", async () => {
