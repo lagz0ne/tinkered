@@ -1,22 +1,20 @@
 import { createServer, type IncomingMessage } from "node:http";
 import { once } from "node:events";
-import {
-  data,
-  operation,
-  resource,
-  tag,
-  type Clock,
-  type Operation,
-  type Scope,
-} from "@tinker/core";
+import { data, operation, resource, tag, type Clock, type Operation } from "@tinker/core";
 import { z } from "zod";
 import { failFlightService } from "../src/errors.ts";
 
 export declare namespace Service {
   type Request = { route: string; path: string; body: unknown; key?: string; token?: string };
-  type Reply = { status: number; body: unknown };
+  type Reply = { status: number; body: unknown; headers?: Record<string, string> };
   type Failure = (code: string, status?: number) => Reply;
-  type Call = { route: string; time: number; status: number };
+  type Form = { [key: string]: string | boolean | Form };
+  type Call = {
+    kind: "service" | "control" | "webhook";
+    route: string;
+    time: number;
+    status: number;
+  };
   type Entry = Call & { id: string };
   type Rule = { revision: string; delayMs: number; status?: number; repeat: number; saved?: Reply };
   type Rules = Record<string, Rule>;
@@ -42,10 +40,6 @@ class ServiceClock {
 
   currentTimeMillis() {
     return this.now ?? this.real.currentTimeMillis();
-  }
-
-  currentTimeNanos() {
-    return this.now === undefined ? this.real.currentTimeNanos() : BigInt(this.now) * 1_000_000n;
   }
 
   sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -136,16 +130,39 @@ export const control = operation({
   },
 });
 
+/** Bracket keys carry nested Stripe fields; unsafe object keys never reach the body. */
+function readForm(bytes: string): Service.Form {
+  const body: Service.Form = {};
+  for (const [key, value] of new URLSearchParams(bytes)) {
+    const parts = key.split(/[[\]]/).filter(Boolean);
+    if (parts.some((part) => ["__proto__", "constructor", "prototype"].includes(part))) continue;
+    let current = body;
+    for (const part of parts.slice(0, -1)) {
+      const nested = current[part];
+      if (typeof nested === "object") current = nested;
+      else {
+        const next: Service.Form = {};
+        current[part] = next;
+        current = next;
+      }
+    }
+    const name = parts.at(-1);
+    if (name) current[name] = value === "true" || value === "false" ? value === "true" : value;
+  }
+  return body;
+}
+
 /** Validate the wire once; route operations then validate their own JSON shapes. */
 async function readRequest(request: IncomingMessage): Promise<Service.Request> {
   const path = new URL(request.url ?? "/", "http://localhost").pathname;
-  let bytes = "";
-  for await (const chunk of request) bytes += String(chunk);
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) chunks.push(chunk);
+  const bytes = Buffer.concat(chunks).toString("utf8");
   let body: unknown = {};
   if (bytes) {
     try {
       body = request.headers["content-type"]?.startsWith("application/x-www-form-urlencoded")
-        ? Object.fromEntries(new URLSearchParams(bytes))
+        ? readForm(bytes)
         : JSON.parse(bytes);
     } catch {
       body = null;
@@ -179,7 +196,16 @@ export function createHttp(
       const request = ctx.input;
       const time = clock.currentTimeMillis();
       const id = ctx.random.uuid();
-      calls.update((all) => [...all, { id, route: request.route, time, status: 0 }]);
+      calls.update((all) => [
+        ...all,
+        {
+          id,
+          kind: request.path.startsWith("/control/") ? "control" : "service",
+          route: request.route,
+          time,
+          status: 0,
+        },
+      ]);
       let response: Service.Reply;
       if (request.path.startsWith("/control/")) {
         response =
@@ -203,7 +229,7 @@ export function createHttp(
         });
         response = stopped
           ? failure("service_stopped", 503)
-          : await applyRule(selected, request, action, failure);
+          : (readRuleReply(selected, failure) ?? (await action.run({ input: request })));
         if (rule)
           rules.update((all) => {
             const current = all[request.route];
@@ -225,7 +251,10 @@ export function createHttp(
       const server = createServer(async (request, response) => {
         try {
           const result = await dispatch.run({ input: await readRequest(request) });
-          response.writeHead(result.status, { "content-type": "application/json" });
+          response.writeHead(result.status, {
+            "content-type": "application/json",
+            ...result.headers,
+          });
           response.end(JSON.stringify(result.body));
         } catch (error) {
           ctx.log.error("HTTP request failed", { error });
@@ -249,21 +278,18 @@ export function createHttp(
   });
 }
 
-/** The dispatch operation owns the choice and awaits the selected action. */
-async function applyRule(
+/** The dispatch operation keeps ownership of any action selected by this pure choice. */
+function readRuleReply(
   rule: Service.Rule | undefined,
-  request: Service.Request,
-  action: Scope.OperationController<Promise<Service.Reply>, Service.Request>,
   failure: Service.Failure,
-): Promise<Service.Reply> {
+): Service.Reply | undefined {
   if (rule?.saved && rule.repeat > 0) return rule.saved;
   if (rule?.status) return failure("injected_failure", rule.status);
-  return action.run({ input: request });
 }
 
 /** A root stops gracefully; background waits must end before Core can drain that root. */
 export async function sleepUntilStopped(
-  clock: Clock.Handle,
+  clock: Pick<Clock.Handle, "sleep">,
   ms: number,
   stop: AbortSignal,
   signal: AbortSignal,

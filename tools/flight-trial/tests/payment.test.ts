@@ -11,6 +11,7 @@ const intentSchema = z.object({
   amount: z.number().int().positive(),
   currency: z.string().regex(/^[a-z]{3}$/),
   status: z.enum(["requires_confirmation", "processing", "succeeded", "requires_payment_method"]),
+  metadata: z.record(z.string(), z.string()),
   client_secret: z.string().min(1),
   latest_charge: z.string().nullable(),
 });
@@ -103,11 +104,13 @@ test("parallel calls with one key return the same intent", async () => {
     post(url, "/v1/payment_intents", body, "same"),
   ]);
   expect(await responses.at(0)!.json()).toEqual(await responses.at(1)!.json());
+  const replay = await post(url, "/v1/payment_intents", body, "same");
+  expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
   const changed = await post(url, "/v1/payment_intents", { amount: 9, currency: "usd" }, "same");
-  expect(changed.status).toBe(409);
+  expect(changed.status).toBe(400);
   expect(await changed.json()).toEqual({
     error: {
-      type: "invalid_request_error",
+      type: "idempotency_error",
       code: "idempotency_key_in_use",
       message: "idempotency_key_in_use",
     },
@@ -176,12 +179,14 @@ test("payment accepts Stripe form bodies", async () => {
   const response = await fetch(`${url}/v1/payment_intents`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: "amount=900&currency=usd",
+    body: "amount=900&currency=usd&metadata[order_id]=ord_1&metadata[note]=%E2%9C%88&automatic_payment_methods[enabled]=true",
   });
   expect(await response.json()).toMatchObject({
     object: "payment_intent",
     amount: 900,
     currency: "usd",
+    metadata: { order_id: "ord_1", note: "✈" },
+    automatic_payment_methods: { enabled: true },
   });
 });
 
@@ -231,17 +236,24 @@ test("repeated confirmation keeps one delivery and a key keeps its original repl
   expect(terminal.status).toBe("succeeded");
   expect(await (await post(url, "/v1/payment_intents", body, "create-once")).json()).toEqual(first);
   const changedRoute = await post(url, path, body, "create-once");
-  expect(changedRoute.status).toBe(409);
+  expect(changedRoute.status).toBe(400);
   expect(await changedRoute.json()).toEqual({
     error: {
-      type: "invalid_request_error",
+      type: "idempotency_error",
       code: "idempotency_key_in_use",
       message: "idempotency_key_in_use",
     },
   });
   const log = z
     .object({
-      data: z.array(z.object({ route: z.string(), time: z.number(), status: z.number() })),
+      data: z.array(
+        z.object({
+          kind: z.enum(["service", "control", "webhook"]),
+          route: z.string(),
+          time: z.number(),
+          status: z.number(),
+        }),
+      ),
     })
     .parse(
       await (
@@ -249,7 +261,7 @@ test("repeated confirmation keeps one delivery and a key keeps its original repl
       ).json(),
     );
   expect(log.data.filter((call) => call.route === "POST webhook")).toEqual([
-    { route: "POST webhook", time: 10020, status: 200 },
+    { kind: "webhook", route: "POST webhook", time: 10020, status: 200 },
   ]);
 });
 

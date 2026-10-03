@@ -33,6 +33,8 @@ export declare namespace Payment {
     amount: number;
     currency: string;
     status: "requires_confirmation" | "processing" | "succeeded" | "requires_payment_method";
+    metadata: Record<string, string>;
+    automatic_payment_methods?: { enabled: boolean };
     client_secret: string;
     latest_charge: string | null;
   };
@@ -83,6 +85,8 @@ function createState(): Payment.State {
 const state = data({ label: "payment intents", initial: createState() });
 const intentSchema = z.object({
   amount: z.coerce.number().int().positive(),
+  metadata: z.record(z.string(), z.coerce.string()).default({}),
+  automatic_payment_methods: z.object({ enabled: z.boolean() }).optional(),
   currency: z
     .string()
     .regex(/^[a-zA-Z]{3}$/)
@@ -105,8 +109,8 @@ const sendSchema = z.object({
 const scenarioSchema = z.object({ name: z.enum(["default", "payment-failed"]) });
 
 /** Pure wire shaping keeps Stripe errors separate from Duffel errors. */
-function rejectPayment(code: string, status = 400): Service.Reply {
-  return reply(status, { error: { type: "invalid_request_error", code, message: code } });
+function rejectPayment(code: string, status = 400, type = "invalid_request_error"): Service.Reply {
+  return reply(status, { error: { type, code, message: code } });
 }
 
 /** Only the controlling operation writes state; the watcher owns delivery work. */
@@ -155,7 +159,13 @@ const sendWebhook = operation({
       }
       calls.update((previous) => [
         ...previous,
-        { id: ctx.random.uuid(), route: "POST webhook", time: clock.currentTimeMillis(), status },
+        {
+          id: ctx.random.uuid(),
+          kind: "webhook",
+          route: "POST webhook",
+          time: clock.currentTimeMillis(),
+          status,
+        },
       ]);
     }
   },
@@ -384,29 +394,35 @@ const action = operation({
     const previous = state.get().keys[request.key];
     if (previous)
       return previous.fingerprint === fingerprint
-        ? previous.reply
-        : rejectPayment("idempotency_key_in_use", 409);
+        ? { ...previous.reply, headers: { "Idempotent-Replayed": "true" } }
+        : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
     const pending = inFlight.get()[request.key];
     if (pending)
       return pending.fingerprint === fingerprint
-        ? pending.response
-        : rejectPayment("idempotency_key_in_use", 409);
+        ? { ...(await pending.response), headers: { "Idempotent-Replayed": "true" } }
+        : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
     const responsePromise = route.run({ input: request });
     inFlight.update((all) => ({
       ...all,
       [request.key!]: { fingerprint, response: responsePromise },
     }));
-    const response = await responsePromise;
-    inFlight.update((all) => {
-      const next = { ...all };
-      delete next[request.key!];
-      return next;
-    });
-    state.update((current) => ({
-      ...current,
-      keys: { ...current.keys, [request.key!]: { fingerprint, reply: structuredClone(response) } },
-    }));
-    return response;
+    try {
+      const response = await responsePromise;
+      state.update((current) => ({
+        ...current,
+        keys: {
+          ...current.keys,
+          [request.key!]: { fingerprint, reply: structuredClone(response) },
+        },
+      }));
+      return response;
+    } finally {
+      inFlight.update((all) => {
+        const next = { ...all };
+        delete next[request.key!];
+        return next;
+      });
+    }
   },
 });
 const http = createHttp(action, rejectPayment);
