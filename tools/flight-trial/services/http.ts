@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export declare namespace Wire {
   type Env = {
-    Variables: { scope: Scope.Handle; payment: boolean; body: unknown; control: boolean };
+    Variables: { scope: Scope.Handle; body: unknown; control: boolean };
   };
   type Reply = { status: number; body: unknown; headers?: Record<string, string> };
   type Form = { [key: string]: string | boolean | Form };
@@ -23,6 +23,7 @@ export declare namespace Wire {
   type Rules = Record<string, Rule>;
 }
 
+export const errorShape = tag<"duffel" | "stripe">({ label: "service error shape" });
 export const stopSignal = tag<AbortSignal>({ label: "service stop signal" });
 export const port = tag({ label: "service port", default: 0 });
 export const host = tag({ label: "service host", default: "127.0.0.1" });
@@ -190,7 +191,6 @@ const checkToken = operation({
 });
 const ruleSchema = z.object({
   name: z.string(),
-  payment: z.boolean(),
   revision: z.string().optional(),
   response: z
     .object({
@@ -204,9 +204,9 @@ const ruleSchema = z.object({
 const applyRule = operation({
   label: "read or save HTTP rule",
   input: ruleSchema,
-  depends: { rules: rules.controller },
-  run({ rules }, ctx): { revision?: string; response?: Wire.Reply } {
-    const { name, payment, revision, response } = ctx.input;
+  depends: { rules: rules.controller, shape: errorShape },
+  run({ rules, shape }, ctx): { revision?: string; response?: Wire.Reply } {
+    const { name, revision, response } = ctx.input;
     if (response) {
       rules.update((all) => {
         const current = all[name];
@@ -230,17 +230,18 @@ const applyRule = operation({
     if (!selected.status) return { revision };
     return {
       revision,
-      response: payment
-        ? rejectPayment("injected_failure", selected.status)
-        : reject("injected_failure", selected.status),
+      response:
+        shape === "stripe"
+          ? rejectPayment("injected_failure", selected.status)
+          : reject("injected_failure", selected.status),
     };
   },
 });
 const routeRule = operation({
   label: "wait for HTTP rule",
   input: ruleSchema,
-  depends: { rules, clock, stop: stopSignal, apply: applyRule.controller },
-  async run({ rules, clock, stop, apply }, ctx) {
+  depends: { rules, clock, stop: stopSignal, apply: applyRule.controller, shape: errorShape },
+  async run({ rules, clock, stop, apply, shape }, ctx) {
     if (ctx.input.response) return apply.run({ input: ctx.input });
     const rule = rules[ctx.input.name] ?? { delayMs: 0, revision: undefined };
     const signal = AbortSignal.any([stop, ctx.signal]);
@@ -252,9 +253,10 @@ const routeRule = operation({
       }
       if (signal.aborted)
         return {
-          response: ctx.input.payment
-            ? rejectPayment("service_stopped", 503)
-            : reject("service_stopped", 503),
+          response:
+            shape === "stripe"
+              ? rejectPayment("service_stopped", 503)
+              : reject("service_stopped", 503),
         };
     }
     return apply.run({ input: { ...ctx.input, revision: rule.revision } });
@@ -344,7 +346,7 @@ export const middleware = resource({
           if (c.req.method === "HEAD") return c.notFound();
           return next();
         }
-        const params = { name: `${c.req.method} ${c.req.path}`, payment: c.var.payment };
+        const params = { name: `${c.req.method} ${c.req.path}` };
         const selected = await c.var.scope.run(routeRule, { rawInput: params });
         if (selected.response) {
           const response = selected.response;
@@ -426,12 +428,14 @@ export const httpRequests = extension({
 /** The extension finishes Hono setup before resolving this owned Node listener. */
 export const listener = resource({
   label: "service HTTP listener",
-  depends: { web, port, host },
-  async factory({ web, port, host }, ctx) {
+  target: "session",
+  depends: { web, port, host, shape: errorShape },
+  async factory({ web, port, host, shape }, ctx) {
     web.onError((error, c) => {
       ctx.log.error("HTTP request failed", { error });
       return c.json(
-        (c.var.payment ? rejectPayment("internal_error", 500) : reject("internal_error", 500)).body,
+        (shape === "stripe" ? rejectPayment("internal_error", 500) : reject("internal_error", 500))
+          .body,
         500,
       );
     });

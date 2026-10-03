@@ -1396,3 +1396,20 @@ Core feedback: none.
 No changes to Core, apps, or `tools/writer-trial/`.
 No push; the branch waits for the lead's review.
 The board card stays with the lead because it is outside the allowed paths.
+
+### Services routing: lead fix round
+
+The lead asked for eight fixes before review.
+Shared middleware and the three common control routes now register once.
+The token check runs before body decoding and rule waits.
+Body decoding is again an operation.
+
+Assumption: keep the public app extensions and all old test callers.
+Each service borrows its start event for the shared HTTP start hook.
+Core has no nested extension list on an extension.
+No helper takes a scope or creates one.
+
+Assumption: bind the error shape in one service session.
+The root owns that session and closes it on the same stop signal.
+The listener and payment watcher use that session's state and tags.
+This keeps the old public test setup and the six plain functions.

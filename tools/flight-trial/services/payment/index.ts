@@ -8,7 +8,7 @@ import {
   reply,
   rules,
   httpRequests,
-  web,
+  errorShape,
   listener,
   rejectPayment,
   stopSignal,
@@ -190,6 +190,7 @@ const deliver = operation({
 });
 const webhooks = resource({
   label: "watch payment intents",
+  target: "session",
   depends: { state: state.controller, deliver: deliver.controller },
   factory({ state, deliver }, ctx) {
     ctx.defer(
@@ -403,12 +404,8 @@ export const app = extension({
   label: "start payment app",
   hooks: {
     async start(event) {
-      const { scope } = event;
-      scope.resolve(web).use("*", async (c, next) => {
-        c.set("payment", true);
-        await next();
-      });
-      const http = await httpRequests.hooks!.start!(event);
+      const scope = event.scope.createSession({ tags: [errorShape("stripe")] });
+      const http = await httpRequests.hooks!.start!({ ...event, scope });
       await scope.run(resetScenario, { rawInput: { name: "default" } });
       scope.resolve(webhooks);
       http.use("/v1/:rest{.*}", async (c, next) => {

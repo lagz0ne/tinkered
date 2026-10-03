@@ -1,7 +1,7 @@
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights.ts";
-import { calls, clock, reject, reply, rules, httpRequests, web, listener } from "../http.ts";
+import { calls, clock, reject, reply, rules, httpRequests, errorShape, listener } from "../http.ts";
 
 export declare namespace Supplier {
   type Offer = {
@@ -405,12 +405,8 @@ export const app = extension({
   label: "start supplier app",
   hooks: {
     async start(event) {
-      const { scope } = event;
-      scope.resolve(web).use("*", async (c, next) => {
-        c.set("payment", false);
-        await next();
-      });
-      const http = await httpRequests.hooks!.start!(event);
+      const scope = event.scope.createSession({ tags: [errorShape("duffel")] });
+      const http = await httpRequests.hooks!.start!({ ...event, scope });
       await scope.run(resetScenario, { rawInput: { name: "default" } });
       http.use("*", async (c, next) => {
         c.var.scope.run(expireHolds);
