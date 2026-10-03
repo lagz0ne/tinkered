@@ -139,6 +139,34 @@ await test("create refuses an unavailable question bank even when lib loads", as
   }
 });
 
+for (const failure of ["package copy", "module load"]) {
+  await test(`failed ${failure} removes frozen so create can retry`, async () => {
+    const root = mkdtempSync(join(tmpdir(), "jev-create-retry-"));
+    try {
+      const { tools, jev } = sourceCopy(root);
+      const broken = join(jev, failure === "package copy" ? "package.json" : "lib.mjs");
+      const original = readFileSync(broken);
+      if (failure === "package copy") {
+        const pkg = JSON.parse(original);
+        pkg.dependencies["missing-jev-package"] = "0.0.0";
+        writeFileSync(broken, JSON.stringify(pkg));
+      } else writeFileSync(broken, "import 'missing-jev-package';\n");
+      const trial = join(root, "trial");
+      mkdirSync(trial);
+      writeFileSync(join(trial, "keep.txt"), "keep me");
+      const copy = await import(pathToFileURL(join(tools, "suite.mjs")).href);
+      assert.throws(() => copy.freezeTrial(trial, "stock"), /Jev unavailable/);
+      assert.equal(existsSync(join(trial, "frozen")), false);
+      assert.equal(readFileSync(join(trial, "keep.txt"), "utf8"), "keep me");
+      writeFileSync(broken, original);
+      const frozen = copy.freezeTrial(trial, "stock");
+      assert.equal(copy.verifyFrozen(trial, frozen), true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
+
 await test("frozen Jev loads after deleting an owned source copy of its packages", async () => {
   const root = mkdtempSync(join(tmpdir(), "jev-package-copy-"));
   try {

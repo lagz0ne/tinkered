@@ -65,6 +65,8 @@ Create imports `lib.mjs`, `bank.mjs`, `extract.mjs`, and `shape.mjs` in a fresh 
 It proves their packages load before saving the manifest.
 Check repeats that import before starting any check containers.
 A failed import is unavailable, never a pass.
+If freezing fails, create removes its unfinished `frozen/` folder so it can retry.
+Existing frozen trials still refuse a silent refresh.
 
 - **Booking** — the default suite.
   Stages rounds 1-5 from frozen packets.
@@ -499,4 +501,6 @@ T08 names the test rule for error checks inside assertions.
 - create refuses a missing shape-only package even when lib loads.
 - create refuses a missing parser native binding even when lib loads.
 - create refuses an unavailable question bank even when lib loads.
+- failed package copy removes frozen so create can retry.
+- failed module load removes frozen so create can retry.
 - check refuses unavailable Jev before running own or teacher containers.

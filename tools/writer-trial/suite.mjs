@@ -2,7 +2,15 @@
 // Booking grows over rounds 1-5; stock, plan, loans, ballot, kitchen, locker, cinema, and gym are
 // one fresh round each.
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { freezeJevPackages, verifyJevLoads } from "./jev-packages.mjs";
@@ -163,24 +171,29 @@ export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
     copyFileSync(src, join(frozen, dest));
     files[dest] = sha256File(src);
   };
-  freezeTasks(suite, packetDir, put);
-  const copies = [
-    ...guidelineSourcesFor(suite).map((guide) => [join(trialDir, guide), `rules/${guide}`]),
-    ...TRIAL_TOOLS.map((tool) => [join(trialDir, tool), `tools/${tool}`]),
-    ...JEV_FROZEN.map((file) => [join(repoDir, "tools/jev", file), `jev/${file}`]),
-  ];
-  for (const [source, target] of copies) put(source, target);
-  // Limits drift after create when stage reads live config.
-  // New trials freeze config.json and read limits from the copy.
-  put(join(trialDir, "config.json"), "config.json");
-  const jev = join(frozen, "jev");
-  freezeJevPackages(join(repoDir, "tools/jev"), jev);
-  verifyJevLoads(jev);
-  return {
-    dir: "frozen",
-    files,
-    ...(suite === "flight" ? { teacher: flightTeacherSnapshot().pins } : {}),
-  };
+  try {
+    freezeTasks(suite, packetDir, put);
+    const copies = [
+      ...guidelineSourcesFor(suite).map((guide) => [join(trialDir, guide), `rules/${guide}`]),
+      ...TRIAL_TOOLS.map((tool) => [join(trialDir, tool), `tools/${tool}`]),
+      ...JEV_FROZEN.map((file) => [join(repoDir, "tools/jev", file), `jev/${file}`]),
+    ];
+    for (const [source, target] of copies) put(source, target);
+    // Limits drift after create when stage reads live config.
+    // New trials freeze config.json and read limits from the copy.
+    put(join(trialDir, "config.json"), "config.json");
+    const jev = join(frozen, "jev");
+    freezeJevPackages(join(repoDir, "tools/jev"), jev);
+    verifyJevLoads(jev);
+    return {
+      dir: "frozen",
+      files,
+      ...(suite === "flight" ? { teacher: flightTeacherSnapshot().pins } : {}),
+    };
+  } catch (error) {
+    rmSync(frozen, { recursive: true, force: true });
+    throw error;
+  }
 };
 
 function flightTeacherSnapshot() {
