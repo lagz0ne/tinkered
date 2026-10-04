@@ -2335,3 +2335,59 @@ No direct http.send assertion stands in for the managed operation.
 Both late-send cases now pass, and all 20 HTTP tests pass, exit 0.
 Green: /tmp/tinkered-http-graceful-round2-logs/04-http-green.log.
 The next step rebuilds the registry and runs every final gate.
+
+#### Final fix-round proof
+
+The registry failed its exact-source check before rebuild, exit 1.
+The rebuilt registry passes, exit 0; all 113 copied files match source.
+All 15 copied-starter gates pass, including 58 tests.
+Its Core and React packages are packed tarballs, with an independent npm install.
+
+All 134 plain proof cases pass, exit 0.
+The 130 banned cases each return the expected exit 1.
+The four allowed cases each return the expected exit 0.
+The same 17 plain functions remain.
+Seam, seam fixture, browser boundary, imports, schema, middleware, and types pass.
+TSDoc and strict style census pass.
+All 16 validate lanes pass.
+
+The full chain passes, exit 0: build, check, app tests, all package tests.
+All 20 HTTP tests and all 60 app tests pass.
+All 1,244 repo tests pass, with one existing skip.
+Check has zero errors and the same 28 warnings.
+No async assertion is left unawaited.
+The new Vite config compatibility settings stay unchanged.
+
+Seven bug tests have named red exit 1 and green exit 0 proof.
+The five stop-tag bugs fail at the two-second bound before the fix.
+The two late-send bugs fail because the managed request succeeds before the guard.
+Call-signal cancellation and forced close pass as unchanged controls.
+Each test's red and green logs are in HTTP-GRACEFUL-GATES.json.
+
+Jev reports no file flags, no test flags, and no README gaps.
+One old SSE title stays unsure, below its flag threshold.
+The sole unit flag is configNotTag on httpRequest; its answer is false.
+Why: URL, method, headers, and body are checked request input.
+The backend and stop settings come from tags.
+The exact row is saved in HTTP-GRACEFUL-JEV-LABELS.jsonl.
+It uses the shipped slice/forJev readers and the label command's hash and row shape.
+The two labels for the removed httpScopes adapter are retired.
+The brief's folder limit keeps the shared bank untouched.
+The lead owns the bank merge and landing calibration.
+
+Final chain: /tmp/tinkered-http-graceful-round2-logs/07-chain.log.
+HTTP proof: /tmp/tinkered-http-graceful-round2-logs/04-http-green.log.
+Plain proof: /tmp/tinkered-http-graceful-round2-logs/06-plain-prove.log.
+Registry proof: /tmp/tinkered-http-graceful-round2-logs/06-registry-green.log.
+The gate record holds every command, exit code, and full log path.
+It also holds all plain cases and copied-starter gates.
+
+Only the two allowed folders changed.
+No Core method override, child set, binding loop, or per-session binding remains.
+No Core edit, stash, push, trial-store access, or container command was used.
+No full mutation lane was requested.
+All long jobs ended before this proof was saved.
+
+Next: commit the registry and proof, then lead review.
+The direct graceful-close limit remains recorded above and in the HTTP TSDoc.
+The lead owns the Core hook follow-up.
