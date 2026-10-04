@@ -1,6 +1,6 @@
 {
   "base": "6e254446",
-  "sourceCommit": "df4f50a28b24c2edb35decaf0c8e9ffdc37a2eab",
+  "sourceCommit": "2b6da07776549d78aa2eb5798045137902c1fb91",
   "logRoot": "tools/writer-trial/.logs/reference-0102",
   "baseline": [
     {

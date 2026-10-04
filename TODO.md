@@ -24,6 +24,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/serve-native-response** — the starter's `scripts/serve.mjs` keeps the native `Response`.
+  Found by the `trial/reference-0102` review: the reference sets `overrideGlobalObjects: false`,
+  the starter does not, so a writer's `Response.json` routes can return 500 until they find it.
+  Next: add the setting to the starter, rebuild the registry and the writer image, rerun round 1 once.
+  Verify: a route returning `Response.json` gives 200 in the copied starter; round 1 passes on the new image.
+
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
@@ -50,13 +56,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/reference-0102** — the flight reference passes today's gate; new images; the next trial can run.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Folds in `trial/images-0102`.
-  Worktree: `../tinkered-reference-0102`. Search stream uses SSE (user 2026-10-04).
-  Next: copy today's scaffold; server calls through `httpRequest`; replies mapped; new images.
-  Verify: scaffold `check:plain` exits 0 on it; S24 0; rounds 1-5 twice and planted breaks on the new images.
-  [Brief](docs/roadmap/flight-trial/REFERENCE-0102-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -78,6 +77,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/reference-0102** — the flight reference passes today's gate; new images; the next trial can run.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY. Folds in `trial/images-0102`.
+  Supplier and payment calls run `httpRequest` and map replies to values or managed errors;
+  the webhook route picks its status; search streams over SSE (user's choice); `src/scaffold/` matches the scaffold.
+  Proof: plain check 32 findings to 0, S24 10 hits to 0; rounds 1-5 twice and each planted break
+  on the new images (writer `a46805a4`, services `1be10fb5`, vite-plus 1.0); isolation; all gates.
 
 - **docs/http-0102-0103** — docs and fix texts say exactly what the HTTP and protocol code does.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY after one fix round.
