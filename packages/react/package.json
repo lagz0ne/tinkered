@@ -42,12 +42,13 @@
     "@types/node": "^26.1.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/browser-playwright": "4.1.11",
+    "@vitest/browser-playwright": "catalog:",
     "playwright": "1.55.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "vite": "catalog:",
     "vite-plus": "catalog:",
+    "vitest": "catalog:",
     "vitest-browser-react": "^2.3.0"
   },
   "peerDependencies": {

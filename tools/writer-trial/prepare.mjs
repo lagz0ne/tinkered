@@ -46,7 +46,7 @@ writeFileSync(
         "@tinker/react": "file:./react",
         react: "19.3.0",
         "react-dom": "19.3.0",
-        "vite-plus": "0.3.1",
+        "vite-plus": "1.0.0",
         typescript: "7.0.2",
         "@types/react": "^19",
         "@types/react-dom": "^19",
