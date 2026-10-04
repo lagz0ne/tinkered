@@ -112,6 +112,66 @@ Restoring the signal passes, exit 0, `green-cancel.log`.
 Tests use plain promise gates because this tool targets ES2023.
 No tool config changed.
 
+### Advisory review
+
+Jev preflight: exit 0; zero file flags.
+It names six units with eight notes.
+All eight labels are `false`, with a reason for each.
+Seven exact labels were already in the base's bank.
+The one new label says request params are not service config.
+ADR 0102 requires method, URL, headers, and body on each call.
+Logs: `jev-preflight.log` and `jev-labels.log`.
+
+The brief bars changes to the shared Jev bank.
+The unchanged label tool ran from an owned copy under the allowed scripts folder.
+The new row is saved in `SERVICES-HTTP-JEV.jsonl` for the lead to import.
+The copied calibration command exits 0.
+Its result is in `SERVICES-HTTP-CALIBRATION.json`.
+The shared bank and calibration stay unchanged.
+Log: `jev-calibration.log`.
+
+Jev tests: exit 0; zero flags in 30 read test entries.
+Log: `jev-tests.log`.
+The judge reads plain test titles; Vitest also runs every table case.
+
+Jev promises: exit 0; 13 README gaps and four unsure notes.
+Log: `jev-promises.log`.
+The README is outside this card's allowed paths.
+Four new promises are written in `services/PLAIN.md` instead:
+the fetch backend exception, open-body close, caller cancellation,
+and the span tree with its resource.
+The other nine are old protocol tests.
+They cover plain operation values, validated forms, key retry,
+empty and deep offer paths, percent-encoded calls and rules,
+and thrown handlers' log and replay behavior.
+Their reasons remain in the earlier protocol handoff in this file.
+The wire proof also checks those same replies.
+No new README promise is hidden or dropped.
+
+### Full gate proof before mutation
+
+The full chain exits 0.
+Each command, exit code, and log path is in `SERVICES-HTTP-GATES.json`.
+Build, check, all 111 flight tests, and all nine workspace test tasks pass.
+Check reports zero errors and the same 28 warnings as the base.
+The fetch ban, protocol check, six protocol plants, and style census pass.
+Prose passes; validate passes all 16 lanes.
+The workspace already allows esbuild, so its config did not change.
+
+The wire comparison exits 0 with zero differences.
+It checks 2,160 calls and all 30 error codes against `880f1c4f`.
+The control comparison against the same old code also exits 0.
+It checks the same 2,160 calls and 30 error codes with zero differences.
+Logs: `final-wire.log` and `final-wire-same.log`.
+
+The four-process proof exits 0.
+Four distinct PIDs answer their service and control routes.
+The group and all four children stop cleanly.
+Log: `final-four-process.log`.
+No app or writer-trial path was changed.
+The mutation config matches the assigned base byte for byte.
+Next: the full mutation lane alone under the lock, with floor 85.
+
 ## trial/jev-link
 
 Writer: Sol.

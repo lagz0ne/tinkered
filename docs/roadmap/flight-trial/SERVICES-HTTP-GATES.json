@@ -1,0 +1,115 @@
+{
+  "base": "d9c1500b",
+  "branch": "trial/services-http",
+  "head": "8049582a3653d59be99024c05c110883a4423911",
+  "gates": [
+    {
+      "gate": "build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-build.log"
+    },
+    {
+      "gate": "check",
+      "command": "vp check",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-check.log"
+    },
+    {
+      "gate": "flight-tests",
+      "command": "vp run 'flight-trial#test'",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-flight-tests.log"
+    },
+    {
+      "gate": "workspace-tests",
+      "command": "vp run -r test",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-workspace-tests.log"
+    },
+    {
+      "gate": "fetch-ban",
+      "command": "node tools/flight-trial/scripts/check-fetch.mjs",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-fetch-ban.log"
+    },
+    {
+      "gate": "wire",
+      "command": "node tools/flight-trial/scripts/check-wire.mjs",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-wire.log"
+    },
+    {
+      "gate": "wire-same",
+      "command": "node tools/flight-trial/scripts/check-wire.mjs --same",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-wire-same.log"
+    },
+    {
+      "gate": "four-process",
+      "command": "node tools/flight-trial/scripts/check-services.mjs",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-four-process.log"
+    },
+    {
+      "gate": "protocol",
+      "command": "node tools/flight-trial/scripts/check-protocol.mjs",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-protocol.log"
+    },
+    {
+      "gate": "protocol-plants",
+      "command": "node tools/flight-trial/scripts/check-protocol-plant.mjs",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-protocol-plants.log"
+    },
+    {
+      "gate": "style",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh tools/flight-trial/services tools/flight-trial/tests --strict",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-style.log"
+    },
+    {
+      "gate": "prose",
+      "command": "vp run prose",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-prose.log"
+    },
+    {
+      "gate": "validate",
+      "command": "pnpm validate",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-validate.log"
+    },
+    {
+      "gate": "jev-preflight",
+      "command": "node tools/jev/preflight.mjs d9c1500b..HEAD",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/jev-preflight.log"
+    },
+    {
+      "gate": "jev-tests",
+      "command": "node tools/jev/tests.mjs tools/flight-trial/tests/services-http.test.ts tools/flight-trial/tests/fetch-ban.test.ts tools/flight-trial/tests/payment.test.ts",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/jev-tests.log"
+    },
+    {
+      "gate": "jev-promises",
+      "command": "node tools/jev/promises.mjs ../tools/flight-trial",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/jev-promises.log"
+    },
+    {
+      "gate": "jev-labels",
+      "command": "Unchanged tools/jev/label.mjs from the owned copy; eight false labels with --why",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/jev-labels.log"
+    },
+    {
+      "gate": "jev-calibration",
+      "command": "node tools/flight-trial/scripts/logs/services-http-jev/calibrate.mjs --judge configNotTag",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/jev-calibration.log"
+    }
+  ]
+}
