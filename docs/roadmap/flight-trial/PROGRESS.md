@@ -3236,3 +3236,28 @@ The follow-up doc prose gate passed: `proof-prose.log`, exit 0.
 The workspace already sets the required esbuild build permission.
 No temporary workspace config edit was needed.
 Next: full mutation under the lock, floor 85, no exclusions.
+
+### Final mutation and handoff
+
+Full mutation passed: 89.74 percent, exit 0.
+It ran alone under `flock /tmp/mutation.lock`.
+The floor stays at 85 and the config matches the fixed base byte for byte.
+All nine source files and all 1,676 cases remain included.
+All 399 static cases remain included.
+No case was ignored; there were no compile or runner errors.
+Counts: 1,360 killed, 144 timeouts, 140 survivors, 32 without coverage.
+The Stryker score includes timeouts as detected cases.
+Log: `tools/flight-trial/scripts/logs/mutation.log`.
+Full report: `tools/flight-trial/scripts/logs/mutation-report.json`.
+Counts, file scores, and source hashes: `PROTOCOL-MUTATION.json`.
+Each gate's command, exit code, and log path: `PROTOCOL-GATES.json`.
+No source or test changed after the passing gates and mutation run.
+
+Status: Review.
+The lead owns the board update, shared Jev-bank import, and landing.
+Nothing was pushed.
+No app, Core, React, writer-trial file, or container was changed.
+No stash was used.
+The only differences from the brief are the allowed-path choices above:
+local Jev labels, protocol promises in PLAIN, and service-local error maps.
+Node's wall-time Date header is checked separately from the service clock.
