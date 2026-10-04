@@ -93,5 +93,63 @@
     "command": ["vp", "run", "@tinker-start-scaffold#test:registry"],
     "exit": 0,
     "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/25-registry-copy.log"
+  },
+  {
+    "gate": "31-image-build",
+    "command": [
+      "node",
+      "tools/writer-trial/prepare.mjs",
+      "--suite",
+      "flight",
+      "--build",
+      "--app-only"
+    ],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/31-image-build.log"
+  },
+  {
+    "gate": "writer-trial-tests",
+    "command": [
+      "node",
+      "--test",
+      "tools/writer-trial/answers.test.mjs",
+      "tools/writer-trial/attempts.test.mjs",
+      "tools/writer-trial/flight-plain.test.mjs",
+      "tools/writer-trial/flight-router.test.mjs",
+      "tools/writer-trial/flight-score.test.mjs",
+      "tools/writer-trial/flight-stage.test.mjs",
+      "tools/writer-trial/flight-teacher.test.mjs",
+      "tools/writer-trial/folder.test.mjs",
+      "tools/writer-trial/gate.test.mjs",
+      "tools/writer-trial/jev-link.test.mjs",
+      "tools/writer-trial/kit-sync.test.mjs",
+      "tools/writer-trial/suite.test.mjs"
+    ],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/32-writer-trial-tests.log"
+  },
+  {
+    "gate": "34-format",
+    "command": ["vp", "fmt", "docs/roadmap/start-scaffold/PROGRESS.md"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/34-format.log"
+  },
+  {
+    "gate": "35-build",
+    "command": ["vp", "run", "-r", "build"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/35-build.log"
+  },
+  {
+    "gate": "36-check",
+    "command": ["vp", "check"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/36-check.log"
+  },
+  {
+    "gate": "37-prose",
+    "command": ["vp", "run", "prose"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/37-prose.log"
   }
 ]

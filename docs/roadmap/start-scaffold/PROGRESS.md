@@ -35,6 +35,17 @@ The rebuild refreshes six saved entries to match current source.
 They are the three app skills, README, serve script, and HTTP tests.
 No source bytes in those older entries changed for this card.
 
+Step 3: build only the writer image; build exit 0.
+Tag: tinker-writer-flight:20261004.serve-native-response.1.
+Saved tar and keeper are named in SERVE-NATIVE-RESPONSE-IMAGE.json.
+The seed's serve script keeps the native globals.
+The new app-only path never prepares or rebuilds services.
+It never starts the existing dependency keepers.
+Service, Postgres, and Mailpit tags match the given base.
+The writer-trial tests pass: 91 of 91; log 32-writer-trial-tests.log.
+Image build log: 31-image-build.log.
+Use dc6e44cf as the Jev review base; local main is older than the given base.
+
 Owner: lead (Codex, Start scaffold session).
 Status: runnable native proof complete; full inspection remains open.
 

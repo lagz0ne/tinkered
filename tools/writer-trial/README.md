@@ -138,6 +138,18 @@ node "$runner/workers.mjs" stage flight-01 1
 ```
 
 Flight pins Playwright 1.63.0, as the reference proof does.
+
+To change only the writer image, pick a new `flight.image` tag first.
+Keep `flight.servicesImage` unchanged, then run:
+
+```bash
+node tools/writer-trial/prepare.mjs \
+  --suite flight --build --app-only
+```
+
+This saves the new writer tar and keeper.
+It leaves service and dependency images and keepers unchanged.
+
 Other suites keep Playwright 1.55.0.
 The browser uses `flight-app`.
 Chromium tried HTTPS for the host name `app` in the proof.

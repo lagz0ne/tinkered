@@ -5,7 +5,7 @@ import { listFiles, sha256File } from "./suite.mjs";
 import { prepareServices, buildServices } from "./flight-services-image.mjs";
 import { keepFlightDependencies } from "./flight-network.mjs";
 
-export function prepareFlight(repo, home, config, build) {
+export function prepareFlight(repo, home, config, build, appOnly = false) {
   const context = join(home, `image-${config.flight.image.split(":").at(-1)}`);
   if (existsSync(join(context, "image.json"))) {
     throw new Error(`Flight image already saved: ${context}; use a new tag to rebuild`);
@@ -91,37 +91,36 @@ CMD ["sleep", "infinity"]
 `,
   );
   const services = join(context, "services");
-  prepareServices(repo, services);
+  if (!appOnly) prepareServices(repo, services);
   if (!build) return context;
-  for (const [dir, image] of [[context, config.flight.image]]) {
-    execFileSync("docker", ["build", "-t", image, dir], { stdio: "inherit" });
-    const keeper = `tinker-flight-keep-${image.split(":").at(-1)}-${dir === context ? "app" : "services"}`;
-    execFileSync(
-      "docker",
-      [
-        "run",
-        "-d",
-        "--name",
-        keeper,
-        "--restart",
-        "unless-stopped",
-        "--network",
-        "none",
-        "--read-only",
-        "--memory",
-        "64m",
-        image,
-        "sleep",
-        "infinity",
-      ],
-      { stdio: "inherit" },
-    );
+  const image = config.flight.image;
+  execFileSync("docker", ["build", "-t", image, context], { stdio: "inherit" });
+  const keeper = `tinker-flight-keep-${image.split(":").at(-1)}-app`;
+  execFileSync(
+    "docker",
+    [
+      "run",
+      "-d",
+      "--name",
+      keeper,
+      "--restart",
+      "unless-stopped",
+      "--network",
+      "none",
+      "--read-only",
+      "--memory",
+      "64m",
+      image,
+      "sleep",
+      "infinity",
+    ],
+    { stdio: "inherit" },
+  );
+  execFileSync("docker", ["save", "-o", join(context, "image.tar"), image]);
+  if (!appOnly) {
+    buildServices(services, config.flight.servicesImage);
+    keepFlightDependencies(config.flight);
   }
-  for (const [dir, image] of [[context, config.flight.image]]) {
-    execFileSync("docker", ["save", "-o", join(dir, "image.tar"), image]);
-  }
-  buildServices(services, config.flight.servicesImage);
-  keepFlightDependencies(config.flight);
   const inspect = (image) =>
     execFileSync("docker", ["image", "inspect", image, "--format", "{{.Id}}"], {
       encoding: "utf8",
