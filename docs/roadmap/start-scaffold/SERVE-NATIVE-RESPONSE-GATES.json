@@ -1,5 +1,44 @@
 [
   {
+    "gate": "00-initial-build",
+    "command": ["vp", "run", "-r", "build"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/00-initial-build.log"
+  },
+  {
+    "gate": "01-red",
+    "command": ["node", "apps/start-scaffold/maintain/check-serve.mjs"],
+    "exit": 1,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/01-red.log",
+    "invalidSetup": true
+  },
+  {
+    "gate": "02-build",
+    "command": ["vp", "run", "-r", "build"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/02-build.log"
+  },
+  {
+    "gate": "03-green",
+    "command": ["node", "apps/start-scaffold/maintain/check-serve.mjs"],
+    "exit": 1,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/03-green.log",
+    "invalidSetup": true
+  },
+  {
+    "gate": "07-green",
+    "command": ["node", "apps/start-scaffold/maintain/check-serve.mjs"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/07-green.log"
+  },
+  {
+    "gate": "08-red",
+    "command": ["node", "apps/start-scaffold/maintain/check-serve.mjs"],
+    "exit": 1,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/08-red.log",
+    "withoutFix": true
+  },
+  {
     "gate": "09-green",
     "command": ["node", "apps/start-scaffold/maintain/check-serve.mjs"],
     "exit": 0,
@@ -95,6 +134,36 @@
     "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/25-registry-copy.log"
   },
   {
+    "gate": "26-format",
+    "command": ["vp", "fmt", "docs/roadmap/start-scaffold/PROGRESS.md"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/26-format.log"
+  },
+  {
+    "gate": "27-build",
+    "command": ["vp", "run", "-r", "build"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/27-build.log"
+  },
+  {
+    "gate": "28-check",
+    "command": ["vp", "check"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/28-check.log"
+  },
+  {
+    "gate": "29-prose",
+    "command": ["vp", "run", "prose"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/29-prose.log"
+  },
+  {
+    "gate": "30-image-format",
+    "command": ["vp", "fmt", "tools/writer-trial/config.json", "tools/writer-trial/README.md"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/30-image-format.log"
+  },
+  {
     "gate": "31-image-build",
     "command": [
       "node",
@@ -106,27 +175,6 @@
     ],
     "exit": 0,
     "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/31-image-build.log"
-  },
-  {
-    "gate": "writer-trial-tests",
-    "command": [
-      "node",
-      "--test",
-      "tools/writer-trial/answers.test.mjs",
-      "tools/writer-trial/attempts.test.mjs",
-      "tools/writer-trial/flight-plain.test.mjs",
-      "tools/writer-trial/flight-router.test.mjs",
-      "tools/writer-trial/flight-score.test.mjs",
-      "tools/writer-trial/flight-stage.test.mjs",
-      "tools/writer-trial/flight-teacher.test.mjs",
-      "tools/writer-trial/folder.test.mjs",
-      "tools/writer-trial/gate.test.mjs",
-      "tools/writer-trial/jev-link.test.mjs",
-      "tools/writer-trial/kit-sync.test.mjs",
-      "tools/writer-trial/suite.test.mjs"
-    ],
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/32-writer-trial-tests.log"
   },
   {
     "gate": "34-format",
@@ -151,5 +199,161 @@
     "command": ["vp", "run", "prose"],
     "exit": 0,
     "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/37-prose.log"
+  },
+  {
+    "gate": "38-round-1",
+    "command": [
+      "node",
+      "tools/writer-trial/harness/run-reference.mjs",
+      "tools/writer-trial/.logs/reference-serve-native-response-1",
+      "1",
+      "--once"
+    ],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/38-round-1.log"
+  },
+  {
+    "gate": "39-preflight",
+    "command": ["node", "tools/jev/preflight.mjs", "dc6e44cf..HEAD"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/39-preflight.log"
+  },
+  {
+    "gate": "40-style-census",
+    "command": [
+      "bash",
+      ".agents/skills/coding-convention/scripts/style-census.sh",
+      "apps/start-scaffold/maintain/check-serve.mjs",
+      "apps/start-scaffold/scripts/serve.mjs",
+      "tools/writer-trial/flight-image.mjs",
+      "tools/writer-trial/prepare.mjs",
+      "--strict"
+    ],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/40-style-census.log"
+  },
+  {
+    "gate": "42-final-build",
+    "command": ["vp", "run", "-r", "build"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/42-final-build.log"
+  },
+  {
+    "gate": "43-final-check",
+    "command": ["vp", "check"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/43-final-check.log"
+  },
+  {
+    "gate": "44-all-tests",
+    "command": ["vp", "run", "-r", "test"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/44-all-tests.log"
+  },
+  {
+    "gate": "45-app-types",
+    "command": ["vp", "run", "@tinker-start-scaffold#typecheck"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/45-app-types.log"
+  },
+  {
+    "gate": "46-app-plain",
+    "command": ["vp", "run", "@tinker-start-scaffold#check:plain"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/46-app-plain.log"
+  },
+  {
+    "gate": "47-app-plain-proof",
+    "command": ["vp", "run", "@tinker-start-scaffold#check:plain", "--", "--prove"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/47-app-plain-proof.log"
+  },
+  {
+    "gate": "48-app-seam",
+    "command": ["vp", "run", "@tinker-start-scaffold#test:seam"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/48-app-seam.log"
+  },
+  {
+    "gate": "49-app-boundary",
+    "command": ["vp", "run", "@tinker-start-scaffold#test:boundary"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/49-app-boundary.log"
+  },
+  {
+    "gate": "50-app-schema",
+    "command": ["vp", "run", "@tinker-start-scaffold#test:schema"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/50-app-schema.log"
+  },
+  {
+    "gate": "51-final-prose",
+    "command": ["vp", "run", "prose"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/51-final-prose.log"
+  },
+  {
+    "gate": "52-validate",
+    "command": ["pnpm", "validate"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/52-validate.log"
+  },
+  {
+    "gate": "53-final-preflight",
+    "command": ["node", "tools/jev/preflight.mjs", "dc6e44cf..HEAD"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/53-final-preflight.log"
+  },
+  {
+    "gate": "54-final-census",
+    "command": [
+      "bash",
+      ".agents/skills/coding-convention/scripts/style-census.sh",
+      "apps/start-scaffold/maintain/check-serve.mjs",
+      "apps/start-scaffold/scripts/serve.mjs",
+      "tools/writer-trial/flight-image.mjs",
+      "tools/writer-trial/prepare.mjs",
+      "--strict"
+    ],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/54-final-census.log"
+  },
+  {
+    "gate": "writer-trial-tests",
+    "command": [
+      "node",
+      "--test",
+      "tools/writer-trial/answers.test.mjs",
+      "tools/writer-trial/attempts.test.mjs",
+      "tools/writer-trial/flight-plain.test.mjs",
+      "tools/writer-trial/flight-router.test.mjs",
+      "tools/writer-trial/flight-score.test.mjs",
+      "tools/writer-trial/flight-stage.test.mjs",
+      "tools/writer-trial/flight-teacher.test.mjs",
+      "tools/writer-trial/folder.test.mjs",
+      "tools/writer-trial/gate.test.mjs",
+      "tools/writer-trial/jev-link.test.mjs",
+      "tools/writer-trial/kit-sync.test.mjs",
+      "tools/writer-trial/suite.test.mjs"
+    ],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/32-writer-trial-tests.log"
+  },
+  {
+    "gate": "56-proof-check",
+    "command": ["vp", "check"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/56-proof-check.log"
+  },
+  {
+    "gate": "57-proof-prose",
+    "command": ["vp", "run", "prose"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/57-proof-prose.log"
+  },
+  {
+    "gate": "58-scope-audit",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/58-scope-audit.log"
   }
 ]

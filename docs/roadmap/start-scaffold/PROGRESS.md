@@ -1,51 +1,5 @@
 # Start scaffold
 
-## Serve native Response: writer start
-
-Card: start/serve-native-response.
-Owner: Sol writer; lead owns the board and landing.
-Base: dc6e44cf on origin/main.
-Next: prove red, fix serve, rebuild registry and writer image, check round 1.
-Verify: every brief gate by exit code, with saved logs.
-Assume the shipped database and mail presets may serve the test route.
-The proof keeps the real Start entry, router, and serve script.
-Only the temporary entry binds those presets; no host services are needed.
-Assume a new image tag can reuse the pinned services without rebuilding them.
-The existing prepare path rebuilds services, so add an app-only switch.
-No TypeScript source or test changes are needed.
-The native reply proof is a maintainer check, also run on the copied registry.
-
-Step 1: the starter keeps native Request and Response globals.
-The route returns Response.json with status 200 and body { ok: true }.
-Red proof: 08-red.log, exit 1; green proof: 09-green.log, exit 0.
-Both run the real built Start entry and the serve script over HTTP.
-Logs live in .serve-native-response-logs/ beside this file.
-The first probe used invalid empty telemetry URLs; logs 01 and 03 keep that error.
-The repeated red uses valid settings and reports the native reply failure.
-The gate record's first check failed only on its JSON format.
-No package test changed, so Jev test and promise judges do not apply.
-No public symbol changed, so no impact block is needed.
-Core feedback: no new Core gap; the bug belongs to the HTTP server setting.
-
-Step 2: registry build and copied starter both exit 0.
-Logs: 24-registry-build.log and 25-registry-copy.log.
-The copied starter serves the same native JSON route with status 200.
-Its 66 shipped tests, build, types, plain, seam, boundary, and schema pass.
-The rebuild refreshes six saved entries to match current source.
-They are the three app skills, README, serve script, and HTTP tests.
-No source bytes in those older entries changed for this card.
-
-Step 3: build only the writer image; build exit 0.
-Tag: tinker-writer-flight:20261004.serve-native-response.1.
-Saved tar and keeper are named in SERVE-NATIVE-RESPONSE-IMAGE.json.
-The seed's serve script keeps the native globals.
-The new app-only path never prepares or rebuilds services.
-It never starts the existing dependency keepers.
-Service, Postgres, and Mailpit tags match the given base.
-The writer-trial tests pass: 91 of 91; log 32-writer-trial-tests.log.
-Image build log: 31-image-build.log.
-Use dc6e44cf as the Jev review base; local main is older than the given base.
-
 Owner: lead (Codex, Start scaffold session).
 Status: runnable native proof complete; full inspection remains open.
 
@@ -3136,3 +3090,84 @@ No test body, runtime source, plain guard, trial folder, or workspace config cha
 No temporary copied scaffold remains.
 No new Jev label, Core gap, or public promise was added.
 The extra forms-skill line fixes the same overstatement as review point 3.
+
+## Serve native Response: writer proof
+
+Card: start/serve-native-response.
+Owner: Sol writer; lead owns the board and landing.
+Base: dc6e44cf on origin/main.
+Next: lead review; every brief gate has passed.
+Verify: every brief gate by exit code, with saved logs.
+Assume the shipped database and mail presets may serve the test route.
+The proof keeps the real Start entry, router, and serve script.
+Only the temporary entry binds those presets; no host services are needed.
+Assume a new image tag can reuse the pinned services without rebuilding them.
+The existing prepare path rebuilds services, so add an app-only switch.
+No TypeScript source or test changes are needed.
+The native reply proof is a maintainer check, also run on the copied registry.
+
+Step 1: the starter keeps native Request and Response globals.
+The route returns Response.json with status 200 and body { ok: true }.
+Red proof: 08-red.log, exit 1; green proof: 09-green.log, exit 0.
+Both run the real built Start entry and the serve script over HTTP.
+Logs live in .serve-native-response-logs/ beside this file.
+The first probe used invalid empty telemetry URLs; logs 01 and 03 keep that error.
+The repeated red uses valid settings and reports the native reply failure.
+The gate record's first check failed only on its JSON format.
+No package test changed, so Jev test and promise judges do not apply.
+No public symbol changed, so no impact block is needed.
+Core feedback: no new Core gap; the bug belongs to the HTTP server setting.
+
+Step 2: registry build and copied starter both exit 0.
+Logs: 24-registry-build.log and 25-registry-copy.log.
+The copied starter serves the same native JSON route with status 200.
+Its 66 shipped tests, build, types, plain, seam, boundary, and schema pass.
+The rebuild refreshes six saved entries to match current source.
+They are the three app skills, README, serve script, and HTTP tests.
+No source bytes in those older entries changed for this card.
+
+Step 3: build only the writer image; build exit 0.
+Tag: tinker-writer-flight:20261004.serve-native-response.1.
+Saved tar and keeper are named in SERVE-NATIVE-RESPONSE-IMAGE.json.
+The seed's serve script keeps the native globals.
+The new app-only path never prepares or rebuilds services.
+It never starts the existing dependency keepers.
+Service, Postgres, and Mailpit tags match the given base.
+The writer-trial tests pass: 91 of 91; log 32-writer-trial-tests.log.
+Image build log: 31-image-build.log.
+Use dc6e44cf as the Jev review base; local main is older than the given base.
+
+Step 4: reference round 1 ran once on the new writer image.
+Result: machine-pass; command exit 0.
+Own, teacher, scaffold, plain, and Jev exits are all 0.
+The teacher passes all three round 1 cases.
+The reference's 71 tests pass in both of its requested test runs.
+Jev has no blockers and eight advice rows on the unchanged reference code.
+No reference code, teacher code, labels, or calibration changed.
+Proof: SERVE-NATIVE-RESPONSE-ROUND-1.json and log 38-round-1.log.
+The saved source archive and all detailed logs remain in the proof folder.
+That folder is tools/writer-trial/.logs/reference-serve-native-response-1/.
+
+The final build, check, and all nine repo test tasks pass.
+They pass 1,252 Vitest tests and all 148 Jev tests.
+One existing Vitest skip remains.
+The check still has 28 warnings in 11 unchanged files.
+Those files match dc6e44cf byte for byte; log 41-warning-audit.log.
+The workspace already allows the esbuild build, so validate needs no config edit.
+All remaining app gates pass: types, plain, plain proof, seam, boundary, and schema.
+All sixteen validate lanes pass; log 52-validate.log, exit 0.
+Final prose, Jev preflight, and strict census each exit 0.
+The census has no TypeScript files to scan in this change.
+No Jev labels are owed by the writer's preflight.
+SERVE-NATIVE-RESPONSE-GATES.json names each command, exit, and log.
+The expected red and the corrected setup and lint retries remain saved.
+No mutation or timing lane was requested; no size or speed claim is made.
+State: Review.
+Next: lead review and landing; the writer does not push or change the board.
+
+Step commits:
+
+- 924fd545: native Response fix and HTTP proof.
+- 2e46e34c: rebuilt registry and copied-starter proof.
+- baf8ff2b: app-only image build, new pin, saved tar and keeper.
+- The final proof commit records round 1 and every remaining gate.

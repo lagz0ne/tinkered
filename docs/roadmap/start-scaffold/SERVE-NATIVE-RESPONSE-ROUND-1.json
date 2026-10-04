@@ -1,0 +1,31 @@
+{
+  "round": 1,
+  "label": "pass-1",
+  "exit": 0,
+  "jevExit": 0,
+  "machine": "machine-pass",
+  "ownExit": 0,
+  "teacherExit": 0,
+  "scaffoldExit": 0,
+  "plainExit": 0,
+  "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+  "images": {
+    "image": "sha256:bb97e63ce95a544d7f8332987b38ec2fca3675fea9eef256025fa1feea40b41c",
+    "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+    "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+    "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+  },
+  "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+  "logs": "/home/paseo/next/tinkered-serve-native/tools/writer-trial/.logs/reference-serve-native-response-1/round-1/pass-1",
+  "teacherCasesPassed": 3,
+  "jevBlockingCount": 0,
+  "jevAdviceCount": 8,
+  "sourceArchive": "/home/paseo/next/tinkered-serve-native/tools/writer-trial/.logs/reference-serve-native-response-1/round-1/pass-1/source.tar",
+  "logsByGate": {
+    "own": "/home/paseo/next/tinkered-serve-native/tools/writer-trial/.logs/reference-serve-native-response-1/round-1/pass-1/own.log",
+    "teacher": "/home/paseo/next/tinkered-serve-native/tools/writer-trial/.logs/reference-serve-native-response-1/round-1/pass-1/teacher.log",
+    "scaffold": "/home/paseo/next/tinkered-serve-native/tools/writer-trial/.logs/reference-serve-native-response-1/round-1/pass-1/scaffold.log",
+    "plain": "/home/paseo/next/tinkered-serve-native/tools/writer-trial/.logs/reference-serve-native-response-1/round-1/pass-1/plain.log",
+    "jev": "/home/paseo/next/tinkered-serve-native/tools/writer-trial/.logs/reference-serve-native-response-1/round-1/pass-1/jev.json"
+  }
+}
