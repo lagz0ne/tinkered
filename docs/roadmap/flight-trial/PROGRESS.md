@@ -1,5 +1,30 @@
 # Flight trial progress
 
+## trial/services-http
+
+Writer: Sol.
+Branch: `trial/services-http`.
+Base: `d9c1500b`.
+Status: Doing.
+Next: prove close and span failures, then move sends into the graph.
+Verify: red then green, wire diff 0, four processes, and fault score 85.
+The lead owns the board card; `TODO.md` is outside the allowed paths.
+
+Assumptions:
+
+- The brief's path limits take precedence over the fixed brief.
+  No package entry or Jev label file outside those paths will change.
+- Tests may import the new service's public HTTP units directly.
+  The package entry is outside the allowed paths.
+- The exact old status remains a wire log fact owned by a resource.
+  The webhook operation maps each reply to a domain outcome first.
+  Its callers receive only `delivered`, `rejected`, or `unreachable`.
+- Use the existing flight-trial fault lane with every source included.
+  Run it alone under the required lock.
+
+Setup build: exit 0.
+Log: `tools/flight-trial/scripts/.logs/services-http/setup-build.log`.
+
 ## trial/jev-link
 
 Writer: Sol.
