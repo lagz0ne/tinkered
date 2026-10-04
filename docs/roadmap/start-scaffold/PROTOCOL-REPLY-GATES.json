@@ -400,6 +400,141 @@
         "code": 0,
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/07-aliases-green.log"
       }
+    },
+    {
+      "change": "operation-response-callback",
+      "red": {
+        "name": "review-01-operation-response-callback-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-response-callback-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
+    },
+    {
+      "change": "operation-response-cast",
+      "red": {
+        "name": "review-01-operation-response-cast-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-cast",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-response-cast-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
+    },
+    {
+      "change": "operation-response-array",
+      "red": {
+        "name": "review-01-operation-response-array-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-array",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-response-array-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
+    },
+    {
+      "change": "operation-response-object",
+      "red": {
+        "name": "review-01-operation-response-object-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-object",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-response-object-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
+    },
+    {
+      "change": "operation-request-destructured",
+      "red": {
+        "name": "review-01-operation-request-destructured-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-request-destructured",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-request-destructured-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
+    },
+    {
+      "change": "operation-request-type-alias",
+      "red": {
+        "name": "review-01-operation-request-type-alias-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-request-type-alias",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-request-type-alias-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
+    },
+    {
+      "change": "operation-options-spread",
+      "red": {
+        "name": "review-01-operation-options-spread-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-options-spread",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-options-spread-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
+    },
+    {
+      "change": "operation-options-variable",
+      "red": {
+        "name": "review-01-operation-options-variable-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-options-variable",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-options-variable-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
+    },
+    {
+      "change": "operation-response-typed-callback",
+      "red": {
+        "name": "review-01-operation-response-typed-callback-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-typed-callback",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01-operation-response-typed-callback-red.log"
+      },
+      "green": {
+        "name": "review-01c-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-response-callback,operation-response-cast,operation-response-array,operation-response-object,operation-request-destructured,operation-request-type-alias,operation-options-spread,operation-options-variable,operation-response-typed-callback",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
+      }
     }
   ],
   "wire": {
@@ -1948,5 +2083,6 @@
       "code": 0,
       "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/13-wire-after-green.log"
     }
-  ]
+  ],
+  "reviewBase": "e10b8371"
 }

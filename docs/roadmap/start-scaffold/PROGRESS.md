@@ -2645,3 +2645,23 @@ No stash, push, trial-store access, or container command was used.
 Every long job ended before this proof was saved.
 No full mutation lane or timing claim was requested.
 The final commit saves the registry and proof for lead review.
+
+## Protocol reply review fixes
+
+Owner: Sol writer, card start/protocol-reply.
+Review base: e10b8371, after the lead's rebase.
+Next: close each named guard hole, then simplify the routes.
+Verify: each fix red then green, all planted cases, wire pin, all gates.
+Keep test-only header bindings; ban their use from app source.
+Assume the lead owns the board and landing.
+The allowed folder rule keeps TODO.md unchanged.
+
+Review fix 1: the wire guard reads every run body and nested callback.
+It also checks typed reply values, arrays, and plain records.
+Request aliases work through destructuring, schemas, and type aliases.
+Operation options must be a direct object literal with no spreads.
+All nine new cases failed the old proof by the required rule, exit 1.
+Each red log is named review-01-<case>-red.log.
+The new guard rejects all nine, child exit 1; proof exit 0.
+Green: .protocol-reply-logs/review-01c-green.log.
+Lint required smaller type readers; no rule was disabled.
