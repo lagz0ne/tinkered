@@ -2847,3 +2847,16 @@ Red: short-01-headers-red.log and short-01-backend-red-final.log.
 Green: short-01-green-final.log, exit 0.
 The first backend plant returned a reply and hit the old reply rule.
 Its final plant returns 1, so it proves the passing hole.
+
+Short fix 2: global Response stays in routes and scaffold files.
+Both hidden resource replies pass the old guard, child exit 0.
+Reflect construction and type references also pass it, child exit 0.
+Their old proof checks fail, exit 1.
+Red: short-02-resource-red.log and short-02-method-red.log.
+Red: short-02-reflect-red.log and short-02-type-red.log.
+Green: short-02-green-verified.log, exit 0.
+The route, scaffold, and local type cases pass, child exit 0.
+The server entry's Response check now lives on its body resource.
+The same instance check still picks the same reply path.
+Build, types, and nine body and wire tests pass, exit 0.
+Proof: short-02-build-check.log.
