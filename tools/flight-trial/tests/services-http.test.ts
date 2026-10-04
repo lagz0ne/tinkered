@@ -1,4 +1,4 @@
-import { createScope } from "@tinker/core";
+import { createScope, extension } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {
@@ -11,6 +11,95 @@ import {
   webhookSecret,
 } from "../src/index.ts";
 import { httpBackend } from "../services/http-client.ts";
+import { calls } from "../services/http.ts";
+
+const replies = [
+  { status: 200, delivery: "delivered" },
+  { status: 299, delivery: "delivered" },
+  { status: 300, delivery: "rejected" },
+  { status: 503, delivery: "rejected" },
+  { status: 0, delivery: "unreachable" },
+];
+
+async function deliver(url: string, mode = "now") {
+  const created = await fetch(`${url}/v1/payment_intents`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ amount: 900, currency: "usd" }),
+  });
+  const intent = z.object({ id: z.string() }).parse(await created.json());
+  await (
+    await fetch(`${url}/control/webhooks`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer grader" },
+      body: JSON.stringify({ intent_id: intent.id, mode }),
+    })
+  ).arrayBuffer();
+}
+
+test.each(replies)(
+  "a webhook reply $status records $delivery before returning to its caller",
+  async ({ status, delivery }) => {
+    const returned: unknown[] = [];
+    const recorded: unknown[] = [];
+    const outcomes = extension({
+      label: "read webhook outcomes",
+      hooks: {
+        run(event) {
+          if (event.op.label !== "deliver signed webhook") return event.next();
+          return Promise.resolve(event.next()).then((value) => {
+            returned.push(value);
+            recorded.push(
+              ...event
+                .resolve(calls)
+                .filter((call) => call.kind === "webhook")
+                .map((call) => call.delivery),
+            );
+            return value;
+          });
+        },
+      },
+    });
+    const stop = new AbortController();
+    const scope = createScope({
+      signal: stop.signal,
+      extensions: [outcomes, paymentApp],
+      tags: [
+        port(0),
+        host("127.0.0.1"),
+        controlToken("grader"),
+        stopSignal(stop.signal),
+        webhookUrl("http://127.0.0.1:1/webhooks/stripe"),
+        webhookSecret("domain-test"),
+        httpBackend(async () => {
+          if (status === 0) throw new TypeError("network failed");
+          return new Response("reply", { status });
+        }),
+      ],
+    });
+    try {
+      await scope.ready;
+      const { url } = scope.resolve(paymentApp);
+      await deliver(url);
+      await expect.poll(() => returned).toEqual([[delivery]]);
+      expect(recorded).toEqual([delivery]);
+      const log = await (
+        await fetch(`${url}/control/calls`, {
+          headers: { authorization: "Bearer grader" },
+        })
+      ).json();
+      expect(
+        z
+          .object({ data: z.array(z.object({ kind: z.string() }).passthrough()) })
+          .parse(log)
+          .data.filter((call) => call.kind === "webhook"),
+      ).toEqual([{ kind: "webhook", route: "POST webhook", time: expect.any(Number), status }]);
+    } finally {
+      stop.abort();
+      await scope.closed;
+    }
+  },
+);
 
 test("each webhook copy has an HTTP span below the webhook operation and its resource", async () => {
   const stop = new AbortController();

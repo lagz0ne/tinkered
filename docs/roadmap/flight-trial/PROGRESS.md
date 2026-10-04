@@ -67,6 +67,35 @@ Logs below use `tools/flight-trial/scripts/.logs/services-http/`.
 Red close: exit 1, `red-close.log`; pending reply stays open.
 Red span: exit 1, `red-span.log`; no HTTP child span exists.
 
+The close and span checks now pass, exit 0 each.
+Logs: `green-close.log` and `green-span.log`.
+Build, check, all 100 flight tests, and prose pass, exit 0 each.
+Logs: `step2-build.log`, `step2-check.log`,
+`step2-tests.log`, and `step2-prose.log`.
+Check keeps the base's 28 warnings with no errors.
+
+### Outcomes and fetch ban step
+
+Success codes 200 and 299 become `delivered`.
+Codes 300 and 503 become `rejected`.
+A failed send becomes `unreachable`.
+The test reads the outcome before the webhook returns to its caller.
+It also checks that the control route keeps its old wire shape and code.
+All five cases fail with the assigned base's sender, exit 1.
+The source is saved and restored by path; no stash is used.
+Log: `red-outcomes.log`.
+The same cases now pass, exit 0, `green-outcomes.log`.
+
+The fetch check reads every service TypeScript file, including new folders.
+Only `http-client.ts` may read built-in fetch.
+Hono's `web.fetch` and its listener method remain allowed.
+The planted cases cover bare calls, global calls, computed global calls,
+and saving fetch under another name.
+All four fail without the ban, exit 1, `red-fetch-ban.log`.
+All five fetch tests now pass, exit 0, `green-fetch-ban.log`.
+Clean source passes, exit 0, `fetch-check.log`.
+Build and check pass, exit 0, `step3-build.log` and `step3-check.log`.
+
 ## trial/jev-link
 
 Writer: Sol.
