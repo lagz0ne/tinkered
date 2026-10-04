@@ -3809,3 +3809,14 @@ Logs: `jev-tests.log` and `jev-promises.log`.
 The later file rename changes no test titles or promises.
 Writer harness tests: 91 passed, exit 0; log: `writer-tests.log`.
 Next: finish image saves and the full round proof.
+
+### Reference step 4: webhook input
+
+The webhook route now validates the wire event and checks its signature.
+The booking operation receives only paymentId, amount, and succeeded.
+This completes both directions of ADR 0103 at the route.
+Build, plain, types, and workspace check: exit 0.
+Logs: `webhook-build.log`, `webhook-plain.log`,
+`webhook-types.log`, and `webhook-check.log`.
+The full round proof uses these final source bytes.
+Next: finish that proof and save the image pins.

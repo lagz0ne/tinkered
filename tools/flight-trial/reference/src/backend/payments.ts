@@ -1,6 +1,5 @@
 import { operation, type Operation } from "@tinker/core";
 import { eq, asc, and } from "drizzle-orm";
-import { z } from "zod";
 import { database } from "./database.ts";
 import { currentUser } from "./auth.ts";
 import { booking } from "./bookings.schema.ts";
@@ -9,19 +8,8 @@ import { eventHistory } from "../scaffold/backend/events.ts";
 import { execution } from "../scaffold/backend/sync.schema.ts";
 import { readSupplierOrder, paySupplierOrder } from "./flight-http.ts";
 import { createPaymentIntent, confirmPaymentIntent, refundPayment } from "./payment-http.ts";
-import { verifyPaymentSignature } from "./payment-signature.ts";
 import { sendBookingMail } from "./booking-mail.ts";
 import { raise } from "../errors.ts";
-const intent = z.object({
-  id: z.string(),
-  amount: z.number().int().positive(),
-  currency: z.literal("usd"),
-});
-const event = z.object({
-  id: z.string(),
-  type: z.enum(["payment_intent.succeeded", "payment_intent.payment_failed"]),
-  data: z.object({ object: intent }),
-});
 export const payBooking = operation({
   label: "pay flight booking",
   input: bookingCommand,
@@ -128,39 +116,26 @@ export const receivePayment = operation({
   label: "receive flight payment result",
   depends: {
     database,
-    verify: verifyPaymentSignature.controller,
     history: eventHistory,
     fulfill: fulfillBooking.controller,
     mail: sendBookingMail.controller,
   },
   async run(
-    { database, verify, history, fulfill, mail },
-    ctx: Operation.Ctx<{ body: Uint8Array; signature: string | null }>,
+    { database, history, fulfill, mail },
+    ctx: Operation.Ctx<{ paymentId: string; amount: number; succeeded: boolean }>,
   ) {
-    if (!verify.run({ input: ctx.input })) return { accepted: false };
-    let raw: unknown;
-    try {
-      raw = JSON.parse(new TextDecoder().decode(ctx.input.body));
-    } catch (error) {
-      if (!(error instanceof SyntaxError)) throw error;
-      return { accepted: false };
-    }
-    const parsed = event.safeParse(raw);
-    if (!parsed.success) return { accepted: false };
-    const received = parsed.data;
     const matched = (
-      await database.select().from(booking).where(eq(booking.paymentId, received.data.object.id))
+      await database.select().from(booking).where(eq(booking.paymentId, ctx.input.paymentId))
     ).at(0);
     if (!matched) return { accepted: true };
-    if (received.data.object.amount !== Math.round(Number(matched.price) * 100))
-      return { accepted: false };
+    if (ctx.input.amount !== Math.round(Number(matched.price) * 100)) return { accepted: false };
     const confirmed = await database.transaction(async (tx) => {
       await history.lock(tx, matched.ownerId);
       const row = (await tx.select().from(booking).where(eq(booking.id, matched.id))).at(0)!;
       if (row.state !== "Processing") return;
       let state: Bookings.Row["state"] = "Payment failed";
-      if (received.type === "payment_intent.succeeded") {
-        state = await fulfill.run({ input: { ...row, paymentId: received.data.object.id } });
+      if (ctx.input.succeeded) {
+        state = await fulfill.run({ input: { ...row, paymentId: ctx.input.paymentId } });
       }
       await tx.update(booking).set({ state }).where(eq(booking.id, row.id));
       const executionId = ctx.random.uuid();
