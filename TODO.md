@@ -71,6 +71,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **repo/vite-plus-1** — move `vite-plus` 0.3.1 → 1.0.0 (Vitest 4 → 5).
+  Owner: lead (Claude, tinkered-2f). No writer: the change is `vp migrate` output.
+  Worktree: `../tinkered-vp1`. Other sessions told on 2026-10-04.
+  Next: run `vp migrate` in the worktree; read its review report.
+  Verify: `vp run -r build`, `vp check`, `vp run -r test`, every mutation lane at 85 or more.
+
 - **start/http-graceful** — a graceful close never hangs on an outgoing HTTP request.
   Owner: lead (Claude, Start scaffold session); Sol writer.
   Worktree: `../tinkered-http-graceful`. Found by the `trial/services-http` reviewer's probe.
