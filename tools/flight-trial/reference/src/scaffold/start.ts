@@ -1,7 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { extension } from "@tinker/core";
 import type { Scope } from "@tinker/core";
-import { requestHeaders } from "@/lib/tinker.server";
+import { requestHeaders } from "./backend/headers.server.ts";
 import { raise } from "./errors.ts";
 import { responseBodies } from "./backend/body.server.ts";
 import { requestStop } from "./backend/lifetime.ts";
@@ -37,7 +37,7 @@ const middleware = createMiddleware().server(async ({ context, request, next }) 
   }
 });
 
-/** Startup supplies the native fetch binding; all Start boundaries share this middleware. */
+/** Startup supplies the root context; all Start boundaries share this middleware. */
 export const startRequests = Object.assign(
   extension({
     label: "start.requests",

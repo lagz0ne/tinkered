@@ -51,9 +51,13 @@ function unwrap(node) {
   return node;
 }
 function locationSymbol(node) {
-  const symbol = ts.isShorthandPropertyAssignment(node.parent)
-    ? checker.getShorthandAssignmentValueSymbol(node.parent)
-    : checker.getSymbolAtLocation(node);
+  const symbol =
+    node.parent && ts.isShorthandPropertyAssignment(node.parent)
+      ? checker.getShorthandAssignmentValueSymbol(node.parent)
+      : checker.getSymbolAtLocation(node);
+  return aliasTarget(symbol);
+}
+function aliasTarget(symbol) {
   return symbol?.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 }
 function identifierInitializer(decl) {
@@ -332,7 +336,7 @@ function callbackArgument(call, arg) {
   const index = callbackIndex(call, arg);
   const { signature, param } = callbackSlot(call, index);
   if (!param || index < 0) return false;
-  if (nameOf(call.expression).endsWith(".inputValidator")) return true;
+  if (nameOf(call.expression).endsWith(".validator")) return true;
   const type = callbackType(signature, param, index, arg);
   return type && !(type.flags & ts.TypeFlags.Any) && callable(type);
 }
@@ -591,6 +595,8 @@ function zodDeclaration(node, file) {
       "nonnegative",
       "regex",
       "trim",
+      "toUpperCase",
+      "brand",
       "optional",
       "nullable",
       "strict",
@@ -664,7 +670,7 @@ function chainedDeclaration(node) {
   if (!ts.isPropertyAccessExpression(node.expression)) return false;
   const chain = node.expression.expression;
   return (
-    ["server", "client", "middleware", "handler", "inputValidator"].includes(
+    ["server", "client", "middleware", "handler", "validator"].includes(
       node.expression.name.text,
     ) &&
     ts.isCallExpression(chain) &&
@@ -703,6 +709,207 @@ function entryStopAllocation(node) {
   if (!ts.isNewExpression(node) || nameOf(node.expression) !== "AbortController") return false;
   const owner = enclosingFunction(node);
   return entries.has(pathOf(node)) && owner && topLevelEntry(owner, ["start", "getRouter"]);
+}
+const builtinFetch = checker.resolveName("fetch", undefined, ts.SymbolFlags.Value, false);
+assert.ok(builtinFetch, "the project must declare built-in fetch");
+const fetchDeclarations = new Set(builtinFetch.declarations);
+const builtinXhr = checker.resolveName("XMLHttpRequest", undefined, ts.SymbolFlags.Value, false);
+assert.ok(builtinXhr, "the project must declare built-in XMLHttpRequest");
+const navigatorType = checker.resolveName("Navigator", undefined, ts.SymbolFlags.Type, false);
+assert.ok(navigatorType, "the project must declare Navigator");
+const builtinBeacon = checker.getDeclaredTypeOfSymbol(navigatorType).getProperty("sendBeacon");
+assert.ok(builtinBeacon, "Navigator must declare sendBeacon");
+const browserHttpDeclarations = new Set([
+  ...builtinXhr.declarations,
+  ...builtinBeacon.declarations,
+]);
+function typeReference(node) {
+  for (let parent = node.parent; parent; parent = parent.parent)
+    if (ts.isTypeNode(parent) || typeOnlyImport(parent)) return true;
+  return false;
+}
+function backendDefault(node) {
+  const fn = enclosingFunction(node);
+  if (!fn || !ts.isPropertyAssignment(fn.parent)) return false;
+  const property = fn.parent;
+  const call = property.parent.parent;
+  if (!ts.isCallExpression(call) || !ts.isVariableDeclaration(call.parent)) return false;
+  return (
+    nameOf(property.name) === "default" &&
+    nameOf(call.parent.name) === "httpBackend" &&
+    coreSymbol(call.expression, "tag")
+  );
+}
+function referenceSymbol(node) {
+  if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent))
+    return checker
+      .getTypeAtLocation(node.parent)
+      .getProperty(nameOf(node.propertyName ?? node.name));
+  if (ts.isElementAccessExpression(node)) {
+    const key = checker.getTypeAtLocation(node.argumentExpression);
+    if (key.isStringLiteral())
+      return checker.getTypeAtLocation(node.expression).getProperty(key.value);
+  }
+  return locationSymbol(node);
+}
+function nativeReference(node, declarations) {
+  if (
+    !ts.isIdentifier(node) &&
+    !ts.isBindingElement(node) &&
+    !ts.isPropertyAccessExpression(node) &&
+    !ts.isElementAccessExpression(node)
+  )
+    return false;
+  return referenceSymbol(node)?.declarations?.some((decl) => declarations.has(decl));
+}
+function checkFetch(node) {
+  if (typeReference(node) || !nativeReference(node, fetchDeclarations)) return;
+  if (pathOf(node) === "src/scaffold/http-backend.ts" && backendDefault(node)) return;
+  fail(node, "http-request: use httpRequest.controller instead of built-in fetch");
+}
+function checkBrowserHttp(node) {
+  if (pathOf(node).startsWith("src/scaffold/") || typeReference(node)) return;
+  if (nativeReference(node, browserHttpDeclarations))
+    fail(node, "http-client: app HTTP must use httpRequest.controller");
+}
+function httpUnitReference(node, file, name) {
+  return protocolUnitReference(node, file, name);
+}
+function checkHttpResource(node) {
+  if (pathOf(node).startsWith("src/scaffold/") || typeReference(node)) return;
+  if (httpUnitReference(node, "src/scaffold/backend/http.ts", "http"))
+    fail(node, "http-resource: app code must depend on httpRequest.controller");
+}
+function checkHttpBackend(node) {
+  if (pathOf(node).startsWith("src/scaffold/")) return;
+  if (httpUnitReference(node, "src/scaffold/http-backend.ts", "httpBackend"))
+    fail(node, "http-backend: app code must depend on httpRequest.controller");
+}
+function protocolUnitReference(node, file, name) {
+  if (
+    !ts.isIdentifier(node) &&
+    !ts.isBindingElement(node) &&
+    !ts.isPropertyAccessExpression(node) &&
+    !ts.isElementAccessExpression(node)
+  )
+    return false;
+  const symbol = referenceSymbol(node);
+  const target = aliasTarget(symbol);
+  return target?.declarations?.some(
+    (decl) => ts.isVariableDeclaration(decl) && pathOf(decl) === file && nameOf(decl.name) === name,
+  );
+}
+function checkRequestHeaders(node) {
+  const file = pathOf(node);
+  if (file.startsWith("src/scaffold/") || file === "src/backend/auth.ts") return;
+  if (protocolUnitReference(node, "src/scaffold/backend/headers.server.ts", "requestHeaders"))
+    fail(node, "protocol-headers: app code must use principal or currentUser");
+}
+const builtinResponse = checker.resolveName("Response", undefined, ts.SymbolFlags.Value, false);
+assert.ok(builtinResponse, "the project must declare built-in Response");
+const responseDeclarations = new Set(builtinResponse.declarations);
+function checkResponse(node) {
+  const file = pathOf(node);
+  if (file.startsWith("src/routes/") || file.startsWith("src/scaffold/")) return;
+  if (nativeReference(node, responseDeclarations))
+    fail(node, "protocol-response: replies belong to routes or the scaffold");
+}
+function checkMountedAuth(node) {
+  const file = pathOf(node);
+  if (["src/scaffold/backend/auth.server.ts", "src/routes/api.auth.$.ts"].includes(file)) return;
+  if (protocolUnitReference(node, "src/scaffold/backend/auth.server.ts", "handleAuth"))
+    fail(node, "protocol-auth: only the auth route may use the mounted handler");
+}
+const httpClients = [
+  "node:http",
+  "node:https",
+  "node:http2",
+  "http",
+  "https",
+  "http2",
+  "ws",
+  "ofetch",
+  "undici",
+  "axios",
+  "ky",
+  "node-fetch",
+  "got",
+  "superagent",
+  "node:net",
+  "node:tls",
+  "net",
+  "tls",
+  "dgram",
+  "node:dgram",
+];
+function requireReference(node) {
+  const symbol = symbolOf(node);
+  return (
+    symbol?.name === "require" &&
+    symbol.declarations?.some((decl) =>
+      decl.getSourceFile().fileName.endsWith("@types/node/module.d.ts"),
+    )
+  );
+}
+function importSpecifier(node) {
+  if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return node.moduleSpecifier;
+  if (ts.isImportEqualsDeclaration(node))
+    return ts.isExternalModuleReference(node.moduleReference)
+      ? node.moduleReference.expression
+      : undefined;
+  if (
+    ts.isCallExpression(node) &&
+    (["import", "require"].includes(nameOf(node.expression)) || requireReference(node.expression))
+  )
+    return node.arguments[0];
+}
+function typeOnlyExport(node) {
+  if (node.isTypeOnly) return true;
+  return (
+    node.exportClause &&
+    ts.isNamedExports(node.exportClause) &&
+    node.exportClause.elements.length > 0 &&
+    node.exportClause.elements.every((binding) => binding.isTypeOnly)
+  );
+}
+function typeOnlyImport(node) {
+  if (ts.isExportDeclaration(node)) return typeOnlyExport(node);
+  if (!ts.isImportDeclaration(node)) return false;
+  return typeOnlyClause(node.importClause);
+}
+function typeOnlyClause(clause) {
+  if (!clause) return false;
+  if (clause.isTypeOnly) return true;
+  const bindings = clause.namedBindings;
+  if (clause.name || !bindings || !ts.isNamedImports(bindings)) return false;
+  return bindings.elements.length > 0 && bindings.elements.every((binding) => binding.isTypeOnly);
+}
+function createRequireReference(node) {
+  const symbol = referenceSymbol(node);
+  return (
+    symbol?.name === "createRequire" &&
+    symbol.declarations?.some((decl) =>
+      decl.getSourceFile().fileName.endsWith("@types/node/module.d.ts"),
+    )
+  );
+}
+function checkHttpImport(node) {
+  if (pathOf(node).startsWith("src/scaffold/") || typeOnlyImport(node) || typeReference(node))
+    return;
+  const specifier = importSpecifier(node);
+  if (createRequireReference(node))
+    fail(node, "http-client: createRequire is not allowed outside the scaffold");
+  if (!specifier) return;
+  if (!ts.isStringLiteralLike(specifier)) {
+    fail(node, "http-client: module loads must use a literal path");
+    return;
+  }
+  if (
+    httpClients.some(
+      (client) => specifier.text === client || specifier.text.startsWith(`${client}/`),
+    )
+  )
+    fail(node, "http-client: app HTTP must use httpRequest.controller");
 }
 function checkService(node) {
   if (!ts.isCallExpression(node) && !ts.isNewExpression(node)) return;
@@ -883,10 +1090,141 @@ function checkFunction(node) {
   checkPlainFunction(node);
 }
 
+function nativeDomSymbol(symbol, name) {
+  return (
+    symbol?.name === name &&
+    symbol.declarations?.some((decl) => decl.getSourceFile().fileName.endsWith("lib.dom.d.ts"))
+  );
+}
+function wireType(type, name, seen = new Set()) {
+  if (!type || seen.has(type)) return false;
+  seen.add(type);
+  if (nativeDomSymbol(type.symbol, name)) return true;
+  if (primitiveType(type) || callable(type)) return false;
+  return nestedWireType(type, name, seen);
+}
+function nestedWireType(type, name, seen) {
+  const awaited = checker.getAwaitedType(type);
+  if (awaited && awaited !== type && wireType(awaited, name, seen)) return true;
+  if (type.isUnionOrIntersection()) return type.types.some((part) => wireType(part, name, seen));
+  return wireTypeArguments(type, name, seen) || wireProperties(type, name, seen);
+}
+function wireTypeArguments(type, name, seen) {
+  return (
+    type.flags & ts.TypeFlags.Object &&
+    type.objectFlags & ts.ObjectFlags.Reference &&
+    checker.getTypeArguments(type).some((part) => wireType(part, name, seen))
+  );
+}
+function wireProperties(type, name, seen) {
+  return checker.getPropertiesOfType(type).some((property) => {
+    const declaration = property.valueDeclaration ?? property.declarations?.at(0);
+    return (
+      declaration &&
+      files.includes(declaration.getSourceFile().fileName) &&
+      wireType(checker.getTypeOfSymbolAtLocation(property, declaration), name, seen)
+    );
+  });
+}
+function variableInitializer(symbol) {
+  const declaration = symbol?.valueDeclaration;
+  return declaration && ts.isVariableDeclaration(declaration) ? declaration.initializer : undefined;
+}
+function requestSchema(node, seen = new Set()) {
+  if (!node || seen.has(node)) return false;
+  seen.add(node);
+  const schema = checker.getTypeAtLocation(node);
+  const output = schema.getProperty("_output");
+  if (output && wireType(checker.getTypeOfSymbolAtLocation(output, node), "Request")) return true;
+  let request = false;
+  walk(node, (child) => {
+    const symbol = locationSymbol(child);
+    const type = checker.getTypeAtLocation(child);
+    if (
+      nativeDomSymbol(symbol, "Request") ||
+      wireType(type, "Request") ||
+      type
+        .getConstructSignatures()
+        .some((signature) => wireType(checker.getReturnTypeOfSignature(signature), "Request"))
+    )
+      request = true;
+    if (ts.isIdentifier(child) && requestSchema(variableInitializer(symbol), seen)) request = true;
+  });
+  return request;
+}
+function checkOperationInput(input) {
+  if (requestSchema(input))
+    fail(input, "operation-wire-input: requests belong to the protocol layer");
+}
+function functionImplementation(node, seen = new Set()) {
+  node = unwrap(node);
+  if (!node || seen.has(node)) return undefined;
+  seen.add(node);
+  if (isFunction(node)) return node;
+  const symbol = locationSymbol(node);
+  if (symbol?.valueDeclaration && isFunction(symbol.valueDeclaration))
+    return symbol.valueDeclaration;
+  return functionImplementation(variableInitializer(symbol), seen);
+}
+function checkOperationInputCast(node) {
+  if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) checkOperationInput(node.type);
+}
+function checkOperationRun(run) {
+  if (!run) return;
+  const expression = run.initializer ?? (ts.isShorthandPropertyAssignment(run) ? run.name : run);
+  const signatures = checker.getTypeAtLocation(expression).getCallSignatures();
+  let response = signatures.some((signature) =>
+    wireType(checker.getReturnTypeOfSignature(signature), "Response"),
+  );
+  const implementation = functionImplementation(expression);
+  if (implementation?.body)
+    walk(implementation.body, (child) => {
+      checkOperationInputCast(child);
+      if (ts.isExpression(child) && wireType(checker.getTypeAtLocation(child), "Response"))
+        response = true;
+    });
+  if (response) fail(run, "operation-wire-output: replies belong to the protocol layer");
+}
+function authProtocolException(node) {
+  return (
+    pathOf(node) === "src/scaffold/backend/auth.server.ts" &&
+    ts.isVariableDeclaration(node.parent) &&
+    nameOf(node.parent.name) === "handleAuth"
+  );
+}
+function checkOperationWire(node) {
+  if (
+    !ts.isCallExpression(node) ||
+    !coreSymbol(node.expression, "operation") ||
+    authProtocolException(node)
+  )
+    return;
+  const options = node.arguments[0];
+  if (
+    !options ||
+    !ts.isObjectLiteralExpression(options) ||
+    options.properties.some(ts.isSpreadAssignment)
+  ) {
+    fail(node, "operation-options: use a plain object literal without spreads");
+    return;
+  }
+  checkOperationInput(propertyOf(options, "input")?.initializer);
+  checkOperationRun(propertyOf(options, "run"));
+}
+
 for (const source of sources) {
   for (const error of program.getSyntacticDiagnostics(source))
     fail(source, ts.flattenDiagnosticMessageText(error.messageText, " "));
   walk(source, (node) => {
+    checkOperationWire(node);
+    checkFetch(node);
+    checkBrowserHttp(node);
+    checkHttpResource(node);
+    checkHttpBackend(node);
+    checkRequestHeaders(node);
+    checkResponse(node);
+    checkMountedAuth(node);
+    checkHttpImport(node);
     checkService(node);
     checkRoots(node);
     if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) fail(node, "no-class");
@@ -921,6 +1259,471 @@ if (!process.argv.includes("--list"))
 if (process.argv.includes("--prove")) {
   const planted = await mkdtemp(join(tmpdir(), "start-plain-red-"));
   const cases = [
+    [
+      "operation-request-input-cast",
+      "operation-wire-input",
+      'import {operation} from "@tinker/core"; import {z} from "zod"; const probe = operation({input: z.unknown(), run: (_deps, ctx) => (ctx.input as Request).url});',
+    ],
+    [
+      "response-resource-unknown",
+      "protocol-response",
+      'import {operation, resource} from "@tinker/core"; const replies = resource({factory: () => new Response() as unknown}); const probe = operation({depends: {reply: replies}, run: ({reply}) => reply});',
+    ],
+    [
+      "response-resource-method-unknown",
+      "protocol-response",
+      'import {operation, resource} from "@tinker/core"; const replies = resource({factory: () => ({make: (): unknown => new Response()})}); const probe = operation({depends: {replies}, run: ({replies}) => replies.make()});',
+    ],
+    [
+      "response-reflect-construct",
+      "protocol-response",
+      'import {resource} from "@tinker/core"; const probe = resource({factory: () => Reflect.construct(Response, [])});',
+    ],
+    ["response-type-reference", "protocol-response", "export type Probe = Response;"],
+    [
+      "response-route-allowed",
+      null,
+      'import {createFileRoute} from "@tanstack/react-router"; export const Route = createFileRoute("/api/telemetry")({server: {handlers: {GET: () => new Response()}}}); export type Reply = Response;',
+      "src/routes/plain-probe.ts",
+    ],
+    [
+      "response-scaffold-allowed",
+      null,
+      'import {resource} from "@tinker/core"; const probe = resource({factory: () => new Response()}); export type Reply = Response;',
+      "src/scaffold/plain-probe.ts",
+    ],
+    [
+      "response-local-type-allowed",
+      null,
+      "type Response = {value: string}; export type Probe = Response;",
+    ],
+    [
+      "request-headers-constant-key",
+      "protocol-headers",
+      'import {operation} from "@tinker/core"; import * as t from "@tinker-start-scaffold/testing"; const key = "requestHeaders" as const; const probe = operation({depends: {headers: t[key]}, run: ({headers}) => headers.get("x")});',
+      "src/backend/plain-probe.ts",
+    ],
+    [
+      "http-backend-constant-key",
+      "http-backend",
+      'import {operation} from "@tinker/core"; import * as t from "./scaffold/http-backend.ts"; const key = "httpBackend" as const; const probe = operation({depends: {send: t[key]}, run: () => 1});',
+    ],
+    [
+      "operation-request-custom-reader",
+      "operation-wire-input",
+      'import {operation} from "@tinker/core"; import {z} from "zod"; type R = Request; const probe = operation({input: (value: unknown) => z.custom<R>().parse(value), run: (_deps, ctx) => ctx.input.url});',
+    ],
+
+    [
+      "mounted-auth-bracket",
+      "protocol-auth",
+      'import {operation} from "@tinker/core"; import * as protocol from "@tinker-start-scaffold/testing"; const probe = operation({depends: {mounted: protocol["handleAuth"].controller}, run: () => 1});',
+      "src/backend/plain-probe.ts",
+    ],
+    [
+      "request-headers-bracket",
+      "protocol-headers",
+      'import {operation} from "@tinker/core"; import * as protocol from "@tinker-start-scaffold/testing"; const probe = operation({depends: {headers: protocol["requestHeaders"]}, run: ({headers}) => headers.get("x")});',
+      "src/backend/plain-probe.ts",
+    ],
+
+    [
+      "mounted-auth-testing",
+      "protocol-auth",
+      'import {operation} from "@tinker/core"; import {handleAuth} from "@tinker-start-scaffold/testing"; const probe = operation({depends: {mounted: handleAuth.controller}, run: () => 1});',
+      "src/backend/plain-probe.ts",
+    ],
+    [
+      "mounted-auth-direct",
+      "protocol-auth",
+      'import {operation} from "@tinker/core"; import {handleAuth} from "../scaffold/backend/auth.server.ts"; const probe = operation({depends: {mounted: handleAuth.controller}, run: () => 1});',
+      "src/backend/plain-probe.ts",
+    ],
+    [
+      "mounted-auth-scaffold",
+      "protocol-auth",
+      'import {operation} from "@tinker/core"; import {handleAuth} from "./backend/auth.server.ts"; const probe = operation({depends: {mounted: handleAuth.controller}, run: () => 1});',
+      "src/scaffold/plain-probe.ts",
+    ],
+
+    [
+      "request-headers-testing",
+      "protocol-headers",
+      'import {operation} from "@tinker/core"; import {requestHeaders} from "@tinker-start-scaffold/testing"; const probe = operation({depends: {headers: requestHeaders}, run: ({headers}) => headers.get("x")});',
+      "src/backend/plain-probe.ts",
+    ],
+    [
+      "request-headers-direct",
+      "protocol-headers",
+      'import {operation} from "@tinker/core"; import {requestHeaders} from "../scaffold/backend/headers.server.ts"; const probe = operation({depends: {headers: requestHeaders}, run: ({headers}) => headers.get("x")});',
+      "src/backend/plain-probe.ts",
+    ],
+    [
+      "request-headers-scaffold",
+      null,
+      'import {operation} from "@tinker/core"; import {requestHeaders} from "./backend/headers.server.ts"; const probe = operation({depends: {headers: requestHeaders}, run: ({headers}) => headers.get("x")});',
+      "src/scaffold/plain-probe.ts",
+    ],
+
+    [
+      "operation-response-callback",
+      "operation-wire-output",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => new Promise((resolve) => resolve(new Response()))});',
+    ],
+    [
+      "operation-response-cast",
+      "operation-wire-output",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => new Response() as unknown});',
+    ],
+    [
+      "operation-response-array",
+      "operation-wire-output",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => [new Response()]});',
+    ],
+    [
+      "operation-response-object",
+      "operation-wire-output",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => ({reply: new Response()})});',
+    ],
+    [
+      "operation-request-destructured",
+      "operation-wire-input",
+      'import {operation} from "@tinker/core"; import {z} from "zod"; const {Request: Req} = globalThis; const probe = operation({input: z.instanceof(Req), run: (_deps, ctx) => ctx.input.url});',
+    ],
+    [
+      "operation-request-type-alias",
+      "operation-wire-input",
+      'import {operation} from "@tinker/core"; import {z} from "zod"; type R = Request; const probe = operation({input: z.custom<R>(), run: (_deps, ctx) => ctx.input.url});',
+    ],
+    [
+      "operation-options-spread",
+      "operation-options",
+      'import {operation} from "@tinker/core"; const opts = {}; const run = String; const probe = operation({...opts, run});',
+    ],
+    [
+      "operation-options-variable",
+      "operation-options",
+      'import {operation} from "@tinker/core"; const opts = {run: String}; const probe = operation(opts);',
+    ],
+    [
+      "operation-response-typed-callback",
+      "operation-wire-output",
+      'import {operation} from "@tinker/core"; declare const reply: Response; const probe = operation({run: () => { const ignored = Promise.resolve().then(() => reply); return 1; }});',
+    ],
+
+    [
+      "dynamic-require-alias",
+      "http-client",
+      'import {operation} from "@tinker/core"; const load = require; const moduleName = "node:http"; const probe = operation({run: () => load(moduleName)});',
+    ],
+    [
+      "create-require-destructured",
+      "http-client",
+      'import {operation} from "@tinker/core"; const probe = operation({run: async () => { const {createRequire} = await import("node:module"); return createRequire(import.meta.url); }});',
+    ],
+    [
+      "operation-request",
+      "operation-wire-input",
+      'import {operation} from "@tinker/core"; import {z} from "zod"; const probe = operation({input: z.instanceof(Request), run: (_deps, ctx) => ctx.input.url});',
+    ],
+    [
+      "operation-request-alias",
+      "operation-wire-input",
+      'import {operation as op} from "@tinker/core"; import {z} from "zod"; const schema = z.instanceof(Request); const probe = op({input: schema, run: (_deps, ctx) => ctx.input.url});',
+    ],
+    [
+      "operation-response",
+      "operation-wire-output",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => new Response()});',
+    ],
+    [
+      "operation-response-async",
+      "operation-wire-output",
+      'import {operation} from "@tinker/core"; const probe = operation({run: async () => new Response()});',
+    ],
+    [
+      "operation-response-union",
+      "operation-wire-output",
+      'import {operation} from "@tinker/core"; const probe = operation({run: (_deps, ctx) => ctx.random.next() ? new Response() : null});',
+    ],
+    [
+      "destructured-fetch-shorthand",
+      "http-request",
+      'import {operation} from "@tinker/core"; const {fetch} = globalThis; const probe = operation({run: () => fetch("https://example.test")});',
+    ],
+    [
+      "destructured-beacon",
+      "http-client",
+      'import {operation} from "@tinker/core"; const {sendBeacon} = navigator; const probe = operation({run: () => sendBeacon("https://example.test", "x")});',
+    ],
+    [
+      "destructured-xhr",
+      "http-client",
+      'import {operation} from "@tinker/core"; const {XMLHttpRequest} = globalThis; const probe = operation({run: () => new XMLHttpRequest()});',
+    ],
+    [
+      "dynamic-import",
+      "http-client",
+      'import {operation} from "@tinker/core"; const moduleName = "node:http"; const probe = operation({run: () => import(moduleName)});',
+    ],
+    [
+      "dynamic-require",
+      "http-client",
+      'import {operation} from "@tinker/core"; const moduleName = "node:http"; const probe = operation({run: () => require(moduleName)});',
+    ],
+    [
+      "create-require",
+      "http-client",
+      'import {createRequire} from "node:module"; import {operation} from "@tinker/core"; const probe = operation({run: () => createRequire(import.meta.url)});',
+    ],
+    [
+      "create-require-namespace",
+      "http-client",
+      'import * as mod from "node:module"; import {operation} from "@tinker/core"; const probe = operation({run: () => mod.createRequire(import.meta.url)});',
+    ],
+    ["type-export-client", null, 'export type { ClientRequest } from "node:http";'],
+    ["client-net", "http-client", 'import * as client from "net"; export { client };'],
+    ["client-tls", "http-client", 'import * as client from "tls"; export { client };'],
+    ["client-dgram", "http-client", 'import * as client from "dgram"; export { client };'],
+    [
+      "client-node-dgram",
+      "http-client",
+      'import * as client from "node:dgram"; export { client };',
+    ],
+    [
+      "client-xhr-constructor",
+      "http-client",
+      'import {resource} from "@tinker/core"; const probe = resource({factory: () => new XMLHttpRequest()});',
+    ],
+    [
+      "client-xhr-global",
+      "http-client",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => globalThis.XMLHttpRequest});',
+    ],
+    [
+      "client-xhr-bracket",
+      "http-client",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => window["XMLHttpRequest"]});',
+    ],
+    [
+      "client-beacon-call",
+      "http-client",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => navigator.sendBeacon("https://example.test/x", "hello")});',
+    ],
+    [
+      "client-beacon-value",
+      "http-client",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => navigator.sendBeacon});',
+    ],
+    [
+      "client-beacon-bracket",
+      "http-client",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => navigator["sendBeacon"]("https://example.test/x", "hello")});',
+    ],
+    [
+      "client-websocket-allowed",
+      null,
+      'import {resource} from "@tinker/core"; const probe = resource({factory: (_deps, ctx) => { const socket = new WebSocket("wss://example.test/sync"); ctx.defer(() => socket.close()); return socket; }});',
+    ],
+    [
+      "client-eventsource-allowed",
+      null,
+      'import {resource} from "@tinker/core"; const probe = resource({factory: (_deps, ctx) => { const events = new EventSource("https://example.test/sync"); ctx.defer(() => events.close()); return events; }});',
+    ],
+    [
+      "client-import-type",
+      null,
+      'import type { ClientHttp2Session } from "node:http2"; export type Probe = ClientHttp2Session;',
+    ],
+    [
+      "client-named-import-type",
+      null,
+      'import { type IncomingMessage, type ServerResponse } from "node:http"; export type Probe = IncomingMessage | ServerResponse;',
+    ],
+    [
+      "client-mixed-import",
+      "http-client",
+      'import { type IncomingMessage, request } from "node:http"; export { request }; export type Probe = IncomingMessage;',
+    ],
+    [
+      "client-default-and-type",
+      "http-client",
+      'import client, { type AxiosInstance } from "axios"; export { client }; export type Probe = AxiosInstance;',
+    ],
+    ["client-empty-import", "http-client", 'import {} from "node:http";'],
+    [
+      "client-node-http2",
+      "http-client",
+      'import * as client from "node:http2"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.connect("https://example.test/x")});',
+    ],
+    [
+      "client-http2",
+      "http-client",
+      'import * as client from "http2"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.connect("https://example.test/x")});',
+    ],
+    [
+      "client-ws",
+      "http-client",
+      'import * as client from "ws"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.WebSocket("https://example.test/x")});',
+    ],
+    [
+      "client-ofetch",
+      "http-client",
+      'import * as client from "ofetch"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.ofetch("https://example.test/x")});',
+    ],
+    [
+      "client-node-http",
+      "http-client",
+      'import * as client from "node:http"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-node-https",
+      "http-client",
+      'import * as client from "node:https"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-http",
+      "http-client",
+      'import * as client from "http"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-https",
+      "http-client",
+      'import * as client from "https"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-undici",
+      "http-client",
+      'import * as client from "undici"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-axios",
+      "http-client",
+      'import * as client from "axios"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-ky",
+      "http-client",
+      'import * as client from "ky"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-node-fetch",
+      "http-client",
+      'import * as client from "node-fetch"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-got",
+      "http-client",
+      'import * as client from "got"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-superagent",
+      "http-client",
+      'import * as client from "superagent"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-node-net",
+      "http-client",
+      'import * as client from "node:net"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-node-tls",
+      "http-client",
+      'import * as client from "node:tls"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    ["client-reexport", "http-client", 'export * from "node:https";'],
+    [
+      "client-dynamic",
+      "http-client",
+      'import {operation} from "@tinker/core"; const probe = operation({run: async () => (await import("node:https")).request("https://example.test/x")});',
+    ],
+    [
+      "client-require",
+      "http-client",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => require("node:http").request("https://example.test/x")});',
+    ],
+    [
+      "client-import-equals",
+      "http-client",
+      'import client = require("node:https"); import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+    [
+      "client-subpath",
+      "http-client",
+      'import * as client from "axios/unsafe/adapters/http.js"; import {operation} from "@tinker/core"; const probe = operation({run: () => client.request("https://example.test/x")});',
+    ],
+
+    [
+      "http-backend-dependency",
+      "http-backend",
+      'import {operation} from "@tinker/core"; import {httpBackend as backend} from "./scaffold/http-backend.ts"; const probe = operation({depends: {send: backend}, run: ({send}) => send("https://example.test/x")});',
+    ],
+    [
+      "http-resource-dependency",
+      "http-resource",
+      'import {operation} from "@tinker/core"; import {http as client} from "./scaffold/backend/http.ts"; const probe = operation({depends: {client}, run: ({client}) => client.send("https://example.test/x", {method: "GET", signal: new AbortController().signal})});',
+    ],
+    ["http-resource-export", "http-resource", 'export {http} from "./scaffold/backend/http.ts";'],
+    [
+      "fetch-tag-value",
+      "http-request",
+      'import {tag} from "@tinker/core"; const probe = tag({default: fetch});',
+    ],
+    [
+      "fetch-alias",
+      "http-request",
+      'import {operation} from "@tinker/core"; const send = fetch; const probe = operation({run: () => send("https://example.test/x")});',
+    ],
+    [
+      "window-fetch",
+      "http-request",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => window.fetch("https://example.test/x")});',
+    ],
+    [
+      "self-fetch",
+      "http-request",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => self.fetch("https://example.test/x")});',
+    ],
+    [
+      "destructured-fetch",
+      "http-request",
+      'import {operation} from "@tinker/core"; const {fetch: f} = globalThis; const probe = operation({run: () => f("https://example.test/x")});',
+    ],
+    [
+      "operation-fetch",
+      "http-request",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => fetch("https://example.test/x")});',
+    ],
+    [
+      "resource-fetch",
+      "http-request",
+      'import {resource} from "@tinker/core"; const probe = resource({factory: () => ({send: () => fetch("https://example.test/x")})});',
+    ],
+    [
+      "callback-fetch",
+      "http-request",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => Promise.resolve().then(() => fetch("https://example.test/x"))});',
+    ],
+    [
+      "parenthesized-fetch",
+      "http-request",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => (fetch)("https://example.test/x")});',
+    ],
+    [
+      "global-fetch-reference",
+      "http-request",
+      'import {tag} from "@tinker/core"; const probe = tag({default: globalThis.fetch});',
+    ],
+    [
+      "global-fetch-call",
+      "http-request",
+      'import {operation} from "@tinker/core"; const probe = operation({run: () => globalThis.fetch("https://example.test/x")});',
+    ],
+    [
+      "global-fetch-element",
+      "http-request",
+      'import {tag} from "@tinker/core"; const probe = tag({default: globalThis["fetch"]});',
+    ],
     [
       "entry-hidden-fetch",
       "plain-param",
@@ -1250,12 +2053,19 @@ if (process.argv.includes("--prove")) {
     ],
     ["list", "plain-list", "export const probe = 1;"],
   ];
+  const names = process.argv
+    .find((arg) => arg.startsWith("--cases="))
+    ?.slice(8)
+    .split(",");
+  const selected = names ? cases.filter(([name]) => names.includes(name)) : cases;
+  if (names) assert.equal(selected.length, names.length, "unknown planted case");
   try {
     await cp(join(root, "src"), join(planted, "src"), { recursive: true });
-    for (const file of ["tsconfig.json", "PLAIN.md"])
+    for (const file of ["tsconfig.json", "PLAIN.md", "package.json"])
       await cp(join(root, file), join(planted, file));
+    await cp(join(root, "tests"), join(planted, "tests"), { recursive: true });
     await symlink(join(root, "node_modules"), join(planted, "node_modules"), "dir");
-    for (const [name, rule, source, file = "src/plain-probe.ts"] of cases) {
+    for (const [name, rule, source, file = "src/plain-probe.ts"] of selected) {
       const path = join(planted, file);
       const original = ["src/scaffold/frontend/router.tsx", "src/server.ts"].includes(file)
         ? await readFile(path, "utf8")
@@ -1271,13 +2081,13 @@ if (process.argv.includes("--prove")) {
       );
       const log = join(tmpdir(), `start-plain-proof-${name}.log`);
       await writeFile(log, red.stdout + red.stderr + `\nEXIT ${red.status}\n`);
-      assert.equal(red.status, 1, name);
-      assert.ok(red.stderr.includes(rule), `${name}: must fail by ${rule}`);
+      assert.equal(red.status, rule ? 1 : 0, name);
+      if (rule) assert.ok(red.stderr.includes(rule), `${name}: must fail by ${rule}`);
       if (original) await writeFile(path, original);
       else await rm(path);
-      console.log(`PASS: ${name} ${rule} EXIT 1; ${log}`);
+      console.log(`PASS: ${name} ${rule ?? "allowed"} EXIT ${red.status}; ${log}`);
     }
-    console.log(`Plain proof passed: ${cases.length} planted failures.`);
+    console.log(`Plain proof passed: ${selected.length} planted cases.`);
   } finally {
     await rm(planted, { recursive: true, force: true });
   }

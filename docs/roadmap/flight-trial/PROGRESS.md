@@ -3745,3 +3745,13 @@ Log: `red-plain-linked.log`, exit 1.
 Jev S24: 10 hits, exit 1, including old scaffold telemetry calls.
 Log: `red-s24.log`.
 Next: restore starter bytes and keep the round features.
+
+### Reference step 1: starter copy
+
+Copied today's scaffold byte for byte.
+Updated starter-owned auth, transport, server, UI, config, and scripts.
+Kept the flight round changes in the open feature files.
+Build and workspace check: exit 0.
+Logs: `starter-build.log` and `starter-check.log`.
+Scaffold diff: exit 0, empty; log: `starter-diff.log`.
+The feature calls still need the port before the full gate can pass.

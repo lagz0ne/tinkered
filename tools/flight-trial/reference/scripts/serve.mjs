@@ -35,7 +35,6 @@ async function fetchRequest(request) {
 
 async function main() {
   const server = serve({
-    overrideGlobalObjects: false,
     hostname: process.env.HOST ?? "127.0.0.1",
     port: Number(process.env.PORT ?? 4318),
     fetch: fetchRequest,

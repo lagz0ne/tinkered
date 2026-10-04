@@ -1,12 +1,4 @@
-export {
-  auth,
-  authSettings,
-  handleAuth,
-  principal,
-  currentUser,
-  requestHeaders,
-  readAccount,
-} from "./auth.ts";
+export { auth, authSettings, principal, currentUser, readAccount } from "./auth.ts";
 export type { Database } from "./database.ts";
 export { database, databaseSettings, migrate } from "./database.ts";
 export { mail, mailSettings, sendMail } from "./mail.ts";
@@ -29,3 +21,4 @@ export { payBooking, receivePayment } from "./payments.ts";
 
 export { sendBookingMail, retryBookingMail } from "./booking-mail.ts";
 export { openFlightSearch } from "./flight-stream.ts";
+export { httpRequest } from "../scaffold/backend/http.ts";

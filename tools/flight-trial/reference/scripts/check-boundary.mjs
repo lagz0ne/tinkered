@@ -14,10 +14,19 @@ try {
   const router = join(proof, "src/router.tsx");
   const original = await readFile(router, "utf8");
   const components = JSON.parse(await readFile(join(source, "components.json"), "utf8"));
-  for (const specifier of ["./backend/index.ts", `${components.aliases.lib}/tinker.server`]) {
+  await writeFile(
+    join(proof, "src/backend/http.ts"),
+    'export { database } from "./database.ts";\n',
+  );
+  for (const [specifier, unit] of [
+    ["./backend/index.ts", "database"],
+    ["./backend/http.ts", "database"],
+    [`${components.aliases.lib}/tinker.server`, "database"],
+    ["./scaffold/backend/http.ts", "httpRequest"],
+  ]) {
     await writeFile(
       router,
-      `import { database } from "${specifier}";\ndocument.title = database.label;\n${original}`,
+      `import { ${unit} } from "${specifier}";\ndocument.title = ${unit}.label;\n${original}`,
     );
     const result = spawnSync("vp", ["build"], { cwd: proof, encoding: "utf8" });
     assert.notEqual(result.status, 0);

@@ -2,12 +2,13 @@ import { resource } from "@tinker/core";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { telemetrySettings } from "./state.ts";
 import type { Telemetry } from "./records.ts";
+import { httpBackend } from "../http-backend.ts";
 
 /** The server factory keeps storage URLs out of the browser. */
 export const delivery = resource({
   label: "telemetry.delivery",
-  depends: { settings: telemetrySettings.required },
-  factory: ({ settings }) => {
+  depends: { settings: telemetrySettings.required, backend: httpBackend },
+  factory: ({ settings, backend }) => {
     const send = createIsomorphicFn()
       .server(async (batch: Telemetry.Batch, signal: AbortSignal): Promise<Telemetry.Delivery> => {
         if (settings.side === "browser") return { traces: true, logs: true };
@@ -20,7 +21,7 @@ export const delivery = resource({
             ? true
             : Promise.resolve().then(async () => {
                 try {
-                  const response = await fetch(settings.traces, {
+                  const response = await backend(settings.traces, {
                     method: "POST",
                     headers: { "content-type": "application/json" },
                     signal,
@@ -59,7 +60,7 @@ export const delivery = resource({
             ? true
             : Promise.resolve().then(async () => {
                 try {
-                  const response = await fetch(logs.href, {
+                  const response = await backend(logs.href, {
                     method: "POST",
                     headers: { "content-type": "application/stream+json" },
                     signal,
@@ -77,7 +78,7 @@ export const delivery = resource({
       })
       .client(async (batch: Telemetry.Batch, signal: AbortSignal): Promise<Telemetry.Delivery> => {
         try {
-          const response = await fetch("/api/telemetry", {
+          const response = await backend("/api/telemetry", {
             method: "POST",
             credentials: "same-origin",
             headers: { "content-type": "application/json" },
