@@ -116,6 +116,56 @@ async function compare(pair, path, body, options = {}) {
   readCodes(decoded);
   return decoded;
 }
+async function waitForRoute(pair, path) {
+  for (;;) {
+    const logs = await Promise.all(
+      pair.map(async ({ url }) => {
+        const response = await request(`${url}/control/calls`, undefined, {});
+        return JSON.parse(response.body).data;
+      }),
+    );
+    if (logs.every((log) => log.some((call) => call.route === `GET ${path}`))) return;
+  }
+}
+async function compareSupplierReplay(pair) {
+  await compare(pair, "/control/scenario", { name: "last-seat" });
+  const offer = (await compare(pair, "/air/offer_requests", searchBody)).data.offers[0];
+  const body = { data: { selected_offers: [offer.id], type: "hold" } };
+  await compare(pair, "/control/routes", { route: "POST /air/orders", repeat: 2 });
+  const saved = await compare(pair, "/air/orders", body);
+  for (let replay = 0; replay < 2; replay++)
+    assert.deepEqual(await compare(pair, "/air/orders", body), saved);
+  const fresh = await compare(pair, "/air/orders", body);
+  assert.equal(fresh.errors[0].code, "offer_sold_out");
+  await compare(pair, "/control/calls");
+  console.log("Compared supplier saved order and both rule replays; repeat exhausted.");
+}
+async function comparePaymentReplay(pair) {
+  await compare(pair, "/control/payment", { mode: "never" });
+  await compare(pair, "/control/routes", { route: "POST /v1/payment_intents", repeat: 2 });
+  const body = { amount: 900, currency: "usd" };
+  const firstKey = { headers: { "idempotency-key": "rule-first" } };
+  const nextKey = { headers: { "idempotency-key": "rule-next" } };
+  const saved = await compare(pair, "/v1/payment_intents", body, firstKey);
+  assert.deepEqual(await compare(pair, "/v1/payment_intents", body, firstKey), saved);
+  assert.deepEqual(await compare(pair, "/v1/payment_intents", body, nextKey), saved);
+  assert.deepEqual(await compare(pair, "/v1/payment_intents", body, firstKey), saved);
+  const fresh = await compare(pair, "/v1/payment_intents", body, nextKey);
+  assert.notEqual(fresh.id, saved.id);
+  await compare(pair, "/control/calls");
+  console.log("Compared payment rule replays with keys, then key replay and fresh key.");
+}
+async function compareClockWake(pair, name) {
+  const path = name === "supplier" ? "/air/offers/clock-wake" : "/v1/payment_intents/clock-wake";
+  await compare(pair, "/control/routes", { route: `GET ${path}`, delayMs: 100 });
+  const waiting = compare(pair, path);
+  await waitForRoute(pair, path);
+  await compare(pair, "/control/calls");
+  await compare(pair, "/control/clock", { advanceMs: 100 });
+  await waiting;
+  await compare(pair, "/control/calls");
+  console.log(`Compared ${name} delayed rule woken by the control clock.`);
+}
 const searchBody = {
   data: { slices: [{ origin: "LHR", destination: "AMS", departure_date: "2027-01-15" }] },
 };
@@ -159,6 +209,11 @@ try {
     await compare(pair, "/control/routes", { route: `GET ${route}`, status: 503 });
     await compare(pair, route);
     await compare(pair, "/control/scenario", { name: "default" });
+    if (name === "supplier") await compareSupplierReplay(pair);
+    else await comparePaymentReplay(pair);
+    await compareClockWake(pair, name);
+    await compare(pair, "/control/scenario", { name: "default" });
+    await compare(pair, "/control/clock", { now: 10000 });
     const throwPath = name === "supplier" ? "/air/offers/missing" : "/v1/payment_intents";
     for (const service of pair) service.fault.remaining = 1;
     await compare(
@@ -266,19 +321,7 @@ try {
     const delayed = name === "supplier" ? "/air/offers/stopped" : "/v1/payment_intents/stopped";
     await compare(pair, "/control/routes", { route: `GET ${delayed}`, delayMs: 100 });
     const waiting = compare(pair, delayed);
-    for (;;) {
-      const logs = await Promise.all(
-        pair.map(
-          async ({ url }) =>
-            (
-              await (
-                await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
-              ).json()
-            ).data,
-        ),
-      );
-      if (logs.every((log) => log.some((call) => call.route === `GET ${delayed}`))) break;
-    }
+    await waitForRoute(pair, delayed);
     for (const service of services.slice(-2)) service.stop.abort();
     await waiting;
   }

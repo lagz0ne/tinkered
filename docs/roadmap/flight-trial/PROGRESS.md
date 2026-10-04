@@ -3261,3 +3261,24 @@ No stash was used.
 The only differences from the brief are the allowed-path choices above:
 local Jev labels, protocol promises in PLAIN, and service-local error maps.
 Node's wall-time Date header is checked separately from the service clock.
+
+### Lead fix round: wire replay and clock wake
+
+Owner: services-protocol writer.
+Next: finish the three requested fixes, one commit each.
+Verify: every gate exits 0; full locked mutation meets floor 85.
+Assumption: use the fixed base `880f1c4f` for every old-code proof.
+The lead owns landing and the board update.
+
+The wire proof now saves a supplier order and replays it twice.
+The next order must report sold out, proving the repeat count ran out.
+Payment rule replay uses `Idempotency-Key` on both repeated calls.
+After the rule runs out, the saved key replays and a fresh key creates an intent.
+Both services also wait on a delayed rule, then wake through `/control/clock`.
+The proof compares pending and completed call logs as well as reply bytes.
+
+Fix 1 wire diff: exit 0, zero differences across 2,160 calls and 30 error codes.
+Log: `tools/flight-trial/scripts/logs/review-fix1-wire.log`.
+Build, check, and prose each exited 0.
+Logs: `review-build.log`, `review-fix1-check.log`, and `review-fix1-prose.log`.
+The new cases reached both saved-reply paths and both clock wakes.
