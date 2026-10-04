@@ -1,0 +1,287 @@
+{
+  "base": "6e254446",
+  "sourceCommit": "f3bcb04f",
+  "logRoot": "tools/writer-trial/.logs/reference-0102",
+  "baseline": [
+    {
+      "gate": "today plain",
+      "exit": 1,
+      "findings": 32,
+      "log": "tools/writer-trial/.logs/reference-0102/red-plain-linked.log"
+    },
+    {
+      "gate": "S24",
+      "exit": 1,
+      "hits": 10,
+      "log": "tools/writer-trial/.logs/reference-0102/red-s24.log"
+    }
+  ],
+  "regressions": [
+    {
+      "gate": "domain reply",
+      "redExit": 1,
+      "redLog": "tools/writer-trial/.logs/reference-0102/red-domain-reply.log",
+      "greenExit": 0,
+      "greenLog": "tools/writer-trial/.logs/reference-0102/final-reference-tests.log"
+    },
+    {
+      "gate": "read-only Vitest 5",
+      "redExit": 1,
+      "redLog": "tools/writer-trial/.logs/reference-0102/rounds/round-1/pass-1/own.log",
+      "greenExit": 0,
+      "greenLog": "tools/writer-trial/.logs/reference-0102/green-readonly-vitest.log"
+    }
+  ],
+  "gates": [
+    {
+      "gate": "final-build",
+      "command": "vp run -r build",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-build.log"
+    },
+    {
+      "gate": "final-app-build",
+      "command": "node tools/flight-trial/reference/run.mjs build",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-app-build.log"
+    },
+    {
+      "gate": "final-check",
+      "command": "vp check",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-check.log"
+    },
+    {
+      "gate": "final-tests",
+      "command": "vp run -r test",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-tests.log"
+    },
+    {
+      "gate": "final-writer-tests",
+      "command": "node --test tools/writer-trial/*.test.mjs",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-writer-tests.log"
+    },
+    {
+      "gate": "final-reference-tests",
+      "command": "cd tools/flight-trial/reference && node node_modules/vite-plus/bin/vp test --config vitest.config.ts",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-reference-tests.log"
+    },
+    {
+      "gate": "final-plain",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs tools/flight-trial/reference",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-plain.log"
+    },
+    {
+      "gate": "final-diff",
+      "command": "diff -r apps/start-scaffold/src/scaffold tools/flight-trial/reference/src/scaffold",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-diff.log"
+    },
+    {
+      "gate": "final-s24",
+      "command": "node tools/writer-trial/.logs/reference-0102/s24.mjs",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-s24.log"
+    },
+    {
+      "gate": "final-style",
+      "command": "mapfile -t files < <(rg --files tools/flight-trial/reference/src tools/flight-trial/reference/tests -g '*.ts' -g '*.tsx' -g '!routeTree.gen.ts'); bash .agents/skills/coding-convention/scripts/style-census.sh \"${files[@]}\" --strict",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-style.log"
+    },
+    {
+      "gate": "final-types",
+      "command": "node tools/flight-trial/reference/node_modules/typescript/bin/tsc --noEmit -p tools/flight-trial/reference",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-types.log"
+    },
+    {
+      "gate": "final-jev-test-quality",
+      "command": "node tools/jev/tests.mjs tools/flight-trial/reference/tests/flight-http.proof.ts",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-jev-test-quality.log"
+    },
+    {
+      "gate": "final-jev-promises",
+      "command": "node tools/writer-trial/.logs/reference-0102/promises.mjs reference",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-jev-promises.log"
+    },
+    {
+      "gate": "final-prose",
+      "command": "vp run prose",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-prose.log"
+    },
+    {
+      "gate": "final-validate",
+      "command": "pnpm validate",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-validate.log"
+    }
+  ],
+  "extraGates": [
+    {
+      "gate": "isolation",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-isolation.log"
+    },
+    {
+      "gate": "Jev preflight",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/jev-preflight.log"
+    },
+    {
+      "gate": "webhook Jev follow-up",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/webhook-jev.log"
+    },
+    {
+      "gate": "Jev labels",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/jev-labels.log"
+    },
+    {
+      "gate": "writer image",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/image-build-2.log"
+    },
+    {
+      "gate": "services image",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/services-image-build.log"
+    }
+  ],
+  "images": {
+    "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+    "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+    "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+    "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+  },
+  "tags": {
+    "image": "tinker-writer-flight:20261004.reference-0102.2",
+    "servicesImage": "tinker-flight-services:20261004160855439",
+    "postgresImage": "postgres:17-alpine",
+    "mailpitImage": "axllent/mailpit:v1.27"
+  },
+  "savedImages": {
+    "writerTar": "/home/paseo/.local/share/tinker-writer-trial/image-20261004.reference-0102.2/image.tar",
+    "writerKeeper": "tinker-flight-keep-20261004.reference-0102.2-app",
+    "servicesTar": "/home/paseo/.local/share/tinker-writer-trial/services-20261004160855439/image.tar",
+    "servicesKeeper": "tinker-flight-keep-20261004160855439-services"
+  },
+  "roundProof": {
+    "status": "running",
+    "log": "tools/writer-trial/.logs/reference-0102/rounds-green.log",
+    "results": "tools/writer-trial/.logs/reference-0102/rounds-green/results.json"
+  },
+  "sourceHashes": {
+    "tools/flight-trial/reference/src/backend/auth.ts": "f8ce37597c6f9982ac665b8db27ac8c4bff2467a494ba9a79578b0cb0a8c7c31",
+    "tools/flight-trial/reference/src/backend/booking-mail.ts": "84c8182e38dfb71ed660534a9c8f8bd9ed0680984e18e7d8bc76508f19940a40",
+    "tools/flight-trial/reference/src/backend/bookings.schema.ts": "8afb53e8ca57b6b91ead392b5b8a38f006d19fd6069480458f2867c830f43c8a",
+    "tools/flight-trial/reference/src/backend/bookings.ts": "37ff213e734ed2c5a2c1880cd278b6d6927ff0fca450cb0d3af4fe71f2a20055",
+    "tools/flight-trial/reference/src/backend/counter.ts": "c5ae5b330502d39fedec7bc8a7b682c86349c46b27e69576a99b1ff57f6c2538",
+    "tools/flight-trial/reference/src/backend/database.ts": "18dae9d63a86718a60dc81e4de7899d16c48a29af506843901a77504a20f8e25",
+    "tools/flight-trial/reference/src/backend/flight-http.ts": "ba87cdaf7d350aa13549516804668c27a99d9142e282b33aee5254310306fe87",
+    "tools/flight-trial/reference/src/backend/flight-search.ts": "ae1b9f8403ea1b6e103770c759c8304084de8ddec167a3dcc9f3a41250af88cc",
+    "tools/flight-trial/reference/src/backend/flight-settings.server.ts": "6179988c12fa119606aea79d3576b78d3a7d3c436bc85348c49d442035babbd3",
+    "tools/flight-trial/reference/src/backend/flight-stream.ts": "ebf4fead77cf29ae5d554c6f121099abc109deda0f32af98492743f7e297bc47",
+    "tools/flight-trial/reference/src/backend/index.ts": "d9fc12e4d7f3495d3626362ecdc746c1f04624601fb1e6a050da2efe8c114274",
+    "tools/flight-trial/reference/src/backend/mail.ts": "43bbb3aca4efcc6d336d04a406a33a7fd1cdf82ec155251143d20489e802567d",
+    "tools/flight-trial/reference/src/backend/payment-http.ts": "c26746ea0725babb27d3294e22d3e0947df7a34f4e3b660e9c292573bc3b1bb3",
+    "tools/flight-trial/reference/src/backend/payment-signature.ts": "b710b9eafb5f745fd2987994dae648ff392725df694c576ef0f88ece15b729ac",
+    "tools/flight-trial/reference/src/backend/payments.ts": "e69e84de12ce5ceb25862f1d548fac1e08cc85fb96a7dbbdb448654f298528ec",
+    "tools/flight-trial/reference/src/backend/profile.ts": "2d637e030dab86839b0a0832983a2a0bcd652b113d4f02460eb0218d9bce041f",
+    "tools/flight-trial/reference/src/backend/schema.ts": "10f4e17760a8bd21238d8423535d7f14e04cc535dd8f5039ddbb29386d45f6ee",
+    "tools/flight-trial/reference/src/backend/sync.schema.ts": "d1fc19508e617ed8e13b6daa4cd655eac75027bcce8fccc5f764b8dd8dfcc3ce",
+    "tools/flight-trial/reference/src/backend/sync.ts": "3fc83dc38d623485bc92699928dfe1120bbc1e6769d03ac5addd471d5be6adc1",
+    "tools/flight-trial/reference/src/backend/todos.schema.ts": "66e5d2339577ea3b44866de4a7e28d3ec7ad513fa503f6b43f1adc54442bfb2f",
+    "tools/flight-trial/reference/src/backend/todos.ts": "0599536b4603e3735dd88b98ebc1462b569a78ded3b7cfe8c065ae093306a8ef",
+    "tools/flight-trial/reference/src/browser.d.ts": "1ca33f1450101854d9bd68691f02adc6f2de4590f83b72589453995fce1c3405",
+    "tools/flight-trial/reference/src/client.tsx": "73080f428d2adbd576fe462fd423eacc75cde9e9cdf35ae8cdac5227aaac62c4",
+    "tools/flight-trial/reference/src/contracts/bookings.ts": "d711d584b41998c12c5b0fdbb8dedec237759cf6bbf5e700ba152997fd04d2d9",
+    "tools/flight-trial/reference/src/contracts/commands.ts": "f59430b5cc35cc707c33c21c34b329f286fd15dfdfd1b7f7a72a88794ddb818e",
+    "tools/flight-trial/reference/src/contracts/credentials.ts": "9d1c5e5c02e428225c2439d18c65a267df477403cd65c91c7ae1914d3bbbe782",
+    "tools/flight-trial/reference/src/contracts/flights.ts": "5cd44abbb3e5138d86ea81f63d2a6b1af064637001e97ccf78892c3a43d848eb",
+    "tools/flight-trial/reference/src/contracts/profile.ts": "a6b361e9b9f4483634ccb52f1ea81a6cd3bf1d0a14cc78f9fe9ed4adaa330728",
+    "tools/flight-trial/reference/src/contracts/sync.ts": "819767eebcc35fc70b68a77e0fbe62bf8019509e54f0aaee2d0a0f2630fbdb63",
+    "tools/flight-trial/reference/src/contracts/todos.ts": "dd20b269ca7f89781e034ff65b37ab56b5ac309215d19ae62f9b79dc03c8fce9",
+    "tools/flight-trial/reference/src/errors.ts": "feba453250aa46482e302815bbceccbc98c141180344979b812a10d8a86b15a4",
+    "tools/flight-trial/reference/src/frontend/App.tsx": "8682510f44a9de18262c1bbe2ad3fd70ecbff48f6d7869acb4efdda0c8f3d707",
+    "tools/flight-trial/reference/src/frontend/Bookings.tsx": "8ac6d80bafd6c07cc7c920195c16ad2ac6cdf6db8edf989d160217760e6197c6",
+    "tools/flight-trial/reference/src/frontend/Counter.tsx": "fe5bb1a036af3b4d226a1807dfc266ea52ba0073ae774e06a461cca2c596d711",
+    "tools/flight-trial/reference/src/frontend/Flights.tsx": "e4bbbe337ecbc1cec5d4475e67671e71bd4f2ba3b11aca3f06cb4c9498c155a9",
+    "tools/flight-trial/reference/src/frontend/Todos.tsx": "ce8a5f52c5bd39c4fe10521a3af65d639f4aab27dcb963b0e16cdb7600ab034f",
+    "tools/flight-trial/reference/src/frontend/actions.ts": "ad9ff8bef52b3433451f742d74d24bc2d242c139b79401694469b8c151a69069",
+    "tools/flight-trial/reference/src/frontend/bookings.ts": "85c5ba497a32ff54b878800aae2e04deb10058cbd37d82c5c55448ed6842cbc6",
+    "tools/flight-trial/reference/src/frontend/flights.ts": "12e486c63036f9a24ad51f1bd449e3f6d0ffd7d29e4918b6835f2f3c49f31a83",
+    "tools/flight-trial/reference/src/frontend/index.ts": "6769a40de6afd3fa9e3e547aede09de7cab8d8a9f862189f90d97df88958766b",
+    "tools/flight-trial/reference/src/frontend/records.ts": "84bda5788c79b8f47f44d753c2a65edc9944a83033eb6a6b70b3bf2ca30403bc",
+    "tools/flight-trial/reference/src/frontend/state.ts": "9de5ccc6265e11bf3b1e4f38650a2024eddae80ca07bdbff84a95a15adc96474",
+    "tools/flight-trial/reference/src/frontend/ui/button.tsx": "9b59bae0f61561aadfa9ba23a5edd26159769f7873d3ec56601ab4c3b5ece021",
+    "tools/flight-trial/reference/src/frontend/ui/card.tsx": "c848073a45569413055c8b79b59405ce40f208352f577b8d3adf068fcfb2953f",
+    "tools/flight-trial/reference/src/frontend/ui/classes.ts": "7810c5a2b583e49ddcc811622bed4be4b8c8f1c2e565e1fecb1aafeaedccdedf",
+    "tools/flight-trial/reference/src/frontend/ui/input.tsx": "df2fd7595d8e4c598f2312dd18752c6a4bd373e8bb505a0fc455ca7711ff06a5",
+    "tools/flight-trial/reference/src/lib/tinker.server.ts": "62ba65000ccc82a84f9061ada151e9b63a449505eaf296e4b893aa33c2a3baa0",
+    "tools/flight-trial/reference/src/lib/tinker.ts": "3b26b9ec3608416aeed18277683e1d150e842ec7392cf829972e55e9b5248bfd",
+    "tools/flight-trial/reference/src/router.tsx": "aaa2405079d8a8089bfb3590c16255b75f8d61fb01a82e662e33edaa0d1f1c15",
+    "tools/flight-trial/reference/src/routes/__root.tsx": "ba5734e16fad99e6ef4795ab90152314d03dd0ec90e332962dc42598b6404f47",
+    "tools/flight-trial/reference/src/routes/api.auth.$.ts": "055e3782b86415d12a08018e9a287fa82222b3d7448858c53c7113835aa20b62",
+    "tools/flight-trial/reference/src/routes/api.flights.email.ts": "2bd29025df3121bbb7bf4cbf26ea6c05107f95907047206190bf1e6960df80a6",
+    "tools/flight-trial/reference/src/routes/api.flights.hold.ts": "126df93979f39b2eca64dba8795d9e049b85351c9b15054ab56d77e7d68448bb",
+    "tools/flight-trial/reference/src/routes/api.flights.pay.ts": "78ff6241ceeea5668a69f11f286ec6a96348c25d5412b2135b5315267a3b94d0",
+    "tools/flight-trial/reference/src/routes/api.flights.search.ts": "e1765ac41c52c02c27ace36767c6fdd1b834fe85427211cd539df4aaaea44745",
+    "tools/flight-trial/reference/src/routes/api.sync.ts": "345f30801bddfa8b642307a91fe3551dcb845f753ca06acfea1ba8e472675599",
+    "tools/flight-trial/reference/src/routes/api.telemetry.ts": "fbd83bc462e72d48be1b0af14186800b1fff5446c39c10b3f239408bd3fbdac6",
+    "tools/flight-trial/reference/src/routes/bookings.tsx": "8a757a3a4dddaba6dc01faa344053a8a70cef49d1a6a87e435256abfa5f4c303",
+    "tools/flight-trial/reference/src/routes/flights.tsx": "f0d5047c890c4e5a943b3486b6875d13439d9613c65dc1501d826dc121bf6d40",
+    "tools/flight-trial/reference/src/routes/index.tsx": "850a28984b5b928762ebe91721ae8c2f321b2c2d4ad6a55c56b36dc765b51e52",
+    "tools/flight-trial/reference/src/routes/profile.tsx": "b7fb5fbd9071a0536545dd6e6b18258c477b25847fbe2b9ad5ce5f71e420ee4c",
+    "tools/flight-trial/reference/src/routes/todos.tsx": "9b6ff2447ee8f0783c7387527ae82f69f1407df8f9f97884aeee3b2130c2e2f4",
+    "tools/flight-trial/reference/src/routes/webhooks.stripe.ts": "69f499ea6c5169ab8bc2ec352a772aafe054f507d5ac9e8b5a46ce624ef746bd",
+    "tools/flight-trial/reference/src/scaffold/backend/auth.server.ts": "3b2b4ae848105794a85ebb87f40315c353a0e16bc18f051beebd892ce01fc749",
+    "tools/flight-trial/reference/src/scaffold/backend/body.server.ts": "9cd970ea5a0b5c0781a0056b66290578ab1a1ac571398cf3078ac7c9f55a3904",
+    "tools/flight-trial/reference/src/scaffold/backend/database.ts": "e548a0895c5d28f2f1cec9f7688865efec384e7e81bb6033dba10fce41f39df5",
+    "tools/flight-trial/reference/src/scaffold/backend/entry.server.ts": "02e043f81becd3fc42e262a104a5d171acfd4e60a52070e5eea263af651aa413",
+    "tools/flight-trial/reference/src/scaffold/backend/events.ts": "3de7725f1d1322ed9392d904a93e764e6674f57e4e0f0060fa99b4e5f4a5e20a",
+    "tools/flight-trial/reference/src/scaffold/backend/headers.server.ts": "9cafbe87353e1709c60a4aa56368429c02070649ddcdede92a2e73668d6a910d",
+    "tools/flight-trial/reference/src/scaffold/backend/http.ts": "6e29bb95686981754b24fcaa6581bd18f1a1edc0a6ea5aa41c032d923bd4249f",
+    "tools/flight-trial/reference/src/scaffold/backend/index.server.ts": "767058fe56672e86455e94b2de15450c5dc8b0882ae8dc25b2d6a2d796691f33",
+    "tools/flight-trial/reference/src/scaffold/backend/lifetime.ts": "fa4e5780033841f9b9f40f25b07a3f2a260f7b6a5dc491fb2f05a97ce758b91d",
+    "tools/flight-trial/reference/src/scaffold/backend/notifications.ts": "293dd3c9301d35e4d19822b497c55f0e80cee9d2fe1e875d688d025a262d9cc4",
+    "tools/flight-trial/reference/src/scaffold/backend/request-body.server.ts": "82263e67201c6a54c6dff0eab28680ccf4ef9e3f6fb217cdcd8763e4fd4d89f1",
+    "tools/flight-trial/reference/src/scaffold/backend/result.server.ts": "e3ed679d46d81c8ebe6a86f225d0f7ab4ff102062211a81e7997010e04f65b18",
+    "tools/flight-trial/reference/src/scaffold/backend/settings.server.ts": "d97d0c83a22c2a7c56b56c5e3d332864ea0a3f481d6ed0e496248653b0daa758",
+    "tools/flight-trial/reference/src/scaffold/backend/stream.ts": "09184dd3eb09f0c4283dce3c31d670fdaf42d366ab595f74d01c677281677651",
+    "tools/flight-trial/reference/src/scaffold/backend/sync.schema.ts": "15d29bf93cfb14cbfa74ed76bbea21bae5fcdc102eeaa613e24910b401ff6b9d",
+    "tools/flight-trial/reference/src/scaffold/errors.ts": "4b166d33ab574834d29b48b8c5c6a6e860fc8933fe0546889d406ee10f08e062",
+    "tools/flight-trial/reference/src/scaffold/frontend/events.ts": "0313e180f176511c061dde7f378d0dd2d0b4f92ea6e28a0304fe0f917d1c0359",
+    "tools/flight-trial/reference/src/scaffold/frontend/index.ts": "88f419d6add2bb5125977c7503c51bcef253abecb3476a760ccc02ec3809a65b",
+    "tools/flight-trial/reference/src/scaffold/frontend/owner.ts": "ccca781d3085b841a05ab2a9761a86c62b2caf330ba83695373e32499da2f09b",
+    "tools/flight-trial/reference/src/scaffold/frontend/router.tsx": "94b9f74478ebd381db0bf14d4557fcbeaf6cf549a107a4c456ee6197b4eac320",
+    "tools/flight-trial/reference/src/scaffold/frontend/sync.ts": "4e7ebb213daf374eb79a52fc265b60d746f91e2ea669ab64a9f88eefbe60b88e",
+    "tools/flight-trial/reference/src/scaffold/http-backend.ts": "ac6877d1827e9dd054ce6f3de54c49ea20c4aeb2f12bf9aaa94e8e363044fc96",
+    "tools/flight-trial/reference/src/scaffold/protocol.ts": "f1e5f091be9600e1c6d233522109f336bb2f229e69241839feaa63ed4f73856d",
+    "tools/flight-trial/reference/src/scaffold/start.ts": "dc8ee0b118a40b7b0435a2f533fccd593df9ab0579b56382730da9d29237e504",
+    "tools/flight-trial/reference/src/scaffold/sync.functions.ts": "0e8f0dd18c5439b485c73501fe54b34a4bb1cb294d83e3a7eaaeb2f612fa0b5f",
+    "tools/flight-trial/reference/src/scaffold/sync.ts": "4eb1773af037a71c079f260b6dea78ec1122bd1d116b743fbd1d1b7ca072a003",
+    "tools/flight-trial/reference/src/scaffold/telemetry/delivery.ts": "bdcb22375945938fd949dc615fbb83260ddb46ef71d6fa44824024ce9c85f34b",
+    "tools/flight-trial/reference/src/scaffold/telemetry/index.ts": "19370158dd5db455f2a2486fb698304a74bddbbbc3333371440534491b998b8e",
+    "tools/flight-trial/reference/src/scaffold/telemetry/ingest.server.ts": "4db591ec54de42d5988c1a6282ed52e7bab1eca7ff8f859a73a544c04e421cd3",
+    "tools/flight-trial/reference/src/scaffold/telemetry/queue.ts": "3b5d74bbec28e2d3075cc2f9cf57319e95e159d041f0d3e1406c2a300c806958",
+    "tools/flight-trial/reference/src/scaffold/telemetry/records.ts": "09d1c99f4d478ed6ed905d9c070c63aa7296a597222192aba1d90cadd5562bbd",
+    "tools/flight-trial/reference/src/scaffold/telemetry/state.ts": "b78d10f757d2235f9fe3cae3172fa7a07e089d9ce72d8169b8d9a6d0cd7081e2",
+    "tools/flight-trial/reference/src/server.ts": "3fe6e7d7bc01271572c474c568e4454ff0fec243a5ddbbb5fd0637b5355453b4",
+    "tools/flight-trial/reference/src/start.ts": "230046c4bb34e54f56011c914d219407c6b2b6dc3fb510e3b8e14f55855b8cdf",
+    "tools/flight-trial/reference/src/transport/bookings.functions.ts": "6a7ae46910383a53ef83e201aafd504f65719119129b68b9915369e4edff9b50",
+    "tools/flight-trial/reference/src/transport/counter.functions.ts": "f8fb73fced4d015fefb96528ce390c7ea0311a004b35c322968d7b5e5d6d8161",
+    "tools/flight-trial/reference/src/transport/profile.functions.ts": "b5d33587a588b92ad5c16be05b88af5a6cddb7f7c21e7bf911c1ed9e192988e2",
+    "tools/flight-trial/reference/src/transport/result.server.ts": "ac9c1fb8bc5757bbd11ce2975582019bf595ed6a70e84b379b3ad2e148219824",
+    "tools/flight-trial/reference/src/transport/routes.server.ts": "ed427cdc9d29763e178d8448aa944b47479e60ac415f6638c2938bb91692fb0f",
+    "tools/flight-trial/reference/src/transport/todos.functions.ts": "d096ed03582f343f2a83bc399150d6e8ce13b92524bfa6325b944bb7aadd60a4"
+  }
+}

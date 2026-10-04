@@ -3848,3 +3848,27 @@ Formatted it; all 16 validate lanes now pass, exit 0.
 Logs: `validate.log` and `green-validate.log`.
 The final round and isolation proofs use the new writer image.
 Next: finish all rounds, then save their exits and logs.
+
+### Reference workspace proof saved
+
+The final gate chain exits 0; all 15 named checks pass.
+Build ran before checks that read package output.
+Workspace check has zero errors and the same 28 warnings.
+All nine workspace test tasks pass.
+All 91 writer tests and three reference tests pass.
+Plain: 17 helpers, cap 17; S24: zero hits; scaffold diff: empty.
+Prose, strict authored-source style, types, and all 16 validate lanes pass.
+Final test quality and README promises: zero findings.
+The promises CLI copy changes only the path and `.proof.ts` title match.
+The shared tool accepts package tests named `.test.ts` only.
+The webhook Jev follow-up has zero findings across four operations.
+
+Each command, exit, and log is in `REFERENCE-0102-GATES.json`.
+That file also pins all four image IDs, tars, keepers, and source hashes.
+Fresh final-image isolation exits 0, including private controls and host ports.
+Proof containers, networks, and the test volume were removed.
+Log: `final-isolation.log`.
+Round 1's first full gate is green; the later checks still run.
+The round proof stays running in the saved proof file until every row is seen.
+Core feedback: none; the Vitest token issue was trial image setup.
+Next: finish both passes and the named break for all five rounds.
