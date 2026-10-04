@@ -3955,3 +3955,46 @@ Logs: `driver-round-2-red.log` and `driver-round-5-red.log`.
 No frozen proof changed.
 The remaining rounds use a new folder per round.
 Next: finish rounds 2, 3, and 5, then save all 15 results.
+
+### Reference final rounds 2 and 5
+
+Rounds 2 and 5 each pass the full gate twice, exit 0.
+Each planted break exits 1 and fails its named teacher case.
+Both round harnesses finish with exit 0.
+Logs: `final-round-2.log` and `final-round-5.log`.
+Round 3's first final full gate also passes, exit 0.
+Its last two runs remain in progress.
+Next: save the complete proof once those runs finish.
+
+### Reference 0102: final proof complete
+
+All five final rounds pass the full gate twice, exit 0.
+All five planted breaks exit 1 and fail the named teacher case.
+Each round harness finishes with exit 0.
+Round 3's final log: `final-round-3.log`.
+The complete rows, exits, and logs are in `REFERENCE-0102-GATES.json`.
+They include each named failure and its actual error.
+The audit checks all 15 results, all frozen inputs, all image IDs,
+and all 139 saved source hashes; exit 0.
+Log: `final-audit.log`.
+
+Final plain: exit 0, 17 helpers, cap 17.
+Final S24: exit 0, zero hits.
+The scaffold diff is empty, exit 0.
+Build, check, all nine workspace test tasks, 91 writer tests,
+and three reference tests pass, exit 0.
+Types, style, test quality, README promises, and prose pass, exit 0.
+All 16 validate lanes pass, exit 0.
+Fresh-image isolation and final image pins pass, exit 0.
+The writer and services tar files and keepers still match their IDs.
+
+Jev labels: 19 saved false labels with reasons.
+Eighteen match current source; one records the earlier supplier resource.
+The lead imports the track bank and calibrates at landing.
+The path limit barred editing the shared bank.
+The promises CLI copy covers the reference's `.proof.ts` files.
+The preserved server setting is the brief's allowed round change.
+No mutation or timing lane was asked for.
+Core feedback: none.
+The branch is ready for lead review; nothing was pushed.
+Next: lead review, import the labels, then land through the normal gates.

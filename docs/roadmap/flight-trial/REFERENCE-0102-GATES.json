@@ -22,7 +22,7 @@
       "redExit": 1,
       "redLog": "tools/writer-trial/.logs/reference-0102/red-domain-reply.log",
       "greenExit": 0,
-      "greenLog": "tools/writer-trial/.logs/reference-0102/final-reference-tests.log"
+      "greenLog": "tools/writer-trial/.logs/reference-0102/release-reference-tests.log"
     },
     {
       "gate": "read-only Vitest 5",
@@ -183,6 +183,12 @@
       "gate": "final image pins, tars, and keepers",
       "exit": 0,
       "log": "tools/writer-trial/.logs/reference-0102/final-image-pins.log"
+    },
+    {
+      "gate": "final proof audit",
+      "command": "node tools/writer-trial/.logs/reference-0102/audit-final.mjs",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-audit.log"
     }
   ],
   "images": {
@@ -204,7 +210,7 @@
     "servicesKeeper": "tinker-flight-keep-20261004160855439-services"
   },
   "roundProof": {
-    "status": "running",
+    "status": "complete",
     "roots": [
       "tools/writer-trial/.logs/reference-0102/rounds-final-a",
       "tools/writer-trial/.logs/reference-0102/rounds-final-2",
@@ -212,7 +218,7 @@
       "tools/writer-trial/.logs/reference-0102/rounds-final-b",
       "tools/writer-trial/.logs/reference-0102/rounds-final-5"
     ],
-    "completedRounds": [1, 4],
+    "completedRounds": [1, 2, 3, 4, 5],
     "rows": [
       {
         "round": 1,
@@ -272,7 +278,142 @@
           "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
         },
         "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
-        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-a/round-1/break"
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-a/round-1/break",
+        "plantedFailure": {
+          "name": "r1 public search shows real fares and asks each active supplier once",
+          "pass": false,
+          "error": "Flights must show the exact current fares, once each, in price order\n+ actual - expected\n... Skipped lines\n\n  [\n    {\n      Arrives: '2027-01-15T17:35:00.000Z',\n      Departs: '2027-01-15T16:37:00.000Z',\n      Flight: '1355-LHR-AMS-2027-01-15-2',\n      From: 'LHR',\n+     Price: '0.00 USD',\n-     Price: '66.54 USD',\n      Seats: '50',\n      Supplier: 'supplier-a',\n      To: 'AMS'\n    },\n    {\n...\n      From: 'LHR',\n+     Price: '0.00 USD',\n-     Price: '67.94 USD',\n      Seats: '117',\n      Supplier: 'supplier-a',\n      To: 'AMS'\n    },\n    {\n...\n      From: 'LHR',\n+     Price: '0.00 USD',\n-     Price: '74.34 USD',\n      Seats: '145',\n      Supplier: 'supplier-a',\n      To: 'AMS'\n    }\n  ]\n"
+        }
+      },
+      {
+        "round": 2,
+        "label": "pass-1",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-2/round-2/pass-1"
+      },
+      {
+        "round": 2,
+        "label": "pass-2",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-2/round-2/pass-2"
+      },
+      {
+        "round": 2,
+        "label": "break",
+        "exit": 1,
+        "jevExit": 0,
+        "machine": "machine-fail",
+        "ownExit": 0,
+        "teacherExit": 1,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-2/round-2/break",
+        "plantedFailure": {
+          "name": "r2 a cheaper late fare merges and a failed supplier keeps good rows",
+          "pass": false,
+          "error": "Flights must show the exact current fares, once each, in price order\n+ actual - expected\n... Skipped lines\n\n  [\n    {\n      Arrives: '2027-01-15T11:45:00.000Z',\n      Departs: '2027-01-15T10:47:00.000Z',\n      Flight: '1756-LHR-AMS-2027-01-15-1',\n...\n    },\n+   {\n+     Arrives: '2027-01-15T11:45:00.000Z',\n+     Departs: '2027-01-15T10:47:00.000Z',\n+     Flight: '1756-LHR-AMS-2027-01-15-1',\n+     From: 'LHR',\n+     Price: '74.34 USD',\n+     Seats: '145',\n+     Supplier: 'supplier-a',\n+     To: 'AMS'\n+   }\n  ]\n"
+        }
+      },
+      {
+        "round": 3,
+        "label": "pass-1",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-3/round-3/pass-1"
+      },
+      {
+        "round": 3,
+        "label": "pass-2",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-3/round-3/pass-2"
+      },
+      {
+        "round": 3,
+        "label": "break",
+        "exit": 1,
+        "jevExit": 0,
+        "machine": "machine-fail",
+        "ownExit": 0,
+        "teacherExit": 1,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-3/round-3/break",
+        "plantedFailure": {
+          "name": "r3 a changed price is refused before any hold order",
+          "pass": false,
+          "error": "expect(locator).toBeVisible() failed\n\nLocator: getByText('Price changed', { exact: true })\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" getByText('Price changed', { exact: true }) with timeout 30000ms\n  - waiting for getByText('Price changed', { exact: true })\n"
+        }
       },
       {
         "round": 4,
@@ -332,9 +473,114 @@
           "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
         },
         "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
-        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-b/round-4/break"
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-b/round-4/break",
+        "plantedFailure": {
+          "name": "r4 payment waits for a valid signed webhook and syncs across tabs",
+          "pass": false,
+          "error": "A forged payment event must be refused\n\n200 !== 400\n"
+        }
+      },
+      {
+        "round": 5,
+        "label": "pass-1",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-5/round-5/pass-1"
+      },
+      {
+        "round": 5,
+        "label": "pass-2",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-5/round-5/pass-2"
+      },
+      {
+        "round": 5,
+        "label": "break",
+        "exit": 1,
+        "jevExit": 0,
+        "machine": "machine-fail",
+        "ownExit": 0,
+        "teacherExit": 1,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-5/round-5/break",
+        "plantedFailure": {
+          "name": "r5 failed mail keeps the booking valid and retry sends once",
+          "pass": false,
+          "error": "expect(received).toBe(expected) // Object.is equality\n\nExpected: \"Failed\"\nReceived: \"Not sent\"\n\nCall Log:\n- Timeout 30000ms exceeded while waiting on the predicate"
+        }
       }
-    ]
+    ],
+    "rounds": [
+      {
+        "round": 1,
+        "exit": 0,
+        "log": "tools/writer-trial/.logs/reference-0102/final-round-1.log",
+        "plantedCase": "r1 public search shows real fares and asks each active supplier once"
+      },
+      {
+        "round": 2,
+        "exit": 0,
+        "log": "tools/writer-trial/.logs/reference-0102/final-round-2.log",
+        "plantedCase": "r2 a cheaper late fare merges and a failed supplier keeps good rows"
+      },
+      {
+        "round": 3,
+        "exit": 0,
+        "log": "tools/writer-trial/.logs/reference-0102/final-round-3.log",
+        "plantedCase": "r3 a changed price is refused before any hold order"
+      },
+      {
+        "round": 4,
+        "exit": 0,
+        "log": "tools/writer-trial/.logs/reference-0102/final-round-4.log",
+        "plantedCase": "r4 payment waits for a valid signed webhook and syncs across tabs"
+      },
+      {
+        "round": 5,
+        "exit": 0,
+        "log": "tools/writer-trial/.logs/reference-0102/final-round-5.log",
+        "plantedCase": "r5 failed mail keeps the booking valid and retry sends once"
+      }
+    ],
+    "auditExit": 0,
+    "auditLog": "tools/writer-trial/.logs/reference-0102/final-audit.log",
+    "results": "tools/writer-trial/.logs/reference-0102/final-rounds.json"
   },
   "sourceHashes": {
     "tools/flight-trial/reference/.env.example": "8b8ccf1260c3274794fcc3f5e72303884a08a95adb13d14e67166fb40e1d76f2",
@@ -508,5 +754,21 @@
       "exit": 1,
       "log": "tools/writer-trial/.logs/reference-0102/driver-round-5-red.log"
     }
-  ]
+  ],
+  "summary": {
+    "fullPasses": 10,
+    "namedPlantedFailures": 5,
+    "plainFunctions": 17,
+    "plainCap": 17,
+    "s24Hits": 0,
+    "scaffoldDiff": "empty",
+    "workspaceTestTasks": 9,
+    "writerTests": 91,
+    "referenceTests": 3,
+    "validateLanes": 16,
+    "currentSourceLabels": 18,
+    "savedLabels": 19,
+    "coreFeedback": "none",
+    "pushed": false
+  }
 }
