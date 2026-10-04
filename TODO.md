@@ -71,12 +71,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **repo/vite-plus-1** — move `vite-plus` 0.3.1 → 1.0.0 (Vitest 4 → 5).
-  Owner: lead (Claude, tinkered-2f). No writer: the change is `vp migrate` output.
-  Worktree: `../tinkered-vp1`. Other sessions told on 2026-10-04.
-  Next: run `vp migrate` in the worktree; read its review report.
-  Verify: `vp run -r build`, `vp check`, `vp run -r test`, every mutation lane at 85 or more.
-
 - **start/http-graceful** — a graceful close never hangs on an outgoing HTTP request.
   Owner: lead (Claude, Start scaffold session); Sol writer.
   Worktree: `../tinkered-http-graceful`. Found by the `trial/services-http` reviewer's probe.
@@ -105,6 +99,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **repo/vite-plus-1** — `vite-plus` 0.3.1 → 1.0.0 (Vitest 4 → 5).
+  Owner: lead (Claude, tinkered-2f). `vp migrate`, plus literal 1.0.0 pins in the examples, the starter, and writer-trial.
+  Migrate review: 0 blockers; 58 notes, tests pass (3 unawaited notes are awaited later).
+  Proof: tests 1,235 passed as on main; check 0 errors; example:check; test:registry; validate 16/16.
+  Mutation: core 85.70%, blueprint 86.04%, flight-trial 92.77%, react 92.75%.
+  After pull: `vp install`.
 
 - **trial/services-http** — the services' webhook sender goes through a request operation (ADR 0102).
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
