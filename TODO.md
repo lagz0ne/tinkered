@@ -62,13 +62,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: a flight gate on a bare-fetch app blocks; Jev and writer-trial tests pass.
   [Brief](docs/roadmap/flight-trial/S24-BRIEF.md).
 
-- **trial/services-protocol** — service operations speak domain; Hono owns the wire both ways (ADR 0103).
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-services-protocol`. Asked by the user after ADR 0101.
-  Next: operations take params, return values, raise managed errors; handlers map status and envelope.
-  Verify: an old-vs-new wire diff shows zero changes; no reply or status in operations; mutation 85.
-  [Brief](docs/roadmap/flight-trial/PROTOCOL-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -90,6 +83,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/services-protocol** — service operations speak domain; Hono owns the wire both ways (ADR 0103).
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
+  Operations take params, return plain values, raise managed errors; one error map per service.
+  `reply`, `reject`, `rejectPayment` are gone: plain functions 6 to 3.
+  Proof: old-vs-new wire diff, 2,160 calls and 30 error codes, zero differences;
+  `check-protocol` fails on an unmapped error kind; mutation 87.13%; all gates.
 
 - **start/http-resource** — outgoing HTTP is a resource over built-in fetch (ADR 0102).
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY after two fix rounds.
