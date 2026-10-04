@@ -2676,3 +2676,15 @@ Red: review-02-request-headers-direct-red.log.
 The new proof rejects both and allows scaffold use, exit 0.
 Green: .protocol-reply-logs/review-02-green.log.
 Test wiring still binds the real header tag.
+
+Review fix 3: POST reads and parses its body directly.
+Both no-op promise callbacks are gone.
+The source audit fails before the fix, exit 1.
+Red: .protocol-reply-logs/review-03-red.log.
+The direct-body audit, plain check, types, and eleven tests pass, exit 0.
+Green: .protocol-reply-logs/review-03b-green.log.
+The two wire pins keep all fourteen reply facts.
+A short list keeps header rejection order under the lint limit.
+The body reader owns cancellation, so its cancelled read ends the loop.
+The non-null body assertion follows the explicit no-body rejection.
+No lint limit or plain rule was weakened.

@@ -565,6 +565,21 @@
         "code": 0,
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-02-green.log"
       }
+    },
+    {
+      "change": "telemetry handler reads and parses directly",
+      "red": {
+        "name": "review-03-red",
+        "command": "vp run -r build && node .protocol-reply-logs/logs/review-telemetry-shape.mjs",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-03-red.log"
+      },
+      "green": {
+        "name": "review-03b-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/src/routes/api.telemetry.ts && node .protocol-reply-logs/logs/review-telemetry-shape.mjs && vp run @tinker-start-scaffold#check:plain && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts tests/telemetry.test.ts",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-03b-green.log"
+      }
     }
   ],
   "wire": {
