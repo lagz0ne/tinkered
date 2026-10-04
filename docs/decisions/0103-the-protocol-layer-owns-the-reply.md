@@ -87,5 +87,6 @@ No feature operation may use this exception.
 The plain check allows only that exact file and declaration name.
 
 Raw request headers live in the scaffold's request wiring.
-The app backend and server seam do not export them.
+The app backend, server seam, and protocol entry do not export them.
+Only the testing entry exports the header tag for proof bindings.
 App operations use principal or currentUser.

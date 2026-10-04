@@ -2518,6 +2518,32 @@ Type-only imports and exports remain allowed.
 
 Green: 07c-guard-check.log and 07-aliases-green.log, exit 0.
 Each log names the planted case, its rule, and its own proof log.
-The fifteen earlier per-case green logs also stay saved.
+The thirteen earlier per-case green logs also stay saved.
 Code checks pass with zero warnings on the changed script.
 The full proof will run on the final source after the remaining doc fixes.
+
+### Step 7: finish header hiding and review leftovers
+
+The protocol entry still exported the raw header tag after step 4.
+Only the testing entry now exports it for proof bindings.
+The app backend, server seam, and protocol entry keep it private.
+The final wire test changed only that binding import again.
+Red: 08-testing-headers-red.log, exit 1.
+
+The native middleware fixture used the removed backend header export.
+It now imports the internal scaffold header tag as test protocol code.
+The note-app fixture drops its old header tag and seam export.
+Red: 08-middleware-red.log, exit 1.
+The testing skill shows the filled testing import.
+
+The notice example maps HTTP status to sent or NotificationFailed.
+The graceful-close limit now sits under Limits in the README.
+Stop tag labels are lifetime.backendStop and lifetime.requestStop.
+Their comment covers HTTP, telemetry bodies, and sync.
+Red: 08-leftovers-red.log, exit 1, with all three missed facts named.
+
+Green: 08-leftovers-green.log, exit 0.
+Build, types, all 65 app tests, middleware, note fixture, and prose pass.
+The middleware proof also compares a real resumed SSE changes frame.
+It covers denied cursors and idle close through the built Start server.
+The changed-file code check has zero warnings.
