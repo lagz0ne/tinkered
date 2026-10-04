@@ -8,6 +8,7 @@ export default defineConfig({
     // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
     // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
     clearMocks: false,
+    include: ["tests/**/*.test.ts", "tests/**/*.proof.ts"],
     testTimeout: 30000,
   },
 });

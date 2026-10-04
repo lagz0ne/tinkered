@@ -111,6 +111,7 @@ for (const round of rounds) {
   for (const file of [
     "PLAIN.md",
     "vite.config.ts",
+    "vitest.config.ts",
     "tsconfig.json",
     "components.json",
     "drizzle.config.ts",

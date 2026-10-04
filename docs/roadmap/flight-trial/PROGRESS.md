@@ -3782,3 +3782,30 @@ Log: `green-style.log`; the generated file stays router-owned.
 Build and workspace check: exit 0.
 Logs: `port-build.log` and `port-check.log`.
 Next: save the port, build images, then prove every round.
+
+### Reference step 3: proof test boundary
+
+The first workspace test run exited 1.
+The services package picked up the new reference test under its own config.
+Log: `workspace-tests.log`.
+Renamed the app-only file to `flight-http.proof.ts`.
+The reference config includes this pattern; the services config does not.
+The full gate copies this config and the proof tests into its app container.
+Build, all nine workspace test tasks, and the three reference tests: exit 0.
+Logs: `proof-build.log`, `green-workspace-tests.log`,
+and `green-reference-tests.log`.
+
+Jev preflight: exit 0; no file flags, 18 unit findings across 13 units.
+Log: `jev-preflight.log`.
+Saved all 18 labels as false, with exact source and a reason per judge.
+The source already owns cancellation, settings, and private stream state.
+Most remaining findings point at the exact starter copy.
+Labels: `REFERENCE-0102-JEV.jsonl`.
+The path limit bars the shared Jev bank; the lead can import at landing.
+The label CLI copy changes only imports and its bank path.
+Log: `jev-labels.log`, exit 0.
+Test quality and README promises each have zero findings, exit 0.
+Logs: `jev-tests.log` and `jev-promises.log`.
+The later file rename changes no test titles or promises.
+Writer harness tests: 91 passed, exit 0; log: `writer-tests.log`.
+Next: finish image saves and the full round proof.
