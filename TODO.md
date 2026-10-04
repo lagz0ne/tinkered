@@ -29,10 +29,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   accept a number `code` and read cause fields one by one.
   Verify: a planted case each; app tests.
 
-- **trial/s24-on** — Jev rule S24 bans bare fetch again in every suite, naming `httpRequest`.
-  Next: after `start/http-resource` lands; update S24's text and drop the flight skip in `broker.mjs`.
-  Verify: Jev tests; a flight gate on a bare-fetch app blocks; writer-trial tests.
-
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
@@ -58,6 +54,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **trial/s24-on** — Jev rule S24 bans bare fetch again in every suite, naming `httpRequest`.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-s24-on`. Follows `start/http-resource` (ADR 0102).
+  Next: S24 text names `httpRequest`; skip the scaffold's backend file; drop the flight skip.
+  Verify: a flight gate on a bare-fetch app blocks; Jev and writer-trial tests pass.
+  [Brief](docs/roadmap/flight-trial/S24-BRIEF.md).
 
 - **trial/services-protocol** — service operations speak domain; Hono owns the wire both ways (ADR 0103).
   Owner: lead (Claude, Start scaffold session); Sol writer.
