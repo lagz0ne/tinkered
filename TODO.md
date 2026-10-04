@@ -24,6 +24,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **trial/s24-on** — Jev rule S24 bans bare fetch again in every suite, naming `httpRequest`.
+  Next: after `start/http-resource` lands; update S24's text and drop the flight skip in `broker.mjs`.
+  Verify: Jev tests; a flight gate on a bare-fetch app blocks; writer-trial tests.
+
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
@@ -49,6 +53,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **start/http-resource** — outgoing HTTP is a resource over built-in fetch (ADR 0102).
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-http-resource`. Asked by the user after the DeepSeek review.
+  Next: `httpBackend`, `http`, `httpRequest` in the scaffold; `check:plain` bans bare fetch.
+  Verify: one child span per request; scope close aborts; tests bind the backend; all gates.
+  [Brief](docs/roadmap/start-scaffold/HTTP-RESOURCE-BRIEF.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).

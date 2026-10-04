@@ -84,3 +84,4 @@ by a new decision that names the old one.
 - [0100](0100-no-service-outside-the-graph.md): no service outside the graph.
 
 - [0101](0101-routing-belongs-to-the-framework.md): routing belongs to the framework.
+- [0102](0102-http-is-a-resource-over-builtin-fetch.md): HTTP is a resource over built-in fetch.
