@@ -24,12 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/serve-native-response** — the starter's `scripts/serve.mjs` keeps the native `Response`.
-  Found by the `trial/reference-0102` review: the reference sets `overrideGlobalObjects: false`,
-  the starter does not, so a writer's `Response.json` routes can return 500 until they find it.
-  Next: add the setting to the starter, rebuild the registry and the writer image, rerun round 1 once.
-  Verify: a route returning `Response.json` gives 200 in the copied starter; round 1 passes on the new image.
-
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
@@ -55,6 +49,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **start/serve-native-response** — the starter's `scripts/serve.mjs` keeps the native `Response`.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-serve-native`. Found by the `trial/reference-0102` review.
+  Next: add `overrideGlobalObjects: false`; rebuild the registry and the writer image; rerun round 1.
+  Verify: a `Response.json` route gives 200 in the copied starter (red first); round 1 passes on the new image.
+  [Brief](docs/roadmap/start-scaffold/SERVE-NATIVE-RESPONSE-BRIEF.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
