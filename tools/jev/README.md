@@ -136,12 +136,40 @@ Each message ends with its fix line.
   Repo lint: `apps/` and `examples/` only.
   Writer gate: every suite, including flight.
   Skipped: `src/scaffold/http-backend.ts`, which wraps the built-in once.
-  `packages/http` still owns its real fetch in the repo lint.
   `EventSource` and `WebSocket` stay out (ADR 0048).
-  Fix: import `httpRequest` from `@/scaffold/backend/http`.
-  Declare `depends: { request: httpRequest.controller }` and call
-  `request.run({ input: { url: 'http://supplier-a:4311/air/offers/id', method: 'GET' } })`.
-  The request has spans and inherits the caller's cancel signal (ADR 0102).
+  Fix: import `httpRequest` from `@/lib/tinker.server`.
+  Depend on its controller and pass request values with `rawInput`.
+  Typed `input` needs the schema's checked, branded shape.
+  The request inherits the caller's cancel signal (ADR 0102).
+  With observation on, it makes `http.request` and its
+  `http <METHOD> <path>` child span.
+  Map its reply to a feature value or managed error (ADR 0103).
+  The filled fix text typechecks in a copy of the Start scaffold.
+
+  ```ts
+  import { operation } from "@tinker/core";
+  import { httpRequest } from "@/lib/tinker.server";
+  import { raise } from "@/errors";
+
+  export const postNotice = operation({
+    label: "postNotice",
+    depends: { request: httpRequest.controller },
+    run: async ({ request }) => {
+      const reply = await request.run({
+        rawInput: {
+          url: "https://api.example.com/notices",
+          method: "POST",
+          body: "The order is ready.",
+        },
+      });
+      if (reply.status < 200 || reply.status >= 300) {
+        raise("NotificationFailed", {});
+      }
+      return { sent: true };
+    },
+  });
+  ```
+
 - **S25 componentState** — `useState` or `useReducer` in a `.tsx` source file.
   Writer gate only: in the repo, a benchmark's plain-React control is a trap by design.
   In writer mode it replaces `no-react-state` on the same line.

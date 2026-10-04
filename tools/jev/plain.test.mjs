@@ -199,7 +199,7 @@ void describe("plain rules in a source file", () => {
 
 void describe("hand-rolled rules: code that redoes what tinker gives", () => {
   const APP = "apps/tracker/src/wire.ts";
-  const PKG = "packages/http/src/client.ts";
+  const PKG = "packages/example/src/client.ts";
   const repo = (source, file = APP) => hits(source, file, false);
 
   void it("S20 fires on Math.random, crypto.randomUUID, and randomUUID from node:crypto", () => {
@@ -442,9 +442,10 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
     assert.deepEqual(repo(src, "examples/sync/client.ts"), found);
   });
 
-  void it("S24 leaves packages/http's own fetch and a transport's EventSource alone", () => {
+  void it("S24 repo lint skips package fetch; sync transports keep native connections", () => {
     assert.deepEqual(repo("if (import.meta.main) await fetch(url);\n", PKG), []);
     assert.deepEqual(hits("const stream = new EventSource(url);\n", APP), []);
+    assert.deepEqual(hits("const socket = new WebSocket(url);\n", APP), []);
   });
 
   void it("S24 tells a flight app to depend on httpRequest.controller and run it", () => {
@@ -455,7 +456,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
         id: "S24",
         line: 1,
         message:
-          "raw fetch: depend on httpRequest.controller and run it so requests have spans and inherit the caller's cancel signal (ADR 0102); never call built-in fetch in app code. Fix: import { httpRequest } from '@/scaffold/backend/http'; depends: { request: httpRequest.controller }; run: ({ request }) => request.run({ input: { url: 'http://supplier-a:4311/air/offers/id', method: 'GET' } })",
+          "raw fetch: import httpRequest from @/lib/tinker.server, depend on httpRequest.controller, and run it with rawInput so requests have spans and inherit the caller's cancel signal (ADR 0102); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code. Fix: import { operation } from '@tinker/core'; import { httpRequest } from '@/lib/tinker.server'; import { raise } from '@/errors'; export const postNotice = operation({ label: 'postNotice', depends: { request: httpRequest.controller }, run: async ({ request }) => { const reply = await request.run({ rawInput: { url: 'https://api.example.com/notices', method: 'POST', body: 'The order is ready.' } }); if (reply.status < 200 || reply.status >= 300) { raise('NotificationFailed', {}); } return { sent: true }; } });",
       },
     ]);
   });

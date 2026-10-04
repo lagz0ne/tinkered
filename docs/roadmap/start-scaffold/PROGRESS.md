@@ -2957,3 +2957,33 @@ Direct graceful close remains a limit, separate from tested stop behavior.
 Step 1 build and prose each exit 0.
 Logs: .http-docs-logs/03-step1-build.log and 03-step1-prose.log.
 The touched current docs have no wide table rows or fenced lines.
+
+### Step 2: make the shown S24 fix compile
+
+S24 now shows a complete operation, with the server-seam import.
+It passes request values with rawInput and maps the status to sent or error.
+The new test copies the scaffold source, package, and TypeScript config.
+It links the installed dependencies and compiles the exact emitted fix text.
+The copy lives in this worktree and is removed after the check.
+No app source changes and no private trial store reads are needed.
+
+The old text fails this test, exit 1: 05-snippet-red.log.
+Its loose run body has no typed request dependency.
+The corrected text passes, exit 0: 06-snippet-green.log.
+An input-only control fails, exit 1: 07-input-control-red.log.
+That failure names the missing HttpRequest brand, not missing setup.
+The control restores the shown rawInput text before continuing.
+All 148 Jev tests pass, exit 0: 06-jev-tests.log.
+The first code check fails on README formatting: 06-step2-check.log.
+Explicit blocks keep the fix example narrow after the formatter runs.
+This also repairs the line the first commit hook joined.
+The six touched current docs have no wide rows or fenced lines: 07-width.log.
+Prose passes, exit 0: 07-prose.log.
+All logs in this section live in .http-docs-logs/.
+
+Step 2 final build, code check, and Jev tests each exit 0.
+Logs: 09-step2-build.log, 09-step2-check.log, and 09-jev-tests.log.
+The test registration is awaited; the new promise warning is gone.
+The check keeps the base's 28 warnings.
+No plain guard behavior or judge rule changed.
+The old package path in plain tests is now a generic example package.
