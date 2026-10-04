@@ -3115,3 +3115,44 @@ the Jev link into a removed worktree (`trial/jev-link`),
 starter casts that Jev blocked (`start/starter-casts`),
 no way to stage past a first failure (`--explore`),
 and a stale `FEEDBACK.md` left between rounds (follow-up).
+
+## Services protocol, 2026-10-04
+
+Card: `trial/services-protocol`.
+Writer: Sol, branch `trial/services-protocol`.
+Next: save the wire check, then move replies to Hono.
+Verify: zero wire changes, all gates green, mutation at least 85.
+
+Assumptions:
+
+- The old code is fixed at `880f1c4f`.
+  The check reads it with `git show`; no other worktree changes.
+- Node adds a wall-time Date header outside the service clock.
+  The check validates that date and compares all other headers exactly.
+  It compares body bytes, including seeded IDs, and full call logs.
+- The allowed paths rule bars changes to `src/errors.ts`.
+  Service error kinds will live beside their wire maps.
+  Operations use Core's managed `ctx.raise` from ADR 0067.
+- Existing tests already prove all public failure routes.
+  The wire check adds old-code proof before the refactor.
+- The board already has this card in Doing, with its owner and proof.
+  The allowed paths rule bars edits to `TODO.md`.
+
+### Step 1: wire check
+
+The same-code check passed: exit 0, zero differences.
+It compared 2,130 calls and all 30 error codes.
+Log: `tools/flight-trial/scripts/logs/wire-same-busy.log`.
+The quote-limit case uses the real ICN to NRT fixture route.
+The earlier route also passed: 7,426 calls, zero differences.
+Its log is `tools/flight-trial/scripts/logs/wire-same.log`.
+The check still fills the full 65,536-quote limit through HTTP.
+Build, check, and prose passed with exit 0.
+Check has zero errors and the existing 28 warnings.
+Logs: `wire-build.log`, `wire-check.log`, and `wire-prose.log`
+under `tools/flight-trial/scripts/logs/`.
+
+The two new boundary tests fail against old operations.
+They find whole wire inputs and HTTP replies inside the graph.
+Red proof: `tools/flight-trial/scripts/logs/protocol-red.log`, exit 1.
+Next: move validation and reply mapping to Hono.
