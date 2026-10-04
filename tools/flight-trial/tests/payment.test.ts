@@ -49,6 +49,8 @@ const inbox = resource({
         signature: String(request.headers["stripe-signature"]),
       });
       if (holding) {
+        response.writeHead(200);
+        response.flushHeaders();
         waiting.add(response);
         response.once("close", () => waiting.delete(response));
       } else response.end("ok");

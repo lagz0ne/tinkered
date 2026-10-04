@@ -96,6 +96,22 @@ All five fetch tests now pass, exit 0, `green-fetch-ban.log`.
 Clean source passes, exit 0, `fetch-check.log`.
 Build and check pass, exit 0, `step3-build.log` and `step3-check.log`.
 
+### Caller cancellation and open body step
+
+The held inbox now sends headers before holding its response open.
+This proves close aborts body reading after fetch has returned.
+The same test still fails with the old sender, exit 1.
+Log: `red-close-body.log`.
+The fixed sender passes, exit 0, `green-close-body.log`.
+
+A separate call signal aborts the backend's send.
+The parent can send a second request after that cancellation.
+Removing the call signal from the HTTP resource makes this test fail, exit 1.
+Log: `red-cancel.log`.
+Restoring the signal passes, exit 0, `green-cancel.log`.
+Tests use plain promise gates because this tool targets ES2023.
+No tool config changed.
+
 ## trial/jev-link
 
 Writer: Sol.

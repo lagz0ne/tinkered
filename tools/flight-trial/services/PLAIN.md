@@ -77,6 +77,10 @@ The HTTP resource wraps built-in fetch through `httpBackend`.
 The payment close hook stops it before Core drains running operations.
 The resource also aborts on cleanup and caller cancellation.
 The service error guard narrows `HttpRequestFailed` by kind.
+The service fetch ban accepts the built-in backend and Hono's fetch method.
+A graceful close aborts a webhook while its response body is open.
+Cancelling one HTTP call stops its send and leaves the parent able to send again.
+Each webhook copy has an HTTP span below the webhook operation and its resource.
 Payment keys have separate start and save operations.
 Their middleware always resolves or deletes a pending key in `finally`.
 The listener tracks response completion before closing all connections.

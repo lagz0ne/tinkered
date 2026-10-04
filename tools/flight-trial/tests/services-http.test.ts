@@ -10,7 +10,7 @@ import {
   webhookUrl,
   webhookSecret,
 } from "../src/index.ts";
-import { httpBackend } from "../services/http-client.ts";
+import { httpBackend, httpRequest } from "../services/http-client.ts";
 import { calls } from "../services/http.ts";
 
 const replies = [
@@ -20,6 +20,59 @@ const replies = [
   { status: 503, delivery: "rejected" },
   { status: 0, delivery: "unreachable" },
 ];
+
+function createGate<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+test("cancelling one HTTP call stops its send and leaves the parent able to send again", async () => {
+  const stop = new AbortController();
+  const cancel = new AbortController();
+  const started = createGate<AbortSignal>();
+  const release = createGate<Response>();
+  let sends = 0;
+  const scope = createScope({
+    signal: stop.signal,
+    tags: [
+      httpBackend((_url, init) => {
+        if (++sends === 2) return Promise.resolve(new Response(null, { status: 204 }));
+        const signal = init?.signal;
+        if (!signal) throw new TypeError("HTTP requires a signal");
+        started.resolve(signal);
+        return Promise.race([
+          release.promise,
+          new Promise<Response>((_done, reject) => {
+            signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+          }),
+        ]);
+      }),
+    ],
+  });
+  await scope.ready;
+  const result = scope.settle(httpRequest, {
+    signal: cancel.signal,
+    rawInput: { url: "https://example.test/held", method: "GET" },
+  });
+  try {
+    const signal = await started.promise;
+    cancel.abort();
+    await expect.poll(() => signal.aborted).toBe(true);
+    expect((await result).status).toBe("cancelled");
+    expect(
+      await scope.run(httpRequest, {
+        rawInput: { url: "https://example.test/next", method: "GET" },
+      }),
+    ).toEqual({ status: 204 });
+  } finally {
+    release.resolve(new Response(null));
+    stop.abort();
+    await scope.closed;
+  }
+});
 
 async function deliver(url: string, mode = "now") {
   const created = await fetch(`${url}/v1/payment_intents`, {
