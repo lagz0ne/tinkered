@@ -1344,6 +1344,8 @@ Verify: red and green tests; build, checks, tests, prose, and validate.
   The named child sits under http.request, under the caller.
 - The resource owns a request until its body text is read.
   Scope close can abort a body that is still arriving.
+- Requests take absolute HTTP or HTTPS URLs.
+  The server seam has no browser base URL.
 - HttpRequestFailed keeps the URL, method, and caught cause.
   Non-2xx replies are normal results.
 - Telemetry uses httpBackend directly to avoid tracing its own sends.
@@ -1427,3 +1429,72 @@ The complete command, exit-code, and log list goes in HTTP-RESOURCE-GATES.json.
 No files outside the two allowed folders changed.
 No stash, pull, push, trial-store access, or container command was used.
 The workspace already allows esbuild builds and was untouched.
+
+### Final Jev answers
+
+The full preflight compares a5c12db9 with this branch.
+It exits 0 with one file flag and three unit flags.
+The brief bars tools edits; these false labels stay for the lead:
+
+- http.ts: leakedInternal = false.
+  ADR 0102 requires exports for the tag, resource, and operation.
+  The resource's send method is the operation's native request seam.
+  Its retained abort controllers stay private.
+- http: stopOnlyInDefer = false.
+  ADR 0102 requires deferred abort on resource close.
+  Each send also reads the caller's signal and releases its controller in finally.
+  The caller-close test proves that abort stops body reading before root close.
+- httpRequest: configNotTag = false.
+  URL, method, headers, and body are request input, not shared settings.
+  Native sending comes from httpBackend.
+  Span attribute names are fixed fields.
+- delivery: configNotTag = false.
+  URLs and service settings come from telemetrySettings.
+  Native sending comes from httpBackend.
+  Content types and log field query keys are fixed wire rules.
+
+S24 points at the sole built-in fetch call in the backend default.
+ADR 0102 requires that call; the brief leaves S24 changes to a later card.
+The extension-shape note is advisory and owes no label.
+Jev's test check has zero flags and its promise check has zero gaps.
+
+### Handoff
+
+All 88 planted failures exit 1 by their rule name.
+The plain check still has 17 functions.
+The new fetch cases cover operations, owned methods, callbacks, parentheses, and global reads.
+Each new HTTP test has separate red and green logs.
+The changed telemetry test also has red and green logs.
+Its red variant opens a sender span; its green form sends directly through the tag.
+
+Source commits:
+
+- 0f52edd5: record the task and assumptions.
+- 83e81f94: own HTTP requests and observe each call.
+- 5fbbac84: share the backend and forbid bare fetch.
+
+The next commit saves the registry and the full proof record.
+The card waits for lead review; this writer does not land or push.
+Long jobs ran in the foreground and were awaited.
+
+The lead can apply these filled label lines:
+
+```bash
+http_file=apps/start-scaffold/src/scaffold/backend/http.ts
+node tools/jev/label.mjs leakedInternal false \
+  "$http_file" --by start/http-resource \
+  --why "ADR 0102 requires these public HTTP units."
+node tools/jev/label.mjs stopOnlyInDefer false \
+  "$http_file#http" --by start/http-resource \
+  --why "Close aborts; caller signals also stop sends."
+node tools/jev/label.mjs configNotTag false \
+  "$http_file#httpRequest" --by start/http-resource \
+  --why "Request values are input; sending is a tag."
+delivery_file=apps/start-scaffold/src/scaffold/\
+telemetry/delivery.ts
+node tools/jev/label.mjs configNotTag false \
+  "$delivery_file#delivery" --by start/http-resource \
+  --why "Settings and sending are tags; fields are fixed."
+```
+
+No label file was changed by this writer.

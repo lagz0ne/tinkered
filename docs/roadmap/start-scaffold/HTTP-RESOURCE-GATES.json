@@ -1,0 +1,402 @@
+{
+  "branch": "start/http-resource",
+  "base": "a5c12db9552720dbba332e076851b6b7118c7bd3",
+  "sourceCommits": ["0f52edd5", "83e81f94", "5fbbac84"],
+  "gateChain": {
+    "command": "vp run -r build && vp check && vp run -r test && vp run prose && pnpm validate",
+    "code": 0,
+    "log": "/tmp/http-resource-gate-chain.log",
+    "trimmed": true
+  },
+  "counts": {
+    "repoTestsPassed": 1214,
+    "repoTestsSkipped": 1,
+    "appTestsPassed": 45,
+    "consumerTestsPassed": 43,
+    "plainFunctions": 17,
+    "plantedFailures": 88,
+    "registryFiles": 112,
+    "checkErrors": 0,
+    "checkWarnings": 28,
+    "validateLanesPassed": 16
+  },
+  "gates": [
+    {
+      "name": "build",
+      "command": "vp run -r build",
+      "code": 0,
+      "log": "/tmp/http-resource-gate-chain.log"
+    },
+    {
+      "name": "check",
+      "command": "vp check",
+      "code": 0,
+      "log": "/tmp/http-resource-gate-chain.log"
+    },
+    {
+      "name": "all tests",
+      "command": "vp run -r test",
+      "code": 0,
+      "log": "/tmp/http-resource-gate-chain.log"
+    },
+    {
+      "name": "prose",
+      "command": "vp run prose",
+      "code": 0,
+      "log": "/tmp/http-resource-gate-chain.log"
+    },
+    {
+      "name": "validate",
+      "command": "pnpm validate",
+      "code": 0,
+      "log": "/tmp/http-resource-gate-chain.log"
+    },
+    {
+      "name": "app types",
+      "command": "vp run --no-cache @tinker-start-scaffold#typecheck",
+      "code": 0,
+      "log": "/tmp/http-resource-step2-types.log"
+    },
+    {
+      "name": "app tests",
+      "command": "vp run --no-cache @tinker-start-scaffold#test",
+      "code": 0,
+      "log": "/tmp/http-resource-step2-tests.log"
+    },
+    {
+      "name": "plain planted proof",
+      "command": "vp run --no-cache @tinker-start-scaffold#check:plain -- --prove",
+      "code": 0,
+      "log": "/tmp/http-resource-fetch-rule-green.log"
+    },
+    {
+      "name": "seam",
+      "command": "vp run --no-cache @tinker-start-scaffold#test:seam",
+      "code": 0,
+      "log": "/tmp/http-resource-seam.log"
+    },
+    {
+      "name": "seam fixture",
+      "command": "vp run --no-cache @tinker-start-scaffold#test:seam:fixture",
+      "code": 0,
+      "log": "/tmp/http-resource-seam-fixture.log"
+    },
+    {
+      "name": "browser boundary",
+      "command": "vp run --no-cache @tinker-start-scaffold#test:boundary",
+      "code": 0,
+      "log": "/tmp/http-resource-boundary.log"
+    },
+    {
+      "name": "lazy imports",
+      "command": "vp run --no-cache @tinker-start-scaffold#test:imports",
+      "code": 0,
+      "log": "/tmp/http-resource-imports.log"
+    },
+    {
+      "name": "schema",
+      "command": "vp run --no-cache @tinker-start-scaffold#test:schema",
+      "code": 0,
+      "log": "/tmp/http-resource-schema.log"
+    },
+    {
+      "name": "native middleware",
+      "command": "vp run --no-cache @tinker-start-scaffold#test:middleware",
+      "code": 0,
+      "log": "/tmp/http-resource-middleware.log"
+    },
+    {
+      "name": "registry build",
+      "command": "vp run --no-cache @tinker-start-scaffold#registry:build",
+      "code": 0,
+      "log": "/tmp/http-resource-registry-build.log"
+    },
+    {
+      "name": "registry consumer",
+      "command": "vp run --no-cache @tinker-start-scaffold#test:registry",
+      "code": 0,
+      "log": "/tmp/http-resource-registry.log"
+    },
+    {
+      "name": "strict style census",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/scaffold/backend/http.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/src/scaffold/errors.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts apps/start-scaffold/src/scaffold/telemetry/delivery.ts apps/start-scaffold/src/scaffold/telemetry/index.ts apps/start-scaffold/vite.config.ts apps/start-scaffold/tests/http.test.ts apps/start-scaffold/tests/telemetry.test.ts --strict",
+      "code": 0,
+      "log": "/tmp/http-resource-style.log"
+    },
+    {
+      "name": "TSDoc",
+      "command": "node tools/jev/docs.mjs apps/start-scaffold/src/scaffold/backend/http.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/src/scaffold/errors.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts apps/start-scaffold/src/scaffold/telemetry/delivery.ts apps/start-scaffold/src/scaffold/telemetry/index.ts apps/start-scaffold/vite.config.ts apps/start-scaffold/tests/http.test.ts apps/start-scaffold/tests/telemetry.test.ts",
+      "code": 0,
+      "log": "/tmp/http-resource-tsdoc.log"
+    },
+    {
+      "name": "Jev preflight",
+      "command": "node tools/jev/preflight.mjs a5c12db9..HEAD",
+      "code": 0,
+      "log": "/tmp/http-resource-jev-preflight.log"
+    },
+    {
+      "name": "Jev tests",
+      "command": "node tools/jev/tests.mjs ../apps/start-scaffold",
+      "code": 0,
+      "log": "/tmp/http-resource-jev-tests.log"
+    },
+    {
+      "name": "Jev promises",
+      "command": "node tools/jev/promises.mjs ../apps/start-scaffold",
+      "code": 0,
+      "log": "/tmp/http-resource-jev-promises.log"
+    },
+    {
+      "name": "mutation lane presence",
+      "command": "flock /tmp/mutation.lock node --input-type=module -",
+      "code": 0,
+      "log": "/tmp/http-resource-mutation-lane.log",
+      "stdin": "import { readFileSync } from \"node:fs\";\nconst { scripts } = JSON.parse(readFileSync(\"apps/start-scaffold/package.json\", \"utf8\"));\nif (Object.keys(scripts).some((name) => name.includes(\"mutat\"))) process.exit(1);\nconsole.log(\"No Start scaffold mutation script; this card requires no full mutation lane.\");\nconsole.log(\"EXIT 0\");\n"
+    },
+    {
+      "name": "final registry source match",
+      "command": "node --input-type=module -",
+      "code": 0,
+      "log": "/tmp/http-resource-registry-content.log",
+      "stdin": "import assert from \"node:assert/strict\";\nimport { readFileSync } from \"node:fs\";\nconst app = \"apps/start-scaffold/\";\nconst manifest = JSON.parse(readFileSync(app + \"registry.json\", \"utf8\"));\nlet count = 0;\nfor (const item of manifest.items) {\n  const built = JSON.parse(readFileSync(app + \"public/r/\" + item.name + \".json\", \"utf8\"));\n  for (const file of item.files) {\n    const emitted = built.files.find((entry) => entry.path === file.path);\n    assert.equal(emitted.content, readFileSync(app + file.path, \"utf8\"), file.path);\n    count++;\n  }\n}\nconsole.log(`${count} registry files match the final source.`);\nconsole.log(\"EXIT 0\");\n"
+    },
+    {
+      "name": "final prose",
+      "command": "vp run prose",
+      "code": 0,
+      "log": "/tmp/http-resource-final-prose.log"
+    },
+    {
+      "name": "final plain check",
+      "command": "vp run --no-cache @tinker-start-scaffold#check:plain",
+      "code": 0,
+      "log": "/tmp/http-resource-final-plain.log"
+    }
+  ],
+  "consumerGates": [
+    {
+      "name": "pack-core",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-1-pack-core.log"
+    },
+    {
+      "name": "pack-react",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-2-pack-react.log"
+    },
+    {
+      "name": "install-tarballs",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-3-install-tarballs.log"
+    },
+    {
+      "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:44353/r/{name}.json",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_44353_r__name__json.log"
+    },
+    {
+      "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-5-dlx----shadcn_4_21_0-add-_tinker-start_starter---yes---overwrite.log"
+    },
+    {
+      "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-6-dlx----shadcn_4_21_0-add-_tinker-start_runtime---dry-run---diff-src_scaffold_frontend_index_ts.log"
+    },
+    {
+      "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-7-dlx----shadcn_4_21_0-add-_tinker-start_runtime---yes---overwrite.log"
+    },
+    {
+      "name": "install-starter",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-8-install-starter.log"
+    },
+    {
+      "name": "build",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-9-build.log"
+    },
+    {
+      "name": "typecheck",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-10-typecheck.log"
+    },
+    {
+      "name": "test",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-11-test.log"
+    },
+    {
+      "name": "check:plain",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-12-check_plain.log"
+    },
+    {
+      "name": "test:seam",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-13-test_seam.log"
+    },
+    {
+      "name": "test:boundary",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-14-test_boundary.log"
+    },
+    {
+      "name": "test:schema",
+      "code": 0,
+      "log": "/tmp/start-refine-consumer-15-test_schema.log"
+    }
+  ],
+  "newTests": [
+    {
+      "title": "an HTTP request makes one named child span with its status",
+      "redChange": "remove the HTTP span name",
+      "red": {
+        "code": 1,
+        "log": "/tmp/http-resource-span-red.log"
+      },
+      "green": {
+        "code": 0,
+        "log": "/tmp/http-resource-span-green.log"
+      }
+    },
+    {
+      "title": "closing the HTTP resource aborts a request still in flight",
+      "redChange": "remove deferred abort",
+      "red": {
+        "code": 1,
+        "log": "/tmp/http-resource-scope-abort-red.log"
+      },
+      "green": {
+        "code": 0,
+        "log": "/tmp/http-resource-scope-abort-green.log"
+      }
+    },
+    {
+      "title": "a bound HTTP backend gets the request and returns text without network",
+      "redChange": "remove forwarded method, headers, and body",
+      "red": {
+        "code": 1,
+        "log": "/tmp/http-resource-fake-backend-red.log"
+      },
+      "green": {
+        "code": 0,
+        "log": "/tmp/http-resource-fake-backend-green.log"
+      }
+    },
+    {
+      "title": "a network failure returns the managed HTTP error",
+      "redChange": "remove managed error conversion",
+      "red": {
+        "code": 1,
+        "log": "/tmp/http-resource-network-error-red.log"
+      },
+      "green": {
+        "code": 0,
+        "log": "/tmp/http-resource-network-error-green.log"
+      }
+    },
+    {
+      "title": "closing the caller aborts HTTP body reading",
+      "redChange": "remove abort reason preservation",
+      "red": {
+        "code": 1,
+        "log": "/tmp/http-resource-caller-abort-red.log"
+      },
+      "green": {
+        "code": 0,
+        "log": "/tmp/http-resource-caller-abort-green.log"
+      }
+    },
+    {
+      "title": "telemetry uses the HTTP backend without tracing its own requests",
+      "redChange": "add an HTTP span to telemetry sending",
+      "red": {
+        "code": 1,
+        "log": "/tmp/http-resource-telemetry-red.log"
+      },
+      "green": {
+        "code": 0,
+        "log": "/tmp/http-resource-telemetry-green.log"
+      }
+    }
+  ],
+  "fetchProof": {
+    "withoutRule": {
+      "code": 1,
+      "log": "/tmp/http-resource-fetch-rule-red.log",
+      "reason": "the old check accepts operation-fetch; --prove detects the missing ban"
+    },
+    "withRule": {
+      "code": 0,
+      "log": "/tmp/http-resource-fetch-rule-green.log"
+    },
+    "plantedCases": [
+      {
+        "name": "operation-fetch",
+        "code": 1,
+        "log": "/tmp/start-plain-proof-operation-fetch.log"
+      },
+      {
+        "name": "resource-fetch",
+        "code": 1,
+        "log": "/tmp/start-plain-proof-resource-fetch.log"
+      },
+      {
+        "name": "callback-fetch",
+        "code": 1,
+        "log": "/tmp/start-plain-proof-callback-fetch.log"
+      },
+      {
+        "name": "parenthesized-fetch",
+        "code": 1,
+        "log": "/tmp/start-plain-proof-parenthesized-fetch.log"
+      },
+      {
+        "name": "global-fetch-reference",
+        "code": 1,
+        "log": "/tmp/start-plain-proof-global-fetch-reference.log"
+      },
+      {
+        "name": "global-fetch-call",
+        "code": 1,
+        "log": "/tmp/start-plain-proof-global-fetch-call.log"
+      },
+      {
+        "name": "global-fetch-element",
+        "code": 1,
+        "log": "/tmp/start-plain-proof-global-fetch-element.log"
+      }
+    ]
+  },
+  "jevLabels": {
+    "written": false,
+    "reason": "the target brief bars changes to tools",
+    "answers": [
+      {
+        "judge": "leakedInternal",
+        "target": "apps/start-scaffold/src/scaffold/backend/http.ts",
+        "answer": false
+      },
+      {
+        "judge": "stopOnlyInDefer",
+        "target": "apps/start-scaffold/src/scaffold/backend/http.ts#http",
+        "answer": false
+      },
+      {
+        "judge": "configNotTag",
+        "target": "apps/start-scaffold/src/scaffold/backend/http.ts#httpRequest",
+        "answer": false
+      },
+      {
+        "judge": "configNotTag",
+        "target": "apps/start-scaffold/src/scaffold/telemetry/delivery.ts#delivery",
+        "answer": false
+      }
+    ]
+  }
+}
