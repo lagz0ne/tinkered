@@ -66,6 +66,13 @@ The outgoing side mirrors this: an operation that calls another service
 maps that service's HTTP reply to domain values or managed errors,
 so its callers never see a status code.
 
+The Start scaffold's `check:plain` enforces the protocol boundary:
+
+- Any app use of the global `Response` fails outside `src/routes/`
+  and `src/scaffold/`, including type references.
+- Operations with `Request` input or `Response` output fail.
+  Only the named `handleAuth` mount below is excepted.
+
 ## Consequences
 
 - `reply`, `reject`, and `rejectPayment` go: three fewer plain functions.

@@ -3028,3 +3028,22 @@ Proof save repeats build, check, and prose; all three exit 0.
 Logs: 12-proof-build.log, 12-proof-check.log, and 12-proof-prose.log.
 The check still has the same 28 warnings.
 The gate record includes these final proof checks too.
+
+## HTTP docs: lead review fixes
+
+Card: docs/http-0102-0103.
+Owner: Codex writer.
+Review base: 41b9cf96.
+State: Doing.
+Next: four small fixes, one commit each, then the requested gates.
+Verify: prose, Jev tests, snippet types, and app tests by exit code.
+The lead allows one app-code line: the HTTP span test title.
+All other app code and both trial folders stay unchanged.
+The lead owns the board and landing; no questions are needed.
+
+Fix 1: the ban list now includes both protocol checks.
+Any app use of global Response stays in routes or scaffold files.
+Operations cannot take Request input or return Response.
+Only the exact named auth mount is excepted.
+Both decisions and the README now describe these checks.
+The guard was read before the edits; its code stays unchanged.
