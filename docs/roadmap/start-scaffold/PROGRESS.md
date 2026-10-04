@@ -2240,3 +2240,35 @@ The added cleanup test fixes a flaw found in this writer's first close cache.
 The first full green pass stays as history; the 09 and 10 logs check final code.
 The card waits in Review for the lead.
 The next commit saves the rebuilt registry and final proof.
+
+### HTTP fix round: stop tags through Core call sessions
+
+Owner: start/http-graceful writer.
+Next: rebase onto origin/main, install, build, then prove the review bugs.
+Verify: red then green per changed HTTP rule; all source and copied gates.
+
+The lead marked the first repair NOT READY.
+This section replaces its claims about direct graceful close.
+Core makes child sessions for calls with signal or tags (ADR 0090).
+The old method overrides cannot reach those sessions.
+Use optional backendStop and requestStop tags instead.
+They reach explicit sessions and Core's call sessions.
+Remove the overrides, child sets, and startup binding loop.
+
+A backendStop abort ends outgoing HTTP when server shutdown starts.
+A requestStop abort ends that request's outgoing HTTP.
+A direct graceful close with no stop signal cannot stop a pending HTTP wait.
+Core has no session close-start hook for that case.
+The lead owns the Core follow-up row.
+Other work keeps Core's graceful rule; forced close keeps its cancellation rule.
+
+Assume the lead's stop-tag direction replaces the original brief's close hook.
+Keep stop tags optional for tests and roots outside Start.
+Tests reuse the review probe's abort-only backend and bounded settlement shape.
+The late-send proof must use httpRequest and narrow HttpRequestFailed.
+
+The lead also moved origin/main to repo/vite-plus-1 (3af9aae6).
+Save these notes before fetch and rebase.
+Keep both sides of any progress-log conflict.
+Run vp install, restore CLAUDE.md if changed, then rebuild.
+Keep the new Vite config settings and await every async assertion.
