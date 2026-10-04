@@ -1,0 +1,42 @@
+[
+  {
+    "title": "supplier operations take booking params and return domain values",
+    "label": false,
+    "why": "This is a required protocol boundary or old wire guarantee. It is stated in services/PLAIN.md under Protocol checks. The brief bars editing the package README, which this judge alone reads."
+  },
+  {
+    "title": "Hono validates forms before a payment operation sees params",
+    "label": false,
+    "why": "This is a required protocol boundary or old wire guarantee. It is stated in services/PLAIN.md under Protocol checks. The brief bars editing the package README, which this judge alone reads."
+  },
+  {
+    "title": "a thrown payment handler lets the same key retry",
+    "label": false,
+    "why": "This is a required protocol boundary or old wire guarantee. It is stated in services/PLAIN.md under Protocol checks. The brief bars editing the package README, which this judge alone reads."
+  },
+  {
+    "title": "an empty offer ID keeps the offer_not_found reply",
+    "label": false,
+    "why": "This is a required protocol boundary or old wire guarantee. It is stated in services/PLAIN.md under Protocol checks. The brief bars editing the package README, which this judge alone reads."
+  },
+  {
+    "title": "call logs keep percent encoded paths",
+    "label": false,
+    "why": "This is a required protocol boundary or old wire guarantee. It is stated in services/PLAIN.md under Protocol checks. The brief bars editing the package README, which this judge alone reads."
+  },
+  {
+    "title": "route rules keep percent encoded keys",
+    "label": false,
+    "why": "This is a required protocol boundary or old wire guarantee. It is stated in services/PLAIN.md under Protocol checks. The brief bars editing the package README, which this judge alone reads."
+  },
+  {
+    "title": "a thrown handler leaves the call log status at zero",
+    "label": false,
+    "why": "This is a required protocol boundary or old wire guarantee. It is stated in services/PLAIN.md under Protocol checks. The brief bars editing the package README, which this judge alone reads."
+  },
+  {
+    "title": "a thrown handler cannot seed a route replay",
+    "label": false,
+    "why": "This is a required protocol boundary or old wire guarantee. It is stated in services/PLAIN.md under Protocol checks. The brief bars editing the package README, which this judge alone reads."
+  }
+]

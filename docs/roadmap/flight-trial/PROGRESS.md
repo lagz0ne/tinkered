@@ -3183,3 +3183,56 @@ Logs under `tools/flight-trial/scripts/logs/`:
 `step2-build.log`, `step2-check.log`, `step2-test.log`,
 and `step2-protocol.log`.
 Next: full old-versus-new wire proof, workspace gates, and locked mutation.
+
+### Jev and allowed paths
+
+Jev preflight, tests, and promises each exited 0.
+Logs: `final-jev-preflight.log`, `final-jev-tests.log`,
+and `final-jev-promises.log`, under `tools/flight-trial/scripts/logs/`.
+The test judge flagged zero of 98 titles.
+Eight source labels are false, with a reason for each.
+Their exact sliced code and reasons are in `PROTOCOL-JEV.jsonl`.
+The flagged clock, socket, and pending-key state is private resource bookkeeping.
+Running webhook work watches both stop and operation signals.
+The listener drains owned replies before closing sockets.
+The middleware factory itself is synchronous.
+The noisy `noOpRejected` note on repeated payments owes no label.
+
+The allowed paths rule bars edits to `tools/jev/cases.jsonl`.
+A copy of the label CLI changes only its bank path and import paths.
+It saves these labels in this track instead of the shared bank.
+Log: `tools/flight-trial/scripts/logs/final-jev-labels.log`, exit 0.
+The lead can import them and run shared calibration at landing.
+No Jev rule changed.
+
+The promises judge reports eight README-only gaps.
+These are the two new boundary promises and six old routing guarantees.
+They are stated in the allowed `services/PLAIN.md`, under Protocol checks.
+The brief bars changing the package README.
+`PROTOCOL-JEV-PROMISES.json` records one reason per title.
+The fixed base for review is `880f1c4f`; shared main moved during this task.
+No shared main files were edited.
+Core feedback: no new request or workaround.
+
+### Full wire and workspace proof
+
+Old-versus-new wire diff: exit 0, zero differences.
+It compared 2,130 calls and all 30 error codes.
+Log: `tools/flight-trial/scripts/logs/wire-diff.log`.
+The same-code proofs also exited 0 with zero differences.
+No source changed after the new-code wire run started.
+
+The workspace gate chain exited 0.
+Build, check, every package's own test task, four-process proof,
+source check, strict style, prose, and validation all passed.
+The check has zero errors and the same 28 warnings as the base.
+Validation passed all 16 lanes.
+The four-process proof saw four distinct PIDs and clean group shutdown.
+Logs under `tools/flight-trial/scripts/logs/`:
+`final-build.log`, `final-check.log`, `final-tests.log`,
+`final-process.log`, `final-protocol.log`, `final-style.log`,
+`final-prose.log`, and `final-validate.log`.
+The follow-up doc prose gate passed: `proof-prose.log`, exit 0.
+The workspace already sets the required esbuild build permission.
+No temporary workspace config edit was needed.
+Next: full mutation under the lock, floor 85, no exclusions.

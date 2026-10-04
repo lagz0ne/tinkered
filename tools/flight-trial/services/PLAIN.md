@@ -100,3 +100,14 @@ No operation takes a whole request or chooses work by route name.
 - No parameters.
 - Returns fresh plain empty payment state.
 - Call sites: `state.initial` and `resetScenario.run`.
+
+## Protocol checks
+
+Hono validates form fields before payment operations see their params.
+Supplier operations take booking params and return plain domain values.
+Call logs and route rules keep raw percent-encoded paths.
+An empty supplier offer ID returns `offer_not_found`.
+A thrown handler keeps its call-log status at zero.
+A thrown handler cannot seed a route replay.
+A thrown payment handler frees its key so the same key can retry.
+The wire check compares all routes and each error code with the old code.
