@@ -78,13 +78,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: close aborts a webhook in flight; span under the webhook op; wire diff 0; mutation 85.
   [Brief](docs/roadmap/flight-trial/SERVICES-HTTP-BRIEF.md).
 
-- **start/http-polish** — close the three low gaps left by `start/http-resource`.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-http-polish`.
-  Next: ban http2, ws, ofetch; allow `import type`; keep abort cause codes.
-  Verify: a planted case or test each, red then green; app tests; registry.
-  [Brief](docs/roadmap/start-scaffold/HTTP-POLISH-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -106,6 +99,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/http-polish** — close the low gaps left by `start/http-resource`.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
+  Bans `http2`, `ws`, `ofetch`, raw `net`/`tls`/`dgram`, `XMLHttpRequest`, and `sendBeacon` outside the scaffold;
+  `import type` passes; error causes keep name and code, abort included. WebSocket and EventSource stay allowed (ADR 0048).
+  Proof: 21 changes red then green; 134 planted cases; 51 app tests; copied starter; all gates.
 
 - **trial/s24-on** — Jev rule S24 bans bare fetch again in every suite, naming `httpRequest`.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
