@@ -35,12 +35,15 @@ test("a supplier offer returns fare facts and owns an HTTP child span", async ()
   const scope = createScope({
     signal: stop.signal,
     observe: { history: 20 },
-    tags: [settings, httpBackend(async () => Response.json({ data: fare }))],
+    tags: [httpBackend(async () => Response.json({ data: fare }))],
   });
   await scope.ready;
   try {
     expect(
-      await scope.run(readSupplierOffer, { input: { supplier: "supplier-a", offerId: "offer-1" } }),
+      await scope.run(readSupplierOffer, {
+        tags: settings,
+        input: { supplier: "supplier-a", offerId: "offer-1" },
+      }),
     ).toEqual(fare);
     const spans = scope.spans();
     const caller = spans.find((span) => span.name === "read supplier offer");

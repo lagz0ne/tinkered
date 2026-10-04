@@ -7,6 +7,7 @@ import { supplierOrder } from "../contracts/bookings.ts";
 import { raise } from "../errors.ts";
 const supplierUrls = resource({
   label: "flight supplier URLs",
+  target: "session",
   depends: { settings: flightSettings },
   factory: ({ settings }): Record<string, string> => ({
     "supplier-a": settings.SUPPLIER_A_URL,

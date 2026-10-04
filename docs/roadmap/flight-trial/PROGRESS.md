@@ -3872,3 +3872,21 @@ Round 1's first full gate is green; the later checks still run.
 The round proof stays running in the saved proof file until every row is seen.
 Core feedback: none; the Vitest token issue was trial image setup.
 Next: finish both passes and the named break for all five rounds.
+
+### Reference step 6: supplier request settings
+
+The first final-image run passed rounds 1 and 2 twice, with named breaks.
+Round 3 then failed price-change and seat-race checks.
+Own, scaffold, plain, and Jev stayed green; teacher exited 1.
+Red log: `rounds-green/round-3/pass-1/teacher.log`.
+
+The supplier URL resource had the default root owner.
+Its flightSettings binding lives on the request, so it raised MissingTag.
+Changed the existing supplier test to bind settings on the call.
+That test fails before the fix, exit 1; log: `red-call-settings.log`.
+The resource now has `target: "session"`.
+The same three tests pass, exit 0; log: `green-call-settings.log`.
+Build and check exit 0; logs: `call-settings-build.log` and `call-settings-check.log`.
+This was an owner choice in the reference, not a missing Core feature.
+The final proof file stays running; old round rows do not prove the fixed source.
+Next: prove round 3 and probe payment, then rerun all final rounds.
