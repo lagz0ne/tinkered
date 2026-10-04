@@ -52,3 +52,20 @@ Run the strict check from the worktree root:
 ref=tools/flight-trial/reference
 npm --prefix "$ref" run check:plain
 ```
+
+## HTTP and search
+
+The scaffold is a byte copy of Start at `6e254446`.
+Supplier and payment operations call `httpRequest.controller`.
+A supplier offer returns fare facts and owns an HTTP child span.
+A sold out supplier hold raises OfferSoldOut for the booking.
+Creating a payment returns intent facts without a wire reply.
+Booking operations see domain values and managed errors, never HTTP codes.
+The webhook returns an accepted fact; its route picks 200 or 400.
+Browser booking writes use Start server functions.
+The search route sends SSE; the browser reads it with EventSource.
+Each new search closes the old source and owns its own reply version.
+The route owns SSE headers and the HTTP reply.
+The request resource owns framing and cancels pending supplier calls.
+
+The full gate also runs the reference's three HTTP behavior checks.

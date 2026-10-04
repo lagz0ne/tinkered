@@ -43,9 +43,17 @@ Tests and generated files do not count.
     - `src/backend/booking-mail.ts#deliverBookingMail.run`
     - `src/backend/booking-mail.ts#sendBookingMail.run.callback1`
     - `src/backend/bookings.ts#holdFlight.run`
+    - `src/backend/bookings.ts#holdFlight.run.callback1`
+    - `src/backend/bookings.ts#refreshBookings.run`
     - `src/backend/counter.ts#incrementCounter.run.callback1`
-    - `src/backend/payments.ts#fulfillBooking.run`
-    - `src/backend/payments.ts#payBooking.run`
+    - `src/backend/flight-http.ts#holdSupplierOffer.run`
+    - `src/backend/flight-http.ts#paySupplierOrder.run`
+    - `src/backend/flight-http.ts#readSupplierOffer.run`
+    - `src/backend/flight-http.ts#readSupplierOrder.run`
+    - `src/backend/flight-search.ts#searchSupplier.run`
+    - `src/backend/payment-http.ts#confirmPaymentIntent.run`
+    - `src/backend/payment-http.ts#createPaymentIntent.run`
+    - `src/backend/payment-http.ts#refundPayment.run`
     - `src/backend/payments.ts#pending.callback`
     - `src/backend/payments.ts#refundBooking.run`
     - `src/backend/profile.ts#notifyProfile.run`
@@ -60,18 +68,21 @@ Tests and generated files do not count.
     - `src/frontend/actions.ts#signIn.input`
     - `src/frontend/actions.ts#signIn.run`
     - `src/frontend/actions.ts#signOut.run`
-    - `src/frontend/bookings.ts#hold`
     - `src/transport/result.server.ts#readReceipt`
 
 - **src/errors.ts#isError**
   - `error`: `unknown`. From a caught failure; why: narrow its payload.
   - `kind`: `N`. From the caller; why: select the expected error.
   - Callers:
+    - `src/backend/bookings.ts#holdFlight.run.callback1`
+    - `src/backend/bookings.ts#refreshBookings.run`
+    - `src/backend/flight-search.ts#searchFlights.run`
     - `src/frontend/App.tsx#errorText`
     - `src/frontend/Todos.tsx#showFailure.input`
     - `src/routes/api.flights.email.ts#Route.POST`
     - `src/routes/api.flights.pay.ts#Route.POST`
     - `src/routes/api.sync.ts#Route.GET`
+    - `src/routes/api.telemetry.ts#Route.POST`
     - `src/transport/result.server.ts#readReceipt`
 
 - **src/frontend/App.tsx#errorText**
@@ -133,6 +144,7 @@ Tests and generated files do not count.
     - `src/scaffold/backend/events.ts#append`
     - `src/scaffold/backend/events.ts#find`
     - `src/scaffold/backend/events.ts#lock`
+    - `src/scaffold/backend/http.ts#httpRequest.run.callback1`
     - `src/scaffold/backend/notifications.ts#subscribe`
     - `src/scaffold/backend/result.server.ts#readResult`
     - `src/scaffold/backend/settings.server.ts#readSettings`
@@ -140,6 +152,8 @@ Tests and generated files do not count.
     - `src/scaffold/frontend/sync.ts#client.execute`
     - `src/scaffold/frontend/sync.ts#client.wait`
     - `src/scaffold/start.ts#middleware.callback`
+    - `src/scaffold/telemetry/ingest.server.ts#receiveTelemetry.run`
+    - `src/server.ts#renderRequest.callback`
 
 - **src/scaffold/sync.ts#readExecution**
   - `raw`: `unknown`. From a mutation request; why: validate its execution ID.
@@ -163,6 +177,9 @@ Tests and generated files do not count.
 - **src/transport/result.server.ts#readReceipt**
   - `result`: `RunResult<{ executionId: string }>`. From a settled mutation; why: turn its result into a network receipt.
   - Callers:
+    - `src/transport/bookings.functions.ts#holdFlightSeat.callback`
+    - `src/transport/bookings.functions.ts#payFlightBooking.callback`
+    - `src/transport/bookings.functions.ts#retryFlightMail.callback`
     - `src/transport/counter.functions.ts#updateCounter.callback`
     - `src/transport/profile.functions.ts#retryProfileNotification.callback`
     - `src/transport/profile.functions.ts#updateProfile.callback`

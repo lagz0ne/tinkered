@@ -123,6 +123,7 @@ for (const round of rounds) {
       .join("\n") + "\n",
   );
   cpSync(join(repo, "tools/writer-trial/flight-services.md"), join(project, "SERVICES.md"));
+  cpSync(join(reference, "tests"), join(project, "tests"), { recursive: true });
   const syncTest = join(project, "tests/sync-client.test.ts");
   writeFileSync(
     syncTest,

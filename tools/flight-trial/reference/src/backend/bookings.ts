@@ -1,17 +1,13 @@
 import { operation, type Operation } from "@tinker/core";
 import { eq, asc } from "drizzle-orm";
-import { z } from "zod";
 import { database } from "./database.ts";
 import { currentUser } from "./auth.ts";
 import { booking, flightQuote } from "./bookings.schema.ts";
 import { eventHistory } from "../scaffold/backend/events.ts";
 import { execution } from "../scaffold/backend/sync.schema.ts";
-import { holdCommand, supplierOrder, type Bookings } from "../contracts/bookings.ts";
-import { offer } from "../contracts/flights.ts";
-import { callSupplier } from "./flight-http.ts";
-import { raise } from "../errors.ts";
-const orderReply = z.object({ data: supplierOrder });
-const offerReply = z.object({ data: offer });
+import { holdCommand, type Bookings } from "../contracts/bookings.ts";
+import { readSupplierOffer, readSupplierOrder, holdSupplierOffer } from "./flight-http.ts";
+import { raise, isError } from "../errors.ts";
 export const listBookings = operation({
   label: "list flight bookings",
   depends: { database, currentUser },
@@ -30,9 +26,10 @@ export const holdFlight = operation({
     database,
     currentUser,
     history: eventHistory,
-    supplier: callSupplier.controller,
+    offer: readSupplierOffer.controller,
+    hold: holdSupplierOffer.controller,
   },
-  async run({ database, currentUser, history, supplier }, ctx) {
+  async run({ database, currentUser, history, offer, hold }, ctx) {
     const selected = (
       await database.select().from(flightQuote).where(eq(flightQuote.id, ctx.input.offerId))
     ).at(0)?.offer;
@@ -41,27 +38,24 @@ export const holdFlight = operation({
       await history.lock(tx, currentUser.id);
       if (await history.find(tx, ctx.input.executionId, currentUser.id)) return;
       await history.lock(tx, "public");
-      const response = await supplier.run({
-        input: { supplier: selected.supplier, path: `/air/offers/${selected.id}` },
+      const current = await offer.run({
+        input: { supplier: selected.supplier, offerId: selected.id },
       });
-      const current = offerReply.parse(response.body).data;
       let seats = current.available_seats;
       let message: string | undefined;
       if (current.total_amount !== selected.total_amount) message = "Price changed";
       else if (current.available_seats === 0) message = "Sold out";
       else {
-        const ordered = await supplier.run({
-          input: {
-            supplier: selected.supplier,
-            path: "/air/orders",
-            body: { data: { selected_offers: [selected.id], type: "hold" } },
-          },
+        const ordered = await hold.settle({
+          input: { supplier: selected.supplier, offerId: selected.id },
         });
-        if (!ordered.ok) {
+        if (ordered.status === "cancelled") raise("Cancelled", {});
+        if (ordered.status === "failed") {
+          if (!isError(ordered.error, "OfferSoldOut")) throw ordered.error;
           message = "Sold out";
           seats = 0;
         } else {
-          const saved = orderReply.parse(ordered.body).data;
+          const saved = ordered.value;
           seats = Math.max(0, current.available_seats - 1);
           await tx.insert(booking).values({
             id: ctx.input.executionId,
@@ -140,17 +134,21 @@ export const refreshBookings = operation({
   label: "refresh flight holds",
   depends: {
     list: listBookings,
-    supplier: callSupplier.controller,
+    supplier: readSupplierOrder.controller,
     save: saveBookingState.controller,
   },
   async run({ list, supplier, save }) {
     for (const row of await list.run()) {
       if (row.state !== "Held" && row.state !== "Payment failed") continue;
-      const response = await supplier.run({
-        input: { supplier: row.offer.supplier, path: `/air/orders/${row.orderId}` },
+      const reply = await supplier.settle({
+        input: { supplier: row.offer.supplier, orderId: row.orderId },
       });
-      if (!response.ok) continue;
-      const order = orderReply.parse(response.body).data;
+      if (reply.status === "cancelled") raise("Cancelled", {});
+      if (reply.status === "failed") {
+        if (!isError(reply.error, "ServiceRejected")) throw reply.error;
+        continue;
+      }
+      const order = reply.value;
       if (!order.payment_status.awaiting_payment && order.payment_status.paid_at === null)
         await save.run({ input: { row, state: "Expired" } });
     }

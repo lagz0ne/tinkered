@@ -11,11 +11,16 @@ export const Route = createFileRoute("/api/flights/search")({
       GET: async ({ request, context }) => {
         const query = searchInput.safeParse(Object.fromEntries(new URL(request.url).searchParams));
         if (!query.success) return new Response("Bad search", { status: 400 });
-        return readResult(
-          context.session.settle(openFlightSearch, {
-            input: { query: query.data, settings: flightSettingsSchema.parse(process.env) },
-          }),
-        );
+        const result = await context.session.settle(openFlightSearch, {
+          input: { query: query.data, settings: flightSettingsSchema.parse(process.env) },
+        });
+        return new Response(readResult(result), {
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+          },
+        });
       },
     },
   },

@@ -22,7 +22,10 @@ export const Route = createFileRoute("/webhooks/stripe")({
             signal: context.signal,
           }),
         );
-        return Response.json({ accepted: result.accepted }, { status: result.status });
+        return Response.json(
+          { accepted: result.accepted },
+          { status: result.accepted ? 200 : 400 },
+        );
       },
     },
   },

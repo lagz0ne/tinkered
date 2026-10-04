@@ -3,7 +3,7 @@ import { flightSettings, flightSettingsSchema } from "./flight-settings.server.t
 import { searchFlights } from "./flight-search.ts";
 import { backendStop, requestStop } from "../scaffold/backend/lifetime.ts";
 import type { Flights } from "../contracts/flights.ts";
-/** Each HTTP request retains its search body and stop handle until the body ends or cancels. */
+/** The request owns SSE framing until search ends or its reader cancels. */
 const flightSearchStream = resource({
   label: "flight search body",
   target: "session",
@@ -11,36 +11,58 @@ const flightSearchStream = resource({
   factory({ search, backendStop, requestStop }, ctx) {
     const stop = new AbortController();
     const signal = AbortSignal.any([stop.signal, requestStop, backendStop, ctx.signal]);
-    ctx.defer(() => stop.abort());
+    let output: ReadableStreamDefaultController<Uint8Array> | undefined;
+    let ended = false;
+    const close = () => {
+      if (ended) return;
+      ended = true;
+      stop.abort();
+      output?.close();
+    };
+    signal.addEventListener("abort", close, { once: true });
+    ctx.defer(() => {
+      close();
+      signal.removeEventListener("abort", close);
+    });
     return {
       open(input: {
         query: Flights.Query;
         settings: ReturnType<typeof flightSettingsSchema.parse>;
       }) {
-        const stream = new ReadableStream<Uint8Array>({
+        const encoder = new TextEncoder();
+        return new ReadableStream<Uint8Array>({
           async start(controller) {
+            output = controller;
+            if (ended) {
+              controller.close();
+              return;
+            }
             const result = await search.settle({
               input: {
                 query: input.query,
                 send: (event) => {
-                  if (!signal.aborted)
-                    controller.enqueue(new TextEncoder().encode(`${JSON.stringify(event)}\n`));
+                  if (!ended)
+                    controller.enqueue(
+                      encoder.encode(`event: flight\ndata: ${JSON.stringify(event)}\n\n`),
+                    );
                 },
               },
               tags: flightSettings(input.settings),
               signal,
             });
-            if (!signal.aborted) {
-              if (result.status === "failed") controller.error(result.error);
-              else controller.close();
+            if (ended) return;
+            if (result.status === "failed") {
+              ended = true;
+              controller.error(result.error);
+            } else {
+              controller.enqueue(encoder.encode("event: complete\ndata: {}\n\n"));
+              close();
             }
           },
           cancel() {
+            ended = true;
             stop.abort();
           },
-        });
-        return new Response(stream, {
-          headers: { "content-type": "application/x-ndjson", "cache-control": "no-store" },
         });
       },
     };

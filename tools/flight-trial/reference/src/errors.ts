@@ -6,7 +6,8 @@ export declare namespace Errors {
     SignInRequired: Record<string, never>;
     BadInput: { reason: string };
     BookingDenied: { id: string };
-    ServiceRejected: { service: string; status: number };
+    ServiceRejected: { service: string };
+    OfferSoldOut: { offerId: string };
     Rollback: Record<string, never>;
     AuthFailed: { message: string };
   };

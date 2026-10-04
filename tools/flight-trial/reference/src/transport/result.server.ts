@@ -12,6 +12,8 @@ export function readReceipt(result: RunResult<{ executionId: string }>) {
     return { kind: "rejected" as const, message: error.payload.reason };
   if (isError(error, "SignInRequired"))
     return { kind: "rejected" as const, message: "Sign in to change private records." };
+  if (isError(error, "BookingDenied"))
+    return { kind: "rejected" as const, message: "Booking belongs to another traveler" };
   if (isError(error, "TodoMissing"))
     return { kind: "rejected" as const, message: "That todo is not in your list." };
   if (isError(error, "RetryNotAvailable"))

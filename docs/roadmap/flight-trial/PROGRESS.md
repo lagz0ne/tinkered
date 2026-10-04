@@ -3755,3 +3755,30 @@ Build and workspace check: exit 0.
 Logs: `starter-build.log` and `starter-check.log`.
 Scaffold diff: exit 0, empty; log: `starter-diff.log`.
 The feature calls still need the port before the full gate can pass.
+
+### Reference step 2: HTTP and search port
+
+Supplier and payment calls now use `httpRequest.controller`.
+Each call maps its reply to a domain value or managed error.
+Assumption: a 409 hold means OfferSoldOut; a 409 supplier payment needs refund.
+Other rejected service calls raise ServiceRejected with the service name.
+No status code leaves these call operations.
+The webhook returns accepted; the route owns its 200 or 400 reply.
+
+Browser writes now use server functions with `.validator`.
+Search copies the sync stream's SSE framing and EventSource queue shape.
+Each search has a version so an old reply cannot end the new search.
+The app's old routes and packet reply shapes stay available.
+Regenerated PLAIN: 17 functions, cap 17.
+
+Plain, S24, app build, types, and three behavior tests: exit 0.
+Logs: `green-plain.log`, `green-s24.log`, `port-app-build.log`,
+`port-types.log`, and `port-tests.log`.
+The supplier-value test fails with the old wire-shaped return: exit 1.
+Log: `red-domain-reply.log`; source restored before the green runs.
+The first style run included generated router comments and exited 1.
+Strict style on authored source and tests: exit 0.
+Log: `green-style.log`; the generated file stays router-owned.
+Build and workspace check: exit 0.
+Logs: `port-build.log` and `port-check.log`.
+Next: save the port, build images, then prove every round.
