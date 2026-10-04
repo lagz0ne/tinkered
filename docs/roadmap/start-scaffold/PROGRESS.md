@@ -1845,3 +1845,34 @@ Only the two allowed folders changed.
 No stash, push, trial-store access, or container command was used.
 All long jobs were awaited in this turn.
 The card waits for lead review and landing.
+
+## HTTP polish: writer start
+
+Card: start/http-polish.
+Owner: Sol writer; lead owns review and landing.
+Next: prove and fix each import gap, then safe cause fields.
+Verify: red then green logs; plain proof; seam; registry; app tests.
+Also verify build, check, prose, all repo tests, and validate.
+
+Assumptions:
+
+- The supplied worktree is installed; no pull or install is needed.
+- The target brief allows the fixed scaffold edits it names.
+  This overrides the copied app skill's feature-only edit rule.
+- Keep TODO.md as supplied; it is outside the allowed folders.
+- A type-only import has no default or value binding.
+  An empty import or a mixed import still sends code.
+- Read name and code on their own, nested cause first.
+  Keep the outer field when the nested field cannot be read.
+- Rebuild before checks; keep logs outside the source tree.
+- Do not land, push, run mutation lanes, or touch trial storage.
+
+Logs: /tmp/tinkered-http-polish-logs/.
+
+### Step 1: four missing client bans
+
+The node:http2, http2, ws, and ofetch cases each fail the old proof.
+Each red proof exits 1 because the old checker allowed the import.
+The updated client list rejects all four by http-client.
+Red logs: 01-client-<name>-red.log in the log folder above.
+Green log: 01-clients-green.log.
