@@ -535,6 +535,36 @@
         "code": 0,
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-01c-green.log"
       }
+    },
+    {
+      "change": "request-headers-testing",
+      "red": {
+        "name": "review-02-request-headers-testing-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=request-headers-testing",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-02-request-headers-testing-red.log"
+      },
+      "green": {
+        "name": "review-02-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=request-headers-testing,request-headers-direct,request-headers-scaffold",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-02-green.log"
+      }
+    },
+    {
+      "change": "request-headers-direct",
+      "red": {
+        "name": "review-02-request-headers-direct-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=request-headers-direct",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-02-request-headers-direct-red.log"
+      },
+      "green": {
+        "name": "review-02-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=request-headers-testing,request-headers-direct,request-headers-scaffold",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-02-green.log"
+      }
     }
   ],
   "wire": {

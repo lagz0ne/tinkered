@@ -2665,3 +2665,14 @@ Each red log is named review-01-<case>-red.log.
 The new guard rejects all nine, child exit 1; proof exit 0.
 Green: .protocol-reply-logs/review-01c-green.log.
 Lint required smaller type readers; no rule was disabled.
+
+Review fix 2: app source cannot use the raw header tag.
+The rule follows symbols through public and direct imports.
+Only src/scaffold/ and src/backend/auth.ts are allowed.
+Proof copies package exports and test wiring to resolve public imports.
+Both new banned cases fail the old proof, exit 1.
+Red: review-02-request-headers-testing-red.log.
+Red: review-02-request-headers-direct-red.log.
+The new proof rejects both and allows scaffold use, exit 0.
+Green: .protocol-reply-logs/review-02-green.log.
+Test wiring still binds the real header tag.
