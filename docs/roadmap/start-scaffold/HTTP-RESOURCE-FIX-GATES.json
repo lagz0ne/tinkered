@@ -1706,5 +1706,84 @@
         "answer": false
       }
     ]
+  },
+  "round2": {
+    "base": "450f217c",
+    "originMain": "880f1c4f",
+    "branch": "start/http-resource",
+    "runs": [
+      {
+        "name": "initial-build",
+        "command": ["vp", "run", "-r", "build"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-initial-build.log"
+      },
+      {
+        "name": "fix1-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=http-backend-dependency"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix1-red.log"
+      },
+      {
+        "name": "fix1-build",
+        "command": ["vp", "run", "-r", "build"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix1-build.log"
+      },
+      {
+        "name": "fix1-green",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=http-backend-dependency"
+        ],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix1-green.log"
+      },
+      {
+        "name": "fix1-types",
+        "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#typecheck"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix1-types.log"
+      },
+      {
+        "name": "fix1-tests",
+        "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#test"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix1-tests.log"
+      },
+      {
+        "name": "fix1-check",
+        "command": ["vp", "check"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix1-check.log"
+      },
+      {
+        "name": "fix1-prose",
+        "command": ["vp", "run", "prose"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix1-prose.log"
+      }
+    ]
   }
 }

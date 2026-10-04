@@ -1682,3 +1682,37 @@ Only the two allowed folders changed.
 No stash, push, trial-store access, or container command was used.
 Every long job was awaited in this turn.
 The path-token warning above remains part of the shipped rule.
+
+## HTTP resource second lead fix round
+
+Reviewed head: 450f217c, rebased onto docs-only origin/main 880f1c4f.
+Owner: Sol writer; the lead owns review and landing.
+Next: fix each of three items, then rebuild and run all gates.
+Verify: round2 in HTTP-RESOURCE-FIX-GATES.json records commands, exits, and logs.
+
+### Assumptions and limits
+
+- The lead's three requests refine the brief and earlier fixes.
+- Only httpRequest is the app's HTTP entry.
+  Tests bind httpBackend through a fixed scaffold seam.
+- The literal import ban covers the named HTTP clients and raw sockets.
+  It applies outside src/scaffold only, across src.
+- Error facts keep method and path plus string name and code when present.
+  Native fetch can put a socket error in its cause; read those safe fields too.
+  Messages, URLs, and the cause object are never retained.
+- The two-span shape stays: http.request owns the named HTTP child.
+- Computed keys and Reflect.get remain deliberate escapes.
+  This round does not change them.
+- The path stays visible; a token in the path would show in the span name.
+- No questions, stash, push, or trial-store access.
+  Only the original two folders may change.
+
+### Round 2 fix 1: the backend tag stays fixed
+
+Both app seams now export only httpRequest.
+The check follows the backend tag's declaration and rejects app references.
+The rule applies outside src/scaffold, including aliased dependencies and type references.
+Tests bind the tag through the fixed transport seam.
+The planted dependency passes the old rule, giving red exit 1.
+The new rule denies it with http-backend, giving green exit 0.
+The fixed telemetry sender still uses the tag directly.
