@@ -3938,3 +3938,20 @@ Every release gate now exits 0, including all 16 validate lanes.
 Logs and commands: `release-gates.json` under the named log folder.
 The final source has no new check warnings.
 Next: finish the round proof, then update the saved gate file.
+
+### Reference final rounds 1 and 4
+
+Rounds 1 and 4 each pass the full gate twice, exit 0.
+Each planted break exits 1 and fails its named teacher case.
+Both round harnesses finish with exit 0.
+Logs: `final-round-1.log` and `final-round-4.log`.
+Round 4's signature break also fails own check, exit 1.
+Its teacher still rejects the named signature case, so the proof is valid.
+All other exits are saved in each result.json.
+
+The shell driver tried to reuse a frozen proof folder for the next round.
+The runner refused before starting any app; driver exit 1.
+Logs: `driver-round-2-red.log` and `driver-round-5-red.log`.
+No frozen proof changed.
+The remaining rounds use a new folder per round.
+Next: finish rounds 2, 3, and 5, then save all 15 results.

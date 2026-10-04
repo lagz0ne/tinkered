@@ -178,6 +178,11 @@
       "gate": "final Jev supplier label",
       "exit": 0,
       "log": "tools/writer-trial/.logs/reference-0102/release-jev-labels.log"
+    },
+    {
+      "gate": "final image pins, tars, and keepers",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/final-image-pins.log"
     }
   ],
   "images": {
@@ -202,7 +207,133 @@
     "status": "running",
     "roots": [
       "tools/writer-trial/.logs/reference-0102/rounds-final-a",
-      "tools/writer-trial/.logs/reference-0102/rounds-final-b"
+      "tools/writer-trial/.logs/reference-0102/rounds-final-2",
+      "tools/writer-trial/.logs/reference-0102/rounds-final-3",
+      "tools/writer-trial/.logs/reference-0102/rounds-final-b",
+      "tools/writer-trial/.logs/reference-0102/rounds-final-5"
+    ],
+    "completedRounds": [1, 4],
+    "rows": [
+      {
+        "round": 1,
+        "label": "pass-1",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-a/round-1/pass-1"
+      },
+      {
+        "round": 1,
+        "label": "pass-2",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-a/round-1/pass-2"
+      },
+      {
+        "round": 1,
+        "label": "break",
+        "exit": 1,
+        "jevExit": 0,
+        "machine": "machine-fail",
+        "ownExit": 0,
+        "teacherExit": 1,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-a/round-1/break"
+      },
+      {
+        "round": 4,
+        "label": "pass-1",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-b/round-4/pass-1"
+      },
+      {
+        "round": 4,
+        "label": "pass-2",
+        "exit": 0,
+        "jevExit": 0,
+        "machine": "machine-pass",
+        "ownExit": 0,
+        "teacherExit": 0,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-b/round-4/pass-2"
+      },
+      {
+        "round": 4,
+        "label": "break",
+        "exit": 1,
+        "jevExit": 0,
+        "machine": "machine-fail",
+        "ownExit": 1,
+        "teacherExit": 1,
+        "scaffoldExit": 0,
+        "plainExit": 0,
+        "generatedRouterHash": "6d05e60dd32e3e16fcec9a4d49aa5bf07a444ebf73fb4c754e10f419de751d14",
+        "images": {
+          "image": "sha256:a46805a49f9f04818717b196acaf7e9d3d13de050fd63426056b35a46bb22db9",
+          "servicesImage": "sha256:1be10fb59a918b8d61658d2a81de2e2f195f36b0bdd14d78698ba7c6d96af6d0",
+          "postgresImage": "sha256:79bd7c99e923138f136f8009d6bffa66e21e9d4fda5c0c561b00fc9c90cfe537",
+          "mailpitImage": "sha256:d3238814e371a990ab3d08a8e9b13936953e448590a6648233270a2e3e8fcf75"
+        },
+        "teacherHash": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee",
+        "logs": "tools/writer-trial/.logs/reference-0102/rounds-final-b/round-4/break"
+      }
     ]
   },
   "sourceHashes": {
@@ -366,6 +497,16 @@
       "gate": "supplier entry tests alone",
       "exit": 0,
       "log": "tools/writer-trial/.logs/reference-0102/supplier-entry-probe.log"
+    },
+    {
+      "gate": "round 2 driver reused frozen folder",
+      "exit": 1,
+      "log": "tools/writer-trial/.logs/reference-0102/driver-round-2-red.log"
+    },
+    {
+      "gate": "round 5 driver reused frozen folder",
+      "exit": 1,
+      "log": "tools/writer-trial/.logs/reference-0102/driver-round-5-red.log"
     }
   ]
 }
