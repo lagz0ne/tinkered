@@ -3427,3 +3427,52 @@ Logs: `check-plain-final.log` and `jev-plain-final.log`, exit 0.
 No failed check is claimed as a main defect.
 
 Next: run the full workspace tests and validation, then save proof.
+
+### S24 final proof and handoff
+
+Status: Review; the lead owns review and landing.
+The writer did not push.
+
+Code commits:
+
+- `a92a85fe`: S24 message, fix line, backend exception, and Jev tests.
+- `47b953e3`: restore the flight gate and update its live rules.
+
+The final gate chain exited 0.
+Logs under `tools/writer-trial/.logs/s24-on/`:
+
+- `final-build.log`: `vp run -r build`, exit 0.
+- `final-check.log`: `vp check`, exit 0; no errors, 28 warnings.
+- `final-jev-tests.log`: `vp run jev#test`, exit 0; 146 tests.
+- `final-writer-tests.log`: writer-trial tests, exit 0; 91 tests.
+- `final-prose.log`: `vp run prose`, exit 0.
+- `final-validate.log`: `pnpm validate`, exit 0; all 16 lanes.
+- `final-gate-chain.log`: the chain and its exit 0.
+- `build-workspace.log`: build before all workspace tests, exit 0.
+- `workspace-tests.log`: `vp run -r test`, exit 0; nine tasks.
+- `jev-preflight.log`: advisory preflight, exit 0; no flags.
+- `scope.log`: branch, path limits, and workspace config, exit 0.
+
+All three changed test promises have red and green proof:
+
+- Flight app finding and its `httpRequest.controller` fix:
+  `red-message.log`, exit 1; `green-message.log`, exit 0.
+- Scaffold built-in fetch backend exception:
+  `red-backend.log`, exit 1; `green-backend.log`, exit 0.
+- Flight gate blocks bare fetch, as every older suite does:
+  `red-flight-gate.log`, exit 1; `green-flight-gate.log`, exit 0.
+
+The first two red tests ran before changing Jev.
+The gate red test ran before removing the broker's flight skip.
+The final full suites also pass all three tests.
+
+Assumption: pin preflight to `5166969a..HEAD`, the assigned base.
+The shared main branch moved while this writer worked.
+Preflight reads changed TypeScript files; none changed here.
+Its package test judges read TypeScript package tests,
+so they do not apply to these `.mjs` test files.
+No flags need labels.
+
+The workspace already allows esbuild for validate.
+No config edit was needed.
+Core feedback: none; this card needed no Core workaround.
