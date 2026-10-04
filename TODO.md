@@ -24,6 +24,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/http-polish** — close the three low gaps left by `start/http-resource`.
+  Next: add `node:http2`, `http2`, `ws`, `ofetch` to the client ban; skip `import type`;
+  accept a number `code` and read cause fields one by one.
+  Verify: a planted case each; app tests.
+
 - **trial/s24-on** — Jev rule S24 bans bare fetch again in every suite, naming `httpRequest`.
   Next: after `start/http-resource` lands; update S24's text and drop the flight skip in `broker.mjs`.
   Verify: Jev tests; a flight gate on a bare-fetch app blocks; writer-trial tests.
@@ -61,13 +66,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: an old-vs-new wire diff shows zero changes; no reply or status in operations; mutation 85.
   [Brief](docs/roadmap/flight-trial/PROTOCOL-BRIEF.md).
 
-- **start/http-resource** — outgoing HTTP is a resource over built-in fetch (ADR 0102).
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-http-resource`. Asked by the user after the DeepSeek review.
-  Next: `httpBackend`, `http`, `httpRequest` in the scaffold; `check:plain` bans bare fetch.
-  Verify: one child span per request; scope close aborts; tests bind the backend; all gates.
-  [Brief](docs/roadmap/start-scaffold/HTTP-RESOURCE-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -89,6 +87,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/http-resource** — outgoing HTTP is a resource over built-in fetch (ADR 0102).
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY after two fix rounds.
+  `httpBackend` wraps built-in fetch; `http` owns requests in flight; `httpRequest` is one child span per call.
+  `check:plain` bans built-in fetch by type (alias, `window`, `self`, tag default), the raw resource,
+  the backend tag, and 11 other HTTP clients outside the scaffold; errors keep method, path, and cause code.
+  Proof: 113 planted cases; every fix red then green; 48 app tests; copied starter; all gates.
+  Open (low): `node:http2` and `ws` imports pass; `import type` from `node:http` fails; abort causes drop their code.
 
 - **trial/deepseek-baseline** — DeepSeek builds the flight app, round by round.
   Owner: lead (Claude, Start scaffold session).
