@@ -1,163 +1,109 @@
 {
   "ticket": "start/protocol-reply",
   "branch": "start/protocol-reply",
-  "base": "e6a0bb73",
+  "base": "c4583608",
   "gates": [
     {
-      "name": "review-09-build",
+      "name": "short-04-registry-build",
+      "command": "vp run @tinker-start-scaffold#registry:build",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry-build.log"
+    },
+    {
+      "name": "short-04-build",
       "command": "vp run -r build",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-build.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-build.log"
     },
     {
-      "name": "review-09-check",
+      "name": "short-04-check",
       "command": "vp check",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-check.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-check.log"
     },
     {
-      "name": "review-09-app-tests",
-      "command": "vp run @tinker-start-scaffold#test",
+      "name": "short-04-plain",
+      "command": "npm run check:plain",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-app-tests.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-plain.log"
     },
     {
-      "name": "review-09-all-tests",
+      "name": "short-04-plain-prove",
+      "command": "node scripts/check-plain.mjs --prove",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-plain-prove.log"
+    },
+    {
+      "name": "short-04-seam",
+      "command": "npm run test:seam",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-seam.log"
+    },
+    {
+      "name": "short-04-app-tests",
+      "command": "npm test",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-app-tests.log"
+    },
+    {
+      "name": "short-04-registry",
+      "command": "npm run test:registry",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry.log"
+    },
+    {
+      "name": "short-04-all-tests",
       "command": "vp run -r test",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-all-tests.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-all-tests.log"
     },
     {
-      "name": "review-09-plain-prove",
-      "command": "vp run @tinker-start-scaffold#check:plain -- --prove",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-plain-prove.log"
-    },
-    {
-      "name": "review-09-registry-build",
-      "command": "vp run -r build && vp run @tinker-start-scaffold#registry:build && vp check --fix apps/start-scaffold/public/r",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-build.log"
-    },
-    {
-      "name": "review-09-registry-green",
-      "command": "vp run @tinker-start-scaffold#test:registry",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-green.log"
-    },
-    {
-      "name": "review-09-seam",
-      "command": "vp run '@tinker-start-scaffold#test:seam'",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-seam.log"
-    },
-    {
-      "name": "review-09-seam-fixture",
-      "command": "vp run '@tinker-start-scaffold#test:seam:fixture'",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-seam-fixture.log"
-    },
-    {
-      "name": "review-09-boundary",
-      "command": "vp run '@tinker-start-scaffold#test:boundary'",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-boundary.log"
-    },
-    {
-      "name": "review-09-imports",
-      "command": "vp run '@tinker-start-scaffold#test:imports'",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-imports.log"
-    },
-    {
-      "name": "review-09-schema",
-      "command": "vp run '@tinker-start-scaffold#test:schema'",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-schema.log"
-    },
-    {
-      "name": "review-09-middleware",
-      "command": "vp run '@tinker-start-scaffold#test:middleware'",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-middleware.log"
-    },
-    {
-      "name": "review-09-types",
-      "command": "vp run '@tinker-start-scaffold#typecheck'",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-types.log"
-    },
-    {
-      "name": "review-09-census",
-      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/backend/auth.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts 'apps/start-scaffold/src/routes/api.auth.$.ts' apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/routes/api.telemetry.ts apps/start-scaffold/src/scaffold/backend/auth.server.ts apps/start-scaffold/src/scaffold/backend/headers.server.ts apps/start-scaffold/src/scaffold/backend/lifetime.ts apps/start-scaffold/src/scaffold/backend/request-body.server.ts apps/start-scaffold/src/scaffold/backend/stream.ts apps/start-scaffold/src/scaffold/start.ts apps/start-scaffold/src/scaffold/telemetry/ingest.server.ts apps/start-scaffold/src/transport/routes.server.ts apps/start-scaffold/tests/backend.test.ts apps/start-scaffold/tests/protocol-params.test.ts apps/start-scaffold/tests/protocol-wire.test.ts apps/start-scaffold/tests/sse.test.ts apps/start-scaffold/tests/sync.test.ts apps/start-scaffold/tests/telemetry.test.ts apps/start-scaffold/tests/todos.test.ts apps/start-scaffold/tests/waste.test.ts --strict",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-census.log"
-    },
-    {
-      "name": "review-09-tsdoc",
-      "command": "node tools/jev/docs.mjs apps/start-scaffold/src/backend/auth.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts 'apps/start-scaffold/src/routes/api.auth.$.ts' apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/routes/api.telemetry.ts apps/start-scaffold/src/scaffold/backend/auth.server.ts apps/start-scaffold/src/scaffold/backend/headers.server.ts apps/start-scaffold/src/scaffold/backend/lifetime.ts apps/start-scaffold/src/scaffold/backend/request-body.server.ts apps/start-scaffold/src/scaffold/backend/stream.ts apps/start-scaffold/src/scaffold/start.ts apps/start-scaffold/src/scaffold/telemetry/ingest.server.ts apps/start-scaffold/src/transport/routes.server.ts apps/start-scaffold/tests/backend.test.ts apps/start-scaffold/tests/presets.ts apps/start-scaffold/tests/protocol-params.test.ts apps/start-scaffold/tests/protocol-wire.test.ts apps/start-scaffold/tests/sse.test.ts apps/start-scaffold/tests/sync.test.ts apps/start-scaffold/tests/telemetry.test.ts apps/start-scaffold/tests/todos.test.ts apps/start-scaffold/tests/waste.test.ts",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-tsdoc.log"
-    },
-    {
-      "name": "review-09-jev-preflight",
-      "command": "node tools/jev/preflight.mjs e6a0bb73..HEAD",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-preflight.log"
-    },
-    {
-      "name": "review-09-jev-tests",
-      "command": "node tools/jev/tests.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-09-jev-tests.json",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-tests.log"
-    },
-    {
-      "name": "review-09-jev-promises",
-      "command": "node tools/jev/promises.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-09-jev-promises.json",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-promises.log"
-    },
-    {
-      "name": "review-09-jev-labels",
-      "command": "python3 .protocol-reply-logs/logs/review-final-small.py",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-labels.log"
-    },
-    {
-      "name": "review-09-validate",
-      "command": "pnpm validate",
-      "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-validate.log"
-    },
-    {
-      "name": "review-09-prose",
+      "name": "short-04-prose",
       "command": "vp run prose",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-prose.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-prose.log"
     },
     {
-      "name": "review-09-wire",
-      "command": "vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts --reporter verbose",
+      "name": "short-04-validate",
+      "command": "pnpm validate",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-wire.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-validate.log"
     },
     {
-      "name": "review-09-warning-proof",
-      "command": "python3 .protocol-reply-logs/logs/review-final-warning-proof.py",
+      "name": "short-04-style",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts apps/start-scaffold/src/routes/api.telemetry.ts --strict && node tools/jev/docs.mjs apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts apps/start-scaffold/src/routes/api.telemetry.ts",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-warning-proof.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-style.log"
     },
     {
-      "name": "review-06-rebased-wire-before",
-      "command": "vp run -r build && cd .protocol-reply-logs/logs/rebased-before/apps/start-scaffold && vp test tests/protocol-wire.test.ts --reporter verbose",
+      "name": "short-04-structure",
+      "command": "npm run test:boundary && npm run test:imports && npm run test:schema && npm run test:middleware && npm run test:seam:fixture && npm run typecheck",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-rebased-wire-before.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-structure.log"
     },
     {
-      "name": "review-10-proof-check",
-      "command": "vp run -r build && vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
+      "name": "short-04-jev",
+      "command": "node tools/jev/preflight.mjs c4583608..HEAD",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-10-proof-check.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-jev.log"
+    },
+    {
+      "name": "short-04-jev-labels",
+      "command": "node .protocol-reply-logs/logs/label.mjs stateOutsideCell false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The reader Set and cancelled bit are private cleanup records behind the resource methods. No app view watches them and no listener set publishes domain state.\" && node .protocol-reply-logs/logs/label.mjs stopOnlyInDefer false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The synchronous factory starts no Core run that forced close must await. Stream pulls belong to the consumer; defer cancels pending readers and closes their requests. Consumer cancellation closes immediately. The pending-pull and scope-shutdown tests prove both paths.\" && node .protocol-reply-logs/logs/label.mjs ignoresAbortAfterAwait false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The factory is synchronous and has no await. Its awaited stream callbacks finish or cancel owned work; after finish they check cancelled before emitting or closing. The added isResponse method only performs the same native instance check as the old entry.\"",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-jev-labels.log"
+    },
+    {
+      "name": "short-04-warning-proof",
+      "command": "python3 .protocol-reply-logs/logs/short-warning-proof.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-warning-proof.log"
+    },
+    {
+      "name": "short-05-check",
+      "command": "vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp check && vp run prose && git diff --check",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-05-check.log"
     }
   ],
   "redGreen": [
@@ -781,6 +727,184 @@
         "code": 0,
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-green.log"
       }
+    },
+    {
+      "change": "constant request-header key",
+      "red": {
+        "name": "short-01-headers-red",
+        "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-headers-red.log"
+      },
+      "green": {
+        "name": "short-01-green-final",
+        "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key,http-backend-constant-key",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-green-final.log"
+      },
+      "oldChild": {
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-headers-old-child.log"
+      }
+    },
+    {
+      "change": "constant HTTP backend key",
+      "red": {
+        "name": "short-01-backend-red-final",
+        "command": "node scripts/check-plain.mjs --prove --cases=http-backend-constant-key",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-backend-red-final.log"
+      },
+      "green": {
+        "name": "short-01-green-final",
+        "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key,http-backend-constant-key",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-green-final.log"
+      },
+      "oldChild": {
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-backend-old-child.log"
+      }
+    },
+    {
+      "change": "resource reply hidden as unknown",
+      "red": {
+        "name": "short-02-resource-red",
+        "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-resource-red.log"
+      },
+      "green": {
+        "name": "short-02-green-verified",
+        "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+      },
+      "oldChild": {
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-resource-old-child.log"
+      }
+    },
+    {
+      "change": "resource method reply typed unknown",
+      "red": {
+        "name": "short-02-method-red",
+        "command": "node scripts/check-plain.mjs --prove --cases=response-resource-method-unknown",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-method-red.log"
+      },
+      "green": {
+        "name": "short-02-green-verified",
+        "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+      },
+      "oldChild": {
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-method-old-child.log"
+      }
+    },
+    {
+      "change": "Reflect.construct global Response",
+      "red": {
+        "name": "short-02-reflect-red",
+        "command": "node scripts/check-plain.mjs --prove --cases=response-reflect-construct",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-reflect-red.log"
+      },
+      "green": {
+        "name": "short-02-green-verified",
+        "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+      },
+      "oldChild": {
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-reflect-old-child.log"
+      }
+    },
+    {
+      "change": "global Response type reference",
+      "red": {
+        "name": "short-02-type-red",
+        "command": "node scripts/check-plain.mjs --prove --cases=response-type-reference",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-type-red.log"
+      },
+      "green": {
+        "name": "short-02-green-verified",
+        "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+      },
+      "oldChild": {
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-type-old-child.log"
+      }
+    },
+    {
+      "change": "unknown input cast to Request",
+      "red": {
+        "name": "short-03-cast-red",
+        "command": "node scripts/check-plain.mjs --prove --cases=operation-request-input-cast",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-cast-red.log"
+      },
+      "green": {
+        "name": "short-03-cast-green",
+        "command": "node scripts/check-plain.mjs --prove --cases=operation-request-input-cast",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-cast-green.log"
+      },
+      "oldChild": {
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-cast-old-child.log"
+      }
+    },
+    {
+      "change": "body stream without non-null assertion",
+      "red": {
+        "name": "short-03-body-red",
+        "command": "node .protocol-reply-logs/short-03-route-audit.mjs body",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-body-red.log"
+      },
+      "green": {
+        "name": "short-03-body-green",
+        "command": "node .protocol-reply-logs/short-03-route-audit.mjs body",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-body-green.log"
+      }
+    },
+    {
+      "change": "failed result status narrows error",
+      "red": {
+        "name": "short-03-result-red",
+        "command": "node .protocol-reply-logs/short-03-route-audit.mjs result",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-result-red.log"
+      },
+      "green": {
+        "name": "short-03-result-green",
+        "command": "node .protocol-reply-logs/short-03-route-audit.mjs result",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-result-green.log"
+      }
+    },
+    {
+      "change": "registry exact source",
+      "red": {
+        "name": "short-04-registry-red",
+        "command": "npm run test:registry",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry-red.log"
+      },
+      "green": {
+        "name": "short-04-registry",
+        "command": "npm run test:registry",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry.log"
+      }
     }
   ],
   "wire": {
@@ -796,10 +920,10 @@
       "source": "2d307cf5 app source, 82c6ff70 test"
     },
     "after": {
-      "name": "review-09-wire",
-      "command": "vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts --reporter verbose",
+      "name": "short-03-verified",
+      "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.telemetry.ts && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts tests/telemetry.test.ts && node .protocol-reply-logs/short-03-route-audit.mjs body && node .protocol-reply-logs/short-03-route-audit.mjs result && vp run @tinker-start-scaffold#check:plain",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-wire.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-verified.log"
     },
     "telemetry": [
       "good batch",
@@ -831,1011 +955,1071 @@
   "plain": {
     "cases": [
       {
+        "name": "operation-request-input-cast",
+        "rule": "operation-wire-input",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-request-input-cast.log"
+      },
+      {
+        "name": "response-resource-unknown",
+        "rule": "protocol-response",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-response-resource-unknown.log"
+      },
+      {
+        "name": "response-resource-method-unknown",
+        "rule": "protocol-response",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-response-resource-method-unknown.log"
+      },
+      {
+        "name": "response-reflect-construct",
+        "rule": "protocol-response",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-response-reflect-construct.log"
+      },
+      {
+        "name": "response-type-reference",
+        "rule": "protocol-response",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-response-type-reference.log"
+      },
+      {
+        "name": "response-route-allowed",
+        "rule": null,
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-response-route-allowed.log"
+      },
+      {
+        "name": "response-scaffold-allowed",
+        "rule": null,
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-response-scaffold-allowed.log"
+      },
+      {
+        "name": "response-local-type-allowed",
+        "rule": null,
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-response-local-type-allowed.log"
+      },
+      {
+        "name": "request-headers-constant-key",
+        "rule": "protocol-headers",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-request-headers-constant-key.log"
+      },
+      {
+        "name": "http-backend-constant-key",
+        "rule": "http-backend",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-http-backend-constant-key.log"
+      },
+      {
         "name": "operation-request-custom-reader",
         "rule": "operation-wire-input",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-request-custom-reader.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-request-custom-reader.log"
       },
       {
         "name": "mounted-auth-bracket",
         "rule": "protocol-auth",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-mounted-auth-bracket.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-mounted-auth-bracket.log"
       },
       {
         "name": "request-headers-bracket",
         "rule": "protocol-headers",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-request-headers-bracket.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-request-headers-bracket.log"
       },
       {
         "name": "mounted-auth-testing",
         "rule": "protocol-auth",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-mounted-auth-testing.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-mounted-auth-testing.log"
       },
       {
         "name": "mounted-auth-direct",
         "rule": "protocol-auth",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-mounted-auth-direct.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-mounted-auth-direct.log"
       },
       {
         "name": "mounted-auth-scaffold",
         "rule": "protocol-auth",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-mounted-auth-scaffold.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-mounted-auth-scaffold.log"
       },
       {
         "name": "request-headers-testing",
         "rule": "protocol-headers",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-request-headers-testing.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-request-headers-testing.log"
       },
       {
         "name": "request-headers-direct",
         "rule": "protocol-headers",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-request-headers-direct.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-request-headers-direct.log"
       },
       {
         "name": "request-headers-scaffold",
         "rule": null,
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-request-headers-scaffold.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-request-headers-scaffold.log"
       },
       {
         "name": "operation-response-callback",
         "rule": "operation-wire-output",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-response-callback.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-response-callback.log"
       },
       {
         "name": "operation-response-cast",
         "rule": "operation-wire-output",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-response-cast.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-response-cast.log"
       },
       {
         "name": "operation-response-array",
         "rule": "operation-wire-output",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-response-array.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-response-array.log"
       },
       {
         "name": "operation-response-object",
         "rule": "operation-wire-output",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-response-object.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-response-object.log"
       },
       {
         "name": "operation-request-destructured",
         "rule": "operation-wire-input",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-request-destructured.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-request-destructured.log"
       },
       {
         "name": "operation-request-type-alias",
         "rule": "operation-wire-input",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-request-type-alias.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-request-type-alias.log"
       },
       {
         "name": "operation-options-spread",
         "rule": "operation-options",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-options-spread.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-options-spread.log"
       },
       {
         "name": "operation-options-variable",
         "rule": "operation-options",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-options-variable.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-options-variable.log"
       },
       {
         "name": "operation-response-typed-callback",
         "rule": "operation-wire-output",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-response-typed-callback.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-response-typed-callback.log"
       },
       {
         "name": "dynamic-require-alias",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-dynamic-require-alias.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-dynamic-require-alias.log"
       },
       {
         "name": "create-require-destructured",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-create-require-destructured.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-create-require-destructured.log"
       },
       {
         "name": "operation-request",
         "rule": "operation-wire-input",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-request.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-request.log"
       },
       {
         "name": "operation-request-alias",
         "rule": "operation-wire-input",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-request-alias.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-request-alias.log"
       },
       {
         "name": "operation-response",
         "rule": "operation-wire-output",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-response.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-response.log"
       },
       {
         "name": "operation-response-async",
         "rule": "operation-wire-output",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-response-async.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-response-async.log"
       },
       {
         "name": "operation-response-union",
         "rule": "operation-wire-output",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-response-union.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-response-union.log"
       },
       {
         "name": "destructured-fetch-shorthand",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-destructured-fetch-shorthand.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-destructured-fetch-shorthand.log"
       },
       {
         "name": "destructured-beacon",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-destructured-beacon.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-destructured-beacon.log"
       },
       {
         "name": "destructured-xhr",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-destructured-xhr.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-destructured-xhr.log"
       },
       {
         "name": "dynamic-import",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-dynamic-import.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-dynamic-import.log"
       },
       {
         "name": "dynamic-require",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-dynamic-require.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-dynamic-require.log"
       },
       {
         "name": "create-require",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-create-require.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-create-require.log"
       },
       {
         "name": "create-require-namespace",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-create-require-namespace.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-create-require-namespace.log"
       },
       {
         "name": "type-export-client",
         "rule": null,
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-type-export-client.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-type-export-client.log"
       },
       {
         "name": "client-net",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-net.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-net.log"
       },
       {
         "name": "client-tls",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-tls.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-tls.log"
       },
       {
         "name": "client-dgram",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-dgram.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-dgram.log"
       },
       {
         "name": "client-node-dgram",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-node-dgram.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-node-dgram.log"
       },
       {
         "name": "client-xhr-constructor",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-xhr-constructor.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-xhr-constructor.log"
       },
       {
         "name": "client-xhr-global",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-xhr-global.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-xhr-global.log"
       },
       {
         "name": "client-xhr-bracket",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-xhr-bracket.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-xhr-bracket.log"
       },
       {
         "name": "client-beacon-call",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-beacon-call.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-beacon-call.log"
       },
       {
         "name": "client-beacon-value",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-beacon-value.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-beacon-value.log"
       },
       {
         "name": "client-beacon-bracket",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-beacon-bracket.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-beacon-bracket.log"
       },
       {
         "name": "client-websocket-allowed",
         "rule": null,
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-websocket-allowed.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-websocket-allowed.log"
       },
       {
         "name": "client-eventsource-allowed",
         "rule": null,
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-eventsource-allowed.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-eventsource-allowed.log"
       },
       {
         "name": "client-import-type",
         "rule": null,
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-import-type.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-import-type.log"
       },
       {
         "name": "client-named-import-type",
         "rule": null,
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-named-import-type.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-named-import-type.log"
       },
       {
         "name": "client-mixed-import",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-mixed-import.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-mixed-import.log"
       },
       {
         "name": "client-default-and-type",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-default-and-type.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-default-and-type.log"
       },
       {
         "name": "client-empty-import",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-empty-import.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-empty-import.log"
       },
       {
         "name": "client-node-http2",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-node-http2.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-node-http2.log"
       },
       {
         "name": "client-http2",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-http2.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-http2.log"
       },
       {
         "name": "client-ws",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-ws.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-ws.log"
       },
       {
         "name": "client-ofetch",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-ofetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-ofetch.log"
       },
       {
         "name": "client-node-http",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-node-http.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-node-http.log"
       },
       {
         "name": "client-node-https",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-node-https.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-node-https.log"
       },
       {
         "name": "client-http",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-http.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-http.log"
       },
       {
         "name": "client-https",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-https.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-https.log"
       },
       {
         "name": "client-undici",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-undici.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-undici.log"
       },
       {
         "name": "client-axios",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-axios.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-axios.log"
       },
       {
         "name": "client-ky",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-ky.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-ky.log"
       },
       {
         "name": "client-node-fetch",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-node-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-node-fetch.log"
       },
       {
         "name": "client-got",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-got.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-got.log"
       },
       {
         "name": "client-superagent",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-superagent.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-superagent.log"
       },
       {
         "name": "client-node-net",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-node-net.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-node-net.log"
       },
       {
         "name": "client-node-tls",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-node-tls.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-node-tls.log"
       },
       {
         "name": "client-reexport",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-reexport.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-reexport.log"
       },
       {
         "name": "client-dynamic",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-dynamic.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-dynamic.log"
       },
       {
         "name": "client-require",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-require.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-require.log"
       },
       {
         "name": "client-import-equals",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-import-equals.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-import-equals.log"
       },
       {
         "name": "client-subpath",
         "rule": "http-client",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-client-subpath.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-client-subpath.log"
       },
       {
         "name": "http-backend-dependency",
         "rule": "http-backend",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-http-backend-dependency.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-http-backend-dependency.log"
       },
       {
         "name": "http-resource-dependency",
         "rule": "http-resource",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-http-resource-dependency.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-http-resource-dependency.log"
       },
       {
         "name": "http-resource-export",
         "rule": "http-resource",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-http-resource-export.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-http-resource-export.log"
       },
       {
         "name": "fetch-tag-value",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-fetch-tag-value.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-fetch-tag-value.log"
       },
       {
         "name": "fetch-alias",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-fetch-alias.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-fetch-alias.log"
       },
       {
         "name": "window-fetch",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-window-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-window-fetch.log"
       },
       {
         "name": "self-fetch",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-self-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-self-fetch.log"
       },
       {
         "name": "destructured-fetch",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-destructured-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-destructured-fetch.log"
       },
       {
         "name": "operation-fetch",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-operation-fetch.log"
       },
       {
         "name": "resource-fetch",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-resource-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-resource-fetch.log"
       },
       {
         "name": "callback-fetch",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-callback-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-callback-fetch.log"
       },
       {
         "name": "parenthesized-fetch",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-parenthesized-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-parenthesized-fetch.log"
       },
       {
         "name": "global-fetch-reference",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-global-fetch-reference.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-global-fetch-reference.log"
       },
       {
         "name": "global-fetch-call",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-global-fetch-call.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-global-fetch-call.log"
       },
       {
         "name": "global-fetch-element",
         "rule": "http-request",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-global-fetch-element.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-global-fetch-element.log"
       },
       {
         "name": "entry-hidden-fetch",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-entry-hidden-fetch.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-entry-hidden-fetch.log"
       },
       {
         "name": "wrapped-factory",
         "rule": "unnamed-plain",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-wrapped-factory.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-wrapped-factory.log"
       },
       {
         "name": "entry-service",
         "rule": "service-owner",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-entry-service.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-entry-service.log"
       },
       {
         "name": "entry-hidden-controller",
         "rule": "service-owner",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-entry-hidden-controller.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-entry-hidden-controller.log"
       },
       {
         "name": "unit-param",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-unit-param.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-unit-param.log"
       },
       {
         "name": "class",
         "rule": "no-class",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-class.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-class.log"
       },
       {
         "name": "clock",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-clock.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-clock.log"
       },
       {
         "name": "signal",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-signal.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-signal.log"
       },
       {
         "name": "handle",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-handle.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-handle.log"
       },
       {
         "name": "ctx",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-ctx.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-ctx.log"
       },
       {
         "name": "io",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-io.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-io.log"
       },
       {
         "name": "four-params",
         "rule": "three-params",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-four-params.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-four-params.log"
       },
       {
         "name": "one-site",
         "rule": "two-sites",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-one-site.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-one-site.log"
       },
       {
         "name": "no-doc",
         "rule": "param-doc",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-no-doc.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-no-doc.log"
       },
       {
         "name": "scope-factory",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-factory.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-factory.log"
       },
       {
         "name": "module-handle",
         "rule": "module-handle",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-handle.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-handle.log"
       },
       {
         "name": "scope-getter",
         "rule": "exported-scope",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-getter.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-getter.log"
       },
       {
         "name": "service-module",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-service-module.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-service-module.log"
       },
       {
         "name": "service-plain",
         "rule": "service-owner",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-service-plain.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-service-plain.log"
       },
       {
         "name": "scope-arrow",
         "rule": "exported-scope",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-arrow.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-arrow.log"
       },
       {
         "name": "module-clock",
         "rule": "module-handle",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-clock.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-clock.log"
       },
       {
         "name": "module-nested-root",
         "rule": "module-handle",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-nested-root.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-nested-root.log"
       },
       {
         "name": "scope-reexport",
         "rule": "exported-scope",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-reexport.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-reexport.log"
       },
       {
         "name": "plain-callback",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-callback.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-callback.log"
       },
       {
         "name": "clock-bag",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-clock-bag.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-clock-bag.log"
       },
       {
         "name": "scope-local-alias",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-local-alias.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-local-alias.log"
       },
       {
         "name": "scope-namespace",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-namespace.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-namespace.log"
       },
       {
         "name": "plain-await",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-await.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-await.log"
       },
       {
         "name": "zero-site",
         "rule": "two-sites",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-zero-site.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-zero-site.log"
       },
       {
         "name": "class-expression",
         "rule": "no-class",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-class-expression.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-class-expression.log"
       },
       {
         "name": "object-arrow",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-object-arrow.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-object-arrow.log"
       },
       {
         "name": "object-method",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-object-method.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-object-method.log"
       },
       {
         "name": "freeze-arrow",
         "rule": "unnamed-plain",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-freeze-arrow.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-freeze-arrow.log"
       },
       {
         "name": "hidden-method",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-hidden-method.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-hidden-method.log"
       },
       {
         "name": "or-arrow",
         "rule": "unnamed-plain",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-or-arrow.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-or-arrow.log"
       },
       {
         "name": "nullish-arrow",
         "rule": "unnamed-plain",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-nullish-arrow.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-nullish-arrow.log"
       },
       {
         "name": "src-callback",
         "rule": "unnamed-plain",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-src-callback.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-src-callback.log"
       },
       {
         "name": "one-caller-two-calls",
         "rule": "two-sites",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-one-caller-two-calls.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-one-caller-two-calls.log"
       },
       {
         "name": "self-call",
         "rule": "two-sites",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-self-call.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-self-call.log"
       },
       {
         "name": "non-call-use",
         "rule": "two-sites",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-non-call-use.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-non-call-use.log"
       },
       {
         "name": "scope-element",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-element.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-element.log"
       },
       {
         "name": "scope-parentheses",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-parentheses.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-parentheses.log"
       },
       {
         "name": "scope-comma",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-comma.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-comma.log"
       },
       {
         "name": "scope-call",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-call.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-call.log"
       },
       {
         "name": "scope-array",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-array.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-array.log"
       },
       {
         "name": "scope-cast",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-cast.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-cast.log"
       },
       {
         "name": "scope-reflect",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-reflect.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-reflect.log"
       },
       {
         "name": "scope-entry-module",
         "rule": "scope-entry-only",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-entry-module.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-entry-module.log"
       },
       {
         "name": "holder-const",
         "rule": "module-handle",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-holder-const.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-holder-const.log"
       },
       {
         "name": "holder-stop",
         "rule": "module-handle",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-holder-stop.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-holder-stop.log"
       },
       {
         "name": "holder-pool",
         "rule": "module-handle",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-holder-pool.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-holder-pool.log"
       },
       {
         "name": "scope-accessor",
         "rule": "exported-scope",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-accessor.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-accessor.log"
       },
       {
         "name": "scope-property",
         "rule": "exported-scope",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-scope-property.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-scope-property.log"
       },
       {
         "name": "plain-any",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-any.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-any.log"
       },
       {
         "name": "plain-generic",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-generic.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-generic.log"
       },
       {
         "name": "plain-unknown-cast",
         "rule": "plain-cast",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-unknown-cast.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-unknown-cast.log"
       },
       {
         "name": "request-options",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-request-options.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-request-options.log"
       },
       {
         "name": "pick-options",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-pick-options.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-pick-options.log"
       },
       {
         "name": "event-options",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-event-options.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-event-options.log"
       },
       {
         "name": "component-clock",
         "rule": "component-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-component-clock.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-component-clock.log"
       },
       {
         "name": "component-await",
         "rule": "component-await",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-component-await.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-component-await.log"
       },
       {
         "name": "component-bag",
         "rule": "component-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-component-bag.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-component-bag.log"
       },
       {
         "name": "module-mail",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-mail.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-mail.log"
       },
       {
         "name": "module-auth",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-auth.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-auth.log"
       },
       {
         "name": "module-broadcast",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-broadcast.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-broadcast.log"
       },
       {
         "name": "module-frame",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-frame.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-frame.log"
       },
       {
         "name": "module-listener",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-listener.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-listener.log"
       },
       {
         "name": "option-timer",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-option-timer.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-option-timer.log"
       },
       {
         "name": "module-unknown-call",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-unknown-call.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-unknown-call.log"
       },
       {
         "name": "module-zod-parse",
         "rule": "module-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-module-zod-parse.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-module-zod-parse.log"
       },
       {
         "name": "plain-native-effect-0",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-native-effect-0.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-native-effect-0.log"
       },
       {
         "name": "plain-native-effect-1",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-native-effect-1.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-native-effect-1.log"
       },
       {
         "name": "plain-native-effect-2",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-native-effect-2.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-native-effect-2.log"
       },
       {
         "name": "plain-native-effect-3",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-native-effect-3.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-native-effect-3.log"
       },
       {
         "name": "plain-native-effect-4",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-native-effect-4.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-native-effect-4.log"
       },
       {
         "name": "plain-native-effect-5",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-native-effect-5.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-native-effect-5.log"
       },
       {
         "name": "plain-native-effect-6",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-native-effect-6.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-native-effect-6.log"
       },
       {
         "name": "plain-native-effect-7",
         "rule": "plain-effect",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-native-effect-7.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-native-effect-7.log"
       },
       {
         "name": "src-resource-callback",
         "rule": "plain-param",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-src-resource-callback.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-src-resource-callback.log"
       },
       {
         "name": "plain-cap",
         "rule": "plain-max",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-plain-cap.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-plain-cap.log"
       },
       {
         "name": "list",
         "rule": "plain-list",
         "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-list.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-plain-list.log"
       }
     ],
-    "total": 167,
-    "banned": 161,
-    "allowed": 6,
+    "total": 177,
+    "banned": 168,
+    "allowed": 9,
     "functions": 17
   },
   "copiedStarter": {
@@ -1861,77 +2045,77 @@
       {
         "name": "pack-core",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-1.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-01.log"
       },
       {
         "name": "pack-react",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-2.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-02.log"
       },
       {
         "name": "install-tarballs",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-3.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-03.log"
       },
       {
-        "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:40007/r/{name}.json",
+        "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:42183/r/{name}.json",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-4.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-04.log"
       },
       {
         "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-5.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-05.log"
       },
       {
         "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-6.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-06.log"
       },
       {
         "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-7.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-07.log"
       },
       {
         "name": "install-starter",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-8.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-08.log"
       },
       {
         "name": "build",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-9.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-09.log"
       },
       {
         "name": "typecheck",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-10.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-10.log"
       },
       {
         "name": "test",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-11.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-11.log"
       },
       {
         "name": "check:plain",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-12.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-12.log"
       },
       {
         "name": "test:seam",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-13.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-13.log"
       },
       {
         "name": "test:boundary",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-14.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-14.log"
       },
       {
         "name": "test:schema",
         "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-15.log"
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-consumer-15.log"
       }
     ]
   },
@@ -1945,26 +2129,39 @@
     "count": 28,
     "errors": 0,
     "files": [
+      "bench/heap.mjs",
+      "bench/react-render.mjs",
       "packages/core/src/index.ts",
       "packages/core/tests/index.test.ts",
       "packages/core/tests/named-release.test.ts",
       "packages/core/tests/session-end.test.ts",
       "packages/core/tests/tagged-frame-boundaries.test.ts",
-      "packages/core/tests/tagged-lifetime.test.ts"
+      "packages/core/tests/tagged-lifetime.test.ts",
+      "tools/jev/explain.mjs",
+      "tools/jev/preflight.mjs",
+      "tools/jev/tests.mjs"
     ],
-    "allWarningFilesUnchangedFrom": "e10b8371"
+    "allWarningFilesUnchangedFrom": "c4583608",
+    "proof": {
+      "name": "short-04-warning-proof",
+      "command": "python3 .protocol-reply-logs/logs/short-warning-proof.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-warning-proof.log"
+    }
   },
   "jev": {
     "fileFlags": 0,
-    "testFlags": 0,
-    "promiseGaps": 0,
-    "unitFlags": 4,
-    "labels": "docs/roadmap/start-scaffold/PROTOCOL-REPLY-JEV-LABELS.jsonl",
+    "unitFlags": 3,
     "labelAnswers": "all false; see exact why per row",
-    "bank": "unchanged; lead merges rows and calibrates at landing",
-    "testEntries": 66,
-    "promiseTitles": 64,
-    "unsurePromises": 2
+    "labels": "docs/roadmap/start-scaffold/PROTOCOL-REPLY-JEV-LABELS.jsonl",
+    "bank": "unchanged; lead merges saved track rows and calibrates at landing",
+    "tests": "unchanged; no test-judge rerun",
+    "proof": {
+      "name": "short-04-jev",
+      "command": "node tools/jev/preflight.mjs c4583608..HEAD",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-jev.log"
+    }
   },
   "assumptions": [
     "Keep the mounted auth operation as the named ADR 0103 protocol exception.",
@@ -3095,6 +3292,318 @@
       "command": "vp run -r build && vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
       "code": 0,
       "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-10-proof-check.log"
+    },
+    {
+      "name": "short-00-build",
+      "command": "vp run -r build",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-00-build.log"
+    },
+    {
+      "name": "short-01-headers-red",
+      "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-headers-red.log"
+    },
+    {
+      "name": "short-01-backend-red",
+      "command": "node scripts/check-plain.mjs --prove --cases=http-backend-constant-key",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-backend-red.log"
+    },
+    {
+      "name": "short-01-green",
+      "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key,http-backend-constant-key",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-green.log"
+    },
+    {
+      "name": "short-01-backend-red-final",
+      "command": "node scripts/check-plain.mjs --prove --cases=http-backend-constant-key",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-backend-red-final.log"
+    },
+    {
+      "name": "short-01-green-final",
+      "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key,http-backend-constant-key",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-green-final.log"
+    },
+    {
+      "name": "short-01-check",
+      "command": "vp check --fix apps/start-scaffold/scripts/check-plain.mjs docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-check.log"
+    },
+    {
+      "name": "short-02-resource-red",
+      "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-resource-red.log"
+    },
+    {
+      "name": "short-02-method-red",
+      "command": "node scripts/check-plain.mjs --prove --cases=response-resource-method-unknown",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-method-red.log"
+    },
+    {
+      "name": "short-02-reflect-red",
+      "command": "node scripts/check-plain.mjs --prove --cases=response-reflect-construct",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-reflect-red.log"
+    },
+    {
+      "name": "short-02-type-red",
+      "command": "node scripts/check-plain.mjs --prove --cases=response-type-reference",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-type-red.log"
+    },
+    {
+      "name": "short-02-server-red",
+      "command": "node scripts/check-plain.mjs",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-server-red.log"
+    },
+    {
+      "name": "short-02-build-check",
+      "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts && vp run @tinker-start-scaffold#test -- tests/transport.test.ts tests/protocol-wire.test.ts",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-build-check.log"
+    },
+    {
+      "name": "short-02-green",
+      "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green.log"
+    },
+    {
+      "name": "short-02-prose",
+      "command": "vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-prose.log"
+    },
+    {
+      "name": "short-03-body-red",
+      "command": "node .protocol-reply-logs/short-03-route-audit.mjs body",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-body-red.log"
+    },
+    {
+      "name": "short-03-result-red",
+      "command": "node .protocol-reply-logs/short-03-route-audit.mjs result",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-result-red.log"
+    },
+    {
+      "name": "short-02-green-final",
+      "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-final.log"
+    },
+    {
+      "name": "short-02-style",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts --strict && node tools/jev/docs.mjs apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-style.log"
+    },
+    {
+      "name": "short-02-green-verified",
+      "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+    },
+    {
+      "name": "short-02-final-check",
+      "command": "vp check --fix apps/start-scaffold/scripts/check-plain.mjs docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-final-check.log"
+    },
+    {
+      "name": "short-03-cast-red",
+      "command": "node scripts/check-plain.mjs --prove --cases=operation-request-input-cast",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-cast-red.log"
+    },
+    {
+      "name": "short-03-body-green",
+      "command": "node .protocol-reply-logs/short-03-route-audit.mjs body",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-body-green.log"
+    },
+    {
+      "name": "short-03-result-green",
+      "command": "node .protocol-reply-logs/short-03-route-audit.mjs result",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-result-green.log"
+    },
+    {
+      "name": "short-03-build-check-wire",
+      "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.telemetry.ts && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts tests/telemetry.test.ts",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-build-check-wire.log"
+    },
+    {
+      "name": "short-03-cast-green",
+      "command": "node scripts/check-plain.mjs --prove --cases=operation-request-input-cast",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-cast-green.log"
+    },
+    {
+      "name": "short-03-build-check-wire-final",
+      "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.telemetry.ts && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts tests/telemetry.test.ts && node .protocol-reply-logs/short-03-route-audit.mjs body && node .protocol-reply-logs/short-03-route-audit.mjs result",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-build-check-wire-final.log"
+    },
+    {
+      "name": "short-04-registry-red",
+      "command": "npm run test:registry",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry-red.log"
+    },
+    {
+      "name": "short-03-style",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/routes/api.telemetry.ts --strict && node tools/jev/docs.mjs apps/start-scaffold/src/routes/api.telemetry.ts",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-style.log"
+    },
+    {
+      "name": "short-03-verified",
+      "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.telemetry.ts && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts tests/telemetry.test.ts && node .protocol-reply-logs/short-03-route-audit.mjs body && node .protocol-reply-logs/short-03-route-audit.mjs result && vp run @tinker-start-scaffold#check:plain",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-verified.log"
+    },
+    {
+      "name": "short-03-prose",
+      "command": "vp check --fix docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-prose.log"
+    },
+    {
+      "name": "short-04-registry-build",
+      "command": "vp run @tinker-start-scaffold#registry:build",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry-build.log"
+    },
+    {
+      "name": "short-04-jev",
+      "command": "node tools/jev/preflight.mjs c4583608..HEAD",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-jev.log"
+    },
+    {
+      "name": "short-04-build",
+      "command": "vp run -r build",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-build.log"
+    },
+    {
+      "name": "short-04-check-audit-format",
+      "command": "vp check",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-check-audit-format.log"
+    },
+    {
+      "name": "short-04-style",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts apps/start-scaffold/src/routes/api.telemetry.ts --strict && node tools/jev/docs.mjs apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts apps/start-scaffold/src/routes/api.telemetry.ts",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-style.log"
+    },
+    {
+      "name": "short-04-structure",
+      "command": "npm run test:boundary && npm run test:imports && npm run test:schema && npm run test:middleware && npm run test:seam:fixture && npm run typecheck",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-structure.log"
+    },
+    {
+      "name": "short-04-registry-build",
+      "command": "vp run @tinker-start-scaffold#registry:build",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry-build.log"
+    },
+    {
+      "name": "short-04-build",
+      "command": "vp run -r build",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-build.log"
+    },
+    {
+      "name": "short-04-check",
+      "command": "vp check",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-check.log"
+    },
+    {
+      "name": "short-04-plain",
+      "command": "npm run check:plain",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-plain.log"
+    },
+    {
+      "name": "short-04-jev-labels",
+      "command": "node .protocol-reply-logs/logs/label.mjs stateOutsideCell false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The reader Set and cancelled bit are private cleanup records behind the resource methods. No app view watches them and no listener set publishes domain state.\" && node .protocol-reply-logs/logs/label.mjs stopOnlyInDefer false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The synchronous factory starts no Core run that forced close must await. Stream pulls belong to the consumer; defer cancels pending readers and closes their requests. Consumer cancellation closes immediately. The pending-pull and scope-shutdown tests prove both paths.\" && node .protocol-reply-logs/logs/label.mjs ignoresAbortAfterAwait false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The factory is synchronous and has no await. Its awaited stream callbacks finish or cancel owned work; after finish they check cancelled before emitting or closing. The added isResponse method only performs the same native instance check as the old entry.\"",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-jev-labels.log"
+    },
+    {
+      "name": "short-04-warning-proof",
+      "command": "python3 .protocol-reply-logs/logs/short-warning-proof.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-warning-proof.log"
+    },
+    {
+      "name": "short-04-plain-prove",
+      "command": "node scripts/check-plain.mjs --prove",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-plain-prove.log"
+    },
+    {
+      "name": "short-04-seam",
+      "command": "npm run test:seam",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-seam.log"
+    },
+    {
+      "name": "short-04-app-tests",
+      "command": "npm test",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-app-tests.log"
+    },
+    {
+      "name": "short-04-registry",
+      "command": "npm run test:registry",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry.log"
+    },
+    {
+      "name": "short-04-all-tests",
+      "command": "vp run -r test",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-all-tests.log"
+    },
+    {
+      "name": "short-04-prose",
+      "command": "vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-prose.log"
+    },
+    {
+      "name": "short-04-validate",
+      "command": "pnpm validate",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-validate.log"
+    },
+    {
+      "name": "short-05-record",
+      "command": "python3 .protocol-reply-logs/logs/short-proof-record.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-05-record.log"
+    },
+    {
+      "name": "short-05-check",
+      "command": "vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp check && vp run prose && git diff --check",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-05-check.log"
     }
   ],
   "reviewBase": "e10b8371",
@@ -3236,5 +3745,491 @@
   "proofCorrection": {
     "result": "three exact current plants accepted by e10b8371 guard and rejected by final guard",
     "fullGates": "all final gates repeated, exit 0; 167 planted cases"
+  },
+  "gatesBeforeShortFixRound": [
+    {
+      "name": "review-09-build",
+      "command": "vp run -r build",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-build.log"
+    },
+    {
+      "name": "review-09-check",
+      "command": "vp check",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-check.log"
+    },
+    {
+      "name": "review-09-app-tests",
+      "command": "vp run @tinker-start-scaffold#test",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-app-tests.log"
+    },
+    {
+      "name": "review-09-all-tests",
+      "command": "vp run -r test",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-all-tests.log"
+    },
+    {
+      "name": "review-09-plain-prove",
+      "command": "vp run @tinker-start-scaffold#check:plain -- --prove",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-plain-prove.log"
+    },
+    {
+      "name": "review-09-registry-build",
+      "command": "vp run -r build && vp run @tinker-start-scaffold#registry:build && vp check --fix apps/start-scaffold/public/r",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-build.log"
+    },
+    {
+      "name": "review-09-registry-green",
+      "command": "vp run @tinker-start-scaffold#test:registry",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-green.log"
+    },
+    {
+      "name": "review-09-seam",
+      "command": "vp run '@tinker-start-scaffold#test:seam'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-seam.log"
+    },
+    {
+      "name": "review-09-seam-fixture",
+      "command": "vp run '@tinker-start-scaffold#test:seam:fixture'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-seam-fixture.log"
+    },
+    {
+      "name": "review-09-boundary",
+      "command": "vp run '@tinker-start-scaffold#test:boundary'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-boundary.log"
+    },
+    {
+      "name": "review-09-imports",
+      "command": "vp run '@tinker-start-scaffold#test:imports'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-imports.log"
+    },
+    {
+      "name": "review-09-schema",
+      "command": "vp run '@tinker-start-scaffold#test:schema'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-schema.log"
+    },
+    {
+      "name": "review-09-middleware",
+      "command": "vp run '@tinker-start-scaffold#test:middleware'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-middleware.log"
+    },
+    {
+      "name": "review-09-types",
+      "command": "vp run '@tinker-start-scaffold#typecheck'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-types.log"
+    },
+    {
+      "name": "review-09-census",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/backend/auth.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts 'apps/start-scaffold/src/routes/api.auth.$.ts' apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/routes/api.telemetry.ts apps/start-scaffold/src/scaffold/backend/auth.server.ts apps/start-scaffold/src/scaffold/backend/headers.server.ts apps/start-scaffold/src/scaffold/backend/lifetime.ts apps/start-scaffold/src/scaffold/backend/request-body.server.ts apps/start-scaffold/src/scaffold/backend/stream.ts apps/start-scaffold/src/scaffold/start.ts apps/start-scaffold/src/scaffold/telemetry/ingest.server.ts apps/start-scaffold/src/transport/routes.server.ts apps/start-scaffold/tests/backend.test.ts apps/start-scaffold/tests/protocol-params.test.ts apps/start-scaffold/tests/protocol-wire.test.ts apps/start-scaffold/tests/sse.test.ts apps/start-scaffold/tests/sync.test.ts apps/start-scaffold/tests/telemetry.test.ts apps/start-scaffold/tests/todos.test.ts apps/start-scaffold/tests/waste.test.ts --strict",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-census.log"
+    },
+    {
+      "name": "review-09-tsdoc",
+      "command": "node tools/jev/docs.mjs apps/start-scaffold/src/backend/auth.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts 'apps/start-scaffold/src/routes/api.auth.$.ts' apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/routes/api.telemetry.ts apps/start-scaffold/src/scaffold/backend/auth.server.ts apps/start-scaffold/src/scaffold/backend/headers.server.ts apps/start-scaffold/src/scaffold/backend/lifetime.ts apps/start-scaffold/src/scaffold/backend/request-body.server.ts apps/start-scaffold/src/scaffold/backend/stream.ts apps/start-scaffold/src/scaffold/start.ts apps/start-scaffold/src/scaffold/telemetry/ingest.server.ts apps/start-scaffold/src/transport/routes.server.ts apps/start-scaffold/tests/backend.test.ts apps/start-scaffold/tests/presets.ts apps/start-scaffold/tests/protocol-params.test.ts apps/start-scaffold/tests/protocol-wire.test.ts apps/start-scaffold/tests/sse.test.ts apps/start-scaffold/tests/sync.test.ts apps/start-scaffold/tests/telemetry.test.ts apps/start-scaffold/tests/todos.test.ts apps/start-scaffold/tests/waste.test.ts",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-tsdoc.log"
+    },
+    {
+      "name": "review-09-jev-preflight",
+      "command": "node tools/jev/preflight.mjs e6a0bb73..HEAD",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-preflight.log"
+    },
+    {
+      "name": "review-09-jev-tests",
+      "command": "node tools/jev/tests.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-09-jev-tests.json",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-tests.log"
+    },
+    {
+      "name": "review-09-jev-promises",
+      "command": "node tools/jev/promises.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-09-jev-promises.json",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-promises.log"
+    },
+    {
+      "name": "review-09-jev-labels",
+      "command": "python3 .protocol-reply-logs/logs/review-final-small.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-labels.log"
+    },
+    {
+      "name": "review-09-validate",
+      "command": "pnpm validate",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-validate.log"
+    },
+    {
+      "name": "review-09-prose",
+      "command": "vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-prose.log"
+    },
+    {
+      "name": "review-09-wire",
+      "command": "vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts --reporter verbose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-wire.log"
+    },
+    {
+      "name": "review-09-warning-proof",
+      "command": "python3 .protocol-reply-logs/logs/review-final-warning-proof.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-warning-proof.log"
+    },
+    {
+      "name": "review-06-rebased-wire-before",
+      "command": "vp run -r build && cd .protocol-reply-logs/logs/rebased-before/apps/start-scaffold && vp test tests/protocol-wire.test.ts --reporter verbose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-rebased-wire-before.log"
+    },
+    {
+      "name": "review-10-proof-check",
+      "command": "vp run -r build && vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-10-proof-check.log"
+    }
+  ],
+  "baseBeforeShortFixRound": "e6a0bb73",
+  "jevBeforeShortFixRound": {
+    "fileFlags": 0,
+    "testFlags": 0,
+    "promiseGaps": 0,
+    "unitFlags": 4,
+    "labels": "docs/roadmap/start-scaffold/PROTOCOL-REPLY-JEV-LABELS.jsonl",
+    "labelAnswers": "all false; see exact why per row",
+    "bank": "unchanged; lead merges rows and calibrates at landing",
+    "testEntries": 66,
+    "promiseTitles": 64,
+    "unsurePromises": 2
+  },
+  "shortFixRound": {
+    "base": "c4583608",
+    "commits": [
+      "e60aa546 fix(start): reject request casts and narrow telemetry values",
+      "d28c44be fix(start): keep global Response in protocol files",
+      "d6af0fe5 fix(start): catch scaffold tags through constant keys"
+    ],
+    "gates": [
+      {
+        "name": "short-04-registry-build",
+        "command": "vp run @tinker-start-scaffold#registry:build",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry-build.log"
+      },
+      {
+        "name": "short-04-build",
+        "command": "vp run -r build",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-build.log"
+      },
+      {
+        "name": "short-04-check",
+        "command": "vp check",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-check.log"
+      },
+      {
+        "name": "short-04-plain",
+        "command": "npm run check:plain",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-plain.log"
+      },
+      {
+        "name": "short-04-plain-prove",
+        "command": "node scripts/check-plain.mjs --prove",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-plain-prove.log"
+      },
+      {
+        "name": "short-04-seam",
+        "command": "npm run test:seam",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-seam.log"
+      },
+      {
+        "name": "short-04-app-tests",
+        "command": "npm test",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-app-tests.log"
+      },
+      {
+        "name": "short-04-registry",
+        "command": "npm run test:registry",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry.log"
+      },
+      {
+        "name": "short-04-all-tests",
+        "command": "vp run -r test",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-all-tests.log"
+      },
+      {
+        "name": "short-04-prose",
+        "command": "vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-prose.log"
+      },
+      {
+        "name": "short-04-validate",
+        "command": "pnpm validate",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-validate.log"
+      },
+      {
+        "name": "short-04-style",
+        "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts apps/start-scaffold/src/routes/api.telemetry.ts --strict && node tools/jev/docs.mjs apps/start-scaffold/src/server.ts apps/start-scaffold/src/scaffold/backend/body.server.ts apps/start-scaffold/src/routes/api.telemetry.ts",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-style.log"
+      },
+      {
+        "name": "short-04-structure",
+        "command": "npm run test:boundary && npm run test:imports && npm run test:schema && npm run test:middleware && npm run test:seam:fixture && npm run typecheck",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-structure.log"
+      },
+      {
+        "name": "short-04-jev",
+        "command": "node tools/jev/preflight.mjs c4583608..HEAD",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-jev.log"
+      },
+      {
+        "name": "short-04-jev-labels",
+        "command": "node .protocol-reply-logs/logs/label.mjs stateOutsideCell false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The reader Set and cancelled bit are private cleanup records behind the resource methods. No app view watches them and no listener set publishes domain state.\" && node .protocol-reply-logs/logs/label.mjs stopOnlyInDefer false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The synchronous factory starts no Core run that forced close must await. Stream pulls belong to the consumer; defer cancels pending readers and closes their requests. Consumer cancellation closes immediately. The pending-pull and scope-shutdown tests prove both paths.\" && node .protocol-reply-logs/logs/label.mjs ignoresAbortAfterAwait false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The factory is synchronous and has no await. Its awaited stream callbacks finish or cancel owned work; after finish they check cancelled before emitting or closing. The added isResponse method only performs the same native instance check as the old entry.\"",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-jev-labels.log"
+      },
+      {
+        "name": "short-04-warning-proof",
+        "command": "python3 .protocol-reply-logs/logs/short-warning-proof.py",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-warning-proof.log"
+      },
+      {
+        "name": "short-05-check",
+        "command": "vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp check && vp run prose && git diff --check",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-05-check.log"
+      }
+    ],
+    "redGreen": [
+      {
+        "change": "constant request-header key",
+        "red": {
+          "name": "short-01-headers-red",
+          "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-headers-red.log"
+        },
+        "green": {
+          "name": "short-01-green-final",
+          "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key,http-backend-constant-key",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-green-final.log"
+        },
+        "oldChild": {
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-headers-old-child.log"
+        }
+      },
+      {
+        "change": "constant HTTP backend key",
+        "red": {
+          "name": "short-01-backend-red-final",
+          "command": "node scripts/check-plain.mjs --prove --cases=http-backend-constant-key",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-backend-red-final.log"
+        },
+        "green": {
+          "name": "short-01-green-final",
+          "command": "node scripts/check-plain.mjs --prove --cases=request-headers-constant-key,http-backend-constant-key",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-green-final.log"
+        },
+        "oldChild": {
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-01-backend-old-child.log"
+        }
+      },
+      {
+        "change": "resource reply hidden as unknown",
+        "red": {
+          "name": "short-02-resource-red",
+          "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-resource-red.log"
+        },
+        "green": {
+          "name": "short-02-green-verified",
+          "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+        },
+        "oldChild": {
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-resource-old-child.log"
+        }
+      },
+      {
+        "change": "resource method reply typed unknown",
+        "red": {
+          "name": "short-02-method-red",
+          "command": "node scripts/check-plain.mjs --prove --cases=response-resource-method-unknown",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-method-red.log"
+        },
+        "green": {
+          "name": "short-02-green-verified",
+          "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+        },
+        "oldChild": {
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-method-old-child.log"
+        }
+      },
+      {
+        "change": "Reflect.construct global Response",
+        "red": {
+          "name": "short-02-reflect-red",
+          "command": "node scripts/check-plain.mjs --prove --cases=response-reflect-construct",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-reflect-red.log"
+        },
+        "green": {
+          "name": "short-02-green-verified",
+          "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+        },
+        "oldChild": {
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-reflect-old-child.log"
+        }
+      },
+      {
+        "change": "global Response type reference",
+        "red": {
+          "name": "short-02-type-red",
+          "command": "node scripts/check-plain.mjs --prove --cases=response-type-reference",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-type-red.log"
+        },
+        "green": {
+          "name": "short-02-green-verified",
+          "command": "node scripts/check-plain.mjs --prove --cases=response-resource-unknown,response-resource-method-unknown,response-reflect-construct,response-type-reference,response-route-allowed,response-scaffold-allowed,response-local-type-allowed",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-green-verified.log"
+        },
+        "oldChild": {
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-02-type-old-child.log"
+        }
+      },
+      {
+        "change": "unknown input cast to Request",
+        "red": {
+          "name": "short-03-cast-red",
+          "command": "node scripts/check-plain.mjs --prove --cases=operation-request-input-cast",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-cast-red.log"
+        },
+        "green": {
+          "name": "short-03-cast-green",
+          "command": "node scripts/check-plain.mjs --prove --cases=operation-request-input-cast",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-cast-green.log"
+        },
+        "oldChild": {
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-cast-old-child.log"
+        }
+      },
+      {
+        "change": "body stream without non-null assertion",
+        "red": {
+          "name": "short-03-body-red",
+          "command": "node .protocol-reply-logs/short-03-route-audit.mjs body",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-body-red.log"
+        },
+        "green": {
+          "name": "short-03-body-green",
+          "command": "node .protocol-reply-logs/short-03-route-audit.mjs body",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-body-green.log"
+        }
+      },
+      {
+        "change": "failed result status narrows error",
+        "red": {
+          "name": "short-03-result-red",
+          "command": "node .protocol-reply-logs/short-03-route-audit.mjs result",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-result-red.log"
+        },
+        "green": {
+          "name": "short-03-result-green",
+          "command": "node .protocol-reply-logs/short-03-route-audit.mjs result",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-03-result-green.log"
+        }
+      },
+      {
+        "change": "registry exact source",
+        "red": {
+          "name": "short-04-registry-red",
+          "command": "npm run test:registry",
+          "code": 1,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry-red.log"
+        },
+        "green": {
+          "name": "short-04-registry",
+          "command": "npm run test:registry",
+          "code": 0,
+          "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-registry.log"
+        }
+      }
+    ],
+    "plain": 177,
+    "banned": 168,
+    "allowed": 9,
+    "proofScripts": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/logs",
+    "jev": {
+      "fileFlags": 0,
+      "unitFlags": 3,
+      "answers": "all false",
+      "labels": {
+        "name": "short-04-jev-labels",
+        "command": "node .protocol-reply-logs/logs/label.mjs stateOutsideCell false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The reader Set and cancelled bit are private cleanup records behind the resource methods. No app view watches them and no listener set publishes domain state.\" && node .protocol-reply-logs/logs/label.mjs stopOnlyInDefer false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The synchronous factory starts no Core run that forced close must await. Stream pulls belong to the consumer; defer cancels pending readers and closes their requests. Consumer cancellation closes immediately. The pending-pull and scope-shutdown tests prove both paths.\" && node .protocol-reply-logs/logs/label.mjs ignoresAbortAfterAwait false apps/start-scaffold/src/scaffold/backend/body.server.ts#responseBodies --by start/protocol-reply --why \"The factory is synchronous and has no await. Its awaited stream callbacks finish or cancel owned work; after finish they check cancelled before emitting or closing. The added isResponse method only performs the same native instance check as the old entry.\"",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/short-04-jev-labels.log"
+      },
+      "lead": "merge saved track labels and run calibration at landing"
+    },
+    "notes": [
+      "Body reads stay direct; the final settlement callback maps the reply under the unchanged complexity limit of 8.",
+      "Global Response in the server entry uses the same native instance check through its scaffold body resource.",
+      "All new banned plants passed the old guard with child exit 0.",
+      "The first backend plant and first allowed reply plants hit other existing rules; final plants isolate each named rule.",
+      "The first full check saw the proof helper; helpers now live in the ignored logs folder."
+    ]
   }
 }

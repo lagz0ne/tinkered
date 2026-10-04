@@ -2834,7 +2834,8 @@ The final registry and proof are ready for lead review.
 
 Owner: Codex, card start/protocol-reply.
 Base: c4583608.
-Next: close the constant-key, hidden reply, and input-cast holes.
+State: Review.
+Next: lead review.
 Verify: each fix red then green, each new plain case planted.
 Then rebuild the registry and repeat every gate by exit code.
 The lead owns TODO.md and landing.
@@ -2876,3 +2877,44 @@ It does real work and returns the owned promise.
 Body reads stay direct; no lint limit or guard was weakened.
 Build, types, plain check, and fourteen wire and telemetry tests pass.
 Proof: short-03-verified.log, exit 0.
+
+## Short fix round gates
+
+All requested commands finished with exit 0.
+Build, check, plain, seam, app tests, registry, all tests, prose, and validate pass.
+The registry build also exits 0.
+The full proof passes all 177 planted cases.
+The 168 banned cases each exit 1 for the named rule.
+The nine allowed cases each exit 0.
+The same seventeen plain functions remain.
+Proof: .protocol-reply-logs/short-04-plain-prove.log.
+Every child log is copied into this worktree.
+
+The copied starter passes all fifteen gates, exit 0.
+All 119 files match source.
+Proof: .protocol-reply-logs/short-04-registry.log.
+The app passes 68 tests.
+The repo passes 1,252 Vitest tests and 147 Node tests.
+One existing Vitest skip remains.
+The same 28 warnings remain in eleven files.
+Every warning file matches c4583608.
+Proof: .protocol-reply-logs/short-04-warning-proof.log.
+All sixteen validate lanes pass, exit 0.
+Proof: .protocol-reply-logs/short-04-validate.log.
+All fourteen wire facts remain unchanged.
+Proof: .protocol-reply-logs/short-03-verified.log.
+
+Strict style and TSDoc pass, exit 0.
+Jev has zero file flags and three unit flags on the body resource.
+Each has a false label with its reason in the saved track file.
+The lead merges the labels and runs calibration at landing.
+No new Core gap was found.
+
+The gate record keeps every command, exit, and copied log path.
+It also keeps the old proof and each failed attempt.
+The first full check saw the proof helper's format.
+Proof helpers now live in the ignored logs folder.
+The full gate list then passed.
+No app source changed during the gate run.
+No stash, push, trial-store access, or container command was used.
+The registry and proof wait in Review for the lead.
