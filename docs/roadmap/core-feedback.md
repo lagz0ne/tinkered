@@ -817,3 +817,16 @@ await scope.close({ graceful: true }); // never settles
 
 The services abort from a close hook before `event.next()`.
 The Start scaffold's `http` resource still hangs (card `start/http-graceful`).
+
+## No hook when a graceful close begins, 2026-10-04
+
+Asked by `start/http-graceful`; fourth caller for card `core/close-hook-scope`
+(after sync/subscribe, stack/t07, and `trial/services-http`).
+
+The scaffold's `http` resource stops requests through the `backendStop`
+and `requestStop` tags. A direct `scope.close({ graceful: true })`
+with neither signal aborted still waits on an outgoing request,
+because Core drains running work before resource cleanup runs.
+A first try replaced Core's own `close` and `createSession`; the review
+rejected that as dishonest. A hook that fires when a graceful close
+begins, before the drain, would remove the limit.

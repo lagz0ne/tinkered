@@ -71,13 +71,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/http-graceful** — a graceful close never hangs on an outgoing HTTP request.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-http-graceful`. Found by the `trial/services-http` reviewer's probe.
-  Next: abort requests in flight when a graceful close begins (close hook, as the services do).
-  Verify: graceful root and session close settle while a request waits on a silent backend; red then green.
-  [Brief](docs/roadmap/start-scaffold/HTTP-GRACEFUL-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -99,6 +92,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/http-graceful** — a server shutdown never hangs on an outgoing HTTP request.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY after one fix round.
+  `http` stops through the inherited `backendStop` and `requestStop` tags, so every child session Core makes is covered;
+  a stopped request is refused before sending; no Core method is replaced.
+  Proof: 7 red-then-green tests incl. the server-function `settle(op, { signal })` shape; 60 app tests; all gates.
+  Limit: a direct graceful close with no stop signal still waits (Core feedback row; `core/close-hook-scope`).
 
 - **repo/vite-plus-1** — `vite-plus` 0.3.1 → 1.0.0 (Vitest 4 → 5).
   Owner: lead (Claude, tinkered-2f). `vp migrate`, plus literal 1.0.0 pins in the examples, the starter, and writer-trial.
