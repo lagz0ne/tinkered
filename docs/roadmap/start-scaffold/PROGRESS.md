@@ -1352,3 +1352,18 @@ Verify: red and green tests; build, checks, tests, prose, and validate.
 - The app has no mutation script.
   Only a requested mutation lane would run, under flock.
 - The trial store and trial containers are outside this work.
+
+### Step 1: HTTP units
+
+The server seam and both backend indexes export all three units.
+The request operation records method, path, and status on its named child.
+A 404 reply stays successful; no query string enters the span name.
+The resource retains each abort controller through body reading.
+Its deferred close aborts requests even on graceful close.
+A caller abort keeps Core's cancelled result.
+Network failures carry HttpRequestFailed with the request and cause.
+
+All five new tests pass through the backend seam with bound fakes.
+Each fails when its own behavior is removed, then passes with it restored.
+The red variants never call the real network.
+No plain function was added; the caller list gains the HTTP error raise.
