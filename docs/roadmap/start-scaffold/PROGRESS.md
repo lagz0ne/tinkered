@@ -2829,3 +2829,21 @@ The same 28 check warnings remain, in six unchanged files.
 No runtime source changed after the four review fixes.
 All jobs have ended.
 The final registry and proof are ready for lead review.
+
+## Protocol reply short fix round
+
+Owner: Codex, card start/protocol-reply.
+Base: c4583608.
+Next: close the constant-key, hidden reply, and input-cast holes.
+Verify: each fix red then green, each new plain case planted.
+Then rebuild the registry and repeat every gate by exit code.
+The lead owns TODO.md and landing.
+
+Short fix 1: constant string keys use the shared symbol lookup.
+The HTTP backend rule uses it too.
+Both final plants pass the old guard, child exit 0.
+Their old proof checks fail, exit 1.
+Red: short-01-headers-red.log and short-01-backend-red-final.log.
+Green: short-01-green-final.log, exit 0.
+The first backend plant returned a reply and hit the old reply rule.
+Its final plant returns 1, so it proves the passing hole.
