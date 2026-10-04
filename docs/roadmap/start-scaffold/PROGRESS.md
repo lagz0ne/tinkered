@@ -2391,3 +2391,40 @@ All long jobs ended before this proof was saved.
 Next: commit the registry and proof, then lead review.
 The direct graceful-close limit remains recorded above and in the HTTP TSDoc.
 The lead owns the Core hook follow-up.
+
+## Protocol reply writer
+
+Owner: start/protocol-reply writer.
+Next: prove the wire cases on 2d307cf5 before moving HTTP work.
+Verify: each source change red then green; all brief gates.
+
+The Doing card already exists in TODO.md.
+The brief limits edits to the app, this track, and ADR 0103.
+The lead keeps the board; this section records writer steps.
+Assume tests may call exported route handlers as the HTTP seam.
+Compare exact status, all headers, and body against fixed wire facts.
+Keep the same test before and after the move.
+No trial store or container is needed.
+
+### Step 1: wire facts before the move
+
+The unchanged source passes the wire test, exit 0.
+It covers ten telemetry cases and four sync cases.
+Each compares status, all headers, and body.
+Last-Event-ID wins over a bad query cursor.
+The first SSE body is the exact connected frame.
+The test calls the exported route handlers with real scopes.
+The sync route uses the real local proof database and auth.
+No module or global is patched.
+
+Proof: .protocol-reply-logs/01e-baseline.log.
+That log includes build, types, wire tests, format, and prose.
+Early test drafts failed on cleanup and route argument types.
+They are saved as 01 through 01d logs.
+No source was changed to make the wire facts pass.
+
+The saved wire tests also pass types and the staged code check.
+Proof: 01g-baseline.log and 01h-check.log.
+The last check needs --fix before file paths in Vite+ 1.0.
+A first commit try caught two long test branches.
+Two shared test readers now keep each branch small.
