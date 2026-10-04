@@ -1,0 +1,2533 @@
+{
+  "branch": "start/http-graceful",
+  "base": "ecdfb4862551844c843696438398f68ac65774b8",
+  "commits": [
+    "a66753ba96f5dd21b4d27772bc6319f4d561fa10 docs: add HTTP graceful shutdown writer brief",
+    "b882ab7002ba3b625f0bf33d069efbcc59b394f5 test(start): prove HTTP graceful close hangs and late sends",
+    "72aa4fdcb7d4905082d7e6328620fedec18732af fix(start): stop owned HTTP waits before graceful close joins work",
+    "3336d78997e7bae4356a69553abb7d09e9dc2ca3 test(start): prove HTTP subtree close and graceful work finish",
+    "9f6c2b40f8de0f9923af7f0572888f45b49205f1 docs(start): record HTTP close limits and Jev answers",
+    "f43e857c599aeb51fb947840c931e83ea4721036 fix(start): let Core handle repeat close calls during cleanup",
+    "e543124698034c8356f8ac17b91350af726764ea test(start): check cleanup errors and save final Jev answers"
+  ],
+  "gates": [
+    {
+      "name": "02-root-red",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful root close stops"
+      ],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/02-root-red.log"
+    },
+    {
+      "name": "02-session-red",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful session close stops"
+      ],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/02-session-red.log"
+    },
+    {
+      "name": "02-late-red",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "an HTTP request started after graceful close"
+      ],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/02-late-red.log"
+    },
+    {
+      "name": "02-forced-before",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "forced root and session closes"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/02-forced-before.log"
+    },
+    {
+      "name": "02-tests-commit",
+      "command": [
+        "git",
+        "commit",
+        "-m",
+        "test(start): prove HTTP graceful close hangs and late sends"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/02-tests-commit.log"
+    },
+    {
+      "name": "03-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/03-build.log"
+    },
+    {
+      "name": "03-root-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful root close stops"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-root-green.log"
+    },
+    {
+      "name": "03-session-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful session close stops"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-session-green.log"
+    },
+    {
+      "name": "03-late-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "an HTTP request started after graceful close"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-late-green.log"
+    },
+    {
+      "name": "03-build-final",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-build-final.log"
+    },
+    {
+      "name": "03-http-tests",
+      "command": ["vp", "run", "@tinker-start-scaffold#test", "tests/http.test.ts"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-http-tests.log"
+    },
+    {
+      "name": "03-plain",
+      "command": ["node", "apps/start-scaffold/scripts/check-plain.mjs"],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/03-plain.log"
+    },
+    {
+      "name": "03-check",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-check.log"
+    },
+    {
+      "name": "03-build-owned",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-build-owned.log"
+    },
+    {
+      "name": "03-http-owned",
+      "command": ["vp", "run", "@tinker-start-scaffold#test", "tests/http.test.ts"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-http-owned.log"
+    },
+    {
+      "name": "03-plain-owned",
+      "command": ["node", "apps/start-scaffold/scripts/check-plain.mjs"],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/03-plain-owned.log"
+    },
+    {
+      "name": "03-check-owned",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-check-owned.log"
+    },
+    {
+      "name": "03-build-private",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-build-private.log"
+    },
+    {
+      "name": "03-http-private",
+      "command": ["vp", "run", "@tinker-start-scaffold#test", "tests/http.test.ts"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-http-private.log"
+    },
+    {
+      "name": "03-plain-private",
+      "command": ["node", "apps/start-scaffold/scripts/check-plain.mjs"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-plain-private.log"
+    },
+    {
+      "name": "03-check-private",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-check-private.log"
+    },
+    {
+      "name": "03-prose",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-prose.log"
+    },
+    {
+      "name": "03-source-commit",
+      "command": [
+        "git",
+        "commit",
+        "-m",
+        "fix(start): stop owned HTTP waits before graceful close joins work"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/03-source-commit.log"
+    },
+    {
+      "name": "04-red-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-red-build.log"
+    },
+    {
+      "name": "04-nested-root-red",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful root close stops HTTP waits in nested"
+      ],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/04-nested-root-red.log"
+    },
+    {
+      "name": "04-siblings-red",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful session close stops its nested"
+      ],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/04-siblings-red.log"
+    },
+    {
+      "name": "04-other-work-red",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful HTTP shutdown lets"
+      ],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/04-other-work-red.log"
+    },
+    {
+      "name": "04-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-green-build.log"
+    },
+    {
+      "name": "04-root-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-root-green-build.log"
+    },
+    {
+      "name": "04-root-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful root close stops a never-answering"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-root-green.log"
+    },
+    {
+      "name": "04-session-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-session-green-build.log"
+    },
+    {
+      "name": "04-session-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful session close stops a never-answering"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-session-green.log"
+    },
+    {
+      "name": "04-late-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-late-green-build.log"
+    },
+    {
+      "name": "04-late-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "an HTTP request started after graceful close"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-late-green.log"
+    },
+    {
+      "name": "04-forced-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-forced-green-build.log"
+    },
+    {
+      "name": "04-forced-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "forced root and session closes"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-forced-green.log"
+    },
+    {
+      "name": "04-nested-root-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-nested-root-green-build.log"
+    },
+    {
+      "name": "04-nested-root-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful root close stops HTTP waits in nested"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-nested-root-green.log"
+    },
+    {
+      "name": "04-siblings-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-siblings-green-build.log"
+    },
+    {
+      "name": "04-siblings-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful session close stops its nested"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-siblings-green.log"
+    },
+    {
+      "name": "04-other-work-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-other-work-green-build.log"
+    },
+    {
+      "name": "04-other-work-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "graceful HTTP shutdown lets"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-other-work-green.log"
+    },
+    {
+      "name": "04-registry-red",
+      "command": ["node", "apps/start-scaffold/maintain/check-registry.mjs"],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/04-registry-red.log"
+    },
+    {
+      "name": "04-census",
+      "command": [
+        "bash",
+        ".agents/skills/coding-convention/scripts/style-census.sh",
+        "apps/start-scaffold/src",
+        "apps/start-scaffold/tests",
+        "--strict"
+      ],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/04-census.log"
+    },
+    {
+      "name": "04-check",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-check.log"
+    },
+    {
+      "name": "04-prose",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-prose.log"
+    },
+    {
+      "name": "04-tests-commit",
+      "command": [
+        "git",
+        "commit",
+        "-m",
+        "test(start): prove HTTP subtree close and graceful work finish"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/04-tests-commit.log"
+    },
+    {
+      "name": "05-registry-build",
+      "command": ["vp", "run", "@tinker-start-scaffold#registry:build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/05-registry-build.log"
+    },
+    {
+      "name": "05-jev-preflight",
+      "command": ["node", "tools/jev/preflight.mjs", "origin/main..HEAD"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/05-jev-preflight.log"
+    },
+    {
+      "name": "06-plain-prove-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-plain-prove-build.log"
+    },
+    {
+      "name": "05-label-defer",
+      "command": [
+        "node",
+        "tools/jev/label.mjs",
+        "effectWithoutDefer",
+        "false",
+        "apps/start-scaffold/src/scaffold/backend/http.ts#httpScopes",
+        "--by",
+        "start/http-graceful",
+        "--why",
+        "The adapter has ctx.defer to clear child holds. Child onClose removes its stop method; native Core close still owns teardown."
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/05-label-defer.log"
+    },
+    {
+      "name": "05-label-state",
+      "command": [
+        "node",
+        "tools/jev/label.mjs",
+        "stateOutsideCell",
+        "false",
+        "apps/start-scaffold/src/scaffold/backend/http.ts#httpScopes",
+        "--by",
+        "start/http-graceful",
+        "--why",
+        "The held native methods, child stop methods, and close promise are private lifetime state. They are not saved records or visible app state."
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/05-label-state.log"
+    },
+    {
+      "name": "05-label-config",
+      "command": [
+        "node",
+        "tools/jev/label.mjs",
+        "configNotTag",
+        "false",
+        "apps/start-scaffold/src/scaffold/backend/http.ts#httpRequest",
+        "--by",
+        "start/http-graceful",
+        "--why",
+        "URL method headers body and safe native failure facts belong to this request. Sending comes from the httpBackend tag through the HTTP resource."
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/05-label-config.log"
+    },
+    {
+      "name": "05-jev-pinned",
+      "command": ["node", "tools/jev/preflight.mjs", "ecdfb486..HEAD"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/05-jev-pinned.log"
+    },
+    {
+      "name": "05-prose-progress",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/05-prose-progress.log"
+    },
+    {
+      "name": "05-prose-corrected",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/05-prose-corrected.log"
+    },
+    {
+      "name": "05-notes-commit",
+      "command": ["git", "commit", "-m", "docs(start): record HTTP close limits and Jev answers"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/05-notes-commit.log"
+    },
+    {
+      "name": "06-plain-prove",
+      "command": [
+        "env",
+        "TMPDIR=/tmp/tinkered-http-graceful-logs/proofs/plain",
+        "node",
+        "apps/start-scaffold/scripts/check-plain.mjs",
+        "--prove"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-plain-prove.log"
+    },
+    {
+      "name": "06-seam-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-seam-build.log"
+    },
+    {
+      "name": "06-seam",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:seam"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-seam.log"
+    },
+    {
+      "name": "06-seam-fixture-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-seam-fixture-build.log"
+    },
+    {
+      "name": "06-seam-fixture",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:seam:fixture"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-seam-fixture.log"
+    },
+    {
+      "name": "06-boundary-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-boundary-build.log"
+    },
+    {
+      "name": "06-boundary",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:boundary"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-boundary.log"
+    },
+    {
+      "name": "06-imports-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-imports-build.log"
+    },
+    {
+      "name": "06-imports",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:imports"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-imports.log"
+    },
+    {
+      "name": "06-schema-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-schema-build.log"
+    },
+    {
+      "name": "06-schema",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:schema"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-schema.log"
+    },
+    {
+      "name": "06-middleware-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-middleware-build.log"
+    },
+    {
+      "name": "06-middleware",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:middleware"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-middleware.log"
+    },
+    {
+      "name": "06-types-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-types-build.log"
+    },
+    {
+      "name": "06-types",
+      "command": ["vp", "run", "@tinker-start-scaffold#typecheck"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-types.log"
+    },
+    {
+      "name": "06-docs-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-docs-build.log"
+    },
+    {
+      "name": "06-docs",
+      "command": [
+        "node",
+        "tools/jev/docs.mjs",
+        "apps/start-scaffold/src/scaffold/backend/http.ts",
+        "apps/start-scaffold/src/scaffold/start.ts",
+        "apps/start-scaffold/tests/http.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-docs.log"
+    },
+    {
+      "name": "06-census-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-census-build.log"
+    },
+    {
+      "name": "06-census",
+      "command": [
+        "bash",
+        ".agents/skills/coding-convention/scripts/style-census.sh",
+        "apps/start-scaffold/src/scaffold/backend/http.ts",
+        "apps/start-scaffold/src/scaffold/start.ts",
+        "apps/start-scaffold/tests/http.test.ts",
+        "--strict"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-census.log"
+    },
+    {
+      "name": "06-jev-tests-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-jev-tests-build.log"
+    },
+    {
+      "name": "06-jev-tests",
+      "command": [
+        "node",
+        "tools/jev/tests.mjs",
+        "../apps/start-scaffold",
+        "--json",
+        "/tmp/tinkered-http-graceful-logs/jev-tests.json"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-jev-tests.log"
+    },
+    {
+      "name": "06-jev-promises-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-jev-promises-build.log"
+    },
+    {
+      "name": "06-jev-promises",
+      "command": [
+        "node",
+        "tools/jev/promises.mjs",
+        "../apps/start-scaffold",
+        "--json",
+        "/tmp/tinkered-http-graceful-logs/jev-promises.json"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-jev-promises.log"
+    },
+    {
+      "name": "06-validate-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-validate-build.log"
+    },
+    {
+      "name": "06-validate",
+      "command": ["pnpm", "validate"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-validate.log"
+    },
+    {
+      "name": "06-registry-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-registry-green-build.log"
+    },
+    {
+      "name": "06-registry-green",
+      "command": [
+        "env",
+        "TMPDIR=/tmp/tinkered-http-graceful-logs/proofs/registry",
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test:registry"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/06-registry-green.log"
+    },
+    {
+      "name": "08-cleanup-red-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/08-cleanup-red-build.log"
+    },
+    {
+      "name": "08-cleanup-red",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "HTTP cleanup can close its own owner"
+      ],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/08-cleanup-red.log"
+    },
+    {
+      "name": "08-cleanup-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/08-cleanup-green-build.log"
+    },
+    {
+      "name": "08-cleanup-green",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "HTTP cleanup can close its own owner"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/08-cleanup-green.log"
+    },
+    {
+      "name": "08-http-final",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "--reporter=verbose"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/08-http-final.log"
+    },
+    {
+      "name": "08-check-final",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/08-check-final.log"
+    },
+    {
+      "name": "08-prose",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/08-prose.log"
+    },
+    {
+      "name": "08-source-commit",
+      "command": [
+        "git",
+        "commit",
+        "-m",
+        "fix(start): let Core handle repeat close calls during cleanup"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/08-source-commit.log"
+    },
+    {
+      "name": "08-registry-red",
+      "command": ["node", "apps/start-scaffold/maintain/check-registry.mjs"],
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/08-registry-red.log"
+    },
+    {
+      "name": "09-registry-build",
+      "command": ["vp", "run", "@tinker-start-scaffold#registry:build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-registry-build.log"
+    },
+    {
+      "name": "09-jev-pinned",
+      "command": ["node", "tools/jev/preflight.mjs", "ecdfb486..HEAD"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-jev-pinned.log"
+    },
+    {
+      "name": "07-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/07-build.log"
+    },
+    {
+      "name": "07-check",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/07-check.log"
+    },
+    {
+      "name": "09-labels-final",
+      "command": ["node", "/tmp/tinkered-http-graceful-label-final.mjs"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-labels-final.log"
+    },
+    {
+      "name": "07-app-tests",
+      "command": ["vp", "run", "@tinker-start-scaffold#test"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/07-app-tests.log"
+    },
+    {
+      "name": "07-repo-tests",
+      "command": ["vp", "run", "-r", "test"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/07-repo-tests.log"
+    },
+    {
+      "name": "07-gate-chain",
+      "command": [
+        "bash",
+        "-c",
+        "python3 /tmp/tinkered-http-graceful-run.py 07-build vp run -r build && python3 /tmp/tinkered-http-graceful-run.py 07-check vp check && python3 /tmp/tinkered-http-graceful-run.py 07-app-tests vp run \"@tinker-start-scaffold#test\" && python3 /tmp/tinkered-http-graceful-run.py 07-repo-tests vp run -r test"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/07-gate-chain.log"
+    },
+    {
+      "name": "09-registry-build-final",
+      "command": ["vp", "run", "@tinker-start-scaffold#registry:build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-registry-build-final.log"
+    },
+    {
+      "name": "09-http-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-http-build.log"
+    },
+    {
+      "name": "09-http-final",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "--reporter=verbose"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+    },
+    {
+      "name": "09-plain-prove-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-plain-prove-build.log"
+    },
+    {
+      "name": "09-test-shape-check",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-test-shape-check.log"
+    },
+    {
+      "name": "09-prose-notes",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-prose-notes.log"
+    },
+    {
+      "name": "09-notes-commit",
+      "command": [
+        "git",
+        "commit",
+        "-m",
+        "test(start): check cleanup errors and save final Jev answers"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-notes-commit.log"
+    },
+    {
+      "name": "09-plain-prove",
+      "command": [
+        "env",
+        "TMPDIR=/tmp/tinkered-http-graceful-logs/proofs/plain-final",
+        "node",
+        "apps/start-scaffold/scripts/check-plain.mjs",
+        "--prove"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-plain-prove.log"
+    },
+    {
+      "name": "09-seam-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-seam-build.log"
+    },
+    {
+      "name": "09-seam",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:seam"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-seam.log"
+    },
+    {
+      "name": "09-seam-fixture-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-seam-fixture-build.log"
+    },
+    {
+      "name": "09-seam-fixture",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:seam:fixture"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-seam-fixture.log"
+    },
+    {
+      "name": "09-boundary-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-boundary-build.log"
+    },
+    {
+      "name": "09-boundary",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:boundary"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-boundary.log"
+    },
+    {
+      "name": "09-imports-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-imports-build.log"
+    },
+    {
+      "name": "09-imports",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:imports"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-imports.log"
+    },
+    {
+      "name": "09-schema-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-schema-build.log"
+    },
+    {
+      "name": "09-schema",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:schema"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-schema.log"
+    },
+    {
+      "name": "09-middleware-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-middleware-build.log"
+    },
+    {
+      "name": "09-middleware",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:middleware"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-middleware.log"
+    },
+    {
+      "name": "09-types-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-types-build.log"
+    },
+    {
+      "name": "09-types",
+      "command": ["vp", "run", "@tinker-start-scaffold#typecheck"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-types.log"
+    },
+    {
+      "name": "09-docs-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-docs-build.log"
+    },
+    {
+      "name": "09-docs",
+      "command": [
+        "node",
+        "tools/jev/docs.mjs",
+        "apps/start-scaffold/src/scaffold/backend/http.ts",
+        "apps/start-scaffold/src/scaffold/start.ts",
+        "apps/start-scaffold/tests/http.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-docs.log"
+    },
+    {
+      "name": "09-census-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-census-build.log"
+    },
+    {
+      "name": "09-census",
+      "command": [
+        "bash",
+        ".agents/skills/coding-convention/scripts/style-census.sh",
+        "apps/start-scaffold/src/scaffold/backend/http.ts",
+        "apps/start-scaffold/src/scaffold/start.ts",
+        "apps/start-scaffold/tests/http.test.ts",
+        "--strict"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-census.log"
+    },
+    {
+      "name": "09-jev-tests-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-jev-tests-build.log"
+    },
+    {
+      "name": "09-jev-tests",
+      "command": [
+        "node",
+        "tools/jev/tests.mjs",
+        "../apps/start-scaffold",
+        "--json",
+        "/tmp/tinkered-http-graceful-logs/jev-tests-final.json"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-jev-tests.log"
+    },
+    {
+      "name": "09-jev-promises-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-jev-promises-build.log"
+    },
+    {
+      "name": "09-jev-promises",
+      "command": [
+        "node",
+        "tools/jev/promises.mjs",
+        "../apps/start-scaffold",
+        "--json",
+        "/tmp/tinkered-http-graceful-logs/jev-promises-final.json"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-jev-promises.log"
+    },
+    {
+      "name": "09-validate-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-validate-build.log"
+    },
+    {
+      "name": "09-validate",
+      "command": ["pnpm", "validate"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-validate.log"
+    },
+    {
+      "name": "09-registry-green-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-registry-green-build.log"
+    },
+    {
+      "name": "09-registry-green",
+      "command": [
+        "env",
+        "TMPDIR=/tmp/tinkered-http-graceful-logs/proofs/registry-final",
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test:registry"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-registry-green.log"
+    },
+    {
+      "name": "10-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-build.log"
+    },
+    {
+      "name": "10-check",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-check.log"
+    },
+    {
+      "name": "10-app-tests",
+      "command": ["vp", "run", "@tinker-start-scaffold#test"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-app-tests.log"
+    },
+    {
+      "name": "10-repo-tests",
+      "command": ["vp", "run", "-r", "test"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-repo-tests.log"
+    },
+    {
+      "name": "10-gate-chain",
+      "command": [
+        "bash",
+        "-c",
+        "python3 /tmp/tinkered-http-graceful-run.py 10-build vp run -r build && python3 /tmp/tinkered-http-graceful-run.py 10-check vp check && python3 /tmp/tinkered-http-graceful-run.py 10-app-tests vp run \"@tinker-start-scaffold#test\" && python3 /tmp/tinkered-http-graceful-run.py 10-repo-tests vp run -r test"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-gate-chain.log"
+    },
+    {
+      "name": "11-proof-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/11-proof-build.log"
+    },
+    {
+      "name": "11-prose",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/11-prose.log"
+    }
+  ],
+  "finalGates": [
+    {
+      "name": "09-jev-pinned",
+      "command": ["node", "tools/jev/preflight.mjs", "ecdfb486..HEAD"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-jev-pinned.log"
+    },
+    {
+      "name": "09-labels-final",
+      "command": ["node", "/tmp/tinkered-http-graceful-label-final.mjs"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-labels-final.log"
+    },
+    {
+      "name": "09-registry-build-final",
+      "command": ["vp", "run", "@tinker-start-scaffold#registry:build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-registry-build-final.log"
+    },
+    {
+      "name": "09-http-final",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "--reporter=verbose"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+    },
+    {
+      "name": "09-test-shape-check",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-test-shape-check.log"
+    },
+    {
+      "name": "09-prose-notes",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-prose-notes.log"
+    },
+    {
+      "name": "09-notes-commit",
+      "command": [
+        "git",
+        "commit",
+        "-m",
+        "test(start): check cleanup errors and save final Jev answers"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-notes-commit.log"
+    },
+    {
+      "name": "09-plain-prove",
+      "command": [
+        "env",
+        "TMPDIR=/tmp/tinkered-http-graceful-logs/proofs/plain-final",
+        "node",
+        "apps/start-scaffold/scripts/check-plain.mjs",
+        "--prove"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-plain-prove.log"
+    },
+    {
+      "name": "09-seam",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:seam"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-seam.log"
+    },
+    {
+      "name": "09-seam-fixture",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:seam:fixture"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-seam-fixture.log"
+    },
+    {
+      "name": "09-boundary",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:boundary"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-boundary.log"
+    },
+    {
+      "name": "09-imports",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:imports"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-imports.log"
+    },
+    {
+      "name": "09-schema",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:schema"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-schema.log"
+    },
+    {
+      "name": "09-middleware",
+      "command": ["vp", "run", "@tinker-start-scaffold#test:middleware"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-middleware.log"
+    },
+    {
+      "name": "09-types",
+      "command": ["vp", "run", "@tinker-start-scaffold#typecheck"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-types.log"
+    },
+    {
+      "name": "09-docs",
+      "command": [
+        "node",
+        "tools/jev/docs.mjs",
+        "apps/start-scaffold/src/scaffold/backend/http.ts",
+        "apps/start-scaffold/src/scaffold/start.ts",
+        "apps/start-scaffold/tests/http.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-docs.log"
+    },
+    {
+      "name": "09-census",
+      "command": [
+        "bash",
+        ".agents/skills/coding-convention/scripts/style-census.sh",
+        "apps/start-scaffold/src/scaffold/backend/http.ts",
+        "apps/start-scaffold/src/scaffold/start.ts",
+        "apps/start-scaffold/tests/http.test.ts",
+        "--strict"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-census.log"
+    },
+    {
+      "name": "09-jev-tests",
+      "command": [
+        "node",
+        "tools/jev/tests.mjs",
+        "../apps/start-scaffold",
+        "--json",
+        "/tmp/tinkered-http-graceful-logs/jev-tests-final.json"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-jev-tests.log"
+    },
+    {
+      "name": "09-jev-promises",
+      "command": [
+        "node",
+        "tools/jev/promises.mjs",
+        "../apps/start-scaffold",
+        "--json",
+        "/tmp/tinkered-http-graceful-logs/jev-promises-final.json"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-jev-promises.log"
+    },
+    {
+      "name": "09-validate",
+      "command": ["pnpm", "validate"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-validate.log"
+    },
+    {
+      "name": "09-registry-green",
+      "command": [
+        "env",
+        "TMPDIR=/tmp/tinkered-http-graceful-logs/proofs/registry-final",
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test:registry"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-registry-green.log"
+    },
+    {
+      "name": "10-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-build.log"
+    },
+    {
+      "name": "10-check",
+      "command": ["vp", "check"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-check.log"
+    },
+    {
+      "name": "10-app-tests",
+      "command": ["vp", "run", "@tinker-start-scaffold#test"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-app-tests.log"
+    },
+    {
+      "name": "10-repo-tests",
+      "command": ["vp", "run", "-r", "test"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-repo-tests.log"
+    },
+    {
+      "name": "10-gate-chain",
+      "command": [
+        "bash",
+        "-c",
+        "python3 /tmp/tinkered-http-graceful-run.py 10-build vp run -r build && python3 /tmp/tinkered-http-graceful-run.py 10-check vp check && python3 /tmp/tinkered-http-graceful-run.py 10-app-tests vp run \"@tinker-start-scaffold#test\" && python3 /tmp/tinkered-http-graceful-run.py 10-repo-tests vp run -r test"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/10-gate-chain.log"
+    },
+    {
+      "name": "11-proof-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/11-proof-build.log"
+    },
+    {
+      "name": "11-prose",
+      "command": ["vp", "run", "prose"],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/11-prose.log"
+    }
+  ],
+  "regressionProof": [
+    {
+      "title": "graceful root close stops a never-answering HTTP request",
+      "red": {
+        "name": "02-root-red",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "-t",
+          "graceful root close stops"
+        ],
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-graceful-logs/02-root-red.log"
+      },
+      "green": {
+        "name": "09-http-final",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "--reporter=verbose"
+        ],
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+      }
+    },
+    {
+      "title": "graceful session close stops a never-answering HTTP request",
+      "red": {
+        "name": "02-session-red",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "-t",
+          "graceful session close stops"
+        ],
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-graceful-logs/02-session-red.log"
+      },
+      "green": {
+        "name": "09-http-final",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "--reporter=verbose"
+        ],
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+      }
+    },
+    {
+      "title": "an HTTP request started after graceful close begins fails before sending",
+      "red": {
+        "name": "02-late-red",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "-t",
+          "an HTTP request started after graceful close"
+        ],
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-graceful-logs/02-late-red.log"
+      },
+      "green": {
+        "name": "09-http-final",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "--reporter=verbose"
+        ],
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+      }
+    },
+    {
+      "title": "graceful root close stops HTTP waits in nested sessions",
+      "red": {
+        "name": "04-nested-root-red",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "-t",
+          "graceful root close stops HTTP waits in nested"
+        ],
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-graceful-logs/04-nested-root-red.log"
+      },
+      "green": {
+        "name": "09-http-final",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "--reporter=verbose"
+        ],
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+      }
+    },
+    {
+      "title": "graceful session close stops its nested HTTP wait and leaves siblings open",
+      "red": {
+        "name": "04-siblings-red",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "-t",
+          "graceful session close stops its nested"
+        ],
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-graceful-logs/04-siblings-red.log"
+      },
+      "green": {
+        "name": "09-http-final",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "--reporter=verbose"
+        ],
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+      }
+    },
+    {
+      "title": "graceful HTTP shutdown lets other running work finish",
+      "red": {
+        "name": "04-other-work-red",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "-t",
+          "graceful HTTP shutdown lets"
+        ],
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-graceful-logs/04-other-work-red.log"
+      },
+      "green": {
+        "name": "09-http-final",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "--reporter=verbose"
+        ],
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+      }
+    },
+    {
+      "title": "HTTP cleanup can close its own owner without a hang",
+      "red": {
+        "name": "08-cleanup-red",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "-t",
+          "HTTP cleanup can close its own owner"
+        ],
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-graceful-logs/08-cleanup-red.log"
+      },
+      "green": {
+        "name": "09-http-final",
+        "command": [
+          "vp",
+          "run",
+          "@tinker-start-scaffold#test",
+          "tests/http.test.ts",
+          "--reporter=verbose"
+        ],
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+      }
+    }
+  ],
+  "forcedControl": {
+    "before": {
+      "name": "02-forced-before",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "-t",
+        "forced root and session closes"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/02-forced-before.log"
+    },
+    "after": {
+      "name": "09-http-final",
+      "command": [
+        "vp",
+        "run",
+        "@tinker-start-scaffold#test",
+        "tests/http.test.ts",
+        "--reporter=verbose"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/09-http-final.log"
+    }
+  },
+  "registryRed": {
+    "name": "08-registry-red",
+    "command": ["node", "apps/start-scaffold/maintain/check-registry.mjs"],
+    "exitCode": 1,
+    "log": "/tmp/tinkered-http-graceful-logs/08-registry-red.log"
+  },
+  "registry": {
+    "cli": "shadcn@4.21.0",
+    "items": 3,
+    "files": 113,
+    "payloads": "exact source",
+    "install": "source with lib alias rewritten to @/app-lib",
+    "aliasRewrite": "seam imports rewritten",
+    "seamUpdate": "both edited seam files unchanged",
+    "dryRun": "unchanged",
+    "setupUpdate": "passed",
+    "editedFeature": "unchanged",
+    "consumerBuild": "passed",
+    "consumerTypes": "passed",
+    "dependencies": "Core and React packed tarballs; independent npm install; no workspace links",
+    "projectTests": "passed",
+    "projectGates": "plain, seam, browser imports, schema passed",
+    "skills": "all five, plus AGENTS.md",
+    "maintainerFiles": "none",
+    "proofMode": "none",
+    "gates": [
+      {
+        "name": "pack-core",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-1-pack-core.log"
+      },
+      {
+        "name": "pack-react",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-2-pack-react.log"
+      },
+      {
+        "name": "install-tarballs",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-3-install-tarballs.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:36133/r/{name}.json",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_36133_r__name__json.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-5-dlx----shadcn_4_21_0-add-_tinker-start_starter---yes---overwrite.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-6-dlx----shadcn_4_21_0-add-_tinker-start_runtime---dry-run---diff-src_scaffold_frontend_index_ts.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-7-dlx----shadcn_4_21_0-add-_tinker-start_runtime---yes---overwrite.log"
+      },
+      {
+        "name": "install-starter",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-8-install-starter.log"
+      },
+      {
+        "name": "build",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-9-build.log"
+      },
+      {
+        "name": "typecheck",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-10-typecheck.log"
+      },
+      {
+        "name": "test",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-11-test.log"
+      },
+      {
+        "name": "check:plain",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-12-check_plain.log"
+      },
+      {
+        "name": "test:seam",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-13-test_seam.log"
+      },
+      {
+        "name": "test:boundary",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-14-test_boundary.log"
+      },
+      {
+        "name": "test:schema",
+        "code": 0,
+        "log": "/tmp/tinkered-http-graceful-logs/proofs/registry-final/start-refine-consumer-15-test_schema.log"
+      }
+    ]
+  },
+  "plainProof": [
+    {
+      "name": "client-net",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-net.log"
+    },
+    {
+      "name": "client-tls",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-tls.log"
+    },
+    {
+      "name": "client-dgram",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-dgram.log"
+    },
+    {
+      "name": "client-node-dgram",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-node-dgram.log"
+    },
+    {
+      "name": "client-xhr-constructor",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-xhr-constructor.log"
+    },
+    {
+      "name": "client-xhr-global",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-xhr-global.log"
+    },
+    {
+      "name": "client-xhr-bracket",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-xhr-bracket.log"
+    },
+    {
+      "name": "client-beacon-call",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-beacon-call.log"
+    },
+    {
+      "name": "client-beacon-value",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-beacon-value.log"
+    },
+    {
+      "name": "client-beacon-bracket",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-beacon-bracket.log"
+    },
+    {
+      "name": "client-websocket-allowed",
+      "rule": "allowed",
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-websocket-allowed.log"
+    },
+    {
+      "name": "client-eventsource-allowed",
+      "rule": "allowed",
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-eventsource-allowed.log"
+    },
+    {
+      "name": "client-import-type",
+      "rule": "allowed",
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-import-type.log"
+    },
+    {
+      "name": "client-named-import-type",
+      "rule": "allowed",
+      "exitCode": 0,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-named-import-type.log"
+    },
+    {
+      "name": "client-mixed-import",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-mixed-import.log"
+    },
+    {
+      "name": "client-default-and-type",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-default-and-type.log"
+    },
+    {
+      "name": "client-empty-import",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-empty-import.log"
+    },
+    {
+      "name": "client-node-http2",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-node-http2.log"
+    },
+    {
+      "name": "client-http2",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-http2.log"
+    },
+    {
+      "name": "client-ws",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-ws.log"
+    },
+    {
+      "name": "client-ofetch",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-ofetch.log"
+    },
+    {
+      "name": "client-node-http",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-node-http.log"
+    },
+    {
+      "name": "client-node-https",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-node-https.log"
+    },
+    {
+      "name": "client-http",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-http.log"
+    },
+    {
+      "name": "client-https",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-https.log"
+    },
+    {
+      "name": "client-undici",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-undici.log"
+    },
+    {
+      "name": "client-axios",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-axios.log"
+    },
+    {
+      "name": "client-ky",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-ky.log"
+    },
+    {
+      "name": "client-node-fetch",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-node-fetch.log"
+    },
+    {
+      "name": "client-got",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-got.log"
+    },
+    {
+      "name": "client-superagent",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-superagent.log"
+    },
+    {
+      "name": "client-node-net",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-node-net.log"
+    },
+    {
+      "name": "client-node-tls",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-node-tls.log"
+    },
+    {
+      "name": "client-reexport",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-reexport.log"
+    },
+    {
+      "name": "client-dynamic",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-dynamic.log"
+    },
+    {
+      "name": "client-require",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-require.log"
+    },
+    {
+      "name": "client-import-equals",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-import-equals.log"
+    },
+    {
+      "name": "client-subpath",
+      "rule": "http-client",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-client-subpath.log"
+    },
+    {
+      "name": "http-backend-dependency",
+      "rule": "http-backend",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-http-backend-dependency.log"
+    },
+    {
+      "name": "http-resource-dependency",
+      "rule": "http-resource",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-http-resource-dependency.log"
+    },
+    {
+      "name": "http-resource-export",
+      "rule": "http-resource",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-http-resource-export.log"
+    },
+    {
+      "name": "fetch-tag-value",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-fetch-tag-value.log"
+    },
+    {
+      "name": "fetch-alias",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-fetch-alias.log"
+    },
+    {
+      "name": "window-fetch",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-window-fetch.log"
+    },
+    {
+      "name": "self-fetch",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-self-fetch.log"
+    },
+    {
+      "name": "destructured-fetch",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-destructured-fetch.log"
+    },
+    {
+      "name": "operation-fetch",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-operation-fetch.log"
+    },
+    {
+      "name": "resource-fetch",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-resource-fetch.log"
+    },
+    {
+      "name": "callback-fetch",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-callback-fetch.log"
+    },
+    {
+      "name": "parenthesized-fetch",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-parenthesized-fetch.log"
+    },
+    {
+      "name": "global-fetch-reference",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-global-fetch-reference.log"
+    },
+    {
+      "name": "global-fetch-call",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-global-fetch-call.log"
+    },
+    {
+      "name": "global-fetch-element",
+      "rule": "http-request",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-global-fetch-element.log"
+    },
+    {
+      "name": "entry-hidden-fetch",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-entry-hidden-fetch.log"
+    },
+    {
+      "name": "wrapped-factory",
+      "rule": "unnamed-plain",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-wrapped-factory.log"
+    },
+    {
+      "name": "entry-service",
+      "rule": "service-owner",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-entry-service.log"
+    },
+    {
+      "name": "entry-hidden-controller",
+      "rule": "service-owner",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-entry-hidden-controller.log"
+    },
+    {
+      "name": "unit-param",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-unit-param.log"
+    },
+    {
+      "name": "class",
+      "rule": "no-class",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-class.log"
+    },
+    {
+      "name": "clock",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-clock.log"
+    },
+    {
+      "name": "signal",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-signal.log"
+    },
+    {
+      "name": "handle",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-handle.log"
+    },
+    {
+      "name": "ctx",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-ctx.log"
+    },
+    {
+      "name": "io",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-io.log"
+    },
+    {
+      "name": "four-params",
+      "rule": "three-params",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-four-params.log"
+    },
+    {
+      "name": "one-site",
+      "rule": "two-sites",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-one-site.log"
+    },
+    {
+      "name": "no-doc",
+      "rule": "param-doc",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-no-doc.log"
+    },
+    {
+      "name": "scope-factory",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-factory.log"
+    },
+    {
+      "name": "module-handle",
+      "rule": "module-handle",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-handle.log"
+    },
+    {
+      "name": "scope-getter",
+      "rule": "exported-scope",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-getter.log"
+    },
+    {
+      "name": "service-module",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-service-module.log"
+    },
+    {
+      "name": "service-plain",
+      "rule": "service-owner",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-service-plain.log"
+    },
+    {
+      "name": "scope-arrow",
+      "rule": "exported-scope",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-arrow.log"
+    },
+    {
+      "name": "module-clock",
+      "rule": "module-handle",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-clock.log"
+    },
+    {
+      "name": "module-nested-root",
+      "rule": "module-handle",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-nested-root.log"
+    },
+    {
+      "name": "scope-reexport",
+      "rule": "exported-scope",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-reexport.log"
+    },
+    {
+      "name": "plain-callback",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-callback.log"
+    },
+    {
+      "name": "clock-bag",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-clock-bag.log"
+    },
+    {
+      "name": "scope-local-alias",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-local-alias.log"
+    },
+    {
+      "name": "scope-namespace",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-namespace.log"
+    },
+    {
+      "name": "plain-await",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-await.log"
+    },
+    {
+      "name": "zero-site",
+      "rule": "two-sites",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-zero-site.log"
+    },
+    {
+      "name": "class-expression",
+      "rule": "no-class",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-class-expression.log"
+    },
+    {
+      "name": "object-arrow",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-object-arrow.log"
+    },
+    {
+      "name": "object-method",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-object-method.log"
+    },
+    {
+      "name": "freeze-arrow",
+      "rule": "unnamed-plain",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-freeze-arrow.log"
+    },
+    {
+      "name": "hidden-method",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-hidden-method.log"
+    },
+    {
+      "name": "or-arrow",
+      "rule": "unnamed-plain",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-or-arrow.log"
+    },
+    {
+      "name": "nullish-arrow",
+      "rule": "unnamed-plain",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-nullish-arrow.log"
+    },
+    {
+      "name": "src-callback",
+      "rule": "unnamed-plain",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-src-callback.log"
+    },
+    {
+      "name": "one-caller-two-calls",
+      "rule": "two-sites",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-one-caller-two-calls.log"
+    },
+    {
+      "name": "self-call",
+      "rule": "two-sites",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-self-call.log"
+    },
+    {
+      "name": "non-call-use",
+      "rule": "two-sites",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-non-call-use.log"
+    },
+    {
+      "name": "scope-element",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-element.log"
+    },
+    {
+      "name": "scope-parentheses",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-parentheses.log"
+    },
+    {
+      "name": "scope-comma",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-comma.log"
+    },
+    {
+      "name": "scope-call",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-call.log"
+    },
+    {
+      "name": "scope-array",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-array.log"
+    },
+    {
+      "name": "scope-cast",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-cast.log"
+    },
+    {
+      "name": "scope-reflect",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-reflect.log"
+    },
+    {
+      "name": "scope-entry-module",
+      "rule": "scope-entry-only",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-entry-module.log"
+    },
+    {
+      "name": "holder-const",
+      "rule": "module-handle",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-holder-const.log"
+    },
+    {
+      "name": "holder-stop",
+      "rule": "module-handle",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-holder-stop.log"
+    },
+    {
+      "name": "holder-pool",
+      "rule": "module-handle",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-holder-pool.log"
+    },
+    {
+      "name": "scope-accessor",
+      "rule": "exported-scope",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-accessor.log"
+    },
+    {
+      "name": "scope-property",
+      "rule": "exported-scope",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-scope-property.log"
+    },
+    {
+      "name": "plain-any",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-any.log"
+    },
+    {
+      "name": "plain-generic",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-generic.log"
+    },
+    {
+      "name": "plain-unknown-cast",
+      "rule": "plain-cast",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-unknown-cast.log"
+    },
+    {
+      "name": "request-options",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-request-options.log"
+    },
+    {
+      "name": "pick-options",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-pick-options.log"
+    },
+    {
+      "name": "event-options",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-event-options.log"
+    },
+    {
+      "name": "component-clock",
+      "rule": "component-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-component-clock.log"
+    },
+    {
+      "name": "component-await",
+      "rule": "component-await",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-component-await.log"
+    },
+    {
+      "name": "component-bag",
+      "rule": "component-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-component-bag.log"
+    },
+    {
+      "name": "module-mail",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-mail.log"
+    },
+    {
+      "name": "module-auth",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-auth.log"
+    },
+    {
+      "name": "module-broadcast",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-broadcast.log"
+    },
+    {
+      "name": "module-frame",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-frame.log"
+    },
+    {
+      "name": "module-listener",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-listener.log"
+    },
+    {
+      "name": "option-timer",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-option-timer.log"
+    },
+    {
+      "name": "module-unknown-call",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-unknown-call.log"
+    },
+    {
+      "name": "module-zod-parse",
+      "rule": "module-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-module-zod-parse.log"
+    },
+    {
+      "name": "plain-native-effect-0",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-native-effect-0.log"
+    },
+    {
+      "name": "plain-native-effect-1",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-native-effect-1.log"
+    },
+    {
+      "name": "plain-native-effect-2",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-native-effect-2.log"
+    },
+    {
+      "name": "plain-native-effect-3",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-native-effect-3.log"
+    },
+    {
+      "name": "plain-native-effect-4",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-native-effect-4.log"
+    },
+    {
+      "name": "plain-native-effect-5",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-native-effect-5.log"
+    },
+    {
+      "name": "plain-native-effect-6",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-native-effect-6.log"
+    },
+    {
+      "name": "plain-native-effect-7",
+      "rule": "plain-effect",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-native-effect-7.log"
+    },
+    {
+      "name": "src-resource-callback",
+      "rule": "plain-param",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-src-resource-callback.log"
+    },
+    {
+      "name": "plain-cap",
+      "rule": "plain-max",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-plain-cap.log"
+    },
+    {
+      "name": "list",
+      "rule": "plain-list",
+      "exitCode": 1,
+      "log": "/tmp/tinkered-http-graceful-logs/proofs/plain-final/start-plain-proof-list.log"
+    }
+  ],
+  "jevLabels": "docs/roadmap/start-scaffold/HTTP-GRACEFUL-JEV-LABELS.jsonl",
+  "scope": "Only apps/start-scaffold/ and docs/roadmap/start-scaffold/ remain changed. The label CLI's two temporary shared-bank additions were copied into the docs folder, then removed from the shared bank.",
+  "notes": [
+    "The initial origin/main review included unrelated trial files after the ref moved. The final review uses pinned ecdfb486..HEAD.",
+    "The broad census used generated source and a preset fixture as authored source. The final strict census checks the three changed TypeScript files.",
+    "The forced control passes before and after; no red failure is claimed for unchanged behavior.",
+    "Core has no resource graceful-close-start hook and its extension close hook is root-only. The shipped startRequests hook binds native root and createSession handles.",
+    "Shared-bank merge and landing calibration belong to the lead. No full mutation lane was requested.",
+    "No stash, push, trial-store access, container command, or Core change. All long jobs finish before the final report."
+  ],
+  "rootGate": {
+    "exitCode": 0,
+    "appTestsPassed": 59,
+    "repoTestsPassed": 1230,
+    "existingSkippedTests": 1,
+    "checkErrors": 0,
+    "checkWarnings": 28,
+    "copiedStarterTestsPassed": 57,
+    "validateLanesPassed": 16
+  },
+  "styleCensus": "OK",
+  "proofsSource": "Seven bug tests fail before their fix, then pass in the final verbose HTTP run. The forced-close control is green before and after."
+}

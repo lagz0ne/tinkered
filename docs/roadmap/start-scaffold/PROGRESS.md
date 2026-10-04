@@ -2201,3 +2201,42 @@ The final label rows use the phase-based source in the same docs file.
 The rows use the shipped slice and forJev readers.
 They keep the label command's exact row shape and hash rule.
 The shared bank remains unchanged.
+
+### Final writer proof
+
+The final source passes all 134 plain proof cases, exit 0.
+It keeps the same 17 plain functions.
+The root build, check, app tests, and all repo tests chain exits 0.
+The app passes 59 tests; the repo passes 1,230 with one existing skip.
+Root check has zero errors and the same 28 warnings.
+All 16 validate lanes pass, exit 0.
+All 113 registry files match the final source.
+All 15 copied-starter gates pass, exit 0.
+The copied starter passes 57 tests.
+Types, imports, seam, seam fixture, browser guard, schema, and middleware pass.
+Strict style census and TSDoc pass, exit 0.
+
+Seven bug tests have red exit 1 and green exit 0.
+The forced-close control has before and after exit 0.
+The final verbose HTTP log names all 19 passing tests.
+Jev has no file flags, no test flags, and no README gaps.
+Its three unit answers are false; the old unsure title remains a note.
+The lead owns shared-bank merge and landing calibration.
+
+[HTTP-GRACEFUL-GATES.json](HTTP-GRACEFUL-GATES.json) records each command, exit code, and log.
+It also records every bug proof pair, the forced control, and copied gates.
+[HTTP-GRACEFUL-JEV-LABELS.jsonl](HTTP-GRACEFUL-JEV-LABELS.jsonl) holds the exact final label rows.
+
+Final chain log: /tmp/tinkered-http-graceful-logs/10-gate-chain.log.
+Final HTTP log: /tmp/tinkered-http-graceful-logs/09-http-final.log.
+Final plain log: /tmp/tinkered-http-graceful-logs/09-plain-prove.log.
+Final registry log: /tmp/tinkered-http-graceful-logs/09-registry-green.log.
+
+Only the two allowed folders remain changed.
+No Core change, stash, push, trial-store access, or container command was used.
+All long jobs ended before this report.
+No full mutation lane was requested.
+The added cleanup test fixes a flaw found in this writer's first close cache.
+The first full green pass stays as history; the 09 and 10 logs check final code.
+The card waits in Review for the lead.
+The next commit saves the rebuilt registry and final proof.
