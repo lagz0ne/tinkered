@@ -24,13 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/protocol-reply** — the scaffold's own operations stop speaking HTTP (ADR 0103).
-  Next: after `start/http-polish`. Telemetry ingest and `openSync` take plain params; routes map
-  statuses and headers; better-auth's handler is a named exception; `requestHeaders` leaves the app seams;
-  a `check:plain` rule fails an operation that takes a `Request` or returns a `Response`;
-  the `postNotice` skill example maps the reply.
-  Verify: planted case red then green; app tests; seam; `--prove`; registry.
-
 - **trial/reference-0102** — port the flight reference answer to today's scaffold.
   Next: after `start/protocol-reply`. Server calls through `httpRequest`; browser calls through
   server functions; statuses mapped in routes; `.validator`; copy `src/scaffold/` exactly.
@@ -70,6 +63,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **start/protocol-reply** — the scaffold's own operations stop speaking HTTP (ADR 0103).
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-protocol-reply`. Found by the whole-repo review.
+  Next: telemetry ingest and sync open take plain params; routes map statuses and headers; auth exception;
+  `check:plain` fails an operation that takes a `Request` or returns a `Response`; review leftovers.
+  Verify: wire unchanged for telemetry and sync; planted cases red then green; all gates.
+  [Brief](docs/roadmap/start-scaffold/PROTOCOL-REPLY-BRIEF.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
