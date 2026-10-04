@@ -2102,8 +2102,66 @@ Green logs: 04-<case>-green.log for root, session, late, nested-root, siblings, 
 Each green test has its own successful build log with green-build in its name.
 The forced control is green before and after, each exit 0.
 Its final log is 04-forced-green.log.
-The strict style census passes in 04-census.log, exit 0.
+The broad census used the wrong targets and exits 1 in 04-census.log.
+It read generated route source and the test preset as authored source.
+The final census checks the three changed TypeScript files.
 
 The saved registry fails its source check before rebuild, exit 1.
 Log: 04-registry-red.log.
 The next step rebuilds it, then runs every final gate.
+
+### Jev and the pinned base
+
+The shared origin/main ref moved while this work ran.
+The final preflight uses the user's pinned ecdfb486..HEAD range.
+The first ref-based run included unrelated trial files; it is kept as history.
+The original HTTP and Start source blobs match both bases.
+All red source runs used the pinned original code.
+
+The pinned preflight has no file flags and three unit questions.
+Each answer is false:
+
+- effectWithoutDefer: httpScopes clears child holds with ctx.defer.
+  Child onClose drops its parent hold; Core still owns native teardown.
+- stateOutsideCell: held native methods and stop methods are private work state.
+  The close promise is lifetime state, not a saved or visible record.
+- configNotTag: request values and safe error facts belong to this call.
+  The backend still comes from httpBackend.
+
+The exact rows are saved in HTTP-GRACEFUL-JEV-LABELS.jsonl.
+The label command ignored JEV_BANK when appending.
+Its two new rows were moved into the allowed docs folder.
+The shared bank was restored byte for byte.
+The third row already existed there.
+The lead owns merging the rows and landing calibration.
+No tools file remains changed.
+
+### Core feedback
+
+Core has no resource callback for the start of graceful close.
+Its extension close hook runs on roots, not child sessions.
+A resource's ctx.defer runs after Core joins owned work.
+The scaffold binds native close methods during start.
+This keeps the repair inside the shipped scaffold.
+Small scopes must install startRequests to get this rule.
+
+Failing shape before this repair, from the red session test:
+
+```ts
+const target = scope.createSession();
+const sending = target.settle(httpRequest, {
+  rawInput: {
+    url: "https://slow.test/x",
+    method: "GET",
+  },
+});
+await backend.started;
+const closing = target.close({ graceful: true });
+await sending;
+await closing;
+```
+
+The backend is createHeldBackend from tests/http.test.ts.
+It stops only when the request signal aborts.
+The red log is 02-session-red.log; the green log is 04-session-green.log.
+The lead can use this as a Core follow-up; no Core file changed.
