@@ -1367,3 +1367,63 @@ All five new tests pass through the backend seam with bound fakes.
 Each fails when its own behavior is removed, then passes with it restored.
 The red variants never call the real network.
 No plain function was added; the caller list gains the HTTP error raise.
+
+### Step 2: shared backend and fetch rule
+
+Telemetry uses httpBackend directly, without request spans.
+Its test binds a fake at a no-network URL and proves no HTTP span opens.
+The browser build permits only src/scaffold/backend/http.ts among backend files.
+The other backend and server-file bans remain.
+The boundary proof also plants a userland backend/http.ts import and rejects it.
+
+The plain check rejects fetch calls inside operations, resources, and callbacks.
+It also rejects globalThis.fetch references and string-key reads.
+Only the fixed HTTP file has an exception.
+Seven new planted cases name the http-request rule.
+The first case passed the old check, so the old --prove run exited 1.
+
+The forms skill has a filled feature operation using httpRequest.controller.
+The feature, seam, and testing skills teach the same path.
+
+### Step 3: registry
+
+The runtime item includes the HTTP source.
+The starter item includes the five public-seam HTTP tests.
+The built items carry the shared backend, rules, skills, and exports.
+The copied starter uses packed Core and React, with no workspace links.
+Its build, types, 43 tests, plain, seam, boundary, and schema checks pass.
+All 112 copied files match the shipped source.
+The native middleware proof passes request isolation, replay, abort, and host close.
+
+Jev's test check has zero flags in 45 tests.
+Its promise check has zero gaps, with one unsure match.
+The strict authored style census and TSDoc check both pass.
+The app has no mutation lane; its presence check ran alone under flock.
+
+### Jev answers for the lead
+
+The step-2 preflight has zero file flags and one unit flag.
+The brief bars tools edits, so this false label is left for the lead:
+
+- delivery: configNotTag = false.
+  URLs and service settings come from telemetrySettings.
+  Native sending comes from httpBackend.
+  Content types and log field query keys are fixed wire rules.
+
+Core feedback: none from this card.
+The allowed child span form covers the required request name.
+
+### Gate proof
+
+The required chain exits 0.
+It runs build, check, every package's tests, prose, and validate.
+The repo passes 1,214 tests, with one existing skipped test.
+The app passes 45 tests; the copied starter passes 43.
+Root check has zero errors and 28 warnings.
+All 16 validate lanes pass.
+
+The chain log is /tmp/http-resource-gate-chain.log.
+The complete command, exit-code, and log list goes in HTTP-RESOURCE-GATES.json.
+No files outside the two allowed folders changed.
+No stash, pull, push, trial-store access, or container command was used.
+The workspace already allows esbuild builds and was untouched.
