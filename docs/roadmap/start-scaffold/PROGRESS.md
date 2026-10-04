@@ -2165,3 +2165,30 @@ The backend is createHeldBackend from tests/http.test.ts.
 It stops only when the request signal aborts.
 The red log is 02-session-red.log; the green log is 04-session-green.log.
 The lead can use this as a Core follow-up; no Core file changed.
+
+### Step 4: keep Core's close rule during cleanup
+
+The first full gate pass was green, including the 134 plain cases.
+All 16 validate lanes and all 15 copied-starter gates passed.
+The source review then found a flaw in the scaffold's close promise cache.
+Once close had joined other work, cleanup could call close again.
+The cache returned the waiting promise, so cleanup waited on itself.
+Core already handles that call with its own close rule.
+
+The new public-seam test fails on the cache, exit 1.
+It holds ordinary work, starts graceful close, then lets work finish.
+Cleanup calls its own owner's close before returning.
+The same test covers root and session owners after the fix.
+No sleep or timer drives the test.
+
+The adapter now holds only an open-or-closing phase.
+It stops HTTP once, then delegates every close call to Core.
+Core keeps the result, first mode, and cleanup rule.
+The new test passes, exit 0.
+All 19 HTTP tests pass in the verbose final log, exit 0.
+
+Red: 08-cleanup-red.log.
+Green: 08-cleanup-green.log.
+All HTTP tests: 08-http-final.log.
+Check: 08-check-final.log.
+The registry and full proof will be rebuilt for this last source change.
