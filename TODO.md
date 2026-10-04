@@ -24,6 +24,27 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/protocol-reply** — the scaffold's own operations stop speaking HTTP (ADR 0103).
+  Next: after `start/http-polish`. Telemetry ingest and `openSync` take plain params; routes map
+  statuses and headers; better-auth's handler is a named exception; `requestHeaders` leaves the app seams;
+  a `check:plain` rule fails an operation that takes a `Request` or returns a `Response`;
+  the `postNotice` skill example maps the reply.
+  Verify: planted case red then green; app tests; seam; `--prove`; registry.
+
+- **trial/reference-0102** — port the flight reference answer to today's scaffold.
+  Next: after `start/protocol-reply`. Server calls through `httpRequest`; browser calls through
+  server functions; statuses mapped in routes; `.validator`; copy `src/scaffold/` exactly.
+  Verify: the scaffold's `check:plain` exits 0 on it; S24 finds 0; rounds 1-5 pass twice; canaries fail by name.
+
+- **trial/images-0102** — rebuild the flight writer and services images; update `config.json`.
+  Next: after `trial/reference-0102` and `trial/services-http`.
+  Verify: the image's `check:plain` has the HTTP rules; the reference passes the full gate on it.
+
+- **docs/http-0102-0103** — bring ADRs 0102 and 0103, the glossary, README, and S24's fix text in line with the code.
+  Next: after `start/protocol-reply`. Two spans per request; session-target close; ban list;
+  WebSocket and EventSource out of scope; S24 uses `rawInput` and `@/lib/tinker.server`.
+  Verify: prose; Jev tests; the S24 snippet typechecks in a scaffold copy.
+
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
@@ -49,6 +70,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **trial/services-http** — the services' webhook sender goes through a request operation (ADR 0102).
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-services-http`. Found by the whole-repo review.
+  Next: copy the three HTTP units into `services/`; webhooks run `httpRequest`; ban bare fetch there.
+  Verify: close aborts a webhook in flight; span under the webhook op; wire diff 0; mutation 85.
+  [Brief](docs/roadmap/flight-trial/SERVICES-HTTP-BRIEF.md).
 
 - **start/http-polish** — close the three low gaps left by `start/http-resource`.
   Owner: lead (Claude, Start scaffold session); Sol writer.
