@@ -2712,7 +2712,7 @@ The downstream proof uses a real graph-owned preset with real dependencies.
 It needs an async factory and explicit proof tags.
 No mocks, global changes, or private test imports were added.
 
-## Protocol reply review gate
+## Protocol reply review gate before the proof correction
 
 The four review fixes are committed, one commit per point.
 The registry is rebuilt from those fixes.
@@ -2793,3 +2793,39 @@ The current guard rejects all three by the named rule.
 Green: .protocol-reply-logs/review-08-green.log, exit 0.
 No guard behavior or app source changed in this correction.
 Next: rebuild the registry and repeat every gate with the final 167 cases.
+
+## Protocol reply final review proof
+
+All gates were repeated after the proof correction, exit 0.
+The registry again matches all 119 source files.
+Its copied starter again passes all fifteen gates.
+Red: .protocol-reply-logs/review-09-registry-red.log.
+Green: .protocol-reply-logs/review-09-registry-green.log.
+
+The final plain proof passes all 167 cases, exit 0.
+The 161 banned cases each exit 1 for their named rule.
+The six allowed cases each exit 0.
+Proof: .protocol-reply-logs/review-09-plain-prove.log.
+The option and custom-reader cases pass the old guard, child exit 0.
+Their final red and green logs replace the weak option proof.
+
+The final build, check, app, and all-test chain exits 0.
+Proof: .protocol-reply-logs/review-09-gate-chain.log.
+The final structure, style, TSDoc, and Jev gates each exit 0.
+The same four Jev flags retain their saved false labels.
+The final sixteen validate lanes pass, exit 0.
+Proof: .protocol-reply-logs/review-09-validate.log.
+The final wire tests pass, exit 0.
+After: .protocol-reply-logs/review-09-wire.log.
+The before replay remains green on rebased pin 673e2965.
+All fourteen wire facts are unchanged.
+
+The gate record holds every final command, exit, and copied log path.
+It keeps the earlier proof as history.
+The app has 68 passing tests.
+The repo has 1,252 passing Vitest tests and 147 passing Node tests.
+One existing Vitest skip remains.
+The same 28 check warnings remain, in six unchanged files.
+No runtime source changed after the four review fixes.
+All jobs have ended.
+The final registry and proof are ready for lead review.

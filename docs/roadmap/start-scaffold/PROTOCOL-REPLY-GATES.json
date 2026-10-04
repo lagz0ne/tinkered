@@ -4,154 +4,160 @@
   "base": "e6a0bb73",
   "gates": [
     {
-      "name": "review-06-build",
+      "name": "review-09-build",
       "command": "vp run -r build",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-build.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-build.log"
     },
     {
-      "name": "review-06-check",
+      "name": "review-09-check",
       "command": "vp check",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-check.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-check.log"
     },
     {
-      "name": "review-06-app-tests",
+      "name": "review-09-app-tests",
       "command": "vp run @tinker-start-scaffold#test",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-app-tests.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-app-tests.log"
     },
     {
-      "name": "review-06-all-tests",
+      "name": "review-09-all-tests",
       "command": "vp run -r test",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-all-tests.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-all-tests.log"
     },
     {
-      "name": "review-06-plain-prove",
+      "name": "review-09-plain-prove",
       "command": "vp run @tinker-start-scaffold#check:plain -- --prove",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-plain-prove.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-plain-prove.log"
     },
     {
-      "name": "review-05-registry-build",
+      "name": "review-09-registry-build",
       "command": "vp run -r build && vp run @tinker-start-scaffold#registry:build && vp check --fix apps/start-scaffold/public/r",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-05-registry-build.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-build.log"
     },
     {
-      "name": "review-05-registry-green",
+      "name": "review-09-registry-green",
       "command": "vp run @tinker-start-scaffold#test:registry",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-05-registry-green.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-green.log"
     },
     {
-      "name": "review-06-seam",
+      "name": "review-09-seam",
       "command": "vp run '@tinker-start-scaffold#test:seam'",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-seam.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-seam.log"
     },
     {
-      "name": "review-06-seam-fixture",
+      "name": "review-09-seam-fixture",
       "command": "vp run '@tinker-start-scaffold#test:seam:fixture'",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-seam-fixture.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-seam-fixture.log"
     },
     {
-      "name": "review-06-boundary",
+      "name": "review-09-boundary",
       "command": "vp run '@tinker-start-scaffold#test:boundary'",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-boundary.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-boundary.log"
     },
     {
-      "name": "review-06-imports",
+      "name": "review-09-imports",
       "command": "vp run '@tinker-start-scaffold#test:imports'",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-imports.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-imports.log"
     },
     {
-      "name": "review-06-schema",
+      "name": "review-09-schema",
       "command": "vp run '@tinker-start-scaffold#test:schema'",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-schema.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-schema.log"
     },
     {
-      "name": "review-06-middleware",
+      "name": "review-09-middleware",
       "command": "vp run '@tinker-start-scaffold#test:middleware'",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-middleware.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-middleware.log"
     },
     {
-      "name": "review-06-types",
+      "name": "review-09-types",
       "command": "vp run '@tinker-start-scaffold#typecheck'",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-types.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-types.log"
     },
     {
-      "name": "review-06-census",
+      "name": "review-09-census",
       "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/backend/auth.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts 'apps/start-scaffold/src/routes/api.auth.$.ts' apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/routes/api.telemetry.ts apps/start-scaffold/src/scaffold/backend/auth.server.ts apps/start-scaffold/src/scaffold/backend/headers.server.ts apps/start-scaffold/src/scaffold/backend/lifetime.ts apps/start-scaffold/src/scaffold/backend/request-body.server.ts apps/start-scaffold/src/scaffold/backend/stream.ts apps/start-scaffold/src/scaffold/start.ts apps/start-scaffold/src/scaffold/telemetry/ingest.server.ts apps/start-scaffold/src/transport/routes.server.ts apps/start-scaffold/tests/backend.test.ts apps/start-scaffold/tests/protocol-params.test.ts apps/start-scaffold/tests/protocol-wire.test.ts apps/start-scaffold/tests/sse.test.ts apps/start-scaffold/tests/sync.test.ts apps/start-scaffold/tests/telemetry.test.ts apps/start-scaffold/tests/todos.test.ts apps/start-scaffold/tests/waste.test.ts --strict",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-census.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-census.log"
     },
     {
-      "name": "review-06-tsdoc",
+      "name": "review-09-tsdoc",
       "command": "node tools/jev/docs.mjs apps/start-scaffold/src/backend/auth.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts 'apps/start-scaffold/src/routes/api.auth.$.ts' apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/routes/api.telemetry.ts apps/start-scaffold/src/scaffold/backend/auth.server.ts apps/start-scaffold/src/scaffold/backend/headers.server.ts apps/start-scaffold/src/scaffold/backend/lifetime.ts apps/start-scaffold/src/scaffold/backend/request-body.server.ts apps/start-scaffold/src/scaffold/backend/stream.ts apps/start-scaffold/src/scaffold/start.ts apps/start-scaffold/src/scaffold/telemetry/ingest.server.ts apps/start-scaffold/src/transport/routes.server.ts apps/start-scaffold/tests/backend.test.ts apps/start-scaffold/tests/presets.ts apps/start-scaffold/tests/protocol-params.test.ts apps/start-scaffold/tests/protocol-wire.test.ts apps/start-scaffold/tests/sse.test.ts apps/start-scaffold/tests/sync.test.ts apps/start-scaffold/tests/telemetry.test.ts apps/start-scaffold/tests/todos.test.ts apps/start-scaffold/tests/waste.test.ts",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-tsdoc.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-tsdoc.log"
     },
     {
-      "name": "review-06-jev-preflight",
+      "name": "review-09-jev-preflight",
       "command": "node tools/jev/preflight.mjs e6a0bb73..HEAD",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-jev-preflight.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-preflight.log"
     },
     {
-      "name": "review-06-jev-tests",
-      "command": "node tools/jev/tests.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-06-jev-tests.json",
+      "name": "review-09-jev-tests",
+      "command": "node tools/jev/tests.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-09-jev-tests.json",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-jev-tests.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-tests.log"
     },
     {
-      "name": "review-06-jev-promises",
-      "command": "node tools/jev/promises.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-06-jev-promises.json",
+      "name": "review-09-jev-promises",
+      "command": "node tools/jev/promises.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-09-jev-promises.json",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-jev-promises.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-promises.log"
     },
     {
-      "name": "review-06-jev-labels",
+      "name": "review-09-jev-labels",
       "command": "python3 .protocol-reply-logs/logs/review-final-small.py",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-jev-labels.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-labels.log"
     },
     {
-      "name": "review-06-validate",
+      "name": "review-09-validate",
       "command": "pnpm validate",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-validate.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-validate.log"
     },
     {
-      "name": "review-06-prose",
+      "name": "review-09-prose",
       "command": "vp run prose",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-prose.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-prose.log"
     },
     {
-      "name": "review-06-wire",
+      "name": "review-09-wire",
       "command": "vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts --reporter verbose",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-wire.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-wire.log"
     },
     {
-      "name": "review-06-warning-proof",
-      "command": "python3 .protocol-reply-logs/logs/review-warning-proof.py",
+      "name": "review-09-warning-proof",
+      "command": "python3 .protocol-reply-logs/logs/review-final-warning-proof.py",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-warning-proof.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-warning-proof.log"
     },
     {
       "name": "review-06-rebased-wire-before",
       "command": "vp run -r build && cd .protocol-reply-logs/logs/rebased-before/apps/start-scaffold && vp test tests/protocol-wire.test.ts --reporter verbose",
       "code": 0,
       "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-rebased-wire-before.log"
+    },
+    {
+      "name": "review-10-proof-check",
+      "command": "vp run -r build && vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-10-proof-check.log"
     }
   ],
   "redGreen": [
@@ -705,21 +711,6 @@
       }
     },
     {
-      "change": "registry refreshed for review fixes",
-      "red": {
-        "name": "review-05-registry-red",
-        "command": "vp run -r build && vp run @tinker-start-scaffold#test:registry",
-        "code": 1,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-05-registry-red.log"
-      },
-      "green": {
-        "name": "review-05-registry-green",
-        "command": "vp run @tinker-start-scaffold#test:registry",
-        "code": 0,
-        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-05-registry-green.log"
-      }
-    },
-    {
       "change": "operation-options-spread",
       "red": {
         "name": "review-08-operation-options-spread-red",
@@ -775,6 +766,21 @@
         "code": 0,
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-08-green.log"
       }
+    },
+    {
+      "change": "registry refreshed for review fixes",
+      "red": {
+        "name": "review-09-registry-red",
+        "command": "vp run -r build && vp run @tinker-start-scaffold#test:registry",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-red.log"
+      },
+      "green": {
+        "name": "review-09-registry-green",
+        "command": "vp run @tinker-start-scaffold#test:registry",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-green.log"
+      }
     }
   ],
   "wire": {
@@ -790,10 +796,10 @@
       "source": "2d307cf5 app source, 82c6ff70 test"
     },
     "after": {
-      "name": "review-06-wire",
+      "name": "review-09-wire",
       "command": "vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts --reporter verbose",
       "code": 0,
-      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-wire.log"
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-wire.log"
     },
     "telemetry": [
       "good batch",
@@ -824,6 +830,12 @@
   },
   "plain": {
     "cases": [
+      {
+        "name": "operation-request-custom-reader",
+        "rule": "operation-wire-input",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-operation-request-custom-reader.log"
+      },
       {
         "name": "mounted-auth-bracket",
         "rule": "protocol-auth",
@@ -1821,8 +1833,8 @@
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-plain-list.log"
       }
     ],
-    "total": 166,
-    "banned": 160,
+    "total": 167,
+    "banned": 161,
     "allowed": 6,
     "functions": 17
   },
@@ -1862,7 +1874,7 @@
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-3.log"
       },
       {
-        "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:35083/r/{name}.json",
+        "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:40007/r/{name}.json",
         "code": 0,
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-consumer-4.log"
       },
@@ -2867,6 +2879,222 @@
       "command": "vp run -r build && cd .protocol-reply-logs/logs/rebased-before/apps/start-scaffold && vp test tests/protocol-wire.test.ts --reporter verbose",
       "code": 0,
       "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-06-rebased-wire-before.log"
+    },
+    {
+      "name": "review-07-proof-check",
+      "command": "vp run -r build && vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-07-proof-check.log"
+    },
+    {
+      "name": "review-08-operation-options-spread-red",
+      "command": "node apps/start-scaffold/scripts/.review-old-plain.mjs --prove --cases=operation-options-spread",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-08-operation-options-spread-red.log"
+    },
+    {
+      "name": "review-08-operation-options-variable-red",
+      "command": "node apps/start-scaffold/scripts/.review-old-plain.mjs --prove --cases=operation-options-variable",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-08-operation-options-variable-red.log"
+    },
+    {
+      "name": "review-08-operation-request-custom-reader-red",
+      "command": "node apps/start-scaffold/scripts/.review-old-plain.mjs --prove --cases=operation-request-custom-reader",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-08-operation-request-custom-reader-red.log"
+    },
+    {
+      "name": "review-08-red",
+      "command": "vp run -r build && python3 .protocol-reply-logs/logs/review-options-red.py",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-08-red.log"
+    },
+    {
+      "name": "review-08-green",
+      "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs && vp run @tinker-start-scaffold#check:plain -- --prove --cases=operation-options-spread,operation-options-variable,operation-request-custom-reader",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-08-green.log"
+    },
+    {
+      "name": "review-08-prose",
+      "command": "vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-08-prose.log"
+    },
+    {
+      "name": "review-09-registry-red",
+      "command": "vp run -r build && vp run @tinker-start-scaffold#test:registry",
+      "code": 1,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-red.log"
+    },
+    {
+      "name": "review-09-registry-build",
+      "command": "vp run -r build && vp run @tinker-start-scaffold#registry:build && vp check --fix apps/start-scaffold/public/r",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-build.log"
+    },
+    {
+      "name": "review-09-build",
+      "command": "vp run -r build",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-build.log"
+    },
+    {
+      "name": "review-09-check",
+      "command": "vp check",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-check.log"
+    },
+    {
+      "name": "review-09-app-tests",
+      "command": "vp run @tinker-start-scaffold#test",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-app-tests.log"
+    },
+    {
+      "name": "review-09-all-tests",
+      "command": "vp run -r test",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-all-tests.log"
+    },
+    {
+      "name": "review-09-gate-chain",
+      "command": "python3 .protocol-reply-logs/logs/run.py review-09-build 'vp run -r build' && python3 .protocol-reply-logs/logs/run.py review-09-check 'vp check' && python3 .protocol-reply-logs/logs/run.py review-09-app-tests 'vp run @tinker-start-scaffold#test' && python3 .protocol-reply-logs/logs/run.py review-09-all-tests 'vp run -r test'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-gate-chain.log"
+    },
+    {
+      "name": "review-09-census",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/backend/auth.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts 'apps/start-scaffold/src/routes/api.auth.$.ts' apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/routes/api.telemetry.ts apps/start-scaffold/src/scaffold/backend/auth.server.ts apps/start-scaffold/src/scaffold/backend/headers.server.ts apps/start-scaffold/src/scaffold/backend/lifetime.ts apps/start-scaffold/src/scaffold/backend/request-body.server.ts apps/start-scaffold/src/scaffold/backend/stream.ts apps/start-scaffold/src/scaffold/start.ts apps/start-scaffold/src/scaffold/telemetry/ingest.server.ts apps/start-scaffold/src/transport/routes.server.ts apps/start-scaffold/tests/backend.test.ts apps/start-scaffold/tests/protocol-params.test.ts apps/start-scaffold/tests/protocol-wire.test.ts apps/start-scaffold/tests/sse.test.ts apps/start-scaffold/tests/sync.test.ts apps/start-scaffold/tests/telemetry.test.ts apps/start-scaffold/tests/todos.test.ts apps/start-scaffold/tests/waste.test.ts --strict",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-census.log"
+    },
+    {
+      "name": "review-09-tsdoc",
+      "command": "node tools/jev/docs.mjs apps/start-scaffold/src/backend/auth.ts apps/start-scaffold/src/backend/index.ts apps/start-scaffold/src/lib/tinker.server.ts 'apps/start-scaffold/src/routes/api.auth.$.ts' apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/routes/api.telemetry.ts apps/start-scaffold/src/scaffold/backend/auth.server.ts apps/start-scaffold/src/scaffold/backend/headers.server.ts apps/start-scaffold/src/scaffold/backend/lifetime.ts apps/start-scaffold/src/scaffold/backend/request-body.server.ts apps/start-scaffold/src/scaffold/backend/stream.ts apps/start-scaffold/src/scaffold/start.ts apps/start-scaffold/src/scaffold/telemetry/ingest.server.ts apps/start-scaffold/src/transport/routes.server.ts apps/start-scaffold/tests/backend.test.ts apps/start-scaffold/tests/presets.ts apps/start-scaffold/tests/protocol-params.test.ts apps/start-scaffold/tests/protocol-wire.test.ts apps/start-scaffold/tests/sse.test.ts apps/start-scaffold/tests/sync.test.ts apps/start-scaffold/tests/telemetry.test.ts apps/start-scaffold/tests/todos.test.ts apps/start-scaffold/tests/waste.test.ts",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-tsdoc.log"
+    },
+    {
+      "name": "review-09-jev-preflight",
+      "command": "node tools/jev/preflight.mjs e6a0bb73..HEAD",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-preflight.log"
+    },
+    {
+      "name": "review-09-jev-tests",
+      "command": "node tools/jev/tests.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-09-jev-tests.json",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-tests.log"
+    },
+    {
+      "name": "review-09-jev-promises",
+      "command": "node tools/jev/promises.mjs ../apps/start-scaffold --json .protocol-reply-logs/logs/review-09-jev-promises.json",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-promises.log"
+    },
+    {
+      "name": "review-09-style-jev",
+      "command": "python3 .protocol-reply-logs/logs/review-final-style-gates.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-style-jev.log"
+    },
+    {
+      "name": "review-09-seam",
+      "command": "vp run '@tinker-start-scaffold#test:seam'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-seam.log"
+    },
+    {
+      "name": "review-09-seam-fixture",
+      "command": "vp run '@tinker-start-scaffold#test:seam:fixture'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-seam-fixture.log"
+    },
+    {
+      "name": "review-09-boundary",
+      "command": "vp run '@tinker-start-scaffold#test:boundary'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-boundary.log"
+    },
+    {
+      "name": "review-09-imports",
+      "command": "vp run '@tinker-start-scaffold#test:imports'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-imports.log"
+    },
+    {
+      "name": "review-09-schema",
+      "command": "vp run '@tinker-start-scaffold#test:schema'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-schema.log"
+    },
+    {
+      "name": "review-09-middleware",
+      "command": "vp run '@tinker-start-scaffold#test:middleware'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-middleware.log"
+    },
+    {
+      "name": "review-09-types",
+      "command": "vp run '@tinker-start-scaffold#typecheck'",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-types.log"
+    },
+    {
+      "name": "review-09-structure",
+      "command": "python3 .protocol-reply-logs/logs/review-final-structure-gates.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-structure.log"
+    },
+    {
+      "name": "review-09-jev-labels",
+      "command": "python3 .protocol-reply-logs/logs/review-final-small.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-jev-labels.log"
+    },
+    {
+      "name": "review-09-warning-proof",
+      "command": "python3 .protocol-reply-logs/logs/review-final-warning-proof.py",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-warning-proof.log"
+    },
+    {
+      "name": "review-09-prose",
+      "command": "vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-prose.log"
+    },
+    {
+      "name": "review-09-wire",
+      "command": "vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts --reporter verbose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-wire.log"
+    },
+    {
+      "name": "review-09-registry-green",
+      "command": "vp run @tinker-start-scaffold#test:registry",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-registry-green.log"
+    },
+    {
+      "name": "review-09-validate",
+      "command": "pnpm validate",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-validate.log"
+    },
+    {
+      "name": "review-09-plain-prove",
+      "command": "vp run @tinker-start-scaffold#check:plain -- --prove",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-09-plain-prove.log"
+    },
+    {
+      "name": "review-10-proof-check",
+      "command": "vp run -r build && vp check --fix docs/roadmap/start-scaffold/PROTOCOL-REPLY-GATES.json docs/roadmap/start-scaffold/PROGRESS.md && vp run prose",
+      "code": 0,
+      "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-10-proof-check.log"
     }
   ],
   "reviewBase": "e10b8371",
@@ -3007,6 +3235,6 @@
   ],
   "proofCorrection": {
     "result": "three exact current plants accepted by e10b8371 guard and rejected by final guard",
-    "fullGates": "pending repeat after case data changed"
+    "fullGates": "all final gates repeated, exit 0; 167 planted cases"
   }
 }
