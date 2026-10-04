@@ -1,0 +1,85 @@
+[
+  {
+    "gate": "09-green",
+    "command": ["node", "apps/start-scaffold/maintain/check-serve.mjs"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/09-green.log"
+  },
+  {
+    "gate": "10-format",
+    "command": [
+      "vp",
+      "fmt",
+      "apps/start-scaffold/maintain/check-serve.mjs",
+      "apps/start-scaffold/maintain/check-registry.mjs",
+      "apps/start-scaffold/maintain/build-registry.mjs",
+      "apps/start-scaffold/package.json",
+      "apps/start-scaffold/scripts/serve.mjs",
+      "tools/writer-trial/flight-image.mjs",
+      "tools/writer-trial/prepare.mjs",
+      "docs/roadmap/start-scaffold/PROGRESS.md"
+    ],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/10-format.log"
+  },
+  {
+    "gate": "11-check",
+    "command": ["vp", "check"],
+    "exit": 1,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/11-check.log"
+  },
+  {
+    "gate": "14-build",
+    "command": ["vp", "run", "-r", "build"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/14-build.log"
+  },
+  {
+    "gate": "15-check",
+    "command": ["vp", "check"],
+    "exit": 1,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/15-check.log"
+  },
+  {
+    "gate": "18-format",
+    "command": [
+      "vp",
+      "fmt",
+      "apps/start-scaffold/maintain/check-serve.mjs",
+      "tools/writer-trial/flight-image.mjs",
+      "docs/roadmap/start-scaffold/PROGRESS.md"
+    ],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/18-format.log"
+  },
+  {
+    "gate": "19-build",
+    "command": ["vp", "run", "-r", "build"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/19-build.log"
+  },
+  {
+    "gate": "20-check",
+    "command": ["vp", "check"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/20-check.log"
+  },
+  {
+    "gate": "21-green",
+    "command": ["node", "apps/start-scaffold/maintain/check-serve.mjs"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/21-green.log"
+  },
+  {
+    "gate": "22-app-tests",
+    "command": ["vp", "run", "@tinker-start-scaffold#test"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/22-app-tests.log"
+  },
+  {
+    "gate": "23-prose",
+    "command": ["vp", "run", "prose"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/23-prose.log"
+  }
+]

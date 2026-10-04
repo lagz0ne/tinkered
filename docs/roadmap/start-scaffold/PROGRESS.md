@@ -1,5 +1,32 @@
 # Start scaffold
 
+## Serve native Response: writer start
+
+Card: start/serve-native-response.
+Owner: Sol writer; lead owns the board and landing.
+Base: dc6e44cf on origin/main.
+Next: prove red, fix serve, rebuild registry and writer image, check round 1.
+Verify: every brief gate by exit code, with saved logs.
+Assume the shipped database and mail presets may serve the test route.
+The proof keeps the real Start entry, router, and serve script.
+Only the temporary entry binds those presets; no host services are needed.
+Assume a new image tag can reuse the pinned services without rebuilding them.
+The existing prepare path rebuilds services, so add an app-only switch.
+No TypeScript source or test changes are needed.
+The native reply proof is a maintainer check, also run on the copied registry.
+
+Step 1: the starter keeps native Request and Response globals.
+The route returns Response.json with status 200 and body { ok: true }.
+Red proof: 08-red.log, exit 1; green proof: 09-green.log, exit 0.
+Both run the real built Start entry and the serve script over HTTP.
+Logs live in .serve-native-response-logs/ beside this file.
+The first probe used invalid empty telemetry URLs; logs 01 and 03 keep that error.
+The repeated red uses valid settings and reports the native reply failure.
+The gate record's first check failed only on its JSON format.
+No package test changed, so Jev test and promise judges do not apply.
+No public symbol changed, so no impact block is needed.
+Core feedback: no new Core gap; the bug belongs to the HTTP server setting.
+
 Owner: lead (Codex, Start scaffold session).
 Status: runnable native proof complete; full inspection remains open.
 
