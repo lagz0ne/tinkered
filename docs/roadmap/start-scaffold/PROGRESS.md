@@ -1753,3 +1753,95 @@ Filled payload:
   cause: { name: "Error", code: "ENOTFOUND" },
 }
 ```
+
+### Round 2 Jev answers
+
+The preflight compares origin/main 880f1c4f with this branch.
+It exits 0 with one file flag and three unit flags.
+The brief bars tools edits, so these filled labels stay for the lead.
+
+- http-backend.ts: leakedInternal = false.
+  Only fixed scaffold code and seam tests need the exported tag.
+  App seams no longer export it, and app references are banned.
+- http: stopOnlyInDefer = false.
+  Close aborts the owned requests; each send also reads its caller's signal.
+  The caller-close proof stops body reading before root close.
+- httpRequest: configNotTag = false.
+  URL, method, headers, and body are request input.
+  The error reader keeps only safe external facts.
+  Native sending comes from the fixed backend tag.
+- delivery: configNotTag = false.
+  Settings and sending come from tags.
+  The content types and storage field keys are fixed wire rules.
+
+S24 still points at the required built-in default.
+The brief leaves its rule update to a later card.
+The extension note owes no label.
+The test check has zero flags in 48 tests.
+The promise check has zero gaps and one unsure match.
+No new Core feedback came from this round.
+
+```bash
+backend_file=apps/start-scaffold/src/scaffold/\
+http-backend.ts
+node tools/jev/label.mjs leakedInternal false \
+  "$backend_file" --by start/http-resource \
+  --why "The fixed tag serves tests and telemetry."
+http_file=apps/start-scaffold/src/scaffold/\
+backend/http.ts
+node tools/jev/label.mjs stopOnlyInDefer false \
+  "$http_file#http" --by start/http-resource \
+  --why "Close aborts; caller signals also stop sends."
+node tools/jev/label.mjs configNotTag false \
+  "$http_file#httpRequest" --by start/http-resource \
+  --why "Request values and error facts are not settings."
+delivery_file=apps/start-scaffold/src/scaffold/\
+telemetry/delivery.ts
+node tools/jev/label.mjs configNotTag false \
+  "$delivery_file#delivery" --by start/http-resource \
+  --why "Settings and sending are tags; fields are fixed."
+```
+
+### Round 2 final proof
+
+All three fixes have separate commits and red then green proof.
+The backend case and revised error test each have red exit 1 and green exit 0.
+Each of the seventeen client cases has a separate red exit 1 log.
+Their shared green log proves all seventeen fail by http-client.
+The full plain proof passes 113 planted failures and keeps 17 plain functions.
+
+The required root chain exits 0.
+It passes 1,217 repo tests, with one existing skip.
+The app passes 48 tests; the copied starter passes 46.
+Root check has zero errors and the same 28 warnings.
+All 16 validate lanes pass.
+All 113 registry files match source.
+The copied starter's 15 gates each exit 0.
+Types, seam, seam fixture, browser guard, imports, schema, and middleware pass.
+Strict style census and TSDoc also exit 0.
+The mutation-script presence check ran alone under flock and exits 0.
+No Start scaffold mutation script exists, so no full mutation lane ran.
+
+The first error-metadata catch exceeded the lint branch cap.
+Its exit 1 log is preserved as http-round2-fix3-check-first.log.
+An early exit for unreadable facts fixed the limit before the source commit.
+The final code keeps the same safe fields and introduces no helper.
+
+Read latestRound and round2 in HTTP-RESOURCE-FIX-GATES.json for this round.
+That record includes every command, exit code, log, proof pair, and copied gate.
+The root chain log is /tmp/http-round2-gate-chain.log.
+The first round's proof remains as history.
+
+Source commits:
+
+- 8cd09571: keep backend tag references inside fixed scaffold code.
+- ebc8f0b3: ban the named HTTP clients and raw socket imports in app code.
+- cbb70493: keep safe native error name and code facts.
+
+The next commit saves the rebuilt registry and final proof.
+The two-span shape, computed keys, and Reflect.get remain as the lead asked.
+The path-token warning remains in force.
+Only the two allowed folders changed.
+No stash, push, trial-store access, or container command was used.
+All long jobs were awaited in this turn.
+The card waits for lead review and landing.
