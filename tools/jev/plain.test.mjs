@@ -467,11 +467,23 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
     );
     for (const file of [
       "src/scaffold/http-backend.ts",
+      "/work/src/scaffold/http-backend.ts",
       "apps/start-scaffold/src/scaffold/http-backend.ts",
     ]) {
       assert.deepEqual(hits(source, file), []);
       assert.deepEqual(repo(source, file), []);
     }
+  });
+
+  void it("S24 fires on bare fetch in other scaffold files", () => {
+    const source = "export const load = () => fetch(url);\n";
+    for (const file of [
+      "src/scaffold/backend/http.ts",
+      "apps/other/src/scaffold/http-backend.ts",
+    ]) {
+      assert.deepEqual(hits(source, file), [["S24", 1]], file);
+    }
+    assert.deepEqual(repo(source, "apps/other/src/scaffold/http-backend.ts"), [["S24", 1]]);
   });
 
   void it("S25 fires on useState and useReducer in a .tsx source file", () => {

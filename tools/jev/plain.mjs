@@ -1106,7 +1106,9 @@ function handRolledScope(file, writer) {
     S21: true,
     S22: true,
     S23: userCode,
-    S24: userCode && !/(^|\/)src\/scaffold\/http-backend\.ts$/.test(file),
+    S24:
+      userCode &&
+      !/^(?:\/work\/|apps\/start-scaffold\/)?src\/scaffold\/http-backend\.ts$/.test(file),
     S25: writer && file.endsWith(".tsx"),
     S27: !BROWSER_ENTRY.test(file) && (writer || USERLAND.test(file) || PACKAGE_SRC.test(file)),
     S28: userCode,

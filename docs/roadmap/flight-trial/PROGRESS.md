@@ -3476,3 +3476,29 @@ No flags need labels.
 The workspace already allows esbuild for validate.
 No config edit was needed.
 Core feedback: none; this card needed no Core workaround.
+
+### S24 review round: exact paths and unused suite
+
+Owner: Sol writer; lead verdict READY with one fix round.
+Next: tighten the backend exception, then drop unused suite arguments.
+Verify: red and green path proof, Jev tests, writer tests, check, and prose.
+
+Assumption: fixes 1 and 2 are one bug fix with its test.
+They land together so the commit keeps the tests green.
+Fix 3 is a separate cleanup commit.
+It changes no behavior and uses the existing writer tests.
+No test is added just to check an unused argument.
+
+The new path test fails on `apps/other/src/scaffold/http-backend.ts`.
+The old regex wrongly exempts that app.
+Log: `tools/writer-trial/.logs/s24-on/review/red-scaffold-paths.log`, exit 1.
+The backend test now also covers `/work/src/scaffold/http-backend.ts`.
+
+The exact three-path regex now passes the new regression test.
+The backend test passes for relative, `/work/`, and Start repo paths.
+Jev tests: 147 pass, exit 0.
+Check: exit 0; no errors and the same 28 warnings.
+Prose: exit 0.
+Logs under `tools/writer-trial/.logs/s24-on/review/`:
+`green-scaffold-paths.log`, `jev-paths.log`,
+`check-paths.log`, and `prose-paths.log`.
