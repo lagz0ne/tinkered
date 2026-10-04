@@ -2483,3 +2483,17 @@ Its cases and expected replies stay the same.
 Green: .protocol-reply-logs/05-auth-green.log, exit 0.
 All 65 app tests, build, app types, and changed-file checks pass.
 The real auth tests cover sign-in, sign-out, mail, and sessions.
+
+### Step 5: own body cancellation
+
+The plain gate found the new route's cancel listener outside the graph.
+Red: .protocol-reply-logs/03-union-correct-red.log, exit 1.
+The failure is service-owner on api.telemetry.ts.
+The requestBody resource now owns that reader and cancel listener.
+The route borrows the reader, checks bounded bytes, and releases it in finally.
+Resource cleanup also releases it when the request ends.
+No body checks or HTTP replies moved into an operation.
+
+Green: .protocol-reply-logs/06-reader-green.log, exit 0.
+Build, types, fourteen related tests, plain, and code checks pass.
+The plain list is rebuilt; the same seventeen functions remain.
