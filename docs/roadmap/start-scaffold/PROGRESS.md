@@ -2860,3 +2860,19 @@ The server entry's Response check now lives on its body resource.
 The same instance check still picks the same reply path.
 Build, types, and nine body and wire tests pass, exit 0.
 Proof: short-02-build-check.log.
+
+Short fix 3: the run walk checks casts to Request.
+The unknown-input cast passes the old guard, child exit 0.
+Red: short-03-cast-red.log, exit 1.
+Green: short-03-cast-green.log, exit 0.
+The body stream now has a direct null check after the header checks.
+The failed result is read through its status and error.
+Both source checks fail before the edits and pass after them.
+Red: short-03-body-red.log and short-03-result-red.log.
+Green: short-03-body-green.log and short-03-result-green.log.
+The direct route edit had ten branches; the limit is eight.
+The final settlement callback maps its result to the route's reply.
+It does real work and returns the owned promise.
+Body reads stay direct; no lint limit or guard was weakened.
+Build, types, plain check, and fourteen wire and telemetry tests pass.
+Proof: short-03-verified.log, exit 0.
