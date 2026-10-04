@@ -56,7 +56,7 @@ Its span is a child of the caller's span, with method, path, and status.
 Nothing passes `ctx` around; the input is exactly the request.
 
 App code never calls `fetch` directly.
-`check:plain` fails on a bare `fetch(` in `src/` outside `http.ts`.
+`check:plain` fails on built-in fetch in `src/` outside `src/scaffold/http-backend.ts`.
 Jev rule S24 is on again for every suite, and names `httpRequest`.
 The telemetry sender uses `httpBackend` too; `telemetryBackend` goes.
 

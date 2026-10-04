@@ -55,13 +55,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/s24-on** — Jev rule S24 bans bare fetch again in every suite, naming `httpRequest`.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-s24-on`. Follows `start/http-resource` (ADR 0102).
-  Next: S24 text names `httpRequest`; skip the scaffold's backend file; drop the flight skip.
-  Verify: a flight gate on a bare-fetch app blocks; Jev and writer-trial tests pass.
-  [Brief](docs/roadmap/flight-trial/S24-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -83,6 +76,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/s24-on** — Jev rule S24 bans bare fetch again in every suite, naming `httpRequest`.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
+  S24's fix line names `httpRequest.controller`; only the scaffold's `http-backend.ts` may call fetch;
+  the flight skip is gone, so a flight gate on a bare-fetch app blocks.
+  Proof: 4 new tests, each red on the old code; 147 Jev tests; 91 harness tests; check; prose.
+  Known gap: S24 matches calls only (aliases pass it); `check:plain` catches them in Start apps.
 
 - **trial/services-protocol** — service operations speak domain; Hono owns the wire both ways (ADR 0103).
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
