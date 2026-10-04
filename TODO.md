@@ -50,13 +50,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/serve-native-response** — the starter's `scripts/serve.mjs` keeps the native `Response`.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-serve-native`. Found by the `trial/reference-0102` review.
-  Next: add `overrideGlobalObjects: false`; rebuild the registry and the writer image; rerun round 1.
-  Verify: a `Response.json` route gives 200 in the copied starter (red first); round 1 passes on the new image.
-  [Brief](docs/roadmap/start-scaffold/SERVE-NATIVE-RESPONSE-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -78,6 +71,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/serve-native-response** — the starter's `scripts/serve.mjs` keeps the native `Response`.
+  Owner: lead (Claude, Start scaffold session); Sol writer; lead review.
+  `overrideGlobalObjects: false`, as the reference has; `prepare.mjs --app-only` rebuilds just the writer image.
+  Proof: a `Response.json` route went from HTTP 500 to 200 (red then green); copied starter; round 1
+  passes on the new writer image `bb97e63c`; all gates.
 
 - **trial/reference-0102** — the flight reference passes today's gate; new images; the next trial can run.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY. Folds in `trial/images-0102`.
