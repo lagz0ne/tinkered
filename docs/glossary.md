@@ -67,26 +67,38 @@
 - **`useRelease`** — Returns a thin `release(cellOrResource)` over `scope.release`, for retry/reset UIs (pairs with an error-boundary reset to rebuild a failed resource).
 - **`useSpans`** — Returns the scope's bounded span history (a snapshot read each render; empty when observation is off) for an inspector/devtools view — not push-reactive (core exposes no span subscription).
 
-## HTTP client (`@tinker/http`)
+## Frames and calls
 
-- **frame** — A pre-wired graph of core primitives (tags, a resource, operations to depend on) with slots the user fills; nothing runs until an operation resolves (ADR 0035). `tinkerer({ label })` and `harness({ label, adapter })` return one; http has none — `httpClient` is retired by ADR 0060 and its units (`send`, `attempt`, `config`, `backend`) are declared.
+- **frame** — An earlier pre-wired graph of tags, resources, and operations with slots the user fills (ADR 0035). The HTTP frame is retired; the Start scaffold declares its three HTTP units (ADR 0102).
 - **slot** — A placeholder in a frame that the user fills at the scope (a tag binding: `backend`, `x.config`) or at definition (an endpoint's `request`/`response`, the frame's `retry`).
-- **backend** — The one function that sends a request: `(request, signal) => Promise<HttpResponse>`. A shared tag with default `fetchBackend`; swap it at the scope or session. Pooling/caching live inside a backend (Go's `Transport`; Effect's `Fetch` tag).
-- **config tag** — A frame's own tag (`github.config`) carrying `baseUrl`/`headers`; one per client. Read per call by the endpoint (`.all`, merged nearest-wins), so a scope, a session, or a subflow call's `tags` may each contribute (Effect's `RequestInit` tag, per client).
-- **client resource** — The frame's scope-target resource, `{ execute(request, ctx) }`: merges config, sends via the backend, retries transient failures, opens a span, logs. `ctx` is the CALLER's ctx, so cancel/obs/log/clock need nothing new.
-- **endpoint operation** — The author declares it: `operation({ label, input?, depends: { send }, run })` — `send` merges config, validates the URL, and retries under the merged `retry` config (default: never) (ADR 0035, 0058). `x.operation` is retired by ADR 0060.
-- **request operation** — The Start scaffold's `httpRequest`: one outgoing HTTP call as an operation over the `http` resource and the `httpBackend` tag, which wraps built-in `fetch`. Callers run it, so each request is a child span (ADR 0102).
-- **source** — The adapter-specific object a backend attaches to a response (the web `Response` for `fetchBackend`) beside the common base (`status`, `headers`, body readers).
-- **transient failure** — What `retry` retries: a `RequestFailed` with reason `Transport`, or status 408, 429, 5xx. Never after the signal aborted. Backoff sleeps on the caller's clock.
 - **resolve / controller / run** — The three scope verbs (ADR 0036): `resolve(x)` reads the snapshot in dependency form (data value, built resource, tag value); `controller(x)` gives back control (data get/set/update/watch, resource resolve/get, operation run); `run(op, call?)` runs an operation now. `run({ depends?, run }, { input?, tags? }?)` runs an **inline operation**: same path, span, ctx, and cancel; no identity so no preset (ADR 0037).
 - **tagged call** — `run(x, { tags })` on a declared or inline operation, or on a subflow: sugar for `session({ tags }, (s) => s.run(x, …))` — a child session for that run. Its subflows and its session-target resources see the tags; scope-target resources never do; a session-target resource is per flow (ADR 0038). One that ended in place returns its value, not a promise (ADR 0072).
+
+## Copied HTTP client (Start scaffold, ADR 0102)
+
+- **`httpBackend`** — The tag in `src/scaffold/http-backend.ts` with label `http.backend`.
+  Its value has the built-in fetch signature; its default calls fetch.
+- **`http`** — The session-target HTTP resource in `src/scaffold/backend/http.ts`.
+  It sends through the backend and joins caller, cleanup, and bound stop signals.
+- **`httpRequest` / request operation** — One outgoing HTTP call with checked, branded input.
+  It returns status, headers, and body text.
+  With observation on, its `http.request` span holds the `http <METHOD> <path>` child span.
+- **`backendStop`** — The original backend stop signal tag, labelled `lifetime.backendStop`.
+  It ends HTTP waits before Core joins work during graceful shutdown.
+- **`requestStop`** — The original native request signal tag, labelled `lifetime.requestStop`.
+  It ends that request's HTTP waits when the signal aborts.
+
+The earlier `@tinker/http` backend, config tag, client resource,
+endpoint operation, response source, and retry terms are retired here.
+The copied client has no frame, config tag, or retry.
 
 ## Hono driver (`@tinker/hono`) — an extension the scope owns (ADR 0051, 0060): `hono(routes, wiring?)` returns `{ extension }` — install it with `createScope({ extensions })`, and `scope.resolve(ext)` after `ready` is the Hono app; `wiring` holds `onError?`, `tags?`, `ns?`, `mount?`, `serve?`; `route.<verb>(path, op | loader, { input?, respond? })` returns a plain row; `tinker`/`handle`/`honoApp`/`routes` are gone from the surface
 
 - **driver** — An integration that maps outside work onto sessions of a scope it does NOT own: the entrypoint (`main`, or a test) creates and closes the scope; the driver receives the handle once, in its extension `start`, and never exposes it to userland (ADR 0039, tiers in ADR 0034).
 - **request session** — The session the extension's middleware opens per request, bound with `request(raw)` plus the request-derived `tags(c)`; force-closed on client abort, closed after the handler returns — or, for a streaming route, when the body finishes (ADR 0039, 0040).
 - **`handle`** — RETIRED by ADR 0051: a route is a `route.<verb>` row.
-- **`request` tag** — The web `Request` of the current request, bound on the request session for the rare operation that needs headers; keeps operations framework-free.
+- **`request` tag** — Retired Hono binding of a whole web `Request`.
+  Routes now read headers and pass plain params to feature operations (ADR 0103).
 - **`stream`** — `stream(c, op, call?)`: answers a streaming Response whose body is the declared operation `op`; the run binds the `emit` tag, read with `depends: { emit: emit.required }`, and the session stays open until the body finishes or the client cancels (ADR 0021, 0040). Every other response closes the session after `next()`.
 - **`onError` slot** — `hono(routes, { onError })`: runs before the default map (parse failure 400, cancelled 499, MissingTag/NoSession 500, else rethrow to Hono) and may answer a failure with its own Response (ADR 0040).
 
@@ -271,9 +283,8 @@ New sections are lists, one term per item (vertical layout,
   model, runs the tool calls it asks for as subflows,
   and repeats until a reply has no tool call. The
   `harness` row stays the SDK-owned loop; this one is ours.
-- **step** — One model call: an `@tinker/http` endpoint
-  (`POST /chat/completions`, read with `res.sse()`).
-  One span per step.
+- **step** — One model call in the earlier Tinkerer loop.
+  Its `@tinker/http` endpoint transport is retired.
 - **transcript** — The `messages` cell: chat-completions
   message objects as sent and received (the wire shape).
   One conversation per session.
@@ -415,5 +426,9 @@ New sections are lists, one term per item (vertical layout,
 
 - **plain function** — A function that is not a tag, data, resource, operation, or extension.
 - **plain-function list** — The checked list of allowed plain functions, with params and call sites; it only shrinks.
-- **protocol layer** — The framework code at a service's edge (a Hono handler, a Start route). It owns both directions: route, params, headers, and wire envelope in; status, headers, and wire envelope out. Operations take params and return plain values or managed errors (ADR 0101, 0103).
+- **protocol layer** — The framework code at a service's edge: a Hono handler or Start route.
+  It owns route, params, headers, and wire body in; status, headers, and wire body out.
+  Feature operations take plain params and return values or raise managed errors (ADR 0101, 0103).
+- **mounted auth handler** — The scaffold's `handleAuth` operation that calls better-auth's Request/Response API.
+  Only the auth route and proof tests use this named protocol exception (ADR 0103).
 - **entry point** — The one file that creates a root scope and owns its stop signal and exit (ADR 0100).

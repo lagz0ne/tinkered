@@ -2918,3 +2918,42 @@ The full gate list then passed.
 No app source changed during the gate run.
 No stash, push, trial-store access, or container command was used.
 The registry and proof wait in Review for the lead.
+
+## HTTP docs: writer start
+
+Card: docs/http-0102-0103.
+Owner: Codex writer.
+Branch: docs/http-0102-0103; base: 6e254446.
+Next: correct docs, then S24 text and its copied-scaffold proof.
+Verify: prose, Jev tests, exact fix snippet types, and vp check.
+State: Doing.
+
+Assume the lead owns TODO.md, review, and landing.
+The folder limit keeps TODO.md unchanged.
+ADR 0102 changes are factual corrections required by this brief.
+ADR 0103 already matches the read routes and named auth exception.
+Keep its decision text unchanged.
+Keep historical frame words but mark the old HTTP model as retired.
+No app source, trial source, or shared trial store is touched.
+No push, stash, full mutation lane, or speed claim is requested.
+
+Read both briefs, writing rules, both decisions, and the real HTTP code.
+Also read the stop tags, server entry, middleware, routes, exports,
+error registries, HTTP tests, telemetry sender, and plain guard.
+The initial build exits 0: .http-docs-logs/01-build.log.
+The base check exits 0 with 28 warnings: .http-docs-logs/02-baseline-check.log.
+
+### Step 1: match the HTTP docs to code
+
+ADR 0102 now names both request spans and the session-target resource.
+The backend tag has its real file, signature, and label.
+The decision lists the actual client ban and sync transport exception.
+The glossary drops live claims for retired HTTP helpers.
+The whole-request tag is marked retired.
+Feature operations receive params; routes own wire input and replies.
+The README and skills explain rawInput and reply mapping.
+Direct graceful close remains a limit, separate from tested stop behavior.
+
+Step 1 build and prose each exit 0.
+Logs: .http-docs-logs/03-step1-build.log and 03-step1-prose.log.
+The touched current docs have no wide table rows or fenced lines.
