@@ -580,6 +580,141 @@
         "code": 0,
         "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-03b-green.log"
       }
+    },
+    {
+      "change": "mounted-auth-testing",
+      "red": {
+        "name": "review-04-mounted-auth-testing-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04-mounted-auth-testing-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
+    },
+    {
+      "change": "mounted-auth-direct",
+      "red": {
+        "name": "review-04-mounted-auth-direct-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-direct",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04-mounted-auth-direct-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
+    },
+    {
+      "change": "mounted-auth-scaffold",
+      "red": {
+        "name": "review-04-mounted-auth-scaffold-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-scaffold",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04-mounted-auth-scaffold-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
+    },
+    {
+      "change": "mounted-auth-bracket",
+      "red": {
+        "name": "review-04extra-mounted-auth-bracket-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-bracket",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04extra-mounted-auth-bracket-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
+    },
+    {
+      "change": "request-headers-bracket",
+      "red": {
+        "name": "review-04extra-request-headers-bracket-red",
+        "command": "vp run @tinker-start-scaffold#check:plain -- --prove --cases=request-headers-bracket",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04extra-request-headers-bracket-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
+    },
+    {
+      "change": "explicit sync cursor type",
+      "red": {
+        "name": "review-04-cursor-red",
+        "command": "vp run -r build && node .protocol-reply-logs/logs/review-sync-shape.mjs",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04-cursor-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
+    },
+    {
+      "change": "public transport keeps mounted auth private",
+      "red": {
+        "name": "review-04b-routes-red",
+        "command": "vp run -r build && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts --reporter verbose",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04b-routes-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
+    },
+    {
+      "change": "sync request read failures propagate",
+      "red": {
+        "name": "review-04-final-regression-red",
+        "command": "python3 .protocol-reply-logs/logs/review-sync-regression.py",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04-final-regression-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
+    },
+    {
+      "change": "sync downstream validation failures propagate",
+      "red": {
+        "name": "review-04-final-regression-red",
+        "command": "python3 .protocol-reply-logs/logs/review-sync-regression.py",
+        "code": 1,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04-final-regression-red.log"
+      },
+      "green": {
+        "name": "review-04d-green",
+        "command": "vp run -r build && vp check --fix apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/src/routes/api.sync.ts apps/start-scaffold/src/scaffold/backend/index.server.ts apps/start-scaffold/tests && node .protocol-reply-logs/logs/review-sync-shape.mjs && vp run @tinker-start-scaffold#typecheck && vp run @tinker-start-scaffold#test -- tests/protocol-wire.test.ts && vp run @tinker-start-scaffold#check:plain -- --prove --cases=mounted-auth-testing,mounted-auth-direct,mounted-auth-scaffold,mounted-auth-bracket,request-headers-bracket && vp run prose",
+        "code": 0,
+        "log": "/home/paseo/next/tinkered-protocol-reply/.protocol-reply-logs/review-04d-green.log"
+      }
     }
   ],
   "wire": {

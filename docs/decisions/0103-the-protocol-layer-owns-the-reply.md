@@ -89,4 +89,8 @@ The plain check allows only that exact file and declaration name.
 Raw request headers live in the scaffold's request wiring.
 The app backend, server seam, and protocol entry do not export them.
 Only the testing entry exports the header tag for proof bindings.
+The plain check bans its use outside the scaffold and src/backend/auth.ts.
+The mounted auth handler is absent from the public transport entry.
+The plain check permits its use only in the auth route and its own file.
+Tests use the testing entry.
 App operations use principal or currentUser.

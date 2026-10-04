@@ -2688,3 +2688,26 @@ A short list keeps header rejection order under the lint limit.
 The body reader owns cancellation, so its cancelled read ends the loop.
 The non-null body assertion follows the explicit no-body rejection.
 No lint limit or plain rule was weakened.
+
+Review fix 4: only the auth route and tests can use the mounted auth handler.
+The transport entry no longer exports it.
+App and other scaffold imports fail the plain guard.
+The shared guard also follows bracket access through public export aliases.
+Five added banned import cases have red exit 1 and green child exit 1.
+The proof is green, exit 0, in review-04d-green.log.
+The public export test fails before the change, exit 1.
+Red: .protocol-reply-logs/review-04b-routes-red.log.
+The cursor has a Stream.Cursor type; its source audit is green.
+Red: .protocol-reply-logs/review-04-cursor-red.log.
+Only JSON syntax and Zod parse errors become bad cursor replies.
+The route passes a validated cursor with input, not rawInput.
+The DataValidationFailed branch had no input check to handle here.
+A downstream validation failure must pass through, rather than become 400.
+The final two tests fail against the old sync route, with two 400 replies.
+Red: .protocol-reply-logs/review-04-final-regression-red.log.
+The exact final tests pass on the new route.
+All five wire tests, types, prose, and new import proofs pass, exit 0.
+Green: .protocol-reply-logs/review-04d-green.log.
+The downstream proof uses a real graph-owned preset with real dependencies.
+It needs async factory parity and explicit proof tags.
+No mocks, global changes, or private test imports were added.
