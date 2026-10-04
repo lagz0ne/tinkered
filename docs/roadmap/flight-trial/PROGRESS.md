@@ -3356,3 +3356,29 @@ Status: Review.
 Next: the lead lands the saved fixes.
 No source or test changed after the final gates or mutation run.
 No new Core feedback, app change, push, or stash.
+
+## S24 on, 2026-10-04
+
+Card: `trial/s24-on`.
+Owner: Sol writer; lead owns review and landing.
+Branch: `trial/s24-on`, from `5166969a`.
+Next: prove the new message and scaffold exception red, then green.
+Verify: Jev tests, writer-trial tests, check, prose, and validate exit 0.
+
+Assumption: the brief's path limits override board edits.
+The existing Doing card in `TODO.md` stays with the lead.
+Assumption: exempt only `src/scaffold/http-backend.ts` from S24,
+including that path below a repo or app root.
+The older suites keep their current fetch checks.
+Frozen trial files stay unchanged; no trial refresh is part of this card.
+No live trial folder or container is read or changed.
+
+The scaffold exports `httpRequest` from `src/scaffold/backend/http.ts`.
+Its caller depends on `httpRequest.controller` and runs that controller.
+The input has `url` and `method`; headers and body are optional.
+The result has `status`, `headers`, and a text `body`.
+The message will promise spans and cancel signals, as ADR 0102 does.
+It will not promise retries, which this scaffold does not supply.
+
+Initial workspace build: exit 0.
+Log: `tools/writer-trial/.logs/s24-on/build-initial.log`.
