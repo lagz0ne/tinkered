@@ -3292,3 +3292,24 @@ Build, all 98 service tests, and the operation check exited 0.
 Logs: `review-fix2-build.log`, `review-fix2-test.log`,
 and `review-fix2-protocol.log`, under `tools/flight-trial/scripts/logs/`.
 Next: full wire and workspace gates, then mutation alone under the lock.
+
+### Lead fix round: checked error maps and full plain count
+
+The operation check reads each service's bound error table and shared kinds.
+Each literal raised kind must have a row in its own service's table.
+Shared operations must have rows in both service tables.
+A raised kind that cannot be read statically also fails the check.
+The plain count now includes top-level arrow and function values,
+including exported values, as well as named function declarations.
+The real count stays at 6 before and 3 after; process entries stay at 2.
+
+The planted proof edits only a temporary copy under the script logs.
+Missing supplier, payment, and shared kinds each fail with exit 1.
+A dynamic raise, a top-level arrow, and an exported function also fail.
+All six failures are expected; the clean copy exits 0.
+The planted-proof gate exits 0.
+Build, check, and the operation check also exit 0.
+Logs under `tools/flight-trial/scripts/logs/`:
+`review-fix3-build.log`, `review-fix3-check.log`,
+`review-fix3-protocol.log`, and `review-planted.log`.
+Next: rerun every final gate, then full locked mutation.
