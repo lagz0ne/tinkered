@@ -2497,3 +2497,27 @@ No body checks or HTTP replies moved into an operation.
 Green: .protocol-reply-logs/06-reader-green.log, exit 0.
 Build, types, fourteen related tests, plain, and code checks pass.
 The plain list is rebuilt; the same seventeen functions remain.
+
+### Step 6: protocol and HTTP guard cases
+
+Fifteen new planted cases now pass with the expected exit codes.
+Fourteen banned cases return 1; the type-only export returns 0.
+The before-check proof returns 1 for each missing rule.
+Those red logs are 03-CASE-red.log in .protocol-reply-logs.
+The union case uses 03-union-final-red.log.
+Two added loader cases use 07-aliases-red.log and 07-create-destructured-red.log.
+The red wrapper for each case fails because the old guard accepted bad code.
+For the allowed type export, the old guard rejected good code.
+
+The guard resolves whole-Request schemas and sync or async Response returns.
+Only the named protocol auth mount is excepted.
+It catches destructured fetch, sendBeacon, and XMLHttpRequest.
+It rejects computed import and require paths and createRequire references.
+It catches renamed require and destructured createRequire too.
+Type-only imports and exports remain allowed.
+
+Green: 07c-guard-check.log and 07-aliases-green.log, exit 0.
+Each log names the planted case, its rule, and its own proof log.
+The fifteen earlier per-case green logs also stay saved.
+Code checks pass with zero warnings on the changed script.
+The full proof will run on the final source after the remaining doc fixes.
