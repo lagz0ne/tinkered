@@ -1,0 +1,177 @@
+{
+  "base": "040df065",
+  "branch": "start/http-resource",
+  "runs": [
+    {
+      "name": "fix1-fetch-tag-value-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=fetch-tag-value"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix1-fetch-tag-value-red.log"
+    },
+    {
+      "name": "fix1-fetch-alias-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=fetch-alias"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix1-fetch-alias-red.log"
+    },
+    {
+      "name": "fix1-window-fetch-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=window-fetch"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix1-window-fetch-red.log"
+    },
+    {
+      "name": "fix1-self-fetch-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=self-fetch"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix1-self-fetch-red.log"
+    },
+    {
+      "name": "fix1-destructured-fetch-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=destructured-fetch"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix1-destructured-fetch-red.log"
+    },
+    {
+      "name": "fix1-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix1-build.log"
+    },
+    {
+      "name": "fix1-fetch-tag-value-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=fetch-tag-value"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix1-fetch-tag-value-green.log"
+    },
+    {
+      "name": "fix1-fetch-alias-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=fetch-alias"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix1-fetch-alias-green.log"
+    },
+    {
+      "name": "fix1-window-fetch-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=window-fetch"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix1-window-fetch-green.log"
+    },
+    {
+      "name": "fix1-self-fetch-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=self-fetch"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix1-self-fetch-green.log"
+    },
+    {
+      "name": "fix1-destructured-fetch-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=destructured-fetch"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix1-destructured-fetch-green.log"
+    },
+    {
+      "name": "fix1-check",
+      "command": ["vp", "check"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix1-check.log"
+    },
+    {
+      "name": "fix1-prose",
+      "command": ["vp", "run", "prose"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix1-prose.log"
+    }
+  ]
+}

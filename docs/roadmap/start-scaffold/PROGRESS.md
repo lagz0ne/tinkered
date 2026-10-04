@@ -1498,3 +1498,38 @@ node tools/jev/label.mjs configNotTag false \
 ```
 
 No label file was changed by this writer.
+
+## HTTP resource lead fix round
+
+Reviewed head: 040df065; verdict READY with six fixes before landing.
+Owner: Sol writer; lead owns review and landing.
+Next: fix each item with red and green proof, then rebuild and run every gate.
+Verify: HTTP-RESOURCE-FIX-GATES.json records every exit code and log.
+
+### Assumptions for this round
+
+- The lead's six fixes refine the original brief.
+  App seams expose only httpBackend and httpRequest.
+- A type query is not a fetch value use.
+  The built-in default callback is the sole allowed native fetch use.
+- HttpRequestFailed stores only method and path.
+  A native cause can include the raw URL, so it is not retained either.
+- Response headers use a record of string arrays.
+  Each set-cookie value stays separate; other joined native header values stay as received.
+- The HTTP span name stays http METHOD path.
+  A token in the path would show in that name.
+  Keep tokens out of request paths.
+- Selected planted cases give each fix a small red and green proof.
+  The last gate still runs every planted case.
+- Scope-close proof runs through httpRequest after the resource leaves app seams.
+- The original edit limits and trial-store ban still apply.
+
+### Fix 1: built-in fetch references
+
+The rule follows TypeScript's built-in declarations.
+It catches value uses, aliases, window and self methods, and destructuring.
+Type queries and injected backend values remain allowed.
+Only the httpBackend default callback may reference the built-in.
+All five escaped forms pass the old check, which makes each red proof exit 1.
+All five green proofs reject the planted use by the http-request rule.
+The check accepts --cases to run named proofs; --prove alone still runs all cases.
