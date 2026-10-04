@@ -2014,3 +2014,45 @@ The writer's code and registry are ready for lead review.
 Final proof log: /tmp/tinkered-http-polish-logs/13-plain-prove.log.
 Final registry log: /tmp/tinkered-http-polish-logs/13-registry-green.log.
 The next commit saves the final registry, label rows, and this proof record.
+
+## HTTP graceful close: writer start
+
+Card: start/http-graceful.
+Owner: Sol writer; lead owns review and landing.
+Next: prove the hang, stop HTTP waits before close, then rebuild the registry.
+Verify: red then green tests; plain proof; seam; registry; app tests.
+Also verify build, check, prose, all repo tests, and validate.
+
+Assumptions:
+
+- The supplied worktree is installed at origin/main ecdfb486.
+- Keep TODO.md as supplied; it is outside the allowed folders.
+- The target brief allows fixed scaffold changes for this repair.
+- Use the shipped startRequests extension for scopes that send HTTP.
+  Bare Core scopes cannot gain a close hook from a resource factory.
+- Core close hooks run on roots only.
+  The start hook must also bind child session close methods.
+- An owned resource method may bind native Core handles.
+  It owns the close adapter; no plain helper takes a scope.
+- A graceful HTTP abort raises HttpRequestFailed.
+  A forced close still uses the caller signal and returns cancelled.
+- Use the test runner's 2 s limit as the probe's bound.
+  A backend handshake starts close; no sleep or timer drives the test.
+- The named payment lines now hold route code, even at the pinned commit.
+  Follow the brief's stated abort-before-join rule.
+- Use origin/main for Jev; leave shared label files to the lead.
+- No full mutation lane was requested.
+
+Logs: /tmp/tinkered-http-graceful-logs/.
+
+### Step 1: red proof
+
+The root and session graceful-close tests each hit the 2 s limit, exit 1.
+The late-send test fails because the backend still receives the request, exit 1.
+The forced root and session control passes before the fix, exit 0.
+That control needs before/after green proof, not a made-up red failure.
+The tests reuse the review probe's abort-aware, never-answering backend.
+The test runner sets the bound; the tests have no sleep waits.
+
+Red logs: 02-root-red.log, 02-session-red.log, and 02-late-red.log.
+Control log: 02-forced-before.log.
