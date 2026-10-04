@@ -2056,3 +2056,32 @@ The test runner sets the bound; the tests have no sleep waits.
 
 Red logs: 02-root-red.log, 02-session-red.log, and 02-late-red.log.
 Control log: 02-forced-before.log.
+
+### Step 2: HTTP close ownership
+
+Each HTTP resource now owns one stop signal through body reading.
+Its close method stops every owned send and bars later sends.
+The startRequests start hook binds a private close adapter to its root.
+The adapter also binds sessions made with createSession.
+A graceful close stops that handle's HTTP subtree before Core joins work.
+A forced close still lets Core fire the caller's cancel signal first.
+The adapter returns the original close result and keeps the first close mode.
+Child cleanup removes its retained stop method from its parent.
+
+The plain check keeps the same 17 functions.
+The adapter's public native methods stay inside a private resource.
+Only the composing server hook is exported.
+No Core file or plain-check rule changed.
+
+The first build rejected a backend import from shared Start code.
+The import now lives inside createIsomorphicFn's server callback.
+The client callback still calls next once.
+Earlier plain checks rejected free close callbacks and an exported scope-returning method.
+Owned native methods and a private resource fix those findings.
+Earlier check logs keep the unbound-method warnings; the final code binds native methods.
+Exploratory checks reused the last completed build; final gates each rebuild first.
+
+All 15 HTTP tests pass in 03-http-private.log, exit 0.
+Plain: 03-plain-private.log, exit 0.
+Build: 03-build-private.log, exit 0.
+Check: 03-check-private.log, exit 0.
