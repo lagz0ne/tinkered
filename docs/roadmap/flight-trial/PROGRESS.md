@@ -3502,3 +3502,28 @@ Prose: exit 0.
 Logs under `tools/writer-trial/.logs/s24-on/review/`:
 `green-scaffold-paths.log`, `jev-paths.log`,
 `check-paths.log`, and `prose-paths.log`.
+
+### S24 review round: cleanup and final proof
+
+Path fix and regression test saved in `16ffd233`.
+Removed the unused suite argument from the broker and folder reader.
+Removed it from the saved-check and reference-runner callers too.
+The gate test now calls the shared policy once, without a suite argument.
+No suite can pick a different policy through this function.
+
+Final gate chain: exit 0.
+Logs under `tools/writer-trial/.logs/s24-on/review/`:
+
+- `final-build.log`: build, exit 0.
+- `final-check.log`: check, exit 0; no errors, 28 warnings.
+- `final-jev-tests.log`: Jev tests, exit 0; 147 pass.
+- `final-writer-tests.log`: writer tests, exit 0; 91 pass.
+- `final-prose.log`: prose, exit 0.
+- `final-chain.log`: the chain and its exit 0.
+- `callers.log`: remaining call sites, exit 0.
+- `red-scaffold-paths.log`: new test before the fix, exit 1.
+- `green-scaffold-paths.log`: path and backend tests after it, exit 0.
+
+Status: Review; the lead owns landing.
+The final docs and reference caller get one last build, check, and prose pass.
+Logs: `proof-build.log`, `proof-check.log`, and `proof-prose.log`.

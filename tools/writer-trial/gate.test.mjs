@@ -16,7 +16,6 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { confirmNearBar, judgeSource } from "./broker.mjs";
 import { gateFiles, gateOf, machineVerdict, flightGate } from "./gate.mjs";
-import { SUITES } from "./suite.mjs";
 
 const jevSource = fileURLToPath(new URL("../jev/", import.meta.url));
 
@@ -70,11 +69,9 @@ void describe("the Jev gate", () => {
       judges: [],
       ask: fakeAsk([]),
     };
-    for (const suite of Object.keys(SUITES)) {
-      const gate = gateOf(await judgeSource({ ...input, suite }));
-      assert.equal(gate.status, "block", suite);
-      assert.equal(gate.blocking[0].rule, "S24", suite);
-    }
+    const gate = gateOf(await judgeSource(input));
+    assert.equal(gate.status, "block");
+    assert.equal(gate.blocking[0].rule, "S24");
   });
 
   void it("blocks on a hit from a proven judge", () => {

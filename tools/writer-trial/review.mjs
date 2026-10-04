@@ -505,7 +505,7 @@ async function judgeSnapshot(archive, answers, generatedRouterHash) {
           trustedRegistry: file !== "src/routeTree.gen.ts",
           generatedRouter: file === "src/routeTree.gen.ts",
         });
-      } else reports.push(await judgeFile(tmp, file, { jevDir, judges, ask, answers, suite }));
+      } else reports.push(await judgeFile(tmp, file, { jevDir, judges, ask, answers }));
     }
     return { jevDir, judges, reports, gate: gateFiles(reports) };
   } catch (error) {

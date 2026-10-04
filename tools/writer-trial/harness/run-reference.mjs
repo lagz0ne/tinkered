@@ -89,7 +89,6 @@ async function judgeProject(project) {
         judges,
         ask,
         answers,
-        suite: "flight",
       });
       reports.push(report);
       if (!report.error) answers.set(`${file}\0${sourceHashOf(source)}`, report);

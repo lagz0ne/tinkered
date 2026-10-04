@@ -253,7 +253,6 @@ export function createBroker(config) {
       const judged = await judgeSource({
         source,
         file,
-        suite: config.suite,
         jevDir: config.jevDir,
         judges: config.judges,
         ask: (state, questions) => {
