@@ -3053,3 +3053,13 @@ Commit: 6166c65e.
 
 Fix 2: the slot row now marks the HTTP frame placeholder retired.
 It no longer reads as a current HTTP API.
+
+Fix 2 build and prose exit 0.
+Logs: 17-review-fix2-build.log and 17-review-fix2-prose.log.
+Commit: e1eedc57.
+
+Fix 3: app code cannot use http as a value.
+Type references remain allowed; httpBackend references remain banned.
+ADR 0102, the README, and the seams skill now make that split.
+The forms skill had the same overstatement and is corrected too.
+All logs in this review section live in .http-docs-logs/.

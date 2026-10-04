@@ -104,7 +104,9 @@ Cleanup runs after Core joins the work; it cannot end that wait first.
 App code never calls `fetch` directly.
 `check:plain` bans built-in fetch value uses across `src/`.
 Only the `httpBackend` default in `src/scaffold/http-backend.ts` may use it.
-App code may not reference `http` or `httpBackend`, even through aliases.
+App code may not use `http` as a value, even through aliases.
+Type references to `http` remain allowed.
+App code may not reference `httpBackend`.
 Outside `src/scaffold/`, the check also bans:
 
 - Value imports from `node:http`, `node:https`, `node:http2`,
