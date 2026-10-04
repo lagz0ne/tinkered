@@ -802,3 +802,18 @@ await httpRequests.hooks!.start!({ ...event, scope });
 
 This skips how Core composes extensions.
 Installing `httpRequests` beside an app would register it twice.
+
+## Graceful close drains work before resource cleanup, 2026-10-04
+
+Asked by `trial/services-http`; third caller for card `core/close-hook-scope`.
+
+A graceful close waits for running operations, then runs resource `ctx.defer`.
+So a resource cannot abort its own in-flight work to let that wait end:
+
+```ts
+const sending = scope.run(httpRequest, { rawInput: held });
+await scope.close({ graceful: true }); // never settles
+```
+
+The services abort from a close hook before `event.next()`.
+The Start scaffold's `http` resource still hangs (card `start/http-graceful`).

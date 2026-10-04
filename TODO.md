@@ -71,13 +71,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/services-http** — the services' webhook sender goes through a request operation (ADR 0102).
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-services-http`. Found by the whole-repo review.
-  Next: copy the three HTTP units into `services/`; webhooks run `httpRequest`; ban bare fetch there.
-  Verify: close aborts a webhook in flight; span under the webhook op; wire diff 0; mutation 85.
-  [Brief](docs/roadmap/flight-trial/SERVICES-HTTP-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -99,6 +92,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/services-http** — the services' webhook sender goes through a request operation (ADR 0102).
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
+  `services/http-client.ts` holds the three HTTP units; each webhook copy is an `http POST` span;
+  replies map to delivered, rejected, or unreachable; a graceful close aborts sends in flight; a fetch ban guards the services.
+  Proof: 6 red-then-green tests; wire diff 0 over 2,160 calls; mutation 92.83%; all gates.
+  Found: the scaffold's `http` resource hangs a graceful close (card `start/http-graceful`).
 
 - **start/http-polish** — close the low gaps left by `start/http-resource`.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY.
