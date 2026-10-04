@@ -3890,3 +3890,35 @@ Build and check exit 0; logs: `call-settings-build.log` and `call-settings-check
 This was an owner choice in the reference, not a missing Core feature.
 The final proof file stays running; old round rows do not prove the fixed source.
 Next: prove round 3 and probe payment, then rerun all final rounds.
+
+### Reference step 7: JSON replies from the server
+
+Round 3 passed twice after the request settings fix.
+Its planted price-check break failed by the named teacher case.
+Log: `round-3-fixed.log`, harness exit 0.
+
+The payment probe then failed JSON route and webhook checks with HTTP 500.
+Own, scaffold, plain, and Jev passed; teacher exited 1.
+Red log: `round-4-probe/round-4/pass-1/teacher.log`.
+
+Copying the starter server had dropped the reference's existing
+`overrideGlobalObjects: false` setting.
+Hono replaced Response; TanStack could no longer match JSON replies.
+Restored that setting from the base reference.
+Assumption: this is a round change, so the brief allows keeping it.
+The teacher's payment and webhook cases are the regression proof.
+The fixed payment full gate passed, exit 0.
+Green log: `rounds-final-b/round-4/pass-1/teacher.log`.
+Every payment, signature, expiry, and refund case passed.
+Build and check also pass, exit 0; logs: `release-build.log`
+and `release-check.log`.
+
+A later workspace test run hit a supplier startup timeout, exit 1.
+Logs: `release-tests.log` and `release-tests-serial-2.log`.
+The same two entry tests pass alone, exit 0.
+Log: `supplier-entry-probe.log`.
+The final rerun uses one Vitest worker, without changing service source.
+Jev preflight exits 0, with no file flags and 17 unit findings.
+The prior labels cover all unchanged units; saved the new supplier source label.
+Logs: `release-jev-preflight.log` and `release-jev-labels.log`.
+Next: finish both final passes, each named break, and the workspace rerun.
