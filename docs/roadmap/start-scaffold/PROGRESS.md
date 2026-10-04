@@ -1903,3 +1903,67 @@ The README and forms skill now promise these safe fields.
 
 Red logs: 03-abort-red.log, 03-string-cause-red.log, and 03-partial-fields-red.log.
 Green logs use the same names with green in place of red.
+
+### Step 4: registry and final proof
+
+The registry check fails before rebuild, exit 1.
+Its saved HTTP payload differs from the changed source.
+Red log: 04-registry-red.log.
+
+Assumption: use origin/main..HEAD for Jev.
+The user pinned origin/main at 7f27950b.
+The local main ref is older, at 59f902b3.
+Using it would judge unrelated landed work.
+Keep both refs as supplied.
+
+### Jev answers
+
+The pre-flight has no file flags and two unit flags.
+The test check has no flags in 51 tests.
+The promise check has no gaps in 51 titles and one unsure old SSE title.
+
+- stopOnlyInDefer = false for http.
+  Each send reads its caller signal as well as the owned close signal.
+  The caller-close test stops body reading before root close.
+  The same label already exists as bec8ff9e563e.
+- configNotTag = false for httpRequest.
+  Request values and error facts come from this call.
+  Native sending comes from the backend tag.
+  The new label is b70914c768c7.
+
+Both exact label rows are in HTTP-POLISH-JEV-LABELS.jsonl.
+Assumption: leave the shared tools/jev/cases.jsonl unchanged.
+It is outside the two folders the target brief allows.
+The lead can merge the new row and calibrate when landing.
+This is the sole shared-bank step deferred to the lead.
+No new Core feedback came from this card.
+
+### Lead addition: raw socket and browser sends
+
+The lead added four imports and two browser send APIs to this card.
+Ban net, tls, dgram, and node:dgram outside src/scaffold/.
+Ban XMLHttpRequest constructors and global value uses there.
+Ban navigator.sendBeacon calls and value uses there.
+Each named ban gets red then green proof.
+Literal bracket access gets proof too.
+
+WebSocket and EventSource stay allowed under ADR 0048.
+They carry userland sync transports.
+Their resources still own the connection and close it through ctx.defer.
+Two planted allowed cases prove that rule remains in place.
+
+Assumption: match the browser APIs by their declared native symbols.
+This keeps the existing type-only rule.
+The final registry and full plain proof will include the added cases.
+
+The ten added banned cases each fail the old proof, exit 1.
+The old checker allowed each path.
+The updated checker rejects them by http-client.
+It reuses the native-symbol reader already used for fetch.
+The two allowed transport cases must exit 0.
+
+The first full plain proof passed all 122 earlier cases.
+The lead addition requires a fresh full proof of 134 cases.
+Its final logs use the 13 prefix.
+Red addition logs: 12-client-<case>-red.log.
+Shared green addition log: 12-extra-green.log.
