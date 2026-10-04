@@ -1568,3 +1568,13 @@ The request schema now marks its output with a Zod brand.
 Raw request values go through rawInput; unmarked typed input does not compile.
 The filled skills and scope tests use that same input door.
 No Core change or repeated validation was needed.
+
+### Fix 5: response header values
+
+Response headers are a record of string arrays.
+The resource reads set-cookie through native getSetCookie.
+Each cookie stays separate; commas inside dates are kept.
+Other repeated values keep the native join inside one array entry.
+The regression covers two cookies and an ordinary repeated header.
+It fails on the old header record and passes on the new one.
+The existing reply proof and filled testing skill use the new shape.

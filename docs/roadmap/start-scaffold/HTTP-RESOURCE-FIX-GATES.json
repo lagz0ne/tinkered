@@ -406,6 +406,71 @@
       "code": 0,
       "expected": 0,
       "log": "/tmp/http-review-fix4-green.log"
+    },
+    {
+      "name": "fix5-red-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix5-red-build.log"
+    },
+    {
+      "name": "fix5-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#test",
+        "--",
+        "tests/http.test.ts",
+        "-t",
+        "HTTP replies keep each set-cookie value and joined repeated headers"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix5-red.log"
+    },
+    {
+      "name": "fix5-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix5-build.log"
+    },
+    {
+      "name": "fix5-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#test",
+        "--",
+        "tests/http.test.ts"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix5-green.log"
+    },
+    {
+      "name": "fix5-check",
+      "command": ["vp", "check"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix5-check.log"
+    },
+    {
+      "name": "fix5-plain",
+      "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#check:plain"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix5-plain.log"
+    },
+    {
+      "name": "fix5-prose",
+      "command": ["vp", "run", "prose"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix5-prose.log"
     }
   ]
 }
