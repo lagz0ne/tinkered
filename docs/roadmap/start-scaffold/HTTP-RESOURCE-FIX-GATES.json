@@ -232,6 +232,108 @@
       "code": 0,
       "expected": 0,
       "log": "/tmp/http-review-fix2-prose.log"
+    },
+    {
+      "name": "fix3-red-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix3-red-build.log"
+    },
+    {
+      "name": "fix3-http-resource-dependency-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=http-resource-dependency"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix3-http-resource-dependency-red.log"
+    },
+    {
+      "name": "fix3-http-resource-export-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=http-resource-export"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix3-http-resource-export-red.log"
+    },
+    {
+      "name": "fix3-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix3-build.log"
+    },
+    {
+      "name": "fix3-http-resource-dependency-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=http-resource-dependency"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix3-http-resource-dependency-green.log"
+    },
+    {
+      "name": "fix3-http-resource-export-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#check:plain",
+        "--",
+        "--prove",
+        "--cases=http-resource-export"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix3-http-resource-export-green.log"
+    },
+    {
+      "name": "fix3-test",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#test",
+        "--",
+        "tests/http.test.ts"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix3-test.log"
+    },
+    {
+      "name": "fix3-check",
+      "command": ["vp", "check"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix3-check.log"
+    },
+    {
+      "name": "fix3-prose",
+      "command": ["vp", "run", "prose"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix3-prose.log"
     }
   ]
 }

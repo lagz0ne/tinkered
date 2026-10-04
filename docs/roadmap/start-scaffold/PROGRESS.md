@@ -1521,7 +1521,8 @@ Verify: HTTP-RESOURCE-FIX-GATES.json records every exit code and log.
   Keep tokens out of request paths.
 - Selected planted cases give each fix a small red and green proof.
   The last gate still runs every planted case.
-- Scope-close proof runs through httpRequest after the resource leaves app seams.
+- The native resource-close test uses the fixed transport seam.
+  App references to that resource are forbidden; tests stay outside src.
 - The original edit limits and trial-store ban still apply.
 
 ### Fix 1: built-in fetch references
@@ -1542,3 +1543,12 @@ The regression uses a URL and cause with a query token.
 Its exact payload check fails on the old error and passes on the new one.
 The HTTP span name still includes the path, as the user asked.
 A token in that path would show.
+
+### Fix 3: the request is the app entry
+
+Both app seams export only httpBackend and httpRequest.
+The check follows the raw resource symbol and rejects app value references.
+A direct dependency, alias import, or re-export gets the http-resource rule.
+Fixed scaffold code retains the resource for httpRequest.
+Its native-close test imports the fixed transport seam, not an app seam.
+Both planted cases pass the old check and fail the new rule.
