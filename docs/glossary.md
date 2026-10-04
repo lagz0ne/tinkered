@@ -410,4 +410,5 @@ New sections are lists, one term per item (vertical layout,
 
 - **plain function** — A function that is not a tag, data, resource, operation, or extension.
 - **plain-function list** — The checked list of allowed plain functions, with params and call sites; it only shrinks.
+- **protocol layer** — The framework code at a service's edge (a Hono handler, a Start route). It owns both directions: route, params, headers, and wire envelope in; status, headers, and wire envelope out. Operations take params and return plain values or managed errors (ADR 0101, 0103).
 - **entry point** — The one file that creates a root scope and owns its stop signal and exit (ADR 0100).

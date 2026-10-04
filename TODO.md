@@ -54,6 +54,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **trial/services-protocol** — service operations speak domain; Hono owns the wire both ways (ADR 0103).
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-services-protocol`. Asked by the user after ADR 0101.
+  Next: operations take params, return values, raise managed errors; handlers map status and envelope.
+  Verify: an old-vs-new wire diff shows zero changes; no reply or status in operations; mutation 85.
+  [Brief](docs/roadmap/flight-trial/PROTOCOL-BRIEF.md).
+
 - **start/http-resource** — outgoing HTTP is a resource over built-in fetch (ADR 0102).
   Owner: lead (Claude, Start scaffold session); Sol writer.
   Worktree: `../tinkered-http-resource`. Asked by the user after the DeepSeek review.
