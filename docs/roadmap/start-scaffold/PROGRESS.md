@@ -1886,3 +1886,20 @@ The proof keeps mixed, default-plus-type, and empty imports banned.
 The app README and forms skill state the same rules.
 Red logs: 02-import-type-red.log and 02-named-import-type-red.log.
 Green log: 02-types-green.log in the same log folder.
+
+### Step 3: safe cause fields
+
+Three new public-seam tests each fail without the fix, exit 1.
+An abort failure keeps AbortError and numeric code 20.
+A string cause keeps the outer name and string code.
+A wrong-type field cannot discard the other readable field.
+Readable inner fields win; outer fields fill any missing fact.
+The exact payload checks keep messages and URLs out.
+
+Assumption: read the error fields inside the owned catch body.
+The plain check allows these readers there.
+No new module-level schema method or plain helper is needed.
+The README and forms skill now promise these safe fields.
+
+Red logs: 03-abort-red.log, 03-string-cause-red.log, and 03-partial-fields-red.log.
+Green logs use the same names with green in place of red.
