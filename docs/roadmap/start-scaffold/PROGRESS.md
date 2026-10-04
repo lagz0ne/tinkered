@@ -2318,3 +2318,20 @@ await pending;
 
 The limit needs a Core session close-start hook, not a method replacement.
 No Core file changed; the lead files the row.
+
+#### Fix 2: reject late HTTP through the managed operation
+
+The late-request test now calls httpRequest through settle with call tags.
+It tests both backendStop and requestStop after abort.
+The backend fake would return a response if called.
+The test narrows HttpRequestFailed and checks method, path, and zero sends.
+
+Both cases failed before the fix: the backend sent and the call succeeded.
+Red: /tmp/tinkered-http-graceful-round2-logs/04-late-red.log (exit 1).
+The sender now checks the joined signal before it calls the backend.
+The check covers caller cancellation, owned cleanup, and either stop tag.
+No direct http.send assertion stands in for the managed operation.
+
+Both late-send cases now pass, and all 20 HTTP tests pass, exit 0.
+Green: /tmp/tinkered-http-graceful-round2-logs/04-http-green.log.
+The next step rebuilds the registry and runs every final gate.
