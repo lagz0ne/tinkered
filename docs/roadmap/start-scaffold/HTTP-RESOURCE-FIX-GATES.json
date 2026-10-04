@@ -334,6 +334,78 @@
       "code": 0,
       "expected": 0,
       "log": "/tmp/http-review-fix3-prose.log"
+    },
+    {
+      "name": "fix4-types",
+      "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#typecheck"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix4-types.log"
+    },
+    {
+      "name": "fix4-plain",
+      "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#check:plain"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix4-plain.log"
+    },
+    {
+      "name": "fix4-check",
+      "command": ["vp", "check"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix4-check.log"
+    },
+    {
+      "name": "fix4-prose",
+      "command": ["vp", "run", "prose"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix4-prose.log"
+    },
+    {
+      "name": "fix4-red-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix4-red-build.log"
+    },
+    {
+      "name": "fix4-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#test",
+        "--",
+        "tests/http.test.ts",
+        "-t",
+        "an HTTP method"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix4-red.log"
+    },
+    {
+      "name": "fix4-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix4-build.log"
+    },
+    {
+      "name": "fix4-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#test",
+        "--",
+        "tests/http.test.ts"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix4-green.log"
     }
   ]
 }

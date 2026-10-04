@@ -1552,3 +1552,19 @@ A direct dependency, alias import, or re-export gets the http-resource rule.
 Fixed scaffold code retains the resource for httpRequest.
 Its native-close test imports the fixed transport seam, not an app seam.
 Both planted cases pass the old check and fail the new rule.
+
+### Fix 4: one checked method
+
+The input schema accepts only HTTP token characters.
+Zod's toUpperCase step changes the method once, before the run.
+The backend and span read that same checked value.
+The declaration list permits this Zod step, not arbitrary transforms.
+Two regression tests fail on the old method input.
+They prove lower-case and custom token sends, and rejection before backend work.
+
+Core input trusts a typed fact and skips the schema.
+A plain string type cannot promise a checked upper-case method.
+The request schema now marks its output with a Zod brand.
+Raw request values go through rawInput; unmarked typed input does not compile.
+The filled skills and scope tests use that same input door.
+No Core change or repeated validation was needed.
