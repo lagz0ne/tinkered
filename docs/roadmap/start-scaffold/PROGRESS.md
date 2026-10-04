@@ -2428,3 +2428,19 @@ Proof: 01g-baseline.log and 01h-check.log.
 The last check needs --fix before file paths in Vite+ 1.0.
 A first commit try caught two long test branches.
 Two shared test readers now keep each branch small.
+
+### Step 2: telemetry params and reply
+
+The new batch and managed-stop tests fail on the old operation, exit 1.
+Red: .protocol-reply-logs/02-params-red.log.
+The route now checks origin, headers, bytes, JSON, and browser records.
+The operation takes Telemetry.Batch and returns no reply.
+It raises Cancelled when a bound stop signal has ended.
+The route maps that error to 503 and success to 202 with no-store.
+The route retains body cancellation and releases the reader in finally.
+
+Green: .protocol-reply-logs/02b-telemetry-green.log, exit 0.
+All 13 telemetry, wire, and plain-batch tests pass.
+Build, app types, and the changed-file code check pass too.
+The existing body-close test now calls the route.
+No telemetry operation reads a Request or builds a Response.
