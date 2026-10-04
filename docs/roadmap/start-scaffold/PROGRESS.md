@@ -2085,3 +2085,25 @@ All 15 HTTP tests pass in 03-http-private.log, exit 0.
 Plain: 03-plain-private.log, exit 0.
 Build: 03-build-private.log, exit 0.
 Check: 03-check-private.log, exit 0.
+
+### Step 3: child and other-work proof
+
+Three more tests fail on the pinned original source, each exit 1.
+Each hits the same 2 s bound while waiting for graceful close.
+The saved source commit was restored after those red runs; no stash was used.
+
+- Root close stops HTTP waits in nested sessions.
+- Session close stops its subtree and leaves its sibling open.
+- HTTP close leaves other work running until that work finishes.
+
+Red logs: 04-nested-root-red.log, 04-siblings-red.log, and 04-other-work-red.log.
+All six bug tests now have separate green logs, each exit 0.
+Green logs: 04-<case>-green.log for root, session, late, nested-root, siblings, and other-work.
+Each green test has its own successful build log with green-build in its name.
+The forced control is green before and after, each exit 0.
+Its final log is 04-forced-green.log.
+The strict style census passes in 04-census.log, exit 0.
+
+The saved registry fails its source check before rebuild, exit 1.
+Log: 04-registry-red.log.
+The next step rebuilds it, then runs every final gate.
