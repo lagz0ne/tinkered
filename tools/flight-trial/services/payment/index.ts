@@ -4,17 +4,28 @@ import { z } from "zod";
 import {
   calls,
   clock,
-  reject,
-  reply,
   rules,
   httpRequests,
   controlRoutes,
   errorShape,
   listener,
-  rejectPayment,
+  wireErrors,
+  commonErrors,
   stopSignal,
   type Wire,
 } from "../http.ts";
+
+const errors = {
+  ...commonErrors,
+  InvalidPaymentIntent: { code: "invalid_payment_intent", status: 400 },
+  InvalidRefund: { code: "invalid_refund", status: 400 },
+  InvalidPaymentPlan: { code: "invalid_payment_plan", status: 400, duffel: true },
+  InvalidWebhookPlan: { code: "invalid_webhook_plan", status: 400, duffel: true },
+  ResourceMissing: { code: "resource_missing", status: 404 },
+  PaymentNotSucceeded: { code: "payment_not_succeeded", status: 409 },
+  InvalidRefundAmount: { code: "invalid_refund_amount", status: 400 },
+  IdempotencyKeyInUse: { code: "idempotency_key_in_use", status: 400, type: "idempotency_error" },
+};
 
 export declare namespace Payment {
   type Intent = {
@@ -27,6 +38,13 @@ export declare namespace Payment {
     automatic_payment_methods?: { enabled: boolean };
     client_secret: string;
     latest_charge: string | null;
+  };
+  type Event = {
+    id: string;
+    created: number;
+    intent: Intent;
+    copies: number;
+    outcome: "succeeded" | "failed";
   };
   type Delivery = {
     id: string;
@@ -45,8 +63,8 @@ export declare namespace Payment {
   };
   type Pending = {
     fingerprint: string;
-    response: Promise<Wire.Reply | undefined>;
-    resolve: (reply: Wire.Reply | undefined) => void;
+    response: Promise<boolean>;
+    resolve: (saved: boolean) => void;
   };
   type Saved = { fingerprint: string; reply: Wire.Reply };
   type Plan = {
@@ -102,28 +120,71 @@ const sendSchema = z.object({
 });
 const scenarioSchema = z.object({ name: z.enum(["default", "payment-failed"]) });
 
+/** This client owns Stripe's event body, signature, and HTTP request. */
+const webhookClient = resource({
+  label: "signed webhook client",
+  depends: { webhookUrl, secret, stop: stopSignal },
+  factory({ webhookUrl, secret, stop }, ctx) {
+    return {
+      async *send(event: Payment.Event, signal: AbortSignal) {
+        const timestamp = Math.floor(ctx.clock.currentTimeMillis() / 1000);
+        const body = JSON.stringify({
+          id: event.id,
+          object: "event",
+          created: event.created,
+          type:
+            event.outcome === "succeeded"
+              ? "payment_intent.succeeded"
+              : "payment_intent.payment_failed",
+          data: { object: event.intent },
+        });
+        const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
+        for (let copy = 0; copy < event.copies; copy++) {
+          let status = 0;
+          try {
+            const response = await fetch(webhookUrl, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "Stripe-Signature": `t=${timestamp},v1=${signature}`,
+              },
+              body,
+              signal: AbortSignal.any([stop, signal]),
+            });
+            status = response.status;
+            await response.arrayBuffer();
+          } catch (error) {
+            ctx.log.error("webhook delivery failed", { error });
+          }
+          yield status;
+        }
+      },
+    };
+  },
+});
 const sendWebhook = operation({
   label: "deliver signed webhook",
-  input: z.object({ body: z.string(), signature: z.string(), copies: z.number() }),
-  depends: { webhookUrl, clock, calls: calls.controller, stop: stopSignal },
-  async run({ webhookUrl, clock, calls, stop }, ctx) {
-    for (let copy = 0; copy < ctx.input.copies; copy++) {
-      let status = 0;
-      try {
-        const response = await fetch(webhookUrl, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "Stripe-Signature": ctx.input.signature,
-          },
-          body: ctx.input.body,
-          signal: AbortSignal.any([stop, ctx.signal]),
-        });
-        status = response.status;
-        await response.arrayBuffer();
-      } catch (error) {
-        ctx.log.error("webhook delivery failed", { error });
-      }
+  input: z.object({
+    id: z.string(),
+    created: z.number(),
+    copies: z.number(),
+    outcome: z.enum(["succeeded", "failed"]),
+    intent: intentSchema.extend({
+      id: z.string(),
+      object: z.literal("payment_intent"),
+      status: z.enum([
+        "requires_confirmation",
+        "processing",
+        "succeeded",
+        "requires_payment_method",
+      ]),
+      client_secret: z.string(),
+      latest_charge: z.string().nullable(),
+    }),
+  }),
+  depends: { client: webhookClient, clock, calls: calls.controller, stop: stopSignal },
+  async run({ client, clock, calls, stop }, ctx) {
+    for await (const status of client.send(ctx.input, ctx.signal)) {
       if (!stop.aborted)
         calls.update((previous) => [
           ...previous,
@@ -145,10 +206,9 @@ const finishDelivery = operation({
   depends: {
     state: state.controller,
     clock,
-    secret,
     send: sendWebhook.controller,
   },
-  async run({ state, clock, secret, send }, ctx) {
+  async run({ state, clock, send }, ctx) {
     const current = structuredClone(state.get());
     const delivery = current.deliveries[ctx.input.id];
     if (!delivery) return;
@@ -157,20 +217,14 @@ const finishDelivery = operation({
     intent.status = delivery.outcome === "succeeded" ? "succeeded" : "requires_payment_method";
     if (delivery.outcome === "succeeded") intent.latest_charge = `ch_${intent.id}`;
     state.set(current);
-    const timestamp = Math.floor(ctx.clock.currentTimeMillis() / 1000);
-    const body = JSON.stringify({
-      id: delivery.id,
-      object: "event",
-      created: Math.floor(clock.currentTimeMillis() / 1000),
-      type:
-        delivery.outcome === "succeeded"
-          ? "payment_intent.succeeded"
-          : "payment_intent.payment_failed",
-      data: { object: intent },
-    });
-    const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
     await send.run({
-      rawInput: { body, signature: `t=${timestamp},v1=${signature}`, copies: delivery.copies },
+      input: {
+        id: delivery.id,
+        created: Math.floor(clock.currentTimeMillis() / 1000),
+        outcome: delivery.outcome,
+        intent,
+        copies: delivery.copies,
+      },
     });
   },
 });
@@ -207,14 +261,12 @@ const webhooks = resource({
 
 const createIntent = operation({
   label: "create payment intent",
-  input: (raw) => intentSchema.safeParse(raw),
+  input: intentSchema,
   depends: { state: state.controller },
   run({ state }, ctx) {
-    const parsed = ctx.input;
-    if (!parsed.success) return rejectPayment("invalid_payment_intent");
     const id = `pi_${ctx.random.uuid()}`;
     const intent: Payment.Intent = {
-      ...parsed.data,
+      ...ctx.input,
       id,
       object: "payment_intent",
       status: "requires_confirmation",
@@ -222,7 +274,7 @@ const createIntent = operation({
       latest_charge: null,
     };
     state.update((current) => ({ ...current, intents: { ...current.intents, [id]: intent } }));
-    return reply(200, intent);
+    return intent;
   },
 });
 const confirm = operation({
@@ -233,8 +285,8 @@ const confirm = operation({
     const { id } = ctx.input;
     const current = structuredClone(state.get());
     const intent = current.intents[id];
-    if (!intent) return rejectPayment("resource_missing", 404);
-    if (intent.status === "processing" || intent.status === "succeeded") return reply(200, intent);
+    if (!intent) return ctx.raise("ResourceMissing", {});
+    if (intent.status === "processing" || intent.status === "succeeded") return intent;
     intent.status = "processing";
     const response = structuredClone(intent);
     const plan = current.plan;
@@ -249,26 +301,24 @@ const confirm = operation({
       };
     }
     state.set(current);
-    return reply(200, response);
+    return response;
   },
 });
 const refund = operation({
   label: "refund payment",
-  input: (raw) => refundSchema.safeParse(raw),
+  input: refundSchema,
   depends: { state: state.controller },
   run({ state }, ctx) {
-    const parsed = ctx.input;
-    if (!parsed.success) return rejectPayment("invalid_refund");
     const current = structuredClone(state.get());
-    const intent = current.intents[parsed.data.payment_intent];
-    if (!intent) return rejectPayment("resource_missing", 404);
-    if (intent.status !== "succeeded") return rejectPayment("payment_not_succeeded", 409);
+    const intent = current.intents[ctx.input.payment_intent];
+    if (!intent) return ctx.raise("ResourceMissing", {});
+    if (intent.status !== "succeeded") return ctx.raise("PaymentNotSucceeded", {});
     const refunded = Object.values(current.refunds)
       .filter((entry) => entry.payment_intent === intent.id)
       .reduce((sum, entry) => sum + entry.amount, 0);
-    const amount = parsed.data.amount ?? intent.amount - refunded;
+    const amount = ctx.input.amount ?? intent.amount - refunded;
     if (amount <= 0 || amount > intent.amount - refunded)
-      return rejectPayment("invalid_refund_amount");
+      return ctx.raise("InvalidRefundAmount", {});
     const result: Payment.Refund = {
       id: `re_${ctx.random.uuid()}`,
       object: "refund",
@@ -279,40 +329,36 @@ const refund = operation({
     };
     current.refunds[result.id] = result;
     state.set(current);
-    return reply(200, result);
+    return result;
   },
 });
 const resetScenario = operation({
   label: "start payment scenario",
-  input: (raw) => scenarioSchema.safeParse(raw),
+  input: scenarioSchema,
   depends: { paymentState: state.controller, rules: rules.controller, calls: calls.controller },
   async run({ paymentState, rules, calls }, ctx) {
-    const parsed = ctx.input;
-    if (!parsed.success) return reject("invalid_scenario");
     const initial = createState();
-    if (parsed.data.name === "payment-failed") initial.plan.outcome = "failed";
+    if (ctx.input.name === "payment-failed") initial.plan.outcome = "failed";
     paymentState.set(initial);
     rules.set({});
     calls.set([]);
-    return reply(200, { data: { name: parsed.data.name } });
+    return { name: ctx.input.name };
   },
 });
 const controlWebhook = operation({
   label: "choose intent webhook delivery",
-  input: (raw) => sendSchema.safeParse(raw),
+  input: sendSchema,
   depends: { state: state.controller, clock },
   run({ state, clock }, ctx) {
-    const parsed = ctx.input;
-    if (!parsed.success) return reject("invalid_webhook_plan");
     const current = structuredClone(state.get());
-    const intent = current.intents[parsed.data.intent_id];
-    if (!intent) return rejectPayment("resource_missing", 404);
+    const intent = current.intents[ctx.input.intent_id];
+    if (!intent) return ctx.raise("ResourceMissing", {});
     for (const delivery of Object.values(current.deliveries).filter(
       (entry) => entry.intentId === intent.id,
     )) {
       delete current.deliveries[delivery.id];
     }
-    const plan = { ...current.plan, ...parsed.data };
+    const plan = { ...current.plan, ...ctx.input };
     if (plan.mode !== "never") {
       const id = `evt_${ctx.random.uuid()}`;
       current.deliveries[id] = {
@@ -324,18 +370,16 @@ const controlWebhook = operation({
       };
     }
     state.set(current);
-    return reply(200, { data: parsed.data });
+    return ctx.input;
   },
 });
 const setPlan = operation({
   label: "choose payment plan",
-  input: (raw) => planSchema.safeParse(raw),
+  input: planSchema,
   depends: { state: state.controller },
   run({ state }, ctx) {
-    const parsed = ctx.input;
-    if (!parsed.success) return reject("invalid_payment_plan");
-    state.update((current) => ({ ...current, plan: parsed.data }));
-    return reply(200, { data: parsed.data });
+    state.update((current) => ({ ...current, plan: ctx.input }));
+    return ctx.input;
   },
 });
 const readIntent = operation({
@@ -344,7 +388,8 @@ const readIntent = operation({
   depends: { state },
   run({ state }, ctx) {
     const intent = state.intents[ctx.input.id];
-    return intent ? reply(200, intent) : rejectPayment("resource_missing", 404);
+    if (!intent) return ctx.raise("ResourceMissing", {});
+    return intent;
   },
 });
 /** Live calls belong to this resource; payment data stores only settled wire replies. */
@@ -364,24 +409,23 @@ const startIntentKey = operation({
     fingerprint: z.string(),
   }),
   depends: { state: state.controller, inFlight },
-  async run({ state, inFlight }, ctx): Promise<Wire.Reply | undefined> {
+  async run({ state, inFlight }, ctx): Promise<{ replay: true } | undefined> {
     const { key, fingerprint } = ctx.input;
     for (;;) {
       const previous = state.get().keys[key];
       if (previous)
         return previous.fingerprint === fingerprint
-          ? { ...previous.reply, headers: { "Idempotent-Replayed": "true" } }
-          : rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
+          ? { replay: true }
+          : ctx.raise("IdempotencyKeyInUse", {});
       const pending = inFlight.get(key);
       if (pending) {
-        if (pending.fingerprint !== fingerprint)
-          return rejectPayment("idempotency_key_in_use", 400, "idempotency_error");
+        if (pending.fingerprint !== fingerprint) return ctx.raise("IdempotencyKeyInUse", {});
         const response = await pending.response;
-        if (response) return { ...response, headers: { "Idempotent-Replayed": "true" } };
+        if (response) return { replay: true };
         continue;
       }
-      let resolve!: (reply: Wire.Reply | undefined) => void;
-      const response = new Promise<Wire.Reply | undefined>((done) => {
+      let resolve!: (saved: boolean) => void;
+      const response = new Promise<boolean>((done) => {
         resolve = done;
       });
       inFlight.set(key, { fingerprint, response, resolve });
@@ -408,7 +452,7 @@ const saveIntentKey = operation({
       ...current,
       keys: { ...current.keys, [key]: { fingerprint, reply: structuredClone(response) } },
     }));
-    inFlight.get(key)!.resolve(response);
+    inFlight.get(key)!.resolve(true);
   },
 });
 
@@ -417,7 +461,7 @@ export const app = extension({
   label: "start payment app",
   hooks: {
     async start(event) {
-      const scope = event.scope.createSession({ tags: [errorShape("stripe")] });
+      const scope = event.scope.createSession({ tags: [errorShape("stripe"), wireErrors(errors)] });
       const http = await httpRequests.hooks!.start!({ ...event, scope });
       scope.resolve(controlRoutes);
       await scope.run(resetScenario, { rawInput: { name: "default" } });
@@ -430,8 +474,13 @@ export const app = extension({
           route: `${c.req.method} ${c.req.path}`,
           body: c.var.body,
         });
-        const result = await c.var.scope.run(startIntentKey, { rawInput: { key, fingerprint } });
-        if (result) return c.var.json(result);
+        const result = await c.var.scope.settle(startIntentKey, { input: { key, fingerprint } });
+        if (result.status !== "success") return c.var.respond(result, 200, false);
+        if (result.value?.replay)
+          return c.var.json({
+            ...c.var.scope.resolve(state).keys[key].reply,
+            headers: { "Idempotent-Replayed": "true" },
+          });
         try {
           await next();
           if (!c.error)
@@ -447,48 +496,55 @@ export const app = extension({
               },
             });
         } finally {
-          pendingKeys.get(key)?.resolve(undefined);
+          pendingKeys.get(key)?.resolve(false);
           pendingKeys.delete(key);
         }
       });
       http.post("/control/scenario", async (c) => {
-        const result = await c.var.scope.run(resetScenario, { rawInput: c.var.body });
-        return c.var.json(result);
+        const parsed = scenarioSchema.safeParse(c.var.body);
+        if (!parsed.success) return c.var.error("InvalidScenario");
+        const result = await c.var.scope.settle(resetScenario, { input: parsed.data });
+        return c.var.respond(result, 200, true);
       });
       http.post("/v1/payment_intents", (c) => {
-        const result = c.var.scope.run(createIntent, { rawInput: c.var.body });
-        return c.var.json(result);
+        const parsed = intentSchema.safeParse(c.var.body);
+        if (!parsed.success) return c.var.error("InvalidPaymentIntent");
+        const result = c.var.scope.settle(createIntent, { input: parsed.data });
+        return c.var.respond(result, 200, false);
       });
       http.post("/v1/payment_intents/:id/confirm", (c) => {
-        /** The raw path keeps percent-encoding exact on the wire; c.req.param decodes it. */
-        const result = c.var.scope.run(confirm, {
-          rawInput: { id: new URL(c.req.url).pathname.split("/").at(-2)! },
+        /** Keep raw percent-encoding; Hono's param reader decodes it. */
+        const result = c.var.scope.settle(confirm, {
+          input: { id: new URL(c.req.url).pathname.split("/").at(-2)! },
         });
-        return c.var.json(result);
+        return c.var.respond(result, 200, false);
       });
       http.get("/v1/payment_intents/:id", (c) => {
-        /** The raw path keeps percent-encoding exact on the wire; c.req.param decodes it. */
-        const result = c.var.scope.run(readIntent, {
-          rawInput: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
+        /** Keep raw percent-encoding; Hono's param reader decodes it. */
+        const result = c.var.scope.settle(readIntent, {
+          input: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
         });
-        return c.var.json(result);
+        return c.var.respond(result, 200, false);
       });
       http.post("/v1/refunds", (c) => {
-        const result = c.var.scope.run(refund, { rawInput: c.var.body });
-        return c.var.json(result);
+        const parsed = refundSchema.safeParse(c.var.body);
+        if (!parsed.success) return c.var.error("InvalidRefund");
+        const result = c.var.scope.settle(refund, { input: parsed.data });
+        return c.var.respond(result, 200, false);
       });
       http.post("/control/payment", (c) => {
-        const result = c.var.scope.run(setPlan, { rawInput: c.var.body });
-        return c.var.json(result);
+        const parsed = planSchema.safeParse(c.var.body);
+        if (!parsed.success) return c.var.error("InvalidPaymentPlan");
+        const result = c.var.scope.settle(setPlan, { input: parsed.data });
+        return c.var.respond(result, 200, true);
       });
       http.post("/control/webhooks", (c) => {
-        const result = c.var.scope.run(controlWebhook, { rawInput: c.var.body });
-        return c.var.json(result);
+        const parsed = sendSchema.safeParse(c.var.body);
+        if (!parsed.success) return c.var.error("InvalidWebhookPlan");
+        const result = c.var.scope.settle(controlWebhook, { input: parsed.data });
+        return c.var.respond(result, 200, true);
       });
-      http.notFound((c) => {
-        if (c.var.control) return c.var.json(reject("not_found", 404));
-        return c.var.json(rejectPayment("resource_missing", 404));
-      });
+      http.notFound((c) => c.var.error(c.var.control ? "NotFound" : "ResourceMissing"));
       return scope.resolve(listener);
     },
   },

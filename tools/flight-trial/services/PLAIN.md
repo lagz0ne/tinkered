@@ -24,7 +24,11 @@ No separate supplier timer or watcher repeats that work.
 Resources own the listeners, clock, waits, payment watchers,
 and map of pending payment work.
 Data holds plain settled state.
-Hono middleware reads bodies before operation input readers parse their values.
+Hono validates wire bodies and unwraps them before running an operation.
+Operations take plain params and return domain values.
+They raise one managed error kind for each domain failure.
+Each service binds one map from error kinds to wire replies.
+Hono settles the call, then maps status, headers, and the envelope.
 Wire types live next to the primitives that use them.
 Callbacks inside a primitive are part of that primitive.
 Process signal callbacks belong to their entry point.
@@ -32,7 +36,7 @@ Process signal callbacks belong to their entry point.
 The lead's mutation-lift instruction permits exported entry functions
 when Stryker cannot follow child coverage.
 Each `main` stays in its process entry file and returns an exit code.
-This follows ADR 0078 and leaves the pure helper list at six.
+This follows ADR 0078 and leaves the pure helper list at three.
 
 ## Process entries: `main`
 
@@ -57,31 +61,21 @@ The shared control-route resource registers clock, calls, and route-rule paths o
 The supplier resolves it after registering its deadline check.
 Each handler reads only its values and runs one operation.
 Common middleware runs separate operations to start and save calls and rules.
+Those operations keep protocol facts supplied by Hono.
+The call log records status zero until a call finishes.
+Saved route replies and payment key replies are owned wire snapshots.
+Operations select replay facts; Hono reads and sends the saved snapshot.
+Payment intent status is domain state, not an HTTP response code.
 Body decoding runs in `decodeBody`.
 One resource callback writes JSON and sets the content type.
+Its error map also keeps payment control failures in Duffel shape.
+The signed webhook client owns the Stripe body, signature, and fetch call.
+The delivery operation supplies an event and records the returned call facts.
 Payment keys have separate start and save operations.
 Their middleware always resolves or deletes a pending key in `finally`.
 The listener tracks response completion before closing all connections.
 It aborts an unfinished incoming body on the stop signal.
 No operation takes a whole request or chooses work by route name.
-
-## `http.ts`: `reply`
-
-- `status: number`: chosen by the calling operation;
-  sets the HTTP response code.
-- `body: unknown`: plain JSON from the calling operation;
-  supplies the response payload.
-- Call sites: common controls, supplier operations,
-  payment operations, and both error functions.
-
-## `http.ts`: `reject`
-
-- `code: string`: error choice from the calling operation;
-  supplies the Duffel error code and title.
-- `status: number`: HTTP choice from the calling operation;
-  sets the response code, with 400 as the default.
-- Call sites: common controls, supplier operations,
-  and payment control operations.
 
 ## `supplier/index.ts`: `readCurrent`
 
@@ -106,14 +100,3 @@ No operation takes a whole request or chooses work by route name.
 - No parameters.
 - Returns fresh plain empty payment state.
 - Call sites: `state.initial` and `resetScenario.run`.
-
-## `http.ts`: `rejectPayment`
-
-- `code: string`: error choice from the calling operation;
-  supplies the Stripe error code and message.
-- `status: number`: HTTP choice from the calling operation;
-  sets the response code, with 400 as the default.
-- `type: string`: Stripe error family from the calling operation;
-  supplies the wire error type.
-- Call sites: payment create, confirm, refund, webhook control,
-  lookup, key handling, shared rule, and listener operations.

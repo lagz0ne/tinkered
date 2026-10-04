@@ -3156,3 +3156,30 @@ The two new boundary tests fail against old operations.
 They find whole wire inputs and HTTP replies inside the graph.
 Red proof: `tools/flight-trial/scripts/logs/protocol-red.log`, exit 1.
 Next: move validation and reply mapping to Hono.
+
+### Step 2: protocol owns both directions
+
+Hono validates bodies, unwraps supplier envelopes, and settles one operation.
+Operations return domain values or raise a managed error kind.
+One table per service maps kinds to status and the existing wire body.
+Control failures on payment still use the old Duffel error body.
+Thrown handlers still reach Hono, keep call status zero, and never seed a replay.
+Route and payment key operations return replay facts, not built replies.
+Hono reads and sends the saved wire snapshots.
+The signed webhook resource owns the outgoing Stripe body and signature.
+Its stream returns each delivery's status to the call log in the old order.
+
+The error-map resource needs `target: "session"`.
+Its bindings belong to each service's owned session, not the root.
+The first test run caught that missing binding; the fixed run passes.
+
+Build and check: exit 0; check has zero errors and the same 28 warnings.
+All 98 flight-trial tests pass: exit 0.
+The two tests that failed before the change now pass.
+Source check: 31 operations, no built wire replies in operations.
+Plain helpers: 6 before, 3 after.
+The two permitted process entries stay at 2.
+Logs under `tools/flight-trial/scripts/logs/`:
+`step2-build.log`, `step2-check.log`, `step2-test.log`,
+and `step2-protocol.log`.
+Next: full old-versus-new wire proof, workspace gates, and locked mutation.

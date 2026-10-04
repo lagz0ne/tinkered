@@ -1,8 +1,16 @@
 import { once } from "node:events";
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
+import { Hono, type Context, type Next } from "hono";
 import { createMiddleware } from "hono/factory";
-import { data, extension, operation, resource, tag, type Scope } from "@tinker/core";
+import {
+  data,
+  extension,
+  operation,
+  resource,
+  tag,
+  type Scope,
+  type RunResult,
+} from "@tinker/core";
 import { failFlightService } from "../src/errors.ts";
 import { z } from "zod";
 
@@ -11,10 +19,14 @@ export declare namespace Wire {
     Variables: {
       scope: Scope.Handle;
       json: (result: Reply) => Response;
+      error: (kind: string, status?: number) => Response;
+      respond: (result: RunResult<unknown>, status: number, envelope: boolean) => Response;
       body: unknown;
       control: boolean;
     };
   };
+  type Selection = { revision?: string; replay?: boolean; failure?: number };
+  type Error = { code: string; status: number; type?: string; duffel?: boolean };
   type Reply = { status: number; body: unknown; headers?: Record<string, string> };
   type Form = { [key: string]: string | boolean | Form };
   type Call = {
@@ -27,6 +39,19 @@ export declare namespace Wire {
   type Rule = { revision: string; delayMs: number; status?: number; repeat: number; saved?: Reply };
   type Rules = Record<string, Rule>;
 }
+
+/** Shared control failures always keep the Duffel body, even on the payment service. */
+export const commonErrors = {
+  InvalidRouteRule: { code: "invalid_route_rule", status: 400, duffel: true },
+  InvalidClock: { code: "invalid_clock", status: 400, duffel: true },
+  InvalidScenario: { code: "invalid_scenario", status: 400, duffel: true },
+  Unauthorized: { code: "unauthorized", status: 401, duffel: true },
+  NotFound: { code: "not_found", status: 404, duffel: true },
+  InjectedFailure: { code: "injected_failure", status: 503 },
+  ServiceStopped: { code: "service_stopped", status: 503 },
+  InternalError: { code: "internal_error", status: 500 },
+};
+export const wireErrors = tag<Record<string, Wire.Error>>({ label: "service wire errors" });
 
 export const errorShape = tag<"duffel" | "stripe">({ label: "service error shape" });
 export const stopSignal = tag<AbortSignal>({ label: "service stop signal" });
@@ -48,8 +73,8 @@ export const clock = resource({
       },
       sleep(ms: number, signal: AbortSignal): Promise<void> {
         if (now === undefined) return ctx.clock.sleep(ms, signal);
-        return new Promise<void>((resolve, reject) => {
-          if (signal.aborted) return reject(signal.reason);
+        return new Promise<void>((resolve, fail) => {
+          if (signal.aborted) return fail(signal.reason);
           if (ms <= 0) return resolve();
           const wait = {
             at: handle.currentTimeMillis() + ms,
@@ -61,7 +86,7 @@ export const clock = resource({
           };
           const abort = () => {
             waits.delete(wait);
-            reject(signal.reason);
+            fail(signal.reason);
           };
           waits.add(wait);
           signal.addEventListener("abort", abort, { once: true });
@@ -80,24 +105,6 @@ export const clock = resource({
   },
 });
 
-/**
- * Borrows plain wire data; the listener owns the response socket.
- * @param status - Chosen by the calling operation; needed for the HTTP response code.
- * @param body - Plain JSON from the calling operation; needed for the response payload.
- */
-export function reply(status: number, body: unknown): Wire.Reply {
-  return { status, body };
-}
-
-/**
- * Shapes a Duffel error without throwing into the service scope.
- * @param code - Error choice from the calling operation; needed for the Duffel code and title.
- * @param status - HTTP choice from the calling operation; needed to distinguish bad input from missing or conflicting state.
- */
-export function reject(code: string, status = 400): Wire.Reply {
-  return reply(status, { errors: [{ type: "invalid_request_error", code, title: code }] });
-}
-
 const routeSchema = z.object({
   name: z.string().min(1),
   delayMs: z.number().int().nonnegative().default(0),
@@ -111,52 +118,34 @@ const clockSchema = z.union([
 
 export const setRoute = operation({
   label: "set route rule",
-  input: (raw) => routeSchema.safeParse(raw),
+  input: routeSchema,
   depends: { rules: rules.controller },
   run({ rules }, ctx) {
-    const parsed = ctx.input;
-    if (!parsed.success) return reject("invalid_route_rule");
-    const { name, ...rule } = parsed.data;
+    const { name, ...rule } = ctx.input;
     rules.update((previous) => ({
       ...previous,
       [name]: { ...rule, revision: ctx.random.uuid() },
     }));
-    return reply(200, { data: { route: name, ...rule } });
+    return { route: name, ...rule };
   },
 });
 export const setClock = operation({
   label: "set service time",
-  input: (raw) => clockSchema.safeParse(raw),
+  input: clockSchema,
   depends: { clock },
   run({ clock }, ctx) {
-    const parsed = ctx.input;
-    if (!parsed.success) return reject("invalid_clock");
-    if ("now" in parsed.data) clock.setTime(parsed.data.now);
-    else clock.advance(parsed.data.advanceMs);
-    return reply(200, { data: { now: clock.currentTimeMillis() } });
+    if ("now" in ctx.input) clock.setTime(ctx.input.now);
+    else clock.advance(ctx.input.advanceMs);
+    return { now: clock.currentTimeMillis() };
   },
 });
 export const readCalls = operation({
   label: "read HTTP calls",
   depends: { calls },
   run({ calls }) {
-    return reply(200, { data: calls.map(({ id: _id, ...call }) => call) });
+    return calls.map(({ id: _id, ...call }) => call);
   },
 });
-
-/**
- * Shapes a Stripe error from plain choices.
- * @param code - Error choice from the operation; needed for code and message.
- * @param status - HTTP choice from the operation; needed for the response code.
- * @param type - Stripe error family from the operation; needed for wire compatibility.
- */
-export function rejectPayment(
-  code: string,
-  status = 400,
-  type = "invalid_request_error",
-): Wire.Reply {
-  return reply(status, { error: { type, code, message: code } });
-}
 
 const startCall = operation({
   label: "start HTTP call",
@@ -204,8 +193,8 @@ const replySchema = z.object({
 const applyRule = operation({
   label: "select HTTP rule",
   input: z.object({ name: z.string(), revision: z.string().optional() }),
-  depends: { rules: rules.controller, shape: errorShape },
-  run({ rules, shape }, ctx): { revision?: string; response?: Wire.Reply } {
+  depends: { rules: rules.controller },
+  run({ rules }, ctx): Wire.Selection {
     const { name, revision } = ctx.input;
     let selected: Wire.Rule | undefined;
     rules.update((all) => {
@@ -217,15 +206,9 @@ const applyRule = operation({
         : all;
     });
     if (!selected) return { revision };
-    if (selected.saved && selected.repeat > 0) return { revision, response: selected.saved };
+    if (selected.saved && selected.repeat > 0) return { revision, replay: true };
     if (!selected.status) return { revision };
-    return {
-      revision,
-      response:
-        shape === "stripe"
-          ? rejectPayment("injected_failure", selected.status)
-          : reject("injected_failure", selected.status),
-    };
+    return { revision, failure: selected.status };
   },
 });
 const saveRule = operation({
@@ -245,8 +228,8 @@ const saveRule = operation({
 const routeRule = operation({
   label: "wait for HTTP rule",
   input: z.object({ name: z.string() }),
-  depends: { rules, clock, stop: stopSignal, apply: applyRule.controller, shape: errorShape },
-  async run({ rules, clock, stop, apply, shape }, ctx) {
+  depends: { rules, clock, stop: stopSignal, apply: applyRule.controller },
+  async run({ rules, clock, stop, apply }, ctx) {
     const rule = rules[ctx.input.name] ?? { delayMs: 0, revision: undefined };
     const signal = AbortSignal.any([stop, ctx.signal]);
     if (rule.delayMs) {
@@ -255,13 +238,7 @@ const routeRule = operation({
       } catch (error) {
         if (!signal.aborted) throw error;
       }
-      if (signal.aborted)
-        return {
-          response:
-            shape === "stripe"
-              ? rejectPayment("service_stopped", 503)
-              : reject("service_stopped", 503),
-        };
+      if (signal.aborted) return ctx.raise("ServiceStopped", {});
     }
     return apply.run({ input: { ...ctx.input, revision: rule.revision } });
   },
@@ -306,14 +283,44 @@ export const web = resource({
 /** The service extension installs these after its scope binding, before its routes. */
 export const middleware = resource({
   label: "shared HTTP middleware",
-  depends: { stop: stopSignal },
-  factory({ stop }) {
+  target: "session",
+  depends: { stop: stopSignal, shape: errorShape, errors: wireErrors },
+  factory({ stop, shape, errors }) {
+    const json = (result: Wire.Reply): Response =>
+      new Response(JSON.stringify(result.body), {
+        status: result.status,
+        headers: { "content-type": "application/json", ...result.headers },
+      });
+    const error = (kind: string, status?: number): Response => {
+      const entry = errors[kind];
+      const { code, type = "invalid_request_error" } = entry;
+      return json({
+        status: status ?? entry.status,
+        body:
+          shape === "duffel" || entry.duffel
+            ? { errors: [{ type, code, title: code }] }
+            : { error: { type, code, message: code } },
+      });
+    };
+    const dispatch = async (c: Context<Wire.Env>, next: Next, selected: Wire.Selection) => {
+      if (selected.replay)
+        c.res = c.var.json(c.var.scope.resolve(rules)[`${c.req.method} ${c.req.path}`].saved!);
+      else if (selected.failure) c.res = c.var.error("InjectedFailure", selected.failure);
+      else if (c.req.method === "HEAD") c.res = await c.notFound();
+      else await next();
+    };
     return {
-      json: (result: Wire.Reply): Response =>
-        new Response(JSON.stringify(result.body), {
-          status: result.status,
-          headers: { "content-type": "application/json", ...result.headers },
-        }),
+      json,
+      error,
+      respond(this: void, result: RunResult<unknown>, status: number, envelope: boolean): Response {
+        if (result.status === "success")
+          return json({ status, body: envelope ? { data: result.value } : result.value });
+        if (result.status === "cancelled") throw result.reason;
+        const failure = z.object({ kind: z.string() }).safeParse(result.error);
+        if (result.kind === "error" && failure.success && Object.hasOwn(errors, failure.data.kind))
+          return error(failure.data.kind);
+        throw result.error;
+      },
       log: createMiddleware<Wire.Env>(async (c, next) => {
         const id = c.var.scope.run(startCall, {
           rawInput: {
@@ -333,7 +340,7 @@ export const middleware = resource({
             rawInput: { token: c.req.header("authorization") },
           })
         )
-          return c.var.json(reject("unauthorized", 401));
+          return c.var.error("Unauthorized");
         await next();
       }),
       body: createMiddleware<Wire.Env>(async (c, next) => {
@@ -356,15 +363,10 @@ export const middleware = resource({
           return next();
         }
         const params = { name: `${c.req.method} ${c.req.path}` };
-        const selected = await c.var.scope.run(routeRule, { rawInput: params });
-        if (selected.response) {
-          const response = selected.response;
-          c.res = c.var.json(response);
-        } else if (c.req.method === "HEAD") {
-          c.res = await c.notFound();
-        } else {
-          await next();
-        }
+        const result = await c.var.scope.settle(routeRule, { input: params });
+        if (result.status !== "success") return c.var.respond(result, 200, false);
+        const selected = result.value;
+        await dispatch(c, next, selected);
         if (selected.revision && !c.error)
           c.var.scope.run(saveRule, {
             rawInput: {
@@ -393,6 +395,8 @@ export const httpRequests = extension({
       http.use("*", async (c, next) => {
         c.set("scope", scope);
         c.set("json", shared.json);
+        c.set("error", shared.error);
+        c.set("respond", shared.respond);
         c.set("control", false);
         await next();
       });
@@ -416,18 +420,22 @@ export const controlRoutes = resource({
   depends: { http: web },
   factory({ http }) {
     http.post("/control/clock", (c) => {
-      const result = c.var.scope.run(setClock, { rawInput: c.var.body });
-      return c.var.json(result);
+      const parsed = clockSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidClock");
+      const result = c.var.scope.settle(setClock, { input: parsed.data });
+      return c.var.respond(result, 200, true);
     });
     http.get("/control/calls", (c) => {
-      const result = c.var.scope.run(readCalls);
-      return c.var.json(result);
+      const result = c.var.scope.settle(readCalls);
+      return c.var.respond(result, 200, true);
     });
     http.post("/control/routes", (c) => {
-      const parsed = z.record(z.string(), z.unknown()).safeParse(c.var.body);
-      const { route: name, ...settings } = parsed.success ? parsed.data : {};
-      const result = c.var.scope.run(setRoute, { rawInput: { ...settings, name } });
-      return c.var.json(result);
+      const body = z.record(z.string(), z.unknown()).safeParse(c.var.body);
+      const { route: name, ...settings } = body.success ? body.data : {};
+      const parsed = routeSchema.safeParse({ ...settings, name });
+      if (!parsed.success) return c.var.error("InvalidRouteRule");
+      const result = c.var.scope.settle(setRoute, { input: parsed.data });
+      return c.var.respond(result, 200, true);
     });
     return http;
   },
@@ -437,13 +445,11 @@ export const controlRoutes = resource({
 export const listener = resource({
   label: "service HTTP listener",
   target: "session",
-  depends: { web, port, host, shape: errorShape, stop: stopSignal },
-  async factory({ web, port, host, shape, stop }, ctx) {
+  depends: { web, port, host, stop: stopSignal },
+  async factory({ web, port, host, stop }, ctx) {
     web.onError((error, c) => {
       ctx.log.error("HTTP request failed", { error });
-      return c.var.json(
-        shape === "stripe" ? rejectPayment("internal_error", 500) : reject("internal_error", 500),
-      );
+      return c.var.error("InternalError");
     });
     const pending = new Set<Promise<void>>();
     const server = serve({
@@ -475,8 +481,8 @@ export const listener = resource({
     ctx.defer(async () => {
       await Promise.all(pending);
       if ("closeAllConnections" in server) server.closeAllConnections();
-      await new Promise<void>((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
+      await new Promise<void>((resolve, fail) =>
+        server.close((error) => (error ? fail(error) : resolve())),
       );
     });
     const address = server.address();
