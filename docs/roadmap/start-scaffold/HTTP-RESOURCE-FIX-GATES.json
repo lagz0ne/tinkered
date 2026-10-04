@@ -1783,6 +1783,297 @@
         "code": 0,
         "expected": 0,
         "log": "/tmp/http-round2-fix1-prose.log"
+      },
+      {
+        "name": "fix2-client-node-http-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-node-http"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-node-http-red.log"
+      },
+      {
+        "name": "fix2-client-node-https-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-node-https"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-node-https-red.log"
+      },
+      {
+        "name": "fix2-client-http-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-http"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-http-red.log"
+      },
+      {
+        "name": "fix2-client-https-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-https"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-https-red.log"
+      },
+      {
+        "name": "fix2-client-undici-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-undici"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-undici-red.log"
+      },
+      {
+        "name": "fix2-client-axios-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-axios"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-axios-red.log"
+      },
+      {
+        "name": "fix2-client-ky-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-ky"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-ky-red.log"
+      },
+      {
+        "name": "fix2-client-node-fetch-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-node-fetch"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-node-fetch-red.log"
+      },
+      {
+        "name": "fix2-client-got-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-got"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-got-red.log"
+      },
+      {
+        "name": "fix2-client-superagent-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-superagent"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-superagent-red.log"
+      },
+      {
+        "name": "fix2-client-node-net-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-node-net"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-node-net-red.log"
+      },
+      {
+        "name": "fix2-client-node-tls-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-node-tls"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-node-tls-red.log"
+      },
+      {
+        "name": "fix2-client-reexport-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-reexport"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-reexport-red.log"
+      },
+      {
+        "name": "fix2-client-dynamic-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-dynamic"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-dynamic-red.log"
+      },
+      {
+        "name": "fix2-client-require-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-require"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-require-red.log"
+      },
+      {
+        "name": "fix2-client-import-equals-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-import-equals"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-import-equals-red.log"
+      },
+      {
+        "name": "fix2-client-subpath-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-subpath"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix2-client-subpath-red.log"
+      },
+      {
+        "name": "fix2-build",
+        "command": ["vp", "run", "-r", "build"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix2-build.log"
+      },
+      {
+        "name": "fix2-green",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#check:plain",
+          "--",
+          "--prove",
+          "--cases=client-node-http,client-node-https,client-http,client-https,client-undici,client-axios,client-ky,client-node-fetch,client-got,client-superagent,client-node-net,client-node-tls,client-reexport,client-dynamic,client-require,client-import-equals,client-subpath"
+        ],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix2-green.log"
+      },
+      {
+        "name": "fix2-check",
+        "command": ["vp", "check"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix2-check.log"
+      },
+      {
+        "name": "fix2-prose",
+        "command": ["vp", "run", "prose"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix2-prose.log"
       }
     ]
   }

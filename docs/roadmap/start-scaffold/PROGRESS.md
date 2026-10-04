@@ -1716,3 +1716,13 @@ Tests bind the tag through the fixed transport seam.
 The planted dependency passes the old rule, giving red exit 1.
 The new rule denies it with http-backend, giving green exit 0.
 The fixed telemetry sender still uses the tag directly.
+
+### Round 2 fix 2: other client imports
+
+The plain check rejects literal imports of all twelve named modules outside src/scaffold.
+The rule also covers literal subpaths, re-exports, dynamic import, require, and import-equals.
+It does not need the foreign package to be installed or typed.
+Seventeen planted cases each pass the old rule, giving red exit 1.
+The new http-client rule denies each planted case.
+No case sends a request or opens a socket.
+Computed keys and Reflect.get stay as they were.
