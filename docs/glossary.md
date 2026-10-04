@@ -70,7 +70,7 @@
 ## Frames and calls
 
 - **frame** — An earlier pre-wired graph of tags, resources, and operations with slots the user fills (ADR 0035). The HTTP frame is retired; the Start scaffold declares its three HTTP units (ADR 0102).
-- **slot** — A placeholder in a frame that the user fills at the scope (a tag binding: `backend`, `x.config`) or at definition (an endpoint's `request`/`response`, the frame's `retry`).
+- **slot** — Retired HTTP frame placeholder for tag bindings, request and reply readers, or retry (ADR 0102).
 - **resolve / controller / run** — The three scope verbs (ADR 0036): `resolve(x)` reads the snapshot in dependency form (data value, built resource, tag value); `controller(x)` gives back control (data get/set/update/watch, resource resolve/get, operation run); `run(op, call?)` runs an operation now. `run({ depends?, run }, { input?, tags? }?)` runs an **inline operation**: same path, span, ctx, and cancel; no identity so no preset (ADR 0037).
 - **tagged call** — `run(x, { tags })` on a declared or inline operation, or on a subflow: sugar for `session({ tags }, (s) => s.run(x, …))` — a child session for that run. Its subflows and its session-target resources see the tags; scope-target resources never do; a session-target resource is per flow (ADR 0038). One that ended in place returns its value, not a promise (ADR 0072).
 

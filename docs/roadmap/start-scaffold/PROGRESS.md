@@ -3047,3 +3047,9 @@ Operations cannot take Request input or return Response.
 Only the exact named auth mount is excepted.
 Both decisions and the README now describe these checks.
 The guard was read before the edits; its code stays unchanged.
+
+Fix 1 prose exits 0: .http-docs-logs/16-review-fix1-prose.log.
+Commit: 6166c65e.
+
+Fix 2: the slot row now marks the HTTP frame placeholder retired.
+It no longer reads as a current HTTP API.
