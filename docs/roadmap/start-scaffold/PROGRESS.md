@@ -3034,8 +3034,8 @@ The gate record includes these final proof checks too.
 Card: docs/http-0102-0103.
 Owner: Codex writer.
 Review base: 41b9cf96.
-State: Doing.
-Next: four small fixes, one commit each, then the requested gates.
+State: Review.
+Next: lead review; all four fixes and requested gates are complete.
 Verify: prose, Jev tests, snippet types, and app tests by exit code.
 The lead allows one app-code line: the HTTP span test title.
 All other app code and both trial folders stay unchanged.
@@ -3063,3 +3063,30 @@ Type references remain allowed; httpBackend references remain banned.
 ADR 0102, the README, and the seams skill now make that split.
 The forms skill had the same overstatement and is corrected too.
 All logs in this review section live in .http-docs-logs/.
+
+Fix 3 build and prose exit 0.
+Logs: 18-review-fix3-build.log and 18-review-fix3-prose.log.
+Commit: 4c8e2d4a.
+
+Fix 4: the HTTP test title now names two spans and the recorded status.
+Only that title line changes in app code.
+The test body, its checks, and all runtime source stay unchanged.
+
+The review gate chain exits 0.
+Prose, node --test from tools/jev, the snippet test, and npm test
+from apps/start-scaffold each exit 0.
+Build and vp check also exit 0; the same 28 warnings remain.
+All 148 Jev tests and all 68 app tests pass.
+The title change keeps the span checks and their promise unchanged.
+Strict census and TSDoc each exit 0 on the changed test file.
+Jev preflight has no source flags; the only TypeScript edit is a test title.
+Doc width has zero wide rows or fenced lines in the four current docs checked.
+
+Final review logs use the 20-review- prefix in .http-docs-logs/.
+HTTP-DOCS-GATES.json now keeps every review command, exit, and log path.
+The scope proof is 21-review-scope.log, exit 0.
+It compares the entire app test with the old file after one title replacement.
+No test body, runtime source, plain guard, trial folder, or workspace config changed.
+No temporary copied scaffold remains.
+No new Jev label, Core gap, or public promise was added.
+The extra forms-skill line fixes the same overstatement as review point 3.

@@ -115,5 +115,96 @@
       "fixed": true,
       "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-check-proof-format-red.log"
     }
+  ],
+  "review_base": "41b9cf96",
+  "review_gates": [
+    {
+      "gate": "build",
+      "command": ["vp", "run", "-r", "build"],
+      "cwd": "/home/paseo/next/tinkered-http-docs",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-build.log"
+    },
+    {
+      "gate": "check",
+      "command": ["vp", "check"],
+      "cwd": "/home/paseo/next/tinkered-http-docs",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-check.log"
+    },
+    {
+      "gate": "prose",
+      "command": ["vp", "run", "prose"],
+      "cwd": "/home/paseo/next/tinkered-http-docs",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-prose.log"
+    },
+    {
+      "gate": "jev-tests",
+      "command": ["node", "--test"],
+      "cwd": "/home/paseo/next/tinkered-http-docs/tools/jev",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-jev-tests.log"
+    },
+    {
+      "gate": "snippet",
+      "command": ["node", "--test", "tools/jev/http-fix.test.mjs"],
+      "cwd": "/home/paseo/next/tinkered-http-docs",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-snippet.log"
+    },
+    {
+      "gate": "app-tests",
+      "command": ["npm", "test"],
+      "cwd": "/home/paseo/next/tinkered-http-docs/apps/start-scaffold",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-app-tests.log"
+    },
+    {
+      "gate": "style",
+      "command": [
+        "bash",
+        ".agents/skills/coding-convention/scripts/style-census.sh",
+        "apps/start-scaffold/tests/http.test.ts",
+        "--strict"
+      ],
+      "cwd": "/home/paseo/next/tinkered-http-docs",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-style.log"
+    },
+    {
+      "gate": "tsdoc",
+      "command": ["node", "tools/jev/docs.mjs", "apps/start-scaffold/tests/http.test.ts"],
+      "cwd": "/home/paseo/next/tinkered-http-docs",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-tsdoc.log"
+    },
+    {
+      "gate": "preflight",
+      "command": ["node", "tools/jev/preflight.mjs", "41b9cf96..HEAD"],
+      "cwd": "/home/paseo/next/tinkered-http-docs",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-preflight.log"
+    },
+    {
+      "gate": "width",
+      "command": [
+        "node",
+        "scripts/prose-lint.mjs",
+        "--wide",
+        "apps/start-scaffold/README.md",
+        "docs/glossary.md",
+        "apps/start-scaffold/.agents/skills/tinker-seams/SKILL.md",
+        "apps/start-scaffold/.agents/skills/tinker-forms/SKILL.md"
+      ],
+      "cwd": "/home/paseo/next/tinkered-http-docs",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/20-review-width.log"
+    },
+    {
+      "gate": "scope",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/21-review-scope.log"
+    }
   ]
 }
