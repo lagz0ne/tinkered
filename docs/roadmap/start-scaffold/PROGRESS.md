@@ -2272,3 +2272,49 @@ Save these notes before fetch and rebase.
 Keep both sides of any progress-log conflict.
 Run vp install, restore CLAUDE.md if changed, then rebuild.
 Keep the new Vite config settings and await every async assertion.
+
+#### Fix 1: use inherited stop tags; remove method overrides
+
+Rebase, install, and the first build passed, exit 0.
+The new base is dfc31bdc, which includes 3af9aae6.
+No progress-log conflict occurred.
+CLAUDE.md was restored after install.
+The compatibility settings stay as landed.
+
+Five new bug tests failed on the old code, each at its two-second bound.
+They cover the server-function signal call, root signal call, root tagged call,
+request end with a sibling still open, and ordinary work during root stop.
+Red: /tmp/tinkered-http-graceful-round2-logs/02-regressions-red.log (exit 1).
+All 18 HTTP tests now pass.
+Green: /tmp/tinkered-http-graceful-round2-logs/03-http-green.log (exit 0).
+Call-signal cancellation and forced root/session close still return cancelled.
+Tests without Start can leave both stop tags unbound.
+
+The http resource depends on backendStop.optional and requestStop.optional.
+Its send signal joins the caller, owned cleanup, and bound stop signals.
+The httpScopes resource and httpClosing extension are gone.
+No code replaces scope.close or scope.createSession.
+No child set, per-session binding, or double-install loop remains.
+The startup hook calls event.next once and returns the root context.
+
+The old tests and README claims for direct graceful close are retired.
+They promised a rule the scaffold cannot supply through Core's hooks.
+The README, HTTP TSDoc, and forms skill now name the stop-tag rule and limit.
+The late-send test follows as its own fix.
+
+Core feedback for the lead: direct close can still wait without a stop tag.
+This is the failing shape; the backend waits only for abort.
+
+```ts
+const session = scope.createSession();
+const pending = session.settle(httpRequest, {
+  rawInput: { url: "https://slow.test/x", method: "GET" },
+  signal: new AbortController().signal,
+});
+await backend.started;
+await session.close({ graceful: true });
+await pending;
+```
+
+The limit needs a Core session close-start hook, not a method replacement.
+No Core file changed; the lead files the row.
