@@ -48,7 +48,7 @@ const MESSAGES = {
   "S22.settle":
     "a settle's Result is dropped: settle recovers a panic, so an unread Result hides it (ADR 0067); read the Result, or call run and let the scope own the failure",
   S23: "hand-made subscribe: keep the value in a data cell; readers watch it or read it with useData",
-  S24: "raw fetch: send through a copied HTTP endpoint operation so config, retry, spans, and the backend tag apply",
+  S24: "raw fetch: depend on httpRequest.controller and run it so requests have spans and inherit the caller's cancel signal (ADR 0102); never call built-in fetch in app code",
   S25: "component state: make it a data cell and read it with useData; write it from an operation",
   S26: "malformed TSDoc: the TSDoc parser rejects this doc",
   "S26.param": "a @param names no parameter of the declaration it documents",
@@ -65,7 +65,7 @@ const FIXES = {
   S22: "`const r = await load.settle({ input: id })`",
   "S22.settle": "`const r = await load.settle({ input: id })`, then branch on `r.status`",
   S23: '`const status = data<WireStatus>({ label: "wire.status", initial: "connecting" })`',
-  S24: "an endpoint operation, declared with the copied HTTP source in src/tinker/http/index.ts",
+  S24: "import { httpRequest } from '@/scaffold/backend/http'; depends: { request: httpRequest.controller }; run: ({ request }) => request.run({ input: { url: 'http://supplier-a:4311/air/offers/id', method: 'GET' } })",
   S25: '`const running = data({ label: "bench.running", initial: false })`',
   S26: "escape `@`, `{`, `}`, and `>` in prose with a backslash, or put code in backticks on one line: `` `@tinker/core` ``, `{@link createScope}`",
   "S26.param": "`@param input - …` with the parameter's own name, or delete the line",
@@ -1100,15 +1100,16 @@ function lifetimeHits(source, program, file, writer) {
 
 /** Which hand-rolled rules one file gets, by lane and path. */
 function handRolledScope(file, writer) {
+  const userCode = writer || USERLAND.test(file);
   return {
     S20: !CORE_SRC.test(file),
     S21: true,
     S22: true,
-    S23: writer || USERLAND.test(file),
-    S24: writer || USERLAND.test(file),
+    S23: userCode,
+    S24: userCode && !/(^|\/)src\/scaffold\/http-backend\.ts$/.test(file),
     S25: writer && file.endsWith(".tsx"),
     S27: !BROWSER_ENTRY.test(file) && (writer || USERLAND.test(file) || PACKAGE_SRC.test(file)),
-    S28: writer || USERLAND.test(file),
+    S28: userCode,
   };
 }
 

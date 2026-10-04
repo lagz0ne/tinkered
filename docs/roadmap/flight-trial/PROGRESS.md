@@ -3382,3 +3382,21 @@ It will not promise retries, which this scaffold does not supply.
 
 Initial workspace build: exit 0.
 Log: `tools/writer-trial/.logs/s24-on/build-initial.log`.
+
+### S24 step 1: message and backend exception
+
+The app finding names `httpRequest.controller` and a filled-in GET call.
+The exception matches only `src/scaffold/http-backend.ts` at a path end.
+The shipped backend passes in writer mode and repo mode.
+The existing fetch and global-fetch tests still pass.
+
+Logs under `tools/writer-trial/.logs/s24-on/`:
+
+- `red-message.log`: exit 1 on old code.
+- `green-message.log`: exit 0 with the fix.
+- `red-backend.log`: exit 1 on old code.
+- `green-backend.log`: exit 0 with the fix.
+- `build-plain.log`: exit 0.
+- `jev-plain-step.log`: exit 0; all Jev tests pass.
+
+Next: remove the flight skip and prove its gate blocks.

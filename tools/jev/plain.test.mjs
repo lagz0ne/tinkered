@@ -447,6 +447,33 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
     assert.deepEqual(hits("const stream = new EventSource(url);\n", APP), []);
   });
 
+  void it("S24 tells a flight app to depend on httpRequest.controller and run it", () => {
+    const source = 'export const load = () => fetch("http://supplier-a:4311/air/offers/id");';
+    const file = "src/backend/flights.ts";
+    assert.deepEqual(inspectPlain(source, file, { writer: true }), [
+      {
+        id: "S24",
+        line: 1,
+        message:
+          "raw fetch: depend on httpRequest.controller and run it so requests have spans and inherit the caller's cancel signal (ADR 0102); never call built-in fetch in app code. Fix: import { httpRequest } from '@/scaffold/backend/http'; depends: { request: httpRequest.controller }; run: ({ request }) => request.run({ input: { url: 'http://supplier-a:4311/air/offers/id', method: 'GET' } })",
+      },
+    ]);
+  });
+
+  void it("S24 leaves the scaffold's built-in fetch backend alone", () => {
+    const source = readFileSync(
+      new URL("../../apps/start-scaffold/src/scaffold/http-backend.ts", import.meta.url),
+      "utf8",
+    );
+    for (const file of [
+      "src/scaffold/http-backend.ts",
+      "apps/start-scaffold/src/scaffold/http-backend.ts",
+    ]) {
+      assert.deepEqual(hits(source, file), []);
+      assert.deepEqual(repo(source, file), []);
+    }
+  });
+
   void it("S25 fires on useState and useReducer in a .tsx source file", () => {
     const src = "const [a] = useState(0);\nconst [b] = React.useReducer(step, 0);\n";
     assert.deepEqual(hits(src, "src/Page.tsx"), [

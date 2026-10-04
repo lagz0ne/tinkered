@@ -133,9 +133,15 @@ Each message ends with its fix line.
   Repo lint: `apps/` and `examples/` only.
   Fix: a `data` cell that readers `watch` or read with `useData`.
 - **S24 rawFetch** — a call of `fetch` or `globalThis.fetch`.
-  Repo lint: `apps/` and `examples/` only; `packages/http` owns the real one.
+  Repo lint: `apps/` and `examples/` only.
+  Writer gate: every suite, including flight.
+  Skipped: `src/scaffold/http-backend.ts`, which wraps the built-in once.
+  `packages/http` still owns its real fetch in the repo lint.
   `EventSource` and `WebSocket` stay out (ADR 0048).
-  Fix: an `@tinker/http` endpoint operation, like `postIssue` in the tracker's `client/api.ts`.
+  Fix: import `httpRequest` from `@/scaffold/backend/http`.
+  Declare `depends: { request: httpRequest.controller }` and call
+  `request.run({ input: { url: 'http://supplier-a:4311/air/offers/id', method: 'GET' } })`.
+  The request has spans and inherits the caller's cancel signal (ADR 0102).
 - **S25 componentState** — `useState` or `useReducer` in a `.tsx` source file.
   Writer gate only: in the repo, a benchmark's plain-React control is a trap by design.
   In writer mode it replaces `no-react-state` on the same line.
