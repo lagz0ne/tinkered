@@ -3282,3 +3282,13 @@ Log: `tools/flight-trial/scripts/logs/review-fix1-wire.log`.
 Build, check, and prose each exited 0.
 Logs: `review-build.log`, `review-fix1-check.log`, and `review-fix1-prose.log`.
 The new cases reached both saved-reply paths and both clock wakes.
+
+### Lead fix round: missing order kind
+
+`readOrder` now raises `UnknownOrder`.
+The supplier map keeps its old `not_found` code and 404 status.
+Unknown routes still use `NotFound`.
+Build, all 98 service tests, and the operation check exited 0.
+Logs: `review-fix2-build.log`, `review-fix2-test.log`,
+and `review-fix2-protocol.log`, under `tools/flight-trial/scripts/logs/`.
+Next: full wire and workspace gates, then mutation alone under the lock.

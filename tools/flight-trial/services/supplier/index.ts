@@ -24,6 +24,7 @@ const errors = {
   OfferNotFound: { code: "offer_not_found", status: 404 },
   OfferPriceChanged: { code: "offer_price_changed", status: 409 },
   OfferSoldOut: { code: "offer_sold_out", status: 409 },
+  UnknownOrder: { code: "not_found", status: 404 },
   OrderNotFound: { code: "order_not_found", status: 404 },
   OrderExpired: { code: "order_expired", status: 409 },
   OrderNotAwaitingPayment: { code: "order_not_awaiting_payment", status: 409 },
@@ -419,7 +420,7 @@ const readOrder = operation({
   depends: { state },
   run({ state }, ctx) {
     const booked = state.orders[ctx.input.id];
-    if (!booked) return ctx.raise("NotFound", {});
+    if (!booked) return ctx.raise("UnknownOrder", {});
     return booked;
   },
 });
