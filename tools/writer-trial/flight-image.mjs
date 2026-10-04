@@ -81,7 +81,7 @@ COPY --chown=pwuser:pwuser scaffold.json /home/pwuser/scaffold.json
 USER pwuser
 WORKDIR /home/pwuser/flight-tools
 RUN cp /home/pwuser/flight-seed/package.json . && cp /home/pwuser/flight-seed/*.tgz . && npm install --ignore-scripts --no-audit --no-fund
-RUN ln -s /tmp node_modules/.vite && ln -s /tmp node_modules/.vite-temp
+RUN ln -s /tmp node_modules/.vite && ln -s /tmp node_modules/.vite-temp && ln -s /tmp node_modules/.vitest
 ENV PATH="/home/pwuser/flight-tools/node_modules/.bin:$PATH"
 WORKDIR /work
 RUN cp -R /home/pwuser/flight-seed/. . && ln -s /home/pwuser/flight-tools/node_modules node_modules

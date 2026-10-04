@@ -1,7 +1,7 @@
 # Flight reference answer
 
 This private answer starts from `apps/start-scaffold` at `0f0a83fe`.
-The copy now includes main's strict Start source at `92b8937f`.
+The scaffold copy matches Start at `6e254446`.
 Its response bodies and telemetry queue are resources.
 Each round adds feature files and changes the app's open files.
 The teacher never mounts this answer into a writer's container.

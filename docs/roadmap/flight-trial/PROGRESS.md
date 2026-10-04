@@ -3820,3 +3820,31 @@ Logs: `webhook-build.log`, `webhook-plain.log`,
 `webhook-types.log`, and `webhook-check.log`.
 The full round proof uses these final source bytes.
 Next: finish that proof and save the image pins.
+
+### Reference step 5: images and Vitest 5
+
+Prepared a new writer image and built services through the named image script.
+Each image has a saved tar and an idle keeper.
+The old trial and its pins stay untouched.
+The first round proof passed teacher, scaffold, plain, and Jev, but own tests failed.
+Vitest 5 could not write its API token on the read-only image.
+Red log: `rounds/round-1/pass-1/own.log`, check and test exits 1.
+The first round result and top-level proof exit 1 are saved under `rounds/`.
+
+The image now links `node_modules/.vitest` to writable `/tmp`.
+No host file or shared service changed.
+The new tag is `tinker-writer-flight:20261004.reference-0102.2`.
+The standalone services tag is `tinker-flight-services:20261004160855439`.
+The prepare path's services copy has the same image ID as that standalone build.
+The first new tag stays saved as the red evidence; no image was removed.
+
+Build, check, and read-only HTTP tests: exit 0; 20 HTTP tests passed.
+Logs: `vitest-image-build-workspace.log`, `image-check.log`,
+and `green-readonly-vitest.log`.
+Image builders: exit 0.
+Logs: `image-build.log`, `services-image-build.log`, and `image-build-2.log`.
+The first validate run caught an unformatted image config and exited 1.
+Formatted it; all 16 validate lanes now pass, exit 0.
+Logs: `validate.log` and `green-validate.log`.
+The final round and isolation proofs use the new writer image.
+Next: finish all rounds, then save their exits and logs.
