@@ -3723,3 +3723,25 @@ Logs under `tools/writer-trial/.logs/s24-on/review/`:
 Status: Review; the lead owns landing.
 The final docs and reference caller get one last build, check, and prose pass.
 Logs: `proof-build.log`, `proof-check.log`, and `proof-prose.log`.
+
+## Reference 0102, 2026-10-04
+
+Card: `trial/reference-0102`.
+Owner: Sol writer; lead owns the board and landing.
+Next: copy today's scaffold, then port calls and replies.
+Verify: plain and S24 green; new images; all rounds twice and breaks.
+
+Assumption: the brief permits this progress file and reference docs.
+Other shared docs and the Start README stay with the other writer.
+No questions, push, stash, or older trial changes.
+The assigned base is `6e254446`.
+
+Initial build: exit 0.
+Logs live in `tools/writer-trial/.logs/reference-0102/`.
+The first plain run had no reference package links and exited 1.
+Log: `red-plain.log`.
+Added private local package links, then reran before changing source.
+Log: `red-plain-linked.log`, exit 1.
+Jev S24: 10 hits, exit 1, including old scaffold telemetry calls.
+Log: `red-s24.log`.
+Next: restore starter bytes and keep the round features.
