@@ -2709,5 +2709,87 @@ The exact final tests pass on the new route.
 All five wire tests, types, prose, and new import proofs pass, exit 0.
 Green: .protocol-reply-logs/review-04d-green.log.
 The downstream proof uses a real graph-owned preset with real dependencies.
-It needs async factory parity and explicit proof tags.
+It needs an async factory and explicit proof tags.
 No mocks, global changes, or private test imports were added.
+
+## Protocol reply review gate
+
+The four review fixes are committed, one commit per point.
+The registry is rebuilt from those fixes.
+Its old payload fails the exact-source check, exit 1.
+Red: .protocol-reply-logs/review-05-registry-red.log.
+The fresh copied starter passes all fifteen gates, exit 0.
+Green: .protocol-reply-logs/review-05-registry-green.log.
+Its 119 files match source, with the lib alias rewritten.
+Core and React use packed tarballs, with no workspace links.
+
+All 166 planted cases pass, proof exit 0.
+The 160 banned cases each exit 1 for the named rule.
+The six allowed cases each exit 0.
+The same seventeen plain functions remain.
+Proof: .protocol-reply-logs/review-06-plain-prove.log.
+Every child log is copied into this worktree.
+
+Build, check, app tests, and all tests each exit 0.
+The chain also exits 0.
+Proof: .protocol-reply-logs/review-06-gate-chain.log.
+All 68 app tests and 1,252 Vitest tests pass.
+All 147 Node tests pass; one existing Vitest skip remains.
+Check has zero errors and the same 28 warnings.
+All six warning files match review base e10b8371.
+Proof: .protocol-reply-logs/review-06-warning-proof.log.
+All sixteen validate lanes pass, exit 0.
+Proof: .protocol-reply-logs/review-06-validate.log.
+The workspace file already permits esbuild and stayed unchanged.
+
+Seam, note fixture, browser boundary, imports, schema, middleware, and types exit 0.
+Proof: .protocol-reply-logs/review-06-structure.log.
+Strict census and TSDoc exit 0.
+Census notes one body assertion after the explicit no-body rejection.
+The test-only preset file is checked as test wiring, as in the first proof.
+Jev has zero file flags, zero test flags, and zero README gaps.
+Two unsure README matches remain notes.
+The same four unit flags have false labels in the saved track file.
+The label tool confirms each row already exists.
+Proof: .protocol-reply-logs/review-06-style-jev.log.
+Labels: .protocol-reply-logs/review-06-jev-labels.log.
+The lead merges those rows and runs calibration at landing.
+
+Both wire pins pass on rebased first commit 673e2965.
+That replay uses the old app source from the same commit.
+Before: .protocol-reply-logs/review-06-rebased-wire-before.log.
+The final five wire tests pass, exit 0.
+After: .protocol-reply-logs/review-06-wire.log.
+All fourteen status, header, and body facts are unchanged.
+The final two sync error tests also fail against the old route.
+Those failures are two wrong 400 replies, not missing setup.
+
+ADR 0103 governs the reply rule in this card.
+The glossary's old request-tag row still allows whole requests in operations.
+That row is outside this brief's allowed files.
+Record it for the lead's docs/http-0102-0103 card.
+No new term or Core gap was found.
+
+[PROTOCOL-REPLY-GATES.json](PROTOCOL-REPLY-GATES.json) holds all current exits and log paths.
+It also keeps the first proof and every review red/green pair.
+Only the allowed app, track docs, and ADR 0103 changed.
+No stash, push, trial-store access, or container command was used.
+All jobs ended before this proof was saved.
+The card is ready for the lead's next review.
+
+## Protocol reply proof correction
+
+The first option plants failed an old plain-function rule.
+They proved the named option rule was missing, but not a passing escape.
+Replace their local arrow with the built-in String function.
+Both option shapes now pass the exact e10b8371 guard, child exit 0.
+A custom input reader with type R = Request also passes that guard.
+That reader proves the alias hole without the old module-effect flag.
+The required direct z.custom alias case stays in the proof too.
+All three old proof checks fail, exit 1.
+Red: .protocol-reply-logs/review-08-red.log.
+Each old child log is saved with exit 0.
+The current guard rejects all three by the named rule.
+Green: .protocol-reply-logs/review-08-green.log, exit 0.
+No guard behavior or app source changed in this correction.
+Next: rebuild the registry and repeat every gate with the final 167 cases.
