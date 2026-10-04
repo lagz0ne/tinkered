@@ -2563,3 +2563,85 @@ The style census checks changed source and test files.
 The preset fixture is test-only wiring, not app source.
 Its existing preset calls are outside the source-only style rules.
 TSDoc will check that file with the other changed TypeScript files.
+
+### Step 9: registry and final writer proof
+
+The old registry failed the exact-source check, exit 1.
+Red: .protocol-reply-logs/09-registry-red.log.
+The rebuilt registry copies all 119 files from final source.
+It includes the three new protocol files and the public route test entry.
+Both new test files ship with the starter.
+The fresh starter uses packed Core and React, with its own npm install.
+All fifteen copied-starter gates pass, exit 0.
+Green: .protocol-reply-logs/11-registry-green.log.
+Assume the lead owns release metadata; keep version 0.6.0 and contract 4.
+
+All 149 plain proof cases pass, exit 0.
+The 144 banned cases each return 1 for their named rule.
+The five allowed cases each return 0.
+The same seventeen plain functions remain.
+Each case log is copied into this worktree for review.
+Proof: .protocol-reply-logs/11-plain-prove.log.
+
+The final gate chain exits 0:
+
+```bash
+vp run -r build && vp check \
+  && vp run @tinker-start-scaffold#test \
+  && vp run -r test
+```
+
+All 65 app tests pass.
+All 1,249 Vitest tests and 147 Node tests pass.
+One existing Vitest skip remains.
+Check has zero errors and 28 warnings.
+All six files with warnings match 2d307cf5 byte for byte.
+All sixteen validate lanes pass, exit 0.
+allowBuilds already permits esbuild; the workspace file stayed unchanged.
+No async assertion or expect.poll was left unawaited.
+
+Seam, note fixture, browser boundary, imports, schema, middleware, and types pass.
+Strict style census and TSDoc pass, exit 0.
+The raw header tag is absent from every runtime package entry.
+Only test wiring exports that binding.
+Only the named auth mount takes a Request or returns a Response.
+No Core or React source changed.
+No new Core gap was found.
+The direct graceful-close limit stays recorded above and under README Limits.
+
+The first wire proof passed before any source refactor.
+The first commit's app source still matches 2d307cf5.
+An isolated replay of that commit also passes, exit 0.
+Final wire proof passes, exit 0, with the same fourteen case facts.
+Each case checks status, all headers, and the body frame.
+Native middleware also compares a real resumed changes frame.
+Before replay: .protocol-reply-logs/12b-wire-before-green.log.
+After: .protocol-reply-logs/13-wire-after-green.log.
+The initial before log is 01e-baseline.log.
+
+Jev has no file flags, test flags, or README gaps.
+Two low-confidence README matches stay notes.
+Four unit flags have false answers, with exact rows saved in this track.
+Auth settings come from a tag; its feature policies are fixed code.
+The mounted third-party auth API uses graph-owned database and mail.
+Stream state is private protocol and IO state.
+The stop listener sets ended; a late body closes at start.
+Existing tests cover opening stop and held stream stop.
+
+The folder limit keeps the shared Jev bank unchanged.
+A local copy of label.mjs changes only the bank output path.
+It uses the shipped unit readers, row shape, and hash rule.
+The lead merges the rows and runs landing calibration.
+[PROTOCOL-REPLY-JEV-LABELS.jsonl](PROTOCOL-REPLY-JEV-LABELS.jsonl) holds all four rows.
+
+[PROTOCOL-REPLY-GATES.json](PROTOCOL-REPLY-GATES.json) records each command, exit, and log.
+It includes all red/green pairs, plain cases, copied gates, and wire facts.
+The final chain log is .protocol-reply-logs/12-gate-chain.log.
+The validate log is .protocol-reply-logs/11-validate.log.
+The structure log is .protocol-reply-logs/11b-structure.log.
+
+Only the allowed app, track docs, and ADR 0103 are changed.
+No stash, push, trial-store access, or container command was used.
+Every long job ended before this proof was saved.
+No full mutation lane or timing claim was requested.
+The final commit saves the registry and proof for lead review.
