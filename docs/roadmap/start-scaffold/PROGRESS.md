@@ -27,6 +27,14 @@ No package test changed, so Jev test and promise judges do not apply.
 No public symbol changed, so no impact block is needed.
 Core feedback: no new Core gap; the bug belongs to the HTTP server setting.
 
+Step 2: registry build and copied starter both exit 0.
+Logs: 24-registry-build.log and 25-registry-copy.log.
+The copied starter serves the same native JSON route with status 200.
+Its 66 shipped tests, build, types, plain, seam, boundary, and schema pass.
+The rebuild refreshes six saved entries to match current source.
+They are the three app skills, README, serve script, and HTTP tests.
+No source bytes in those older entries changed for this card.
+
 Owner: lead (Codex, Start scaffold session).
 Status: runnable native proof complete; full inspection remains open.
 

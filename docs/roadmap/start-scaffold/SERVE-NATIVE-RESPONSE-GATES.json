@@ -81,5 +81,17 @@
     "command": ["vp", "run", "prose"],
     "exit": 0,
     "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/23-prose.log"
+  },
+  {
+    "gate": "24-registry-build",
+    "command": ["vp", "run", "@tinker-start-scaffold#registry:build"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/24-registry-build.log"
+  },
+  {
+    "gate": "25-registry-copy",
+    "command": ["vp", "run", "@tinker-start-scaffold#test:registry"],
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/.serve-native-response-logs/25-registry-copy.log"
   }
 ]
