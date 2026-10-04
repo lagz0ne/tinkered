@@ -1324,3 +1324,31 @@ Source commits:
 - 58af498a: narrow page events and bind the telemetry backend.
 
 This proof commit saves the rebuilt registry and this record for review.
+
+## HTTP resource: start/http-resource
+
+Owner: Sol writer; lead owns review and landing.
+Next: add the HTTP units, prove the request rules, then ship the registry.
+Verify: red and green tests; build, checks, tests, prose, and validate.
+
+### Assumptions
+
+- The existing Doing card is this task's card.
+  The brief bars edits to TODO.md; the lead moves it after review.
+- The installed worktree starts at a5c12db9.
+  No pull or install is needed.
+- The HTTP resource belongs to the requesting session.
+  This follows ADR 0035 and lets a session bind its own backend.
+- Core span names are fixed labels.
+  ADR 0102 allows ctx.obs.child for the method and path name.
+  The named child sits under http.request, under the caller.
+- The resource owns a request until its body text is read.
+  Scope close can abort a body that is still arriving.
+- HttpRequestFailed keeps the URL, method, and caught cause.
+  Non-2xx replies are normal results.
+- Telemetry uses httpBackend directly to avoid tracing its own sends.
+- The brief bars tools edits.
+  Jev answers stay here for the lead to label.
+- The app has no mutation script.
+  Only a requested mutation lane would run, under flock.
+- The trial store and trial containers are outside this work.
