@@ -3400,3 +3400,30 @@ Logs under `tools/writer-trial/.logs/s24-on/`:
 - `jev-plain-step.log`: exit 0; all Jev tests pass.
 
 Next: remove the flight skip and prove its gate blocks.
+
+### S24 step 2: flight gate
+
+Removed the suite filter from the broker.
+The gate blocks a bare fetch in flight and all nine older suites.
+The rule uses the Jev files from the supplied folder, as before.
+No frozen trial file was read or changed.
+
+Assumption: also fix the live flight rules and Jev README.
+Their old fetch permission and removed-helper example contradicted S24.
+The saved trials keep their earlier rule files.
+
+Logs under `tools/writer-trial/.logs/s24-on/`:
+
+- `red-flight-gate.log`: exit 1 with the flight skip.
+- `green-flight-gate.log`: exit 0 without the skip.
+- `build-gate-step.log`: exit 0.
+- `writer-gate-step.log`: exit 0; 91 tests pass.
+- `check-gate-step.log`: exit 0; 28 warnings, no errors.
+- `prose-gate-step.log`: exit 0.
+
+Step 1's first check found formatting and too many branches.
+The format and shared app-path test fixes passed the next check.
+Logs: `check-plain-final.log` and `jev-plain-final.log`, exit 0.
+No failed check is claimed as a main defect.
+
+Next: run the full workspace tests and validation, then save proof.

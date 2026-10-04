@@ -247,11 +247,12 @@ This checks rounds 1 to 5 and skips planted breaks.
 Without `--once`, each round passes twice and runs its named break.
 Each proof needs a fresh folder; saved results are never overwritten.
 
-Flight permits native HTTP clients, including `fetch`.
-Its Jev gate omits S24, which requires the old copied HTTP helper.
-That helper is absent from the Start registry.
-The same rule applies to writer advice and saved checks.
-The other suites keep S24.
+Every suite's Jev gate blocks bare `fetch` in app code (S24).
+Flight callers depend on `httpRequest.controller` and run it (ADR 0102).
+The Start scaffold ships it in `src/scaffold/backend/http.ts`.
+Only `src/scaffold/http-backend.ts` wraps the built-in and is exempt from S24.
+Writer advice and saved checks use the same rule.
+Trials keep their frozen Jev files; this change does not refresh them.
 
 The teacher command must exit nonzero when any check fails.
 The app is already built and running when the command starts.
@@ -486,6 +487,7 @@ T08 names the test rule for error checks inside assertions.
 - names the first line of the unit a Jev hit is on.
 - tells the writer how to clear a plain rule break with its message.
 - blocks on a type assertion in writer source (S17).
+- blocks bare fetch in flight and every older suite (S24).
 - blocks on isError inside expect in a test file (T08).
 - sends each test as title, causes, asserts, narrows, and body.
 - uses the median of three asks for a proven judge within the margin.

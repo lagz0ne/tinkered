@@ -108,21 +108,11 @@ export async function confirmNearBar(answers, candidates, calibration, askMore) 
  *  shape helper, and calibration in `jevDir`. `ask(state, questions)` returns Jev answers;
  *  `allow()` returns a reason when no more calls may run (that unit is `not-run`). Shared
  *  by the broker (live writer) and review.mjs check (saved snapshot). */
-export async function judgeSource({
-  source,
-  file,
-  jevDir,
-  judges,
-  ask,
-  allow = () => null,
-  suite,
-}) {
+export async function judgeSource({ source, file, jevDir, judges, ask, allow = () => null }) {
   const lib = await importFrom(jevDir, "lib.mjs");
   const bank = await importFrom(jevDir, "bank.mjs");
   const extractor = await importFrom(jevDir, "extract.mjs");
-  const plainFindings = (await plainFindingsFor(source, file, jevDir)).filter(
-    (finding) => suite !== "flight" || finding.id !== "S24",
-  );
+  const plainFindings = await plainFindingsFor(source, file, jevDir);
   const selected = new Set(judges);
   const calibration = lib.readCalibration();
   const rows = [];

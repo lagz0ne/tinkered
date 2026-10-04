@@ -69,7 +69,9 @@ Report exact commands and results, then stop.
   Do not put the whole operation in an outside closure.
 - A resource owns any work that needs cleanup.
   Use defer and the abort signal where needed.
-  HTTP clients may use native `fetch`.
+  For HTTP, depend on `httpRequest.controller` from
+  `@/scaffold/backend/http` and run it (ADR 0102).
+  Never call built-in `fetch` in app code.
   A stream or watcher stays with the resource that closes it.
 
 ## Errors and input

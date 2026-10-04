@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { confirmNearBar, judgeSource } from "./broker.mjs";
 import { gateFiles, gateOf, machineVerdict, flightGate } from "./gate.mjs";
+import { SUITES } from "./suite.mjs";
 
 const jevSource = fileURLToPath(new URL("../jev/", import.meta.url));
 
@@ -61,7 +62,7 @@ void describe("the Jev gate", () => {
   });
   after(() => rmSync(jevDir, { recursive: true, force: true }));
 
-  void it("permits native fetch for flight while keeping the old suites' HTTP rule", async () => {
+  void it("blocks bare fetch in flight and every older suite", async () => {
     const input = {
       source: 'export const load = () => fetch("http://supplier-a:4311/air/offers/id");',
       file: "src/load.ts",
@@ -69,10 +70,11 @@ void describe("the Jev gate", () => {
       judges: [],
       ask: fakeAsk([]),
     };
-    const flight = await judgeSource({ ...input, suite: "flight" });
-    const stock = await judgeSource({ ...input, suite: "stock" });
-    assert.equal(gateOf(flight).status, "pass");
-    assert.ok(gateOf(stock).blocking.some((item) => item.rule === "S24"));
+    for (const suite of Object.keys(SUITES)) {
+      const gate = gateOf(await judgeSource({ ...input, suite }));
+      assert.equal(gate.status, "block", suite);
+      assert.equal(gate.blocking[0].rule, "S24", suite);
+    }
   });
 
   void it("blocks on a hit from a proven judge", () => {
