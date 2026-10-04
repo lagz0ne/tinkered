@@ -1726,3 +1726,30 @@ Seventeen planted cases each pass the old rule, giving red exit 1.
 The new http-client rule denies each planted case.
 No case sends a request or opens a socket.
 Computed keys and Reflect.get stay as they were.
+
+### Round 2 fix 3: safe native error facts
+
+HttpRequestFailed keeps method and path.
+Its optional cause record contains only optional string name and code.
+The caught external value is read once by a stripping Zod object schema.
+Native fetch can wrap a socket error in cause.
+Those inner fields take precedence, with the wrapper fields as fallback.
+An unrecognized value leaves cause absent.
+No message, URL, stack, or native error object is retained.
+
+The revised seam test uses a direct refused-connection error and a wrapped DNS error.
+It expects TypeError with ECONNREFUSED, then Error with ENOTFOUND.
+Both native errors carry messages and URLs with query tokens.
+Exact payload checks prove that only name and code survive.
+The test fails on the old method/path-only payload and passes on the new facts.
+The request and named child spans stay unchanged.
+
+Filled payload:
+
+```ts
+{
+  method: "GET",
+  path: "/x",
+  cause: { name: "Error", code: "ENOTFOUND" },
+}
+```

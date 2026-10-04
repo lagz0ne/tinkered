@@ -2074,6 +2074,79 @@
         "code": 0,
         "expected": 0,
         "log": "/tmp/http-round2-fix2-prose.log"
+      },
+      {
+        "name": "fix3-red",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#test",
+          "--",
+          "tests/http.test.ts",
+          "-t",
+          "network failures"
+        ],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix3-red.log"
+      },
+      {
+        "name": "fix3-check-first",
+        "command": ["vp", "check"],
+        "code": 1,
+        "expected": 1,
+        "log": "/tmp/http-round2-fix3-check-first.log",
+        "reason": "The initial catch exceeded the complexity cap (9 vs 8). Fixed before committing."
+      },
+      {
+        "name": "fix3-build",
+        "command": ["vp", "run", "-r", "build"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix3-build.log"
+      },
+      {
+        "name": "fix3-green",
+        "command": [
+          "vp",
+          "run",
+          "--no-cache",
+          "@tinker-start-scaffold#test",
+          "--",
+          "tests/http.test.ts"
+        ],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix3-green.log"
+      },
+      {
+        "name": "fix3-types",
+        "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#typecheck"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix3-types.log"
+      },
+      {
+        "name": "fix3-plain",
+        "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#check:plain"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix3-plain.log"
+      },
+      {
+        "name": "fix3-check",
+        "command": ["vp", "check"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix3-check.log"
+      },
+      {
+        "name": "fix3-prose",
+        "command": ["vp", "run", "prose"],
+        "code": 0,
+        "expected": 0,
+        "log": "/tmp/http-round2-fix3-prose.log"
       }
     ]
   }
