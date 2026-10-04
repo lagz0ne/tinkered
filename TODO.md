@@ -71,6 +71,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **start/http-graceful** — a graceful close never hangs on an outgoing HTTP request.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-http-graceful`. Found by the `trial/services-http` reviewer's probe.
+  Next: abort requests in flight when a graceful close begins (close hook, as the services do).
+  Verify: graceful root and session close settle while a request waits on a silent backend; red then green.
+  [Brief](docs/roadmap/start-scaffold/HTTP-GRACEFUL-BRIEF.md).
+
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
