@@ -3922,3 +3922,19 @@ Jev preflight exits 0, with no file flags and 17 unit findings.
 The prior labels cover all unchanged units; saved the new supplier source label.
 Logs: `release-jev-preflight.log` and `release-jev-labels.log`.
 Next: finish both final passes, each named break, and the workspace rerun.
+
+### Reference final workspace rerun
+
+The fresh build and normal workspace tests pass, exit 0.
+All nine tasks pass without a worker override.
+Logs: `retest-build.log` and `retest-workspace.log`.
+No host build ran during these tests.
+The one-worker retry exited 1; its later import error overlapped
+with validate rebuilding Core.
+Log: `release-tests-one-worker.log`.
+The startup failures remain saved, with the later green result.
+
+Every release gate now exits 0, including all 16 validate lanes.
+Logs and commands: `release-gates.json` under the named log folder.
+The final source has no new check warnings.
+Next: finish the round proof, then update the saved gate file.

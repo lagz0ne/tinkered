@@ -1,6 +1,6 @@
 {
   "base": "6e254446",
-  "sourceCommit": "f3bcb04f",
+  "sourceCommit": "df4f50a28b24c2edb35decaf0c8e9ffdc37a2eab",
   "logRoot": "tools/writer-trial/.logs/reference-0102",
   "baseline": [
     {
@@ -30,98 +30,112 @@
       "redLog": "tools/writer-trial/.logs/reference-0102/rounds/round-1/pass-1/own.log",
       "greenExit": 0,
       "greenLog": "tools/writer-trial/.logs/reference-0102/green-readonly-vitest.log"
+    },
+    {
+      "gate": "request-bound supplier settings",
+      "redExit": 1,
+      "redLog": "tools/writer-trial/.logs/reference-0102/red-call-settings.log",
+      "greenExit": 0,
+      "greenLog": "tools/writer-trial/.logs/reference-0102/green-call-settings.log"
+    },
+    {
+      "gate": "native JSON route responses",
+      "redExit": 1,
+      "redLog": "tools/writer-trial/.logs/reference-0102/round-4-probe/round-4/pass-1/teacher.log",
+      "greenExit": 0,
+      "greenLog": "tools/writer-trial/.logs/reference-0102/rounds-final-b/round-4/pass-1/teacher.log"
     }
   ],
   "gates": [
     {
-      "gate": "final-build",
+      "gate": "release-build",
       "command": "vp run -r build",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-build.log"
+      "log": "tools/writer-trial/.logs/reference-0102/retest-build.log"
     },
     {
-      "gate": "final-app-build",
+      "gate": "release-app-build",
       "command": "node tools/flight-trial/reference/run.mjs build",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-app-build.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-app-build.log"
     },
     {
-      "gate": "final-check",
+      "gate": "release-check",
       "command": "vp check",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-check.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-check.log"
     },
     {
-      "gate": "final-tests",
+      "gate": "release-tests",
       "command": "vp run -r test",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-tests.log"
+      "log": "tools/writer-trial/.logs/reference-0102/retest-workspace.log"
     },
     {
-      "gate": "final-writer-tests",
+      "gate": "release-writer-tests",
       "command": "node --test tools/writer-trial/*.test.mjs",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-writer-tests.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-writer-tests.log"
     },
     {
-      "gate": "final-reference-tests",
+      "gate": "release-reference-tests",
       "command": "cd tools/flight-trial/reference && node node_modules/vite-plus/bin/vp test --config vitest.config.ts",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-reference-tests.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-reference-tests.log"
     },
     {
-      "gate": "final-plain",
+      "gate": "release-plain",
       "command": "node apps/start-scaffold/scripts/check-plain.mjs tools/flight-trial/reference",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-plain.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-plain.log"
     },
     {
-      "gate": "final-diff",
+      "gate": "release-diff",
       "command": "diff -r apps/start-scaffold/src/scaffold tools/flight-trial/reference/src/scaffold",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-diff.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-diff.log"
     },
     {
-      "gate": "final-s24",
+      "gate": "release-s24",
       "command": "node tools/writer-trial/.logs/reference-0102/s24.mjs",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-s24.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-s24.log"
     },
     {
-      "gate": "final-style",
+      "gate": "release-style",
       "command": "mapfile -t files < <(rg --files tools/flight-trial/reference/src tools/flight-trial/reference/tests -g '*.ts' -g '*.tsx' -g '!routeTree.gen.ts'); bash .agents/skills/coding-convention/scripts/style-census.sh \"${files[@]}\" --strict",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-style.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-style.log"
     },
     {
-      "gate": "final-types",
+      "gate": "release-types",
       "command": "node tools/flight-trial/reference/node_modules/typescript/bin/tsc --noEmit -p tools/flight-trial/reference",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-types.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-types.log"
     },
     {
-      "gate": "final-jev-test-quality",
+      "gate": "release-jev-test-quality",
       "command": "node tools/jev/tests.mjs tools/flight-trial/reference/tests/flight-http.proof.ts",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-jev-test-quality.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-jev-test-quality.log"
     },
     {
-      "gate": "final-jev-promises",
+      "gate": "release-jev-promises",
       "command": "node tools/writer-trial/.logs/reference-0102/promises.mjs reference",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-jev-promises.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-jev-promises.log"
     },
     {
-      "gate": "final-prose",
+      "gate": "release-prose",
       "command": "vp run prose",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-prose.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-prose.log"
     },
     {
-      "gate": "final-validate",
+      "gate": "release-validate",
       "command": "pnpm validate",
       "exit": 0,
-      "log": "tools/writer-trial/.logs/reference-0102/final-validate.log"
+      "log": "tools/writer-trial/.logs/reference-0102/release-validate.log"
     }
   ],
   "extraGates": [
@@ -154,6 +168,16 @@
       "gate": "services image",
       "exit": 0,
       "log": "tools/writer-trial/.logs/reference-0102/services-image-build.log"
+    },
+    {
+      "gate": "final Jev preflight",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/release-jev-preflight.log"
+    },
+    {
+      "gate": "final Jev supplier label",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/release-jev-labels.log"
     }
   ],
   "images": {
@@ -176,17 +200,50 @@
   },
   "roundProof": {
     "status": "running",
-    "log": "tools/writer-trial/.logs/reference-0102/rounds-green.log",
-    "results": "tools/writer-trial/.logs/reference-0102/rounds-green/results.json"
+    "roots": [
+      "tools/writer-trial/.logs/reference-0102/rounds-final-a",
+      "tools/writer-trial/.logs/reference-0102/rounds-final-b"
+    ]
   },
   "sourceHashes": {
+    "tools/flight-trial/reference/.env.example": "8b8ccf1260c3274794fcc3f5e72303884a08a95adb13d14e67166fb40e1d76f2",
+    "tools/flight-trial/reference/.gitignore": "4c75bb9150d66cd20c33d5f0ed4356d5b9136b5b3013fe71e1700b3441306f8c",
+    "tools/flight-trial/reference/PLAIN.md": "6ae7e82937de004620ff733dba1c704a7a93c35e1ba7b759e82fd8681da04dfc",
+    "tools/flight-trial/reference/README.md": "114d5edb70d63e109a5d02896a519c084a29bf2c24d93e1fc2763b497fff686c",
+    "tools/flight-trial/reference/components.json": "add3b985144887e4a03f565d897f87a596bed6cad836a22f1f82ea977f5780a7",
+    "tools/flight-trial/reference/drizzle.config.ts": "4572158b5003642b1cddfe2f784eb1c2b58148c87de4bb499d8bff4f4cb7c879",
+    "tools/flight-trial/reference/drizzle/20261002031710_past_preak/migration.sql": "eadb14c0a84c72f05200651bca94c6f01105845ed0b110f682de1c466d45c93b",
+    "tools/flight-trial/reference/drizzle/20261002031710_past_preak/snapshot.json": "7d9e41d812549b17a5e6b40df194c110fcae8ec22027622cbadd02e12a797788",
+    "tools/flight-trial/reference/drizzle/20261002051447_steady_mother_askani/migration.sql": "8af98a61b20373341eb2700948e15267a826cec1859b89d781ec9c058aafd082",
+    "tools/flight-trial/reference/drizzle/20261002051447_steady_mother_askani/snapshot.json": "69f64d5223ebfd43f469fd0f35689477b08e846468fde8fe54463d233079b443",
+    "tools/flight-trial/reference/drizzle/20261002092416_melted_forgotten_one/migration.sql": "09917e9fce476ba15615c32df5b951f884ada6567933170c94628e38d04859d2",
+    "tools/flight-trial/reference/drizzle/20261002092416_melted_forgotten_one/snapshot.json": "c73c69b3a3de83cf413897692018bb8792e6bb354c25aa1e91092202d521e338",
+    "tools/flight-trial/reference/drizzle/20261002110319_sync_notifications/migration.sql": "26ed94609b02dc8bbf70d8e96fbfa941467a109bdb82ef88135ab68b606ce0ab",
+    "tools/flight-trial/reference/drizzle/20261002110319_sync_notifications/snapshot.json": "eeaa33891ad972c61b4e656916a535e6942fa054ea30472de4cee60742614d86",
+    "tools/flight-trial/reference/drizzle/20261003053247_mute_drax/migration.sql": "a9bafd82f7ba8e59c817eb459874ee58aacd2647757fe972c69134026bad910d",
+    "tools/flight-trial/reference/drizzle/20261003053247_mute_drax/snapshot.json": "9f26c2d5c55357125c36ad9c7fab49af934f2fd20889db3c6d8a26a82e8e977c",
+    "tools/flight-trial/reference/drizzle/20261003054107_left_lorna_dane/migration.sql": "d706f8700c6654aa3fb030fd86c3f60ead360000c9ccbc4573cfa238c6946cce",
+    "tools/flight-trial/reference/drizzle/20261003054107_left_lorna_dane/snapshot.json": "52625160d6dff4a5488e8df508753d279bf17dfcf693312c4a0ba380f6471cd2",
+    "tools/flight-trial/reference/drizzle/20261003062817_purple_cerebro/migration.sql": "08abc3d0d7dcae7890f61f7ffeaac50b300b1777d514daa91538225a7a545034",
+    "tools/flight-trial/reference/drizzle/20261003062817_purple_cerebro/snapshot.json": "5a3cb0478a9543a4471567bc5a424888fc3a69dd57c3910a6186b54135a8c9b5",
+    "tools/flight-trial/reference/drizzle/20261003064040_charming_wendell_vaughn/migration.sql": "3ae1cf8d66df101b8eef6dc81d41021d4ac5f1d8d1b75b4b1029a4a3040d7c6b",
+    "tools/flight-trial/reference/drizzle/20261003064040_charming_wendell_vaughn/snapshot.json": "b03a79d5419e91827730990414168e9c1bfd9137708074af5d73aa76161506f5",
+    "tools/flight-trial/reference/package.json": "14c1160f9c6fb85a2572a8801a85a9816c834de96acaa5263cd2d8c8b2620d99",
+    "tools/flight-trial/reference/proof-env.sh": "b3b5ae9821fd53db4e6d02ab5d38c737e54ebdb05f03ae6f6dfe70b2be014b07",
+    "tools/flight-trial/reference/proof-relay.mjs": "f277f99a74b2b75f1f15f68908c15f7a0a3a37fba8ba55610569fce5ee1b3b13",
+    "tools/flight-trial/reference/run.mjs": "e13613af91de65d0e9e5c8b98ccb75d9a18be239c0757f14262e77983254fa6c",
+    "tools/flight-trial/reference/scripts/check-boundary.mjs": "0ecfa04c55bd8042faa1fad74cbdf9b5d59d6d612a241c480658c3a4b7383cfd",
+    "tools/flight-trial/reference/scripts/check-plain.mjs": "48e0c3b2b8c69973b59643c6df3f0b0621a9a41ddfa854351ec6d4b936dd3383",
+    "tools/flight-trial/reference/scripts/check-schema.mjs": "5d2e45f8016c9c173d9bddccb86a4754c4ff6adfc522fdf276271ec949f224ae",
+    "tools/flight-trial/reference/scripts/check-seam.mjs": "47d5de203a1e7c2a366d0312affd2e4fcdb7d3e26745fd6f614afeeac4b01d0b",
+    "tools/flight-trial/reference/scripts/serve.mjs": "3ac01f1ed7d9a9125d1b6e17c864c64b97abcdb72b193a6fc297536a5be54fcd",
     "tools/flight-trial/reference/src/backend/auth.ts": "f8ce37597c6f9982ac665b8db27ac8c4bff2467a494ba9a79578b0cb0a8c7c31",
     "tools/flight-trial/reference/src/backend/booking-mail.ts": "84c8182e38dfb71ed660534a9c8f8bd9ed0680984e18e7d8bc76508f19940a40",
     "tools/flight-trial/reference/src/backend/bookings.schema.ts": "8afb53e8ca57b6b91ead392b5b8a38f006d19fd6069480458f2867c830f43c8a",
     "tools/flight-trial/reference/src/backend/bookings.ts": "37ff213e734ed2c5a2c1880cd278b6d6927ff0fca450cb0d3af4fe71f2a20055",
     "tools/flight-trial/reference/src/backend/counter.ts": "c5ae5b330502d39fedec7bc8a7b682c86349c46b27e69576a99b1ff57f6c2538",
     "tools/flight-trial/reference/src/backend/database.ts": "18dae9d63a86718a60dc81e4de7899d16c48a29af506843901a77504a20f8e25",
-    "tools/flight-trial/reference/src/backend/flight-http.ts": "ba87cdaf7d350aa13549516804668c27a99d9142e282b33aee5254310306fe87",
+    "tools/flight-trial/reference/src/backend/flight-http.ts": "7f90eec8f2a58ec380405f5b052b4e097ed0431233c6170eb57bf8bb42d81d07",
     "tools/flight-trial/reference/src/backend/flight-search.ts": "ae1b9f8403ea1b6e103770c759c8304084de8ddec167a3dcc9f3a41250af88cc",
     "tools/flight-trial/reference/src/backend/flight-settings.server.ts": "6179988c12fa119606aea79d3576b78d3a7d3c436bc85348c49d442035babbd3",
     "tools/flight-trial/reference/src/backend/flight-stream.ts": "ebf4fead77cf29ae5d554c6f121099abc109deda0f32af98492743f7e297bc47",
@@ -277,11 +334,38 @@
     "tools/flight-trial/reference/src/scaffold/telemetry/state.ts": "b78d10f757d2235f9fe3cae3172fa7a07e089d9ce72d8169b8d9a6d0cd7081e2",
     "tools/flight-trial/reference/src/server.ts": "3fe6e7d7bc01271572c474c568e4454ff0fec243a5ddbbb5fd0637b5355453b4",
     "tools/flight-trial/reference/src/start.ts": "230046c4bb34e54f56011c914d219407c6b2b6dc3fb510e3b8e14f55855b8cdf",
+    "tools/flight-trial/reference/src/style.css": "ce49baf4e1c651983168b1dfd7d9dd5d6f2fc95189278ce146fe9471a0b6f1ea",
     "tools/flight-trial/reference/src/transport/bookings.functions.ts": "6a7ae46910383a53ef83e201aafd504f65719119129b68b9915369e4edff9b50",
     "tools/flight-trial/reference/src/transport/counter.functions.ts": "f8fb73fced4d015fefb96528ce390c7ea0311a004b35c322968d7b5e5d6d8161",
     "tools/flight-trial/reference/src/transport/profile.functions.ts": "b5d33587a588b92ad5c16be05b88af5a6cddb7f7c21e7bf911c1ed9e192988e2",
     "tools/flight-trial/reference/src/transport/result.server.ts": "ac9c1fb8bc5757bbd11ce2975582019bf595ed6a70e84b379b3ad2e148219824",
     "tools/flight-trial/reference/src/transport/routes.server.ts": "ed427cdc9d29763e178d8448aa944b47479e60ac415f6638c2938bb91692fb0f",
-    "tools/flight-trial/reference/src/transport/todos.functions.ts": "d096ed03582f343f2a83bc399150d6e8ce13b92524bfa6325b944bb7aadd60a4"
-  }
+    "tools/flight-trial/reference/src/transport/todos.functions.ts": "d096ed03582f343f2a83bc399150d6e8ce13b92524bfa6325b944bb7aadd60a4",
+    "tools/flight-trial/reference/tests/flight-http.proof.ts": "df647f5eb3bb35720f3ee6d9c21b2169388ad6192c700ec8d5105fda7d770153",
+    "tools/flight-trial/reference/tsconfig.json": "500b942369e54e5322365385bd162593cfed1bd93426e0738101356138909d59",
+    "tools/flight-trial/reference/vite.config.ts": "5e0da0711094c328639f236e67a0b917edfece368759dd8d2faa19e94a0216ae",
+    "tools/flight-trial/reference/vitest.config.ts": "42b36283001f751b9dae1f94a7de1c1111ac848a928f43a13e3f6dec56b50b5d"
+  },
+  "attempts": [
+    {
+      "gate": "workspace tests startup timeout",
+      "exit": 1,
+      "log": "tools/writer-trial/.logs/reference-0102/release-tests.log"
+    },
+    {
+      "gate": "serial task startup timeout",
+      "exit": 1,
+      "log": "tools/writer-trial/.logs/reference-0102/release-tests-serial-2.log"
+    },
+    {
+      "gate": "one-worker retry with overlapping validate build",
+      "exit": 1,
+      "log": "tools/writer-trial/.logs/reference-0102/release-tests-one-worker.log"
+    },
+    {
+      "gate": "supplier entry tests alone",
+      "exit": 0,
+      "log": "tools/writer-trial/.logs/reference-0102/supplier-entry-probe.log"
+    }
+  ]
 }
