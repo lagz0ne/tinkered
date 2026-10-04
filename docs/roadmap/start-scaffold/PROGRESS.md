@@ -1533,3 +1533,12 @@ Only the httpBackend default callback may reference the built-in.
 All five escaped forms pass the old check, which makes each red proof exit 1.
 All five green proofs reject the planted use by the http-request rule.
 The check accepts --cases to run named proofs; --prove alone still runs all cases.
+
+### Fix 2: error request facts
+
+HttpRequestFailed now stores only method and path.
+The native cause is not retained because it can carry the full URL.
+The regression uses a URL and cause with a query token.
+Its exact payload check fails on the old error and passes on the new one.
+The HTTP span name still includes the path, as the user asked.
+A token in that path would show.

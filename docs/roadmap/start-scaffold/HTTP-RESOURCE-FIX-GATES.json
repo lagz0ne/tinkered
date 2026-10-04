@@ -172,6 +172,66 @@
       "code": 0,
       "expected": 0,
       "log": "/tmp/http-review-fix1-prose.log"
+    },
+    {
+      "name": "fix2-red-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix2-red-build.log"
+    },
+    {
+      "name": "fix2-red",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#test",
+        "--",
+        "tests/http.test.ts",
+        "-t",
+        "a network failure keeps only method and path in the managed HTTP error"
+      ],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix2-red.log"
+    },
+    {
+      "name": "fix2-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix2-build.log"
+    },
+    {
+      "name": "fix2-green",
+      "command": [
+        "vp",
+        "run",
+        "--no-cache",
+        "@tinker-start-scaffold#test",
+        "--",
+        "tests/http.test.ts",
+        "-t",
+        "a network failure keeps only method and path in the managed HTTP error"
+      ],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix2-green.log"
+    },
+    {
+      "name": "fix2-check",
+      "command": ["vp", "check"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix2-check.log"
+    },
+    {
+      "name": "fix2-prose",
+      "command": ["vp", "run", "prose"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix2-prose.log"
     }
   ]
 }
