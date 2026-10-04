@@ -1,0 +1,119 @@
+{
+  "branch": "docs/http-0102-0103",
+  "base": "6e254446",
+  "gates": [
+    {
+      "gate": "build",
+      "command": ["vp", "run", "-r", "build"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-build.log"
+    },
+    {
+      "gate": "check",
+      "command": ["vp", "check"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-check.log"
+    },
+    {
+      "gate": "jev-tests",
+      "command": ["vp", "run", "@tinker/jev#test"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-jev-tests.log"
+    },
+    {
+      "gate": "snippet",
+      "command": ["node", "--test", "tools/jev/http-fix.test.mjs"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-snippet.log"
+    },
+    {
+      "gate": "all-tests",
+      "command": ["vp", "run", "-r", "test"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-all-tests.log"
+    },
+    {
+      "gate": "prose",
+      "command": ["vp", "run", "prose"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-prose.log"
+    },
+    {
+      "gate": "validate",
+      "command": ["pnpm", "validate"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-validate.log"
+    },
+    {
+      "gate": "preflight",
+      "command": ["node", "tools/jev/preflight.mjs", "6e254446..HEAD"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-preflight.log"
+    },
+    {
+      "gate": "width",
+      "command": [
+        "node",
+        "scripts/prose-lint.mjs",
+        "--wide",
+        "docs/glossary.md",
+        "apps/start-scaffold/README.md",
+        "apps/start-scaffold/.agents/skills/tinker-forms/SKILL.md",
+        "apps/start-scaffold/.agents/skills/tinker-feature/SKILL.md",
+        "apps/start-scaffold/.agents/skills/tinker-seams/SKILL.md",
+        "tools/jev/README.md"
+      ],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-width.log"
+    },
+    {
+      "gate": "scope-audit",
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/12-scope-audit.log"
+    },
+    {
+      "gate": "proof-build",
+      "command": ["vp", "run", "-r", "build"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/12-proof-build.log"
+    },
+    {
+      "gate": "proof-check",
+      "command": ["vp", "check"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/12-proof-check.log"
+    },
+    {
+      "gate": "proof-prose",
+      "command": ["vp", "run", "prose"],
+      "exit": 0,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/12-proof-prose.log"
+    }
+  ],
+  "red_checks": [
+    {
+      "gate": "old S24 text",
+      "exit": 1,
+      "expected": true,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/05-snippet-red.log"
+    },
+    {
+      "gate": "input-only control",
+      "exit": 1,
+      "expected": true,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/07-input-control-red.log"
+    },
+    {
+      "gate": "initial README format",
+      "exit": 1,
+      "fixed": true,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/06-step2-check.log"
+    },
+    {
+      "gate": "initial gate-record format",
+      "exit": 1,
+      "fixed": true,
+      "log": "/home/paseo/next/tinkered-http-docs/docs/roadmap/start-scaffold/.http-docs-logs/11-check-proof-format-red.log"
+    }
+  ]
+}

@@ -2924,9 +2924,9 @@ The registry and proof wait in Review for the lead.
 Card: docs/http-0102-0103.
 Owner: Codex writer.
 Branch: docs/http-0102-0103; base: 6e254446.
-Next: correct docs, then S24 text and its copied-scaffold proof.
+Next: lead review; all requested proof is saved.
 Verify: prose, Jev tests, exact fix snippet types, and vp check.
-State: Doing.
+State: Review.
 
 Assume the lead owns TODO.md, review, and landing.
 The folder limit keeps TODO.md unchanged.
@@ -2987,3 +2987,44 @@ The test registration is awaited; the new promise warning is gone.
 The check keeps the base's 28 warnings.
 No plain guard behavior or judge rule changed.
 The old package path in plain tests is now a generic example package.
+
+### Step 3: final writer proof
+
+Docs step: 6502858b.
+S24 fix and copied-scaffold test: 18670bfb.
+
+The final gate chain exits 0.
+Build, check, Jev tests, the exact snippet, all tests, prose,
+validate, preflight, and doc width each exit 0.
+[HTTP-DOCS-GATES.json](HTTP-DOCS-GATES.json) records commands, exits, and log paths.
+Final logs use the 11- prefix in .http-docs-logs/.
+Both expected failing controls keep their exit 1 logs in that record.
+The first gate record needed formatting; its failed log stays saved too.
+
+All 148 Jev tests pass.
+All 1,252 Vitest tests pass; one existing skip remains.
+All sixteen validate lanes pass.
+The check has zero errors and the base's 28 warnings.
+All eleven warning files match 6e254446 byte for byte.
+Proof: .http-docs-logs/12-scope-audit.log, exit 0.
+App source, both trial folders, and the workspace config match base.
+No temporary copied scaffold remains.
+The six touched current docs have no wide rows or fenced lines.
+
+Assume the given base is the review base, even if main advances.
+Preflight uses 6e254446..HEAD and has zero flags.
+Its source lane reads TypeScript; no TypeScript source file changed.
+No TypeScript package tests changed, so package test and promise judges do not apply.
+No Jev labels or judge rules were added.
+No public symbol changed, so no cross-package impact block is needed.
+
+Core feedback: no new gap.
+The direct graceful-close limit and its earlier failing shape stay above.
+Stop tags are the shipped way to end that wait.
+No runtime fix, mutation lane, or timing claim was part of this card.
+The lead owns review, board changes, and landing.
+
+Proof save repeats build, check, and prose; all three exit 0.
+Logs: 12-proof-build.log, 12-proof-check.log, and 12-proof-prose.log.
+The check still has the same 28 warnings.
+The gate record includes these final proof checks too.
