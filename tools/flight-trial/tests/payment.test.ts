@@ -5,6 +5,7 @@ import { createServer, type ServerResponse } from "node:http";
 import { once } from "node:events";
 import { afterAll, afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
+import { httpBackend } from "../services/http-client.ts";
 
 const intentSchema = z.object({
   id: z.string().startsWith("pi_"),
@@ -615,25 +616,29 @@ test("repeated confirmation keeps one delivery and a key keeps its original repl
       message: "idempotency_key_in_use",
     },
   });
-  const log = z
-    .object({
-      data: z.array(
-        z.object({
-          kind: z.enum(["service", "control", "webhook"]),
-          route: z.string(),
-          time: z.number(),
-          status: z.number(),
-        }),
-      ),
-    })
-    .parse(
-      await (
-        await fetch(`${url}/control/calls`, { headers: { authorization: "Bearer grader" } })
-      ).json(),
-    );
-  expect(log.data.filter((call) => call.route === "POST webhook")).toEqual([
-    { kind: "webhook", route: "POST webhook", time: 10020, status: 200 },
-  ]);
+  await expect
+    .poll(async () =>
+      z
+        .object({
+          data: z.array(
+            z.object({
+              kind: z.enum(["service", "control", "webhook"]),
+              route: z.string(),
+              time: z.number(),
+              status: z.number(),
+            }),
+          ),
+        })
+        .parse(
+          await (
+            await fetch(`${url}/control/calls`, {
+              headers: { authorization: "Bearer grader" },
+            })
+          ).json(),
+        )
+        .data.filter((call) => call.route === "POST webhook"),
+    )
+    .toEqual([{ kind: "webhook", route: "POST webhook", time: 10020, status: 200 }]);
 });
 
 test("partial refunds share the paid limit only with the same intent", async () => {
@@ -1552,4 +1557,56 @@ test("stopping payment aborts an outgoing webhook and closes its HTTP port", asy
     )
     .toBe(0);
   await expect(fetch(`${url}/v1/payment_intents/missing`)).rejects.toBeDefined();
+});
+
+test("a graceful close aborts a webhook while its response body is open", async () => {
+  const {
+    paymentApp,
+    webhookUrl: webhookUrlTag,
+    webhookSecret,
+    webhookDelayMs,
+    port,
+    host,
+    controlToken,
+    stopSignal,
+  } = await import("../src/index.ts");
+  await fetch(`${webhookUrl}/control/hold`);
+  const stop = new AbortController();
+  const scope = createScope({
+    signal: stop.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stop.signal),
+      webhookUrlTag(`${webhookUrl}/webhooks/stripe`),
+      webhookSecret(secret),
+      webhookDelayMs(20),
+      httpBackend((input, init) => fetch(input, init)),
+    ],
+  });
+  running.push({ stop, closed: scope.closed });
+  await scope.ready;
+  const { url } = scope.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
+  await confirm(url);
+  await post(url, "/control/clock", { advanceMs: 20 });
+  await expect.poll(() => received.length).toBe(1);
+  const closing = scope.close({ graceful: true });
+  try {
+    await expect
+      .poll(
+        async () =>
+          z
+            .object({ pending: z.number() })
+            .parse(await (await fetch(`${webhookUrl}/control/pending`)).json()).pending,
+      )
+      .toBe(0);
+    expect((await closing).status).toBe("success");
+    expect(stop.signal.aborted).toBe(false);
+  } finally {
+    stop.abort();
+    await closing;
+  }
 });

@@ -69,8 +69,14 @@ Payment intent status is domain state, not an HTTP response code.
 Body decoding runs in `decodeBody`.
 One resource callback writes JSON and sets the content type.
 Its error map also keeps payment control failures in Duffel shape.
-The signed webhook client owns the Stripe body, signature, and fetch call.
-The delivery operation supplies an event and records the returned call facts.
+The signed webhook client owns the Stripe body, signature, and wire log.
+The delivery operation runs `httpRequest` once per event copy.
+It maps each reply to `delivered`, `rejected`, or `unreachable`.
+The log keeps that outcome; its wire view keeps the exact old status.
+The HTTP resource wraps built-in fetch through `httpBackend`.
+The payment close hook stops it before Core drains running operations.
+The resource also aborts on cleanup and caller cancellation.
+The service error guard narrows `HttpRequestFailed` by kind.
 Payment keys have separate start and save operations.
 Their middleware always resolves or deletes a pending key in `finally`.
 The listener tracks response completion before closing all connections.

@@ -1,6 +1,8 @@
 import { createHmac } from "node:crypto";
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
+import { http, httpRequest } from "../http-client.ts";
+import { isError } from "../errors.ts";
 import {
   calls,
   clock,
@@ -28,6 +30,7 @@ const errors = {
 };
 
 export declare namespace Payment {
+  type WebhookOutcome = "delivered" | "rejected" | "unreachable";
   type Intent = {
     id: string;
     object: "payment_intent";
@@ -120,13 +123,14 @@ const sendSchema = z.object({
 });
 const scenarioSchema = z.object({ name: z.enum(["default", "payment-failed"]) });
 
-/** This client owns Stripe's event body, signature, and HTTP request. */
+/** Owns Stripe's wire body, signature, and exact status in the grader's wire log. */
 const webhookClient = resource({
   label: "signed webhook client",
-  depends: { webhookUrl, secret, stop: stopSignal },
-  factory({ webhookUrl, secret, stop }, ctx) {
+  target: "session",
+  depends: { webhookUrl, secret, clock, calls: calls.controller, stop: stopSignal },
+  factory({ webhookUrl, secret, clock, calls, stop }, ctx) {
     return {
-      async *send(event: Payment.Event, signal: AbortSignal) {
+      prepare(event: Payment.Event) {
         const timestamp = Math.floor(ctx.clock.currentTimeMillis() / 1000);
         const body = JSON.stringify({
           id: event.id,
@@ -139,25 +143,29 @@ const webhookClient = resource({
           data: { object: event.intent },
         });
         const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
-        for (let copy = 0; copy < event.copies; copy++) {
-          let status = 0;
-          try {
-            const response = await fetch(webhookUrl, {
-              method: "POST",
-              headers: {
-                "content-type": "application/json",
-                "Stripe-Signature": `t=${timestamp},v1=${signature}`,
-              },
-              body,
-              signal: AbortSignal.any([stop, signal]),
-            });
-            status = response.status;
-            await response.arrayBuffer();
-          } catch (error) {
-            ctx.log.error("webhook delivery failed", { error });
-          }
-          yield status;
-        }
+        return {
+          url: webhookUrl,
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "Stripe-Signature": `t=${timestamp},v1=${signature}`,
+          },
+          body,
+        };
+      },
+      record(delivery: Payment.WebhookOutcome, reply: { status: number } | undefined) {
+        if (!stop.aborted)
+          calls.update((previous) => [
+            ...previous,
+            {
+              id: ctx.random.uuid(),
+              kind: "webhook",
+              route: "POST webhook",
+              time: clock.currentTimeMillis(),
+              status: reply?.status ?? 0,
+              delivery,
+            },
+          ]);
       },
     };
   },
@@ -182,21 +190,26 @@ const sendWebhook = operation({
       latest_charge: z.string().nullable(),
     }),
   }),
-  depends: { client: webhookClient, clock, calls: calls.controller, stop: stopSignal },
-  async run({ client, clock, calls, stop }, ctx) {
-    for await (const status of client.send(ctx.input, ctx.signal)) {
-      if (!stop.aborted)
-        calls.update((previous) => [
-          ...previous,
-          {
-            id: ctx.random.uuid(),
-            kind: "webhook",
-            route: "POST webhook",
-            time: clock.currentTimeMillis(),
-            status,
-          },
-        ]);
+  depends: { client: webhookClient, request: httpRequest.controller },
+  async run({ client, request }, ctx): Promise<Payment.WebhookOutcome[]> {
+    const input = client.prepare(ctx.input);
+    const deliveries: Payment.WebhookOutcome[] = [];
+    for (let copy = 0; copy < ctx.input.copies; copy++) {
+      let reply: { status: number } | undefined;
+      let delivery: Payment.WebhookOutcome;
+      try {
+        reply = await request.run({ rawInput: input });
+        delivery = reply.status >= 200 && reply.status < 300 ? "delivered" : "rejected";
+      } catch (error) {
+        ctx.signal.throwIfAborted();
+        if (!isError(error, "HttpRequestFailed")) throw error;
+        ctx.log.error("webhook delivery failed", { error });
+        delivery = "unreachable";
+      }
+      client.record(delivery, reply);
+      deliveries.push(delivery);
     }
+    return deliveries;
   },
 });
 /** New event IDs each get one timer; creation and reset keep each event with its intent. */
@@ -460,6 +473,10 @@ const saveIntentKey = operation({
 export const app = extension({
   label: "start payment app",
   hooks: {
+    close(event) {
+      event.resolve(http).close();
+      return event.next();
+    },
     async start(event) {
       const scope = event.scope.createSession({ tags: [errorShape("stripe"), wireErrors(errors)] });
       const http = await httpRequests.hooks!.start!({ ...event, scope });

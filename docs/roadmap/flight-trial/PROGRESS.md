@@ -25,6 +25,48 @@ Assumptions:
 Setup build: exit 0.
 Log: `tools/flight-trial/scripts/.logs/services-http/setup-build.log`.
 
+### HTTP resource and webhook step
+
+The resource owns a stop signal shared by requests in flight.
+It keeps that signal through response body reading.
+Each call gets a request operation and its named child span.
+The resource also appears on the span tree.
+Tests bind `httpBackend`; no global is patched.
+The webhook operation returns one domain outcome per copy.
+The wire log keeps the exact status and hides the domain outcome.
+
+Changes from the scaffold:
+
+- The service needs only a status after consuming the reply body.
+  It does not copy unused response headers or text.
+- The resource belongs to the service root.
+  The payment close hook stops it before waiting for operations.
+  Core drains running work before resource cleanup.
+  Copying the scaffold cleanup alone left the webhook open.
+- A service error guard lives in the allowed service folder.
+  The package error file is outside this card's paths.
+- One old log test now polls for its settled wire entry.
+  Receiving the body does not mean the request operation has ended.
+
+Core feedback: graceful close waits before resource cleanup.
+The failing shape is:
+
+```ts
+const sending = scope.run(httpRequest, {
+  rawInput: heldRequest,
+});
+await scope.close({ graceful: true });
+await sending;
+```
+
+With only `ctx.defer(() => stop.abort())`, both waits stay open.
+The close hook calls the resource's `close()` before `event.next()`.
+No Core file changed.
+
+Logs below use `tools/flight-trial/scripts/.logs/services-http/`.
+Red close: exit 1, `red-close.log`; pending reply stays open.
+Red span: exit 1, `red-span.log`; no HTTP child span exists.
+
 ## trial/jev-link
 
 Writer: Sol.

@@ -35,7 +35,7 @@ export declare namespace Wire {
     time: number;
     status: number;
   };
-  type Entry = Call & { id: string };
+  type Entry = Call & { id: string; delivery?: "delivered" | "rejected" | "unreachable" };
   type Rule = { revision: string; delayMs: number; status?: number; repeat: number; saved?: Reply };
   type Rules = Record<string, Rule>;
 }
@@ -143,7 +143,7 @@ export const readCalls = operation({
   label: "read HTTP calls",
   depends: { calls },
   run({ calls }) {
-    return calls.map(({ id: _id, ...call }) => call);
+    return calls.map(({ id: _id, delivery: _delivery, ...call }) => call);
   },
 });
 
