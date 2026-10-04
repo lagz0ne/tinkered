@@ -986,3 +986,41 @@ The first full gate used `5487051b`.
 After the rebase, install, full build, and check pass again.
 Hono passes 93 tests; Stack 136; Jobs 26; tracker 87.
 Final prose and phone-width checks pass on all six touched docs.
+
+## UI state exit, 2026-10-02
+
+The user chose to ask state-owned work to stop on state exit.
+Late replies must not change the shared context.
+The model uses resources for states, data for context, and operations for actions.
+
+Each state resource instance owns a fresh `AbortController`.
+Each call carries that instance's signal, as in ADR 0090.
+The exit operation aborts it before the driver releases the resource.
+Before publishing a reply, the operation checks `ctx.signal.aborted`.
+Resource cleanup also aborts the controller.
+Cleanup alone is too late while a call still uses the resource.
+
+The state resource keeps the context controller it resolved.
+Accepted replies write through that controller into the shared context.
+A signalled call's own data writes would stay in its child session.
+
+Proof: a public-API probe imported current Core source with Node's type stripping.
+The old call received its stop signal but returned a reply later.
+A new state instance published its reply before that old reply arrived.
+Every assertion passed, exit 0.
+
+```json
+{
+  "oldStopRequested": true,
+  "newStateStillActive": true,
+  "oldOutcome": "cancelled",
+  "newOutcome": "success",
+  "published": ["new"],
+  "context": "new"
+}
+```
+
+No Core source or public API changed.
+
+Checks: `vp run prose` passes with 0 hits across 176 tracked docs.
+The lead read the doc diff; `git diff --check` passes.

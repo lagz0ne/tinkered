@@ -392,6 +392,11 @@ New sections are lists, one term per item (vertical layout,
 - **call signal** — Stops one action and its child work; the caller stays alive.
 - **tool scope** — Owns a logger, observer, or devtools graph.
 
+## UI state model
+
+- **state resource** — A resource whose live instance marks one active UI state.
+- **state-owned work** — Work tied to one live state resource instance.
+
 ## Start execution results
 
 - **execution ID** — The ID of one change request, shared by its change and result events.

@@ -286,6 +286,14 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Design only; runtime seam and browser proof remain pending.
   [Track](docs/roadmap/start-scaffold/PROGRESS.md#shared-state-and-execution-results).
 
+- **authoring/state-exit-proof** — ask state-owned work to stop; ignore late replies.
+  Owner: lead (Codex, UI state model session).
+  Proof: the old call gets cancelled and its late reply writes nothing;
+  a new state instance publishes; all probe assertions pass, exit 0.
+  Glossary and rule saved; prose has 0 hits; diff check passes.
+  No Core source or public API changed.
+  [Track](docs/roadmap/authoring-model/PROGRESS.md#ui-state-exit-2026-10-02).
+
 - **start/failure-input** — infer the failure context from its input reader.
   Owner: lead (Codex, Start scaffold session); Astra writer.
   Saved: `4dde3c8c`; the reviewed todo view is copied into the main workspace.
