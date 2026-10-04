@@ -1876,3 +1876,13 @@ Each red proof exits 1 because the old checker allowed the import.
 The updated client list rejects all four by http-client.
 Red logs: 01-client-<name>-red.log in the log folder above.
 Green log: 01-clients-green.log.
+
+### Step 2: type-only imports
+
+Both import type and all-type named imports fail the old checker.
+Each red proof exits 1 because it expected an allowed import.
+The checker now skips only imports with type-only bindings.
+The proof keeps mixed, default-plus-type, and empty imports banned.
+The app README and forms skill state the same rules.
+Red logs: 02-import-type-red.log and 02-named-import-type-red.log.
+Green log: 02-types-green.log in the same log folder.
