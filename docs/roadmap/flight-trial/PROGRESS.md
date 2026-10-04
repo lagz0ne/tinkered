@@ -5,8 +5,8 @@
 Writer: Sol.
 Branch: `trial/services-http`.
 Base: `d9c1500b`.
-Status: Doing.
-Next: prove close and span failures, then move sends into the graph.
+Status: Review.
+Next: the lead reviews the saved commits and imports the new Jev row.
 Verify: red then green, wire diff 0, four processes, and fault score 85.
 The lead owns the board card; `TODO.md` is outside the allowed paths.
 
@@ -171,6 +171,30 @@ Log: `final-four-process.log`.
 No app or writer-trial path was changed.
 The mutation config matches the assigned base byte for byte.
 Next: the full mutation lane alone under the lock, with floor 85.
+
+### Full mutation and handoff
+
+The full mutation lane exits 0 at 92.83 percent, above floor 85.
+It ran alone under `flock /tmp/mutation.lock`.
+All 11 source files and all 1,757 cases stayed included.
+All 421 static cases stayed included.
+Nothing was ignored or excluded.
+The config still matches the assigned base byte for byte.
+The full report's source text matches every current source file.
+There are no compile or runner errors.
+
+Counts: 1,435 killed, 196 timeouts, 94 survivors, 32 without coverage.
+Stryker counts timeouts as detected cases in its score.
+The HTTP client itself scores 95.56 percent.
+Log: `mutation.log`.
+Full report: `mutation-report.log`.
+Counts and source hashes: `SERVICES-HTTP-MUTATION.json`.
+
+No source or test changed after the passing gates or mutation run.
+The last commit saves proof only.
+The strict style census passes.
+No app file, shared Jev file, workspace config, push, or stash changed.
+The lead owns the board update and landing.
 
 ## trial/jev-link
 

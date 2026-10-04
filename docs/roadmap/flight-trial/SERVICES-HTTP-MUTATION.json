@@ -1,0 +1,125 @@
+{
+  "command": "flock /tmp/mutation.lock vp run flight-trial#mutate",
+  "exitCode": 0,
+  "score": 92.83,
+  "floor": 85,
+  "cases": 1757,
+  "staticCases": 421,
+  "counts": {
+    "NoCoverage": 32,
+    "Killed": 1435,
+    "Survived": 94,
+    "Timeout": 196
+  },
+  "excludedCases": 0,
+  "configMatchesBase": true,
+  "reportSourceMatches": true,
+  "files": [
+    {
+      "file": "tools/flight-trial/services/http.ts",
+      "sha256": "e2a38244b1bdad300124fcfa567f44c2cfabf1fccf08df24b3cc09f4b7a8ab7d",
+      "cases": 475,
+      "counts": {
+        "NoCoverage": 4,
+        "Killed": 351,
+        "Survived": 34,
+        "Timeout": 86
+      }
+    },
+    {
+      "file": "tools/flight-trial/services/payment/index.ts",
+      "sha256": "1bca675fcec26b3a11df92307f787da735fb5f1f7ce5841c2a3a8be227959076",
+      "cases": 494,
+      "counts": {
+        "NoCoverage": 13,
+        "Killed": 411,
+        "Survived": 19,
+        "Timeout": 51
+      }
+    },
+    {
+      "file": "tools/flight-trial/services/payment/main.ts",
+      "sha256": "187fbd7012af9421ab5c4b5cbb1308e006f108994d049ded32f5b21ffe756a8a",
+      "cases": 28,
+      "counts": {
+        "NoCoverage": 3,
+        "Survived": 10,
+        "Killed": 14,
+        "Timeout": 1
+      }
+    },
+    {
+      "file": "tools/flight-trial/services/supplier/index.ts",
+      "sha256": "f199b4318859bec9db3d4ecb044f990acb73cd9d68702320a9fa68086ae4edce",
+      "cases": 424,
+      "counts": {
+        "NoCoverage": 1,
+        "Killed": 382,
+        "Survived": 3,
+        "Timeout": 38
+      }
+    },
+    {
+      "file": "tools/flight-trial/services/supplier/main.ts",
+      "sha256": "1912178e849440d48781721ee87ebfd8d3ed9c7415285b0475da97ebe906aa85",
+      "cases": 28,
+      "counts": {
+        "NoCoverage": 3,
+        "Killed": 15,
+        "Survived": 9,
+        "Timeout": 1
+      }
+    },
+    {
+      "file": "tools/flight-trial/src/errors.ts",
+      "sha256": "7cae2e8d1fdbc8e052f621380007dc714a38a1d4db0ca3a86e3e664c1277cea6",
+      "cases": 17,
+      "counts": {
+        "NoCoverage": 4,
+        "Killed": 7,
+        "Survived": 6
+      }
+    },
+    {
+      "file": "tools/flight-trial/src/flights.ts",
+      "sha256": "07c49e3be704db906e1a14327d7f718c0fa4f78043ac9c2c0a60227cfd0088d6",
+      "cases": 204,
+      "counts": {
+        "NoCoverage": 4,
+        "Killed": 189,
+        "Survived": 6,
+        "Timeout": 5
+      }
+    },
+    {
+      "file": "tools/flight-trial/services/errors.ts",
+      "sha256": "45aca33135e11670217598e15eb8ad90b035ed34b9252a2ee17e338fafe12f79",
+      "cases": 9,
+      "counts": {
+        "Survived": 5,
+        "Killed": 4
+      }
+    },
+    {
+      "file": "tools/flight-trial/services/http-client.ts",
+      "sha256": "345e110d4277622cbd5a2c0e42f89f9406acc7cc1c84415fe45c7c0ec7154e1a",
+      "cases": 45,
+      "counts": {
+        "Killed": 31,
+        "Survived": 2,
+        "Timeout": 12
+      }
+    },
+    {
+      "file": "tools/flight-trial/src/schema.ts",
+      "sha256": "186a6669c095873b484886797bf8d252938c7f759b07e43624d0c4a8b609774d",
+      "cases": 33,
+      "counts": {
+        "Killed": 31,
+        "Timeout": 2
+      }
+    }
+  ],
+  "log": "tools/flight-trial/scripts/.logs/services-http/mutation.log",
+  "report": "tools/flight-trial/scripts/.logs/services-http/mutation-report.log"
+}

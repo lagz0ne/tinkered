@@ -110,6 +110,73 @@
       "command": "node tools/flight-trial/scripts/logs/services-http-jev/calibrate.mjs --judge configNotTag",
       "exitCode": 0,
       "log": "tools/flight-trial/scripts/.logs/services-http/jev-calibration.log"
+    },
+    {
+      "command": "flock /tmp/mutation.lock vp run flight-trial#mutate",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/mutation.log",
+      "gate": "mutation",
+      "score": 92.83
+    },
+    {
+      "gate": "scope",
+      "command": "Allowed-path, source-hash, shared-file, and git diff --check proof",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/final-scope.log"
+    },
+    {
+      "gate": "handoff-prose",
+      "command": "vp run prose",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/.logs/services-http/handoff-prose.log"
     }
-  ]
+  ],
+  "redGreen": [
+    {
+      "test": "graceful close",
+      "redExit": 1,
+      "red": "tools/flight-trial/scripts/.logs/services-http/red-close.log",
+      "greenExit": 0,
+      "green": "tools/flight-trial/scripts/.logs/services-http/green-close.log"
+    },
+    {
+      "test": "HTTP span and resource",
+      "redExit": 1,
+      "red": "tools/flight-trial/scripts/.logs/services-http/red-span.log",
+      "greenExit": 0,
+      "green": "tools/flight-trial/scripts/.logs/services-http/green-span.log"
+    },
+    {
+      "test": "five domain outcome cases",
+      "redExit": 1,
+      "red": "tools/flight-trial/scripts/.logs/services-http/red-outcomes.log",
+      "greenExit": 0,
+      "green": "tools/flight-trial/scripts/.logs/services-http/green-outcomes.log"
+    },
+    {
+      "test": "four planted fetch calls",
+      "redExit": 1,
+      "red": "tools/flight-trial/scripts/.logs/services-http/red-fetch-ban.log",
+      "greenExit": 0,
+      "green": "tools/flight-trial/scripts/.logs/services-http/green-fetch-ban.log"
+    },
+    {
+      "test": "body reading on close",
+      "redExit": 1,
+      "red": "tools/flight-trial/scripts/.logs/services-http/red-close-body.log",
+      "greenExit": 0,
+      "green": "tools/flight-trial/scripts/.logs/services-http/green-close-body.log"
+    },
+    {
+      "test": "caller cancellation",
+      "redExit": 1,
+      "red": "tools/flight-trial/scripts/.logs/services-http/red-cancel.log",
+      "greenExit": 0,
+      "green": "tools/flight-trial/scripts/.logs/services-http/green-cancel.log"
+    }
+  ],
+  "commitHook": {
+    "exitCode": 0,
+    "log": "tools/flight-trial/scripts/.logs/services-http/handoff-commit.log"
+  }
 }
