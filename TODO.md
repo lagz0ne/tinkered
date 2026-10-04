@@ -24,20 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **trial/reference-0102** — port the flight reference answer to today's scaffold.
-  Next: after `start/protocol-reply`. Server calls through `httpRequest`; browser calls through
-  server functions; statuses mapped in routes; `.validator`; copy `src/scaffold/` exactly.
-  Verify: the scaffold's `check:plain` exits 0 on it; S24 finds 0; rounds 1-5 pass twice; canaries fail by name.
-
-- **trial/images-0102** — rebuild the flight writer and services images; update `config.json`.
-  Next: after `trial/reference-0102` and `trial/services-http`.
-  Verify: the image's `check:plain` has the HTTP rules; the reference passes the full gate on it.
-
-- **docs/http-0102-0103** — bring ADRs 0102 and 0103, the glossary, README, and S24's fix text in line with the code.
-  Next: after `start/protocol-reply`. Two spans per request; session-target close; ban list;
-  WebSocket and EventSource out of scope; S24 uses `rawInput` and `@/lib/tinker.server`.
-  Verify: prose; Jev tests; the S24 snippet typechecks in a scaffold copy.
-
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
@@ -63,6 +49,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **trial/reference-0102** — the flight reference passes today's gate; new images; the next trial can run.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Folds in `trial/images-0102`.
+  Worktree: `../tinkered-reference-0102`. Search stream uses SSE (user 2026-10-04).
+  Next: copy today's scaffold; server calls through `httpRequest`; replies mapped; new images.
+  Verify: scaffold `check:plain` exits 0 on it; S24 0; rounds 1-5 twice and planted breaks on the new images.
+  [Brief](docs/roadmap/flight-trial/REFERENCE-0102-BRIEF.md).
+
+- **docs/http-0102-0103** — docs and fix texts say exactly what the HTTP and protocol code does.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-http-docs`.
+  Next: ADR 0102 details, glossary HTTP section, README and skills, S24 fix text.
+  Verify: prose; Jev tests; the S24 snippet typechecks.
+  [Brief](docs/roadmap/start-scaffold/HTTP-DOCS-BRIEF.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
