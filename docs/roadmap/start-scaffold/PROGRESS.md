@@ -2124,7 +2124,7 @@ Each answer is false:
 - effectWithoutDefer: httpScopes clears child holds with ctx.defer.
   Child onClose drops its parent hold; Core still owns native teardown.
 - stateOutsideCell: held native methods and stop methods are private work state.
-  The close promise is lifetime state, not a saved or visible record.
+  The close phase is lifetime state, not a saved or visible record.
 - configNotTag: request values and safe error facts belong to this call.
   The backend still comes from httpBackend.
 
@@ -2192,3 +2192,12 @@ Green: 08-cleanup-green.log.
 All HTTP tests: 08-http-final.log.
 Check: 08-check-final.log.
 The registry and full proof will be rebuilt for this last source change.
+
+The final cleanup assertion reads the whole close result.
+A failed cleanup assertion can be kept in teardownErrors by Core.
+Checking the whole result makes that failure visible to the test.
+Final HTTP proof: 09-http-final.log, all 19 tests green.
+The final label rows use the phase-based source in the same docs file.
+The rows use the shipped slice and forJev readers.
+They keep the label command's exact row shape and hash rule.
+The shared bank remains unchanged.
