@@ -1967,3 +1967,50 @@ The lead addition requires a fresh full proof of 134 cases.
 Its final logs use the 13 prefix.
 Red addition logs: 12-client-<case>-red.log.
 Shared green addition log: 12-extra-green.log.
+
+### Root gate after the lead addition
+
+The root build, check, app tests, and all repo tests chain exits 0.
+The app passes 51 tests.
+The repo passes 1,222 tests with one existing skip.
+Root check has zero errors and the same 28 warnings.
+The 16 validate lanes all pass, exit 0.
+
+The final registry was rebuilt after the added bans.
+The added-case proof passes all ten banned cases and both allowed transports.
+No TypeScript source changed after the earlier Jev and strict style checks.
+The remaining full plain and copied registry proofs use the final source.
+Their finished results will be saved in HTTP-POLISH-GATES.json.
+
+Gate chain log: /tmp/tinkered-http-polish-logs/08-gate-chain.log.
+Validate log: /tmp/tinkered-http-polish-logs/09-validate.log.
+
+### Final writer proof
+
+The final plain proof passes all 134 cases, exit 0.
+It has 130 planted failures and four allowed cases.
+The allowed cases are both type-only imports and both sync transports.
+The source still has 17 plain functions.
+
+All 113 registry files match final source.
+All 15 copied-starter gates exit 0.
+The copied starter passes 49 tests.
+The native WebSocket and EventSource exceptions remain in force under ADR 0048.
+
+[HTTP-POLISH-GATES.json](HTTP-POLISH-GATES.json) records each command, exit code, and log.
+It includes 21 separate red then green proof pairs.
+Each red check exits 1; each fixed check exits 0.
+The four allowed final cases each exit 0.
+
+[HTTP-POLISH-JEV-LABELS.jsonl](HTTP-POLISH-JEV-LABELS.jsonl) holds the two false label rows.
+The lead owns the shared bank merge and landing calibration.
+No new Core feedback came from this work.
+No full mutation lane was requested.
+Only the two allowed folders changed.
+No stash, push, trial-store access, or container command was used.
+All long jobs finished before this report.
+The writer's code and registry are ready for lead review.
+
+Final proof log: /tmp/tinkered-http-polish-logs/13-plain-prove.log.
+Final registry log: /tmp/tinkered-http-polish-logs/13-registry-green.log.
+The next commit saves the final registry, label rows, and this proof record.

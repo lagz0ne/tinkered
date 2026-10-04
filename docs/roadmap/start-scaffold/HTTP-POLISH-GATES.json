@@ -1,0 +1,2063 @@
+{
+  "card": "start/http-polish",
+  "branch": "start/http-polish",
+  "base": "7f27950b3626b563dd643cbce6d76a77fffdd412",
+  "logDirectory": "/tmp/tinkered-http-polish-logs",
+  "sourceCommits": [
+    "8a751151 fix(start): ban http2 ws and ofetch client imports",
+    "81069759 fix(start): allow type-only HTTP client imports",
+    "a0f3b089 fix(start): keep safe HTTP cause fields independently",
+    "c8fbb897 fix(start): block raw socket and browser HTTP sends"
+  ],
+  "gates": [
+    {
+      "name": "00-initial-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/00-initial-build.log"
+    },
+    {
+      "name": "01-check-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-check-build.log",
+      "before": "01-check"
+    },
+    {
+      "name": "01-check",
+      "command": "vp check",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-check.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/01-check-build.log"
+    },
+    {
+      "name": "01-client-http2-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-client-http2-red-build.log",
+      "before": "01-client-http2-red"
+    },
+    {
+      "name": "01-client-http2-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-http2",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/01-client-http2-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/01-client-http2-red-build.log"
+    },
+    {
+      "name": "01-client-node-http2-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-client-node-http2-red-build.log",
+      "before": "01-client-node-http2-red"
+    },
+    {
+      "name": "01-client-node-http2-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-node-http2",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/01-client-node-http2-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/01-client-node-http2-red-build.log"
+    },
+    {
+      "name": "01-client-ofetch-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-client-ofetch-red-build.log",
+      "before": "01-client-ofetch-red"
+    },
+    {
+      "name": "01-client-ofetch-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-ofetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/01-client-ofetch-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/01-client-ofetch-red-build.log"
+    },
+    {
+      "name": "01-client-ws-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-client-ws-red-build.log",
+      "before": "01-client-ws-red"
+    },
+    {
+      "name": "01-client-ws-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-ws",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/01-client-ws-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/01-client-ws-red-build.log"
+    },
+    {
+      "name": "01-clients-green-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-clients-green-build.log",
+      "before": "01-clients-green"
+    },
+    {
+      "name": "01-clients-green",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-node-http2,client-http2,client-ws,client-ofetch",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-clients-green.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/01-clients-green-build.log"
+    },
+    {
+      "name": "01-commit",
+      "command": "git commit -m 'fix(start): ban http2 ws and ofetch client imports'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-commit.log"
+    },
+    {
+      "name": "01-format",
+      "command": "vp fmt apps/start-scaffold/scripts/check-plain.mjs docs/roadmap/start-scaffold/PROGRESS.md",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-format.log"
+    },
+    {
+      "name": "01-prose-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-prose-build.log",
+      "before": "01-prose"
+    },
+    {
+      "name": "01-prose",
+      "command": "vp run prose",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/01-prose.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/01-prose-build.log"
+    },
+    {
+      "name": "02-check-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-check-build.log",
+      "before": "02-check"
+    },
+    {
+      "name": "02-check",
+      "command": "vp check",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-check.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/02-check-build.log"
+    },
+    {
+      "name": "02-commit",
+      "command": "git commit -m 'fix(start): allow type-only HTTP client imports'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-commit.log"
+    },
+    {
+      "name": "02-format",
+      "command": "vp fmt apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/README.md apps/start-scaffold/.agents/skills/tinker-forms/SKILL.md docs/roadmap/start-scaffold/PROGRESS.md",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-format.log"
+    },
+    {
+      "name": "02-import-type-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-import-type-red-build.log",
+      "before": "02-import-type-red"
+    },
+    {
+      "name": "02-import-type-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-import-type",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/02-import-type-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/02-import-type-red-build.log"
+    },
+    {
+      "name": "02-named-import-type-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-named-import-type-red-build.log",
+      "before": "02-named-import-type-red"
+    },
+    {
+      "name": "02-named-import-type-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-named-import-type",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/02-named-import-type-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/02-named-import-type-red-build.log"
+    },
+    {
+      "name": "02-prose-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-prose-build.log",
+      "before": "02-prose"
+    },
+    {
+      "name": "02-prose",
+      "command": "vp run prose",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-prose.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/02-prose-build.log"
+    },
+    {
+      "name": "02-types-green-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-types-green-build.log",
+      "before": "02-types-green"
+    },
+    {
+      "name": "02-types-green",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-import-type,client-named-import-type,client-mixed-import,client-default-and-type,client-empty-import",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/02-types-green.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/02-types-green-build.log"
+    },
+    {
+      "name": "03-abort-green-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-abort-green-build.log",
+      "before": "03-abort-green"
+    },
+    {
+      "name": "03-abort-green",
+      "command": "vp run '@tinker-start-scaffold#test' tests/http.test.ts -t 'an abort failure'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-abort-green.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-abort-green-build.log"
+    },
+    {
+      "name": "03-abort-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-abort-red-build.log",
+      "before": "03-abort-red"
+    },
+    {
+      "name": "03-abort-red",
+      "command": "vp run '@tinker-start-scaffold#test' tests/http.test.ts -t 'an abort failure'",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/03-abort-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-abort-red-build.log"
+    },
+    {
+      "name": "03-check-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-check-build.log",
+      "before": "03-check"
+    },
+    {
+      "name": "03-check",
+      "command": "vp check",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-check.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-check-build.log"
+    },
+    {
+      "name": "03-commit",
+      "command": "git commit -m 'fix(start): keep safe HTTP cause fields independently'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-commit.log"
+    },
+    {
+      "name": "03-format",
+      "command": "vp fmt apps/start-scaffold/src/scaffold/backend/http.ts apps/start-scaffold/src/scaffold/errors.ts apps/start-scaffold/README.md apps/start-scaffold/.agents/skills/tinker-forms/SKILL.md docs/roadmap/start-scaffold/PROGRESS.md",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-format.log"
+    },
+    {
+      "name": "03-http-tests-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-http-tests-build.log",
+      "before": "03-http-tests"
+    },
+    {
+      "name": "03-http-tests",
+      "command": "vp run '@tinker-start-scaffold#test' tests/http.test.ts",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-http-tests.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-http-tests-build.log"
+    },
+    {
+      "name": "03-partial-fields-green-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-partial-fields-green-build.log",
+      "before": "03-partial-fields-green"
+    },
+    {
+      "name": "03-partial-fields-green",
+      "command": "vp run '@tinker-start-scaffold#test' tests/http.test.ts -t 'readable cause fields'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-partial-fields-green.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-partial-fields-green-build.log"
+    },
+    {
+      "name": "03-partial-fields-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-partial-fields-red-build.log",
+      "before": "03-partial-fields-red"
+    },
+    {
+      "name": "03-partial-fields-red",
+      "command": "vp run '@tinker-start-scaffold#test' tests/http.test.ts -t 'readable cause fields'",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/03-partial-fields-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-partial-fields-red-build.log"
+    },
+    {
+      "name": "03-plain-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-plain-build.log",
+      "before": "03-plain"
+    },
+    {
+      "name": "03-plain",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-plain.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-plain-build.log"
+    },
+    {
+      "name": "03-prose-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-prose-build.log",
+      "before": "03-prose"
+    },
+    {
+      "name": "03-prose",
+      "command": "vp run prose",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-prose.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-prose-build.log"
+    },
+    {
+      "name": "03-string-cause-green-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-string-cause-green-build.log",
+      "before": "03-string-cause-green"
+    },
+    {
+      "name": "03-string-cause-green",
+      "command": "vp run '@tinker-start-scaffold#test' tests/http.test.ts -t 'a string cause'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-string-cause-green.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-string-cause-green-build.log"
+    },
+    {
+      "name": "03-string-cause-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-string-cause-red-build.log",
+      "before": "03-string-cause-red"
+    },
+    {
+      "name": "03-string-cause-red",
+      "command": "vp run '@tinker-start-scaffold#test' tests/http.test.ts -t 'a string cause'",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/03-string-cause-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/03-string-cause-red-build.log"
+    },
+    {
+      "name": "03-tests-format",
+      "command": "vp fmt apps/start-scaffold/tests/http.test.ts",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/03-tests-format.log"
+    },
+    {
+      "name": "04-progress-format",
+      "command": "vp fmt docs/roadmap/start-scaffold/PROGRESS.md",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/04-progress-format.log"
+    },
+    {
+      "name": "04-registry-build-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/04-registry-build-build.log",
+      "before": "04-registry-build"
+    },
+    {
+      "name": "04-registry-build",
+      "command": "vp run '@tinker-start-scaffold#registry:build'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/04-registry-build.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/04-registry-build-build.log"
+    },
+    {
+      "name": "04-registry-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/04-registry-red-build.log",
+      "before": "04-registry-red"
+    },
+    {
+      "name": "04-registry-red",
+      "command": "node apps/start-scaffold/maintain/check-registry.mjs",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/04-registry-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/04-registry-red-build.log"
+    },
+    {
+      "name": "05-plain-prove-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log",
+      "before": "05-plain-prove"
+    },
+    {
+      "name": "05-plain-prove",
+      "command": "vp run '@tinker-start-scaffold#check:plain' --prove",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/05-plain-prove.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "06-jev-labels",
+      "command": "node --input-type=module (use the shipped slice and forJev readers; save the two exact false rows in HTTP-POLISH-JEV-LABELS.jsonl)",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/06-jev-labels.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "06-jev-preflight",
+      "command": "node tools/jev/preflight.mjs origin/main..HEAD",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/06-jev-preflight.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "06-jev-promises",
+      "command": "node tools/jev/promises.mjs ../apps/start-scaffold --json /tmp/tinkered-http-polish-logs/jev-promises.json",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/06-jev-promises.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "06-jev-tests",
+      "command": "node tools/jev/tests.mjs ../apps/start-scaffold --json /tmp/tinkered-http-polish-logs/jev-tests.json",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/06-jev-tests.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-boundary",
+      "command": "vp run '@tinker-start-scaffold#test:boundary'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-boundary.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-imports",
+      "command": "vp run '@tinker-start-scaffold#test:imports'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-imports.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-middleware",
+      "command": "vp run '@tinker-start-scaffold#test:middleware'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-middleware.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-registry-green",
+      "command": "vp run '@tinker-start-scaffold#test:registry'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-registry-green.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-schema",
+      "command": "vp run '@tinker-start-scaffold#test:schema'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-schema.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-seam-fixture",
+      "command": "vp run '@tinker-start-scaffold#test:seam:fixture'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-seam-fixture.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-seam",
+      "command": "vp run '@tinker-start-scaffold#test:seam'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-seam.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-style",
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh apps/start-scaffold/src/scaffold/backend/http.ts apps/start-scaffold/src/scaffold/errors.ts apps/start-scaffold/tests/http.test.ts --strict",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-style.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-tsdoc",
+      "command": "node tools/jev/docs.mjs apps/start-scaffold/src/scaffold/backend/http.ts apps/start-scaffold/src/scaffold/errors.ts apps/start-scaffold/tests/http.test.ts",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-tsdoc.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "07-types",
+      "command": "vp run '@tinker-start-scaffold#typecheck'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/07-types.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "08-all-tests",
+      "command": "vp run -r test",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/08-all-tests.log"
+    },
+    {
+      "name": "08-app-tests",
+      "command": "vp run '@tinker-start-scaffold#test'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/08-app-tests.log"
+    },
+    {
+      "name": "08-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/08-build.log"
+    },
+    {
+      "name": "08-check",
+      "command": "vp check",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/08-check.log"
+    },
+    {
+      "name": "08-gate-chain",
+      "command": "vp run -r build && vp check && vp run '@tinker-start-scaffold#test' && vp run -r test",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/08-gate-chain.log"
+    },
+    {
+      "name": "09-validate-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/09-validate-build.log",
+      "before": "09-validate"
+    },
+    {
+      "name": "09-validate",
+      "command": "pnpm validate",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/09-validate.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/09-validate-build.log"
+    },
+    {
+      "name": "10-final-check-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/10-final-check-build.log",
+      "before": "10-final-check"
+    },
+    {
+      "name": "10-final-check",
+      "command": "vp check",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/10-final-check.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/10-final-check-build.log"
+    },
+    {
+      "name": "10-final-format",
+      "command": "vp fmt docs/roadmap/start-scaffold/PROGRESS.md docs/roadmap/start-scaffold/HTTP-POLISH-GATES.json",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/10-final-format.log"
+    },
+    {
+      "name": "10-final-prose-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/10-final-prose-build.log",
+      "before": "10-final-prose"
+    },
+    {
+      "name": "10-final-prose",
+      "command": "vp run prose",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/10-final-prose.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/10-final-prose-build.log"
+    },
+    {
+      "name": "12-cases-format",
+      "command": "vp fmt apps/start-scaffold/scripts/check-plain.mjs docs/roadmap/start-scaffold/PROGRESS.md",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-cases-format.log"
+    },
+    {
+      "name": "12-check-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-check-build.log",
+      "before": "12-check"
+    },
+    {
+      "name": "12-check",
+      "command": "vp check",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-check.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/12-check-build.log"
+    },
+    {
+      "name": "12-client-beacon-bracket-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-beacon-bracket",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-beacon-bracket-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-beacon-call-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-beacon-call",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-beacon-call-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-beacon-value-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-beacon-value",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-beacon-value-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-dgram-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-dgram",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-dgram-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-net-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-net",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-net-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-node-dgram-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-node-dgram",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-node-dgram-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-tls-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-tls",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-tls-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-xhr-bracket-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-xhr-bracket",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-xhr-bracket-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-xhr-constructor-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-xhr-constructor",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-xhr-constructor-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-client-xhr-global-red",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-xhr-global",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/12-client-xhr-global-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/05-plain-prove-build.log"
+    },
+    {
+      "name": "12-commit",
+      "command": "git commit -m 'fix(start): block raw socket and browser HTTP sends'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-commit.log"
+    },
+    {
+      "name": "12-extra-green-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-extra-green-build.log",
+      "before": "12-extra-green"
+    },
+    {
+      "name": "12-extra-green",
+      "command": "node apps/start-scaffold/scripts/check-plain.mjs --prove --cases=client-net,client-tls,client-dgram,client-node-dgram,client-xhr-constructor,client-xhr-global,client-xhr-bracket,client-beacon-call,client-beacon-value,client-beacon-bracket,client-websocket-allowed,client-eventsource-allowed",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/12-extra-green-build.log"
+    },
+    {
+      "name": "12-format",
+      "command": "vp fmt apps/start-scaffold/scripts/check-plain.mjs apps/start-scaffold/README.md apps/start-scaffold/.agents/skills/tinker-forms/SKILL.md docs/roadmap/start-scaffold/PROGRESS.md",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-format.log"
+    },
+    {
+      "name": "12-prose-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-prose-build.log",
+      "before": "12-prose"
+    },
+    {
+      "name": "12-prose",
+      "command": "vp run prose",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/12-prose.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/12-prose-build.log"
+    },
+    {
+      "name": "13-plain-prove-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/13-plain-prove-build.log",
+      "before": "13-plain-prove"
+    },
+    {
+      "name": "13-plain-prove",
+      "command": "vp run '@tinker-start-scaffold#check:plain' --prove",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/13-plain-prove.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/13-plain-prove-build.log"
+    },
+    {
+      "name": "13-registry-build-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/13-registry-build-build.log",
+      "before": "13-registry-build"
+    },
+    {
+      "name": "13-registry-build",
+      "command": "vp run '@tinker-start-scaffold#registry:build'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/13-registry-build.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/13-registry-build-build.log"
+    },
+    {
+      "name": "13-registry-green",
+      "command": "vp run '@tinker-start-scaffold#test:registry'",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/13-registry-green.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/13-plain-prove-build.log"
+    },
+    {
+      "name": "13-registry-red-build",
+      "command": "vp run -r build",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/13-registry-red-build.log",
+      "before": "13-registry-red"
+    },
+    {
+      "name": "13-registry-red",
+      "command": "node apps/start-scaffold/maintain/check-registry.mjs",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/13-registry-red.log",
+      "buildBefore": "/tmp/tinkered-http-polish-logs/13-registry-red-build.log"
+    }
+  ],
+  "proofPairs": [
+    {
+      "change": "Ban node:http2",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/01-client-node-http2-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/01-clients-green.log"
+      }
+    },
+    {
+      "change": "Ban http2",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/01-client-http2-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/01-clients-green.log"
+      }
+    },
+    {
+      "change": "Ban ws",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/01-client-ws-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/01-clients-green.log"
+      }
+    },
+    {
+      "change": "Ban ofetch",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/01-client-ofetch-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/01-clients-green.log"
+      }
+    },
+    {
+      "change": "Allow import type",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/02-import-type-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/02-types-green.log"
+      }
+    },
+    {
+      "change": "Allow all-type named imports",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/02-named-import-type-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/02-types-green.log"
+      }
+    },
+    {
+      "change": "Keep numeric abort code",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/03-abort-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/03-abort-green.log"
+      }
+    },
+    {
+      "change": "Keep outer facts for a string cause",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/03-string-cause-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/03-string-cause-green.log"
+      }
+    },
+    {
+      "change": "Keep each readable field on its own",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/03-partial-fields-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/03-partial-fields-green.log"
+      }
+    },
+    {
+      "change": "Initial registry rebuild",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/04-registry-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/07-registry-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-net",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-net-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-tls",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-tls-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-dgram",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-dgram-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-node-dgram",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-node-dgram-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-xhr-constructor",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-xhr-constructor-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-xhr-global",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-xhr-global-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-xhr-bracket",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-xhr-bracket-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-beacon-call",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-beacon-call-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-beacon-value",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-beacon-value-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Lead addition: client-beacon-bracket",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/12-client-beacon-bracket-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/12-extra-green.log"
+      }
+    },
+    {
+      "change": "Final registry rebuild",
+      "red": {
+        "exitCode": 1,
+        "log": "/tmp/tinkered-http-polish-logs/13-registry-red.log"
+      },
+      "green": {
+        "exitCode": 0,
+        "log": "/tmp/tinkered-http-polish-logs/13-registry-green.log"
+      }
+    }
+  ],
+  "plantedCases": [
+    {
+      "name": "callback-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-callback-fetch.log"
+    },
+    {
+      "name": "class-expression",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-class-expression.log"
+    },
+    {
+      "name": "class",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-class.log"
+    },
+    {
+      "name": "client-axios",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-axios.log"
+    },
+    {
+      "name": "client-beacon-bracket",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-beacon-bracket.log"
+    },
+    {
+      "name": "client-beacon-call",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-beacon-call.log"
+    },
+    {
+      "name": "client-beacon-value",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-beacon-value.log"
+    },
+    {
+      "name": "client-default-and-type",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-default-and-type.log"
+    },
+    {
+      "name": "client-dgram",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-dgram.log"
+    },
+    {
+      "name": "client-dynamic",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-dynamic.log"
+    },
+    {
+      "name": "client-empty-import",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-empty-import.log"
+    },
+    {
+      "name": "client-eventsource-allowed",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-eventsource-allowed.log"
+    },
+    {
+      "name": "client-got",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-got.log"
+    },
+    {
+      "name": "client-http",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-http.log"
+    },
+    {
+      "name": "client-http2",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-http2.log"
+    },
+    {
+      "name": "client-https",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-https.log"
+    },
+    {
+      "name": "client-import-equals",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-import-equals.log"
+    },
+    {
+      "name": "client-import-type",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-import-type.log"
+    },
+    {
+      "name": "client-ky",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-ky.log"
+    },
+    {
+      "name": "client-mixed-import",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-mixed-import.log"
+    },
+    {
+      "name": "client-named-import-type",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-named-import-type.log"
+    },
+    {
+      "name": "client-net",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-net.log"
+    },
+    {
+      "name": "client-node-dgram",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-node-dgram.log"
+    },
+    {
+      "name": "client-node-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-node-fetch.log"
+    },
+    {
+      "name": "client-node-http",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-node-http.log"
+    },
+    {
+      "name": "client-node-http2",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-node-http2.log"
+    },
+    {
+      "name": "client-node-https",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-node-https.log"
+    },
+    {
+      "name": "client-node-net",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-node-net.log"
+    },
+    {
+      "name": "client-node-tls",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-node-tls.log"
+    },
+    {
+      "name": "client-ofetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-ofetch.log"
+    },
+    {
+      "name": "client-reexport",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-reexport.log"
+    },
+    {
+      "name": "client-require",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-require.log"
+    },
+    {
+      "name": "client-subpath",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-subpath.log"
+    },
+    {
+      "name": "client-superagent",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-superagent.log"
+    },
+    {
+      "name": "client-tls",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-tls.log"
+    },
+    {
+      "name": "client-undici",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-undici.log"
+    },
+    {
+      "name": "client-websocket-allowed",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-websocket-allowed.log"
+    },
+    {
+      "name": "client-ws",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-ws.log"
+    },
+    {
+      "name": "client-xhr-bracket",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-xhr-bracket.log"
+    },
+    {
+      "name": "client-xhr-constructor",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-xhr-constructor.log"
+    },
+    {
+      "name": "client-xhr-global",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-client-xhr-global.log"
+    },
+    {
+      "name": "clock-bag",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-clock-bag.log"
+    },
+    {
+      "name": "clock",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-clock.log"
+    },
+    {
+      "name": "component-await",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-component-await.log"
+    },
+    {
+      "name": "component-bag",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-component-bag.log"
+    },
+    {
+      "name": "component-clock",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-component-clock.log"
+    },
+    {
+      "name": "ctx",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-ctx.log"
+    },
+    {
+      "name": "destructured-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-destructured-fetch.log"
+    },
+    {
+      "name": "entry-hidden-controller",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-entry-hidden-controller.log"
+    },
+    {
+      "name": "entry-hidden-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-entry-hidden-fetch.log"
+    },
+    {
+      "name": "entry-service",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-entry-service.log"
+    },
+    {
+      "name": "event-options",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-event-options.log"
+    },
+    {
+      "name": "fetch-alias",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-fetch-alias.log"
+    },
+    {
+      "name": "fetch-tag-value",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-fetch-tag-value.log"
+    },
+    {
+      "name": "four-params",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-four-params.log"
+    },
+    {
+      "name": "freeze-arrow",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-freeze-arrow.log"
+    },
+    {
+      "name": "global-fetch-call",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-global-fetch-call.log"
+    },
+    {
+      "name": "global-fetch-element",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-global-fetch-element.log"
+    },
+    {
+      "name": "global-fetch-reference",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-global-fetch-reference.log"
+    },
+    {
+      "name": "handle",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-handle.log"
+    },
+    {
+      "name": "hidden-method",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-hidden-method.log"
+    },
+    {
+      "name": "holder-const",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-holder-const.log"
+    },
+    {
+      "name": "holder-pool",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-holder-pool.log"
+    },
+    {
+      "name": "holder-stop",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-holder-stop.log"
+    },
+    {
+      "name": "http-backend-dependency",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-http-backend-dependency.log"
+    },
+    {
+      "name": "http-resource-dependency",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-http-resource-dependency.log"
+    },
+    {
+      "name": "http-resource-export",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-http-resource-export.log"
+    },
+    {
+      "name": "io",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-io.log"
+    },
+    {
+      "name": "list",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-list.log"
+    },
+    {
+      "name": "module-auth",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-auth.log"
+    },
+    {
+      "name": "module-broadcast",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-broadcast.log"
+    },
+    {
+      "name": "module-clock",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-clock.log"
+    },
+    {
+      "name": "module-frame",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-frame.log"
+    },
+    {
+      "name": "module-handle",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-handle.log"
+    },
+    {
+      "name": "module-listener",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-listener.log"
+    },
+    {
+      "name": "module-mail",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-mail.log"
+    },
+    {
+      "name": "module-nested-root",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-nested-root.log"
+    },
+    {
+      "name": "module-unknown-call",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-unknown-call.log"
+    },
+    {
+      "name": "module-zod-parse",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-module-zod-parse.log"
+    },
+    {
+      "name": "no-doc",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-no-doc.log"
+    },
+    {
+      "name": "non-call-use",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-non-call-use.log"
+    },
+    {
+      "name": "nullish-arrow",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-nullish-arrow.log"
+    },
+    {
+      "name": "object-arrow",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-object-arrow.log"
+    },
+    {
+      "name": "object-method",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-object-method.log"
+    },
+    {
+      "name": "one-caller-two-calls",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-one-caller-two-calls.log"
+    },
+    {
+      "name": "one-site",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-one-site.log"
+    },
+    {
+      "name": "operation-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-operation-fetch.log"
+    },
+    {
+      "name": "option-timer",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-option-timer.log"
+    },
+    {
+      "name": "or-arrow",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-or-arrow.log"
+    },
+    {
+      "name": "parenthesized-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-parenthesized-fetch.log"
+    },
+    {
+      "name": "pick-options",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-pick-options.log"
+    },
+    {
+      "name": "plain-any",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-any.log"
+    },
+    {
+      "name": "plain-await",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-await.log"
+    },
+    {
+      "name": "plain-callback",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-callback.log"
+    },
+    {
+      "name": "plain-cap",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-cap.log"
+    },
+    {
+      "name": "plain-generic",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-generic.log"
+    },
+    {
+      "name": "plain-native-effect-0",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-native-effect-0.log"
+    },
+    {
+      "name": "plain-native-effect-1",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-native-effect-1.log"
+    },
+    {
+      "name": "plain-native-effect-2",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-native-effect-2.log"
+    },
+    {
+      "name": "plain-native-effect-3",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-native-effect-3.log"
+    },
+    {
+      "name": "plain-native-effect-4",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-native-effect-4.log"
+    },
+    {
+      "name": "plain-native-effect-5",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-native-effect-5.log"
+    },
+    {
+      "name": "plain-native-effect-6",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-native-effect-6.log"
+    },
+    {
+      "name": "plain-native-effect-7",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-native-effect-7.log"
+    },
+    {
+      "name": "plain-unknown-cast",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-plain-unknown-cast.log"
+    },
+    {
+      "name": "request-options",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-request-options.log"
+    },
+    {
+      "name": "resource-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-resource-fetch.log"
+    },
+    {
+      "name": "scope-accessor",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-accessor.log"
+    },
+    {
+      "name": "scope-array",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-array.log"
+    },
+    {
+      "name": "scope-arrow",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-arrow.log"
+    },
+    {
+      "name": "scope-call",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-call.log"
+    },
+    {
+      "name": "scope-cast",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-cast.log"
+    },
+    {
+      "name": "scope-comma",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-comma.log"
+    },
+    {
+      "name": "scope-element",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-element.log"
+    },
+    {
+      "name": "scope-entry-module",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-entry-module.log"
+    },
+    {
+      "name": "scope-factory",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-factory.log"
+    },
+    {
+      "name": "scope-getter",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-getter.log"
+    },
+    {
+      "name": "scope-local-alias",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-local-alias.log"
+    },
+    {
+      "name": "scope-namespace",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-namespace.log"
+    },
+    {
+      "name": "scope-parentheses",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-parentheses.log"
+    },
+    {
+      "name": "scope-property",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-property.log"
+    },
+    {
+      "name": "scope-reexport",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-reexport.log"
+    },
+    {
+      "name": "scope-reflect",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-scope-reflect.log"
+    },
+    {
+      "name": "self-call",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-self-call.log"
+    },
+    {
+      "name": "self-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-self-fetch.log"
+    },
+    {
+      "name": "service-module",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-service-module.log"
+    },
+    {
+      "name": "service-plain",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-service-plain.log"
+    },
+    {
+      "name": "signal",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-signal.log"
+    },
+    {
+      "name": "src-callback",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-src-callback.log"
+    },
+    {
+      "name": "src-resource-callback",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-src-resource-callback.log"
+    },
+    {
+      "name": "unit-param",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-unit-param.log"
+    },
+    {
+      "name": "window-fetch",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-window-fetch.log"
+    },
+    {
+      "name": "wrapped-factory",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-wrapped-factory.log"
+    },
+    {
+      "name": "zero-site",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "log": "/tmp/tinkered-http-polish-logs/proofs/13-plain-prove/start-plain-proof-zero-site.log"
+    }
+  ],
+  "registry": {
+    "cli": "shadcn@4.21.0",
+    "items": 3,
+    "files": 113,
+    "payloads": "exact source",
+    "install": "source with lib alias rewritten to @/app-lib",
+    "aliasRewrite": "seam imports rewritten",
+    "seamUpdate": "both edited seam files unchanged",
+    "dryRun": "unchanged",
+    "setupUpdate": "passed",
+    "editedFeature": "unchanged",
+    "consumerBuild": "passed",
+    "consumerTypes": "passed",
+    "dependencies": "Core and React packed tarballs; independent npm install; no workspace links",
+    "projectTests": "passed",
+    "projectGates": "plain, seam, browser imports, schema passed",
+    "skills": "all five, plus AGENTS.md",
+    "maintainerFiles": "none",
+    "proofMode": "none",
+    "gates": [
+      {
+        "name": "pack-core",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-1-pack-core.log"
+      },
+      {
+        "name": "pack-react",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-2-pack-react.log"
+      },
+      {
+        "name": "install-tarballs",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-3-install-tarballs.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:44033/r/{name}.json",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_44033_r__name__json.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-5-dlx----shadcn_4_21_0-add-_tinker-start_starter---yes---overwrite.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-6-dlx----shadcn_4_21_0-add-_tinker-start_runtime---dry-run---diff-src_scaffold_frontend_index_ts.log"
+      },
+      {
+        "name": "dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-7-dlx----shadcn_4_21_0-add-_tinker-start_runtime---yes---overwrite.log"
+      },
+      {
+        "name": "install-starter",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-8-install-starter.log"
+      },
+      {
+        "name": "build",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-9-build.log"
+      },
+      {
+        "name": "typecheck",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-10-typecheck.log"
+      },
+      {
+        "name": "test",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-11-test.log"
+      },
+      {
+        "name": "check:plain",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-12-check_plain.log"
+      },
+      {
+        "name": "test:seam",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-13-test_seam.log"
+      },
+      {
+        "name": "test:boundary",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-14-test_boundary.log"
+      },
+      {
+        "name": "test:schema",
+        "code": 0,
+        "log": "/tmp/tinkered-http-polish-logs/proofs/13-registry-green/start-refine-consumer-15-test_schema.log"
+      }
+    ]
+  },
+  "jev": {
+    "preflightFileFlags": 0,
+    "unitLabels": [
+      {
+        "id": "bec8ff9e563e",
+        "judge": "stopOnlyInDefer",
+        "label": false,
+        "where": "apps/start-scaffold/src/scaffold/backend/http.ts#http",
+        "why": "Close aborts owned requests; each send also reads its caller signal. The caller-close test stops body reading before root close."
+      },
+      {
+        "id": "b70914c768c7",
+        "judge": "configNotTag",
+        "label": false,
+        "where": "apps/start-scaffold/src/scaffold/backend/http.ts#httpRequest",
+        "why": "Request values and error facts come from this call. Native sending comes from the httpBackend tag through the owned HTTP resource."
+      }
+    ],
+    "testFlags": 0,
+    "tests": 51,
+    "promiseGaps": 0,
+    "unsureTitles": 1,
+    "labelFile": "docs/roadmap/start-scaffold/HTTP-POLISH-JEV-LABELS.jsonl",
+    "sharedBank": "unchanged; lead merges b70914c768c7 and calibrates at landing"
+  },
+  "scope": "Only apps/start-scaffold/ and docs/roadmap/start-scaffold/ changed.",
+  "rootGate": {
+    "exitCode": 0,
+    "appTestsPassed": 51,
+    "repoTestsPassed": 1222,
+    "existingSkippedTests": 1,
+    "checkErrors": 0,
+    "checkWarnings": 28,
+    "validateLanesPassed": 16
+  },
+  "styleCensus": "OK",
+  "allowedTransports": "Native WebSocket and EventSource stay allowed under ADR 0048; owned resources close them through ctx.defer.",
+  "notes": [
+    "No stash, push, trial-store access, or container command.",
+    "No full mutation lane requested.",
+    "Use pinned origin/main because local main is older.",
+    "07 and Jev checks use the unchanged built packages from the completed 05 build."
+  ]
+}
