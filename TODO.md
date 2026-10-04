@@ -57,13 +57,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: scaffold `check:plain` exits 0 on it; S24 0; rounds 1-5 twice and planted breaks on the new images.
   [Brief](docs/roadmap/flight-trial/REFERENCE-0102-BRIEF.md).
 
-- **docs/http-0102-0103** — docs and fix texts say exactly what the HTTP and protocol code does.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-http-docs`.
-  Next: ADR 0102 details, glossary HTTP section, README and skills, S24 fix text.
-  Verify: prose; Jev tests; the S24 snippet typechecks.
-  [Brief](docs/roadmap/start-scaffold/HTTP-DOCS-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -85,6 +78,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **docs/http-0102-0103** — docs and fix texts say exactly what the HTTP and protocol code does.
+  Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY after one fix round.
+  ADR 0102 and 0103, the glossary, README, and skills match the code: two spans per request,
+  the stop tags and the graceful-close limit, the full ban list; S24's fix line compiles.
+  Proof: the S24 snippet typechecks (red on the old text); 148 Jev tests; prose.
 
 - **start/protocol-reply** — the scaffold's own operations stop speaking HTTP (ADR 0103).
   Owner: lead (Claude, Start scaffold session); Sol writers; Opus reviewer READY after three rounds.

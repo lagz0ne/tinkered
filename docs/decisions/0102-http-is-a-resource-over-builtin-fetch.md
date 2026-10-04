@@ -121,6 +121,8 @@ Outside `src/scaffold/`, the check also bans:
 - `XMLHttpRequest` and `navigator.sendBeacon` value uses,
   including destructured globals and literal bracket access.
 
+Type-only imports and exports of those modules remain allowed.
+
 The check also bans:
 
 - Any app use of the global `Response` outside `src/routes/`
@@ -128,7 +130,6 @@ The check also bans:
 - Operations with `Request` input or `Response` output.
   Only the named `handleAuth` mount is excepted (ADR 0103).
 
-Type-only imports and exports remain allowed.
 Native `WebSocket` and `EventSource` are outside this HTTP rule (ADR 0048).
 Their sync transport resources own and close them through `ctx.defer`.
 Jev rule S24 is on again for every suite, and names `httpRequest`.
