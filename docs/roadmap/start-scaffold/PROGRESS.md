@@ -2444,3 +2444,22 @@ All 13 telemetry, wire, and plain-batch tests pass.
 Build, app types, and the changed-file code check pass too.
 The existing body-close test now calls the route.
 No telemetry operation reads a Request or builds a Response.
+
+### Step 3: sync cursor and body
+
+The final real-database cursor test fails on the old source, exit 1.
+Red: .protocol-reply-logs/04-final-test-red.log.
+The original smaller test also failed before the move.
+It needed real settings even with a resource preset.
+The final test uses the real proof database instead.
+
+The route reads the query and Last-Event-ID, and checks the cursor.
+openSync takes only a cursor param and returns the body stream.
+The route sets all three SSE headers.
+The request resource still owns the body after open ends.
+The existing replay, account-change, and waste tests use the plain input.
+
+Green: .protocol-reply-logs/04c-sync-green.log, exit 0.
+All 14 related tests, app types, build, and changed-file checks pass.
+Final cursor and wire rerun: 04d-sync-final-green.log, exit 0.
+The exact wire facts still match the first saved test.
