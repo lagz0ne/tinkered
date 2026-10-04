@@ -3313,3 +3313,46 @@ Logs under `tools/flight-trial/scripts/logs/`:
 `review-fix3-build.log`, `review-fix3-check.log`,
 `review-fix3-protocol.log`, and `review-planted.log`.
 Next: rerun every final gate, then full locked mutation.
+
+### Lead fix round: final proof and handoff
+
+All three requested fixes are saved in separate commits:
+`6d513386`, `7fac8477`, and `a7966569`.
+The final gate chain exits 0.
+All nine package test tasks pass, with 1,211 Vitest tests passed.
+The existing skipped workspace test stays at one.
+All 98 service tests pass.
+The four-process proof sees four distinct PIDs and clean shutdown.
+Check has zero errors and the same 28 warnings.
+Validation passes all 16 lanes.
+The strict style check passes.
+Jev's file and test flags stay at zero.
+The saved source labels and eight README gap reasons still apply.
+
+Both final wire proofs exit 0 with zero differences.
+Each compares 2,160 calls and all 30 error codes.
+The old-versus-new run includes the `UnknownOrder` change.
+The same-code run includes all new replay and clock-wake cases.
+Logs: `review-wire-diff.log` and `review-wire-same.log`,
+under `tools/flight-trial/scripts/logs/`.
+The plain count, including top-level arrow and function values, stays at 6 to 3.
+The six planted faults each exit 1 as expected; the clean copy exits 0.
+Log: `tools/flight-trial/scripts/logs/review-final-planted.log`.
+
+Full mutation exits 0 at 87.13 percent, above floor 85.
+It ran alone under `flock /tmp/mutation.lock` after the other jobs finished.
+All 1,678 cases, including all 401 static cases, stayed included.
+The config matches `880f1c4f` byte for byte.
+No case was ignored; there were no compile or runner errors.
+Counts: 1,396 killed, 66 timeouts, 184 survivors, 32 without coverage.
+The score includes timeouts as detected cases.
+The full report's source text matches every current file with cases.
+Log: `tools/flight-trial/scripts/logs/review-mutation.log`.
+Full report: `tools/flight-trial/scripts/logs/review-mutation-report.json`.
+`PROTOCOL-MUTATION.json` holds counts, scores, and source hashes.
+`PROTOCOL-GATES.json` holds each final command, exit code, and log path.
+
+Status: Review.
+Next: the lead lands the saved fixes.
+No source or test changed after the final gates or mutation run.
+No new Core feedback, app change, push, or stash.

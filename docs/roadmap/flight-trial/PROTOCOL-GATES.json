@@ -1,120 +1,143 @@
 {
   "branch": "trial/services-protocol",
   "base": "880f1c4f",
-  "sourceCommit": "9c3b5efc",
+  "sourceCommit": "a7966569",
   "gateChainExitCode": 0,
   "gates": [
     {
       "name": "build",
       "command": "vp run -r build",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-build.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-build.log",
+      "exitCode": 0
     },
     {
       "name": "check",
       "command": "vp check",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-check.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-check.log",
+      "exitCode": 0
     },
     {
       "name": "all package tests",
       "command": "vp run -r test",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-tests.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-tests.log",
+      "exitCode": 0
     },
     {
       "name": "four-process proof",
       "command": "node tools/flight-trial/scripts/check-services.mjs",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-process.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-process.log",
+      "exitCode": 0
     },
     {
       "name": "protocol and plain count",
       "command": "node tools/flight-trial/scripts/check-protocol.mjs",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-protocol.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-protocol.log",
+      "exitCode": 0
+    },
+    {
+      "name": "protocol planted proof",
+      "command": "node tools/flight-trial/scripts/check-protocol-plant.mjs",
+      "log": "tools/flight-trial/scripts/logs/review-final-planted.log",
+      "exitCode": 0
     },
     {
       "name": "strict style",
       "command": "bash .agents/skills/coding-convention/scripts/style-census.sh tools/flight-trial/services tools/flight-trial/tests --strict",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-style.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-style.log",
+      "exitCode": 0
     },
     {
       "name": "prose",
       "command": "vp run prose",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-prose.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-prose.log",
+      "exitCode": 0
     },
     {
       "name": "validate",
       "command": "pnpm validate",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-validate.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-validate.log",
+      "exitCode": 0
     },
     {
       "name": "wire same code",
       "command": "node tools/flight-trial/scripts/check-wire.mjs --same",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/wire-same-busy.log"
+      "log": "tools/flight-trial/scripts/logs/review-wire-same.log",
+      "exitCode": 0
     },
     {
       "name": "wire old vs new",
       "command": "node tools/flight-trial/scripts/check-wire.mjs",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/wire-diff.log"
+      "log": "tools/flight-trial/scripts/logs/review-wire-diff.log",
+      "exitCode": 0
     },
     {
       "name": "Jev preflight",
       "command": "node tools/jev/preflight.mjs 880f1c4f..HEAD",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-jev-preflight.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-jev-preflight.log",
+      "exitCode": 0
     },
     {
       "name": "Jev tests",
       "command": "node tools/jev/tests.mjs ../tools/flight-trial",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-jev-tests.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-jev-tests.log",
+      "exitCode": 0
     },
     {
       "name": "Jev promises",
       "command": "node tools/jev/promises.mjs ../tools/flight-trial",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-jev-promises.log"
+      "log": "tools/flight-trial/scripts/logs/review-final-jev-promises.log",
+      "exitCode": 0
     },
     {
       "name": "Jev labels",
-      "command": "node tools/flight-trial/scripts/logs/label-protocol.mjs <judge> false <file>#<unit> --by trial/services-protocol --why <saved reason>",
-      "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-jev-labels.log"
+      "command": "node tools/flight-trial/scripts/logs/review-labels.mjs",
+      "log": "tools/flight-trial/scripts/logs/review-final-jev-labels.log",
+      "exitCode": 0
+    },
+    {
+      "name": "diff whitespace",
+      "command": "git diff --check 880f1c4f..HEAD",
+      "log": "tools/flight-trial/scripts/logs/review-final-diff-check.log",
+      "exitCode": 0
     },
     {
       "name": "mutation build",
       "command": "vp run -r build",
       "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/mutation-build.log"
+      "log": "tools/flight-trial/scripts/logs/review-mutation-build.log"
     },
     {
       "name": "mutation",
       "command": "flock /tmp/mutation.lock vp run flight-trial#mutate",
       "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/mutation.log"
+      "log": "tools/flight-trial/scripts/logs/review-mutation.log"
     },
     {
-      "name": "diff whitespace",
-      "command": "git diff --check 880f1c4f..HEAD",
+      "name": "handoff prose",
+      "command": "vp run prose",
       "exitCode": 0,
-      "log": "tools/flight-trial/scripts/logs/final-diff-check.log"
+      "log": "tools/flight-trial/scripts/logs/review-proof-prose.log"
+    },
+    {
+      "name": "handoff diff whitespace",
+      "command": "git diff --check 880f1c4f",
+      "exitCode": 0,
+      "log": "tools/flight-trial/scripts/logs/review-proof-diff-check.log"
     }
   ],
   "wire": {
     "differences": 0,
-    "calls": 2130,
+    "calls": 2160,
     "errorCodes": 30,
     "sameCodeDifferences": 0,
-    "sameCodeCalls": 2130,
+    "sameCodeCalls": 2160,
     "earlierSameCodeCalls": 7426,
-    "dateHeader": "Node wall time is validated then normalized; every other header and all body bytes are compared exactly."
+    "dateHeader": "Node wall time is validated then normalized; every other header and all body bytes are compared exactly.",
+    "reviewCases": [
+      "supplier saved order with repeat 2",
+      "payment rule replay with Idempotency-Key and fresh key",
+      "supplier and payment delayed rules woken by control clock"
+    ]
   },
   "plainFunctions": {
     "before": 6,
@@ -129,18 +152,18 @@
     "allNineTasksPassed": true
   },
   "mutation": {
-    "score": 89.74,
+    "score": 87.13,
     "floor": 85,
     "exitCode": 0,
     "lock": "/tmp/mutation.lock",
     "counts": {
       "NoCoverage": 32,
-      "Killed": 1360,
-      "Survived": 140,
-      "Timeout": 144
+      "Killed": 1396,
+      "Survived": 184,
+      "Timeout": 66
     },
-    "total": 1676,
-    "staticCasesIncluded": 399,
+    "total": 1678,
+    "staticCasesIncluded": 401,
     "ignored": 0,
     "configUnchanged": true,
     "files": [
@@ -150,10 +173,10 @@
         "counts": {
           "NoCoverage": 4,
           "Killed": 362,
-          "Survived": 80,
-          "Timeout": 29
+          "Survived": 104,
+          "Timeout": 5
         },
-        "score": 82.32,
+        "score": 77.26,
         "sha256": "3bc21d1f1eecb1577027aaf579501a68efd59021ac0dd4dd0a4b9ab60f0ef8ea"
       },
       {
@@ -161,11 +184,11 @@
         "mutants": 469,
         "counts": {
           "NoCoverage": 13,
-          "Killed": 358,
-          "Timeout": 72,
-          "Survived": 26
+          "Killed": 390,
+          "Timeout": 37,
+          "Survived": 29
         },
-        "score": 91.68,
+        "score": 91.04,
         "sha256": "8266993957df65d247d32a2c99906176e09fcf20be74443ba8220dab3f046b1a"
       },
       {
@@ -182,15 +205,15 @@
       },
       {
         "file": "tools/flight-trial/services/supplier/index.ts",
-        "mutants": 422,
+        "mutants": 424,
         "counts": {
           "NoCoverage": 1,
-          "Killed": 380,
-          "Survived": 3,
-          "Timeout": 38
+          "Killed": 384,
+          "Survived": 20,
+          "Timeout": 19
         },
-        "score": 99.05,
-        "sha256": "15b7b6a3cc95ec042de8c6814b3f8341f6267e18204dbd33e6b730a3321c9df3"
+        "score": 95.05,
+        "sha256": "f199b4318859bec9db3d4ecb044f990acb73cd9d68702320a9fa68086ae4edce"
       },
       {
         "file": "tools/flight-trial/services/supplier/main.ts",
@@ -234,12 +257,12 @@
           "Killed": 31,
           "Timeout": 2
         },
-        "score": 100.0,
+        "score": 100,
         "sha256": "186a6669c095873b484886797bf8d252938c7f759b07e43624d0c4a8b609774d"
       }
     ],
-    "log": "tools/flight-trial/scripts/logs/mutation.log",
-    "report": "tools/flight-trial/scripts/logs/mutation-report.json"
+    "log": "tools/flight-trial/scripts/logs/review-mutation.log",
+    "report": "tools/flight-trial/scripts/logs/review-mutation-report.json"
   },
   "Jev": {
     "fileFlags": 0,
@@ -256,5 +279,15 @@
     "log": "tools/flight-trial/scripts/logs/protocol-red.log",
     "afterFixExitCode": 0,
     "logAfter": "tools/flight-trial/scripts/logs/step2-test.log"
+  },
+  "reviewCommits": ["6d513386", "7fac8477", "a7966569"],
+  "plantedProtocol": {
+    "gateExitCode": 0,
+    "cases": 6,
+    "expectedFailureExitCode": 1,
+    "cleanCopyExitCode": 0,
+    "sharedKindCheckedAgainstBothServices": true,
+    "arrowAndFunctionValuesCounted": true,
+    "log": "tools/flight-trial/scripts/logs/review-final-planted.log"
   }
 }

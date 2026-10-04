@@ -1,16 +1,16 @@
 {
-  "score": 89.74,
+  "score": 87.13,
   "floor": 85,
   "exitCode": 0,
   "lock": "/tmp/mutation.lock",
   "counts": {
     "NoCoverage": 32,
-    "Killed": 1360,
-    "Survived": 140,
-    "Timeout": 144
+    "Killed": 1396,
+    "Survived": 184,
+    "Timeout": 66
   },
-  "total": 1676,
-  "staticCasesIncluded": 399,
+  "total": 1678,
+  "staticCasesIncluded": 401,
   "ignored": 0,
   "configUnchanged": true,
   "files": [
@@ -20,10 +20,10 @@
       "counts": {
         "NoCoverage": 4,
         "Killed": 362,
-        "Survived": 80,
-        "Timeout": 29
+        "Survived": 104,
+        "Timeout": 5
       },
-      "score": 82.32,
+      "score": 77.26,
       "sha256": "3bc21d1f1eecb1577027aaf579501a68efd59021ac0dd4dd0a4b9ab60f0ef8ea"
     },
     {
@@ -31,11 +31,11 @@
       "mutants": 469,
       "counts": {
         "NoCoverage": 13,
-        "Killed": 358,
-        "Timeout": 72,
-        "Survived": 26
+        "Killed": 390,
+        "Timeout": 37,
+        "Survived": 29
       },
-      "score": 91.68,
+      "score": 91.04,
       "sha256": "8266993957df65d247d32a2c99906176e09fcf20be74443ba8220dab3f046b1a"
     },
     {
@@ -52,15 +52,15 @@
     },
     {
       "file": "tools/flight-trial/services/supplier/index.ts",
-      "mutants": 422,
+      "mutants": 424,
       "counts": {
         "NoCoverage": 1,
-        "Killed": 380,
-        "Survived": 3,
-        "Timeout": 38
+        "Killed": 384,
+        "Survived": 20,
+        "Timeout": 19
       },
-      "score": 99.05,
-      "sha256": "15b7b6a3cc95ec042de8c6814b3f8341f6267e18204dbd33e6b730a3321c9df3"
+      "score": 95.05,
+      "sha256": "f199b4318859bec9db3d4ecb044f990acb73cd9d68702320a9fa68086ae4edce"
     },
     {
       "file": "tools/flight-trial/services/supplier/main.ts",
@@ -104,10 +104,10 @@
         "Killed": 31,
         "Timeout": 2
       },
-      "score": 100.0,
+      "score": 100,
       "sha256": "186a6669c095873b484886797bf8d252938c7f759b07e43624d0c4a8b609774d"
     }
   ],
-  "log": "tools/flight-trial/scripts/logs/mutation.log",
-  "report": "tools/flight-trial/scripts/logs/mutation-report.json"
+  "log": "tools/flight-trial/scripts/logs/review-mutation.log",
+  "report": "tools/flight-trial/scripts/logs/review-mutation-report.json"
 }
