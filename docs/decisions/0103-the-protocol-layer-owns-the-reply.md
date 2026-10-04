@@ -73,4 +73,19 @@ so its callers never see a status code.
 - Wire validation moves to the framework,
   which closes the core-feedback row "Bad input as a wire reply"
   for these services: the operation's input reader sees only valid params.
-- The Start scaffold already works this way; its skills say so.
+- The Start scaffold puts telemetry headers, body checks, and replies in its route.
+- Its sync route reads the cursor and builds the SSE reply.
+
+## Named protocol exception
+
+`handleAuth` in `src/scaffold/backend/auth.server.ts` mounts better-auth.
+That third-party handler owns its Request and Response contract.
+This is protocol code, called only by the auth route and proof tests.
+Keeping its operation lets the route settle failures through Core.
+It also keeps auth mail work under the mounted call.
+No feature operation may use this exception.
+The plain check allows only that exact file and declaration name.
+
+Raw request headers live in the scaffold's request wiring.
+The app backend and server seam do not export them.
+App operations use principal or currentUser.

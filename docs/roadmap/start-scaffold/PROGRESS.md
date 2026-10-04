@@ -2463,3 +2463,23 @@ Green: .protocol-reply-logs/04c-sync-green.log, exit 0.
 All 14 related tests, app types, build, and changed-file checks pass.
 Final cursor and wire rerun: 04d-sync-final-green.log, exit 0.
 The exact wire facts still match the first saved test.
+
+### Step 4: mounted auth and hidden headers
+
+The existing auth tests fail through the protocol export before the move.
+Red: .protocol-reply-logs/05-auth-red.log, exit 1.
+The mounted third-party handler now lives in scaffold/backend/auth.server.ts.
+It is the only named Request/Response operation exception in ADR 0103.
+Assume keeping its settled call is needed for auth failure and mail ownership.
+The route and proof tests call it; the app backend does not export it.
+
+requestHeaders now lives in scaffold/backend/headers.server.ts.
+Only request wiring and auth read it.
+The app backend and server seam no longer export it.
+Proof tests bind it through the protocol test entry.
+The wire test changed only its header-tag import.
+Its cases and expected replies stay the same.
+
+Green: .protocol-reply-logs/05-auth-green.log, exit 0.
+All 65 app tests, build, app types, and changed-file checks pass.
+The real auth tests cover sign-in, sign-out, mail, and sessions.
