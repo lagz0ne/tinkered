@@ -64,14 +64,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/protocol-reply** — the scaffold's own operations stop speaking HTTP (ADR 0103).
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-protocol-reply`. Found by the whole-repo review.
-  Next: telemetry ingest and sync open take plain params; routes map statuses and headers; auth exception;
-  `check:plain` fails an operation that takes a `Request` or returns a `Response`; review leftovers.
-  Verify: wire unchanged for telemetry and sync; planted cases red then green; all gates.
-  [Brief](docs/roadmap/start-scaffold/PROTOCOL-REPLY-BRIEF.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -93,6 +85,15 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/protocol-reply** — the scaffold's own operations stop speaking HTTP (ADR 0103).
+  Owner: lead (Claude, Start scaffold session); Sol writers; Opus reviewer READY after three rounds.
+  Telemetry ingest takes a batch and sync open takes a cursor; their routes own origin, headers, limits,
+  statuses, and SSE headers. Auth is a mounted handler; raw headers never reach app code.
+  `check:plain` fails an operation that takes a `Request` or returns a `Response`, any app use of the
+  global `Response`, and the destructuring, constant-key, and dynamic-import escapes.
+  Proof: wire pinned before the move; 177 planted cases; 68 app tests; copied starter; all gates.
+  Left: the telemetry route keeps one `.then` to stay under the complexity limit (plain-function cap is full).
 
 - **start/http-graceful** — a server shutdown never hangs on an outgoing HTTP request.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY after one fix round.
