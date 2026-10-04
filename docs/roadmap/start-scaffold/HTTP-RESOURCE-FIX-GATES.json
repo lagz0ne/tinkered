@@ -471,6 +471,62 @@
       "code": 0,
       "expected": 0,
       "log": "/tmp/http-review-fix5-prose.log"
+    },
+    {
+      "name": "fix6-red",
+      "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#test:boundary"],
+      "code": 1,
+      "expected": 1,
+      "log": "/tmp/http-review-fix6-red.log"
+    },
+    {
+      "name": "fix6-build",
+      "command": ["vp", "run", "-r", "build"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix6-build.log"
+    },
+    {
+      "name": "fix6-green",
+      "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#test:boundary"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix6-green.log"
+    },
+    {
+      "name": "fix6-plain",
+      "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#check:plain"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix6-plain.log"
+    },
+    {
+      "name": "fix6-types",
+      "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#typecheck"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix6-types.log"
+    },
+    {
+      "name": "fix6-test",
+      "command": ["vp", "run", "--no-cache", "@tinker-start-scaffold#test"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix6-test.log"
+    },
+    {
+      "name": "fix6-check",
+      "command": ["vp", "check"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix6-check.log"
+    },
+    {
+      "name": "fix6-prose",
+      "command": ["vp", "run", "prose"],
+      "code": 0,
+      "expected": 0,
+      "log": "/tmp/http-review-fix6-prose.log"
     }
   ]
 }

@@ -1578,3 +1578,14 @@ Other repeated values keep the native join inside one array entry.
 The regression covers two cookies and an ordinary repeated header.
 It fails on the old header record and passes on the new one.
 The existing reply proof and filled testing skill use the new shape.
+
+### Fix 6: browser import guard
+
+The shared httpBackend tag now lives in src/scaffold/http-backend.ts.
+Telemetry imports that file on both sides.
+The HTTP resource and request stay in backend/http.ts.
+The broad browser exception is gone.
+The fetch rule allows only the shared tag's default callback.
+A fourth boundary case imports httpRequest into a browser.
+It builds before the fix and is denied after the fix.
+The real app build proves browser telemetry can still use the shared tag.
