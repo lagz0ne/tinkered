@@ -2547,3 +2547,19 @@ Build, types, all 65 app tests, middleware, note fixture, and prose pass.
 The middleware proof also compares a real resumed SSE changes frame.
 It covers denied cursors and idle close through the built Start server.
 The changed-file code check has zero warnings.
+
+### Step 8: public route test entry
+
+Strict style found private route imports in the wire and ingest tests.
+Red: .protocol-reply-logs/10-style-red.log, exit 1, rule T04.
+The routes entry exports the two real Start routes for protocol tests.
+Their implementation and wire facts stay the same.
+Tests now import only public package entries.
+The registry will copy this entry and both new test files.
+
+Green: 10-public-wire-green.log and 10-style-green.log, exit 0.
+All eleven wire and ingest tests, app types, build, and code checks pass.
+The style census checks changed source and test files.
+The preset fixture is test-only wiring, not app source.
+Its existing preset calls are outside the source-only style rules.
+TSDoc will check that file with the other changed TypeScript files.
