@@ -1589,3 +1589,96 @@ The fetch rule allows only the shared tag's default callback.
 A fourth boundary case imports httpRequest into a browser.
 It builds before the fix and is denied after the fix.
 The real app build proves browser telemetry can still use the shared tag.
+
+### Fix-round review answers
+
+The earlier HTTP handoff above describes the first implementation.
+This fix round replaces its URL error payload, app exports, and browser exception.
+The final preflight still compares a5c12db9 with HEAD.
+It exits 0 with one file flag and three unit flags.
+The brief bars tools edits, so these filled labels stay for the lead.
+
+- http-backend.ts: leakedInternal = false.
+  ADR 0102 requires the public backend tag for bound test sends.
+  The shared telemetry sender also needs this browser-safe tag.
+- http: stopOnlyInDefer = false.
+  The resource owns close abort; each send also reads its caller's signal.
+  The caller-close test proves body reading stops before root close.
+- httpRequest: configNotTag = false.
+  URL, method, headers, and body are request input.
+  The native sending function comes from the backend tag.
+- delivery: configNotTag = false.
+  Settings and sending come from tags.
+  The content types and field query keys are fixed wire rules.
+
+S24 still points at the required built-in default.
+The brief leaves its rule update to a later card.
+The extension note owes no label.
+The test check has zero flags in 48 tests.
+The promise check has zero gaps and one unsure match.
+
+```bash
+backend_file=apps/start-scaffold/src/scaffold/\
+http-backend.ts
+node tools/jev/label.mjs leakedInternal false \
+  "$backend_file" --by start/http-resource \
+  --why "The public tag binds tests and sends telemetry."
+http_file=apps/start-scaffold/src/scaffold/\
+backend/http.ts
+node tools/jev/label.mjs stopOnlyInDefer false \
+  "$http_file#http" --by start/http-resource \
+  --why "Close aborts; caller signals also stop sends."
+node tools/jev/label.mjs configNotTag false \
+  "$http_file#httpRequest" --by start/http-resource \
+  --why "Request values are input; sending is a tag."
+delivery_file=apps/start-scaffold/src/scaffold/\
+telemetry/delivery.ts
+node tools/jev/label.mjs configNotTag false \
+  "$delivery_file#delivery" --by start/http-resource \
+  --why "Settings and sending are tags; fields are fixed."
+```
+
+The first full plain proof raced a root rebuild.
+It read missing built declarations and reported 149 plain functions.
+That run exited 1; no rule or source change was needed.
+The proof was restarted after the root build finished.
+No timing claim or full mutation lane is part of this card.
+
+### Fix-round final proof
+
+All six fixes have a separate commit and red then green proof.
+The proof pairs have red exit 1 and green exit 0.
+The method fix has two tests in the same red and green logs.
+The full plain proof passes 95 planted failures and keeps 17 plain functions.
+The required root chain exits 0.
+It passes 1,217 repo tests, with one existing skip.
+The app passes 48 tests; the copied starter passes 46.
+Root check keeps zero errors and the same 28 warnings.
+All 16 validate lanes pass.
+All 113 registry files match source.
+The copied starter's 15 gates each exit 0.
+Types, seam, seam fixture, browser guard, imports, schema, and middleware pass.
+Strict style census and TSDoc also exit 0.
+The mutation-script presence check ran alone under flock and exits 0.
+There is no Start scaffold mutation script, and no full lane ran.
+
+The full command, exit-code, and log list is HTTP-RESOURCE-FIX-GATES.json.
+It includes each fix proof, every planted case, and every consumer gate.
+The chain log is /tmp/http-review-gate-chain.log.
+The last check and prose logs use the http-review-final prefix.
+
+Fix commits:
+
+- a8add31c: reject built-in fetch value references.
+- 81aba3b3: keep only method and path in HTTP failure facts.
+- 87dd138f: keep the raw HTTP resource out of app seams.
+- 37c20763: check and upper-case the method once.
+- a539c8b4: keep repeated reply headers.
+- c931fcaf: keep HTTP requests behind the browser guard.
+
+The next commit saves the rebuilt registry and this final proof.
+The card waits for the lead to review and land.
+Only the two allowed folders changed.
+No stash, push, trial-store access, or container command was used.
+Every long job was awaited in this turn.
+The path-token warning above remains part of the shipped rule.
