@@ -543,3 +543,28 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 - Clean logs use `/tmp/core-testing-commit-` followed by
   `build.log`, `check.log`, `tests.log`, or `mutation.log`.
   The full report is `/tmp/core-testing-commit-mutation.json`.
+
+## core/close-hook-scope — ADR 0104
+
+- **Owner:** core/close-hook-scope writer.
+- **State:** Doing.
+- **Next:** save red root and session close logs, then add the lazy signal.
+- **Verify:** build, check, Core and consumer tests, ticket script,
+  all validate lanes, and Core mutation alone at floor 85.
+- **Assumptions:** the supplied checkout is installed at `addce061`.
+  No pull or install is needed.
+  The lead owns `TODO.md`; this section tracks the writer's steps.
+  Close hooks stay root-only; child sessions get the closing signal.
+  A hook that skips `next()` still runs the inner hooks and cleanup.
+  Each hook's first `next()` is retained; repeats join it.
+  The fixed brief asks for Jev labels outside the allowed paths.
+  Scope limits win; any label needed will be recorded here for the lead.
+- **Baseline:** runtime size is 16,156 bytes gzip.
+  Promise counts are sync 0, async 5, tagged 2.
+  Logs: `/tmp/close-hook-size-baseline.log` and
+  `/tmp/close-hook-promises-baseline.log`.
+- **Red proof:** root and session tests each returned 1 on unchanged Core.
+  Both timed out waiting for graceful close to settle.
+  Each test releases its wait in `finally` so no work is left behind.
+  Saved logs: `close-hook-scope-logs/red-root.log` and
+  `close-hook-scope-logs/red-session.log` beside this file.
