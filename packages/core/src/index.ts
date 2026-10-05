@@ -1733,8 +1733,9 @@ function resolveDep(
 }
 
 const noop = (() => {
-  const fn = (): void => undefined;
-  return Object.assign(fn, { debug: fn, info: fn, warn: fn, error: fn });
+  const fn = (() => undefined) as (() => undefined) & Observe.Logger;
+  for (const key in LEVELS) fn[key as keyof typeof LEVELS] = fn;
+  return fn;
 })();
 
 /** Attach a rejection handler to a fire-and-forget close so an internally started close (from a
@@ -1777,20 +1778,15 @@ const systemClock: Clock.Handle = {
   sleep: (ms, signal) =>
     new Promise<void>((resolve, reject) => {
       if (signal?.aborted) return reject(signal.reason);
-      if (!signal) {
-        setTimeout(resolve, ms);
-        return;
-      }
-      let id: ReturnType<typeof setTimeout>;
       const onAbort = (): void => {
         clearTimeout(id);
-        reject(signal.reason);
+        reject(signal!.reason);
       };
-      id = setTimeout(() => {
-        signal.removeEventListener("abort", onAbort);
+      const id = setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
         resolve();
       }, ms);
-      signal.addEventListener("abort", onAbort, { once: true });
+      signal?.addEventListener("abort", onAbort, { once: true });
     }),
 };
 
@@ -1804,28 +1800,15 @@ const systemRandom = {
     // Browsers give `randomUUID` to secure pages only; plain http still has `getRandomValues`.
     uuid: () => {
       if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
-      const b = crypto.getRandomValues(new Uint8Array(16));
-      b[6] = (b[6]! & 15) | 64;
-      b[8] = (b[8]! & 63) | 128;
-      const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
-      return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+      return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+        (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0]! & (15 >> (+c / 4)))).toString(16),
+      );
     },
   },
   seed: () => {
     const [a, b, c, d] = crypto.getRandomValues(new Int32Array(4));
     return { a: a!, b: b!, c: c!, d: d! || 1 };
   },
-};
-
-const DEFAULT_OBS: Obs = {
-  on: false,
-  clock: Date.now,
-  export: undefined,
-  limit: 0,
-  history: [],
-  log: undefined,
-  level: 0,
-  id: 1,
 };
 
 /** Span and log times read `observe.clock` if set, else the scope's ambient clock, so a test clock
@@ -1845,6 +1828,9 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
     id: 1,
   };
 }
+
+/** Observation off: no span opens and no log line is written, so nothing reads its clock. */
+const DEFAULT_OBS: Obs = makeObs({}, systemClock);
 
 /** Keep the off check small enough to inline; id creation runs only behind it. */
 function openSpan(
