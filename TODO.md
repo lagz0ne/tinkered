@@ -50,11 +50,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 - **core/graceful-writes** — active calls keep state open during graceful close.
   Asked by: Harness and Tinkerer live entries.
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-graceful-writes`.
-  Next: lead reviews the fixed diff, then runs the landing gates.
+  Next: lead reviews the saved fixes and lands them.
   Re-proven on main 2026-10-05: the write fails with `Disposed`; `closed` says success.
-  Proof: 847 Core tests; all test tasks and 16 validate lanes pass.
-  Mutation: Core 85.94; changed lines 92.31.
-  Size: 16,379 bytes gzip; promises match main (0, 5, 2).
+  Proof: 854 Core tests pass; seven new cases each fail with their guard broken.
+  Earlier round: all test tasks and 16 validate lanes pass.
+  Mutation: earlier Core run 85.94; fresh changed-line run 92.31.
+  Size: 16,379 of 16,384 B gzip (5 B left).
+  The next Core card must cut bytes before it adds any.
+  Promises match main (0, 5, 2).
   `scripts/ticket.sh` remains the lead's landing check.
   [Gates](docs/roadmap/core-v1/graceful-writes-logs/GATES.json).
   [Proof](docs/roadmap/core-feedback.md#graceful-close-blocks-active-writes-2026-10-01).

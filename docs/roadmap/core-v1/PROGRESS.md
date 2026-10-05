@@ -872,11 +872,13 @@ Thirty-three tests cover the write bug, helper calls, and close rules.
 Before the fix, six helper and body cases and the forced-parent case failed.
 Deleting the resource seal makes its new test fail.
 The named hand changes to the abort and release guards each make a test fail.
-The same source restored passes all 847 Core tests.
+That round restored the source and passed all 847 Core tests.
 All test tasks and all 16 validate lanes pass.
 Build, check, and prose return 0.
 Check has the same 28 warnings as main.
-Runtime size is 16,379 bytes gzip; main is 16,257.
+Runtime size is 16,379 of 16,384 B gzip (5 B left).
+The next Core card must cut bytes before it adds any.
+Main is 16,257 B gzip.
 Promises match main: sync 0, async 5, tagged 2.
 The copied stop probe prints success for the call and the close.
 The reviewer's eight edge probes also pass.
@@ -893,8 +895,23 @@ This writer did not run it or push the branch.
 Core mutation returns 0 at 85.94, above the floor of 85.
 It used 845 tests and the exact final runtime source.
 Two more cleanup controls were added after that run.
-The final changed-line run uses all 847 tests and returns 0 at 92.31.
+That changed-line run used all 847 tests and returned 0 at 92.31.
 It kills 96 changes; the eight survivors are explained in the gate file.
-The three repeated entry checks are equivalent, as the hand notes explain.
+Deleting the three repeated entry checks is equivalent.
+Swapping the checks at lines 4518 and 4527 for `ensureAccepting` is not equivalent.
 All named abort and release hand changes are killed.
+The re-review adds seven cases with no change to Core source.
+A tagged helper still runs during root close.
+A running session body can settle an operation during root stop.
+A saved body handle refuses calls once its body returns or fails.
+Both plain and hooked sessions follow that rule.
+A forced parent seal refuses helpers even from a running child call.
+Each new case fails with its named guard broken and passes with it restored.
+The hand changes ran in a scratch copy; this worktree's source stayed untouched.
+Forty focused tests and all 854 Core tests pass.
+Build, check, Core tests, and prose each return 0.
+The fresh changed-line run returns 0 at 92.31 with all 854 tests.
+It kills 96 changes; the same eight survivors remain explained.
+The full mutation result above is from the earlier round.
+The test file passes strict style, and Jev flags none of its 26 test entries.
 Saved work stays in Review for the lead.

@@ -437,7 +437,8 @@ A real failure can make it `failed`.
 `close({ graceful: true })` keeps state usable until running work and its cleanup finish.
 Held cell controllers can write until that drain ends, even from outside a call.
 A running call can call its `depends` operations, including after an await.
-A still-running `session(fn)` body can use its handle to run operations.
+While a `session(fn)` body is running, anyone holding that handle can run or settle operations.
+After the body returns or fails, that handle refuses calls during the drain.
 The call's `ctx.defer` cleanup can also write and call helpers after an await.
 This holds for a root stop signal, a direct root close, and a session close.
 Both close modes refuse brand-new outside calls and sessions as soon as closing begins.

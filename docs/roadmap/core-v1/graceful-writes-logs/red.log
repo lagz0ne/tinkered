@@ -31,7 +31,20 @@ FAIL: a child cannot release its draining parent's named resource
 Green: restore the fixed source; the full Core gate has the final count.
 The hand changes were never committed.
 
-Final green: 33 focused tests and all 847 Core tests pass.
+Earlier green: 33 focused tests and all 847 Core tests pass.
 The final changed-line run kills both cleanup-lifetime changes:
 active = false changed to true; the ctx guard changed to false.
 Full mutation: exit 0, 85.94; changed lines: exit 0, 92.31.
+
+Re-review hand changes ran only in /tmp/gw-r3-hand-core/src/index.ts.
+Each line below: broken guard exit 1 (one failed); restored exit 0 (one passed).
+T1, 2585: tagged helper during graceful root close.
+T2, 4527: session body settle during root stop.
+T3, 4337: plain body returned; saved handle refuses calls.
+T3, 4342: plain body failed; saved handle refuses calls.
+T3, 5671: hooked body returned; saved handle refuses calls.
+T3, 5675: hooked body failed; saved handle refuses calls.
+T4, 1261: forced parent seal refuses a running child helper.
+Latest green: exit 0, 40 focused tests, 854 Core tests.
+Latest changed-line Stryker: exit 0, 92.31 (96 killed, 8 survived).
+Workspace Core source unchanged. Exact mutations and outcomes are in GATES.json.

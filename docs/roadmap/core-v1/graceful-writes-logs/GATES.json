@@ -46,12 +46,12 @@
     "check": {
       "command": "vp check",
       "exit": 0,
-      "summary": ["Found 0 errors and 28 warnings in 511 files (5.1s, 8 threads)"]
+      "summary": ["Found 0 errors and 28 warnings in 511 files (5.3s, 8 threads)"]
     },
     "core_test": {
       "command": "vp run core#test",
       "exit": 0,
-      "summary": ["Test Files  39 passed (39)", "Tests  847 passed (847)"]
+      "summary": ["Test Files  39 passed (39)", "Tests  854 passed (854)"]
     },
     "all_test": {
       "command": "vp run -r test",
@@ -73,12 +73,14 @@
         "Tests  120 passed (120)",
         "Test Files  12 passed (12)",
         "Tests  75 passed (75)"
-      ]
+      ],
+      "run": "previous fix round"
     },
     "validate": {
       "command": "pnpm validate",
       "exit": 0,
-      "summary": ["All deterministic budget lanes PASS (16)"]
+      "summary": ["All deterministic budget lanes PASS (16)"],
+      "run": "previous fix round"
     },
     "size": {
       "command": "node scripts/check-core-entries.mjs",
@@ -92,7 +94,8 @@
         "sync-lane promises:  0   (budget 0)",
         "async-toggle promises: 5   (budget <=10)",
         "METRIC promises_tagged=2"
-      ]
+      ],
+      "run": "previous fix round"
     },
     "prose": {
       "command": "vp run prose",
@@ -102,12 +105,14 @@
     "style": {
       "command": "bash .agents/skills/coding-convention/scripts/style-census.sh packages/core/src/index.ts packages/core/tests/graceful-writes.test.ts --strict",
       "exit": 1,
-      "summary": ["Style census: FAIL (S10 S14)"]
+      "summary": ["Style census: FAIL (S10 S14)"],
+      "run": "previous fix round"
     },
     "style_changed": {
       "command": "style-census.sh /tmp/gw-changed-source.ts packages/core/tests/graceful-writes.test.ts --strict",
       "exit": 0,
-      "summary": ["Style census: OK; full-source hits match main."]
+      "summary": ["Style census: OK; full-source hits match main."],
+      "run": "previous fix round"
     },
     "tsdoc": {
       "command": "node tools/jev/docs.mjs packages/core/src/index.ts packages/core/tests/graceful-writes.test.ts",
@@ -116,7 +121,8 @@
         "jev docs: 2 file(s), 0 S26 row(s).",
         "S26 by folder: {}",
         "Advisory only \u2014 an S26 row is a doc to fix. Whether a doc says what code cannot is the reviewer's call (rule 10)."
-      ]
+      ],
+      "run": "previous fix round"
     },
     "core_mutation": {
       "command": "flock /tmp/mutation.lock vp run core#mutate",
@@ -133,11 +139,10 @@
       "tests_at_run": 845,
       "source_sha256": "545c3a1f31acf97b847814761d71da3f237ae27c0307ab10b2c289fdf3534793",
       "source_identical_after_added_tests": true,
-      "why": "The full run used 845 tests. Two more cleanup-lifetime controls were then added, without changing runtime source. All 847 final tests pass; the final changed-line run uses all 847."
+      "why": "Historical full run with 845 tests and the same runtime source. This tests-and-docs round adds no source changes; no full mutation rerun was needed. The latest changed-line run uses all 854 tests."
     },
     "per_line_mutation": {
       "command": "flock /tmp/mutation.lock npx stryker run --mutate src/index.ts:628-629,src/index.ts:742-744,src/index.ts:1247-1267,src/index.ts:2373-2373,src/index.ts:2585-2585,src/index.ts:2611-2611,src/index.ts:2651-2651,src/index.ts:2656-2661,src/index.ts:2735-2735,src/index.ts:3916-3916,src/index.ts:4011-4011,src/index.ts:4104-4105,src/index.ts:4200-4200,src/index.ts:4272-4272,src/index.ts:4337-4337,src/index.ts:4341-4344,src/index.ts:4518-4518,src/index.ts:4527-4527,src/index.ts:4547-4547,src/index.ts:4700-4700,src/index.ts:4702-4702,src/index.ts:4720-4720,src/index.ts:4722-4722,src/index.ts:4764-4764,src/index.ts:4778-4782,src/index.ts:4876-4876,src/index.ts:5174-5174,src/index.ts:5450-5450,src/index.ts:5670-5679,src/index.ts:5850-5850,src/index.ts:6035-6035 --reporters clear-text,json",
-      "cwd": "packages/core",
       "ranges": [
         "src/index.ts:628-629",
         "src/index.ts:742-744",
@@ -171,13 +176,14 @@
         "src/index.ts:5850-5850",
         "src/index.ts:6035-6035"
       ],
+      "cwd": "packages/core",
       "exit": 0,
       "score": 92.31,
       "counts": {
         "Killed": 96,
         "Survived": 8
       },
-      "tests_at_run": 847,
+      "tests_at_run": 854,
       "survivors": [
         {
           "line": 1254,
@@ -275,7 +281,7 @@
       "exit": 0,
       "unchanged_notes": 7,
       "changed_test_notes": 0,
-      "changed_test_entries": 22
+      "changed_test_entries": 26
     },
     "promises": {
       "exit": 0,
@@ -377,12 +383,16 @@
       {
         "original_line": 4497,
         "current_line": 4518,
-        "why": "The handle run replays declared work through runOnce or runHookCall and inline work through runInline; each still checks the same running ownership before starting work."
+        "why": "Deleting this call is equivalent: declared and inline calls still reach the same ensureRunning check before their body starts. Swapping it for ensureAccepting is a stricter check and is not equivalent.",
+        "mutation": "delete the ensureRunning call",
+        "not_equivalent_replacement": "ensureAccepting(layer);"
       },
       {
         "original_line": 4506,
         "current_line": 4527,
-        "why": "The recovered controller and runInline both reach runOnce or runHookCall before starting work. They still check the same body ownership with RECOVERED."
+        "why": "Deleting this call is equivalent: declared and inline calls still reach the same ensureRunning check before their body starts. Swapping it for ensureAccepting is a stricter check and is not equivalent.",
+        "mutation": "delete the ensureRunning call",
+        "not_equivalent_replacement": "ensureAccepting(layer);"
       }
     ],
     "probe": {
@@ -440,6 +450,214 @@
       "exit": 0,
       "flags": 0,
       "entries": 22
+    }
+  },
+  "review_round_3": {
+    "source_changed": false,
+    "hand_mutation_location": "/tmp/gw-r3-hand-core/src/index.ts",
+    "hand_mutants": [
+      {
+        "test": "T1",
+        "line": 2585,
+        "old": "ensureRunning(layer, caller);",
+        "replacement": "ensureAccepting(layer);",
+        "title": "a running call can use a tagged helper during graceful root close",
+        "red": {
+          "exit": 1,
+          "summary": [
+            "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "FAIL  tests/graceful-writes.test.ts > a running call can use a tagged helper during graceful root close",
+            "Tests  1 failed | 39 skipped (40)"
+          ]
+        },
+        "green": {
+          "exit": 0,
+          "summary": ["Tests  1 passed | 39 skipped (40)"]
+        }
+      },
+      {
+        "test": "T2",
+        "line": 4527,
+        "old": "ensureRunning(layer);",
+        "replacement": "ensureAccepting(layer);",
+        "title": "a running session body can settle an operation during root stop",
+        "red": {
+          "exit": 1,
+          "summary": [
+            "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "FAIL  tests/graceful-writes.test.ts > a running session body can settle an operation during root stop",
+            "Tests  1 failed | 39 skipped (40)"
+          ]
+        },
+        "green": {
+          "exit": 0,
+          "summary": ["Tests  1 passed | 39 skipped (40)"]
+        }
+      },
+      {
+        "test": "T3_plain_return",
+        "line": 4337,
+        "old": "child.body = undefined;",
+        "replacement": "",
+        "title": "a plain session handle refuses calls after its body returns",
+        "red": {
+          "exit": 1,
+          "summary": [
+            "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "FAIL  tests/graceful-writes.test.ts > a plain session handle refuses calls after its body returns",
+            "Tests  1 failed | 39 skipped (40)"
+          ]
+        },
+        "green": {
+          "exit": 0,
+          "summary": ["Tests  1 passed | 39 skipped (40)"]
+        }
+      },
+      {
+        "test": "T3_plain_fail",
+        "line": 4342,
+        "old": "child.body = undefined;",
+        "replacement": "",
+        "title": "a plain session handle refuses calls after its body fails",
+        "red": {
+          "exit": 1,
+          "summary": [
+            "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "FAIL  tests/graceful-writes.test.ts > a plain session handle refuses calls after its body fails",
+            "Tests  1 failed | 39 skipped (40)"
+          ]
+        },
+        "green": {
+          "exit": 0,
+          "summary": ["Tests  1 passed | 39 skipped (40)"]
+        }
+      },
+      {
+        "test": "T3_hook_return",
+        "line": 5671,
+        "old": "child.body = undefined;",
+        "replacement": "",
+        "title": "a hooked session handle refuses calls after its body returns",
+        "red": {
+          "exit": 1,
+          "summary": [
+            "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "FAIL  tests/graceful-writes.test.ts > a hooked session handle refuses calls after its body returns",
+            "Tests  1 failed | 39 skipped (40)"
+          ]
+        },
+        "green": {
+          "exit": 0,
+          "summary": ["Tests  1 passed | 39 skipped (40)"]
+        }
+      },
+      {
+        "test": "T3_hook_fail",
+        "line": 5675,
+        "old": "child.body = undefined;",
+        "replacement": "",
+        "title": "a hooked session handle refuses calls after its body fails",
+        "red": {
+          "exit": 1,
+          "summary": [
+            "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "FAIL  tests/graceful-writes.test.ts > a hooked session handle refuses calls after its body fails",
+            "Tests  1 failed | 39 skipped (40)"
+          ]
+        },
+        "green": {
+          "exit": 0,
+          "summary": ["Tests  1 passed | 39 skipped (40)"]
+        }
+      },
+      {
+        "test": "T4",
+        "line": 1261,
+        "old": "!layer.closed &&",
+        "replacement": "",
+        "title": "a running call cannot start a helper after a forced parent seals its child",
+        "red": {
+          "exit": 1,
+          "summary": [
+            "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "FAIL  tests/graceful-writes.test.ts > a running call cannot start a helper after a forced parent seals its child",
+            "Tests  1 failed | 39 skipped (40)"
+          ]
+        },
+        "green": {
+          "exit": 0,
+          "summary": ["Tests  1 passed | 39 skipped (40)"]
+        }
+      }
+    ],
+    "byte_budget": {
+      "runtime_gzip_bytes": 16379,
+      "cap": 16384,
+      "bytes_left": 5,
+      "next_core_card": "Cut bytes before adding any."
+    },
+    "test_types": "The test file references es2024.promise so Promise.withResolvers is typed; package compiler settings are unchanged.",
+    "source_sha256": "545c3a1f31acf97b847814761d71da3f237ae27c0307ab10b2c289fdf3534793",
+    "focused_test": {
+      "command": "vp run core#test -- graceful-writes.test.ts",
+      "exit": 0,
+      "passed": 40
+    },
+    "gates": {
+      "build": {
+        "command": "vp run -r build",
+        "exit": 0,
+        "summary": []
+      },
+      "check": {
+        "command": "vp check",
+        "exit": 0,
+        "summary": ["Found 0 errors and 28 warnings in 511 files (5.3s, 8 threads)"]
+      },
+      "core_test": {
+        "command": "vp run core#test",
+        "exit": 0,
+        "summary": ["Test Files  39 passed (39)", "Tests  854 passed (854)"]
+      },
+      "prose": {
+        "command": "vp run prose",
+        "exit": 0,
+        "summary": []
+      },
+      "size": {
+        "command": "node scripts/check-core-entries.mjs",
+        "exit": 0,
+        "summary": ["core runtime size: 16379 B gzip (cap 16384 B; all runtime files)"]
+      }
+    },
+    "changed_line_mutation": {
+      "exit": 0,
+      "score": 92.31,
+      "killed": 96,
+      "survived": 8,
+      "tests_at_run": 854
+    },
+    "style": {
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh packages/core/tests/graceful-writes.test.ts --strict",
+      "exit": 0,
+      "summary": "Style census: OK"
+    },
+    "advisory": {
+      "tests": {
+        "exit": 0,
+        "flags": 0,
+        "entries": 26
+      },
+      "preflight": {
+        "exit": 0,
+        "file_flags": 0,
+        "source_files_changed": 0
+      },
+      "tsdoc": {
+        "exit": 0,
+        "files": 1,
+        "S26": 0
+      }
     }
   }
 }

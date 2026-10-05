@@ -1,3 +1,4 @@
+/// <reference lib="es2024.promise" />
 import { expect, test } from "vite-plus/test";
 import {
   createScope,
@@ -25,6 +26,9 @@ const lifetime = resource({
   target: "session",
   factory: (_deps, ctx) => ({ closing: ctx.closing, signal: ctx.signal }),
 });
+
+const helper = operation({ label: "drain helper", run: () => 7 });
+const helperZone = tag({ label: "drain helper zone", default: "home" });
 
 for (const mode of ["root stop", "root close", "session close"]) {
   test(`a running call finishes its write during graceful ${mode}`, async () => {
@@ -669,4 +673,148 @@ test("a running call's cleanup can call a writing helper during graceful drain",
   cleanup.resolve();
   await running;
   expect((await closing).data?.get(count)).toEqual({ present: true, value: 4 });
+});
+
+test("a running call can use a tagged helper during graceful root close", async () => {
+  const finish = Promise.withResolvers<void>();
+  const outer = operation({
+    label: "tagged helper caller",
+    depends: { helper },
+    run: async ({ helper }) => {
+      await finish.promise;
+      return helper.run({ tags: [helperZone("away")] });
+    },
+  });
+  const root = createScope();
+  const running = root.settle(outer);
+  const closing = root.close({ graceful: true });
+  finish.resolve();
+  try {
+    expect(await running).toMatchObject({ status: "success", value: 7 });
+  } finally {
+    await closing;
+  }
+});
+
+test("a running session body can settle an operation during root stop", async () => {
+  const finish = Promise.withResolvers<void>();
+  const entered = Promise.withResolvers<Scope.Handle>();
+  const stop = new AbortController();
+  const root = createScope({ signal: stop.signal });
+  await root.ready;
+  const body = root.session(async (s) => {
+    entered.resolve(s);
+    await finish.promise;
+    return s.settle(helper);
+  });
+  const session = await entered.promise;
+  stop.abort();
+  await expect
+    .poll(() => {
+      try {
+        session.release(count);
+        return false;
+      } catch (error) {
+        if (!isError(error, "Disposed")) throw error;
+        return true;
+      }
+    })
+    .toBe(true);
+  finish.resolve();
+  try {
+    expect(await body).toMatchObject({ status: "success", value: 7 });
+  } finally {
+    await root.closed;
+  }
+});
+
+for (const hooked of [false, true]) {
+  for (const failed of [false, true]) {
+    test(`a ${hooked ? "hooked" : "plain"} session handle refuses calls after its body ${failed ? "fails" : "returns"}`, async () => {
+      const finish = Promise.withResolvers<void>();
+      const bodyEnd = Promise.withResolvers<number>();
+      const entered = Promise.withResolvers<Scope.Handle>();
+      const cause = new Error("body failed");
+      const root = createScope({
+        extensions: hooked
+          ? [extension({ label: "body handle hook", hooks: { session: (event) => event.next() } })]
+          : undefined,
+      });
+      await root.ready;
+      const body = root.session((s) => {
+        entered.resolve(s);
+        void s.run({ run: () => finish.promise });
+        return bodyEnd.promise;
+      });
+      const result = body.then(
+        (value) => ({ status: "success", value }),
+        (error: unknown) => ({ status: "failed", error }),
+      );
+      const session = await entered.promise;
+      const closing = root.close({ graceful: true });
+      await expect
+        .poll(() => {
+          try {
+            session.release(count);
+            return false;
+          } catch (error) {
+            if (!isError(error, "Disposed")) throw error;
+            return true;
+          }
+        })
+        .toBe(true);
+      if (failed) bodyEnd.reject(cause);
+      else bodyEnd.resolve(1);
+      await bodyEnd.promise.then(
+        () => undefined,
+        (error: unknown) => {
+          if (error !== cause) throw error;
+        },
+      );
+      try {
+        session.run(helper);
+        expect.unreachable();
+      } catch (error) {
+        if (!isError(error, "Disposed")) throw error;
+      } finally {
+        finish.resolve();
+        await result;
+        await closing;
+      }
+      const ended = await result;
+      if ("error" in ended && ended.error !== cause) throw ended.error;
+    });
+  }
+}
+
+test("a running call cannot start a helper after a forced parent seals its child", async () => {
+  const finish = Promise.withResolvers<void>();
+  const sealed = Promise.withResolvers<void>();
+  const outer = operation({
+    label: "force sealed helper caller",
+    depends: { helper },
+    run: async ({ helper }, ctx) => {
+      ctx.signal.addEventListener("abort", () => sealed.resolve(), { once: true });
+      await finish.promise;
+      try {
+        helper.run();
+        expect.unreachable();
+      } catch (error) {
+        if (!isError(error, "Disposed")) throw error;
+      }
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  const running = session.settle(outer);
+  const closing = session.close({ graceful: true });
+  const parentClosing = root.close();
+  await sealed.promise;
+  finish.resolve();
+  try {
+    expect(await running).toMatchObject({ status: "success" });
+  } finally {
+    await closing;
+    await parentClosing;
+  }
 });
