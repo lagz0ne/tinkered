@@ -4433,3 +4433,7 @@ Round 1 passed first try ($0.35, 38 minutes).
   Cost about $0.32, in 32 minutes.
   Two pay requests with one execution ID, sent at the same moment,
   made 2 create-intent calls: the same race trial 1 hit here.
+- Round 4, try 2 (agent `9eb1142b`): **pass**, hidden checks 17 of 17.
+  Cost about $0.12, in 12 minutes.
+  It claims the execution ID in the first transaction,
+  with a test that sent two requests at once and saw 2 calls before the fix.
