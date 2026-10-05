@@ -4429,3 +4429,7 @@ Round 1 passed first try ($0.35, 38 minutes).
 - Round 3, try 2 (agent `e64d37a0`): **pass**, hidden checks 10 of 10.
   Cost about $0.08, in 7 minutes.
   The Hold button moved to its own cell; a new test reads each cell exactly.
+- Round 4, try 1 (agent `59d4804b`): fail, hidden checks 16 of 17.
+  Cost about $0.32, in 32 minutes.
+  Two pay requests with one execution ID, sent at the same moment,
+  made 2 create-intent calls: the same race trial 1 hit here.
