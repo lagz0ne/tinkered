@@ -1,5 +1,32 @@
 # Flight trial progress
 
+## core/extension-slot
+
+Writer: Codex, branch `core/extension-slot`.
+Fixed in the trial; Core unchanged (ADR 0105).
+The reference app stays pinned.
+
+- `requests` is a session resource with declared `web` and middleware needs.
+- Each app binds its own error tags and puts its session on Hono's context.
+- Both apps resolve `requests` instead of calling the shared start hook by hand.
+- The new HTTP test resolves `requests` twice in each service's session.
+  One missing-route call must leave one log entry, with status 404.
+- Before the fix: exit 1, both test cases failed at the missing resource.
+- After the fix: exit 0, both test cases passed.
+- Gate proof: [GATES.json](extension-slot/GATES.json).
+
+Jev preflight returned 0, with no file flags.
+Its unit notes concern unchanged clock waits, socket promises,
+middleware stop checks, webhook cleanup, and payment-key promises.
+The reasons already recorded under `trial/services-closing` still apply.
+The payment note is marked noisy; it needs no label.
+The test judge returned 0 but does not read `test.each` cases.
+The README states the new repeated-resolve promise.
+The promise judge returned 0; its 13 gaps concern unchanged tests.
+No labels are added outside this card's allowed paths.
+Strict style and the TSDoc parser returned 0.
+This card uses the requested gates and only the trial mutation lane.
+
 ## flight-trial/entries-flake
 
 Writer: Codex, branch `flight-trial/entries-flake`.

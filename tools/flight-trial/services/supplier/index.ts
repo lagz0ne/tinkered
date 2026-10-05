@@ -5,7 +5,8 @@ import {
   calls,
   clock,
   rules,
-  httpRequests,
+  requests,
+  web,
   controlRoutes,
   errorShape,
   listener,
@@ -429,9 +430,14 @@ const readOrder = operation({
 export const app = extension({
   label: "start supplier app",
   hooks: {
-    async start(event) {
-      const scope = event.scope.createSession({ tags: [errorShape("duffel"), wireErrors(errors)] });
-      const http = await httpRequests.hooks!.start!({ ...event, scope });
+    async start({ scope: root, next }) {
+      await next();
+      const scope = root.createSession({ tags: [errorShape("duffel"), wireErrors(errors)] });
+      scope.resolve(web).use("*", async (c, next) => {
+        c.set("scope", scope);
+        await next();
+      });
+      const http = scope.resolve(requests);
       await scope.run(resetScenario, { rawInput: { name: "default" } });
       http.use("*", async (c, next) => {
         c.var.scope.run(expireHolds);

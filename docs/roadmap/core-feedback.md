@@ -788,26 +788,30 @@ If Hono validates before `.run`, this need ends.
 ## Shared unit with a slot, 2026-10-03
 
 Asked by `trial/flight-services`, then `trial/services-routing`.
-Status: second caller; now card `core/extension-slot`.
+Status: fixed in the trial; Core unchanged (ADR 0105).
 
-The supplier and payment services share a call log,
+Card `core/extension-slot` replaces the hand call with the session resource `requests`.
+Each service binds its own error tags on its session.
+Repeated resolves reuse the registered stack.
+
+The supplier and payment services shared a call log,
 route rules, and a listener, about 170 lines.
-Only the service's own action differs.
+Only the service's own action differed.
 A shared builder that takes an operation handle breaks ADR 0099.
-So each service declares its own copy.
-A declared unit with a slot for the action would remove the copies.
+So each service first declared its own copy.
+The request was for a declared unit with a slot to remove the copies.
 
 Second ask, from `trial/services-routing`:
-the shared Hono stack is one extension, `httpRequests`.
+the shared Hono stack was one extension, `httpRequests`.
 Core's extension config has no nested extension list.
-So each service's start hook calls the shared hook by hand:
+So each service's start hook called the shared hook by hand:
 
 ```ts
 await httpRequests.hooks!.start!({ ...event, scope });
 ```
 
-This skips how Core composes extensions.
-Installing `httpRequests` beside an app would register it twice.
+That skipped how Core composes extensions.
+Installing `httpRequests` beside an app would have registered it twice.
 
 ## Graceful close drains work before resource cleanup, 2026-10-04
 

@@ -7,7 +7,8 @@ import {
   calls,
   clock,
   rules,
-  httpRequests,
+  requests,
+  web,
   controlRoutes,
   errorShape,
   listener,
@@ -473,9 +474,14 @@ const saveIntentKey = operation({
 export const app = extension({
   label: "start payment app",
   hooks: {
-    async start(event) {
-      const scope = event.scope.createSession({ tags: [errorShape("stripe"), wireErrors(errors)] });
-      const http = await httpRequests.hooks!.start!({ ...event, scope });
+    async start({ scope: root, next }) {
+      await next();
+      const scope = root.createSession({ tags: [errorShape("stripe"), wireErrors(errors)] });
+      scope.resolve(web).use("*", async (c, next) => {
+        c.set("scope", scope);
+        await next();
+      });
+      const http = scope.resolve(requests);
       scope.resolve(controlRoutes);
       await scope.run(resetScenario, { rawInput: { name: "default" } });
       scope.resolve(webhooks);

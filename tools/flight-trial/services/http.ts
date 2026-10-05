@@ -2,15 +2,7 @@ import { once } from "node:events";
 import { serve } from "@hono/node-server";
 import { Hono, type Context, type Next } from "hono";
 import { createMiddleware } from "hono/factory";
-import {
-  data,
-  extension,
-  operation,
-  resource,
-  tag,
-  type Scope,
-  type RunResult,
-} from "@tinker/core";
+import { data, operation, resource, tag, type Scope, type RunResult } from "@tinker/core";
 import { failFlightService } from "../src/errors.ts";
 import { z } from "zod";
 
@@ -387,32 +379,28 @@ export const middleware = resource({
   },
 });
 
-/** Service start hooks borrow their event here; the HTTP stack has one owner. */
-export const httpRequests = extension({
+/** Each service binds its session as `c.var.scope` before resolving this stack. */
+export const requests = resource({
   label: "shared HTTP requests",
-  hooks: {
-    async start({ scope, next }) {
+  target: "session",
+  depends: { http: web, shared: middleware },
+  factory({ http, shared }) {
+    http.use("*", async (c, next) => {
+      c.set("json", shared.json);
+      c.set("error", shared.error);
+      c.set("respond", shared.respond);
+      c.set("control", false);
       await next();
-      const http = scope.resolve(web);
-      const shared = scope.resolve(middleware);
-      http.use("*", async (c, next) => {
-        c.set("scope", scope);
-        c.set("json", shared.json);
-        c.set("error", shared.error);
-        c.set("respond", shared.respond);
-        c.set("control", false);
-        await next();
-      });
-      http.use("/control/:rest{.*}", async (c, next) => {
-        c.set("control", true);
-        await next();
-      });
-      http.use("*", shared.log);
-      http.use("/control/:rest{.*}", shared.token);
-      http.use("*", shared.body);
-      http.use("*", shared.rule);
-      return http;
-    },
+    });
+    http.use("/control/:rest{.*}", async (c, next) => {
+      c.set("control", true);
+      await next();
+    });
+    http.use("*", shared.log);
+    http.use("/control/:rest{.*}", shared.token);
+    http.use("*", shared.body);
+    http.use("*", shared.rule);
+    return http;
   },
 });
 

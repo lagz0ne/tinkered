@@ -148,6 +148,8 @@ Gzip hashes are printed for reference only.
 Each supplier and payment run in their own process and Core scope.
 State lives in Core data cells.
 Resources own HTTP listeners and watchers.
+Each service resolves the shared `requests` resource from its own session.
+Resolving `requests` twice registers the HTTP stack once, with one call-log entry per request.
 Operations own calls, seat writes, and webhook sends.
 Each process entry serves its settings and closes cleanly on SIGTERM.
 Entry lifecycle tests cover real child processes and the exported entry functions.
