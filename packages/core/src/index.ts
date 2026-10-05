@@ -254,7 +254,7 @@ export declare namespace Resource {
     readonly raise: <K extends string, P extends object>(kind: K, payload: P) => never;
     readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
     readonly signal: AbortSignal;
-    /** Aborts when this layer or its parent begins closing, before graceful work drains.
+    /** Aborts when this layer or an ancestor begins closing, before graceful work drains.
      * Created on first read; unlike `signal`, it also fires on a graceful close (ADR 0104). */
     readonly closing: AbortSignal;
     readonly obs: Observe.Ctx;
@@ -5502,7 +5502,14 @@ function watchRootClose(
     lifetime.unlisten?.();
     const close = (): Promise<Scope.Result> =>
       closeLayer(layer, !options.graceful, options.withData === true);
-    if (closeWouldReenter(layer)) return close();
+    if (closeWouldReenter(layer)) {
+      const ended = close();
+      lifetime.closing ??= layer.closing!.then((result) => {
+        lifetime.finish?.(result);
+        return result;
+      });
+      return ended;
+    }
     if (lifetime.closing) return lifetime.closing;
     lifetime.closing =
       scope.closed ??

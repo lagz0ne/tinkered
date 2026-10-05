@@ -38,6 +38,79 @@ const waitAtSession = operation({
   run: ({ owned }) => owned.wait,
 });
 
+const sessionClosing = resource({
+  label: "session-closing",
+  target: "session",
+  factory: (_deps, ctx) => ctx.closing,
+});
+
+test("an idle session close aborts its resource and session hook closing signals", async () => {
+  let hookClosing: AbortSignal | undefined;
+  const piece = extension({
+    label: "idle-session",
+    hooks: {
+      session: (event) => {
+        hookClosing = event.closing;
+        return event.next();
+      },
+    },
+  });
+  const scope = createScope({ extensions: [piece] });
+  await scope.ready;
+  const session = scope.createSession();
+  const closing = session.resolve(sessionClosing);
+  expect(closing.aborted).toBe(false);
+  expect(hookClosing?.aborted).toBe(false);
+  await session.close({ graceful: true });
+  expect(closing.aborted).toBe(true);
+  expect(hookClosing?.aborted).toBe(true);
+  await scope.close();
+});
+
+test("a close hook's first closing read is already aborted", async () => {
+  let aborted: boolean | undefined;
+  const piece = extension({
+    label: "first-read-in-close",
+    hooks: {
+      close: (event) => {
+        aborted = event.closing.aborted;
+        return event.next();
+      },
+    },
+  });
+  const scope = createScope({ extensions: [piece] });
+  await scope.ready;
+  const ended = scope.close({ graceful: true });
+  expect(aborted).toBe(true);
+  await ended;
+});
+
+test("closed settles when a session cleanup makes the first root close", async () => {
+  const calls: string[] = [];
+  const piece = extension({
+    label: "reentrant-first-close",
+    hooks: {
+      close: (event) => {
+        calls.push("close hook");
+        return event.next();
+      },
+    },
+  });
+  const root = createScope({ signal: new AbortController().signal, extensions: [piece] });
+  await root.ready;
+  const session = root.createSession();
+  session.onClose(() => root.close({ graceful: true }).then(() => undefined));
+  await session.close();
+  let result: Scope.Result | undefined;
+  const closed = root.closed.then((ended) => {
+    result = ended;
+    return ended;
+  });
+  await expect.poll(() => result?.status).toBe("success");
+  expect((await closed).status).toBe("success");
+  expect(calls).toEqual([]);
+});
+
 test("a graceful root close ends a resource-owned wait before draining work", async () => {
   const scope = createScope();
   const owned = scope.resolve(rootWait);

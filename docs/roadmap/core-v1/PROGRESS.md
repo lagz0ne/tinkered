@@ -644,17 +644,14 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   A root with a stop signal reuses its existing `closed` promise.
   Closing signals compose ancestor controllers without recursion.
   Their fields stay absent from layers until a closing read needs them.
-- **Build assumption:** the published files never included the map files.
-  The build still emits those maps, with hidden links in the shipped code.
-  Local tools must load a map by path instead of finding its footer link.
-  The one private shared chunk uses `s.mjs`; the package version supplies its version.
-  These cuts remove map footer links and a cache hash from shipped code.
+- The fix round restores the build config to match `origin/main`.
+  Source map links and the shared chunk's hash stay in the built code.
 - The first ticket run was stopped with exit 143 before its mutation gates finished.
   Its log is `/tmp/close-hook-ticket.log`.
   Source changed after the first mutation score of 85.50.
   Both proofs will be rerun on the final source; neither old run is the final gate.
 
-- The final runtime is 16,152 bytes gzip, four bytes below the supplied base.
+- The fix-round runtime is 16,257 bytes gzip, 101 bytes above the 16,156-byte base.
   The unchanged cap is 16,384 bytes.
   Promise counts remain sync 0, async 5, tagged 2.
   All 16 validate lanes returned 0 on the trimmed source.
@@ -773,3 +770,21 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 - The writer's final step is this receipt and prose check.
   Source has not changed since the complete green gate.
   The branch is ready for lead review at its supplied base, `addce061`.
+
+### Review fix round
+
+- Owner: Sol writer, branch `core/close-hook-scope`.
+  Next: full gates and Core mutation proof before lead review.
+  Verify: the three red tests pass with the fix lines restored.
+- A session cleanup's first root close now settles `closed`.
+  It keeps the real layer Result and the existing hook bypass.
+- Idle session closing and a close hook's first signal read have tests.
+  Each test failed with its required line removed or reverted.
+  All 13 closing tests pass with those lines restored.
+- Build, check, size, prose, TSDoc, and test style returned 0.
+  The build config exactly matches `origin/main`.
+  Size is 16,257 B gzip, +101 B over 16,156 B.
+  The cap stays 16,384 B.
+- Red and green logs are in `close-hook-scope-logs/`.
+  The fix logs start with `red-reentrant`, `red-idle`,
+  `red-first-read`, `green-fix`, and `fix-`.

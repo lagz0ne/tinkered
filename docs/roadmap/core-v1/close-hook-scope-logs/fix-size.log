@@ -1,0 +1,25 @@
+~/packages/core$ vp pack ⊘ cache disabled
+ℹ entry: src/index.ts, src/testing.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 9 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+ℹ dist/index.mjs                       50.39 kB │ gzip: 16.07 kB
+ℹ dist/testing.mjs                      1.28 kB │ gzip:  0.79 kB
+ℹ dist/index.mjs.map                  342.82 kB │ gzip: 97.22 kB
+ℹ dist/testing.mjs.map                  7.27 kB │ gzip:  2.95 kB
+ℹ dist/trace-random-DUDap8Fd.mjs.map    1.04 kB │ gzip:  0.56 kB
+ℹ dist/trace-random-DUDap8Fd.mjs        0.19 kB │ gzip:  0.19 kB
+ℹ dist/testing.d.mts                    2.52 kB │ gzip:  1.11 kB
+ℹ dist/index.d.mts                      0.66 kB │ gzip:  0.34 kB
+ℹ dist/index-C8P8F5WG.d.mts            40.16 kB │ gzip: 12.26 kB
+ℹ 9 files, total: 446.33 kB
+✔ Build complete in 381ms
+
+~/packages/core$ node ../../scripts/check-core-entries.mjs ⊘ cache disabled
+core runtime size: 16257 B gzip (cap 16384 B; all runtime files)
+core entries: main loads no testing; all three testing helpers work across entries
+
+---
+vp run: 0/2 cache hit (0%). (Run `vp run --last-details` for full details)

@@ -1,0 +1,38 @@
+Removed: layer.swept = true; in watchRootClose
+~/packages/core$ vp test -- tests/closing.test.ts -t 'a close hook'\''s first closing read' ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-close-hook/packages/core
+
+ ❯ tests/closing.test.ts (13 tests | 1 failed | 12 skipped) 11ms
+   × a close hook's first closing read is already aborted 9ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/closing.test.ts > a close hook's first closing read is already aborted
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/closing.test.ts:84:19
+     82|   await scope.ready;
+     83|   const ended = scope.close({ graceful: true });
+     84|   expect(aborted).toBe(true);
+       |                   ^
+     85|   await ended;
+     86| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 skipped (13)
+   Start at  03:57:47
+   Duration  384ms (transform 81%, import 13%, tests 5%, worker 2%)
+
+
+
+EXIT 1

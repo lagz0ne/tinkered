@@ -1,0 +1,38 @@
+Removed: beginClosing(layer);
+~/packages/core$ vp test -- tests/closing.test.ts -t 'an idle session close' ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-close-hook/packages/core
+
+ ❯ tests/closing.test.ts (13 tests | 1 failed | 12 skipped) 15ms
+   × an idle session close aborts its resource and session hook closing signals 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/closing.test.ts > an idle session close aborts its resource and session hook closing signals
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/closing.test.ts:65:27
+     63|   expect(hookClosing?.aborted).toBe(false);
+     64|   await session.close({ graceful: true });
+     65|   expect(closing.aborted).toBe(true);
+       |                           ^
+     66|   expect(hookClosing?.aborted).toBe(true);
+     67|   await scope.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 skipped (13)
+   Start at  03:57:18
+   Duration  397ms (transform 79%, import 12%, tests 7%, worker 2%)
+
+
+
+EXIT 1

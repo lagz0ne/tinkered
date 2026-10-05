@@ -1,0 +1,41 @@
+Reverted: first reentrant close retaining and settling the real layer close
+~/packages/core$ vp test -- tests/closing.test.ts -t 'closed settles when a session cleanup' ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-close-hook/packages/core
+
+ ❯ tests/closing.test.ts (13 tests | 1 failed | 12 skipped) 1034ms
+   × closed settles when a session cleanup makes the first root close 1031ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/closing.test.ts > closed settles when a session cleanup makes the first root close
+AssertionError: expected undefined to be 'success' // Object.is equality
+
+- Expected:
+"success"
+
++ Received:
+undefined
+
+ ❯ tests/closing.test.ts:109:43
+    107|     return ended;
+    108|   });
+    109|   await expect.poll(() => result?.status).toBe("success");
+       |                                           ^
+    110|   expect((await closed).status).toBe("success");
+    111|   expect(calls).toEqual([]);
+
+Caused by: Error: Matcher did not succeed in time.
+ ❯ tests/closing.test.ts:109:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 skipped (13)
+   Start at  03:58:40
+   Duration  2.09s (tests 60%, transform 34%, import 5%)
+
+
+
+EXIT 1
