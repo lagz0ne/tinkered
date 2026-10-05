@@ -4420,3 +4420,9 @@ Round 1 passed first try ($0.35, 38 minutes).
 - Round 2, try 1 (agent `935319d2`): **pass**, hidden checks 6 of 6.
   Cost about $0.22, in 13 minutes (trial 2: $0.26, 33 minutes).
   It ran each test file in its own call, as GUIDELINES now says.
+- Round 3, try 1 (agent `7066c421`): fail, hidden checks 6 of 10.
+  Cost about $0.30, in 37 minutes.
+  All four round 3 checks passed.
+  The `Hold` button sat inside the Seats cell, so four round 1 and 2
+  table checks read `50Hold …` instead of `50`.
+  The packet says to keep the numeric Seats column: a real app bug.
