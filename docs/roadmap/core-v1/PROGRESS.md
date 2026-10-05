@@ -920,7 +920,7 @@ Saved work stays in Review for the lead.
 
 Owner: Sol writer on `core/size-room`.
 Core starts at 16,379 B gzip.
-The cuts leave 16,078 B gzip, with 306 B free.
+The cuts leave 16,074 B gzip, with 310 B free.
 The cap stays 16,384 B.
 Public types and exports stay the same.
 Error kinds and message text stay the same.
@@ -1053,7 +1053,12 @@ Zero gains, larger output, and unsafe name clashes were dropped.
 - Restore direct InvalidDependency throws: costs 1 B.
   These undo the two new error helpers and keep the old stack depth.
 
-The net saving is 301 B.
+- Restore separate controller construction after its speed loss: costs 8 B.
+- `runners -> runs`: 4 B.
+- `writers -> writes`: 4 B.
+- `historyMax -> limit`: 4 B.
+
+The net saving is 305 B.
 The public empty-list probe rejects on main and on the final code.
 The discarded shared-list cut accepted it.
 Each error still owns a fresh payload and keeps its text.

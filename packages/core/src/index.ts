@@ -1139,11 +1139,11 @@ function signalOf(layer: Layer): AbortSignal {
  * that declare that hook, or undefined when none does. One record per root, shared by every layer
  * under it, so a session reads its route from its parent instead of walking to the root. */
 type ExtRoutes = {
-  readonly runners: readonly Scope.Extension<unknown>[] | undefined;
-  readonly writers: readonly Scope.Extension<unknown>[] | undefined;
+  readonly runs: readonly Scope.Extension<unknown>[] | undefined;
+  readonly writes: readonly Scope.Extension<unknown>[] | undefined;
   readonly session: readonly Scope.Extension<unknown>[] | undefined;
 };
-const NO_EXTS: ExtRoutes = { runners: undefined, writers: undefined, session: undefined };
+const NO_EXTS: ExtRoutes = { runs: undefined, writes: undefined, session: undefined };
 /** A layer's node store, child set, owned-work set, defer list, and teardown errors start as these
  * shared empty ones, so an idle layer allocates none (performance rule 4). Never written: the first
  * write gives the layer its own ({@link nodeState}, {@link makeLayer}, {@link addWork},
@@ -1633,12 +1633,12 @@ function writeWithHooks<T>(
   value: T,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): void {
-  const writers = layer.exts.writers;
-  if (writers === undefined) return writeCell(layer, target, value, chain);
+  const writes = layer.exts.writes;
+  if (writes === undefined) return writeCell(layer, target, value, chain);
   ensureOpen(layer);
   const at = (index: number): void => {
-    if (index === writers.length) return writeCell(layer, target, value, chain);
-    const ext = writers[index];
+    if (index === writes.length) return writeCell(layer, target, value, chain);
+    const ext = writes[index];
     const next = (): void => at(index + 1);
     ext.hooks!.write!(
       hookEvent({ kind: "write", cell: target, value, next }, layer, ext.label, chain),
@@ -1763,7 +1763,7 @@ type Obs = {
   on: boolean;
   clock: () => number;
   export: ((span: SpanImpl) => void) | undefined;
-  historyMax: number;
+  limit: number;
   history: SpanImpl[];
   log: ((entry: Observe.Log) => void) | undefined;
   level: number;
@@ -1836,7 +1836,7 @@ const DEFAULT_OBS: Obs = {
   on: false,
   clock: Date.now,
   export: undefined,
-  historyMax: 0,
+  limit: 0,
   history: [],
   log: undefined,
   level: 0,
@@ -1848,12 +1848,12 @@ const DEFAULT_OBS: Obs = {
 function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
   if (!config) return DEFAULT_OBS;
   const c = config;
-  const historyMax = c.history ?? 0;
+  const limit = c.history ?? 0;
   return {
-    on: c.export !== undefined || historyMax > 0,
+    on: c.export !== undefined || limit > 0,
     clock: c.clock ?? (() => clock.currentTimeMillis()),
     export: c.export,
-    historyMax,
+    limit,
     history: [],
     log: c.log,
     level: c.level ?? 0,
@@ -2021,9 +2021,9 @@ function closeSpan(
   span.end = end;
   span.status = status;
   if (status === "failed") span.error = error;
-  if (obs.historyMax > 0) {
+  if (obs.limit > 0) {
     obs.history.push(span);
-    if (obs.history.length > obs.historyMax) obs.history.shift();
+    if (obs.history.length > obs.limit) obs.history.shift();
   }
   const sink = obs.export;
   if (sink) isolate(() => sink(span));
@@ -2765,12 +2765,18 @@ function operationController<T, I>(
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
 ): Scope.OperationController<T, I> {
   const execute = executorFor(layer, target, up, chain, caller);
-  const runners = layer.exts.runners;
-  const run =
-    runners === undefined
-      ? execute
-      : (call?: Scope.Invocation<I>): unknown =>
-          runHookCall(layer, target, up, chain, caller, hookTarget, call);
+  const runs = layer.exts.runs;
+  if (runs === undefined)
+    return new OperationControl(
+      execute,
+      layer,
+      target,
+      up,
+      chain,
+      hookTarget,
+    ) as Scope.OperationController<T, I>;
+  const run = (call?: Scope.Invocation<I>): unknown =>
+    runHookCall(layer, target, up, chain, caller, hookTarget, call);
   return new OperationControl(
     run,
     layer,
@@ -5441,12 +5447,12 @@ function extendHandle(
 }
 
 function readExtRoutes(exts: readonly Scope.Extension<unknown>[]): ExtRoutes {
-  const runners = exts.filter((ext) => ext.hooks?.run !== undefined);
-  const writers = exts.filter((ext) => ext.hooks?.write !== undefined);
+  const runs = exts.filter((ext) => ext.hooks?.run !== undefined);
+  const writes = exts.filter((ext) => ext.hooks?.write !== undefined);
   const session = exts.filter((ext) => ext.hooks?.session !== undefined);
   return {
-    runners: runners.length > 0 ? runners : undefined,
-    writers: writers.length > 0 ? writers : undefined,
+    runs: runs.length > 0 ? runs : undefined,
+    writes: writes.length > 0 ? writes : undefined,
     session: session.length > 0 ? session : undefined,
   };
 }
@@ -5882,11 +5888,11 @@ function invokeRunHooks<T, I>(
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined,
 ): unknown {
-  const runners = run.layer.exts.runners ?? [];
+  const runs = run.layer.exts.runs ?? [];
   const at = (index: number): unknown =>
     withHookAccess(run, () => {
-      if (index === runners.length) return runHookBody(run, target, chain);
-      const ext = runners[index];
+      if (index === runs.length) return runHookBody(run, target, chain);
+      const ext = runs[index];
       const op = hookTarget as
         | Operation.Handle<unknown, unknown>
         | Scope.Inline<Scope.Depends, unknown, unknown>;
