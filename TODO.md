@@ -75,6 +75,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
+- **start/http-closing** — abort HTTP waits on `ctx.closing` (ADR 0104).
+  Owner: start/http-closing writer.
+  Next: lead review and land the saved work.
+  Verify: red then green; all eight gates exit 0; no mutation lane exists.
+  Proof: [track](docs/roadmap/start-scaffold/PROGRESS.md#http-closing-starthttp-closing).
+
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.

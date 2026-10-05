@@ -1,0 +1,5 @@
+Package: @tinker-start-scaffold
+mutate script: none
+Vite mutate task: false
+Stryker configs: 0
+No start-scaffold mutation lane; no score exists. EXIT 0

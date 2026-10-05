@@ -1,0 +1,10 @@
+note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/apps/start-scaffold
+
+
+ Test Files  1 passed (1)
+      Tests  24 passed (24)
+   Start at  07:47:43
+   Duration  964ms (transform 47%, import 43%, tests 10%, worker 1%)
+

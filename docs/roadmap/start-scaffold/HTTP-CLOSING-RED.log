@@ -1,0 +1,31 @@
+note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/apps/start-scaffold
+
+ ❯ tests/http.test.ts (21 tests | 1 failed | 20 skipped) 2024ms
+   × a direct graceful session close settles a hung HTTP send without stop tags 2021ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/http.test.ts > a direct graceful session close settles a hung HTTP send without stop tags
+Error: Test timed out in 2000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/http.test.ts:644:1
+    642|
+    643|
+    644| test("a direct graceful session close settles a hung HTTP send without…
+       | ^
+    645|   const backend = createHeldBackend();
+    646|   const stop = new AbortController();
+ ❯ VitestModuleRunner.directRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1272:59
+ ❯ VitestModuleRunner.cachedRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1179:73
+ ❯ VitestModuleRunner.import ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1134:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 20 skipped (21)
+   Start at  07:34:20
+   Duration  2.70s (tests 79%, transform 11%, import 10%)
+

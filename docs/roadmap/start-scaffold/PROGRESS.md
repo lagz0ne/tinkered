@@ -2257,9 +2257,8 @@ Remove the overrides, child sets, and startup binding loop.
 
 A backendStop abort ends outgoing HTTP when server shutdown starts.
 A requestStop abort ends that request's outgoing HTTP.
-A direct graceful close with no stop signal cannot stop a pending HTTP wait.
-Core has no session close-start hook for that case.
-The lead owns the Core follow-up row.
+Before ADR 0104, a direct graceful close without a stop signal waited on HTTP.
+ADR 0104 added ctx.closing; start/http-closing fixes that old limit below.
 Other work keeps Core's graceful rule; forced close keeps its cancellation rule.
 
 Assume the lead's stop-tag direction replaces the original brief's close hook.
@@ -2316,7 +2315,7 @@ await session.close({ graceful: true });
 await pending;
 ```
 
-The limit needs a Core session close-start hook, not a method replacement.
+ADR 0104 later supplied ctx.closing; start/http-closing uses it below.
 No Core file changed; the lead files the row.
 
 #### Fix 2: reject late HTTP through the managed operation
@@ -2952,7 +2951,7 @@ The glossary drops live claims for retired HTTP helpers.
 The whole-request tag is marked retired.
 Feature operations receive params; routes own wire input and replies.
 The README and skills explain rawInput and reply mapping.
-Direct graceful close remains a limit, separate from tested stop behavior.
+Direct graceful close was a limit then; start/http-closing fixes it below.
 
 Step 1 build and prose each exit 0.
 Logs: .http-docs-logs/03-step1-build.log and 03-step1-prose.log.
@@ -3171,3 +3170,70 @@ Step commits:
 - 2e46e34c: rebuilt registry and copied-starter proof.
 - baf8ff2b: app-only image build, new pin, saved tar and keeper.
 - The final proof commit records round 1 and every remaining gate.
+
+## HTTP closing: start/http-closing
+
+Owner: start/http-closing writer.
+Target: apps/start-scaffold only; no Core API change.
+Next: final rebase and gate sweep, then lead review and landing.
+Verify: a hung session send ends on direct graceful close without stop tags.
+
+Read ADR 0104, ADR 0102, ADR 0103, and the fixed writer brief.
+The branch started clean and rebased onto origin/main.
+Install and the first recursive build exit 0.
+
+Red proof: HTTP-CLOSING-RED.log, exit 1.
+The session test times out at 2000 ms without ctx.closing.
+Green proof: HTTP-CLOSING-GREEN.log, exit 0.
+The resource factory reads closing and defer by destructuring its context.
+Each send joins closing with the caller, cleanup, and stop-tag signals.
+A direct graceful root close also reaches an explicit session's send.
+The abort maps to HttpRequestFailed with AbortError and code 20.
+The caller's signal stays open; forced close still returns cancelled.
+After the backend delivers its reply, running work can finish during close.
+
+No stop tag or cleanup signal was removed.
+Root-stop tests now leave backendStop unbound and still settle HTTP.
+The separate backendStop test ends a send while its root stays open.
+The late-send tests also require an already-ended tag to block sending.
+Removing backendStop would change these shipped promises.
+RequestStop still ends one request and leaves siblings open.
+Cleanup still covers a resource released apart from its layer.
+
+The README, copied skill, and TSDoc drop the old close limit.
+Earlier track notes now name it as the old limit resolved by ADR 0104.
+Frozen decisions and saved old gate output keep their history.
+
+All eight requested gates exit 0.
+Their commands and log paths are in HTTP-CLOSING-GATES.json.
+The copied starter builds, checks types, and passes its own tests and source checks.
+Its native Response proof returns status 200 and body { ok: true }.
+Registry build exits 0; the emitted source matches the files exactly.
+
+The first full check caught two missing test-operation labels.
+Those are fixed; the registry was rebuilt after the fix.
+The final check has zero errors and 28 warnings.
+A clean origin/main tree at 3ba54ce2 also has zero errors and 28 warnings.
+Its install, recursive build, and check each exit 0.
+
+Package: @tinker-start-scaffold.
+The mutation lane presence check ran alone under /tmp/mutation.lock.
+No mutate script, Vite mutate task, or Stryker config exists.
+No score exists, so the floor of 85 does not apply here.
+Proof: HTTP-CLOSING-MUTATION.log, exit 0.
+
+The fixed brief's pnpm validate exits 0: all 16 lanes pass.
+Strict style census exits 0 for the changed TypeScript files.
+Jev tests: zero flags.
+Jev promises: zero gaps; two old titles are unsure.
+Jev preflight: configNotTag on httpRequest is false.
+Request values and safe error facts belong to the call, not process settings.
+The label command found the existing bank row b70914c768c7.
+No new bank row or calibration change is needed.
+
+The lifecycle caller is httpRequest in scaffold/backend/http.ts.
+The server seam and app backend re-export that operation.
+The fixed transport seam also exports http for proof tests.
+No app feature sends through http directly.
+Existing wire, body-read cancellation, and request-end tests pass.
+No new Core feedback or workaround was needed.

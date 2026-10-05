@@ -14,14 +14,14 @@ Docs and fix texts say exactly what the code does.
 1. ADR 0102: each request makes two spans (`http.request` and
    `http <METHOD> <path>`); `http` is session-target; requests stop on the
    `backendStop` and `requestStop` tags, on forced close, and on cleanup —
-   a direct graceful close with no stop signal still waits (Core gap);
+   at that step, direct graceful close still waited (fixed by ADR 0104);
    the ban list in `check:plain`; WebSocket and EventSource are out of scope
    (ADR 0048); the backend tag lives in `http-backend.ts`.
 2. `docs/glossary.md`: the HTTP section is no longer `@tinker/http`;
    rows for `httpBackend`, `http`, `httpRequest`, the stop tags, and
    "protocol layer" agree with the code; remove retired rows or mark them.
 3. `apps/start-scaffold/README.md` and the skills: no "one child span" claims;
-   the graceful-close limit is a limit, not a tested promise.
+   the old graceful-close limit was fixed by start/http-closing.
 4. `tools/jev/plain.mjs` S24 message and fix line and `tools/jev/README.md`:
    the fix snippet uses `rawInput` (the input is branded), imports from
    `@/lib/tinker.server`, and maps the reply (ADR 0103). Remove old

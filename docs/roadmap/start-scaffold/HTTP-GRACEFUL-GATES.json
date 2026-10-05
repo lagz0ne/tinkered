@@ -1623,7 +1623,7 @@
     "answer": "configNotTag false --why URL, method, headers, and body are validated per-request input; backend and stop settings come from tags."
   },
   "styleCensus": "OK",
-  "limit": "Only bound backendStop or requestStop aborts end HTTP before graceful shutdown joins work. A direct graceful close without an aborted stop tag cannot stop a pending HTTP wait; Core has no session close-start hook. The lead files the Core row.",
+  "limit": "Historical result before ADR 0104 (resolved by start/http-closing): only bound backendStop or requestStop aborts end HTTP before graceful shutdown joins work. A direct graceful close without an aborted stop tag cannot stop a pending HTTP wait; Core has no session close-start hook. The lead files the Core row.",
   "scope": "Only apps/start-scaffold/ and docs/roadmap/start-scaffold/ changed relative to dfc31bdc.",
   "notes": [
     "No Core method overrides, HTTP startup binding, child set, per-session binding, or double-install loop remains.",

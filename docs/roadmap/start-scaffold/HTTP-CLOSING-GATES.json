@@ -1,0 +1,50 @@
+[
+  {
+    "gate": "vp run -r build",
+    "cwd": ".",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-BUILD.log"
+  },
+  {
+    "gate": "vp check",
+    "cwd": ".",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-CHECK.log"
+  },
+  {
+    "gate": "vp run -r test",
+    "cwd": ".",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-TEST.log"
+  },
+  {
+    "gate": "vp run prose",
+    "cwd": ".",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PROSE.log"
+  },
+  {
+    "gate": "node apps/start-scaffold/maintain/check-registry.mjs",
+    "cwd": ".",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-REGISTRY.log"
+  },
+  {
+    "gate": "npm run check:plain",
+    "cwd": "apps/start-scaffold",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PLAIN.log"
+  },
+  {
+    "gate": "npm run test:seam",
+    "cwd": "apps/start-scaffold",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-SEAM.log"
+  },
+  {
+    "gate": "npm run test:boundary",
+    "cwd": "apps/start-scaffold",
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-BOUNDARY.log"
+  }
+]
