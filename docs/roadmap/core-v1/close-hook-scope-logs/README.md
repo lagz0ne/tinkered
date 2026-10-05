@@ -54,7 +54,6 @@ Each log ends with its exit code.
   The floor is 85; no mutant is excluded.
 - [Exit codes](gate-exits.json).
 - [Full mutation summary](full-mutation-summary.json).
-- [Full mutation report](full-mutation-report.json.gz).
 
 Runtime size: [16,257 B gzip](fix-size.log).
 That is +101 B over the 16,156 B base; the cap is 16,384 B.

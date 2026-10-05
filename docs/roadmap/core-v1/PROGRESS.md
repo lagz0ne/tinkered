@@ -844,7 +844,6 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   The four new tests have no gap or plain test flag.
   The two newly listed old titles are saved in the advisory notes.
 - Every gate's exit code is in `close-hook-scope-logs/gate-exits.json`.
-  The full report is `close-hook-scope-logs/full-mutation-report.json.gz`.
   The score and counts are in `close-hook-scope-logs/full-mutation-summary.json`.
   Red and green proof links are in `close-hook-scope-logs/README.md`.
 - Saved for lead review.

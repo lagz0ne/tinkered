@@ -24,6 +24,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/http-closing** — the scaffold `http` resource aborts its in-flight sends on `ctx.closing`.
+  Removes the limit: a direct graceful close with no stop signal still waits.
+  Next: brief a Sol writer for `apps/start-scaffold` (ADR 0104).
+  Verify: a graceful close with a hung backend settles; scaffold tests and `check:plain` pass.
+
+- **trial/services-closing** — the flight services drop the payment close-hook workaround for `ctx.closing`.
+  Next: brief a Sol writer for `tools/flight-trial` (ADR 0104).
+  Verify: zero wire changes; services tests pass; mutation at least 85.
+
 - **trial/round-lessons** — apply trial 2's lessons so a round is shorter and smaller.
   Start: when `trial/deepseek-02` ends; the packet stays fixed until then.
   Next: packet lines 30-32 say `Search complete` shows beside the outcome
@@ -58,14 +67,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/close-hook-scope** — resources and extensions learn when their layer begins to close (ADR 0104).
-  Owner: lead (Claude, Start scaffold session); Sol writer. Four askers: sync/subscribe, stack/t07,
-  `trial/services-http`, `start/http-graceful`. Precedent: Go's `RegisterOnShutdown`.
-  Worktree: `../tinkered-close-hook`.
-  Next: `ctx.closing` and `event.closing`, aborting before the drain; ADR 0085 close-hook rules.
-  Verify: a graceful close settles while a resource wait ends on `ctx.closing`; ticket.sh; validate; mutation 85.
-  [Brief](docs/roadmap/core-v1/CLOSE-HOOK-SCOPE-BRIEF.md).
-
 - **trial/deepseek-02** — DeepSeek on the new images (ADR 0102/0103 rules), compared with trial 1.
   Owner: lead (Claude, Start scaffold session).
   Trial `flight-deepseek-02`; writer `bb97e63c`, services `1be10fb5`; graded from `../tinkered-trial-runner-02`.
@@ -93,6 +94,15 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/close-hook-scope** — a layer's closing signal fires when closing begins, before the drain (ADR 0104).
+  Owner: lead (Claude, Start scaffold session); Sol writer, Sol fix round, Opus review (one fix round).
+  `ctx.closing` and `event.closing` abort on graceful or forced close; a child follows every ancestor;
+  the close hook event carries `event.scope`; made only on first read (promises 0/5/2).
+  Review caught a re-entrant first root close that left `closed` pending; fixed with a red test.
+  Core 814 tests, mutation 85.88, size 16,257 B (+101 B, cap 16,384), validate green.
+  Known: a re-entrant first root close still runs its close hooks 0 times, as on main.
+  [Proof](docs/roadmap/core-v1/close-hook-scope-logs/README.md).
 
 - **start/serve-native-response** — the starter's `scripts/serve.mjs` keeps the native `Response`.
   Owner: lead (Claude, Start scaffold session); Sol writer; lead review.
