@@ -56,13 +56,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **flight-trial/entries-flake** — entry startup waits now allow a busy box.
-  Owner: lead (Claude, Start scaffold session); Codex writer.
-  Next: lead review and landing.
-  Proof: 10 straight passes under full-test load; wrong-port copy fails at 15 s.
-  Build, check, 120 flight tests, and prose return 0.
-  [Proof](docs/roadmap/flight-trial/PROGRESS.md#flight-trialentries-flake).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -79,6 +72,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **flight-trial/entries-flake** — entry startup waits now allow a busy box.
+  Owner: lead (Claude, Start scaffold session); Sol writer, Opus review.
+  Both startup polls wait up to 15 s; what they check is unchanged.
+  Proof: 10 straight passes under full-test load (review: 10 more);
+  a wrong-port copy still fails at 15 s. 120 flight tests pass.
+  [Proof](docs/roadmap/flight-trial/PROGRESS.md#flight-trialentries-flake).
 
 - **trial/services-closing** — the flight services stop owned work on `ctx.closing` (ADR 0104).
   Owner: lead (Claude, Start scaffold session); Sol writer, Opus review (one fix round).
