@@ -805,9 +805,7 @@ function admit<T>(label: string, parser: Data.Parse<T> | undefined, raw: unknown
 }
 
 /** The shared, frozen empty list every no-item read returns — one per process, immutable so no
- * caller can reach past the `readonly` type and leak an item into every other empty read.
- * Also the defined empty namespace chain for a scope-target resource: default parameters must
- * not restore its owner's ambient namespace. */
+ * caller can reach past the `readonly` type and leak an item into every other empty read. */
 const NO_ITEMS: readonly never[] = Object.freeze([]);
 
 /** The "nothing" cases of an authored list — skipped wherever a {@link Many} is read. */
@@ -903,6 +901,10 @@ export function namespace(options?: { readonly tags?: Tag.Bindings }): Namespace
 
 const isNamespace = (n: unknown): n is Namespace =>
   (n as { [namespaceSym]?: true } | null | undefined)?.[namespaceSym] === true;
+
+/** An internal, defined no-namespace chain. Unlike `undefined`, it survives default parameters
+ * on the resolution path, so a scope-target resource cannot regain its owner's ambient namespace. */
+const NO_NAMESPACE: readonly Namespace[] = Object.freeze([]);
 
 /** Normalize an authored `ns` to a fallback chain (one key wraps into a one-element chain) and
  * reject anything that is not a namespace — a string or a foreign object is a loud error, not a
@@ -1238,7 +1240,7 @@ function tapSessionHooks(
 
 /** Late use of a sealed scope fails loudly. */
 function ensureOpen(layer: Layer): void {
-  if (layer.closed && !hookCanRead(layer)) raise("Disposed", { reason: "scope is closed" });
+  if (layer.closed && !hookCanRead(layer)) raiseDisposed();
 }
 
 /** A root refuses outside calls before its close hooks run. Running work keeps its helpers
@@ -1248,7 +1250,7 @@ function ensureAccepting(layer: Layer): void {
     (layer.closed || layer.closing || (layer.swept && layer.up === undefined)) &&
     !hookCanRead(layer)
   )
-    raise("Disposed", { reason: "scope is closed" });
+    raiseDisposed();
 }
 
 /** Only call entry uses the body's or caller's live ownership. Release still uses
@@ -1354,7 +1356,7 @@ function ownCell(
 
 /** Fire the changed cell's watchers on this layer, then on descendants that inherit it (a child that
  * shadows the cell, and everything under it, still sees its own value). One equality check against
- * the layer's last prev value, then every watcher runs in registration order. */
+ * the layer's last notified value, then every watcher runs in registration order. */
 function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
   flushOne(layer, target);
   flushNsWatchers(layer, target, key);
@@ -1363,7 +1365,7 @@ function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): v
   }
 }
 
-/** Compare once against this layer's last prev value, then run every watcher in order,
+/** Compare once against this layer's last notified value, then run every watcher in order,
  * handing each the value before the write beside the next one. The previous value travels
  * positionally — no pair allocated per notification — and costs a one-argument listener
  * nothing: an extra argument passed is an extra argument ignored. */
@@ -1617,7 +1619,7 @@ function addWatcher(
   return () => void rec.watchers?.delete(w);
 }
 
-/** Recompute this layer's last prev value when it went stale before a new watcher registers. */
+/** Recompute this layer's last notified value when it went stale before a new watcher registers. */
 function refreshNotified(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): void {
   if (rec.watchers?.size) return;
   const next = readCell(layer, target);
@@ -2999,7 +3001,7 @@ class ResourceCtx implements Resource.Ctx {
     this.random = owned.layer.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    if (this.settled()) raise("Disposed", { reason: "resource factory already finished" });
+    if (this.settled()) raiseDisposed("resource factory already finished");
     this.owned.hooks.push(fn);
     addDefer(this.owned.layer, { fn, owned: this.owned });
   };
@@ -3052,7 +3054,7 @@ class EmptyCtx implements Resource.Ctx {
     this.random = owner.random;
   }
   readonly defer = (): void => {
-    raise("Disposed", { reason: "resource factory declared no ctx" });
+    raiseDisposed("resource factory declared no ctx");
   };
   readonly raise = raiseUnstamped;
   get closing(): AbortSignal {
@@ -3550,7 +3552,7 @@ function resourceSlot(
   if (rec.built) return rec.built.value;
   if (rec.failed) return rec.failed.ready;
   if (rec.build) return rec.build;
-  const buildChain = target.target === "scope" ? NO_ITEMS : chain;
+  const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
   return buildResource(owner, layer, target, up, buildChain, rec);
 }
 
@@ -3772,7 +3774,7 @@ function nsFor(
   up: Layer | undefined,
   options: Scope.Options | undefined,
 ): readonly Namespace[] | undefined {
-  if (options?.ns === NO_ITEMS) return NO_ITEMS;
+  if (options?.ns === NO_NAMESPACE) return NO_NAMESPACE;
   if (options?.ns !== undefined) return nsChainOf(options.ns);
   return up?.ns;
 }
@@ -3931,9 +3933,9 @@ function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promi
 }
 
 /** The reality-only settlement reducer (ADR 0028): a real failure wins — the body threw, an owned-work
- * op rejected, or a descendant really failed (bubbled into `layer.failure`/`childFailure`) — then
+ * op rejected, or a descendant really failed (bubbled into `layer.failed`/`childError`) — then
  * an interrupted body settles `cancelled`, else `success`. No wished outcome participates. Records the
- * winning real failure in `layer.failure` so it propagates to a collecting ancestor. A body that
+ * winning real failure in `layer.failed` so it propagates to a collecting ancestor. A body that
  * rejects (whether it threw or surfaced a descendant failure it awaited) is a real body failure; we do
  * NOT distinguish an "own" throw from a "propagated" one (unknowable by value — rounds 7–9). */
 function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Outcome {
@@ -4859,7 +4861,7 @@ function freeAfterHooks(layer: Layer, hooks: SessionHooks): void {
  * Everything else would pin the closed layer after close: the torn-down resource `owned` (its
  * `layer` and defer closures), `named` and `readers` (owner layers), the
  * memoized `controller` closure over the layer, `watchers` and `nsWatchers` (user closures),
- * `dependents`, the build state (`built`, `ready`, `failed`, `build`), and the cached `eff`
+ * `users`, the build state (`built`, `ready`, `failed`, `build`), and the cached `eff`
  * and `prev` values (possibly a parent's). A default close's `nodes.clear()` drops it all. */
 function keepCellsOnly(s: NodeState): void {
   clearBuild(s);
@@ -4879,7 +4881,7 @@ function keepCellsOnly(s: NodeState): void {
  * data cell or a tag reads as it did before the close. Anything else throws `Disposed`. */
 function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
   if (SESSION_HOOKS.get(layer)?.phase !== "held" || isResource(target) || isExtension(target))
-    raise("Disposed", { reason: "scope is closed" });
+    raiseDisposed();
   return resolveNs(layer, target, ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns));
 }
 
@@ -5673,7 +5675,7 @@ async function drainEntries(layer: Layer, entries: DeferEntry[], end: Scope.End)
 
 /** Drive every currently-attached child to close (children first, awaited sequentially). The mode is
  * re-checked per child: once an EARLIER child's failure has been collected (pushed into this layer's
- * `childFailure` while we awaited it), the remaining children close FORCED so their resources roll
+ * `childError` while we awaited it), the remaining children close FORCED so their resources roll
  * back too. Collection is NOT done here: each child's real failure + teardown errors flow up through
  * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor.
  * Its caller reuses READY with no child, keeping the close phase order. */
@@ -5807,7 +5809,7 @@ type HookRun = {
 let activeHookOwner: Layer | undefined;
 
 function withHookAccess<T>(run: HookRun, fn: () => T): T {
-  if (!run.live) raise("Disposed", { reason: "run is finished" });
+  if (!run.live) raiseDisposed("run is finished");
   if (run.layer.aborted) throw run.layer.reason;
   const previous = activeHookOwner;
   activeHookOwner = run.layer;
@@ -6015,4 +6017,8 @@ function raiseInvalid(label: string, reason: string): never {
 /** Release and retained close data drop the same build references. */
 function clearBuild(state: ResourceState): void {
   state.built = state.ready = state.failed = state.build = undefined;
+}
+
+function raiseDisposed(reason = "scope is closed"): never {
+  raise("Disposed", { reason });
 }

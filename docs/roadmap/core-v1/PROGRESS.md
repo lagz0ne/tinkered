@@ -920,7 +920,7 @@ Saved work stays in Review for the lead.
 
 Owner: Sol writer on `core/size-room`.
 Core starts at 16,379 B gzip.
-The cuts leave 16,080 B gzip, with 304 B free.
+The cuts leave 16,079 B gzip, with 305 B free.
 The cap stays 16,384 B.
 Public types and exports stay the same.
 Error kinds and message text stay the same.
@@ -934,7 +934,8 @@ Build settings stay unchanged.
 ### Cuts
 
 Each cut was packed and measured on its own.
-The list shows the kept steps, in bytes saved.
+The list shows each measured step, in bytes saved.
+It includes the later undo of one unsafe cut.
 Name changes stay inside Core.
 A later name change can shorten an earlier name again.
 Zero gains, larger output, and unsafe name clashes were dropped.
@@ -1007,6 +1008,7 @@ Zero gains, larger output, and unsafe name clashes were dropped.
 - Chain retained-data reference clearing: 1 B.
 - Chain build-reference clearing: 5 B.
 - Share the frozen empty namespace list: 3 B.
+  Undone below: public empty lists must still be refused.
 - Share empty cleanup and error arrays: 15 B.
 - Share empty child and pending sets: 5 B.
 - Use implicit undefined for the remaining class fields: 1 B.
@@ -1016,6 +1018,16 @@ Zero gains, larger output, and unsafe name clashes were dropped.
 - Remove the private factory flag text: 8 B.
 - Reuse the existing no-op build callback: 1 B.
 - Remove the private cancellation brand text: 5 B.
+
+- Restore the private empty namespace list: costs 11 B.
+  Its final bundle cost differs from the earlier isolated saving.
+- Share cold Disposed payload construction: 2 B.
+- Default that helper to the unchanged closed-scope reason: 10 B.
+
+The net saving is 300 B.
+The public empty-list probe rejects on main and on the final code.
+The discarded shared-list cut accepted it.
+Each error still owns a fresh payload and keeps its text.
 
 ### Proof
 
