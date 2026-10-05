@@ -565,37 +565,40 @@ test("a draining session refuses a named release", async () => {
 });
 
 for (const hooked of [false, true]) {
-  test(`a finished ${hooked ? "hooked" : "plain"} call cannot start helpers during another call's drain`, async () => {
-    const finish = gate();
-    const save = operation({ label: "saved helper", run: () => 1 });
-    let saved = () => 0;
-    const root = createScope({
-      extensions: hooked
-        ? [extension({ label: "saved helper hooks", hooks: { run: (event) => event.next() } })]
-        : undefined,
+  for (const cleanup of [false, true]) {
+    test(`a finished ${hooked ? "hooked" : "plain"} call ${cleanup ? "with cleanup" : "without cleanup"} cannot start helpers during another call's drain`, async () => {
+      const finish = gate();
+      const save = operation({ label: "saved helper", run: () => 1 });
+      let saved = () => 0;
+      const root = createScope({
+        extensions: hooked
+          ? [extension({ label: "saved helper hooks", hooks: { run: (event) => event.next() } })]
+          : undefined,
+      });
+      await root.ready;
+      await root.run({
+        depends: { save },
+        run: ({ save }, ctx) => {
+          if (cleanup) ctx.defer(() => Promise.resolve());
+          saved = () => save.run();
+          return Promise.resolve();
+        },
+      });
+      await root.settled();
+      const running = root.run({ run: () => finish.promise });
+      const closing = root.close({ graceful: true });
+      try {
+        saved();
+        expect.unreachable();
+      } catch (error) {
+        if (!isError(error, "Disposed")) throw error;
+      } finally {
+        finish.resolve();
+        await running;
+        await closing;
+      }
     });
-    await root.ready;
-    await root.run({
-      depends: { save },
-      run: ({ save }) => {
-        saved = () => save.run();
-        return Promise.resolve();
-      },
-    });
-    await root.settled();
-    const running = root.run({ run: () => finish.promise });
-    const closing = root.close({ graceful: true });
-    try {
-      saved();
-      expect.unreachable();
-    } catch (error) {
-      if (!isError(error, "Disposed")) throw error;
-    } finally {
-      finish.resolve();
-      await running;
-      await closing;
-    }
-  });
+  }
 }
 
 test("a held controller can write outside a call until graceful drain ends", async () => {

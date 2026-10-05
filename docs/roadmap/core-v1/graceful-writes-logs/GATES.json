@@ -51,16 +51,14 @@
     "core_test": {
       "command": "vp run core#test",
       "exit": 0,
-      "summary": ["Test Files  39 passed (39)", "Tests  828 passed (828)"]
+      "summary": ["Test Files  39 passed (39)", "Tests  847 passed (847)"]
     },
     "all_test": {
       "command": "vp run -r test",
       "exit": 0,
       "summary": [
-        "\u25b6 S26 malformed TSDoc",
-        "\u2714 S26 malformed TSDoc (42.639894ms)",
         "Test Files  39 passed (39)",
-        "Tests  828 passed (828)",
+        "Tests  847 passed (847)",
         "Test Files  1 passed (1)",
         "Tests  4 passed (4)",
         "Test Files  8 passed (8)",
@@ -85,7 +83,7 @@
     "size": {
       "command": "node scripts/check-core-entries.mjs",
       "exit": 0,
-      "summary": ["core runtime size: 16318 B gzip (cap 16384 B; all runtime files)"]
+      "summary": ["core runtime size: 16379 B gzip (cap 16384 B; all runtime files)"]
     },
     "promises": {
       "command": "node --experimental-strip-types bench/promises.mjs",
@@ -123,89 +121,117 @@
     "core_mutation": {
       "command": "flock /tmp/mutation.lock vp run core#mutate",
       "exit": 0,
-      "score": 85.91,
+      "score": 85.94,
       "floor": 85,
       "counts": {
-        "NoCoverage": 21,
-        "Killed": 2992,
-        "Survived": 475,
+        "NoCoverage": 26,
+        "Killed": 3021,
+        "Survived": 473,
         "RuntimeError": 3,
-        "Timeout": 31
+        "Timeout": 30
       },
-      "tests_at_run": 823,
-      "source_sha256": "e7e5939e55beac857cd8969aa98d96a9f6ceb2b09fc719832a06437c9decfa62",
-      "source_identical_after_added_tests": true
+      "tests_at_run": 845,
+      "source_sha256": "545c3a1f31acf97b847814761d71da3f237ae27c0307ab10b2c289fdf3534793",
+      "source_identical_after_added_tests": true,
+      "why": "The full run used 845 tests. Two more cleanup-lifetime controls were then added, without changing runtime source. All 847 final tests pass; the final changed-line run uses all 847."
     },
     "per_line_mutation": {
-      "command": "flock /tmp/mutation.lock npx stryker run --mutate <ranges> --reporters clear-text,json",
+      "command": "flock /tmp/mutation.lock npx stryker run --mutate src/index.ts:628-629,src/index.ts:742-744,src/index.ts:1247-1267,src/index.ts:2373-2373,src/index.ts:2585-2585,src/index.ts:2611-2611,src/index.ts:2651-2651,src/index.ts:2656-2661,src/index.ts:2735-2735,src/index.ts:3916-3916,src/index.ts:4011-4011,src/index.ts:4104-4105,src/index.ts:4200-4200,src/index.ts:4272-4272,src/index.ts:4337-4337,src/index.ts:4341-4344,src/index.ts:4518-4518,src/index.ts:4527-4527,src/index.ts:4547-4547,src/index.ts:4700-4700,src/index.ts:4702-4702,src/index.ts:4720-4720,src/index.ts:4722-4722,src/index.ts:4764-4764,src/index.ts:4778-4782,src/index.ts:4876-4876,src/index.ts:5174-5174,src/index.ts:5450-5450,src/index.ts:5670-5679,src/index.ts:5850-5850,src/index.ts:6035-6035 --reporters clear-text,json",
       "cwd": "packages/core",
       "ranges": [
         "src/index.ts:628-629",
         "src/index.ts:742-744",
-        "src/index.ts:1247-1256",
-        "src/index.ts:2573-2573",
-        "src/index.ts:2599-2599",
-        "src/index.ts:2718-2718",
-        "src/index.ts:4086-4087",
-        "src/index.ts:4182-4182",
-        "src/index.ts:4254-4254",
-        "src/index.ts:4497-4497",
-        "src/index.ts:4506-4506",
-        "src/index.ts:4526-4526",
-        "src/index.ts:4679-4679",
-        "src/index.ts:4681-4681",
-        "src/index.ts:4699-4699",
-        "src/index.ts:4701-4701",
-        "src/index.ts:4743-4743",
-        "src/index.ts:4757-4761",
-        "src/index.ts:4855-4855",
-        "src/index.ts:5153-5153",
-        "src/index.ts:5429-5429",
-        "src/index.ts:5822-5822"
+        "src/index.ts:1247-1267",
+        "src/index.ts:2373-2373",
+        "src/index.ts:2585-2585",
+        "src/index.ts:2611-2611",
+        "src/index.ts:2651-2651",
+        "src/index.ts:2656-2661",
+        "src/index.ts:2735-2735",
+        "src/index.ts:3916-3916",
+        "src/index.ts:4011-4011",
+        "src/index.ts:4104-4105",
+        "src/index.ts:4200-4200",
+        "src/index.ts:4272-4272",
+        "src/index.ts:4337-4337",
+        "src/index.ts:4341-4344",
+        "src/index.ts:4518-4518",
+        "src/index.ts:4527-4527",
+        "src/index.ts:4547-4547",
+        "src/index.ts:4700-4700",
+        "src/index.ts:4702-4702",
+        "src/index.ts:4720-4720",
+        "src/index.ts:4722-4722",
+        "src/index.ts:4764-4764",
+        "src/index.ts:4778-4782",
+        "src/index.ts:4876-4876",
+        "src/index.ts:5174-5174",
+        "src/index.ts:5450-5450",
+        "src/index.ts:5670-5679",
+        "src/index.ts:5850-5850",
+        "src/index.ts:6035-6035"
       ],
       "exit": 0,
-      "score": 88.89,
+      "score": 92.31,
       "counts": {
-        "Killed": 48,
-        "Survived": 6
+        "Killed": 96,
+        "Survived": 8
       },
-      "tests_at_run": 828,
+      "tests_at_run": 847,
       "survivors": [
         {
-          "line": 2599,
-          "mutator": "CallExpression",
-          "why": "The replay reaches the same acceptance check in runOnce before starting the body."
+          "line": 1254,
+          "mutator": "ObjectLiteral",
+          "replacement": "{}",
+          "why": "The exact Disposed reason text is not a public promise. An empty payload also violates the declared payload type; the error kind remains Disposed."
         },
         {
           "line": 1254,
           "mutator": "StringLiteral",
-          "why": "Error reason text is not an exact-text promise; an empty payload mutant also fails the declared payload type."
+          "replacement": "\"\"",
+          "why": "The exact Disposed reason text is not a public promise. The error kind remains Disposed."
         },
         {
-          "line": 1254,
-          "mutator": "ObjectLiteral",
-          "why": "Error reason text is not an exact-text promise; an empty payload mutant also fails the declared payload type."
+          "line": 2611,
+          "mutator": "CallExpression",
+          "replacement": ";",
+          "why": "The namespace replay reaches runOnce with the same caller and body. It repeats the same running ownership check before starting work."
         },
         {
-          "line": 4760,
+          "line": 2657,
           "mutator": "ConditionalExpression",
-          "why": "These unchanged bucket identity and optional access checks moved into the existing predicate; they are not new close behavior."
+          "replacement": "true",
+          "why": "Equivalent: a non-empty defer list only comes from an existing ctx. Reaching this cleanup callback proves ctx exists, so replacing this guard with true has the same effect."
         },
         {
-          "line": 4760,
-          "mutator": "OptionalChaining",
-          "why": "These unchanged bucket identity and optional access checks moved into the existing predicate; they are not new close behavior."
+          "line": 1262,
+          "mutator": "ConditionalExpression",
+          "replacement": "true",
+          "why": "Equivalent: RECOVERED is a symbol with no active property. Removing the symbol check still reads undefined, which cannot grant running access."
         },
         {
-          "line": 4760,
+          "line": 4781,
           "mutator": "OptionalChaining",
-          "why": "These unchanged bucket identity and optional access checks moved into the existing predicate; they are not new close behavior."
+          "replacement": "state.owner.nodes.get(state.target)?.nsResources.get",
+          "why": "The pre-existing optional bucket reads moved into the close-state predicate. They remain old coverage gaps, not new close behavior; this is not claimed equivalent."
+        },
+        {
+          "line": 4781,
+          "mutator": "ConditionalExpression",
+          "replacement": "true",
+          "why": "The pre-existing bucket identity check moved into the close-state predicate. Its stale-bucket path remains an old coverage gap; this is not claimed equivalent."
+        },
+        {
+          "line": 4781,
+          "mutator": "OptionalChaining",
+          "replacement": "state.owner.nodes.get(state.target).nsResources",
+          "why": "The pre-existing optional bucket reads moved into the close-state predicate. They remain old coverage gaps, not new close behavior; this is not claimed equivalent."
         }
       ]
     }
   },
   "result": {
-    "runtime_gzip_bytes": 16318,
+    "runtime_gzip_bytes": 16379,
     "promises": {
       "sync": 0,
       "async": 5,
@@ -237,102 +263,23 @@
     "preflight": {
       "exit": 0,
       "file_flags": 0,
-      "unit_flags": 70,
-      "false_labels": 75,
+      "unit_flags": 69,
+      "false_labels": 74,
       "why": {
         "stateOutsideCell": "Core owns layer, run, and resource state. Graph data cells would call back into this same engine.",
         "effectWithoutDefer": "Core owns watcher and signal cleanup; it stores the disposer or clears the owner during teardown.",
-        "handRolledLifetime": "Core is the lifetime engine. Its own joins and teardown are the implementation of scope ownership."
-      },
-      "targets": {
-        "stateOutsideCell": [
-          "signalOf",
-          "makeObs",
-          "closeSpan",
-          "stick",
-          "track",
-          "addWork",
-          "exitTeardown",
-          "endTaggedFrame",
-          "runTaggedFrame",
-          "buildDeps",
-          "buildPlainDeps",
-          "resolveExtension",
-          "instanceOf",
-          "holdDependency",
-          "unlinkInstance",
-          "drainReady",
-          "completeInstance",
-          "finishHook",
-          "finishInstance",
-          "settleResourceInstance",
-          "buildHooklessResource",
-          "buildTrackedResource",
-          "finishAsyncBuild",
-          "ownNsResource",
-          "linkNsResourceDependent",
-          "linkNsDataDependent",
-          "detachNsDependencies",
-          "detachNsLinked",
-          "addBorrow",
-          "makeLayer",
-          "layerRecord",
-          "markSwept",
-          "markAborted",
-          "settleOutcome",
-          "canFastClose",
-          "fastClose",
-          "canEndIdle",
-          "closeLayer",
-          "prepareTeardown",
-          "closeInstances",
-          "startClose",
-          "runSessionWith",
-          "endInPlace",
-          "settleSessionWith",
-          "invalidateResource",
-          "unlinkNamedState",
-          "orderReleased",
-          "freeAfterHooks",
-          "recover",
-          "closingOf",
-          "runStartChain",
-          "wrapSession",
-          "extendHandle",
-          "watchRootClose",
-          "listenForStop",
-          "runSessionWrapped",
-          "reentersTeardown",
-          "addError",
-          "expandFrame",
-          "propagateSweptOutcome",
-          "withHookAccess",
-          "hookCanRead",
-          "runHookBody",
-          "failHookRun",
-          "finishHookRun",
-          "createBorrows"
-        ],
-        "effectWithoutDefer": [
-          "addWatcher",
-          "addWatcherNs",
-          "wrapSession",
-          "extendHandle",
-          "watchRootClose",
-          "listenForStop"
-        ],
-        "handRolledLifetime": ["finishHook", "finishInstance", "drainReleased"]
+        "handRolledLifetime": "Core is the lifetime engine. Its joins and teardown implement scope ownership."
       }
     },
     "tests": {
       "exit": 0,
       "unchanged_notes": 7,
       "changed_test_notes": 0,
-      "changed_test_entries": 11
+      "changed_test_entries": 22
     },
     "promises": {
       "exit": 0,
-      "unchanged_gaps": 41,
+      "unchanged_gaps": 43,
       "changed_gaps": 0,
       "new_closing_test_promise": "A first read after closing began returns an aborted signal.",
       "new_control_promises": [
@@ -340,6 +287,16 @@
         "New sessions are refused before session hooks start.",
         "A draining session cannot release its parent's resource.",
         "A parent release keeps a draining child's resources usable, including named resources."
+      ],
+      "new_fix_promises": [
+        "A running call can run its depends helpers during graceful close.",
+        "A running session body can use its handle to run operations.",
+        "A forced parent close seals a child already draining gracefully.",
+        "A resource defer write after the drain becomes a Disposed teardown error.",
+        "An already-aborted layer remains sealed under a graceful close.",
+        "Release is refused during the drain, including a resource whose parent owner is closing.",
+        "A finished caller cannot start new helpers during another call's drain.",
+        "A held controller can write outside a call until the drain ends."
       ]
     },
     "scope": "The unchanged label tool ran from /tmp/gw-label-tools. Labels are kept here because tools/jev changes are outside the allowed paths. Old test notes and README gaps are outside this card."
@@ -351,5 +308,138 @@
     "passed": 6,
     "tests": 14,
     "log": "red.log"
+  },
+  "fix_round": {
+    "red_before_fix": {
+      "base": "506602e8",
+      "exit": 1,
+      "failed": 7,
+      "passed": 19,
+      "cases": [
+        "depends helpers in all three close modes",
+        "session body run in all three close modes",
+        "forced parent close seals draining child"
+      ]
+    },
+    "hand_mutants": [
+      {
+        "name": "fix3-resource-seal",
+        "exit": 1,
+        "summary": [
+          "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+          "FAIL  tests/graceful-writes.test.ts > resource cleanup writes fail with Disposed after graceful drain",
+          "Tests  1 failed | 31 skipped (32)"
+        ]
+      },
+      {
+        "name": "fix4-already-aborted",
+        "exit": 1,
+        "summary": [
+          "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+          "FAIL  tests/graceful-writes.test.ts > graceful close seals a child already aborted by its parent",
+          "Tests  1 failed | 31 skipped (32)"
+        ]
+      },
+      {
+        "name": "fix4-parent-release",
+        "exit": 1,
+        "summary": [
+          "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+          "FAIL  tests/graceful-writes.test.ts > a child cannot release its draining parent's plain resource",
+          "Tests  1 failed | 31 skipped (32)"
+        ]
+      },
+      {
+        "name": "fix4-named-release",
+        "exit": 1,
+        "summary": [
+          "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+          "FAIL  tests/graceful-writes.test.ts > a draining session refuses a named release",
+          "Tests  1 failed | 31 skipped (32)"
+        ]
+      },
+      {
+        "name": "fix4-named-parent-release",
+        "exit": 1,
+        "summary": [
+          "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+          "FAIL  tests/graceful-writes.test.ts > a child cannot release its draining parent's named resource",
+          "Tests  1 failed | 31 skipped (32)"
+        ]
+      }
+    ],
+    "equivalent_hand_mutants": [
+      {
+        "original_line": 2599,
+        "current_line": 2611,
+        "why": "runNsCall replays through runUntagged to runOnce, which checks the same caller and body ownership before starting work."
+      },
+      {
+        "original_line": 4497,
+        "current_line": 4518,
+        "why": "The handle run replays declared work through runOnce or runHookCall and inline work through runInline; each still checks the same running ownership before starting work."
+      },
+      {
+        "original_line": 4506,
+        "current_line": 4527,
+        "why": "The recovered controller and runInline both reach runOnce or runHookCall before starting work. They still check the same body ownership with RECOVERED."
+      }
+    ],
+    "probe": {
+      "command": "node /tmp/gw-round-probe.mjs",
+      "exit": 0,
+      "output": {
+        "result": "success",
+        "error": "",
+        "closed": "success"
+      },
+      "import": "/home/paseo/next/tinkered-graceful-writes/packages/core/dist/index.mjs"
+    },
+    "style": {
+      "changed_exit": 0,
+      "full_exit": 1,
+      "main_exit": 1,
+      "why": "The same four S10/S14 hits are on main. All changed source and the complete graceful-writes test file pass strict census."
+    },
+    "history": {
+      "core_test_first_exit": 1,
+      "why": "An extra synchronous-body marker made the existing close-withData-inside-body test hang. The marker and its extra test were removed before all final gates.",
+      "proof_format_first_exit": 1,
+      "proof_format_fix": "Formatted GATES.json, then repeated all final build, check, test, validate, and prose gates; all returned 0."
+    },
+    "source_commit": "bf516f98",
+    "source_sha256": "545c3a1f31acf97b847814761d71da3f237ae27c0307ab10b2c289fdf3534793",
+    "focused_test": {
+      "command": "vp run core#test -- graceful-writes.test.ts",
+      "exit": 0,
+      "passed": 33
+    },
+    "additional_cleanup_controls": {
+      "core_mutation_source_unchanged": true,
+      "per_line_first": {
+        "exit": 0,
+        "score": 90.38,
+        "killed": 94,
+        "survived": 10
+      },
+      "killed": [
+        {
+          "line": 2657,
+          "mutator": "BooleanLiteral",
+          "replacement": "true"
+        },
+        {
+          "line": 2657,
+          "mutator": "ConditionalExpression",
+          "replacement": "false"
+        }
+      ],
+      "why": "A finished caller cannot retain running access after its cleanup. The new plain and hooked cleanup cases prove that lifetime."
+    },
+    "changed_test_review": {
+      "exit": 0,
+      "flags": 0,
+      "entries": 22
+    }
   }
 }

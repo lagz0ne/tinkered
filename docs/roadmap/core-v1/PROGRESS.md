@@ -853,36 +853,48 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 ## core/graceful-writes
 
 Active calls keep state usable while graceful close waits for them.
-Their call cleanup can write after an await.
-New calls and sessions at a closing layer stay refused.
+They can still call their writing helpers after an await.
+A running session body can still run an operation.
+Call cleanup can write and call helpers after an await.
+Held controllers can write until the drain ends, even outside a call.
+New outside calls and sessions stay refused.
+Release stays refused during the drain.
 State is sealed before resource cleanup.
+A resource cleanup write becomes a Disposed teardown error.
+A forced parent close seals a child already draining gracefully.
+An already-aborted child keeps writes sealed under a graceful close.
 The closing signal still fires before the wait.
-Forced close still seals writes and aborts work.
 A write panic still reaches the root's close result.
 The write path adds no check, lookup, or promise.
 
-Fourteen tests cover the write bug and close rules.
-Eight fail on main; all fourteen pass with the fix.
-Core has 828 passing tests.
-All 16 validate lanes pass.
-Runtime size is 16,318 bytes gzip; main is 16,257.
+The fix round is saved in `bf516f98`.
+Thirty-three tests cover the write bug, helper calls, and close rules.
+Before the fix, six helper and body cases and the forced-parent case failed.
+Deleting the resource seal makes its new test fail.
+The named hand changes to the abort and release guards each make a test fail.
+The same source restored passes all 847 Core tests.
+All test tasks and all 16 validate lanes pass.
+Build, check, and prose return 0.
+Check has the same 28 warnings as main.
+Runtime size is 16,379 bytes gzip; main is 16,257.
 Promises match main: sync 0, async 5, tagged 2.
-The first closing read during graceful drain also stays aborted.
-The full test retry passes.
-Its first supplier timeout also fails on main.
+The copied stop probe prints success for the call and the close.
+The reviewer's eight edge probes also pass.
 The four full-file style hits match main.
-The changed lines pass the strict style check.
+All changed source and this test file pass the strict style check.
+Jev has no changed-test flag or new README gap.
+Its old Core state and lifetime flags stay explained in the gate file.
 
 Proof: [red log](graceful-writes-logs/red.log).
 Green checks: [gate exits](graceful-writes-logs/GATES.json).
 The lead runs `scripts/ticket.sh` at landing.
+This writer did not run it or push the branch.
 
-Core mutation passes at 85.91, above the floor of 85.
-The changed-line check passes at 88.89: 48 killed, 6 survived.
-The full run tested 823 cases before five more control tests were added.
-Its runtime source matches the final source exactly.
-The changed-line run tested all 828 cases.
-The new controls keep hooks from starting late calls and sessions.
-They keep a parent's release from breaking a draining child's resources.
-The six surviving changes and their notes are in the gate file.
-Jev labels stay in the gate file to keep the allowed paths.
+Core mutation returns 0 at 85.94, above the floor of 85.
+It used 845 tests and the exact final runtime source.
+Two more cleanup controls were added after that run.
+The final changed-line run uses all 847 tests and returns 0 at 92.31.
+It kills 96 changes; the eight survivors are explained in the gate file.
+The three repeated entry checks are equivalent, as the hand notes explain.
+All named abort and release hand changes are killed.
+Saved work stays in Review for the lead.
