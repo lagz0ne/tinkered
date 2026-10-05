@@ -86,3 +86,4 @@ by a new decision that names the old one.
 - [0101](0101-routing-belongs-to-the-framework.md): routing belongs to the framework.
 - [0102](0102-http-is-a-resource-over-builtin-fetch.md): HTTP is a resource over built-in fetch.
 - [0103](0103-the-protocol-layer-owns-the-reply.md): the protocol layer owns the reply.
+- [0104](0104-closing-begins-signal.md): a layer tells its resources when closing begins.

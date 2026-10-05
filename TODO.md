@@ -45,10 +45,23 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
-- **core/close-hook-scope** — an extension can tell the scope began closing, on a graceful close too (a signal or state its start can read), and its close hook gets the scope. Two askers: sync/subscribe (a `closing` flag set by its close hook) and stack/t07 (nats replaces core's `scope.close` on its handle as a stopgap). Also (ADR 0085): a root's close hooks run once, cannot skip cleanup or replace its outcome, and a hook's throw becomes a teardown error; then `closed` counts it. Next: brief a writer after stack/t04 and core/start-log (one core card at a time). Verify: sync drops its `closing` flag and nats drops its `scope.close` patch; core tests; `scripts/ticket.sh`; `pnpm validate`.
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **core/close-hook-scope** — resources and extensions learn when their layer begins to close (ADR 0104).
+  Owner: lead (Claude, Start scaffold session); Sol writer. Four askers: sync/subscribe, stack/t07,
+  `trial/services-http`, `start/http-graceful`. Precedent: Go's `RegisterOnShutdown`.
+  Worktree: `../tinkered-close-hook`.
+  Next: `ctx.closing` and `event.closing`, aborting before the drain; ADR 0085 close-hook rules.
+  Verify: a graceful close settles while a resource wait ends on `ctx.closing`; ticket.sh; validate; mutation 85.
+  [Brief](docs/roadmap/core-v1/CLOSE-HOOK-SCOPE-BRIEF.md).
+
+- **trial/deepseek-02** — DeepSeek on the new images (ADR 0102/0103 rules), compared with trial 1.
+  Owner: lead (Claude, Start scaffold session).
+  Trial `flight-deepseek-02`; writer `bb97e63c`, services `1be10fb5`; graded from `../tinkered-trial-runner-02`.
+  Next: round 1 running; same retry loop as trial 1 (up to 3 tries a round).
+  Verify: baseline, rounds passed with retries, tries, and cost next to trial 1's.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
