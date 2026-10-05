@@ -29,10 +29,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: give that poll a longer wait; seen twice in full runs.
   Verify: the test passes 10 runs in a row next to a full `vp run -r test`.
 
-- **trial/services-closing** — the flight services drop the payment close-hook workaround for `ctx.closing`.
-  Next: brief a Sol writer for `tools/flight-trial` (ADR 0104).
-  Verify: zero wire changes; services tests pass; mutation at least 85.
-
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
@@ -57,6 +53,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **trial/services-closing** — the flight services drop the payment close-hook workaround for `ctx.closing`.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-services-closing`.
+  Next: red test without the payment close hook, then the HTTP resource stops on `ctx.closing`.
+  Verify: zero wire changes; services tests pass; mutation at least 85.
 
 - **trial/deepseek-03** — rounds 2 to 5 on the round-lessons image, for a full-trial cost.
   Owner: lead (Claude, Start scaffold session).
