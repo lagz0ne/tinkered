@@ -33,10 +33,19 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/size-research** — find a path from 16,084 B to 13 KiB (13,312 B) gzip for Core.
-  Owner: lead (Claude, Start scaffold session); six Opus researchers, one lens each.
-  Next: look only: each lens measures candidates (safe, text, API, build) in its own copy.
-  Verify: one ranked plan the user approves; cuts land later as small cards, each benched.
+- **core/size-research** — path from 16,084 B to 13 KiB (13,312 B) gzip for Core.
+  Owner: lead (Claude, Start scaffold session); Opus researchers.
+  Round 1 done: sure wins about 1,224 B (code-only cuts and a build step).
+  User 2026-10-05: extension hooks and namespaces stay (ADR 0050, 0059, 0060).
+  Next: round 2 looks for cheaper hook and namespace code with the same API (about 650 B needed).
+
+- **core/size-safe** — land round 1's code-only cuts (about 710 B), no change in behavior.
+  Owner: lead; Opus writer. Worktree: `../tinkered-size-safe`.
+  Verify: public types identical; tests, validate, mutation (85) pass; bench has no "B slower".
+
+- **core/size-build** — a build step renames private fields (about 514 B), checked by a guard.
+  Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Lands after `core/size-safe`.
+  Verify: same public types and exports; Core tests pass on the built files too.
 
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
