@@ -1,6 +1,6 @@
 # 0105 A shared stack is a resource; a slot is a tag
 
-Date: 2026-10-05. Status: proposed (lead design, card `core/extension-slot`).
+Date: 2026-10-05. Status: accepted (user, 2026-10-05: Core adds nothing now; card `core/extension-slot`).
 Uses: 0051, 0099, 0100, 0101.
 Feedback row: "Shared unit with a slot, 2026-10-03".
 
@@ -361,25 +361,25 @@ A probe on the last build:
 - The held design waits for its trigger:
   a shared piece that needs a hook other than `start`.
 
-## Open questions
+## Decisions
 
 1. **Change Core now?**
    - No (this decision): 0 B.
      Each service keeps a session and 4 lines.
    - Yes, the held design: +56 B.
      Services lose the session and the 4 lines.
-   - Lead's pick: no. The strict forms already
+   - Decided (user, 2026-10-05): no. The strict forms already
      express it (ADR 0099); 56 B is a fifth of the room.
 2. **May a tag hold an operation handle?**
    - Yes: a service binds its own operation;
      a shared route runs it. The edge shows at the
      binding and in spans, not in `depends`.
    - No: tags hold plain values; actions stay routes.
-   - Lead's pick: no, until a caller needs it.
+   - Decided: no, until a caller needs it.
      The one candidate, `/control/scenario`, is 6 lines,
      and its wire schema differs per service.
 3. **If the held design lands: a repeat?**
    - Drop it, by identity (Effect, NestJS).
    - Throw, as Fastify's `decorate` does.
-   - Lead's pick: drop. The card asks that installing
+   - For the held design only: drop. The card asks that installing
      the shared one beside an app starts it once.
