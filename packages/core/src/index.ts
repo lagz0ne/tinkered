@@ -1223,7 +1223,7 @@ const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
  * (`withData`). A never-closed layer's entry dies with the layer. */
 type SessionHooks = {
   settle: ((ended: Scope.Result) => void) | undefined;
-  state: "open" | "held" | "done";
+  state: 0 | 1 | 2;
   moved: boolean;
 };
 const SESSION_HOOKS = new WeakMap<Layer, SessionHooks>();
@@ -2254,7 +2254,7 @@ class CancelReason {
   }
 
   toString(): string {
-    return `${this.name}: ${this.message}`;
+    return "AbortError: The scope closed before this work finished.";
   }
 
   [Symbol.for("nodejs.util.inspect.custom")](): string {
@@ -2279,23 +2279,15 @@ function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.En
   return layer.aborted ? { status: "cancelled" } : SUCCESS;
 }
 
-/** Layers whose teardown callbacks (cleanups/hooks) are executing right now, by depth. */
-const teardownDepth = new Map<Layer, number>();
-
-function enterTeardown(layer: Layer): void {
-  teardownDepth.set(layer, (teardownDepth.get(layer) ?? 0) + 1);
-}
-function exitTeardown(layer: Layer): void {
-  const next = (teardownDepth.get(layer) ?? 1) - 1;
-  if (next <= 0) teardownDepth.delete(layer);
-  else teardownDepth.set(layer, next);
-}
+/** Layers whose teardown callbacks (cleanups/hooks) are executing right now, innermost last. Each
+ * push and pop wrap one synchronous call in try/finally, so they nest strictly. */
+const tearing: Layer[] = [];
 
 /** True if closing `target` would join a layer that is mid-teardown — `target` is that layer or an
  * ancestor of it — so a re-entrant close from within a (descendant) teardown must not wait on itself.
  * A close of an unrelated scope from a cleanup is not re-entrant and gets its real closing promise. */
 function closeWouldReenter(target: Layer): boolean {
-  return teardownDepth.size !== 0 && reentersTeardown(target);
+  return tearing.length !== 0 && reentersTeardown(target);
 }
 
 /** Run `defer` fns in reverse (LIFO) from index `from`, passing `end`, awaiting each before the next
@@ -2312,14 +2304,14 @@ function runDefers(
 ): Promise<void> | undefined {
   for (let i = from; i >= 0; i--) {
     let pending: void | PromiseLike<void>;
-    enterTeardown(layer);
+    tearing.push(layer);
     try {
       pending = fns[i](end);
     } catch (error) {
       addError(layer, error);
       continue;
     } finally {
-      exitTeardown(layer);
+      tearing.pop();
     }
     if (!isThenable(pending)) continue;
     const rest = i - 1;
@@ -2649,13 +2641,10 @@ function finishRun(
     releaseBorrows(held);
     return;
   }
-  const tail = runDefers(layer, fns, endFor(layer, status, error));
-  const done = (): void => {
+  void thenDone(runDefers(layer, fns, endFor(layer, status, error)), (): void => {
     if (ctx) ctx.live = false;
     releaseBorrows(held);
-  };
-  if (tail) drainAsync(tail, done);
-  else done();
+  });
 }
 
 /** How a controller replays a tagged or namespaced call: not at all, as a root run, or inside a
@@ -3186,16 +3175,11 @@ function finishHook(
     owned.ending = true;
     owned.left = owned.hooks.length;
   }
-  const run = (): Promise<void> | undefined => {
-    const tail = runDefers(owned.layer, [fn], owned.end as Scope.End);
-    const done = (): void => {
+  const run = (): Promise<void> | undefined =>
+    thenDone(runDefers(owned.layer, [fn], owned.end as Scope.End), (): void => {
       owned.left = (owned.left as number) - 1;
       if (owned.left === 0) completeInstance(owned);
-    };
-    if (tail) return tail.then(done, done);
-    done();
-    return undefined;
-  };
+    });
   if (!prev) return run();
   return prev.then(run, run);
 }
@@ -3205,16 +3189,8 @@ function finishInstance(owned: ResourceInstance, prev?: Promise<void>): Promise<
   if (!owned.end || owned.ending || isHeld(owned)) return owned.done;
   owned.ending = true;
   const { layer: owner } = owned;
-  const finish = (): Promise<void> | undefined => {
-    const tail = runDefers(owner, owned.hooks, owned.end as Scope.End);
-    if (tail)
-      return tail.then(
-        () => completeInstance(owned),
-        () => completeInstance(owned),
-      );
-    completeInstance(owned);
-    return undefined;
-  };
+  const finish = (): Promise<void> | undefined =>
+    thenDone(runDefers(owner, owned.hooks, owned.end as Scope.End), () => completeInstance(owned));
   if (prev) {
     const queued = prev.then(finish, finish);
     addWork(owner, queued);
@@ -3884,7 +3860,7 @@ function markAborted(layer: Layer, reason: unknown): void {
   layer.abort?.abort(reason);
 }
 
-function abortSubtree(root: Layer, reason = root.aborted ? root.reason : new CancelReason()): void {
+function abortSubtree(root: Layer, reason = root.reason ?? new CancelReason()): void {
   markAborted(root, reason);
   const stack: Layer[] = [...root.children];
   while (stack.length) {
@@ -3916,14 +3892,14 @@ async function finishCloseInstance(entry: DeferEntry): Promise<void> {
 async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End): Promise<void> {
   if (entry.owned) return finishCloseInstance(entry);
   let pending: void | PromiseLike<void>;
-  enterTeardown(layer);
+  tearing.push(layer);
   try {
     pending = entry.fn(end);
   } catch (cause) {
     addError(layer, cause);
     return;
   } finally {
-    exitTeardown(layer);
+    tearing.pop();
   }
   try {
     await pending;
@@ -3965,12 +3941,18 @@ function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Out
  * operation's cleanup that threw at its own end must still reach `teardownErrors`), no running body, no
  * recorded failure, and no build in progress (whose not-yet-tracked work a synchronous close would miss). */
 function canFastClose(layer: Layer): boolean {
+  return layer.bodyEnd === undefined && isIdle(layer);
+}
+
+/** The idle test {@link canFastClose} and {@link canEndIdle} share: no build in progress, no
+ * child, no owned work or hold, no defer, no teardown error, no recorded failure, and no
+ * re-entrant teardown. */
+function isIdle(layer: Layer): boolean {
   return (
     buildDepth === 0 &&
     layer.children.size === 0 &&
     layer.pending.size + layer.holds === 0 &&
     layer.hooks.length + layer.errors.length === 0 &&
-    layer.bodyEnd === undefined &&
     failureOf(layer) === undefined &&
     layer.childError === undefined &&
     !closeWouldReenter(layer)
@@ -3991,7 +3973,7 @@ function fastClose(
   const forced = force || layer.aborted;
   let settled: Scope.Outcome = SUCCESS;
   if (forced) {
-    markAborted(layer, layer.aborted ? layer.reason : new CancelReason());
+    markAborted(layer, layer.reason ?? new CancelReason());
     layer.cancelled = true;
     settled = { status: "cancelled" };
   }
@@ -4009,29 +3991,25 @@ function fastClose(
  * in flight, no ancestor's close in flight (it marked this layer swept at call time and its
  * abort is queued; the body's end must be read against that abort, ADR 0026 Q5 — an aborted
  * live layer is always swept too), no signal handed out (a forced close would dispatch abort on
- * it), no build in progress, no child, no in-flight owned work, no defer, no teardown error, and
- * {@link ownsNothing}. "No build in progress" (`buildDepth`) means a tagged subflow called while
- * another run's body has not yet returned — before that body's first `await` — always comes back
- * as a promise; the same call after an `await` can come back as a value (ADR 0072's wait list). */
+ * it), {@link isIdle} (no build in progress, no child, no in-flight owned work, no defer, no
+ * teardown error, no recorded failure, no re-entrant teardown), and {@link ownsNothing}. "No build
+ * in progress" (`buildDepth`) means a tagged subflow called while another run's body has not yet
+ * returned — before that body's first `await` — always comes back as a promise; the same call
+ * after an `await` can come back as a value (ADR 0072's wait list). */
 function canEndIdle(layer: Layer): boolean {
   return (
     layer.closing === undefined &&
     !layer.swept &&
     layer.abort === undefined &&
-    buildDepth === 0 &&
-    layer.children.size === 0 &&
-    layer.pending.size + layer.holds === 0 &&
-    layer.hooks.length + layer.errors.length === 0 &&
+    isIdle(layer) &&
     ownsNothing(layer)
   );
 }
 
-/** The rest of the idle test: no recorded failure, no re-entrant teardown, and no record on the
- * layer that is {@link busyRecord}: a built resource instance (its release protocol must run)
- * or a watcher (a write between the body's return and the close must still reach it). */
+/** The rest of a session's idle test, after {@link isIdle}: no record on the layer that is
+ * {@link busyRecord}: a built resource instance (its release protocol must run) or a watcher (a
+ * write between the body's return and the close must still reach it). */
 function ownsNothing(layer: Layer): boolean {
-  if (failureOf(layer) !== undefined || layer.childError !== undefined || closeWouldReenter(layer))
-    return false;
   /** A layer still on the shared empty store holds no record, so it holds no instance and no
    * watcher (Opus, fp2/opus-e50df39). */
   if (layer.nodes === NO_NODES) return true;
@@ -4066,14 +4044,11 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
   }
   /** A `close()` re-entered from within this layer's (or an ancestor's) own teardown is a request-only
    * acknowledgement: return an already-resolved best-effort `Result` so it never waits on itself (no
-   * hang, no throw — ADR 0026 Q3, 0027/0028). The real settled `Result` is `layer.closing`. */
-  if (closeWouldReenter(layer)) {
+   * hang, no throw — ADR 0026 Q3, 0027/0028). The real settled `Result` is `layer.closing`.
+   * A session that ended in place holds the shared marker; a late `close()` on its handle gets a
+   * clean `Result` of its own the same way (it recorded no failure and was not cancelled). */
+  if (layer.closing === ENDED_CLEAN || closeWouldReenter(layer))
     return Promise.resolve(buildResult(bestEffort(layer), layer, undefined));
-  }
-  /** A session that ended in place holds the shared marker; a late `close()` on its handle gets
-   * a `Result` of its own, as every other close does (a caller may change what it was given). */
-  if (layer.closing === ENDED_CLEAN)
-    return Promise.resolve({ status: "success", teardownErrors: undefined });
   return tapSessionHooks(hooks, layer.closing);
 }
 
@@ -4148,7 +4123,7 @@ function startClose(
     if (forced) abortSubtree(layer);
     /** Read the end recorded when the body settled, before its own close abort (Q5).
      * A bodyless layer gets its outcome from the close request. */
-    const body = await (layer.bodyEnd ?? Promise.resolve(undefined));
+    const body = await layer.bodyEnd;
     const rollback = prepareTeardown(layer, forced, body);
     /** An empty child list still yields here, keeping the close phase order. */
     await (layer.children.size === 0 ? READY : closeEach(layer, rollback));
@@ -4843,8 +4818,8 @@ function keepData(
   withData: boolean,
 ): Scope.Result {
   const kept = withData ? { ...ended, data: finalData(layer.nodes, layer.ns) } : ended;
-  if (hooks?.state === "open") {
-    hooks.state = "held";
+  if (hooks?.state === 0) {
+    hooks.state = 1;
     hooks.moved = withData;
   } else freeData(layer, withData);
   return kept;
@@ -4864,8 +4839,8 @@ function freeData(layer: Layer, moved: boolean): void {
 /** A session's hooks returned (ADR 0069): free the data they could still read, or, when the close
  * has not finished yet, leave it to {@link keepData}. */
 function freeAfterHooks(layer: Layer, hooks: SessionHooks): void {
-  if (hooks.state === "held") freeData(layer, hooks.moved);
-  hooks.state = "done";
+  if (hooks.state === 1) freeData(layer, hooks.moved);
+  hooks.state = 2;
 }
 
 /** Strip a node moved into a `Result` down to its `cell` and `cells`, all `data.get` reads.
@@ -4891,7 +4866,7 @@ function keepCellsOnly(s: NodeState): void {
 /** A read on a closed scope (ADR 0069): while a session's data waits for its `session` hooks, a
  * data cell or a tag reads as it did before the close. Anything else throws `Disposed`. */
 function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
-  if (SESSION_HOOKS.get(layer)?.state !== "held" || isResource(target) || isExtension(target))
+  if (SESSION_HOOKS.get(layer)?.state !== 1 || isResource(target) || isExtension(target))
     raise("Disposed", { reason: "scope is closed" });
   return resolveNs(layer, target, ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns));
 }
@@ -5401,7 +5376,7 @@ function wrapSession(
   const nextPromise = new Promise<Scope.Result>((resolveNext) => {
     settleNext = resolveNext;
   });
-  const hooks: SessionHooks = { settle: settleNext, state: "open", moved: false };
+  const hooks: SessionHooks = { settle: settleNext, state: 0, moved: false };
   SESSION_HOOKS.set(child, hooks);
   const base = withSessionCreate(plain, child, session);
   const outcome = sessionThrough(session, base, child, () =>
@@ -5441,15 +5416,16 @@ function extendHandle(
   });
   ignoreRejection(ready);
   const lifetime: RootLifetime = {};
-  const extended: Scope.Handle & { closed?: Promise<Scope.Result> } = { ...plain, ready };
+  const extended: Scope.Handle & { closed?: Promise<Scope.Result> } = {
+    ...(session === undefined ? plain : withSessionCreate(plain, layer, session)),
+    ready,
+  };
   if (signal)
     extended.closed = new Promise<Scope.Result>((resolveClosed) => {
       lifetime.finish = resolveClosed;
     });
   extended.close = watchRootClose(layer, extended, closers, lifetime);
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
-  if (session !== undefined)
-    extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, session);
   if (signal) listenForStop(extended, signal, lifetime);
   runStartChain(layer, extended, exts, lifetime, settleReady, failReady);
   return extended;
@@ -5603,7 +5579,7 @@ async function runSessionWrapped<R>(
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   session: readonly Scope.Extension<unknown>[],
 ): Promise<R> {
-  const hooks: SessionHooks = { settle: undefined, state: "open", moved: false };
+  const hooks: SessionHooks = { settle: undefined, state: 0, moved: false };
   SESSION_HOOKS.set(child, hooks);
   const handle = withSessionCreate(handleFor(child), child, session);
   let wrapped: { result: unknown; ended: Scope.Result };
@@ -5656,15 +5632,21 @@ function applyPresets(
   return presets;
 }
 
-/** Release a run's borrow once its async defer drain ends. */
-function drainAsync(tail: Promise<void>, release: () => void): void {
-  ignoreRejection(tail.then(release, release));
+/** Call `done` after a defer drain: now when it stayed synchronous, else after its tail. */
+function thenDone(tail: Promise<void> | undefined, done: () => void): Promise<void> | undefined {
+  if (!tail) {
+    done();
+    return undefined;
+  }
+  const after = tail.then(done, done);
+  ignoreRejection(after);
+  return after;
 }
 
 /** The walk behind {@link closeWouldReenter}, its own function so its loop stays out of the
  * close dispatch's inlined size when no teardown is active. */
 function reentersTeardown(target: Layer): boolean {
-  for (const live of teardownDepth.keys()) {
+  for (const live of tearing) {
     for (let cur: Layer | undefined = live; cur; cur = cur.up) {
       if (cur === target) return true;
     }
@@ -5976,10 +5958,10 @@ function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): 
     if (run.ctx) run.ctx.live = false;
     releaseBorrows(run.held);
   };
-  const tail =
-    fns === undefined ? undefined : runDefers(run.layer, fns, endFor(run.layer, status, error));
-  if (tail) drainAsync(tail, done);
-  else done();
+  void thenDone(
+    fns === undefined ? undefined : runDefers(run.layer, fns, endFor(run.layer, status, error)),
+    done,
+  );
 }
 
 function createBorrows(): HeldBorrows {
