@@ -700,3 +700,18 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 - The supplied base remains `addce061`.
   Shared `origin/main` later gained two board-only commits in the other track.
   This card's diff from its supplied base contains only allowed paths.
+
+### Standalone Core mutation proof
+
+- `flock /tmp/mutation.lock vp run core#mutate` returned 0.
+  All source files match the unchanged `src/**/*.ts` setting.
+  The floor remains 85; no source or static mutant was excluded.
+- Score: 85.78.
+  Killed: 2,962; timed out: 30; survived: 475; no coverage: 21; errors: 3.
+  Total: 3,491 mutants.
+- The full log is `/tmp/close-hook-mutation-final.log`.
+  The saved report is `/tmp/close-hook-mutation-final.json`.
+  It is copied before the ticket script can replace the package report.
+- The ticket script is running under the same lock.
+  Its recursive mutation call uses one package at a time.
+  Its final exit and each lane's score will be recorded after it finishes.
