@@ -59,16 +59,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **trial/services-closing** — the flight services stop owned work on `ctx.closing`.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-services-closing`.
-  The payment close hook and HTTP client's `close()` method are gone.
-  Next: lead review.
-  Verify: all gates exit 0; 120 flight tests; mutation 91.17 (floor 85).
-  Both review mutants fail with exit 1; their restored tests pass.
-  Wire diff: zero over 2,160 calls and 30 error codes.
-  [Proof](docs/roadmap/flight-trial/services-closing/GATES.json).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -85,6 +75,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/services-closing** — the flight services stop owned work on `ctx.closing` (ADR 0104).
+  Owner: lead (Claude, Start scaffold session); Sol writer, Opus review (one fix round).
+  The payment close hook and the HTTP client's `close()` are gone.
+  Review caught a release cleanup hang; fixed with tests for supplier and payment.
+  A graceful close refuses new connections and lets running requests finish.
+  120 flight tests; mutation 91.17; wire diff zero over 2,160 calls.
+  [Proof](docs/roadmap/flight-trial/services-closing/GATES.json).
 
 - **trial/deepseek-03** — DeepSeek on the round-lessons image, next to trials 1 and 2.
   Owner: lead (Claude, Start scaffold session).
