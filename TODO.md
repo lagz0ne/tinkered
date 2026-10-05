@@ -59,12 +59,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: red test without the payment close hook, then the HTTP resource stops on `ctx.closing`.
   Verify: zero wire changes; services tests pass; mutation at least 85.
 
-- **trial/deepseek-03** — rounds 2 to 5 on the round-lessons image, for a full-trial cost.
-  Owner: lead (Claude, Start scaffold session).
-  Trial `flight-deepseek-03`; graded from `../tinkered-trial-runner-03` (pinned `8aff9d24`).
-  Next: round 2 running; same retry loop (up to 3 tries a round).
-  Verify: tries and cost next to trial 1 ($1.96, 7 tries) and trial 2 ($2.87, 6 tries).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -86,6 +80,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/deepseek-03** — DeepSeek on the round-lessons image, next to trials 1 and 2.
+  Owner: lead (Claude, Start scaffold session).
+  Baseline 2 (trials 1 and 2: 0). All 5 rounds pass in 7 tries, $1.56, 2 h 32 min
+  (trial 1: 7 tries, $1.96, 3 h 38 min; trial 2: 6 tries, $2.87, 4 h 52 min).
+  Failures were real bugs: a Hold button in the Seats cell, and the double-pay race.
+  [Comparison](docs/roadmap/flight-trial/PROGRESS.md#trials-1-2-and-3).
 
 - **start/http-closing** — the scaffold `http` resource stops pending sends on `ctx.closing` (ADR 0104).
   Owner: lead (Claude, Start scaffold session); Sol writer, Opus review (one fix round).

@@ -4437,3 +4437,30 @@ Round 1 passed first try ($0.35, 38 minutes).
   Cost about $0.12, in 12 minutes.
   It claims the execution ID in the first transaction,
   with a test that sent two requests at once and saw 2 calls before the fix.
+- Round 5, try 1 (agent `f05cd53d`): **pass**, hidden checks 21 of 21.
+  Cost about $0.18, in 14 minutes.
+
+#### Trial 3 result
+
+- Baseline (first try only): **2**. Rounds 1 and 2 passed first try.
+  `score.json` keeps it. Trials 1 and 2 had baseline 0.
+- With one teacher note a round: **all 5 rounds pass**, in 7 tries.
+- Writer cost: about $1.56. Agent time: about 2 hours 32 minutes.
+
+#### Trials 1, 2, and 3
+
+Same packet checks, same writer model, same retry rule.
+Trial 3 runs on the round-lessons image.
+
+- Baseline: 0, 0, and 2.
+- Tries: 7, 6, and 7.
+- Cost: $1.96, $2.87, and $1.56.
+- Agent time: 3 hours 38 minutes, 4 hours 52 minutes, and 2 hours 32 minutes.
+- Round 1 failures: trials 1 and 2 (notice wording); trial 3 none.
+- Trial 3 failures were real app bugs:
+  the Hold button inside the Seats cell (round 3),
+  and the same-moment double-pay race (round 4, as in trial 1).
+- Second tries cost $0.08 and $0.12: a teacher note fixes a real bug fast.
+
+Lesson: clearer packets and short rules cut cost and time.
+They do not stop real bugs; the retry loop still catches those.
