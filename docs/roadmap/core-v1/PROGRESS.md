@@ -1261,3 +1261,124 @@ The base worktree was removed after the proof.
 Saved work waits in Review.
 The lead owns review and `scripts/ticket.sh` at landing.
 This writer does not push.
+
+## core/size-build
+
+Owner: Opus writer on `core/size-build`.
+Lead ruling: a build step may shrink shipped code (size Option 1).
+Core starts at 16,084 B gzip.
+The build step leaves 15,612 B gzip: 472 B smaller.
+The source does not change.
+Public types and exports stay the same.
+
+### What the build does
+
+- `packages/core/build/private-fields.ts` is a Rolldown plugin.
+- It renames the fields in `build/private-fields.json` to short names.
+- The list holds 77 names, such as `layer`, `owned`, and `pending`.
+- One name map serves all three runtime files.
+- The map is fixed before any file renders.
+  So two builds give the same bytes.
+- The reprint drops `@__PURE__` comments.
+  The output options drop the few left.
+
+### How the list is made
+
+`vp run core#fields` writes the list.
+It keeps every runtime property name that passes the rules below.
+A field added later keeps its long name until the list is written again.
+So an old list is still safe.
+
+The build fails when a listed name:
+
+- is in a public type file (parameter names aside);
+- is a string in the runtime: a computed key or an `in` check;
+- is a key of an `attributes: {...}` literal: span, event, and log attributes;
+- is a Node built-in name, or a key a spec gives plain objects (`done`, `errors`);
+- is read outside Core's source by a cast, a string key, or an untyped script.
+
+It also fails when a short name equals a name that is kept.
+
+### Guard proof
+
+Each planted name made `vp pack` exit 1 with its reason:
+
+- `label`: in the public types.
+- `outcome`: a user-visible attribute key.
+- `then`: a built-in or host name.
+
+The rules hold back 7 names from the research list.
+Together they cost 34 B.
+
+- `errors`, `body`, `text`, `on`, `use`: built-in names.
+- `runs`, `stop`: read by untyped scripts that import Core.
+
+### Tests on the built files
+
+- `vp run core#test:dist` builds, then runs Core's tests on `dist`.
+- `pnpm validate` runs it as its own lane.
+- Source lane and dist lane: 854 tests pass each.
+- With `dist/index.mjs` broken on purpose, only the dist lane fails.
+- With the attribute rule off and `outcome` listed, 4 log tests fail.
+  They fail on `dist` only; the source lane passes.
+- One test starts Node on `src/index.ts` itself.
+  It checks the source in both lanes.
+
+### Tree-shaking without `@__PURE__`
+
+Nine small apps import parts of Core: one export, both entries, or all.
+esbuild and Rolldown each bundled every app.
+
+- Main's build, with its `@__PURE__` comments cut out by hand: same bytes.
+- The new build keeps the same top-level statements, in fewer bytes.
+
+### Proof
+
+Base: `08ddc349` from `origin/main`.
+
+- `vp run --no-cache core#size`: 16,084 → 15,612 B gzip.
+- All three type files: byte-identical to main.
+- All 15 exports (12 main, 3 testing): same names and kinds.
+- Two builds: all 9 files byte-identical.
+- Hot names: 247; last slot 249, the same as main.
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0; 28 warnings, the same as main.
+- `vp run -r test`: exit 0.
+- `pnpm validate`: exit 0; all 17 lanes pass.
+- `vp run prose`: exit 0.
+- Jev preflight: exit 0; 3 `stateOutsideCell` flags.
+
+Two earlier `vp run -r test` runs exited 1 under load.
+Another session's mutation lane ran; load was 25 to 32 on 8 cores.
+`flight-trial` hit a 5 s timeout, and `start-scaffold` was killed (137).
+Both passed alone, and the third full run passed.
+
+Each Jev flag is labelled `false`.
+The census and the name map are private notes for one build.
+Nothing listens to them.
+The labels live here because `tools/jev` is outside this card.
+
+### Speed
+
+Only names change, so the bytecode is the same.
+`benchctl ab` ran one fixed-work script on both builds.
+Each round makes a scope, builds two resources, runs an operation,
+ends a session, and closes: 200,000 rounds a run.
+
+- Main as A: no difference we can see.
+  The new build's median was 3.2% slower, inside the noise.
+- New build as A, 20 rounds: no difference we can see.
+  The new build's median was 1.5% slower, inside the noise.
+
+Both medians lean the same way, and neither held up.
+`N=61 bench/queued.sh` would settle it, if the lead wants it.
+
+### Costs
+
+- `console.log(scope)` shows short field names.
+- The guard scans the repo for reads outside Core.
+  A Core build takes 0.5 to 1.5 s more on this busy box.
+- The fixed name map costs 8 B against naming from the first file.
+
+Saved work waits in Review.
+After `core/size-safe` lands: rebase, run `vp run core#fields`, re-measure.

@@ -33,10 +33,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/size-build** — a build step renames private fields (about 514 B), checked by a guard.
-  Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Lands after `core/size-safe`.
-  Verify: same public types and exports; Core tests pass on the built files too.
-
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Owner: lead (Claude, Start scaffold session); Opus designer. Worktree: `../tinkered-extension-slot`.
@@ -49,6 +45,13 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **core/size-build** — a build step renames 77 private fields: 16,084 → 15,612 B gzip.
+  Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Lands after `core/size-safe`.
+  Next: lead review; after `core/size-safe` lands, rebase, `vp run core#fields`, re-measure.
+  Proof: type files and exports match main; 854 tests on source and on `dist`; validate green.
+  A planted public name fails the build; `ab` says no difference we can see.
+  [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-build).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
