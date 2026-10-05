@@ -67,8 +67,9 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Owner: lead (Claude, Start scaffold session); Sol writer.
   Next: review the saved changes, rebuild the writer image, and run round 1.
   Proof: build, check, all repo tests, 92 writer-trial tests, and prose returned 0.
+  The rebuilt registry check returned 0.
   The old HTTP import fails; the direct import passes.
-  GUIDELINES is 25.3% smaller; all 13 tries have file-read counts.
+  GUIDELINES is 22.0% smaller; all 13 tries have file-read counts.
   Verify: a fresh round 1 passes first try below trial 2's $1.46.
   [Notes](docs/roadmap/flight-trial/PROGRESS.md#round-lessons-2026-10-05).
 

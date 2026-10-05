@@ -4087,7 +4087,7 @@ Writer branch: `trial/round-lessons`.
 ### Changes
 
 - Round 1: Search complete stays beside each outcome.
-  Every supplier must have answered or failed.
+  The asked supplier must have answered or failed.
   No flights is a notice outside the Flights table.
 - Round 2 repeats that notice rule for three suppliers.
   Rounds 3 to 5 inherit it and have no conflicting notice text.
@@ -4096,10 +4096,14 @@ Writer branch: `trial/round-lessons`.
   Test-owned servers must close in cleanup.
 - `extension.mjs` caps every shell call at 120 seconds.
   `broker.mjs` runs each call through timeout.
-  GUIDELINES shows separate test-file calls with the same config.
+  GUIDELINES names the full test run inside npm run check.
+  It runs vp check and npm run typecheck alone.
+  Then it runs tests file by file.
+  It names test:seam, test:boundary, and test:schema.
   Every shipped and added test file must run.
   Chunks run one at a time; each exit code must pass.
-- Race tests may run a local HTTP supplier with their own stock.
+- Tests may run a local HTTP supplier for race, failure, and slow replies.
+  It may use its own stock.
   They call exported app operations and close the supplier.
   App code and tests may never use the supplied /control/ routes.
   Only the teacher changes the supplied services.
@@ -4111,18 +4115,28 @@ Writer branch: `trial/round-lessons`.
   The old path loops back to the feature and fails at initialization.
   The direct path loads with exit 0.
   Restoring the old advice makes the test fail with exit 1.
-- GUIDELINES fell from 6,604 to 4,936 bytes.
-  That is 1,668 fewer bytes, or 25.3%.
+- GUIDELINES fell from 6,604 to 5,148 bytes.
+  That is 1,456 fewer bytes, or 22.0%.
   Repeated text is shorter; code and test details point to app skills.
   The writer now reads skills for the work it changes.
   TASK stays cumulative so earlier requirements stay in view.
+- PLAIN.md is read only when check:plain fails.
+  The writer copies the row that check:plain prints.
+- The registry was rebuilt from the three changed skills.
+  Its starter.json now ships the direct HTTP import.
+- Read the teacher round 1 and 2 checks again.
+  They still match completion beside rows, empty results, and failures.
+  Empty results have no Flights data rows.
+  Round 2 keeps good rows when another supplier fails.
 - Hidden teacher files stay unchanged.
 
 ### Read counts
 
 Read all 13 native pi sessions: seven tries in trial 1, six in trial 2.
 Matched their session IDs to saved tries without changing either trial.
-[Full per-file rows](round-lessons-reads.json).
+[Top files and totals](round-lessons-reads.json).
+The summary holds one command to rebuild it.
+The per-try counts below stay unchanged.
 [Read counter](../../../tools/writer-trial/read-counts.py).
 
 - Counts cover explicit work_shell cat, sed, and rg file requests.
@@ -4246,18 +4260,20 @@ Docs take 14.9% of estimated file-read tokens.
 
 PLAIN is the biggest repeated doc by requested bytes.
 It holds the checked list of functions, so it stays intact.
+The writer now reads it only to fix a check:plain failure.
 GUIDELINES is read once in every try, so a shorter copy helps every round.
 The forms skill is read in seven tries; the new advice loads only needed skills.
 No shorter run or lower model cost is claimed before a fresh trial.
 
-To repeat the count without changing trial files:
+To rebuild the summary without changing trial files:
 
 ```bash
 counter=tools/writer-trial/read-counts.py
 sessions="$HOME/.pi/agent/sessions"
 trials="$HOME/.local/share/tinker-writer-trial"
-python3 "$counter" --sessions "$sessions" \
-  --trials "$trials" > /tmp/round-reads.json
+out=docs/roadmap/flight-trial/round-lessons-reads.json
+python3 "$counter" --summary --sessions "$sessions" \
+  --trials "$trials" > "$out"
 ```
 
 ### Image and frozen hashes
@@ -4270,9 +4286,9 @@ Saved trials keep their old image and frozen bytes.
 
 New trials change these frozen file hashes (12-character prefixes):
 
-- `tasks/01-search.md`: `f956cf3a59c2` to `77a444890868`.
-- `tasks/02-metasearch.md`: `aa616dab5ef7` to `639bd3238e8d`.
-- `rules/flight-guidelines.md`: `be36f9610409` to `fe7849624b0a`.
+- `tasks/01-search.md`: `f956cf3a59c2` to `4d181d10683d`.
+- `tasks/02-metasearch.md`: `aa616dab5ef7` to `5234cba98f7d`.
+- `rules/flight-guidelines.md`: `be36f9610409` to `315e4dfad0fa`.
 - `config.json` changes when the lead chooses the new writer image tag.
 
 The three skill hashes change inside the new writer image:
@@ -4299,6 +4315,14 @@ Keep `flight.servicesImage` at:
 
 ```json
 "tinker-flight-services:20261004160855439"
+```
+
+Commit that tag before creating any trial:
+
+```bash
+git add tools/writer-trial/config.json
+git commit -m "Pin round-lessons writer image" \
+  -- tools/writer-trial/config.json
 ```
 
 Then run:
@@ -4328,6 +4352,9 @@ No image was built or published for this card.
 - `vp check`: exit 0; 28 warnings, the same count as origin/main.
 - `vp run -r test`: exit 0; all nine test tasks passed.
 - `node --test tools/writer-trial/*.test.mjs`: exit 0; 92 tests passed.
+- `node apps/start-scaffold/maintain/check-registry.mjs`: exit 0.
+  The rebuilt registry installs with a changed lib alias.
+  Its copied app build, types, tests, and seam checks pass.
 - `vp run prose`: exit 0.
 - `pnpm validate`: exit 0; all 16 size and other fixed checks passed.
 - Jev preflight: exit 0; no flags or labels.
@@ -4342,3 +4369,29 @@ The full writer-trial test file set above passed.
 No TypeScript source changed and no mutation lane was requested.
 Core feedback: no new Core fault was found.
 The card waits in Review for the lead's image and model run.
+
+### Review fix round
+
+- Rebuilt the registry with npm run registry:build in apps/start-scaffold.
+  Only public/r/starter.json changed after formatting.
+  It ships the fixed text for all three skills.
+- The stale registry check failed with exit 1 before the rebuild.
+  The rebuilt registry passed with exit 0.
+- The first full test run exited 1 on a supplier start timeout.
+  The registry check was running alongside it.
+  All nine test tasks passed with exit 0 when run alone.
+- Local suppliers now cover race, failure, and slow-reply tests.
+- The full npm run check can exceed the shell limit.
+  Run vp check and npm run typecheck alone, then each test file.
+- The guide names check:plain, test:seam, test:boundary, and test:schema.
+  It drops the worker setting and the root config wording.
+- PLAIN.md is read only to fix a check:plain failure.
+- Round 1 says the asked supplier.
+  Both packets name rows, No flights, and the failure text.
+- The read summary is 1,521 bytes and keeps top files and totals.
+  The counter's --summary flag rebuilds it with the saved command.
+  All per-try counts above stay unchanged.
+- Updated the guide size and all changed file hashes.
+  GUIDELINES is 5,148 bytes, 22.0% below the original 6,604.
+- Commit the new writer image tag before any trial create.
+  No image was built or published in this fix round.

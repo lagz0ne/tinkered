@@ -13,7 +13,7 @@ A supplier's rows appear as soon as it answers.
 A slow supplier must not hold back a faster one's rows.
 Searching stays visible while any supplier is pending.
 Search complete appears when all three have answered or failed.
-Keep it beside the outcome line, never instead of that line.
+Keep it beside the rows, No flights, or the failure text, never instead of them.
 No flights stays a notice outside the Flights table.
 A failure keeps the other suppliers' rows and names the failed supplier.
 

@@ -27,8 +27,8 @@ Show every returned saver fare once, in price order, lowest first.
 A tie sorts by Flight, then Supplier.
 
 While searching, show Searching.
-Show Search complete when every supplier has answered or failed.
-Keep it beside the outcome line, never instead of that line.
+Show Search complete when the asked supplier has answered or failed.
+Keep it beside the rows, No flights, or the failure text, never instead of them.
 If there are no flights, show No flights as a notice outside the Flights table.
 A failed supplier shows `supplier-a: failed` beside Search complete.
 Keep the form usable after a failure.

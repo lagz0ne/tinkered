@@ -2,7 +2,7 @@
 
 Bytes are request counts times saved file sizes, not delivered output bytes.
 Partial reads, pipes and files edited during a try make this a workload estimate.
-The JSON keeps per-file rows so the estimate can be checked without session text.
+The full JSON keeps per-file rows; --summary saves only top docs and totals.
 """
 
 import argparse
@@ -83,6 +83,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sessions", required=True, help="Native pi sessions root")
     parser.add_argument("--trials", required=True, help="Saved trials root (read only)")
+    parser.add_argument("--summary", action="store_true", help="Print top docs and totals only")
     args = parser.parse_args()
     native = {}
     for path in sorted(glob.glob(os.path.join(args.sessions, "*deepseek-0[12]*/*.jsonl"))):
@@ -132,10 +133,42 @@ def main():
                 "usage": dict(usage),
                 "files": files,
             })
-    print(json.dumps({
+    result = {
         "method": "Explicit cat/sed/rg requests; saved archive sizes; full file weight for partial reads; bytes/4 is only a token estimate. Excludes stdin, unresolved paths and other readers (including grep).",
         "tries": rows,
-    }, indent=2))
+    }
+    if args.summary:
+        totals = {
+            "tries": len(rows),
+            "fileReads": sum(r["fileReads"] for r in rows),
+            "requestBytes": sum(r["requestBytes"] for r in rows),
+            "docRequestBytes": sum(r["docRequestBytes"] for r in rows),
+            "reportedTokens": sum(r["usage"]["totalTokens"] for r in rows),
+        }
+        totals["docTokensEstimate"] = round(totals["docRequestBytes"] / 4)
+        totals["docReadTokenSharePercent"] = round(
+            totals["docRequestBytes"] / totals["requestBytes"] * 100, 2
+        )
+        top = {}
+        for row in rows:
+            for file in row["files"]:
+                if not file["path"].endswith(".md"):
+                    continue
+                item = top.setdefault(file["path"], {
+                    "path": file["path"], "tries": 0, "reads": 0, "requestBytes": 0,
+                })
+                item["tries"] += 1
+                item["reads"] += file["reads"]
+                item["requestBytes"] += file["requestBytes"]
+        for item in top.values():
+            item["tokensEstimate"] = round(item["requestBytes"] / 4)
+        result = {
+            "method": result["method"],
+            "rebuildCommand": 'python3 tools/writer-trial/read-counts.py --summary --sessions "$HOME/.pi/agent/sessions" --trials "$HOME/.local/share/tinker-writer-trial" > docs/roadmap/flight-trial/round-lessons-reads.json',
+            "totals": totals,
+            "topFiles": sorted(top.values(), key=lambda f: -f["requestBytes"])[:6],
+        }
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

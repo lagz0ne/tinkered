@@ -2,21 +2,21 @@
   "frozenFiles": {
     "tasks/01-search.md": {
       "oldSha256": "f956cf3a59c26cec1548a033def109645ccbf0f963a1d000ee53966b424e46ff",
-      "newSha256": "77a4448908683dd908a52b2c0c4db904d880ccc8497bad31b6b01d9cbf77c1d0",
+      "newSha256": "4d181d10683dca5f6af5004687b9bbd1a832f63f5d80708ae4dc5c7d196654ae",
       "oldBytes": 1526,
-      "newBytes": 1659
+      "newBytes": 1683
     },
     "tasks/02-metasearch.md": {
       "oldSha256": "aa616dab5ef7926348fa367da8ee0e15083a73b858dd1ae5f6b2e1b29c337fcd",
-      "newSha256": "639bd3238e8d3a00d90297ff96ee88f07f1bc7e65ccad557dd76094acd2baf21",
+      "newSha256": "5234cba98f7d158e6a9a3f323e7d779f21e49f6e1e1444c3a92b6e0f110de997",
       "oldBytes": 1294,
-      "newBytes": 1408
+      "newBytes": 1428
     },
     "rules/flight-guidelines.md": {
       "oldSha256": "be36f9610409fe437496d9b9cc0d5ed696eb73ce049cc1b965663dd08c4f23a9",
-      "newSha256": "fe7849624b0ae2b4f79dae5ff8ce3e43ee470d19da2412beb55e6ca7bab99c8a",
+      "newSha256": "315e4dfad0fa62ffb4a47b22f17f0d02577ba02639f40f00829cd548493599c7",
       "oldBytes": 6604,
-      "newBytes": 4936
+      "newBytes": 5148
     }
   },
   "imageSkills": {

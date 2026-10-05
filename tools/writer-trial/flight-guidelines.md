@@ -10,7 +10,8 @@ Read `SERVICES.md` for supplier and payment HTTP contracts.
 Use real HTTP clients; never load the flight fixture into the app.
 Never call `/control/` from app code or tests.
 Only the teacher sets the supplied services' faults, clocks, and seat stock.
-Tests may run a local HTTP supplier with their own stock for race cases.
+Tests may run a local HTTP supplier for race, failure, and slow-reply cases.
+It may use its own stock.
 Call it through the app's exported operations; close it after each test.
 The app runs on real time; a service's clock can move separately.
 
@@ -20,7 +21,12 @@ The teacher sees pages, HTTP routes, and service call logs, not private records.
 ## Checks within the shell limit
 
 Run build before check and tests.
-Run all behavior and browser tests, plus seam, import, and schema checks.
+`npm run check` includes the full test run and can exceed 120 seconds.
+Run `vp check` and `npm run typecheck` alone, then tests file by file.
+Run all behavior and browser tests.
+Also run `npm run check:plain`, `npm run test:seam`,
+`npm run test:boundary`, and `npm run test:schema`.
+Read PLAIN.md only when check:plain fails; copy the row it prints.
 Stop every server you start before you run the tests.
 The sandbox has 2 GiB of memory.
 A test may start its own server; its cleanup must stop it.
@@ -33,8 +39,7 @@ npm run test -- tests/flights.page.test.ts
 ```
 
 List all test files first; run every file, including the shipped tests.
-Keep one worker at a time; never run chunks at once.
-Use the same config as `npm run test`, not the root repo's config.
+Never run chunks at once.
 Check each call's exit code; a timeout or a missing file is not a pass.
 
 ## State and views
