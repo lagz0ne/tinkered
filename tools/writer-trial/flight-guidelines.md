@@ -1,136 +1,95 @@
 # Flight trial rules
 
 Grow the supplied Start scaffold one round at a time.
-Read its `AGENTS.md` and app skills before writing code.
-Keep `src/scaffold/` unchanged.
-Use the supplied Core and React packages.
+Follow `AGENTS.md`; read only the app skills for the work you change.
+Keep `src/scaffold/` unchanged and use the supplied Core and React packages.
 Keep feature work in tags, data, resources, and operations.
 
 Settings come from `.env`.
-The harness supplies these settings:
-
-- `PUBLIC_ORIGIN`, `AUTH_SECRET`, and `DATABASE_URL`.
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASSWORD`.
-- `SMTP_FROM` and `MAILPIT_URL`.
-- `SUPPLIER_A_URL`, `SUPPLIER_B_URL`, and `SUPPLIER_C_URL`.
-- `PAYMENT_URL` and `WEBHOOK_SECRET`.
-
-Read the shipped `SERVICES.md` for supplier and payment HTTP contracts.
-Use their HTTP APIs with real clients.
-Do not load the flight fixture into the app.
-Do not call `/control/` from app code.
-The teacher alone controls faults, clocks, and seat stock.
+Read `SERVICES.md` for supplier and payment HTTP contracts.
+Use real HTTP clients; never load the flight fixture into the app.
+Never call `/control/` from app code or tests.
+Only the teacher sets the supplied services' faults, clocks, and seat stock.
+Tests may run a local HTTP supplier with their own stock for race cases.
+Call it through the app's exported operations; close it after each test.
 The app runs on real time; a service's clock can move separately.
 
-Each task adds to every earlier task.
-Keep earlier pages and text working.
-The teacher sees only pages, HTTP routes, and service call logs.
-The teacher never reads the app's private code or records.
+Each task adds to every earlier task; keep earlier pages and text working.
+The teacher sees pages, HTTP routes, and service call logs, not private records.
 
-Test through exported operations and real pages.
+## Checks within the shell limit
+
 Run build before check and tests.
-Run the supplied seam, browser import, and schema checks.
-Fix blocking findings; fix or explain other findings.
-Report exact commands and results, then stop.
+Run all behavior and browser tests, plus seam, import, and schema checks.
+Stop every server you start before you run the tests.
+The sandbox has 2 GiB of memory.
+A test may start its own server; its cleanup must stop it.
+Each `work_shell` call allows at most 120 seconds, even with limits disabled.
+If the full suite exceeds that, run each test file in a separate call:
+
+```bash
+npm run test -- tests/flights.test.ts
+npm run test -- tests/flights.page.test.ts
+```
+
+List all test files first; run every file, including the shipped tests.
+Keep one worker at a time; never run chunks at once.
+Use the same config as `npm run test`, not the root repo's config.
+Check each call's exit code; a timeout or a missing file is not a pass.
 
 ## State and views
 
-- Keep all app state in core cells.
-  This includes form text, the current edited text, filters,
-  selections, notices, saved records, ids, and undo history.
-- Do not keep another copy of a draft in React or the DOM.
-  Typing updates the cell that owns that draft.
+- Keep all app state in Core cells, including drafts, filters, selections,
+  notices, records, IDs, and undo history; never copy drafts into React or DOM state.
 - React reads cells with useData and runs operations with useRun.
-  Use the public hook types supplied with the packages.
-  A message read from useRun.error is allowed.
-  Do not copy it into separate React state.
-- Do not use useState, useReducer, useRef, useEffect,
-  or useLayoutEffect for this app.
-  Do not hide the same pattern behind a custom hook.
-- Do not get a scope with useScope in a view.
-  Do not pass a scope, session, or controller through view props.
-- Keep the Start scaffold's scope setup.
-  New views use its existing scope.
-  Do not link a label to its control by a useId id: useId repeats in
-  every separately mounted root, so a second app's labels would point
-  at the first app's fields. Wrap the control in its label, or give
-  the control an aria-label.
-- A view renders values and formats them for display.
-  It does not decide rules, manage drafts, or catch every error.
-- Typing, choosing a filter, opening, saving, and discarding are actions.
-  Operations own their state changes.
-  Keep reads and writes inside the scope that owns them.
-- Declare every data cell, operation, and resource once, at module
-  level. A function never creates one: no builder like
-  `makeTypeOp(cell)` that returns a new operation.
-- A helper takes plain values and returns a value. It never takes a
-  controller, a scope, or a session. Read and write cells inside the
-  operation body, even when several operations repeat the same write.
-  Do not put the whole operation in an outside closure.
-- A resource owns any work that needs cleanup.
-  Use defer and the abort signal where needed.
-  For HTTP, depend on `httpRequest.controller` from
-  `@/scaffold/backend/http` and run it (ADR 0102).
-  Never call built-in `fetch` in app code.
-  A stream or watcher stays with the resource that closes it.
+  Use the supplied public hook types.
+  A useRun.error message is allowed; do not copy it to separate state.
+- No useState, useReducer, useRef, useEffect, or useLayoutEffect, even in custom hooks.
+  No useScope in views, or scope, session, or controller props.
+- Keep Start's scope setup; new views use that scope.
+  Wrap controls in labels or use aria-label; useId repeats across mounted roots.
+- Views render and format values; operations own rules and state changes.
+  Keep reads and writes in their owning scope.
+- Declare cells, operations, and resources once at module level, never in builders.
+- Helpers take and return plain values, never controllers, scopes, or sessions.
+  Read and write cells inside operation bodies; do not move a run body to a closure.
+- Resources own cleanup, streams, and watchers; use defer and abort signals.
+  For HTTP, depend on `httpRequest.controller` from `@/scaffold/backend/http`.
+  Run it; never call built-in `fetch` in app code.
 
 ## Errors and input
 
-- One errors.ts names the error kinds and payloads.
-  All app failures come from it.
-- Narrow unknown errors with isError.
-  Rethrow a value that is not one of the expected managed errors.
-  Do not turn a coding error into an Error or Unknown notice.
-- Validate user input at the boundary, then work with typed values.
-  Keep business rules in operations.
-  Do not validate the same fact again at every layer.
-- Parsing may run in the operation body when needed to preserve
-  the task's error kinds.
-  Do not mask invalid input with defaults.
-- A public operation can be called by untyped code: tests, plain JS,
-  or a transport. There, `ctx.input` is only a claim: a `{ input }`
-  call skips any `input` parser. `ctx.rawInput` holds the caller's
-  value for both `{ input }` and `{ rawInput }` calls: read it and
-  check every field you use. Do not rely on an `input` parser for
-  the task's errors: core reports its throw as DataValidationFailed.
-- Error payload types are exact. A value that does not fit the type,
-  such as a non-text id for `{ id: string }`, stops the operation
-  with the task's error and a value of the right type. Never widen a
-  payload type, add an `unknown` parameter, or cast to carry it.
-- Preserve creation order when sort keys tie,
-  including after edits and undo.
-- Opening another draft drops the first draft's unsaved text.
-  The fields must now show the newly selected record.
+- One errors.ts names all app error kinds and exact payload types.
+  Narrow with isError; rethrow unexpected errors, never turn bugs into notices.
+- Validate input once at the boundary; keep business rules in operations.
+  Parsing may stay in run to preserve task errors; never mask bad input with defaults.
+- Public calls can skip an input parser with `{ input }`.
+  Read `ctx.rawInput` and check every used field for both call forms.
+  An input parser's throw becomes DataValidationFailed, not the task's error.
+- Bad payload values still need the task's error and a value of the right type.
+  Never widen a payload, add an unknown parameter, or cast to carry it.
+- Preserve creation order on sort ties, including edits and undo.
+  Opening another draft drops the first draft's unsaved text.
 
 ## Code and tests
 
-- Keep strict TypeScript. No any or casts that hide type errors.
-  Literal as const is allowed.
-- Use type for plain records; keep errors in their one registry.
-  Keep the public names the task requires.
-- No console calls in app source or bare throw new Error.
-- Use TSDoc for useful public explanations.
-  No suppression comments or narrative comments inside source.
-- Test public behavior through src/index.ts or the real screen.
-  Do not import private source modules in tests.
-- No mocks, spies, global patches, test skips, or fixed sleeps.
-  Browser tools can wait for the state they need.
-- Use isError to narrow by control flow, then check the payload.
-  Do not put isError inside expect.
-- One test should prove one public cause and its result.
-  Do not test helpers, types, private state, or allocation details.
-- Prefer a few small helpers for real repeated setup.
-  Do not hide a test's actions and checks inside a large helper.
-- Run type check, all behavior tests, real browser tests, and build.
-  Do not count a missing test or failed command as a pass.
+Follow tinker-forms for code owners and tinker-testing for small-scope tests.
+
+- Strict TypeScript; no any or casts hiding errors; literal as const is allowed.
+  Use type for records and keep required public names.
+- No console calls or bare throw new Error in app source.
+  Use TSDoc for useful public text; no suppression or story comments.
+- Test public behavior through exported operations or real screens, not private files.
+  No mocks, spies, global patches, skips, or fixed sleeps.
+  Browser tools may wait for state.
+- Narrow with isError before checking its payload, never inside expect.
+  One test proves one public cause and result.
+  Small helpers may share setup; keep actions and checks visible in each test.
 - Ask Jev about every changed file.
-  A finding under `gate.blocking` must be fixed before you report done.
-  It is a plain rule break, or a question the teacher proved reliable.
-  Clear it the way its `fix` line says, and keep every TASK.md rule.
-  If the fix and the task seem to conflict, report it; do not choose.
-  Other findings are advice. Fix real issues.
-  Explain each false hit in one line.
-  Do not rename a good test just to lower a probability.
-  A `gate.status` of `unavailable` is not a pass; report it.
-- Save small steps to disk. Report exact commands and results.
-  Explain any remaining issue, then stop for teacher review.
+  Fix every `gate.blocking` finding using its `fix` line, keeping every TASK.md rule.
+  If those conflict, report it; do not choose.
+  Fix real advice; explain each false hit in one line.
+  Never rename a good test to lower a probability.
+  `gate.status: unavailable` is not a pass.
+- Save small steps; report exact commands, exit codes, and remaining issues.
+  Then stop for teacher review.

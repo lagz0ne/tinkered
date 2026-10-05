@@ -70,6 +70,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
+- **trial/round-lessons** — apply trial 2's lessons so a round is shorter and smaller.
+  Owner: writer (Codex), branch `trial/round-lessons`.
+  Next: packet lines 30-32 say `Search complete` shows beside the outcome
+  line, and `No flights` is a notice, not a table row.
+  GUIDELINES: stop every server you start before tests (2 GiB sandbox).
+  `tinker-seams`: import `httpRequest` from `@/scaffold/backend/http`.
+  Then use the trial logs to list files DeepSeek re-reads every round, and cut them.
+  Verify: build, check, all tests, and prose return 0.
+  Lead: fresh round 1 rerun passes first try below trial 2's $1.46.
+
 ## Review
 
 - **core/testing-entry** — keep test helpers out of the main entry.
