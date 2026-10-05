@@ -911,9 +911,10 @@ const NO_NAMESPACE: readonly Namespace[] = Object.freeze([]);
  * silent second key space (ADR 0059: callers pass the value around; they never name one). */
 function nsChainOf(ns: Ns): readonly Namespace[] {
   const chain = Array.isArray(ns) ? ns : [ns];
-  if (chain.length === 0) raiseInvalid("ns", "empty namespace chain");
+  if (chain.length === 0)
+    raise("InvalidDependency", { label: "ns", reason: "empty namespace chain" });
   for (const key of chain) {
-    if (!isNamespace(key)) raiseInvalid("ns", "not a namespace");
+    if (!isNamespace(key)) raise("InvalidDependency", { label: "ns", reason: "not a namespace" });
   }
   return chain as readonly Namespace[];
 }
@@ -1713,7 +1714,7 @@ function resolveControllerEdge(
 ): unknown {
   if (isData(target)) return dataController(layer, target, chain);
   if (isOperation(target)) return operationController(layer, target, up, chain, caller);
-  raiseInvalid("edge", "unknown controller target");
+  raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
 
 function resolveEdge(
@@ -1743,7 +1744,7 @@ function resolveDep(
   if (isOperation(dep)) return operationController(layer, dep, up, chain, caller);
   if (isResource(dep)) return resourceSlot(layer, dep, up, chain);
   if (isExtension(dep)) return resolveExtension(layer, dep);
-  raiseInvalid("unknown", "unknown dependency");
+  raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
 
 const noop = (() => {
@@ -4497,7 +4498,8 @@ function handleFor(layer: Layer): Scope.Handle {
       b?: (scope: Scope.Handle) => R | PromiseLike<R>,
     ) => {
       if (typeof a === "function") return runSession(layer, undefined, a);
-      if (!b) raiseInvalid("session", "session(options, fn) needs fn");
+      if (!b)
+        raise("InvalidDependency", { label: "session", reason: "session(options, fn) needs fn" });
       return runSession(layer, a, b);
     }) as Scope.Handle["session"],
     release,
@@ -6002,10 +6004,6 @@ class RunEvent extends ExtensionCtx {
     this.call = call;
     this.next = next;
   }
-}
-
-function raiseInvalid(label: string, reason: string): never {
-  raise("InvalidDependency", { label, reason });
 }
 
 /** Release and retained close data drop the same build references. */

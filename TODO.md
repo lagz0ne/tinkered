@@ -45,7 +45,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/size-room** — cut Core bytes with no change in behavior, so new Core cards fit.
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-size-room`.
   Why: Core is at 16,379 of 16,384 B gzip after `core/graceful-writes`.
-  Next: finish all gates and queued speed proof; 16,070 B gzip gives 314 B of room.
+  Next: finish all gates and queued speed proof; 16,078 B gzip gives 306 B of room.
   Verify: size lane shows real room; all tests, validate, and mutation (85) pass;
   promises 0/5/2; `N=61 bench/queued.sh` shows no scenario "B slower".
 

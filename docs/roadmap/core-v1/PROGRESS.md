@@ -920,13 +920,12 @@ Saved work stays in Review for the lead.
 
 Owner: Sol writer on `core/size-room`.
 Core starts at 16,379 B gzip.
-The cuts leave 16,070 B gzip, with 314 B free.
+The cuts leave 16,078 B gzip, with 306 B free.
 The cap stays 16,384 B.
 Public types and exports stay the same.
 Error kinds and message text stay the same.
 Hot functions were neither merged nor grown.
-Cold errors share payload construction.
-Each throw gets a fresh payload.
+Each throw keeps its own payload and the old stack depth.
 Release code shares build-reference clearing.
 Empty stores are shared only until their first write.
 Each write gate gives its owner a new store.
@@ -1050,7 +1049,11 @@ Zero gains, larger output, and unsafe name clashes were dropped.
 - Share the identical controller construction call: 5 B.
   The chosen run function and all constructor inputs stay the same.
 
-The net saving is 309 B.
+- Restore direct managed-error construction: costs 7 B.
+- Restore direct InvalidDependency throws: costs 1 B.
+  These undo the two new error helpers and keep the old stack depth.
+
+The net saving is 301 B.
 The public empty-list probe rejects on main and on the final code.
 The discarded shared-list cut accepted it.
 Each error still owns a fresh payload and keeps its text.

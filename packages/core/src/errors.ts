@@ -27,7 +27,7 @@ export function makeError<N extends Errors.Name>(
   kind: N,
   payload: Errors.Payload<N>,
 ): Errors.Of<N> {
-  return createError(kind, payload);
+  return Object.assign(new Error(kind), { kind, payload });
 }
 
 /** The only place core throws a registry error. Its other throws rethrow, or throw a user's kind
@@ -133,12 +133,7 @@ export function raiseFrom<K extends string, P extends object>(
   kind: K,
   payload: P,
 ): never {
-  const error = createError(kind, payload);
+  const error = Object.assign(new Error(kind), { kind, payload });
   if (ctx) stamps.set(error, { origin: firstOrigin(ctx.label, ctx.span), by: ctx, open: true });
   throw error;
-}
-
-/** Core and caller registries create the same error fields. */
-function createError<K extends string, P extends object>(kind: K, payload: P) {
-  return Object.assign(new Error(kind), { kind, payload });
 }
