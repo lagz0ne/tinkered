@@ -1,0 +1,94 @@
+{
+  "card": "core/extension-slot",
+  "source_commit": "b756b5d98a04570a64617c295c503999f9f9c63a",
+  "core_unchanged": true,
+  "reference_unchanged": true,
+  "regression": {
+    "command": "vp test tests/requests.test.ts",
+    "cwd": "tools/flight-trial",
+    "red_exit_code": 1,
+    "red_tests_failed": 2,
+    "green_exit_code": 0,
+    "green_tests_passed": 2
+  },
+  "gates": [
+    {
+      "command": "vp run -r build",
+      "exit_code": 0
+    },
+    {
+      "command": "vp check",
+      "exit_code": 0,
+      "warnings": 28
+    },
+    {
+      "command": "vp run -r test",
+      "exit_code": 0,
+      "workspace_test_tasks": 9
+    },
+    {
+      "command": "vp run prose",
+      "exit_code": 0
+    },
+    {
+      "command": "vp run flight-trial#test",
+      "exit_code": 0,
+      "test_files": 11,
+      "tests_passed": 123
+    },
+    {
+      "command": "node tools/flight-trial/scripts/check-wire.mjs",
+      "exit_code": 0,
+      "base": "880f1c4f",
+      "calls": 2160,
+      "error_codes": 30,
+      "differences": 0
+    },
+    {
+      "command": "flock /tmp/mutation.lock vp run flight-trial#mutate",
+      "exit_code": 0,
+      "floor": 85,
+      "score": 91.42,
+      "covered_score": 92.89,
+      "killed": 1467,
+      "timeout": 152,
+      "survived": 124,
+      "no_coverage": 28,
+      "mutants": 1771
+    }
+  ],
+  "mutation_retry": {
+    "first_exit_code": 1,
+    "first_score": 84.98,
+    "added_test": "both services return a Duffel error for a missing control route",
+    "red_exit_code": 1,
+    "green_exit_code": 0,
+    "mutant": {
+      "file": "services/http.ts",
+      "id": "66",
+      "line": 41,
+      "replacement": "false",
+      "before": "Survived",
+      "after": "Killed"
+    }
+  },
+  "advisory": {
+    "style_exit_code": 0,
+    "tsdoc_exit_code": 0,
+    "preflight_exit_code": 0,
+    "file_flags": 0,
+    "test_review_exit_code": 0,
+    "test_flags": 0,
+    "promises_exit_code": 0,
+    "unchanged_promise_gaps": 12,
+    "labels_added": 0
+  },
+  "final_rebase": {
+    "command": "git fetch origin && git rebase origin/main",
+    "exit_code": 0,
+    "origin_main": "08ddc349efea1c84bd3852f9da3a0c10f82a818d",
+    "source_unchanged": true,
+    "install_exit_code": 0,
+    "build_exit_code": 0
+  }
+}

@@ -20,15 +20,26 @@ It missed payment's shared Duffel error on a missing control route.
 A new HTTP check covers that existing wire promise in both services.
 Changing `NotFound.duffel` to false makes it fail, exit 1.
 The source is restored; no wire behavior changes.
+The retry kills that mutation (66) and returns 0, score 91.42.
+
+All seven requested gates returned 0.
+The trial gate printed 123 passed tests across 11 files.
+The wire check found zero differences across 2,160 calls and 30 error codes.
+Check still prints 28 warnings and no errors.
+The branch was rebased on `origin/main`; install and build returned 0.
+Core, the pinned reference, and the tested source stayed unchanged at rebase.
+The card is saved in Review; next: lead review.
 
 Jev preflight returned 0, with no file flags.
 Its unit notes concern unchanged clock waits, socket promises,
 middleware stop checks, webhook cleanup, and payment-key promises.
 The reasons already recorded under `trial/services-closing` still apply.
 The payment note is marked noisy; it needs no label.
-The test judge returned 0 but does not read `test.each` cases.
+The requests test judge returned 0 but does not read `test.each` cases.
 The README states the new repeated-resolve promise.
-The promise judge returned 0; its 13 gaps concern unchanged tests.
+The routing test judge returned 0, with no flags across 11 tests.
+The final promise judge returned 0; its 12 gaps concern unchanged tests.
+The new control error title matches the README.
 No labels are added outside this card's allowed paths.
 Strict style and the TSDoc parser returned 0.
 This card uses the requested gates and only the trial mutation lane.
