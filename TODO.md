@@ -47,15 +47,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **core/size-room** — cut Core bytes with no change in behavior, so new Core cards fit.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-size-room`.
-  Why: Core was at 16,379 of 16,384 B gzip after `core/graceful-writes`.
-  Next: lead review and `scripts/ticket.sh` before landing.
-  Proof: [gate receipt](docs/roadmap/core-v1/size-room/GATES.json); 16,084 B gzip, 300 B free.
-  Build, check, all tests, validate, and prose return 0; Core has 854 tests.
-  Mutation returns 0 at 85.97; promises stay 0/5/2; hot names end at slot 249.
-  Speed: none of ten scenarios is B slower at N=61; inline is B faster at N=183 in both orders.
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -72,6 +63,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-room** — Core runtime 16,379 → 16,084 B gzip: 300 B free, no change in behavior.
+  Owner: lead (Claude, Start scaffold session); Astra writer (after a Sol outage), Opus review.
+  Cuts: private names 255 B, cold and duplicate code 26 B, shared empty stores 12 B, symbol text 11 B.
+  Public types identical to main; 854 tests; validate green; promises 0/5/2; hot names end at slot 249.
+  Speed: none of ten scenarios B slower at N=61; `inline` B faster (N=183, both orders).
+  [Gate receipt](docs/roadmap/core-v1/size-room/GATES.json).
 
 - **core/graceful-writes** — running work keeps state usable during a graceful close.
   Owner: lead (Claude, Start scaffold session); Sol writer, Sol fix writer, Opus review (two fix rounds).
