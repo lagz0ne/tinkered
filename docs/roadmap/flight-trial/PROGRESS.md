@@ -4078,3 +4078,267 @@ Harness lessons for `trial/round-lessons`:
 - The `tinker-seams` skill names an import path that loops.
 - The full test run is longer than the writer's 120 s shell limit.
 - Only the teacher may set stock, so race tests need a local supplier.
+
+## Round lessons, 2026-10-05
+
+Card: `trial/round-lessons`.
+Writer branch: `trial/round-lessons`.
+
+### Changes
+
+- Round 1: Search complete stays beside each outcome.
+  Every supplier must have answered or failed.
+  No flights is a notice outside the Flights table.
+- Round 2 repeats that notice rule for three suppliers.
+  Rounds 3 to 5 inherit it and have no conflicting notice text.
+- GUIDELINES says to stop servers before tests.
+  It names the 2 GiB memory limit.
+  Test-owned servers must close in cleanup.
+- `extension.mjs` caps every shell call at 120 seconds.
+  `broker.mjs` runs each call through timeout.
+  GUIDELINES shows separate test-file calls with the same config.
+  Every shipped and added test file must run.
+  Chunks run one at a time; each exit code must pass.
+- Race tests may run a local HTTP supplier with their own stock.
+  They call exported app operations and close the supplier.
+  App code and tests may never use the supplied /control/ routes.
+  Only the teacher changes the supplied services.
+- Three skills now use `@/scaffold/backend/http` for httpRequest.
+  The other two were tinker-forms and tinker-feature.
+  Fixing only tinker-seams would leave the same bad advice.
+- `flight-import.test.mjs` bundles the real scaffold HTTP operation.
+  Its small feature exports through a server barrel.
+  The old path loops back to the feature and fails at initialization.
+  The direct path loads with exit 0.
+  Restoring the old advice makes the test fail with exit 1.
+- GUIDELINES fell from 6,604 to 4,936 bytes.
+  That is 1,668 fewer bytes, or 25.3%.
+  Repeated text is shorter; code and test details point to app skills.
+  The writer now reads skills for the work it changes.
+  TASK stays cumulative so earlier requirements stay in view.
+- Hidden teacher files stay unchanged.
+
+### Read counts
+
+Read all 13 native pi sessions: seven tries in trial 1, six in trial 2.
+Matched their session IDs to saved tries without changing either trial.
+[Full per-file rows](round-lessons-reads.json).
+[Read counter](../../../tools/writer-trial/read-counts.py).
+
+- Counts cover explicit work_shell cat, sed, and rg file requests.
+- Globs and the loop that reads all skills are expanded.
+- Bytes are read counts times file sizes in each saved archive.
+- Partial reads still have a full-file weight.
+- Files edited during a try use their final saved size.
+- These are requested-byte estimates, not bytes delivered by the shell.
+- Pipes, missing files, unresolved paths, and other readers are excluded.
+  That includes grep, dependency files absent from archives, and temp logs.
+- Estimated file-read tokens use four bytes per token.
+  This is not the provider tokenizer or a price estimate.
+
+Per-try counts (R means round; T means try):
+
+#### Trial 1
+
+- **R1 T1** — file requests: 98.
+  Files: 85.
+  Requested bytes: 307,914.
+  Doc bytes: 52,555.
+- **R1 T2** — file requests: 29.
+  Files: 23.
+  Requested bytes: 122,701.
+  Doc bytes: 26,197.
+- **R2 T1** — file requests: 46.
+  Files: 40.
+  Requested bytes: 226,274.
+  Doc bytes: 50,200.
+- **R3 T1** — file requests: 86.
+  Files: 70.
+  Requested bytes: 387,456.
+  Doc bytes: 36,567.
+- **R4 T1** — file requests: 88.
+  Files: 67.
+  Requested bytes: 825,576.
+  Doc bytes: 32,327.
+- **R4 T2** — file requests: 39.
+  Files: 30.
+  Requested bytes: 460,855.
+  Doc bytes: 33,275.
+- **R5 T1** — file requests: 57.
+  Files: 50.
+  Requested bytes: 488,172.
+  Doc bytes: 40,036.
+
+Docs take 9.6% of estimated file-read tokens.
+
+#### Trial 2
+
+- **R1 T1** — file requests: 100.
+  Files: 85.
+  Requested bytes: 363,577.
+  Doc bytes: 61,256.
+- **R1 T2** — file requests: 35.
+  Files: 32.
+  Requested bytes: 112,088.
+  Doc bytes: 46,041.
+- **R2 T1** — file requests: 51.
+  Files: 42.
+  Requested bytes: 503,202.
+  Doc bytes: 62,611.
+- **R3 T1** — file requests: 96.
+  Files: 76.
+  Requested bytes: 412,136.
+  Doc bytes: 74,442.
+- **R4 T1** — file requests: 86.
+  Files: 75.
+  Requested bytes: 391,575.
+  Doc bytes: 33,505.
+- **R5 T1** — file requests: 96.
+  Files: 76.
+  Requested bytes: 474,046.
+  Doc bytes: 58,715.
+
+Docs take 14.9% of estimated file-read tokens.
+
+#### Top repeated docs
+
+- **`PLAIN.md`** — seen in 13 tries.
+  Requests: 18.
+  Requested bytes: 136,284.
+  Estimated tokens: 34,071.
+  Share of estimated file-read tokens: 2.69%.
+- **`GUIDELINES.md`** — seen in 13 tries.
+  Requests: 13.
+  Requested bytes: 85,103.
+  Estimated tokens: 21,276.
+  Share of estimated file-read tokens: 1.68%.
+- **`SERVICES.md`** — seen in 13 tries.
+  Requests: 13.
+  Requested bytes: 74,464.
+  Estimated tokens: 18,616.
+  Share of estimated file-read tokens: 1.47%.
+- **`AGENTS.md`** — seen in 13 tries.
+  Requests: 14.
+  Requested bytes: 68,366.
+  Estimated tokens: 17,092.
+  Share of estimated file-read tokens: 1.35%.
+- **`TASK.md`** — seen in 13 tries.
+  Requests: 13.
+  Requested bytes: 64,015.
+  Estimated tokens: 16,004.
+  Share of estimated file-read tokens: 1.26%.
+- **`.agents/skills/tinker-forms/SKILL.md`** — seen in 7 tries.
+  Requests: 7.
+  Requested bytes: 89,389.
+  Estimated tokens: 22,347.
+  Share of estimated file-read tokens: 1.76%.
+
+- Total file requests: 907.
+- Total requested bytes: 5,075,572.
+- Doc requested bytes: 607,727.
+- Estimated doc tokens: 151,932.
+- Docs take 11.97% of estimated file-read tokens.
+- Native usage reports 167,269,732 total tokens.
+  That includes cached and repeated context, plus model output.
+  Introduced doc bytes divided by four are 0.091% of that total.
+  This does not measure the doc share carried in later prompts.
+  The logs do not tag billed tokens by source file.
+
+PLAIN is the biggest repeated doc by requested bytes.
+It holds the checked list of functions, so it stays intact.
+GUIDELINES is read once in every try, so a shorter copy helps every round.
+The forms skill is read in seven tries; the new advice loads only needed skills.
+No shorter run or lower model cost is claimed before a fresh trial.
+
+To repeat the count without changing trial files:
+
+```bash
+counter=tools/writer-trial/read-counts.py
+sessions="$HOME/.pi/agent/sessions"
+trials="$HOME/.local/share/tinker-writer-trial"
+python3 "$counter" --sessions "$sessions" \
+  --trials "$trials" > /tmp/round-reads.json
+```
+
+### Image and frozen hashes
+
+The registry puts the skills into the writer image.
+GUIDELINES and packets are copied and hashed when a trial is created.
+They are not baked into the writer image.
+Saved trials keep their old image and frozen bytes.
+[Full old and new hashes](round-lessons-hashes.json).
+
+New trials change these frozen file hashes (12-character prefixes):
+
+- `tasks/01-search.md`: `f956cf3a59c2` to `77a444890868`.
+- `tasks/02-metasearch.md`: `aa616dab5ef7` to `639bd3238e8d`.
+- `rules/flight-guidelines.md`: `be36f9610409` to `fe7849624b0a`.
+- `config.json` changes when the lead chooses the new writer image tag.
+
+The three skill hashes change inside the new writer image:
+
+- tinker-seams: `85d5057052ea` to `31553fdaf571`.
+- tinker-forms: `540aed7d9943` to `919ec2b43310`.
+- tinker-feature: `7aa076b0e4ba` to `78b334c71dbe`.
+
+Skills are not individual entries in the trial's frozen file map.
+The manifest pins the new writer image ID instead.
+No teacher, service contract, extension, broker, or Jev bytes changed here.
+Teacher hash stays `ef01fd5ede14`.
+Skill text is outside the source/test maps in scaffold.json and starter.json.
+These skill edits alone do not change either map.
+
+The lead must pick a new tag; saved tags refuse rebuild.
+Set `flight.image` in `tools/writer-trial/config.json` to:
+
+```json
+"tinker-writer-flight:20261005.round-lessons.1"
+```
+
+Keep `flight.servicesImage` at:
+
+```json
+"tinker-flight-services:20261004160855439"
+```
+
+Then run:
+
+```bash
+vp run -r build
+node tools/writer-trial/prepare.mjs \
+  --suite flight --build --app-only
+node tools/writer-trial/workers.mjs \
+  create flight-round-lessons-01 --suite flight
+node tools/writer-trial/workers.mjs \
+  stage flight-round-lessons-01 1
+```
+
+This rebuilds only the writer image and saves its tar and keeper.
+It leaves the service and dependency images as they are.
+Create freezes the new packets and GUIDELINES.
+Record the new image ID and config hash from that fresh manifest.
+Then launch a fresh writer through Paseo as README says.
+The lead still owes a first-try round 1 pass below trial 2's $1.46.
+No image was built or published for this card.
+
+### Proof
+
+- `vp install`: exit 0 after each rebase.
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0; 28 warnings, the same count as origin/main.
+- `vp run -r test`: exit 0; all nine test tasks passed.
+- `node --test tools/writer-trial/*.test.mjs`: exit 0; 92 tests passed.
+- `vp run prose`: exit 0.
+- `pnpm validate`: exit 0; all 16 size and other fixed checks passed.
+- Jev preflight: exit 0; no flags or labels.
+- Old skill advice: import proof exit 1.
+- Fixed advice: import proof exit 0.
+
+The optional readiness limits probe needs a live readiness worker.
+Its worker.json was missing; that probe exited 1 before running a test.
+It was not used as proof and no worker was started.
+The full writer-trial test file set above passed.
+
+No TypeScript source changed and no mutation lane was requested.
+Core feedback: no new Core fault was found.
+The card waits in Review for the lead's image and model run.

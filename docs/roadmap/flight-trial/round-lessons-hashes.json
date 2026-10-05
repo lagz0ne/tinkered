@@ -1,0 +1,43 @@
+{
+  "frozenFiles": {
+    "tasks/01-search.md": {
+      "oldSha256": "f956cf3a59c26cec1548a033def109645ccbf0f963a1d000ee53966b424e46ff",
+      "newSha256": "77a4448908683dd908a52b2c0c4db904d880ccc8497bad31b6b01d9cbf77c1d0",
+      "oldBytes": 1526,
+      "newBytes": 1659
+    },
+    "tasks/02-metasearch.md": {
+      "oldSha256": "aa616dab5ef7926348fa367da8ee0e15083a73b858dd1ae5f6b2e1b29c337fcd",
+      "newSha256": "639bd3238e8d3a00d90297ff96ee88f07f1bc7e65ccad557dd76094acd2baf21",
+      "oldBytes": 1294,
+      "newBytes": 1408
+    },
+    "rules/flight-guidelines.md": {
+      "oldSha256": "be36f9610409fe437496d9b9cc0d5ed696eb73ce049cc1b965663dd08c4f23a9",
+      "newSha256": "fe7849624b0ae2b4f79dae5ff8ce3e43ee470d19da2412beb55e6ca7bab99c8a",
+      "oldBytes": 6604,
+      "newBytes": 4936
+    }
+  },
+  "imageSkills": {
+    "tinker-seams": {
+      "oldSha256": "85d5057052eaeb337c1d98ea3f02f21bab2a1a7fdf72326f62048b376135f228",
+      "newSha256": "31553fdaf5717d8df80523820fc1a177fb0c9eff38cd8a6f7785efcad749ad8b",
+      "oldBytes": 1879,
+      "newBytes": 1877
+    },
+    "tinker-forms": {
+      "oldSha256": "540aed7d9943043380d97475a5b4cfacde0e47489babde14118255ed5ee88022",
+      "newSha256": "919ec2b43310d2a1dad36e7b5fe6cad564aa019bfc185854202435fcf878b7b1",
+      "oldBytes": 14361,
+      "newBytes": 14365
+    },
+    "tinker-feature": {
+      "oldSha256": "7aa076b0e4bacde0e4a220480453c4dcec6cc201d85e93070cd7ff6a8bd19600",
+      "newSha256": "78b334c71dbe258280dd7607fde3e1e8a06ba41d1b8cb343da1f3ae0aebece0f",
+      "oldBytes": 2062,
+      "newBytes": 2068
+    }
+  },
+  "teacherSha256": "ef01fd5ede14b66bf8042813d99fa07299eb76e0dddf78dba9c95e13e83e77ee"
+}

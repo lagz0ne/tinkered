@@ -58,29 +58,19 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/round-lessons** — apply trial 2's lessons so a round is shorter and smaller.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-round-lessons`.
-  Next: packet lines 30-32 say `Search complete` shows beside the outcome
-  line, and `No flights` is a notice, not a table row.
-  GUIDELINES: stop every server you start before tests (2 GiB sandbox).
-  `tinker-seams`: import `httpRequest` from `@/scaffold/backend/http`.
-  Then use the trial logs to list files DeepSeek re-reads every round, and cut them.
-  Verify: a round 1 rerun passes first try; its cost is below trial 2's $1.46.
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
-- **trial/round-lessons** — apply trial 2's lessons so a round is shorter and smaller.
-  Owner: writer (Codex), branch `trial/round-lessons`.
-  Next: packet lines 30-32 say `Search complete` shows beside the outcome
-  line, and `No flights` is a notice, not a table row.
-  GUIDELINES: stop every server you start before tests (2 GiB sandbox).
-  `tinker-seams`: import `httpRequest` from `@/scaffold/backend/http`.
-  Then use the trial logs to list files DeepSeek re-reads every round, and cut them.
-  Verify: build, check, all tests, and prose return 0.
-  Lead: fresh round 1 rerun passes first try below trial 2's $1.46.
-
 ## Review
+
+- **trial/round-lessons** — smaller writer rules and clear flight notices.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Next: review the saved changes, rebuild the writer image, and run round 1.
+  Proof: build, check, all repo tests, 92 writer-trial tests, and prose returned 0.
+  The old HTTP import fails; the direct import passes.
+  GUIDELINES is 25.3% smaller; all 13 tries have file-read counts.
+  Verify: a fresh round 1 passes first try below trial 2's $1.46.
+  [Notes](docs/roadmap/flight-trial/PROGRESS.md#round-lessons-2026-10-05).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
