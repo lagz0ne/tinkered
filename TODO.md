@@ -68,16 +68,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **trial/round-lessons** — smaller writer rules and clear flight notices.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Next: lead builds `tinker-writer-flight:20261005.round-lessons.1`, then a fresh round 1.
-  Proof: build, check, all repo tests, 92 writer-trial tests, and prose returned 0.
-  The rebuilt registry check returned 0.
-  The old HTTP import fails; the direct import passes.
-  GUIDELINES is 21.6% smaller; all 13 tries have file-read counts.
-  Verify: a fresh round 1 passes first try below trial 2's $1.46.
-  [Notes](docs/roadmap/flight-trial/PROGRESS.md#round-lessons-2026-10-05).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -94,6 +84,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/round-lessons** — clearer notices, smaller writer rules, fixed skill import path.
+  Owner: lead (Claude, Start scaffold session); Sol writer, Opus review (one fix round).
+  GUIDELINES 21.6% smaller; image `tinker-writer-flight:20261005.round-lessons.1`.
+  Round 1 rerun (`flight-deepseek-03`): pass first try, 3 of 3, $0.35 in 38 minutes
+  (trial 2's first try: fail, $1.37, 58 minutes).
+  [Notes](docs/roadmap/flight-trial/PROGRESS.md#round-1-rerun-2026-10-05).
 
 - **trial/deepseek-02** — DeepSeek on the ADR 0102/0103 images, next to trial 1.
   Owner: lead (Claude, Start scaffold session).

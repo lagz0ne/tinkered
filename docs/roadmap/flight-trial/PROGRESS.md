@@ -4395,3 +4395,19 @@ The card waits in Review for the lead's image and model run.
   GUIDELINES is 5,178 bytes, 21.6% below the original 6,604.
 - Commit the new writer image tag before any trial create.
   No image was built or published in this fix round.
+
+### Round 1 rerun, 2026-10-05
+
+Trial `flight-deepseek-03`, graded from a runner pinned at `8aff9d24`.
+Image `tinker-writer-flight:20261005.round-lessons.1` (`90af992b`).
+Services `1be10fb5`; teacher hash `ef01fd5ede14` (unchanged).
+
+- Round 1, try 1 (agent `f7bd9ab6`): **pass**, hidden checks 3 of 3.
+- Cost about $0.35, against $1.37 for trial 2's first try.
+- Agent time 38 minutes, against 58.
+- `Search complete` sits beside the outcome; `No flights` is outside the table.
+- It imported `httpRequest` from the scaffold path on the first try.
+- Every long command ran under `timeout 115`; no server was left running.
+- Lost turns: a scratch Vitest browser-mode test, then deleted.
+
+The card's goal is met: first try, under $1.46.
