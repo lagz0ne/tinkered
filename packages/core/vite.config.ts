@@ -32,8 +32,11 @@ export default defineConfig({
     // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
     // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
     clearMocks: false,
-    /** Skip Stryker's leftover sandbox copies of the tests (gitignored, not ours). */
-    exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**"],
+    /**
+     * Skip Stryker's leftover sandbox copies of the tests (gitignored, not ours), and the build's
+     * guard tests: each packs Core, so they run in the dist lane (`vite.dist.config.ts`).
+     */
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "build/**"],
     server: { deps: { inline: ["vite-plus"] } },
   },
 });

@@ -35,6 +35,12 @@ echo "== gate ${TAG}: vp check =="
 vp check
 echo "== gate ${TAG}: vp run -r test =="
 vp run -r test
+# core/size-build: the build renames Core's private fields, so Core's tests also run on the
+# built files, with the rename guard's tests.
+if [ "$PKG" = "core" ]; then
+  echo "== gate ${TAG}: core tests on the built files =="
+  vp run core#test:dist
+fi
 echo "== gate ${TAG}: size budget =="
 vp run "${PKG}#size"
 echo "== gate ${TAG}: mutation (best-effort until thresholds finalized) =="
