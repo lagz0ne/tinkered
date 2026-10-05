@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
+import { privateFields } from "./build/private-fields.ts";
 
 export default defineConfig({
   resolve: {
@@ -14,6 +15,9 @@ export default defineConfig({
     exports: true,
     minify: true,
     sourcemap: true,
+    /** Rename Core's private fields (core/size-build); `build/private-fields.ts` says why it is safe. */
+    plugins: [privateFields()],
+    outputOptions: { comments: { annotation: false } },
   },
   lint: {
     options: {

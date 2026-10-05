@@ -28,8 +28,10 @@
   "scripts": {
     "build": "vp pack",
     "size": "vp pack && node ../../scripts/check-core-entries.mjs",
+    "fields": "CORE_PRIVATE_FIELDS=write vp pack && vp pack",
     "dev": "vp pack --watch",
     "test": "vp test",
+    "test:dist": "vp pack && vp test --config vite.dist.config.ts",
     "mutate": "stryker run",
     "check": "vp check",
     "prepublishOnly": "vp run build"

@@ -7,6 +7,8 @@ const strip = "node --experimental-strip-types";
 const lanes = [
   ["lint/types/format/complexity", `${VP} check`],
   ["tests", `${VP} run --no-cache core#test`],
+  // core/size-build: the build renames private fields, so the tests also run on what users import.
+  ["core tests on the built files", `${VP} run --no-cache core#test:dist`],
   ["core size (<= 16 KiB gzip)", `${VP} run --no-cache core#size`],
   ["promises (0 sync / <=10 async)", `${strip} bench/promises.mjs`],
   ["deep-chain (no overflow)", `${strip} bench/deep.mjs`],
