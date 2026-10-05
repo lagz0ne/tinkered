@@ -682,7 +682,10 @@ Proof: `packages/tinkerer/tests/stalled-steer.test.ts`.
 Asked by Harness and Tinkerer live entries.
 Status: fixed by `core/graceful-writes`.
 Active calls and their cleanup keep state usable until graceful drain ends.
-New calls and sessions stay refused from the start of closing.
+Running calls can still run their helpers.
+A running session body can still run an operation.
+Held controllers can write until the drain ends, even outside a call.
+New outside calls, new sessions, and release stay refused during closing.
 Proof: [red and green gates](core-v1/graceful-writes-logs/GATES.json).
 
 A root stop should let its running calls finish.

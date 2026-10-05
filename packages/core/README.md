@@ -434,15 +434,23 @@ A forced close cannot record a final status in that layer's cells.
 Read the returned `Scope.Result` instead: a clean forced close is `cancelled`.
 A real failure can make it `failed`.
 
-`close({ graceful: true })` keeps state usable while running calls finish their writes.
-Their `ctx.defer` cleanup can also write, including after an await.
+`close({ graceful: true })` keeps state usable until running work and its cleanup finish.
+Held cell controllers can write until that drain ends, even from outside a call.
+A running call can call its `depends` operations, including after an await.
+A still-running `session(fn)` body can use its handle to run operations.
+The call's `ctx.defer` cleanup can also write and call helpers after an await.
 This holds for a root stop signal, a direct root close, and a session close.
-Both close modes refuse new calls and sessions as soon as closing begins.
-Saved operation controllers also refuse new calls.
+Both close modes refuse brand-new outside calls and sessions as soon as closing begins.
+Saved operation controllers from finished calls also refuse calls during the drain.
+A layer's `release()` and `releaseNs()` are refused during the drain.
+A child also cannot release a resource owned by a closing parent.
 New calls are refused before run hooks start.
 New sessions are refused before session hooks start.
 The closing signal still fires before the drain; the work signal stays live during graceful drain.
 State is sealed after running calls and their cleanup finish, before resource cleanup.
+A resource's `ctx.defer` write then becomes a `Disposed` teardown error.
+A forced parent close also seals a child that was already closing gracefully.
+A graceful close of a child already aborted by its parent keeps writes sealed.
 Saved resource controllers stay usable during the drain.
 A parent release keeps a draining child's resources usable, including named resources.
 A draining session cannot release its parent's resource.
