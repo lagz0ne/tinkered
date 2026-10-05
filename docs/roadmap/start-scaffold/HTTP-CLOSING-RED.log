@@ -29,3 +29,4 @@ If this is a long-running test, pass a timeout value as the last argument or con
    Start at  07:34:20
    Duration  2.70s (tests 79%, transform 11%, import 10%)
 
+EXIT 1

@@ -1,0 +1,25 @@
+apps/start-scaffold/tests/http.test.ts
+  ✓ L36 an HTTP request makes two spans and records its status
+  ✓ L76 closing the HTTP resource aborts a request still in flight
+  ✓ L111 a bound HTTP backend gets the request and returns text without network
+  ✓ L168 network failures keep method, path, and only cause name and code
+  ✓ L213 an abort failure keeps its numeric code without its message
+  ✓ L241 a string cause keeps the outer error name and code without private text
+  ✓ L274 network failures keep readable cause fields when the other field has a wrong type
+  ✓ L317 closing the caller aborts HTTP body reading
+  ✓ L361 an HTTP method is normalized once for sending and spans
+  ✓ L391 an HTTP method rejects non-token characters before sending
+  ✓ L417 HTTP replies keep each set-cookie value and joined repeated headers
+  ✓ L450 backend stop settles a server function's signalled HTTP call
+  ✓ L475 backend stop settles HTTP in a root call with ${…}
+  ✓ L500 request end settles its tagged HTTP call and leaves siblings open
+  ✓ L534 ending the server function's call signal still cancels its HTTP work
+  ✓ L551 an HTTP request after ${…} ends fails before sending
+  ✓ L580 forced root and session closes still cancel a never-answering HTTP request
+  ✓ L603 backend stop settles HTTP while other running work finishes
+  ✓ L643 a direct graceful session close settles a hung HTTP send without stop tags
+  ✓ L667 a direct graceful root close reaches a session's hung HTTP send without stop tags
+  ✓ L688 backendStop ends a pending HTTP send without closing its root
+  ✓ L717 running work finishes on graceful close when the HTTP backend answers
+
+jev tests: 0/22 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.

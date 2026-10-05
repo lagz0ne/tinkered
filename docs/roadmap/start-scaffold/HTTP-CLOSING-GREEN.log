@@ -8,3 +8,4 @@ note: You are running `vp test` as a Vite+ built-in command. If you meant to run
    Start at  07:47:43
    Duration  964ms (transform 47%, import 43%, tests 10%, worker 1%)
 
+EXIT 0

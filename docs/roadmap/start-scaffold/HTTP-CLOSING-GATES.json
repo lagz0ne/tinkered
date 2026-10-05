@@ -77,5 +77,39 @@
     "commit": "3ba54ce2",
     "exit": 0,
     "warnings": 28
+  },
+  "extraAppGates": [
+    {
+      "gate": "npm run typecheck",
+      "cwd": "apps/start-scaffold",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-TYPECHECK.log"
+    },
+    {
+      "gate": "npm run check:plain -- --prove",
+      "cwd": "apps/start-scaffold",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PLAIN-PROVE.log"
+    },
+    {
+      "gate": "npm run test:schema",
+      "cwd": "apps/start-scaffold",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-SCHEMA.log"
+    }
+  ],
+  "plainProofCases": 177,
+  "jev": {
+    "preflightExit": 0,
+    "testsExit": 0,
+    "promisesExit": 0,
+    "testFlags": 0,
+    "promiseGaps": 0,
+    "label": {
+      "judge": "configNotTag",
+      "unit": "httpRequest",
+      "answer": false,
+      "existingBankRow": "b70914c768c7"
+    }
   }
 }

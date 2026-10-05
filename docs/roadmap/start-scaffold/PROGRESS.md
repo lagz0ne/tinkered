@@ -3175,7 +3175,7 @@ Step commits:
 
 Owner: start/http-closing writer.
 Target: apps/start-scaffold only; no Core API change.
-Next: finish the extra plain-code proof run, then lead review and landing.
+Next: lead review and landing.
 Verify: a hung session send ends on direct graceful close without stop tags.
 
 Read ADR 0104, ADR 0102, ADR 0103, and the fixed writer brief.
@@ -3244,4 +3244,12 @@ All eight gate exits are 0 on that code.
 The gate logs are saved beside HTTP-CLOSING-GATES.json.
 The rebase brought back the lead's Doing card alongside Review.
 Only that stale copy was removed; one Review card remains.
-The extra type check exits 0; the full plain proof run is still running.
+The extra type check, full plain proof run, and schema check each exit 0.
+
+The full plain proof passes all 177 planted cases.
+The schema proof adds no migration file or folder.
+The source and starter registry match after the final test change.
+All requested work is saved; the card waits in Review for the lead.
+Only apps/start-scaffold, this track, and this card changed.
+No stop tag was removed: both still have distinct tested uses.
+The removed text was the old direct-close limit.

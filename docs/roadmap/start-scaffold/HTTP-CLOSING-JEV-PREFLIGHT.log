@@ -1,0 +1,14 @@
+jev pre-flight (advisory) — clear or explain these before reporting
+
+  ✓ apps/start-scaffold/src/scaffold/backend/http.ts
+
+jev lint (advisory) — 1 file(s)
+
+apps/start-scaffold/src/scaffold/backend/http.ts
+  ✓ resource http (L21)
+  ⚠ operation httpRequest (L59): configNotTag 71%
+
+jev lint: 2 unit(s), 1 ⚠ flag(s), 0 ℹ note(s). By question: {"configNotTag":1}
+Advisory only — model ⚠ hits are fixed or explained, then labeled (a ~ hit: read it, no line owed); unitCouldBeModuleLevel (code) is deterministic and needs no label or calibration. vp check / tests / the lead decide.
+
+jev pre-flight: 0 file flag(s) plus the lint notes above. An ℹ note is a hint: no fix or label owed. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (tools/jev/label.mjs). Not a gate.
