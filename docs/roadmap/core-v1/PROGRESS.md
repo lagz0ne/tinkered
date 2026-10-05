@@ -920,11 +920,13 @@ Saved work stays in Review for the lead.
 
 Owner: Sol writer on `core/size-room`.
 Core starts at 16,379 B gzip.
-The cuts leave 16,075 B gzip, with 309 B free.
+The cuts leave 16,084 B gzip, with 300 B free.
 The cap stays 16,384 B.
 Public types and exports stay the same.
 Error kinds and message text stay the same.
-Hot functions were neither merged nor grown.
+Hot functions were not merged.
+The operation builder drops a temporary object and a built-in call.
+Its bytecode shrinks from 134 to 120 B.
 Each throw keeps its own payload and the old stack depth.
 Release code shares build-reference clearing.
 Empty stores are shared only until their first write.
@@ -1062,7 +1064,12 @@ Zero gains, larger output, and unsafe name clashes were dropped.
 - Restore the controller's private field names: costs 3 B.
   Its parent, chain, hook target, and settler use the old names again.
 
-The net saving is 304 B.
+- Store operation fields directly: costs 9 B gzip.
+  This removes the temporary object passed to `Object.assign`.
+  Reads still finish before either field is written.
+  This spends size room to address the failed speed gate.
+
+The net saving is 295 B.
 The public empty-list probe rejects on main and on the final code.
 The discarded shared-list cut accepted it.
 Each error still owns a fresh payload and keeps its text.

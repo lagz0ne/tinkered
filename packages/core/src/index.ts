@@ -936,11 +936,15 @@ export function operation<
     input: config.input,
     depends: config.depends ?? {},
     run: config.run as Operation.Handle<R, I>["run"],
-  } as Operation.Handle<R, I>;
-  return Object.assign(base, {
-    controller: edgeTo("controller", base),
-    [borrowSym]: seesResource(base.depends),
-  });
+  } as Operation.Handle<R, I> & {
+    controller: Operation.Handle<R, I>["controller"];
+    [borrowSym]: boolean;
+  };
+  const controller = edgeTo("controller", base);
+  const borrows = seesResource(base.depends);
+  base.controller = controller;
+  base[borrowSym] = borrows;
+  return base;
 }
 
 type BorrowFlag = { readonly [borrowSym]?: boolean };
