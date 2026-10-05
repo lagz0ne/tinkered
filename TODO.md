@@ -24,13 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/extension-slot** — one extension can include another, or a unit can take a slot.
-  Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
-  Next: design first (find the precedent); brief a Core writer after the trial baseline.
-  Verify: the trial services drop the hand call `httpRequests.hooks!.start!`;
-  Core tests, `scripts/ticket.sh`, `pnpm validate` pass.
-  [Feedback](docs/roadmap/core-feedback.md#shared-unit-with-a-slot-2026-10-03).
-
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
   Next: `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README
@@ -38,9 +31,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
-- **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
-
 ## Doing
+
+- **core/size-research** — find a path from 16,084 B to 13 KiB (13,312 B) gzip for Core.
+  Owner: lead (Claude, Start scaffold session); six Opus researchers, one lens each.
+  Next: look only: each lens measures candidates (safe, text, API, build) in its own copy.
+  Verify: one ranked plan the user approves; cuts land later as small cards, each benched.
+
+- **core/extension-slot** — one extension can include another, or a unit can take a slot.
+  Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
+  Owner: lead (Claude, Start scaffold session); Opus designer. Worktree: `../tinkered-extension-slot`.
+  Next: precedent, proposed ADR, and open questions for the user; code after the user decides.
+  Verify: the trial services drop the hand call `httpRequests.hooks!.start!`;
+  Core tests, `scripts/ticket.sh`, `pnpm validate` pass.
+  [Feedback](docs/roadmap/core-feedback.md#shared-unit-with-a-slot-2026-10-03).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
@@ -59,6 +63,10 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 ## Blocked
 
 ## Parked
+
+- **core/traceparent** — one W3C `traceparent` helper for every package.
+  Parked 2026-10-05: no package parses `traceparent` today (hono, http, and nats are gone).
+  Restart when a package needs to read or write the header.
 
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
