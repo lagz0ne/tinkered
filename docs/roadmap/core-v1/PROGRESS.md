@@ -671,3 +671,32 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   Source and config have the base's five S10 and three S14 hits.
   Both source censuses returned 1, with no added hit.
   TSDoc and prose returned 0.
+
+### Final advisory proof
+
+- The complete build/check/Core/consumer chain returned 0.
+  All nine workspace test tasks passed on the full retry.
+  Logs: `/tmp/close-hook-build-final.log`,
+  `/tmp/close-hook-check-final.log`, `/tmp/close-hook-core-final.log`,
+  and `/tmp/close-hook-consumers-retry.log`.
+- Fresh preflight returned 0: 240 units, 65 flagged units, one noisy hit.
+  All 69 real code flags have a scoped false label and reason.
+  Twelve new case states were added; the scoped bank now has 83 cases.
+  The lead owns its merge and calibration.
+  Three plain test flags have written reasons, not model labels.
+  The test judge bank is empty; the attempted label returned 1 for unknown judge.
+  Its log is `/tmp/close-hook-test-label-attempt.log`.
+  Label log: `/tmp/close-hook-jev-labels-final.log`, exit 0.
+- Jev tests and promises returned 0.
+  The new and changed tests have no flag and all match README promises.
+  Old test debt and all 42 old README gaps are listed in
+  `close-hook-scope-logs/ADVISORY.md` beside this file.
+  They stay for a follow-up; they are not labeled as clean code.
+- Fresh SCIP indexes and both public-field refs returned 0.
+  Core has 12 resource-field refs and one close-event scope ref in its tests.
+  React and Blueprint use neither new field yet.
+  Logs: `/tmp/close-hook-scip-index-final.log` and
+  `/tmp/close-hook-scip-refs-final.log`.
+- The supplied base remains `addce061`.
+  Shared `origin/main` later gained two board-only commits in the other track.
+  This card's diff from its supplied base contains only allowed paths.
