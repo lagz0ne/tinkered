@@ -397,7 +397,8 @@ A parent's closing also fires in its child sessions.
 Closing one session leaves its parent and siblings live.
 Each owner keeps the same signal, created on first read.
 A first read after closing began returns an aborted signal.
-An owner that never reads it creates no signal or controller.
+Reading a child also links its parents' controllers.
+A tree with no reads creates no signal or controller.
 
 A resource can end a wait it owns without blocking graceful close:
 

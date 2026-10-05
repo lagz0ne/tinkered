@@ -1188,11 +1188,9 @@ type Layer = {
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
-  /** Root hooks may start before structural close marks the layer closed. */
-  closeStarted?: true;
   /** Created only by the first closing read, including the parent's linked signal. */
-  closingAbort?: AbortController;
-  closingSignal?: AbortSignal;
+  closeAbort?: AbortController;
+  closeSignal?: AbortSignal;
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
   trace: Observe.Trace | undefined;
@@ -3867,8 +3865,9 @@ function traceFor(
 /** Mark a layer's whole subtree `swept`, iteratively (no recursion — deep trees are safe). Run
  * SYNCHRONOUSLY at close-call time so a descendant that finishes and detaches before this close's async
  * body runs is still marked — then `finishLayer` pushes its real failure + teardown errors up to its
- * parent, and a collecting ancestor sees them at any depth. A layer's own close never marks itself, so
- * a unit that fails independently does not propagate. */
+ * parent, and a collecting ancestor sees them at any depth. Root close hooks also mark their
+ * root, so sessions born before structural close inherit the collection. An independent session's
+ * own close does not mark itself, so its failure does not propagate. */
 function markSwept(root: Layer): void {
   const stack: Layer[] = [...root.children];
   while (stack.length) {
@@ -4004,11 +4003,10 @@ function fastClose(
     layer.cancelled = true;
     settled = { status: "cancelled" };
   }
-  if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
-  layer.parent?.children.delete(layer);
+  detachLayer(layer);
   const ended = buildResult(settled, layer, undefined);
   layer.closing = Promise.resolve(
-    hooks === undefined && !withData ? ended : keepData(layer, ended, hooks, withData),
+    hooks || withData ? keepData(layer, ended, hooks, withData) : ended,
   );
   beginClosing(layer);
   return layer.closing;
@@ -4069,13 +4067,13 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
   materializeActiveFrames();
   /** Only a session under a root with `session` hooks has an entry, and its route says so: a
    * no-hook close never reads the table. */
-  const hooks = layer.exts.sessions === undefined ? undefined : SESSION_HOOKS.get(layer);
+  const hooks = layer.exts.sessions && SESSION_HOOKS.get(layer);
   if (!layer.closing) {
     if (canFastClose(layer))
       return tapSessionHooks(hooks, fastClose(layer, force, hooks, withData));
     layer.closed = true;
     layer.closing = startClose(layer, force, hooks, withData);
-    beginClosing(layer);
+    layer.closeAbort?.abort();
   }
   /** A `close()` re-entered from within this layer's (or an ancestor's) own teardown is a request-only
    * acknowledgement: return an already-resolved best-effort `Result` so it never waits on itself (no
@@ -4192,12 +4190,8 @@ function startClose(
  * `keeps` its data (ADR 0069) leaves its store, presets, and tags to {@link keepData}. */
 function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
   const teardownErrors = layer.secondary.length ? [...layer.secondary] : undefined;
-  if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
-  const parent = layer.parent;
-  if (parent) {
-    parent.children.delete(layer);
-    if (layer.swept) propagateSweptOutcome(layer, parent);
-  }
+  const parent = detachLayer(layer);
+  if (parent && layer.swept) propagateSweptOutcome(layer, parent);
   layer.pending.clear();
   layer.children.clear();
   layer.defers.length = 0;
@@ -4295,7 +4289,7 @@ function endInPlace(layer: Layer): void {
   layer.closed = true;
   layer.aborted = true;
   layer.closing = ENDED_CLEAN;
-  beginClosing(layer);
+  layer.closeAbort?.abort();
   finishLayer(layer, false);
 }
 
@@ -5130,59 +5124,28 @@ function recover(layer: Layer, error: unknown): void {
   layer.panics = left.length === 0 ? undefined : left;
 }
 
-/** Link signals from ancestors first, without recursion or storage on unread layers. */
+/** Compose ancestor controllers without recursion. Unread layers keep no signal state. */
 function closingOf(layer: Layer): AbortSignal {
   materialize(layer);
-  const ancestors: Layer[] = [];
-  let owner: Layer | undefined = layer;
-  while (owner !== undefined && owner.closingSignal === undefined) {
-    ancestors.push(owner);
-    owner = owner.parent;
+  if (layer.closeSignal) return layer.closeSignal;
+  const signals: AbortSignal[] = [];
+  for (let owner: Layer | undefined = layer; owner !== undefined; owner = owner.parent) {
+    signals.push((owner.closeAbort ??= new AbortController()).signal);
   }
-  let signal = owner?.closingSignal;
-  for (const owner of ancestors.reverse()) {
-    const controller = (owner.closingAbort = new AbortController());
-    owner.closingSignal = signal =
-      signal === undefined ? controller.signal : AbortSignal.any([controller.signal, signal]);
-    if (owner.closed || owner.closeStarted) controller.abort();
-  }
-  return layer.closingSignal!;
+  if (layer.closed || layer.swept) layer.closeAbort!.abort();
+  return (layer.closeSignal = AbortSignal.any(signals));
 }
 
-/** Parent-linked signals propagate without walking layers that never asked for one. */
+/** Both close paths detach before publishing their outcome to a collecting parent. */
+function detachLayer(layer: Layer): Layer | undefined {
+  if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
+  const parent = layer.parent;
+  parent?.children.delete(layer);
+  return parent;
+}
+
 function beginClosing(layer: Layer): void {
-  layer.closingAbort?.abort();
-}
-
-/** Close hooks keep onion order, but cannot skip inner cleanup or replace Core's Result.
- * Each continuation runs once; throws join teardown errors after all after-work (ADR 0085). */
-function closeThrough(
-  layer: Layer,
-  scope: Scope.Handle,
-  closers: readonly Scope.Extension<unknown>[],
-): (opts?: Scope.CloseOptions) => Promise<Scope.Result> {
-  return async (options: Scope.CloseOptions = {}): Promise<Scope.Result> => {
-    const errors: unknown[] = [];
-    const at = async (index: number): Promise<Scope.Result> => {
-      if (index >= closers.length)
-        return closeLayer(layer, !options.graceful, options.withData === true);
-      const closer = closers[index];
-      let pending: Promise<Scope.Result> | undefined;
-      const next = (): Promise<Scope.Result> => (pending ??= at(index + 1));
-      try {
-        await closer.hooks!.close!(
-          hookEvent({ kind: "close", scope, options, next }, layer, closer.label),
-        );
-      } catch (error) {
-        errors.push(error);
-      }
-      return next();
-    };
-    const ended = await at(0);
-    return errors.length
-      ? { ...ended, teardownErrors: [...(ended.teardownErrors ?? []), ...errors] }
-      : ended;
-  };
+  layer.closeAbort?.abort();
 }
 
 /** Run the extensions' `start` onion (ADR 0050): registration order, first is outermost. Each
@@ -5439,7 +5402,7 @@ function withSessionCreate(
  * `Result` however the session closes — through this handle's `close`, or felled by its parent's
  * close cascade (`closeLayer` settles the registered resolver via the side table). `close()` joins
  * the teardown first, then reports the chain's outcome (hook returns win, hook throws propagate,
- * like `close`). */
+ * unlike root close hooks, whose returns cannot replace Core's outcome). */
 function wrapSession(
   parent: Layer,
   options: Scope.Options | undefined,
@@ -5494,28 +5457,16 @@ function extendHandle(
   });
   ignoreRejection(ready);
   const lifetime: RootLifetime = {};
-  const closed =
-    signal === undefined
-      ? undefined
-      : new Promise<Scope.Result>((resolveClosed) => {
-          lifetime.finish = resolveClosed;
-        });
-  const extended: Scope.Handle = {
-    ...plain,
-    ...(closed === undefined ? {} : { closed }),
-    ready,
-  };
-  extended.close = watchRootClose(
-    layer,
-    closers.length === 0
-      ? (options) => plain.close(options)
-      : closeThrough(layer, extended, closers),
-    lifetime,
-  );
+  const extended: Scope.Handle & { closed?: Promise<Scope.Result> } = { ...plain, ready };
+  if (signal)
+    extended.closed = new Promise<Scope.Result>((resolveClosed) => {
+      lifetime.finish = resolveClosed;
+    });
+  extended.close = watchRootClose(layer, extended, closers, lifetime);
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
   if (sessions !== undefined)
     extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, sessions);
-  if (signal !== undefined) listenForStop(extended, signal, lifetime);
+  if (signal) listenForStop(extended, signal, lifetime);
   runStartChain(layer, extended, exts, lifetime, settleReady, failReady);
   return extended;
 }
@@ -5539,29 +5490,52 @@ type RootLifetime = {
   unlisten?: () => void;
 };
 
-/** Retain the first close before dispatching signals or invoking user hooks. Re-entry during
- * cleanup gets Core's request acknowledgement; all other closes join the complete hook chain. */
+/** Retain the first close before callbacks. Hooks keep onion order but cannot skip cleanup
+ * or replace Core's Result; their throws become teardown errors (ADR 0085). */
 function watchRootClose(
   layer: Layer,
-  close: Scope.Handle["close"],
+  scope: Scope.Handle & { readonly closed?: Promise<Scope.Result> },
+  closers: readonly Scope.Extension<unknown>[],
   lifetime: RootLifetime,
 ): Scope.Handle["close"] {
-  return (options) => {
+  return (options = {}) => {
     lifetime.unlisten?.();
-    if (closeWouldReenter(layer))
-      return closeLayer(layer, !options?.graceful, options?.withData === true);
-    if (lifetime.closing !== undefined) return lifetime.closing;
-    let finish: (ended: Scope.Result) => void = noop;
-    lifetime.closing = new Promise((resolve) => {
-      finish = resolve;
-    });
-    layer.closeStarted = true;
+    const close = (): Promise<Scope.Result> =>
+      closeLayer(layer, !options.graceful, options.withData === true);
+    if (closeWouldReenter(layer)) return close();
+    if (lifetime.closing) return lifetime.closing;
+    lifetime.closing =
+      scope.closed ??
+      new Promise<Scope.Result>((resolve) => {
+        lifetime.finish = resolve;
+      });
+    layer.swept = true;
     markSwept(layer);
     beginClosing(layer);
+    const at = (index: number): Promise<Scope.Result> => {
+      if (index >= closers.length) return close();
+      const closer = closers[index];
+      let pending: Promise<Scope.Result> | undefined;
+      const next = (): Promise<Scope.Result> => (pending ??= at(index + 1));
+      return (async () => {
+        try {
+          await closer.hooks!.close!(
+            hookEvent({ kind: "close", scope, options, next }, layer, closer.label),
+          );
+        } catch (error) {
+          addError(layer, error);
+        }
+        return next();
+      })();
+    };
     ignoreRejection(
-      close(options).then((ended) => {
-        lifetime.finish?.(ended);
-        finish(ended);
+      at(0).then((ended) => {
+        lifetime.finish!(
+          layer.secondary.length
+            ? { ...ended, teardownErrors: [...(ended.teardownErrors ?? []), ...layer.secondary] }
+            : ended,
+        );
+        layer.secondary.length = 0;
       }),
     );
     return lifetime.closing;

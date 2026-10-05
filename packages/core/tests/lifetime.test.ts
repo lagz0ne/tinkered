@@ -1,6 +1,6 @@
 import { getEventListeners } from "node:events";
 import { expect, expectTypeOf, test } from "vite-plus/test";
-import { createScope, data, extension, operation, type Scope } from "../src/index.ts";
+import { createScope, data, extension, operation, resource, type Scope } from "../src/index.ts";
 
 const count = data({ label: "count", initial: 0 });
 
@@ -371,6 +371,44 @@ test("closed counts a close hook throw after next as a teardown error", async ()
   const ended = await scope.close({ graceful: true });
   expect(await scope.closed).toBe(ended);
   expect(ended).toEqual({ status: "success", teardownErrors: [error] });
+});
+
+test("closed keeps close-hook and resource cleanup errors together", async () => {
+  const before = new Error("before close");
+  const cleanup = new Error("resource cleanup");
+  const after = new Error("after close");
+  const first = extension({
+    label: "throw-before-close",
+    hooks: {
+      close: () => {
+        throw before;
+      },
+    },
+  });
+  const last = extension({
+    label: "throw-after-close",
+    hooks: {
+      close: async (event) => {
+        await event.next();
+        throw after;
+      },
+    },
+  });
+  const owned = resource({
+    label: "failed-cleanup",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => {
+        throw cleanup;
+      });
+      return 7;
+    },
+  });
+  const scope = createScope({ signal: new AbortController().signal, extensions: [first, last] });
+  await scope.ready;
+  scope.resolve(owned);
+  const ended = await scope.close({ graceful: true });
+  expect(await scope.closed).toBe(ended);
+  expect(ended).toEqual({ status: "success", teardownErrors: [before, cleanup, after] });
 });
 
 test.each([false, true])(

@@ -548,7 +548,7 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 
 - **Owner:** core/close-hook-scope writer.
 - **State:** Doing.
-- **Next:** save red root and session close logs, then add the lazy signal.
+- **Next:** finish the fresh gates and save the final mutation proof.
 - **Verify:** build, check, Core and consumer tests, ticket script,
   all validate lanes, and Core mutation alone at floor 85.
 - **Assumptions:** the supplied checkout is installed at `addce061`.
@@ -584,8 +584,8 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   The focused closing and lifetime log is saved beside the red logs.
 - **Budget proof:** all 16 validate lanes returned 0.
   The 16,384-byte size cap is unchanged.
-  The runtime grew from 16,156 to 16,342 bytes before the last trim.
-  This is code size growth, not a raised cap; no claim of equal byte counts.
+  The first version grew to 16,342 bytes; it was not the final budget proof.
+  The final size is recorded below after the close path was trimmed.
   Promise counts remain sync 0, async 5, tagged 2.
 - **Style:** new and changed tests pass strict census.
   Changed source has the same old S10 and S14 hits as the supplied base.
@@ -634,3 +634,40 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   React and Blueprint use none of those fields yet.
   Logs: `/tmp/close-hook-scip-index.log` and
   `/tmp/close-hook-scip-refs.log`.
+
+### Close-path trim
+
+- Reuse Core's owned error list for hook throws.
+  Throws before cleanup join its errors; throws after cleanup are appended once.
+  A test keeps both hook throws and a resource cleanup throw in one Result.
+- A hookless root close creates no async hook task.
+  A root with a stop signal reuses its existing `closed` promise.
+  Closing signals compose ancestor controllers without recursion.
+  Their fields stay absent from layers until a closing read needs them.
+- **Build assumption:** the published files never included the map files.
+  The build still emits those maps, with hidden links in the shipped code.
+  Local tools must load a map by path instead of finding its footer link.
+  The one private shared chunk uses `s.mjs`; the package version supplies its version.
+  These cuts remove map footer links and a cache hash from shipped code.
+- The first ticket run was stopped with exit 143 before its mutation gates finished.
+  Its log is `/tmp/close-hook-ticket.log`.
+  Source changed after the first mutation score of 85.50.
+  Both proofs will be rerun on the final source; neither old run is the final gate.
+
+- The final runtime is 16,152 bytes gzip, four bytes below the supplied base.
+  The unchanged cap is 16,384 bytes.
+  Promise counts remain sync 0, async 5, tagged 2.
+  All 16 validate lanes returned 0 on the trimmed source.
+  Logs: `/tmp/close-hook-size-final.log`,
+  `/tmp/close-hook-promises-final.log`, and
+  `/tmp/close-hook-validate-final.log`.
+- The supplier entry's HTTP poll timed out in the first full consumer run.
+  That run returned 1: `/tmp/close-hook-consumers-final.log`.
+  Its unchanged package passed alone on retry, exit 0:
+  `/tmp/close-hook-flight-retry.log`.
+  The full consumer gate is rerun; no caller file was changed.
+- Final focused proof has 31 passing tests, including the mixed-error case.
+  New and changed tests pass strict style.
+  Source and config have the base's five S10 and three S14 hits.
+  Both source censuses returned 1, with no added hit.
+  TSDoc and prose returned 0.

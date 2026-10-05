@@ -13,7 +13,9 @@ export default defineConfig({
     },
     exports: true,
     minify: true,
-    sourcemap: true,
+    sourcemap: "hidden",
+    /** This private shared chunk is versioned with the package. */
+    outputOptions: { chunkFileNames: "s.mjs" },
   },
   lint: {
     options: {
