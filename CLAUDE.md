@@ -20,6 +20,20 @@ wraps Vite, Rolldown, Vitest, tsdown, Oxlint, and Oxfmt.
   playground).
 - `vp run prose` after editing any `.md` (it also runs on commit).
 
+## Stay on latest main
+
+Main moves while you work. Catch up in small steps,
+so the gap never grows big.
+
+- Run `git fetch origin`, then `git rebase origin/main`:
+  - before you start;
+  - after each green commit, if main has moved;
+  - before review, and again before landing.
+- Then run `vp install` and `vp run -r build`.
+- Commit first. Never `git stash`.
+- Fix a conflict at once, while it is small.
+- A pinned tree (trial runner, bench base) stays on its commit.
+
 ## Writing (every `.md`)
 
 The reader is on a phone. Rules and word list: `docs/writing-style.md`.
