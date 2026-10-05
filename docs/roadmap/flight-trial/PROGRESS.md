@@ -4019,3 +4019,10 @@ The retry rule is the same: one teacher note a try, up to 3 tries a round.
   Cost about $0.10.
   `Search complete` now shows beside the outcome line,
   and `No flights` is a notice, not a table row.
+- Round 2, try 1 (agent `53651551`): **pass**, hidden checks 6 of 6.
+  Cost about $0.26.
+  Harness note: the `tinker-seams` skill says to import `httpRequest`
+  from `src/lib/tinker.server.ts`.
+  That made an import loop, so `httpRequest` was undefined at start.
+  DeepSeek used `@/scaffold/backend/http`, as GUIDELINES says.
+  Fix the skill text after this trial.
