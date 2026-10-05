@@ -1,0 +1,451 @@
+{
+  "base": "7ed7339b43f7c28d54f7eb2394769034f2c77c8a",
+  "code": "13105f77f6e535446baf6f1cab3c2fd610d96533",
+  "date_utc": "2026-10-05T19:03:43.513787+00:00",
+  "source_sha256": {
+    "packages/core/src/errors.ts": "31072edeb66ed354ee006efd7894e68736fc62f75f837754ee8bc03273c82b4e",
+    "packages/core/src/index.ts": "8743fc697e4468d907c67be22f85caf0dd2a073492213808e2c14d8ab69056ac",
+    "packages/core/src/preset-symbol.ts": "4d54af3b3c5be4f7061b08a87096adf5f9e9e1db3d81f5d8afa2d1df35a8c62a",
+    "packages/core/src/testing.ts": "7446bfd3c169781486ae90fcfff82527b27526e9aa36aa34d9a5819214a4e6f9",
+    "packages/core/src/trace-random.ts": "253d197326670720c418bcb195de3b83207a4883d7ee7f6729a8a9ab9d52034f"
+  },
+  "runtime_sha256": {
+    "packages/core/dist/index.mjs": "8e268fd05d7117d3cd24ed5dacc7ad0b40ca188ef4e45f996dbdacacbfd8bd4a",
+    "packages/core/dist/trace-random-DUDap8Fd.mjs": "9efea29e06936be04de53a1c336bf42323d0801f80993781aa8fd853a64984e4"
+  },
+  "size": {
+    "before": 16379,
+    "after": 16084,
+    "saved": 295,
+    "cap": 16384,
+    "room": 300,
+    "cuts": "../PROGRESS.md#coresize-room",
+    "groups": {
+      "Private names": 255,
+      "Cold resets and other duplicate code, net of rollbacks": 26,
+      "Symbol text (public names restored)": 11,
+      "Empty stores (namespace list restored)": 12,
+      "Speed repair": -9
+    }
+  },
+  "tests": {
+    "core_before": 854,
+    "core_after": 854,
+    "files": 39,
+    "test_files_changed": 0
+  },
+  "warnings": {
+    "main": 28,
+    "branch": 28
+  },
+  "public_api": {
+    "runtime_exports": 12,
+    "export_names_match": true,
+    "declarations_match": true,
+    "declaration_files": 3,
+    "chunk_hash_names_normalized": true,
+    "public_symbol_descriptions_match": true,
+    "error_helpers_removed_to_preserve_stack_depth": true,
+    "public_probe_exit": 0,
+    "build_settings_changed": false,
+    "empty_namespace_probe": "Both main and final reject createScope({ ns: readMany([]) })."
+  },
+  "gates": {
+    "install": {
+      "command": "vp install",
+      "exit": 0
+    },
+    "build": {
+      "command": "vp run -r build",
+      "exit": 0
+    },
+    "check": {
+      "command": "vp check",
+      "exit": 0
+    },
+    "core_test": {
+      "command": "vp run core#test",
+      "exit": 0
+    },
+    "all_tests": {
+      "command": "vp run -r test",
+      "exit": 0
+    },
+    "validate": {
+      "command": "pnpm validate",
+      "exit": 0
+    },
+    "prose": {
+      "command": "vp run prose",
+      "exit": 0
+    },
+    "promises": {
+      "command": "node --experimental-strip-types bench/promises.mjs",
+      "exit": 0
+    },
+    "preflight": {
+      "command": "node tools/jev/preflight.mjs origin/main..HEAD",
+      "exit": 0
+    },
+    "labels": {
+      "command": "python3 /tmp/size-room-final-labels.py",
+      "exit": 0
+    },
+    "mutation": {
+      "command": "flock /tmp/mutation.lock vp run core#mutate",
+      "exit": 0
+    }
+  },
+  "validate_lanes": 16,
+  "promises": [0, 5, 2],
+  "slots": {
+    "before_hot_names": 250,
+    "before_last_hot_slot": 252,
+    "after_hot_names": 247,
+    "after_last_hot_slot": 249,
+    "headroom": 6,
+    "all_names": 329,
+    "last_slot": 331
+  },
+  "operation_bytecode": {
+    "base": 134,
+    "final": 120,
+    "queue_exit": 0,
+    "note": "Direct stores remove the temporary Object.assign object; read and write order stays the same. No hot function was merged."
+  },
+  "mutation": {
+    "score": 85.97,
+    "floor": 85,
+    "counts": {
+      "NoCoverage": 25,
+      "Killed": 3026,
+      "Survived": 473,
+      "RuntimeError": 3,
+      "Timeout": 26
+    },
+    "printed_score": true,
+    "source_matches_report": true,
+    "previous_card_published_score": 85.94,
+    "previous_card_test_count": 845,
+    "earlier_branch_score": 86.25,
+    "earlier_branch_counts": {
+      "NoCoverage": 23,
+      "Killed": 3025,
+      "Survived": 464,
+      "RuntimeError": 3,
+      "Timeout": 29
+    },
+    "score_dropped_from_earlier_branch": true,
+    "comparison_note": "Compared with the first branch run at 86.25, the deleted temporary object and dispatch branch remove three killed mutants and one survivor. Restoring direct error throws also changes the generated mutant set. Detected mutants fall from 3054 to 3052; survivors rise from 464 to 473; no-coverage mutants rise from 23 to 25. All 854 tests remain unchanged."
+  },
+  "bench": {
+    "command": "N=61 A=../tinkered-size-base OUT=.bench/final-all/ab.csv bench/queued.sh",
+    "exit": 0,
+    "method": "Exact paired two-sided sign test; ties omitted; p < 0.01. One queue job per scenario, under /tmp/mutation.lock. A=main and B=candidate in every row below.",
+    "scenarios": [
+      {
+        "scenario": "op",
+        "a_median_ns": 67.3,
+        "b_median_ns": 67.6,
+        "slower": 33,
+        "faster": 26,
+        "ties": 2,
+        "pairs": 61,
+        "p": 0.4349928051221534,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "run",
+        "a_median_ns": 80.5,
+        "b_median_ns": 80.4,
+        "slower": 32,
+        "faster": 28,
+        "ties": 1,
+        "pairs": 61,
+        "p": 0.6988834276200057,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "opres",
+        "a_median_ns": 272.6,
+        "b_median_ns": 272.6,
+        "slower": 35,
+        "faster": 26,
+        "ties": 0,
+        "pairs": 61,
+        "p": 0.30567741986311836,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "inline",
+        "a_median_ns": 151.8,
+        "b_median_ns": 104.3,
+        "slower": 0,
+        "faster": 61,
+        "ties": 0,
+        "pairs": 61,
+        "p": 8.673617379884035e-19,
+        "verdict": "B faster"
+      },
+      {
+        "scenario": "session",
+        "a_median_ns": 538.3,
+        "b_median_ns": 536.1,
+        "slower": 30,
+        "faster": 29,
+        "ties": 2,
+        "pairs": 61,
+        "p": 1,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "tagged",
+        "a_median_ns": 208.0,
+        "b_median_ns": 207.9,
+        "slower": 27,
+        "faster": 34,
+        "ties": 0,
+        "pairs": 61,
+        "p": 0.4426260049464714,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "create",
+        "a_median_ns": 121.7,
+        "b_median_ns": 121.8,
+        "slower": 34,
+        "faster": 18,
+        "ties": 9,
+        "pairs": 61,
+        "p": 0.03648340000835981,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "cold",
+        "a_median_ns": 695.4,
+        "b_median_ns": 695.8,
+        "slower": 31,
+        "faster": 29,
+        "ties": 1,
+        "pairs": 61,
+        "p": 0.8974218269914305,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "warm",
+        "a_median_ns": 15.0,
+        "b_median_ns": 14.8,
+        "slower": 23,
+        "faster": 29,
+        "ties": 9,
+        "pairs": 61,
+        "p": 0.48845566937989204,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "lifecycle",
+        "a_median_ns": 855.6,
+        "b_median_ns": 853.2,
+        "slower": 25,
+        "faster": 36,
+        "ties": 0,
+        "pairs": 61,
+        "p": 0.20003136851310316,
+        "verdict": "no difference we can see"
+      }
+    ],
+    "inline_forward_183": {
+      "scenario": "inline",
+      "a_median_ns": 151.5,
+      "b_median_ns": 104.1,
+      "slower": 0,
+      "faster": 183,
+      "ties": 0,
+      "pairs": 183,
+      "p": 1.6313261169996311e-55,
+      "verdict": "B faster"
+    },
+    "inline_reverse_183": {
+      "scenario": "inline",
+      "a_median_ns": 151.6,
+      "b_median_ns": 104.2,
+      "slower": 0,
+      "faster": 183,
+      "ties": 0,
+      "pairs": 183,
+      "p": 1.6313261169996311e-55,
+      "verdict": "B faster"
+    },
+    "inline_pooled_366": {
+      "scenario": "inline",
+      "a_median_ns": 151.6,
+      "b_median_ns": 104.15,
+      "slower": 0,
+      "faster": 366,
+      "ties": 0,
+      "pairs": 366,
+      "p": 1.3306124500025471e-110,
+      "verdict": "B faster"
+    },
+    "inline_extra_exits": [0, 0],
+    "raw_sha256": {
+      ".bench/final-all/ab.csv": "0b74594193308b9b381d444471a3a4d8647ac89f40c904b6a237030f540bd35f",
+      ".bench/direct-inline/ab.csv": "0af0becbadfc78fec40de4c802f368bc03caa1b0a11ba79273af07ae9d50dd0c",
+      ".bench/direct-inline-reverse-main-a/ab.csv": "1362e941415c280d0a7e7d50d82cdbf4c0b85ec31085e8c8fa9e0e7596257060"
+    },
+    "earlier_failed_builds": "Earlier inline regressions were confirmed at 183 pairs. Their cause was not proved. Final 13105f77 removes real per-call work; old passes are not used as its proof."
+  },
+  "style": {
+    "command": "bash .agents/skills/coding-convention/scripts/style-census.sh packages/core/src/index.ts packages/core/src/errors.ts --strict",
+    "main_exit": 1,
+    "branch_exit": 1,
+    "main_hits": {
+      "S10": 1,
+      "S14": 3
+    },
+    "branch_hits": {
+      "S10": 1,
+      "S14": 3
+    },
+    "why": "The same existing comment and array-index hits were measured on main and the final code. No new hit."
+  },
+  "tsdoc": {
+    "exit": 0,
+    "parser_hits": 0
+  },
+  "jev": {
+    "preflight_exit": 0,
+    "file_flags": 0,
+    "label_exit": 0,
+    "flags_labelled": 75,
+    "bank": "Labels ran through an unchanged copy of label.mjs in /tmp/size-room-jev. tools/jev is outside this card scope; all label decisions are saved below.",
+    "labels": [
+      {
+        "file": "packages/core/src/errors.ts",
+        "judge": "stateOutsideCell",
+        "label": false,
+        "units": ["stampOrigin", "closeOrigin", "raiseFrom"],
+        "why": "Core implements the storage and lifetime owners behind data, resources, and scopes. These existing owner records cannot be built from their own public API; this change keeps the same owners while shortening names, cold resets, and operation field writes."
+      },
+      {
+        "file": "packages/core/src/index.ts",
+        "judge": "stateOutsideCell",
+        "label": false,
+        "units": [
+          "signalOf",
+          "ensureRunning",
+          "makeObs",
+          "closeSpan",
+          "stick",
+          "addWork",
+          "exitTeardown",
+          "endTaggedFrame",
+          "runTaggedFrame",
+          "releaseBorrows",
+          "buildDeps",
+          "buildPlainDeps",
+          "resolveExtension",
+          "instanceOf",
+          "holdDependency",
+          "unlinkInstance",
+          "drainReady",
+          "completeInstance",
+          "finishHook",
+          "finishInstance",
+          "startBuildInstance",
+          "settleResourceInstance",
+          "buildHooklessResource",
+          "buildTrackedResource",
+          "finishAsyncBuild",
+          "ownNsResource",
+          "linkNsResourceDependent",
+          "linkNsDataDependent",
+          "detachNsDependencies",
+          "detachNsResourceLinks",
+          "addBorrow",
+          "makeLayer",
+          "layerRecord",
+          "markSwept",
+          "markAborted",
+          "settleOutcome",
+          "canFastClose",
+          "fastClose",
+          "canEndIdle",
+          "closeLayer",
+          "prepareTeardown",
+          "startClose",
+          "runSessionWith",
+          "endInPlace",
+          "settleSessionWith",
+          "orderReleased",
+          "keepData",
+          "freeAfterHooks",
+          "recover",
+          "closingOf",
+          "runStartChain",
+          "wrapSession",
+          "extendHandle",
+          "watchRootClose",
+          "listenForStop",
+          "runSessionWrapped",
+          "reentersTeardown",
+          "addError",
+          "expandFrame",
+          "hookCanRead",
+          "runHookBody",
+          "failHookRun",
+          "finishHookRun",
+          "createBorrows"
+        ],
+        "why": "Core implements the storage and lifetime owners behind data, resources, and scopes. These existing owner records cannot be built from their own public API; this change keeps the same owners while shortening names, cold resets, and operation field writes."
+      },
+      {
+        "file": "packages/core/src/index.ts",
+        "judge": "effectWithoutDefer",
+        "label": false,
+        "units": ["addWatcher"],
+        "why": "The returned unsubscribe removes this watcher; owner close clears the node store. This is the watch implementation."
+      },
+      {
+        "file": "packages/core/src/index.ts",
+        "judge": "effectWithoutDefer",
+        "label": false,
+        "units": ["addWatcherNs"],
+        "why": "The returned unsubscribe removes this watcher from both indexes; owner close clears the node store. This is the watch implementation."
+      },
+      {
+        "file": "packages/core/src/index.ts",
+        "judge": "handRolledLifetime",
+        "label": false,
+        "units": ["finishHook", "finishInstance", "drainReleased"],
+        "why": "Core implements the release and close lifetime promised by its public API. These existing cleanup and borrow steps are required to provide defer and close, not a caller rebuilding their own lifetime."
+      },
+      {
+        "file": "packages/core/src/index.ts",
+        "judge": "effectWithoutDefer",
+        "label": false,
+        "units": ["wrapSession"],
+        "why": "The parent owns this child. Its close awaits the hook result, and finally calls freeAfterHooks to release retained state."
+      },
+      {
+        "file": "packages/core/src/index.ts",
+        "judge": "effectWithoutDefer",
+        "label": false,
+        "units": ["extendHandle"],
+        "why": "The root owns extension records and lifetime listeners. The existing close chain frees those records and ends its root listener."
+      },
+      {
+        "file": "packages/core/src/index.ts",
+        "judge": "effectWithoutDefer",
+        "label": false,
+        "units": ["listenForStop"],
+        "why": "The root owns its one-shot abort listener. finishRootClose calls the saved detach function."
+      }
+    ]
+  },
+  "cleanup": {
+    "base_worktree_removed": true,
+    "trial_worktree_removed": true,
+    "remove_exits": [0, 0]
+  }
+}

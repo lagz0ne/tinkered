@@ -1076,16 +1076,69 @@ Each error still owns a fresh payload and keeps its text.
 
 ### Proof
 
-The first build, check, and Core test gate passed.
-The first full gate passed, with mutation 86.25.
-The first speed run found `inline` slower.
-Its 183-pair check confirmed that result.
-The Disposed helper was removed before the final proof.
-Restoring the three old module declarations gave no speed gain.
-That trial was dropped.
-The wrapper and called hot code kept their instruction counts.
-The new inline cut removes a duplicate call branch.
-Next: repeat all gates and queued speed checks on the final cut set.
-The full receipt will be saved in `size-room/GATES.json`.
+Final runtime source: `13105f77`.
+Base: `7ed7339b` from `origin/main`.
+The final source has 16,084 B gzip and 300 B free.
+The full receipt is [GATES.json](size-room/GATES.json).
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0.
+- `vp run core#test`: exit 0; 854 tests.
+- `vp run -r test`: exit 0.
+- `pnpm validate`: exit 0; all 16 lanes pass.
+- `vp run prose`: exit 0.
+- `flock /tmp/mutation.lock vp run core#mutate`: exit 0.
+- Mutation prints 85.97, above the floor of 85.
+- Promises: sync 0, async 5, tagged 2.
+- Hot names: 247; last slot 249; six names of room.
+- Check has 28 warnings, the same as main.
+- All 12 runtime exports and all three type files match main.
+- Public symbol descriptions, error text, and error stack depth stay intact.
+- The empty-namespace rejection probe passes on main and on the final code.
+- TSDoc parsing: exit 0; no hits.
+- Strict style: exit 1 on both trees; the same four old hits.
+- Jev preflight: exit 0; no file flags.
+- All 75 unit flags are explained and labelled.
+  Their labels are in the receipt because `tools/jev` is outside this card.
+
+The score is down from 86.25 on the first cut set.
+The deleted temporary object and dispatch branch had three killed mutants.
+Restoring direct throws also changes the set of generated mutants.
+Detected mutants go from 3,054 to 3,052.
+Survivors go from 464 to 473; uncovered mutants go from 23 to 25.
+All 854 tests remain unchanged.
+
+### Speed
+
+Each scenario ran through the queue at 61 pairs.
+Each scenario had its own queue job.
+The paired sign test drops ties and calls a change at `p < 0.01`.
+All timing commands returned 0.
+
+- `op`: no difference we can see.
+- `run`: no difference we can see.
+- `opres`: no difference we can see.
+- `inline`: B faster.
+- `session`: no difference we can see.
+- `tagged`: no difference we can see.
+- `create`: no difference we can see.
+- `cold`: no difference we can see.
+- `warm`: no difference we can see.
+- `lifecycle`: no difference we can see.
+
+`inline` also ran at 183 pairs in each order.
+The final code was faster in all 366 pairs.
+The pooled medians were 151.6 ns on main and 104.15 ns on this branch.
+These are fresh results for the final source, not passes from earlier cuts.
+
+Earlier cuts slowed `inline`; their 183-pair runs confirmed it.
+The cause of that gap was not proved.
+The final builder removes a temporary object and an `Object.assign` call.
+It spends 9 B gzip to remove work paid on each inline call.
+Its bytecode shrinks from 134 to 120 B.
+Both bytecode checks ran through the queue and returned 0.
+
+The base and trial worktrees were removed after the proof.
+Saved work waits in Review.
 The lead owns review and `scripts/ticket.sh` at landing.
 This writer does not push.
