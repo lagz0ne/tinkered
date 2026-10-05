@@ -920,7 +920,7 @@ Saved work stays in Review for the lead.
 
 Owner: Sol writer on `core/size-room`.
 Core starts at 16,379 B gzip.
-The cuts leave 16,074 B gzip, with 310 B free.
+The cuts leave 16,075 B gzip, with 309 B free.
 The cap stays 16,384 B.
 Public types and exports stay the same.
 Error kinds and message text stay the same.
@@ -1058,7 +1058,11 @@ Zero gains, larger output, and unsafe name clashes were dropped.
 - `writers -> writes`: 4 B.
 - `historyMax -> limit`: 4 B.
 
-The net saving is 305 B.
+- Place the cold build reset beside its first caller: 2 B.
+- Restore the controller's private field names: costs 3 B.
+  Its parent, chain, hook target, and settler use the old names again.
+
+The net saving is 304 B.
 The public empty-list probe rejects on main and on the final code.
 The discarded shared-list cut accepted it.
 Each error still owns a fresh payload and keeps its text.

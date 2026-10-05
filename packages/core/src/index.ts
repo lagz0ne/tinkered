@@ -2120,34 +2120,34 @@ class OperationControl<T, I> {
   declare readonly run: (call?: Scope.Invocation<I>) => unknown;
   declare private layer: Layer;
   declare private target: Operation.Handle<T, I>;
-  declare private up: SpanImpl | undefined;
-  declare private ns: readonly Namespace[] | undefined;
-  declare private op: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
+  declare private parent: SpanImpl | undefined;
+  declare private chain: readonly Namespace[] | undefined;
+  declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
   /** Set on the first `settle` read only; `declare` keeps them off the constructor's shape. */
   declare private twin: OperationControl<T, I> | undefined;
-  declare private settled: ((call?: Scope.Invocation<I>) => unknown) | undefined;
+  declare private settler: ((call?: Scope.Invocation<I>) => unknown) | undefined;
   constructor(
     run: (call?: Scope.Invocation<I>) => unknown,
     layer: Layer,
     target: Operation.Handle<T, I>,
-    up: SpanImpl | undefined,
+    parent: SpanImpl | undefined,
     chain: readonly Namespace[] | undefined,
     hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   ) {
     this.run = run;
     this.layer = layer;
     this.target = target;
-    this.up = up;
-    this.ns = chain;
-    this.op = hookTarget;
+    this.parent = parent;
+    this.chain = chain;
+    this.hookTarget = hookTarget;
   }
   get settle(): (call?: Scope.Invocation<I>) => unknown {
-    if (this.settled === undefined) {
+    if (this.settler === undefined) {
       const layer = this.layer;
       const twin = OperationControl.recover(this);
-      this.settled = (call) => settleRun(layer, () => twin.run(call), call?.signal);
+      this.settler = (call) => settleRun(layer, () => twin.run(call), call?.signal);
     }
-    return this.settled;
+    return this.settler;
   }
   /** The same controller with `settle`'s caller, built on first use and kept, so `run` itself
    * carries no receiver. */
@@ -2155,10 +2155,10 @@ class OperationControl<T, I> {
     return (control.twin ??= operationController(
       control.layer,
       control.target,
-      control.up,
-      control.ns,
+      control.parent,
+      control.chain,
       RECOVERED,
-      control.op,
+      control.hookTarget,
     ) as OperationControl<U, J>);
   }
 }
@@ -4562,6 +4562,11 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): voi
   s.users = undefined;
 }
 
+/** Release and retained close data drop the same build references. */
+function clearBuild(state: ResourceState): void {
+  state.built = state.ready = state.failed = state.build = undefined;
+}
+
 /** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
 function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
   const s = owner.nodes.get(target);
@@ -6010,9 +6015,4 @@ class RunEvent extends ExtensionCtx {
     this.call = call;
     this.next = next;
   }
-}
-
-/** Release and retained close data drop the same build references. */
-function clearBuild(state: ResourceState): void {
-  state.built = state.ready = state.failed = state.build = undefined;
 }
