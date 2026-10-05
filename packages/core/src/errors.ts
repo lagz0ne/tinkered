@@ -114,7 +114,8 @@ export function stampOrigin(
 
 /** End an error's flight where a caller receives it as a value (`settle`). */
 export function closeOrigin(error: unknown): void {
-  const stamp = isObject(error) ? stamps.get(error) : undefined;
+  /** A WeakMap answers `undefined` for a primitive key, so a primitive throw needs no check. */
+  const stamp = stamps.get(error as object);
   if (stamp) stamp.open = false;
 }
 

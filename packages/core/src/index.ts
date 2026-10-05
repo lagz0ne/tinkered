@@ -4121,11 +4121,9 @@ function settleSession(
   cause: unknown,
   teardownCauses: unknown[] | undefined,
 ): void {
-  if (hasFailure) {
-    if (teardownCauses) raise("TeardownFailed", { causes: [cause, ...teardownCauses] });
-    throw cause;
-  }
-  if (teardownCauses) raise("TeardownFailed", { causes: teardownCauses });
+  if (teardownCauses)
+    raise("TeardownFailed", { causes: hasFailure ? [cause, ...teardownCauses] : teardownCauses });
+  if (hasFailure) throw cause;
 }
 
 /** Run `body` in a child session of `parent`, then close it (ADR 0038): the body receives the
