@@ -4426,3 +4426,6 @@ Round 1 passed first try ($0.35, 38 minutes).
   The `Hold` button sat inside the Seats cell, so four round 1 and 2
   table checks read `50Hold …` instead of `50`.
   The packet says to keep the numeric Seats column: a real app bug.
+- Round 3, try 2 (agent `e64d37a0`): **pass**, hidden checks 10 of 10.
+  Cost about $0.08, in 7 minutes.
+  The Hold button moved to its own cell; a new test reads each cell exactly.
