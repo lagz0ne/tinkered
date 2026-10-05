@@ -46,11 +46,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **core/size-build** — a build step renames 77 private fields: 16,084 → 15,612 B gzip.
+- **core/size-build** — a build step renames 49 private fields: 16,084 → 15,746 B gzip.
   Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Lands after `core/size-safe`.
-  Next: lead review; after `core/size-safe` lands, rebase, `vp run core#fields`, re-measure.
-  Proof: type files and exports match main; 854 tests on source and on `dist`; validate green.
-  A planted public name fails the build; `ab` says no difference we can see.
+  Review round 1 fixed: guard holes G1-G6, gone names, `ticket.sh` runs the dist lane.
+  Next: after `core/size-safe` lands, rebase, `vp run core#fields`, read the list diff,
+  re-measure, then `N=61 bench/queued.sh` (no "B slower").
+  Proof: types and exports match main; 854 tests on source; 864 on `dist` with 10 guard tests.
   [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-build).
 
 - **core/testing-entry** — keep test helpers out of the main entry.

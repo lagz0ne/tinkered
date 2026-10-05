@@ -1267,7 +1267,7 @@ This writer does not push.
 Owner: Opus writer on `core/size-build`.
 Lead ruling: a build step may shrink shipped code (size Option 1).
 Core starts at 16,084 B gzip.
-The build step leaves 15,612 B gzip: 472 B smaller.
+The build step leaves 15,746 B gzip: 338 B smaller.
 The source does not change.
 Public types and exports stay the same.
 
@@ -1275,7 +1275,7 @@ Public types and exports stay the same.
 
 - `packages/core/build/private-fields.ts` is a Rolldown plugin.
 - It renames the fields in `build/private-fields.json` to short names.
-- The list holds 77 names, such as `layer`, `owned`, and `pending`.
+- The list holds 49 names, such as `layer`, `nodes`, and `bodyEnd`.
 - One name map serves all three runtime files.
 - The map is fixed before any file renders.
   So two builds give the same bytes.
@@ -1287,40 +1287,82 @@ Public types and exports stay the same.
 `vp run core#fields` writes the list.
 It keeps every runtime property name that passes the rules below.
 A field added later keeps its long name until the list is written again.
-So an old list is still safe.
 
 The build fails when a listed name:
 
 - is in a public type file (parameter names aside);
 - is a string in the runtime: a computed key or an `in` check;
-- is a key of an `attributes: {...}` literal: span, event, and log attributes;
+- is a key of an object passed as `attributes`.
+  The rule follows literals, variables, `v.key =` writes, and spreads;
 - is a Node built-in name, or a key a spec gives plain objects (`done`, `errors`);
-- is read outside Core's source by a cast, a string key, or an untyped script.
+- is read outside Core's source without type checks (see below);
+- is no longer in the runtime.
 
 It also fails when a short name equals a name that is kept.
+A plain child Node process lists the built-in names.
+So a test runner's own globals do not change them.
 
-### Guard proof
+A file outside Core's source reads a name without type checks when it:
 
-Each planted name made `vp pack` exit 1 with its reason:
+- loads Core: an import of `@tinker/core`, of Core's files, or an `import()` of a computed path;
+- and has a string or plain template literal equal to the name;
+- or, in a script, reads it as a member or a destructured key;
+- or, in a typed file, reads it on a value that came from a cast.
+  That value may pass through variables, members, calls, and destructuring.
 
-- `label`: in the public types.
-- `outcome`: a user-visible attribute key.
-- `then`: a built-in or host name.
+### Guard tests
 
-The rules hold back 7 names from the research list.
-Together they cost 34 B.
+`build/private-fields.test.ts` packs Core once per test.
+Each plant sits in a scratch repo that the outside-read rule scans.
 
-- `errors`, `body`, `text`, `on`, `use`: built-in names.
-- `runs`, `stop`: read by untyped scripts that import Core.
+- Clean control: the shipped list builds.
+- `(x as T).layer`: fails, read without type checks.
+- G1, `const { pending } = x as T`: fails.
+- G2, ``x[`owned`]`` in a script: fails.
+- G3, `const raw = x as T`, then `raw.nodes`: fails.
+- G4, `attributes: fields`, where `fields` has `layer` and gets `nodes`: fails.
+- G5, `import()` of a computed path, then `.parent`: fails.
+- G6, `Reflect.get(x, "built")`: fails.
+- `zzGone`, no longer in the runtime: fails.
+- `label`, in the public types: fails.
+
+Each fix was switched off once; its test then failed:
+
+- Literal rule off: G2 and G6 fail.
+- Destructuring off: G1 fails.
+- Cast variables off: G3 fails.
+- Computed `import()` off: G5 fails.
+- Variable following off: G4 fails.
+- Gone-name check off: the `zzGone` test fails.
+
+Rolldown inlines a `const` object used once.
+So G4 uses its variable twice, and writes a key on it.
+
+### What the rules cost
+
+The research list had 84 names.
+The rules keep 49 and hold back 35, worth 168 B.
+
+- 21 names fall to the string rule alone, worth 126 B.
+  Most are test labels or event names in Core's tests, such as `"built"`.
+- 7 names are read as members in untyped scripts.
+  Some scripts only load other code by a computed `import()`.
+  `scripts/check-slots.mjs` is one; the rule cannot tell it from Core.
+- 7 more are built-in names, or read by untyped scripts that import Core.
+
+A narrower string rule would keep the 126 B.
+It would count a string only as a key, an `in` operand, or a call argument.
+The review asked for every string, so the build counts every string.
 
 ### Tests on the built files
 
-- `vp run core#test:dist` builds, then runs Core's tests on `dist`.
+- `vp run core#test:dist` builds, then runs two sets on `dist`:
+  Core's 854 tests, and the 10 guard tests.
 - `pnpm validate` runs it as its own lane.
-- Source lane and dist lane: 854 tests pass each.
+- `scripts/ticket.sh` runs it for Core.
+- The source lane (`core#test`) skips `build/`, so Stryker skips it too.
 - With `dist/index.mjs` broken on purpose, only the dist lane fails.
-- With the attribute rule off and `outcome` listed, 4 log tests fail.
-  They fail on `dist` only; the source lane passes.
+- With the attribute rule off and `outcome` listed, 4 log tests fail on `dist` only.
 - One test starts Node on `src/index.ts` itself.
   It checks the source in both lanes.
 
@@ -1336,49 +1378,53 @@ esbuild and Rolldown each bundled every app.
 
 Base: `08ddc349` from `origin/main`.
 
-- `vp run --no-cache core#size`: 16,084 → 15,612 B gzip.
+- `vp run --no-cache core#size`: 16,084 → 15,746 B gzip.
 - All three type files: byte-identical to main.
 - All 15 exports (12 main, 3 testing): same names and kinds.
 - Two builds: all 9 files byte-identical.
 - Hot names: 247; last slot 249, the same as main.
 - `vp run -r build`: exit 0.
 - `vp check`: exit 0; 28 warnings, the same as main.
-- `vp run -r test`: exit 0.
-- `pnpm validate`: exit 0; all 17 lanes pass.
+- `vp run core#test`: exit 0; 854 tests.
+- `vp run core#test:dist`: exit 0; 864 tests.
+- Guard tests alone: exit 0; 10 tests.
 - `vp run prose`: exit 0.
 - Jev preflight: exit 0; 3 `stateOutsideCell` flags.
 
-Two earlier `vp run -r test` runs exited 1 under load.
-Another session's mutation lane ran; load was 25 to 32 on 8 cores.
-`flight-trial` hit a 5 s timeout, and `start-scaffold` was killed (137).
-Both passed alone, and the third full run passed.
-
-Each Jev flag is labelled `false`.
-The census and the name map are private notes for one build.
-Nothing listens to them.
+Each Jev flag is labelled `false`: `followVariable`, `readTypes`, `isFromCast`.
+They keep private notes for one build, and nothing listens to them.
 The labels live here because `tools/jev` is outside this card.
+
+From the first round, on the 77-name build:
+
+- `vp run -r test`: exit 0 on the third run.
+  Two runs exited 1 under load (25 to 32 on 8 cores).
+  `flight-trial` hit a 5 s timeout, and `start-scaffold` was killed (137).
+  Both passed alone.
+- `pnpm validate`: exit 0; all 17 lanes pass.
 
 ### Speed
 
 Only names change, so the bytecode is the same.
-`benchctl ab` ran one fixed-work script on both builds.
-Each round makes a scope, builds two resources, runs an operation,
-ends a session, and closes: 200,000 rounds a run.
+`benchctl ab` ran one fixed-work script on the 77-name build:
 
 - Main as A: no difference we can see.
   The new build's median was 3.2% slower, inside the noise.
 - New build as A, 20 rounds: no difference we can see.
   The new build's median was 1.5% slower, inside the noise.
 
-Both medians lean the same way, and neither held up.
-`N=61 bench/queued.sh` would settle it, if the lead wants it.
+Landing needs `N=61 bench/queued.sh` on the rebased tree.
 
 ### Costs
 
 - `console.log(scope)` shows short field names.
 - The guard scans the repo for reads outside Core.
-  A Core build takes 0.5 to 1.5 s more on this busy box.
+  A Core build takes about 0.5 to 1.5 s more on this busy box.
 - The fixed name map costs 8 B against naming from the first file.
 
-Saved work waits in Review.
-After `core/size-safe` lands: rebase, run `vp run core#fields`, re-measure.
+### Next, after `core/size-safe` lands
+
+1. Rebase; run `vp run core#fields`.
+2. Read the list diff name by name.
+3. Measure the size again.
+4. Run `N=61 A=../tinkered-base bench/queued.sh`; land only with no "B slower".
