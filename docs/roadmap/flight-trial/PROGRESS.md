@@ -4115,8 +4115,8 @@ Writer branch: `trial/round-lessons`.
   The old path loops back to the feature and fails at initialization.
   The direct path loads with exit 0.
   Restoring the old advice makes the test fail with exit 1.
-- GUIDELINES fell from 6,604 to 5,148 bytes.
-  That is 1,456 fewer bytes, or 22.0%.
+- GUIDELINES fell from 6,604 to 5,178 bytes.
+  That is 1,426 fewer bytes, or 21.6%.
   Repeated text is shorter; code and test details point to app skills.
   The writer now reads skills for the work it changes.
   TASK stays cumulative so earlier requirements stay in view.
@@ -4288,7 +4288,7 @@ New trials change these frozen file hashes (12-character prefixes):
 
 - `tasks/01-search.md`: `f956cf3a59c2` to `4d181d10683d`.
 - `tasks/02-metasearch.md`: `aa616dab5ef7` to `5234cba98f7d`.
-- `rules/flight-guidelines.md`: `be36f9610409` to `315e4dfad0fa`.
+- `rules/flight-guidelines.md`: `be36f9610409` to `dfd91d6ea6c5`.
 - `config.json` changes when the lead chooses the new writer image tag.
 
 The three skill hashes change inside the new writer image:
@@ -4392,6 +4392,6 @@ The card waits in Review for the lead's image and model run.
   The counter's --summary flag rebuilds it with the saved command.
   All per-try counts above stay unchanged.
 - Updated the guide size and all changed file hashes.
-  GUIDELINES is 5,148 bytes, 22.0% below the original 6,604.
+  GUIDELINES is 5,178 bytes, 21.6% below the original 6,604.
 - Commit the new writer image tag before any trial create.
   No image was built or published in this fix round.

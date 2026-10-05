@@ -14,9 +14,9 @@
     },
     "rules/flight-guidelines.md": {
       "oldSha256": "be36f9610409fe437496d9b9cc0d5ed696eb73ce049cc1b965663dd08c4f23a9",
-      "newSha256": "315e4dfad0fa62ffb4a47b22f17f0d02577ba02639f40f00829cd548493599c7",
+      "newSha256": "dfd91d6ea6c55bc58b4e44ae45ad383b69ba5f0e79e09e46afb8f253da3e70e2",
       "oldBytes": 6604,
-      "newBytes": 5148
+      "newBytes": 5178
     }
   },
   "imageSkills": {

@@ -26,7 +26,7 @@ Run `vp check` and `npm run typecheck` alone, then tests file by file.
 Run all behavior and browser tests.
 Also run `npm run check:plain`, `npm run test:seam`,
 `npm run test:boundary`, and `npm run test:schema`.
-Read PLAIN.md only when check:plain fails; copy the row it prints.
+If check:plain fails on PLAIN.md, `npm run check:plain -- --list` prints the full expected file.
 Stop every server you start before you run the tests.
 The sandbox has 2 GiB of memory.
 A test may start its own server; its cleanup must stop it.

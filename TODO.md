@@ -24,6 +24,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **flight-trial/entries-flake** — the supplier entry test fails under load.
+  `tools/flight-trial/tests/entries.test.ts:138` polls with the default 1 s wait.
+  Next: give that poll a longer wait; seen twice in full runs.
+  Verify: the test passes 10 runs in a row next to a full `vp run -r test`.
+
 - **start/http-closing** — the scaffold `http` resource aborts its in-flight sends on `ctx.closing`.
   Removes the limit: a direct graceful close with no stop signal still waits.
   Next: brief a Sol writer for `apps/start-scaffold` (ADR 0104).
@@ -65,11 +70,11 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 - **trial/round-lessons** — smaller writer rules and clear flight notices.
   Owner: lead (Claude, Start scaffold session); Sol writer.
-  Next: review the saved changes, rebuild the writer image, and run round 1.
+  Next: lead builds `tinker-writer-flight:20261005.round-lessons.1`, then a fresh round 1.
   Proof: build, check, all repo tests, 92 writer-trial tests, and prose returned 0.
   The rebuilt registry check returned 0.
   The old HTTP import fails; the direct import passes.
-  GUIDELINES is 22.0% smaller; all 13 tries have file-read counts.
+  GUIDELINES is 21.6% smaller; all 13 tries have file-read counts.
   Verify: a fresh round 1 passes first try below trial 2's $1.46.
   [Notes](docs/roadmap/flight-trial/PROGRESS.md#round-lessons-2026-10-05).
 
