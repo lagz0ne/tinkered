@@ -920,7 +920,7 @@ Saved work stays in Review for the lead.
 
 Owner: Sol writer on `core/size-room`.
 Core starts at 16,379 B gzip.
-The cuts leave 16,075 B gzip, with 309 B free.
+The cuts leave 16,070 B gzip, with 314 B free.
 The cap stays 16,384 B.
 Public types and exports stay the same.
 Error kinds and message text stay the same.
@@ -1047,7 +1047,10 @@ Zero gains, larger output, and unsafe name clashes were dropped.
   Core and caller errors keep the same fields and text.
 - `instances -> built` in private release records: 10 B.
 
-The net saving is 304 B.
+- Share the identical controller construction call: 5 B.
+  The chosen run function and all constructor inputs stay the same.
+
+The net saving is 309 B.
 The public empty-list probe rejects on main and on the final code.
 The discarded shared-list cut accepted it.
 Each error still owns a fresh payload and keeps its text.

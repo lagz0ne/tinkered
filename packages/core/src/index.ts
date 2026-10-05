@@ -2765,17 +2765,11 @@ function operationController<T, I>(
 ): Scope.OperationController<T, I> {
   const execute = executorFor(layer, target, up, chain, caller);
   const runners = layer.exts.runners;
-  if (runners === undefined)
-    return new OperationControl(
-      execute,
-      layer,
-      target,
-      up,
-      chain,
-      hookTarget,
-    ) as Scope.OperationController<T, I>;
-  const run = (call?: Scope.Invocation<I>): unknown =>
-    runHookCall(layer, target, up, chain, caller, hookTarget, call);
+  const run =
+    runners === undefined
+      ? execute
+      : (call?: Scope.Invocation<I>): unknown =>
+          runHookCall(layer, target, up, chain, caller, hookTarget, call);
   return new OperationControl(
     run,
     layer,
