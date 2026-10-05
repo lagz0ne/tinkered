@@ -67,12 +67,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/deepseek-02** — DeepSeek on the new images (ADR 0102/0103 rules), compared with trial 1.
-  Owner: lead (Claude, Start scaffold session).
-  Trial `flight-deepseek-02`; writer `bb97e63c`, services `1be10fb5`; graded from `../tinkered-trial-runner-02`.
-  Next: round 1 running; same retry loop as trial 1 (up to 3 tries a round).
-  Verify: baseline, rounds passed with retries, tries, and cost next to trial 1's.
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -94,6 +88,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/deepseek-02** — DeepSeek on the ADR 0102/0103 images, next to trial 1.
+  Owner: lead (Claude, Start scaffold session).
+  Baseline 0 (same as trial 1). With one teacher note a round: all 5 rounds pass in 6 tries
+  (trial 1: 7). Cost $2.87 (trial 1: $1.96); $1.37 of it was round 1 try 1 chasing its own
+  leftover servers. [Comparison](docs/roadmap/flight-trial/PROGRESS.md#trial-1-and-trial-2).
 
 - **core/close-hook-scope** — a layer's closing signal fires when closing begins, before the drain (ADR 0104).
   Owner: lead (Claude, Start scaffold session); Sol writer, Sol fix round, Opus review (one fix round).

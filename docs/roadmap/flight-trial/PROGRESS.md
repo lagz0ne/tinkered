@@ -4036,3 +4036,45 @@ The retry rule is the same: one teacher note a try, up to 3 tries a round.
   Trial 1 needed 2 tries here (a double-pay race and a Pay button
   left on expired holds); trial 2 passed both on the first try.
   Jev blocked a 200 ms timer in a test; DeepSeek made the test drive the event.
+- Round 5, try 1 (agent `f96bfb12`): **pass**, hidden checks 21 of 21.
+  Cost about $0.34.
+  One confirmation mail per paid booking; a failed send keeps the booking
+  confirmed, marks the email Failed, and offers a retry.
+
+### Result
+
+- Baseline (first try only): **0**. `score.json` keeps it.
+- With one teacher note a round: **all 5 rounds pass**, in 6 tries.
+  Round 1 needed a second try; rounds 2 to 5 passed first try.
+- Writer cost: about $2.87 for all 6 tries.
+- Writer time: about 4 hours 52 minutes of agent work.
+- Own checks, `check:plain` (17 of 17), the seam check,
+  and Jev passed on every saved try.
+
+### Trial 1 and trial 2
+
+Same packet, same writer model, same retry rule.
+Trial 2 runs on the ADR 0102 and 0103 images.
+
+- Baseline: 0 and 0.
+- Rounds passed with retries: 5 and 5.
+- Tries: 7 and 6.
+- Cost: $1.96 and $2.87.
+- Agent time: about 3 hours 38 minutes and 4 hours 52 minutes.
+- Round 1: both failed try 1 on packet lines 30 to 32, then passed.
+  Trial 2's try 1 cost $1.37: DeepSeek chased test crashes
+  caused by its own leftover dev servers in the 2 GiB sandbox.
+  Without that, trial 2 costs about the same as trial 1.
+- Round 3 took 82 minutes, against 29 in trial 1.
+- Round 4: trial 1 needed 2 tries (a double-pay race,
+  and a Pay button on expired holds). Trial 2 passed first try.
+- Failure kinds in trial 2: only the packet's notice lines.
+  No app bug reached the hidden checks.
+
+Harness lessons for `trial/round-lessons`:
+
+- Packet lines 30 to 32 are unclear; both trials tripped on them.
+- Leftover servers fill the 2 GiB sandbox; tell writers to stop them.
+- The `tinker-seams` skill names an import path that loops.
+- The full test run is longer than the writer's 120 s shell limit.
+- Only the teacher may set stock, so race tests need a local supplier.
