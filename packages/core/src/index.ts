@@ -1486,30 +1486,17 @@ function pendingNsWatchers(
   return pending;
 }
 
-/** A layer's own tags: a flat list for a handful (one scan beats a map, and a tagged call brings
- * one or two), a map from tag to values for more. Readers take both; writers go through
- * {@link seedTags}. */
-type LayerTags = Map<Tag.Handle<unknown>, unknown[]> | readonly Tag.Binding<unknown>[];
+/** A layer's own tags: one flat list in authored order (a tagged call brings one or two, and a
+ * scan beats a map). Writers go through {@link seedTags}. */
+type LayerTags = readonly Tag.Binding<unknown>[];
 
-/** How many bindings stay a list before {@link seedTags} builds a map. */
-const SMALL_TAGS = 8;
-
-/** The binding of `target` nearest the top of a layer's own tags, list or map. */
+/** The binding of `target` nearest the top of a layer's own tags. */
 function topTag(
   cur: Layer,
   target: Tag.Handle<unknown>,
 ): { present: true; value: unknown } | undefined {
   const tags = cur.tags;
-  if (tags === undefined) return undefined;
-  if (isTagList(tags)) {
-    for (let i = tags.length - 1; i >= 0; i--) {
-      const binding = tags[i];
-      if (binding.tag === target) return { present: true, value: binding.value };
-    }
-    return undefined;
-  }
-  const list = tags.get(target);
-  return list && list.length ? { present: true, value: list[list.length - 1] } : undefined;
+  return tags === undefined ? undefined : findBinding(tags, target);
 }
 
 function tagFind(
@@ -1535,20 +1522,20 @@ function tagFindNs(
   const hit = selectBucket(
     layer,
     chain,
-    (cur, key) => (cur.up === undefined ? nsTagBinding(key, target) : undefined),
+    (cur, key) => (cur.up === undefined ? findBinding(key.tags, target) : undefined),
     (cur) => topTag(cur, target),
   );
   if (hit) return hit;
   return target.hasDefault ? { present: true, value: target.def } : { present: false };
 }
 
-function nsTagBinding(
-  key: Namespace,
+/** The binding of `target` nearest the end of `bindings`: a layer's own tags or a namespace's. */
+function findBinding(
+  bindings: readonly Tag.Binding<unknown>[],
   target: Tag.Handle<unknown>,
-): Tag.Presence<unknown> | undefined {
-  const bindings = key.tags;
+): { present: true; value: unknown } | undefined {
   for (let i = bindings.length - 1; i >= 0; i--) {
-    const binding = bindings[i] as Tag.Binding<unknown>;
+    const binding = bindings[i];
     if (binding.tag === target) return { present: true, value: binding.value };
   }
   return undefined;
@@ -1570,13 +1557,7 @@ function appendNsTags(
   chain: readonly Namespace[],
   target: Tag.Handle<unknown>,
 ): void {
-  for (const key of chain) {
-    const bindings = key.tags;
-    for (let i = bindings.length - 1; i >= 0; i--) {
-      const binding = bindings[i] as Tag.Binding<unknown>;
-      if (binding.tag === target) out.push(binding.value);
-    }
-  }
+  for (const key of chain) appendBindings(out, key.tags, target);
 }
 
 /** A namespaced `.all` follows the same layers-first walk as cell selection. */
@@ -2361,7 +2342,8 @@ function runBody<T, I>(
 class OperationCtx<I> implements Operation.Ctx<I> {
   live = true;
   declare private layer: Layer;
-  private hooks: ((end: Scope.End) => void | PromiseLike<void>)[] | undefined;
+  /** The run's `defer` fns, read when it finishes ({@link finishRun}, {@link finishHookRun}). */
+  hooks: ((end: Scope.End) => void | PromiseLike<void>)[] | undefined;
   declare readonly label: string;
   declare readonly rawInput: unknown;
   declare readonly input: I;
@@ -2408,11 +2390,6 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   static share(from: OperationCtx<unknown>, to: OperationCtx<unknown>): void {
     to.hooks = from.hooks ??= [];
   }
-  static defersFor<J>(
-    ctx: OperationCtx<J>,
-  ): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
-    return ctx.hooks;
-  }
   get signal(): AbortSignal {
     return signalOf(this.layer);
   }
@@ -2449,8 +2426,7 @@ function runTagged<T, I>(
 ): Awaited<T> | Promise<Awaited<T>> {
   const tags = call.tags;
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
-  const inner: Scope.Invocation<I> | undefined =
-    call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
+  const inner = stripNs(call);
   const nested = caller !== undefined;
   let tagged: Awaited<T> | Promise<Awaited<T>>;
   if (call.signal !== undefined || layer.exts.session !== undefined) {
@@ -2601,20 +2577,13 @@ function runNsCall<I>(
   return runUntagged(layer, target, up, stripNs(call), nsChainOf(call.ns), caller);
 }
 
-/** The ns-stripped call a namespaced run replays on its view layer: the same `input`/`rawInput`
- * selection the untagged path makes, minus `ns` (already honored by the view). */
+/** The stripped call a namespaced or tagged run replays (ADR 0038): the same `input`/`rawInput`
+ * selection the untagged path makes, minus `ns` and `tags` (already honored by the view layer or
+ * the child session). */
 function stripNs<I>(call: Scope.Invocation<I>): Scope.Invocation<I> | undefined {
   if (call.input !== undefined) return { input: call.input };
   if (call.rawInput !== undefined) return { rawInput: call.rawInput };
   return undefined;
-}
-
-/** The tag-stripped call a tagged run replays inside its child session (ADR 0038): the same
- * `input`/`rawInput` selection the untagged path makes, minus `tags` (already honored).
- * Only called when the call carries `input` or `rawInput` (see {@link runTagged}). */
-function stripTags<I>(call: Scope.Invocation<I>): Scope.Invocation<I> {
-  if (call.input !== undefined) return { input: call.input };
-  return { rawInput: call.rawInput };
 }
 
 /** Release a run's borrows: the resource instances its deps held for the run's whole lifetime
@@ -2635,7 +2604,7 @@ function finishRun(
   status: "ok" | "failed",
   error?: unknown,
 ): void {
-  const fns = ctx ? OperationCtx.defersFor(ctx) : undefined;
+  const fns = ctx?.hooks;
   if (fns === undefined || fns.length === 0) {
     if (ctx) ctx.live = false;
     releaseBorrows(held);
@@ -3691,21 +3660,14 @@ function removeBorrow(owned: ResourceInstance, work: Promise<unknown>): void {
   finishTracked(owned);
 }
 
-/** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
- * nested) leaves the map unallocated; otherwise every binding lands in authored order. */
+/** Seed a layer's tag list from the authored bindings: nothing (or only nothing, however
+ * nested) leaves the list unallocated; otherwise every binding lands in authored order. */
 function seedTags(input: Tag.Bindings): LayerTags | undefined {
   if (isNothing(input)) return undefined;
   if (isNotList(input)) return [input];
   const bindings = readBindings(input);
   if (bindings.length === 0) return undefined;
-  if (bindings.length <= SMALL_TAGS) return bindings;
-  const tags = new Map<Tag.Handle<unknown>, unknown[]>();
-  for (const binding of bindings) {
-    const list = tags.get(binding.tag) ?? [];
-    list.push(binding.value);
-    tags.set(binding.tag, list);
-  }
-  return tags;
+  return bindings;
 }
 
 /** The authored list as one flat list this layer retains; the caller keeps its own list. The
@@ -4980,22 +4942,18 @@ function freshEntry(
   return top === layer ? fresh : memoEntry(layer, self, target, fresh, hops);
 }
 
-/** Every value bound to `target` in a layer's own tags, top first, list or map. */
+/** Every value bound to `target` in a layer's own tags, top first. */
 function appendLayerTags(out: unknown[], cur: Layer, target: Tag.Handle<unknown>): void {
-  const tags = cur.tags;
-  if (tags === undefined) return;
-  if (isTagList(tags)) {
-    for (let i = tags.length - 1; i >= 0; i--) if (tags[i].tag === target) out.push(tags[i].value);
-    return;
-  }
-  const list = tags.get(target);
-  if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
+  if (cur.tags !== undefined) appendBindings(out, cur.tags, target);
 }
 
-/** The list shape of {@link LayerTags}. `Array.isArray` alone does not narrow a `readonly` list
- * out of the union. */
-function isTagList(tags: LayerTags): tags is readonly Tag.Binding<unknown>[] {
-  return Array.isArray(tags);
+/** Every value bound to `target` in `bindings`, last first. */
+function appendBindings(
+  out: unknown[],
+  tags: readonly Tag.Binding<unknown>[],
+  target: Tag.Handle<unknown>,
+): void {
+  for (let i = tags.length - 1; i >= 0; i--) if (tags[i].tag === target) out.push(tags[i].value);
 }
 
 /** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
@@ -5538,12 +5496,7 @@ function resolveThrough(
     index: number,
     chain: readonly Namespace[] | undefined,
   ): unknown => {
-    if (index >= resolvers.length) {
-      if (isData(target)) return readCell(layer, target, chain);
-      if (isEdge(target)) return resolveEdge(layer, target, undefined, chain);
-      if (isResource(target)) return resourceController(layer, target, undefined, chain).resolve();
-      return tagRequired(layer, target, chain);
-    }
+    if (index >= resolvers.length) return resolveNs(layer, target, chain);
     const next = (): unknown => at(target, index + 1, chain);
     const ext = resolvers[index];
     return ext.hooks!.resolve!(
@@ -5952,7 +5905,7 @@ function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): 
     error = run.failed.error;
   }
   closeSpan(run.layer.obs, run.span, status, error);
-  const fns = run.ctx === undefined ? undefined : OperationCtx.defersFor(run.ctx);
+  const fns = run.ctx?.hooks;
   const done = (): void => {
     run.live = false;
     if (run.ctx) run.ctx.live = false;
