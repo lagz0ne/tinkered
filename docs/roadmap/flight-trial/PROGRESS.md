@@ -3998,3 +3998,20 @@ No mutation or timing lane was asked for.
 Core feedback: none.
 The branch is ready for lead review; nothing was pushed.
 Next: lead review, import the labels, then land through the normal gates.
+
+## DeepSeek trial 2, 2026-10-05
+
+Card: `trial/deepseek-02`.
+Trial `flight-deepseek-02`, graded from a runner pinned at `77c7ba97`.
+Writer: `pi/writer-gateway/deepseek/deepseek-v4.1-flash`, thinking high.
+Images: app `bb97e63c`, services `1be10fb5`.
+The packet is the same as trial 1.
+The retry rule is the same: one teacher note a try, up to 3 tries a round.
+
+- Round 1, try 1 (agent `6cc7c692`): fail, hidden checks 1 of 3.
+  Cost about $1.36.
+  Own checks, `check:plain` (17 of 17), the seam check, and Jev passed.
+  Empty route: `No flights` was a row of the Flights table.
+  Supplier failure: `Search complete` was never shown.
+  Packet lines 30 to 32 tripped trial 1 the same way.
+  The packet stays as it is until this trial ends.
