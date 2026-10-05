@@ -99,6 +99,13 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Dropped: span ids at open (275 B): `opobs` B slower (211 → 955 ns).
   [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-safe).
 
+- **core/extension-slot** — the trial shares its HTTP stack as a session resource; Core unchanged (ADR 0105).
+  Owner: lead (Claude, Start scaffold session); Opus designer, Sol writer, Opus review (one fix round).
+  Asked by: `trial/flight-services` and `trial/services-routing`.
+  The hand call `httpRequests.hooks!.start!` is gone; repeated resolves in one service session register once.
+  Wire differences zero over 2,160 calls; 123 trial tests; mutation 91.42.
+  Held: an extension that includes another, if a shared piece needs a hook other than `start`.
+
 - **core/size-room** — Core runtime 16,379 → 16,084 B gzip: 300 B free, no change in behavior.
   Owner: lead (Claude, Start scaffold session); Astra writer (after a Sol outage), Opus review.
   Cuts: private names 255 B, cold and duplicate code 26 B, shared empty stores 12 B, symbol text 11 B.

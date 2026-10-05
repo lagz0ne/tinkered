@@ -815,7 +815,7 @@ await httpRequests.hooks!.start!({ ...event, scope });
 
 That skipped how Core composes extensions.
 Calling the shared hook twice more in one service session gives three log rows for one missing-route request.
-Installing `httpRequests` beside an app fails with `MissingTag`.
+Installing `httpRequests` beside an app failed with `MissingTag`.
 
 ## Graceful close drains work before resource cleanup, 2026-10-04
 

@@ -10,7 +10,6 @@
     "red_tests_failed": 4,
     "green_exit_code": 0,
     "green_tests_passed": 2,
-    "red_cwd": "/tmp/rv105/main/tools/flight-trial",
     "red_double_hand_call": {
       "tests_failed": 2,
       "log_rows": 3,
@@ -19,7 +18,8 @@
     "red_install_beside_app": {
       "tests_failed": 2,
       "error": "MissingTag"
-    }
+    },
+    "red_note": "red run used a copy of this test written against main's services (hand call), in a scratch tree"
   },
   "gates": [
     {
