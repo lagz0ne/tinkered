@@ -5,100 +5,64 @@
     {
       "gate": "vp run -r build",
       "cwd": ".",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-BUILD.log"
+      "exit": 0
     },
     {
       "gate": "vp check",
       "cwd": ".",
       "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-CHECK.log"
+      "output": ["Found 0 errors and 28 warnings in 509 files (5.3s, 8 threads)"]
     },
     {
       "gate": "vp run -r test",
       "cwd": ".",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-TEST.log"
+      "exit": 0
     },
     {
       "gate": "vp run prose",
       "cwd": ".",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PROSE.log"
+      "exit": 0
     },
     {
       "gate": "node apps/start-scaffold/maintain/check-registry.mjs",
       "cwd": ".",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-REGISTRY.log"
+      "exit": 0
     },
     {
       "gate": "npm run check:plain",
       "cwd": "apps/start-scaffold",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PLAIN.log"
+      "exit": 0
     },
     {
       "gate": "npm run test:seam",
       "cwd": "apps/start-scaffold",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-SEAM.log"
+      "exit": 0
     },
     {
       "gate": "npm run test:boundary",
       "cwd": "apps/start-scaffold",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-BOUNDARY.log"
+      "exit": 0
     }
   ],
   "registryBuild": {
     "gate": "npm run registry:build",
     "cwd": "apps/start-scaffold",
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-REGISTRY-BUILD.log"
+    "exit": 0
   },
   "mutation": {
     "package": "@tinker-start-scaffold",
     "available": false,
     "score": null,
-    "presenceCheckExit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-MUTATION.log"
-  },
-  "validate": {
-    "gate": "pnpm validate",
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-VALIDATE.log"
+    "presenceCheckExit": 0
   },
   "style": {
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-STYLE.log"
+    "exit": 0
   },
   "mainCheck": {
     "commit": "3ba54ce2",
     "exit": 0,
     "warnings": 28
   },
-  "extraAppGates": [
-    {
-      "gate": "npm run typecheck",
-      "cwd": "apps/start-scaffold",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-TYPECHECK.log"
-    },
-    {
-      "gate": "npm run check:plain -- --prove",
-      "cwd": "apps/start-scaffold",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PLAIN-PROVE.log"
-    },
-    {
-      "gate": "npm run test:schema",
-      "cwd": "apps/start-scaffold",
-      "exit": 0,
-      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-SCHEMA.log"
-    }
-  ],
-  "plainProofCases": 177,
   "jev": {
     "preflightExit": 0,
     "testsExit": 0,
@@ -110,6 +74,75 @@
       "unit": "httpRequest",
       "answer": false,
       "existingBankRow": "b70914c768c7"
+    },
+    "testEntries": 23,
+    "promiseTitles": 69,
+    "unsurePromises": 3
+  },
+  "red": {
+    "path": "docs/roadmap/start-scaffold/HTTP-CLOSING-RED.log",
+    "exit": 1,
+    "outcome": "The direct graceful session close times out without the closing signal."
+  },
+  "httpTests": {
+    "command": "vp test tests/http.test.ts",
+    "cwd": "apps/start-scaffold",
+    "exit": 0,
+    "passed": 25,
+    "testFiles": 1,
+    "output": ["Test Files 1 passed (1)", "Tests 25 passed (25)"]
+  },
+  "cleanupAbortMutant": {
+    "file": "apps/start-scaffold/src/scaffold/backend/http.ts",
+    "change": "delete defer(() => stop.abort());",
+    "test": "releasing HTTP aborts a held direct send and leaves the scope open",
+    "command": "flock /tmp/mutation.lock vp test tests/http.test.ts -t \"releasing HTTP aborts a held direct send\"",
+    "cwd": "apps/start-scaffold",
+    "exit": 1,
+    "killed": true,
+    "output": [
+      "      Tests  1 failed | 24 skipped (25)",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      " FAIL  tests/http.test.ts > releasing HTTP aborts a held direct send and leaves the scope open",
+      "Error: Test timed out in 2000ms.",
+      "EXIT 1"
+    ]
+  },
+  "fixRoundParent": "04b3533d4702a5fe3ef3c87176d050d885f78347",
+  "earlierValidation": {
+    "gate": "pnpm validate",
+    "exit": 0
+  },
+  "earlierExtraAppGates": [
+    {
+      "gate": "npm run typecheck",
+      "cwd": "apps/start-scaffold",
+      "exit": 0
+    },
+    {
+      "gate": "npm run check:plain -- --prove",
+      "cwd": "apps/start-scaffold",
+      "exit": 0
+    },
+    {
+      "gate": "npm run test:schema",
+      "cwd": "apps/start-scaffold",
+      "exit": 0
+    }
+  ],
+  "earlierPlainProofCases": 177,
+  "trimmedLogFiles": 19,
+  "copiedStarter": {
+    "sourceFiles": 119,
+    "source": "exact",
+    "build": "passed",
+    "types": "passed",
+    "tests": "passed",
+    "nativeResponse": {
+      "status": 200,
+      "body": {
+        "ok": true
+      }
     }
   }
 }

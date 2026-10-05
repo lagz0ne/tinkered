@@ -3174,82 +3174,62 @@ Step commits:
 ## HTTP closing: start/http-closing
 
 Owner: start/http-closing writer.
-Target: apps/start-scaffold only; no Core API change.
-Next: lead review and landing.
-Verify: a hung session send ends on direct graceful close without stop tags.
+Next: lead re-review and landing.
+Verify: a held send ends on close or resource release; the root stays open on release.
 
-Read ADR 0104, ADR 0102, ADR 0103, and the fixed writer brief.
-The branch started clean and rebased onto origin/main.
-Install and the first recursive build exit 0.
-
-Red proof: HTTP-CLOSING-RED.log, exit 1.
-The session test times out at 2000 ms without ctx.closing.
-Green proof: HTTP-CLOSING-GREEN.log, exit 0.
-The resource factory reads closing and defer by destructuring its context.
+The HTTP resource reads closing and defer from its factory context.
 Each send joins closing with the caller, cleanup, and stop-tag signals.
-A direct graceful root close also reaches an explicit session's send.
-The abort maps to HttpRequestFailed with AbortError and code 20.
+Direct graceful session and root closes end hung sends before work joins.
+The closing abort maps to HttpRequestFailed with AbortError and code 20.
 The caller's signal stays open; forced close still returns cancelled.
-After the backend delivers its reply, running work can finish during close.
+After the backend answers, running work can finish during close.
 
-No stop tag or cleanup signal was removed.
-Root-stop tests now leave backendStop unbound and still settle HTTP.
-The separate backendStop test ends a send while its root stays open.
-The late-send tests also require an already-ended tag to block sending.
-Removing backendStop would change these shipped promises.
-RequestStop still ends one request and leaves siblings open.
-Cleanup still covers a resource released apart from its layer.
-
+Original red proof: HTTP-CLOSING-RED.log, exit 1.
+The direct graceful session test times out without ctx.closing.
+Green results and gate results are in HTTP-CLOSING-GATES.json.
 The README, copied skill, and TSDoc drop the old close limit.
-Earlier track notes now name it as the old limit resolved by ADR 0104.
-Frozen decisions and saved old gate output keep their history.
+Earlier track notes name it as the old limit resolved by ADR 0104.
 
-All eight requested gates exit 0.
-Their commands and log paths are in HTTP-CLOSING-GATES.json.
-The copied starter builds, checks types, and passes its own tests and source checks.
-Its native Response proof returns status 200 and body { ok: true }.
-Registry build exits 0; the emitted source matches the files exactly.
+### Review fix round
 
-The first full check caught two missing test-operation labels.
-Those are fixed; the registry was rebuilt after the fix.
-The final check has zero errors and 28 warnings.
-A clean origin/main tree at 3ba54ce2 also has zero errors and 28 warnings.
-Its install, recursive build, and check each exit 0.
+The release test calls scope.release(http) during a held direct send.
+The send rejects with AbortError and code 20.
+A later operation succeeds on the same scope, so release leaves it open.
+This proves why the cleanup abort and its stop controller must stay.
+Deleting only defer(() => stop.abort()) makes that test time out at 2000 ms.
+The hand mutant exits 1 under /tmp/mutation.lock.
+With the line restored, all 25 HTTP tests pass, exit 0.
+The JSON keeps the mutant change, command, exit, and failing output.
+
+The four backend-stop cases again bind backendStop(stop.signal) on the root.
+They now match the server entry and the README's backend-stop promises.
+The direct root-close test still leaves both stop tags unbound.
+A separate backendStop test ends a send while its root stays open.
+RequestStop still ends one request and leaves siblings open.
+No stop tag or cleanup signal was removed.
+
+Only the gates JSON and original red log stay as committed proof files.
+Green, gate, and mutation results are folded into the JSON.
+The other force-added logs were removed.
+No deleted log path remains in this section or the JSON.
 
 Package: @tinker-start-scaffold.
-The mutation lane presence check ran alone under /tmp/mutation.lock.
-No mutate script, Vite mutate task, or Stryker config exists.
-No score exists, so the floor of 85 does not apply here.
-Proof: HTTP-CLOSING-MUTATION.log, exit 0.
-
-The fixed brief's pnpm validate exits 0: all 16 lanes pass.
-Strict style census exits 0 for the changed TypeScript files.
-Jev tests: zero flags.
-Jev promises: zero gaps; two old titles are unsure.
-Jev preflight: configNotTag on httpRequest is false.
-Request values and safe error facts belong to the call, not process settings.
-The label command found the existing bank row b70914c768c7.
-No new bank row or calibration change is needed.
+There is no mutate script, Vite mutate task, or Stryker config.
+There is no full mutation score; the requested hand mutant is killed.
 
 The lifecycle caller is httpRequest in scaffold/backend/http.ts.
 The server seam and app backend re-export that operation.
 The fixed transport seam also exports http for proof tests.
 No app feature sends through http directly.
-Existing wire, body-read cancellation, and request-end tests pass.
 No new Core feedback or workaround was needed.
 
-Final code commit after rebase: f1682b14.
-The final gate sweep ran on origin/main at 91a26d6d.
-All eight gate exits are 0 on that code.
-The gate logs are saved beside HTTP-CLOSING-GATES.json.
-The rebase brought back the lead's Doing card alongside Review.
-Only that stale copy was removed; one Review card remains.
-The extra type check, full plain proof run, and schema check each exit 0.
-
-The full plain proof passes all 177 planted cases.
-The schema proof adds no migration file or folder.
-The source and starter registry match after the final test change.
-All requested work is saved; the card waits in Review for the lead.
-Only apps/start-scaffold, this track, and this card changed.
-No stop tag was removed: both still have distinct tested uses.
-The removed text was the old direct-close limit.
+All eight requested gates exit 0 after the review fixes.
+The check reports zero errors and the same 28 warnings as before.
+Registry build exits 0; the fresh copied starter builds and passes its tests.
+The starter's native reply proof returns 200 with { ok: true }.
+Strict style census exits 0.
+Jev preflight has no changed source files and no flags.
+Jev tests has zero flags in 23 entries.
+Jev promises has zero gaps in 69 titles; three old titles are unsure.
+The earlier extra checks stay marked as earlier results in the JSON.
+The card waits in Review; no new Core issue or label was added.
