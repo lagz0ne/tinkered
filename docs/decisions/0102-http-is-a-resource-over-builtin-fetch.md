@@ -1,6 +1,8 @@
 # 0102 HTTP is a resource over built-in fetch
 
-Date: 2026-10-04. Status: accepted. Refines: 0035, 0100, 0101.
+Date: 2026-10-04. Status: accepted. Refined by 0104 (`start/http-closing`):
+the `http` resource also stops on `ctx.closing`, so the close-wait limit below is gone.
+Refines: 0035, 0100, 0101.
 
 ## Context
 
@@ -96,10 +98,9 @@ These signals stop HTTP before graceful shutdown joins running work.
 Forced close cancels through the caller's signal.
 Resource cleanup aborts the resource's own stop signal.
 
-A direct graceful close with no aborted stop tag still waits
-for a pending request.
-Core has no session close-start hook to stop that wait.
-Cleanup runs after Core joins the work; it cannot end that wait first.
+Before ADR 0104, a direct graceful close with no aborted stop tag
+waited for a pending request.
+The resource now also stops on `ctx.closing`, which fires before the drain.
 
 App code never calls `fetch` directly.
 `check:plain` bans built-in fetch value uses across `src/`.
@@ -141,6 +142,6 @@ The fixed telemetry sender uses `httpBackend` directly without request spans.
 - Every app request through `httpRequest` is on the span tree and in the graph.
 - Tests swap `httpBackend`; nobody patches the global `fetch`.
 - Each request adds a subflow run and its nested HTTP span.
-- Direct graceful close needs a stop signal to end a pending HTTP wait.
+- A graceful close ends a pending HTTP wait through `ctx.closing` (ADR 0104).
 - Telemetry's own requests must not open spans of their own,
   or telemetry would trace itself; its sender uses `httpBackend` directly.

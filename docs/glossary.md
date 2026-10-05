@@ -82,7 +82,7 @@
 - **`httpBackend`** — The tag in `src/scaffold/http-backend.ts` with label `http.backend`.
   Its value has the built-in fetch signature; its default calls fetch.
 - **`http`** — The session-target HTTP resource in `src/scaffold/backend/http.ts`.
-  It sends through the backend and joins caller, cleanup, and bound stop signals.
+  It sends through the backend and joins caller, cleanup, closing, and bound stop signals.
 - **`httpRequest` / request operation** — One outgoing HTTP call with checked, branded input.
   It returns status, headers, and body text.
   With observation on, its `http.request` span holds the `http <METHOD> <path>` child span.

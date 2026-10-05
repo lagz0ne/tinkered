@@ -69,12 +69,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **start/http-closing** — abort HTTP waits on `ctx.closing` (ADR 0104).
-  Owner: start/http-closing writer.
-  Next: lead re-review and land the saved fix round.
-  Verify: cleanup mutant killed; 25 HTTP tests pass; all eight gates exit 0.
-  Proof: [track](docs/roadmap/start-scaffold/PROGRESS.md#http-closing-starthttp-closing).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -91,6 +85,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/http-closing** — the scaffold `http` resource stops pending sends on `ctx.closing` (ADR 0104).
+  Owner: lead (Claude, Start scaffold session); Sol writer, Opus review (one fix round).
+  A direct graceful close with a hung backend now settles (red test proven).
+  A closing abort is `HttpRequestFailed`; a caller cancel stays `cancelled`.
+  `backendStop` and `requestStop` stay, each covered by a test; 27 HTTP tests.
+  ADR 0102 notes the refinement; the core-feedback rows are closed.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#http-closing-starthttp-closing).
 
 - **trial/round-lessons** — clearer notices, smaller writer rules, fixed skill import path.
   Owner: lead (Claude, Start scaffold session); Sol writer, Opus review (one fix round).
@@ -147,7 +149,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   `http` stops through the inherited `backendStop` and `requestStop` tags, so every child session Core makes is covered;
   a stopped request is refused before sending; no Core method is replaced.
   Proof: 7 red-then-green tests incl. the server-function `settle(op, { signal })` shape; 60 app tests; all gates.
-  Limit: a direct graceful close with no stop signal still waits (Core feedback row; `core/close-hook-scope`).
+  The direct graceful close limit was removed by `start/http-closing` (ADR 0104).
 
 - **repo/vite-plus-1** — `vite-plus` 0.3.1 → 1.0.0 (Vitest 4 → 5).
   Owner: lead (Claude, tinkered-2f). `vp migrate`, plus literal 1.0.0 pins in the examples, the starter, and writer-trial.
