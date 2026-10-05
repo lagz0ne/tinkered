@@ -488,6 +488,7 @@ export const listener = resource({
     if (closing.aborted) stopServer();
     defer(async () => {
       closing.removeEventListener("abort", stopServer);
+      stopServer();
       await Promise.all(pending);
       if ("closeAllConnections" in server) server.closeAllConnections();
       await ended;

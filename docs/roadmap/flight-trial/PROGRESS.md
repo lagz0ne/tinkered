@@ -26,28 +26,38 @@ New tests use each app's HTTP entry to close incomplete bodies and delayed route
 The queued-webhook test proves closing ends its virtual wait without sending.
 The existing open-body test now releases the inbox in cleanup even after a failure.
 The five added close checks fail against the original resources.
-All six graceful-close checks pass with the fix.
+All six original graceful-close checks pass with the fix.
+The review found that releasing `web` skipped the listener stop.
+Cleanup now calls `stopServer()` before waiting for the server to end.
+Two new release checks fail without this call.
+Two new drain checks fail without the early closing listener and guard.
+They hold real work in each app session.
+The new connection must get `ECONNREFUSED` while close is still pending.
+The running request must still get `200 ok`.
+Both review mutants fail with exit 1; all eight listener checks pass.
+Their names and counts are in the same red log.
 Middleware skips late log and replay writes after closing begins.
 That keeps delayed replies at service-stopped, instead of turning them into HTTP 500.
 
 Gate proof: [GATES.json](services-closing/GATES.json).
-Build, check, all workspace tests, prose, and 116 flight tests passed with exit 0.
+Before the review fix, all gates and 116 flight tests passed with exit 0.
 Style census for services and tests passed.
 Wire diff: exit 0, zero differences over 2,160 calls and 30 error codes.
 The check compares body bytes, headers, and call logs.
 Only Node's wall-time Date header is normalized, as the existing check requires.
 An earlier run was discarded after an extra call moved one side's test ID stream.
 The clean repeat used no extra HTTP calls.
-Locked mutation: exit 0, score 91.96, above the floor of 85.
+Before the review fix, locked mutation exited 0 with score 91.96.
+The floor is 85.
 It printed 1,451 killed, 173 timeout, 114 survived, and 28 no coverage.
 Only GATES.json and the red log are committed as proof files.
 The card is saved in Review.
-Next: lead review.
+Next: rerun all gates after this review fix.
 
 ### Advisory review
 
 Jev found no file flags and no test flags.
-The unit notes are false for these reasons:
+The eight unit notes are false for these reasons:
 
 - `httpRequest`, `configNotTag`: URL, method, headers, and body are request input.
   They follow ADR 0102; each call can have different values.
@@ -61,7 +71,8 @@ The unit notes are false for these reasons:
 - `listener`, `stateOutsideCell`: its pending set owns live socket completion promises.
   These cannot be stored as plain service data.
 - `listener`, `ignoresAbortAfterAwait`: it checks closing after listening starts.
-  Cleanup then joins complete replies and the server's close event.
+  Cleanup also calls `stopServer()` when a release has not fired closing.
+  It then joins complete replies and the server's close event.
 - `webhooks`, `stopOnlyInDefer`: deferred cleanup removes the data watcher.
   Its timer stops through the clock's closing signal before the drain.
 - `inFlight`, `stateOutsideCell` and `stopOnlyInDefer`: the map owns live payment-key promises.

@@ -1,136 +1,25 @@
-note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
-
- RUN  v5.0.1 /home/paseo/next/tinkered-services-closing/tools/flight-trial
-
- ❯ tests/payment.test.ts (27 tests | 1 failed | 26 skipped) 15020ms
-   × a graceful close aborts a webhook while its response body is open 15010ms
-
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
-
+Original payment close hook removed: exit 1
  FAIL  tests/payment.test.ts > a graceful close aborts a webhook while its response body is open
-Error: Test timed out in 5000ms.
-If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
- ❯ tests/payment.test.ts:1564:1
-    1562| });
-    1563|
-    1564| test("a graceful close aborts a webhook while its response body is ope…
-       | ^
-    1565|   const {
-    1566|     paymentApp,
- ❯ VitestModuleRunner.directRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1272:59
- ❯ VitestModuleRunner.cachedRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1179:73
- ❯ VitestModuleRunner.import ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1134:10
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
-
- FAIL  tests/payment.test.ts > a graceful close aborts a webhook while its response body is open
-Error: Hook timed out in 10000ms.
-If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
- ❯ tests/payment.test.ts:122:1
-    120|   await inboxScope.closed;
-    121| });
-    122| afterEach(async () => {
-       | ^
-    123|   for (const app of running.splice(0)) {
-    124|     app.stop.abort();
- ❯ VitestModuleRunner.directRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1272:59
- ❯ VitestModuleRunner.cachedRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1179:73
- ❯ VitestModuleRunner.import ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@24.13.5_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1134:10
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
-
-
  Test Files  1 failed (1)
       Tests  1 failed | 26 skipped (27)
-   Start at  08:46:01
-   Duration  15.63s (tests 98%, transform 1%, import 1%)
 
-
-Additional close tests against the original resources:
-note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
-
- RUN  v5.0.1 /home/paseo/next/tinkered-services-closing/tools/flight-trial
-
- ❯ tests/payment.test.ts (28 tests | 1 failed | 26 skipped) 1274ms
-   × a graceful close ends a queued webhook without advancing the clock 1019ms
- ❯ tests/services-closing.test.ts (4 tests | 4 failed) 4638ms
-   × a graceful supplier close ends an incomplete request body and closes the port 1372ms
-   × a graceful payment close ends an incomplete request body and closes the port 1014ms
-   × a graceful supplier close ends a delayed route without advancing the clock 1233ms
-   × a graceful payment close ends a delayed route without advancing the clock 1018ms
-
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
-
+Original resources restored: exit 1
  FAIL  tests/payment.test.ts > a graceful close ends a queued webhook without advancing the clock
-AssertionError: expected false to be true // Object.is equality
-
-- Expected
-+ Received
-
-- true
-+ false
-
- ❯ tests/payment.test.ts:1651:37
-    1649|   });
-    1650|   try {
-    1651|     await expect.poll(() => closed).toBe(true);
-       |                                     ^
-    1652|     expect(await closing).toMatchObject({ status: "success" });
-    1653|     expect(received).toEqual([]);
-
-Caused by: Error: Matcher did not succeed in time.
- ❯ tests/payment.test.ts:1651:5
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
-
  FAIL  tests/services-closing.test.ts > a graceful supplier close ends an incomplete request body and closes the port
  FAIL  tests/services-closing.test.ts > a graceful payment close ends an incomplete request body and closes the port
-AssertionError: expected false to be true // Object.is equality
-
-- Expected
-+ Received
-
-- true
-+ false
-
- ❯ tests/services-closing.test.ts:73:39
-     71|         return result;
-     72|       });
-     73|       await expect.poll(() => closed).toBe(true);
-       |                                       ^
-     74|       expect(await closing).toMatchObject({ status: "success" });
-     75|       await disconnected;
-
-Caused by: Error: Matcher did not succeed in time.
- ❯ tests/services-closing.test.ts:73:7
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
-
  FAIL  tests/services-closing.test.ts > a graceful supplier close ends a delayed route without advancing the clock
  FAIL  tests/services-closing.test.ts > a graceful payment close ends a delayed route without advancing the clock
-AssertionError: expected false to be true // Object.is equality
-
-- Expected
-+ Received
-
-- true
-+ false
-
- ❯ tests/services-closing.test.ts:124:39
-    122|         return result;
-    123|       });
-    124|       await expect.poll(() => closed).toBe(true);
-       |                                       ^
-    125|       expect(await closing).toMatchObject({ status: "success" });
-    126|       expect((await pending).status).toBe(503);
-
-Caused by: Error: Matcher did not succeed in time.
- ❯ tests/services-closing.test.ts:124:7
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
-
-
  Test Files  2 failed (2)
       Tests  5 failed | 1 passed | 26 skipped (32)
-   Start at  08:54:32
-   Duration  5.37s (tests 86%, transform 8%, import 5%)
+
+Review mutant: no stopServer() in defer: exit 1
+ FAIL  tests/services-closing.test.ts > releasing supplier web closes the port and lets graceful close settle
+ FAIL  tests/services-closing.test.ts > releasing payment web closes the port and lets graceful close settle
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 skipped (8)
+
+Review mutant: no early closing listener or guard: exit 1
+ FAIL  tests/services-closing.test.ts > a graceful supplier close refuses new connections while a running reply drains
+ FAIL  tests/services-closing.test.ts > a graceful payment close refuses new connections while a running reply drains
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 skipped (8)

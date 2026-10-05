@@ -408,6 +408,8 @@ Stopping a service ends its virtual waits and closes its HTTP port.
 A direct graceful close also ends delayed routes and queued webhooks.
 It needs no process stop signal or clock advance.
 It ends incomplete request bodies and closes the HTTP port.
+It refuses new connections while a running reply finishes.
+Releasing the HTTP routes also closes the port.
 It aborts an outgoing webhook even while its response body is open.
 The owning resources use `ctx.closing` before Core drains running work.
 A scenario reset keeps the current clock.

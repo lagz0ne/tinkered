@@ -66,14 +66,14 @@
   "green": {
     "command": "vp test tests/services-closing.test.ts tests/payment.test.ts -t graceful",
     "exit_code": 0,
-    "tests_passed": 6,
+    "tests_passed": 10,
     "cwd": "tools/flight-trial"
   },
   "style_census": {
     "targets": ["tools/flight-trial/services", "tools/flight-trial/tests"],
     "exit_code": 0
   },
-  "source_commit": "dcea6fcf4c839db26e81ad3ba09d2e7b936beb0a",
+  "source_commit": "9286a716",
   "wire": {
     "command": "node tools/flight-trial/scripts/check-wire.mjs",
     "exit_code": 0,
@@ -86,7 +86,7 @@
   "advisory": {
     "preflight_exit_code": 0,
     "file_flags": 0,
-    "unit_notes": 7,
+    "unit_notes": 8,
     "test_exit_code": 0,
     "test_flags": 0,
     "promises_exit_code": 0,
@@ -101,5 +101,30 @@
     "install_exit_code": 0,
     "build_exit_code": 0,
     "source_unchanged": true
-  }
+  },
+  "review_mutants": [
+    {
+      "name": "release cleanup",
+      "removed": "stopServer() in listener defer",
+      "command": "vp test tests/services-closing.test.ts -t releasing",
+      "cwd": "tools/flight-trial",
+      "red_exit_code": 1,
+      "tests_failed": 2,
+      "green_exit_code": 0,
+      "tests_passed": 2,
+      "log": "red.log"
+    },
+    {
+      "name": "close before drain",
+      "removed": "closing abort listener and already-aborted guard",
+      "command": "vp test tests/services-closing.test.ts -t 'refuses new connections'",
+      "cwd": "tools/flight-trial",
+      "red_exit_code": 1,
+      "tests_failed": 2,
+      "green_exit_code": 0,
+      "tests_passed": 2,
+      "log": "red.log"
+    }
+  ],
+  "review_fix_status": "Targeted tests pass; full gates await rerun"
 }
