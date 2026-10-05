@@ -11,7 +11,9 @@ The reference app stays pinned.
 - Both apps resolve `requests` instead of calling the shared start hook by hand.
 - The new HTTP test resolves `requests` twice in each service's session.
   One missing-route call must leave one log entry, with status 404.
-- Before the fix: exit 1, both test cases failed at the missing resource.
+- On main, calling the shared hook twice more in one session gives three log rows.
+  The assertion for one row fails, exit 1, in both services.
+- Installing `httpRequests` beside either app fails with `MissingTag`.
 - After the fix: exit 0, both test cases passed.
 - Gate proof: [GATES.json](extension-slot/GATES.json).
 
@@ -43,6 +45,15 @@ The new control error title matches the README.
 No labels are added outside this card's allowed paths.
 Strict style and the TSDoc parser returned 0.
 This card uses the requested gates and only the trial mutation lane.
+
+Review fixes scope registration to one service session.
+`web` still owns one Hono app per root; its target stays the same.
+The test imports `requests` from the service module; the trial entry no longer exports it.
+The glossary drops the unbuilt included-extension term and the proposed status.
+The feedback row reopens when a shared piece needs a hook other than `start`.
+All five review gates returned 0; the trial gate printed 123 passed tests in 11 files.
+The wire check still found zero differences across 2,160 calls and 30 error codes.
+Service code is unchanged, so this review skips mutation; the prior score is 91.42.
 
 ## flight-trial/entries-flake
 

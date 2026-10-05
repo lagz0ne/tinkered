@@ -789,10 +789,13 @@ If Hono validates before `.run`, this need ends.
 
 Asked by `trial/flight-services`, then `trial/services-routing`.
 Status: fixed in the trial; Core unchanged (ADR 0105).
+Reopen when a shared piece needs a hook other than `start`.
+That brings back ADR 0105's held design: one extension includes another.
 
 Card `core/extension-slot` replaces the hand call with the session resource `requests`.
 Each service binds its own error tags on its session.
-Repeated resolves reuse the registered stack.
+Repeated resolves in one service session reuse the registered stack.
+`web` owns one Hono app per root.
 
 The supplier and payment services shared a call log,
 route rules, and a listener, about 170 lines.
@@ -811,7 +814,8 @@ await httpRequests.hooks!.start!({ ...event, scope });
 ```
 
 That skipped how Core composes extensions.
-Installing `httpRequests` beside an app would have registered it twice.
+Calling the shared hook twice more in one service session gives three log rows for one missing-route request.
+Installing `httpRequests` beside an app fails with `MissingTag`.
 
 ## Graceful close drains work before resource cleanup, 2026-10-04
 

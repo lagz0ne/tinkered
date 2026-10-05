@@ -165,7 +165,6 @@ The copied client has no frame, config tag, or retry.
 - **closed** — `scope.closed` on a root made with a stop `signal`: core's one close `Result`, once that close ended; settles once, never rejects, pending while open (ADR 0085).
 - **stop signal** — `createScope({ signal })`: an abort closes the root gracefully once `ready` resolved. Not `ctx.signal`: it asks the root to stop; `ctx.signal` cancels work (ADR 0085).
 - **extension value** — What a `start` chain returned, read with `scope.resolve(ext)` once ready (`NotResolved` before). `source()` → `{ connect }`, `subscribe(link)` → `{ close }`.
-- **included extension** — An extension named in another extension's `extensions` field. Core starts it first, and once. Held design in ADR 0105; not built.
 
 ## Drivers as extensions (core + drivers, ADR 0051)
 
@@ -426,7 +425,7 @@ New sections are lists, one term per item (vertical layout,
 - **trial service** — A Tinker app in its own scope that plays a third party over HTTP (ADR 0098).
 - **control API** — A trial service's grader-only HTTP face; it writes the service's own data.
 - **shared stack** — The trial services' common Hono middleware: call log, token check, body decode, route rules.
-  A session resource, `requests`; each service binds its session first (ADR 0105, proposed).
+  A session resource, `requests`; each service binds its session first (ADR 0105).
 
 ## Strict forms (ADR 0099)
 

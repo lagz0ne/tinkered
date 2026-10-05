@@ -10,7 +10,7 @@ export {
   webhookDelayMs,
 } from "../services/payment/index.ts";
 export type { Payment } from "../services/payment/index.ts";
-export { port, host, controlToken, stopSignal, requests } from "../services/http.ts";
+export { port, host, controlToken, stopSignal } from "../services/http.ts";
 
 export { main as supplierMain } from "../services/supplier/main.ts";
 export { main as paymentMain } from "../services/payment/main.ts";

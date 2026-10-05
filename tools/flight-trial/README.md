@@ -149,7 +149,9 @@ Each supplier and payment run in their own process and Core scope.
 State lives in Core data cells.
 Resources own HTTP listeners and watchers.
 Each service resolves the shared `requests` resource from its own session.
-Resolving `requests` twice registers the HTTP stack once, with one call-log entry per request.
+`web` owns one Hono app per root.
+Resolving `requests` twice in one service session registers the HTTP stack once.
+Each request then leaves one call-log entry.
 Operations own calls, seat writes, and webhook sends.
 Each process entry serves its settings and closes cleanly on SIGTERM.
 Entry lifecycle tests cover real child processes and the exported entry functions.

@@ -7,9 +7,19 @@
     "command": "vp test tests/requests.test.ts",
     "cwd": "tools/flight-trial",
     "red_exit_code": 1,
-    "red_tests_failed": 2,
+    "red_tests_failed": 4,
     "green_exit_code": 0,
-    "green_tests_passed": 2
+    "green_tests_passed": 2,
+    "red_cwd": "/tmp/rv105/main/tools/flight-trial",
+    "red_double_hand_call": {
+      "tests_failed": 2,
+      "log_rows": 3,
+      "expected_log_rows": 1
+    },
+    "red_install_beside_app": {
+      "tests_failed": 2,
+      "error": "MissingTag"
+    }
   },
   "gates": [
     {
@@ -90,5 +100,48 @@
     "source_unchanged": true,
     "install_exit_code": 0,
     "build_exit_code": 0
+  },
+  "review": {
+    "base_commit": "7a6dbfb7dfc3ff47d51214a0e883b042e26eb146",
+    "service_code_unchanged": true,
+    "mutation": {
+      "skipped": true,
+      "reason": "service code unchanged",
+      "prior_score": 91.42
+    },
+    "advisory": {
+      "style_exit_code": 0,
+      "tsdoc_exit_code": 0,
+      "preflight_exit_code": 0,
+      "file_flags": 0
+    },
+    "gates": [
+      {
+        "command": "vp run -r build",
+        "exit_code": 0
+      },
+      {
+        "command": "vp check",
+        "exit_code": 0,
+        "warnings": 28
+      },
+      {
+        "command": "vp run flight-trial#test",
+        "exit_code": 0,
+        "tests_passed": 123,
+        "test_files": 11
+      },
+      {
+        "command": "vp run prose",
+        "exit_code": 0
+      },
+      {
+        "command": "node tools/flight-trial/scripts/check-wire.mjs",
+        "exit_code": 0,
+        "calls": 2160,
+        "error_codes": 30,
+        "differences": 0
+      }
+    ]
   }
 }
