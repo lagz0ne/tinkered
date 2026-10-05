@@ -4031,3 +4031,8 @@ The retry rule is the same: one teacher note a try, up to 3 tries a round.
   Jev blocked one dropped run failure (S22); DeepSeek fixed it with `settle`.
   Its last-seat race test runs a small local supplier,
   because only the teacher may set real stock.
+- Round 4, try 1 (agent `e5afd240`): **pass**, hidden checks 17 of 17.
+  Cost about $0.39.
+  Trial 1 needed 2 tries here (a double-pay race and a Pay button
+  left on expired holds); trial 2 passed both on the first try.
+  Jev blocked a 200 ms timer in a test; DeepSeek made the test drive the event.
