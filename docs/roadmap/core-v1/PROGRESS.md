@@ -925,7 +925,9 @@ The cap stays 16,384 B.
 Public types and exports stay the same.
 Error kinds and message text stay the same.
 Hot functions were neither merged nor grown.
-Cold reset code shares fresh error payloads and drops build references.
+Cold errors share payload construction.
+Each throw gets a fresh payload.
+Release code shares build-reference clearing.
 Empty stores are shared only until their first write.
 Each write gate gives its owner a new store.
 Private symbol text is removed; each symbol still has its own identity.
@@ -1024,6 +1026,16 @@ Zero gains, larger output, and unsafe name clashes were dropped.
 - Share cold Disposed payload construction: 2 B.
 - Default that helper to the unchanged closed-scope reason: 10 B.
 
+- Return the new registry error directly: 2 B.
+- `byKey -> keys`: 1 B.
+- `nsWatchers -> nsWatch`: 2 B.
+- `watchers -> watch`: 1 B.
+- `empty -> ctx`: 2 B.
+- `borrows -> pending`: 4 B.
+- `phase -> state`: 2 B.
+- Remove the Disposed helper after the speed check: costs 14 B.
+  The final bundle cost differs from its earlier isolated saving.
+
 The net saving is 300 B.
 The public empty-list probe rejects on main and on the final code.
 The discarded shared-list cut accepted it.
@@ -1032,7 +1044,11 @@ Each error still owns a fresh payload and keeps its text.
 ### Proof
 
 The first build, check, and Core test gate passed.
-Next: all tests, validate, mutation, and queued speed checks.
+The first full gate passed, with mutation 86.25.
+The first speed run found `inline` slower.
+Its 183-pair check confirmed that result.
+The Disposed helper was removed before the final proof.
+Next: repeat all gates and queued speed checks on the final cut set.
 The full receipt will be saved in `size-room/GATES.json`.
 The lead owns review and `scripts/ticket.sh` at landing.
 This writer does not push.

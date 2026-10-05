@@ -1003,7 +1003,7 @@ type NsWatcher = Watcher & {
 
 type NsWatchers = {
   all: Set<NsWatcher>;
-  byKey: Map<Namespace, Set<NsWatcher>>;
+  keys: Map<Namespace, Set<NsWatcher>>;
 };
 
 /** The exact data entry a named resource read. */
@@ -1038,7 +1038,7 @@ type ResourceInstance = {
   target: Resource.Handle<unknown>;
   hooks: ((end: Scope.End) => void | PromiseLike<void>)[];
   needs: Set<ResourceInstance> | undefined;
-  borrows: Set<Promise<unknown>> | undefined;
+  pending: Set<Promise<unknown>> | undefined;
   users: number;
   busy: boolean;
   end: Scope.End | undefined;
@@ -1078,7 +1078,7 @@ class NodeState {
   gen = 0;
   /** Build currently in progress (circular-resource guard). */
   busy = false;
-  /** The live build; its `borrows` are the op promises a release waits on. */
+  /** The live build; its `pending` are the op promises a release waits on. */
   owned: ResourceInstance | undefined;
   /** Resources that depend on this node (for cascade release/close). */
   users: Set<Resource.Handle<unknown>> | undefined;
@@ -1086,7 +1086,7 @@ class NodeState {
    * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
   controller: unknown;
   /** Watchers of this cell registered at this layer (a write visits only the changed cell's). */
-  watchers: Set<Watcher> | undefined;
+  watch: Set<Watcher> | undefined;
   /** Value the watchers at this layer were last called with; refreshed at registration so a new
    * watcher never inherits a stale comparison. */
   prev: unknown;
@@ -1098,9 +1098,9 @@ class NodeState {
   /** Named resource states keyed by the exact data entry they read. */
   readers: Map<Entry, Set<NsResourceState>> | undefined;
   /** Namespaced watchers at this layer. Each owns its full chain and last observed value because
-   * two chains with the same write head can resolve through different fallback buckets. `byKey`
+   * two chains with the same write head can resolve through different fallback buckets. `keys`
    * selects only chains containing a changed named bucket; `all` serves default and child flushes. */
-  nsWatchers: NsWatchers | undefined;
+  nsWatch: NsWatchers | undefined;
 }
 
 /** Keep the first-write branch here: splitting it made V8 partly inline repeated warm reads. */
@@ -1197,7 +1197,7 @@ type Layer = {
   trace: Observe.Trace | undefined;
   clock: Clock.Handle;
   random: Random.Handle;
-  empty: Resource.Ctx | undefined;
+  ctx: Resource.Ctx | undefined;
   /** The ambient namespace chain of this layer (ADR 0059): set from the scope/session options,
    * inherited by child sessions, overridden per call through a view layer. Undefined = default. */
   ns: readonly Namespace[] | undefined;
@@ -1212,13 +1212,13 @@ const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
  * when the session is made, so `closeLayer` finds it with the one lookup it already made for the
  * `next()` settler. `settle` is a wrapped bare session's `next()` resolver: `closeLayer` settles it
  * when the layer's close resolves, so a session felled by its parent's cascade settles its hooks
- * like an explicit close; it is cleared at settle. `phase` holds the data for the hooks: `open`
+ * like an explicit close; it is cleared at settle. `state` holds the data for the hooks: `open`
  * until the close finishes, `held` while its data waits for the hooks to return (data cell and tag
  * reads still work), `done` once they returned. `moved` says the held store went into a `Result`
  * (`withData`). A never-closed layer's entry dies with the layer. */
 type SessionHooks = {
   settle: ((ended: Scope.Result) => void) | undefined;
-  phase: "open" | "held" | "done";
+  state: "open" | "held" | "done";
   moved: boolean;
 };
 const SESSION_HOOKS = new WeakMap<Layer, SessionHooks>();
@@ -1240,7 +1240,7 @@ function tapSessionHooks(
 
 /** Late use of a sealed scope fails loudly. */
 function ensureOpen(layer: Layer): void {
-  if (layer.closed && !hookCanRead(layer)) raiseDisposed();
+  if (layer.closed && !hookCanRead(layer)) raise("Disposed", { reason: "scope is closed" });
 }
 
 /** A root refuses outside calls before its close hooks run. Running work keeps its helpers
@@ -1250,7 +1250,7 @@ function ensureAccepting(layer: Layer): void {
     (layer.closed || layer.closing || (layer.swept && layer.up === undefined)) &&
     !hookCanRead(layer)
   )
-    raiseDisposed();
+    raise("Disposed", { reason: "scope is closed" });
 }
 
 /** Only call entry uses the body's or caller's live ownership. Release still uses
@@ -1371,7 +1371,7 @@ function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): v
  * nothing: an extra argument passed is an extra argument ignored. */
 function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
   const rec = layer.nodes.get(target);
-  const ws = rec?.watchers;
+  const ws = rec?.watch;
   if (!ws?.size || !rec) return;
   const next = readCell(layer, target);
   const prev = rec.prev;
@@ -1437,8 +1437,8 @@ function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, see
 function flushInheritedNsWatchers(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
   const pending: { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] = [];
   function collect(cur: Layer): void {
-    const watchers = cur.nodes.get(target)?.nsWatchers?.byKey.get(key);
-    if (watchers) pending.push(...(pendingNsWatchers(cur, target, watchers) ?? []));
+    const watch = cur.nodes.get(target)?.nsWatch?.keys.get(key);
+    if (watch) pending.push(...(pendingNsWatchers(cur, target, watch) ?? []));
     for (const child of cur.children) {
       if (!shadowsNamedChange(child, target, key)) collect(child);
     }
@@ -1455,11 +1455,11 @@ function shadowsNamedChange(layer: Layer, target: Data.Cell<unknown>, key: Names
 /** A named bucket change can affect only chains containing its key at this layer. A default
  * change or a flush inherited by a child re-resolves all chains. */
 function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
-  const nsWatchers = layer.nodes.get(target)?.nsWatchers;
-  if (!nsWatchers) return;
-  const watchers = key === undefined ? nsWatchers.all : nsWatchers.byKey.get(key);
-  if (!watchers?.size) return;
-  const pending = pendingNsWatchers(layer, target, watchers);
+  const nsWatch = layer.nodes.get(target)?.nsWatch;
+  if (!nsWatch) return;
+  const watch = key === undefined ? nsWatch.all : nsWatch.keys.get(key);
+  if (!watch?.size) return;
+  const pending = pendingNsWatchers(layer, target, watch);
   for (const p of pending ?? []) p.fn(p.next, p.prev);
 }
 
@@ -1468,10 +1468,10 @@ function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>, key?: Namespa
 function pendingNsWatchers(
   layer: Layer,
   target: Data.Cell<unknown>,
-  watchers: Set<NsWatcher>,
+  watch: Set<NsWatcher>,
 ): { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] | undefined {
   let pending: { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] | undefined;
-  for (const watcher of watchers) {
+  for (const watcher of watch) {
     const next = readCell(layer, target, watcher.ns);
     const prev = watcher.prev;
     if (cellEq(target, prev, next)) continue;
@@ -1615,13 +1615,13 @@ function addWatcher(
   ensureOpen(layer);
   refreshNotified(layer, target, rec);
   const w: Watcher = { fn };
-  (rec.watchers ??= new Set()).add(w);
-  return () => void rec.watchers?.delete(w);
+  (rec.watch ??= new Set()).add(w);
+  return () => void rec.watch?.delete(w);
 }
 
 /** Recompute this layer's last notified value when it went stale before a new watcher registers. */
 function refreshNotified(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): void {
-  if (rec.watchers?.size) return;
+  if (rec.watch?.size) return;
   const next = readCell(layer, target);
   if (!cellEq(target, rec.prev, next)) rec.prev = next;
 }
@@ -1683,23 +1683,23 @@ function addWatcherNs(
   ensureOpen(layer);
   const rec = nodeState(layer, target);
   const watcher: NsWatcher = { fn, ns: chain, prev: readCell(layer, target, chain) };
-  const nsWatchers = (rec.nsWatchers ??= { all: new Set(), byKey: new Map() });
-  nsWatchers.all.add(watcher);
-  const byKey = nsWatchers.byKey;
+  const nsWatch = (rec.nsWatch ??= { all: new Set(), keys: new Map() });
+  nsWatch.all.add(watcher);
+  const keys = nsWatch.keys;
   for (const key of chain) {
-    let watchers = byKey.get(key);
-    if (!watchers) {
-      watchers = new Set();
-      byKey.set(key, watchers);
+    let watch = keys.get(key);
+    if (!watch) {
+      watch = new Set();
+      keys.set(key, watch);
     }
-    watchers.add(watcher);
+    watch.add(watcher);
   }
   return () => {
-    nsWatchers.all.delete(watcher);
+    nsWatch.all.delete(watcher);
     for (const key of chain) {
-      const watchers = byKey.get(key);
-      watchers?.delete(watcher);
-      if (watchers?.size === 0) byKey.delete(key);
+      const watch = keys.get(key);
+      watch?.delete(watcher);
+      if (watch?.size === 0) keys.delete(key);
     }
   };
 }
@@ -2518,7 +2518,7 @@ class TaggedFrame {
   declare body: Promise<unknown> | undefined;
   declare closed: boolean;
   declare closing: Promise<Scope.Result> | undefined;
-  declare empty: Resource.Ctx | undefined;
+  declare ctx: Resource.Ctx | undefined;
   constructor(
     up: Layer,
     tags: Scope.Bindings,
@@ -3001,7 +3001,7 @@ class ResourceCtx implements Resource.Ctx {
     this.random = owned.layer.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    if (this.settled()) raiseDisposed("resource factory already finished");
+    if (this.settled()) raise("Disposed", { reason: "resource factory already finished" });
     this.owned.hooks.push(fn);
     addDefer(this.owned.layer, { fn, owned: this.owned });
   };
@@ -3054,7 +3054,7 @@ class EmptyCtx implements Resource.Ctx {
     this.random = owner.random;
   }
   readonly defer = (): void => {
-    raiseDisposed("resource factory declared no ctx");
+    raise("Disposed", { reason: "resource factory declared no ctx" });
   };
   readonly raise = raiseUnstamped;
   get closing(): AbortSignal {
@@ -3066,7 +3066,7 @@ class EmptyCtx implements Resource.Ctx {
 }
 
 function emptyCtxFor(owner: Layer, chain: readonly Namespace[] | undefined): Resource.Ctx {
-  return chain?.length ? new EmptyCtx(owner, chain) : (owner.empty ??= new EmptyCtx(owner));
+  return chain?.length ? new EmptyCtx(owner, chain) : (owner.ctx ??= new EmptyCtx(owner));
 }
 
 /** Read what an extension's `start` returned: the root layer holds one record per installed
@@ -3094,7 +3094,7 @@ function instanceOf(
       target,
       hooks: [],
       needs: undefined,
-      borrows: undefined,
+      pending: undefined,
       users: 0,
       busy: state.busy,
       end: undefined,
@@ -3134,7 +3134,7 @@ function holdDependency(dependent: ResourceInstance, dependency: ResourceInstanc
 function unlinkInstance(owned: ResourceInstance, end: Scope.End): void {
   if (owned.end) return;
   owned.end = owned.failed ?? end;
-  if (owned.busy || owned.users || owned.borrows?.size) {
+  if (owned.busy || owned.users || owned.pending?.size) {
     owned.done = new Promise<void>((resolve) => (owned.finish = resolve));
     addWork(owned.layer, owned.done);
   }
@@ -3697,7 +3697,7 @@ type HeldBorrows = { list: ResourceInstance[]; done: Promise<void>; settle: () =
 function addBorrow(owned: ResourceInstance, held: HeldBorrows): void {
   if (held.list.includes(owned)) return;
   held.list.push(owned);
-  (owned.borrows ??= new Set()).add(held.done);
+  (owned.pending ??= new Set()).add(held.done);
 }
 
 function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | undefined {
@@ -3706,7 +3706,7 @@ function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | 
 }
 
 function removeBorrow(owned: ResourceInstance, work: Promise<unknown>): void {
-  owned.borrows?.delete(work);
+  owned.pending?.delete(work);
   finishTracked(owned);
 }
 
@@ -3836,7 +3836,7 @@ function layerRecord(
     trace: obs.on ? traceFor(up, options?.trace) : undefined,
     clock,
     random,
-    empty: undefined,
+    ctx: undefined,
     ns: nsFor(up, options),
     exts,
   };
@@ -4736,7 +4736,7 @@ function unlinkNamedState(state: NsResourceState): void {
 }
 
 function isHeld(owned: ResourceInstance): boolean {
-  return owned.users > 0 || owned.busy || !!owned.borrows?.size;
+  return owned.users > 0 || owned.busy || !!owned.pending?.size;
 }
 
 function drainReleasedOwner(
@@ -4744,7 +4744,7 @@ function drainReleasedOwner(
   previous: Promise<void> | undefined,
 ): Promise<void> | undefined {
   let prev = previous;
-  const borrowed = [...entry.instances].flatMap((owned) => [...(owned.borrows ?? [])]);
+  const borrowed = [...entry.instances].flatMap((owned) => [...(owned.pending ?? [])]);
   const gate = borrowed.length ? Promise.allSettled(borrowed).then(() => undefined) : undefined;
   for (const hook of entry.hooks) {
     const owned = hook.owned as ResourceInstance;
@@ -4832,8 +4832,8 @@ function keepData(
   withData: boolean,
 ): Scope.Result {
   const kept = withData ? { ...ended, data: finalData(layer.nodes, layer.ns) } : ended;
-  if (hooks?.phase === "open") {
-    hooks.phase = "held";
+  if (hooks?.state === "open") {
+    hooks.state = "held";
     hooks.moved = withData;
   } else freeData(layer, withData);
   return kept;
@@ -4853,14 +4853,14 @@ function freeData(layer: Layer, moved: boolean): void {
 /** A session's hooks returned (ADR 0069): free the data they could still read, or, when the close
  * has not finished yet, leave it to {@link keepData}. */
 function freeAfterHooks(layer: Layer, hooks: SessionHooks): void {
-  if (hooks.phase === "held") freeData(layer, hooks.moved);
-  hooks.phase = "done";
+  if (hooks.state === "held") freeData(layer, hooks.moved);
+  hooks.state = "done";
 }
 
 /** Strip a node moved into a `Result` down to its `cell` and `cells`, all `data.get` reads.
  * Everything else would pin the closed layer after close: the torn-down resource `owned` (its
  * `layer` and defer closures), `named` and `readers` (owner layers), the
- * memoized `controller` closure over the layer, `watchers` and `nsWatchers` (user closures),
+ * memoized `controller` closure over the layer, `watch` and `nsWatch` (user closures),
  * `users`, the build state (`built`, `ready`, `failed`, `build`), and the cached `eff`
  * and `prev` values (possibly a parent's). A default close's `nodes.clear()` drops it all. */
 function keepCellsOnly(s: NodeState): void {
@@ -4869,19 +4869,19 @@ function keepCellsOnly(s: NodeState): void {
     s.owned =
     s.users =
     s.controller =
-    s.watchers =
+    s.watch =
     s.prev =
     s.named =
     s.readers =
-    s.nsWatchers =
+    s.nsWatch =
       undefined;
 }
 
 /** A read on a closed scope (ADR 0069): while a session's data waits for its `session` hooks, a
  * data cell or a tag reads as it did before the close. Anything else throws `Disposed`. */
 function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
-  if (SESSION_HOOKS.get(layer)?.phase !== "held" || isResource(target) || isExtension(target))
-    raiseDisposed();
+  if (SESSION_HOOKS.get(layer)?.state !== "held" || isResource(target) || isExtension(target))
+    raise("Disposed", { reason: "scope is closed" });
   return resolveNs(layer, target, ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns));
 }
 
@@ -4921,8 +4921,8 @@ function busyRecord(state: NodeState): boolean {
   return (
     state.owned !== undefined ||
     state.named !== undefined ||
-    state.watchers !== undefined ||
-    state.nsWatchers !== undefined
+    state.watch !== undefined ||
+    state.nsWatch !== undefined
   );
 }
 
@@ -5390,7 +5390,7 @@ function wrapSession(
   const nextPromise = new Promise<Scope.Result>((resolveNext) => {
     settleNext = resolveNext;
   });
-  const hooks: SessionHooks = { settle: settleNext, phase: "open", moved: false };
+  const hooks: SessionHooks = { settle: settleNext, state: "open", moved: false };
   SESSION_HOOKS.set(child, hooks);
   const base = withSessionCreate(plain, child, session);
   const outcome = sessionThrough(session, base, child, () =>
@@ -5592,7 +5592,7 @@ async function runSessionWrapped<R>(
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   session: readonly Scope.Extension<unknown>[],
 ): Promise<R> {
-  const hooks: SessionHooks = { settle: undefined, phase: "open", moved: false };
+  const hooks: SessionHooks = { settle: undefined, state: "open", moved: false };
   SESSION_HOOKS.set(child, hooks);
   const handle = withSessionCreate(handleFor(child), child, session);
   let wrapped: { result: unknown; ended: Scope.Result };
@@ -5707,7 +5707,7 @@ const FRAME_STATE = {
   body: undefined,
   closed: false,
   closing: undefined,
-  empty: undefined,
+  ctx: undefined,
 };
 
 Object.assign(TaggedFrame.prototype, FRAME_STATE);
@@ -5809,7 +5809,7 @@ type HookRun = {
 let activeHookOwner: Layer | undefined;
 
 function withHookAccess<T>(run: HookRun, fn: () => T): T {
-  if (!run.live) raiseDisposed("run is finished");
+  if (!run.live) raise("Disposed", { reason: "run is finished" });
   if (run.layer.aborted) throw run.layer.reason;
   const previous = activeHookOwner;
   activeHookOwner = run.layer;
@@ -6017,8 +6017,4 @@ function raiseInvalid(label: string, reason: string): never {
 /** Release and retained close data drop the same build references. */
 function clearBuild(state: ResourceState): void {
   state.built = state.ready = state.failed = state.build = undefined;
-}
-
-function raiseDisposed(reason = "scope is closed"): never {
-  raise("Disposed", { reason });
 }

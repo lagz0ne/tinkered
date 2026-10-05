@@ -27,9 +27,7 @@ export function makeError<N extends Errors.Name>(
   kind: N,
   payload: Errors.Payload<N>,
 ): Errors.Of<N> {
-  const error = new Error(kind) as Errors.Of<N>;
-  Object.assign(error, { kind, payload });
-  return error;
+  return Object.assign(new Error(kind), { kind, payload });
 }
 
 /** The only place core throws a registry error. Its other throws rethrow, or throw a user's kind
