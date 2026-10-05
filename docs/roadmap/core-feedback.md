@@ -808,7 +808,7 @@ Installing `httpRequests` beside an app would register it twice.
 Asked by `trial/services-http`; third caller for card `core/close-hook-scope`.
 
 A graceful close waits for running operations, then runs resource `ctx.defer`.
-So a resource cannot abort its own in-flight work to let that wait end:
+Before ADR 0104, a resource could not abort its own in-flight work before that wait:
 
 ```ts
 const sending = scope.run(httpRequest, { rawInput: held });

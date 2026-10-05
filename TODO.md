@@ -54,15 +54,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/services-closing** — the flight services drop the payment close-hook workaround for `ctx.closing`.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-services-closing`.
-  Next: red test without the payment close hook, then the HTTP resource stops on `ctx.closing`.
-  Verify: zero wire changes; services tests pass; mutation at least 85.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **trial/services-closing** — the flight services stop owned work on `ctx.closing`.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-services-closing`.
+  The payment close hook and HTTP client's `close()` method are gone.
+  Next: lead review.
+  Verify: all gates exit 0; 116 flight tests; mutation 91.96 (floor 85).
+  Wire diff: zero over 2,160 calls and 30 error codes.
+  [Proof](docs/roadmap/flight-trial/services-closing/GATES.json).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

@@ -4,14 +4,16 @@
     "command": "vp test tests/payment.test.ts -t 'a graceful close aborts a webhook while its response body is open'",
     "exit_code": 0,
     "tests": 1,
-    "payment_close_hook": true
+    "payment_close_hook": true,
+    "cwd": "tools/flight-trial"
   },
   "red": {
     "command": "vp test tests/payment.test.ts -t 'a graceful close aborts a webhook while its response body is open'",
     "exit_code": 1,
     "payment_close_hook": false,
     "resource_fix": false,
-    "log": "red.log"
+    "log": "red.log",
+    "cwd": "tools/flight-trial"
   },
   "gates": [
     {
@@ -38,6 +40,19 @@
       "exit_code": 0,
       "test_files": 10,
       "tests_passed": 116
+    },
+    {
+      "command": "flock /tmp/mutation.lock vp run flight-trial#mutate",
+      "exit_code": 0,
+      "floor": 85,
+      "score": 91.96,
+      "covered_score": 93.44,
+      "killed": 1451,
+      "timeout": 173,
+      "survived": 114,
+      "no_coverage": 28,
+      "errors": 0,
+      "printed_row": "All files        |  91.96 |   93.44 |     1451 |       173 |        114 |       28 |        0 |"
     }
   ],
   "original_resources": {
@@ -45,15 +60,46 @@
     "exit_code": 1,
     "log": "red.log",
     "tests_failed": 5,
-    "tests_passed": 1
+    "tests_passed": 1,
+    "cwd": "tools/flight-trial"
   },
   "green": {
     "command": "vp test tests/services-closing.test.ts tests/payment.test.ts -t graceful",
     "exit_code": 0,
-    "tests_passed": 6
+    "tests_passed": 6,
+    "cwd": "tools/flight-trial"
   },
   "style_census": {
     "targets": ["tools/flight-trial/services", "tools/flight-trial/tests"],
     "exit_code": 0
+  },
+  "source_commit": "dcea6fcf4c839db26e81ad3ba09d2e7b936beb0a",
+  "wire": {
+    "command": "node tools/flight-trial/scripts/check-wire.mjs",
+    "exit_code": 0,
+    "base": "880f1c4f",
+    "calls": 2160,
+    "error_codes": 30,
+    "differences": 0,
+    "comparison": "Exact reply bytes, headers except Node wall time, and call logs"
+  },
+  "advisory": {
+    "preflight_exit_code": 0,
+    "file_flags": 0,
+    "unit_notes": 7,
+    "test_exit_code": 0,
+    "test_flags": 0,
+    "promises_exit_code": 0,
+    "existing_promise_gaps": 12,
+    "resolutions": "../PROGRESS.md"
+  },
+  "tested_source_commit": "c888d0b0",
+  "final_rebase": {
+    "origin_main": "454fc13e4689627fed7199d343808622413d4de4",
+    "exit_code": 0,
+    "upstream_changed_files": ["docs/roadmap/flight-trial/PROGRESS.md"],
+    "install_exit_code": 0,
+    "build_exit_code": 0,
+    "source_unchanged": true
   }
 }

@@ -33,7 +33,48 @@ That keeps delayed replies at service-stopped, instead of turning them into HTTP
 Gate proof: [GATES.json](services-closing/GATES.json).
 Build, check, all workspace tests, prose, and 116 flight tests passed with exit 0.
 Style census for services and tests passed.
-Next: finish the wire check and locked mutation, then save for lead review.
+Wire diff: exit 0, zero differences over 2,160 calls and 30 error codes.
+The check compares body bytes, headers, and call logs.
+Only Node's wall-time Date header is normalized, as the existing check requires.
+An earlier run was discarded after an extra call moved one side's test ID stream.
+The clean repeat used no extra HTTP calls.
+Locked mutation: exit 0, score 91.96, above the floor of 85.
+It printed 1,451 killed, 173 timeout, 114 survived, and 28 no coverage.
+Only GATES.json and the red log are committed as proof files.
+The card is saved in Review.
+Next: lead review.
+
+### Advisory review
+
+Jev found no file flags and no test flags.
+The unit notes are false for these reasons:
+
+- `httpRequest`, `configNotTag`: URL, method, headers, and body are request input.
+  They follow ADR 0102; each call can have different values.
+- `clock`, `stateOutsideCell`: the resource owns live waits and virtual time.
+  These are clock state, not service data.
+- `decodeBody`, `inputDefaultMasks`: an empty body has always decoded to an empty object.
+  Hono's route schema then checks required fields.
+  Changing this would change the wire contract.
+- `middleware`, `ignoresAbortAfterAwait`: it checks the joined stop signal before saving calls or replays.
+  Complete replies still drain so their status and body reach the client.
+- `listener`, `stateOutsideCell`: its pending set owns live socket completion promises.
+  These cannot be stored as plain service data.
+- `listener`, `ignoresAbortAfterAwait`: it checks closing after listening starts.
+  Cleanup then joins complete replies and the server's close event.
+- `webhooks`, `stopOnlyInDefer`: deferred cleanup removes the data watcher.
+  Its timer stops through the clock's closing signal before the drain.
+- `inFlight`, `stateOutsideCell` and `stopOnlyInDefer`: the map owns live payment-key promises.
+  Middleware resolves them in `finally`; cleanup only clears the map.
+  It owns no endless IO wait to abort before the drain.
+
+The promise judge found 12 gaps in unchanged tests.
+Those cover protocol inputs, route keys, thrown handlers, and the fetch ban.
+They do not change or test the close fix.
+The new queued-webhook title found the new README promise.
+The judge does not read `test.each` titles; those four checks match that same promise.
+No labels were added under `tools/jev/`, outside this card's allowed paths.
+This card follows the asked gates and only the flight-trial mutation lane.
 
 ## trial/services-http
 
