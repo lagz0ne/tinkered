@@ -42,6 +42,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/size-room** — cut Core bytes with no change in behavior, so new Core cards fit.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-size-room`.
+  Why: Core is at 16,379 of 16,384 B gzip after `core/graceful-writes`.
+  Next: list the biggest safe cuts, then cut; no public API or build-setting change.
+  Verify: size lane shows real room; all tests, validate, and mutation (85) pass;
+  promises 0/5/2; `N=61 bench/queued.sh` shows no scenario "B slower".
+
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
