@@ -4411,3 +4411,12 @@ Services `1be10fb5`; teacher hash `ef01fd5ede14` (unchanged).
 - Lost turns: a scratch Vitest browser-mode test, then deleted.
 
 The card's goal is met: first try, under $1.46.
+
+### DeepSeek trial 3, 2026-10-05
+
+Same trial as the round 1 rerun: `flight-deepseek-03`, runner `8aff9d24`.
+Round 1 passed first try ($0.35, 38 minutes).
+
+- Round 2, try 1 (agent `935319d2`): **pass**, hidden checks 6 of 6.
+  Cost about $0.22, in 13 minutes (trial 2: $0.26, 33 minutes).
+  It ran each test file in its own call, as GUIDELINES now says.
