@@ -56,14 +56,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **core/size-safe** — round 1's code-only cuts: Core 16,084 → 15,683 B gzip (401 B), same behavior.
-  Owner: lead; Opus writer. Worktree: `../tinkered-size-safe`.
-  Next: lead review, then landing with `scripts/ticket.sh`.
-  Proof: public `.d.mts` identical; 854 tests; validate 16 lanes; mutation 85.92.
-  Speed: 13 scenarios at N=61, none B slower; 6 B faster.
-  Dropped: span ids at open (275 B), `opobs` B slower (211 → 955 ns).
-  [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-safe).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -84,6 +76,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-safe** — round 1's code-only cuts: Core 16,084 → 15,683 B gzip (−401 B), same behavior.
+  Owner: lead (Claude, Start scaffold session); Opus writer, Opus review.
+  Cuts: close paths 131 B, hot paths 198 B, surface 66 B, error helpers 6 B.
+  Public `.d.mts` identical; 856 tests; validate green; promises 0/5/2; mutation 85.92.
+  Speed: 13 scenarios at N=61, none B slower; 6 B faster (`taggeddefer` 360 → 237 ns).
+  Dropped: span ids at open (275 B): `opobs` B slower (211 → 955 ns).
+  [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-safe).
 
 - **core/size-room** — Core runtime 16,379 → 16,084 B gzip: 300 B free, no change in behavior.
   Owner: lead (Claude, Start scaffold session); Astra writer (after a Sol outage), Opus review.
