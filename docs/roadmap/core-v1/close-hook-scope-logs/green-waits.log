@@ -1,0 +1,11 @@
+~/packages/core$ vp test -- tests/closing.test.ts ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-close-hook/packages/core
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  00:14:37
+   Duration  612ms (transform 50%, tests 38%, import 11%, worker 1%)
+
+

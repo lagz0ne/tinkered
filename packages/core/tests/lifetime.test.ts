@@ -350,12 +350,12 @@ test("closed waits for close hooks' after-work and keeps core's Result", async (
   await afterStarted.promise;
   expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
   after.release();
-  await closing;
+  expect(await closing).toBe(result);
   expect(await scope.closed).toBe(result);
   expect(result?.status).toBe("cancelled");
 });
 
-test("closed resolves core's Result when a close hook throws after next", async () => {
+test("closed counts a close hook throw after next as a teardown error", async () => {
   const error = new Error("close hook failed");
   const piece = extension({
     label: "throw-after-close",
@@ -368,12 +368,13 @@ test("closed resolves core's Result when a close hook throws after next", async 
   });
   const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
   await scope.ready;
-  await expect(scope.close({ graceful: true })).rejects.toBe(error);
-  expect(await scope.closed).toEqual({ status: "success", teardownErrors: undefined });
+  const ended = await scope.close({ graceful: true });
+  expect(await scope.closed).toBe(ended);
+  expect(ended).toEqual({ status: "success", teardownErrors: [error] });
 });
 
 test.each([false, true])(
-  "closed stays pending when a close hook skips next (throws: %s)",
+  "closed includes cleanup when a close hook skips next (throws: %s)",
   async (throws) => {
     const error = new Error("close refused");
     const piece = extension({
@@ -385,11 +386,30 @@ test.each([false, true])(
         },
       },
     });
-    const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
+    const innerCalls: string[] = [];
+    const inner = extension({
+      label: "inner-close",
+      hooks: {
+        close: (event) => {
+          innerCalls.push("inner");
+          const first = event.next();
+          expect(event.next()).toBe(first);
+          return first;
+        },
+      },
+    });
+    const scope = createScope({ signal: new AbortController().signal, extensions: [piece, inner] });
     await scope.ready;
-    if (throws) await expect(scope.close()).rejects.toBe(error);
-    else await scope.close();
-    expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
+    const cleaned: string[] = [];
+    scope.onClose(() => {
+      cleaned.push("cleanup");
+    });
+    const ended = await scope.close();
+    expect(await scope.closed).toBe(ended);
+    expect(ended.status).toBe("cancelled");
+    expect(ended.teardownErrors).toEqual(throws ? [error] : undefined);
+    expect(cleaned).toEqual(["cleanup"]);
+    expect(innerCalls).toEqual(["inner"]);
   },
 );
 

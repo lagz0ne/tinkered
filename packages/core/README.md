@@ -98,9 +98,12 @@ process.exitCode = exitCode(end);
   It holds core's own Result after the close hooks finish their after-work.
   A hook's returned substitute does not change it.
   Each ordinary `close()` shares that Result; the first call's `withData` wins.
-- A hook that skips `next()` or throws before it leaves `closed` pending.
-  A hook's throw after `next()` still lets `closed` resolve.
-  Hook throws are not yet in the Result; `core/close-hook-scope` owns that change.
+- Root close hooks run once, even across repeated close calls.
+  Skipping `next()` still runs inner hooks and resource cleanup.
+  Repeating `next()` joins its first call.
+  A hook cannot replace Core's Result.
+  A hook's throw is a teardown error in both `close()` and `closed`.
+  Both wait for every close hook's after-work.
 
 The exit-code choice stays outside core.
 Stack uses 1 for a failed Result or any teardown error, and 0 otherwise.
@@ -173,7 +176,7 @@ const audit = extension({
 - `run`: `op`, the original `call`, `next()`.
 - `write`: `cell`, `value`, `next()`.
 - `resolve`: `target`, `next()`.
-- `close`: `options`, `next()` returns the close result.
+- `close`: `scope`, `options`, `next()` returns the close result.
 - `session`: `handle`, `next()` returns the session result.
 
 Every event has `resolve`, `controller`, `run`, and `settle`.
@@ -181,7 +184,7 @@ They use the hook's actual owner and effective `ns` chain.
 They also accept an explicit namespace, as the scope verbs do.
 Run hooks share the run's trace, cancellation, and `defer` cleanup.
 Other hooks defer cleanup to their session; start and close use the root.
-All events also have `signal`, `obs`, `log`, `clock`, `random`, and `raise`.
+All events also have `closing`, `signal`, `obs`, `log`, `clock`, `random`, and `raise`.
 A namespace chain selects buckets in that owner; it does not find a sibling session.
 
 `Scope.ExtensionEvent` is the union of these event shapes.
@@ -384,6 +387,37 @@ before starting more work. When forwarding cancellation to a separate `AbortCont
 check `ctx.signal.aborted` first: abort it immediately if true; otherwise add the abort
 listener. A listener added after abort will not fire. For lazy work, check again at the
 point that actually starts it.
+
+## Closing signal
+
+Resources read `ctx.closing`; extension hooks read `event.closing`.
+It is an `AbortSignal` that fires when the owner begins closing.
+It fires on graceful and forced close, before Core drains running work.
+A parent's closing also fires in its child sessions.
+Closing one session leaves its parent and siblings live.
+Each owner keeps the same signal, created on first read.
+A first read after closing began returns an aborted signal.
+An owner that never reads it creates no signal or controller.
+
+A resource can end a wait it owns without blocking graceful close:
+
+```ts
+factory: (_deps, { closing, defer }) => {
+  const endWait = () => request.abort();
+  if (closing.aborted) endWait();
+  else closing.addEventListener("abort", endWait);
+  defer(() => {
+    closing.removeEventListener("abort", endWait);
+    pool.close();
+  });
+  return request;
+},
+```
+
+Running work still finishes during a graceful close.
+`ctx.signal` keeps its work-cancellation timing.
+`ctx.defer` still runs after the drain.
+The close event's `scope` is the root handle whose close it observes.
 
 ## Closing and cell writes
 

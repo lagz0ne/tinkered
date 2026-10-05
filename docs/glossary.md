@@ -42,6 +42,9 @@
 - **onClose** — Userland teardown hook registered from outside on a scope/session handle; it is a `defer`, interleaved in the same reverse-registration LIFO as resource-internal defers.
 - **close / shutdown** — `close(opts?: { graceful?: boolean })` shuts a scope down and resolves a `Result` (never throws, ADR 0027). A MODE, not a wished outcome (ADR 0028): FORCED (default) aborts `ctx.signal` and rolls resources back (`cancelled`); GRACEFUL lets in-flight work finish and commits (`success`).
 - **outcome** — A layer's settled state, decided by REALITY, not a wish (ADR 0028): `failed` (its body threw, an owned-work op rejected, or a descendant really failed — bubbled up) > `cancelled` (its work was interrupted / a forced shutdown) > `success`. Reported in the close `Result`; a `defer` sees it as `end.status`.
+- **closing signal** — The owner's `ctx.closing` or `event.closing` signal.
+  It fires when that layer or its parent begins graceful or forced close.
+  It tells a resource to end waits before Core drains running work (ADR 0104).
 - **cancel reason** — What a forced close aborts `ctx.signal` with, and what a `cancelled` Result carries. It reads like the web's `AbortError`: `String(reason)` is `"AbortError: The scope closed before this work finished."`. A hidden brand tells it from a foreign `AbortError`, which counts as a failure.
 - **owner-context** — A node resolves deps and registers cleanup at its owning layer and bubbles up from there; a scope resource needing a session-only required tag is a normal `MissingTag`.
 - **brand** — A module-private `unique symbol` a factory stamps on a unit; never exported, so it can't be named/imported outside. A provenance signal (not tamper-proof); guards assert only its presence (ADR 0019).

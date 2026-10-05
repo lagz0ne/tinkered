@@ -568,3 +568,39 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   Each test releases its wait in `finally` so no work is left behind.
   Saved logs: `close-hook-scope-logs/red-root.log` and
   `close-hook-scope-logs/red-session.log` beside this file.
+- **Implementation:** `closing` is a prototype getter on resource and hook contexts.
+  Each layer stores its controller and linked signal only on first read.
+  Parent links use `AbortSignal.any`; close never walks unread layers for signals.
+  The first root close is retained before signals fire or hooks run.
+  Hooks keep their before/after order; skipping `next()` cannot skip inner cleanup.
+  Hook throws join the final teardown errors; hook return values cannot replace it.
+- **Caller impact:** Core, React, Blueprint, Flight Trial, Start Scaffold,
+  Playground, Website, and the Core and React examples.
+  The new fields add no required call argument.
+  Existing close-hook consumers keep their order and receive Core's actual Result.
+  No consumer source changed.
+- **Green step:** build, check, and 809 Core tests returned 0.
+  Check has the base's 28 warnings and no errors.
+  The focused closing and lifetime log is saved beside the red logs.
+- **Budget proof:** all 16 validate lanes returned 0.
+  The 16,384-byte size cap is unchanged.
+  The runtime grew from 16,156 to 16,342 bytes before the last trim.
+  This is code size growth, not a raised cap; no claim of equal byte counts.
+  Promise counts remain sync 0, async 5, tagged 2.
+- **Style:** new and changed tests pass strict census.
+  Changed source has the same old S10 and S14 hits as the supplied base.
+  Whole-Core strict hits also include old test debt.
+  No new strict hit was added.
+- **Ticket assumption:** its recursive mutation call defaults to four tasks at once.
+  A shell function adds `--concurrency-limit 1` to that call only.
+  The script is unchanged and still runs every mutation lane.
+  The whole ticket script runs under `/tmp/mutation.lock`.
+  Core also runs alone under that lock, with the unchanged floor of 85.
+- **Core feedback:** no new missing feature beyond this card.
+  The failing caller shape is now green:
+
+  ```ts
+  const sending = scope.run(waitAtRoot);
+  await scope.close({ graceful: true });
+  await sending;
+  ```

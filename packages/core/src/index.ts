@@ -245,7 +245,8 @@ export declare namespace Operation {
 
 export declare namespace Resource {
   /** The receiver a resource factory builds through: `defer` registers one end-hook (commit/roll
-   * back/release when the owner settles or the resource is released); `signal` aborts on close. */
+   * back/release when the owner settles or the resource is released); `signal` cancels work on
+   * forced close, while `closing` ends resource-owned waits before graceful drain. */
   export type Ctx = {
     readonly label: string;
     /** The namespace chain used for this build's dependencies; absent for the default bucket. */
@@ -253,6 +254,9 @@ export declare namespace Resource {
     readonly raise: <K extends string, P extends object>(kind: K, payload: P) => never;
     readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
     readonly signal: AbortSignal;
+    /** Aborts when this layer or its parent begins closing, before graceful work drains.
+     * Created on first read; unlike `signal`, it also fires on a graceful close (ADR 0104). */
+    readonly closing: AbortSignal;
     readonly obs: Observe.Ctx;
     readonly log: Observe.Logger;
     readonly clock: Clock.Handle;
@@ -532,6 +536,8 @@ export declare namespace Scope {
     };
     close: {
       readonly kind: "close";
+      /** The root whose close this hook observes. */
+      readonly scope: Handle;
       readonly options: CloseOptions;
       readonly next: () => Promise<Result>;
     };
@@ -550,6 +556,8 @@ export declare namespace Scope {
     resolve?(event: ExtensionEvents["resolve"]): unknown;
     run?(event: ExtensionEvents["run"]): unknown;
     write?(event: ExtensionEvents["write"]): void;
+    /** Observes the root's one close. Skipping `next` cannot skip cleanup; returns cannot
+     * replace Core's Result, and throws become teardown errors (ADR 0085). */
     close?(event: ExtensionEvents["close"]): Promise<Result>;
     session?(event: ExtensionEvents["session"]): Promise<Result>;
   };
@@ -562,7 +570,7 @@ export declare namespace Scope {
    * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists,
    * before any work in it; code after runs after the close settled. `next()` is an observation
    * point, not a gate: the session runs and closes regardless of whether a hook calls it. Each
-   * level's return is that level's result, like `close` (the onion may transform it). Root-only in v1: installed on
+   * level's return is that level's session result. Root-only in v1: installed on
    * the root, applies to every session created under that root, including a session created under
    * a session. A hook that does not call `next()` is an observer only: the session's own close
    * still runs regardless (`next()` is the observation point, not a gate). Hooks must not throw:
@@ -633,7 +641,7 @@ export declare namespace Scope {
   };
 
   /** What `close()` resolves to — the ACTUAL settled state, never a thrown error (ADR 0027/0028).
-   * `teardownErrors` (defer/cleanup throws, in execution order) may accompany any status. `data`
+   * `teardownErrors` (cleanup throws in execution order, plus close-hook throws) may accompany any status. `data`
    * is present on every status only when the close asked `withData` (ADR 0069). */
   export type Result =
     | {
@@ -1180,6 +1188,11 @@ type Layer = {
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
+  /** Root hooks may start before structural close marks the layer closed. */
+  closeStarted?: true;
+  /** Created only by the first closing read, including the parent's linked signal. */
+  closingAbort?: AbortController;
+  closingSignal?: AbortSignal;
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
   trace: Observe.Trace | undefined;
@@ -2988,6 +3001,9 @@ class ResourceCtx implements Resource.Ctx {
   get raise(): Resource.Ctx["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
   }
+  get closing(): AbortSignal {
+    return closingOf(this.owner);
+  }
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
@@ -3028,6 +3044,9 @@ class EmptyCtx implements Resource.Ctx {
     raise("Disposed", { reason: "resource factory declared no ctx" });
   };
   readonly raise = raiseUnstamped;
+  get closing(): AbortSignal {
+    return closingOf(this.owner);
+  }
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
@@ -3991,6 +4010,7 @@ function fastClose(
   layer.closing = Promise.resolve(
     hooks === undefined && !withData ? ended : keepData(layer, ended, hooks, withData),
   );
+  beginClosing(layer);
   return layer.closing;
 }
 
@@ -4055,6 +4075,7 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
       return tapSessionHooks(hooks, fastClose(layer, force, hooks, withData));
     layer.closed = true;
     layer.closing = startClose(layer, force, hooks, withData);
+    beginClosing(layer);
   }
   /** A `close()` re-entered from within this layer's (or an ancestor's) own teardown is a request-only
    * acknowledgement: return an already-resolved best-effort `Result` so it never waits on itself (no
@@ -4274,6 +4295,7 @@ function endInPlace(layer: Layer): void {
   layer.closed = true;
   layer.aborted = true;
   layer.closing = ENDED_CLEAN;
+  beginClosing(layer);
   finishLayer(layer, false);
 }
 
@@ -5108,26 +5130,58 @@ function recover(layer: Layer, error: unknown): void {
   layer.panics = left.length === 0 ? undefined : left;
 }
 
-/** Wrap the structural close in the extensions' `close` onion (ADR 0050): first registered is
- * outermost; extensions without a `close` hook are skipped when the chain is built. */
+/** Link signals from ancestors first, without recursion or storage on unread layers. */
+function closingOf(layer: Layer): AbortSignal {
+  materialize(layer);
+  const ancestors: Layer[] = [];
+  let owner: Layer | undefined = layer;
+  while (owner !== undefined && owner.closingSignal === undefined) {
+    ancestors.push(owner);
+    owner = owner.parent;
+  }
+  let signal = owner?.closingSignal;
+  for (const owner of ancestors.reverse()) {
+    const controller = (owner.closingAbort = new AbortController());
+    owner.closingSignal = signal =
+      signal === undefined ? controller.signal : AbortSignal.any([controller.signal, signal]);
+    if (owner.closed || owner.closeStarted) controller.abort();
+  }
+  return layer.closingSignal!;
+}
+
+/** Parent-linked signals propagate without walking layers that never asked for one. */
+function beginClosing(layer: Layer): void {
+  layer.closingAbort?.abort();
+}
+
+/** Close hooks keep onion order, but cannot skip inner cleanup or replace Core's Result.
+ * Each continuation runs once; throws join teardown errors after all after-work (ADR 0085). */
 function closeThrough(
   layer: Layer,
+  scope: Scope.Handle,
   closers: readonly Scope.Extension<unknown>[],
 ): (opts?: Scope.CloseOptions) => Promise<Scope.Result> {
-  let closing: Promise<Scope.Result> | undefined;
-  return (options: Scope.CloseOptions = {}): Promise<Scope.Result> => {
-    const close = (): Promise<Scope.Result> =>
-      closeLayer(layer, !options.graceful, options.withData === true);
-    if (closeWouldReenter(layer)) return close();
-    if (closing !== undefined) return closing;
-    if (layer.closing !== undefined) return close();
-    const at = (index: number): Promise<Scope.Result> => {
-      if (index >= closers.length) return close();
+  return async (options: Scope.CloseOptions = {}): Promise<Scope.Result> => {
+    const errors: unknown[] = [];
+    const at = async (index: number): Promise<Scope.Result> => {
+      if (index >= closers.length)
+        return closeLayer(layer, !options.graceful, options.withData === true);
       const closer = closers[index];
-      const next = (): Promise<Scope.Result> => at(index + 1);
-      return closer.hooks!.close!(hookEvent({ kind: "close", options, next }, layer, closer.label));
+      let pending: Promise<Scope.Result> | undefined;
+      const next = (): Promise<Scope.Result> => (pending ??= at(index + 1));
+      try {
+        await closer.hooks!.close!(
+          hookEvent({ kind: "close", scope, options, next }, layer, closer.label),
+        );
+      } catch (error) {
+        errors.push(error);
+      }
+      return next();
     };
-    return (closing = at(0));
+    const ended = await at(0);
+    return errors.length
+      ? { ...ended, teardownErrors: [...(ended.teardownErrors ?? []), ...errors] }
+      : ended;
   };
 }
 
@@ -5358,6 +5412,9 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   get raise(): Resource.Ctx["raise"] {
     return (this.raiser ??= (kind, payload) => raiseFrom(this.ctx ?? this, kind, payload));
   }
+  get closing(): AbortSignal {
+    return closingOf(this.owner);
+  }
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
@@ -5446,13 +5503,15 @@ function extendHandle(
   const extended: Scope.Handle = {
     ...plain,
     ...(closed === undefined ? {} : { closed }),
-    close: watchRootClose(
-      layer,
-      closers.length === 0 ? (options) => plain.close(options) : closeThrough(layer, closers),
-      lifetime,
-    ),
     ready,
   };
+  extended.close = watchRootClose(
+    layer,
+    closers.length === 0
+      ? (options) => plain.close(options)
+      : closeThrough(layer, extended, closers),
+    lifetime,
+  );
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
   if (sessions !== undefined)
     extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, sessions);
@@ -5480,8 +5539,8 @@ type RootLifetime = {
   unlisten?: () => void;
 };
 
-/** Hook returns and throws keep their existing meaning for `close()`. Only the real close's
- * Result reaches `closed`, after the first chain's after-work, even when a hook throws. */
+/** Retain the first close before dispatching signals or invoking user hooks. Re-entry during
+ * cleanup gets Core's request acknowledgement; all other closes join the complete hook chain. */
 function watchRootClose(
   layer: Layer,
   close: Scope.Handle["close"],
@@ -5489,15 +5548,23 @@ function watchRootClose(
 ): Scope.Handle["close"] {
   return (options) => {
     lifetime.unlisten?.();
-    if (lifetime.closing !== undefined) return close(options);
-    return (lifetime.closing = (async () => {
-      try {
-        return await close(options);
-      } finally {
-        if (lifetime.finish !== undefined && layer.closing !== undefined)
-          lifetime.finish(await layer.closing);
-      }
-    })());
+    if (closeWouldReenter(layer))
+      return closeLayer(layer, !options?.graceful, options?.withData === true);
+    if (lifetime.closing !== undefined) return lifetime.closing;
+    let finish: (ended: Scope.Result) => void = noop;
+    lifetime.closing = new Promise((resolve) => {
+      finish = resolve;
+    });
+    layer.closeStarted = true;
+    markSwept(layer);
+    beginClosing(layer);
+    ignoreRejection(
+      close(options).then((ended) => {
+        lifetime.finish?.(ended);
+        finish(ended);
+      }),
+    );
+    return lifetime.closing;
   };
 }
 
