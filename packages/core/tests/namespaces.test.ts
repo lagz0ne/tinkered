@@ -989,3 +989,20 @@ test("ambient namespace survives child, tagged subflow, inline run, and imperati
   expect(await child.run(parent)).toEqual({ tenant: "A", marker: true, cell: 1 });
   await scope.close();
 });
+
+test("tag.all skips other tags bound on the same layer", () => {
+  const zone = tag<string>({ label: "zone" });
+  const other = tag<string>({ label: "other" });
+  const scope = createScope({ tags: [zone("a"), other("b"), zone("c")] });
+  expect(scope.resolve(zone.all)).toEqual(["c", "a"]);
+  return scope.close();
+});
+
+test("tag.all skips other tags bound on the same namespace", () => {
+  const zone = tag<string>({ label: "zone" });
+  const other = tag<string>({ label: "other" });
+  const far = namespace({ tags: [zone("a"), other("b"), zone("c")] });
+  const scope = createScope();
+  expect(scope.resolve(zone.all, { ns: far })).toEqual(["c", "a"]);
+  return scope.close();
+});

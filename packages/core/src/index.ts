@@ -1217,9 +1217,9 @@ const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
  * when the session is made, so `closeLayer` finds it with the one lookup it already made for the
  * `next()` settler. `settle` is a wrapped bare session's `next()` resolver: `closeLayer` settles it
  * when the layer's close resolves, so a session felled by its parent's cascade settles its hooks
- * like an explicit close; it is cleared at settle. `state` holds the data for the hooks: `open`
- * until the close finishes, `held` while its data waits for the hooks to return (data cell and tag
- * reads still work), `done` once they returned. `moved` says the held store went into a `Result`
+ * like an explicit close; it is cleared at settle. `state` holds the data for the hooks: 0 (open)
+ * until the close finishes, 1 (held) while its data waits for the hooks to return (data cell and tag
+ * reads still work), 2 (done) once they returned. `moved` says the held store went into a `Result`
  * (`withData`). A never-closed layer's entry dies with the layer. */
 type SessionHooks = {
   settle: ((ended: Scope.Result) => void) | undefined;
