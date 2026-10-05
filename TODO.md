@@ -29,11 +29,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: give that poll a longer wait; seen twice in full runs.
   Verify: the test passes 10 runs in a row next to a full `vp run -r test`.
 
-- **start/http-closing** — the scaffold `http` resource aborts its in-flight sends on `ctx.closing`.
-  Removes the limit: a direct graceful close with no stop signal still waits.
-  Next: brief a Sol writer for `apps/start-scaffold` (ADR 0104).
-  Verify: a graceful close with a hung backend settles; scaffold tests and `check:plain` pass.
-
 - **trial/services-closing** — the flight services drop the payment close-hook workaround for `ctx.closing`.
   Next: brief a Sol writer for `tools/flight-trial` (ADR 0104).
   Verify: zero wire changes; services tests pass; mutation at least 85.
@@ -62,6 +57,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **start/http-closing** — the scaffold `http` resource aborts its in-flight sends on `ctx.closing`.
+  Removes the limit: a direct graceful close with no stop signal still waits.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-http-closing`.
+  Next: red test for a direct graceful close with a hung backend, then `ctx.closing`.
+  Verify: a graceful close with a hung backend settles; scaffold tests and `check:plain` pass.
+
+- **trial/deepseek-03** — rounds 2 to 5 on the round-lessons image, for a full-trial cost.
+  Owner: lead (Claude, Start scaffold session).
+  Trial `flight-deepseek-03`; graded from `../tinkered-trial-runner-03` (pinned `8aff9d24`).
+  Next: round 2 running; same retry loop (up to 3 tries a round).
+  Verify: tries and cost next to trial 1 ($1.96, 7 tries) and trial 2 ($2.87, 6 tries).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
