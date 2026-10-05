@@ -1175,7 +1175,7 @@ type Layer = {
   holds: number;
   /** Cancel state, decoupled from the signal so a forced close needn't dispatch abort events when no
    * factory ever asked for `ctx.signal`. `abort` (the real AbortController) is materialized lazily by
-   * {@link signalOf} on first `ctx.signal` read, and kept in sync with `aborted`/`abortReason`. */
+   * {@link signalOf} on first `ctx.signal` read, and kept in sync with `aborted`/`reason`. */
   aborted: boolean;
   reason: unknown;
   abort: AbortController | undefined;
@@ -1183,7 +1183,7 @@ type Layer = {
   swept: boolean;
   bodyEnd: Promise<Scope.Outcome> | undefined;
   failed: { cause: unknown } | undefined;
-  /** Panics stuck to this layer before any recorded `failure`, in failure order; a `settle` that
+  /** Panics stuck to this layer before any recorded `failed`, in failure order; a `settle` that
    * receives one takes it back (ADR 0067). Absent until the first panic. A subflow under a run hook
    * sticks its panic twice (the hook's promise and the run's own); `recover` drops every copy. */
   panics?: unknown[];
@@ -2184,7 +2184,7 @@ function stick(layer: Layer, error: unknown): void {
   (layer.panics ??= []).push(error);
 }
 
-/** A layer's first real failure: a stuck panic, when there is one, came before any `failure`.
+/** A layer's first real failure: a stuck panic, when there is one, came before any `failed`.
  * Indexed, not destructured: array destructuring runs the iterator protocol, which made this
  * hot check too big for V8 to inline into close. */
 function failureOf(layer: Layer): { cause: unknown } | undefined {
@@ -3900,7 +3900,7 @@ const READY: Promise<void> = Promise.resolve();
 const RELEASED: Scope.End = { status: "released" };
 
 /** Drain a layer's `defer`s in reverse registration order (LIFO, ADR 0026), awaiting each before the
- * next, passing the settled `end`; teardown failures collect in `layer.secondary` in execution order
+ * next, passing the settled `end`; teardown failures collect in `layer.errors` in execution order
  * (→ `TeardownFailed`). The teardown guard spans the synchronous call so a callback that synchronously
  * re-enters `close()` is acked (Q3 no-hang). */
 async function finishCloseInstance(entry: DeferEntry): Promise<void> {
@@ -3946,7 +3946,7 @@ function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promi
 function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Outcome {
   if (body?.status === "failed") {
     /** A body failure is the PRIMARY cause and outranks a caught/recorded owned-work failure, so it
-     * OVERRIDES `layer.failure` (which `asPrimary` may already have set from the op) — otherwise a
+     * OVERRIDES `layer.failed` (which `asPrimary` may already have set from the op) — otherwise a
      * collecting ancestor would push up the owned-work error while this layer reports the body error. */
     layer.failed = { cause: body.error };
     return body;
@@ -5184,7 +5184,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   declare private resolver: Scope.Handle["resolve"] | undefined;
   declare private control: Scope.Handle["controller"] | undefined;
   declare private runner: Scope.Handle["run"] | undefined;
-  declare private settled: Scope.Handle["settle"] | undefined;
+  declare private settles: Scope.Handle["settle"] | undefined;
   declare private clean: Resource.Ctx["defer"] | undefined;
   declare private raiser: Resource.Ctx["raise"] | undefined;
   declare private logs: Observe.Logger | undefined;
@@ -5322,7 +5322,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     ): unknown => this.invoke(op, call, this.ctx)) as Scope.Handle["run"]);
   }
   get settle(): Scope.Handle["settle"] {
-    return (this.settled ??= ((
+    return (this.settles ??= ((
       op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
       call?: Scope.Invocation<unknown>,
     ): unknown =>
