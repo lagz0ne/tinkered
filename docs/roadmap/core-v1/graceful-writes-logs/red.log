@@ -31,3 +31,9 @@ AssertionError: expected Error: Disposed { …(2) } to be Error: watch failed //
 +   "kind": "Disposed",
  FAIL  tests/graceful-writes.test.ts > closing refuses new calls before a waiting root close hook resumes
       Tests  6 failed | 2 passed (8)
+
+Closing-signal regression check on 7299fbf8:
+Command: vp run core#test -- graceful-writes.test.ts
+Exit: 1; 1 failed, 8 passed (9).
+FAIL: a first closing read during graceful root drain is already aborted
+Expected true; received false.

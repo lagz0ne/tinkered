@@ -5150,7 +5150,7 @@ function closingOf(layer: Layer): AbortSignal {
   for (let owner: Layer | undefined = layer; owner !== undefined; owner = owner.parent) {
     signals.push((owner.closeAbort ??= new AbortController()).signal);
   }
-  if (layer.closed || layer.swept) layer.closeAbort!.abort();
+  if (layer.closed || layer.closing || layer.swept) layer.closeAbort!.abort();
   return (layer.closeSignal = AbortSignal.any(signals));
 }
 

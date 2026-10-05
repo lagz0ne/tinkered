@@ -215,3 +215,17 @@ test("closing refuses new calls before a waiting root close hook resumes", async
   finish.resolve();
   expect((await closing).status).toBe("success");
 });
+
+test("a first closing read during graceful root drain is already aborted", async () => {
+  const finish = gate();
+  const capture = resource({ label: "late closing", factory: (_deps, ctx) => ctx });
+  const root = createScope();
+  const ctx = root.resolve(capture);
+  const running = root.run({ run: () => finish.promise });
+  const closing = root.close({ graceful: true });
+  const aborted = ctx.closing.aborted;
+  finish.resolve();
+  await running;
+  await closing;
+  expect(aborted).toBe(true);
+});

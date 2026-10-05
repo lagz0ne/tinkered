@@ -861,12 +861,13 @@ Forced close still seals writes and aborts work.
 A real write failure still reaches the root's close result.
 The write path adds no check, lookup, or promise.
 
-Eight tests cover the write bug and close rules.
-Six fail on main; all eight pass with the fix.
-Core has 822 passing tests.
+Nine tests cover the write bug and close rules.
+Six fail on main; all nine pass with the fix.
+Core has 823 passing tests.
 All 16 validate lanes pass.
-Runtime size is 16,315 bytes gzip; main is 16,257.
+Runtime size is 16,318 bytes gzip; main is 16,257.
 Promises match main: sync 0, async 5, tagged 2.
+The first closing read during graceful drain also stays aborted.
 The full test retry passes.
 Its first supplier timeout also fails on main.
 The four full-file style hits match main.

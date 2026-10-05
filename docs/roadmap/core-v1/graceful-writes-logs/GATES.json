@@ -46,20 +46,36 @@
     "check": {
       "command": "vp check",
       "exit": 0,
-      "summary": ["Found 0 errors and 28 warnings in 511 files (5.3s, 8 threads)"]
+      "summary": ["Found 0 errors and 28 warnings in 511 files (5.1s, 8 threads)"]
     },
     "core_test": {
       "command": "vp run core#test",
       "exit": 0,
-      "summary": ["Test Files  39 passed (39)", "Tests  822 passed (822)"]
+      "summary": ["Test Files  39 passed (39)", "Tests  823 passed (823)"]
     },
     "all_test": {
       "command": "vp run -r test",
       "exit": 0,
       "summary": [
-        "Retry passed all test tasks; first attempt hit the supplier poll timeout also seen on main."
-      ],
-      "first_exit": 1
+        "\u25b6 S26 malformed TSDoc",
+        "\u2714 S26 malformed TSDoc (12.461242ms)",
+        "Test Files  39 passed (39)",
+        "Tests  823 passed (823)",
+        "Test Files  1 passed (1)",
+        "Tests  4 passed (4)",
+        "Test Files  8 passed (8)",
+        "Tests  118 passed | 1 skipped (119)",
+        "Test Files  21 passed (21)",
+        "Tests  87 passed (87)",
+        "Test Files  1 passed (1)",
+        "Tests  1 passed (1)",
+        "Test Files  8 passed (8)",
+        "Tests  64 passed (64)",
+        "Test Files  10 passed (10)",
+        "Tests  120 passed (120)",
+        "Test Files  12 passed (12)",
+        "Tests  75 passed (75)"
+      ]
     },
     "validate": {
       "command": "pnpm validate",
@@ -69,7 +85,7 @@
     "size": {
       "command": "node scripts/check-core-entries.mjs",
       "exit": 0,
-      "summary": ["core runtime size: 16315 B gzip (cap 16384 B; all runtime files)"]
+      "summary": ["core runtime size: 16318 B gzip (cap 16384 B; all runtime files)"]
     },
     "promises": {
       "command": "node --experimental-strip-types bench/promises.mjs",
@@ -98,15 +114,137 @@
     "tsdoc": {
       "command": "node tools/jev/docs.mjs packages/core/src/index.ts packages/core/tests/graceful-writes.test.ts",
       "exit": 0,
-      "summary": ["0 S26 rows"]
+      "summary": [
+        "jev docs: 2 file(s), 0 S26 row(s).",
+        "S26 by folder: {}",
+        "Advisory only \u2014 an S26 row is a doc to fix. Whether a doc says what code cannot is the reviewer's call (rule 10)."
+      ]
     }
   },
   "result": {
-    "runtime_gzip_bytes": 16315,
+    "runtime_gzip_bytes": 16318,
     "promises": {
       "sync": 0,
       "async": 5,
       "tagged": 2
     }
+  },
+  "tested_main": "fba1be939db40e30fbefec3d5aab217fac0712ac",
+  "closing_regression": {
+    "base": "7299fbf8",
+    "command": "vp run core#test -- graceful-writes.test.ts",
+    "exit": 1,
+    "failed": 1,
+    "passed": 8,
+    "log": "red.log"
+  },
+  "history": {
+    "all_test_first_exit": 1,
+    "mutation_interrupted_exit": 143,
+    "why": "The final closing-signal regression changed source; mutation testing restarted."
+  },
+  "advisory": {
+    "preflight": {
+      "exit": 0,
+      "file_flags": 0,
+      "unit_flags": 70,
+      "false_labels": 75,
+      "why": {
+        "stateOutsideCell": "Core owns layer, run, and resource state. Graph data cells would call back into this same engine.",
+        "effectWithoutDefer": "Core owns watcher and signal cleanup; it stores the disposer or clears the owner during teardown.",
+        "handRolledLifetime": "Core is the lifetime engine. Its own joins and teardown are the implementation of scope ownership."
+      },
+      "targets": {
+        "stateOutsideCell": [
+          "signalOf",
+          "makeObs",
+          "closeSpan",
+          "stick",
+          "track",
+          "addWork",
+          "exitTeardown",
+          "endTaggedFrame",
+          "runTaggedFrame",
+          "buildDeps",
+          "buildPlainDeps",
+          "resolveExtension",
+          "instanceOf",
+          "holdDependency",
+          "unlinkInstance",
+          "drainReady",
+          "completeInstance",
+          "finishHook",
+          "finishInstance",
+          "settleResourceInstance",
+          "buildHooklessResource",
+          "buildTrackedResource",
+          "finishAsyncBuild",
+          "ownNsResource",
+          "linkNsResourceDependent",
+          "linkNsDataDependent",
+          "detachNsDependencies",
+          "detachNsLinked",
+          "addBorrow",
+          "makeLayer",
+          "layerRecord",
+          "markSwept",
+          "markAborted",
+          "settleOutcome",
+          "canFastClose",
+          "fastClose",
+          "canEndIdle",
+          "closeLayer",
+          "prepareTeardown",
+          "closeInstances",
+          "startClose",
+          "runSessionWith",
+          "endInPlace",
+          "settleSessionWith",
+          "invalidateResource",
+          "unlinkNamedState",
+          "orderReleased",
+          "freeAfterHooks",
+          "recover",
+          "closingOf",
+          "runStartChain",
+          "wrapSession",
+          "extendHandle",
+          "watchRootClose",
+          "listenForStop",
+          "runSessionWrapped",
+          "reentersTeardown",
+          "addError",
+          "expandFrame",
+          "propagateSweptOutcome",
+          "withHookAccess",
+          "hookCanRead",
+          "runHookBody",
+          "failHookRun",
+          "finishHookRun",
+          "createBorrows"
+        ],
+        "effectWithoutDefer": [
+          "addWatcher",
+          "addWatcherNs",
+          "wrapSession",
+          "extendHandle",
+          "watchRootClose",
+          "listenForStop"
+        ],
+        "handRolledLifetime": ["finishHook", "finishInstance", "drainReleased"]
+      }
+    },
+    "tests": {
+      "exit": 0,
+      "unchanged_notes": 7,
+      "changed_test_notes": 0
+    },
+    "promises": {
+      "exit": 0,
+      "unchanged_gaps": 41,
+      "changed_gaps": 0,
+      "new_closing_test_promise": "A first read after closing began returns an aborted signal."
+    },
+    "scope": "The unchanged label tool ran from /tmp/gw-label-tools. Labels are kept here because tools/jev changes are outside the allowed paths. Old test notes and README gaps are outside this card."
   }
 }
