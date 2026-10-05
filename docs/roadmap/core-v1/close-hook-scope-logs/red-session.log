@@ -1,0 +1,38 @@
+~/packages/core$ vp test -- tests/closing.test.ts -t 'a graceful session close' ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-close-hook/packages/core
+
+ ❯ tests/closing.test.ts (2 tests | 1 failed | 1 skipped) 1026ms
+   × a graceful session close ends a resource-owned wait before draining work 1024ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/closing.test.ts > a graceful session close ends a resource-owned wait before draining work
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/closing.test.ts:55:36
+     53|   });
+     54|   try {
+     55|     await expect.poll(() => ended).toBe(true);
+       |                                    ^
+     56|     expect((await closing).status).toBe("success");
+     57|   } finally {
+
+Caused by: Error: Matcher did not succeed in time.
+ ❯ tests/closing.test.ts:55:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 skipped (2)
+   Start at  00:12:51
+   Duration  1.38s (tests 86%, transform 12%, import 2%)
+
+
