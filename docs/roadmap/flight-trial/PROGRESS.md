@@ -4026,3 +4026,8 @@ The retry rule is the same: one teacher note a try, up to 3 tries a round.
   That made an import loop, so `httpRequest` was undefined at start.
   DeepSeek used `@/scaffold/backend/http`, as GUIDELINES says.
   Fix the skill text after this trial.
+- Round 3, try 1 (agent `fbeaf7eb`): **pass**, hidden checks 10 of 10.
+  Cost about $0.41.
+  Jev blocked one dropped run failure (S22); DeepSeek fixed it with `settle`.
+  Its last-seat race test runs a small local supplier,
+  because only the teacher may set real stock.
