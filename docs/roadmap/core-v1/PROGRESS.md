@@ -547,8 +547,8 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 ## core/close-hook-scope — ADR 0104
 
 - **Owner:** core/close-hook-scope writer.
-- **State:** Doing.
-- **Next:** finish the fresh gates and save the final mutation proof.
+- **State:** Review.
+- **Next:** lead reviews the saved code and proof; writer does not push.
 - **Verify:** build, check, Core and consumer tests, ticket script,
   all validate lanes, and Core mutation alone at floor 85.
 - **Assumptions:** the supplied checkout is installed at `addce061`.
@@ -715,3 +715,61 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 - The ticket script is running under the same lock.
   Its recursive mutation call uses one package at a time.
   Its final exit and each lane's score will be recorded after it finishes.
+
+### Final gate receipt
+
+- Build returned 0: `/tmp/close-hook-build-final.log`.
+- Check returned 0, with the base's 28 warnings:
+  `/tmp/close-hook-check-final.log`.
+- All 810 Core tests returned 0: `/tmp/close-hook-core-final.log`.
+- All nine workspace test tasks returned 0 on retry:
+  `/tmp/close-hook-consumers-retry.log`.
+- The two saved red logs each returned 1 on unchanged Core.
+  The saved focused green log returned 0, with 31 passing tests.
+- Validate returned 0: `/tmp/close-hook-validate-final.log`.
+  Every lane below passed:
+  - lint, types, format, and complexity;
+  - Core tests;
+  - Core size;
+  - promise counts;
+  - deep chain;
+  - live heap per request;
+  - CRAP ceiling;
+  - hot names and slots;
+  - graph;
+  - ambient reads;
+  - cast-free examples;
+  - runtime and testing entries;
+  - Blueprint tests;
+  - Blueprint size;
+  - Blueprint corpus;
+  - two hands.
+- Ticket returned 1: `/tmp/close-hook-ticket-final.log`.
+  All its gates passed; its final commit found a clean tree with nothing to commit.
+  The script added no commit or tag.
+  Check, tests, size, and recursive mutation each returned 0.
+  Their log sections are `/tmp/close-hook-ticket-check.log`,
+  `/tmp/close-hook-ticket-tests.log`, `/tmp/close-hook-ticket-size.log`,
+  and `/tmp/close-hook-ticket-mutate.log`.
+- Every ticket mutation task ran one package at a time under the lock.
+  Scores: Core 85.81; React 92.75; Flight Trial 91.35; Blueprint 86.04.
+  All four passed their floor of 85; the recursive task returned 0.
+  Core's separate full run returned 0 at 85.78, with no source exclusion.
+- Final TSDoc returned 0: `/tmp/close-hook-tsdoc-final.log`.
+  Changed tests' strict style returned 0:
+  `/tmp/close-hook-style-tests-final.log`.
+  Source and config strict style returned 1, matching the base's old hits:
+  `/tmp/close-hook-style-source-final.log` and
+  `/tmp/close-hook-style-source-baseline-final.log`.
+- Final Jev preflight, tests, promises, and model labels each returned 0.
+  Logs: `/tmp/close-hook-jev-preflight-final.log`,
+  `/tmp/close-hook-jev-tests-final.log`,
+  `/tmp/close-hook-jev-promises-final.log`, and
+  `/tmp/close-hook-jev-labels-final.log`.
+  The unsupported plain-test label attempt returned 1; its reason is saved above.
+- Fresh SCIP indexes and refs returned 0:
+  `/tmp/close-hook-scip-index-final.log` and
+  `/tmp/close-hook-scip-refs-final.log`.
+- The writer's final step is this receipt and prose check.
+  Source has not changed since the complete green gate.
+  The branch is ready for lead review at its supplied base, `addce061`.
