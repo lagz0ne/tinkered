@@ -1,0 +1,20 @@
+pack-core: EXIT 0; /tmp/start-refine-consumer-1-pack-core.log
+pack-react: EXIT 0; /tmp/start-refine-consumer-2-pack-react.log
+install-tarballs: EXIT 0; /tmp/start-refine-consumer-3-install-tarballs.log
+dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:45441/r/{name}.json: EXIT 0; /tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_45441_r__name__json.log
+dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite: EXIT 0; /tmp/start-refine-consumer-5-dlx----shadcn_4_21_0-add-_tinker-start_starter---yes---overwrite.log
+dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts: EXIT 0; /tmp/start-refine-consumer-6-dlx----shadcn_4_21_0-add-_tinker-start_runtime---dry-run---diff-src_scaffold_frontend_index_ts.log
+dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite: EXIT 0; /tmp/start-refine-consumer-7-dlx----shadcn_4_21_0-add-_tinker-start_runtime---yes---overwrite.log
+install-starter: EXIT 0; /tmp/start-refine-consumer-8-install-starter.log
+build: EXIT 0; /tmp/start-refine-consumer-9-build.log
+typecheck: EXIT 0; /tmp/start-refine-consumer-10-typecheck.log
+test: EXIT 0; /tmp/start-refine-consumer-11-test.log
+check:plain: EXIT 0; /tmp/start-refine-consumer-12-check_plain.log
+test:seam: EXIT 0; /tmp/start-refine-consumer-13-test_seam.log
+test:boundary: EXIT 0; /tmp/start-refine-consumer-14-test_boundary.log
+test:schema: EXIT 0; /tmp/start-refine-consumer-15-test_schema.log
+GET /proof/response: 200 {"ok":true}
+PASS built starter serves native Response.json
+{"cli":"shadcn@4.21.0","items":3,"files":119,"payloads":"exact source","install":"source with lib alias rewritten to @/app-lib","aliasRewrite":"seam imports rewritten","seamUpdate":"both edited seam files unchanged","dryRun":"unchanged","setupUpdate":"passed","editedFeature":"unchanged","consumerBuild":"passed","consumerNativeResponse":"status 200; body { ok: true }","consumerTypes":"passed","dependencies":"Core and React packed tarballs; independent npm install; no workspace links","projectTests":"passed","projectGates":"plain, seam, browser imports, schema passed","skills":"all five, plus AGENTS.md","maintainerFiles":"none","proofMode":"none","gates":[{"name":"pack-core","code":0,"log":"/tmp/start-refine-consumer-1-pack-core.log"},{"name":"pack-react","code":0,"log":"/tmp/start-refine-consumer-2-pack-react.log"},{"name":"install-tarballs","code":0,"log":"/tmp/start-refine-consumer-3-install-tarballs.log"},{"name":"dlx----shadcn@4.21.0-registry-add-@tinker-start=http://127.0.0.1:45441/r/{name}.json","code":0,"log":"/tmp/start-refine-consumer-4-dlx----shadcn_4_21_0-registry-add-_tinker-start_http___127_0_0_1_45441_r__name__json.log"},{"name":"dlx----shadcn@4.21.0-add-@tinker-start/starter---yes---overwrite","code":0,"log":"/tmp/start-refine-consumer-5-dlx----shadcn_4_21_0-add-_tinker-start_starter---yes---overwrite.log"},{"name":"dlx----shadcn@4.21.0-add-@tinker-start/runtime---dry-run---diff-src/scaffold/frontend/index.ts","code":0,"log":"/tmp/start-refine-consumer-6-dlx----shadcn_4_21_0-add-_tinker-start_runtime---dry-run---diff-src_scaffold_frontend_index_ts.log"},{"name":"dlx----shadcn@4.21.0-add-@tinker-start/runtime---yes---overwrite","code":0,"log":"/tmp/start-refine-consumer-7-dlx----shadcn_4_21_0-add-_tinker-start_runtime---yes---overwrite.log"},{"name":"install-starter","code":0,"log":"/tmp/start-refine-consumer-8-install-starter.log"},{"name":"build","code":0,"log":"/tmp/start-refine-consumer-9-build.log"},{"name":"typecheck","code":0,"log":"/tmp/start-refine-consumer-10-typecheck.log"},{"name":"test","code":0,"log":"/tmp/start-refine-consumer-11-test.log"},{"name":"check:plain","code":0,"log":"/tmp/start-refine-consumer-12-check_plain.log"},{"name":"test:seam","code":0,"log":"/tmp/start-refine-consumer-13-test_seam.log"},{"name":"test:boundary","code":0,"log":"/tmp/start-refine-consumer-14-test_boundary.log"},{"name":"test:schema","code":0,"log":"/tmp/start-refine-consumer-15-test_schema.log"}]}
+
+EXIT 0

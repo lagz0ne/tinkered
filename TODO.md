@@ -58,12 +58,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/http-closing** — the scaffold `http` resource aborts its in-flight sends on `ctx.closing`.
-  Removes the limit: a direct graceful close with no stop signal still waits.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-http-closing`.
-  Next: red test for a direct graceful close with a hung backend, then `ctx.closing`.
-  Verify: a graceful close with a hung backend settles; scaffold tests and `check:plain` pass.
-
 - **trial/deepseek-03** — rounds 2 to 5 on the round-lessons image, for a full-trial cost.
   Owner: lead (Claude, Start scaffold session).
   Trial `flight-deepseek-03`; graded from `../tinkered-trial-runner-03` (pinned `8aff9d24`).

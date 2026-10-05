@@ -1,0 +1,304 @@
+~/packages/core$ vp test ⊘ cache disabled
+~/tools/jev$ node --test *.test.mjs ⊘ cache disabled
+✔ a static core unit inside a function is reported at its call (7.121218ms)
+✔ parameters and locals derived from them keep factory units dynamic (1.298627ms)
+✔ a loader that only updates an input counter still builds the same unit (0.820323ms)
+✔ module names and callback parameters do not make a config depend on the factory (0.539978ms)
+✔ inline run configs and other modules are not core unit calls (0.773205ms)
+✔ tests are excluded; functions that declare units remain judge candidates (2.004958ms)
+✔ inner locals derived from outer parameters stay dynamic (0.462991ms)
+✔ a for-of or for-in binding derived from input stays dynamic (0.854977ms)
+✔ a nested function that closes over an input keeps its operation dynamic (0.931156ms)
+✔ a reassigned local derived from an input stays dynamic (0.893247ms)
+✔ a catch parameter used by a unit config stays dynamic (1.553869ms)
+✔ dotted and dashed test filenames and test directories are excluded (0.258661ms)
+✔ this is not a module-level value (0.474336ms)
+▶ a helper's uses
+  ✔ lists each distinct line that calls the helper, in source order (1.872625ms)
+  ✔ does not count a call inside the helper's own body (1.402253ms)
+  ✔ gives a helper no one calls no uses at all (0.319526ms)
+  ✔ keeps at most six lines (0.568368ms)
+✔ a helper's uses (5.02145ms)
+▶ arrow helpers in a .ts file
+  ✔ reads a const arrow as a function unit with its uses (0.706098ms)
+  ✔ reads a const function expression as a function unit (0.32211ms)
+  ✔ keeps a unit builder call an operation, not a helper (0.440514ms)
+  ✔ gives each arrow of one const its own unit (0.336577ms)
+✔ arrow helpers in a .ts file (2.158774ms)
+✔ each doc block carries its words and the declaration it sits on (1.674948ms)
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/packages/core
+
+✔ the S24 fix text typechecks in a copy of the Start scaffold (1927.181012ms)
+ℹ Copied scaffold: tsc --noEmit EXIT 0
+✔ code at the cap fits one call; one character more does not (7.40385ms)
+✔ core's index.ts is too big for one call; blueprint.ts fits (1.674125ms)
+✔ preflight and review both guard the whole-file call with the size check (0.672701ms)
+▶ S19 repo lane
+  ✔ checks roots and wrapped handle types in apps and examples (18.603872ms)
+  ✔ keeps driver helpers and tests out of the repo lane, with the writer src lane intact (13.758015ms)
+✔ S19 repo lane (34.24653ms)
+▶ S29 lifetimeByHand
+  ✔ reports each ready catch at its close call, including named failure callbacks (21.275064ms)
+  ✔ reports abort listeners and inline or local promise waits followed by graceful close (15.537566ms)
+  ✔ leaves other owners, streams, sessions, forced stops, work cleanup, and hidden names alone (44.281391ms)
+  ✔ checks ready in tests too and leaves every core file out of both lanes (64.671424ms)
+  ✔ limits repo source checks to apps, examples, and packages, with all writer files checked (83.259598ms)
+  ✔ blocks the writer gate and prints both filled-in fixes (9.22492ms)
+  ✔ the repo lint prints only S29 for tests with an error assertion and React state (484.597342ms)
+✔ S29 lifetimeByHand (723.936424ms)
+▶ plain rules in a test file
+  ✔ T01 fires on a mock or spy call (8.264842ms)
+  ✔ T02 fires on setTimeout, sleep, and waitForTimeout (2.63897ms)
+  ✔ T03 fires on only and skip off test, it, or describe (1.923972ms)
+  ✔ T04 fires on an import of a private source module (1.241697ms)
+  ✔ T05 fires on an internals probe (0.653422ms)
+  ✔ T06 fires on a cast through unknown (1.515697ms)
+  ✔ T07 fires on an error class, snapshot, or message assert (0.933871ms)
+  ✔ T08 fires on isError inside expect (0.591727ms)
+✔ plain rules in a test file (29.107026ms)
+▶ plain rules in a source file
+  ✔ S02 fires on a cast through unknown (11.753014ms)
+  ✔ S05 fires on a bare throw of Error, TypeError, or RangeError (2.237824ms)
+  ✔ S17 fires on a type assertion in either form (1.356789ms)
+  ✔ S17 leaves as const and an empty list's element type alone (0.797837ms)
+  ✔ S17 does not repeat a cast through unknown that S02 reports (0.653751ms)
+  ✔ S17 is writer policy: the repo's own lint does not report it (2.893286ms)
+  ✔ S17 does not apply to test files (0.308203ms)
+  ✔ S18 fires on a unit builder called inside a function (2.77442ms)
+  ✔ S18 leaves a module-level unit and a non-core function alone (3.834076ms)
+  ✔ S18 fires on a sync family made inside a function (1.051965ms)
+  ✔ S18 leaves a driver's extension built from wiring rows alone (1.145247ms)
+  ✔ S18's message names exactly the builders it counts (1.01443ms)
+  ✔ S19 fires on a helper that takes a controller, directly or through a type alias (1.722601ms)
+  ✔ S19 leaves a helper over plain values alone (0.872371ms)
+  ✔ S18 stays writer policy: the repo's own lint does not report it (0.945334ms)
+  ✔ S06 fires on a console call (0.647392ms)
+✔ plain rules in a source file (35.910577ms)
+▶ hand-rolled rules: code that redoes what tinker gives
+  ✔ S20 fires on Math.random, crypto.randomUUID, and randomUUID from node:crypto (4.885278ms)
+  ✔ S20 leaves ctx.random, a local randomUUID, and core's own default alone (1.456573ms)
+  ✔ S21 fires on Date.now, performance.now, timers, and new Date() in a unit body (4.503625ms)
+  ✔ S21 leaves raw time outside any unit alone in the writer gate too (0.575368ms)
+  ✔ S21 leaves ctx.clock and a formatted saved time in a unit body alone (6.984286ms)
+  ✔ S21 counts only unit bodies in the repo lint: a driver's own timer is fine (4.30196ms)
+  ✔ S22 fires on a run whose failure is dropped by then, catch, or a bare catch (10.403814ms)
+  ✔ S22 leaves settle, a handler that narrows, and a non-run promise alone (12.928513ms)
+  ✔ S22 fires on a settle whose Result a core handle drops (7.787237ms)
+  ✔ S22 names the hidden panic and the read Result on a dropped settle (0.634938ms)
+  ✔ S22 leaves a read settle, a returned one, void run, and a local settle method alone (6.081253ms)
+  ✔ S23 fires on a hand-made onX backed by a listener set (3.086813ms)
+  ✔ S23 leaves the Sync.Transport pair and a plain event handler alone (2.076783ms)
+  ✔ S24 fires on fetch and globalThis.fetch in app code (1.076559ms)
+  ✔ S24 repo lint skips package fetch; sync transports keep native connections (0.625287ms)
+  ✔ S24 tells a flight app to depend on httpRequest.controller and run it (0.415483ms)
+  ✔ S24 leaves the scaffold's built-in fetch backend alone (15.889854ms)
+  ✔ S24 fires on bare fetch in other scaffold files (1.424985ms)
+  ✔ S25 fires on useState and useReducer in a .tsx source file (0.810083ms)
+  ✔ S25 leaves a DOM useRef alone and stays out of the repo lint (0.562812ms)
+  ✔ each hand-rolled message ends with its fix line (3.378943ms)
+  ✔ hand-rolled rules skip test files (0.465835ms)
+✔ hand-rolled rules: code that redoes what tinker gives (92.972305ms)
+▶ entry and root rules (ADR 0078)
+  ✔ S27 reports each unguarded statement once, including declarations and for await (1.517826ms)
+  ✔ S27 counts top-level await using as an awaited declaration (0.629984ms)
+  ✔ S27 accepts await using inside the main guard (0.713848ms)
+  ✔ S27 accepts the main branch and awaits inside every function form (1.561677ms)
+  ✔ S27 rejects awaits in the else branch, the condition, and lookalike guards (1.330984ms)
+  ✔ S27 uses the repo source paths; the writer gate also checks scripts (2.266961ms)
+  ✔ S27 skips browser and test paths in both lanes (3.059123ms)
+  ✔ S28 reports a returned scope in declarations, expressions, arrows, and methods (8.542324ms)
+  ✔ S28 skips a factory passed directly through a JSX attribute (2.608013ms)
+  ✔ S28 skips a factory passed directly through useMemo (1.086486ms)
+  ✔ S28 skips a factory passed directly through a block-bodied call argument (0.67322ms)
+  ✔ S28 skips a factory passed directly through a new argument (0.497316ms)
+  ✔ S28 skips a factory passed directly through a function expression argument (0.73284ms)
+  ✔ S28 still counts returned factories, named factories, and the sync boot root (5.249063ms)
+  ✔ S28 keeps bindings and returns within their own function and block (15.827951ms)
+  ✔ S28 leaves returned values and closures that use the root alone (11.84958ms)
+  ✔ S28 finds the tracker's old createApp from 9aece1e (20.02595ms)
+  ✔ both rules accept runServer owning its root and the ADR 0078 main guard (10.661388ms)
+  ✔ S28 skips a test's boot helper and limits repo hits to apps and examples (10.071589ms)
+  ✔ the writer gate blocks both rules and prints their filled-in fixes (7.719086ms)
+✔ entry and root rules (ADR 0078) (112.664394ms)
+▶ plain rules in every file
+  ✔ S12 fires on a ts-ignore or ts-expect-error comment (0.49241ms)
+  ✔ S13 fires on a lint disable comment (0.240909ms)
+  ✔ an unparsable file yields one parse row (0.273551ms)
+✔ plain rules in every file (1.220602ms)
+▶ plain rules never fire on
+  ✔ console.log( inside a string in source (0.375785ms)
+  ✔ ts-ignore text inside a string (0.417747ms)
+  ✔ a rule word in the middle of a comment (0.787311ms)
+  ✔ a locator assert, waitForSelector, or expect.poll (0.486806ms)
+  ✔ an import of the public entry src/index (1.0366ms)
+  ✔ vi.fn() in a source file that is not a test (0.320348ms)
+  ✔ isError narrowing in an if, then a payload assert (1.616798ms)
+✔ plain rules never fire on (7.127345ms)
+▶ S26 malformed TSDoc
+  ✔ fires on each parser error kind at its line (4.395569ms)
+  ✔ fires on a @param that names no parameter (3.00342ms)
+  ✔ stays quiet on prose, the standard tags, and real parameters (5.572063ms)
+  ✔ stays quiet on the repo's own @ambientSource tag (0.533436ms)
+✔ S26 malformed TSDoc (13.865575ms)
+▶ component extraction
+  ✔ marks a named function returning JSX a component (4.096519ms)
+  ✔ marks an exported and a default-exported component a component (3.444225ms)
+  ✔ marks arrow and function-expression consts returning JSX a component (0.794879ms)
+  ✔ counts a fragment and nested JSX as a component (0.446041ms)
+  ✔ marks a component with if/switch/try returns a component (1.231967ms)
+  ✔ keeps a helper holding an inner arrow returning JSX a function (1.082737ms)
+  ✔ reads every function declarator of one const statement (0.800919ms)
+  ✔ gives each const declarator its own line and source span (1.039397ms)
+  ✔ keeps a capital-named helper with no JSX a function (0.848167ms)
+  ✔ keeps a root that only passes JSX to a call a function (1.986697ms)
+✔ component extraction (19.010055ms)
+▶ shape findings
+  ✔ flags an aliased useState and a namespaced useEffect with rule 9 and 8 (12.921502ms)
+  ✔ reports a state hook once in writer mode: S25, not also no-react-state (10.176608ms)
+  ✔ lets useId through and flags useRef (2.142868ms)
+  ✔ flags useScope in a view and a scope prop, not the ScopeProvider root (8.3606ms)
+  ✔ flags a scope prop through a ThemeProvider, not only ScopeProvider (1.90607ms)
+  ✔ flags a scope prop through a named Props alias and a typed scope param (2.837171ms)
+  ✔ flags a scope prop on the second declarator of one const statement (2.604301ms)
+  ✔ flags a scope prop through an exported Props alias (2.137528ms)
+  ✔ flags writable useData in a view, plain, aliased, and namespaced (6.547717ms)
+  ✔ leaves read-only useData, other modules, same-name functions, and useRun alone (11.129676ms)
+  ✔ flags writable useData in one scope, not a sibling's local or a param (3.100377ms)
+  ✔ flags aliased and namespaced hook calls, not their shadowed names (8.084517ms)
+  ✔ flags one mixed file's imported call only (6.44766ms)
+  ✔ binds a nested function local wherever the use sits (2.005713ms)
+  ✔ binds late imports and late functions before resolving calls (3.648629ms)
+  ✔ keeps catch params and loop heads inside their own frame (3.352595ms)
+  ✔ keeps a strict block function inside its block (3.435724ms)
+  ✔ sees a nested block under any statement shape (0.926692ms)
+  ✔ binds var in its function frame without hanging (1067.074383ms)
+  ✔ keeps a block-local const inside its block (3.674597ms)
+  ✔ reads defaults and rests in params, including aliased and namespaced (2.136402ms)
+  ✔ leaves plain helpers and typed non-scope props alone (1.259138ms)
+  ✔ returns stable rows in source order (2.706659ms)
+✔ shape findings (1170.64615ms)
+ℹ tests 148
+ℹ suites 13
+ℹ pass 148
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2150.840657
+
+
+ Test Files  38 passed (38)
+      Tests  814 passed (814)
+   Start at  07:51:31
+   Duration  3.38s (transform 41%, tests 36%, import 20%, worker 3%)
+
+  Transform  transforming modules took 4.70s · 41% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+
+~/tools/blueprint$ vp test ⊘ cache disabled
+~/tools/flight-trial$ vp test ⊘ cache disabled
+~/packages/react$ vp test ⊘ cache disabled
+~/examples/core$ vp test ⊘ cache disabled
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/tools/blueprint
+
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/examples/core
+
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/tools/flight-trial
+
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/packages/react
+      API started at http://localhost:63315/
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  07:51:35
+   Duration  792ms (transform 79%, import 17%, tests 3%, worker 1%)
+
+
+
+ Test Files  8 passed (8)
+      Tests  118 passed | 1 skipped (119)
+   Start at  07:51:35
+   Duration  3.09s (import 40%, tests 34%, transform 25%, worker 1%)
+
+
+{"service":"supplier-a","url":"http://127.0.0.1:38379","pid":2313258}
+{"service":"payment","url":"http://127.0.0.1:38077","pid":2313258}
+
+ Test Files  21 passed (21)
+      Tests  87 passed (87)
+   Start at  07:51:36
+   Duration  8.96s (worker 83%, tests 12%, import 5%)
+
+
+~/examples/react$ vp test ⊘ cache disabled
+~/apps/start-scaffold$ vp test ⊘ cache disabled
+~/apps/playground$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/examples/react
+
+7:51:46 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic', jsxImportSource: undefined }`
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/apps/start-scaffold
+
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-http-closing/apps/playground
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  07:51:46
+   Duration  1.12s (transform 65%, import 33%, worker 1%, tests 1%)
+
+
+
+ Test Files  8 passed (8)
+      Tests  64 passed (64)
+   Start at  07:51:46
+   Duration  4.92s (transform 47%, tests 27%, import 19%, environment 5%, worker 1%)
+
+  Transform  transforming modules took 6.13s · 47% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"fd1b5384bef09d9e348aa2760ad11216","spanId":"2d71e7bb175793e6","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"fd1b5384bef09d9e348aa2760ad11216","spanId":"2d71e7bb175793e6","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"fd1b5384bef09d9e348aa2760ad11216","spanId":"348aa2760ad11216","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"76af1a68f46cf70956829a00fde1fb95","spanId":"56829a00fde1fb95","msg":"core.span"}
+{"level":50,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"76af1a68f46cf70956829a00fde1fb95","spanId":"56829a00fde1fb95","attributes":{"ms":"0","outcome":"\"failed\""},"msg":"test.telemetry.rejected"}
+{"level":30,"time":1791186720738,"service":"test-start","side":"ssr","traceId":"f393c21b60d4b7df22c4735fd00b19c1","spanId":"22c4735fd00b19c1","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791186720738,"service":"test-start","side":"ssr","traceId":"f393c21b60d4b7df22c4735fd00b19c1","spanId":"22c4735fd00b19c1","msg":"core.span"}
+{"level":30,"time":1791186720826,"service":"test-start","side":"ssr","traceId":"bde59ac1784aa8ed79157230f158a9c2","spanId":"79157230f158a9c2","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791186720827,"service":"test-start","side":"ssr","traceId":"bde59ac1784aa8ed79157230f158a9c2","spanId":"79157230f158a9c2","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"60fa16ba4ddad7889f8ca8f1abae147b","spanId":"9f8ca8f1abae147b","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"60fa16ba4ddad7889f8ca8f1abae147b","spanId":"9f8ca8f1abae147b","msg":"core.span"}
+
+ Test Files  9 passed (9)
+      Tests  111 passed (111)
+   Start at  07:51:35
+   Duration  30.69s (tests 84%, import 10%, transform 6%)
+
+
+
+ Test Files  12 passed (12)
+      Tests  72 passed (72)
+   Start at  07:51:46
+   Duration  28.32s (tests 90%, import 6%, transform 3%)
+
+
+---
+vp run: 0/9 cache hit (0%). (Run `vp run --last-details` for full details)
+
+EXIT 0

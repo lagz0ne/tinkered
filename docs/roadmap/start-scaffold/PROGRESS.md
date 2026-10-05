@@ -3175,7 +3175,7 @@ Step commits:
 
 Owner: start/http-closing writer.
 Target: apps/start-scaffold only; no Core API change.
-Next: final rebase and gate sweep, then lead review and landing.
+Next: finish the extra plain-code proof run, then lead review and landing.
 Verify: a hung session send ends on direct graceful close without stop tags.
 
 Read ADR 0104, ADR 0102, ADR 0103, and the fixed writer brief.
@@ -3237,3 +3237,11 @@ The fixed transport seam also exports http for proof tests.
 No app feature sends through http directly.
 Existing wire, body-read cancellation, and request-end tests pass.
 No new Core feedback or workaround was needed.
+
+Final code commit after rebase: f1682b14.
+The final gate sweep ran on origin/main at 91a26d6d.
+All eight gate exits are 0 on that code.
+The gate logs are saved beside HTTP-CLOSING-GATES.json.
+The rebase brought back the lead's Doing card alongside Review.
+Only that stale copy was removed; one Review card remains.
+The extra type check exits 0; the full plain proof run is still running.

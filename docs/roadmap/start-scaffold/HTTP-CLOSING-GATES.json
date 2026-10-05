@@ -1,50 +1,81 @@
-[
-  {
-    "gate": "vp run -r build",
-    "cwd": ".",
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-BUILD.log"
-  },
-  {
-    "gate": "vp check",
-    "cwd": ".",
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-CHECK.log"
-  },
-  {
-    "gate": "vp run -r test",
-    "cwd": ".",
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-TEST.log"
-  },
-  {
-    "gate": "vp run prose",
-    "cwd": ".",
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PROSE.log"
-  },
-  {
-    "gate": "node apps/start-scaffold/maintain/check-registry.mjs",
-    "cwd": ".",
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-REGISTRY.log"
-  },
-  {
-    "gate": "npm run check:plain",
+{
+  "implementationCommit": "f1682b14d4b5cd07a6397a38108dd41fda35b14c",
+  "base": "91a26d6d8ac9549d7893f4a549353d1713f92db6",
+  "gates": [
+    {
+      "gate": "vp run -r build",
+      "cwd": ".",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-BUILD.log"
+    },
+    {
+      "gate": "vp check",
+      "cwd": ".",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-CHECK.log"
+    },
+    {
+      "gate": "vp run -r test",
+      "cwd": ".",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-TEST.log"
+    },
+    {
+      "gate": "vp run prose",
+      "cwd": ".",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PROSE.log"
+    },
+    {
+      "gate": "node apps/start-scaffold/maintain/check-registry.mjs",
+      "cwd": ".",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-REGISTRY.log"
+    },
+    {
+      "gate": "npm run check:plain",
+      "cwd": "apps/start-scaffold",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PLAIN.log"
+    },
+    {
+      "gate": "npm run test:seam",
+      "cwd": "apps/start-scaffold",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-SEAM.log"
+    },
+    {
+      "gate": "npm run test:boundary",
+      "cwd": "apps/start-scaffold",
+      "exit": 0,
+      "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-BOUNDARY.log"
+    }
+  ],
+  "registryBuild": {
+    "gate": "npm run registry:build",
     "cwd": "apps/start-scaffold",
     "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-PLAIN.log"
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-REGISTRY-BUILD.log"
   },
-  {
-    "gate": "npm run test:seam",
-    "cwd": "apps/start-scaffold",
-    "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-SEAM.log"
+  "mutation": {
+    "package": "@tinker-start-scaffold",
+    "available": false,
+    "score": null,
+    "presenceCheckExit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-MUTATION.log"
   },
-  {
-    "gate": "npm run test:boundary",
-    "cwd": "apps/start-scaffold",
+  "validate": {
+    "gate": "pnpm validate",
     "exit": 0,
-    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-BOUNDARY.log"
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-VALIDATE.log"
+  },
+  "style": {
+    "exit": 0,
+    "log": "docs/roadmap/start-scaffold/HTTP-CLOSING-STYLE.log"
+  },
+  "mainCheck": {
+    "commit": "3ba54ce2",
+    "exit": 0,
+    "warnings": 28
   }
-]
+}

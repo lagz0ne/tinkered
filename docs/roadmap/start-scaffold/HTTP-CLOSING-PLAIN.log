@@ -1,0 +1,7 @@
+
+> @tinker-start-scaffold@0.1.0 check:plain
+> node scripts/check-plain.mjs
+
+Plain check passed: 78 files, 17 plain functions (cap 17).
+
+EXIT 0
