@@ -33,15 +33,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: brief a Sol writer for `tools/flight-trial` (ADR 0104).
   Verify: zero wire changes; services tests pass; mutation at least 85.
 
-- **trial/round-lessons** — apply trial 2's lessons so a round is shorter and smaller.
-  Start: when `trial/deepseek-02` ends; the packet stays fixed until then.
-  Next: packet lines 30-32 say `Search complete` shows beside the outcome
-  line, and `No flights` is a notice, not a table row.
-  GUIDELINES: stop every server you start before tests (2 GiB sandbox).
-  `tinker-seams`: import `httpRequest` from `@/scaffold/backend/http`.
-  Then use the trial logs to list files DeepSeek re-reads every round, and cut them.
-  Verify: a round 1 rerun passes first try; its cost is below trial 2's $1.46.
-
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
@@ -66,6 +57,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **trial/round-lessons** — apply trial 2's lessons so a round is shorter and smaller.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-round-lessons`.
+  Next: packet lines 30-32 say `Search complete` shows beside the outcome
+  line, and `No flights` is a notice, not a table row.
+  GUIDELINES: stop every server you start before tests (2 GiB sandbox).
+  `tinker-seams`: import `httpRequest` from `@/scaffold/backend/http`.
+  Then use the trial logs to list files DeepSeek re-reads every round, and cut them.
+  Verify: a round 1 rerun passes first try; its cost is below trial 2's $1.46.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
