@@ -1,0 +1,3 @@
+sync-lane promises:  0   (budget 0)
+async-toggle promises: 5   (budget <=10)
+METRIC promises_tagged=2

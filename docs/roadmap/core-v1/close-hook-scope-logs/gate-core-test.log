@@ -1,0 +1,18 @@
+$ vp run core#test
+~/packages/core$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-close-hook/packages/core
+
+
+ Test Files  38 passed (38)
+      Tests  814 passed (814)
+   Start at  04:07:06
+   Duration  2.71s (tests 42%, transform 33%, import 22%, worker 3%)
+
+  Transform  transforming modules took 2.90s · 33% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+
+
+EXIT 0

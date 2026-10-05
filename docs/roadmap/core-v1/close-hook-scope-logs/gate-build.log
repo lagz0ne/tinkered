@@ -1,0 +1,209 @@
+$ vp run -r build
+~/packages/core$ vp pack ⊘ cache disabled
+~/apps/website$ tsc ⊘ cache disabled
+
+~/apps/website$ vp build ⊘ cache disabled
+ℹ entry: src/index.ts, src/testing.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 9 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+transforming...
+✓ 9 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  0.45 kB │ gzip: 0.29 kB
+dist/assets/vite-BF8QNONU.svg    8.70 kB │ gzip: 1.60 kB
+dist/assets/hero-CLDdwZDr.png   13.05 kB
+dist/assets/index-CsUDhMuy.css   4.10 kB │ gzip: 1.46 kB
+dist/assets/index-wktXvZw9.js    4.49 kB │ gzip: 2.02 kB
+
+✓ built in 200ms
+
+ℹ dist/index.mjs                       50.39 kB │ gzip: 16.07 kB
+ℹ dist/testing.mjs                      1.28 kB │ gzip:  0.79 kB
+ℹ dist/index.mjs.map                  342.82 kB │ gzip: 97.22 kB
+ℹ dist/testing.mjs.map                  7.27 kB │ gzip:  2.95 kB
+ℹ dist/trace-random-DUDap8Fd.mjs.map    1.04 kB │ gzip:  0.56 kB
+ℹ dist/trace-random-DUDap8Fd.mjs        0.19 kB │ gzip:  0.19 kB
+ℹ dist/testing.d.mts                    2.52 kB │ gzip:  1.11 kB
+ℹ dist/index.d.mts                      0.66 kB │ gzip:  0.34 kB
+ℹ dist/index-C8P8F5WG.d.mts            40.16 kB │ gzip: 12.26 kB
+ℹ 9 files, total: 446.33 kB
+✔ Build complete in 427ms
+
+~/tools/flight-trial$ vp pack ⊘ cache disabled
+~/packages/react$ vp pack ⊘ cache disabled
+~/tools/blueprint$ vp pack ⊘ cache disabled
+ℹ entry: src/index.ts, src/main.ts
+ℹ target: node22.18.0
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 5 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 2 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 2 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+ℹ Granting execute permission to dist/main.mjs
+ℹ dist/index.mjs          0.67 kB │ gzip:  0.32 kB
+ℹ dist/main.mjs           0.58 kB │ gzip:  0.40 kB
+ℹ dist/src-DRd-9yHP.mjs  61.43 kB │ gzip: 17.66 kB
+ℹ dist/index.d.mts       17.79 kB │ gzip:  5.36 kB
+ℹ dist/main.d.mts         0.01 kB │ gzip:  0.03 kB
+ℹ 5 files, total: 80.47 kB
+✔ Build complete in 467ms
+
+ℹ dist/index.mjs    14.48 kB │ gzip: 4.93 kB
+ℹ dist/index.d.mts  10.58 kB │ gzip: 3.63 kB
+ℹ 2 files, total: 25.06 kB
+✔ Build complete in 539ms
+
+~/examples/react$ vp build ⊘ cache disabled
+~/apps/start-scaffold$ vp build ⊘ cache disabled
+~/apps/playground$ node scripts/build-vendor.mjs ⊘ cache disabled
+ℹ dist/index.mjs    60.91 kB │ gzip: 15.28 kB
+ℹ dist/index.d.mts  11.06 kB │ gzip:  2.79 kB
+ℹ 2 files, total: 71.97 kB
+✔ Build complete in 868ms
+
+transforming...
+vendor bundles written to /home/paseo/next/tinkered-close-hook/apps/playground/public/vendor (esbuild-wasm 0.28.2)
+
+~/apps/playground$ vp build ⊘ cache disabled
+✓ 117 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.40 kB │ gzip:   0.27 kB
+dist/assets/index-Cm7a3Mje.css    0.64 kB │ gzip:   0.37 kB
+dist/assets/index-CBGh2fq4.js   354.81 kB │ gzip: 108.88 kB
+
+✓ built in 223ms
+
+4:06:52 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+transforming...
+4:06:52 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+✓ 1741 modules transformed.
+4:06:53 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+rendering chunks...
+4:06:53 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+transforming...
+computing gzip size...
+dist/index.html                         0.69 kB │ gzip:   0.41 kB
+dist/assets/App-DdOoN2Rj.css            5.65 kB │ gzip:   1.64 kB
+dist/assets/BenchPage-BipA15mA.css     13.47 kB │ gzip:   3.25 kB
+dist/assets/index-C8bt69Vl.css         36.45 kB │ gzip:   7.83 kB
+dist/assets/App-Bolv9zjb.js             7.26 kB │ gzip:   2.49 kB
+dist/assets/BenchPage-Dxa-zFs3.js      77.35 kB │ gzip:  25.48 kB
+dist/assets/index-DJqiw7v2.js       1,334.83 kB │ gzip: 418.25 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 824ms
+
+✓ 337 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/assets/style-cj3T55s9.css             22.91 kB │ gzip:   5.09 kB
+dist/client/assets/profile-DOlrverL.js             0.06 kB │ gzip:   0.08 kB
+dist/client/assets/routes-BH50D5jj.js              0.06 kB │ gzip:   0.08 kB
+dist/client/assets/rolldown-runtime-CbXtAM7H.js    0.58 kB │ gzip:   0.36 kB
+dist/client/assets/todos-D3BIVanD.js               4.42 kB │ gzip:   2.06 kB
+dist/client/assets/react-DK6rpPfu.js               7.87 kB │ gzip:   3.00 kB
+dist/client/assets/browser-DXAPhaju.js             8.42 kB │ gzip:   3.38 kB
+dist/client/assets/App-BplmhdP2.js                 9.44 kB │ gzip:   3.30 kB
+dist/client/assets/react-Bv632-I5.js              31.14 kB │ gzip:  11.73 kB
+dist/client/assets/input-mPU97G7P.js              34.66 kB │ gzip:  11.26 kB
+dist/client/assets/index-BmNL70VC.js             500.86 kB │ gzip: 156.99 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 679ms
+transforming...
+✓ 761 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/server/assets/kysely-adapter-DjyBwBGQ.js                  0.13 kB │ gzip:   0.10 kB
+dist/server/assets/routes-BDmlzqc1.js                          0.17 kB │ gzip:   0.14 kB
+dist/server/assets/profile-4sVYDVig.js                         0.19 kB │ gzip:   0.15 kB
+dist/server/assets/sync.schema-CnCV56LA.js                     0.24 kB │ gzip:   0.19 kB
+dist/server/assets/core-RrmWoKne.js                            0.25 kB │ gzip:   0.18 kB
+dist/server/assets/empty-plugin-adapters-CVykojMw.js           0.28 kB │ gzip:   0.18 kB
+dist/server/assets/rolldown-runtime-D7D4PA-g.js                0.36 kB │ gzip:   0.25 kB
+dist/server/assets/compiled-query-gsKhrU6Y.js                  0.44 kB │ gzip:   0.30 kB
+dist/server/assets/createServerRpc-BBUv9FHR.js                 0.45 kB │ gzip:   0.29 kB
+dist/server/assets/result.server-B52XqJTk.js                   0.48 kB │ gzip:   0.30 kB
+dist/server/assets/todos.schema-Kjtwc1eg.js                    0.48 kB │ gzip:   0.33 kB
+dist/server/assets/errors-DlSwnWLH.js                          0.54 kB │ gzip:   0.24 kB
+dist/server/assets/sync.schema-Bmhavcb1.js                     0.67 kB │ gzip:   0.34 kB
+dist/server/assets/string-DH7Sb1E3.js                          0.69 kB │ gzip:   0.43 kB
+dist/server/assets/counter.functions-D2aTjVm9.js               0.97 kB │ gzip:   0.49 kB
+dist/server/assets/_tanstack-start-manifest_v-BpV_FPW5.js      1.17 kB │ gzip:   0.47 kB
+dist/server/assets/start-B_FCTPa3.js                           1.20 kB │ gzip:   0.54 kB
+dist/server/assets/global-BDZLqizC.js                          1.29 kB │ gzip:   0.62 kB
+dist/server/assets/sync.functions-DNiHMhsR.js                  1.62 kB │ gzip:   0.62 kB
+dist/server/assets/todos.functions-B0oieRC4.js                 1.66 kB │ gzip:   0.68 kB
+dist/server/assets/schema-Z5aaDWlx.js                          1.71 kB │ gzip:   0.51 kB
+dist/server/assets/settings.server-B490_79L.js                 1.95 kB │ gzip:   0.89 kB
+dist/server/assets/commands-CxYwlC3j.js                        2.07 kB │ gzip:   0.72 kB
+dist/server/assets/sqlite-adapter-JZeMdW7d.js                  2.24 kB │ gzip:   0.86 kB
+dist/server/assets/profile.functions-DPF31VJG.js               2.31 kB │ gzip:   0.74 kB
+dist/server/assets/env-impl-BLoKea4e.js                        2.67 kB │ gzip:   1.00 kB
+dist/server/assets/tanstack-start-C6bp4z_I.js                  3.19 kB │ gzip:   1.31 kB
+dist/server/assets/bun-sqlite-dialect-DoOVo4ja-NQe_dPxY.js     3.25 kB │ gzip:   1.16 kB
+dist/server/assets/node-sqlite-dialect-BXYWSDvr.js             3.25 kB │ gzip:   1.15 kB
+dist/server/assets/sync-DAron5UQ.js                            4.40 kB │ gzip:   1.30 kB
+dist/server/assets/input-DMEIvHal.js                           4.46 kB │ gzip:   1.43 kB
+dist/server/assets/error-C6mhNuDj.js                           4.51 kB │ gzip:   1.90 kB
+dist/server/assets/d1-sqlite-dialect-Cru74LbR-VuvGKrxD.js      5.27 kB │ gzip:   1.78 kB
+dist/server/assets/todos-CjxpU8Hj.js                           6.46 kB │ gzip:   2.44 kB
+dist/server/assets/events-BxEhXIt1.js                          8.39 kB │ gzip:   2.51 kB
+dist/server/assets/result.server-DjTJ6TMZ.js                   9.73 kB │ gzip:   2.54 kB
+dist/server/assets/schema-check-DQPObLf4.js                   10.12 kB │ gzip:   3.37 kB
+dist/server/assets/http-DKjkN8In.js                           12.13 kB │ gzip:   3.81 kB
+dist/server/assets/dist-CiXk2dTe.js                           14.94 kB │ gzip:   4.16 kB
+dist/server/assets/App-C7YwoCv8.js                            15.02 kB │ gzip:   4.03 kB
+dist/server/assets/dist-D7neJYSC.js                           17.42 kB │ gzip:   5.81 kB
+dist/server/server.js                                         18.14 kB │ gzip:   5.40 kB
+dist/server/assets/router-BEmMoRXn.js                         20.41 kB │ gzip:   5.87 kB
+dist/server/assets/server-ewnYJ2tI.js                         30.02 kB │ gzip:   8.18 kB
+dist/server/assets/drizzle-adapter-CghZQ9AM.js                31.02 kB │ gzip:   6.60 kB
+dist/server/assets/react-DScDJIuW.js                          34.64 kB │ gzip:   9.39 kB
+dist/server/assets/dist-J8O9GOul.js                           43.93 kB │ gzip:  12.00 kB
+dist/server/assets/api-BzbYZPud.js                            57.65 kB │ gzip:  16.55 kB
+dist/server/assets/factory-BU2qZVf1.js                        84.48 kB │ gzip:  18.69 kB
+dist/server/assets/dist-COInAqh0.js                          214.48 kB │ gzip:  37.13 kB
+dist/server/assets/sqlite-introspector-DSCAP82F-BmQHY3vk.js  288.51 kB │ gzip:  47.76 kB
+dist/server/assets/start-BXSicmWl.js                         301.07 kB │ gzip:  73.21 kB
+dist/server/assets/dist-pUhW5n00.js                          710.14 kB │ gzip: 164.17 kB
+
+✓ built in 759ms
+
+---
+vp run: 0/10 cache hit (0%). (Run `vp run --last-details` for full details)
+
+EXIT 0

@@ -799,3 +799,28 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   It failed without the optional call; that mutant is now killed.
   Red log: `close-hook-scope-logs/red-reentrant-without-stop.log`.
   Kill log: `close-hook-scope-logs/mutate-line-5508-retry.log`.
+
+### Fix-round gate receipt
+
+- Build returned 0.
+- Check returned 0, with the same 28 warnings.
+- Core tests returned 0: 814 tests.
+- All nine workspace test tasks returned 0.
+- Validate returned 0: all 16 lanes passed.
+- Prose returned 0.
+- Promise counts stay sync 0, async 5, tagged 2.
+- Logs and exit codes are in `close-hook-scope-logs/`.
+  Gate logs start with `gate-`; counts are in `fix-promises-budget.log`.
+- Strict test style returned 0.
+  Source style has main's same five S10 and three S14 hits.
+  Logs: `fix-test-style.log`, `fix-source-style.log`, and `fix-base-style.log`.
+- Preflight returned 0: 67 flagged units and one noisy hit.
+  All 71 real code flags have false labels with reasons.
+  Core owns these lifetime states and joins their close work.
+  Labels stay in the allowed `close-hook-scope-logs/jev-cases.jsonl`.
+  The lead owns merging and calibration at landing.
+  No shared Jev file was changed.
+- The new tests have no plain test flag.
+  The seven old test flags keep the reasons in `close-hook-scope-logs/ADVISORY.md`.
+- Next: the full Core mutation lane alone, under its lock.
+  The lead will run `scripts/ticket.sh` at landing.

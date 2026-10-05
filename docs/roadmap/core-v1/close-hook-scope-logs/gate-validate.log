@@ -1,0 +1,26 @@
+$ pnpm validate
+$ node scripts/validate.mjs
+PASS  lint/types/format/complexity
+PASS  tests
+PASS  core size (<= 16 KiB gzip)
+PASS  promises (0 sync / <=10 async)
+PASS  deep-chain (no overflow)
+PASS  live-heap-per-request
+PASS  CRAP ceiling
+PASS  core hot names at V8 slot <= 255 (release block last)
+        248 hot names before invalidateResource (last slot 250), 329 names in slots (last slot 331); headroom 5 names
+PASS  graph (span-tree per source owner, no hand-rolled span)
+PASS  ambient reads off ctx (no bare time/random)
+PASS  cast-free examples (0 casts)
+PASS  core runtime and testing entries (package imports only)
+PASS  blueprint tests
+PASS  blueprint size (<= 20 kB gzip)
+PASS  blueprint source retains corpus and evals
+PASS  two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)
+Mutation lanes: run core and react alone (floor 85).
+Timing lanes:  run via `benchctl exec -- node --experimental-strip-types bench/<lane>.mjs` from a clean worktree (the queue; never by hand).
+               bench/warm-read.mjs: a warm read is O(1) in chain depth (moved out of core#test, tests/busy-host-flake).
+
+All deterministic budget lanes PASS (16)
+
+EXIT 0
