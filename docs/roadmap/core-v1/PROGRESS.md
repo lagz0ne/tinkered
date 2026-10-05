@@ -604,3 +604,33 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   await scope.close({ graceful: true });
   await sending;
   ```
+
+### Advisory checks
+
+- Jev preflight returned 0.
+  It found no file flag and 67 unit flags in Core's large source file.
+  Each real judge flag has a `false` label with a reason.
+  The two noisy hits need no label.
+- Labels cover engine state, owned listeners, and Core's own lifetime code.
+  These belong to Core's layers, not application data cells.
+  Root stop listeners are removed before close hooks, before `ctx.defer` timing.
+- **Scope assumption:** the fixed label tool always writes `tools/jev/cases.jsonl`.
+  That path is outside this card's allowed paths.
+  The tool ran with only its bank path redirected to
+  `close-hook-scope-logs/jev-cases.jsonl` beside this file.
+  Extraction, judge names, and label state are unchanged.
+  It saved 71 labels; the lead can merge and calibrate at landing.
+  Label output: `/tmp/close-hook-jev-labels.log`, exit 0.
+- Jev tests returned 0; none of the changed tests has a flag.
+  Old `isErrorInExpect` cases and the old sleep remain outside this change.
+  The three `toBeThenToEqual` notes compare both fresh value and distinct identity.
+  Those are separate public promises, so both assertions stay.
+- The new closing tests all match README promises.
+  Old README gaps from other features are recorded in the promises log.
+  They are not new promises introduced by this card.
+- TSDoc check returned 0 with no S26 rows.
+- SCIP indexes for Core, React, and Blueprint returned 0.
+  Refs find the new public fields and their tests in Core.
+  React and Blueprint use none of those fields yet.
+  Logs: `/tmp/close-hook-scip-index.log` and
+  `/tmp/close-hook-scip-refs.log`.

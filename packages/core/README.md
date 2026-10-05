@@ -402,16 +402,21 @@ An owner that never reads it creates no signal or controller.
 A resource can end a wait it owns without blocking graceful close:
 
 ```ts
-factory: (_deps, { closing, defer }) => {
-  const endWait = () => request.abort();
-  if (closing.aborted) endWait();
-  else closing.addEventListener("abort", endWait);
-  defer(() => {
-    closing.removeEventListener("abort", endWait);
-    pool.close();
-  });
-  return request;
-},
+const waiting = resource({
+  label: "waiting",
+  factory: (_deps, { closing, defer }) => {
+    let finish = (): void => undefined;
+    const wait = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    if (closing.aborted) finish();
+    else closing.addEventListener("abort", finish);
+    defer(() => {
+      closing.removeEventListener("abort", finish);
+    });
+    return { wait };
+  },
+});
 ```
 
 Running work still finishes during a graceful close.
