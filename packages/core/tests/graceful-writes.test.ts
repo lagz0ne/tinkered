@@ -229,3 +229,105 @@ test("a first closing read during graceful root drain is already aborted", async
   await closing;
   expect(aborted).toBe(true);
 });
+
+test("graceful close refuses new calls before run hooks start", async () => {
+  const finish = gate();
+  const active = operation({ label: "active", run: () => finish.promise });
+  const later = operation({ label: "later", run: () => 7 });
+  const root = createScope({
+    extensions: [extension({ label: "run hook", hooks: { run: (event) => event.next() } })],
+  });
+  await root.ready;
+  const saved = root.controller(later);
+  const running = root.run(active);
+  const closing = root.close({ graceful: true });
+  try {
+    const ended = saved.settle();
+    if (ended.status !== "failed" || !isError(ended.error, "Disposed")) throw ended;
+  } finally {
+    finish.resolve();
+    await running;
+    await closing;
+  }
+});
+
+test("graceful close refuses new sessions through session hooks", async () => {
+  const finish = gate();
+  const root = createScope({
+    extensions: [extension({ label: "session hook", hooks: { session: (event) => event.next() } })],
+  });
+  await root.ready;
+  const running = root.run({ run: () => finish.promise });
+  const closing = root.close({ graceful: true });
+  try {
+    root.createSession();
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  } finally {
+    finish.resolve();
+    await running;
+    await closing;
+  }
+});
+
+test("a draining session refuses to release its parent's resource", async () => {
+  const finish = gate();
+  const owned = resource({ label: "parent owned", factory: () => 1 });
+  const root = createScope();
+  root.resolve(owned);
+  const session = root.createSession();
+  const running = session.run({ run: () => finish.promise });
+  const closing = session.close({ graceful: true });
+  try {
+    session.release(owned);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  } finally {
+    finish.resolve();
+    await running;
+    await closing;
+    await root.close();
+  }
+});
+
+for (const named of [false, true]) {
+  test(`a parent release keeps a draining child's ${named ? "named" : "plain"} resource usable`, async () => {
+    const finish = gate();
+    const ns = namespace();
+    const input = data({ initial: 0 });
+    const owned = resource({
+      label: "child owned",
+      target: "session",
+      depends: { input },
+      factory: ({ input }) => input,
+    });
+    const root = createScope();
+    const session = root.createSession();
+    if (named) root.controller(input, { ns }).set(1);
+    else root.controller(input).set(1);
+    const held = session.controller(owned, named ? { ns } : undefined);
+    held.resolve();
+    const read = operation({
+      label: "read after release",
+      depends: { owned },
+      run: async () => {
+        await finish.promise;
+        return held.get();
+      },
+    });
+    const running = session.run(read, named ? { ns } : undefined);
+    const closing = session.close({ graceful: true });
+    if (named) root.releaseNs(input, ns);
+    else root.release(input);
+    finish.resolve();
+    try {
+      expect(await running).toBe(1);
+      expect((await closing).status).toBe("success");
+    } finally {
+      await closing;
+      await root.close();
+    }
+  });
+}

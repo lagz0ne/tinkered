@@ -858,12 +858,12 @@ New calls and sessions at a closing layer stay refused.
 State is sealed before resource cleanup.
 The closing signal still fires before the wait.
 Forced close still seals writes and aborts work.
-A real write failure still reaches the root's close result.
+A write panic still reaches the root's close result.
 The write path adds no check, lookup, or promise.
 
-Nine tests cover the write bug and close rules.
-Six fail on main; all nine pass with the fix.
-Core has 823 passing tests.
+Fourteen tests cover the write bug and close rules.
+Eight fail on main; all fourteen pass with the fix.
+Core has 828 passing tests.
 All 16 validate lanes pass.
 Runtime size is 16,318 bytes gzip; main is 16,257.
 Promises match main: sync 0, async 5, tagged 2.
@@ -876,3 +876,13 @@ The changed lines pass the strict style check.
 Proof: [red log](graceful-writes-logs/red.log).
 Green checks: [gate exits](graceful-writes-logs/GATES.json).
 The lead runs `scripts/ticket.sh` at landing.
+
+Core mutation passes at 85.91, above the floor of 85.
+The changed-line check passes at 88.89: 48 killed, 6 survived.
+The full run tested 823 cases before five more control tests were added.
+Its runtime source matches the final source exactly.
+The changed-line run tested all 828 cases.
+The new controls keep hooks from starting late calls and sessions.
+They keep a parent's release from breaking a draining child's resources.
+The six surviving changes and their notes are in the gate file.
+Jev labels stay in the gate file to keep the allowed paths.

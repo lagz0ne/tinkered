@@ -37,3 +37,17 @@ Command: vp run core#test -- graceful-writes.test.ts
 Exit: 1; 1 failed, 8 passed (9).
 FAIL: a first closing read during graceful root drain is already aborted
 Expected true; received false.
+
+Expanded resource checks on fba1be93:
+Command: vp run core#test -- graceful-writes.test.ts
+Exit: 1
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/graceful-writes.test.ts > a running call finishes its write during graceful root stop
+ FAIL  tests/graceful-writes.test.ts > a running call finishes its write during graceful root close
+ FAIL  tests/graceful-writes.test.ts > a running call finishes its write during graceful session close
+ FAIL  tests/graceful-writes.test.ts > a running call's async defer can write during graceful close
+ FAIL  tests/graceful-writes.test.ts > closed reports a real failure from a running call's write
+ FAIL  tests/graceful-writes.test.ts > closing refuses new calls before a waiting root close hook resumes
+ FAIL  tests/graceful-writes.test.ts > a parent release keeps a draining child's plain resource usable
+ FAIL  tests/graceful-writes.test.ts > a parent release keeps a draining child's named resource usable
+      Tests  8 failed | 6 passed (14)

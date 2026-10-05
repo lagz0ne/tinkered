@@ -42,19 +42,22 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/graceful-writes** — active calls keep state open during graceful close.
-  Asked by: Harness and Tinkerer live entries.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-graceful-writes`.
-  Next: run Core mutation and the changed-line check; save proof for lead review.
-  Re-proven on main 2026-10-05: the write fails with `Disposed`; `closed` says success.
-  Verify: a running call can finish its write during graceful root close;
-  calls after close begins stay refused; Core ticket and size checks pass.
-  [Proof](docs/roadmap/core-feedback.md#graceful-close-blocks-active-writes-2026-10-01).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **core/graceful-writes** — active calls keep state open during graceful close.
+  Asked by: Harness and Tinkerer live entries.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-graceful-writes`.
+  Next: lead reviews the diff, then runs the landing gates.
+  Re-proven on main 2026-10-05: the write fails with `Disposed`; `closed` says success.
+  Proof: 828 Core tests; all test tasks and 16 validate lanes pass.
+  Mutation: Core 85.91; changed lines 88.89.
+  Size: 16,318 bytes gzip; promises match main (0, 5, 2).
+  `scripts/ticket.sh` remains the lead's landing check.
+  [Gates](docs/roadmap/core-v1/graceful-writes-logs/GATES.json).
+  [Proof](docs/roadmap/core-feedback.md#graceful-close-blocks-active-writes-2026-10-01).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

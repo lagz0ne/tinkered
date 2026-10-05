@@ -51,16 +51,16 @@
     "core_test": {
       "command": "vp run core#test",
       "exit": 0,
-      "summary": ["Test Files  39 passed (39)", "Tests  823 passed (823)"]
+      "summary": ["Test Files  39 passed (39)", "Tests  828 passed (828)"]
     },
     "all_test": {
       "command": "vp run -r test",
       "exit": 0,
       "summary": [
         "\u25b6 S26 malformed TSDoc",
-        "\u2714 S26 malformed TSDoc (12.461242ms)",
+        "\u2714 S26 malformed TSDoc (42.639894ms)",
         "Test Files  39 passed (39)",
-        "Tests  823 passed (823)",
+        "Tests  828 passed (828)",
         "Test Files  1 passed (1)",
         "Tests  4 passed (4)",
         "Test Files  8 passed (8)",
@@ -119,6 +119,89 @@
         "S26 by folder: {}",
         "Advisory only \u2014 an S26 row is a doc to fix. Whether a doc says what code cannot is the reviewer's call (rule 10)."
       ]
+    },
+    "core_mutation": {
+      "command": "flock /tmp/mutation.lock vp run core#mutate",
+      "exit": 0,
+      "score": 85.91,
+      "floor": 85,
+      "counts": {
+        "NoCoverage": 21,
+        "Killed": 2992,
+        "Survived": 475,
+        "RuntimeError": 3,
+        "Timeout": 31
+      },
+      "tests_at_run": 823,
+      "source_sha256": "e7e5939e55beac857cd8969aa98d96a9f6ceb2b09fc719832a06437c9decfa62",
+      "source_identical_after_added_tests": true
+    },
+    "per_line_mutation": {
+      "command": "flock /tmp/mutation.lock npx stryker run --mutate <ranges> --reporters clear-text,json",
+      "cwd": "packages/core",
+      "ranges": [
+        "src/index.ts:628-629",
+        "src/index.ts:742-744",
+        "src/index.ts:1247-1256",
+        "src/index.ts:2573-2573",
+        "src/index.ts:2599-2599",
+        "src/index.ts:2718-2718",
+        "src/index.ts:4086-4087",
+        "src/index.ts:4182-4182",
+        "src/index.ts:4254-4254",
+        "src/index.ts:4497-4497",
+        "src/index.ts:4506-4506",
+        "src/index.ts:4526-4526",
+        "src/index.ts:4679-4679",
+        "src/index.ts:4681-4681",
+        "src/index.ts:4699-4699",
+        "src/index.ts:4701-4701",
+        "src/index.ts:4743-4743",
+        "src/index.ts:4757-4761",
+        "src/index.ts:4855-4855",
+        "src/index.ts:5153-5153",
+        "src/index.ts:5429-5429",
+        "src/index.ts:5822-5822"
+      ],
+      "exit": 0,
+      "score": 88.89,
+      "counts": {
+        "Killed": 48,
+        "Survived": 6
+      },
+      "tests_at_run": 828,
+      "survivors": [
+        {
+          "line": 2599,
+          "mutator": "CallExpression",
+          "why": "The replay reaches the same acceptance check in runOnce before starting the body."
+        },
+        {
+          "line": 1254,
+          "mutator": "StringLiteral",
+          "why": "Error reason text is not an exact-text promise; an empty payload mutant also fails the declared payload type."
+        },
+        {
+          "line": 1254,
+          "mutator": "ObjectLiteral",
+          "why": "Error reason text is not an exact-text promise; an empty payload mutant also fails the declared payload type."
+        },
+        {
+          "line": 4760,
+          "mutator": "ConditionalExpression",
+          "why": "These unchanged bucket identity and optional access checks moved into the existing predicate; they are not new close behavior."
+        },
+        {
+          "line": 4760,
+          "mutator": "OptionalChaining",
+          "why": "These unchanged bucket identity and optional access checks moved into the existing predicate; they are not new close behavior."
+        },
+        {
+          "line": 4760,
+          "mutator": "OptionalChaining",
+          "why": "These unchanged bucket identity and optional access checks moved into the existing predicate; they are not new close behavior."
+        }
+      ]
     }
   },
   "result": {
@@ -141,7 +224,14 @@
   "history": {
     "all_test_first_exit": 1,
     "mutation_interrupted_exit": 143,
-    "why": "The final closing-signal regression changed source; mutation testing restarted."
+    "why": "The final closing-signal regression changed source; mutation testing restarted.",
+    "focused_first_run": {
+      "exit": 1,
+      "score": 77.78,
+      "killed": 42,
+      "survived": 12,
+      "why": "Added tests for hook entry, release through a closing caller, and keeping plain and named child resources usable during drain."
+    }
   },
   "advisory": {
     "preflight": {
@@ -237,14 +327,29 @@
     "tests": {
       "exit": 0,
       "unchanged_notes": 7,
-      "changed_test_notes": 0
+      "changed_test_notes": 0,
+      "changed_test_entries": 11
     },
     "promises": {
       "exit": 0,
       "unchanged_gaps": 41,
       "changed_gaps": 0,
-      "new_closing_test_promise": "A first read after closing began returns an aborted signal."
+      "new_closing_test_promise": "A first read after closing began returns an aborted signal.",
+      "new_control_promises": [
+        "New calls are refused before run hooks start.",
+        "New sessions are refused before session hooks start.",
+        "A draining session cannot release its parent's resource.",
+        "A parent release keeps a draining child's resources usable, including named resources."
+      ]
     },
     "scope": "The unchanged label tool ran from /tmp/gw-label-tools. Labels are kept here because tools/jev changes are outside the allowed paths. Old test notes and README gaps are outside this card."
+  },
+  "expanded_red": {
+    "base": "fba1be93",
+    "exit": 1,
+    "failed": 8,
+    "passed": 6,
+    "tests": 14,
+    "log": "red.log"
   }
 }

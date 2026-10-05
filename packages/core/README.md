@@ -439,9 +439,14 @@ Their `ctx.defer` cleanup can also write, including after an await.
 This holds for a root stop signal, a direct root close, and a session close.
 Both close modes refuse new calls and sessions as soon as closing begins.
 Saved operation controllers also refuse new calls.
+New calls are refused before run hooks start.
+New sessions are refused before session hooks start.
 The closing signal still fires before the drain; the work signal stays live during graceful drain.
 State is sealed after running calls and their cleanup finish, before resource cleanup.
-A real failure in a running call's write makes `closed` report `failed`.
+Saved resource controllers stay usable during the drain.
+A parent release keeps a draining child's resources usable, including named resources.
+A draining session cannot release its parent's resource.
+A panic from a running call's write makes `closed` report `failed`.
 A failure received through `settle` stays recovered, as with any call.
 Use plain `close()` when the work needs a stop signal.
 Forced close aborts work instead of waiting for its normal finish.
