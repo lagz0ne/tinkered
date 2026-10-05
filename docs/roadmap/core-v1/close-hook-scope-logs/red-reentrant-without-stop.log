@@ -1,0 +1,32 @@
+Removed: optional call when a root has no closed promise
+~/packages/core$ vp test -- tests/closing.test.ts -t 'a root without a stop signal closes from a session cleanup' ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-close-hook/packages/core
+
+ ❯ tests/closing.test.ts (14 tests | 1 failed | 13 skipped) 16ms
+   × a root without a stop signal closes from a session cleanup 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/closing.test.ts > a root without a stop signal closes from a session cleanup
+TypeError: lifetime.finish is not a function
+ ❯ src/index.ts:5508:18
+    5506|       const ended = close();
+    5507|       lifetime.closing ??= layer.closing!.then((result) => {
+    5508|         lifetime.finish!(result);
+       |                  ^
+    5509|         return result;
+    5510|       });
+ ❯ tests/closing.test.ts:121:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 skipped (14)
+   Start at  04:03:22
+   Duration  390ms (transform 77%, import 13%, tests 7%, worker 2%)
+
+
+
+EXIT 1

@@ -1,0 +1,92 @@
+[
+  {
+    "requestedLine": 4011,
+    "location": {
+      "end": {
+        "column": 23,
+        "line": 4011
+      },
+      "start": {
+        "column": 3,
+        "line": 4011
+      }
+    },
+    "mutatorName": "CallExpression",
+    "replacement": ";",
+    "status": "Killed",
+    "statusReason": "expected false to be true // Object.is equality",
+    "killedBy": ["314"]
+  },
+  {
+    "requestedLine": 5505,
+    "location": {
+      "end": {
+        "column": 33,
+        "line": 5505
+      },
+      "start": {
+        "column": 9,
+        "line": 5505
+      }
+    },
+    "mutatorName": "ConditionalExpression",
+    "replacement": "false",
+    "status": "Killed",
+    "statusReason": "expected [ 'close hook' ] to deeply equal []",
+    "killedBy": ["2"]
+  },
+  {
+    "requestedLine": 5505,
+    "location": {
+      "end": {
+        "column": 33,
+        "line": 5505
+      },
+      "start": {
+        "column": 9,
+        "line": 5505
+      }
+    },
+    "mutatorName": "ConditionalExpression",
+    "replacement": "true",
+    "status": "Killed",
+    "statusReason": "expected undefined to be true // Object.is equality",
+    "killedBy": ["1"]
+  },
+  {
+    "requestedLine": 5519,
+    "location": {
+      "end": {
+        "column": 23,
+        "line": 5519
+      },
+      "start": {
+        "column": 19,
+        "line": 5519
+      }
+    },
+    "mutatorName": "BooleanLiteral",
+    "replacement": "false",
+    "status": "Killed",
+    "statusReason": "expected false to be true // Object.is equality",
+    "killedBy": ["299"]
+  },
+  {
+    "requestedLine": 5508,
+    "location": {
+      "end": {
+        "column": 34,
+        "line": 5508
+      },
+      "start": {
+        "column": 9,
+        "line": 5508
+      }
+    },
+    "mutatorName": "OptionalChaining",
+    "replacement": "lifetime.finish(result)",
+    "status": "Killed",
+    "statusReason": "lifetime.finish is not a function",
+    "killedBy": ["28"]
+  }
+]

@@ -38,5 +38,5 @@ W05       0  explicit any
 W06       0  let x!: definite assignment
 W07       0  line longer than 100 chars
 W09       0  interface declaration (type preferred)
-W08      13  test count (watch: many small tests)
+W08      14  test count (watch: many small tests)
 Style census: OK

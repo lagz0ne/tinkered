@@ -111,6 +111,16 @@ test("closed settles when a session cleanup makes the first root close", async (
   expect(calls).toEqual([]);
 });
 
+test("a root without a stop signal closes from a session cleanup", async () => {
+  const piece = extension({ label: "reentrant-without-stop" });
+  const root = createScope({ extensions: [piece] });
+  await root.ready;
+  const session = root.createSession();
+  session.onClose(() => root.close({ graceful: true }).then(() => undefined));
+  await session.close();
+  expect((await root.close({ graceful: true })).status).toBe("success");
+});
+
 test("a graceful root close ends a resource-owned wait before draining work", async () => {
   const scope = createScope();
   const owned = scope.resolve(rootWait);

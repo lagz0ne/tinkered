@@ -780,7 +780,7 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   It keeps the real layer Result and the existing hook bypass.
 - Idle session closing and a close hook's first signal read have tests.
   Each test failed with its required line removed or reverted.
-  All 13 closing tests pass with those lines restored.
+  All 14 closing tests pass with those lines restored.
 - Build, check, size, prose, TSDoc, and test style returned 0.
   The build config exactly matches `origin/main`.
   Size is 16,257 B gzip, +101 B over 16,156 B.
@@ -788,3 +788,14 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 - Red and green logs are in `close-hook-scope-logs/`.
   The fix logs start with `red-reentrant`, `red-idle`,
   `red-first-read`, `green-fix`, and `fix-`.
+
+- The three review mutants are killed: lines 4011, 5505, and 5519.
+  Line 5519 was 5512 before the seven-line fix.
+  Every added code line also has a per-line run.
+  Lines 5506, 5507, 5509, and 5511 produced no mutants.
+- The optional-call mutant at 5508 survived the first run.
+  A root with no stop signal has no `closed` resolver.
+  A fourth test proves this close still ends with success.
+  It failed without the optional call; that mutant is now killed.
+  Red log: `close-hook-scope-logs/red-reentrant-without-stop.log`.
+  Kill log: `close-hook-scope-logs/mutate-line-5508-retry.log`.
