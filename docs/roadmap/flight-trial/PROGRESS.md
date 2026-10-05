@@ -4015,3 +4015,7 @@ The retry rule is the same: one teacher note a try, up to 3 tries a round.
   Supplier failure: `Search complete` was never shown.
   Packet lines 30 to 32 tripped trial 1 the same way.
   The packet stays as it is until this trial ends.
+- Round 1, try 2 (agent `ca54c3df`): **pass**, hidden checks 3 of 3.
+  Cost about $0.10.
+  `Search complete` now shows beside the outcome line,
+  and `No flights` is a notice, not a table row.
