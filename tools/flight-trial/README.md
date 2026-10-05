@@ -400,6 +400,7 @@ Authorization: Bearer flight-local-control
 
 Control uses its own `/control/` path prefix.
 Service calls need no token on the private trial network.
+Both services return a Duffel error for a missing control route.
 Holds expire on real time before the grader sets a clock.
 Each HTTP call checks hold deadlines before reading or changing state.
 The deadline check also precedes grader edits; a hold needs no timer.

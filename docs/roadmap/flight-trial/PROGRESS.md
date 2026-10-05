@@ -15,6 +15,12 @@ The reference app stays pinned.
 - After the fix: exit 0, both test cases passed.
 - Gate proof: [GATES.json](extension-slot/GATES.json).
 
+The first mutation gate returned 1: score 84.98, below the floor of 85.
+It missed payment's shared Duffel error on a missing control route.
+A new HTTP check covers that existing wire promise in both services.
+Changing `NotFound.duffel` to false makes it fail, exit 1.
+The source is restored; no wire behavior changes.
+
 Jev preflight returned 0, with no file flags.
 Its unit notes concern unchanged clock waits, socket promises,
 middleware stop checks, webhook cleanup, and payment-key promises.

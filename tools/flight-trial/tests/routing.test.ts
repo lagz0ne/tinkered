@@ -114,6 +114,18 @@ test("route rules reject a missing route even when the body has a name", async (
   }
 });
 
+test("both services return a Duffel error for a missing control route", async () => {
+  for (const { url } of running) {
+    const response = await fetch(`${url}/control/missing`, {
+      headers: { authorization: "Bearer grader" },
+    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      errors: [{ type: "invalid_request_error", code: "not_found", title: "not_found" }],
+    });
+  }
+});
+
 test("HEAD calls keep the missing-route reply", async () => {
   for (const { url } of running) {
     const response = await fetch(`${url}/control/calls`, {
