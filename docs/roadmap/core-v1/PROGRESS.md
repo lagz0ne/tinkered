@@ -1142,3 +1142,122 @@ The base and trial worktrees were removed after the proof.
 Saved work waits in Review.
 The lead owns review and `scripts/ticket.sh` at landing.
 This writer does not push.
+
+## core/size-safe
+
+Owner: Opus writer on `core/size-safe`.
+Core goes from 16,084 B to 15,683 B gzip: 401 B saved.
+Room under the 16,384 B cap: 701 B.
+Every cut is internal code; behavior stays the same.
+Public types, exports, error kinds, and messages are unchanged.
+The three `.d.mts` files are byte-identical to main.
+Build settings stay unchanged.
+The run, session, resolve, and write hooks keep their API.
+
+### Cuts
+
+One commit per research patch, each measured with
+`vp run --no-cache core#size`.
+
+- `9a100bcf` lifetime, 9 close-path cuts: 131 B.
+  A teardown stack array, one `thenDone` helper,
+  session hook state as `0/1/2`, a shared `isIdle`,
+  and 5 smaller rewrites.
+  The `ownsNothing` doc now lists only its record walk.
+- `07fa9a59` hot, 4 cuts: 198 B.
+  A layer's tags are always one list; `stripNs`
+  replaces `stripTags`; `ctx.hooks` replaces
+  `defersFor`; the resolve onion ends in `resolveNs`.
+- `e6f09a4b` surface S2–S5: 66 B.
+  A shorter plain-http uuid fallback, `DEFAULT_OBS`
+  from `makeObs`, one `sleep` branch, a no-op logger
+  built over `LEVELS`.
+- `eebb1213` errors E1 and E4: 6 B.
+  `closeOrigin` asks the WeakMap directly;
+  `settleSession` raises `TeardownFailed` once.
+
+### Not taken
+
+- S1, span ids written at open (275 B).
+  It made 4 hex strings for every span at open.
+  `SCEN=opobs` at N=61: 211 ns on main, 955 ns with it.
+  B slower in 61 of 61 pairs, so it was dropped.
+  Span ids stay lazy, as on main.
+  So the reflection change the lens noted is gone:
+  `"error" in span` and `Object.keys(span)` match main.
+  A lazy form with no `toJSON` is a round 2 question.
+- The `resolveSelectedDep` inline (18 B).
+  It takes `buildDeps` to complexity 9; the lint max is 8.
+- E2, `originOf` over `causesOf` (10 B).
+  It reads every `cause` before it looks for a stamp.
+  A throwing `cause` getter past the stamp would throw.
+- E3, `raiseUnstamped = raise` (2 B).
+  It needs `as unknown as`; the coding rules ban it.
+
+### Proof
+
+Final code: `eebb1213`. Base: `08ddc349` (`origin/main`).
+The full receipt is [GATES.json](size-safe/GATES.json).
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0; 0 errors, 28 warnings (main: 28).
+- `vp run core#test`: exit 0; 854 tests (main: 854).
+- `vp run -r test`: exit 0; 9 test tasks.
+- `pnpm validate`: exit 0; all 16 lanes pass.
+- Promises: 0 sync, 5 async, 2 tagged (same).
+- Hot names end at slot 247 (main: 249).
+- The three `.d.mts` files: byte-identical to main.
+- Span JSON probe: identical to main.
+  It covers 8 scopes (system and seeded random,
+  4 trace seeds) and 352 lines: history,
+  export, logs, and field reads, plus own keys.
+- `flock /tmp/mutation.lock vp run core#mutate`:
+  exit 0; score 85.92 (floor 85).
+  Killed 2,898, timeout 30, survived 454,
+  no coverage 26. Fewer mutants than main:
+  the cuts removed code.
+- `vp run prose`: exit 0.
+- Jev preflight: exit 0; 67 flags.
+  All are app judges (`stateOutsideCell`,
+  `handRolledLifetime`, `effectWithoutDefer`)
+  on Core's own lifetime code.
+  6 sit on touched functions: `closeOrigin`,
+  `finishHook`, `finishInstance`, `isIdle`,
+  `closeLayer`, `extendHandle`.
+  None is labeled: the lead's rule is to not bank
+  boilerplate labels on core internals, and
+  `tools/jev` is outside this card's paths.
+
+### Speed
+
+Each scenario ran through the queue at 61 pairs,
+one queue job per scenario, under the shared lock.
+The paired sign test drops ties and calls a change
+at `p < 0.01`. All timing commands returned 0.
+
+- `opobs` (tracing on): B faster, 209 → 202 ns.
+- `op`: B faster, 68.6 → 64.0 ns.
+- `run`: B faster, 81.4 → 75.1 ns.
+- `opres`: no difference we can see.
+- `inline`: B faster, 110.8 → 104.9 ns.
+- `session`: B faster, 585 → 549 ns.
+- `tagged`: no difference we can see.
+- `create`: no difference we can see.
+- `cold`: no difference we can see.
+- `warm`: no difference we can see.
+- `lifecycle`: no difference we can see.
+- `taggeddefer`: B faster, 360 → 237 ns.
+- `taggedres`: no difference we can see.
+  At 61 pairs it leaned slower (40 of 61, p 0.02).
+  A rerun at 183 pairs: 88 slower, 95 faster
+  (p 0.66), medians 2,641 → 2,629 ns.
+
+`taggeddefer` and `taggedres` are not in the default list.
+They ran because cuts 1 and 2 touch the defer, tag,
+and resource release paths.
+
+No scenario is B slower.
+The base worktree was removed after the proof.
+Saved work waits in Review.
+The lead owns review and `scripts/ticket.sh` at landing.
+This writer does not push.

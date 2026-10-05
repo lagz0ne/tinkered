@@ -1,0 +1,345 @@
+{
+  "base": "08ddc349efea1c84bd3852f9da3a0c10f82a818d",
+  "code": "eebb121385dd6dbb8f1fd833e2bb841cf166962b",
+  "date_utc": "2026-10-05T23:21:29.226543+00:00",
+  "source_sha256": {
+    "packages/core/src/errors.ts": "64c7d5e3e7caba14320ca586a4be4631733cc2d8b1d691c9e097416b3f00b165",
+    "packages/core/src/index.ts": "b1f5f56144d559b7d03883316cb678dd7fd6de444aff26c4a475ccb682cc5371"
+  },
+  "size": {
+    "before": 16084,
+    "after": 15683,
+    "saved": 401,
+    "cap": 16384,
+    "room": 701,
+    "command": "vp run --no-cache core#size",
+    "commits": [
+      {
+        "commit": "9a100bcf",
+        "lens": "lifetime",
+        "before": 16084,
+        "after": 15953,
+        "saved": 131
+      },
+      {
+        "commit": "07fa9a59",
+        "lens": "hot",
+        "before": 15953,
+        "after": 15755,
+        "saved": 198
+      },
+      {
+        "commit": "e6f09a4b",
+        "lens": "surface S2-S5",
+        "before": 15755,
+        "after": 15689,
+        "saved": 66
+      },
+      {
+        "commit": "eebb1213",
+        "lens": "errors E1 E4",
+        "before": 15689,
+        "after": 15683,
+        "saved": 6
+      }
+    ],
+    "not_taken": [
+      {
+        "cut": "S1 span ids at open",
+        "bytes": 275,
+        "why": "opobs B slower: 211 -> 955 ns, 61 of 61 pairs"
+      },
+      {
+        "cut": "resolveSelectedDep inline",
+        "bytes": 18,
+        "why": "buildDeps complexity 9, lint max 8"
+      },
+      {
+        "cut": "E2 originOf over causesOf",
+        "bytes": 10,
+        "why": "reads every cause before the stamp; a throwing cause getter would throw"
+      },
+      {
+        "cut": "E3 raiseUnstamped = raise",
+        "bytes": 2,
+        "why": "needs `as unknown as`, banned by the coding convention"
+      }
+    ]
+  },
+  "tests": {
+    "core_before": 854,
+    "core_after": 854,
+    "test_files_changed": 0,
+    "test_tasks": 9
+  },
+  "warnings": {
+    "main": 28,
+    "branch": 28
+  },
+  "public_api": {
+    "declaration_files": 3,
+    "declarations_byte_identical": true,
+    "span_json_probe": {
+      "cases": 8,
+      "lines": 352,
+      "identical_to_main": true,
+      "own_keys_identical": true
+    },
+    "build_settings_changed": false,
+    "hook_api_changed": false
+  },
+  "gates": {
+    "install": {
+      "command": "vp install",
+      "exit": 0
+    },
+    "build": {
+      "command": "vp run -r build",
+      "exit": 0
+    },
+    "check": {
+      "command": "vp check",
+      "exit": 0
+    },
+    "core_test": {
+      "command": "vp run core#test",
+      "exit": 0,
+      "tests": 854
+    },
+    "all_tests": {
+      "command": "vp run -r test",
+      "exit": 0,
+      "tasks": 9
+    },
+    "validate": {
+      "command": "pnpm validate",
+      "exit": 0,
+      "lanes": 16
+    },
+    "prose": {
+      "command": "vp run prose",
+      "exit": 0
+    },
+    "promises": {
+      "command": "node --experimental-strip-types bench/promises.mjs",
+      "exit": 0
+    },
+    "slots": {
+      "command": "node scripts/check-slots.mjs",
+      "exit": 0
+    },
+    "declarations": {
+      "command": "cmp base/packages/core/dist/*.d.mts packages/core/dist/*.d.mts",
+      "exit": 0
+    },
+    "span_json_probe": {
+      "command": "node span-json.mjs <core dir> (main vs branch, then cmp)",
+      "exit": 0
+    },
+    "preflight": {
+      "command": "node tools/jev/preflight.mjs origin/main..HEAD",
+      "exit": 0,
+      "flags": 67,
+      "labels_added": 0
+    },
+    "mutation": {
+      "command": "flock /tmp/mutation.lock vp run core#mutate",
+      "exit": 0
+    },
+    "bench": {
+      "command": "bench/queued.sh (opobs; ten default; taggeddefer taggedres; taggedres N=183)",
+      "exit": 0
+    }
+  },
+  "validate_lanes": 16,
+  "promises": [0, 5, 2],
+  "slots": {
+    "before_last_hot_slot": 249,
+    "after_hot_names": 245,
+    "after_last_hot_slot": 247,
+    "headroom": 8
+  },
+  "mutation": {
+    "Killed": 2898,
+    "Timeout": 30,
+    "Survived": 454,
+    "NoCoverage": 26,
+    "RuntimeError": 3,
+    "score": 85.92,
+    "floor": 85,
+    "exit": 0,
+    "command": "flock /tmp/mutation.lock vp run core#mutate",
+    "main_last_published": 85.97
+  },
+  "bench": {
+    "command": "N=61 A=../tinkered-size-safe-base bench/queued.sh (and SCEN=opobs, SCEN='taggeddefer taggedres')",
+    "method": "Exact paired two-sided sign test; ties omitted; p < 0.01. One queue job per scenario, under /tmp/mutation.lock. A=main, B=candidate.",
+    "dropped_cut_run": {
+      "scenario": "opobs",
+      "code": "13ba82eb (with S1)",
+      "a_median_ns": 211.0,
+      "b_median_ns": 955.1,
+      "slower": 61,
+      "faster": 0,
+      "verdict": "B slower"
+    },
+    "scenarios": [
+      {
+        "scenario": "opobs",
+        "a_median_ns": 209.1,
+        "b_median_ns": 202.4,
+        "slower": 4,
+        "faster": 57,
+        "ties": 0,
+        "pairs": 61,
+        "p": 4.85494457136415e-13,
+        "verdict": "B faster"
+      },
+      {
+        "scenario": "op",
+        "a_median_ns": 68.6,
+        "b_median_ns": 64,
+        "slower": 2,
+        "faster": 59,
+        "ties": 0,
+        "pairs": 61,
+        "p": 1.6410484082740595e-15,
+        "verdict": "B faster"
+      },
+      {
+        "scenario": "run",
+        "a_median_ns": 81.4,
+        "b_median_ns": 75.1,
+        "slower": 2,
+        "faster": 59,
+        "ties": 0,
+        "pairs": 61,
+        "p": 1.6410484082740595e-15,
+        "verdict": "B faster"
+      },
+      {
+        "scenario": "opres",
+        "a_median_ns": 354.3,
+        "b_median_ns": 357.1,
+        "slower": 27,
+        "faster": 34,
+        "ties": 0,
+        "pairs": 61,
+        "p": 0.4426260049464714,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "inline",
+        "a_median_ns": 110.8,
+        "b_median_ns": 104.9,
+        "slower": 3,
+        "faster": 58,
+        "ties": 0,
+        "pairs": 61,
+        "p": 3.2857397358476703e-14,
+        "verdict": "B faster"
+      },
+      {
+        "scenario": "session",
+        "a_median_ns": 585.4,
+        "b_median_ns": 549,
+        "slower": 4,
+        "faster": 57,
+        "ties": 0,
+        "pairs": 61,
+        "p": 4.85494457136415e-13,
+        "verdict": "B faster"
+      },
+      {
+        "scenario": "tagged",
+        "a_median_ns": 209.3,
+        "b_median_ns": 208.6,
+        "slower": 29,
+        "faster": 32,
+        "ties": 0,
+        "pairs": 61,
+        "p": 0.798152627305718,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "create",
+        "a_median_ns": 121.9,
+        "b_median_ns": 121.9,
+        "slower": 25,
+        "faster": 30,
+        "ties": 6,
+        "pairs": 61,
+        "p": 0.5900533317766357,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "cold",
+        "a_median_ns": 696.9,
+        "b_median_ns": 696.9,
+        "slower": 34,
+        "faster": 27,
+        "ties": 0,
+        "pairs": 61,
+        "p": 0.4426260049464714,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "warm",
+        "a_median_ns": 15.2,
+        "b_median_ns": 15.2,
+        "slower": 20,
+        "faster": 25,
+        "ties": 16,
+        "pairs": 61,
+        "p": 0.5514843298025198,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "lifecycle",
+        "a_median_ns": 859.1,
+        "b_median_ns": 855.2,
+        "slower": 23,
+        "faster": 38,
+        "ties": 0,
+        "pairs": 61,
+        "p": 0.07217743850092258,
+        "verdict": "no difference we can see"
+      },
+      {
+        "scenario": "taggeddefer",
+        "a_median_ns": 360.2,
+        "b_median_ns": 237.4,
+        "slower": 1,
+        "faster": 60,
+        "ties": 0,
+        "pairs": 61,
+        "p": 5.377642775528102e-17,
+        "verdict": "B faster"
+      },
+      {
+        "scenario": "taggedres",
+        "a_median_ns": 2618.5,
+        "b_median_ns": 2719.8,
+        "slower": 40,
+        "faster": 21,
+        "ties": 0,
+        "pairs": 61,
+        "p": 0.020414713799634897,
+        "verdict": "no difference we can see"
+      }
+    ],
+    "reruns": [
+      {
+        "scenario": "taggedres",
+        "a_median_ns": 2641.4,
+        "b_median_ns": 2628.7,
+        "slower": 88,
+        "faster": 95,
+        "ties": 0,
+        "pairs": 183,
+        "p": 0.6574989153775928,
+        "verdict": "no difference we can see"
+      }
+    ]
+  }
+}

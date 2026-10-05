@@ -39,10 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   User 2026-10-05: extension hooks and namespaces stay (ADR 0050, 0059, 0060).
   Next: round 2 looks for cheaper hook and namespace code with the same API (about 650 B needed).
 
-- **core/size-safe** — land round 1's code-only cuts (about 710 B), no change in behavior.
-  Owner: lead; Opus writer. Worktree: `../tinkered-size-safe`.
-  Verify: public types identical; tests, validate, mutation (85) pass; bench has no "B slower".
-
 - **core/size-build** — a build step renames private fields (about 514 B), checked by a guard.
   Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Lands after `core/size-safe`.
   Verify: same public types and exports; Core tests pass on the built files too.
@@ -59,6 +55,14 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **core/size-safe** — round 1's code-only cuts: Core 16,084 → 15,683 B gzip (401 B), same behavior.
+  Owner: lead; Opus writer. Worktree: `../tinkered-size-safe`.
+  Next: lead review, then landing with `scripts/ticket.sh`.
+  Proof: public `.d.mts` identical; 854 tests; validate 16 lanes; mutation 85.92.
+  Speed: 13 scenarios at N=61, none B slower; 6 B faster.
+  Dropped: span ids at open (275 B), `opobs` B slower (211 → 955 ns).
+  [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-safe).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
