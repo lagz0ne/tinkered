@@ -915,3 +915,112 @@ It kills 96 changes; the same eight survivors remain explained.
 The full mutation result above is from the earlier round.
 The test file passes strict style, and Jev flags none of its 26 test entries.
 Saved work stays in Review for the lead.
+
+## core/size-room
+
+Owner: Sol writer on `core/size-room`.
+Core starts at 16,379 B gzip.
+The cuts leave 16,080 B gzip, with 304 B free.
+The cap stays 16,384 B.
+Public types and exports stay the same.
+Error kinds and message text stay the same.
+Hot functions were neither merged nor grown.
+Cold reset code shares fresh error payloads and drops build references.
+Empty stores are shared only until their first write.
+Each write gate gives its owner a new store.
+Private symbol text is removed; each symbol still has its own identity.
+Build settings stay unchanged.
+
+### Cuts
+
+Each cut was packed and measured on its own.
+The list shows the kept steps, in bytes saved.
+Name changes stay inside Core.
+A later name change can shorten an earlier name again.
+Zero gains, larger output, and unsafe name clashes were dropped.
+
+- `resourceDependencies -> needs`: 6 B.
+- `resourceDependents -> users`: 9 B.
+- `dataDependencies -> reads`: 6 B.
+- `nsDataDependents -> nsReaders`: 3 B.
+- `descendantFailure -> childFailure`: 3 B.
+- `resourceHolds -> holds`: 4 B.
+- `failureOwner -> caller`: 7 B.
+- `controllerFor -> controls`: 2 B.
+- `parentHigh -> parentHi`: 3 B.
+- `parentLow -> parentLo`: 1 B.
+- `parentText -> parentHex`: 1 B.
+- `isSettled -> settled`: 2 B.
+- `nsResources -> nsBuilt`: 3 B.
+- `abortReason -> reason`: 7 B.
+- `secondary -> errors`: 6 B.
+- `completion -> done`: 8 B.
+- `dependents -> users`: 8 B.
+- `dependencies -> needs`: 7 B.
+- `borrowers -> borrows`: 1 B.
+- `finishing -> ending`: 1 B.
+- `remaining -> left`: 2 B.
+- `notified -> prior`: 2 B.
+- `closeSignal -> stopping`: 1 B.
+- `nsCells -> cells`: 9 B.
+- `nsLinked -> links`: 6 B.
+- `emptyCtx -> empty`: 3 B.
+- `obsTools -> tools`: 2 B.
+- `nsReaders -> readers`: 7 B.
+- `settler -> settled`: 2 B.
+- `controls -> control`: 1 B.
+- `cleanup -> clean`: 1 B.
+- `unlisten -> detach`: 1 B.
+- `bodies -> work`: 2 B.
+- `nextId -> id`: 3 B.
+- `traceBits -> bits`: 1 B.
+- `shareDefers -> share`: 4 B.
+- `defersOf -> defersFor`: 1 B.
+- `childFailure -> childError`: 1 B.
+- `building -> busy`: 3 B.
+- `defers -> hooks`: 6 B.
+- `active -> live`: 1 B.
+- `failure -> failed`: 4 B.
+- `parent -> up`: 2 B.
+- `instance -> owned`: 4 B.
+- `prior -> prev`: 2 B.
+- `nsBuilt -> named`: 2 B.
+- `logTools -> logs`: 1 B.
+- `observing -> on`: 8 B.
+- `recovered -> recover`: 1 B.
+- `complete -> finish`: 10 B.
+- `createLog -> logFor`: 4 B.
+- `promise -> ready`: 10 B.
+- `sessions -> session`: 2 B.
+- `parentHi -> hi`: 4 B.
+- `parentLo -> lo`: 2 B.
+- `chain -> ns`: 6 B.
+- `hookTarget -> op`: 3 B.
+- `stopping -> stop`: 2 B.
+- `previous -> stack`: 3 B.
+- Share InvalidDependency payload construction: 2 B.
+- Share cold build-reference clearing: 7 B.
+- Use implicit undefined class fields: 2 B.
+- Remove the private default-entry symbol text: 10 B.
+- `owner property -> layer`: 1 B.
+- `resource state property -> built`: 6 B.
+- Chain retained-data reference clearing: 1 B.
+- Chain build-reference clearing: 5 B.
+- Share the frozen empty namespace list: 3 B.
+- Share empty cleanup and error arrays: 15 B.
+- Share empty child and pending sets: 5 B.
+- Use implicit undefined for the remaining class fields: 1 B.
+- Return the wrapped session handle directly: 4 B.
+- Remove the private recovered symbol text: 2 B.
+- Remove the private borrow flag text: 4 B.
+- Remove the private factory flag text: 8 B.
+- Reuse the existing no-op build callback: 1 B.
+- Remove the private cancellation brand text: 5 B.
+
+### Proof
+
+The first build, check, and Core test gate passed.
+Next: all tests, validate, mutation, and queued speed checks.
+The full receipt will be saved in `size-room/GATES.json`.
+The lead owns review and `scripts/ticket.sh` at landing.
+This writer does not push.

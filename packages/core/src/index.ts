@@ -9,11 +9,11 @@ export type { Origin, RunResult };
 
 const cell: unique symbol = Symbol("data");
 const operationSym: unique symbol = Symbol("operation");
-const borrowSym: unique symbol = Symbol("borrow");
+const borrowSym: unique symbol = Symbol();
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
-const mayHookSym: unique symbol = Symbol("mayHook");
+const mayHookSym: unique symbol = Symbol();
 const extensionSym: unique symbol = Symbol("extension");
 const namespaceSym: unique symbol = Symbol("namespace");
 
@@ -805,7 +805,9 @@ function admit<T>(label: string, parser: Data.Parse<T> | undefined, raw: unknown
 }
 
 /** The shared, frozen empty list every no-item read returns — one per process, immutable so no
- * caller can reach past the `readonly` type and leak an item into every other empty read. */
+ * caller can reach past the `readonly` type and leak an item into every other empty read.
+ * Also the defined empty namespace chain for a scope-target resource: default parameters must
+ * not restore its owner's ambient namespace. */
 const NO_ITEMS: readonly never[] = Object.freeze([]);
 
 /** The "nothing" cases of an authored list — skipped wherever a {@link Many} is read. */
@@ -902,19 +904,14 @@ export function namespace(options?: { readonly tags?: Tag.Bindings }): Namespace
 const isNamespace = (n: unknown): n is Namespace =>
   (n as { [namespaceSym]?: true } | null | undefined)?.[namespaceSym] === true;
 
-/** An internal, defined no-namespace chain. Unlike `undefined`, it survives default parameters
- * on the resolution path, so a scope-target resource cannot regain its owner's ambient namespace. */
-const NO_NAMESPACE: readonly Namespace[] = Object.freeze([]);
-
 /** Normalize an authored `ns` to a fallback chain (one key wraps into a one-element chain) and
  * reject anything that is not a namespace — a string or a foreign object is a loud error, not a
  * silent second key space (ADR 0059: callers pass the value around; they never name one). */
 function nsChainOf(ns: Ns): readonly Namespace[] {
   const chain = Array.isArray(ns) ? ns : [ns];
-  if (chain.length === 0)
-    raise("InvalidDependency", { label: "ns", reason: "empty namespace chain" });
+  if (chain.length === 0) raiseInvalid("ns", "empty namespace chain");
   for (const key of chain) {
-    if (!isNamespace(key)) raise("InvalidDependency", { label: "ns", reason: "not a namespace" });
+    if (!isNamespace(key)) raiseInvalid("ns", "not a namespace");
   }
   return chain as readonly Namespace[];
 }
@@ -992,14 +989,14 @@ type Entry = { value: unknown };
 /** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
 type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
 /** One default-bucket subscription: a wrapper so the same listener subscribed twice keeps two
- * identities. The single per-layer compare lives on the node record (`notified`). */
+ * identities. The single per-layer compare lives on the node record (`prev`). */
 type Watcher = { fn: (next: unknown, prev: unknown) => void };
 
 /** One namespaced subscription. Its complete chain and comparison value belong to this watcher:
  * chains with the same head can resolve differently through their later fallbacks. */
 type NsWatcher = Watcher & {
-  chain: readonly Namespace[];
-  notified: unknown;
+  ns: readonly Namespace[];
+  prev: unknown;
 };
 
 type NsWatchers = {
@@ -1012,21 +1009,21 @@ type NsDataDependency = { source: NodeState; entry: Entry };
 
 /** One named resource bucket. Default resource state stays directly on {@link NodeState}. */
 class NsResourceState {
-  readonly owner: Layer;
+  readonly layer: Layer;
   readonly target: Resource.Handle<unknown>;
   readonly key: Namespace;
-  resource: Entry | undefined = undefined;
-  promise: Promise<unknown> | undefined = undefined;
-  failed: { error: unknown; promise: Promise<unknown> } | undefined = undefined;
-  build: Promise<unknown> | undefined = undefined;
+  built: Entry | undefined;
+  ready: Promise<unknown> | undefined;
+  failed: { error: unknown; ready: Promise<unknown> } | undefined = undefined;
+  build: Promise<unknown> | undefined;
   gen = 0;
-  building = false;
-  dataDependencies: Set<NsDataDependency> | undefined = undefined;
-  resourceDependents: Set<NsResourceState> | undefined = undefined;
-  resourceDependencies: Set<NsResourceState> | undefined = undefined;
-  instance: ResourceInstance | undefined = undefined;
+  busy = false;
+  reads: Set<NsDataDependency> | undefined;
+  users: Set<NsResourceState> | undefined;
+  needs: Set<NsResourceState> | undefined;
+  owned: ResourceInstance | undefined;
   constructor(owner: Layer, target: Resource.Handle<unknown>, key: Namespace) {
-    this.owner = owner;
+    this.layer = owner;
     this.target = target;
     this.key = key;
   }
@@ -1035,25 +1032,25 @@ class NsResourceState {
 type ResourceState = NodeState | NsResourceState;
 
 type ResourceInstance = {
-  owner: Layer;
+  layer: Layer;
   target: Resource.Handle<unknown>;
   hooks: ((end: Scope.End) => void | PromiseLike<void>)[];
-  dependencies: Set<ResourceInstance> | undefined;
-  borrowers: Set<Promise<unknown>> | undefined;
-  dependents: number;
-  building: boolean;
+  needs: Set<ResourceInstance> | undefined;
+  borrows: Set<Promise<unknown>> | undefined;
+  users: number;
+  busy: boolean;
   end: Scope.End | undefined;
-  failure: { status: "failed"; error: unknown } | undefined;
-  finishing: boolean;
-  remaining: number | undefined;
-  completion: Promise<void> | undefined;
-  complete: (() => void) | undefined;
+  failed: { status: "failed"; error: unknown } | undefined;
+  ending: boolean;
+  left: number | undefined;
+  done: Promise<void> | undefined;
+  finish: (() => void) | undefined;
 };
 
 /** A hook tagged with its exact instance (undefined for onClose), kept in registration order. */
 type DeferEntry = {
   fn: (end: Scope.End) => void | PromiseLike<void>;
-  instance: ResourceInstance | undefined;
+  owned: ResourceInstance | undefined;
 };
 
 /** All per-node state for one layer, colocated in a single record so a scope allocates ONE Map
@@ -1062,46 +1059,46 @@ type DeferEntry = {
  * allocation and monomorphic field access on the hot paths. */
 class NodeState {
   /** This layer's own data-cell shadow (copy-on-write). */
-  cell: Entry | undefined = undefined;
+  cell: Entry | undefined;
   /** Memoized nearest cell up the chain, always valid once computed (a missing cell resolves to an
    * entry holding the cell's initial value); undefined means not computed yet. */
-  eff: Entry | undefined = undefined;
+  eff: Entry | undefined;
   /** Built resource instance — the delivered VALUE, for sync and async builds alike (ADR 0044). */
-  resource: Entry | undefined = undefined;
+  built: Entry | undefined;
   /** The settled build promise of an async resource: the imperative verbs (`resolve`/`get`) hand
    * it back with a stable identity; a dependency slot gets the value instead. */
-  promise: Promise<unknown> | undefined = undefined;
+  ready: Promise<unknown> | undefined;
   /** A rejected async build, sticky until release: a slot throws its error, `resolve` returns
    * the same rejected promise. */
-  failed: { error: unknown; promise: Promise<unknown> } | undefined = undefined;
-  build: Promise<unknown> | undefined = undefined;
+  failed: { error: unknown; ready: Promise<unknown> } | undefined = undefined;
+  build: Promise<unknown> | undefined;
   /** Resource generation (bumped on invalidation to supersede a late build). */
   gen = 0;
   /** Build currently in progress (circular-resource guard). */
-  building = false;
-  /** The live build; its `borrowers` are the op promises a release waits on. */
-  instance: ResourceInstance | undefined = undefined;
+  busy = false;
+  /** The live build; its `borrows` are the op promises a release waits on. */
+  owned: ResourceInstance | undefined;
   /** Resources that depend on this node (for cascade release/close). */
-  dependents: Set<Resource.Handle<unknown>> | undefined = undefined;
+  users: Set<Resource.Handle<unknown>> | undefined;
   /** Memoized controller: the public `controller` path always passes an undefined observation
    * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
-  controller: unknown = undefined;
+  controller: unknown;
   /** Watchers of this cell registered at this layer (a write visits only the changed cell's). */
-  watchers: Set<Watcher> | undefined = undefined;
+  watchers: Set<Watcher> | undefined;
   /** Value the watchers at this layer were last called with; refreshed at registration so a new
    * watcher never inherits a stale comparison. */
-  notified: unknown = undefined;
+  prev: unknown;
   /** Named resource buckets at this layer. Scope-target resources never use this map. */
-  nsResources: Map<Namespace, NsResourceState> | undefined = undefined;
+  named: Map<Namespace, NsResourceState> | undefined;
   /** Named cell buckets at this layer, keyed by namespace (ADR 0059): one `(layer, ns, unit)`
    * bucket per write. Absent until the first namespaced write at this layer. */
-  nsCells: Map<Namespace, Entry> | undefined = undefined;
+  cells: Map<Namespace, Entry> | undefined;
   /** Named resource states keyed by the exact data entry they read. */
-  nsDataDependents: Map<Entry, Set<NsResourceState>> | undefined = undefined;
+  readers: Map<Entry, Set<NsResourceState>> | undefined;
   /** Namespaced watchers at this layer. Each owns its full chain and last observed value because
    * two chains with the same write head can resolve through different fallback buckets. `byKey`
    * selects only chains containing a changed named bucket; `all` serves default and child flushes. */
-  nsWatchers: NsWatchers | undefined = undefined;
+  nsWatchers: NsWatchers | undefined;
 }
 
 /** Keep the first-write branch here: splitting it made V8 partly inline repeated warm reads. */
@@ -1129,7 +1126,7 @@ function signalOf(layer: Layer): AbortSignal {
   if (!ac) {
     ac = new AbortController();
     /** A session that ended in place is aborted with no reason minted yet: mint it here. */
-    if (layer.aborted) ac.abort((layer.abortReason ??= new CancelReason()));
+    if (layer.aborted) ac.abort((layer.reason ??= new CancelReason()));
     layer.abort = ac;
   }
   return ac.signal;
@@ -1141,70 +1138,70 @@ function signalOf(layer: Layer): AbortSignal {
 type ExtRoutes = {
   readonly runners: readonly Scope.Extension<unknown>[] | undefined;
   readonly writers: readonly Scope.Extension<unknown>[] | undefined;
-  readonly sessions: readonly Scope.Extension<unknown>[] | undefined;
+  readonly session: readonly Scope.Extension<unknown>[] | undefined;
 };
-const NO_EXTS: ExtRoutes = { runners: undefined, writers: undefined, sessions: undefined };
+const NO_EXTS: ExtRoutes = { runners: undefined, writers: undefined, session: undefined };
 /** A layer's node store, child set, owned-work set, defer list, and teardown errors start as these
  * shared empty ones, so an idle layer allocates none (performance rule 4). Never written: the first
  * write gives the layer its own ({@link nodeState}, {@link makeLayer}, {@link addWork},
  * {@link addDefer}, {@link addError}); every reader reads them as usual. */
 const NO_NODES = new Map<object, NodeState>();
-const NO_CHILDREN = new Set<Layer>();
-const NO_WORK = new Set<Promise<unknown>>();
+/** Children and pending work share an empty set; each write gate gives its owner a new set. */
+const NO_CHILDREN = new Set<never>();
+/** Cleanup and error lists share an empty array; each write gate gives its owner a new array. */
 const NO_DEFERS: DeferEntry[] = [];
-const NO_ERRORS: unknown[] = [];
 
 /** One layer of the scope chain. A lazy frame is always a child, so promotion has a parent. */
 type Layer = {
   children: Set<Layer>;
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
-   * borrowers, dependents, and cached controllers all live in one {@link NodeState} per node. */
+   * borrows, dependents, and cached controllers all live in one {@link NodeState} per node. */
   nodes: Map<object, NodeState>;
   /** Named states linked to an ancestor's bucket, detached when this layer closes. */
-  nsLinked?: Set<NsResourceState>;
+  links?: Set<NsResourceState>;
   /** Lazily allocated: empty unless the scope was seeded with presets/tags. */
   presets: Map<unknown, unknown> | undefined;
   tags: LayerTags | undefined;
   pending: Set<Promise<unknown>>;
-  defers: DeferEntry[];
+  hooks: DeferEntry[];
   /** Live dependency holds owned by resource instances on this layer. */
-  resourceHolds: number;
+  holds: number;
   /** Cancel state, decoupled from the signal so a forced close needn't dispatch abort events when no
    * factory ever asked for `ctx.signal`. `abort` (the real AbortController) is materialized lazily by
    * {@link signalOf} on first `ctx.signal` read, and kept in sync with `aborted`/`abortReason`. */
   aborted: boolean;
-  abortReason: unknown;
+  reason: unknown;
   abort: AbortController | undefined;
   cancelled: boolean;
   swept: boolean;
   bodyEnd: Promise<Scope.Outcome> | undefined;
-  failure: { cause: unknown } | undefined;
+  failed: { cause: unknown } | undefined;
   /** Panics stuck to this layer before any recorded `failure`, in failure order; a `settle` that
    * receives one takes it back (ADR 0067). Absent until the first panic. A subflow under a run hook
    * sticks its panic twice (the hook's promise and the run's own); `recover` drops every copy. */
   panics?: unknown[];
-  descendantFailure: { cause: unknown } | undefined;
+  childError: { cause: unknown } | undefined;
   /** A tagged subflow reports its failed child session through its returned promise. In the
    * literal, so every layer shares one shape: a later add would give sessions a second map. */
-  failureOwner: RunState | undefined;
-  secondary: unknown[];
+  caller: RunState | undefined;
+  errors: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
   /** Created only by the first closing read, including the parent's linked signal. */
   closeAbort?: AbortController;
-  closeSignal?: AbortSignal;
+  stop?: AbortSignal;
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
   trace: Observe.Trace | undefined;
   clock: Clock.Handle;
   random: Random.Handle;
-  emptyCtx: Resource.Ctx | undefined;
+  empty: Resource.Ctx | undefined;
   /** The ambient namespace chain of this layer (ADR 0059): set from the scope/session options,
    * inherited by child sessions, overridden per call through a view layer. Undefined = default. */
   ns: readonly Namespace[] | undefined;
   /** The root's extension routes, inherited by every layer under it ({@link ExtRoutes}). */
   exts: ExtRoutes;
-} & ({ lazy?: false; parent: Layer | undefined } | { lazy: true; parent: Layer });
+} & ({ lazy?: false; up: Layer | undefined } | { lazy: true; up: Layer });
 
 type ExtRec = { settled: boolean; value: unknown };
 const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
@@ -1248,7 +1245,7 @@ function ensureOpen(layer: Layer): void {
  * until the drain ends, as with Go http.Server.Shutdown (ADR 0028, 0104). */
 function ensureAccepting(layer: Layer): void {
   if (
-    (layer.closed || layer.closing || (layer.swept && layer.parent === undefined)) &&
+    (layer.closed || layer.closing || (layer.swept && layer.up === undefined)) &&
     !hookCanRead(layer)
   )
     raise("Disposed", { reason: "scope is closed" });
@@ -1259,7 +1256,7 @@ function ensureAccepting(layer: Layer): void {
 function ensureRunning(layer: Layer, caller?: RunState): void {
   if (
     !layer.closed &&
-    (layer.body !== undefined || (caller && caller !== RECOVERED && caller.active))
+    (layer.body !== undefined || (caller && caller !== RECOVERED && caller.live))
   )
     return;
   ensureAccepting(layer);
@@ -1278,7 +1275,7 @@ function selectBucket<B>(
   bucket: (layer: Layer, key: Namespace) => B | undefined,
   fallback: (layer: Layer) => B | undefined,
 ): B | undefined {
-  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+  for (let cur: Layer | undefined = layer; cur; cur = cur.up) {
     for (const key of chain) {
       const hit = bucket(cur, key);
       if (hit !== undefined) return hit;
@@ -1321,7 +1318,7 @@ function effectiveEntryNs(
     selectBucket(
       layer,
       chain,
-      (cur, key) => cur.nodes.get(target)?.nsCells?.get(key),
+      (cur, key) => cur.nodes.get(target)?.cells?.get(key),
       (cur) => cur.nodes.get(target)?.cell,
     ) ?? { value: target.initial }
   );
@@ -1357,7 +1354,7 @@ function ownCell(
 
 /** Fire the changed cell's watchers on this layer, then on descendants that inherit it (a child that
  * shadows the cell, and everything under it, still sees its own value). One equality check against
- * the layer's last notified value, then every watcher runs in registration order. */
+ * the layer's last prev value, then every watcher runs in registration order. */
 function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
   flushOne(layer, target);
   flushNsWatchers(layer, target, key);
@@ -1366,7 +1363,7 @@ function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): v
   }
 }
 
-/** Compare once against this layer's last notified value, then run every watcher in order,
+/** Compare once against this layer's last prev value, then run every watcher in order,
  * handing each the value before the write beside the next one. The previous value travels
  * positionally — no pair allocated per notification — and costs a one-argument listener
  * nothing: an extra argument passed is an extra argument ignored. */
@@ -1375,13 +1372,13 @@ function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
   const ws = rec?.watchers;
   if (!ws?.size || !rec) return;
   const next = readCell(layer, target);
-  const prev = rec.notified;
+  const prev = rec.prev;
   if (!cellEq(target, prev, next)) notifyLayer(rec, ws, next, prev);
 }
 
 /** Run one layer's watchers in registration order against the value already read for the layer. */
 function notifyLayer(rec: NodeState, ws: Set<Watcher>, next: unknown, prev: unknown): void {
-  rec.notified = next;
+  rec.prev = next;
   for (const w of ws) w.fn(next, prev);
 }
 
@@ -1423,10 +1420,10 @@ function writeCellNs(
 
 function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, seed: unknown): Entry {
   const rec = nodeState(layer, target);
-  let bucket = rec.nsCells?.get(key);
+  let bucket = rec.cells?.get(key);
   if (bucket === undefined) {
     bucket = { value: seed };
-    (rec.nsCells ??= new Map()).set(key, bucket);
+    (rec.cells ??= new Map()).set(key, bucket);
   }
   return bucket;
 }
@@ -1450,7 +1447,7 @@ function flushInheritedNsWatchers(layer: Layer, target: Data.Cell<unknown>, key:
 
 function shadowsNamedChange(layer: Layer, target: Data.Cell<unknown>, key: Namespace): boolean {
   const rec = layer.nodes.get(target);
-  return !!rec?.cell || !!rec?.nsCells?.has(key);
+  return !!rec?.cell || !!rec?.cells?.has(key);
 }
 
 /** A named bucket change can affect only chains containing its key at this layer. A default
@@ -1473,10 +1470,10 @@ function pendingNsWatchers(
 ): { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] | undefined {
   let pending: { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] | undefined;
   for (const watcher of watchers) {
-    const next = readCell(layer, target, watcher.chain);
-    const prev = watcher.notified;
+    const next = readCell(layer, target, watcher.ns);
+    const prev = watcher.prev;
     if (cellEq(target, prev, next)) continue;
-    watcher.notified = next;
+    watcher.prev = next;
     (pending ??= []).push({ fn: watcher.fn, next, prev });
   }
   return pending;
@@ -1514,7 +1511,7 @@ function tagFind(
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Tag.Presence<unknown> {
   if (chain !== undefined) return tagFindNs(layer, target, chain);
-  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+  for (let cur: Layer | undefined = layer; cur; cur = cur.up) {
     const hit = topTag(cur, target);
     if (hit) return hit;
   }
@@ -1531,7 +1528,7 @@ function tagFindNs(
   const hit = selectBucket(
     layer,
     chain,
-    (cur, key) => (cur.parent === undefined ? nsTagBinding(key, target) : undefined),
+    (cur, key) => (cur.up === undefined ? nsTagBinding(key, target) : undefined),
     (cur) => topTag(cur, target),
   );
   if (hit) return hit;
@@ -1557,7 +1554,7 @@ function tagAll(
 ): unknown[] {
   if (chain !== undefined) return tagAllNs(layer, target, chain);
   const out: unknown[] = [];
-  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) appendLayerTags(out, cur, target);
+  for (let cur: Layer | undefined = layer; cur; cur = cur.up) appendLayerTags(out, cur, target);
   return out;
 }
 
@@ -1582,8 +1579,8 @@ function tagAllNs(
   chain: readonly Namespace[],
 ): unknown[] {
   const out: unknown[] = [];
-  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    if (cur.parent === undefined) appendNsTags(out, chain, target);
+  for (let cur: Layer | undefined = layer; cur; cur = cur.up) {
+    if (cur.up === undefined) appendNsTags(out, chain, target);
     appendLayerTags(out, cur, target);
   }
   return out;
@@ -1600,7 +1597,7 @@ function tagRequired(
 }
 
 function presetFor(layer: Layer, node: unknown): unknown {
-  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+  for (let cur: Layer | undefined = layer; cur; cur = cur.up) {
     const p = cur.presets;
     if (p?.has(node)) return p.get(node);
   }
@@ -1620,11 +1617,11 @@ function addWatcher(
   return () => void rec.watchers?.delete(w);
 }
 
-/** Recompute this layer's last notified value when it went stale before a new watcher registers. */
+/** Recompute this layer's last prev value when it went stale before a new watcher registers. */
 function refreshNotified(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): void {
   if (rec.watchers?.size) return;
   const next = readCell(layer, target);
-  if (!cellEq(target, rec.notified, next)) rec.notified = next;
+  if (!cellEq(target, rec.prev, next)) rec.prev = next;
 }
 
 function writeWithHooks<T>(
@@ -1683,7 +1680,7 @@ function addWatcherNs(
 ): () => void {
   ensureOpen(layer);
   const rec = nodeState(layer, target);
-  const watcher: NsWatcher = { fn, chain, notified: readCell(layer, target, chain) };
+  const watcher: NsWatcher = { fn, ns: chain, prev: readCell(layer, target, chain) };
   const nsWatchers = (rec.nsWatchers ??= { all: new Set(), byKey: new Map() });
   nsWatchers.all.add(watcher);
   const byKey = nsWatchers.byKey;
@@ -1708,24 +1705,23 @@ function addWatcherNs(
 function resolveControllerEdge(
   layer: Layer,
   target: unknown,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
   if (isData(target)) return dataController(layer, target, chain);
-  if (isOperation(target)) return operationController(layer, target, parent, chain, caller);
-  raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
+  if (isOperation(target)) return operationController(layer, target, up, chain, caller);
+  raiseInvalid("edge", "unknown controller target");
 }
 
 function resolveEdge(
   layer: Layer,
   dep: Edge<string, unknown>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
-  if (dep.kind === "controller")
-    return resolveControllerEdge(layer, dep.target, parent, chain, caller);
+  if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, up, chain, caller);
   const target = dep.target as Tag.Handle<unknown>;
   if (dep.kind === "all") return tagAll(layer, target, chain);
   if (dep.kind === "optional") return tagFind(layer, target, chain);
@@ -1735,17 +1731,17 @@ function resolveEdge(
 function resolveDep(
   layer: Layer,
   dep: Scope.Dependency,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
-  if (isEdge(dep)) return resolveEdge(layer, dep, parent, chain, caller);
+  if (isEdge(dep)) return resolveEdge(layer, dep, up, chain, caller);
   if (isData(dep)) return readCell(layer, dep, chain);
   if (isTag(dep)) return tagRequired(layer, dep, chain);
-  if (isOperation(dep)) return operationController(layer, dep, parent, chain, caller);
-  if (isResource(dep)) return resourceSlot(layer, dep, parent, chain);
+  if (isOperation(dep)) return operationController(layer, dep, up, chain, caller);
+  if (isResource(dep)) return resourceSlot(layer, dep, up, chain);
   if (isExtension(dep)) return resolveExtension(layer, dep);
-  raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
+  raiseInvalid("unknown", "unknown dependency");
 }
 
 const noop = (() => {
@@ -1756,19 +1752,19 @@ const noop = (() => {
 /** Attach a rejection handler to a fire-and-forget close so an internally started close (from a
  * teardown hook) is never an unhandled rejection; the promise keeps its rejection for a later
  * external awaiter. */
-function ignoreRejection(promise: Promise<unknown>): void {
-  return void promise.catch(noop);
+function ignoreRejection(ready: Promise<unknown>): void {
+  return void ready.catch(noop);
 }
 
 type Obs = {
-  observing: boolean;
+  on: boolean;
   clock: () => number;
   export: ((span: SpanImpl) => void) | undefined;
   historyMax: number;
   history: SpanImpl[];
   log: ((entry: Observe.Log) => void) | undefined;
   level: number;
-  nextId: number;
+  id: number;
 };
 
 const OFF_OBS: Observe.Ctx = {
@@ -1834,14 +1830,14 @@ const systemRandom = {
 };
 
 const DEFAULT_OBS: Obs = {
-  observing: false,
+  on: false,
   clock: Date.now,
   export: undefined,
   historyMax: 0,
   history: [],
   log: undefined,
   level: 0,
-  nextId: 1,
+  id: 1,
 };
 
 /** Span and log times read `observe.clock` if set, else the scope's ambient clock, so a test clock
@@ -1851,14 +1847,14 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
   const c = config;
   const historyMax = c.history ?? 0;
   return {
-    observing: c.export !== undefined || historyMax > 0,
+    on: c.export !== undefined || historyMax > 0,
     clock: c.clock ?? (() => clock.currentTimeMillis()),
     export: c.export,
     historyMax,
     history: [],
     log: c.log,
     level: c.level ?? 0,
-    nextId: 1,
+    id: 1,
   };
 }
 
@@ -1866,12 +1862,12 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
 function openSpan(
   obs: Obs,
   layer: Layer,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   name: string,
   kind: Observe.Kind,
 ): SpanImpl | undefined {
-  if (!obs.observing) return undefined;
-  return new SpanImpl(obs, layer, parent, name, kind);
+  if (!obs.on) return undefined;
+  return new SpanImpl(obs, layer, up, name, kind);
 }
 
 /** Bits are drawn at open. Text is made only on read; children share the trace cache.
@@ -1883,8 +1879,8 @@ class SpanImpl implements Observe.Span {
   declare readonly kind: Observe.Kind;
   declare readonly start: number;
   declare readonly sampled: boolean;
-  end: number | undefined = undefined;
-  status: "ok" | "failed" | undefined = undefined;
+  end: number | undefined;
+  status: "ok" | "failed" | undefined;
   declare error?: unknown;
   private static system: ReturnType<typeof systemRandom.seed> | undefined;
   declare private trace:
@@ -1894,22 +1890,16 @@ class SpanImpl implements Observe.Span {
   declare private b: number;
   declare private high: number;
   declare private low: number;
-  declare private parentHigh: number;
-  declare private parentLow: number;
+  declare private hi: number;
+  declare private lo: number;
   declare private text: string | undefined;
-  declare private parentText: string | undefined;
+  declare private parentHex: string | undefined;
   declare private attrs: Record<string, unknown> | undefined;
   declare private marks: Observe.Event[] | undefined;
 
-  constructor(
-    obs: Obs,
-    layer: Layer,
-    parent: SpanImpl | undefined,
-    name: string,
-    kind: Observe.Kind,
-  ) {
+  constructor(obs: Obs, layer: Layer, up: SpanImpl | undefined, name: string, kind: Observe.Kind) {
     const random = SpanImpl.randomFor(layer.random);
-    this.trace = SpanImpl.traceFor(layer, parent);
+    this.trace = SpanImpl.traceFor(layer, up);
     if (this.trace === undefined) {
       this.a = nextTraceWord(random);
       this.b = nextTraceWord(random);
@@ -1919,27 +1909,27 @@ class SpanImpl implements Observe.Span {
     }
     this.high = nextTraceWord(random);
     this.low = nextTraceWord(random) || 1;
-    if (parent === undefined) {
-      this.parentHigh = 0;
-      this.parentLow = 0;
-      this.parentText = layer.trace?.parentSpanId;
+    if (up === undefined) {
+      this.hi = 0;
+      this.lo = 0;
+      this.parentHex = layer.trace?.parentSpanId;
       this.parentId = undefined;
       this.sampled = layer.trace?.sampled !== false;
     } else {
-      this.parentHigh = parent.high;
-      this.parentLow = parent.low;
-      this.parentText = undefined;
-      this.parentId = parent.id;
-      this.sampled = parent.sampled;
+      this.hi = up.high;
+      this.lo = up.low;
+      this.parentHex = undefined;
+      this.parentId = up.id;
+      this.sampled = up.sampled;
     }
-    this.id = obs.nextId++;
+    this.id = obs.id++;
     this.name = name;
     this.kind = kind;
     this.start = obs.clock();
   }
 
   get traceId(): string {
-    const trace = this.traceBits();
+    const trace = this.bits();
     return (trace.text ??= SpanImpl.hex(trace.a, trace.b) + SpanImpl.hex(trace.c, trace.d));
   }
 
@@ -1948,8 +1938,8 @@ class SpanImpl implements Observe.Span {
   }
 
   get parentSpanId(): string | undefined {
-    if (this.parentId === undefined) return this.parentText;
-    return (this.parentText ??= SpanImpl.hex(this.parentHigh, this.parentLow));
+    if (this.parentId === undefined) return this.parentHex;
+    return (this.parentHex ??= SpanImpl.hex(this.hi, this.lo));
   }
 
   get attributes(): Record<string, unknown> {
@@ -1986,14 +1976,14 @@ class SpanImpl implements Observe.Span {
     );
   }
 
-  private static traceFor(layer: Layer, parent: SpanImpl | undefined): SpanImpl["trace"] {
-    if (parent !== undefined) return parent.traceBits();
+  private static traceFor(layer: Layer, up: SpanImpl | undefined): SpanImpl["trace"] {
+    if (up !== undefined) return up.bits();
     if (layer.trace !== undefined) return { a: 0, b: 0, c: 0, d: 0, text: layer.trace.traceId };
     return undefined;
   }
 
   /** A root's last two trace words also name its span. Unread childless roots need no record. */
-  private traceBits(): NonNullable<SpanImpl["trace"]> {
+  private bits(): NonNullable<SpanImpl["trace"]> {
     return (this.trace ??= {
       a: this.a,
       b: this.b,
@@ -2116,7 +2106,7 @@ function recordUsed(
 }
 
 /** The caller a `settle` twin controller runs for: a failure it receives never fails the layer. */
-const RECOVERED: unique symbol = Symbol("recovered");
+const RECOVERED: unique symbol = Symbol();
 /** Who receives a subflow's failure: the calling run's ctx, or `settle`. */
 type RunState = OperationCtx<unknown> | typeof RECOVERED;
 
@@ -2127,45 +2117,45 @@ class OperationControl<T, I> {
   declare readonly run: (call?: Scope.Invocation<I>) => unknown;
   declare private layer: Layer;
   declare private target: Operation.Handle<T, I>;
-  declare private parent: SpanImpl | undefined;
-  declare private chain: readonly Namespace[] | undefined;
-  declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
+  declare private up: SpanImpl | undefined;
+  declare private ns: readonly Namespace[] | undefined;
+  declare private op: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
   /** Set on the first `settle` read only; `declare` keeps them off the constructor's shape. */
   declare private twin: OperationControl<T, I> | undefined;
-  declare private settler: ((call?: Scope.Invocation<I>) => unknown) | undefined;
+  declare private settled: ((call?: Scope.Invocation<I>) => unknown) | undefined;
   constructor(
     run: (call?: Scope.Invocation<I>) => unknown,
     layer: Layer,
     target: Operation.Handle<T, I>,
-    parent: SpanImpl | undefined,
+    up: SpanImpl | undefined,
     chain: readonly Namespace[] | undefined,
     hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   ) {
     this.run = run;
     this.layer = layer;
     this.target = target;
-    this.parent = parent;
-    this.chain = chain;
-    this.hookTarget = hookTarget;
+    this.up = up;
+    this.ns = chain;
+    this.op = hookTarget;
   }
   get settle(): (call?: Scope.Invocation<I>) => unknown {
-    if (this.settler === undefined) {
+    if (this.settled === undefined) {
       const layer = this.layer;
-      const twin = OperationControl.recovered(this);
-      this.settler = (call) => settleRun(layer, () => twin.run(call), call?.signal);
+      const twin = OperationControl.recover(this);
+      this.settled = (call) => settleRun(layer, () => twin.run(call), call?.signal);
     }
-    return this.settler;
+    return this.settled;
   }
   /** The same controller with `settle`'s caller, built on first use and kept, so `run` itself
    * carries no receiver. */
-  static recovered<U, J>(control: OperationControl<U, J>): OperationControl<U, J> {
+  static recover<U, J>(control: OperationControl<U, J>): OperationControl<U, J> {
     return (control.twin ??= operationController(
       control.layer,
       control.target,
-      control.parent,
-      control.chain,
+      control.up,
+      control.ns,
       RECOVERED,
-      control.hookTarget,
+      control.op,
     ) as OperationControl<U, J>);
   }
 }
@@ -2181,7 +2171,7 @@ function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown
  * a cancel reason is a cancellation, so neither sticks. A layer already failing keeps its first
  * failure (ADR 0028), so a panic after that needs no record. */
 function stick(layer: Layer, error: unknown): void {
-  if (layer.failure !== undefined || isCancel(layer, error) || failureKind(error) === "error")
+  if (layer.failed !== undefined || isCancel(layer, error) || failureKind(error) === "error")
     return;
   materialize(layer);
   (layer.panics ??= []).push(error);
@@ -2192,7 +2182,7 @@ function stick(layer: Layer, error: unknown): void {
  * hot check too big for V8 to inline into close. */
 function failureOf(layer: Layer): { cause: unknown } | undefined {
   const panics = layer.panics;
-  return panics === undefined ? layer.failure : { cause: panics[0] };
+  return panics === undefined ? layer.failed : { cause: panics[0] };
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
@@ -2222,23 +2212,23 @@ function track(
   addWork(layer, tracked);
 }
 
-/** Add owned work to a layer, giving it its own set on the first add ({@link NO_WORK}). */
+/** Add owned work to a layer, giving it its own set on the first add ({@link NO_CHILDREN}). */
 function addWork(layer: Layer, work: Promise<unknown>): void {
   materialize(layer);
-  if (layer.pending === NO_WORK) layer.pending = new Set();
+  if (layer.pending === NO_CHILDREN) layer.pending = new Set();
   layer.pending.add(work);
 }
 
 /** Resource builds already own node state; scope and extension handles already have full layers. */
 function addDefer(layer: Layer, entry: DeferEntry): void {
-  if (layer.defers === NO_DEFERS) layer.defers = [];
-  layer.defers.push(entry);
+  if (layer.hooks === NO_DEFERS) layer.hooks = [];
+  layer.hooks.push(entry);
 }
 
 /** Every abort reason we mint carries this brand, so a rejection can be recognized as one of OUR
  * cancellations regardless of WHICH layer's abort produced it — a cancelled child rejects with its
  * own reason, and its awaiting parent must still read that as a clean cancel, not a failure (r11). */
-const cancelBrand: unique symbol = Symbol("cancel");
+const cancelBrand: unique symbol = Symbol();
 
 /** A forced close's cancel reason. It reads like the web's `AbortError` — `name`, `message`, and
  * `String(reason)` → `"AbortError: …"` — so text built from it says why the work stopped. The brand
@@ -2273,7 +2263,7 @@ function isCancelReason(error: unknown): boolean {
  * error must be its exact reason, or a Core cancel reason from an awaited descendant. A different
  * real error still fails, even if it arrives after abort. */
 function isCancel(layer: Layer, error: unknown): boolean {
-  return layer.aborted && (error === layer.abortReason || isCancelReason(error));
+  return layer.aborted && (error === layer.reason || isCancelReason(error));
 }
 
 function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.End {
@@ -2370,14 +2360,14 @@ function runBody<T, I>(
 }
 
 class OperationCtx<I> implements Operation.Ctx<I> {
-  active = true;
-  declare private owner: Layer;
-  private defers: ((end: Scope.End) => void | PromiseLike<void>)[] | undefined = undefined;
+  live = true;
+  declare private layer: Layer;
+  private hooks: ((end: Scope.End) => void | PromiseLike<void>)[] | undefined;
   declare readonly label: string;
   declare readonly rawInput: unknown;
   declare readonly input: I;
-  private obsTools: Observe.Ctx | undefined;
-  private logTools: Observe.Logger | undefined;
+  private tools: Observe.Ctx | undefined;
+  private logs: Observe.Logger | undefined;
   declare readonly span: SpanImpl | undefined;
   declare readonly clock: Clock.Handle;
   declare readonly random: Random.Handle;
@@ -2387,7 +2377,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     call: Scope.Invocation<I> | undefined,
     span: SpanImpl | undefined,
   ) {
-    this.owner = owner;
+    this.layer = owner;
     this.label = target.label;
     /** The invocation's input pair, verbatim from the controller body: a defined `input` is used
      * as-is (raw = same), else `rawInput` — possibly undefined — is parsed. Computed here (once
@@ -2403,29 +2393,29 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   /** These callbacks belong to this run. An async tail or teardown error grows the layer at
    * its own gate; a close during cleanup grows it through the active tagged stack. */
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    (this.defers ??= []).push(fn);
+    (this.hooks ??= []).push(fn);
   };
   get obs(): Observe.Ctx {
-    return (this.obsTools ??= obsCtx(this.owner, this.span));
+    return (this.tools ??= obsCtx(this.layer, this.span));
   }
   get log(): Observe.Logger {
-    return (this.logTools ??= logFor(this.owner.obs, this.span));
+    return (this.logs ??= logFor(this.layer.obs, this.span));
   }
   get raise(): Operation.Ctx<I>["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
   }
   /** A hook and its body register into one ordered defer list, even when the hook needed a
    * context before the body's input was parsed. Plain runs never call this. */
-  static shareDefers(from: OperationCtx<unknown>, to: OperationCtx<unknown>): void {
-    to.defers = from.defers ??= [];
+  static share(from: OperationCtx<unknown>, to: OperationCtx<unknown>): void {
+    to.hooks = from.hooks ??= [];
   }
-  static defersOf<J>(
+  static defersFor<J>(
     ctx: OperationCtx<J>,
   ): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
-    return ctx.defers;
+    return ctx.hooks;
   }
   get signal(): AbortSignal {
-    return signalOf(this.owner);
+    return signalOf(this.layer);
   }
 }
 
@@ -2453,7 +2443,7 @@ function hasCallSession<I>(
 function runTagged<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   caller: RunState | undefined,
   call: Scope.Invocation<I>,
   inheritedChain: readonly Namespace[] | undefined,
@@ -2464,12 +2454,12 @@ function runTagged<T, I>(
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
   const nested = caller !== undefined;
   let tagged: Awaited<T> | Promise<Awaited<T>>;
-  if (call.signal !== undefined || layer.exts.sessions !== undefined) {
+  if (call.signal !== undefined || layer.exts.session !== undefined) {
     /** Hooks need a body the onion can call; cancellation needs an attached child owner. */
     tagged = runSessionWith(
       layer,
       { tags, ns: chain },
-      runTaggedBody.bind(undefined, target, parent, inner, chain, nested),
+      runTaggedBody.bind(undefined, target, up, inner, chain, nested),
       caller,
       call.signal,
     ) as Awaited<T> | Promise<Awaited<T>>;
@@ -2477,7 +2467,7 @@ function runTagged<T, I>(
     tagged = runTaggedFrame(
       layer,
       target,
-      parent,
+      up,
       caller,
       tags as Scope.Bindings,
       chain,
@@ -2491,59 +2481,59 @@ function runTagged<T, I>(
 
 /** A frame grows in place, so controllers, contexts, and failure owners keep their identity. */
 function materialize(layer: Layer): void {
-  if (layer.lazy && !layer.closed) expandFrame(layer, layer.parent);
+  if (layer.lazy && !layer.closed) expandFrame(layer, layer.up);
 }
 
 /** A tagged session before it owns anything. The prototype supplies only immutable defaults;
  * its services and bindings are retained from this call, never borrowed from a sibling. */
 class TaggedFrame {
-  declare parent: Layer;
+  declare up: Layer;
   declare tags: LayerTags | undefined;
   declare ns: readonly Namespace[] | undefined;
-  declare failureOwner: RunState | undefined;
+  declare caller: RunState | undefined;
   declare obs: Obs;
   declare trace: Observe.Trace | undefined;
   declare clock: Clock.Handle;
   declare random: Random.Handle;
   declare exts: ExtRoutes;
-  declare previous: TaggedFrame | undefined;
+  declare stack: TaggedFrame | undefined;
   declare lazy: boolean;
   declare children: Set<Layer>;
   declare nodes: Map<object, NodeState>;
   declare presets: Map<unknown, unknown> | undefined;
   declare pending: Set<Promise<unknown>>;
-  declare defers: DeferEntry[];
-  declare resourceHolds: number;
+  declare hooks: DeferEntry[];
+  declare holds: number;
   declare aborted: boolean;
-  declare abortReason: unknown;
+  declare reason: unknown;
   declare abort: AbortController | undefined;
   declare cancelled: boolean;
   declare swept: boolean;
   declare bodyEnd: Promise<Scope.Outcome> | undefined;
-  declare failure: { cause: unknown } | undefined;
-  declare descendantFailure: { cause: unknown } | undefined;
-  declare secondary: unknown[];
+  declare failed: { cause: unknown } | undefined;
+  declare childError: { cause: unknown } | undefined;
+  declare errors: unknown[];
   declare body: Promise<unknown> | undefined;
   declare closed: boolean;
   declare closing: Promise<Scope.Result> | undefined;
-  declare emptyCtx: Resource.Ctx | undefined;
+  declare empty: Resource.Ctx | undefined;
   constructor(
-    parent: Layer,
+    up: Layer,
     tags: Scope.Bindings,
     ns: readonly Namespace[] | undefined,
-    failureOwner: RunState | undefined,
+    caller: RunState | undefined,
     previous: TaggedFrame | undefined,
   ) {
-    this.parent = parent;
+    this.up = up;
     this.tags = seedTags(tags);
     this.ns = ns;
-    this.failureOwner = failureOwner;
-    this.obs = parent.obs;
-    this.trace = parent.trace;
-    this.clock = parent.clock;
-    this.random = parent.random;
-    this.exts = parent.exts;
-    this.previous = previous;
+    this.caller = caller;
+    this.obs = up.obs;
+    this.trace = up.trace;
+    this.clock = up.clock;
+    this.random = up.random;
+    this.exts = up.exts;
+    this.stack = previous;
     this.lazy = true;
   }
 }
@@ -2571,7 +2561,7 @@ let activeTagged: TaggedFrame | undefined;
 function runTaggedFrame<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   caller: RunState | undefined,
   tags: Scope.Bindings,
   chain: readonly Namespace[] | undefined,
@@ -2587,14 +2577,14 @@ function runTaggedFrame<T, I>(
     activeTagged = child;
     /** Growing a clean child here changes only cost; swept children need the parent's end state. */
     if (layer.swept) materialize(child);
-    raw = adoptBody(runUntagged(child, target, parent, call, chain, undefined, nested));
+    raw = adoptBody(runUntagged(child, target, up, call, chain, undefined, nested));
   } catch (error) {
     raw = Promise.reject(error);
   } finally {
     /** Restore the live prefix so future closes do not walk every past tagged call. */
     activeTagged = previous;
     /** An escaped context must not retain the earlier frames through this link. */
-    if (child) child.previous = undefined;
+    if (child) child.stack = undefined;
   }
   return endTaggedFrame(child, raw);
 }
@@ -2604,12 +2594,12 @@ function runTaggedFrame<T, I>(
 function runNsCall<I>(
   layer: Layer,
   target: Operation.Handle<unknown, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   caller: RunState | undefined,
   call: Scope.Invocation<I> & { readonly ns: Ns },
 ): unknown {
   ensureRunning(layer, caller);
-  return runUntagged(layer, target, parent, stripNs(call), nsChainOf(call.ns), caller);
+  return runUntagged(layer, target, up, stripNs(call), nsChainOf(call.ns), caller);
 }
 
 /** The ns-stripped call a namespaced run replays on its view layer: the same `input`/`rawInput`
@@ -2632,7 +2622,7 @@ function stripTags<I>(call: Scope.Invocation<I>): Scope.Invocation<I> {
  * (ADR 0026 Q2). */
 function releaseBorrows(held: HeldBorrows | undefined): void {
   if (!held) return;
-  for (const instance of held.list) removeBorrow(instance, held.done);
+  for (const owned of held.list) removeBorrow(owned, held.done);
   held.settle();
 }
 
@@ -2646,15 +2636,15 @@ function finishRun(
   status: "ok" | "failed",
   error?: unknown,
 ): void {
-  const fns = ctx ? OperationCtx.defersOf(ctx) : undefined;
+  const fns = ctx ? OperationCtx.defersFor(ctx) : undefined;
   if (fns === undefined || fns.length === 0) {
-    if (ctx) ctx.active = false;
+    if (ctx) ctx.live = false;
     releaseBorrows(held);
     return;
   }
   const tail = runDefers(layer, fns, endFor(layer, status, error));
   const done = (): void => {
-    if (ctx) ctx.active = false;
+    if (ctx) ctx.live = false;
     releaseBorrows(held);
   };
   if (tail) drainAsync(tail, done);
@@ -2687,9 +2677,9 @@ function finishAsyncRun<T>(
     if (span) closeSpan(obs, span, status, error);
     finishRun(layer, ctx, held, status, error);
   };
-  const promise = Promise.resolve(result);
-  track(layer, promise, runFailure(layer, caller), onSettle);
-  return promise;
+  const ready = Promise.resolve(result);
+  track(layer, ready, runFailure(layer, caller), onSettle);
+  return ready;
 }
 
 /** A controller's `run`: one small closure over the run's fixed facts that calls {@link runOnce}.
@@ -2698,13 +2688,13 @@ function finishAsyncRun<T>(
 function executorFor<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
 ): (call?: Scope.Invocation<I>) => unknown {
   const sees = seesResourceOf(target);
   return (call?: Scope.Invocation<I>): unknown =>
-    runOnce(layer, target, parent, chain, caller, false, sees, call);
+    runOnce(layer, target, up, chain, caller, false, sees, call);
 }
 
 /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
@@ -2716,25 +2706,19 @@ function executorFor<T, I>(
 function runOnce<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
   replay: Replay,
   sees: boolean,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  if (hasCallSession(call)) return runTagged(layer, target, parent, caller, call, chain);
+  if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
   if (hasCallNs(call))
-    return runNsCall(
-      layer,
-      target,
-      parent,
-      caller,
-      call as Scope.Invocation<I> & { readonly ns: Ns },
-    );
+    return runNsCall(layer, target, up, caller, call as Scope.Invocation<I> & { readonly ns: Ns });
   ensureRunning(layer, caller);
   const obs = layer.obs;
-  const span = openSpan(obs, layer, parent, target.label, "operation");
+  const span = openSpan(obs, layer, up, target.label, "operation");
   const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
   /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
    * drain — so a release waits for the op's cleanup (which may still touch the resource) before
@@ -2772,29 +2756,29 @@ function runOnce<T, I>(
 function operationController<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
 ): Scope.OperationController<T, I> {
-  const execute = executorFor(layer, target, parent, chain, caller);
+  const execute = executorFor(layer, target, up, chain, caller);
   const runners = layer.exts.runners;
   if (runners === undefined)
     return new OperationControl(
       execute,
       layer,
       target,
-      parent,
+      up,
       chain,
       hookTarget,
     ) as Scope.OperationController<T, I>;
   const run = (call?: Scope.Invocation<I>): unknown =>
-    runHookCall(layer, target, parent, chain, caller, hookTarget, call);
+    runHookCall(layer, target, up, chain, caller, hookTarget, call);
   return new OperationControl(
     run,
     layer,
     target,
-    parent,
+    up,
     chain,
     hookTarget,
   ) as Scope.OperationController<T, I>;
@@ -2806,7 +2790,7 @@ function operationController<T, I>(
 function runUntagged<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
@@ -2815,7 +2799,7 @@ function runUntagged<T, I>(
   return runOnce(
     layer,
     target,
-    parent,
+    up,
     chain,
     caller,
     nested ? "nested" : "root",
@@ -2827,7 +2811,7 @@ function runUntagged<T, I>(
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
   if (target.target === "session") return layer;
   let cur = layer;
-  while (cur.parent) cur = cur.parent;
+  while (cur.up) cur = cur.up;
   return cur;
 }
 
@@ -2989,50 +2973,50 @@ function resolveNamedResourceDeps(
 }
 
 class ResourceCtx implements Resource.Ctx {
-  declare private owner: Layer;
-  declare private instance: ResourceInstance;
-  declare private isSettled: () => boolean;
+  declare private layer: Layer;
+  declare private owned: ResourceInstance;
+  declare private settled: () => boolean;
   declare readonly label: string;
-  private obsTools: Observe.Ctx | undefined;
-  private logTools: Observe.Logger | undefined;
+  private tools: Observe.Ctx | undefined;
+  private logs: Observe.Logger | undefined;
   declare readonly span: SpanImpl | undefined;
   declare readonly clock: Clock.Handle;
   declare readonly random: Random.Handle;
   readonly ns: readonly Namespace[] | undefined;
   constructor(
-    instance: ResourceInstance,
+    owned: ResourceInstance,
     span: SpanImpl | undefined,
-    isSettled: () => boolean,
+    settled: () => boolean,
     chain: readonly Namespace[] | undefined,
   ) {
     this.ns = chain?.length ? chain : undefined;
-    this.owner = instance.owner;
-    this.instance = instance;
-    this.isSettled = isSettled;
-    this.label = instance.target.label;
+    this.layer = owned.layer;
+    this.owned = owned;
+    this.settled = settled;
+    this.label = owned.target.label;
     this.span = span;
-    this.clock = instance.owner.clock;
-    this.random = instance.owner.random;
+    this.clock = owned.layer.clock;
+    this.random = owned.layer.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    if (this.isSettled()) raise("Disposed", { reason: "resource factory already finished" });
-    this.instance.hooks.push(fn);
-    addDefer(this.instance.owner, { fn, instance: this.instance });
+    if (this.settled()) raise("Disposed", { reason: "resource factory already finished" });
+    this.owned.hooks.push(fn);
+    addDefer(this.owned.layer, { fn, owned: this.owned });
   };
   get obs(): Observe.Ctx {
-    return (this.obsTools ??= obsCtx(this.owner, this.span));
+    return (this.tools ??= obsCtx(this.layer, this.span));
   }
   get log(): Observe.Logger {
-    return (this.logTools ??= logFor(this.owner.obs, this.span));
+    return (this.logs ??= logFor(this.layer.obs, this.span));
   }
   get raise(): Resource.Ctx["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
   }
   get closing(): AbortSignal {
-    return closingOf(this.owner);
+    return closingOf(this.layer);
   }
   get signal(): AbortSignal {
-    return signalOf(this.owner);
+    return signalOf(this.layer);
   }
 }
 
@@ -3041,12 +3025,12 @@ class ResourceCtx implements Resource.Ctx {
  * most once per layer. `defer` closes over the build's `settled`/`superseded` so late registration
  * behaves correctly. */
 function buildCtx(
-  instance: ResourceInstance,
+  owned: ResourceInstance,
   span: SpanImpl | undefined,
-  isSettled: () => boolean,
+  settled: () => boolean,
   chain: readonly Namespace[] | undefined,
 ): Resource.Ctx {
-  return new ResourceCtx(instance, span, isSettled, chain);
+  return new ResourceCtx(owned, span, settled, chain);
 }
 
 /** The empty ctx has no label, so its `raise` leaves the stamp to the run the error reaches. */
@@ -3060,10 +3044,10 @@ class EmptyCtx implements Resource.Ctx {
   readonly log = noop;
   readonly clock: Clock.Handle;
   readonly random: Random.Handle;
-  private owner: Layer;
+  private layer: Layer;
   constructor(owner: Layer, chain?: readonly Namespace[]) {
     this.ns = chain;
-    this.owner = owner;
+    this.layer = owner;
     this.clock = owner.clock;
     this.random = owner.random;
   }
@@ -3072,21 +3056,21 @@ class EmptyCtx implements Resource.Ctx {
   };
   readonly raise = raiseUnstamped;
   get closing(): AbortSignal {
-    return closingOf(this.owner);
+    return closingOf(this.layer);
   }
   get signal(): AbortSignal {
-    return signalOf(this.owner);
+    return signalOf(this.layer);
   }
 }
 
 function emptyCtxFor(owner: Layer, chain: readonly Namespace[] | undefined): Resource.Ctx {
-  return chain?.length ? new EmptyCtx(owner, chain) : (owner.emptyCtx ??= new EmptyCtx(owner));
+  return chain?.length ? new EmptyCtx(owner, chain) : (owner.empty ??= new EmptyCtx(owner));
 }
 
 /** Read what an extension's `start` returned: the root layer holds one record per installed
  * extension, so a session walks up (ADR 0050). Unsettled or not installed is `NotResolved`. */
 function resolveExtension(layer: Layer, ext: Scope.Extension<unknown>): unknown {
-  for (let current: Layer | undefined = layer; current !== undefined; current = current.parent) {
+  for (let current: Layer | undefined = layer; current !== undefined; current = current.up) {
     const rec = EXTENSIONS.get(current)?.get(ext);
     if (rec !== undefined) {
       if (!rec.settled) raise("NotResolved", { label: ext.label });
@@ -3101,64 +3085,64 @@ function instanceOf(
   target: Resource.Handle<unknown>,
   state: ResourceState,
 ): ResourceInstance {
-  let instance = state.instance;
-  if (instance === undefined) {
-    instance = {
-      owner,
+  let owned = state.owned;
+  if (owned === undefined) {
+    owned = {
+      layer: owner,
       target,
       hooks: [],
-      dependencies: undefined,
-      borrowers: undefined,
-      dependents: 0,
-      building: state.building,
+      needs: undefined,
+      borrows: undefined,
+      users: 0,
+      busy: state.busy,
       end: undefined,
-      failure: undefined,
-      finishing: false,
-      remaining: undefined,
-      completion: undefined,
-      complete: undefined,
+      failed: undefined,
+      ending: false,
+      left: undefined,
+      done: undefined,
+      finish: undefined,
     };
-    state.instance = instance;
+    state.owned = owned;
   }
-  return instance;
+  return owned;
 }
 
 function hasPresetLayers(layer: Layer): boolean {
-  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) if (cur.presets) return true;
+  for (let cur: Layer | undefined = layer; cur; cur = cur.up) if (cur.presets) return true;
   return false;
 }
 
 function hasRetainedInstance(state: ResourceState): boolean {
-  return !!state.instance?.hooks.length || !!state.instance?.dependencies?.size;
+  return !!state.owned?.hooks.length || !!state.owned?.needs?.size;
 }
 
 function needsHold(owner: Layer, target: Resource.Handle<unknown>, state: ResourceState): boolean {
   if (hasRetainedInstance(state)) return true;
-  if (state.resource || state.failed) return false;
+  if (state.built || state.failed) return false;
   return (target as HookFlag)[mayHookSym] !== false || hasPresetLayers(owner);
 }
 
 function holdDependency(dependent: ResourceInstance, dependency: ResourceInstance): void {
-  if (dependent === dependency || dependent.dependencies?.has(dependency)) return;
-  (dependent.dependencies ??= new Set()).add(dependency);
-  dependent.owner.resourceHolds++;
-  dependency.dependents++;
+  if (dependent === dependency || dependent.needs?.has(dependency)) return;
+  (dependent.needs ??= new Set()).add(dependency);
+  dependent.layer.holds++;
+  dependency.users++;
 }
 
-function unlinkInstance(instance: ResourceInstance, end: Scope.End): void {
-  if (instance.end) return;
-  instance.end = instance.failure ?? end;
-  if (instance.building || instance.dependents || instance.borrowers?.size) {
-    instance.completion = new Promise<void>((resolve) => (instance.complete = resolve));
-    addWork(instance.owner, instance.completion);
+function unlinkInstance(owned: ResourceInstance, end: Scope.End): void {
+  if (owned.end) return;
+  owned.end = owned.failed ?? end;
+  if (owned.busy || owned.users || owned.borrows?.size) {
+    owned.done = new Promise<void>((resolve) => (owned.finish = resolve));
+    addWork(owned.layer, owned.done);
   }
 }
 
 const readyToFinish: ResourceInstance[] = [];
 let drainingReady = false;
 
-function finishTracked(instance: ResourceInstance): void {
-  const finished = finishInstance(instance);
+function finishTracked(owned: ResourceInstance): void {
+  const finished = finishInstance(owned);
   if (finished) ignoreRejection(finished);
 }
 
@@ -3172,63 +3156,60 @@ function drainReady(): void {
   }
 }
 
-function completeInstance(instance: ResourceInstance): void {
-  if (instance.dependencies)
-    for (const dependency of instance.dependencies) {
-      dependency.dependents--;
-      instance.owner.resourceHolds--;
+function completeInstance(owned: ResourceInstance): void {
+  if (owned.needs)
+    for (const dependency of owned.needs) {
+      dependency.users--;
+      owned.layer.holds--;
       readyToFinish.push(dependency);
     }
-  instance.dependencies = undefined;
-  if (instance.completion) instance.owner.pending.delete(instance.completion);
-  instance.complete?.();
+  owned.needs = undefined;
+  if (owned.done) owned.layer.pending.delete(owned.done);
+  owned.finish?.();
   drainReady();
 }
 
 function finishHook(
-  instance: ResourceInstance,
+  owned: ResourceInstance,
   fn: DeferEntry["fn"],
-  prior?: Promise<void>,
+  prev?: Promise<void>,
 ): Promise<void> | undefined {
-  if (instance.finishing && instance.remaining === undefined) return instance.completion;
-  if (!instance.finishing) {
-    instance.finishing = true;
-    instance.remaining = instance.hooks.length;
+  if (owned.ending && owned.left === undefined) return owned.done;
+  if (!owned.ending) {
+    owned.ending = true;
+    owned.left = owned.hooks.length;
   }
   const run = (): Promise<void> | undefined => {
-    const tail = runDefers(instance.owner, [fn], instance.end as Scope.End);
+    const tail = runDefers(owned.layer, [fn], owned.end as Scope.End);
     const done = (): void => {
-      instance.remaining = (instance.remaining as number) - 1;
-      if (instance.remaining === 0) completeInstance(instance);
+      owned.left = (owned.left as number) - 1;
+      if (owned.left === 0) completeInstance(owned);
     };
     if (tail) return tail.then(done, done);
     done();
     return undefined;
   };
-  if (!prior) return run();
-  return prior.then(run, run);
+  if (!prev) return run();
+  return prev.then(run, run);
 }
 
 /** Release extracts defers first; close owns its drain snapshot, so finish need not filter again. */
-function finishInstance(
-  instance: ResourceInstance,
-  prior?: Promise<void>,
-): Promise<void> | undefined {
-  if (!instance.end || instance.finishing || isHeld(instance)) return instance.completion;
-  instance.finishing = true;
-  const { owner } = instance;
+function finishInstance(owned: ResourceInstance, prev?: Promise<void>): Promise<void> | undefined {
+  if (!owned.end || owned.ending || isHeld(owned)) return owned.done;
+  owned.ending = true;
+  const { layer: owner } = owned;
   const finish = (): Promise<void> | undefined => {
-    const tail = runDefers(owner, instance.hooks, instance.end as Scope.End);
+    const tail = runDefers(owner, owned.hooks, owned.end as Scope.End);
     if (tail)
       return tail.then(
-        () => completeInstance(instance),
-        () => completeInstance(instance),
+        () => completeInstance(owned),
+        () => completeInstance(owned),
       );
-    completeInstance(instance);
+    completeInstance(owned);
     return undefined;
   };
-  if (prior) {
-    const queued = prior.then(finish, finish);
+  if (prev) {
+    const queued = prev.then(finish, finish);
     addWork(owner, queued);
     queued.then(
       () => owner.pending.delete(queued),
@@ -3245,9 +3226,9 @@ function startBuildInstance(
   state: ResourceState,
   usesCtx: boolean,
 ): ResourceInstance | undefined {
-  const instance = usesCtx ? instanceOf(owner, target, state) : state.instance;
-  if (instance) instance.building = true;
-  return instance;
+  const owned = usesCtx ? instanceOf(owner, target, state) : state.owned;
+  if (owned) owned.busy = true;
+  return owned;
 }
 
 function holdSelectedDependency(
@@ -3266,26 +3247,26 @@ function holdSelectedDependency(
 }
 
 function settleResourceInstance(
-  instance: ResourceInstance | undefined,
+  owned: ResourceInstance | undefined,
   status: "ok" | "failed",
   error?: unknown,
 ): void {
-  if (!instance) return;
-  if (status === "failed" && !instance.end) instance.failure = { status, error };
-  instance.building = false;
-  finishTracked(instance);
+  if (!owned) return;
+  if (status === "failed" && !owned.end) owned.failed = { status, error };
+  owned.busy = false;
+  finishTracked(owned);
 }
 
 function publishSyncResource(
   rec: ResourceState,
   result: unknown,
   canPublish: () => boolean,
-  instance: ResourceInstance | undefined,
+  owned: ResourceInstance | undefined,
   obs: Obs,
   span: SpanImpl | undefined,
 ): void {
-  if (canPublish()) rec.resource = { value: result };
-  settleResourceInstance(instance, "ok");
+  if (canPublish()) rec.built = { value: result };
+  settleResourceInstance(owned, "ok");
   closeSpan(obs, span, "ok");
 }
 
@@ -3294,24 +3275,22 @@ function failResourceBuild(
   target: Resource.Handle<unknown>,
   rec: ResourceState,
   gen: number,
-  instance: ResourceInstance | undefined,
+  owned: ResourceInstance | undefined,
   error: unknown,
   obs: Obs,
   span: SpanImpl | undefined,
 ): never {
   if (rec.gen === gen) detachResourceDependencies(owner, target, rec);
-  settleResourceInstance(instance, "failed", error);
+  settleResourceInstance(owned, "failed", error);
   closeSpan(obs, span, "failed");
   throw error;
 }
-
-const NOOP_BUILD_SETTLED = (): void => undefined;
 
 function buildHooklessResource<T>(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<T>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
   resolveDeps: typeof resolveResourceDeps,
@@ -3320,8 +3299,8 @@ function buildHooklessResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(obs, caller, parent, target.label, "resource");
-  rec.building = true;
+  const span = openSpan(obs, caller, up, target.label, "resource");
+  rec.busy = true;
   buildDepth++;
   try {
     const deps = resolveDeps(owner, target, span, superseded, chain, rec, undefined);
@@ -3331,25 +3310,16 @@ function buildHooklessResource<T>(
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
     if (!isThenable(result)) {
-      if (canPublish()) rec.resource = { value: result };
+      if (canPublish()) rec.built = { value: result };
       closeSpan(obs, span, "ok");
       return result;
     }
-    return finishAsyncBuild(
-      owner,
-      rec,
-      result,
-      superseded,
-      canPublish,
-      NOOP_BUILD_SETTLED,
-      obs,
-      span,
-    );
+    return finishAsyncBuild(owner, rec, result, superseded, canPublish, noop, obs, span);
   } catch (error) {
     return failResourceBuild(owner, target, rec, gen, undefined, error, obs, span);
   } finally {
     buildDepth--;
-    rec.building = false;
+    rec.busy = false;
   }
 }
 
@@ -3357,43 +3327,43 @@ function buildResource<T>(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<T>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
   resolveDeps: typeof resolveResourceDeps = resolveResourceDeps,
 ): unknown {
-  if (rec.building) raise("CircularResource", { label: target.label });
+  if (rec.busy) raise("CircularResource", { label: target.label });
   if (
     (target as HookFlag)[mayHookSym] === false &&
-    rec.instance === undefined &&
+    rec.owned === undefined &&
     !hasPresetLayers(owner)
   )
-    return buildHooklessResource(owner, caller, target, parent, chain, rec, resolveDeps);
-  return buildTrackedResource(owner, caller, target, parent, chain, rec, resolveDeps);
+    return buildHooklessResource(owner, caller, target, up, chain, rec, resolveDeps);
+  return buildTrackedResource(owner, caller, target, up, chain, rec, resolveDeps);
 }
 
 function buildTrackedResource<T>(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<T>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
   resolveDeps: typeof resolveResourceDeps,
 ): unknown {
-  let instance: ResourceInstance | undefined;
+  let owned: ResourceInstance | undefined;
   const gen = rec.gen;
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(obs, caller, parent, target.label, "resource");
-  rec.building = true;
+  const span = openSpan(obs, caller, up, target.label, "resource");
+  rec.busy = true;
   let settled = false;
   buildDepth++;
   try {
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
-    instance = startBuildInstance(owner, target, rec, fn.length >= 2);
+    owned = startBuildInstance(owner, target, rec, fn.length >= 2);
     const deps = resolveDeps(
       owner,
       target,
@@ -3402,27 +3372,19 @@ function buildTrackedResource<T>(
       chain,
       rec,
       (depOwner, depTarget, depState) => {
-        instance = holdSelectedDependency(
-          instance,
-          owner,
-          target,
-          rec,
-          depOwner,
-          depTarget,
-          depState,
-        );
+        owned = holdSelectedDependency(owned, owner, target, rec, depOwner, depTarget, depState);
       },
     );
     const pending = parked;
     const ctx =
       fn.length >= 2
-        ? buildCtx(instance as ResourceInstance, span, () => settled, chain)
+        ? buildCtx(owned as ResourceInstance, span, () => settled, chain)
         : emptyCtxFor(owner, chain);
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
     if (!isThenable(result)) {
       settled = true;
-      publishSyncResource(rec, result, canPublish, instance, obs, span);
+      publishSyncResource(rec, result, canPublish, owned, obs, span);
       return result;
     }
     return finishAsyncBuild(
@@ -3433,17 +3395,17 @@ function buildTrackedResource<T>(
       canPublish,
       (status, error) => {
         settled = true;
-        settleResourceInstance(instance, status, error);
+        settleResourceInstance(owned, status, error);
       },
       obs,
       span,
     );
   } catch (error) {
     settled = true;
-    return failResourceBuild(owner, target, rec, gen, instance, error, obs, span);
+    return failResourceBuild(owner, target, rec, gen, owned, error, obs, span);
   } finally {
     buildDepth--;
-    rec.building = false;
+    rec.busy = false;
   }
 }
 
@@ -3469,8 +3431,8 @@ function finishAsyncBuild(
       markSettled("ok");
       if (rec.build === build) rec.build = undefined;
       if (canPublish()) {
-        rec.resource = { value };
-        rec.promise = build;
+        rec.built = { value };
+        rec.ready = build;
       }
       closeSpan(obs, span, "ok");
       return value;
@@ -3478,14 +3440,14 @@ function finishAsyncBuild(
     (error: unknown) => {
       markSettled("failed", error);
       if (rec.build === build) rec.build = undefined;
-      if (!superseded()) rec.failed = { error, promise: build };
+      if (!superseded()) rec.failed = { error, ready: build };
       closeSpan(obs, span, "failed");
       throw error;
     },
   );
   if (!superseded()) rec.build = build;
   track(owner, build, (error) => {
-    if (!superseded() && !isCancel(owner, error)) owner.failure ??= { cause: error };
+    if (!superseded() && !isCancel(owner, error)) owner.failed ??= { cause: error };
   });
   return build;
 }
@@ -3493,7 +3455,7 @@ function finishAsyncBuild(
 function resourceController<T>(
   layer: Layer,
   target: Resource.Handle<T>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.ResourceController<T> {
   const owner = ownerOf(layer, target);
@@ -3503,23 +3465,23 @@ function resourceController<T>(
   const named = hasResourceNs(target, chain);
   return {
     resolve: () => {
-      if (!named && rec.resource) {
+      if (!named && rec.built) {
         ensureOpen(layer);
         ensureOpen(owner);
-        recordUsed(layer.obs, parent, target);
-        return (rec.promise ?? rec.resource.value) as Scope.ResourceValue<T>;
+        recordUsed(layer.obs, up, target);
+        return (rec.ready ?? rec.built.value) as Scope.ResourceValue<T>;
       }
-      const value = resourceSlot(layer, target, parent, chain);
+      const value = resourceSlot(layer, target, up, chain);
       const state = named ? selectNsResource(owner, target, chain) : rec;
-      return (state?.promise ?? value) as Scope.ResourceValue<T>;
+      return (state?.ready ?? value) as Scope.ResourceValue<T>;
     },
     get: () => {
       ensureOpen(layer);
       ensureOpen(owner);
       const state = named ? selectNsResource(owner, target, chain) : rec;
-      if (state?.failed) return state.failed.promise as Scope.ResourceValue<T>;
-      if (!state?.resource) raise("NotResolved", { label: target.label });
-      return (state.promise ?? state.resource.value) as Scope.ResourceValue<T>;
+      if (state?.failed) return state.failed.ready as Scope.ResourceValue<T>;
+      if (!state?.built) raise("NotResolved", { label: target.label });
+      return (state.ready ?? state.built.value) as Scope.ResourceValue<T>;
     },
   };
 }
@@ -3533,7 +3495,7 @@ function selectNsResource(
     owner,
     chain,
     (layer, key) => {
-      const state = layer === owner ? layer.nodes.get(target)?.nsResources?.get(key) : undefined;
+      const state = layer === owner ? layer.nodes.get(target)?.named?.get(key) : undefined;
       return state && occupiedNsResource(state) ? state : undefined;
     },
     () => undefined,
@@ -3541,7 +3503,7 @@ function selectNsResource(
 }
 
 function occupiedNsResource(state: NsResourceState): boolean {
-  return Boolean(state.resource || state.build || state.failed || state.building);
+  return Boolean(state.built || state.build || state.failed || state.busy);
 }
 
 function ownNsResource(
@@ -3550,10 +3512,10 @@ function ownNsResource(
   key: Namespace,
 ): NsResourceState {
   const rec = nodeState(owner, target);
-  let state = rec.nsResources?.get(key);
+  let state = rec.named?.get(key);
   if (state === undefined) {
     state = new NsResourceState(owner, target, key);
-    (rec.nsResources ??= new Map()).set(key, state);
+    (rec.named ??= new Map()).set(key, state);
   }
   return state;
 }
@@ -3573,7 +3535,7 @@ function hasResourceNs(
 function resourceSlot(
   layer: Layer,
   target: Resource.Handle<unknown>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   selected?: SelectedResource,
 ): unknown {
@@ -3581,44 +3543,44 @@ function resourceSlot(
   const rec = nodeState(owner, target);
   ensureOpen(layer);
   ensureOpen(owner);
-  recordUsed(layer.obs, parent, target);
+  recordUsed(layer.obs, up, target);
   if (hasResourceNs(target, chain))
-    return namedResourceSlot(owner, layer, target, parent, chain, selected);
+    return namedResourceSlot(owner, layer, target, up, chain, selected);
   selected?.(owner, target, rec);
-  if (rec.resource) return rec.resource.value;
-  if (rec.failed) return rec.failed.promise;
+  if (rec.built) return rec.built.value;
+  if (rec.failed) return rec.failed.ready;
   if (rec.build) return rec.build;
-  const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
-  return buildResource(owner, layer, target, parent, buildChain, rec);
+  const buildChain = target.target === "scope" ? NO_ITEMS : chain;
+  return buildResource(owner, layer, target, up, buildChain, rec);
 }
 
 function namedResourceSlot(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<unknown>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly [Namespace, ...Namespace[]],
   selected?: SelectedResource,
 ): unknown {
   const [head] = chain;
   const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
   selected?.(owner, target, state);
-  return readResourceState(owner, caller, target, parent, chain, state);
+  return readResourceState(owner, caller, target, up, chain, state);
 }
 
 function readResourceState(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<unknown>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
 ): unknown {
-  if (state.resource) return state.resource.value;
-  if (state.failed) return state.failed.promise;
+  if (state.built) return state.built.value;
+  if (state.failed) return state.failed.ready;
   if (state.build) return state.build;
-  if (state.building) raise("CircularResource", { label: target.label });
-  return buildResource(owner, caller, target, parent, chain, state, resolveNamedResourceDeps);
+  if (state.busy) raise("CircularResource", { label: target.label });
+  return buildResource(owner, caller, target, up, chain, state, resolveNamedResourceDeps);
 }
 
 function addDependent(
@@ -3630,7 +3592,7 @@ function addDependent(
 ): void {
   if (addNsDataDependent(owner, node, chain, state)) return;
   const s = nodeState(owner, node);
-  (s.dependents ??= new Set()).add(dependent);
+  (s.users ??= new Set()).add(dependent);
 }
 
 function addNsDataDependent(
@@ -3647,19 +3609,18 @@ function addNsDataDependent(
 }
 
 function linkNsResourceDependent(selected: NsResourceState, dependent: NsResourceState): void {
-  (selected.resourceDependents ??= new Set()).add(dependent);
-  (dependent.resourceDependencies ??= new Set()).add(selected);
-  (dependent.owner.nsLinked ??= new Set()).add(dependent);
+  (selected.users ??= new Set()).add(dependent);
+  (dependent.needs ??= new Set()).add(selected);
+  (dependent.layer.links ??= new Set()).add(dependent);
 }
 
 function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
-  const dependents =
-    selected.source.nsDataDependents?.get(selected.entry) ?? new Set<NsResourceState>();
-  if (dependents.has(dependent)) return;
-  dependents.add(dependent);
-  (selected.source.nsDataDependents ??= new Map()).set(selected.entry, dependents);
-  (dependent.dataDependencies ??= new Set()).add(selected);
-  (dependent.owner.nsLinked ??= new Set()).add(dependent);
+  const users = selected.source.readers?.get(selected.entry) ?? new Set<NsResourceState>();
+  if (users.has(dependent)) return;
+  users.add(dependent);
+  (selected.source.readers ??= new Map()).set(selected.entry, users);
+  (dependent.reads ??= new Set()).add(selected);
+  (dependent.layer.links ??= new Set()).add(dependent);
 }
 
 function selectNsDataEntry(
@@ -3672,7 +3633,7 @@ function selectNsDataEntry(
     chain,
     (layer, key) => {
       const source = layer.nodes.get(target);
-      const entry = source?.nsCells?.get(key);
+      const entry = source?.cells?.get(key);
       return source && entry ? { source, entry } : undefined;
     },
     (layer) => (layer.nodes.get(target)?.cell ? DEFAULT_DATA_ENTRY : undefined),
@@ -3680,28 +3641,25 @@ function selectNsDataEntry(
   return selected === DEFAULT_DATA_ENTRY ? undefined : selected;
 }
 
-const DEFAULT_DATA_ENTRY = Symbol("default-data-entry");
+const DEFAULT_DATA_ENTRY = Symbol();
 
 function detachNsDependencies(state: NsResourceState): void {
-  state.owner.nsLinked?.delete(state);
-  for (const link of state.dataDependencies ?? [])
-    link.source.nsDataDependents?.get(link.entry)?.delete(state);
-  state.dataDependencies = undefined;
+  state.layer.links?.delete(state);
+  for (const link of state.reads ?? []) link.source.readers?.get(link.entry)?.delete(state);
+  state.reads = undefined;
   detachNsResourceLinks(state);
 }
 
 function detachNsLinked(layer: Layer, linked: Set<NsResourceState>): void {
   for (const state of linked) detachNsDependencies(state);
-  layer.nsLinked = undefined;
+  layer.links = undefined;
 }
 
 function detachNsResourceLinks(state: NsResourceState): void {
-  for (const dependency of state.resourceDependencies ?? [])
-    dependency.resourceDependents?.delete(state);
-  for (const dependent of state.resourceDependents ?? [])
-    dependent.resourceDependencies?.delete(state);
-  state.resourceDependencies = undefined;
-  state.resourceDependents = undefined;
+  for (const dependency of state.needs ?? []) dependency.users?.delete(state);
+  for (const dependent of state.users ?? []) dependent.needs?.delete(state);
+  state.needs = undefined;
+  state.users = undefined;
 }
 
 function detachResourceDependencies(
@@ -3718,8 +3676,8 @@ function detachResourceDependencies(
 
 function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): void {
   for (const s of owner.nodes.values()) {
-    const set = s.dependents;
-    if (set && set.delete(dependent) && set.size === 0) s.dependents = undefined;
+    const set = s.users;
+    if (set && set.delete(dependent) && set.size === 0) s.users = undefined;
   }
 }
 
@@ -3734,10 +3692,10 @@ function depNode(dep: Scope.Dependency): Node | undefined {
 
 type HeldBorrows = { list: ResourceInstance[]; done: Promise<void>; settle: () => void };
 
-function addBorrow(instance: ResourceInstance, held: HeldBorrows): void {
-  if (held.list.includes(instance)) return;
-  held.list.push(instance);
-  (instance.borrowers ??= new Set()).add(held.done);
+function addBorrow(owned: ResourceInstance, held: HeldBorrows): void {
+  if (held.list.includes(owned)) return;
+  held.list.push(owned);
+  (owned.borrows ??= new Set()).add(held.done);
 }
 
 function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | undefined {
@@ -3745,9 +3703,9 @@ function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | 
   return createBorrows();
 }
 
-function removeBorrow(instance: ResourceInstance, work: Promise<unknown>): void {
-  instance.borrowers?.delete(work);
-  finishTracked(instance);
+function removeBorrow(owned: ResourceInstance, work: Promise<unknown>): void {
+  owned.borrows?.delete(work);
+  finishTracked(owned);
 }
 
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
@@ -3811,28 +3769,28 @@ function makeRootLayer(options: Scope.Options | undefined): Layer {
 /** The ambient namespace chain of a new layer: the options' `ns` (validated), else the parent's
  * — a child session inherits the parent's ambient namespace (ADR 0059 decision 5). */
 function nsFor(
-  parent: Layer | undefined,
+  up: Layer | undefined,
   options: Scope.Options | undefined,
 ): readonly Namespace[] | undefined {
-  if (options?.ns === NO_NAMESPACE) return NO_NAMESPACE;
+  if (options?.ns === NO_ITEMS) return NO_ITEMS;
   if (options?.ns !== undefined) return nsChainOf(options.ns);
-  return parent?.ns;
+  return up?.ns;
 }
 
 /** Handles create these children from full layers; tagged frames use their own constructor.
  * Inherit the services, bindings, and any close already under way above the child. */
-function makeLayer(parent: Layer, options?: Scope.Options): Layer {
-  const layer = layerRecord(parent, options, parent.obs, parent.clock, parent.random, parent.exts);
-  if (parent.children === NO_CHILDREN) parent.children = new Set();
-  parent.children.add(layer);
+function makeLayer(up: Layer, options?: Scope.Options): Layer {
+  const layer = layerRecord(up, options, up.obs, up.clock, up.random, up.exts);
+  if (up.children === NO_CHILDREN) up.children = new Set();
+  up.children.add(layer);
   /** Born into a subtree already being collected by an active ancestor close: inherit `swept` so this
    * late child's real failure + teardown errors still push up to the collecting ancestor when it
    * finishes; inherit the abort if the ancestor close is FORCED (creation under a CLOSED scope is
    * blocked by `ensureOpen`, so a swept-but-open parent means an ancestor is mid-close). */
-  if (parent.swept) layer.swept = true;
-  if (parent.aborted) {
+  if (up.swept) layer.swept = true;
+  if (up.aborted) {
     layer.aborted = true;
-    layer.abortReason = parent.abortReason;
+    layer.reason = up.reason;
   }
   return layer;
 }
@@ -3841,7 +3799,7 @@ function makeLayer(parent: Layer, options?: Scope.Options): Layer {
  * seeds are called only when the options carry them: a helper that never runs here stays out of
  * V8's inlining budget for the session start. */
 function layerRecord(
-  parent: Layer | undefined,
+  up: Layer | undefined,
   options: Scope.Options | undefined,
   obs: Obs,
   clock: Clock.Handle,
@@ -3851,44 +3809,44 @@ function layerRecord(
   const tags = options?.tags === undefined ? undefined : seedTags(options.tags);
   const seeded = options?.presets === undefined ? NO_PRESETS : seedPresets(options.presets);
   return {
-    parent,
+    up,
     children: NO_CHILDREN,
     nodes: seeded.nodes,
     presets: seeded.presets,
     tags,
-    pending: NO_WORK,
-    defers: NO_DEFERS,
-    resourceHolds: 0,
+    pending: NO_CHILDREN,
+    hooks: NO_DEFERS,
+    holds: 0,
     aborted: false,
-    abortReason: undefined,
+    reason: undefined,
     abort: undefined,
     cancelled: false,
     swept: false,
     bodyEnd: undefined,
-    failure: undefined,
-    descendantFailure: undefined,
-    failureOwner: undefined,
-    secondary: NO_ERRORS,
+    failed: undefined,
+    childError: undefined,
+    caller: undefined,
+    errors: NO_DEFERS,
     body: undefined,
     closed: false,
     closing: undefined,
     obs,
-    trace: obs.observing ? traceFor(parent, options?.trace) : undefined,
+    trace: obs.on ? traceFor(up, options?.trace) : undefined,
     clock,
     random,
-    emptyCtx: undefined,
-    ns: nsFor(parent, options),
+    empty: undefined,
+    ns: nsFor(up, options),
     exts,
   };
 }
 
 /** Copy the driver's seed once; descendants share the owned copy. */
 function traceFor(
-  parent: Layer | undefined,
+  up: Layer | undefined,
   trace: Observe.Trace | null | undefined,
 ): Observe.Trace | undefined {
   if (trace === null) return undefined;
-  return trace === undefined ? parent?.trace : { ...trace };
+  return trace === undefined ? up?.trace : { ...trace };
 }
 
 /** Mark a layer's whole subtree `swept`, iteratively (no recursion — deep trees are safe). Run
@@ -3914,15 +3872,12 @@ function markAborted(layer: Layer, reason: unknown): void {
   if (layer.aborted) return;
   layer.aborted = true;
   if (layer.closing) layer.closed = true;
-  layer.abortReason = reason;
+  layer.reason = reason;
   /** Only fire the real signal if one was ever handed to a factory (else there are no listeners). */
   layer.abort?.abort(reason);
 }
 
-function abortSubtree(
-  root: Layer,
-  reason = root.aborted ? root.abortReason : new CancelReason(),
-): void {
+function abortSubtree(root: Layer, reason = root.aborted ? root.reason : new CancelReason()): void {
   markAborted(root, reason);
   const stack: Layer[] = [...root.children];
   while (stack.length) {
@@ -3942,17 +3897,17 @@ const RELEASED: Scope.End = { status: "released" };
  * (→ `TeardownFailed`). The teardown guard spans the synchronous call so a callback that synchronously
  * re-enters `close()` is acked (Q3 no-hang). */
 async function finishCloseInstance(entry: DeferEntry): Promise<void> {
-  const instance = entry.instance as ResourceInstance;
-  if (isHeld(instance)) {
-    finishTracked(instance);
+  const owned = entry.owned as ResourceInstance;
+  if (isHeld(owned)) {
+    finishTracked(owned);
     return;
   }
-  const finished = finishHook(instance, entry.fn);
+  const finished = finishHook(owned, entry.fn);
   if (finished) await finished;
 }
 
 async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End): Promise<void> {
-  if (entry.instance) return finishCloseInstance(entry);
+  if (entry.owned) return finishCloseInstance(entry);
   let pending: void | PromiseLike<void>;
   enterTeardown(layer);
   try {
@@ -3976,7 +3931,7 @@ function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promi
 }
 
 /** The reality-only settlement reducer (ADR 0028): a real failure wins — the body threw, an owned-work
- * op rejected, or a descendant really failed (bubbled into `layer.failure`/`descendantFailure`) — then
+ * op rejected, or a descendant really failed (bubbled into `layer.failure`/`childFailure`) — then
  * an interrupted body settles `cancelled`, else `success`. No wished outcome participates. Records the
  * winning real failure in `layer.failure` so it propagates to a collecting ancestor. A body that
  * rejects (whether it threw or surfaced a descendant failure it awaited) is a real body failure; we do
@@ -3986,12 +3941,12 @@ function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Out
     /** A body failure is the PRIMARY cause and outranks a caught/recorded owned-work failure, so it
      * OVERRIDES `layer.failure` (which `asPrimary` may already have set from the op) — otherwise a
      * collecting ancestor would push up the owned-work error while this layer reports the body error. */
-    layer.failure = { cause: body.error };
+    layer.failed = { cause: body.error };
     return body;
   }
-  const owned = failureOf(layer) ?? layer.descendantFailure;
+  const owned = failureOf(layer) ?? layer.childError;
   if (owned) {
-    layer.failure = owned;
+    layer.failed = owned;
     return { status: "failed", error: owned.cause };
   }
   if (layer.cancelled) return { status: "cancelled" };
@@ -4006,11 +3961,11 @@ function canFastClose(layer: Layer): boolean {
   return (
     buildDepth === 0 &&
     layer.children.size === 0 &&
-    layer.pending.size + layer.resourceHolds === 0 &&
-    layer.defers.length + layer.secondary.length === 0 &&
+    layer.pending.size + layer.holds === 0 &&
+    layer.hooks.length + layer.errors.length === 0 &&
     layer.bodyEnd === undefined &&
     failureOf(layer) === undefined &&
-    layer.descendantFailure === undefined &&
+    layer.childError === undefined &&
     !closeWouldReenter(layer)
   );
 }
@@ -4029,7 +3984,7 @@ function fastClose(
   const forced = force || layer.aborted;
   let settled: Scope.Outcome = SUCCESS;
   if (forced) {
-    markAborted(layer, layer.aborted ? layer.abortReason : new CancelReason());
+    markAborted(layer, layer.aborted ? layer.reason : new CancelReason());
     layer.cancelled = true;
     settled = { status: "cancelled" };
   }
@@ -4058,8 +4013,8 @@ function canEndIdle(layer: Layer): boolean {
     layer.abort === undefined &&
     buildDepth === 0 &&
     layer.children.size === 0 &&
-    layer.pending.size + layer.resourceHolds === 0 &&
-    layer.defers.length + layer.secondary.length === 0 &&
+    layer.pending.size + layer.holds === 0 &&
+    layer.hooks.length + layer.errors.length === 0 &&
     ownsNothing(layer)
   );
 }
@@ -4068,11 +4023,7 @@ function canEndIdle(layer: Layer): boolean {
  * layer that is {@link busyRecord}: a built resource instance (its release protocol must run)
  * or a watcher (a write between the body's return and the close must still reach it). */
 function ownsNothing(layer: Layer): boolean {
-  if (
-    failureOf(layer) !== undefined ||
-    layer.descendantFailure !== undefined ||
-    closeWouldReenter(layer)
-  )
+  if (failureOf(layer) !== undefined || layer.childError !== undefined || closeWouldReenter(layer))
     return false;
   /** A layer still on the shared empty store holds no record, so it holds no instance and no
    * watcher (Opus, fp2/opus-e50df39). */
@@ -4097,7 +4048,7 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
   materializeActiveFrames();
   /** Only a session under a root with `session` hooks has an entry, and its route says so: a
    * no-hook close never reads the table. */
-  const hooks = layer.exts.sessions && SESSION_HOOKS.get(layer);
+  const hooks = layer.exts.session && SESSION_HOOKS.get(layer);
   if (!layer.closing) {
     if (canFastClose(layer))
       return tapSessionHooks(hooks, fastClose(layer, force, hooks, withData));
@@ -4127,7 +4078,7 @@ function buildResult(
 ): Scope.Result {
   if (settled.status === "failed") return failedResult(settled.error, teardownErrors);
   if (settled.status === "cancelled") {
-    return { status: "cancelled", reason: layer.abortReason, teardownErrors };
+    return { status: "cancelled", reason: layer.reason, teardownErrors };
   }
   return { status: "success", teardownErrors };
 }
@@ -4139,9 +4090,7 @@ function buildResult(
  * under a graceful close (transaction-abort). */
 function prepareTeardown(layer: Layer, forced: boolean, body: Scope.Outcome | undefined): boolean {
   const rollback =
-    forced ||
-    body?.status === "failed" ||
-    (failureOf(layer) ?? layer.descendantFailure) !== undefined;
+    forced || body?.status === "failed" || (failureOf(layer) ?? layer.childError) !== undefined;
   /** A session settles cancelled iff its body was interrupted; a bodyless scope iff teardown rolls
    * back. A body that succeeded is never cancelled by its forced self-close. */
   if (body ? body.status === "cancelled" : rollback) layer.cancelled = true;
@@ -4151,10 +4100,10 @@ function prepareTeardown(layer: Layer, forced: boolean, body: Scope.Outcome | un
 function collectLayerInstances(layer: Layer): ResourceInstance[] {
   const instances: ResourceInstance[] = [];
   for (const state of layer.nodes.values()) {
-    if (state.instance) instances.push(state.instance);
-    if (state.nsResources)
-      for (const bucket of state.nsResources.values()) {
-        if (bucket.instance) instances.push(bucket.instance);
+    if (state.owned) instances.push(state.owned);
+    if (state.named)
+      for (const bucket of state.named.values()) {
+        if (bucket.owned) instances.push(bucket.owned);
       }
   }
   return instances;
@@ -4165,10 +4114,10 @@ async function closeInstances(
   settled: Scope.Outcome,
   instances: ResourceInstance[],
 ): Promise<void> {
-  for (const instance of instances) unlinkInstance(instance, settled);
-  await drainDefers(layer, [...layer.defers], settled);
-  for (const instance of instances) {
-    const finished = finishInstance(instance);
+  for (const owned of instances) unlinkInstance(owned, settled);
+  await drainDefers(layer, [...layer.hooks], settled);
+  for (const owned of instances) {
+    const finished = finishInstance(owned);
     if (finished) ignoreRejection(finished);
   }
   while (layer.pending.size) await Promise.all(layer.pending);
@@ -4201,7 +4150,7 @@ function startClose(
     const settled = settleOutcome(layer, body);
     const instances = collectLayerInstances(layer);
     if (instances.length) await closeInstances(layer, settled, instances);
-    else await drainDefers(layer, layer.defers, settled);
+    else await drainDefers(layer, layer.hooks, settled);
     /** Re-settle once more: a late real failure (pushed up from a child whose cleanup was parked on a
      * gate) can land WHILE we await the defers; `settleOutcome` never downgrades a recorded failure, so
      * the result stays monotonic and a collecting ancestor still sees it. */
@@ -4221,13 +4170,13 @@ function startClose(
  * detached before the intervening scopes began their own close (F1 / grandchild). A layer that
  * `keeps` its data (ADR 0069) leaves its store, presets, and tags to {@link keepData}. */
 function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
-  const teardownErrors = layer.secondary.length ? [...layer.secondary] : undefined;
-  const parent = detachLayer(layer);
-  if (parent && layer.swept) propagateSweptOutcome(layer, parent);
+  const teardownErrors = layer.errors.length ? [...layer.errors] : undefined;
+  const up = detachLayer(layer);
+  if (up && layer.swept) propagateSweptOutcome(layer, up);
   layer.pending.clear();
   layer.children.clear();
-  layer.defers.length = 0;
-  layer.secondary.length = 0;
+  layer.hooks.length = 0;
+  layer.errors.length = 0;
   if (keeps) return teardownErrors;
   if (layer.nodes.size !== 0) {
     for (const s of layer.nodes.values()) s.eff = undefined;
@@ -4257,7 +4206,7 @@ function settleSession(
  * resolves with the close `Result`. No hooks means no wrapper — the life below, inline, after one
  * field read of the parent's route; it ends in {@link endSession}. */
 function runSessionWith<R>(
-  parent: Layer,
+  up: Layer,
   options: Scope.Options | undefined,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   caller?: RunState,
@@ -4268,10 +4217,10 @@ function runSessionWith<R>(
    * that fails its parse. The body's own throw is not here; {@link runBodyWith} keeps it. */
   try {
     signal?.throwIfAborted();
-    const sessions = parent.exts.sessions;
-    ensureRunning(parent, caller);
-    child = makeLayer(parent, options);
-    child.failureOwner = caller;
+    const session = up.exts.session;
+    ensureRunning(up, caller);
+    child = makeLayer(up, options);
+    child.caller = caller;
     if (signal) {
       /** Seal writes now, then let the session join its body and cleanup before it detaches. */
       const abort = (): void => {
@@ -4281,12 +4230,12 @@ function runSessionWith<R>(
       signal.addEventListener("abort", abort, { once: true });
       addDefer(child, {
         fn: () => signal.removeEventListener("abort", abort),
-        instance: undefined,
+        owned: undefined,
       });
       if (signal.aborted) abort();
     }
-    if (sessions !== undefined) {
-      return runSessionWrapped(child, body, sessions);
+    if (session !== undefined) {
+      return runSessionWrapped(child, body, session);
     }
   } catch (error) {
     return Promise.reject(error) as Promise<R>;
@@ -4368,12 +4317,12 @@ function settleSessionEnded(ended: Scope.Result): void {
 }
 
 function runSession<R>(
-  parent: Layer,
+  up: Layer,
   options: Scope.Options | undefined,
   fn: (scope: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
   return Promise.resolve(
-    runSessionWith(parent, options, (child, handle) => fn(handle ?? handleFor(child))),
+    runSessionWith(up, options, (child, handle) => fn(handle ?? handleFor(child))),
   );
 }
 
@@ -4388,7 +4337,7 @@ function runBodyWith<R>(
   handle?: Scope.Handle,
 ): R | Promise<R> {
   try {
-    if (child.closed && child.aborted) throw child.abortReason;
+    if (child.closed && child.aborted) throw child.reason;
     return adoptBody(fn(child, handle));
   } catch (error) {
     return Promise.reject(error) as Promise<R>;
@@ -4444,7 +4393,7 @@ function runInline<R, I>(
   call: Scope.Invocation<I> | undefined,
   receiver?: RunState,
   chain: readonly Namespace[] | undefined = layer.ns,
-  parent?: SpanImpl,
+  up?: SpanImpl,
 ): R | Promise<Awaited<R>> {
   /** A throwaway `Operation.Handle` through the controller path — one handle + one controller
    * per call, nothing cached in the layer (no `nodeState`/`controllerOf` residue). The body's
@@ -4459,7 +4408,7 @@ function runInline<R, I>(
   /** The controller's public face is two overloads, but this entry already holds a broad
    * `Invocation<I>` — one untyped dispatch, no per-shape narrowing. The overloads still type
    * every userland call site; the seam cast below only widens this internal entry. */
-  const dispatch = operationController(layer, handle, parent, chain, receiver, inline).run as (
+  const dispatch = operationController(layer, handle, up, chain, receiver, inline).run as (
     call?: Scope.Invocation<I>,
   ) => R | Promise<Awaited<R>>;
   return call === undefined ? dispatch() : dispatch(call);
@@ -4532,9 +4481,9 @@ function handleFor(layer: Layer): Scope.Handle {
             call,
             RECOVERED,
           );
-        return OperationControl.recovered(
-          controllerOf(op) as OperationControl<unknown, unknown>,
-        ).run(call);
+        return OperationControl.recover(controllerOf(op) as OperationControl<unknown, unknown>).run(
+          call,
+        );
       },
       call?.signal,
     )) as Scope.Handle["settle"];
@@ -4552,8 +4501,7 @@ function handleFor(layer: Layer): Scope.Handle {
       b?: (scope: Scope.Handle) => R | PromiseLike<R>,
     ) => {
       if (typeof a === "function") return runSession(layer, undefined, a);
-      if (!b)
-        raise("InvalidDependency", { label: "session", reason: "session(options, fn) needs fn" });
+      if (!b) raiseInvalid("session", "session(options, fn) needs fn");
       return runSession(layer, a, b);
     }) as Scope.Handle["session"],
     release,
@@ -4561,7 +4509,7 @@ function handleFor(layer: Layer): Scope.Handle {
     spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
-      addDefer(layer, { fn: () => fn(), instance: undefined });
+      addDefer(layer, { fn: () => fn(), owned: undefined });
     },
     settled,
     close: (opts?: Scope.CloseOptions) =>
@@ -4587,33 +4535,27 @@ export function createScope(options?: Scope.RootOptions): Scope.Handle {
  * file on purpose: every top-level name takes a module slot in the bundle, and a slot above 255
  * needs a wider bytecode on each use. Cold code goes last so the hot paths keep the cheap slots:
  * add new hot-path names above this block. `pnpm validate` checks it (`scripts/check-slots.mjs`). */
-type Affected = { node: Node; owner: Layer };
+type Affected = { node: Node; layer: Layer };
 
 function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
   const s = nodeState(owner, target);
-  if (s.instance) {
-    unlinkInstance(s.instance, RELEASED);
-    s.instance = undefined;
+  if (s.owned) {
+    unlinkInstance(s.owned, RELEASED);
+    s.owned = undefined;
   }
   s.gen += 1;
-  s.resource = undefined;
-  s.promise = undefined;
-  s.failed = undefined;
-  s.build = undefined;
-  if (s.nsResources) {
-    for (const state of s.nsResources.values()) {
-      if (state.instance) unlinkInstance(state.instance, RELEASED);
+  clearBuild(s);
+  if (s.named) {
+    for (const state of s.named.values()) {
+      if (state.owned) unlinkInstance(state.owned, RELEASED);
       state.gen += 1;
-      state.resource = undefined;
-      state.promise = undefined;
-      state.failed = undefined;
-      state.build = undefined;
+      clearBuild(state);
       detachNsDependencies(state);
     }
-    s.nsResources = undefined;
+    s.named = undefined;
   }
   detachDependent(owner, target);
-  s.dependents = undefined;
+  s.users = undefined;
 }
 
 /** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
@@ -4624,9 +4566,9 @@ function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
     invalidateEff(owner, target);
   }
   if (s) {
-    s.nsCells = undefined;
-    s.dependents = undefined;
-    s.nsDataDependents = undefined;
+    s.cells = undefined;
+    s.users = undefined;
+    s.readers = undefined;
   }
 }
 
@@ -4657,7 +4599,7 @@ function visitDependents(
   owner: Layer,
   visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
 ): void {
-  if (rec?.dependents) for (const target of rec.dependents) visit(target, owner);
+  if (rec?.users) for (const target of rec.users) visit(target, owner);
 }
 
 /** Walk dependents from a node (iterative; keyed on node+owner so diamonds collapse while the same
@@ -4665,7 +4607,7 @@ function visitDependents(
 function collectAffected(target: Node, targetOwner: Layer): Affected[] {
   const seen = new Map<Node, Set<Layer>>();
   const order: Affected[] = [];
-  const stack: Affected[] = [{ node: target, owner: targetOwner }];
+  const stack: Affected[] = [{ node: target, layer: targetOwner }];
   while (stack.length) {
     const item = stack.pop() as Affected;
     let owners = seen.get(item.node);
@@ -4673,10 +4615,10 @@ function collectAffected(target: Node, targetOwner: Layer): Affected[] {
       owners = new Set();
       seen.set(item.node, owners);
     }
-    if (owners.has(item.owner)) continue;
-    owners.add(item.owner);
+    if (owners.has(item.layer)) continue;
+    owners.add(item.layer);
     order.push(item);
-    forEachDependent(item.owner, item.node, (t, owner) => stack.push({ node: t, owner }));
+    forEachDependent(item.layer, item.node, (t, owner) => stack.push({ node: t, layer: owner }));
   }
   return order;
 }
@@ -4704,9 +4646,9 @@ function releaseNode(layer: Layer, target: Node): void {
   const order = collectAffected(target, targetOwner);
   if (isData(target)) {
     const rec = targetOwner.nodes.get(target);
-    if (rec?.nsCells) {
+    if (rec?.cells) {
       const seeds: NsResourceState[] = [];
-      for (const entry of rec.nsCells.values()) seeds.push(...namedDataSeeds(rec, entry));
+      for (const entry of rec.cells.values()) seeds.push(...namedDataSeeds(rec, entry));
       collectNamedRelease(seeds, affected);
     }
   }
@@ -4726,21 +4668,21 @@ function releaseNamed(layer: Layer, target: Node, ns: Namespace): void {
 
 function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespace): void {
   const rec = owner.nodes.get(target);
-  if (!rec?.nsCells) return;
-  const entry = rec.nsCells.get(ns);
+  if (!rec?.cells) return;
+  const entry = rec.cells.get(ns);
   if (!entry) return;
   const affected = collectNamedRelease(namedDataSeeds(rec, entry), new Map());
-  rec.nsCells.delete(ns);
-  rec.nsDataDependents?.delete(entry);
+  rec.cells.delete(ns);
+  rec.readers?.delete(entry);
   drainRelease(affected, () => flushInheritedNsWatchers(owner, target, ns));
 }
 
 function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {
-  return [...(rec.nsDataDependents?.get(entry) ?? [])];
+  return [...(rec.readers?.get(entry) ?? [])];
 }
 
 function releaseNamedResource(owner: Layer, target: Resource.Handle<unknown>, ns: Namespace): void {
-  const state = owner.nodes.get(target)?.nsResources?.get(ns);
+  const state = owner.nodes.get(target)?.named?.get(ns);
   if (!state) return;
   const affected = collectNamedRelease([state], new Map());
   drainRelease(affected);
@@ -4762,13 +4704,13 @@ function collectNamedRelease(
   while (pending.length) {
     const state = pending.pop()!;
     if (!isLiveNamedRelease(state)) continue;
-    for (const dependent of state.resourceDependents ?? []) pending.push(dependent);
-    const released = affected.get(state.owner) ?? {
+    for (const dependent of state.users ?? []) pending.push(dependent);
+    const released = affected.get(state.layer) ?? {
       instances: new Set<ResourceInstance>(),
       hooks: [],
     };
-    if (state.instance) released.instances.add(state.instance);
-    affected.set(state.owner, released);
+    if (state.owned) released.instances.add(state.owned);
+    affected.set(state.layer, released);
     unlinkNamedState(state);
   }
   return affected;
@@ -4776,26 +4718,23 @@ function collectNamedRelease(
 
 function isLiveNamedRelease(state: NsResourceState): boolean {
   return (
-    !state.owner.closed &&
-    !state.owner.closing &&
-    state.owner.nodes.get(state.target)?.nsResources?.get(state.key) === state
+    !state.layer.closed &&
+    !state.layer.closing &&
+    state.layer.nodes.get(state.target)?.named?.get(state.key) === state
   );
 }
 
 function unlinkNamedState(state: NsResourceState): void {
-  const instance = state.instance;
-  state.owner.nodes.get(state.target)?.nsResources?.delete(state.key);
+  const owned = state.owned;
+  state.layer.nodes.get(state.target)?.named?.delete(state.key);
   detachNsDependencies(state);
   state.gen++;
-  state.resource = undefined;
-  state.promise = undefined;
-  state.failed = undefined;
-  state.build = undefined;
-  if (instance) unlinkInstance(instance, RELEASED);
+  clearBuild(state);
+  if (owned) unlinkInstance(owned, RELEASED);
 }
 
-function isHeld(instance: ResourceInstance): boolean {
-  return instance.dependents > 0 || instance.building || !!instance.borrowers?.size;
+function isHeld(owned: ResourceInstance): boolean {
+  return owned.users > 0 || owned.busy || !!owned.borrows?.size;
 }
 
 function drainReleasedOwner(
@@ -4803,12 +4742,12 @@ function drainReleasedOwner(
   previous: Promise<void> | undefined,
 ): Promise<void> | undefined {
   let prev = previous;
-  const borrowed = [...entry.instances].flatMap((instance) => [...(instance.borrowers ?? [])]);
+  const borrowed = [...entry.instances].flatMap((owned) => [...(owned.borrows ?? [])]);
   const gate = borrowed.length ? Promise.allSettled(borrowed).then(() => undefined) : undefined;
   for (const hook of entry.hooks) {
-    const instance = hook.instance as ResourceInstance;
-    if (isHeld(instance)) continue;
-    prev = finishHook(instance, hook.fn, gate ?? prev) ?? prev;
+    const owned = hook.owned as ResourceInstance;
+    if (isHeld(owned)) continue;
+    prev = finishHook(owned, hook.fn, gate ?? prev) ?? prev;
   }
   return drainHookless(entry.instances, gate ?? prev);
 }
@@ -4818,9 +4757,9 @@ function drainHookless(
   previous: Promise<void> | undefined,
 ): Promise<void> | undefined {
   let prev = previous;
-  for (const instance of instances) {
-    if (instance.hooks.length || isHeld(instance)) continue;
-    prev = finishInstance(instance, prev) ?? prev;
+  for (const owned of instances) {
+    if (owned.hooks.length || isHeld(owned)) continue;
+    prev = finishInstance(owned, prev) ?? prev;
   }
   return prev;
 }
@@ -4838,7 +4777,7 @@ function byDepthDesc(affected: Map<Layer, Released>): [Layer, Released][] {
 
 function layerDepth(layer: Layer): number {
   let depth = 0;
-  for (let cur = layer.parent; cur; cur = cur.parent) depth++;
+  for (let cur = layer.up; cur; cur = cur.up) depth++;
   return depth;
 }
 
@@ -4852,27 +4791,25 @@ function collectReleasedInstances(
 ): void {
   const state = nodeState(owner, target);
   const entry = affected.get(owner) ?? { instances: new Set(), hooks: [] };
-  if (state.instance) entry.instances.add(state.instance);
-  if (state.nsResources)
-    for (const bucket of state.nsResources.values()) {
-      if (bucket.instance) entry.instances.add(bucket.instance);
+  if (state.owned) entry.instances.add(state.owned);
+  if (state.named)
+    for (const bucket of state.named.values()) {
+      if (bucket.owned) entry.instances.add(bucket.owned);
     }
   affected.set(owner, entry);
   invalidateResource(owner, target);
 }
 
 function orderReleased(owner: Layer, entry: Released): void {
-  for (const hook of owner.defers.toReversed()) {
-    if (hook.instance && entry.instances.has(hook.instance)) entry.hooks.push(hook);
+  for (const hook of owner.hooks.toReversed()) {
+    if (hook.owned && entry.instances.has(hook.owned)) entry.hooks.push(hook);
   }
-  owner.defers = owner.defers.filter(
-    (hook) => !hook.instance || !entry.instances.has(hook.instance),
-  );
+  owner.hooks = owner.hooks.filter((hook) => !hook.owned || !entry.instances.has(hook.owned));
 }
 
 function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): boolean {
   let dataReleased = false;
-  for (const { node, owner } of order) {
+  for (const { node, layer: owner } of order) {
     if (owner.closed || owner.closing) continue;
     if (isResource(node)) collectReleasedInstances(owner, node, affected);
     else {
@@ -4918,26 +4855,24 @@ function freeAfterHooks(layer: Layer, hooks: SessionHooks): void {
   hooks.phase = "done";
 }
 
-/** Strip a node moved into a `Result` down to its `cell` and `nsCells`, all `data.get` reads.
- * Everything else would pin the closed layer after close: the torn-down resource `instance` (its
- * `owner` layer and defer closures), `nsResources` and `nsDataDependents` (owner layers), the
+/** Strip a node moved into a `Result` down to its `cell` and `cells`, all `data.get` reads.
+ * Everything else would pin the closed layer after close: the torn-down resource `owned` (its
+ * `layer` and defer closures), `named` and `readers` (owner layers), the
  * memoized `controller` closure over the layer, `watchers` and `nsWatchers` (user closures),
- * `dependents`, the build state (`resource`, `promise`, `failed`, `build`), and the cached `eff`
- * and `notified` values (possibly a parent's). A default close's `nodes.clear()` drops it all. */
+ * `dependents`, the build state (`built`, `ready`, `failed`, `build`), and the cached `eff`
+ * and `prev` values (possibly a parent's). A default close's `nodes.clear()` drops it all. */
 function keepCellsOnly(s: NodeState): void {
-  s.eff = undefined;
-  s.resource = undefined;
-  s.promise = undefined;
-  s.failed = undefined;
-  s.build = undefined;
-  s.instance = undefined;
-  s.dependents = undefined;
-  s.controller = undefined;
-  s.watchers = undefined;
-  s.notified = undefined;
-  s.nsResources = undefined;
-  s.nsDataDependents = undefined;
-  s.nsWatchers = undefined;
+  clearBuild(s);
+  s.eff =
+    s.owned =
+    s.users =
+    s.controller =
+    s.watchers =
+    s.prev =
+    s.named =
+    s.readers =
+    s.nsWatchers =
+      undefined;
 }
 
 /** A read on a closed scope (ADR 0069): while a session's data waits for its `session` hooks, a
@@ -4969,7 +4904,7 @@ function ownEntry(
 ): Entry | undefined {
   if (rec === undefined) return undefined;
   for (const key of chain ?? NO_ITEMS) {
-    const bucket = rec.nsCells?.get(key);
+    const bucket = rec.cells?.get(key);
     if (bucket !== undefined) return bucket;
   }
   return rec.cell;
@@ -4982,8 +4917,8 @@ export type { Errors } from "./errors.ts";
  * named, or a watcher, default or named. */
 function busyRecord(state: NodeState): boolean {
   return (
-    state.instance !== undefined ||
-    state.nsResources !== undefined ||
+    state.owned !== undefined ||
+    state.named !== undefined ||
     state.watchers !== undefined ||
     state.nsWatchers !== undefined
   );
@@ -5016,7 +4951,7 @@ function adoptThenable<R>(raw: unknown, then: ThenFn<R>): Promise<R> {
 function walkEntry(layer: Layer, self: NodeState | undefined, target: Data.Cell<unknown>): Entry {
   let hops = 0;
   let top = layer;
-  for (let cur = layer.parent; cur; cur = cur.parent) {
+  for (let cur = layer.up; cur; cur = cur.up) {
     hops++;
     top = cur;
     const rec = cur.nodes.get(target);
@@ -5087,7 +5022,7 @@ function isTagList(tags: LayerTags): tags is readonly Tag.Binding<unknown>[] {
  * the hook's error wins. The life runs at most once per session no matter how many hooks call
  * `next()` (`ensure` memo). */
 function sessionThrough(
-  sessions: readonly Scope.Extension<unknown>[],
+  session: readonly Scope.Extension<unknown>[],
   handle: Scope.Handle,
   owner: Layer,
   run: () => Promise<{ result: unknown; ended: Scope.Result }>,
@@ -5095,8 +5030,8 @@ function sessionThrough(
   let life: Promise<{ result: unknown; ended: Scope.Result }> | undefined;
   const ensure = (): Promise<{ result: unknown; ended: Scope.Result }> => (life ??= run());
   const at = (index: number): Promise<{ result: unknown; ended: Scope.Result }> => {
-    if (index >= sessions.length) return ensure();
-    const ext = sessions[index];
+    if (index >= session.length) return ensure();
+    const ext = session[index];
     /** The inner life this hook observes: memoized so calling `next()` twice still runs the
      * session once, and so a hook that skips `next()` leaves `inner` unset for `ensure` below. */
     let inner: Promise<{ result: unknown; ended: Scope.Result }> | undefined;
@@ -5166,21 +5101,21 @@ function recover(layer: Layer, error: unknown): void {
 /** Compose ancestor controllers without recursion. Unread layers keep no signal state. */
 function closingOf(layer: Layer): AbortSignal {
   materialize(layer);
-  if (layer.closeSignal) return layer.closeSignal;
+  if (layer.stop) return layer.stop;
   const signals: AbortSignal[] = [];
-  for (let owner: Layer | undefined = layer; owner !== undefined; owner = owner.parent) {
+  for (let owner: Layer | undefined = layer; owner !== undefined; owner = owner.up) {
     signals.push((owner.closeAbort ??= new AbortController()).signal);
   }
   if (layer.closed || layer.closing || layer.swept) layer.closeAbort!.abort();
-  return (layer.closeSignal = AbortSignal.any(signals));
+  return (layer.stop = AbortSignal.any(signals));
 }
 
 /** Both close paths detach before publishing their outcome to a collecting parent. */
 function detachLayer(layer: Layer): Layer | undefined {
-  if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
-  const parent = layer.parent;
-  parent?.children.delete(layer);
-  return parent;
+  if (layer.links) detachNsLinked(layer, layer.links);
+  const up = layer.up;
+  up?.children.delete(layer);
+  return up;
 }
 
 function beginClosing(layer: Layer): void {
@@ -5216,7 +5151,7 @@ function runStartChain(
   };
   ignoreRejection(
     at(0).then(done, async (error: unknown) => {
-      layer.failure ??= { cause: error };
+      layer.failed ??= { cause: error };
       try {
         await (lifetime.closing ?? layer.closing ?? scope.close());
       } finally {
@@ -5231,26 +5166,26 @@ function runStartChain(
 class ExtensionCtx implements Scope.ExtensionCtx {
   declare readonly label: string;
   declare readonly ns: readonly Namespace[] | undefined;
-  declare private owner: Layer;
+  declare private layer: Layer;
   declare private flight: HookRun | undefined;
   declare private resolver: Scope.Handle["resolve"] | undefined;
-  declare private controllerFor: Scope.Handle["controller"] | undefined;
+  declare private control: Scope.Handle["controller"] | undefined;
   declare private runner: Scope.Handle["run"] | undefined;
-  declare private settler: Scope.Handle["settle"] | undefined;
-  declare private cleanup: Resource.Ctx["defer"] | undefined;
+  declare private settled: Scope.Handle["settle"] | undefined;
+  declare private clean: Resource.Ctx["defer"] | undefined;
   declare private raiser: Resource.Ctx["raise"] | undefined;
-  declare private logTools: Observe.Logger | undefined;
+  declare private logs: Observe.Logger | undefined;
   constructor(owner: Layer, label: string, chain = owner.ns, run?: HookRun) {
-    this.owner = owner;
+    this.layer = owner;
     this.label = label;
     this.ns = chain;
     this.flight = run;
   }
   get clock(): Clock.Handle {
-    return this.owner.clock;
+    return this.layer.clock;
   }
   get random(): Random.Handle {
-    return this.owner.random;
+    return this.layer.random;
   }
   private get ctx(): OperationCtx<unknown> | undefined {
     return this.flight === undefined ? undefined : hookCtx(this.flight);
@@ -5262,19 +5197,19 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return (this.resolver ??= ((target: Scope.Dependency, ns?: Scope.NsArg): unknown =>
       this.use(() => {
         const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-        if (this.owner.closed && this.flight === undefined)
-          return resolveHeld(this.owner, target, chain === undefined ? undefined : { ns: chain });
+        if (this.layer.closed && this.flight === undefined)
+          return resolveHeld(this.layer, target, chain === undefined ? undefined : { ns: chain });
         if (isResource(target)) return this.resource(target, chain).resolve();
-        return resolveNs(this.owner, target, chain);
+        return resolveNs(this.layer, target, chain);
       })) as Scope.Handle["resolve"]);
   }
   get controller(): Scope.Handle["controller"] {
-    return (this.controllerFor ??= ((
+    return (this.control ??= ((
       target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
       ns?: Scope.NsArg,
     ): unknown =>
       this.use(() => {
-        ensureOpen(this.owner);
+        ensureOpen(this.layer);
         const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
         if (isData(target)) return this.cell(target, chain);
         if (isResource(target)) return this.resource(target, chain);
@@ -5285,7 +5220,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     target: Data.Cell<unknown>,
     chain: readonly Namespace[] | undefined,
   ): Scope.DataController<unknown> {
-    const controller = dataController(this.owner, target, chain);
+    const controller = dataController(this.layer, target, chain);
     if (this.flight === undefined) return controller;
     return {
       get: () => this.use(() => controller.get()),
@@ -5298,12 +5233,12 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     target: Resource.Handle<unknown>,
     chain: readonly Namespace[] | undefined,
   ): Scope.ResourceController<unknown> {
-    const controller = resourceController(this.owner, target, this.flight?.span, chain);
+    const controller = resourceController(this.layer, target, this.flight?.span, chain);
     const run = this.flight;
     if (run === undefined) return controller;
     const selected: SelectedResource = (owner, target, state) =>
       addBorrow(instanceOf(owner, target, state), (run.held ??= createBorrows()));
-    const owner = ownerOf(this.owner, target);
+    const owner = ownerOf(this.layer, target);
     const state = (): ResourceState | undefined =>
       hasResourceNs(target, chain)
         ? selectNsResource(owner, target, chain)
@@ -5311,8 +5246,8 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return {
       resolve: () =>
         this.use(() => {
-          const value = resourceSlot(this.owner, target, this.flight?.span, chain, selected);
-          return state()?.promise ?? value;
+          const value = resourceSlot(this.layer, target, this.flight?.span, chain, selected);
+          return state()?.ready ?? value;
         }),
       get: () =>
         this.use(() => {
@@ -5328,7 +5263,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     chain: readonly Namespace[] | undefined,
   ): unknown {
     const controller = operationController(
-      this.owner,
+      this.layer,
       target,
       this.flight?.span,
       chain,
@@ -5344,7 +5279,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
         try {
           return this.use(() => controller.settle(call));
         } catch (error) {
-          return failedRun(this.owner, error);
+          return failedRun(this.layer, error);
         }
       },
     };
@@ -5356,9 +5291,9 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   ): unknown {
     return this.use(() => {
       if (!isOperation(op))
-        return runInline(this.owner, op, call, caller, this.ns, this.flight?.span);
+        return runInline(this.layer, op, call, caller, this.ns, this.flight?.span);
       const controller = operationController(
-        this.owner,
+        this.layer,
         op,
         this.flight?.span,
         this.ns,
@@ -5374,20 +5309,19 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     ): unknown => this.invoke(op, call, this.ctx)) as Scope.Handle["run"]);
   }
   get settle(): Scope.Handle["settle"] {
-    return (this.settler ??= ((
+    return (this.settled ??= ((
       op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
       call?: Scope.Invocation<unknown>,
     ): unknown =>
       settleRun(
-        this.owner,
+        this.layer,
         () => this.invoke(op, call, RECOVERED),
         call?.signal,
       )) as Scope.Handle["settle"]);
   }
   get defer(): Resource.Ctx["defer"] {
     return (
-      this.ctx?.defer ??
-      (this.cleanup ??= (fn) => addDefer(this.owner, { fn, instance: undefined }))
+      this.ctx?.defer ?? (this.clean ??= (fn) => addDefer(this.layer, { fn, owned: undefined }))
     );
   }
   get obs(): Observe.Ctx {
@@ -5396,12 +5330,12 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   get log(): Observe.Logger {
     const ctx = this.ctx;
     if (ctx) return ctx.log;
-    const sink = this.owner.obs.log;
-    return sink ? (this.logTools ??= this.createLog(sink)) : noop;
+    const sink = this.layer.obs.log;
+    return sink ? (this.logs ??= this.logFor(sink)) : noop;
   }
   /** Keep the sink wrapper's captured state off the run logger's path. */
-  private createLog(sink: NonNullable<Obs["log"]>): Observe.Logger {
-    const obs = this.owner.obs;
+  private logFor(sink: NonNullable<Obs["log"]>): Observe.Logger {
+    const obs = this.layer.obs;
     const label = this.label;
     return logFor(
       {
@@ -5415,10 +5349,10 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return (this.raiser ??= (kind, payload) => raiseFrom(this.ctx ?? this, kind, payload));
   }
   get closing(): AbortSignal {
-    return closingOf(this.owner);
+    return closingOf(this.layer);
   }
   get signal(): AbortSignal {
-    return signalOf(this.owner);
+    return signalOf(this.layer);
   }
 }
 
@@ -5428,11 +5362,11 @@ class ExtensionCtx implements Scope.ExtensionCtx {
 function withSessionCreate(
   plain: Scope.Handle,
   layer: Layer,
-  sessions: readonly Scope.Extension<unknown>[],
+  session: readonly Scope.Extension<unknown>[],
 ): Scope.Handle {
   return {
     ...plain,
-    createSession: (options?: Scope.Options) => wrapSession(layer, options, sessions),
+    createSession: (options?: Scope.Options) => wrapSession(layer, options, session),
   };
 }
 
@@ -5443,33 +5377,31 @@ function withSessionCreate(
  * the teardown first, then reports the chain's outcome (hook returns win, hook throws propagate,
  * unlike root close hooks, whose returns cannot replace Core's outcome). */
 function wrapSession(
-  parent: Layer,
+  up: Layer,
   options: Scope.Options | undefined,
-  sessions: readonly Scope.Extension<unknown>[],
+  session: readonly Scope.Extension<unknown>[],
 ): Scope.Handle {
-  ensureAccepting(parent);
-  const child = makeLayer(parent, options);
+  ensureAccepting(up);
+  const child = makeLayer(up, options);
   const plain = handleFor(child);
-  let wrapped: Scope.Handle;
   let settleNext: (ended: Scope.Result) => void = noop as (ended: Scope.Result) => void;
   const nextPromise = new Promise<Scope.Result>((resolveNext) => {
     settleNext = resolveNext;
   });
   const hooks: SessionHooks = { settle: settleNext, phase: "open", moved: false };
   SESSION_HOOKS.set(child, hooks);
-  const base = withSessionCreate(plain, child, sessions);
-  const outcome = sessionThrough(sessions, base, child, () =>
+  const base = withSessionCreate(plain, child, session);
+  const outcome = sessionThrough(session, base, child, () =>
     nextPromise.then((ended) => ({ result: undefined, ended })),
   ).finally(() => freeAfterHooks(child, hooks));
   ignoreRejection(outcome);
-  wrapped = {
+  return {
     ...base,
     close: (opts?: Scope.CloseOptions) =>
       closeLayer(child, !opts?.graceful, opts?.withData === true).then(() =>
         outcome.then(({ ended: chained }) => chained),
       ),
   };
-  return wrapped;
 }
 
 /** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
@@ -5487,7 +5419,7 @@ function extendHandle(
   const closers = exts.filter((ext) => ext.hooks?.close !== undefined);
   const resolvers = exts.filter((ext) => ext.hooks?.resolve !== undefined);
   layer.exts = readExtRoutes(exts);
-  const sessions = layer.exts.sessions;
+  const session = layer.exts.session;
   let settleReady: () => void = noop;
   let failReady: (error: unknown) => void = noop;
   const ready = new Promise<void>((resolveReady, rejectReady) => {
@@ -5503,8 +5435,8 @@ function extendHandle(
     });
   extended.close = watchRootClose(layer, extended, closers, lifetime);
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
-  if (sessions !== undefined)
-    extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, sessions);
+  if (session !== undefined)
+    extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, session);
   if (signal) listenForStop(extended, signal, lifetime);
   runStartChain(layer, extended, exts, lifetime, settleReady, failReady);
   return extended;
@@ -5513,11 +5445,11 @@ function extendHandle(
 function readExtRoutes(exts: readonly Scope.Extension<unknown>[]): ExtRoutes {
   const runners = exts.filter((ext) => ext.hooks?.run !== undefined);
   const writers = exts.filter((ext) => ext.hooks?.write !== undefined);
-  const sessions = exts.filter((ext) => ext.hooks?.session !== undefined);
+  const session = exts.filter((ext) => ext.hooks?.session !== undefined);
   return {
     runners: runners.length > 0 ? runners : undefined,
     writers: writers.length > 0 ? writers : undefined,
-    sessions: sessions.length > 0 ? sessions : undefined,
+    session: session.length > 0 ? session : undefined,
   };
 }
 
@@ -5526,7 +5458,7 @@ function readExtRoutes(exts: readonly Scope.Extension<unknown>[]): ExtRoutes {
 type RootLifetime = {
   closing?: Promise<Scope.Result>;
   finish?: (ended: Scope.Result) => void;
-  unlisten?: () => void;
+  detach?: () => void;
 };
 
 /** Retain the first close before callbacks. Hooks keep onion order but cannot skip cleanup
@@ -5538,7 +5470,7 @@ function watchRootClose(
   lifetime: RootLifetime,
 ): Scope.Handle["close"] {
   return (options = {}) => {
-    lifetime.unlisten?.();
+    lifetime.detach?.();
     const close = (): Promise<Scope.Result> =>
       closeLayer(layer, !options.graceful, options.withData === true);
     if (closeWouldReenter(layer)) {
@@ -5577,11 +5509,11 @@ function watchRootClose(
     ignoreRejection(
       at(0).then((ended) => {
         lifetime.finish!(
-          layer.secondary.length
-            ? { ...ended, teardownErrors: [...(ended.teardownErrors ?? []), ...layer.secondary] }
+          layer.errors.length
+            ? { ...ended, teardownErrors: [...(ended.teardownErrors ?? []), ...layer.errors] }
             : ended,
         );
-        layer.secondary.length = 0;
+        layer.errors.length = 0;
       }),
     );
     return lifetime.closing;
@@ -5596,9 +5528,9 @@ function listenForStop(scope: Scope.Handle, signal: AbortSignal, lifetime: RootL
       }),
     );
   };
-  lifetime.unlisten = () => {
+  lifetime.detach = () => {
     signal.removeEventListener("abort", stop);
-    lifetime.unlisten = undefined;
+    lifetime.detach = undefined;
   };
   signal.addEventListener("abort", stop, { once: true });
   if (signal.aborted) stop();
@@ -5641,13 +5573,13 @@ function resolveThrough(
 /** Bound only for the session path, so ordinary tagged frames retain no body callback context. */
 function runTaggedBody<T, I>(
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined,
   nested: boolean,
   child: Layer,
 ): T {
-  return runUntagged(child, target, parent, call, chain, undefined, nested);
+  return runUntagged(child, target, up, call, chain, undefined, nested);
 }
 
 /** A session under a root that installed `session` hooks: the whole life inside their onion. Cold
@@ -5656,14 +5588,14 @@ function runTaggedBody<T, I>(
 async function runSessionWrapped<R>(
   child: Layer,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
-  sessions: readonly Scope.Extension<unknown>[],
+  session: readonly Scope.Extension<unknown>[],
 ): Promise<R> {
   const hooks: SessionHooks = { settle: undefined, phase: "open", moved: false };
   SESSION_HOOKS.set(child, hooks);
-  const handle = withSessionCreate(handleFor(child), child, sessions);
+  const handle = withSessionCreate(handleFor(child), child, session);
   let wrapped: { result: unknown; ended: Scope.Result };
   try {
-    wrapped = await sessionThrough(sessions, handle, child, async () => {
+    wrapped = await sessionThrough(session, handle, child, async () => {
       const started = Promise.resolve(runBodyWith(child, body, handle));
       child.body = started;
       child.bodyEnd = started.then(
@@ -5719,8 +5651,8 @@ function drainAsync(tail: Promise<void>, release: () => void): void {
 /** The walk behind {@link closeWouldReenter}, its own function so its loop stays out of the
  * close dispatch's inlined size when no teardown is active. */
 function reentersTeardown(target: Layer): boolean {
-  for (const active of teardownDepth.keys()) {
-    for (let cur: Layer | undefined = active; cur; cur = cur.parent) {
+  for (const live of teardownDepth.keys()) {
+    for (let cur: Layer | undefined = live; cur; cur = cur.up) {
       if (cur === target) return true;
     }
   }
@@ -5730,8 +5662,8 @@ function reentersTeardown(target: Layer): boolean {
 /** Collect a teardown error on a layer, giving it its own list on the first one. */
 function addError(layer: Layer, cause: unknown): void {
   materialize(layer);
-  if (layer.secondary === NO_ERRORS) layer.secondary = [];
-  layer.secondary.push(cause);
+  if (layer.errors === NO_DEFERS) layer.errors = [];
+  layer.errors.push(cause);
 }
 
 /** {@link drainDefers}'s work when there is any: each entry in reverse order, awaited in turn. */
@@ -5741,17 +5673,13 @@ async function drainEntries(layer: Layer, entries: DeferEntry[], end: Scope.End)
 
 /** Drive every currently-attached child to close (children first, awaited sequentially). The mode is
  * re-checked per child: once an EARLIER child's failure has been collected (pushed into this layer's
- * `descendantFailure` while we awaited it), the remaining children close FORCED so their resources roll
+ * `childFailure` while we awaited it), the remaining children close FORCED so their resources roll
  * back too. Collection is NOT done here: each child's real failure + teardown errors flow up through
  * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor.
  * Its caller reuses READY with no child, keeping the close phase order. */
 async function closeEach(layer: Layer, force: boolean): Promise<void> {
   for (const child of Array.from(layer.children)) {
-    await closeLayer(
-      child,
-      force || (failureOf(layer) ?? layer.descendantFailure) !== undefined,
-      false,
-    );
+    await closeLayer(child, force || (failureOf(layer) ?? layer.childError) !== undefined, false);
   }
 }
 
@@ -5762,51 +5690,51 @@ const FRAME_STATE = {
   children: NO_CHILDREN,
   nodes: NO_NODES,
   presets: undefined,
-  pending: NO_WORK,
-  defers: NO_DEFERS,
-  resourceHolds: 0,
+  pending: NO_CHILDREN,
+  hooks: NO_DEFERS,
+  holds: 0,
   aborted: false,
-  abortReason: undefined,
+  reason: undefined,
   abort: undefined,
   cancelled: false,
   swept: false,
   bodyEnd: undefined,
-  failure: undefined,
-  descendantFailure: undefined,
-  secondary: NO_ERRORS,
+  failed: undefined,
+  childError: undefined,
+  errors: NO_DEFERS,
   body: undefined,
   closed: false,
   closing: undefined,
-  emptyCtx: undefined,
+  empty: undefined,
 };
 
 Object.assign(TaggedFrame.prototype, FRAME_STATE);
 
 /** Promotion retains identity and binds ancestors first, before a watcher, build, or pending
  * body becomes visible. A new child inherits any close already in flight (ADR 0028). */
-function expandFrame(frame: Layer, parent: Layer): void {
-  materialize(parent);
+function expandFrame(frame: Layer, up: Layer): void {
+  materialize(up);
   frame.lazy = false;
-  if (parent.children === NO_CHILDREN) parent.children = new Set();
-  parent.children.add(frame);
-  if (parent.swept) frame.swept = true;
-  if (parent.aborted) {
+  if (up.children === NO_CHILDREN) up.children = new Set();
+  up.children.add(frame);
+  if (up.swept) frame.swept = true;
+  if (up.aborted) {
     frame.aborted = true;
-    frame.abortReason = parent.abortReason;
+    frame.reason = up.reason;
   }
 }
 
 /** A close can enter through a captured handle while a body is still synchronous. Register
  * these frames before the existing sweep and abort code sees the tree. */
 function materializeActiveFrames(): void {
-  for (let frame = activeTagged; frame; frame = frame.previous) materialize(frame);
+  for (let frame = activeTagged; frame; frame = frame.stack) materialize(frame);
 }
 
 /** A best-effort outcome for a re-entrant close ack before the layer has settled: whatever real state
  * is already known (a recorded failure, then an interrupted body), else success. */
 function bestEffort(layer: Layer): Scope.Outcome {
-  const failure = failureOf(layer);
-  if (failure) return { status: "failed", error: failure.cause };
+  const failed = failureOf(layer);
+  if (failed) return { status: "failed", error: failed.cause };
   return layer.cancelled ? { status: "cancelled" } : SUCCESS;
 }
 
@@ -5822,12 +5750,12 @@ function failedResult(
     : { status: "failed", error, teardownErrors };
 }
 
-function propagateSweptOutcome(layer: Layer, parent: Layer): void {
-  for (const cause of layer.secondary) addError(parent, cause);
+function propagateSweptOutcome(layer: Layer, up: Layer): void {
+  for (const cause of layer.errors) addError(up, cause);
   /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
    * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
    * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
-  if (layer.failure && layer.failureOwner === undefined) parent.descendantFailure ??= layer.failure;
+  if (layer.failed && layer.caller === undefined) up.childError ??= layer.failed;
 }
 
 /** Free retained bindings; the empty-preset guard avoids an extra field on a grown frame. */
@@ -5841,7 +5769,7 @@ function clearBindings(layer: Layer): void {
 function runHookCall<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   inherited: readonly Namespace[] | undefined,
   caller: RunState | undefined,
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
@@ -5850,11 +5778,11 @@ function runHookCall<T, I>(
   ensureRunning(layer, caller);
   const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
   if (!hasCallSession(call))
-    return runHookChain(layer, target, parent, chain, caller, hookTarget, call);
+    return runHookChain(layer, target, up, chain, caller, hookTarget, call);
   const result = runSessionWith(
     layer,
     { tags: call.tags, ns: chain },
-    (child) => runHookChain(child, target, parent, chain, undefined, hookTarget, call),
+    (child) => runHookChain(child, target, up, chain, undefined, hookTarget, call),
     caller,
     call.signal,
   );
@@ -5865,24 +5793,24 @@ function runHookCall<T, I>(
 /** Access belongs to this active run only. Graceful close seals public handles at once but
  * still lets an existing hook continue its body; forced close refuses a late continuation. */
 type HookRun = {
-  owner: Layer;
+  layer: Layer;
   ctx?: OperationCtx<unknown>;
   span: SpanImpl | undefined;
   label: string;
   call: Scope.Invocation<unknown> | undefined;
   held: HeldBorrows | undefined;
-  active: boolean;
+  live: boolean;
   caller: RunState | undefined;
-  bodies?: Promise<unknown>[];
-  failure?: { error: unknown };
+  work?: Promise<unknown>[];
+  failed?: { error: unknown };
 };
 let activeHookOwner: Layer | undefined;
 
 function withHookAccess<T>(run: HookRun, fn: () => T): T {
-  if (!run.active) raise("Disposed", { reason: "run is finished" });
-  if (run.owner.aborted) throw run.owner.abortReason;
+  if (!run.live) raise("Disposed", { reason: "run is finished" });
+  if (run.layer.aborted) throw run.layer.reason;
   const previous = activeHookOwner;
-  activeHookOwner = run.owner;
+  activeHookOwner = run.layer;
   buildDepth++;
   try {
     return fn();
@@ -5893,7 +5821,7 @@ function withHookAccess<T>(run: HookRun, fn: () => T): T {
 }
 
 function hookCanRead(layer: Layer): boolean {
-  for (let owner = activeHookOwner; owner; owner = owner.parent) {
+  for (let owner = activeHookOwner; owner; owner = owner.up) {
     if (owner === layer) return !layer.aborted;
   }
   return false;
@@ -5902,20 +5830,20 @@ function hookCanRead(layer: Layer): boolean {
 function runHookChain<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
+  up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  const span = openSpan(layer.obs, layer, parent, target.label, "operation");
+  const span = openSpan(layer.obs, layer, up, target.label, "operation");
   const run: HookRun = {
-    owner: layer,
+    layer: layer,
     span,
     label: target.label,
     call,
     held: undefined,
-    active: true,
+    live: true,
     caller,
   };
   const finish = (status: "ok" | "failed", error?: unknown): void => {
@@ -5933,16 +5861,16 @@ function runHookChain<T, I>(
     finish("ok");
     return result;
   }
-  const promise = Promise.resolve(result);
-  track(layer, promise, (error) => failHookRun(run, error), finish);
-  return promise;
+  const ready = Promise.resolve(result);
+  track(layer, ready, (error) => failHookRun(run, error), finish);
+  return ready;
 }
 
 /** Hook tools can precede input parsing. Only `next()` admits the input; both contexts share
  * the same span and ordered cleanup list once a body starts. */
 function hookCtx(run: HookRun): OperationCtx<unknown> {
   return (run.ctx ??= new OperationCtx(
-    run.owner,
+    run.layer,
     { label: run.label, input: undefined },
     run.call,
     run.span,
@@ -5956,7 +5884,7 @@ function invokeRunHooks<T, I>(
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined,
 ): unknown {
-  const runners = run.owner.exts.runners ?? [];
+  const runners = run.layer.exts.runners ?? [];
   const at = (index: number): unknown =>
     withHookAccess(run, () => {
       if (index === runners.length) return runHookBody(run, target, chain);
@@ -5977,25 +5905,25 @@ function runHookBody<T, I>(
 ): unknown {
   try {
     const ctx = new OperationCtx(
-      run.owner,
+      run.layer,
       target,
       run.call as Scope.Invocation<I> | undefined,
       run.span,
     );
-    if (run.ctx) OperationCtx.shareDefers(run.ctx, ctx);
+    if (run.ctx) OperationCtx.share(run.ctx, ctx);
     run.ctx = ctx;
     run.held ??= takeBorrows(target);
-    const deps = readOpDeps(run.owner, target, ctx.span, run.held, chain, ctx);
+    const deps = readOpDeps(run.layer, target, ctx.span, run.held, chain, ctx);
     const pending = parked;
-    const override = presetFor(run.owner, target) as Operation.Handle<T, I>["run"] | undefined;
+    const override = presetFor(run.layer, target) as Operation.Handle<T, I>["run"] | undefined;
     const body = (): T =>
       withHookAccess(run, () => runBody(override, target, deps, ctx, undefined));
     const result = pending === undefined ? body() : settleDeps(deps, pending).then(body);
     if (isThenable(result)) {
-      const promise = Promise.resolve(result);
-      (run.bodies ??= []).push(promise);
-      track(run.owner, promise, (error) => failHookRun(run, error));
-      return promise;
+      const ready = Promise.resolve(result);
+      (run.work ??= []).push(ready);
+      track(run.layer, ready, (error) => failHookRun(run, error));
+      return ready;
     }
     return result;
   } catch (error) {
@@ -6005,38 +5933,38 @@ function runHookBody<T, I>(
 }
 
 function failHookRun(run: HookRun, error: unknown): void {
-  if (run.failure !== undefined && run.failure.error === error) return;
-  run.failure = { error };
+  if (run.failed !== undefined && run.failed.error === error) return;
+  run.failed = { error };
   stampOrigin(error, run.label, run.span, run.ctx, endsFlight(run.caller, false));
-  if (run.caller !== RECOVERED) stick(run.owner, error);
+  if (run.caller !== RECOVERED) stick(run.layer, error);
 }
 
 /** A hook may start `next()` then return a substitute. That body still owns its cleanup and
  * resource holds. Its tracked promise prevents close from dropping the unreturned work. */
 function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): void {
-  if (run.bodies !== undefined) {
-    const pending = run.bodies;
-    run.bodies = undefined;
+  if (run.work !== undefined) {
+    const pending = run.work;
+    run.work = undefined;
     track(
-      run.owner,
+      run.layer,
       Promise.allSettled(pending).then(() => finishHookRun(run, status, error)),
       noop,
     );
     return;
   }
-  if (run.failure !== undefined) {
+  if (run.failed !== undefined) {
     status = "failed";
-    error = run.failure.error;
+    error = run.failed.error;
   }
-  closeSpan(run.owner.obs, run.span, status, error);
-  const fns = run.ctx === undefined ? undefined : OperationCtx.defersOf(run.ctx);
+  closeSpan(run.layer.obs, run.span, status, error);
+  const fns = run.ctx === undefined ? undefined : OperationCtx.defersFor(run.ctx);
   const done = (): void => {
-    run.active = false;
-    if (run.ctx) run.ctx.active = false;
+    run.live = false;
+    if (run.ctx) run.ctx.live = false;
     releaseBorrows(run.held);
   };
   const tail =
-    fns === undefined ? undefined : runDefers(run.owner, fns, endFor(run.owner, status, error));
+    fns === undefined ? undefined : runDefers(run.layer, fns, endFor(run.layer, status, error));
   if (tail) drainAsync(tail, done);
   else done();
 }
@@ -6072,10 +6000,19 @@ class RunEvent extends ExtensionCtx {
     call: Scope.Invocation<unknown> | undefined,
     next: () => unknown,
   ) {
-    super(run.owner, label, chain, run);
+    super(run.layer, label, chain, run);
     this.kind = "run";
     this.op = op;
     this.call = call;
     this.next = next;
   }
+}
+
+function raiseInvalid(label: string, reason: string): never {
+  raise("InvalidDependency", { label, reason });
+}
+
+/** Release and retained close data drop the same build references. */
+function clearBuild(state: ResourceState): void {
+  state.built = state.ready = state.failed = state.build = undefined;
 }
