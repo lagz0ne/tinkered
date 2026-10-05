@@ -1,0 +1,59 @@
+{
+  "card": "trial/services-closing",
+  "baseline": {
+    "command": "vp test tests/payment.test.ts -t 'a graceful close aborts a webhook while its response body is open'",
+    "exit_code": 0,
+    "tests": 1,
+    "payment_close_hook": true
+  },
+  "red": {
+    "command": "vp test tests/payment.test.ts -t 'a graceful close aborts a webhook while its response body is open'",
+    "exit_code": 1,
+    "payment_close_hook": false,
+    "resource_fix": false,
+    "log": "red.log"
+  },
+  "gates": [
+    {
+      "command": "vp run -r build",
+      "exit_code": 0
+    },
+    {
+      "command": "vp check",
+      "exit_code": 0,
+      "summary": "0 errors, 28 warnings"
+    },
+    {
+      "command": "vp run -r test",
+      "exit_code": 0,
+      "summary": "All 9 workspace test tasks passed"
+    },
+    {
+      "command": "vp run prose",
+      "exit_code": 0,
+      "summary": "0 hits"
+    },
+    {
+      "command": "vp run flight-trial#test",
+      "exit_code": 0,
+      "test_files": 10,
+      "tests_passed": 116
+    }
+  ],
+  "original_resources": {
+    "command": "vp test tests/services-closing.test.ts tests/payment.test.ts -t graceful",
+    "exit_code": 1,
+    "log": "red.log",
+    "tests_failed": 5,
+    "tests_passed": 1
+  },
+  "green": {
+    "command": "vp test tests/services-closing.test.ts tests/payment.test.ts -t graceful",
+    "exit_code": 0,
+    "tests_passed": 6
+  },
+  "style_census": {
+    "targets": ["tools/flight-trial/services", "tools/flight-trial/tests"],
+    "exit_code": 0
+  }
+}

@@ -1608,6 +1608,51 @@ test("a graceful close aborts a webhook while its response body is open", async 
     expect((await closing).status).toBe("success");
     expect(stop.signal.aborted).toBe(false);
   } finally {
+    await fetch(`${webhookUrl}/control/release`);
+    stop.abort();
+    await closing;
+  }
+});
+
+test("a graceful close ends a queued webhook without advancing the clock", async () => {
+  const {
+    paymentApp,
+    webhookUrl: webhookUrlTag,
+    webhookSecret,
+    port,
+    host,
+    controlToken,
+    stopSignal,
+  } = await import("../src/index.ts");
+  const stop = new AbortController();
+  const scope = createScope({
+    signal: stop.signal,
+    extensions: paymentApp,
+    tags: [
+      port(0),
+      host("127.0.0.1"),
+      controlToken("grader"),
+      stopSignal(stop.signal),
+      webhookUrlTag(webhookUrl),
+      webhookSecret(secret),
+    ],
+  });
+  running.push({ stop, closed: scope.closed });
+  await scope.ready;
+  const { url } = scope.resolve(paymentApp);
+  await post(url, "/control/clock", { now: 10000 });
+  await confirm(url);
+  let closed = false;
+  const closing = scope.close({ graceful: true }).then((result) => {
+    closed = true;
+    return result;
+  });
+  try {
+    await expect.poll(() => closed).toBe(true);
+    expect(await closing).toMatchObject({ status: "success" });
+    expect(received).toEqual([]);
+    expect(stop.signal.aborted).toBe(false);
+  } finally {
     stop.abort();
     await closing;
   }

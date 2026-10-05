@@ -64,15 +64,17 @@ export const rules = data<Wire.Rules>({ label: "route rules", initial: {} });
 /** Grader time owns only waits started after the switch; the root clock stays real. */
 export const clock = resource({
   label: "service clock",
-  factory(_deps, ctx) {
+  depends: { stop: stopSignal },
+  factory({ stop }, { clock, closing }) {
     let now: number | undefined;
     const waits = new Set<{ at: number; wake: () => void }>();
     const handle = {
+      signal: AbortSignal.any([stop, closing]),
       currentTimeMillis() {
-        return now ?? ctx.clock.currentTimeMillis();
+        return now ?? clock.currentTimeMillis();
       },
       sleep(ms: number, signal: AbortSignal): Promise<void> {
-        if (now === undefined) return ctx.clock.sleep(ms, signal);
+        if (now === undefined) return clock.sleep(ms, signal);
         return new Promise<void>((resolve, fail) => {
           if (signal.aborted) return fail(signal.reason);
           if (ms <= 0) return resolve();
@@ -228,10 +230,10 @@ const saveRule = operation({
 const routeRule = operation({
   label: "wait for HTTP rule",
   input: z.object({ name: z.string() }),
-  depends: { rules, clock, stop: stopSignal, apply: applyRule.controller },
-  async run({ rules, clock, stop, apply }, ctx) {
+  depends: { rules, clock, apply: applyRule.controller },
+  async run({ rules, clock, apply }, ctx) {
     const rule = rules[ctx.input.name] ?? { delayMs: 0, revision: undefined };
-    const signal = AbortSignal.any([stop, ctx.signal]);
+    const signal = AbortSignal.any([clock.signal, ctx.signal]);
     if (rule.delayMs) {
       try {
         await clock.sleep(rule.delayMs, signal);
@@ -285,7 +287,8 @@ export const middleware = resource({
   label: "shared HTTP middleware",
   target: "session",
   depends: { stop: stopSignal, shape: errorShape, errors: wireErrors },
-  factory({ stop, shape, errors }) {
+  factory({ stop, shape, errors }, { closing }) {
+    const stopped = AbortSignal.any([stop, closing]);
     const json = (result: Wire.Reply): Response =>
       new Response(JSON.stringify(result.body), {
         status: result.status,
@@ -329,7 +332,7 @@ export const middleware = resource({
           },
         });
         await next();
-        if (!stop.aborted && !c.error)
+        if (!stopped.aborted && !c.error)
           c.var.scope.run(saveCall, { rawInput: { id, status: c.res.status } });
         if (c.req.method !== "HEAD") c.header("transfer-encoding", "chunked");
       }),
@@ -367,7 +370,7 @@ export const middleware = resource({
         if (result.status !== "success") return c.var.respond(result, 200, false);
         const selected = result.value;
         await dispatch(c, next, selected);
-        if (selected.revision && !c.error)
+        if (!stopped.aborted && selected.revision && !c.error)
           c.var.scope.run(saveRule, {
             rawInput: {
               ...params,
@@ -446,9 +449,10 @@ export const listener = resource({
   label: "service HTTP listener",
   target: "session",
   depends: { web, port, host, stop: stopSignal },
-  async factory({ web, port, host, stop }, ctx) {
+  async factory({ web, port, host, stop }, { closing, defer, log }) {
+    const stopped = AbortSignal.any([stop, closing]);
     web.onError((error, c) => {
-      ctx.log.error("HTTP request failed", { error });
+      log.error("HTTP request failed", { error });
       return c.var.error("InternalError");
     });
     const pending = new Set<Promise<void>>();
@@ -461,7 +465,7 @@ export const listener = resource({
           const complete = () => {
             env.outgoing.removeListener("finish", complete);
             env.outgoing.removeListener("close", complete);
-            stop.removeEventListener("abort", abortBody);
+            stopped.removeEventListener("abort", abortBody);
             pending.delete(finished);
             resolve();
           };
@@ -469,21 +473,24 @@ export const listener = resource({
           env.outgoing.once("close", complete);
         });
         pending.add(finished);
-        stop.addEventListener("abort", abortBody, { once: true });
-        if (stop.aborted) abortBody();
+        stopped.addEventListener("abort", abortBody, { once: true });
+        if (stopped.aborted) abortBody();
         return web.fetch(request);
       },
       port,
       hostname: host,
       overrideGlobalObjects: false,
     });
+    const ended = new Promise<void>((resolve) => server.once("close", resolve));
     await once(server, "listening");
-    ctx.defer(async () => {
+    const stopServer = () => server.close();
+    closing.addEventListener("abort", stopServer, { once: true });
+    if (closing.aborted) stopServer();
+    defer(async () => {
+      closing.removeEventListener("abort", stopServer);
       await Promise.all(pending);
       if ("closeAllConnections" in server) server.closeAllConnections();
-      await new Promise<void>((resolve, fail) =>
-        server.close((error) => (error ? fail(error) : resolve())),
-      );
+      await ended;
     });
     const address = server.address();
     if (address === null || typeof address === "string")

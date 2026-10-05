@@ -74,8 +74,10 @@ The delivery operation runs `httpRequest` once per event copy.
 It maps each reply to `delivered`, `rejected`, or `unreachable`.
 The log keeps that outcome; its wire view keeps the exact old status.
 The HTTP resource wraps built-in fetch through `httpBackend`.
-The payment close hook stops it before Core drains running operations.
-The resource also aborts on cleanup and caller cancellation.
+The HTTP resource stops on `ctx.closing` before Core drains running operations.
+Caller cancellation also stops that caller's HTTP send.
+The listener stops accepting requests and ends incomplete bodies on `ctx.closing`.
+The clock supplies a stop signal for delayed routes and queued webhooks.
 The service error guard narrows `HttpRequestFailed` by kind.
 The service fetch ban accepts the built-in backend and Hono's fetch method.
 A graceful close aborts a webhook while its response body is open.

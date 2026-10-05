@@ -17,21 +17,16 @@ const requestShape = z.strictObject({
   body: z.string().optional(),
 });
 
-/** The service owns requests through body reading; its close hook stops them before draining. */
+/** The resource stops sends and body reads when closing begins, before Core drains work. */
 export const http = resource({
   label: "http",
   depends: { send: httpBackend },
-  factory: ({ send }, ctx) => {
-    const stop = new AbortController();
-    ctx.defer(() => stop.abort());
+  factory: ({ send }, { closing }) => {
     return {
-      close() {
-        stop.abort();
-      },
       async send(url: string, init: RequestInit & { signal: AbortSignal }) {
         const response = await send(url, {
           ...init,
-          signal: AbortSignal.any([init.signal, stop.signal]),
+          signal: AbortSignal.any([init.signal, closing]),
         });
         await response.arrayBuffer();
         return { status: response.status };

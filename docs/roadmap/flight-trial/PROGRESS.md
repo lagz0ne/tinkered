@@ -1,5 +1,40 @@
 # Flight trial progress
 
+## trial/services-closing
+
+Writer: Sol, branch `trial/services-closing`.
+Only the flight services and this card's docs change.
+The reference app stays pinned.
+
+- The existing open-webhook-body test passed with the payment close hook.
+- Removing that hook made the same test fail with exit 1.
+  Proof: [red.log](services-closing/red.log).
+- The HTTP client now joins caller cancellation with `ctx.closing`.
+  Its public `close()` method and payment's empty close hook are gone.
+- The listener stops accepting requests when its session begins closing.
+  It ends incomplete bodies, then waits for complete replies at cleanup.
+- The clock supplies its closing signal to delayed routes and webhook waits.
+  Neither needs a process stop signal or a clock advance to end.
+- Supplier has no close hook or separate delivery loop to remove.
+  Its shared listener and delayed-route waits get the same fix.
+- The shared HTTP start hook and both app start hooks still set up routes.
+  The payment watcher still owns state subscriptions and removes them at cleanup.
+
+All caller paths were read: both app starts, both process entries,
+route delays, webhook timers, and the outgoing webhook body reader.
+New tests use each app's HTTP entry to close incomplete bodies and delayed routes.
+The queued-webhook test proves closing ends its virtual wait without sending.
+The existing open-body test now releases the inbox in cleanup even after a failure.
+The five added close checks fail against the original resources.
+All six graceful-close checks pass with the fix.
+Middleware skips late log and replay writes after closing begins.
+That keeps delayed replies at service-stopped, instead of turning them into HTTP 500.
+
+Gate proof: [GATES.json](services-closing/GATES.json).
+Build, check, all workspace tests, prose, and 116 flight tests passed with exit 0.
+Style census for services and tests passed.
+Next: finish the wire check and locked mutation, then save for lead review.
+
 ## trial/services-http
 
 Writer: Sol.

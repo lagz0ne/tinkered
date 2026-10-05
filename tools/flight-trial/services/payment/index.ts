@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
-import { http, httpRequest } from "../http-client.ts";
+import { httpRequest } from "../http-client.ts";
 import { isError } from "../errors.ts";
 import {
   calls,
@@ -244,9 +244,9 @@ const finishDelivery = operation({
 const deliver = operation({
   label: "wait for payment webhook",
   input: z.object({ id: z.string(), intentId: z.string(), at: z.number() }),
-  depends: { clock, stop: stopSignal, finish: finishDelivery.controller },
-  async run({ clock, stop, finish }, ctx) {
-    const signal = AbortSignal.any([stop, ctx.signal]);
+  depends: { clock, finish: finishDelivery.controller },
+  async run({ clock, finish }, ctx) {
+    const signal = AbortSignal.any([clock.signal, ctx.signal]);
     try {
       await clock.sleep(Math.max(0, ctx.input.at - clock.currentTimeMillis()), signal);
     } catch (error) {
@@ -473,10 +473,6 @@ const saveIntentKey = operation({
 export const app = extension({
   label: "start payment app",
   hooks: {
-    close(event) {
-      event.resolve(http).close();
-      return event.next();
-    },
     async start(event) {
       const scope = event.scope.createSession({ tags: [errorShape("stripe"), wireErrors(errors)] });
       const http = await httpRequests.hooks!.start!({ ...event, scope });

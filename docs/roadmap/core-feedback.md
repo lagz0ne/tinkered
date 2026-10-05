@@ -815,7 +815,9 @@ const sending = scope.run(httpRequest, { rawInput: held });
 await scope.close({ graceful: true }); // never settles
 ```
 
-The services abort from a close hook before `event.next()`.
+Fixed by `trial/services-closing` (ADR 0104).
+The services' HTTP client, listener, and clock now use `ctx.closing`.
+The payment close hook is gone; delayed routes and queued webhooks also stop.
 The Start scaffold's `http` resource hung too; fixed by `start/http-closing` (ADR 0104).
 
 ## No hook when a graceful close begins, 2026-10-04
