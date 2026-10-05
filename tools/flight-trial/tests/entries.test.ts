@@ -122,6 +122,7 @@ async function post(url: string, path: string, body: unknown) {
   });
 }
 
+/** Allow both entry modes their full startup wait and time to close. */
 test("the supplier entry serves its settings and closes cleanly on SIGTERM", async () => {
   for (const mode of ["child", "process"]) {
     const stop = new AbortController();
@@ -135,14 +136,17 @@ test("the supplier entry serves its settings and closes cleanly on SIGTERM", asy
     try {
       const app =
         mode === "child" ? await scope.resolve(childEntry) : await scope.resolve(processEntry);
+      /** Entry startup can take more than one second when the box is busy. */
       await expect
-        .poll(async () =>
-          fetch(`${app.url}/control/calls`, {
-            headers: { authorization: `Bearer ${token}` },
-          }).then(
-            (response) => response.status,
-            () => 0,
-          ),
+        .poll(
+          async () =>
+            fetch(`${app.url}/control/calls`, {
+              headers: { authorization: `Bearer ${token}` },
+            }).then(
+              (response) => response.status,
+              () => 0,
+            ),
+          { timeout: 15_000, interval: 50 },
         )
         .toBe(200);
       expect((await post(app.url, "/control/clock", { now: 10000 })).status).toBe(200);
@@ -182,8 +186,9 @@ test("the supplier entry serves its settings and closes cleanly on SIGTERM", asy
       await scope.closed;
     }
   }
-});
+}, 35_000);
 
+/** Allow both entry modes their full startup wait and time to close. */
 test("the payment entry serves its settings and closes cleanly on SIGTERM", async () => {
   const stopInbox = new AbortController();
   const inboxScope = createScope({ signal: stopInbox.signal });
@@ -207,14 +212,17 @@ test("the payment entry serves its settings and closes cleanly on SIGTERM", asyn
       try {
         const app =
           mode === "child" ? await scope.resolve(childEntry) : await scope.resolve(processEntry);
+        /** Entry startup can take more than one second when the box is busy. */
         await expect
-          .poll(() =>
-            fetch(`${app.url}/control/calls`, {
-              headers: { authorization: `Bearer ${token}` },
-            }).then(
-              (response) => response.status,
-              () => 0,
-            ),
+          .poll(
+            () =>
+              fetch(`${app.url}/control/calls`, {
+                headers: { authorization: `Bearer ${token}` },
+              }).then(
+                (response) => response.status,
+                () => 0,
+              ),
+            { timeout: 15_000, interval: 50 },
           )
           .toBe(200);
         expect((await post(app.url, "/control/clock", { now: 10000 })).status).toBe(200);
@@ -270,4 +278,4 @@ test("the payment entry serves its settings and closes cleanly on SIGTERM", asyn
     stopInbox.abort();
     await inboxScope.closed;
   }
-});
+}, 35_000);

@@ -1,5 +1,28 @@
 # Flight trial progress
 
+## flight-trial/entries-flake
+
+Writer: Codex, branch `flight-trial/entries-flake`.
+Supplier and payment startup polls now wait up to 15 seconds,
+checking every 50 ms.
+Each test allows 35 seconds for both entry modes and cleanup.
+The HTTP status and close checks stay the same.
+No other test waits for a spawned entry to listen.
+
+- Load proof: 10 straight supplier test runs passed, 0 failed.
+  All 10 started beside full workspace tests.
+  Two full runs ran back to back to keep load through all 10.
+- A wrong-port copy in `/tmp` failed with exit 1 after 15.6 seconds.
+  It still required HTTP 200 and got 0; the poll reached its limit.
+- Jev: 0 changed-test flags and 0 TSDoc faults.
+  Both entry promises match the README.
+  Its 12 gaps name unchanged tests; those files are outside this card.
+  No labels were added: the allowed paths exclude the label file.
+- Gates: build, check, 120 flight tests, and prose returned 0.
+  Check printed 28 warnings; no check error.
+  Both full load runs returned 0.
+- Source did not change; no mutation run is needed.
+
 ## trial/services-closing
 
 Writer: Sol, branch `trial/services-closing`.

@@ -42,12 +42,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **flight-trial/entries-flake** — the supplier entry test fails under load.
-  `tools/flight-trial/tests/entries.test.ts:138` polls with the default 1 s wait.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-entries-flake`.
-  Next: give that poll a longer wait; seen in 3 landings on 2026-10-05.
-  Verify: the test passes 10 runs in a row next to a full `vp run -r test`.
-
 - **core/graceful-writes** — active calls keep state open during graceful close.
   Asked by: Harness and Tinkerer live entries.
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-graceful-writes`.
@@ -61,6 +55,13 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **flight-trial/entries-flake** — entry startup waits now allow a busy box.
+  Owner: lead (Claude, Start scaffold session); Codex writer.
+  Next: lead review and landing.
+  Proof: 10 straight passes under full-test load; wrong-port copy fails at 15 s.
+  Build, check, 120 flight tests, and prose return 0.
+  [Proof](docs/roadmap/flight-trial/PROGRESS.md#flight-trialentries-flake).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
