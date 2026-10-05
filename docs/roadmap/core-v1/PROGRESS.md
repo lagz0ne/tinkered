@@ -849,3 +849,29 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 - Saved for lead review.
   Next: the lead reviews and runs `scripts/ticket.sh` at landing.
   This writer did not run it or push the branch.
+
+## core/graceful-writes
+
+Active calls keep state usable while graceful close waits for them.
+Their call cleanup can write after an await.
+New calls and sessions at a closing layer stay refused.
+State is sealed before resource cleanup.
+The closing signal still fires before the wait.
+Forced close still seals writes and aborts work.
+A real write failure still reaches the root's close result.
+The write path adds no check, lookup, or promise.
+
+Eight tests cover the write bug and close rules.
+Six fail on main; all eight pass with the fix.
+Core has 822 passing tests.
+All 16 validate lanes pass.
+Runtime size is 16,315 bytes gzip; main is 16,257.
+Promises match main: sync 0, async 5, tagged 2.
+The full test retry passes.
+Its first supplier timeout also fails on main.
+The four full-file style hits match main.
+The changed lines pass the strict style check.
+
+Proof: [red log](graceful-writes-logs/red.log).
+Green checks: [gate exits](graceful-writes-logs/GATES.json).
+The lead runs `scripts/ticket.sh` at landing.

@@ -625,7 +625,8 @@ export declare namespace Scope {
   export type End = Outcome | { readonly status: "released" };
 
   /** How to shut a scope down (ADR 0028) — a mode, NOT a wished outcome. Forced (the default) aborts
-   * `ctx.signal` to stop in-flight work now; graceful lets it finish first. The outcome is a
+   * `ctx.signal` to stop in-flight work now; graceful lets active calls finish their writes
+   * and call cleanup before state is sealed. Both modes refuse new calls at once. The outcome is a
    * consequence of the mode and what actually happened, read from the {@link Result}.
    * `withData` (ADR 0069) moves the scope's own data store into the `Result` as `data` instead of
    * freeing it. Like `graceful`, it is read from the first close call; a later call joins it. */
@@ -738,8 +739,9 @@ export declare namespace Scope {
     spans(): readonly Observe.Span[];
     /** Resolve once all in-flight operation work owned by this scope has settled. */
     settled(): Promise<void>;
-    /** Shut this scope down: close children first, join owned work, run outcome hooks then cleanup,
-     * then seal. `opts.graceful` lets in-flight work finish; the default (forced) aborts it now
+    /** Shut this scope down: close children, join owned calls and their cleanup, seal state,
+     * then tear down resources. `opts.graceful` keeps state usable for active calls and their cleanup while
+     * refusing new calls; the default (forced) seals writes and aborts work now
      * ({@link CloseOptions}, ADR 0028). Always resolves to a {@link Result} describing the actual
      * settled state + any teardown errors — never throws (0027). */
     close(opts?: CloseOptions): Promise<Result>;
@@ -1240,6 +1242,16 @@ function tapSessionHooks(
 /** Late use of a sealed scope fails loudly. */
 function ensureOpen(layer: Layer): void {
   if (layer.closed && !hookCanRead(layer)) raise("Disposed", { reason: "scope is closed" });
+}
+
+/** A root begins closing before its close hooks run. Swept children stay open until their own
+ * close starts, so a running session body can finish its flow (ADR 0028). */
+function ensureAccepting(layer: Layer): void {
+  if (
+    (layer.closed || layer.closing || (layer.swept && layer.parent === undefined)) &&
+    !hookCanRead(layer)
+  )
+    raise("Disposed", { reason: "scope is closed" });
 }
 
 /** THE bucket selector (ADR 0059): layers near→far; at each layer the ns chain in order, then
@@ -2558,7 +2570,7 @@ function runTaggedFrame<T, I>(
   let raw: unknown;
   const previous = activeTagged;
   try {
-    ensureOpen(layer);
+    ensureAccepting(layer);
     child = new TaggedFrame(layer, tags, chain, caller, previous);
     activeTagged = child;
     /** Growing a clean child here changes only cost; swept children need the parent's end state. */
@@ -2584,7 +2596,7 @@ function runNsCall<I>(
   caller: RunState | undefined,
   call: Scope.Invocation<I> & { readonly ns: Ns },
 ): unknown {
-  ensureOpen(layer);
+  ensureAccepting(layer);
   return runUntagged(layer, target, parent, stripNs(call), nsChainOf(call.ns), caller);
 }
 
@@ -2703,7 +2715,7 @@ function runOnce<T, I>(
       caller,
       call as Scope.Invocation<I> & { readonly ns: Ns },
     );
-  ensureOpen(layer);
+  ensureAccepting(layer);
   const obs = layer.obs;
   const span = openSpan(obs, layer, parent, target.label, "operation");
   const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
@@ -4071,7 +4083,8 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
   if (!layer.closing) {
     if (canFastClose(layer))
       return tapSessionHooks(hooks, fastClose(layer, force, hooks, withData));
-    layer.closed = true;
+    /** Graceful drain retains state; call entry checks `closing` instead. */
+    layer.closed = force || layer.aborted;
     layer.closing = startClose(layer, force, hooks, withData);
     layer.closeAbort?.abort();
   }
@@ -4166,6 +4179,7 @@ function startClose(
     /** An empty child list still yields here, keeping the close phase order. */
     await (layer.children.size === 0 ? READY : closeEach(layer, rollback));
     while (layer.pending.size) await Promise.all(layer.pending);
+    layer.closed = true;
     const settled = settleOutcome(layer, body);
     const instances = collectLayerInstances(layer);
     if (instances.length) await closeInstances(layer, settled, instances);
@@ -4237,7 +4251,7 @@ function runSessionWith<R>(
   try {
     signal?.throwIfAborted();
     const sessions = parent.exts.sessions;
-    ensureOpen(parent);
+    ensureAccepting(parent);
     child = makeLayer(parent, options);
     child.failureOwner = caller;
     if (signal) {
@@ -4480,7 +4494,7 @@ function handleFor(layer: Layer): Scope.Handle {
     return tagRequired(layer, target as Tag.Handle<unknown>);
   }) as Scope.Handle["resolve"];
   const run = (<T, I>(op: unknown, call?: Scope.Invocation<I>): unknown => {
-    ensureOpen(layer);
+    ensureAccepting(layer);
     if (!isOperation(op)) return runInline(layer, op as Scope.Inline<Scope.Depends, T, I>, call);
     return (controllerOf(op) as { run(call?: Scope.Invocation<I>): T }).run(call);
   }) as Scope.Handle["run"];
@@ -4489,7 +4503,7 @@ function handleFor(layer: Layer): Scope.Handle {
     settleRun(
       layer,
       () => {
-        ensureOpen(layer);
+        ensureAccepting(layer);
         if (!isOperation(op))
           return runInline(
             layer,
@@ -4509,7 +4523,7 @@ function handleFor(layer: Layer): Scope.Handle {
     run,
     settle,
     createSession: (options?: Scope.Options) => {
-      ensureOpen(layer);
+      ensureAccepting(layer);
       return handleFor(makeLayer(layer, options));
     },
     session: (<R>(
@@ -4662,9 +4676,9 @@ type Released = {
  * registration order. Each owner's drain waits for in-flight OPERATIONS borrowing its resources
  * (ADR 0026 Q2). */
 function releaseNode(layer: Layer, target: Node): void {
-  ensureOpen(layer);
+  ensureAccepting(layer);
   const targetOwner = isResource(target) ? ownerOf(layer, target) : layer;
-  ensureOpen(targetOwner);
+  ensureAccepting(targetOwner);
   const affected = new Map<Layer, Released>();
   const order = collectAffected(target, targetOwner);
   if (isData(target)) {
@@ -4682,9 +4696,9 @@ function releaseNode(layer: Layer, target: Node): void {
 }
 
 function releaseNamed(layer: Layer, target: Node, ns: Namespace): void {
-  ensureOpen(layer);
+  ensureAccepting(layer);
   const owner = isResource(target) ? ownerOf(layer, target) : layer;
-  ensureOpen(owner);
+  ensureAccepting(owner);
   if (isData(target)) releaseNamedData(owner, target, ns);
   else if (target.target !== "scope") releaseNamedResource(owner, target, ns);
 }
@@ -4726,7 +4740,7 @@ function collectNamedRelease(
 ): Map<Layer, Released> {
   while (pending.length) {
     const state = pending.pop()!;
-    if (state.owner.closed || !isLiveNamedRelease(state)) continue;
+    if (!isLiveNamedRelease(state)) continue;
     for (const dependent of state.resourceDependents ?? []) pending.push(dependent);
     const released = affected.get(state.owner) ?? {
       instances: new Set<ResourceInstance>(),
@@ -4740,7 +4754,11 @@ function collectNamedRelease(
 }
 
 function isLiveNamedRelease(state: NsResourceState): boolean {
-  return state.owner.nodes.get(state.target)?.nsResources?.get(state.key) === state;
+  return (
+    !state.owner.closed &&
+    !state.owner.closing &&
+    state.owner.nodes.get(state.target)?.nsResources?.get(state.key) === state
+  );
 }
 
 function unlinkNamedState(state: NsResourceState): void {
@@ -4834,7 +4852,7 @@ function orderReleased(owner: Layer, entry: Released): void {
 function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): boolean {
   let dataReleased = false;
   for (const { node, owner } of order) {
-    if (owner.closed) continue;
+    if (owner.closed || owner.closing) continue;
     if (isResource(node)) collectReleasedInstances(owner, node, affected);
     else {
       invalidateData(owner, node);
@@ -5408,7 +5426,7 @@ function wrapSession(
   options: Scope.Options | undefined,
   sessions: readonly Scope.Extension<unknown>[],
 ): Scope.Handle {
-  ensureOpen(parent);
+  ensureAccepting(parent);
   const child = makeLayer(parent, options);
   const plain = handleFor(child);
   let wrapped: Scope.Handle;
@@ -5801,7 +5819,7 @@ function runHookCall<T, I>(
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  ensureOpen(layer);
+  ensureAccepting(layer);
   const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
   if (!hasCallSession(call))
     return runHookChain(layer, target, parent, chain, caller, hookTarget, call);

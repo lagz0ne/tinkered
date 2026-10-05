@@ -45,7 +45,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/graceful-writes** — active calls keep state open during graceful close.
   Asked by: Harness and Tinkerer live entries.
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-graceful-writes`.
-  Next: red tests (root stop, direct close, session close), then keep state open for running calls.
+  Next: run Core mutation and the changed-line check; save proof for lead review.
   Re-proven on main 2026-10-05: the write fails with `Disposed`; `closed` says success.
   Verify: a running call can finish its write during graceful root close;
   calls after close begins stay refused; Core ticket and size checks pass.

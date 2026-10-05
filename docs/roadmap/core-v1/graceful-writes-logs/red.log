@@ -1,0 +1,33 @@
+Command: vp run core#test -- graceful-writes.test.ts
+Exit: 1
+Base: e60053779e4bc1e2c9a0157ae29bfe618b60419f
+~/packages/core$ vp test -- graceful-writes.test.ts ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-graceful-writes/packages/core
+
+ ❯ tests/graceful-writes.test.ts (8 tests | 6 failed) 73ms
+   × a running call finishes its write during graceful root stop 42ms
+   × a running call finishes its write during graceful root close 10ms
+   × a running call finishes its write during graceful session close 3ms
+   × a running call's async defer can write during graceful close 3ms
+   × closed reports a real failure from a running call's write 8ms
+   × closing refuses new calls before a waiting root close hook resumes 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/graceful-writes.test.ts > a running call finishes its write during graceful root stop
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/graceful-writes.test.ts > a running call finishes its write during graceful root stop
+ FAIL  tests/graceful-writes.test.ts > a running call finishes its write during graceful root close
+ FAIL  tests/graceful-writes.test.ts > a running call finishes its write during graceful session close
+AssertionError: expected { status: 'failed', …(3) } to match object { status: 'success', value: 1 }
+ FAIL  tests/graceful-writes.test.ts > a running call's async defer can write during graceful close
+AssertionError: expected [ Error: Disposed { …(2) } ] to be undefined
+    "message": "Disposed",
+    "kind": "Disposed",
+ FAIL  tests/graceful-writes.test.ts > closed reports a real failure from a running call's write
+AssertionError: expected Error: Disposed { …(2) } to be Error: watch failed // Object.is equality
++   "message": "Disposed",
++   "kind": "Disposed",
+ FAIL  tests/graceful-writes.test.ts > closing refuses new calls before a waiting root close hook resumes
+      Tests  6 failed | 2 passed (8)

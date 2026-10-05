@@ -427,15 +427,26 @@ The close event's `scope` is the root handle whose close it observes.
 
 ## Closing and cell writes
 
-Core seals a layer's cell writes when its close begins. Later writes throw `Disposed`,
-including writes through held controllers from an abort
-listener, an operation catch, or a resource `defer`. A forced close cannot record a final
-status in that layer's cells. Read the returned `Scope.Result` instead: a clean forced close
-is `cancelled`; a real failure can make it `failed`.
+Core seals a layer's cell writes when a forced close begins.
+Later writes throw `Disposed`, including writes through held controllers from an abort
+listener, an operation catch, or a resource `defer`.
+A forced close cannot record a final status in that layer's cells.
+Read the returned `Scope.Result` instead: a clean forced close is `cancelled`.
+A real failure can make it `failed`.
 
-`close({ graceful: true })` waits for work to finish without first aborting it. Use plain
-`close()` when the work needs a stop signal. The first close call chooses the mode; a later
-forced close does not upgrade a graceful close already in progress.
+`close({ graceful: true })` keeps state usable while running calls finish their writes.
+Their `ctx.defer` cleanup can also write, including after an await.
+This holds for a root stop signal, a direct root close, and a session close.
+Both close modes refuse new calls and sessions as soon as closing begins.
+Saved operation controllers also refuse new calls.
+The closing signal still fires before the drain; the work signal stays live during graceful drain.
+State is sealed after running calls and their cleanup finish, before resource cleanup.
+A real failure in a running call's write makes `closed` report `failed`.
+A failure received through `settle` stays recovered, as with any call.
+Use plain `close()` when the work needs a stop signal.
+Forced close aborts work instead of waiting for its normal finish.
+The first close call chooses the mode.
+A later forced close does not upgrade a graceful close already in progress.
 
 A closed scope frees its data. `close({ withData: true })` hands it over instead (ADR 0069):
 

@@ -1,0 +1,112 @@
+{
+  "base": "e60053779e4bc1e2c9a0157ae29bfe618b60419f",
+  "red": {
+    "command": "vp run core#test -- graceful-writes.test.ts",
+    "exit": 1,
+    "failed": 6,
+    "passed": 2,
+    "log": "red.log"
+  },
+  "main": {
+    "runtime_gzip_bytes": 16257,
+    "promises": {
+      "sync": 0,
+      "async": 5,
+      "tagged": 2
+    },
+    "check": {
+      "command": "vp check",
+      "exit": 0,
+      "errors": 0,
+      "warnings": 28
+    },
+    "all_test": {
+      "command": "vp run -r test",
+      "exit": 1,
+      "failures": [
+        "tools/flight-trial/tests/entries.test.ts:138 supplier poll timeout",
+        "tools/flight-trial/tests/supplier.test.ts:96 test timeout"
+      ]
+    },
+    "style": {
+      "exit": 1,
+      "hits": [
+        "S10: systemRandom secure-page comment",
+        "S14: random UUID byte indexes 6 and 8",
+        "S14: first panic index 0"
+      ]
+    }
+  },
+  "gates": {
+    "build": {
+      "command": "vp run -r build",
+      "exit": 0,
+      "summary": []
+    },
+    "check": {
+      "command": "vp check",
+      "exit": 0,
+      "summary": ["Found 0 errors and 28 warnings in 511 files (5.3s, 8 threads)"]
+    },
+    "core_test": {
+      "command": "vp run core#test",
+      "exit": 0,
+      "summary": ["Test Files  39 passed (39)", "Tests  822 passed (822)"]
+    },
+    "all_test": {
+      "command": "vp run -r test",
+      "exit": 0,
+      "summary": [
+        "Retry passed all test tasks; first attempt hit the supplier poll timeout also seen on main."
+      ],
+      "first_exit": 1
+    },
+    "validate": {
+      "command": "pnpm validate",
+      "exit": 0,
+      "summary": ["All deterministic budget lanes PASS (16)"]
+    },
+    "size": {
+      "command": "node scripts/check-core-entries.mjs",
+      "exit": 0,
+      "summary": ["core runtime size: 16315 B gzip (cap 16384 B; all runtime files)"]
+    },
+    "promises": {
+      "command": "node --experimental-strip-types bench/promises.mjs",
+      "exit": 0,
+      "summary": [
+        "sync-lane promises:  0   (budget 0)",
+        "async-toggle promises: 5   (budget <=10)",
+        "METRIC promises_tagged=2"
+      ]
+    },
+    "prose": {
+      "command": "vp run prose",
+      "exit": 0,
+      "summary": []
+    },
+    "style": {
+      "command": "bash .agents/skills/coding-convention/scripts/style-census.sh packages/core/src/index.ts packages/core/tests/graceful-writes.test.ts --strict",
+      "exit": 1,
+      "summary": ["Style census: FAIL (S10 S14)"]
+    },
+    "style_changed": {
+      "command": "style-census.sh /tmp/gw-changed-source.ts packages/core/tests/graceful-writes.test.ts --strict",
+      "exit": 0,
+      "summary": ["Style census: OK; full-source hits match main."]
+    },
+    "tsdoc": {
+      "command": "node tools/jev/docs.mjs packages/core/src/index.ts packages/core/tests/graceful-writes.test.ts",
+      "exit": 0,
+      "summary": ["0 S26 rows"]
+    }
+  },
+  "result": {
+    "runtime_gzip_bytes": 16315,
+    "promises": {
+      "sync": 0,
+      "async": 5,
+      "tagged": 2
+    }
+  }
+}

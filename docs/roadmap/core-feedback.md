@@ -680,7 +680,10 @@ Proof: `packages/tinkerer/tests/stalled-steer.test.ts`.
 ## Graceful close blocks active writes, 2026-10-01
 
 Asked by Harness and Tinkerer live entries.
-Status: Ready card `core/graceful-writes`.
+Status: fixed by `core/graceful-writes`.
+Active calls and their cleanup keep state usable until graceful drain ends.
+New calls and sessions stay refused from the start of closing.
+Proof: [red and green gates](core-v1/graceful-writes-logs/GATES.json).
 
 A root stop should let its running calls finish.
 Core marks the layer closed before those calls finish.
