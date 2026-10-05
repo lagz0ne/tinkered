@@ -54,7 +54,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -64,8 +63,9 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Owner: lead (Claude, Start scaffold session); Sol writer.
   Worktree: `../tinkered-services-closing`.
   The payment close hook and HTTP client's `close()` method are gone.
-  Next: fix release cleanup and prove the port closes before replies drain.
-  Verify: rerun all gates, both review mutants, and mutation (floor 85).
+  Next: lead review.
+  Verify: all gates exit 0; 120 flight tests; mutation 91.17 (floor 85).
+  Both review mutants fail with exit 1; their restored tests pass.
   Wire diff: zero over 2,160 calls and 30 error codes.
   [Proof](docs/roadmap/flight-trial/services-closing/GATES.json).
 

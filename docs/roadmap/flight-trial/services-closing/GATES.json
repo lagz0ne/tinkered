@@ -39,20 +39,28 @@
       "command": "vp run flight-trial#test",
       "exit_code": 0,
       "test_files": 10,
-      "tests_passed": 116
+      "tests_passed": 120
+    },
+    {
+      "command": "node tools/flight-trial/scripts/check-wire.mjs",
+      "exit_code": 0,
+      "calls": 2160,
+      "error_codes": 30,
+      "differences": 0
     },
     {
       "command": "flock /tmp/mutation.lock vp run flight-trial#mutate",
       "exit_code": 0,
       "floor": 85,
-      "score": 91.96,
-      "covered_score": 93.44,
-      "killed": 1451,
-      "timeout": 173,
-      "survived": 114,
+      "score": 91.17,
+      "covered_score": 92.64,
+      "killed": 1480,
+      "timeout": 131,
+      "survived": 128,
       "no_coverage": 28,
       "errors": 0,
-      "printed_row": "All files        |  91.96 |   93.44 |     1451 |       173 |        114 |       28 |        0 |"
+      "mutants": 1767,
+      "printed_row": "All files        |  91.17 |   92.64 |     1480 |       131 |        128 |       28 |        0 |"
     }
   ],
   "original_resources": {
@@ -73,7 +81,7 @@
     "targets": ["tools/flight-trial/services", "tools/flight-trial/tests"],
     "exit_code": 0
   },
-  "source_commit": "9286a716",
+  "source_commit": "11c0af9ebb5b8c352588a46d0fb3a5463529b2c9",
   "wire": {
     "command": "node tools/flight-trial/scripts/check-wire.mjs",
     "exit_code": 0,
@@ -91,13 +99,16 @@
     "test_flags": 0,
     "promises_exit_code": 0,
     "existing_promise_gaps": 12,
-    "resolutions": "../PROGRESS.md"
+    "resolutions": "../PROGRESS.md",
+    "latest_flagged_units": 6,
+    "latest_question_hits": 8
   },
-  "tested_source_commit": "c888d0b0",
+  "tested_source_commit": "1cd7db1176bf7488c6c0639d553fb6994cc2819a",
   "final_rebase": {
-    "origin_main": "454fc13e4689627fed7199d343808622413d4de4",
+    "origin_main": "eb7343d0adfcc1ece4fa01b5b366f4a302ee7d20",
     "exit_code": 0,
-    "upstream_changed_files": ["docs/roadmap/flight-trial/PROGRESS.md"],
+    "upstream_changed_files": ["TODO.md", "docs/roadmap/flight-trial/PROGRESS.md"],
+    "resolved_conflicts": ["TODO.md"],
     "install_exit_code": 0,
     "build_exit_code": 0,
     "source_unchanged": true
@@ -112,7 +123,14 @@
       "tests_failed": 2,
       "green_exit_code": 0,
       "tests_passed": 2,
-      "log": "red.log"
+      "log": "red.log",
+      "stryker_status": "Killed",
+      "stryker_mutant": {
+        "id": "564",
+        "mutator": "CallExpression",
+        "line": 491,
+        "replacement": ";"
+      }
     },
     {
       "name": "close before drain",
@@ -123,8 +141,15 @@
       "tests_failed": 2,
       "green_exit_code": 0,
       "tests_passed": 2,
-      "log": "red.log"
+      "log": "red.log",
+      "stryker_status": "Killed",
+      "stryker_mutant": {
+        "id": "554",
+        "mutator": "StringLiteral",
+        "line": 487,
+        "replacement": "\"\""
+      }
     }
   ],
-  "review_fix_status": "Targeted tests pass; full gates await rerun"
+  "review_fix_status": "All requested gates passed"
 }

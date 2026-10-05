@@ -40,24 +40,27 @@ Middleware skips late log and replay writes after closing begins.
 That keeps delayed replies at service-stopped, instead of turning them into HTTP 500.
 
 Gate proof: [GATES.json](services-closing/GATES.json).
-Before the review fix, all gates and 116 flight tests passed with exit 0.
+Build, check, all workspace tests, prose, and 120 flight tests passed with exit 0.
 Style census for services and tests passed.
 Wire diff: exit 0, zero differences over 2,160 calls and 30 error codes.
 The check compares body bytes, headers, and call logs.
 Only Node's wall-time Date header is normalized, as the existing check requires.
 An earlier run was discarded after an extra call moved one side's test ID stream.
 The clean repeat used no extra HTTP calls.
-Before the review fix, locked mutation exited 0 with score 91.96.
-The floor is 85.
-It printed 1,451 killed, 173 timeout, 114 survived, and 28 no coverage.
+Locked mutation: exit 0, score 91.17, above the floor of 85.
+It printed 1,480 killed, 131 timeout, 128 survived, and 28 no coverage.
+The mutation report marks the cleanup stop deletion and closing event change as `Killed`.
+The final rebase kept main's finished trial card and progress notes.
+Main changed only board and progress docs.
+The source used by the tests stayed the same.
 Only GATES.json and the red log are committed as proof files.
 The card is saved in Review.
-Next: rerun all gates after this review fix.
+Next: lead review.
 
 ### Advisory review
 
 Jev found no file flags and no test flags.
-The eight unit notes are false for these reasons:
+The eight saved unit notes are false for these reasons:
 
 - `httpRequest`, `configNotTag`: URL, method, headers, and body are request input.
   They follow ADR 0102; each call can have different values.
@@ -83,7 +86,8 @@ The promise judge found 12 gaps in unchanged tests.
 Those cover protocol inputs, route keys, thrown handlers, and the fetch ban.
 They do not change or test the close fix.
 The new queued-webhook title found the new README promise.
-The judge does not read `test.each` titles; those four checks match that same promise.
+The judge does not read `test.each` titles.
+The eight listener checks match the README's close and release promises.
 No labels were added under `tools/jev/`, outside this card's allowed paths.
 This card follows the asked gates and only the flight-trial mutation lane.
 
