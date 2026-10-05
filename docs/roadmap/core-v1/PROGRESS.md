@@ -920,7 +920,7 @@ Saved work stays in Review for the lead.
 
 Owner: Sol writer on `core/size-room`.
 Core starts at 16,379 B gzip.
-The cuts leave 16,079 B gzip, with 305 B free.
+The cuts leave 16,075 B gzip, with 309 B free.
 The cap stays 16,384 B.
 Public types and exports stay the same.
 Error kinds and message text stay the same.
@@ -930,7 +930,8 @@ Each throw gets a fresh payload.
 Release code shares build-reference clearing.
 Empty stores are shared only until their first write.
 Each write gate gives its owner a new store.
-Private symbol text is removed; each symbol still has its own identity.
+Only internal sentinel symbol text is removed.
+Symbols on handles and cancel reasons keep their descriptions.
 Build settings stay unchanged.
 
 ### Cuts
@@ -1036,7 +1037,17 @@ Zero gains, larger output, and unsafe name clashes were dropped.
 - Remove the Disposed helper after the speed check: costs 14 B.
   The final bundle cost differs from its earlier isolated saving.
 
-The net saving is 300 B.
+- Restore the borrow symbol description: costs 5 B.
+- Restore the factory symbol description: costs 8 B.
+- Restore the cancellation symbol description: costs 5 B.
+  Callers can see these three through JavaScript reflection.
+- Remove the duplicate inline dispatch branch: 5 B.
+  Both paths call the same internal function with an undefined call.
+- Share cold managed-error construction: 7 B.
+  Core and caller errors keep the same fields and text.
+- `instances -> built` in private release records: 10 B.
+
+The net saving is 304 B.
 The public empty-list probe rejects on main and on the final code.
 The discarded shared-list cut accepted it.
 Each error still owns a fresh payload and keeps its text.
@@ -1048,6 +1059,10 @@ The first full gate passed, with mutation 86.25.
 The first speed run found `inline` slower.
 Its 183-pair check confirmed that result.
 The Disposed helper was removed before the final proof.
+Restoring the three old module declarations gave no speed gain.
+That trial was dropped.
+The wrapper and called hot code kept their instruction counts.
+The new inline cut removes a duplicate call branch.
 Next: repeat all gates and queued speed checks on the final cut set.
 The full receipt will be saved in `size-room/GATES.json`.
 The lead owns review and `scripts/ticket.sh` at landing.

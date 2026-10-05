@@ -9,11 +9,11 @@ export type { Origin, RunResult };
 
 const cell: unique symbol = Symbol("data");
 const operationSym: unique symbol = Symbol("operation");
-const borrowSym: unique symbol = Symbol();
+const borrowSym: unique symbol = Symbol("borrow");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
-const mayHookSym: unique symbol = Symbol();
+const mayHookSym: unique symbol = Symbol("mayHook");
 const extensionSym: unique symbol = Symbol("extension");
 const namespaceSym: unique symbol = Symbol("namespace");
 
@@ -2230,7 +2230,7 @@ function addDefer(layer: Layer, entry: DeferEntry): void {
 /** Every abort reason we mint carries this brand, so a rejection can be recognized as one of OUR
  * cancellations regardless of WHICH layer's abort produced it — a cancelled child rejects with its
  * own reason, and its awaiting parent must still read that as a clean cancel, not a failure (r11). */
-const cancelBrand: unique symbol = Symbol();
+const cancelBrand: unique symbol = Symbol("cancel");
 
 /** A forced close's cancel reason. It reads like the web's `AbortError` — `name`, `message`, and
  * `String(reason)` → `"AbortError: …"` — so text built from it says why the work stopped. The brand
@@ -4100,25 +4100,25 @@ function prepareTeardown(layer: Layer, forced: boolean, body: Scope.Outcome | un
 }
 
 function collectLayerInstances(layer: Layer): ResourceInstance[] {
-  const instances: ResourceInstance[] = [];
+  const built: ResourceInstance[] = [];
   for (const state of layer.nodes.values()) {
-    if (state.owned) instances.push(state.owned);
+    if (state.owned) built.push(state.owned);
     if (state.named)
       for (const bucket of state.named.values()) {
-        if (bucket.owned) instances.push(bucket.owned);
+        if (bucket.owned) built.push(bucket.owned);
       }
   }
-  return instances;
+  return built;
 }
 
 async function closeInstances(
   layer: Layer,
   settled: Scope.Outcome,
-  instances: ResourceInstance[],
+  built: ResourceInstance[],
 ): Promise<void> {
-  for (const owned of instances) unlinkInstance(owned, settled);
+  for (const owned of built) unlinkInstance(owned, settled);
   await drainDefers(layer, [...layer.hooks], settled);
-  for (const owned of instances) {
+  for (const owned of built) {
     const finished = finishInstance(owned);
     if (finished) ignoreRejection(finished);
   }
@@ -4150,8 +4150,8 @@ function startClose(
     while (layer.pending.size) await Promise.all(layer.pending);
     layer.closed = true;
     const settled = settleOutcome(layer, body);
-    const instances = collectLayerInstances(layer);
-    if (instances.length) await closeInstances(layer, settled, instances);
+    const built = collectLayerInstances(layer);
+    if (built.length) await closeInstances(layer, settled, built);
     else await drainDefers(layer, layer.hooks, settled);
     /** Re-settle once more: a late real failure (pushed up from a child whose cleanup was parked on a
      * gate) can land WHILE we await the defers; `settleOutcome` never downgrades a recorded failure, so
@@ -4413,7 +4413,7 @@ function runInline<R, I>(
   const dispatch = operationController(layer, handle, up, chain, receiver, inline).run as (
     call?: Scope.Invocation<I>,
   ) => R | Promise<Awaited<R>>;
-  return call === undefined ? dispatch() : dispatch(call);
+  return dispatch(call);
 }
 
 function handleFor(layer: Layer): Scope.Handle {
@@ -4627,7 +4627,7 @@ function collectAffected(target: Node, targetOwner: Layer): Affected[] {
 
 /** A released owner's affected resources and their OLD defers, extracted up front. */
 type Released = {
-  instances: Set<ResourceInstance>;
+  built: Set<ResourceInstance>;
   hooks: DeferEntry[];
 };
 
@@ -4708,10 +4708,10 @@ function collectNamedRelease(
     if (!isLiveNamedRelease(state)) continue;
     for (const dependent of state.users ?? []) pending.push(dependent);
     const released = affected.get(state.layer) ?? {
-      instances: new Set<ResourceInstance>(),
+      built: new Set<ResourceInstance>(),
       hooks: [],
     };
-    if (state.owned) released.instances.add(state.owned);
+    if (state.owned) released.built.add(state.owned);
     affected.set(state.layer, released);
     unlinkNamedState(state);
   }
@@ -4744,22 +4744,22 @@ function drainReleasedOwner(
   previous: Promise<void> | undefined,
 ): Promise<void> | undefined {
   let prev = previous;
-  const borrowed = [...entry.instances].flatMap((owned) => [...(owned.pending ?? [])]);
+  const borrowed = [...entry.built].flatMap((owned) => [...(owned.pending ?? [])]);
   const gate = borrowed.length ? Promise.allSettled(borrowed).then(() => undefined) : undefined;
   for (const hook of entry.hooks) {
     const owned = hook.owned as ResourceInstance;
     if (isHeld(owned)) continue;
     prev = finishHook(owned, hook.fn, gate ?? prev) ?? prev;
   }
-  return drainHookless(entry.instances, gate ?? prev);
+  return drainHookless(entry.built, gate ?? prev);
 }
 
 function drainHookless(
-  instances: Set<ResourceInstance>,
+  built: Set<ResourceInstance>,
   previous: Promise<void> | undefined,
 ): Promise<void> | undefined {
   let prev = previous;
-  for (const owned of instances) {
+  for (const owned of built) {
     if (owned.hooks.length || isHeld(owned)) continue;
     prev = finishInstance(owned, prev) ?? prev;
   }
@@ -4792,11 +4792,11 @@ function collectReleasedInstances(
   affected: Map<Layer, Released>,
 ): void {
   const state = nodeState(owner, target);
-  const entry = affected.get(owner) ?? { instances: new Set(), hooks: [] };
-  if (state.owned) entry.instances.add(state.owned);
+  const entry = affected.get(owner) ?? { built: new Set(), hooks: [] };
+  if (state.owned) entry.built.add(state.owned);
   if (state.named)
     for (const bucket of state.named.values()) {
-      if (bucket.owned) entry.instances.add(bucket.owned);
+      if (bucket.owned) entry.built.add(bucket.owned);
     }
   affected.set(owner, entry);
   invalidateResource(owner, target);
@@ -4804,9 +4804,9 @@ function collectReleasedInstances(
 
 function orderReleased(owner: Layer, entry: Released): void {
   for (const hook of owner.hooks.toReversed()) {
-    if (hook.owned && entry.instances.has(hook.owned)) entry.hooks.push(hook);
+    if (hook.owned && entry.built.has(hook.owned)) entry.hooks.push(hook);
   }
-  owner.hooks = owner.hooks.filter((hook) => !hook.owned || !entry.instances.has(hook.owned));
+  owner.hooks = owner.hooks.filter((hook) => !hook.owned || !entry.built.has(hook.owned));
 }
 
 function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): boolean {
