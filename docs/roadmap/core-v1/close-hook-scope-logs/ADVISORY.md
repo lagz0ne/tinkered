@@ -85,3 +85,27 @@ Each title below is the exact title the tool printed.
 - a data controller from an idle tagged call refuses a late write
 - adopting a body's late then method keeps its tagged controller writable
 - a tagged session adopts a callable made thenable by run cleanup
+
+## Review fix round
+
+Preflight, tests, and promises returned 0.
+The four new tests have no plain test flag or README gap.
+
+The seven old test flags keep the reasons above.
+The fresh promise scan found 40 old gaps.
+
+Its log is `fix-jev-promises.log` in this folder.
+The existing gap list above still applies.
+
+The fresh scan also flagged these unchanged tests:
+
+- concurrent calls finish in release order, not entry order
+- closing a deeply nested scope tree does not overflow
+
+All 71 real code flags have false labels and reasons.
+Core owns its layer and lifetime state and joins its close work.
+
+The scoped bank is `jev-cases.jsonl` in this folder.
+The lead owns its merge and calibration.
+
+No shared Jev file was changed.

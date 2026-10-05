@@ -1,0 +1,17 @@
+{
+  "exit": 0,
+  "score": 85.88,
+  "total": 3495,
+  "statuses": {
+    "NoCoverage": 21,
+    "Killed": 2970,
+    "Survived": 472,
+    "RuntimeError": 3,
+    "Timeout": 29
+  },
+  "reviewLineMap": {
+    "4011": 4011,
+    "5505": 5505,
+    "5512": 5519
+  }
+}

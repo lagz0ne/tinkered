@@ -4,5 +4,6 @@
   "core-test": 0,
   "all-test": 0,
   "validate": 0,
-  "prose": 0
+  "prose": 0,
+  "core-mutate": 0
 }

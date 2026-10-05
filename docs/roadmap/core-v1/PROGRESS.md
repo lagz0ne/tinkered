@@ -824,3 +824,29 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
   The seven old test flags keep the reasons in `close-hook-scope-logs/ADVISORY.md`.
 - Next: the full Core mutation lane alone, under its lock.
   The lead will run `scripts/ticket.sh` at landing.
+
+### Fix-round full mutation receipt
+
+- `flock /tmp/mutation.lock vp run core#mutate` returned 0.
+  Score: 85.88; the floor stays 85.
+  All five source files and all 3,495 mutants were included.
+- Killed: 2,970; timed out: 29; survived: 472.
+  No coverage: 21; runtime errors: 3.
+- Full-run mutants at 4011, 5505, 5508, and 5519 are all killed.
+  The per-line runs also prove those kills.
+  Line 5519 was 5512 before the fix.
+- Size stays 16,257 B gzip, +101 B over the 16,156 B base.
+  The cap stays 16,384 B; unused promise counts stay 0/5/2.
+- The built-package probe returned 0.
+  Both close results are success, and close hooks run zero times.
+  Log: `close-hook-scope-logs/fix-reentrant-probe.log`.
+- The fresh promise scan returned 0: 40 old gaps.
+  The four new tests have no gap or plain test flag.
+  The two newly listed old titles are saved in the advisory notes.
+- Every gate's exit code is in `close-hook-scope-logs/gate-exits.json`.
+  The full report is `close-hook-scope-logs/full-mutation-report.json.gz`.
+  The score and counts are in `close-hook-scope-logs/full-mutation-summary.json`.
+  Red and green proof links are in `close-hook-scope-logs/README.md`.
+- Saved for lead review.
+  Next: the lead reviews and runs `scripts/ticket.sh` at landing.
+  This writer did not run it or push the branch.
