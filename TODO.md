@@ -24,24 +24,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **flight-trial/entries-flake** — the supplier entry test fails under load.
-  `tools/flight-trial/tests/entries.test.ts:138` polls with the default 1 s wait.
-  Next: give that poll a longer wait; seen twice in full runs.
-  Verify: the test passes 10 runs in a row next to a full `vp run -r test`.
-
 - **core/extension-slot** — one extension can include another, or a unit can take a slot.
   Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
   Next: design first (find the precedent); brief a Core writer after the trial baseline.
   Verify: the trial services drop the hand call `httpRequests.hooks!.start!`;
   Core tests, `scripts/ticket.sh`, `pnpm validate` pass.
   [Feedback](docs/roadmap/core-feedback.md#shared-unit-with-a-slot-2026-10-03).
-
-- **core/graceful-writes** — active calls keep state open during graceful close.
-  Asked by: Harness and Tinkerer live entries.
-  Next: a Core writer fixes the delayed controller write after the active card.
-  Verify: a running call can finish its write during graceful root close;
-  calls after close begins stay refused; Core ticket and size checks pass.
-  [Proof](docs/roadmap/core-feedback.md#graceful-close-blocks-active-writes-2026-10-01).
 
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
@@ -53,6 +41,21 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 
 ## Doing
+
+- **flight-trial/entries-flake** — the supplier entry test fails under load.
+  `tools/flight-trial/tests/entries.test.ts:138` polls with the default 1 s wait.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-entries-flake`.
+  Next: give that poll a longer wait; seen in 3 landings on 2026-10-05.
+  Verify: the test passes 10 runs in a row next to a full `vp run -r test`.
+
+- **core/graceful-writes** — active calls keep state open during graceful close.
+  Asked by: Harness and Tinkerer live entries.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-graceful-writes`.
+  Next: red tests (root stop, direct close, session close), then keep state open for running calls.
+  Re-proven on main 2026-10-05: the write fails with `Disposed`; `closed` says success.
+  Verify: a running call can finish its write during graceful root close;
+  calls after close begins stay refused; Core ticket and size checks pass.
+  [Proof](docs/roadmap/core-feedback.md#graceful-close-blocks-active-writes-2026-10-01).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
