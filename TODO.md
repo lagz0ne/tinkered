@@ -66,7 +66,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   check 9 names an unset or refused `PUBLIC_ORIGIN` or `AUTH_SECRET`.
   Proof: [PROOF section Q](docs/roadmap/start-base/PROOF.md#q-the-auth-part-040).
   Step 3 split in two (sync is too big for one clean step):
-  3a, the server side, saved on branch `start/base-parts-sync` (base 0.5.0), waits for review:
+  3a, the server side, landed on main (base 0.5.0; mutation 87.10, 86.34 on kills; sync files 80.21):
   `tinker({ sync: true })`, off by default, turns auth on; `auth: false` with it fails the build;
   route `/api/sync` (SSE) only while on; `eventHistory` and the sync tables;
   check 5 stops the build on a server seam without `database`.
@@ -74,7 +74,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   3b, the client side: `getBootstrap`, `getAccount`, the sync client, tab lifetime,
   the router wiring, and the client seam names (`records`, `readSnapshot`, `readBootstrap`,
   `readBatch`, `streamMessage`), plus the server seam's `bootstrap`.
-  Next: the lead reviews and lands 3a; then 3b on a fresh branch.
+  Next: 3b on a fresh branch off main; lift the sync files' mutation score there.
   Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)

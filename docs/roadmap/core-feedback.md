@@ -847,3 +847,22 @@ A first try replaced Core's own `close` and `createSession`; the review
 rejected that as dishonest. A hook that fires when a graceful close
 begins, before the drain, would remove the limit.
 Fixed: `core/close-hook-scope` added `ctx.closing`; `start/http-closing` uses it.
+
+## A preset replaces the whole factory, 2026-10-06
+
+Asked by `start/base-parts` (step 3a, the sync part). First asker.
+
+A test that changes one method of a resource must build the whole value.
+The sync stream test changes only `database.listen`.
+It still had to build a full drizzle database behind it:
+
+```ts
+preset(database, async () =>
+  Object.assign(
+    drizzle({ client: await PGlite.create() }),
+    { listen },
+  ))
+```
+
+The workaround is honest: the test builds a real value.
+State: open; a core ticket at its second asker.
