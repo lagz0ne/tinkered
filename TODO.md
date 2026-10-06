@@ -60,7 +60,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   route `/api/telemetry` only while on; check 7 frees an off part's path;
   check 9 names a refused part key at its `.env` line.
   Proof: [PROOF section P](docs/roadmap/start-base/PROOF.md#p-the-telemetry-part-030).
-  Next: step 2 (auth) on a fresh branch off main.
+  Step 2, auth, saved on branch `start/base-parts-auth` (base 0.4.0), waits for review:
+  `tinker({ auth: true })`, off by default; route `/api/auth/$` only while on;
+  check 5 stops the build on a seam without `auth` or `readAccount`;
+  check 9 names an unset or refused `PUBLIC_ORIGIN` or `AUTH_SECRET`.
+  Proof: [PROOF section Q](docs/roadmap/start-base/PROOF.md#q-the-auth-part-040).
+  Next: the lead reviews and lands step 2; step 3 (sync) on a fresh branch.
   Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)

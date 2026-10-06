@@ -316,7 +316,7 @@ App code reaches the base only through package entries:
 - `@tinker/start`: shared units, such as `startRequests`,
   the sync types, and `Register`.
 - `@tinker/start/server`: `readResult`, `httpRequest`, `env`,
-  `eventHistory`.
+  `eventHistory`, `authSettings`.
 - `@tinker/start/client`: `syncClient` and the client sync units.
 - `@tinker/start/testing`: `requestHeaders`, `handleAuth`,
   `httpBackend`.
@@ -335,6 +335,13 @@ A part is an opt-in slice of the base, set in `tinker({ ... })`.
   Built (card `start/base-parts`, step 1).
 - **auth**: off by default. Route `/api/auth/$`.
   Needs `auth` and `readAccount` from the server seam.
+  Reads `PUBLIC_ORIGIN` (http(s)) and `AUTH_SECRET`
+  (at least 32 characters); neither has a default.
+  `authSettings` on `@tinker/start/server`
+  hands both to the app's `auth`.
+  Built (card `start/base-parts`, step 2).
+  The base reads `readAccount` from step 3,
+  through sync's `getAccount`.
 - **sync**: off by default; it turns `auth` on.
   Route `/api/sync`; server functions `getBootstrap`, `getAccount`.
   Needs `database` and `bootstrap` from the server seam.
@@ -342,7 +349,9 @@ A part is an opt-in slice of the base, set in `tinker({ ... })`.
   `streamMessage`, and the `Register` bodies from the client seam.
 
 The plugin writes `.tinker/parts.ts` and `.tinker/parts.server.ts`.
-Each exports one name per part,
+Each exports one name per part that its entry reads
+(the part table's `entries`: telemetry has both,
+auth only the server's),
 from that part's on or off module in the base,
 so the base entries read one fixed shape:
 
@@ -646,7 +655,7 @@ Each check is one small file with its message table,
    `postinstall` runs `tinker prepare`.
    `--fix`: the `extends` line and the `postinstall` script.
 5. **named files**: each named or seam file exports
-   what the base reads,
+   what the base reads, each on part's seam names included,
    and no Start file sits where the glue never reads it.
    An `export *` from a local file is followed;
    from a package, the export is not judged. No fix.
@@ -661,7 +670,9 @@ Each check is one small file with its message table,
    and no route takes or nests under a base path,
    in any of six forms.
    An on part's route is a base path;
-   the line names the switch that frees it. No fix.
+   the line names the switch that frees it.
+   A route under a base splat (`/api/auth/login`
+   under `/api/auth/$`) takes its path too. No fix.
 8. **style**: a user shell imports `src/style.css`
    with `?url`, read from its import lines,
    no stylesheet sits unlinked,
