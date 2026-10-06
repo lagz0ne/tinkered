@@ -99,7 +99,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **start/base** — the Start base is a package, glued by one plugin (ADR 0106, accepted).
   Owner: lead (Claude, Start scaffold session); Opus designer, four Opus stress agents, Opus writer and review.
-  POC in `poc/`: `@tinker/start` 0.2.0 + `poc/app-min` (two files in `src/`, one glue line each config).
+  POC, now `packages/start` (`@tinker/start` 0.2.0) and `apps/start-min` (two files in `src/`, one glue line each config).
   Stress test: 84 checks, 46 → 79 work, 0 need a change, 5 not supported (listed in the ADR).
   Every known mistake fails the build or `tinker doctor` names file and line; 11 checks.
   Tests: 129 plain unit tests of the glue and scope seams, no wrappers; 140 of 140 planted breaks caught.
