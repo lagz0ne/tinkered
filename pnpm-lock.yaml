@@ -701,6 +701,9 @@ importers:
       oxc-parser:
         specifier: ^0.117.0
         version: 0.117.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.2
     devDependencies:
       '@stryker-mutator/core':
         specifier: 'catalog:'
