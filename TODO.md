@@ -46,12 +46,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **core/size-build** — a build step renames 49 private fields: 16,084 → 15,746 B gzip.
-  Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Lands after `core/size-safe`.
-  Review round 1 fixed: guard holes G1-G6, gone names, `ticket.sh` runs the dist lane.
-  Next: after `core/size-safe` lands, rebase, `vp run core#fields`, read the list diff,
-  re-measure, then `N=61 bench/queued.sh` (no "B slower").
-  Proof: types and exports match main; 854 tests on source; 864 on `dist` with 10 guard tests.
+- **core/size-build** — a build step renames 48 private fields: 15,683 → 15,367 B gzip (main after size-safe).
+  Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Rebased on `35404adc`.
+  List after rebase: `defersFor` removed (size-safe deleted it); none added.
+  Proof: types and exports match main; 856 tests on source, 866 on `dist`; validate green.
+  Speed: N=61, ten scenarios, all "no difference we can see". Mutation 86.00 (85.09 without timeouts).
+  Next: lead review and landing.
   [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-build).
 
 - **core/testing-entry** — keep test helpers out of the main entry.

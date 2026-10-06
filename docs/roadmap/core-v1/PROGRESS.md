@@ -1266,8 +1266,9 @@ This writer does not push.
 
 Owner: Opus writer on `core/size-build`.
 Lead ruling: a build step may shrink shipped code (size Option 1).
-Core starts at 16,084 B gzip.
-The build step leaves 15,746 B gzip: 338 B smaller.
+Rebased on `35404adc` (`core/size-safe` landed).
+Core on main is 15,683 B gzip.
+The build step leaves 15,367 B gzip: 316 B smaller.
 The source does not change.
 Public types and exports stay the same.
 
@@ -1275,7 +1276,7 @@ Public types and exports stay the same.
 
 - `packages/core/build/private-fields.ts` is a Rolldown plugin.
 - It renames the fields in `build/private-fields.json` to short names.
-- The list holds 49 names, such as `layer`, `nodes`, and `bodyEnd`.
+- The list holds 48 names, such as `layer`, `nodes`, and `bodyEnd`.
 - One name map serves all three runtime files.
 - The map is fixed before any file renders.
   So two builds give the same bytes.
@@ -1310,6 +1311,20 @@ A file outside Core's source reads a name without type checks when it:
 - or, in a typed file, reads it on a value that came from a cast.
   That value may pass through variables, members, calls, and destructuring.
 
+### The list after `core/size-safe`
+
+The old list failed the build after the rebase.
+The reason was `defersFor: not in the runtime any more`.
+`vp run core#fields` wrote the list again: 49 → 48 names.
+
+- Removed `defersFor`: size-safe deleted the field, so no code uses the name.
+- Added: none.
+
+The runtime gained one property name and lost two besides `defersFor`:
+
+- New `replace`: a String built-in, so it can never be listed.
+- Gone `join`: a built-in, never listed.
+
 ### Guard tests
 
 `build/private-fields.test.ts` packs Core once per test.
@@ -1340,6 +1355,7 @@ So G4 uses its variable twice, and writes a key on it.
 
 ### What the rules cost
 
+Measured before the rebase, on the 16,084 B source.
 The research list had 84 names.
 The rules keep 49 and hold back 35, worth 168 B.
 
@@ -1357,7 +1373,7 @@ The review asked for every string, so the build counts every string.
 ### Tests on the built files
 
 - `vp run core#test:dist` builds, then runs two sets on `dist`:
-  Core's 854 tests, and the 10 guard tests.
+  Core's 856 tests, and the 10 guard tests.
 - `pnpm validate` runs it as its own lane.
 - `scripts/ticket.sh` runs it for Core.
 - The source lane (`core#test`) skips `build/`, so Stryker skips it too.
@@ -1376,44 +1392,61 @@ esbuild and Rolldown each bundled every app.
 
 ### Proof
 
-Base: `08ddc349` from `origin/main`.
+Base: `35404adc` from `origin/main`, built in its own worktree.
 
-- `vp run --no-cache core#size`: 16,084 → 15,746 B gzip.
+- `vp run --no-cache core#size`: 15,683 → 15,367 B gzip.
 - All three type files: byte-identical to main.
 - All 15 exports (12 main, 3 testing): same names and kinds.
 - Two builds: all 9 files byte-identical.
-- Hot names: 247; last slot 249, the same as main.
+- Hot names: 245; last slot 247, the same as main.
+- Tree-shaking: nine apps, esbuild and Rolldown, as above.
+  Main with `@__PURE__` cut out: same bytes; this build: same statements.
 - `vp run -r build`: exit 0.
 - `vp check`: exit 0; 28 warnings, the same as main.
-- `vp run core#test`: exit 0; 854 tests.
-- `vp run core#test:dist`: exit 0; 864 tests.
+- `vp run core#test`: exit 0; 856 tests.
+- `vp run core#test:dist`: exit 0; 866 tests.
 - Guard tests alone: exit 0; 10 tests.
+- `vp run -r test`: exit 0; 9 of 9 tasks.
+- `pnpm validate`: exit 0; all 17 lanes pass.
 - `vp run prose`: exit 0.
-- Jev preflight: exit 0; 3 `stateOutsideCell` flags.
+- Jev preflight (review round): exit 0; 3 `stateOutsideCell` flags.
 
 Each Jev flag is labelled `false`: `followVariable`, `readTypes`, `isFromCast`.
 They keep private notes for one build, and nothing listens to them.
 The labels live here because `tools/jev` is outside this card.
 
-From the first round, on the 77-name build:
-
-- `vp run -r test`: exit 0 on the third run.
-  Two runs exited 1 under load (25 to 32 on 8 cores).
-  `flight-trial` hit a 5 s timeout, and `start-scaffold` was killed (137).
-  Both passed alone.
-- `pnpm validate`: exit 0; all 17 lanes pass.
-
 ### Speed
 
 Only names change, so the bytecode is the same.
-`benchctl ab` ran one fixed-work script on the 77-name build:
+`N=61 A=../tinkered-size-build-base bench/queued.sh`: exit 0.
+One queue job per scenario; `/tmp/mutation.lock` was held for the run.
+Every scenario timed in batch mode, 61 of 61, on both sides.
+Verdict: exact paired two-sided sign test, ties left out, p < 0.01.
+Medians are ns per call, main → this branch.
 
-- Main as A: no difference we can see.
-  The new build's median was 3.2% slower, inside the noise.
-- New build as A, 20 rounds: no difference we can see.
-  The new build's median was 1.5% slower, inside the noise.
+- **`op`** — 64.1 → 64.2 (+0.2%), slower 31/61: no difference we can see
+- **`run`** — 75.7 → 75.2 (−0.7%), slower 25/61: no difference we can see
+- **`opres`** — 268.0 → 267.7 (−0.1%), slower 26/61: no difference we can see
+- **`inline`** — 99.2 → 99.0 (−0.2%), slower 26/61: no difference we can see
+- **`session`** — 509.8 → 508.3 (−0.3%), slower 27/61: no difference we can see
+- **`tagged`** — 207.7 → 207.8 (0.0%), slower 30/61: no difference we can see
+- **`create`** — 121.9 → 121.9 (0.0%), slower 25/61: no difference we can see
+- **`cold`** — 699.4 → 699.2 (0.0%), slower 26/61: no difference we can see
+- **`warm`** — 15.2 → 15.2 (0.0%), slower 25/61: no difference we can see
+- **`lifecycle`** — 856.5 → 858.2 (+0.2%), slower 31/61: no difference we can see
 
-Landing needs `N=61 bench/queued.sh` on the rebased tree.
+No scenario is B slower.
+The base worktree was removed after the run.
+
+### Mutation
+
+`flock /tmp/mutation.lock vp run core#mutate`: exit 0; score 86.00 (floor 85).
+It ran alone, after the bench, once another lane let go of the lock.
+
+- Killed 2,900, timeout 31, survived 451, no coverage 26, runtime error 3.
+- Without the 31 timeouts, the score is 85.09: still above the floor.
+- The dry run had 856 tests; the guard tests stay out of it.
+- The build step changes no source, so the mutants match main's.
 
 ### Costs
 
@@ -1422,9 +1455,6 @@ Landing needs `N=61 bench/queued.sh` on the rebased tree.
   A Core build takes about 0.5 to 1.5 s more on this busy box.
 - The fixed name map costs 8 B against naming from the first file.
 
-### Next, after `core/size-safe` lands
-
-1. Rebase; run `vp run core#fields`.
-2. Read the list diff name by name.
-3. Measure the size again.
-4. Run `N=61 A=../tinkered-base bench/queued.sh`; land only with no "B slower".
+Saved work waits in Review.
+The lead owns review and `scripts/ticket.sh` at landing.
+This writer does not push.
