@@ -60,16 +60,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **start/base-package** — promote `poc/start-base` to `packages/start` and `poc/app-min` to `apps/start-min`.
-  Owner: lead (Claude, Start scaffold session); Opus writer. Worktree: `../tinkered-base-package`.
-  Impact (ADR 0065): adds `@tinker/start` and `apps/start-min`; no existing public symbol changes.
-  Next: lead re-review of the fix round, then land.
-  Proof: `poc/` is gone; the follow-ups and the review's three fixes each have tests that failed before.
-  Tests 23 files, 170; 148 of 148 breaks; mutation 88.21 (88.07 on kills alone).
-  `apps/start-min` builds, serves `/`, `/api/health`, `/tinker`; doctor passes.
-  The proof rerun caught a README that every pack ships but `files.json` did not pin; fixed.
-  [Proof](docs/roadmap/start-base/PROOF.md#0-the-package).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -96,6 +86,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/base-package** — `@tinker/start` in `packages/start`, the smallest app in `apps/start-min` (ADR 0106).
+  Owner: lead (Claude, Start scaffold session); Opus writer, Opus review (two fix rounds).
+  `poc/` is gone, history kept. `doctor` reads `extends` as tsc does: `.json` added, chains followed.
+  Tests 23 files, 171; 148 of 148 planted breaks caught; mutation 88.21 (88.07 on kills alone).
+  `apps/start-min` builds, serves `/`, `/api/health`, `/tinker`; doctor passes.
+  [Proof](docs/roadmap/start-base/PROOF.md#0-the-package).
 
 - **start/base** — the Start base is a package, glued by one plugin (ADR 0106, accepted).
   Owner: lead (Claude, Start scaffold session); Opus designer, four Opus stress agents, Opus writer and review.
