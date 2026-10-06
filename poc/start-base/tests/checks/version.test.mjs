@@ -12,12 +12,13 @@ test("passes when the base resolves and every peer is the tested version", () =>
 
 test("fails when the base does not resolve", () => {
   expect(version(fixture({ "package.json": "{}" })).lines).toEqual([
-    "@tinker/start does not resolve; add it to package.json and install",
+    "package.json:1 does not install @tinker/start; add it and install",
   ]);
 });
 
-test("names each peer that drifted from the tested version, or is missing", () => {
+test("names each peer that drifted from the tested version, or is missing, at its package.json line", () => {
   const root = goodApp({
+    "package.json": '{\n  "dependencies": {\n    "@tanstack/react-router": "1.0.0"\n  }\n}\n',
     "node_modules/@tanstack/react-router/package.json": JSON.stringify({ version: "1.0.0" }),
     "node_modules/@tinker/react/package.json": "{}",
   });
@@ -25,8 +26,8 @@ test("names each peer that drifted from the tested version, or is missing", () =
   expect(version(root)).toMatchObject({
     status: "fail",
     lines: [
-      `@tanstack/react-router is 1.0.0, tested with ${tested["@tanstack/react-router"]}`,
-      `@tinker/react is missing, tested with ${tested["@tinker/react"]}`,
+      `package.json:3 @tanstack/react-router is 1.0.0, tested with ${tested["@tanstack/react-router"]}`,
+      `package.json:1 @tinker/react is missing, tested with ${tested["@tinker/react"]}`,
     ],
   });
 });

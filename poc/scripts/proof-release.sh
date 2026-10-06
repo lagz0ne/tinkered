@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # The release half of the POC proof (ADR 0106), from the repo root.
+# This is the 0.1.x proof. Rerun it at its own commit, d524069f:
+# git worktree add ../tinkered-0.1 d524069f. The tree is 0.2.0 now.
 # Installs the packed 0.1.0 base, breaks the app 4 ways, upgrades to 0.1.1,
 # then puts app-min back on the workspace link. Logs land in poc/proof/.
 # Needs both packs: node poc/start-base/scripts/pack.mjs (see PROOF.md).

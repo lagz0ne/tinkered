@@ -1,0 +1,163 @@
+
+## control: the packed base, nothing broken
+$ vp build
+vp build: EXIT 0
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+
+## Start's usual src/router.tsx, which the glue never reads
+$ vp build
+RolldownError: tinker doctor, named files: src/router.tsx:1 is a Start file the base does not read; router options go in src/router.ts
+vp build: EXIT 1
+$ tinker doctor 
+fail  5 named files
+      src/router.tsx:1 is a Start file the base does not
+      read; router options go in src/router.ts
+doctor: 1 check(s) fail
+EXIT 1
+
+## a route exports route, not Route
+$ vp build
+RolldownError: tinker doctor, routes: src/routes/index.tsx:18 does not export Route; TanStack skips the file, so / is a 404
+vp build: EXIT 1
+$ tinker doctor 
+fail  7 routes
+      src/routes/index.tsx:18 does not export Route;
+      TanStack skips the file, so / is a 404
+doctor: 1 check(s) fail
+EXIT 1
+
+## a user __root.tsx without <Outlet />
+$ vp build
+RolldownError: tinker doctor, routes: src/routes/__root.tsx:3 sets component without <Outlet />; no page renders inside the shell
+vp build: EXIT 1
+$ tinker doctor 
+fail  7 routes
+      src/routes/__root.tsx:3 sets component without
+      <Outlet />; no page renders inside the shell
+doctor: 1 check(s) fail
+EXIT 1
+
+## base files imported by path and by a base-only name
+$ vp build
+RolldownError: tinker doctor, imports: src/backend/peek.ts:1 "../../node_modules/@tinker/start/src/errors.ts" reaches into the base by path; use a base entry
+tinker doctor, imports: src/backend/peek.ts:2 "#tinker/app.server" is a base-only name; app code cannot import it
+vp build: EXIT 1
+$ tinker doctor 
+fail  6 imports
+      src/backend/peek.ts:1
+      "../../node_modules/@tinker/start/src/errors.ts"
+      reaches into the base by path; use a base entry
+      src/backend/peek.ts:2 "#tinker/app.server" is a
+      base-only name; app code cannot import it
+doctor: 1 check(s) fail
+EXIT 1
+
+## routes that take or nest under the base's /tinker
+$ vp build
+RolldownError: tinker doctor, routes: src/routes/tinker/index.tsx:2 takes /tinker, a base route
+tinker doctor, routes: src/routes/tinker/settings.tsx:2 nests under /tinker, a base route with no outlet; the base page renders
+vp build: EXIT 1
+$ tinker doctor 
+fail  7 routes
+      src/routes/tinker/index.tsx:2 takes /tinker, a base
+      route
+      src/routes/tinker/settings.tsx:2 nests under
+      /tinker, a base route with no outlet; the base page
+      renders
+doctor: 1 check(s) fail
+EXIT 1
+
+## a stylesheet nothing links
+$ vp build
+RolldownError: tinker doctor, style: src/styles.css:1 is never linked: nothing imports it, and the shell links only src/style.css
+vp build: EXIT 1
+$ tinker doctor 
+fail  8 style
+      src/styles.css:1 is never linked: nothing imports
+      it, and the shell links only src/style.css
+doctor: 1 check(s) fail
+EXIT 1
+
+## a user shell that does not link src/style.css
+$ vp build
+RolldownError: tinker doctor, style: src/routes/__root.tsx:1 replaces the base shell and does not link src/style.css; import style from "../style.css?url" and add { rel: "stylesheet", href: style } to head links
+vp build: EXIT 1
+$ tinker doctor 
+fail  8 style
+      src/routes/__root.tsx:1 replaces the base shell and
+      does not link src/style.css; import style from
+      "../style.css?url" and add { rel: "stylesheet",
+      href: style } to head links
+doctor: 1 check(s) fail
+EXIT 1
+
+## a <Link to> typo
+$ vp build
+RolldownError: tsc found 1 type error(s); the build stops here:
+src/routes/nav.tsx:2:71 TS2820 Type '"/tinkr"' is not assignable to type '"." | ".." | "/" | "/api/health" | "/nav" | "/tinker"'. Did you mean '"/tinker"'?
+vp build: EXIT 1
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+
+## shadcn aliases under a stale .tinker/ with a relative @/*
+$ tinker doctor 
+fail  3 generated folder
+      .tinker/tsconfig.json is stale; run tinker prepare
+fail  8 style
+      src/style.css:1 imports tailwindcss, but
+      tailwindcss is not installed; tinker() adds
+      Tailwind when it is
+      src/style.css:1 imports tailwindcss, but
+      @tailwindcss/vite is not installed; tinker() adds
+      Tailwind when it is
+      components.json:1 aliases.ui "@/components/ui"
+      lands at ../src/components/ui, outside src/; shadcn
+      writes there
+doctor: 2 check(s) fail
+EXIT 1
+$ tinker doctor --fix
+fixed 3 generated folder
+      ran tinker prepare
+fail  8 style
+      src/style.css:1 imports tailwindcss, but
+      tailwindcss is not installed; tinker() adds
+      Tailwind when it is
+      src/style.css:1 imports tailwindcss, but
+      @tailwindcss/vite is not installed; tinker() adds
+      Tailwind when it is
+doctor: 1 check(s) fail
+EXIT 1
+
+## a new route while no dev server runs: the route tree is stale
+$ tinker doctor 
+fail  3 generated folder
+      .tinker/routeTree.gen.ts misses
+      src/routes/later.tsx; run tinker prepare
+doctor: 1 check(s) fail
+EXIT 1
+$ tinker doctor --fix
+fixed 3 generated folder
+      ran tinker prepare
+doctor: all checks pass
+EXIT 0
+$ grep -c later .tinker/routeTree.gen.ts
+13
+
+## a named file without the export the base reads
+$ vp build
+RolldownError: tinker doctor, named files: src/start.ts:1 does not export startInstance; the base imports it from this file
+vp build: EXIT 1
+$ tinker doctor 
+fail  5 named files
+      src/start.ts:1 does not export startInstance; the
+      base imports it from this file
+doctor: 1 check(s) fail
+EXIT 1
+
+## a tinker() option the base would drop
+$ vp build
+Error: tinker(): unknown option prerendr; known: root, prerender, pages, spa, sitemap
+vp build: EXIT 1

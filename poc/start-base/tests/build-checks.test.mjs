@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { buildChecks } from "../lib/doctor.mjs";
+import { basePackage } from "../lib/paths.mjs";
 import { goodApp } from "./fixture.mjs";
 
 test("a good app builds with no error and no warning", () => {
@@ -35,9 +36,7 @@ test("a glue or version problem only warns: the build itself still works", () =>
   const { errors, warnings } = buildChecks(root);
   expect(errors).toEqual([]);
   expect(warnings).toEqual([
-    expect.stringMatching(
-      /^tinker doctor, base version: @tanstack\/react-start is 0\.0\.1, tested with /,
-    ),
+    `tinker doctor, base version: package.json:1 @tanstack/react-start is 0.0.1, tested with ${basePackage.tinker.tested["@tanstack/react-start"]}`,
     'tinker doctor, glue: tsconfig.json:1 does not extend "./.tinker/tsconfig.json"',
   ]);
 });

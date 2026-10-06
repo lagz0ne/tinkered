@@ -1,0 +1,26 @@
+
+## named files: src/router.ts, src/start.ts, src/server.ts, src/style.css
+$ vp build
+vp build: EXIT 0
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+$ curl -s :PORT/ | grep -ao '<link rel="stylesheet"[^>]*>'
+<link rel="stylesheet" href="/assets/style-COr38ptN.css" data-precedence="default"/>
+$ curl -s :PORT/nope | grep -ao '<p>app 404 page</p>'
+<p>app 404 page</p>
+$ curl -s :PORT/raw | grep -ao 'raw from src/server.ts'
+raw from src/server.ts
+$ curl -sI :PORT/ | grep x-app-middleware
+x-app-middleware: yes
+$ curl -si :PORT/robots.txt | head -1
+HTTP/1.1 200 OK
+$ curl -s :PORT/api/env | grep -ao '"greeting":"[^"]*"'
+"greeting":"from-dot-env"
+$ curl -s :PORT/boom: the page, then the error text
+<h1>Something went wrong</h1>
+visible <pre> with the error: 0
+error text in the page data (TanStack, P4): 1
+server stopped: EXIT 0
+$ grep 'tinker: a route failed' server log
+tinker: a route failed on the server: Error: boom: secret detail
