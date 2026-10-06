@@ -1,0 +1,4 @@
+{
+  "extends": "../app-min/.tinker/tsconfig.json",
+  "include": ["src"]
+}

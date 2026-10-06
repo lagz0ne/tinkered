@@ -1,0 +1,68 @@
+{
+  "name": "@tinker/start",
+  "version": "0.1.1",
+  "private": true,
+  "description": "POC for ADR 0106: the Start base as a package.",
+  "bin": {
+    "tinker": "./bin/tinker.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "src",
+    "vite.mjs",
+    "vite.d.mts",
+    "files.json",
+    "UPGRADE.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./vite": {
+      "types": "./vite.d.mts",
+      "default": "./vite.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "release": "node scripts/pack.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "1.19.17",
+    "@tanstack/virtual-file-routes": "1.162.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "oxc-parser": "^0.117.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-router": "1.170.41",
+    "@tanstack/react-start": "1.168.60",
+    "@tinker/core": "workspace:*",
+    "@tinker/react": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "peerDependencies": {
+    "@tanstack/react-router": "1.170.41",
+    "@tanstack/react-start": "1.168.60",
+    "@tinker/core": "*",
+    "@tinker/react": "*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "tinker": {
+    "tested": {
+      "@tanstack/react-router": "1.170.41",
+      "@tanstack/react-start": "1.168.60",
+      "@tinker/core": "0.0.0",
+      "@tinker/react": "0.0.0"
+    },
+    "routes": [
+      "/api/health",
+      "/tinker"
+    ]
+  }
+}
