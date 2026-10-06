@@ -10,7 +10,14 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { parseSync } from "oxc-parser";
-import { installedBase, installedVersion, listFiles, readJson, sha256 } from "./paths.mjs";
+import {
+  basePackage,
+  installedBase,
+  installedVersion,
+  listFiles,
+  readJson,
+  sha256,
+} from "./paths.mjs";
 import { prepare, render } from "./prepare.mjs";
 
 const ok = (reason) => ({ status: "ok", reason });
@@ -89,8 +96,18 @@ function ignoresTinker(root) {
   return existsSync(path) && readFileSync(path, "utf8").split("\n").includes(".tinker/");
 }
 
+/** @param {string} root - From the CLI; why: compare the running tinker with the app's base. */
+function otherBase(root) {
+  const dir = installedBase(root);
+  const version = dir && readJson(join(dir, "package.json")).version;
+  if (!version || version === basePackage.version) return null;
+  return `this tinker is base ${basePackage.version}, the app resolves ${version}; run the app's own tinker`;
+}
+
 /** @param {string} root - From the CLI; why: every check reads the app there. */
 function generated(root) {
+  const other = otherBase(root);
+  if (other) return fail(other);
   const dir = join(root, ".tinker");
   const stale = Object.entries(render(root))
     .filter(

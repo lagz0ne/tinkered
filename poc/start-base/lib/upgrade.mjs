@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { baseBytes } from "./doctor.mjs";
 import { installedBase, readJson } from "./paths.mjs";
@@ -60,13 +60,22 @@ function writeDependencies(root, spec, tested) {
 }
 
 /**
+ * @param {string} label - From upgrade; why: the short command line to print.
  * @param {string} command - From upgrade; why: the program to run.
  * @param {string[]} args - From upgrade; why: its arguments.
  * @param {string} cwd - From upgrade; why: run it in the app folder.
  */
-function step(command, args, cwd) {
-  console.log(`$ ${[command, ...args].map((part) => relative(cwd, part) || part).join(" ")}`);
+function step(label, command, args, cwd) {
+  console.log(`$ ${label}`);
   return spawnSync(command, args, { cwd, stdio: "inherit" }).status;
+}
+
+/**
+ * The base folder on disk now. Not require.resolve: this process cached the old release.
+ * @param {string} root - From upgrade; why: the app whose node_modules holds the base.
+ */
+function freshBase(root) {
+  return realpathSync(join(root, "node_modules/@tinker/start"));
 }
 
 /**
@@ -87,10 +96,11 @@ function release(root, version, from) {
 
 /** @param {string} root - From upgrade; why: install, then run the new base's own commands. */
 function finish(root) {
-  if (step(installCommand(root), ["install"], root) !== 0) return 1;
-  const bin = join(installedBase(root), "bin/tinker.mjs");
-  if (step(process.execPath, [bin, "prepare"], root) !== 0) return 1;
-  return step(process.execPath, [bin, "doctor"], root);
+  const install = installCommand(root);
+  if (step(`${install} install`, install, ["install"], root) !== 0) return 1;
+  const bin = join(freshBase(root), "bin/tinker.mjs");
+  if (step("tinker prepare", process.execPath, [bin, "prepare"], root) !== 0) return 1;
+  return step("tinker doctor", process.execPath, [bin, "doctor"], root);
 }
 
 /**
@@ -114,7 +124,7 @@ export function upgrade(root, version, options) {
   for (const [name, from, to] of writeDependencies(root, next.spec, next.tested))
     console.log(`package.json: ${name} ${from} -> ${to}`);
   const status = finish(root);
-  const notes = readFileSync(join(installedBase(root), "UPGRADE.md"), "utf8");
+  const notes = readFileSync(join(freshBase(root), "UPGRADE.md"), "utf8");
   console.log(
     `\nUpgrade notes, ${before} to ${version}:\n\n${notesBetween(notes, before, version)}`,
   );
