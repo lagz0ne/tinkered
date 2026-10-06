@@ -104,7 +104,7 @@ caught    1 failed  listed keys come in parseEnv's sorted order
 caught    4 failed  a short secret passes
 caught    1 failed  a parts file exports every part, read or not
 caught    2 failed  the auth part takes a refused key
-caught    1 failed  the app root starts without reading the auth keys
+caught    2 failed  the app root starts without reading the auth keys
 caught    1 failed  handleAuth hands the library another request
 caught    1 failed  the telemetry queue has no count bound
 caught    1 failed  message boundary.mjs say.none

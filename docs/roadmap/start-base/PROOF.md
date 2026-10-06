@@ -6,8 +6,10 @@ Full logs: `proof/*.txt`, from real runs.
 The blocks below are cut from them:
 a line is left out or wrapped, and `…` marks a cut.
 
-Four rounds:
+Five rounds:
 
+- **0.4.0, the auth part** (card `start/base-parts`,
+  step 2 of 3). Section Q.
 - **0.3.0, the telemetry part** (card `start/base-parts`,
   step 1 of 3). Section P.
 - **The package** (card `start/base-package`):
@@ -24,6 +26,127 @@ Read their paths this way:
 - `poc/app-min` is now `apps/start-min`.
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
+
+## Q. The auth part, 0.4.0
+
+Copied from `apps/start-scaffold`
+(`src/scaffold/backend/auth.server.ts`,
+`src/routes/api.auth.$.ts`); the scaffold is not changed.
+It lives in `packages/start/src/parts/auth/`.
+
+### What it is
+
+- `tinker({ auth: true })` turns it on; it is off by default.
+- Route `/api/auth/$` (GET and POST), only while on:
+  `handleAuth`, ADR 0103's named exception,
+  hands the request to the app's `auth.handler`.
+- It reads `auth` and `readAccount` from
+  `src/lib/tinker.server.ts`. The base reads
+  `readAccount` from step 3, through sync's `getAccount`.
+- `authSettings` reads `PUBLIC_ORIGIN` and `AUTH_SECRET`
+  once; it is on `@tinker/start/server`,
+  for the app's `auth` to build on.
+  With auth on, the app root does not start
+  while a key is unset or refused.
+- Each part now names the entry modules it has,
+  so `.tinker/parts.ts` exports no `auth`.
+
+### Doctor
+
+- Check 5 names a missing seam file,
+  or each name the seam lacks. The build stops on it.
+- Check 7 also takes a path under a base splat:
+  `/api/auth/login` under `/api/auth/$`.
+- Check 9 names an unset key as `.env`'s,
+  unless `.env.example` lists it, and a refused one
+  at its `.env` line. Listed keys now come
+  in file order; `parseEnv` sorts them.
+
+### Gates
+
+```text
+vp install: EXIT 0
+vp run -r build: EXIT 0
+vp check: EXIT 0
+  0 errors, 28 warnings (as on main;
+  none in packages/start)
+vp run -r test: EXIT 0
+  @tinker/start: 259 passed (236 before)
+vp run prose: EXIT 0
+break-each-check: 186 of 186 caught
+  (108 logic, 78 message)
+mutation: 87.97, EXIT 0
+  2620 killed, 12 timed out, 307 survived,
+  53 not covered, of 2992
+  Kills alone: 87.57
+  src/parts/auth: 23 of 25 killed, 92.00
+```
+
+The two auth survivors:
+
+- The startup extension's label, `"auth"`:
+  no trace or error shows it.
+- `resource({})` for `authSettings`:
+  the module fails to load, no test runs,
+  and Stryker counts it as survived.
+
+### Tests
+
+- `tests/auth.test.ts`: `handleAuth` passes the request
+  and its reply; only a request; a failing library;
+  the two keys; unset, empty, and refused keys;
+  the root that does not start; the off part; trace names.
+- The glue and doctor tests: the switch, the mount,
+  the parts files, check 5's seam lines,
+  the build stop, check 7's splat, check 9's keys.
+- A stand-in seam, `tests/fixtures/app.server.ts`,
+  is `#tinker/app.server` for the tests and the base's
+  type check. `tests/fixtures/routes.d.ts` declares
+  the auth route, since apps/start-min's tree has auth off.
+
+### Builds and serves
+
+Log: `proof/13-auth-part.txt`, in a scratch copy
+of apps/start-min with a stand-in seam.
+
+```text
+## auth on, with a stand-in seam
+vp build: EXIT 0 · doctor: all checks pass
+GET /api/auth/get-session:
+  "handled":"GET /api/auth/get-session"
+POST /api/auth/sign-in/email:
+  {"handled":"POST /api/auth/sign-in/email",
+   "origin":"http://127.0.0.1:4318"}
+## auth off (the default)
+export { auth } from "…/parts/auth/off.ts";
+doctor: all checks pass
+GET /api/auth/get-session: the app takes it
+## auth on, and the app's own /api/auth/$
+src/routes/api.auth.$.ts:2 takes /api/auth/$,
+  a base route; tinker({ auth: false }) frees it
+vp build: EXIT 1
+## auth on, a seam without readAccount
+tinker doctor, named files:
+  src/lib/tinker.server.ts:1 does not export
+  readAccount; the auth part reads it
+vp build: EXIT 1
+## auth on, no seam at all
+src/lib/tinker.server.ts is missing;
+  the auth part reads auth and readAccount from it
+vp build: EXIT 1
+## auth on, a short secret and no origin
+fail  9 env
+  .env does not set PUBLIC_ORIGIN;
+  the auth part needs it
+  .env:2 sets AUTH_SECRET; the auth part
+  needs at least 32 characters
+```
+
+### Not proven here
+
+- A real auth library (better-auth with Postgres):
+  that is the app's, and moves with the scaffold.
+- `vp dev`: only builds were served.
 
 ## P. The telemetry part, 0.3.0
 
