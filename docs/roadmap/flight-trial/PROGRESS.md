@@ -36,7 +36,10 @@ Build and check returned 0; check prints 28 existing warnings.
 The trial test gate returned 0 and printed 148 passed tests in 12 files.
 Prose returned 0.
 The wire check returned 0: zero differences across 2,160 calls and 30 error codes.
-The locked mutation checks are pending.
+The locked changed-line check killed all five mutations, with zero timeouts, exit 0.
+Both named StringLiteral survivors are Killed.
+The full locked mutation check is pending.
+Rebase keeps main's latest board entries and this card in Doing.
 Strict style, the TSDoc parser, and Jev preflight returned 0.
 Jev found no changed-test flags; it does not read `test.each` cases.
 Its promise notes cover 12 old titles and the new public HEAD check.

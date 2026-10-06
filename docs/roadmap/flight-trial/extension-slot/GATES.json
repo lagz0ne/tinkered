@@ -55,7 +55,7 @@
       "differences": 0
     }
   ],
-  "pending": ["changed-line kill check", "full mutation check"],
+  "pending": ["full mutation check"],
   "advisory": {
     "style_exit_code": 0,
     "tsdoc_exit_code": 0,
@@ -65,5 +65,38 @@
     "promises_exit_code": 0,
     "promise_flags": 13,
     "new_promise_note": "existing public HEAD dispatch returns 404; README and labels are outside the allowed paths"
+  },
+  "changed_line_kill_check": {
+    "command": "flock /tmp/mutation.lock vp exec stryker run --mutate 'services/http.ts:392-392,services/payment/index.ts:479-479' --reporters clear-text,json",
+    "cwd": "tools/flight-trial",
+    "exit_code": 0,
+    "killed": 5,
+    "timeout": 0,
+    "survived": 0,
+    "no_coverage": 0,
+    "named_survivors": [
+      {
+        "file": "services/payment/index.ts",
+        "line": 479,
+        "mutator": "StringLiteral",
+        "replacement": "\"\"",
+        "status": "Killed"
+      },
+      {
+        "file": "services/http.ts",
+        "line": 392,
+        "mutator": "StringLiteral",
+        "replacement": "\"\"",
+        "status": "Killed"
+      }
+    ]
+  },
+  "rebase": {
+    "command": "git fetch origin && git rebase origin/main",
+    "exit_code": 0,
+    "origin_main": "35404adc",
+    "conflicts_resolved": ["TODO.md: keep the latest board entries; keep this card in Doing"],
+    "install_exit_code": 0,
+    "build_exit_code": 0
   }
 }
