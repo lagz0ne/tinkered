@@ -358,8 +358,9 @@ test("JSON without a content type still reaches the payment operation", async ()
   expect(await response.json()).toMatchObject({ amount: 901, currency: "usd" });
 });
 
-test("the payment-failed scenario sets the next confirmation outcome", async () => {
-  const { url } = running.find((service) => service.name === "payment")!;
+test("the payment-failed scenario finishes its confirmation and sends a valid webhook", async () => {
+  const service = running.find((service) => service.name === "payment")!;
+  const { url } = service;
   await (await post(url, "/control/clock", { now: 10000 })).arrayBuffer();
   await (await post(url, "/control/scenario", { name: "payment-failed" })).arrayBuffer();
   const created = await post(url, "/v1/payment_intents", { amount: 901, currency: "usd" });
@@ -372,4 +373,7 @@ test("the payment-failed scenario sets the next confirmation outcome", async () 
       return z.object({ status: z.string() }).parse(await response.json()).status;
     })
     .toBe("requires_payment_method");
+  await expect
+    .poll(() => service.logs.filter((entry) => entry.message === "webhook delivery failed").length)
+    .toBe(1);
 });
