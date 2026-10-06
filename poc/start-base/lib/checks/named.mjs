@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { appFiles, ignoredFiles } from "../named.mjs";
-import { exportsOf, parseSource } from "../source.mjs";
+import { mayExport } from "../source.mjs";
 import { verdict } from "./result.mjs";
 
 export const say = {
@@ -20,7 +20,7 @@ export const say = {
 export function named(root) {
   const found = appFiles.filter(({ file, reads }) => reads && existsSync(join(root, file)));
   const missing = found
-    .filter(({ file, reads }) => !exportsOf(parseSource(join(root, file))).has(reads))
+    .filter(({ file, reads }) => !mayExport(join(root, file), reads))
     .map(({ file, reads }) => say.export(file, reads));
   const ignored = ignoredFiles
     .filter(({ file }) => existsSync(join(root, file)))

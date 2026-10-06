@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
 import { generated, staleTree } from "../../lib/checks/generated.mjs";
@@ -38,13 +38,32 @@ test("names a stale generated file and a missing route tree", () => {
   ]);
 });
 
-test("names a route file the tree misses, but not a file that exports no Route", () => {
+test("names a route file the tree misses", () => {
+  const root = preparedApp({
+    "src/routes/later.tsx": 'export const Route = createFileRoute("/later")({});\n',
+  });
+  expect(generated(root).lines).toEqual([
+    ".tinker/routeTree.gen.ts misses src/routes/later.tsx; run tinker prepare",
+  ]);
+});
+
+test("while check 7 fails, a missed route says to fix check 7 first; a file with no Route is check 7's", () => {
   const root = preparedApp({
     "src/routes/later.tsx": 'export const Route = createFileRoute("/later")({});\n',
     "src/routes/broken.tsx": "export const route = 1;\n",
   });
   expect(generated(root).lines).toEqual([
-    ".tinker/routeTree.gen.ts misses src/routes/later.tsx; run tinker prepare",
+    ".tinker/routeTree.gen.ts misses src/routes/later.tsx; fix check 7 first, then run tinker prepare",
+  ]);
+});
+
+test("a route file that re-exports Route from another file counts as a route", () => {
+  const root = preparedApp({
+    "src/routes/about.tsx": 'export * from "../frontend/about-page.tsx";\n',
+    "src/frontend/about-page.tsx": 'export const Route = createFileRoute("/about")({});\n',
+  });
+  expect(generated(root).lines).toEqual([
+    ".tinker/routeTree.gen.ts misses src/routes/about.tsx; run tinker prepare",
   ]);
 });
 
@@ -61,7 +80,7 @@ test("after the generator stops on a clash, tinker prepare names the gap and the
   });
   expect(staleTree(root)).toEqual([
     "tinker prepare: the route generator left the tree stale; fix the lines below:",
-    ".tinker/routeTree.gen.ts misses src/routes/tinker.tsx; run tinker prepare",
+    ".tinker/routeTree.gen.ts misses src/routes/tinker.tsx",
     "src/routes/tinker.tsx:1 takes /tinker, a base route",
   ]);
   expect(staleTree(preparedApp())).toEqual([]);
@@ -96,6 +115,50 @@ test("refuses to judge with another base's tinker", () => {
   expect(generated(root).lines).toEqual([
     `this tinker is base ${basePackage.version}, the app resolves 0.0.9; run the app's own tinker`,
   ]);
+});
+
+test("--fix starts a new line in a .gitignore that does not end in one", () => {
+  const root = preparedApp({ ".gitignore": "node_modules\ndist" });
+  expect(runCheck(root, generated, true).status).toBe("fixed");
+  expect(readFileSync(join(root, ".gitignore"), "utf8")).toBe(
+    "node_modules\ndist\n.tinker/\n.tanstack/\n",
+  );
+});
+
+/**
+ * A fake `vite` with the one call `tinker prepare` makes: it notes that the route generator ran
+ * (the real one would write the tree), so a test sees whether --fix ran it. No Vite runs.
+ */
+const fakeVite = (onResolve) => ({
+  "node_modules/vite/package.json": JSON.stringify({
+    name: "vite",
+    type: "module",
+    exports: "./index.js",
+  }),
+  "node_modules/vite/index.js": `import { writeFileSync } from "node:fs";\nexport async function resolveConfig({ root }) {\n  writeFileSync(root + "/.generator-ran", "1");\n  ${onResolve}\n}\n`,
+});
+const later = { "src/routes/later.tsx": 'export const Route = createFileRoute("/later")({});\n' };
+
+test("--fix never runs the generator while a route clashes: check 3's lines come back", () => {
+  const clash = 'export const Route = createFileRoute("/tinker")({});\n';
+  const root = preparedApp({ ...fakeVite(""), ...later, "src/routes/tinker.tsx": clash });
+  expect(runCheck(root, generated, true)).toMatchObject({
+    status: "fail",
+    lines: [
+      ".tinker/routeTree.gen.ts misses src/routes/later.tsx; fix check 7 first, then run tinker prepare",
+    ],
+  });
+  expect(existsSync(join(root, ".generator-ran"))).toBe(false);
+  expect(readFileSync(join(root, "src/routes/tinker.tsx"), "utf8")).toBe(clash);
+});
+
+test("--fix runs the generator when check 7 passes; a prepare that fails leaves check 3's lines, not a crash", () => {
+  const root = preparedApp({ ...fakeVite('throw new Error("generator failed");'), ...later });
+  expect(runCheck(root, generated, true)).toMatchObject({
+    status: "fail",
+    lines: [".tinker/routeTree.gen.ts misses src/routes/later.tsx; run tinker prepare"],
+  });
+  expect(existsSync(join(root, ".generator-ran"))).toBe(true);
 });
 
 test("--fix rewrites .tinker/ and adds the missing .gitignore lines", () => {

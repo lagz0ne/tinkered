@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
 import { glue } from "../../lib/checks/glue.mjs";
@@ -32,11 +32,34 @@ test("fails with no vite.config.ts", () => {
   expect(glue(root).lines).toEqual(["vite.config.ts is missing; add one with plugins: [tinker()]"]);
 });
 
-test("names a missing import and a missing call", () => {
+test("names a missing import, and an import with no call", () => {
   const root = goodApp({ "vite.config.ts": "export default { plugins: [] };\n" });
   expect(glue(root).lines).toEqual([
     'vite.config.ts:1 does not import tinker from "@tinker/start/vite"',
-    "vite.config.ts:1 calls tinker() 0 times; call it once: plugins: [tinker()]",
+  ]);
+  const uncalled = goodApp({
+    "vite.config.ts":
+      'import { defineConfig } from "vite-plus";\nimport { tinker } from "@tinker/start/vite";\nexport default {};\n',
+  });
+  expect(glue(uncalled).lines).toEqual([
+    "vite.config.ts:2 does not call tinker(); add plugins: [tinker()]",
+  ]);
+});
+
+test("counts tinker() under the name it is imported as, in any Vite config file name", () => {
+  const renamed =
+    'import { tinker as base } from "@tinker/start/vite";\nexport default { plugins: [base()] };\n';
+  expect(glue(goodApp({ "vite.config.ts": renamed })).status).toBe("ok");
+  const mts = goodApp({ "vite.config.mts": renamed });
+  rmSync(join(mts, "vite.config.ts"));
+  expect(glue(mts).status).toBe("ok");
+  const twice = goodApp({
+    "vite.config.mjs":
+      'import { tinker as base } from "@tinker/start/vite";\nexport default { plugins: [base(), base()] };\n',
+  });
+  rmSync(join(twice, "vite.config.ts"));
+  expect(glue(twice).lines).toEqual([
+    "vite.config.mjs:2 calls tinker() 2 times; call it once: plugins: [tinker()]",
   ]);
 });
 
@@ -68,6 +91,36 @@ test("names a package.json with no postinstall that runs tinker prepare", () => 
   expect(glue(root).lines).toEqual([
     'package.json:1 has no "postinstall": "tinker prepare"; a fresh clone has no .tinker/',
   ]);
+});
+
+test("reads tsconfig.json as tsc does: a comment and a trailing comma are fine", () => {
+  const root = goodApp({
+    "tsconfig.json":
+      '{\n  // the app\'s own options\n  "extends": "./.tinker/tsconfig.json",\n  "compilerOptions": { "jsx": "react-jsx", },\n}\n',
+  });
+  expect(glue(root).status).toBe("ok");
+});
+
+test("--fix adds only the extends key, and keeps comments, trailing commas, and options", () => {
+  const tsconfig =
+    '{\n  // the app\'s own options\n  "compilerOptions": { "jsx": "react-jsx", },\n}\n';
+  const root = goodApp({ "tsconfig.json": tsconfig });
+  expect(runCheck(root, glue, true).status).toBe("fixed");
+  expect(readFileSync(join(root, "tsconfig.json"), "utf8")).toBe(
+    '{\n  "extends": "./.tinker/tsconfig.json",\n  // the app\'s own options\n  "compilerOptions": { "jsx": "react-jsx", },\n}\n',
+  );
+});
+
+test("a tsconfig.json that does not parse is named at its line, and --fix never writes it", () => {
+  const broken = '{\n  "compilerOptions": {\n    "jsx": "react-jsx"\n    "strict": true\n  }\n}\n';
+  const root = goodApp({ "tsconfig.json": broken });
+  const result = glue(root);
+  expect(result.lines).toEqual([
+    "tsconfig.json:4 does not parse (CommaExpected); doctor reads it as tsc does and never edits it",
+  ]);
+  expect(result.fix).toBeUndefined();
+  expect(runCheck(root, glue, true).status).toBe("fail");
+  expect(readFileSync(join(root, "tsconfig.json"), "utf8")).toBe(broken);
 });
 
 test("--fix writes the extends line and the postinstall script, and keeps the rest", () => {

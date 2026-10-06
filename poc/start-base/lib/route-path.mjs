@@ -13,16 +13,38 @@ export function isRouteFile(file) {
 }
 
 /**
+ * A route file's path split into segments: folders and dots both split; `[.]` escapes a dot.
+ * @param {string} file - From a walk of src/routes; why: the path decides the route.
+ */
+function segmentsOf(file) {
+  return file
+    .replace(/\.[jt]sx?$/, "")
+    .split("/")
+    .flatMap((part) => part.match(/(\[[^\]]*\]|[^.])+/g) ?? []);
+}
+
+/**
+ * The id TanStack's generator writes into `createFileRoute("…")`: groups and `_pathless`
+ * parts stay, and an index route ends in a slash.
+ * @param {string} file - From a walk of src/routes; why: the path decides the id.
+ */
+export function routeId(file) {
+  const segments = segmentsOf(file);
+  if (segments.at(-1) === "lazy") segments.pop();
+  const index = segments.at(-1) === "index";
+  if (index || segments.at(-1) === "route") segments.pop();
+  const id = `/${segments.join("/")}`;
+  return index && segments.length > 0 ? `${id}/` : id;
+}
+
+/**
  * The URL a route file serves, read from its path the way TanStack's generator reads it:
  * folders and dots split segments; `(group)`, `_pathless`, and an ending index add none.
  * @param {string} file - From a walk of src/routes; why: the path decides the route.
  * @param {boolean} keepUnnest - From routeClash; why: a trailing "_" leaves the parent route.
  */
 export function routePath(file, keepUnnest = false) {
-  const segments = file
-    .replace(/\.[jt]sx?$/, "")
-    .split("/")
-    .flatMap((part) => part.match(/(\[[^\]]*\]|[^.])+/g) ?? []);
+  const segments = segmentsOf(file);
   while (silentEnds.has(segments.at(-1))) segments.pop();
   const served = segments
     .filter((part) => !/^\(.+\)$/.test(part) && !part.startsWith("_"))

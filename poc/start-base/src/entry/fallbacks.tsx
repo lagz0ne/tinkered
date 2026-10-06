@@ -1,4 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
+import { errorDetail } from "./error-detail.ts";
 
 /**
  * The base's error page: a production page shows no error text, and the server log gets the
@@ -6,10 +7,11 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
  */
 export function TinkerError({ error }: ErrorComponentProps) {
   if (import.meta.env.SSR) console.error("tinker: a route failed on the server:", error);
+  const detail = errorDetail(error, import.meta.env.DEV);
   return (
     <main>
       <h1>Something went wrong</h1>
-      {import.meta.env.DEV && <pre>{error instanceof Error ? error.message : String(error)}</pre>}
+      {detail !== undefined && <pre>{detail}</pre>}
     </main>
   );
 }

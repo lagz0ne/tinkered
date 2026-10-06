@@ -42,6 +42,43 @@ test("names a user shell that does not link src/style.css", () => {
   expect(style(linked).status).toBe("ok");
 });
 
+test("a comment that names style.css?url does not link it; an @/ import does", () => {
+  const comment = goodApp({
+    "src/style.css": "",
+    "src/routes/__root.tsx": '// import style from "../style.css?url"\nexport const Route = 1;\n',
+  });
+  expect(style(comment).lines).toEqual([
+    'src/routes/__root.tsx:1 replaces the base shell and does not link src/style.css; import style from "../style.css?url" and add { rel: "stylesheet", href: style } to head links',
+  ]);
+  const alias = goodApp({
+    "src/style.css": "",
+    "src/routes/__root.tsx": 'import style from "@/style.css?url";\nexport const Route = style;\n',
+  });
+  expect(style(alias).status).toBe("ok");
+});
+
+test("a commented-out @import of tailwindcss needs no Tailwind package", () => {
+  expect(style(goodApp({ "src/style.css": '/* @import "tailwindcss"; */\n' })).status).toBe("ok");
+});
+
+test("a components.json that does not parse is named at its line, not thrown", () => {
+  const root = goodApp({
+    "components.json": '{\n  "aliases": { "ui": "@/components/ui" }\n  "tailwind": {}\n}\n',
+  });
+  expect(style(root).lines).toEqual(["components.json:3 does not parse (CommaExpected)"]);
+});
+
+test("reads tsconfig.json as tsc does, so a comment does not hide shadcn's aliases", () => {
+  const root = goodApp({
+    ...tailwindInstalled,
+    "components.json": shadcn({}),
+    "src/style.css": '@import "tailwindcss";\n',
+    "tsconfig.json": '{\n  // glue\n  "extends": "./.tinker/tsconfig.json",\n}\n',
+  });
+  prepare(root);
+  expect(style(root).status).toBe("ok");
+});
+
 test("names a stylesheet nothing links", () => {
   expect(style(goodApp({ "src/styles.css": "" })).lines).toEqual([
     "src/styles.css:1 is never linked: nothing imports it, and the shell links only src/style.css",

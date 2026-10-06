@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { shellFile } from "../named.mjs";
-import { installedVersion, lineAt, listFiles, readJson, readText } from "../paths.mjs";
+import { lineOfKey, readJsonc } from "../jsonc.mjs";
+import { installedVersion, lineAt, listFiles, readText } from "../paths.mjs";
 import { parseSource, specifiers } from "../source.mjs";
 import { verdict } from "./result.mjs";
 
@@ -21,21 +22,24 @@ export const say = {
     `src/style.css is missing; shadcn's files in ${ui} need it, with @import "tailwindcss"`,
   noTailwind: (ui) =>
     `src/style.css:1 does not @import "tailwindcss"; shadcn's files in ${ui} need Tailwind`,
+  parse: ({ line, code }) => `components.json:${line} does not parse (${code})`,
   passed: (styled) =>
     styled
       ? "src/style.css is linked by the shell; every stylesheet is linked"
       : "no src/style.css; every stylesheet is linked",
 };
 
-/** @param {string} root - From the style check; why: the paths shadcn reads, as tsconfig-paths merges them. */
+/**
+ * The paths shadcn reads, as tsconfig-paths merges them; null when a tsconfig does not parse
+ * (check 4 names that line, so the alias lines here would only guess).
+ * @param {string} root - From componentsProblems; why: the app's tsconfig.json.
+ */
 function mergedPaths(root) {
-  try {
-    const own = readJson(join(root, "tsconfig.json"));
-    const parent = own.extends ? readJson(resolve(root, own.extends)) : {};
-    return own.compilerOptions?.paths ?? parent.compilerOptions?.paths ?? {};
-  } catch {
-    return {};
-  }
+  const own = readJsonc(join(root, "tsconfig.json"));
+  if (own.error) return null;
+  const parent = own.value.extends ? readJsonc(resolve(root, own.value.extends)) : { value: {} };
+  if (parent.error) return null;
+  return own.value.compilerOptions?.paths ?? parent.value.compilerOptions?.paths ?? {};
 }
 
 /**
@@ -54,23 +58,35 @@ function aliasTarget(root, paths, alias) {
   return null;
 }
 
+/**
+ * @param {string} root - From componentsProblems; why: shadcn resolves from the app folder.
+ * @param {string} text - From components.json; why: each alias's line.
+ * @param {Record<string, string>} aliases - From components.json; why: where shadcn writes.
+ * @param {Record<string, string[]>} paths - From mergedPaths; why: the table shadcn reads.
+ */
+function aliasProblems(root, text, aliases, paths) {
+  const src = join(root, "src");
+  return Object.entries(aliases).map(([name, alias]) => {
+    const line = lineOfKey(text, ["aliases", name]);
+    const target = aliasTarget(root, paths, alias);
+    if (!target) return say.aliasNone(line, name, alias);
+    const inside = target === src || target.startsWith(src + sep);
+    return inside ? null : say.aliasOut(line, name, alias, relative(root, target));
+  });
+}
+
 /** @param {string} root - From the style check; why: shadcn's settings and their lines. */
 function componentsProblems(root) {
-  const text = readText(join(root, "components.json"));
-  if (!text) return [];
-  const { aliases = {}, tailwind = {} } = JSON.parse(text);
+  const components = readJsonc(join(root, "components.json"));
+  if (components.error) return [say.parse(components.error)];
+  if (!components.text) return [];
+  const { text, value } = components;
+  const { aliases = {}, tailwind = {} } = value;
   const paths = mergedPaths(root);
-  const src = join(root, "src");
-  const lineOf = (key) => lineAt(text, text.indexOf(`"${key}"`));
-  const aliasLines = Object.entries(aliases).map(([name, alias]) => {
-    const target = aliasTarget(root, paths, alias);
-    if (!target) return say.aliasNone(lineOf(name), name, alias);
-    const inside = target === src || target.startsWith(src + sep);
-    return inside ? null : say.aliasOut(lineOf(name), name, alias, relative(root, target));
-  });
+  if (!paths) return [];
   return [
-    ...aliasLines,
-    tailwind.css !== "src/style.css" && say.css(lineOf("css"), tailwind.css),
+    ...aliasProblems(root, text, aliases, paths),
+    tailwind.css !== "src/style.css" && say.css(lineOfKey(text, ["tailwind", "css"]), tailwind.css),
     ...uiProblems(root, aliases.ui && aliasTarget(root, paths, aliases.ui)),
   ];
 }
@@ -83,15 +99,24 @@ function componentsProblems(root) {
  */
 function uiProblems(root, ui) {
   if (!ui || listFiles(ui).length === 0) return [];
-  const style = readText(join(root, "src/style.css"));
+  const style = cssText(join(root, "src/style.css"));
   const where = relative(root, ui);
-  if (!style) return [say.noStyle(where)];
+  if (!existsSync(join(root, "src/style.css"))) return [say.noStyle(where)];
   return /@import\s+["']tailwindcss["']/.test(style) ? [] : [say.noTailwind(where)];
+}
+
+/**
+ * A stylesheet's text with its comments blanked, keeping every line where it was,
+ * so a commented-out `@import` never counts.
+ * @param {string} path - From a style rule; why: the stylesheet to read.
+ */
+function cssText(path) {
+  return readText(path).replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "));
 }
 
 /** @param {string} root - From the style check; why: Tailwind needs both packages in the app. */
 function tailwindProblems(root) {
-  const style = readText(join(root, "src/style.css"));
+  const style = cssText(join(root, "src/style.css"));
   const at = style.search(/@import\s+["']tailwindcss["']/);
   if (at < 0) return [];
   return ["tailwindcss", "@tailwindcss/vite"]
@@ -102,7 +127,7 @@ function tailwindProblems(root) {
 /** @param {string} path - From linkedSheets; why: the module paths one stylesheet or source file names. */
 function linksOf(path) {
   if (path.endsWith(".css"))
-    return [...readText(path).matchAll(/@import\s+["']([^"']+)["']/g)].map((match) => match[1]);
+    return [...cssText(path).matchAll(/@import\s+["']([^"']+)["']/g)].map((match) => match[1]);
   if (/\.[jt]sx?$/.test(path)) return specifiers(parseSource(path)).map(({ name }) => name);
   return [];
 }
@@ -138,15 +163,31 @@ function unlinkedProblems(root) {
 }
 
 /**
+ * Whether the user's shell imports src/style.css with `?url`, read from its import lines:
+ * a comment or a string that merely names the file does not count.
+ * @param {string} root - From the style check; why: the shell and the stylesheet live there.
+ */
+function linksStyle(root) {
+  const shell = join(root, shellFile);
+  const sheet = join(root, "src/style.css");
+  return specifiers(parseSource(shell)).some(({ name }) => {
+    const [path, query = ""] = name.split("?");
+    const target = path.startsWith("@/")
+      ? join(root, "src", path.slice(2))
+      : resolve(dirname(shell), path);
+    return target === sheet && query.split("&").includes("url");
+  });
+}
+
+/**
  * Check 8: the page gets its styles. A user shell links src/style.css, no stylesheet sits
  * unlinked, Tailwind's packages are there when the stylesheet imports it, and shadcn's
  * aliases land inside src/. No fix: these are app files.
  */
 export function style(root) {
-  const shell = readText(join(root, shellFile));
   const styled = existsSync(join(root, "src/style.css"));
   const problems = [
-    shell && styled && !/style\.css\?url/.test(shell) && say.shell,
+    styled && existsSync(join(root, shellFile)) && !linksStyle(root) && say.shell,
     ...unlinkedProblems(root),
     ...tailwindProblems(root),
     ...componentsProblems(root),

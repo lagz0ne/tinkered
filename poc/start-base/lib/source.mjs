@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { parseSync } from "oxc-parser";
 import { lineAt } from "./paths.mjs";
 
@@ -53,18 +54,102 @@ function exportedIds(node) {
   return [...declared, node.declaration?.id, ...named].filter(Boolean);
 }
 
+/** The paths a bundler tries for a relative module path, in order. */
+const tried = ["", ".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.tsx", "/index.js"];
+
 /**
- * The names the file exports, each with its line.
- * @param {ReturnType<typeof parseSource>} source - From parseSource; why: the file to read.
+ * The file a relative `export * from` names, or null when it is a package or does not exist.
+ * @param {string} from - From exportsOf; why: resolve the path from this file.
+ * @param {string} name - From the export statement; why: the module path it names.
  */
-export function exportsOf(source) {
+function localModule(from, name) {
+  if (!name.startsWith(".")) return null;
+  const base = resolve(dirname(from), name);
+  return (
+    tried.map((end) => base + end).find((path) => existsSync(path) && statSync(path).isFile()) ??
+    null
+  );
+}
+
+/**
+ * The names an `export *` adds: the target's own exports but `default`.
+ * @param {string} from - From exportsOf; why: the file holding the statement.
+ * @param {object} node - From exportsOf; why: one ExportAllDeclaration.
+ * @param {Set<string>} seen - From exportsOf; why: a cycle of `export *` ends.
+ */
+function exportAll(from, node, seen) {
+  const target = localModule(from, node.source.value);
+  if (!target) return { names: new Map(), open: true };
+  if (seen.has(target)) return { names: new Map(), open: false };
+  const inner = exportsOf(target, seen);
+  inner.names.delete("default");
+  return inner;
+}
+
+/**
+ * What one top-level statement exports, as [name, line] pairs, and whether it leaves the list
+ * open (an `export *` from a package).
+ * @param {string} path - From exportsOf; why: the file holding the statement.
+ * @param {ReturnType<typeof parseSource>} source - From exportsOf; why: lines of its nodes.
+ * @param {object} node - From exportsOf; why: one statement.
+ * @param {Set<string>} seen - From exportsOf; why: a cycle of `export *` ends.
+ */
+function statementExports(path, source, node, seen) {
+  const closed = (names) => ({ names, open: false });
+  if (node.type === "ExportDefaultDeclaration") return closed([["default", source.line(node)]]);
+  if (node.type === "ExportNamedDeclaration")
+    return closed(exportedIds(node).map((id) => [id.name ?? id.value, source.line(id)]));
+  if (node.type !== "ExportAllDeclaration") return closed([]);
+  if (node.exported)
+    return closed([[node.exported.name ?? node.exported.value, source.line(node)]]);
+  const all = exportAll(path, node, seen);
+  return { names: [...all.names], open: all.open };
+}
+
+/**
+ * The names a file exports, each with its line. `export *` from a local file is followed;
+ * `open` is true when one cannot be (a package), so a missing name then proves nothing.
+ * @param {string} path - From a check; why: the file to read.
+ * @param {Set<string>} [seen] - From exportAll; why: the files already read.
+ */
+export function exportsOf(path, seen = new Set()) {
+  seen.add(path);
+  const source = parseSource(path);
   const names = new Map();
+  let open = false;
   for (const node of source.program.body) {
-    if (node.type === "ExportDefaultDeclaration") names.set("default", source.line(node));
-    if (node.type !== "ExportNamedDeclaration") continue;
-    for (const id of exportedIds(node)) names.set(id.name ?? id.value, source.line(id));
+    const found = statementExports(path, source, node, seen);
+    for (const [name, line] of found.names) if (!names.has(name)) names.set(name, line);
+    open ||= found.open;
   }
-  return names;
+  return { names, open };
+}
+
+/**
+ * Whether a file exports a name, or may: an `export *` from a package cannot be read.
+ * @param {string} path - From a check; why: the file to read.
+ * @param {string} name - From a check; why: the export the base or TanStack reads.
+ */
+export function mayExport(path, name) {
+  const { names, open } = exportsOf(path);
+  return open || names.has(name);
+}
+
+/**
+ * Each name a file imports from one module: the imported name, the local name, and the line.
+ * @param {ReturnType<typeof parseSource>} source - From parseSource; why: the file to read.
+ * @param {string} module - From a check; why: the module path to match.
+ */
+export function importsFrom(source, module) {
+  return source.program.body
+    .filter((node) => node.type === "ImportDeclaration" && node.source.value === module)
+    .flatMap((node) =>
+      node.specifiers.map((item) => ({
+        imported: item.imported ? (item.imported.name ?? item.imported.value) : "default",
+        local: item.local.name,
+        line: source.line(node),
+      })),
+    );
 }
 
 /**
@@ -78,6 +163,22 @@ export function callsOf(source, name) {
     if (node.type === "CallExpression" && node.callee.name === name) lines.push(source.line(node));
   });
   return lines;
+}
+
+/**
+ * Each call to a function by name, with its line and its first argument when that is a string.
+ * @param {ReturnType<typeof parseSource>} source - From parseSource; why: the file to read.
+ * @param {string} name - From a check; why: the function whose calls count.
+ */
+export function stringCallsOf(source, name) {
+  const found = [];
+  walk(source.program, (node) => {
+    if (node.type !== "CallExpression" || node.callee.name !== name) return;
+    const [first] = node.arguments;
+    const value = first?.type === "Literal" && typeof first.value === "string" ? first.value : null;
+    found.push({ line: source.line(node), value });
+  });
+  return found;
 }
 
 /**

@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
+import { readEnvFile } from "../env.mjs";
 import { lineAt, readText } from "../paths.mjs";
 import { ok, verdict } from "./result.mjs";
 
@@ -17,9 +17,7 @@ export const say = {
 export function env(root) {
   const example = readText(join(root, ".env.example"));
   if (!example) return ok(say.none);
-  const local = existsSync(join(root, ".env"))
-    ? parseEnv(readFileSync(join(root, ".env"), "utf8"))
-    : {};
+  const local = readEnvFile(root);
   const keys = Object.keys(parseEnv(example));
   const missing = keys
     .filter((key) => !local[key] && !process.env[key])

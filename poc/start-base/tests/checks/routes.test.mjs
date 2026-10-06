@@ -30,6 +30,25 @@ test("names a route that exports route, not Route, at its createFileRoute line",
   ]);
 });
 
+test("a route that re-exports Route through export * is a route", () => {
+  const root = goodApp({
+    "src/routes/about.tsx": 'export * from "../frontend/about.tsx";\n',
+    "src/frontend/about.tsx": 'export const Route = createFileRoute("/about")({});\n',
+  });
+  expect(routes(root).status).toBe("ok");
+});
+
+test("names a createFileRoute path that does not match its file, before the generator rewrites src/", () => {
+  const root = goodApp({
+    "src/routes/about.tsx": 'export const Route = createFileRoute("/abuot")({});\n',
+    "src/routes/posts/index.tsx": "export const Route = createFileRoute()({});\n",
+  });
+  expect(routes(root).lines).toEqual([
+    'src/routes/about.tsx:1 createFileRoute("/abuot") does not match its file; set it to "/about", or TanStack\'s generator rewrites it in src/',
+    'src/routes/posts/index.tsx:1 createFileRoute() does not match its file; set it to "/posts/", or TanStack\'s generator rewrites it in src/',
+  ]);
+});
+
 test("names a shell whose component renders no Outlet", () => {
   const root = goodApp({
     "src/routes/__root.tsx":

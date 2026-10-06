@@ -47,14 +47,14 @@ const breaks = [
   {
     name: "generated --fix adds no ignore line",
     file: "lib/checks/generated.mjs",
-    find: "for (const entry of missing) appendFileSync",
-    replace: "for (const entry of []) appendFileSync",
+    find: "if (entries.length === 0) return;",
+    replace: "return;",
   },
   {
     name: "glue --fix writes no extends",
     file: "lib/checks/glue.mjs",
-    find: 'extends: "./.tinker/tsconfig.json",',
-    replace: "",
+    find: '["extends"],',
+    replace: '["extend"],',
   },
   {
     name: "build start stops nothing",
@@ -138,13 +138,13 @@ const breaks = [
   {
     name: "check 3 sends a clash to tinker prepare",
     file: "lib/checks/generated.mjs",
-    find: ".filter((file) => clashes || !routeClash(file, owned))",
+    find: ".filter((file) => !routeClash(file, owned))",
     replace: ".filter(() => true)",
   },
   {
     name: "tinker prepare hides a stale tree",
     file: "lib/checks/generated.mjs",
-    find: "if (gaps.length === 0) return [];",
+    find: "if (lines.length === 0) return [];",
     replace: "return [];",
   },
   {
@@ -157,6 +157,111 @@ const breaks = [
     name: "vite.config.ts is not type-checked",
     file: "lib/prepare.mjs",
     find: '"../vite.config.ts", ',
+    replace: "",
+  },
+  {
+    name: "a tsconfig that does not parse reads as empty",
+    file: "lib/jsonc.mjs",
+    find: "if (text && errors.length > 0) {",
+    replace: "if (false) {",
+  },
+  {
+    name: "--fix drops the comments of tsconfig.json",
+    file: "lib/jsonc.mjs",
+    find: "writeFileSync(path, applyEdits(base, edits));",
+    replace:
+      'writeFileSync(path, JSON.stringify(parse(applyEdits(base, edits)), null, 2) + "\\n");',
+  },
+  {
+    name: "--fix writes a tsconfig that does not parse",
+    file: "lib/checks/glue.mjs",
+    find: 'if (tsconfig.error) return [say.parse("tsconfig.json", tsconfig.error)];',
+    replace:
+      'if (tsconfig.error) return [say.parse("tsconfig.json", tsconfig.error), say.extends];',
+  },
+  {
+    name: "a renamed tinker import counts no call",
+    file: "lib/checks/glue.mjs",
+    find: "callsOf(source, glue.local)",
+    replace: 'callsOf(source, "tinker")',
+  },
+  {
+    name: "a config with no tinker() call stops the build",
+    file: "lib/checks/glue.mjs",
+    find: "calls.length > 1 && say.calls(",
+    replace: "calls.length !== 1 && say.calls(",
+  },
+  {
+    name: "--fix runs the generator while a route clashes",
+    file: "lib/checks/generated.mjs",
+    find: 'if (!stale || routes(root).status === "fail") return;',
+    replace: "if (!stale) return;",
+  },
+  {
+    name: ".gitignore gets no newline before the append",
+    file: "lib/checks/generated.mjs",
+    find: 'const lead = text && !text.endsWith("\\n") ? "\\n" : "";',
+    replace: 'const lead = "";',
+  },
+  {
+    name: "export * is never followed",
+    file: "lib/source.mjs",
+    find: "const target = localModule(from, node.source.value);",
+    replace: "const target = null;",
+  },
+  {
+    name: "an export * from a package fails the check",
+    file: "lib/source.mjs",
+    find: "if (!target) return { names: new Map(), open: true };",
+    replace: "if (!target) return { names: new Map(), open: false };",
+  },
+  {
+    name: "the shell link is a text match again",
+    file: "lib/checks/style.mjs",
+    find: "!linksStyle(root)",
+    replace: "!/style\\.css\\?url/.test(readText(join(root, shellFile)))",
+  },
+  {
+    name: "a bad components.json throws",
+    file: "lib/checks/style.mjs",
+    find: "if (components.error) return [say.parse(components.error)];",
+    replace: "",
+  },
+  {
+    name: "a wrong createFileRoute path is not named",
+    file: "lib/checks/routes.mjs",
+    find: "call.value !== id",
+    replace: "false",
+  },
+  {
+    name: "a stale pin is not named",
+    file: "lib/checks/version.mjs",
+    find: ".filter(([, spec]) => exact.test(spec))",
+    replace: ".filter(() => false)",
+  },
+  {
+    name: "the build runs tsc on top of doctor's stops",
+    file: "lib/hooks.mjs",
+    find: "errors: errors.length > 0 ? errors : checkTypes(root),",
+    replace: "errors: [...errors, ...checkTypes(root)],",
+  },
+  {
+    name: "tinker prepare wipes the boundary record",
+    file: "lib/prepare.mjs",
+    find: "  return Object.keys(files);\n}",
+    replace:
+      '  writeFileSync(join(dir, "violations.json"), "[]\\n");\n  return Object.keys(files);\n}',
+  },
+  {
+    name: "dev restarts on any file",
+    file: "lib/hooks.mjs",
+    find: "picked.includes(path) ?",
+    replace: "true ?",
+  },
+  {
+    name: "a production error page shows the text",
+    file: "src/entry/error-detail.ts",
+    find: "if (!dev) return undefined;",
     replace: "",
   },
   {

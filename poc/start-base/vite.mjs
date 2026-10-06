@@ -1,16 +1,14 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import { say as routeSay } from "./lib/checks/routes.mjs";
-import { buildChecks } from "./lib/doctor.mjs";
 import { loadEnv } from "./lib/env.mjs";
 import { aliases, passThrough, startOptions } from "./lib/glue.mjs";
-import { appFiles, shellFile } from "./lib/named.mjs";
+import { recordViolation, restartNote, startViolations, verifyBuild } from "./lib/hooks.mjs";
 import { prepare } from "./lib/prepare.mjs";
-import { checkTypes } from "./lib/typecheck.mjs";
 
 /** @param {string} root - From tinker(); why: the app's paths, address, and tsconfig. */
 function glueConfig(root) {
@@ -25,32 +23,13 @@ function glueConfig(root) {
 }
 
 /**
- * Keep every import boundary violation of this run in .tinker/, for doctor (Start stops at the first).
- * @param {string} root - From tinker(); why: the app's generated folder.
- */
-function recordViolations(root) {
-  const path = join(root, ".tinker/violations.json");
-  const found = new Map();
-  writeFileSync(path, "[]\n");
-  return (info) => {
-    const at = info.importerLoc ? `:${info.importerLoc.line}:${info.importerLoc.column}` : "";
-    const importer = `${relative(root, info.importer)}${at}`;
-    found.set(`${importer} ${info.specifier}`, {
-      env: info.envType,
-      importer,
-      specifier: info.specifier,
-      rule: String(info.pattern ?? info.type),
-    });
-    writeFileSync(path, JSON.stringify([...found.values()], null, 2) + "\n");
-  };
-}
-
-/**
- * At build start, run doctor's static checks, then the app's tsc: a known mistake stops the
- * build with doctor's file:line message instead of shipping.
+ * At build start, doctor's static checks, then the app's tsc: a known mistake stops the build
+ * with doctor's file:line line instead of shipping. Once they pass, this build's boundary
+ * record starts empty; Start's onViolation fills it.
  * @param {string} root - From tinker(); why: the app being built.
+ * @param {{ found?: Map<string, object> }} record - From tinker(); why: shared with onViolation.
  */
-function verify(root) {
+function verify(root, record) {
   let done = false;
   return {
     name: "tinker:verify",
@@ -58,33 +37,27 @@ function verify(root) {
     buildStart() {
       if (done) return;
       done = true;
-      const { errors, warnings } = buildChecks(root);
+      const { errors, warnings } = verifyBuild(root);
       for (const line of warnings) this.warn(line);
       if (errors.length > 0) this.error(errors.join("\n"));
-      const types = checkTypes(root);
-      if (types.length > 0) this.error(types.join("\n"));
+      record.found = startViolations(root);
     },
   };
 }
 
 /**
- * Start reads the shell, the named files, and the seam files once, at config time: restart
- * dev when one is added or removed, so the running server never serves a stale pick.
+ * Restart dev when a picked file comes or goes (see restartNote).
  * @param {string} root - From tinker(); why: watch that app's picked files.
  */
 function restartOn(root) {
-  const watched = new Set(
-    [shellFile, ...appFiles.map(({ file }) => file)].map((file) => join(root, file)),
-  );
   return {
     name: "tinker:restart",
     apply: "serve",
     configureServer(server) {
       const restart = (verb) => (path) => {
-        if (!watched.has(path)) return;
-        server.config.logger.info(`tinker: ${relative(root, path)} ${verb}; restarting`, {
-          timestamp: true,
-        });
+        const note = restartNote(root, path, verb);
+        if (!note) return;
+        server.config.logger.info(note, { timestamp: true });
         void server.restart();
       };
       server.watcher.on("add", restart("added"));
@@ -120,11 +93,16 @@ export function tinker(options = {}) {
   prepare(root);
   const glue = { name: "tinker:glue", config: () => glueConfig(root) };
   const own = startOptions(root);
+  const record = {};
+  /** Returns nothing: Start drops a violation whose hook returns false. */
+  const onViolation = (info) => {
+    if (record.found) recordViolation(root, record.found, info);
+  };
   const start = tanstackStart({
     ...own,
     ...passed,
-    importProtection: { ...own.importProtection, onViolation: recordViolations(root) },
+    importProtection: { ...own.importProtection, onViolation },
   });
   if (process.env.VITEST) return [glue, start];
-  return [glue, verify(root), restartOn(root), start, react(), tailwind(root)];
+  return [glue, verify(root, record), restartOn(root), start, react(), tailwind(root)];
 }

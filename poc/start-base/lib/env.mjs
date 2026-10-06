@@ -2,6 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
 
+/**
+ * The app's `.env` as keys and values; no file reads as none.
+ * @param {string} root - From loadEnv or doctor's env check; why: the app whose .env to read.
+ */
+export function readEnvFile(root) {
+  const path = join(root, ".env");
+  return existsSync(path) ? parseEnv(readFileSync(path, "utf8")) : {};
+}
+
 /** Keys this process took from `.env`; a shell value is never in it, so the shell still wins. */
 const fromEnvFile = new Set();
 
@@ -12,8 +21,7 @@ const fromEnvFile = new Set();
  * @param {string} root - From tinker() or tinker serve; why: the app whose .env to read.
  */
 export function loadEnv(root) {
-  const path = join(root, ".env");
-  const values = existsSync(path) ? parseEnv(readFileSync(path, "utf8")) : {};
+  const values = readEnvFile(root);
   for (const key of fromEnvFile) {
     if (key in values) continue;
     delete process.env[key];

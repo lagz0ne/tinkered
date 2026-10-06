@@ -1,36 +1,53 @@
 control (no break): 0 failed test(s), 0 broken file(s)
-caught    4 failed  check version always passes
+caught    5 failed  check version always passes
 caught    7 failed  check bytes always passes
-caught    8 failed  check generated always passes
-caught    9 failed  check glue always passes
-caught    5 failed  check named always passes
+caught   13 failed  check generated always passes
+caught   13 failed  check glue always passes
+caught    7 failed  check named always passes
 caught    3 failed  check imports always passes
-caught    7 failed  check routes always passes
-caught    9 failed  check style always passes
+caught   10 failed  check routes always passes
+caught   12 failed  check style always passes
 caught    3 failed  check env always passes
 caught    3 failed  check boundary always passes
 caught    1 failed  bytes --fix restores nothing
-caught    1 failed  generated --fix adds no ignore line
-caught    1 failed  glue --fix writes no extends
-caught    2 failed  build start stops nothing
-caught    1 failed  build start warns about nothing
-caught    1 failed  a fix that fails reads as fixed
+caught    2 failed  generated --fix adds no ignore line
+caught    2 failed  glue --fix writes no extends
+caught    4 failed  build start stops nothing
+caught    2 failed  build start warns about nothing
+caught    3 failed  a fix that fails reads as fixed
 caught    1 failed  aliases drop ?url
 caught    1 failed  the shell never replaces the base's
 caught    1 failed  an unknown tinker() option is dropped
 caught    2 failed  a named file is never picked
-caught    3 failed  src/router.tsx is not listed
-caught    4 failed  tsconfig @/* goes back to ../src/*
+caught    4 failed  src/router.tsx is not listed
+caught    5 failed  tsconfig @/* goes back to ../src/*
 caught    3 failed  route groups count as a segment
 caught    4 failed  nesting under a base route is missed
 caught    1 failed  a - folder counts as a route
 caught    2 failed  tsc errors read as none
 caught    1 failed  a second tinker() only warns
-caught    1 failed  check 3 sends a clash to tinker prepare
+caught    2 failed  check 3 sends a clash to tinker prepare
 caught    1 failed  tinker prepare hides a stale tree
 caught    1 failed  shadcn needs Tailwind before any UI file
 caught    1 failed  vite.config.ts is not type-checked
-caught    2 failed  the type check never runs
+caught    3 failed  a tsconfig that does not parse reads as empty
+caught    1 failed  --fix drops the comments of tsconfig.json
+caught    1 failed  --fix writes a tsconfig that does not parse
+caught    2 failed  a renamed tinker import counts no call
+caught    1 failed  a config with no tinker() call stops the build
+caught    1 failed  --fix runs the generator while a route clashes
+caught    1 failed  .gitignore gets no newline before the append
+caught    1 failed  export * is never followed
+caught    1 failed  an export * from a package fails the check
+caught    1 failed  the shell link is a text match again
+caught    2 failed  a bad components.json throws
+caught    1 failed  a wrong createFileRoute path is not named
+caught    1 failed  a stale pin is not named
+caught    1 failed  the build runs tsc on top of doctor's stops
+caught    1 failed  tinker prepare wipes the boundary record
+caught    1 failed  dev restarts on any file
+caught    1 failed  a production error page shows the text
+caught    3 failed  the type check never runs
 caught    1 failed  .env beats the shell
 caught    1 failed  an edited .env keeps its old value
 caught    1 failed  serve hands out dot paths
@@ -58,17 +75,21 @@ caught    1 failed  message generated.mjs say.missing
 caught    1 failed  message generated.mjs say.stale
 caught    1 failed  message generated.mjs say.noTree
 caught    1 failed  message generated.mjs say.gone
-caught    2 failed  message generated.mjs say.misses
+caught    3 failed  message generated.mjs say.misses
+caught    2 failed  message generated.mjs say.blocked
+caught    1 failed  message generated.mjs say.left
 caught    1 failed  message generated.mjs say.ignore
 caught    1 failed  message generated.mjs say.generator
 caught    1 failed  message generated.mjs say.passed
 caught    1 failed  message generated.mjs say.fixed
 caught    1 failed  message glue.mjs say.noVite
 caught    1 failed  message glue.mjs say.noImport
+caught    1 failed  message glue.mjs say.noCall
 caught    3 failed  message glue.mjs say.calls
 caught    2 failed  message glue.mjs say.start
 caught    1 failed  message glue.mjs say.tailwind
-caught    2 failed  message glue.mjs say.extends
+caught    1 failed  message glue.mjs say.parse
+caught    3 failed  message glue.mjs say.extends
 caught    1 failed  message glue.mjs say.paths
 caught    1 failed  message glue.mjs say.strict
 caught    1 failed  message glue.mjs say.postinstall
@@ -79,15 +100,16 @@ caught    1 failed  message imports.mjs say.entry
 caught    1 failed  message imports.mjs say.path
 caught    1 failed  message imports.mjs say.serverEntry
 caught    1 failed  message imports.mjs say.passed
-caught    1 failed  message named.mjs say.export
-caught    2 failed  message named.mjs say.ignored
+caught    2 failed  message named.mjs say.export
+caught    3 failed  message named.mjs say.ignored
 caught    1 failed  message named.mjs say.passed
 caught    1 failed  message routes.mjs say.missing
 caught    2 failed  message routes.mjs say.export
 caught    2 failed  message routes.mjs say.outlet
 caught    3 failed  message routes.mjs say.clash
+caught    1 failed  message routes.mjs say.id
 caught    1 failed  message routes.mjs say.passed
-caught    1 failed  message style.mjs say.shell
+caught    2 failed  message style.mjs say.shell
 caught    2 failed  message style.mjs say.unlinked
 caught    1 failed  message style.mjs say.needs
 caught    1 failed  message style.mjs say.aliasOut
@@ -95,11 +117,13 @@ caught    1 failed  message style.mjs say.aliasNone
 caught    1 failed  message style.mjs say.css
 caught    1 failed  message style.mjs say.noStyle
 caught    1 failed  message style.mjs say.noTailwind
+caught    2 failed  message style.mjs say.parse
 caught    1 failed  message style.mjs say.passed
 caught    1 failed  message version.mjs say.missing
 caught    2 failed  message version.mjs say.drift
+caught    1 failed  message version.mjs say.stale
 caught    1 failed  message version.mjs say.passed
 caught    1 failed  message typecheck.mjs say.noTypescript
 caught    1 failed  message typecheck.mjs say.failed
 
-102 of 102 breaks caught (41 logic, 61 message)
+126 of 126 breaks caught (58 logic, 68 message)

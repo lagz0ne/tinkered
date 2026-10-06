@@ -31,3 +31,14 @@ test("names each peer that drifted from the tested version, or is missing, at it
     ],
   });
 });
+
+test("names an exact pin in package.json that the install does not match, at its line", () => {
+  const root = goodApp({
+    "package.json":
+      '{\n  "dependencies": {\n    "@tanstack/react-start": "9.9.9",\n    "react": "^19.0.0",\n    "@tinker/core": "workspace:*"\n  },\n  "devDependencies": {\n    "zod": "4.0.0"\n  }\n}\n',
+  });
+  expect(version(root).lines).toEqual([
+    `package.json:3 pins @tanstack/react-start 9.9.9, but ${basePackage.tinker.tested["@tanstack/react-start"]} is installed; run install`,
+    "package.json:8 pins zod 4.0.0, but nothing is installed; run install",
+  ]);
+});

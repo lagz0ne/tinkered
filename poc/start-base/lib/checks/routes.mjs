@@ -2,13 +2,13 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { shellFile } from "../named.mjs";
 import { installedBase, listFiles, readJson } from "../paths.mjs";
-import { isRouteFile, routeClash, routePath } from "../route-path.mjs";
+import { isRouteFile, routeClash, routeId, routePath } from "../route-path.mjs";
 import {
-  callsOf,
-  exportsOf,
   importedNames,
+  mayExport,
   parseSource,
   propertiesOf,
+  stringCallsOf,
   usesOf,
 } from "../source.mjs";
 import { fail, verdict } from "./result.mjs";
@@ -18,6 +18,8 @@ export const say = {
   export: (at, path) => `${at} does not export Route; TanStack skips the file, so ${path} is a 404`,
   outlet: (at) => `${at} sets component without <Outlet />; no page renders inside the shell`,
   clash: (at, why) => `${at} ${why}`,
+  id: (at, value, id) =>
+    `${at} createFileRoute(${value === null ? "" : `"${value}"`}) does not match its file; set it to "${id}", or TanStack's generator rewrites it in src/`,
   passed: (owned) => `route files export Route; none takes a base path (${owned.join(", ")})`,
 };
 
@@ -33,12 +35,14 @@ export function ownedPaths(root) {
  * @param {string[]} owned - From ownedPaths; why: the base's own paths.
  */
 function routeProblems(dir, file, owned) {
-  const source = parseSource(join(dir, file));
-  const at = `src/routes/${file}:${callsOf(source, "createFileRoute")[0] ?? 1}`;
+  const [call] = stringCallsOf(parseSource(join(dir, file)), "createFileRoute");
+  const at = `src/routes/${file}:${call?.line ?? 1}`;
   const clash = routeClash(file, owned);
+  const id = routeId(file);
   return [
-    !exportsOf(source).has("Route") && say.export(at, routePath(file)),
+    !mayExport(join(dir, file), "Route") && say.export(at, routePath(file)),
     clash && say.clash(at, clash),
+    call && !file.includes("[") && call.value !== id && say.id(at, call.value, id),
   ];
 }
 
