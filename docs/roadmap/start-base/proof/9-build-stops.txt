@@ -181,5 +181,5 @@ EXIT 1
 
 ## a tinker() option the base would drop
 $ vp build
-Error: tinker(): unknown option prerendr; known: root, prerender, pages, spa, sitemap, telemetry, auth
+Error: tinker(): unknown option prerendr; known: root, prerender, pages, spa, sitemap, telemetry, auth, sync
 vp build: EXIT 1

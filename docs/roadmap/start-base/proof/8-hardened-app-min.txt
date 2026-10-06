@@ -1,21 +1,21 @@
 base folder: packages/start
 $ vp build
 vp build: EXIT 0
-$ curl -s http://127.0.0.1:40051/ | grep -ao '<p>[^<]*</p>'
+$ curl -s http://127.0.0.1:42167/ | grep -ao '<p>[^<]*</p>'
 <p>Hello, world.</p>
-$ curl -si http://127.0.0.1:40051/api/health
+$ curl -si http://127.0.0.1:42167/api/health
 HTTP/1.1 200 OK
 cache-control: no-store
 content-type: application/json
 content-length: 26
 
-{"ok":true,"base":"0.4.0"}
+{"ok":true,"base":"0.5.0"}
 
-$ curl -s http://127.0.0.1:40051/tinker | grep -ao '<main>.*</main>'
-<main><h1>Tinker base</h1><p>@tinker/start <!-- -->0.4.0</p></main>
+$ curl -s http://127.0.0.1:42167/tinker | grep -ao '<main>.*</main>'
+<main><h1>Tinker base</h1><p>@tinker/start <!-- -->0.5.0</p></main>
 server stopped: EXIT 0
 server log, without the telemetry part's span lines (4 of them):
-tinker serve: http://127.0.0.1:40051
+tinker serve: http://127.0.0.1:42167
 $ tinker doctor 
 doctor: all checks pass
 EXIT 0

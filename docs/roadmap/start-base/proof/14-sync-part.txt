@@ -1,0 +1,71 @@
+
+## sync on, with stand-in seams: /api/sync streams the database's events
+$ vp build
+tinker: sync turns auth on
+vp build: EXIT 0
+$ cat .tinker/parts.server.ts
+// Written by tinker(); parts on: telemetry, auth, sync; sync turns auth on.
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server.ts";
+export { auth } from "node_modules/@tinker/start/src/parts/auth/on.server.ts";
+$ jq .parts .tinker/base.json
+["telemetry","auth","sync"]
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+$ curl -s -N --max-time 8 :PORT/api/sync  (the first request starts PGlite)
+event: changes
+id: {"public":2,"private":null}
+data: {"kind":"changes","events":[{"stream":"public","revision":1,"executionId":"00000000-0000-4000-8000-000000000001","payload":{"kind":"change","change":{"count":1}}},{"stream":"public","revision":2,"executionId":"00000000-0000-4000-8000-000000000002","payload":{"kind":"change","change":{"count":2}}}]}
+
+: connected
+
+first byte after 2.642784 s
+curl: EXIT 28
+$ curl -s -N --max-time 2 :PORT/api/sync, Last-Event-ID: {"public":1,"private":null}
+event: changes
+id: {"public":2,"private":null}
+data: {"kind":"changes","events":[{"stream":"public","revision":2,"executionId":"00000000-0000-4000-8000-000000000002","payload":{"kind":"change","change":{"count":2}}}]}
+
+: connected
+
+curl: EXIT 28
+$ curl -s -o /dev/null -w '%{http_code}' :PORT/api/sync?cursor=bad
+400
+server stopped: EXIT 0
+
+## sync off (the default): /api/sync is the app's own
+$ vp build
+vp build: EXIT 0
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+$ curl -s :PORT/api/sync | grep -ao 'the app takes it'
+the app takes it
+server stopped: EXIT 0
+
+## sync on, and the app's own /api/sync: the build names the switch
+$ vp build
+Error: tinker doctor, routes: src/routes/api.sync.ts:2 takes /api/sync, a base route; tinker({ sync: false }) frees it
+vp build: EXIT 1
+$ tinker doctor 
+fail  7 routes
+      src/routes/api.sync.ts:2 takes /api/sync, a base
+      route; tinker({ sync: false }) frees it
+doctor: 1 check(s) fail
+EXIT 1
+
+## sync on, and a seam without database: the build stops
+$ vp build
+Error: tinker doctor, named files: src/lib/tinker.server.ts:1 does not export database; the sync part reads it
+vp build: EXIT 1
+$ tinker doctor 
+fail  5 named files
+      src/lib/tinker.server.ts:1 does not export
+      database; the sync part reads it
+doctor: 1 check(s) fail
+EXIT 1
+
+## sync on, with auth: false: the build fails
+$ vp build
+Error: tinker(): sync needs auth, but auth is false; drop auth: false, or set sync: false
+vp build: EXIT 1
