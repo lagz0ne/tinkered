@@ -24,10 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/base-parts** — port telemetry, auth, and sync from `apps/start-scaffold/src/scaffold` into base parts.
-  Each part turns on in `tinker()`; tests through scope seams only.
-  Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
-
 - **start/scaffold-on-base** — move `apps/start-scaffold` onto the base.
   Its examples (todos, profile, auth pages, mail) become registry items the user copies in.
   Its seam, plain, and boundary checks move into `doctor` or stay as named checks.
@@ -54,6 +50,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
 ## Doing
+
+- **start/base-parts** — port telemetry, auth, and sync from `apps/start-scaffold/src/scaffold` into base parts.
+  Owner: lead (Claude, Start scaffold session); Opus writer. Worktree: `../tinkered-base-parts`.
+  Lands in three steps on main (user: everything in main): telemetry, then auth, then sync.
+  Each part turns on in `tinker()`; tests through scope seams only.
+  Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
