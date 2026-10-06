@@ -6,8 +6,10 @@ Full logs: `proof/*.txt`, from real runs.
 The blocks below are cut from them:
 a line is left out or wrapped, and `…` marks a cut.
 
-Six rounds:
+Seven rounds:
 
+- **0.6.0, the sync part's client side**
+  (card `start/base-parts`, step 3b). Section S.
 - **0.5.0, the sync part's server side**
   (card `start/base-parts`, step 3a). Section R.
 - **0.4.0, the auth part** (card `start/base-parts`,
@@ -28,6 +30,268 @@ Read their paths this way:
 - `poc/app-min` is now `apps/start-min`.
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
+
+## S. The sync part, client side, 0.6.0
+
+Step 3b of card `start/base-parts`: the client side of sync.
+Copied from `apps/start-scaffold/src/scaffold`
+(`frontend/sync.ts`, `events.ts`, `owner.ts`, `router.tsx`,
+and `sync.functions.ts`), with the scaffold's tests
+(`sync-client`, `tab-lifetime`, `transport`, `protocol-*`)
+as the source of the cases; the scaffold is not changed.
+It lives in `packages/start/src/parts/sync/client/`
+and `src/parts/sync/functions.ts`.
+
+### What it is
+
+- With sync on, the router entry builds the tab's sync
+  state in its app root:
+  - `syncClient`: cursors, the account, local writes;
+  - `snapshotLoader`, `loadSnapshot`, `checkAccount`;
+  - `eventSource`, `consumeConnection`, `streamChanges`,
+    and `syncStreaming`: the tab's stream;
+  - `accountOwner`: whose work it is; `tabLifetime`:
+    a real page hide closes the app root.
+- `syncRouter` hands the router its `context`
+  (`bootstrap`, `account`), `dehydrate`, and `hydrate`.
+- `getBootstrap` and `getAccount`: server functions
+  that settle the server seam's `bootstrap` and
+  auth's `readAccount`.
+- `@tinker/start/client` exports the tab's units.
+- `Sync.Records` and `Sync.RouterContext`
+  are on `@tinker/start`.
+- Check 5 names each client seam name
+  (`records`, `readSnapshot`, `readBootstrap`,
+  `readBatch`, `streamMessage`), the server seam's
+  `bootstrap`, and missing `Register` bodies.
+  Check 6 takes `@tinker/start/client`.
+- Each run and factory destructures its ctx.
+
+### What the proof caught
+
+- A stand-in `records` that left out a parameter
+  it did not read failed `tsc` inside
+  `node_modules/@tinker/start`. The base now calls
+  `records` through `Sync.Records`, and an app types
+  its factory with it, so a wrong method fails
+  in the app's own file.
+- Two tests applied a result before the write read
+  its reply, so a kept result and a fresh one looked
+  the same. Each test now waits for the reply first.
+- The first partial break run missed two breaks
+  and hung on a third:
+  - no test imported `@tinker/start/client` in app
+    code; the imports test does now;
+  - the augmentation break left an `if` with no body,
+    so its file failed to load; it leaves `;` now;
+  - the reconnect break slept 0 ms on the test clock,
+    so the stream loop never yielded; it sleeps 400.
+
+### Gates
+
+```text
+vp install: EXIT 0
+vp run -r build: EXIT 0
+vp check: EXIT 0
+  0 errors, 28 warnings (as on main;
+  none in packages/start)
+vp run -r test: EXIT 0
+  @tinker/start: 358 passed (291 before)
+vp run prose: EXIT 0
+break-each-check, partial: 18 of 18
+  caught (16 logic, 2 message)
+mutation: proof/mutation.txt
+```
+
+### break-each-check: a partial run
+
+Log: `proof/break-each-check-3b.txt`. It runs the control
+and only the breaks that are new or changed since 3a's
+full run (198 of 198 caught, `proof/break-each-check.txt`),
+picked with the new `BREAKS` filter:
+
+- the 15 client breaks;
+- the seam-names break, whose text moved;
+- two message breaks: `say.augment` (new)
+  and `say.entry` (it names the client entry).
+
+The other breaks still hold: since that run,
+`lib/` changed only in the 3b feature commit,
+whose new lines these breaks cover, and each
+commit after the breaks is a test or a doc.
+
+### Mutation
+
+The floor is per package, on kills alone.
+The run of record is `proof/mutation.txt`.
+Its first lines name the commit and the clean tree;
+its last line gives the totals.
+
+`src/parts/sync`, in a targeted run before the last
+test commits: 708 of 831 killed, 85.20 on kills alone.
+The last test commits kill 15 more; each was checked
+by applying the mutant by hand.
+
+### Survivors in src/parts/sync, by reason
+
+From the targeted run, without the 15 killed after it.
+
+- A loop that never yields (15, all timeouts):
+  it awaits only settled promises, so timers, I/O,
+  and the test never run again; only Stryker's
+  timeout ends it.
+  - `client/sync.ts:118`, the write loop's body.
+  - `client/events.ts:146, 201, 240`: the frame
+    wait's, a connection's, the stream loop's bodies.
+  - `stream.server.ts:92, 123, 124` (two),
+    `145, 146` (two), `154, 179, 182, 183`.
+- `{}` as a unit's config, or a union zod refuses:
+  the module fails to load, no test runs,
+  and Stryker counts it as survived.
+  - `client/sync.ts:11`, `client/events.ts:14, 95, 104`,
+    `client/owner.ts:5`, `client/router.ts:12`.
+  - `stream.server.ts:33`, `endpoint.server.ts:12`,
+    `notifications.server.ts:6`, `history.server.ts:10`,
+    `off.ts:7`, `envelopes.ts:44, 45, 46`.
+- A label nothing shows:
+  `client/events.ts:96, 256`, `client/owner.ts:29`,
+  `client/tab.ts:6` (a tag with a default,
+  or an extension), and `off.ts:8`
+  (the off router; reachable on the trace,
+  left with the per-file target dropped).
+- Clean-up on things already done: a removed
+  listener, a cleared map, `{ once: true }`.
+  A settled promise ignores a second resolve.
+  - `client/sync.ts:23, 24, 25, 45, 46, 94` (two),
+    `97, 98, 99`.
+  - `client/events.ts:139` (two),
+    `client/owner.ts:37` (two), `39`.
+  - `stream.server.ts:53` (two),
+    `56, 62, 167, 168, 191, 192`.
+  - `notifications.server.ts:86` (two), `90`.
+  - `stream.server.ts:49, 50` (two): close aborts the
+    stream's stop and closes its subscription;
+    either alone ends a held wait.
+- The same value either way:
+  - `client/sync.ts:31, 32, 36, 37, 59`, the `?? -1`
+    fallbacks (no coverage): the public cursor is set
+    at start, an account's when it joins.
+  - `client/sync.ts:32, 37`: `cursors.get(null)`
+    is undefined, so the fallback gives -1 again.
+  - `client/sync.ts:37`, `-1` to `+1`: with no account,
+    the stand-in `records` reads no private revision.
+  - `client/sync.ts:17`: before a snapshot, an event
+    is skipped either way; a snapshot sets `public`.
+  - `client/sync.ts:41`: deleting a null key does nothing.
+  - `client/events.ts:31`: versions only grow,
+    so a forgotten one is never asked for again.
+  - `client/events.ts:48, 58`: the held promise is
+    resolved, so a stale one lets waits through.
+  - `client/events.ts:203`: an ended connection's
+    `undefined` fails to read, so it ends false anyway.
+  - `client/events.ts:245`: a failed result has no value.
+  - `endpoint.server.ts:32`: a success has no error.
+  - `notifications.server.ts:11`: the first subscribe
+    resets it before anything reads it.
+  - `history.server.ts:21` (two): the insert just before
+    makes the row the select finds.
+  - `schema.ts:25` (four): the key shapes migrations;
+    the base runs none, and tests make their tables.
+  - `stream.server.ts:87`: output is unset only after
+    cancel, and line 85 returns first.
+  - `stream.server.ts:135`: private rows come only
+    with a private cursor.
+- The stream sends the same bytes, in more or
+  fewer pulls, or one more read after a close:
+  - `stream.server.ts:85, 124, 128` (two);
+  - `142, 146` (three), `150, 156` (two);
+  - `161, 165, 166, 181, 186` (two), `187`.
+- The browser's EventSource: `client/events.ts:97`.
+  Node has none; proof 15 runs it in a tab.
+- Not in the score: `client/owner.ts:11` is a
+  runtime error, a page hide before `bind`.
+
+### Tests
+
+- `tests/sync-client.test.ts`: the tab lifetime, the
+  account owner, snapshots, events in order, writes
+  (receipts, results, retries, rejection, exits,
+  stops), waits, and the trace names.
+- `tests/sync-tab.test.ts`, with a stand-in
+  EventSource bound as `eventSourceBackend`:
+  loads and account checks, frames, connections,
+  reconnects 500 ms apart on a test clock,
+  the router side, the on and off parts, the trace.
+- `tests/sync.test.ts` gains the server side's
+  edges: wait probes first, so a hanging mutant
+  fails fast; the paired account checks, each the
+  only one that can catch its case; heartbeat reads;
+  a cancelled body; a replaced listener.
+- No test runs a build, a server, TanStack,
+  or a browser, and none waits on a timer.
+
+### jev
+
+- `promises.mjs start`: 0 of 154 titles lack
+  a README line.
+- `tests.mjs start`: 0 of 154 flagged.
+  Its plain notes: each file imports `../src/`
+  (the package tests its own units); `heldWrite`
+  (21 lines) and `sources` (35, a stand-in
+  EventSource) are over 20 lines;
+  `sync.test.ts` has 4 helpers.
+- Pre-flight on `origin/main..HEAD`: 7 flags,
+  each labeled in `tools/jev/cases.jsonl`.
+
+### Builds and serves
+
+Log: `proof/15-sync-client.txt`, in a scratch copy
+of apps/start-min with stand-in seams: PGlite in
+memory, two public events, a page that shows the
+public count, and `POST /api/bump` that commits one.
+
+```text
+## sync on, client side
+tinker: sync turns auth on
+vp build: EXIT 0 · doctor: all checks pass
+curl -s :PORT/  (getBootstrap, server render)
+<p>count <!-- -->2</p>
+browser engine: lightpanda (the default)
+agent-browser open http://127.0.0.1:PORT/
+agent-browser eval …textContent
+"count 2"
+curl -s -X POST :PORT/api/bump
+{"count":3}
+agent-browser eval …textContent
+"count 3"
+server stopped: EXIT 0
+storage: span names after the tab (…cut)
+      1 sync.endpoint
+      1 sync.open
+      1 sync.receive
+      1 sync.stream
+## a client seam without streamMessage
+tinker doctor, named files: src/lib/tinker.ts:1
+  does not export streamMessage;
+  the sync part reads it
+vp build: EXIT 1
+## no Register bodies
+tinker doctor, named files: src/ adds no
+  Register bodies to "@tinker/start";
+  the sync part reads them
+vp build: EXIT 1
+```
+
+### Not proven here
+
+- A real Postgres server: the stand-in is PGlite.
+- A sign-in in a tab: the stand-in auth signs no one
+  in; account changes are proven by scope tests.
+- A write from a tab through a server route:
+  `execute` is proven by scope tests only.
+- Chrome: Lightpanda ran the stream, so no
+  Chrome run was needed.
+- `vp dev`: only builds were served.
 
 ## R. The sync part, server side, 0.5.0
 

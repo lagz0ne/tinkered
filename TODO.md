@@ -74,8 +74,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   3b, the client side, saved on branch `start/base-parts-sync-client` (base 0.6.0), waits for review:
   `getBootstrap` and `getAccount`, the tab's sync client, stream, and lifetime, the router wiring,
   `@tinker/start/client`; check 5 names each client seam name, the server seam's `bootstrap`,
-  and missing `Register` bodies; the sync files' mutation score lifted.
-  Proof: [PROOF section S](docs/roadmap/start-base/PROOF.md#s-the-sync-part-client-side-060).
+  and missing `Register` bodies; more edge tests for the sync files.
+  Proof: [PROOF section S](docs/roadmap/start-base/PROOF.md#s-the-sync-part-client-side-060);
+  the mutation run of record is `docs/roadmap/start-base/proof/mutation.txt`, on the final HEAD.
   Next: the lead reviews and lands 3b; the card is then done.
   Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
 

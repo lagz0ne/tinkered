@@ -1,0 +1,24 @@
+# BREAKS=<the 18 names below> node packages/start/scripts/break-each-check.mjs, commit edf0b8f9, card start/base-parts step 3b, 2026-10-06
+# A partial run: the control and only the breaks new or changed since 3a's full run (break-each-check.txt)
+control (no break): 0 failed test(s), 0 broken file(s)
+caught    7 failed  the parts' seam names are not checked
+caught    3 failed  a seam with no Register bodies passes
+caught    3 failed  an augmentation is never found
+caught    1 failed  the client entry is not a base entry
+caught    3 failed  a stale snapshot applies
+caught    1 failed  an event past a gap applies
+caught    1 failed  a rejected write succeeds
+caught    1 failed  an account exit keeps the old account's signal
+caught    3 failed  the tab stop leaves account work running
+caught    1 failed  a back-forward cache hide closes the tab
+caught    1 failed  a tab queues any number of unread frames
+caught    2 failed  a connection starts the public stream over
+caught    1 failed  an account frame keeps the account
+caught    1 failed  a refresh keeps a changed account
+caught    3 failed  reconnects wait less than 500 ms
+caught    1 failed  a hydrated tab does not stream
+caught    1 failed  message imports.mjs say.entry
+caught    3 failed  message named.mjs say.augment
+
+18 of 18 breaks caught (16 logic, 2 message); BREAKS=a seam with no Register bodies passes,an augmentation is never found,the client entry is not a base entry,a stale snapshot applies,an event past a gap applies,a rejected write succeeds,an account exit keeps the old account's signal,the tab stop leaves account work running,a back-forward cache hide closes the tab,a tab queues any number of unread frames,a connection starts the public stream over,an account frame keeps the account,a refresh keeps a changed account,reconnects wait less than 500 ms,a hydrated tab does not stream,the parts' seam names are not checked,message named.mjs say.augment,message imports.mjs say.entry
+EXIT 0
