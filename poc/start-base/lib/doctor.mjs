@@ -2,7 +2,7 @@ import { boundary } from "./checks/boundary.mjs";
 import { bytes } from "./checks/bytes.mjs";
 import { env } from "./checks/env.mjs";
 import { generated } from "./checks/generated.mjs";
-import { glue } from "./checks/glue.mjs";
+import { breaksBuild, glue } from "./checks/glue.mjs";
 import { imports } from "./checks/imports.mjs";
 import { named } from "./checks/named.mjs";
 import { routes } from "./checks/routes.mjs";
@@ -26,7 +26,7 @@ export const checks = [
 /** Checks whose fail stops `vp build`: each is a mistake the build would ship in silence. */
 const stopping = new Set(["named files", "imports", "routes", "style"]);
 
-/** Checks a build only warns about: the build itself still works. */
+/** Checks a build reads too; their lines only warn, save a glue line that breaks the build. */
 const warning = new Set(["base version", "glue"]);
 
 /**
@@ -34,16 +34,20 @@ const warning = new Set(["base version", "glue"]);
  * @param {string} root - From tinker(); why: the app being built.
  */
 export function buildChecks(root) {
-  const run = (labels) =>
-    checks
-      .filter(({ label }) => labels.has(label))
-      .flatMap(({ label, check }) => {
-        const result = check(root);
-        return result.status === "fail"
-          ? result.lines.map((line) => `tinker doctor, ${label}: ${line}`)
-          : [];
-      });
-  return { errors: run(stopping), warnings: run(warning) };
+  const lines = checks
+    .filter(({ label }) => stopping.has(label) || warning.has(label))
+    .flatMap(({ label, check }) => {
+      const result = check(root);
+      if (result.status !== "fail") return [];
+      return result.lines.map((line) => ({
+        stops: stopping.has(label) || breaksBuild(line),
+        text: `tinker doctor, ${label}: ${line}`,
+      }));
+    });
+  return {
+    errors: lines.filter(({ stops }) => stops).map(({ text }) => text),
+    warnings: lines.filter(({ stops }) => !stops).map(({ text }) => text),
+  };
 }
 
 /** @param {string} text - From a check; why: keep each printed line short for a phone. */

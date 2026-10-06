@@ -59,14 +59,14 @@ const breaks = [
   {
     name: "build start stops nothing",
     file: "lib/doctor.mjs",
-    find: "return { errors: run(stopping), warnings: run(warning) };",
-    replace: "return { errors: [], warnings: run(warning) };",
+    find: "errors: lines.filter(({ stops }) => stops).map(({ text }) => text),",
+    replace: "errors: [],",
   },
   {
     name: "build start warns about nothing",
     file: "lib/doctor.mjs",
-    find: "warnings: run(warning) };",
-    replace: "warnings: [] };",
+    find: "warnings: lines.filter(({ stops }) => !stops).map(({ text }) => text),",
+    replace: "warnings: [],",
   },
   {
     name: "a fix that fails reads as fixed",
@@ -128,6 +128,36 @@ const breaks = [
     file: "lib/typecheck.mjs",
     find: ".filter(Boolean)",
     replace: ".filter(() => false)",
+  },
+  {
+    name: "a second tinker() only warns",
+    file: "lib/doctor.mjs",
+    find: "stops: stopping.has(label) || breaksBuild(line),",
+    replace: "stops: stopping.has(label),",
+  },
+  {
+    name: "check 3 sends a clash to tinker prepare",
+    file: "lib/checks/generated.mjs",
+    find: ".filter((file) => clashes || !routeClash(file, owned))",
+    replace: ".filter(() => true)",
+  },
+  {
+    name: "tinker prepare hides a stale tree",
+    file: "lib/checks/generated.mjs",
+    find: "if (gaps.length === 0) return [];",
+    replace: "return [];",
+  },
+  {
+    name: "shadcn needs Tailwind before any UI file",
+    file: "lib/checks/style.mjs",
+    find: "if (!ui || listFiles(ui).length === 0) return [];",
+    replace: "if (!ui) return [];",
+  },
+  {
+    name: "vite.config.ts is not type-checked",
+    file: "lib/prepare.mjs",
+    find: '"../vite.config.ts", ',
+    replace: "",
   },
   {
     name: "the type check never runs",

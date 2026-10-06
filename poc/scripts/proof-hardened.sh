@@ -154,6 +154,18 @@ tar -xzf poc/start-base/packs/tinker-start-*.tgz -C "$scratch/base"
   say "grep -c later .tinker/routeTree.gen.ts"
   grep -c later .tinker/routeTree.gen.ts
 
+  mistake "a route clash while no dev server runs: tinker prepare says so"
+  printf 'import { createFileRoute } from "@tanstack/react-router";\nexport const Route = createFileRoute("/tinker")({ component: () => <p>mine</p> });\n' > src/routes/tinker.tsx
+  say "tinker prepare"
+  node node_modules/@tinker/start/bin/tinker.mjs prepare 2>&1 | grep -a "tinker prepare\|^\.tinker\|^src/"
+  echo "EXIT ${PIPESTATUS[0]}"
+  doctor
+
+  mistake "two tinker() calls in vite.config.ts"
+  sed -i 's/plugins: \[tinker()\]/plugins: [tinker(), tinker()]/' vite.config.ts
+  build
+  doctor
+
   mistake "a named file without the export the base reads"
   printf 'export const start = 1;\n' > src/start.ts
   build

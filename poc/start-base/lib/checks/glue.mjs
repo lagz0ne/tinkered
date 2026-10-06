@@ -23,6 +23,15 @@ export const say = {
   fixed: (written) => `wrote ${written.join(" and ")}`,
 };
 
+/**
+ * A second tinker() or tanstackStart() breaks the build later, with a Start error that names no
+ * cause ("Duplicate declaration"); so these glue lines stop the build at its start.
+ * @param {string} line - From the glue check; why: one finding.
+ */
+export function breaksBuild(line) {
+  return /^vite\.config\.ts:\d+ (calls tinker\(\) \d+ times|adds tanstackStart\(\))/.test(line);
+}
+
 /** @param {string} root - From the glue check; why: parse its vite.config.ts. */
 function viteProblems(root) {
   const path = join(root, "vite.config.ts");

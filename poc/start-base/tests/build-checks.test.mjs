@@ -28,6 +28,20 @@ test("each silent mistake stops the build with doctor's file:line message", () =
   ]);
 });
 
+test("a second tinker() or tanstackStart() stops the build: Start would fail later with no cause", () => {
+  const root = goodApp({
+    "vite.config.ts":
+      'import { tinker } from "@tinker/start/vite";\nexport default { plugins: [tinker(), tinker(), tanstackStart()] };\n',
+  });
+  expect(buildChecks(root)).toEqual({
+    errors: [
+      "tinker doctor, glue: vite.config.ts:2 calls tinker() 2 times; call it once: plugins: [tinker()]",
+      "tinker doctor, glue: vite.config.ts:2 adds tanstackStart(); tinker() adds it already",
+    ],
+    warnings: [],
+  });
+});
+
 test("a glue or version problem only warns: the build itself still works", () => {
   const root = goodApp({
     "tsconfig.json": "{}",

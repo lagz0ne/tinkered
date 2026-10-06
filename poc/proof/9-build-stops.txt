@@ -146,6 +146,29 @@ EXIT 0
 $ grep -c later .tinker/routeTree.gen.ts
 13
 
+## a route clash while no dev server runs: tinker prepare says so
+$ tinker prepare
+tinker prepare: the route generator left the tree stale; fix the lines below:
+.tinker/routeTree.gen.ts misses src/routes/tinker.tsx; run tinker prepare
+src/routes/tinker.tsx:2 takes /tinker, a base route
+EXIT 1
+$ tinker doctor 
+fail  7 routes
+      src/routes/tinker.tsx:2 takes /tinker, a base route
+doctor: 1 check(s) fail
+EXIT 1
+
+## two tinker() calls in vite.config.ts
+$ vp build
+RolldownError: tinker doctor, glue: vite.config.ts:5 calls tinker() 2 times; call it once: plugins: [tinker()]
+vp build: EXIT 1
+$ tinker doctor 
+fail  4 glue
+      vite.config.ts:5 calls tinker() 2 times; call it
+      once: plugins: [tinker()]
+doctor: 1 check(s) fail
+EXIT 1
+
 ## a named file without the export the base reads
 $ vp build
 RolldownError: tinker doctor, named files: src/start.ts:1 does not export startInstance; the base imports it from this file

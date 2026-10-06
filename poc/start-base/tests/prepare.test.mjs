@@ -19,6 +19,11 @@ test("every alias in the generated tsconfig is absolute, so shadcn writes inside
   ).toBe(true);
 });
 
+test("the build's tsc checks vite.config.ts too, so a tinker() option type is checked", () => {
+  const { include } = JSON.parse(render(fixture({ "package.json": "{}" }))["tsconfig.json"]);
+  expect(include).toEqual(["../src", "../tests", "../vite.config.ts", "./routeTree.gen.ts"]);
+});
+
 test("a named file the app has wins; a missing one maps to the base default", () => {
   const root = goodApp({
     "src/router.ts": "export const router = () => ({});\n",

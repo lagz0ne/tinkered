@@ -44,7 +44,7 @@ export function render(root) {
   return {
     "tsconfig.json": json({
       compilerOptions: { ...compilerOptions, paths },
-      include: ["../src", "../tests", "./routeTree.gen.ts"],
+      include: ["../src", "../tests", "../vite.config.ts", "./routeTree.gen.ts"],
       exclude: ["../dist", "../node_modules"],
     }),
     "base.json": json({ base: basePackage.version }),
