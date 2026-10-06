@@ -24,6 +24,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/size-build-guard** — close the 4 guard gaps the second review found.
+  Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
+  and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
+  Verify: each plant from the review fails the build; Core tests on source and dist pass.
+
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
   Next: `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README
@@ -45,14 +50,6 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **core/size-build** — a build step renames 48 private fields: 15,683 → 15,367 B gzip (main after size-safe).
-  Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Rebased on `69526f1c`.
-  List after rebase: `defersFor` removed (size-safe deleted it); none added.
-  Proof: types and exports match main; 856 tests on source, 866 on `dist`; validate green.
-  Speed: N=61, ten scenarios, all "no difference we can see". Mutation 86.00 (85.09 without timeouts).
-  Next: lead review and landing.
-  [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-build).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
@@ -80,6 +77,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-build** — a build step renames 48 private fields: Core 15,683 → 15,367 B gzip (−316 B).
+  Owner: lead (Claude, Start scaffold session); Opus writer, Opus review (one fix round).
+  A guard stops the build on public names, user-visible keys, gone names, and reads from outside Core.
+  Core tests also run on the built files (`core#test:dist`, in validate and ticket.sh).
+  Types and exports match main; speed N=61, ten scenarios, no difference; mutation 86.00.
+  [Track](docs/roadmap/core-v1/PROGRESS.md#coresize-build).
 
 - **core/size-research** — two rounds of Opus research on Core's size (goal was 13 KiB).
   Owner: lead (Claude, Start scaffold session); eight Opus researchers.
