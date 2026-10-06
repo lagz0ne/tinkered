@@ -55,24 +55,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Owner: lead (Claude, Start scaffold session); Opus writer. Worktree: `../tinkered-base-parts`.
   Lands in three steps on main (user: everything in main): telemetry, then auth, then sync.
   Each part turns on in `tinker()`; tests through scope seams only.
+  Step 1, telemetry, saved on branch `start/base-parts` (base 0.3.0), waits for review:
+  `tinker({ telemetry })`, on by default; `.tinker/parts.ts` and `parts.server.ts`;
+  route `/api/telemetry` only while on; check 7 frees an off part's path;
+  check 9 names a refused part key at its `.env` line.
+  Proof: [PROOF section P](docs/roadmap/start-base/PROOF.md#p-the-telemetry-part-030).
+  Next: the lead reviews and lands step 1; step 2 (auth) on a fresh branch.
   Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **start/base-parts** — port telemetry, auth, and sync from `apps/start-scaffold/src/scaffold` into base parts.
-  Each part turns on in `tinker()`; tests through scope seams only.
-  Three steps, each landed on main alone: 1 telemetry, 2 auth, 3 sync (user 2026-10-06).
-  Owner: lead (Claude); one writer per step.
-  Step 1, telemetry, saved on branch `start/base-parts` (base 0.3.0):
-  `tinker({ telemetry })`, on by default; `.tinker/parts.ts` and `parts.server.ts`;
-  route `/api/telemetry` only while on; check 7 frees an off part's path;
-  check 9 names a refused part key at its `.env` line.
-  Next: the lead reviews and lands step 1; step 2 (auth) on a fresh branch.
-  Proof: [PROOF section P](docs/roadmap/start-base/PROOF.md#p-the-telemetry-part-030).
-  Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
