@@ -1,0 +1,49 @@
+$ pin @tinker/start to the packed 0.1.0 release
+vp install: EXIT 0
+base folder: node_modules/.pnpm/@tinker+start@file+poc+start-base+packs+tinker-start-0.1.0.tgz_@emnapi+core@1.11.3_@emn_89fa23cb71ee0d8159cad2c375f1464d/node_modules/@tinker/start
+vp build: EXIT 0
+dist/client/assets/routes-HibuWX_Y.js    0.13 kB │ gzip:   0.13 kB
+dist/client/assets/tinker-Dy-Vk5GC.js    0.21 kB │ gzip:   0.17 kB
+dist/client/assets/index-CNHiGWxB.js   391.41 kB │ gzip: 126.43 kB
+$ grep filePath/preloads dist/server/assets/_tanstack-start-manifest*.js
+		filePath: "node_modules/.pnpm/@tinker+start@file+poc+start-base+packs+tinker-start-0.1.0.tgz_@emnapi+core@1.11.3_@emn_89fa23cb71ee0d8159cad2c375f1464d/node_modules/@tinker/start/src/routes/root.tsx",
+		preloads: ["/assets/index-CNHiGWxB.js"],
+		filePath: "poc/app-min/src/routes/index.tsx",
+		preloads: ["/assets/routes-HibuWX_Y.js"]
+		filePath: "node_modules/.pnpm/@tinker+start@file+poc+start-base+packs+tinker-start-0.1.0.tgz_@emnapi+core@1.11.3_@emn_89fa23cb71ee0d8159cad2c375f1464d/node_modules/@tinker/start/src/routes/tinker.tsx",
+		preloads: ["/assets/tinker-Dy-Vk5GC.js"]
+$ curl -s http://127.0.0.1:36377/ | grep -ao '<p>[^<]*</p>'
+<p>Hello, world.</p>
+$ curl -si http://127.0.0.1:36377/api/health
+HTTP/1.1 200 OK
+content-type: application/json
+content-length: 26
+
+{"ok":true,"base":"0.1.0"}
+
+$ curl -s http://127.0.0.1:36377/tinker | grep -ao '<main>.*</main>'
+<main><h1>Tinker base</h1><p>@tinker/start <!-- -->0.1.0</p></main>
+server stopped: EXIT 0
+server log:
+tinker serve: http://127.0.0.1:36377
+$ tinker doctor 
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: all checks pass
+EXIT 0

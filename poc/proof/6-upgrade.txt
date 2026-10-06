@@ -1,0 +1,81 @@
+$ tinker upgrade 0.1.1 --from ../start-base/packs
+package.json: @tinker/start file:../start-base/packs/tinker-start-0.1.0.tgz -> file:../start-base/packs/tinker-start-0.1.1.tgz
+$ pnpm install
+Scope: all 13 workspace projects
+✓ Lockfile at ../../pnpm-lock.yaml passes supply-chain policies (verified 17s ago)
+../..                                    | Progress: resolved 1, reused 402, downloaded 1, added 1, done
+[WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
+dependencies:
+- @tinker/start file:poc/start-base/packs/tinker-start-0.1.0.tgz(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@tanstack/react-start@1.168.60(@voidzero-dev/vite-plus-core@1.0.0(@types/node@24.13.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.28.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@tinker/core@packages+core)(@tinker/react@packages+react)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@24.13.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
++ @tinker/start 0.1.1
+Done in 1.5s using pnpm v12.4.1
+$ tinker prepare
+tinker prepare: wrote .tinker/tsconfig.json, .tinker/base.json
+$ tinker doctor
+ok    1 base version
+      @tinker/start 0.1.1; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: all checks pass
+Upgrade notes, 0.1.0 to 0.1.1:
+## 0.1.1
+`/api/health` replies with `Cache-Control: no-store`.
+No app change is needed.
+EXIT 0
+$ cat .tinker/base.json
+{
+  "base": "0.1.1"
+}
+$ diff src hashes before and after
+src/: no change
+$ git status --short poc/app-min
+ M poc/app-min/package.json
+$ git diff poc/app-min/src
+(empty)
+$ git diff poc/app-min/package.json
+diff --git a/poc/app-min/package.json b/poc/app-min/package.json
+index 246fea9b..8ddda94c 100644
+--- a/poc/app-min/package.json
++++ b/poc/app-min/package.json
+@@ -15,7 +15,7 @@
+     "@tanstack/react-start": "1.168.60",
+     "@tinker/core": "workspace:*",
+     "@tinker/react": "workspace:*",
+-    "@tinker/start": "workspace:*",
++    "@tinker/start": "file:../start-base/packs/tinker-start-0.1.1.tgz",
+     "react": "catalog:",
+     "react-dom": "catalog:",
+     "zod": "catalog:"
+vp build: EXIT 0
+dist/client/assets/routes-DsIt-EV-.js    0.13 kB │ gzip:   0.13 kB
+dist/client/assets/tinker-Be1KLIVn.js    0.21 kB │ gzip:   0.17 kB
+dist/client/assets/index-XoD0Xraz.js   391.41 kB │ gzip: 126.43 kB
+$ curl -s http://127.0.0.1:43485/ | grep -ao '<p>[^<]*</p>'
+<p>Hello, world.</p>
+$ curl -si http://127.0.0.1:43485/api/health
+HTTP/1.1 200 OK
+cache-control: no-store
+content-type: application/json
+content-length: 26
+
+{"ok":true,"base":"0.1.1"}
+
+$ curl -s http://127.0.0.1:43485/tinker | grep -ao '<main>.*</main>'
+<main><h1>Tinker base</h1><p>@tinker/start <!-- -->0.1.1</p></main>
+server stopped: EXIT 0
+server log:
+tinker serve: http://127.0.0.1:43485

@@ -1,0 +1,54 @@
+$ git checkout poc/app-min/package.json pnpm-lock.yaml
+Updated 2 paths from the index
+vp install: EXIT 0
+base folder: poc/start-base
+vp build: EXIT 0
+dist/client/assets/routes-D-xhqWLN.js    0.13 kB │ gzip:   0.13 kB
+dist/client/assets/tinker-PIxTlaLl.js    0.21 kB │ gzip:   0.17 kB
+dist/client/assets/index-Cf8CQkip.js   391.21 kB │ gzip: 126.32 kB
+$ grep filePath/preloads dist/server/assets/_tanstack-start-manifest*.js
+		filePath: "poc/start-base/src/routes/root.tsx",
+		preloads: ["/assets/index-Cf8CQkip.js"],
+		filePath: "poc/app-min/src/routes/index.tsx",
+		preloads: ["/assets/routes-D-xhqWLN.js"]
+		filePath: "poc/start-base/src/routes/tinker.tsx",
+		preloads: ["/assets/tinker-PIxTlaLl.js"]
+$ curl -s http://127.0.0.1:39607/ | grep -ao '<p>[^<]*</p>'
+<p>Hello, world.</p>
+$ curl -si http://127.0.0.1:39607/api/health
+HTTP/1.1 200 OK
+cache-control: no-store
+content-type: application/json
+content-length: 26
+
+{"ok":true,"base":"0.1.1"}
+
+$ curl -s http://127.0.0.1:39607/tinker | grep -ao '<main>.*</main>'
+<main><h1>Tinker base</h1><p>@tinker/start <!-- -->0.1.1</p></main>
+server stopped: EXIT 0
+server log:
+tinker serve: http://127.0.0.1:39607
+$ tinker doctor 
+ok    1 base version
+      @tinker/start 0.1.1; 4 peers match the tested
+      versions
+skip  2 base bytes
+      workspace link to ../start-base; a source checkout
+      has no pinned bytes
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: all checks pass
+EXIT 0
+$ vp run typecheck
+EXIT 0

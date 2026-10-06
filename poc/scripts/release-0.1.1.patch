@@ -1,0 +1,40 @@
+--- a/poc/start-base/package.json
++++ b/poc/start-base/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@tinker/start",
+-  "version": "0.1.0",
++  "version": "0.1.1",
+   "private": true,
+   "description": "POC for ADR 0106: the Start base as a package.",
+   "bin": {
+--- a/poc/start-base/UPGRADE.md
++++ b/poc/start-base/UPGRADE.md
+@@ -2,6 +2,11 @@
+ 
+ `tinker upgrade` prints the sections between your old and new version.
+ 
++## 0.1.1
++
++`/api/health` replies with `Cache-Control: no-store`.
++No app change is needed.
++
+ ## 0.1.0
+ 
+ The first base: Start bridge, entries, `/api/health`, `/tinker`.
+--- a/poc/start-base/src/routes/api.health.ts
++++ b/poc/start-base/src/routes/api.health.ts
+@@ -7,7 +7,12 @@
+     middleware: [startRequests.middleware],
+     handlers: {
+       GET: async ({ context }) =>
+-        Response.json(readResult(await context.session.settle(health, { signal: context.signal }))),
++        Response.json(
++          readResult(await context.session.settle(health, { signal: context.signal })),
++          {
++            headers: { "Cache-Control": "no-store" },
++          },
++        ),
+     },
+   },
+ });

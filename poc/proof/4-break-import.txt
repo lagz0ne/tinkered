@@ -1,0 +1,76 @@
+$ cat src/backend/peek.ts
+import { responseBodies } from "@tinker/start/src/backend/body.server.ts";
+import { requestStop } from "../../node_modules/@tinker/start/src/backend/lifetime.ts";
+export const peek = [responseBodies, requestStop];
+$ tinker doctor 
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+fail  6 imports
+      src/backend/peek.ts:1
+      "@tinker/start/src/backend/body.server.ts" is not a
+      base entry; use @tinker/start or
+      @tinker/start/server; src/backend/peek.ts:2
+      "../../node_modules/@tinker/start/src/backend/lifetime.ts"
+      reaches into the base by path
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: 1 check(s) fail
+EXIT 1
+$ tinker doctor --fix
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+fail  6 imports
+      src/backend/peek.ts:1
+      "@tinker/start/src/backend/body.server.ts" is not a
+      base entry; use @tinker/start or
+      @tinker/start/server; src/backend/peek.ts:2
+      "../../node_modules/@tinker/start/src/backend/lifetime.ts"
+      reaches into the base by path
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: 1 check(s) fail
+EXIT 1
+$ rm src/backend/peek.ts
+$ tinker doctor 
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: all checks pass
+EXIT 0

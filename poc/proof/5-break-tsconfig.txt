@@ -1,0 +1,46 @@
+$ echo "{}" > tsconfig.json
+$ tinker doctor 
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+fail  4 glue
+      tsconfig.json does not extend
+      "./.tinker/tsconfig.json"
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: 1 check(s) fail
+EXIT 1
+$ tinker doctor --fix
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+fixed 4 glue
+      set extends in tsconfig.json
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: all checks pass
+EXIT 0
+$ cat tsconfig.json
+{
+  "extends": "./.tinker/tsconfig.json"
+}

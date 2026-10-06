@@ -1,0 +1,46 @@
+$ rm -rf .tinker
+$ tinker doctor 
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+fail  3 generated folder
+      .tinker/ is missing
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: 1 check(s) fail
+EXIT 1
+$ tinker doctor --fix
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+ok    2 base bytes
+      27 files match files.json
+fixed 3 generated folder
+      ran tinker prepare
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: all checks pass
+EXIT 0
+$ ls .tinker
+base.json
+tsconfig.json

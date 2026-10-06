@@ -1,0 +1,47 @@
+$ sed -i "s/Tinker base/My base/" node_modules/@tinker/start/src/routes/tinker.tsx
+$ tinker doctor 
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+fail  2 base bytes
+      src/routes/tinker.tsx changed in
+      node_modules/@tinker/start. An install drops base
+      edits; use an extension point
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: 1 check(s) fail
+EXIT 1
+$ tinker doctor --fix
+ok    1 base version
+      @tinker/start 0.1.0; 4 peers match the tested
+      versions
+fixed 2 base bytes
+      restored 1 file(s) from tinker-start-0.1.0.tgz
+ok    3 generated folder
+      .tinker/ matches this base; .gitignore lists it
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker
+ok    5 seams
+      no seam files; the base defaults are in use
+ok    6 imports
+      2 files in src/ import the base only through its
+      entries
+ok    7 routes
+      no app route takes a base path (/api/health,
+      /tinker)
+doctor: all checks pass
+EXIT 0
+$ grep -c "Tinker base" node_modules/@tinker/start/src/routes/tinker.tsx
+1
