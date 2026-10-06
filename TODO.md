@@ -55,12 +55,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Owner: lead (Claude, Start scaffold session); Opus writer. Worktree: `../tinkered-base-parts`.
   Lands in three steps on main (user: everything in main): telemetry, then auth, then sync.
   Each part turns on in `tinker()`; tests through scope seams only.
-  Step 1, telemetry, saved on branch `start/base-parts` (base 0.3.0), waits for review:
+  Step 1, telemetry, landed on main (base 0.3.0; mutation 87.53, 87.12 on kills):
   `tinker({ telemetry })`, on by default; `.tinker/parts.ts` and `parts.server.ts`;
   route `/api/telemetry` only while on; check 7 frees an off part's path;
   check 9 names a refused part key at its `.env` line.
   Proof: [PROOF section P](docs/roadmap/start-base/PROOF.md#p-the-telemetry-part-030).
-  Next: the lead reviews and lands step 1; step 2 (auth) on a fresh branch.
+  Next: step 2 (auth) on a fresh branch off main.
   Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
