@@ -438,11 +438,13 @@ New sections are lists, one term per item (vertical layout,
   Only the auth route and proof tests use this named protocol exception (ADR 0103).
 - **entry point** — The one file that creates a root scope and owns its stop signal and exit (ADR 0100).
 
-## Start base (ADR 0106, proposed)
+## Start base (ADR 0106)
 
 - **base** — The fixed Start setup: entries, the Start bridge, HTTP, telemetry, sync, and the auth mount.
-  It ships as the package `@tinker/start` and is never edited in an app.
+  It ships as the package `@tinker/start` (`packages/start`) and is never edited in an app.
   Code names still avoid the layer word `Base`.
+- **smallest app** — `apps/start-min`: two files in `src/` and the two glue lines.
+  The base's proof builds, serves, and doctors it.
 - **userland** — The app's own files: `src/`, `tests/`, `drizzle/`, and its config.
   The base never writes them.
 - **glue** — The two config lines that join an app to the base:

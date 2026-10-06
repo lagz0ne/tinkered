@@ -3,6 +3,8 @@
 Date: 2026-10-06. Status: accepted (user, 2026-10-06, after the POC, stress test, and hardening; card `start/base`).
 Hardened by card `start/base-harden`: named files, build-start
 checks, and ten doctor checks, from four stress tests.
+Moved by card `start/base-package`: the base is `packages/start`,
+and the smallest app is `apps/start-min`.
 Refines: 0100, 0101. Uses: 0050, 0065, 0099, 0102, 0103.
 Replaces: the `runtime` copy-in item
 (`docs/roadmap/start-scaffold/REGISTRY.md`).
@@ -391,6 +393,7 @@ so the entry no longer names it.
 ### The smallest app
 
 Two files. No base file, no seam file.
+It lives in this repo as `apps/start-min`.
 
 `src/backend/greet.ts`:
 
@@ -813,6 +816,9 @@ Five things stay out of reach, each with its reason
 ### Migration for `apps/start-scaffold`
 
 1. Add `packages/start` (`@tinker/start`).
+   The package exists since card `start/base-package`;
+   the moves below wait for `start/base-parts`
+   and `start/scaffold-on-base`.
    Move `src/scaffold/**`, the four entries, `scripts/serve.mjs`,
    the three base routes, `transport/routes.server.ts`,
    and `transport/result.server.ts`.

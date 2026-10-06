@@ -55,17 +55,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/base-package** — promote `poc/start-base` to `packages/start` and `poc/app-min` to `apps/start-min`.
-  Keep the tests, `doctor`, and the proof script; add the two follow-ups
-  (a second `extends` file sets `paths`; a BOM in `package.json`).
-  Owner: lead (Claude, Start scaffold session); Opus writer. Worktree: `../tinkered-base-package`.
-  Impact (ADR 0065): adds `@tinker/start` and `apps/start-min`; no existing public symbol changes.
-  Verify: same 129 tests and 140 breaks; repo gates; `tinker doctor` on `apps/start-min`.
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **start/base-package** — promote `poc/start-base` to `packages/start` and `poc/app-min` to `apps/start-min`.
+  Owner: lead (Claude, Start scaffold session); Opus writer. Worktree: `../tinkered-base-package`.
+  Impact (ADR 0065): adds `@tinker/start` and `apps/start-min`; no existing public symbol changes.
+  Next: lead review, then land.
+  Proof: `poc/` is gone; both follow-ups have tests that failed before (4).
+  Tests 23 files, 166; 146 of 146 breaks; mutation 88.12 (88.07 on kills alone).
+  `apps/start-min` builds, serves `/`, `/api/health`, `/tinker`; doctor passes.
+  The proof rerun caught a README that every pack ships but `files.json` did not pin; fixed.
+  [Proof](docs/roadmap/start-base/PROOF.md#0-the-package).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

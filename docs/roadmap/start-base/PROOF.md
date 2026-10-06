@@ -1,17 +1,137 @@
-# POC proof: the Start base as a package
+# Proof: the Start base as a package
 
 ADR 0106, picks 1a, 2a, 3a. Date: 2026-10-06.
-Branch `start/base`.
+Branches `start/base` and `start/base-package`.
 Full logs: `proof/*.txt`, from real runs.
 The blocks below are cut from them:
 a line is left out or wrapped, and `…` marks a cut.
 
-Two rounds:
+Three rounds:
 
+- **The package** (card `start/base-package`):
+  the POC moves out of `poc/`. Section 0.
 - **0.2.0, the hardened base** (card `start/base-harden`):
   the 22 stress patches folded in. Sections 1 to 7.
 - **0.1.x, the first POC**: the release proof.
   Kept below, unchanged; rerun it at commit `d524069f`.
+
+Sections 1 to 8 and their logs predate the move.
+Read their paths this way:
+
+- `poc/start-base` is now `packages/start`.
+- `poc/app-min` is now `apps/start-min`.
+- `poc/scripts/proof-hardened.sh` is now
+  `packages/start/scripts/proof.sh`.
+
+## 0. The package
+
+### What moved
+
+- `poc/start-base` to `packages/start`
+  (`@tinker/start`; entries `.`, `./server`,
+  `./vite`, and the `tinker` bin).
+- `poc/app-min` to `apps/start-min`
+  (package name `start-min`).
+- `poc/PROOF.md` and `poc/proof/` to
+  `docs/roadmap/start-base/`.
+- `poc/scripts/curl-app.sh` and `proof-hardened.sh`
+  to `packages/start/scripts/` (`proof.sh`).
+- The 0.1.x release scripts stay at commit `d524069f`,
+  where their patch applies.
+- `pnpm-workspace.yaml` drops `poc/*`.
+
+### Two follow-ups from the last review
+
+Each has a test that fails on the code before it
+(log `proof/package-tests-before.txt`: 4 fail).
+
+- Check 4 reads each local file the `extends` list
+  names after `./.tinker/tsconfig.json`.
+  tsc reads the list in order, and the last file wins.
+  So doctor names the file whose value tsc uses:
+
+  ```text
+  configs/strict.json:4 sets compilerOptions.paths;
+    it replaces the base's #tinker/* and @/* paths,
+    so remove it
+  configs/strict.json:3 turns strict off;
+    the base's files need strict
+  ```
+
+- In strict mode, `readJsonc` reports a byte order mark.
+  `vp install` stops on one
+  ("expected value at line 1 column 1").
+
+  ```text
+  package.json:1 starts with a byte order mark;
+    vp cannot read it
+  ```
+
+  `--fix` never writes that file.
+  `components.json` gets its parse line:
+  `components.json:1 does not parse (ByteOrderMark)`.
+
+### Lanes
+
+- `vp run @tinker/start#test`: 23 files, 166 tests.
+- `vp check` lints and formats `packages/start`.
+- `vp run @tinker/start#mutate`: Stryker, floor 85.
+  At commit `e0c24cf9`: killed 1890, timeout 1,
+  survived 203, no coverage 52.
+  Score 88.12; 88.07 on kills alone
+  (log `proof/mutation.txt`).
+- `node packages/start/scripts/break-each-check.mjs`:
+  146 of 146 breaks caught (74 logic, 72 message).
+  The six new breaks are the two follow-ups.
+
+The lane leaves out the files that only run inside
+TanStack's runtime: `src/entry/server.ts`,
+`router.tsx`, `start.ts`, `fallbacks.tsx`,
+`src/routes/**`, and the four empty defaults they read.
+No test may run TanStack (ADR 0106, Testing the base);
+the build and serve proof covers them.
+`tinker serve`'s Node host and the route-tree write
+moved into `bin/tinker.mjs`, their one caller:
+each starts a server or Vite.
+
+Two code changes came with the lane:
+
+- `checkTypes` found TypeScript through `createRequire`,
+  which also reads `NODE_PATH`. A package manager's
+  script run sets that to its own store, so an app
+  with no `typescript` passed the check there.
+  It now walks the app's `node_modules`, as Node does.
+- `doctor()` returns its lines and exit code;
+  `planUpgrade()` says what an upgrade does
+  before it writes or installs. The CLI prints.
+
+### apps/start-min
+
+`packages/start/scripts/proof.sh`, on the workspace
+link (log `proof/8-hardened-app-min.txt`):
+
+```text
+base folder: packages/start
+vp build: EXIT 0
+<p>Hello, world.</p>
+HTTP/1.1 200 OK
+{"ok":true,"base":"0.2.0"}
+<main><h1>Tinker base</h1>…
+server stopped: EXIT 0
+$ tinker doctor
+doctor: all checks pass
+EXIT 0
+```
+
+The script's other logs (9, 10, 11) came out
+byte for byte as in the 0.2.0 run.
+Its first rerun caught one bug:
+`pnpm pack` always ships `README.md`,
+but `files.json` pinned only the `files` list.
+So every installed base failed check 2 with
+`node_modules/@tinker/start/README.md added`.
+`README.md` is in `files` now, and a test
+fails if a README or LICENSE is left out.
 
 ## 1. Gates, 0.2.0
 
@@ -30,7 +150,7 @@ From the repo root, each by exit code:
 `tinker doctor` prints a status line per check,
 then one line per finding.
 `--fix` writes only base-owned and generated files.
-Each check is one file: `start-base/lib/checks/<name>.mjs`.
+Each check is one file: `packages/start/lib/checks/<name>.mjs`.
 Its `say` table holds every message below.
 
 ### 1 base version
@@ -73,10 +193,15 @@ Its `say` table holds every message below.
 - `<config>:<line> adds tanstackStart(); tinker() adds it already`
 - `<config>:<line> imports @tailwindcss/vite; tinker() adds Tailwind already`
 - `tsconfig.json:<line> does not parse (<code>); doctor never edits a file that does not parse`
-  (and the same for `package.json`)
+  (and the same for `package.json` and each extended file)
+- `package.json:1 starts with a byte order mark; vp cannot read it`
 - `tsconfig.json:1 does not extend "./.tinker/tsconfig.json"`
-- `tsconfig.json:<line> sets compilerOptions.paths; it replaces the base's #tinker/* and @/* paths, so remove it`
-- `tsconfig.json:<line> turns strict off; the base's files need strict`
+- `<file>:<line> sets compilerOptions.paths; it replaces the base's #tinker/* and @/* paths, so remove it`
+- `<file>:<line> turns strict off; the base's files need strict`
+- `<file>` is `tsconfig.json`, or a local file its `extends`
+  list names after `./.tinker/tsconfig.json`.
+  tsc reads that list in order, and the last file wins,
+  so doctor names the file whose value tsc uses.
 - `package.json:1 has no "postinstall": "tinker prepare"; a fresh clone has no .tinker/`
 - `--fix`: `wrote the extends line in tsconfig.json and the postinstall script in package.json`.
   It inserts those two keys and keeps every other byte.
@@ -113,7 +238,8 @@ Its `say` table holds every message below.
 - `components.json:<line> aliases.<name> "<alias>" matches no tsconfig path`
 - `components.json:<line> tailwind.css is "<file>"; the base links src/style.css`
 - `components.json:1 sets no tailwind.css; set it to "src/style.css"`
-- `components.json:<line> does not parse (<code>)`
+- `components.json:<line> does not parse (<code>)`;
+  a byte order mark is `(ByteOrderMark)` at line 1
 - `src/style.css is missing; shadcn's files in <ui folder> need it, with @import "tailwindcss"`
 - `src/style.css:1 does not @import "tailwindcss"; shadcn's files in <ui folder> need Tailwind`
 - The last two only once a file sits in shadcn's `ui` folder.
@@ -153,7 +279,7 @@ Then, at build start, the app's own `tsc`:
 
 ## 3. Unit tests, and breaking each check
 
-`poc/start-base/tests/`: 21 files, 129 tests.
+`packages/start/tests/`: 23 files, 166 tests.
 Plain unit tests of our glue as functions,
 and base behavior through a scope.
 No test runs a build, dev, TanStack, a browser,
@@ -169,6 +295,8 @@ or a served page (ADR 0106, Testing the base).
   the pass case, each fail with its exact message,
   and `--fix` where it applies (checks 2, 3, 4).
 - `buildChecks`, the function `tinker()` runs before the generator.
+- `doctor()`'s printed lines and exit code, and
+  `planUpgrade()`: its stop lines, pins, and notes.
 - The Vite hooks' plain parts (`lib/hooks.mjs`):
   the boundary record and the dev restart rule.
   `errorDetail`: a production error page shows no text.
@@ -176,7 +304,9 @@ or a served page (ADR 0106, Testing the base).
   notes whether `tinker prepare` ran the generator.
   No Vite runs.
 - Through a scope: `readResult`, the health operation,
-  the `env` tag, the start extension and its middleware,
+  the `env` tag, the start extension and its middleware
+  (the request session, its headers and stop signal,
+  a forced close, a teardown error),
   the response body owner, the default server entry,
   and the dev error page.
 
@@ -185,17 +315,17 @@ in a scratch copy, then runs the tests
 (log `proof/break-each-check.txt`):
 
 ```text
-control (no break): 0 failed test(s)
-caught    3 failed  check version always passes
-caught    5 failed  check named always passes
-caught    1 failed  tsconfig @/* goes back to ../src/*
+control (no break): 0 failed test(s), 0 broken file(s)
+caught    6 failed  check version always passes
+caught    9 failed  check bytes always passes
+caught    7 failed  tsconfig @/* goes back to ../src/*
 …
-140 of 140 breaks caught (69 logic, 71 message)
+146 of 146 breaks caught (74 logic, 72 message)
 ```
 
-- 69 logic breaks: each check passes always,
+- 74 logic breaks: each check passes always,
   each `--fix` does nothing, each glue function lies.
-- 71 message breaks: one mark in each `say` entry.
+- 72 message breaks: one mark in each `say` entry.
   So every doctor message has a test that reads it exactly.
 
 The review round's tests, run against the code before it
@@ -515,7 +645,10 @@ Rough edges, none blocking:
 - `tinker upgrade` from 0.1.x runs the old CLI,
   so its old pin rule rewrites a `file:` tarball peer.
 - Check 4 sees `paths` and `strict: false`
-  in an app tsconfig; other overrides it does not judge.
+  in the app tsconfig and in each local file
+  it extends after `.tinker/`.
+  A file those files extend in turn,
+  and other overrides, it does not judge.
 - Lightpanda shows the stylesheet link but loads no CSS;
   the styled button was proven in Chrome.
 - In the rerun setup, an app and the base that load
