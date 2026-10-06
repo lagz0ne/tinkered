@@ -71,10 +71,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   route `/api/sync` (SSE) only while on; `eventHistory` and the sync tables;
   check 5 stops the build on a server seam without `database`.
   Proof: [PROOF section R](docs/roadmap/start-base/PROOF.md#r-the-sync-part-server-side-050).
-  3b, the client side: `getBootstrap`, `getAccount`, the sync client, tab lifetime,
-  the router wiring, and the client seam names (`records`, `readSnapshot`, `readBootstrap`,
-  `readBatch`, `streamMessage`), plus the server seam's `bootstrap`.
-  Next: 3b on a fresh branch off main; lift the sync files' mutation score there.
+  3b, the client side, saved on branch `start/base-parts-sync-client` (base 0.6.0), waits for review:
+  `getBootstrap` and `getAccount`, the tab's sync client, stream, and lifetime, the router wiring,
+  `@tinker/start/client`; check 5 names each client seam name, the server seam's `bootstrap`,
+  and missing `Register` bodies; the sync files' mutation score lifted.
+  Proof: [PROOF section S](docs/roadmap/start-base/PROOF.md#s-the-sync-part-client-side-060).
+  Next: the lead reviews and lands 3b; the card is then done.
   Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
