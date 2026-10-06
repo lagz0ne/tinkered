@@ -1,26 +1,26 @@
 control (no break): 0 failed test(s), 0 broken file(s)
-caught    5 failed  check version always passes
-caught    7 failed  check bytes always passes
-caught   14 failed  check generated always passes
-caught   20 failed  check glue always passes
+caught    6 failed  check version always passes
+caught    9 failed  check bytes always passes
+caught   16 failed  check generated always passes
+caught   28 failed  check glue always passes
 caught    6 failed  check named always passes
 caught    3 failed  check imports always passes
 caught   12 failed  check routes always passes
-caught   15 failed  check style always passes
+caught   16 failed  check style always passes
 caught    3 failed  check env always passes
-caught    3 failed  check boundary always passes
+caught    4 failed  check boundary always passes
 caught    1 failed  bytes --fix restores nothing
-caught    2 failed  generated --fix adds no ignore line
-caught    6 failed  glue --fix writes no extends
+caught    3 failed  generated --fix adds no ignore line
+caught   11 failed  glue --fix writes no extends
 caught    3 failed  build start stops nothing
 caught    1 failed  build start warns about nothing
-caught    3 failed  a fix that fails reads as fixed
+caught    4 failed  a fix that fails reads as fixed
 caught    1 failed  aliases drop ?url
 caught    1 failed  the shell never replaces the base's
 caught    1 failed  an unknown tinker() option is dropped
 caught    2 failed  a named file is never picked
 caught    3 failed  src/router.tsx is not listed
-caught    6 failed  tsconfig @/* goes back to ../src/*
+caught    7 failed  tsconfig @/* goes back to ../src/*
 caught    3 failed  route groups count as a segment
 caught    4 failed  nesting under a base route is missed
 caught    1 failed  a - folder counts as a route
@@ -31,7 +31,7 @@ caught    1 failed  tinker prepare hides a stale tree
 caught    1 failed  shadcn needs Tailwind before any UI file
 caught    1 failed  vite.config.ts is not type-checked
 caught    6 failed  a tsconfig that does not parse reads as empty
-caught    2 failed  --fix drops the comments of tsconfig.json
+caught    3 failed  --fix drops the comments of tsconfig.json
 caught    1 failed  --fix writes a tsconfig that does not parse
 caught    2 failed  a renamed tinker import counts no call
 caught    1 failed  a config with no tinker() call stops the build
@@ -43,7 +43,7 @@ caught    1 failed  the shell link is a text match again
 caught    4 failed  a bad components.json throws
 caught    2 failed  a wrong createFileRoute path is not named
 caught    1 failed  a stale pin is not named
-caught    1 failed  tinker prepare wipes the boundary record
+caught    2 failed  tinker prepare wipes the boundary record
 caught    1 failed  dev restarts on any file
 caught    1 failed  a production error page shows the text
 caught    2 failed  components.json is read leniently
@@ -54,32 +54,32 @@ caught    2 failed  any value named Outlet counts as the outlet
 caught    3 failed  a byte order mark breaks the parse
 caught    1 failed  --fix drops the byte order mark
 caught    1 failed  --fix always indents with two spaces
-caught    5 failed  an extends array never counts
+caught    6 failed  an extends array never counts
 caught    2 failed  a file extended after .tinker is never read
-caught    1 failed  a file extended before .tinker counts too
+caught    4 failed  a file extended before .tinker counts too
 caught    1 failed  the first extended file wins, not the last
 caught    2 failed  a byte order mark passes strict JSON
 caught    1 failed  a byte order mark in package.json reads as a parse code
-caught    2 failed  --fix replaces the extends key
+caught    3 failed  --fix replaces the extends key
 caught    1 failed  lazy routes read as missed
 caught    1 failed  an extends array breaks shadcn's alias read
 caught    2 failed  the type check never runs
 caught    1 failed  .env beats the shell
 caught    1 failed  an edited .env keeps its old value
 caught    1 failed  serve hands out dot paths
-caught    1 failed  serve skips public/ files
-caught    1 failed  upgrade breaks a tarball peer
+caught    3 failed  serve skips public/ files
+caught    2 failed  upgrade breaks a tarball peer
 caught    1 failed  readResult hides a failure
 caught    1 failed  the dev error page never shows
 caught    1 failed  the default server entry skips the base
-caught    1 failed  a read body ends the request as cancelled
+caught    3 failed  a read body ends the request as cancelled
 caught    1 failed  message boundary.mjs say.none
 caught    1 failed  message boundary.mjs say.found
 caught    1 failed  message boundary.mjs say.passed
 caught    1 failed  message bytes.mjs say.missing
 caught    1 failed  message bytes.mjs say.link
 caught    1 failed  message bytes.mjs say.noPins
-caught    1 failed  message bytes.mjs say.edited
+caught    2 failed  message bytes.mjs say.edited
 caught    1 failed  message bytes.mjs say.passed
 caught    1 failed  message bytes.mjs say.reinstall
 caught    1 failed  message bytes.mjs say.restored
@@ -99,21 +99,21 @@ caught    1 failed  message generated.mjs say.ignore
 caught    1 failed  message generated.mjs say.generator
 caught    1 failed  message generated.mjs say.notRun
 caught    1 failed  message generated.mjs say.passed
-caught    1 failed  message generated.mjs say.fixed
+caught    2 failed  message generated.mjs say.fixed
 caught    1 failed  message glue.mjs say.noVite
 caught    1 failed  message glue.mjs say.noImport
 caught    1 failed  message glue.mjs say.noCall
 caught    3 failed  message glue.mjs say.calls
-caught    2 failed  message glue.mjs say.start
-caught    1 failed  message glue.mjs say.tailwind
+caught    3 failed  message glue.mjs say.start
+caught    2 failed  message glue.mjs say.tailwind
 caught    3 failed  message glue.mjs say.parse
 caught    1 failed  message glue.mjs say.mark
 caught    2 failed  message glue.mjs say.extends
 caught    2 failed  message glue.mjs say.paths
 caught    2 failed  message glue.mjs say.strict
-caught    1 failed  message glue.mjs say.postinstall
+caught    2 failed  message glue.mjs say.postinstall
 caught    2 failed  message glue.mjs say.passed
-caught    1 failed  message glue.mjs say.fixed
+caught    2 failed  message glue.mjs say.fixed
 caught    2 failed  message imports.mjs say.seam
 caught    1 failed  message imports.mjs say.entry
 caught    1 failed  message imports.mjs say.path
@@ -142,7 +142,7 @@ caught    1 failed  message style.mjs say.passed
 caught    1 failed  message version.mjs say.missing
 caught    2 failed  message version.mjs say.drift
 caught    1 failed  message version.mjs say.stale
-caught    1 failed  message version.mjs say.passed
+caught    2 failed  message version.mjs say.passed
 caught    1 failed  message typecheck.mjs say.noTypescript
 caught    1 failed  message typecheck.mjs say.failed
 
