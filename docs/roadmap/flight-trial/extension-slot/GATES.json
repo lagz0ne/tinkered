@@ -38,6 +38,23 @@
       "score_with_timeouts_counted_as_survivors": 84.87,
       "accepted": false,
       "reason": "kills alone are below the floor of 85"
+    },
+    {
+      "run": "writer low concurrency",
+      "command": "flock /tmp/mutation.lock vp run flight-trial#mutate --concurrency 2 --timeoutFactor 3",
+      "exit_code": 0,
+      "workers": 2,
+      "timeout_factor": 3,
+      "floor": 85,
+      "target_without_timeouts": 86,
+      "score": 88.71,
+      "killed": 1539,
+      "timeout": 32,
+      "survived": 172,
+      "no_coverage": 28,
+      "mutants": 1771,
+      "score_with_timeouts_counted_as_survivors": 86.9,
+      "accepted": true
     }
   ],
   "gates": [
@@ -69,7 +86,6 @@
       "differences": 0
     }
   ],
-  "pending": ["full mutation check with fewer workers"],
   "advisory": {
     "style_exit_code": 0,
     "tsdoc_exit_code": 0,
@@ -108,9 +124,34 @@
   "rebase": {
     "command": "git fetch origin && git rebase origin/main",
     "exit_code": 0,
-    "origin_main": "35404adc",
-    "conflicts_resolved": ["TODO.md: keep the latest board entries; keep this card in Doing"],
+    "origin_main": "69526f1c",
+    "conflicts_resolved": [
+      "TODO.md: keep the latest board entries; retain only this writer card from the old Doing block"
+    ],
     "install_exit_code": 0,
     "build_exit_code": 0
+  },
+  "landing_survivors_killed": {
+    "total": 66,
+    "additional_beyond_named": 64,
+    "by_file": {
+      "services/http.ts": 38,
+      "services/payment/index.ts": 22,
+      "services/http-client.ts": 6
+    },
+    "named": [
+      {
+        "file": "services/http.ts",
+        "line": 392,
+        "status": "Killed",
+        "id": "462"
+      },
+      {
+        "file": "services/payment/index.ts",
+        "line": 479,
+        "status": "Killed",
+        "id": "983"
+      }
+    ]
   }
 }

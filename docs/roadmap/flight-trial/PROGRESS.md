@@ -42,9 +42,13 @@ The default full run returned 0: 1,503 killed, 142 timeout, 98 survived, 28 no c
 Its reported score is 92.89; kills alone score 84.87, below 85.
 That run is not accepted as proof of the floor.
 Both named survivors and 40 more landing survivors are Killed.
-A full check with fewer workers and a larger runner timeout is pending.
-Only kills will count toward the target.
-Rebase keeps main's latest board entries and this card in Doing.
+The full check with two workers and a larger runner timeout returned 0.
+It has 1,539 killed, 32 timeout, 172 survived, and 28 no coverage.
+The reported score is 88.71; kills alone score 86.90, above the target of 86.
+Both named survivors and 64 more landing survivors are Killed.
+The 66 kills are in HTTP (38), payment (22), and the HTTP client (6).
+All 1,771 mutants remain in the check.
+Rebase keeps main's latest board entries; this card is ready for lead review.
 Strict style, the TSDoc parser, and Jev preflight returned 0.
 Jev found no changed-test flags; it does not read `test.each` cases.
 Its promise notes cover 12 old titles and the new public HEAD check.
