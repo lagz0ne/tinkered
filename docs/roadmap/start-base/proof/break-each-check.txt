@@ -2,11 +2,11 @@ control (no break): 0 failed test(s), 0 broken file(s)
 caught    5 failed  check version always passes
 caught    7 failed  check bytes always passes
 caught   14 failed  check generated always passes
-caught   17 failed  check glue always passes
+caught   20 failed  check glue always passes
 caught    6 failed  check named always passes
 caught    3 failed  check imports always passes
 caught   12 failed  check routes always passes
-caught   14 failed  check style always passes
+caught   15 failed  check style always passes
 caught    3 failed  check env always passes
 caught    3 failed  check boundary always passes
 caught    1 failed  bytes --fix restores nothing
@@ -30,7 +30,7 @@ caught    2 failed  check 3 sends a clash to tinker prepare
 caught    1 failed  tinker prepare hides a stale tree
 caught    1 failed  shadcn needs Tailwind before any UI file
 caught    1 failed  vite.config.ts is not type-checked
-caught    5 failed  a tsconfig that does not parse reads as empty
+caught    6 failed  a tsconfig that does not parse reads as empty
 caught    2 failed  --fix drops the comments of tsconfig.json
 caught    1 failed  --fix writes a tsconfig that does not parse
 caught    2 failed  a renamed tinker import counts no call
@@ -40,21 +40,26 @@ caught    1 failed  .gitignore gets no newline before the append
 caught    1 failed  export * is never followed
 caught    1 failed  an export * from a package fails the check
 caught    1 failed  the shell link is a text match again
-caught    3 failed  a bad components.json throws
+caught    4 failed  a bad components.json throws
 caught    2 failed  a wrong createFileRoute path is not named
 caught    1 failed  a stale pin is not named
 caught    1 failed  tinker prepare wipes the boundary record
 caught    1 failed  dev restarts on any file
 caught    1 failed  a production error page shows the text
-caught    1 failed  components.json is read leniently
-caught    1 failed  package.json is read leniently
+caught    2 failed  components.json is read leniently
+caught    2 failed  package.json is read leniently
 caught    1 failed  a postinstall prepare blocks the install
 caught    3 failed  check 3 says run tinker prepare while check 7 fails
 caught    2 failed  any value named Outlet counts as the outlet
-caught    1 failed  a byte order mark breaks the parse
+caught    3 failed  a byte order mark breaks the parse
 caught    1 failed  --fix drops the byte order mark
 caught    1 failed  --fix always indents with two spaces
-caught    2 failed  an extends array never counts
+caught    5 failed  an extends array never counts
+caught    2 failed  a file extended after .tinker is never read
+caught    1 failed  a file extended before .tinker counts too
+caught    1 failed  the first extended file wins, not the last
+caught    2 failed  a byte order mark passes strict JSON
+caught    1 failed  a byte order mark in package.json reads as a parse code
 caught    2 failed  --fix replaces the extends key
 caught    1 failed  lazy routes read as missed
 caught    1 failed  an extends array breaks shadcn's alias read
@@ -101,10 +106,11 @@ caught    1 failed  message glue.mjs say.noCall
 caught    3 failed  message glue.mjs say.calls
 caught    2 failed  message glue.mjs say.start
 caught    1 failed  message glue.mjs say.tailwind
-caught    2 failed  message glue.mjs say.parse
+caught    3 failed  message glue.mjs say.parse
+caught    1 failed  message glue.mjs say.mark
 caught    2 failed  message glue.mjs say.extends
-caught    1 failed  message glue.mjs say.paths
-caught    1 failed  message glue.mjs say.strict
+caught    2 failed  message glue.mjs say.paths
+caught    2 failed  message glue.mjs say.strict
 caught    1 failed  message glue.mjs say.postinstall
 caught    2 failed  message glue.mjs say.passed
 caught    1 failed  message glue.mjs say.fixed
@@ -131,7 +137,7 @@ caught    1 failed  message style.mjs say.css
 caught    1 failed  message style.mjs say.noCss
 caught    1 failed  message style.mjs say.noStyle
 caught    1 failed  message style.mjs say.noTailwind
-caught    3 failed  message style.mjs say.parse
+caught    4 failed  message style.mjs say.parse
 caught    1 failed  message style.mjs say.passed
 caught    1 failed  message version.mjs say.missing
 caught    2 failed  message version.mjs say.drift
@@ -140,4 +146,4 @@ caught    1 failed  message version.mjs say.passed
 caught    1 failed  message typecheck.mjs say.noTypescript
 caught    1 failed  message typecheck.mjs say.failed
 
-140 of 140 breaks caught (69 logic, 71 message)
+146 of 146 breaks caught (74 logic, 72 message)

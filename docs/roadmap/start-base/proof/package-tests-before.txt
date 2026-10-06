@@ -1,0 +1,8 @@
+# start/base-package follow-ups: the new tests on the code before the fix (commit 735ff474)
+   × components.json is strict JSON: a byte order mark does not parse 16ms
+   × names paths or strict: false in a local file the extends list reads after .tinker 11ms
+   × an extended file that does not parse is named at its line 4ms
+   × a package.json with a byte order mark is named, and --fix never writes it 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  2 failed (2)
+      Tests  4 failed | 35 passed (39)
