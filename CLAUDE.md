@@ -156,6 +156,10 @@ The lead, per ticket:
 3. Land: re-run every gate by exit code. Fast-forward `main`. Run the
    package's mutation lane alone (floor 85, every package). Push.
    Remove the worktree and branch.
+   - Skip the mutation re-run when the writer's run counts.
+     It counts when the log names the commit you land, on a clean tree,
+     and clears 85 on kills alone (user 2026-10-06).
+   - The floor is per package. Do not add a per-file target.
 4. Record Core feedback in `docs/roadmap/core-feedback.md`. A row becomes a
    core ticket at its second asker, or at once if the workaround is dishonest.
 
