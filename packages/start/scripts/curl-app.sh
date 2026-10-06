@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start the built app on a free port, curl the page and two base routes, stop it.
-# Usage: poc/scripts/curl-app.sh poc/app-min
+# Usage: packages/start/scripts/curl-app.sh apps/start-min
 set -euo pipefail
 cd "$1"
 port=$(node -e 'const s=require("net").createServer();s.listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})')

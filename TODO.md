@@ -100,7 +100,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Stress test: 84 checks, 46 → 79 work, 0 need a change, 5 not supported (listed in the ADR).
   Every known mistake fails the build or `tinker doctor` names file and line; 11 checks.
   Tests: 129 plain unit tests of the glue and scope seams, no wrappers; 140 of 140 planted breaks caught.
-  [Proof](poc/PROOF.md).
+  [Proof](docs/roadmap/start-base/PROOF.md).
 
 - **core/extension-slot** — the trial shares its HTTP stack as a session resource; Core unchanged (ADR 0105).
   Owner: lead (Claude, Start scaffold session); Opus designer, Sol writer, Opus review (one fix round).

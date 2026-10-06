@@ -2,7 +2,7 @@
   "name": "@tinker/start",
   "version": "0.2.0",
   "private": true,
-  "description": "POC for ADR 0106: the Start base as a package.",
+  "description": "The Tinkered Start base: entries, routes, tinker(), and the tinker command (ADR 0106).",
   "bin": {
     "tinker": "./bin/tinker.mjs"
   },

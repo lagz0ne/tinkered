@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # The hardened base's proof (ADR 0106), from the repo root, after vp install && vp run -r build.
-# 8: app-min on the workspace link: build, serve, curl, doctor.
-# 9: each known silent mistake, in a scratch copy of app-min on the packed base:
+# 8: apps/start-min on the workspace link: build, serve, curl, doctor.
+# 9: each known silent mistake, in a scratch copy of apps/start-min on the packed base:
 #    vp build stops with doctor's file:line message, or doctor names it.
 # 10: what the base now does: named files, style, public/, .env, prod errors.
 # 11: a fresh clone: tinker prepare (the postinstall) writes the route tree; tsc passes.
-# Logs land in poc/proof/. Builds, servers, and curl are proofs here, never unit tests.
+# Logs land in docs/roadmap/start-base/proof/. Builds, servers, and curl are proofs here, never unit tests.
 set -uo pipefail
 repo=$(pwd)
-out=$repo/poc/proof
+out=$repo/docs/roadmap/start-base/proof
 scratch=/tmp/tinker-proof
 clean() { sed -e "s|$scratch/app/||g" -e "s|$scratch|\$S|g" -e "s|$repo/||g" -e "s|$HOME|~|g"; }
 say() { echo "\$ $*"; }
@@ -45,22 +45,22 @@ get() {
   curl -s "http://127.0.0.1:$port$1" | grep -ao "$2" | head -3
 }
 
-# A scratch copy of app-min with the packed base installed as a real folder.
+# A scratch copy of apps/start-min with the packed base installed as a real folder.
 fresh() {
   rm -rf "$scratch/app"
   mkdir -p "$scratch/app/node_modules/@tinker" "$scratch/app/node_modules/.bin"
-  (cd poc/app-min && tar -c --exclude=node_modules --exclude=dist --exclude=.tinker --exclude=.tanstack .) |
+  (cd apps/start-min && tar -c --exclude=node_modules --exclude=dist --exclude=.tinker --exclude=.tanstack .) |
     tar -C "$scratch/app" -x
-  for entry in poc/app-min/node_modules/* poc/app-min/node_modules/@*/*; do
-    name=${entry#poc/app-min/node_modules/}
+  for entry in apps/start-min/node_modules/* apps/start-min/node_modules/@*/*; do
+    name=${entry#apps/start-min/node_modules/}
     [[ $name == @* && $name != */* ]] && continue
     [[ $name == @tinker/start ]] && continue
     mkdir -p "$(dirname "$scratch/app/node_modules/$name")"
     ln -sfn "$(readlink -f "$entry")" "$scratch/app/node_modules/$name"
   done
   cp -r "$scratch/base/package" "$scratch/app/node_modules/@tinker/start"
-  ln -sfn "$repo/poc/start-base/node_modules" "$scratch/app/node_modules/@tinker/start/node_modules"
-  for bin in vp tsc; do ln -sfn "$(readlink -f "poc/app-min/node_modules/.bin/$bin")" "$scratch/app/node_modules/.bin/$bin"; done
+  ln -sfn "$repo/packages/start/node_modules" "$scratch/app/node_modules/@tinker/start/node_modules"
+  for bin in vp tsc; do ln -sfn "$(readlink -f "apps/start-min/node_modules/.bin/$bin")" "$scratch/app/node_modules/.bin/$bin"; done
   (cd "$scratch/app" && node node_modules/@tinker/start/bin/tinker.mjs prepare > /dev/null 2>&1)
 }
 mistake() {
@@ -70,15 +70,15 @@ mistake() {
 }
 
 rm -rf "$scratch" && mkdir -p "$scratch/base"
-(cd poc/start-base && rm -rf packs && node scripts/pack.mjs > /dev/null)
-tar -xzf poc/start-base/packs/tinker-start-*.tgz -C "$scratch/base"
+(cd packages/start && rm -rf packs && node scripts/pack.mjs > /dev/null)
+tar -xzf packages/start/packs/tinker-start-*.tgz -C "$scratch/base"
 
 {
-  cd "$repo/poc/app-min"
+  cd "$repo/apps/start-min"
   echo "base folder: $(readlink -f node_modules/@tinker/start)"
   build
-  "$repo/poc/scripts/curl-app.sh" .
-  cd "$repo/poc/app-min"
+  "$repo/packages/start/scripts/curl-app.sh" .
+  cd "$repo/apps/start-min"
   doctor
 } 2>&1 | clean > "$out/8-hardened-app-min.txt"
 

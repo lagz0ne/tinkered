@@ -641,7 +641,7 @@ Each check is one small file with its message table,
 
 Doctor's messages, check by check:
 
-- [`poc/PROOF.md`](../../poc/PROOF.md), section 2.
+- [`docs/roadmap/start-base/PROOF.md`](../roadmap/start-base/PROOF.md), section 2.
 
 `check-plain.mjs` (ADR 0099) joins doctor
 when `apps/start-scaffold` moves (migration step 2).
@@ -770,12 +770,13 @@ The user, 2026-10-06:
   by calling `buildChecks`, the function `tinker()`
   calls at build start.
 - Builds, served pages, curl, and browser checks
-  are proofs, in `poc/PROOF.md`. A script may run them.
+  are proofs, in `docs/roadmap/start-base/PROOF.md`.
+  `packages/start/scripts/proof.sh` runs them.
 
 ### Not supported
 
 Five things stay out of reach, each with its reason
-(the stress reruns, `poc/PROOF.md` section 8):
+(the stress reruns, `docs/roadmap/start-base/PROOF.md` section 8):
 
 - **A route whose loader calls a server function,
   rendered in a unit test with no build.**

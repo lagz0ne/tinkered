@@ -13,10 +13,10 @@ import { join, resolve } from "node:path";
 /**
  * Break each check, glue function, and doctor message in a scratch copy of the base, one at a
  * time, and run the unit tests: every break must make a test fail. A hand-written mutation run.
- * Usage: node poc/start-base/scripts/break-each-check.mjs
+ * Usage: node packages/start/scripts/break-each-check.mjs
  */
 const base = resolve(import.meta.dirname, "..");
-const scratch = "/tmp/tinker-break/start-base";
+const scratch = "/tmp/tinker-break/start";
 const passOk = 'return { status: "ok", lines: ["broken"] };';
 
 /** Logic breaks: file, the text to find, what replaces it. */
