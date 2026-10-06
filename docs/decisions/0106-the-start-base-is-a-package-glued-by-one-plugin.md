@@ -1,6 +1,8 @@
 # 0106 The Start base is a package, glued by one plugin
 
 Date: 2026-10-06. Status: proposed (lead, card `start/base`).
+Hardened by card `start/base-harden`: named files, build-start
+checks, and ten doctor checks, from four stress tests.
 Refines: 0100, 0101. Uses: 0050, 0065, 0099, 0102, 0103.
 Replaces, once accepted: the `runtime` copy-in item
 (`docs/roadmap/start-scaffold/REGISTRY.md`).
@@ -198,7 +200,8 @@ export default defineConfig({
 { "extends": "./.tinker/tsconfig.json" }
 ```
 
-`tinker(options)` returns the Start, React, and Tailwind plugins,
+`tinker(options)` returns the Start and React plugins,
+and Tailwind's when the app installs `@tailwindcss/vite`,
 set up once:
 
 - Start's four entries point into the base,
@@ -225,11 +228,20 @@ set up once:
   Start's default skips files under `node_modules`,
   so the plugin also denies the base's server entries
   as client specifiers.
-- Aliases: `@` to `src`, and the five `#tinker/*` names below.
-- Dev loads `.env` into `process.env`;
-  `HOST` and `PORT` set the address.
-- Under Vitest it adds only the aliases,
-  and inlines `@tinker/start` so its source is transformed.
+- Aliases: `@` to `src`, and the `#tinker/*` names below.
+- Dev and `tinker serve` load `.env` into `process.env`;
+  a value set in the shell wins.
+  `HOST` and `PORT` set the address, for preview too.
+- `tinker({ prerender, pages, spa, sitemap })` passes
+  these Start options on.
+  Any other key fails the build: no option drops in silence.
+- At build start it runs doctor's build-start checks,
+  then the app's own `tsc` (see Doctor).
+- In dev it restarts the server when the shell,
+  a named file, or a seam file is added or removed,
+  and reads `.env` again.
+- Under Vitest it adds the aliases and Start's plugin,
+  so a test has the route tree with no build.
 - It writes `.tinker/` the same way `tinker prepare` does.
 
 The runtime entries ship as `.ts`, so Vite compiles them.
@@ -246,19 +258,24 @@ compiler options are left out here):
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["../src/*"],
-      "#tinker/app": ["../src/lib/tinker.ts"],
-      "#tinker/app.server": ["../src/lib/tinker.server.ts"],
-      "#tinker/routes": ["./routeTree.gen.ts"],
-      "#tinker/parts": ["./parts.ts"],
-      "#tinker/parts.server": ["./parts.server.ts"]
+      "@/*": ["/app/src/*"],
+      "#tinker/app": ["/app/src/lib/tinker.ts"],
+      "#tinker/start": ["/app/src/start.ts"],
+      "#tinker/routes": ["/app/.tinker/routeTree.gen.ts"]
     }
   },
-  "include": ["../src", "../tests", "./"]
+  "include": ["../src", "../tests", "./routeTree.gen.ts"]
 }
 ```
 
-A missing seam file maps to the base's empty default.
+Every path is absolute; `/app` stands for the app folder.
+shadcn reads `paths` with tsconfig-paths,
+which resolves an extended file's paths from the app folder,
+so a relative `../src/*` sent its writes one folder up.
+`.tinker/` is gitignored, so a machine path is fine.
+
+A missing seam or named file maps to the base's default,
+such as `node_modules/@tinker/start/src/defaults/start.ts`.
 `tinker.d.ts` pulls in the base's type registers
 for the router and Start, as Nuxt's generated `nuxt.d.ts` does.
 `base.json` records the base version, the plugin options,
@@ -266,23 +283,21 @@ and the hashes of the other generated files.
 
 ### The seam
 
-The base reads app code only through five names:
+The base reads app code only through these names:
 
-```text
-a base file
-  |
-  v
-#tinker/app
-  -> src/lib/tinker.ts
-#tinker/app.server
-  -> src/lib/tinker.server.ts
-#tinker/routes
-  -> .tinker/routeTree.gen.ts
-#tinker/parts
-  -> .tinker/parts.ts
-#tinker/parts.server
-  -> .tinker/parts.server.ts
-```
+- `#tinker/app` → `src/lib/tinker.ts`, a seam file.
+- `#tinker/app.server` → `src/lib/tinker.server.ts`,
+  a seam file.
+- `#tinker/router` → `src/router.ts`, a named file.
+- `#tinker/start` → `src/start.ts`, a named file.
+- `#tinker/server` → `src/server.ts`, a named file.
+- `#tinker/style` → `src/style.css`, a named file.
+- `#tinker/routes` → `.tinker/routeTree.gen.ts`.
+- `#tinker/parts` and `#tinker/parts.server` →
+  `.tinker/parts.ts` and `.tinker/parts.server.ts`.
+
+The shell, `src/routes/__root.tsx`, is the fifth named file.
+It is a route, so it mounts as the root route, not by alias.
 
 This keeps today's two-seam rule (card `start/seam`);
 only the names change.
@@ -427,12 +442,10 @@ When an app needs other base behavior, it uses, in this order:
 2. **A Core extension**: the `extensions` list of a seam file,
    installed after the base's own
    (ADR 0050: middleware on the scope's verbs).
-3. **A named file**: a fixed list the base looks for,
-   each with a default.
-   The list is `src/routes/__root.tsx` (the page shell)
-   and `src/style.css`.
-   This is not an overlay; no other base file can be replaced.
-4. **A plugin option**: `tinker({ telemetry, auth, sync })`.
+3. **A named file**: a fixed list the glue picks up,
+   each with a base default. See Named files below.
+4. **A plugin option**: `tinker({ telemetry, auth, sync })`,
+   and Start's `prerender`, `pages`, `spa`, `sitemap`.
    Turning a part off frees its route path for the app.
 5. **None fits**: a Start row in `docs/roadmap/core-feedback.md`.
    The base grows an extension point in a later version.
@@ -440,6 +453,63 @@ When an app needs other base behavior, it uses, in this order:
 There is no file overlay and no eject.
 A user edit inside `node_modules/@tinker/start` is refused:
 `doctor` fails on it, and `upgrade` stops on it.
+
+### Named files
+
+The glue picks up exactly these five app files,
+and nothing else:
+
+- `src/router.ts`: router options, as `router`.
+- `src/start.ts`: global middleware and `defaultSsr`,
+  as `startInstance`.
+  The base's CSRF and request middleware run first.
+- `src/server.ts`: a custom server entry,
+  as its default export.
+- `src/routes/__root.tsx`: the page shell.
+  It must render `<Outlet />`,
+  and link `src/style.css` when that file exists.
+- `src/style.css`: the stylesheet the base shell links.
+  Tailwind runs when the app installs `@tailwindcss/vite`.
+
+This is not an overlay: no other base file can be replaced.
+Start's other usual files, such as `src/router.tsx`,
+`src/client.tsx`, and `src/routeTree.gen.ts`,
+fail the build with doctor's message.
+So no file is ignored in silence.
+
+`src/router.ts`, filled in:
+
+```ts
+import type { RouterOptions } from "@tinker/start";
+import { NotFound } from "./frontend/not-found.tsx";
+
+export const router: RouterOptions = () => ({
+  defaultPreload: "intent",
+  defaultNotFoundComponent: NotFound,
+});
+```
+
+The function gets the route tree, for route masks.
+The base sets its own error and 404 pages first;
+these options replace them.
+
+`src/server.ts`, filled in:
+
+```ts
+import { createServerEntry } from "@tinker/start/server";
+
+export default createServerEntry({
+  async fetch(request, next) {
+    const response = await next(request);
+    response.headers.set("x-app", "1");
+    return response;
+  },
+});
+```
+
+`next` is the base's handler, which owns the root scope.
+Start's own `server-entry` would skip that scope,
+so doctor refuses it in `src/`.
 
 ### Upgrade
 
@@ -482,57 +552,114 @@ In this repo, "sync" is the data sync (ADR 0048, the `sync` part).
 
 ### Doctor
 
-`tinker doctor` prints one line per check: `ok`, `fail`, or `fixed`.
+The rule (user, 2026-10-06): every known mistake
+either fails the build, or `tinker doctor` names
+what is wrong and where, as a file and a line.
+
+`tinker doctor` prints one line per check:
+`ok`, `skip`, `fail`, or `fixed`.
+Under it, one line per finding.
 It exits 1 on any `fail`.
 
 `--fix` writes only base-owned and generated things:
-package pins and scripts, the `.gitignore` line,
-the tsconfig `extends` line, `.tinker/`, and a base reinstall.
-It never edits `src/`, the body of `vite.config.ts`, or `.env`.
+the `.gitignore` lines, the tsconfig `extends` line,
+the `postinstall` script, `.tinker/`, and base bytes.
+It never edits `src/`, the body of `vite.config.ts`,
+or `.env`.
+
+Each check is one small file with its message table,
+`lib/checks/<name>.mjs`:
 
 1. **base version**: `@tinker/start` resolves,
-   and its peers match the versions it was tested with:
-   `@tinker/core`, `@tinker/react`, `@tanstack/react-start`,
-   `@tanstack/react-router`, `vite-plus`.
-   `--fix`: set the pins, then install.
+   and its peers match the versions it was tested with.
+   No fix yet: it prints the drift.
 2. **base bytes**: every installed base file matches
    the hashes in the package's `files.json`.
    This is today's `flight-scaffold.mjs`, moved into the base.
    It also catches a route-generator rewrite.
-   `--fix`: reinstall the base.
-3. **generated folder**: `.tinker/` matches the base version
-   and the plugin options in `base.json`,
-   and `.gitignore` lists `.tinker/`.
-   `--fix`: run `tinker prepare`; add the ignore line.
-4. **glue**: `vite.config.ts` calls `tinker()` once,
-   with no second `tanstackStart()`.
-   `tsconfig.json` extends `./.tinker/tsconfig.json`.
-   Each base entry and `#tinker/*` name resolves,
-   through the app's real Vite config,
-   to the installed base or the expected app file.
-   `--fix`: the `extends` line and the `postinstall` script;
-   for `vite.config.ts` it prints the line to add.
-5. **seams**: each enabled part finds the exports it needs.
-   The message names the part, the file, and the export.
+   `--fix`: restore the bytes from the app's tarball.
+3. **generated folder**: `.tinker/` matches this base.
+   The route tree lists every route file that exports `Route`,
+   and imports no base folder that moved.
+   `.gitignore` lists `.tinker/` and `.tanstack/`.
+   `--fix`: rewrite `.tinker/`, run `tinker prepare`
+   for the route tree, add the ignore lines.
+4. **glue**: `vite.config.ts`, parsed, imports `tinker`
+   and calls it once, with no `tanstackStart()`
+   and no `@tailwindcss/vite`.
+   `tsconfig.json` extends `./.tinker/tsconfig.json`
+   and sets no `paths` and no `strict: false`.
+   `postinstall` runs `tinker prepare`.
+   `--fix`: the `extends` line and the `postinstall` script.
+5. **named files**: each named or seam file exports
+   what the base reads,
+   and no Start file sits where the glue never reads it.
    No fix.
-6. **imports**: app code imports the base only through
-   its five entries, and never a `#tinker/*` name.
+6. **imports**: app code reaches the base only through
+   its entries: no `#tinker/*` name, no path into the package,
+   no `@tanstack/react-start/server-entry`.
    This is the reverse of `check-seam.mjs`. No fix.
-7. **routes**: no app route takes a path
-   that an enabled part owns. No fix.
-8. **plain**: `check-plain.mjs` on `src/`
-   (ADR 0099, 0100, 0102, 0103).
-   Its base exceptions key on the package path,
-   not `src/scaffold/`. No fix.
-9. **env**: each key an enabled part needs is in `.env`
-   and passes its check, and `.env.example` lists it.
+7. **routes**: `src/routes/` exists,
+   each route file exports `Route`,
+   a user shell renders `<Outlet />`,
+   and no route takes or nests under a base path,
+   in any of six forms. No fix.
+8. **style**: a user shell links `src/style.css`,
+   no stylesheet sits unlinked,
+   Tailwind's packages are there when the stylesheet imports it,
+   and `components.json` aliases land in `src/`. No fix.
+9. **env**: each key `.env.example` lists is set
+   in `.env` or the shell.
    No fix: doctor never writes a secret.
+10. **boundary**: each import boundary violation
+    the last build kept in `.tinker/violations.json`.
+    Start's own error stops at the first one. No fix.
 
-`check-boundary.mjs` proves browser imports fail the build.
-It needs a build, so it runs in `tinker doctor --build`
-and in the project's `check` script.
+Doctor's messages, check by check:
+
+- [`poc/PROOF.md`](../../poc/PROOF.md), section 2.
+
+`check-plain.mjs` (ADR 0099) joins doctor
+when `apps/start-scaffold` moves (migration step 2).
 `check-schema.mjs` belongs to the Postgres example
 and moves with it.
+
+### Build-start checks
+
+`tinker()` runs checks 5 to 8 when `vp build` starts.
+A fail stops the build with doctor's own line:
+
+```text
+tinker doctor, routes:
+  src/routes/index.tsx:18 does not export Route;
+  TanStack skips the file, so / is a 404
+vp build: EXIT 1
+```
+
+Then it runs the app's own `tsc`.
+Vite strips types without checking them,
+so a wrong `<Link to>` used to ship:
+
+```text
+tsc found 1 type error(s); the build stops here:
+src/routes/nav.tsx:2:71 TS2820 Type '"/tinkr"'
+  is not assignable to type '"/" | "/tinker" | …'
+vp build: EXIT 1
+```
+
+- Checks 1 and 4 only warn: the build still works.
+  A second `tinker()` or a `tanstackStart()`
+  in `vite.config.ts` is the exception: it stops the build,
+  because Start would fail later with no cause.
+- `tsc` reads `vite.config.ts` too,
+  so a `tinker()` option of the wrong type stops the build.
+- `tinker prepare` exits 1 when the route generator
+  stops on a clash, and prints check 7's line.
+- Checks 2, 3, 9, and 10 stay in doctor.
+  They read installed bytes, generated files,
+  the run-time env, or the last build.
+- A build that fails on Start's import protection
+  keeps every violation for check 10.
 
 ### Examples and the registry
 
@@ -546,6 +673,74 @@ and moves with it.
   `postgres`, `auth`, `mail`, `counter`, `profile`, `todos`.
   An item that needs a part names it in `meta.parts`.
   If that part is off, `doctor` prints the plugin option to set.
+
+### Three ways to update
+
+The base, the app template, and the examples
+update in three different ways:
+
+- **base**: `tinker upgrade <version>`.
+  The package is replaced whole; `src/` is never written.
+- **app template**: written once,
+  by `shadcn add <url>/app.json` in an empty folder.
+  Never re-applied.
+  `--overwrite` is all or nothing per item:
+  in the stress test it dropped 9 dependencies
+  and moved `@tinker/start` back to an older version.
+- **examples**: copied once by `shadcn add @tinker/<item>`.
+  The app owns them.
+  To see a newer one, run
+  `shadcn add @tinker/<item> --diff` and merge by hand.
+
+### Testing the base
+
+The user, 2026-10-06:
+
+> testing should not rely on framework (otherwise we are
+> testing framework glue code). That's why we test unit tests
+> (the glue, like readResults) and mostly test following
+> tinkerer rules by using scope as test seams.
+
+- The glue is tested as plain functions:
+  tsconfig and alias output, the named-file pick-up,
+  route-path clashes, each doctor check over a fixture folder
+  (pass, each fail with its exact message, and `--fix`),
+  the build-start checks, tsc output,
+  `tinker serve`'s file rule, `.env` loading,
+  and upgrade's version pins.
+- Base behavior that runs as operations or resources
+  is tested through a scope, with `createScope` and `settle`:
+  `readResult`, the health operation, the `env` tag,
+  the start extension, and the response body owner.
+- No test runs `vp build`, `vp dev`, a TanStack runtime,
+  a browser, or a served page.
+  "The build fails with doctor's message" is tested
+  by calling `buildChecks`, the function `tinker()`
+  calls at build start.
+- Builds, served pages, curl, and browser checks
+  are proofs, in `poc/PROOF.md`. A script may run them.
+
+### Not supported
+
+Five things stay out of reach, each with its reason
+(the stress reruns, `poc/PROOF.md` section 8):
+
+- **A route whose loader calls a server function,
+  rendered in a unit test with no build.**
+  TanStack needs its request context there.
+  Test the operation through a scope;
+  prove the route with a build.
+- **No error text in the page data in production.**
+  The base's error page shows none,
+  and the server log gets the error,
+  but TanStack sends a loader's error to the browser.
+- **Byte-identical builds from another folder.**
+  Module ids are paths, and Start's server manifest
+  keeps each route file's absolute path.
+- **An example route as a shadcn `registry:page`.**
+  shadcn maps page targets only for other frameworks;
+  examples use `registry:file`.
+- **Re-applying the app template**, by design (above).
 
 ### Writer trial
 
@@ -599,8 +794,14 @@ so the lead writes an impact block first (ADR 0065).
 
 - An upgrade is a version bump. Nothing in `src/` is merged.
 - The smallest app is two files, with no base code in `src/`.
-- The base reads the app through five aliases;
-  the app reads the base through five entries. Both are checked.
+- The base reads the app through two seam files
+  and five named files; the app reads the base
+  through its entries. Both are checked.
+- Every known mistake fails the build,
+  or doctor names it with a file and a line.
+  Each build pays one `tsc` run for it.
+- A usual Start file in the wrong place fails the build,
+  so a Start user's habit gets a message, not silence.
 - `packages/start` is a new package,
   with its own tests and mutation lane (floor 85).
 - Base source stays readable in `node_modules`.
@@ -625,7 +826,7 @@ so the lead writes an impact block first (ADR 0065).
      but we must write our own sync and refuse-on-edit logic.
    - Why A: there is no second copy to keep honest.
 2. **When an app must change base behavior.**
-   - A (pick): extension points and two named files only.
+   - A (pick): extension points and five named files only.
      Gaps become base releases.
    - B: also a Nuxt-style overlay:
      a file at `src/base/<path>` replaces that base file.

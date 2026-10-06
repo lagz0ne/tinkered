@@ -1,0 +1,327 @@
+# Devloop rerun on @tinker/start 0.2.0
+
+41 checks: 38 WORKS, 0 STILL WITH CHANGE, 3 NOT SUPPORTED, 0 REGRESSED
+
+- NOT SUPPORTED: T4, P4, P6.
+- Y6 was NOT SUPPORTED; doctor and the build now catch it.
+- P7 was not rerun (timing); it keeps its old result and counts as WORKS.
+- Logs: /tmp/stress-rerun/devloop/logs/
+- Scripts: /tmp/stress-rerun/devloop/*.sh
+
+## Setup
+
+- Cases copied with mkcase.sh, changed with adapt.sh.
+- Tests, types, mistakes, prod: @tinker/start -> /tmp/stress-rerun/base/package.
+- dev-hmr: @tinker/start -> variants/base-onecopy/package.
+- base-onecopy holds the same base files, byte for byte.
+- Only its node_modules link differs: it points to the stress tree's base deps.
+- So Start's plugin and the app load one Vite copy.
+- Why: with the given link, vp dev answers "Cannot GET /" on every path.
+- That also happens with the old base. It is the setup, not the base.
+- Proof: logs/dev-404-two-copies.txt (A and C: 404; B: 200).
+
+## Case 1: vp dev (dev-hmr)
+
+D1. The dev server starts
+- WORKS -> WORKS
+- ready in 2372 ms; /hmr shows ui v1, op v1, fn v1, hello
+- Noise still there: vite:react-babel esbuild, "jsx" input warnings
+- logs/dev.txt
+
+D2. HMR of a route component
+- WORKS -> WORKS
+- ui v2 seen in 221 ms; state kept: count 1; window: "same page"
+- logs/dev.txt
+
+D3. Edit an operation
+- WORKS -> WORKS
+- after 2 s the open page shows op v1; curl shows op v2
+- router.invalidate(): op v2 in 6 ms; window: "same page"
+- logs/dev.txt
+
+D4. Edit a server function
+- WORKS -> WORKS
+- after 2 s the open page shows fn v2; same server pid
+- logs/dev.txt
+
+D5. A broken edit, then the fix
+- WITH CHANGE -> WORKS
+- curl as a browser page: 500 text/html
+- page: "tinker: the page failed to render ... Save a fix and this page reloads."
+- after the fix: ui v3 seen in 364 ms, no hand reload
+- logs/dev.txt
+
+D6. Add and remove a route file while dev runs
+- WORKS -> WORKS
+- /added: 200 in 85 ms; after rm: 404 in 193 ms
+- Client navigation: 3 rounds, "added route N", same window
+- dev.txt timed out: it navigated during the browser's own reload (proof race)
+- logs/dev-d6.txt, logs/dev.txt
+
+D7. An empty route file
+- WORKS -> WORKS
+- /blank: 200 in 261 ms; TanStack wrote its template
+- logs/dev.txt
+
+D8. Add or remove __root.tsx while dev runs
+- WITH CHANGE -> WORKS
+- add: "tinker: src/routes/__root.tsx added; restarting"
+- title "User shell" in 953 ms; no hand restart
+- remove: title "Tinker app", 200, in 1060 ms
+- Before the restart, one error line still shows: "expected route file to exist"
+- logs/dev.txt, logs/dev-server.txt
+
+D9. Add or remove a seam file while dev runs
+- WITH CHANGE -> WORKS
+- add: "tinker: src/lib/tinker.server.ts added; restarting"
+- seam loaded 1 time in 1267 ms; tsconfig maps it to src/lib
+- remove: 200 after 3 s; the map goes back to the base default
+- Before the restart, one error line still shows: "Failed to load url /src/lib/tinker.server.ts"
+- logs/dev.txt, logs/dev-server.txt
+
+D10. Edit .env while dev runs
+- WITH CHANGE -> WORKS
+- GREETING=bye: page shows bye in 831 ms
+- rm .env: page shows unset in 1031 ms
+- GREETING=shell in the shell wins over .env, before and after an edit
+- logs/dev.txt
+
+## Case 2: tests
+
+T1. A unit test of a user operation
+- WORKS -> WORKS
+- greet settles ... / greet fails on an empty raw name: both pass
+- logs/tests.txt
+
+T2. Core's testing entry
+- WORKS -> WORKS
+- "a test clock and a preset operation" passes
+- logs/tests.txt
+
+T3. Render a user route in a test
+- WITH CHANGE -> WORKS
+- Fresh tree, no build: the 2 route tests pass; 5 passed + 1 expected fail
+- .tinker/ then holds base.json, routeTree.gen.ts, tsconfig.json
+- logs/tests.txt
+
+T4. A route whose loader calls a server function
+- NOT SUPPORTED -> NOT SUPPORTED (TanStack)
+- "No Start context found in AsyncLocalStorage"
+- logs/tests-t4.txt
+
+T5. Hit a server route and a server function
+- WORKS -> WORKS (still needs vp build first)
+- No build: "Cannot find module .../dist/server/server.js"
+- After vp build: 8 passed, 1 expected fail
+- logs/tests.txt
+
+T6. What the base gives tests
+- WORKS -> WORKS
+- base copied into node_modules/.pnpm, with and without inline
+- Both: 8 passed, 1 expected fail; inline is still not needed
+- logs/tests.txt
+
+T7. A stale route tree after the base moves
+- WITH CHANGE -> WORKS
+- doctor: "fail 3 ... routeTree.gen.ts:11 imports ...@file+old/..., which does not exist; run tinker prepare"
+- tinker prepare: doctor passes; vp test: 8 passed, 1 expected fail
+- Moved again, no prepare: vp test heals it alone (Start runs under Vitest)
+- logs/tests.txt
+
+## Case 3: types
+
+Y1. tsc in a fresh clone
+- WITH CHANGE -> WORKS
+- No .tinker/: TS5083; doctor: ".tinker/ is missing; run tinker prepare"
+- No postinstall: doctor check 4 fails; --fix writes it
+- vp run postinstall: "wrote ... .tinker/routeTree.gen.ts"; tsc EXIT 0
+- logs/types.txt
+
+Y2. tsc after tinker prepare only
+- WITH CHANGE -> WORKS
+- "tinker prepare: wrote .tinker/tsconfig.json, .tinker/base.json, .tinker/routeTree.gen.ts"
+- tsc: 0 lines, EXIT 0
+- logs/types.txt
+
+Y3. The generated route types are found
+- WORKS -> WORKS
+- No directive: TS2322 '"/missing"' is not assignable ...
+- vp build now stops too: "src/routes/links.tsx:16:13 TS2322 ..."
+- logs/types.txt
+
+Y4. A new route file while no dev runs
+- WITH CHANGE -> WORKS
+- doctor: ".tinker/routeTree.gen.ts misses src/routes/later.tsx; run tinker prepare"
+- doctor --fix: "fixed 3 ... ran tinker prepare"; tsc EXIT 0
+- logs/types.txt
+
+Y5. Base types an app cannot change
+- WORKS -> WORKS
+- Register augment: TS2717 in base src/start.ts; vp build stops (tsc found 4)
+- Hand edit of .tinker/tsconfig.json: ".tinker/tsconfig.json is stale"; build rewrites it
+- logs/types.txt
+
+Y6. The app's tsconfig overrides base options
+- NOT SUPPORTED -> WORKS (now detected)
+- paths: doctor "tsconfig.json:3 sets compilerOptions.paths; ... remove it"
+- strict:false: doctor "tsconfig.json:3 turns strict off; the base's files need strict"
+- vp build warns the same, then stops on tsc (errors point into the base)
+- logs/types.txt
+
+Y7. A wrong import of a base internal
+- WITH CHANGE -> WORKS
+- by path: build EXIT 1 "src/peek.ts:1 ... reaches into the base by path; use a base entry"
+- #tinker/app.server: build EXIT 1 "... is a base-only name; app code cannot import it"
+- @tinker/start/src/errors.ts: build EXIT 1 "... is not a base entry"
+- logs/types.txt
+
+Y8. No app-min next to the base
+- WITH CHANGE -> WORKS
+- packed base (no tsconfig.json): vp build EXIT 0
+- source base copy, alone in a folder: vp build EXIT 0
+- Its tsconfig still names ../app-min/.tinker/routeTree.gen.ts; Vite reads the app's tsconfig
+- logs/types.txt
+
+## Case 4: mistakes
+
+M1. vite.config.ts without tinker()
+- WORKS -> WORKS
+- build EXIT 1 UNRESOLVED_ENTRY index.html (no cause given)
+- doctor: "vite.config.ts:1 does not import tinker ..." and "calls tinker() 0 times"
+- logs/mistakes.txt
+
+M2. tsconfig.json without extends
+- WORKS -> WORKS (the build now stops too)
+- build warns "tsconfig.json:1 does not extend ..."
+- then EXIT 1: "tsc found 26 type error(s)"
+- logs/mistakes.txt
+
+M3. A route file with the wrong export
+- WITH CHANGE -> WORKS
+- build EXIT 1 "src/routes/index.tsx:18 does not export Route; ... so / is a 404"
+- doctor: only check 7 fails (the old check 3 false alarm is gone)
+- logs/mistakes.txt
+
+M4. A server-only import in a client file
+- WORKS -> WORKS (doctor now sees it too)
+- build EXIT 1 (import protection)
+- doctor check 10: "src/routes/about.tsx:5:31 imports "@tinker/start/server" into client code"
+- logs/mistakes.txt
+
+M5. A missing env var
+- WITH CHANGE -> WORKS
+- doctor check 9: ".env.example:1 lists GREETING_NAME; set it in .env or the shell"
+- page: 500 "Something went wrong"; log: "tinker: a route failed on the server: ZodError"
+- Set in .env: doctor passes; "Hello, world, from Ada."
+- logs/mistakes.txt
+
+M6. The base tested with another @tinker/core
+- WORKS -> WORKS
+- build warns, doctor fails: "@tinker/core is 0.0.0, tested with 0.0.1"
+- / still answers 200
+- logs/mistakes.txt
+
+M7. A stale .tinker/
+- WITH CHANGE -> WORKS
+- doctor: "base.json is stale" and "routeTree.gen.ts misses src/routes/later.tsx"
+- vp build heals: base 0.2.0, /later 200, doctor passes
+- logs/mistakes.txt
+
+M8. Two copies of @tanstack/react-router
+- WORKS -> WORKS
+- build EXIT 0, doctor passes, / 200 "Hello, world."
+- logs/mistakes.txt
+
+M9. __root.tsx without <Outlet />
+- WITH CHANGE -> WORKS
+- build EXIT 1 "src/routes/__root.tsx:5 sets component without <Outlet />; no page renders inside the shell"
+- logs/mistakes.txt
+
+M10. src/routes deleted
+- WITH CHANGE -> WORKS
+- build EXIT 1 "tinker: src/routes/ is missing; create src/routes/index.tsx"
+- doctor check 7 says the same
+- logs/mistakes.txt
+
+## Case 5: prod
+
+P1. The built app under node
+- WORKS -> WORKS
+- / Hello; /api/health 200 no-store {"base":"0.2.0"}; asset immutable; /nowhere 404
+- SIGTERM: EXIT 0
+- logs/prod.txt
+
+P2. The browser calls a server function
+- WORKS -> WORKS
+- "Hello, world."; same window; 1 /_serverFn request
+- logs/prod.txt
+
+P3. A server function throws
+- WITH CHANGE -> WORKS
+- curl /boom: 500; visible text only "Something went wrong"
+- client navigation to /boom: "Something went wrong"
+- server log: "tinker: a route failed on the server: Error: boom: ..."
+- logs/prod.txt
+
+P4. The error text in the page data
+- NOT SUPPORTED -> NOT SUPPORTED (TanStack)
+- page data: e:$R[13]=new Error("boom: the server function failed")
+- logs/prod.txt
+
+P5. A second build in the same folder
+- WORKS -> WORKS
+- 23 files; every hash matches
+- logs/prod.txt
+
+P6. The same app built in another folder
+- NOT SUPPORTED -> NOT SUPPORTED (TanStack)
+- New: the same depth at another path also differs (1 file)
+- Start's server manifest holds absolute route paths:
+- filePath: "/tmp/stress-rerun/devloop/cases/prod/src/routes/index.tsx"
+- logs/prod.txt, logs/prod-p6-manifest.txt
+
+P7. Build time
+- not rerun (timing); old result kept: medians only, no speed claim
+
+## Base bugs found
+
+No base bug blocked a check.
+No regression.
+Minor rough edges, no fix needed for the checks:
+
+1. One error line before each D8/D9 restart.
+- Repro: run vp dev, then rm src/routes/__root.tsx.
+- Log: "Error: ⚠️ expected route file to exist at .../__root.tsx".
+- Repro: add src/lib/tinker.server.ts, wait for the restart, then rm it.
+- Log: "Failed to load url /src/lib/tinker.server.ts ... Does the file exist?"
+- The page is fine about 1 s later. See logs/dev-server.txt lines 557 and 635.
+2. Every restart logs this error, Vite's own .env restart too:
+- "Error: transport was disconnected, cannot call "fetchModule"".
+3. Doctor check 8 says "src/style.css is linked by the shell".
+- It says this when the app has no src/style.css (wording).
+
+Setup issue, not the base (the coordinator saw it too):
+
+- The given link gives two Vite copies.
+- Then vp dev answers "Cannot GET /" on all paths, with no log line.
+- doctor passes and vp build EXIT 0, so nothing names the cause.
+- The old base 0.1.1 does the same (logs/dev-404-two-copies.txt, C).
+- My workaround is variants/base-onecopy (see Setup).
+- I did not use dev-base-vite.mjs or relink vite.
+
+## Case changes made
+
+- All 5 copies: package.json gets "postinstall": "tinker prepare".
+- All 5 copies: .gitignore gets .tanstack/.
+- Without these, doctor fails checks 3 and 4: logs/0-doctor-unchanged-case.txt.
+- No @ts-expect-error removed.
+- The one in links.tsx still guards a real TS2322.
+- No API changes: the cases use no named files.
+- Their base imports still resolve.
+- Proof scripts were changed to run under /tmp:
+- dev.sh: session rerun-devloop; D8/D9 have no hand restart; D10 adds rm .env and a shell value.
+- dev-d6.sh: waits 2 s after the route tree reload, then navigates.
+- tests.sh: T6/T7 copy the base into node_modules/.pnpm, with no pnpm install.
+- types.sh: Y1 runs vp run postinstall; Y8 adds a lone source-base copy.
+- mistakes.sh: M6 edits a base copy (variants/m6), never the packed base.
+- prod.sh: P6 builds a same-depth copy and an other-depth copy.

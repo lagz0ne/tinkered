@@ -1,0 +1,402 @@
+# shadcn rerun on the hardened base 0.2.0
+
+9 checks: 7 WORKS, 0 STILL WITH CHANGE, 2 NOT SUPPORTED, 0 REGRESSED
+
+Date: 2026-10-06. shadcn 4.21.2.
+Scratch: `/tmp/stress-rerun/shadcn/`.
+
+Two runs of base 0.2.0:
+
+- First: `packs/tinker-start-0.2.0.tgz`
+  (sha256 `f555d9c2...`).
+  Logs: `logs/`. Result: 1 REGRESSED.
+- Fixed: `packs-fix/tinker-start-0.2.0.tgz`
+  (sha256 `9af4f2e9...`).
+  Logs: `logs-fix/` and
+  `logs/6-fix-recheck.txt`.
+  Result: the counts line above.
+- The fixed run used a new folder (`fix/`),
+  so pnpm could not reuse the first bytes.
+  The installed `style.mjs` has `uiProblems`.
+- On the fixed tarball, checks 2-9 give the
+  same results as the first run.
+
+Rerun all:
+
+```bash
+SCRATCH=/tmp/stress-rerun/shadcn/fix \
+LOGS=/tmp/stress-rerun/shadcn/logs-fix \
+FIX_TGZ=/tmp/stress-rerun/packs-fix/\
+tinker-start-0.2.0.tgz \
+bash cases/run-all.sh
+```
+
+## 1. Empty folder to app, one shadcn add
+
+- Case 1. WORKS -> REGRESSED (first 0.2.0)
+  -> WORKS (fixed 0.2.0).
+- The unchanged `app` item builds again.
+  Check 8 skips `components.json` while the
+  `ui` folder is empty.
+- Then `add button` with no `init` and no
+  Tailwind: doctor and the build name the gap.
+- The full styled path still works.
+- The upgrade 0.1.0 -> 0.2.0 of this app
+  passes too (EXIT 0, build EXIT 0).
+
+Fixed 0.2.0, the unchanged `app` item:
+
+```text
+$ shadcn add .../r/app.json
+✔ Created 8 files:
+9af4f2e955288e24 (pack); uiProblems: 2
+$ vp build
+EXIT 0
+<p>Hello, world.</p>
+{"ok":true,"base":"0.2.0"}
+ok    8 style
+      no src/style.css; every stylesheet
+doctor: all checks pass
+```
+
+Then `shadcn add button --yes`:
+
+```text
+fail  8 style
+  src/style.css is missing; shadcn's files in
+  src/components/ui need it, with @import
+  "tailwindcss"
+$ vp build
+RolldownError: tinker doctor, style:
+ src/style.css is missing; shadcn's files
+ in src/components/ui need it, ...
+EXIT 1
+```
+
+Styled path (tailwind item, `init`, button):
+
+```text
+$ vp build
+EXIT 0
+chrome: "oklch(0.205 0 0) |
+ oklch(0.985 0 0) | 14px"
+doctor: all checks pass
+```
+
+Log: `logs/6-fix-recheck.txt` (A to D).
+Screenshot: `logs/6-fix-button.png`.
+
+History, first 0.2.0 (now fixed):
+
+```text
+$ vp build
+RolldownError: tinker doctor, style:
+ src/style.css is missing; components.json
+ needs it, with @import "tailwindcss"
+EXIT 1
+```
+
+- Then, only a registry change (`app-styled`:
+  Tailwind folded in) made it build.
+- Logs: `logs/1-empty-to-app.txt`,
+  `logs/r-case1-regression.txt`.
+
+## 2. Examples kept across a base upgrade
+
+- Case 3. WORKS -> WORKS.
+- 0.1.0 -> 0.2.0: `src/` and configs unchanged.
+- The upgrade ends EXIT 1 only because of the
+  hand-added `tailwindcss()` line (check 4).
+- 0.1.2 -> 0.2.0: EXIT 0, unchanged.
+
+```text
+no change (9 files)
+ M package.json
+ M pnpm-lock.yaml
+"Todo 1, Todo 2"
+{"ok":true,"base":"0.2.0"}
+```
+
+Log: `logs/3-examples-upgrade.txt` (B, B2).
+
+## 3. Example update by --diff
+
+- Case 4. WORKS -> WORKS.
+- `--diff` shows my edit and v2's change.
+- `--overwrite` drops my edit, as before.
+  So merge by hand.
+
+```text
+│ -    todoStore.items.push(input.text.trim())
+│ +    todoStore.items.push(input.text);
+│ +export const clearTodos = operation({
+```
+
+Log: `logs/4-template-vs-example.txt` (B).
+
+## 4. shadcn add writes inside the app
+
+- Case 2. WITH CHANGE (`alias.patch`) -> WORKS.
+- `.tinker/tsconfig.json` maps `@/*` by an
+  absolute path.
+
+```text
+$ shadcn add button --yes
+✔ Created 1 file:
+  - src/components/ui/button.tsx
+$ find $S/apps/src (files written outside)
+(none)
+"@/*": ["$S/apps/2-button/src/*"]
+```
+
+Log: `logs/2-button.txt` (A, C).
+
+## 5. Tailwind runs, the shell links the CSS
+
+- Case 2. WITH CHANGE (`style.patch`) -> WORKS.
+- No edit to `vite.config.ts`.
+- Lightpanda (default engine) sees the link,
+  but parses no CSS: computed style is from
+  Chrome.
+- Screenshot: `logs/2-button.png`
+  (dark "Click me" button).
+
+```text
+$ vp build
+EXIT 0
+<link rel="stylesheet"
+ href="/assets/style-Cxr7dyFO.css" .../>
+default: "link /assets/style-Cxr7dyFO.css
+ | sheets parsed 0 | rgba(0, 0, 0, 0) | "
+chrome: "oklch(0.205 0 0) |
+ oklch(0.985 0 0) | 14px"
+```
+
+Log: `logs/2-button.txt` (C).
+
+## 6. shadcn init on an existing app
+
+- Case 5. WITH CHANGE (`alias.patch`) -> WORKS.
+- The parent's `../src/lib/utils.ts` is
+  untouched. Glue files unchanged.
+- `init --template start` puts the button
+  inside the app too.
+
+```text
+✔ Created 1 file:
+  - src/lib/utils.ts
+$ cat $S/apps/src/lib/utils.ts
+// the parent project's own file
+glue hashes ... before vs after: no change
+```
+
+Log: `logs/5-init-existing.txt` (C, D, E).
+
+## 7. Upgrade keeps a file: tarball peer
+
+- Case 3. WITH CHANGE (`upgrade-pins.patch`)
+  -> WORKS, for upgrades run by 0.2.0 or later.
+- 0.2.0 -> 0.2.1 keeps the `file:` spec.
+- Limit: from 0.1.0, the 0.1.0 CLI writes
+  `package.json`, so it still breaks.
+
+```text
+0.2.0 -> 0.2.1:
+"@tinker/react": "file:../../packs/tinker-react-0.0.0.tgz",
+doctor: all checks pass / EXIT 0
+0.1.0 -> 0.2.0:
+@tinker/react file:...tgz -> 0.0.0
+ERR_PNPM_FETCH_404 / EXIT 1
+```
+
+Log: `logs/3-examples-upgrade.txt` (C, E).
+
+## 8. Example route as registry:page
+
+- Case 3. NOT SUPPORTED -> NOT SUPPORTED.
+- shadcn maps page targets only for Next.js,
+  React Router, and Laravel. Use
+  `registry:file` for routes.
+
+```text
+$ shadcn add .../shadcn-page-probe.json --yes
+✔ Checking registry.
+EXIT 0
+$ ls src/routes
+index.tsx  todos.tsx
+```
+
+Log: `logs/3-examples-upgrade.txt` (D).
+
+## 9. Re-apply a template item
+
+- Case 4. NOT SUPPORTED -> NOT SUPPORTED,
+  by design.
+- `--overwrite` still drops 9 deps and moves
+  the base back. The build now names the cause.
+
+```text
+ℹ Updated 4 files:
+-    "@tinker/start": "...0.2.1.tgz",
++    "@tinker/start": "...0.2.0.tgz",
+tinker doctor, style: src/style.css:1 imports
+ tailwindcss, but tailwindcss is not installed
+EXIT 1
+```
+
+Log: `logs/4-template-vs-example.txt` (A).
+
+## Doctor check 8: the old breaks, on 0.2.0
+
+From `logs/5-init-existing.txt` (F), first
+0.2.0. The fixed run (`logs-fix/`) gives the
+same lines, except for the `@import` break.
+
+- Stale relative alias: check 3 and check 8
+  fail. `doctor --fix` repairs it.
+  Build: EXIT 0. `tinker()` runs prepare, so
+  the build repairs it too.
+- `tailwind.css` is `src/app.css`:
+  `components.json:8 tailwind.css is`
+  `"src/app.css"; the base links src/style.css`.
+  Build: EXIT 1 (new).
+- No `@import "tailwindcss"`, first 0.2.0:
+  `src/style.css:1 does not @import`
+  `"tailwindcss"; shadcn needs Tailwind`.
+  Build: EXIT 1 (new).
+- Fixed 0.2.0: it fires only with a file under
+  `src/components/ui`. With none, doctor
+  passes and the build gives EXIT 0. With the
+  button (step 3b):
+  `src/style.css:1 does not @import`
+  `"tailwindcss"; shadcn's files in`
+  `src/components/ui need Tailwind`.
+  Build: EXIT 1.
+- User `__root.tsx` with no style link:
+  `src/routes/__root.tsx:1 replaces the base`
+  `shell and does not link src/style.css; ...`.
+  Build: EXIT 1. Before: EXIT 0, no link.
+- Alias with no path:
+  `components.json:18 aliases.ui`
+  `"~/components/ui" matches no tsconfig path`.
+  Build: EXIT 1 (new).
+- `vite.config.ts` adds `tailwindcss()`:
+  now check 4 glue, not check 8:
+  `vite.config.ts:3 imports @tailwindcss/vite;`
+  `tinker() adds Tailwind already`.
+  Build: warning only, EXIT 0, CSS linked.
+- New: an unlinked `src/extra.css`.
+  Build: EXIT 1.
+- Still not covered: `add button` with no
+  `init`. Doctor passes. The build now stops
+  at tsc with `TS2307 Cannot find module`
+  `'class-variance-authority'` (case 5 B).
+
+## Base bugs found
+
+### 1. components.json alone stops the build
+
+Status: FIXED in the fixed 0.2.0 tarball
+(sha256 `9af4f2e9...`). The repro below now
+builds with EXIT 0, and the upgrade path
+passes (`logs/6-fix-recheck.txt` A, D).
+UPGRADE.md is unchanged; with the fix, no
+note is needed for this case.
+
+History, first 0.2.0:
+
+- Check 8 "style" needs `src/style.css` with
+  Tailwind whenever `components.json` exists.
+- It is a build-stopping check. So an app that
+  uses `components.json` only to name a
+  registry, with no UI file, cannot build.
+- An app that built on 0.1.0 breaks on
+  `tinker upgrade 0.2.0`.
+- UPGRADE.md 0.2.0 does not say so.
+
+Repro (registry from `cases/run-all.sh`):
+
+```bash
+mkdir app && cd app
+vp dlx shadcn@4.21.2 add \
+  http://127.0.0.1:4881/r/app.json
+vp install
+vp build
+# RolldownError: tinker doctor, style:
+#  src/style.css is missing; ...  EXIT 1
+mv components.json /tmp/aside
+vp build
+# EXIT 0
+```
+
+Upgrade path: make the same app on 0.1.0,
+`vp build` (EXIT 0), then
+`tinker upgrade 0.2.0 --from ../../packs`:
+`fail 8 style`, EXIT 1; `vp build` EXIT 1.
+Log: `logs/r-case1-regression.txt`.
+
+Fix ideas at the time (the base took the
+first):
+
+- Ask for Tailwind only when a file under the
+  `ui` alias exists; or
+- make a missing `src/style.css` a build
+  warning, as check 4 is.
+- Add a line to UPGRADE.md 0.2.0.
+
+No new base bug in the fixed run.
+
+### Not a bug, noted
+
+- After a user `__root.tsx` is deleted,
+  `.tinker/routeTree.gen.ts` still imports it.
+  Doctor check 3 says
+  `run tinker prepare`; the next build
+  regenerates it (case 5 F, step 5).
+
+## Case changes made
+
+- Copied the registry project and the case
+  scripts to `/tmp/stress-rerun/shadcn/cases/`.
+- `app` item: pins `tinker-start-0.2.0.tgz`.
+  Its `postinstall` was already
+  `tinker prepare`.
+- Registry on port 4881, v2 on 4882
+  (`components.json`, `registry.json`).
+- New item `app-styled`: `app` plus
+  `src/style.css` and Tailwind 4.3.3 in
+  `devDependencies`. Used in case 1 C only.
+- New pack `tinker-start-0.2.1.tgz`: 0.2.0
+  with only the version bumped. Proves the
+  `file:` peer rule (case 3 E). Case 4 puts the
+  app on it, ahead of the template's 0.2.0.
+- `lib.sh`: all paths, logs, and temp files
+  sit under scratch. `registry_down` stops the
+  registry by its PID.
+  `new_app` takes any pack version.
+  `build` also prints doctor and TS lines.
+  Servers and the registry stop by their PID.
+- agent-browser: session `rerun-shadcn`
+  (default engine); screenshot session
+  `rerun-shadcn-shot` with `--engine chrome`
+  on every command.
+- Case 2: A (add button) on 0.2.0; C (whole
+  path, no `vite.config.ts` edit); B (0.1.0
+  app upgraded to 0.2.0).
+- Case 3: upgrades go to 0.2.0; C from 0.1.0
+  and E from 0.2.0 for the `file:` peer;
+  B2 from 0.1.2.
+- Case 5: everything on 0.2.0; E upgrades a
+  0.1.0 app; F builds after each break and adds
+  breaks 6 and 7. For the fixed run, F adds
+  step 3b: the `@import` break with a button
+  in `src/components/ui`.
+- Fixed run: `lib.sh` takes `SCRATCH` and
+  `LOGS`; `run-all.sh` takes `FIX_TGZ`. Its
+  scratch is `fix/`, so the tarball path is new.
+- New case 6 (`cases/6-fix-recheck/run.sh`):
+  the unchanged `app` item, then `add button`
+  with no `init`, then the styled path, then
+  the 0.1.0 upgrade. It checks the pack's
+  sha256 and greps `uiProblems` in the
+  installed base.

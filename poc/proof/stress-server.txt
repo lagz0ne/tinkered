@@ -1,0 +1,315 @@
+16 checks: 16 WORKS, 0 STILL WITH CHANGE, 0 NOT SUPPORTED, 0 REGRESSED
+
+# Rerun: server area on @tinker/start 0.2.0
+
+Base: /tmp/stress-rerun/base/package (packed 0.2.0).
+No base patch was applied.
+Cases: /tmp/stress-rerun/server/cases (copies).
+Extra proofs: /tmp/stress-rerun/server/probes.sh.
+
+Two runs per case:
+
+- `<case>.asis.txt`: the case as committed.
+  Only the harness changed.
+- `<case>.hard.txt`: the case adapted to 0.2.0.
+  See "Case changes made".
+
+As committed: 13 of 15 builds pass.
+server-entry fails on purpose (doctor check 6).
+import-protection fails on purpose (the leak).
+Doctor fails check 4 on all 15: no postinstall.
+
+All logs: /tmp/stress-rerun/server/logs/
+Raw build and serve logs: logs/raw/
+
+## 1. server-fns
+
+WORKS -> WORKS
+
+- `HTTP/1.1 403 Forbidden` (POST, no Origin)
+- `HTTP/1.1 307 Temporary Redirect`
+- `click boom  #out: error: boom from the server`
+- Runtime output equals the old log, line by line.
+
+Log: logs/server-fns.hard.txt
+
+## 2. fn-middleware
+
+WORKS -> WORKS
+
+- `x-route-mw: yes`
+- `#out: button via client-mw header=1;`
+  `client read server-mw`
+
+Log: logs/fn-middleware.hard.txt
+
+## 3. global-middleware
+
+WITH CHANGE -> WORKS (no patch)
+
+- `x-global-request: user`
+  `<p id="out">globalFn=user`
+- CSRF still runs first, with src/start.ts:
+  POST, no Origin: `HTTP/1.1 403 Forbidden`
+- Wrong export: `vp build: EXIT 1`
+  `src/start.ts:1 does not export startInstance`
+- Old type gap closed: `context.globalFn`
+  builds with no cast (EXIT 0).
+
+Logs: logs/global-middleware.hard.txt,
+logs/probe-gm-csrf.txt, logs/probe-gm-wrong.txt,
+logs/probe-gm-typed.txt, logs/probe-gm-typed-neg.txt
+
+## 4. api-routes
+
+WORKS -> WORKS
+
+- `{"pong":true,"query":"hi"}`
+- `HTTP/1.1 201 Created`
+- `{"ok":true,"base":"0.2.0"}`
+- A base-path clash now stops the build:
+  `tinker doctor, routes: src/routes/api.health.ts:3`
+  `takes /api/health, a base route`
+
+Logs: logs/api-routes.hard.txt,
+logs/probe-route-collision.txt
+
+## 5. headers-cookies
+
+WORKS -> WORKS
+
+- `set-cookie: visits=2; Path=/; HttpOnly; SameSite=Lax`
+- `HTTP/1.1 204 No Content`
+- Runtime output equals the old log.
+
+Log: logs/headers-cookies.hard.txt
+
+## 6. stream-route
+
+WORKS -> WORKS
+
+- `309 ms  data: tick 1` … `1511 ms  data: tick 5`
+- `#out: tick 1, tick 2, tick 3`
+- `tick: cancelled by the client`
+
+Log: logs/stream-route.hard.txt
+
+## 7. ssr-defer
+
+WORKS -> WORKS
+
+- `91 ms  chunk 1  id="fast"`
+- `1268 ms  chunk 2  slow data arrived`
+- `#fast: fast data  #slow: slow data arrived`
+
+Log: logs/ssr-defer.hard.txt
+
+## 8. selective-ssr
+
+WORKS -> WORKS
+
+- `ranOn in payload: 0` (client-only)
+- `ranOn in payload: 1` (data-only)
+- `#out: data-only rendered; loader ran on server`
+- `defaultSsr` for all routes works now: see 9.
+
+Log: logs/selective-ssr.hard.txt
+
+## 9. spa-mode
+
+WITH CHANGE -> WORKS (no patch)
+
+- `tinker({ spa: { enabled: true } })`, no
+  `@ts-expect-error`: `dist/client/_shell.html`
+- src/start.ts `defaultSsr: false`:
+  `(no <p> in html: not server-rendered)`
+  browser: `p: Hello, world.`
+- Check 4, comment + single quotes: `ok    4 glue`
+  Two real calls: `vite.config.ts:5 calls tinker()`
+  `2 times; call it once`
+- Unknown key: `tinker(): unknown option prerendr;`
+  `known: root, prerender, pages, spa, sitemap`
+
+Logs: logs/spa-mode.hard.txt,
+logs/probe-glue-comment.txt, logs/probe-glue-two.txt,
+logs/probe-unknown-key.txt
+
+## 10. prerender
+
+WITH CHANGE -> WORKS (no patch)
+
+- `[prerender] Prerendered 3 pages:`
+  `/`, `/about`, `/tinker`
+- `curl -sI /about`: `HTTP/1.1 200 OK`
+  `cache-control: public,max-age=0,must-revalidate`
+  (the static-file header of tinker serve)
+
+Log: logs/prerender.hard.txt
+
+## 11. env
+
+WITH CHANGE -> WORKS (no patch)
+
+- `.env` loaded by tinker serve:
+  `server: tag=serv… (23 chars), process=serv… (23 chars)`
+- Shell wins: `tag=from… (10 chars), process=from… (10 chars)`
+- `(none: the secret is not in the client build)`
+
+Log: logs/env.hard.txt (as committed: logs/env.asis.txt)
+
+## 12. exec-fns
+
+WORKS -> WORKS
+
+- `server-only-body-marker: client build 0 file(s),`
+  `server build 1 file(s)`
+- `client-only-body-marker: client build 1 file(s),`
+  `server build 0 file(s)`
+- Runtime output equals the old log.
+
+Log: logs/exec-fns.hard.txt
+
+## 13. import-protection
+
+WORKS (doctor blind) -> WORKS
+
+- `Denied by file pattern: /\.server\./`
+  `vp build: EXIT 1`
+- Two leaks: build stops at one;
+  `2 violation(s) kept`; doctor `fail  10 boundary`
+  lists `leak2.tsx:6:31` and `leak.tsx:6:24`.
+- Leaks removed: `ok    10 boundary`
+- Case script: `expect-fail: 'vp build' failed`
+  `as it must (EXIT 1)`, script EXIT 0.
+
+Logs: logs/import-protection.hard.txt,
+logs/probe-ip-two.txt, logs/import-protection.script.txt
+
+## 14. server-entry
+
+WITH CHANGE -> WORKS (no patch)
+
+- `createServerEntry` from `@tinker/start/server`:
+  `raw from src/server.ts`; `x-server-entry: user`
+- Start's handler (the committed file):
+  `vp build: EXIT 1`, `fail  6 imports`
+  `"@tanstack/react-start/server-entry" skips the`
+  `base's scope; use createServerEntry from @tinker/start/server`
+- No default export: `src/server.ts:1 does not`
+  `export default` (build EXIT 1, doctor check 5).
+
+Logs: logs/server-entry.hard.txt,
+logs/probe-se-start-handler.txt, logs/probe-se-nodefault.txt
+
+## 15. node-host
+
+WITH CHANGE -> WORKS (no patch)
+
+- HOST=0.0.0.0, free port: `curl -s http://10.0.1.204:41095/`
+  gives `<p>Hello, world.</p>`
+- `/robots.txt`: `HTTP/1.1 200 OK`,
+  `content-type: text/plain; charset=utf-8` (was 404)
+- Dot path and `/../package.json`: `HTTP/1.1 404 Not Found`
+- `PORT=<free> vp preview`:
+  `➜  Local:   http://127.0.0.1:33973/`
+
+Log: logs/node-host.hard.txt
+
+## 16. A fresh checkout
+
+WITH CHANGE -> WORKS (no patch)
+
+- No app-min near the cases.
+  The pack has `0` tsconfig files.
+- Fresh copy, no `.tinker/`: `vp build: EXIT 0`
+- Fresh copy + `tinker prepare`: `vp build: EXIT 0`,
+  `doctor: all checks pass`
+
+Log: logs/probe-fresh.txt
+
+# Base bugs found
+
+1 small bug. It blocks no check.
+
+## tinker prepare lies on a route conflict
+
+It says it wrote the route tree, and exits 0.
+Doctor check 3 then says "run tinker prepare".
+That advice cannot fix it. Check 7 names the cause.
+
+Repro:
+
+```bash
+cd /tmp/stress-rerun/server/probes/route-collision
+# has src/routes/api.health.ts
+# with createFileRoute("/api/health")
+tinker prepare; echo "EXIT $?"
+ls .tinker
+tinker doctor
+```
+
+Output:
+
+```text
+Error: Conflicting configuration paths …
+  "/api/health", "/api/health".
+tinker prepare: wrote .tinker/tsconfig.json,
+  .tinker/base.json, .tinker/routeTree.gen.ts
+EXIT 0
+base.json  tsconfig.json  violations.json
+fail  3 generated folder
+      .tinker/routeTree.gen.ts is missing;
+      run tinker prepare
+fail  7 routes
+      src/routes/api.health.ts:3 takes
+      /api/health, a base route
+```
+
+Cause: `bin/tinker.mjs` prints the route tree
+as written without checking the file.
+Log: logs/raw/probe-route-collision.prepare.log
+
+## Notes (not bugs)
+
+- vp build's tsc skips `vite.config.ts`.
+  Its include is `["../src","../tests",`
+  `"./routeTree.gen.ts"]`.
+  A stale `@ts-expect-error` there passes:
+  the committed prerender case built, EXIT 0.
+  Wrong types still fail (Start's Zod:
+  `expected boolean, received string`).
+  Logs: logs/probe-stale-expect.txt,
+  logs/probe-wrong-type.txt.
+- Two `tinker()` calls: the build only warns
+  (glue is warn-only), then fails with Start's
+  `Duplicate declaration "createClientRpc"`.
+  Doctor check 4 names it. Same as 0.1.1.
+- Doctor check 2 skips here
+  ("workspace link … no pinned bytes"),
+  because @tinker/start is a link to the unpacked base.
+- The base's @tinker/core and the app's come from
+  two trees (start-base and stress-server).
+  No case broke.
+
+# Case changes made
+
+- All 15: package.json gets
+  `"postinstall": "tinker prepare"` (UPGRADE.md 0.2.0).
+  Without it, doctor check 4 fails on every case;
+  the build only warns.
+  `tinker doctor --fix` writes it:
+  logs/probe-doctor-fix.txt.
+- prerender, spa-mode: removed the
+  `@ts-expect-error` line in vite.config.ts.
+- server-entry: src/server.ts uses
+  `createServerEntry` from `@tinker/start/server`
+  and `next(request)`; its `@ts-expect-error` is gone.
+- spa-mode: new src/start.ts with `defaultSsr: false`.
+- node-host check.sh: added the dot-path,
+  path-escape, and `vp preview` PORT checks.
+- env check.sh: the second server asks the OS for
+  a free port (it used port + 1).
+- Harness: logs go to /tmp/stress-rerun/server/logs;
+  node-host takes a free port; doctor prints in full;
+  agent-browser uses session `rerun-server`.
+- The 9 WORKS cases needed no source change.

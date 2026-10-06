@@ -451,10 +451,17 @@ New sections are lists, one term per item (vertical layout,
   It is gitignored and never edited.
 - **base part** — An opt-in slice of the base, set in `tinker({ ... })`: `telemetry`, `auth`, or `sync`.
 - **seam file** — `src/lib/tinker.ts` or `src/lib/tinker.server.ts`.
-  The only app files the base reads, through `#tinker/app` and `#tinker/app.server`.
-- **named file** — An app file the base looks for by path, in place of its default.
-  The list is `src/routes/__root.tsx` and `src/style.css`; no other base file can be replaced.
-- **doctor** — `tinker doctor`: one line per check of the base, glue, seams, rules, and env.
-  `--fix` repairs only base-owned and generated files.
+  The app files that hand the base its extensions, through `#tinker/app` and `#tinker/app.server`.
+- **named file** — An app file the glue picks up by path, in place of the base's default.
+  The list is `src/router.ts`, `src/start.ts`, `src/server.ts`, `src/routes/__root.tsx`, and `src/style.css`.
+  No other base file can be replaced; Start's other usual files fail the build.
+- **doctor** — `tinker doctor`: ten checks of the base, glue, named files, imports, routes, style, and env.
+  Each finding names a file and a line. `--fix` repairs only base-owned and generated files.
+- **build-start check** — A doctor check that `tinker()` runs when `vp build` starts.
+  A fail stops the build with doctor's own `file:line` message.
+- **app template** — The registry item that writes a new app once, from an empty folder.
+  It is userland from then on and is never re-applied.
+- **example** — Opt-in feature files a registry item copies into an app, such as todos.
+  The app owns them; `shadcn add <item> --diff` shows a newer version.
 - **upgrade** — `tinker upgrade <version>`: swap the base package, rewrite `.tinker/`, run doctor.
   It never merges and never writes `src/`.

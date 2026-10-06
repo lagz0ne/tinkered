@@ -1,0 +1,380 @@
+18 checks: 18 WORKS, 0 STILL WITH CHANGE, 0 NOT SUPPORTED, 0 REGRESSED
+
+# Router rerun on the hardened base
+
+- Base: `@tinker/start` 0.2.0, no patch.
+- Cases: `/tmp/stress-rerun/router/<case>/`.
+- Run all: `/tmp/stress-rerun/router/run-all.sh`.
+- Last full pass: `logs/run-all.txt`.
+  Every script EXIT 0.
+- Non-zero steps are all planned breaks:
+  types 10, options 6, collision 12.
+- Logs: `/tmp/stress-rerun/router/logs/`.
+
+## Checks
+
+### 1. Nested routes and layouts
+
+WORKS -> WORKS
+
+```text
+$ curl /posts -> 200
+<section data-layout="posts"><h2>Posts layout</h2><p>Posts index</p>
+$ curl /posts/42 -> 200
+<section data-layout="posts"><h2>Posts layout</h2><p>Post 42</p>
+```
+
+Log: `logs/paths.txt`
+
+### 2. Pathless layouts (`_auth`)
+
+WORKS -> WORKS
+
+```text
+$ curl /dashboard -> 200
+<div data-layout="auth"><p>Dashboard</p>
+```
+
+Log: `logs/paths.txt`
+
+### 3. Route groups (`(marketing)`)
+
+WORKS -> WORKS
+
+```text
+$ curl /about -> 200
+<p>About us</p>
+$ curl /(marketing)/about -> 404
+<h1>Not found</h1>
+```
+
+- The 404 body is now the base 404 page
+  (was `<p>Not Found</p>`). Planned in 0.2.0.
+
+Log: `logs/paths.txt`
+
+### 4. Dynamic `$id`
+
+WORKS -> WORKS
+
+```text
+$ curl /posts/42 -> 200
+... <p>Post 42</p>
+```
+
+Log: `logs/paths.txt`
+
+### 5. Splat `$`
+
+WORKS -> WORKS
+
+```text
+$ curl /files/docs/a/report.pdf -> 200
+<p>File docs/a/report.pdf</p>
+```
+
+Log: `logs/paths.txt`
+
+### 6. Optional `{-$lang}`
+
+WORKS -> WORKS
+
+```text
+$ curl /hello -> 200
+<p>Hello in default</p>
+$ curl /en/hello -> 200
+<p>Hello in en</p>
+```
+
+Log: `logs/paths.txt`
+
+### 7. Index routes
+
+WORKS -> WORKS
+
+```text
+fullPaths: ... | '/posts/'
+$ curl /posts -> 200
+... <p>Posts index</p>
+```
+
+Log: `logs/paths.txt`
+
+### 8. Search params: zod and `loaderDeps`
+
+WORKS -> WORKS
+
+```text
+$ curl /items?page=oops&sort=zzz -> 307 /items?page=1&sort=new
+$ curl /items?page=3&sort=old -> 200
+page=3 sort=old loader page=3 run=1
+tab, "Sort old": page=2 sort=old loader page=2 run=1
+```
+
+- Same as the old proof, line for line.
+
+Log: `logs/search.txt`
+
+### 9. `beforeLoad` and `redirect`
+
+WORKS -> WORKS
+
+```text
+$ curl -sI /secret
+HTTP/1.1 307  location: /items?page=2&sort=old
+$ curl -sI /to-base
+HTTP/1.1 307  location: /tinker
+```
+
+Log: `logs/search.txt`
+
+### 10. Not found, error, pending
+
+WORKS -> WORKS
+
+```text
+$ curl /posts/missing -> 404
+<p data-state="not-found">Post not found</p>
+$ curl /posts/boom -> 500
+<p data-state="error">Post error: post boom failed</p>
+tab, "Slow post" at 400 ms: Loading post
+```
+
+- Old gap (app-wide 404) is closed:
+  `src/router.ts` sets it. See check 14.
+- Unmatched URL now gets the base 404 page
+  `<h1>Not found</h1>`. Planned in 0.2.0.
+
+Log: `logs/boundaries.txt`
+
+### 11. Route `head`
+
+WORKS -> WORKS
+
+```text
+$ curl /about -> <title>About page</title>
+$ curl /about/team -> <title>Team page</title>
+$ curl /posts/7 -> <title>Post 7 title</title>
+tab: About page, Team page, Post 7 title
+```
+
+Log: `logs/head.txt`
+
+### 12. Automatic code splitting
+
+WORKS -> WORKS
+
+```text
+/posts/$id  /src/routes/posts/$id.tsx -> /assets/_id-Dvf6yjNn.js
+/files/$    /src/routes/files/$.tsx -> /assets/_-jD1iw3G9.js
+/tinker     …/base/package/src/routes/tinker.tsx -> /assets/tinker-DW3Gv1D7.js
+```
+
+Log: `logs/paths.txt`
+
+### 13. `<Link>` and `useNavigate` types
+
+WORKS (build did not check types) -> WORKS
+
+- All 5 breaks now fail `vp build`
+  with `file:line:col`.
+
+```text
+RolldownError: tsc found 1 type error(s); the build stops here:
+src/frontend/typo-base.tsx:3:37 TS2820 Type '"/tinkr"' is not assignable …
+vp build: EXIT 1
+```
+
+- Same for `navigate-typo`, `redirect-typo`,
+  `typo-user`, `missing-param`.
+- Breaks removed: `vp build: EXIT 0`.
+
+Log: `logs/types.txt`
+
+### 14. Preloading, `defaultPreload: "intent"`
+
+WITH CHANGE (options.patch) -> WORKS
+
+```text
+src/router.ts: defaultPreload "intent"; hover "Plain link" -> 1
+src/router.tsx: RolldownError: tinker doctor, named files: src/router.tsx:1
+  is a Start file the base does not read; router options go in src/router.ts
+fail  5 named files   (doctor EXIT 1)
+```
+
+- No `src/router.ts`: plain link gives 0,
+  intent link gives 1 (as before).
+- `defaultNotFoundComponent` in `src/router.ts`:
+  `curl /no/such/page -> 404`
+  `<p data-page="app-404">App-wide 404 page</p>`.
+- `src/router.ts` with no `router` export:
+  build and doctor 5 fail, `src/router.ts:1 does not export router`.
+
+Log: `logs/options.txt`
+
+### 15. Route masks
+
+WITH CHANGE (options.patch) -> WORKS
+
+```text
+mask prop: click "Masked photo" -> /photos/1, Photo page 1 / Photo modal 1
+routeMasks in src/router.ts: click "Unmasked photo" -> /photos/2
+Photo page 2 / Photo modal 2
+mask typo: src/router.ts:10:61 TS2820 Type '"/fotos/$id"' … vp build: EXIT 1
+```
+
+Log: `logs/options.txt`
+
+### 16. A user `__root.tsx` replaces the shell
+
+Build WORKS, dev WITH CHANGE (regen.patch) -> WORKS
+
+```text
+build: $ curl / -> <html lang="vi"  $ curl /missing -> App 404 page
+dev: tinker: src/routes/__root.tsx added; restarting -> <html lang="vi"
+dev: tinker: src/routes/__root.tsx removed; restarting -> 200 <html lang="en"
+```
+
+- Old dev bug (every page 500 after remove)
+  is gone.
+- Dev log noise, once per swap; pages answer 200:
+  `Error: ⚠️ expected route file to exist at …/__root.tsx`
+  and `transport was disconnected` (a poll in flight).
+- Caveat: the dev proof used `dev-base-vite.mjs`.
+  See "Case changes made".
+
+Logs: `logs/root.txt`, `logs/regen.txt`
+
+### 17. A user route takes a base path
+
+WITH CHANGE (collision.patch) -> WORKS
+
+- All 6 forms: `vp build: EXIT 1` with
+  doctor's line, and doctor check 7 fails.
+
+```text
+tinker doctor, routes: src/routes/(extra)/tinker.tsx:3 takes /tinker, a base route
+tinker doctor, routes: src/routes/tinker/index.tsx:3 takes /tinker, a base route
+tinker doctor, routes: src/routes/tinker/settings.tsx:3 nests under /tinker,
+  a base route with no outlet; the base page renders
+```
+
+- `tinker.tsx`, `api.health.ts`, `_wrap/tinker.tsx`: same.
+- Control `tinker_.settings.tsx`: build EXIT 0,
+  check 7 ok, `/tinker/settings` serves the user page.
+
+Log: `logs/collision.txt`
+
+### 18. Route tree follows added and removed files
+
+WORKS -> WORKS
+
+```text
+build: fullPaths '/' | '/added' | … then '/' | '/tinker' | '/api/health'
+dev: $ curl /added -> 200  <p data-page="added">Added while dev runs</p>
+dev, removed: $ curl /added -> 404 <h1>Not found</h1>
+dev, empty file: $ curl /blank -> 200 <div>Hello "/blank"!</div>
+```
+
+- Bonus: adding and removing `src/router.ts`
+  in dev restarts the server too.
+
+Log: `logs/regen.txt`
+
+## Base bugs found
+
+### 1. `tinker prepare` hides a generator failure
+
+- It exits 0 and says it wrote the route tree.
+- The route generator failed, so the tree is stale.
+- Doctor check 3 then says "run tinker prepare".
+  That cannot help while the clash stands.
+- So a route clash fails 2 checks (3 and 7),
+  and check 3 sends the user the wrong way.
+
+Repro (log: `logs/base-bug-prepare.txt`):
+
+```bash
+cd /tmp/stress-rerun/router/collision
+cp breaks/tinker.tsx.break src/routes/tinker.tsx
+node node_modules/@tinker/start/bin/tinker.mjs prepare
+echo $?   # 0
+node node_modules/@tinker/start/bin/tinker.mjs doctor
+rm src/routes/tinker.tsx
+```
+
+```text
+Error: Conflicting configuration paths were found … "/tinker", "/tinker".
+tinker prepare: wrote .tinker/tsconfig.json, .tinker/base.json, .tinker/routeTree.gen.ts
+fail  3 generated folder
+      .tinker/routeTree.gen.ts misses src/routes/tinker.tsx; run tinker prepare
+```
+
+- Cause: `writeRouteTree` in `lib/prepare.mjs`
+  calls `vite.resolveConfig`. The generator logs
+  the error and does not throw.
+
+### 2. Wording nits (no wrong result)
+
+- Check 5 pass line, grammar:
+  `src/router.ts export what the base reads`.
+  Repro: options case, step 3.
+- Check 8 pass line says
+  `src/style.css is linked by the shell`
+  when the app has no `src/style.css`.
+  Repro: `tinker doctor` in `paths/`.
+
+### Not a base bug: two Vite copies in this setup
+
+- With the links the rules set, plain `vp dev`
+  answers `Cannot GET /` on every path,
+  `/api/health` too.
+- Cause: the app's Vite is from the stress tree.
+  The base's Start plugin imports Vite from the
+  start-base tree. Start checks
+  `isRunnableDevEnvironment` (an `instanceof`).
+  The check fails, and Start skips its dev
+  middleware without a word.
+- A real install has one Vite copy.
+- Proof, both launchers side by side:
+  `logs/dev-launcher-probe.txt`.
+- Other rerun areas with dev checks will hit this.
+
+## Case changes made
+
+- All 9 cases: `package.json` gets
+  `"postinstall": "tinker prepare"`.
+  Doctor check 4 fails without it in 0.2.0.
+- `lib.sh`:
+  - session `rerun-router`;
+  - temp files under `tmp/`, not `/tmp/router-*`;
+  - `build()` keeps `tinker doctor` and `TSxxxx` lines;
+  - `dev_up` starts `dev-base-vite.mjs` (see above).
+    `DEV_LAUNCHER=vp` gives plain `vp dev`.
+- `dev-base-vite.mjs` (new): calls `createServer`
+  from the Vite copy the base's Start plugin uses.
+  Same version, same bytes. No link changed.
+- `root/prove.sh`, `regen/prove.sh`:
+  temp paths moved into `tmp/`.
+- `paths`, `boundaries`: the 404 grep also
+  matches the base 404 page `<h1>Not found</h1>`.
+- `types/prove.sh`: `vp check` dropped
+  (in `/tmp` it runs outside the workspace).
+  Rebuild after the breaks, before the tab check.
+- `options/prove.sh`: rewritten for 0.2.0.
+  - Router options go in `src/router.ts`,
+    typed `RouterOptions` from `@tinker/start`.
+  - Was `src/lib/router.ts`, typed `RouterSeam`.
+  - New files: `hardened/router.ts`,
+    `hardened/not-found.tsx`, `hardened/router-noexport.ts`.
+  - The `src/router.tsx` break now expects
+    a failed build and a failed check 5.
+- `collision/prove.sh`: expects a failed build
+  and a failed check 7 for all 6 forms.
+  Prints the check 7 lines.
+- `regen/prove.sh`: old `prove.sh` and
+  `patched.sh` joined. It polls until the shell
+  swaps. It also adds and removes `src/router.ts`.
+- `run-all.sh`: writes `logs/<case>.txt`.
+- No `@ts-expect-error` lines in these cases;
+  none removed.
