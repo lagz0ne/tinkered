@@ -21,15 +21,17 @@ export const say = {
     `this tinker is base ${running}, the app resolves ${resolved}; run the app's own tinker`,
   missing: ".tinker/ is missing; run tinker prepare",
   stale: (name) => `.tinker/${name} is stale; run tinker prepare`,
-  noTree: ".tinker/routeTree.gen.ts is missing; run tinker prepare",
-  gone: (line, path) =>
-    `.tinker/routeTree.gen.ts:${line} imports ${path}, which does not exist; run tinker prepare`,
-  misses: (file) => `.tinker/routeTree.gen.ts misses ${file}; run tinker prepare`,
-  blocked: (file) =>
-    `.tinker/routeTree.gen.ts misses ${file}; fix check 7 first, then run tinker prepare`,
-  left: (file) => `.tinker/routeTree.gen.ts misses ${file}`,
+  noTree: (next) => `.tinker/routeTree.gen.ts is missing; ${next}`,
+  gone: (line, path, next) =>
+    `.tinker/routeTree.gen.ts:${line} imports ${path}, which does not exist; ${next}`,
+  misses: (file, next) => `.tinker/routeTree.gen.ts misses ${file}; ${next}`,
+  prepareNext: "run tinker prepare",
+  check7Next: "fix check 7 first, then run tinker prepare",
+  generatorNext: "the route generator stopped; see its error above",
   ignore: (entry) => `.gitignore does not list ${entry}`,
   generator: "tinker prepare: the route generator left the tree stale; fix the lines below:",
+  notRun:
+    "tinker prepare: check 7 fails, so the route generator did not run (it would stop, or write src/); fix the lines below:",
   passed: ".tinker/ matches this base and src/routes; .gitignore lists .tinker/ and .tanstack/",
   fixed: (added) =>
     `ran tinker prepare${added.length > 0 ? `; added ${added.join(" ")} to .gitignore` : ""}`,
@@ -81,16 +83,34 @@ function treeGaps(root) {
  * @param {string} root - From folderProblems; why: the app to compare.
  */
 function treeProblems(root) {
-  const gaps = treeGaps(root);
-  if (gaps.noTree) return [say.noTree];
+  const next = routes(root).status === "fail" ? say.check7Next : say.prepareNext;
   const owned = ownedPaths(root);
-  const blocked = routes(root).status === "fail";
+  return treeLines(treeGaps(root), next, (file) => !routeClash(file, owned));
+}
+
+/**
+ * The route tree's gaps as lines, each ending in what to do next.
+ * @param {ReturnType<typeof treeGaps>} gaps - From treeGaps; why: what the tree lacks.
+ * @param {string} next - From the caller; why: the step that heals the tree from here.
+ * @param {(file: string) => boolean} [named] - From check 3; why: the missed files it names.
+ */
+function treeLines(gaps, next, named = () => true) {
+  if (gaps.noTree) return [say.noTree(next)];
   return [
-    ...gaps.gone.map(({ line, path }) => say.gone(line, path)),
-    ...gaps.misses
-      .filter((file) => !routeClash(file, owned))
-      .map((file) => (blocked ? say.blocked : say.misses)(`src/routes/${file}`)),
+    ...gaps.gone.map(({ line, path }) => say.gone(line, path, next)),
+    ...gaps.misses.filter(named).map((file) => say.misses(`src/routes/${file}`, next)),
   ];
+}
+
+/**
+ * Why `tinker prepare` must not run TanStack's generator now: while check 7 fails, the generator
+ * would stop on a clash, or rewrite a wrong createFileRoute path or an empty route file in src/.
+ * Empty when it may run.
+ * @param {string} root - From tinker prepare and check 3's --fix; why: the app to prepare.
+ */
+export function generatorBlocked(root) {
+  const checked = routes(root);
+  return checked.status === "fail" ? [say.notRun, ...checked.lines] : [];
 }
 
 /**
@@ -99,12 +119,7 @@ function treeProblems(root) {
  * @param {string} root - From tinker prepare; why: the app whose tree was just written.
  */
 export function staleTree(root) {
-  const gaps = treeGaps(root);
-  const lines = [
-    ...(gaps.noTree ? [say.noTree] : []),
-    ...gaps.gone.map(({ line, path }) => say.gone(line, path)),
-    ...gaps.misses.map((file) => say.left(`src/routes/${file}`)),
-  ];
+  const lines = treeLines(treeGaps(root), say.generatorNext);
   if (lines.length === 0) return [];
   const checked = routes(root);
   return [say.generator, ...lines, ...(checked.status === "fail" ? checked.lines : [])];
@@ -134,15 +149,13 @@ function addIgnored(root, entries) {
 }
 
 /**
- * The route tree half of --fix. TanStack's generator rewrites a wrong createFileRoute path and
- * fills an empty route file, in src/; with check 7 clean it has nothing there to write, so
- * --fix runs it only then. A failed run is not thrown: the check that runs next reports.
+ * The route tree half of --fix: `tinker prepare`, which runs TanStack's generator only while
+ * check 7 passes (see generatorBlocked), so --fix never writes src/. A failed run is not
+ * thrown: the check that runs next reports.
  * @param {string} root - From the generated fix; why: the app to prepare.
  */
 function fixTree(root) {
-  const gaps = treeGaps(root);
-  const stale = gaps.noTree || gaps.gone.length > 0 || gaps.misses.length > 0;
-  if (!stale || routes(root).status === "fail") return;
+  if (treeLines(treeGaps(root), "").length === 0) return;
   try {
     execFileSync(process.execPath, [join(baseDir, "bin/tinker.mjs"), "prepare"], {
       cwd: root,

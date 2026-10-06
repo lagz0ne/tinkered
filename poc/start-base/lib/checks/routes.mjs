@@ -5,6 +5,7 @@ import { installedBase, listFiles, readJson } from "../paths.mjs";
 import { isRouteFile, routeClash, routeId, routePath } from "../route-path.mjs";
 import {
   importedNames,
+  importsFrom,
   mayExport,
   parseSource,
   propertiesOf,
@@ -47,7 +48,8 @@ function routeProblems(dir, file, owned) {
 }
 
 /**
- * A shell's `component` must render `<Outlet />`, unless it comes from another file.
+ * A shell's `component` must render TanStack's `<Outlet />`, read by the name it is imported
+ * under, unless the component comes from another file. A local value named Outlet does not count.
  * @param {string} root - From the routes check; why: the app's shell lives there.
  */
 function shellProblems(root) {
@@ -55,11 +57,14 @@ function shellProblems(root) {
   if (!existsSync(path)) return [];
   const source = parseSource(path);
   const imported = importedNames(source);
+  const outlet = importsFrom(source, "@tanstack/react-router").find(
+    ({ imported: name }) => name === "Outlet",
+  );
   const component = propertiesOf(source, "component").find(
     ({ value }) =>
-      !(value.type === "Identifier" && imported.has(value.name) && value.name !== "Outlet"),
+      !(value.type === "Identifier" && imported.has(value.name) && value.name !== outlet?.local),
   );
-  if (!component || usesOf(source, "Outlet").length > 0) return [];
+  if (!component || (outlet && usesOf(source, outlet.local).length > 0)) return [];
   return [say.outlet(`${shellFile}:${source.line(component)}`)];
 }
 

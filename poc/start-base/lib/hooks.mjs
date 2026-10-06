@@ -1,17 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { buildChecks } from "./doctor.mjs";
 import { appFiles, shellFile } from "./named.mjs";
-import { checkTypes } from "./typecheck.mjs";
-
-/**
- * What a build stops on: doctor's build-start lines; once they pass, the app's own tsc.
- * @param {string} root - From tinker()'s build start; why: the app being built.
- */
-export function verifyBuild(root) {
-  const { errors, warnings } = buildChecks(root);
-  return { errors: errors.length > 0 ? errors : checkTypes(root), warnings };
-}
 
 /** @param {string} root - From a violation hook; why: the app's generated folder. */
 function writeViolations(root, found) {

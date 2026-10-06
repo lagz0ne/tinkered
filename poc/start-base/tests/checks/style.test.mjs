@@ -68,6 +68,21 @@ test("a components.json that does not parse is named at its line, not thrown", (
   expect(style(root).lines).toEqual(["components.json:3 does not parse (CommaExpected)"]);
 });
 
+test("components.json is strict JSON, as shadcn reads it: a trailing comma does not parse", () => {
+  const root = goodApp({
+    "components.json": '{\n  "aliases": { "ui": "@/components/ui", }\n}\n',
+  });
+  expect(style(root).lines).toEqual(["components.json:2 does not parse (PropertyNameExpected)"]);
+});
+
+test("names a components.json that sets no tailwind.css", () => {
+  const root = goodApp({ "components.json": '{ "aliases": {} }\n' });
+  prepare(root);
+  expect(style(root).lines).toEqual([
+    'components.json:1 sets no tailwind.css; set it to "src/style.css"',
+  ]);
+});
+
 test("reads tsconfig.json as tsc does, so a comment does not hide shadcn's aliases", () => {
   const root = goodApp({
     ...tailwindInstalled,

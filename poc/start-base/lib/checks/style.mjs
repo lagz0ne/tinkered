@@ -18,6 +18,7 @@ export const say = {
     `components.json:${line} aliases.${name} "${alias}" matches no tsconfig path`,
   css: (line, css) =>
     `components.json:${line} tailwind.css is "${css}"; the base links src/style.css`,
+  noCss: 'components.json:1 sets no tailwind.css; set it to "src/style.css"',
   noStyle: (ui) =>
     `src/style.css is missing; shadcn's files in ${ui} need it, with @import "tailwindcss"`,
   noTailwind: (ui) =>
@@ -75,9 +76,18 @@ function aliasProblems(root, text, aliases, paths) {
   });
 }
 
+/**
+ * @param {string} text - From components.json; why: the line of tailwind.css.
+ * @param {string | undefined} css - From components.json; why: the file shadcn writes CSS to.
+ */
+function cssProblem(text, css) {
+  if (css === undefined) return say.noCss;
+  return css === "src/style.css" ? null : say.css(lineOfKey(text, ["tailwind", "css"]), css);
+}
+
 /** @param {string} root - From the style check; why: shadcn's settings and their lines. */
 function componentsProblems(root) {
-  const components = readJsonc(join(root, "components.json"));
+  const components = readJsonc(join(root, "components.json"), { strict: true });
   if (components.error) return [say.parse(components.error)];
   if (!components.text) return [];
   const { text, value } = components;
@@ -86,7 +96,7 @@ function componentsProblems(root) {
   if (!paths) return [];
   return [
     ...aliasProblems(root, text, aliases, paths),
-    tailwind.css !== "src/style.css" && say.css(lineOfKey(text, ["tailwind", "css"]), tailwind.css),
+    cssProblem(text, tailwind.css),
     ...uiProblems(root, aliases.ui && aliasTarget(root, paths, aliases.ui)),
   ];
 }

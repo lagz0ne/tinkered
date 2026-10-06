@@ -21,14 +21,12 @@ $ tinker doctor
   fail  4 glue
         vite.config.ts:1 does not import tinker from
         "@tinker/start/vite"
-        vite.config.ts:1 calls tinker() 0 times; call it
-        once: plugins: [tinker()]
   doctor: 2 check(s) fail
   EXIT 1
 
 == 2. tsconfig.json without extends (M2)
 $ vp build
-  [plugin tinker:verify] tinker doctor, glue: tsconfig.json:1 does not extend "./.tinker/tsconfig.json"
+  tinker doctor, glue: tsconfig.json:1 does not extend "./.tinker/tsconfig.json"
   RolldownError: tsc found 26 type error(s); the build stops here:
   ../../../../..~/next/tinkered-start-base/node_modules/.pnpm/@tanstack+start-server-core@1.169.39/node_modules/@tanstack/start-server-core/dist/esm/session.d.ts:23:40 TS2552 Cannot find name 
   error during build:
@@ -45,16 +43,17 @@ $ tsc --noEmit
 
 == 3. a route file with the wrong export (route, not Route) (M3)
 $ vp build
-  RolldownError: tinker doctor, routes: src/routes/index.tsx:18 does not export Route; TanStack skips the file, so / is a 404
-  Warning: Route file "src/routes/index.tsx" does not export a Route. This file will not be included in the route tree.
-  Warning: Route file "src/routes/index.tsx" does not export a Route. This file will not be included in the route tree.
-  Warning: Route file "src/routes/index.tsx" does not export a Route. This file will not be included in the route tree.
+  Error: tinker doctor, routes: src/routes/index.tsx:18 does not export Route; TanStack skips the file, so / is a 404
+  error during build:
   EXIT 1
 $ tinker doctor
+  fail  3 generated folder
+        .tinker/routeTree.gen.ts is missing; fix check 7
+        first, then run tinker prepare
   fail  7 routes
         src/routes/index.tsx:18 does not export Route;
         TanStack skips the file, so / is a 404
-  doctor: 1 check(s) fail
+  doctor: 2 check(s) fail
   EXIT 1
 
 == 4. a server-only import in a client file (a route component calls readResult) (M4)
@@ -102,7 +101,7 @@ $ curl -s :PORT/
   <body><!--$--><main><h1>Something went wrong</h1></main><script>(function(a,f){let l;try{l=JSON.parse(sessionStorage.getItem(a
   server log: tinker: a route failed on the server: ZodError: [
   server log: tinker: a route failed on the server: ZodError: [
-  tinker serve log: 41 line(s): tinker serve: http://127.0.0.1:45425
+  tinker serve log: 41 line(s): tinker serve: http://127.0.0.1:45443
   set it in .env:
 $ tinker doctor
   doctor: all checks pass
@@ -113,7 +112,7 @@ $ curl -s :PORT/
 
 == 6. @tinker/start tested with another @tinker/core (a base copy's tested: 0.0.1) (M6)
 $ vp build
-  [plugin tinker:verify] tinker doctor, base version: package.json:17 @tinker/core is 0.0.0, tested with 0.0.1
+  tinker doctor, base version: package.json:17 @tinker/core is 0.0.0, tested with 0.0.1
   EXIT 0
 $ tinker doctor
   fail  1 base version
@@ -159,16 +158,17 @@ $ curl -s :PORT/
 
 == 9. a user src/routes/__root.tsx without <Outlet /> (M9)
 $ vp build
-  RolldownError: tinker doctor, routes: src/routes/__root.tsx:5 sets component without <Outlet />; no page renders inside the shell
+  Error: tinker doctor, routes: src/routes/__root.tsx:5 sets component without <Outlet />; no page renders inside the shell
   error during build:
-  Build failed with 1 error:
-    errors: [Getter/Setter]
   EXIT 1
 $ tinker doctor
+  fail  3 generated folder
+        .tinker/routeTree.gen.ts is missing; fix check 7
+        first, then run tinker prepare
   fail  7 routes
         src/routes/__root.tsx:5 sets component without
         <Outlet />; no page renders inside the shell
-  doctor: 1 check(s) fail
+  doctor: 2 check(s) fail
   EXIT 1
 
 == 10. src/routes deleted (M10)

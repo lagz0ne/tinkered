@@ -1,10 +1,8 @@
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { recordViolation, restartNote, startViolations, verifyBuild } from "../lib/hooks.mjs";
+import { recordViolation, restartNote, startViolations } from "../lib/hooks.mjs";
 import { prepare } from "../lib/prepare.mjs";
-import { say as typeSay } from "../lib/typecheck.mjs";
 import { goodApp } from "./fixture.mjs";
 
 const leak = {
@@ -40,30 +38,6 @@ test("tinker prepare and every tinker() load keep the last build's boundary reco
   writeFileSync(join(root, ".tinker/violations.json"), kept);
   prepare(root);
   expect(readFileSync(join(root, ".tinker/violations.json"), "utf8")).toBe(kept);
-});
-
-test("a build stops on doctor's lines first, and runs tsc only once they pass", () => {
-  const broken = goodApp({ "src/router.tsx": "" });
-  expect(verifyBuild(broken).errors).toEqual([
-    "tinker doctor, named files: src/router.tsx:1 is a Start file the base does not read; router options go in src/router.ts",
-  ]);
-  expect(verifyBuild(goodApp()).errors).toEqual([typeSay.noTypescript]);
-});
-
-test("a build passes doctor's warnings on, and stops on nothing when tsc passes", () => {
-  const root = goodApp({
-    "tsconfig.json": JSON.stringify({
-      compilerOptions: { strict: true, noEmit: true },
-      include: ["src"],
-    }),
-    "src/routes/index.tsx": 'export const Route = { path: "/" };\n',
-  });
-  const typescript = dirname(createRequire(import.meta.url).resolve("typescript/package.json"));
-  symlinkSync(typescript, join(root, "node_modules/typescript"), "dir");
-  expect(verifyBuild(root)).toEqual({
-    errors: [],
-    warnings: ['tinker doctor, glue: tsconfig.json:1 does not extend "./.tinker/tsconfig.json"'],
-  });
 });
 
 test("dev restarts when the shell, a named file, or a seam file comes or goes, and not otherwise", () => {

@@ -7,7 +7,9 @@ import react from "@vitejs/plugin-react";
 import { say as routeSay } from "./lib/checks/routes.mjs";
 import { loadEnv } from "./lib/env.mjs";
 import { aliases, passThrough, startOptions } from "./lib/glue.mjs";
-import { recordViolation, restartNote, startViolations, verifyBuild } from "./lib/hooks.mjs";
+import { buildChecks } from "./lib/doctor.mjs";
+import { recordViolation, restartNote, startViolations } from "./lib/hooks.mjs";
+import { checkTypes } from "./lib/typecheck.mjs";
 import { prepare } from "./lib/prepare.mjs";
 
 /** @param {string} root - From tinker(); why: the app's paths, address, and tsconfig. */
@@ -23,23 +25,34 @@ function glueConfig(root) {
 }
 
 /**
- * At build start, doctor's static checks, then the app's tsc: a known mistake stops the build
- * with doctor's file:line line instead of shipping. Once they pass, this build's boundary
- * record starts empty; Start's onViolation fills it.
+ * A build checks in two steps. When the config resolves, before TanStack's route generator
+ * runs: doctor's build-start lines, so a stop comes before the generator could rewrite a route
+ * file in src/. At build start, once the generator wrote the route tree: the app's own tsc.
+ * Then this build's boundary record starts empty; Start's onViolation fills it.
  * @param {string} root - From tinker(); why: the app being built.
  * @param {{ found?: Map<string, object> }} record - From tinker(); why: shared with onViolation.
  */
 function verify(root, record) {
-  let done = false;
+  let checked = false;
+  let typed = false;
   return {
     name: "tinker:verify",
     apply: "build",
+    configResolved: {
+      order: "pre",
+      handler(config) {
+        if (checked) return;
+        checked = true;
+        const { errors, warnings } = buildChecks(root);
+        for (const line of warnings) config.logger.warn(line);
+        if (errors.length > 0) throw new Error(errors.join("\n"));
+      },
+    },
     buildStart() {
-      if (done) return;
-      done = true;
-      const { errors, warnings } = verifyBuild(root);
-      for (const line of warnings) this.warn(line);
-      if (errors.length > 0) this.error(errors.join("\n"));
+      if (typed) return;
+      typed = true;
+      const types = checkTypes(root);
+      if (types.length > 0) this.error(types.join("\n"));
       record.found = startViolations(root);
     },
   };

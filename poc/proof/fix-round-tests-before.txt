@@ -1,14 +1,18 @@
-The fix-round tests, run against the code before the fix (commit 42952102).
+The review-round tests, run against the code before the review fixes (commit 42952102).
 
-before the fix: 22 failed tests, 90 passed
+before the fixes: 31 failed tests, 88 passed
 FAIL build-checks.test.mjs :: a components.json that does not parse stops the build with its line
 FAIL build-checks.test.mjs :: tinker() imported under another name, and called once, builds
 FAIL build-checks.test.mjs :: a valid export * in a seam file and a route file builds
 CANNOT LOAD error-detail.test.ts (its module did not exist)
 CANNOT LOAD hooks.test.mjs (its module did not exist)
+FAIL prepare.test.mjs :: the build's tsc checks vite.config.ts too, so a tinker() option type is checked
+FAIL prepare.test.mjs :: a failing tinker prepare fails, except as postinstall, so a broken clone still installs
 FAIL checks/generated.test.mjs :: while check 7 fails, a missed route says to fix check 7 first; a file with no Route is check 7's
 FAIL checks/generated.test.mjs :: a route file that re-exports Route from another file counts as a route
-FAIL checks/generated.test.mjs :: after the generator stops on a clash, tinker prepare names the gap and the clash
+FAIL checks/generated.test.mjs :: when the generator ran and the tree is still stale, tinker prepare says so
+FAIL checks/generated.test.mjs :: while check 7 fails, every route tree line says to fix check 7 first
+FAIL checks/generated.test.mjs :: tinker prepare skips the generator while check 7 fails, and says why
 FAIL checks/generated.test.mjs :: --fix starts a new line in a .gitignore that does not end in one
 FAIL checks/generated.test.mjs :: --fix never runs the generator while a route clashes: check 3's lines come back
 FAIL checks/generated.test.mjs :: --fix runs the generator when check 7 passes; a prepare that fails leaves check 3's lines, not a crash
@@ -17,11 +21,16 @@ FAIL checks/glue.test.mjs :: counts tinker() under the name it is imported as, i
 FAIL checks/glue.test.mjs :: reads tsconfig.json as tsc does: a comment and a trailing comma are fine
 FAIL checks/glue.test.mjs :: --fix adds only the extends key, and keeps comments, trailing commas, and options
 FAIL checks/glue.test.mjs :: a tsconfig.json that does not parse is named at its line, and --fix never writes it
+FAIL checks/glue.test.mjs :: package.json is strict JSON, as npm reads it: a comment is named, and --fix never writes it
 FAIL checks/named.test.mjs :: follows export * to a local file, and skips the check when it cannot follow
 FAIL checks/routes.test.mjs :: a route that re-exports Route through export * is a route
 FAIL checks/routes.test.mjs :: names a createFileRoute path that does not match its file, before the generator rewrites src/
+FAIL checks/routes.test.mjs :: passes a shell that renders Outlet, uses Outlet as is, or imports its component
+FAIL checks/routes.test.mjs :: a local value named Outlet is not TanStack's outlet
 FAIL checks/style.test.mjs :: a comment that names style.css?url does not link it; an @/ import does
 FAIL checks/style.test.mjs :: a commented-out @import of tailwindcss needs no Tailwind package
 FAIL checks/style.test.mjs :: a components.json that does not parse is named at its line, not thrown
+FAIL checks/style.test.mjs :: components.json is strict JSON, as shadcn reads it: a trailing comma does not parse
+FAIL checks/style.test.mjs :: names a components.json that sets no tailwind.css
 FAIL checks/style.test.mjs :: reads tsconfig.json as tsc does, so a comment does not hide shadcn's aliases
 FAIL checks/version.test.mjs :: names an exact pin in package.json that the install does not match, at its line

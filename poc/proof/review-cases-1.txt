@@ -1,0 +1,71 @@
+
+######## M1 named file exports the wrong name (src/router.ts exports routerOptions)
+error during build:
+Error: tinker doctor, named files: src/router.ts:1 does not export router; the base imports it from this file
+vp build: EXIT 1
+fail  5 named files
+      src/router.ts:1 does not export router; the base
+      imports it from this file
+doctor: 1 check(s) fail
+doctor: EXIT 1
+
+######## M2 route file with a typo in its createFileRoute path
+error during build:
+Error: tinker doctor, routes: src/routes/about.tsx:3 createFileRoute("/abuot") does not match its file; set it to "/about", or TanStack's generator rewrites it in src/
+vp build: EXIT 1
+fail  3 generated folder
+      .tinker/routeTree.gen.ts misses
+      src/routes/about.tsx; fix check 7 first, then run
+      tinker prepare
+fail  7 routes
+      src/routes/about.tsx:3 createFileRoute("/abuot")
+      does not match its file; set it to "/about", or
+      TanStack's generator rewrites it in src/
+doctor: 2 check(s) fail
+doctor: EXIT 1
+-- src/routes/about.tsx after build:
+(unchanged)
+
+######## M2b route file name typo: src/routes/abuot.tsx with createFileRoute('/about')
+error during build:
+Error: tinker doctor, routes: src/routes/abuot.tsx:3 createFileRoute("/about") does not match its file; set it to "/abuot", or TanStack's generator rewrites it in src/
+vp build: EXIT 1
+fail  3 generated folder
+      .tinker/routeTree.gen.ts misses
+      src/routes/abuot.tsx; fix check 7 first, then run
+      tinker prepare
+fail  7 routes
+      src/routes/abuot.tsx:3 createFileRoute("/about")
+      does not match its file; set it to "/abuot", or
+      TanStack's generator rewrites it in src/
+doctor: 2 check(s) fail
+doctor: EXIT 1
+-- after:
+1:import { createFileRoute } from "@tanstack/react-router";
+3:export const Route = createFileRoute("/about")({
+
+######## M3 stale lockfile pin: package.json bumps @tanstack/react-start, no install
+16:    "@tanstack/react-start": "1.169.2",
+tinker doctor, base version: package.json:16 pins @tanstack/react-start 1.169.2, but 1.168.60 is installed; run install
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+fail  1 base version
+      package.json:16 pins @tanstack/react-start 1.169.2,
+      but 1.168.60 is installed; run install
+doctor: 1 check(s) fail
+doctor: EXIT 1
+
+######## M5a all five named files present and valid
+dist/client/assets/tinker-C6wUPpZh.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-D6Alk46X.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+
+######## M5b comment mentions tinker() twice and tanstackStart() in vite.config.ts
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0

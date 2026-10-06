@@ -1,0 +1,133 @@
+
+######## B1 tsconfig.json with a comment (JSONC), extends correctly
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+-- doctor --fix:
+doctor EXIT 0
+-- tsconfig.json after --fix:
+{
+  // the base owns compiler options
+  "extends": "./.tinker/tsconfig.json",
+  "compilerOptions": { "noUncheckedIndexedAccess": true },
+}
+
+######## B2 seam file re-exports with export * (valid TS)
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+
+######## B3 tinker imported under another name
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+
+######## B4 fresh clone: no .tinker/, no postinstall, vp build straight away
+. .. .gitignore node_modules package.json src tsconfig.json vite.config.ts 
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+run2.sh: line 44: /tmp/rv-sb-fix/tsc-count.log: No such file or directory
+tsc runs: 0
+
+######## B5 type error in a route: file:line:col; tsc count per build
+error during build:
+Build failed with 1 error:
+[plugin tinker:verify]
+RolldownError: tsc found 1 type error(s); the build stops here:
+src/routes/nav.tsx:3:71 TS2820 Type '"/tinkr"' is not assignable to type '"." | ".." | "/" | "/api/health" | "/nav" | "/tinker"'. Did you mean '"/tinker"'?
+  errors: [Getter/Setter]
+vp build: EXIT 1
+doctor: all checks pass
+doctor: EXIT 0
+run2.sh: line 54: /tmp/rv-sb-fix/tsc-count.log: No such file or directory
+tsc runs: 
+cat: /tmp/rv-sb-fix/tsc-count.log: No such file or directory
+run2.sh: line 57: /tmp/rv-sb-fix/tsc-count.log: No such file or directory
+tsc runs on a clean build: 
+
+######## B6 import protection fails the build; then tinker prepare; then doctor
+error during build:
+Build failed with 1 error:
+RolldownError: 
+  errors: [Getter/Setter]
+vp build: EXIT 1
+fail  10 boundary
+      src/routes/leak.tsx:4:70 imports
+      "../backend/greet.ts" into client code
+      (/\/backend\//); call it through createServerFn, or
+      import it only from server code
+doctor: 1 check(s) fail
+doctor: 1 check(s) fail
+doctor: EXIT 1
+-- violations.json:
+[
+  {
+    "env": "client",
+    "importer": "src/routes/leak.tsx:4:70",
+    "specifier": "../backend/greet.ts",
+    "rule": "/\\/backend\\//"
+  }
+]
+-- after tinker prepare, violations.json:
+[
+  {
+    "env": "client",
+    "importer": "src/routes/leak.tsx:4:70",
+    "specifier": "../backend/greet.ts",
+    "rule": "/\\/backend\\//"
+  }
+]
+fail  10 boundary
+      src/routes/leak.tsx:4:70 imports
+      "../backend/greet.ts" into client code
+      (/\/backend\//); call it through createServerFn, or
+      import it only from server code
+doctor: 1 check(s) fail
+doctor EXIT 1
+
+######## B7 components.json that is not valid JSON
+error during build:
+Error: tinker doctor, style: components.json:2 does not parse (PropertyNameExpected)
+vp build: EXIT 1
+fail  8 style
+      components.json:2 does not parse
+      (PropertyNameExpected)
+doctor: 1 check(s) fail
+doctor: EXIT 1
+
+######## B8 user shell mentions style.css?url only in a comment
+error during build:
+Error: tinker doctor, style: src/routes/__root.tsx:1 replaces the base shell and does not link src/style.css; import style from "../style.css?url" and add { rel: "stylesheet", href: style } to head links
+vp build: EXIT 1
+fail  8 style
+      src/routes/__root.tsx:1 replaces the base shell and
+      does not link src/style.css; import style from
+      "../style.css?url" and add { rel: "stylesheet",
+      href: style } to head links
+doctor: 1 check(s) fail
+doctor: EXIT 1
+
+######## B9 a type error in tests/ only
+error during build:
+Build failed with 1 error:
+[plugin tinker:verify]
+RolldownError: tsc found 1 type error(s); the build stops here:
+vp build: EXIT 1
+doctor: all checks pass
+doctor: EXIT 0
+
+######## B10 vite.config.mts instead of vite.config.ts
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0

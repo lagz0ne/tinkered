@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { generated, staleTree } from "../../lib/checks/generated.mjs";
+import { generated, generatorBlocked, staleTree } from "../../lib/checks/generated.mjs";
 import { runCheck } from "../../lib/doctor.mjs";
 import { basePackage } from "../../lib/paths.mjs";
 import { prepare, render } from "../../lib/prepare.mjs";
@@ -16,6 +16,8 @@ function preparedApp(files = {}) {
   write(root, { ".tinker/routeTree.gen.ts": tree });
   return root;
 }
+
+const later = { "src/routes/later.tsx": 'export const Route = createFileRoute("/later")({});\n' };
 
 test("passes when .tinker/ matches, the tree has every route, and .gitignore lists both folders", () => {
   expect(generated(preparedApp())).toEqual({
@@ -74,16 +76,32 @@ test("leaves a route that clashes with the base to check 7, not to tinker prepar
   expect(generated(root).status).toBe("ok");
 });
 
-test("after the generator stops on a clash, tinker prepare names the gap and the clash", () => {
-  const root = preparedApp({
-    "src/routes/tinker.tsx": 'export const Route = createFileRoute("/tinker")({});\n',
-  });
+test("when the generator ran and the tree is still stale, tinker prepare says so", () => {
+  const root = preparedApp(later);
   expect(staleTree(root)).toEqual([
     "tinker prepare: the route generator left the tree stale; fix the lines below:",
-    ".tinker/routeTree.gen.ts misses src/routes/tinker.tsx",
-    "src/routes/tinker.tsx:1 takes /tinker, a base route",
+    ".tinker/routeTree.gen.ts misses src/routes/later.tsx; the route generator stopped; see its error above",
   ]);
   expect(staleTree(preparedApp())).toEqual([]);
+});
+
+test("while check 7 fails, every route tree line says to fix check 7 first", () => {
+  const root = goodApp({ "src/routes/broken.tsx": "export const route = 1;\n" });
+  prepare(root);
+  expect(generated(root).lines).toEqual([
+    ".tinker/routeTree.gen.ts is missing; fix check 7 first, then run tinker prepare",
+  ]);
+});
+
+test("tinker prepare skips the generator while check 7 fails, and says why", () => {
+  const root = preparedApp({
+    "src/routes/about.tsx": 'export const Route = createFileRoute("/abuot")({});\n',
+  });
+  expect(generatorBlocked(root)).toEqual([
+    "tinker prepare: check 7 fails, so the route generator did not run (it would stop, or write src/); fix the lines below:",
+    'src/routes/about.tsx:1 createFileRoute("/abuot") does not match its file; set it to "/about", or TanStack\'s generator rewrites it in src/',
+  ]);
+  expect(generatorBlocked(preparedApp())).toEqual([]);
 });
 
 test("names a tree import that points at a base folder that moved", () => {
@@ -137,7 +155,6 @@ const fakeVite = (onResolve) => ({
   }),
   "node_modules/vite/index.js": `import { writeFileSync } from "node:fs";\nexport async function resolveConfig({ root }) {\n  writeFileSync(root + "/.generator-ran", "1");\n  ${onResolve}\n}\n`,
 });
-const later = { "src/routes/later.tsx": 'export const Route = createFileRoute("/later")({});\n' };
 
 test("--fix never runs the generator while a route clashes: check 3's lines come back", () => {
   const clash = 'export const Route = createFileRoute("/tinker")({});\n';

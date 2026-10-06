@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { staleTree } from "../lib/checks/generated.mjs";
+import { generatorBlocked, staleTree } from "../lib/checks/generated.mjs";
 import { doctor } from "../lib/doctor.mjs";
-import { prepare, writeRouteTree } from "../lib/prepare.mjs";
+import { prepare, prepareExitCode, writeRouteTree } from "../lib/prepare.mjs";
 import { serve } from "../lib/serve.mjs";
 import { upgrade } from "../lib/upgrade.mjs";
 
@@ -12,14 +12,16 @@ const root = process.cwd();
 const flag = (name) => rest[rest.indexOf(name) + 1];
 const commands = {
   prepare: async () => {
-    const files = [...prepare(root), await writeRouteTree(root)];
-    const stale = staleTree(root);
+    const files = prepare(root);
+    const blocked = generatorBlocked(root);
+    if (blocked.length === 0) files.push(await writeRouteTree(root));
+    const problems = blocked.length > 0 ? blocked : staleTree(root);
     console.log(
-      stale.length > 0
-        ? stale.join("\n")
+      problems.length > 0
+        ? problems.join("\n")
         : `tinker prepare: wrote .tinker/${files.join(", .tinker/")}`,
     );
-    return stale.length > 0 ? 1 : 0;
+    return prepareExitCode(problems, process.env.npm_lifecycle_event);
   },
   doctor: () => doctor(root, rest.includes("--fix")),
   upgrade: () =>

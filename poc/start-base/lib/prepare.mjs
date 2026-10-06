@@ -44,7 +44,13 @@ export function render(root) {
   return {
     "tsconfig.json": json({
       compilerOptions: { ...compilerOptions, paths },
-      include: ["../src", "../tests", "../vite.config.ts", "./routeTree.gen.ts"],
+      include: [
+        "../src",
+        "../tests",
+        "../vite.config.ts",
+        "../vite.config.mts",
+        "./routeTree.gen.ts",
+      ],
       exclude: ["../dist", "../node_modules"],
     }),
     "base.json": json({ base: basePackage.version }),
@@ -70,4 +76,15 @@ export async function writeRouteTree(root) {
   const vite = await import(pathToFileURL(require.resolve("vite")).href);
   await vite.resolveConfig({ root, logLevel: "silent" }, "serve");
   return "routeTree.gen.ts";
+}
+
+/**
+ * tinker prepare's exit code. A problem fails it, except as the postinstall script: a fresh
+ * clone of a broken app must still install, so it can run doctor. The lines print either way,
+ * and the build still stops on them.
+ * @param {string[]} problems - From tinker prepare; why: what kept the route tree from being written.
+ * @param {string | undefined} lifecycle - From npm_lifecycle_event; why: the script that runs prepare.
+ */
+export function prepareExitCode(problems, lifecycle) {
+  return problems.length > 0 && lifecycle !== "postinstall" ? 1 : 0;
 }

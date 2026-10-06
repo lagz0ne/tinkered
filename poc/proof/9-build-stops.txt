@@ -8,7 +8,7 @@ EXIT 0
 
 ## Start's usual src/router.tsx, which the glue never reads
 $ vp build
-RolldownError: tinker doctor, named files: src/router.tsx:1 is a Start file the base does not read; router options go in src/router.ts
+Error: tinker doctor, named files: src/router.tsx:1 is a Start file the base does not read; router options go in src/router.ts
 vp build: EXIT 1
 $ tinker doctor 
 fail  5 named files
@@ -19,7 +19,7 @@ EXIT 1
 
 ## a route exports route, not Route
 $ vp build
-RolldownError: tinker doctor, routes: src/routes/index.tsx:18 does not export Route; TanStack skips the file, so / is a 404
+Error: tinker doctor, routes: src/routes/index.tsx:18 does not export Route; TanStack skips the file, so / is a 404
 vp build: EXIT 1
 $ tinker doctor 
 fail  7 routes
@@ -30,7 +30,7 @@ EXIT 1
 
 ## a user __root.tsx without <Outlet />
 $ vp build
-RolldownError: tinker doctor, routes: src/routes/__root.tsx:3 sets component without <Outlet />; no page renders inside the shell
+Error: tinker doctor, routes: src/routes/__root.tsx:3 sets component without <Outlet />; no page renders inside the shell
 vp build: EXIT 1
 $ tinker doctor 
 fail  7 routes
@@ -41,7 +41,7 @@ EXIT 1
 
 ## base files imported by path and by a base-only name
 $ vp build
-RolldownError: tinker doctor, imports: src/backend/peek.ts:1 "../../node_modules/@tinker/start/src/errors.ts" reaches into the base by path; use a base entry
+Error: tinker doctor, imports: src/backend/peek.ts:1 "../../node_modules/@tinker/start/src/errors.ts" reaches into the base by path; use a base entry
 tinker doctor, imports: src/backend/peek.ts:2 "#tinker/app.server" is a base-only name; app code cannot import it
 vp build: EXIT 1
 $ tinker doctor 
@@ -56,7 +56,7 @@ EXIT 1
 
 ## routes that take or nest under the base's /tinker
 $ vp build
-RolldownError: tinker doctor, routes: src/routes/tinker/index.tsx:2 takes /tinker, a base route
+Error: tinker doctor, routes: src/routes/tinker/index.tsx:2 takes /tinker, a base route
 tinker doctor, routes: src/routes/tinker/settings.tsx:2 nests under /tinker, a base route with no outlet; the base page renders
 vp build: EXIT 1
 $ tinker doctor 
@@ -71,7 +71,7 @@ EXIT 1
 
 ## a stylesheet nothing links
 $ vp build
-RolldownError: tinker doctor, style: src/styles.css:1 is never linked: nothing imports it, and the shell links only src/style.css
+Error: tinker doctor, style: src/styles.css:1 is never linked: nothing imports it, and the shell links only src/style.css
 vp build: EXIT 1
 $ tinker doctor 
 fail  8 style
@@ -82,7 +82,7 @@ EXIT 1
 
 ## a user shell that does not link src/style.css
 $ vp build
-RolldownError: tinker doctor, style: src/routes/__root.tsx:1 replaces the base shell and does not link src/style.css; import style from "../style.css?url" and add { rel: "stylesheet", href: style } to head links
+Error: tinker doctor, style: src/routes/__root.tsx:1 replaces the base shell and does not link src/style.css; import style from "../style.css?url" and add { rel: "stylesheet", href: style } to head links
 vp build: EXIT 1
 $ tinker doctor 
 fail  8 style
@@ -148,8 +148,7 @@ $ grep -c later .tinker/routeTree.gen.ts
 
 ## a route clash while no dev server runs: tinker prepare says so
 $ tinker prepare
-tinker prepare: the route generator left the tree stale; fix the lines below:
-.tinker/routeTree.gen.ts misses src/routes/tinker.tsx; run tinker prepare
+tinker prepare: check 7 fails, so the route generator did not run (it would stop, or write src/); fix the lines below:
 src/routes/tinker.tsx:2 takes /tinker, a base route
 EXIT 1
 $ tinker doctor 
@@ -160,7 +159,7 @@ EXIT 1
 
 ## two tinker() calls in vite.config.ts
 $ vp build
-RolldownError: tinker doctor, glue: vite.config.ts:5 calls tinker() 2 times; call it once: plugins: [tinker()]
+Error: tinker doctor, glue: vite.config.ts:5 calls tinker() 2 times; call it once: plugins: [tinker()]
 vp build: EXIT 1
 $ tinker doctor 
 fail  4 glue
@@ -171,7 +170,7 @@ EXIT 1
 
 ## a named file without the export the base reads
 $ vp build
-RolldownError: tinker doctor, named files: src/start.ts:1 does not export startInstance; the base imports it from this file
+Error: tinker doctor, named files: src/start.ts:1 does not export startInstance; the base imports it from this file
 vp build: EXIT 1
 $ tinker doctor 
 fail  5 named files

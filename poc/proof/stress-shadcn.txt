@@ -4,8 +4,9 @@
 
 Date: 2026-10-06. shadcn 4.21.2.
 Scratch: `/tmp/stress-rerun/shadcn/`.
+The counts line is from Rerun 3 (pack fix3).
 
-Two runs of base 0.2.0:
+Runs of base 0.2.0 (all still version 0.2.0):
 
 - First: `packs/tinker-start-0.2.0.tgz`
   (sha256 `f555d9c2...`).
@@ -14,22 +15,200 @@ Two runs of base 0.2.0:
   (sha256 `9af4f2e9...`).
   Logs: `logs-fix/` and
   `logs/6-fix-recheck.txt`.
-  Result: the counts line above.
-- The fixed run used a new folder (`fix/`),
-  so pnpm could not reuse the first bytes.
-  The installed `style.mjs` has `uiProblems`.
-- On the fixed tarball, checks 2-9 give the
-  same results as the first run.
+  Result: 7 WORKS, 2 NOT SUPPORTED.
+- fix2 (`1f6a28ab...`): replaced by fix3
+  mid-run. Its 5 cases gave EXIT 0
+  (`logs-fix2/`); not assessed further.
+- fix3 (`f31dc41c...`): see Rerun 3 below.
+- Each run used a new folder (`fix/`,
+  `fix2/`, `fix3/`), so pnpm could not reuse
+  older bytes. Each run checked a marker in
+  the installed base.
 
-Rerun all:
+Rerun all (fix3):
 
 ```bash
-SCRATCH=/tmp/stress-rerun/shadcn/fix \
-LOGS=/tmp/stress-rerun/shadcn/logs-fix \
-FIX_TGZ=/tmp/stress-rerun/packs-fix/\
+SCRATCH=/tmp/stress-rerun/shadcn/fix3 \
+LOGS=/tmp/stress-rerun/shadcn/logs-fix3 \
+FIX_TGZ=/tmp/stress-rerun/packs-fix3/\
 tinker-start-0.2.0.tgz \
 bash cases/run-all.sh
 ```
+
+Then, with the same `SCRATCH` and `LOGS`:
+`cases/7-jsonc-probes/run.sh`, then
+`cases/6-fix-recheck/run.sh` (with `FIX_TGZ`).
+Case 6 wipes `fix3/apps`, so it runs last.
+
+## Rerun 3 (pack fix3, f31dc41c)
+
+Date: 2026-10-06.
+Pack: `packs-fix3/tinker-start-0.2.0.tgz`,
+sha256 `f31dc41c457c2db1...`.
+Folder: `fix3/`. Logs: `logs-fix3/`.
+
+Installed base, in every app checked:
+
+```text
+lib/jsonc.mjs present
+grep -c generatorBlocked
+ lib/checks/generated.mjs: 2
+```
+
+Result: 9 checks: 7 WORKS, 0 STILL WITH
+CHANGE, 2 NOT SUPPORTED, 0 REGRESSED.
+The same as the fixed run.
+
+### All 5 cases
+
+- All EXIT 0. Each check gives the same
+  result as the fixed run (`logs-fix/`).
+- Build errors now start with `Error:`, not
+  `RolldownError:`. The doctor text is the
+  same. The build checks now run before
+  TanStack's route generator.
+- Check 10 says `skip` in the doctor run
+  inside `tinker upgrade`:
+  `no build has run yet; vp build checks`
+  `import boundaries`. Doctor still passes.
+- Case 5 F step 5: the stale route tree
+  failure (check 3) is gone. A stopped build
+  no longer runs the generator.
+- Case 6 (round-2 asks): same as before. The
+  `app` item builds; `add button` with no
+  Tailwind names `src/style.css is missing;`
+  `shadcn's files in src/components/ui need`
+  `it`; styled path `oklch(0.205 0 0)`.
+
+### Probe 1: JSONC tsconfig.json
+
+A `tsconfig.json` with a comment and a
+trailing comma, plus `components.json`:
+
+```text
+{
+  // shadcn init may leave comments here
+  "extends": "./.tinker/tsconfig.json",
+}
+doctor: all checks pass
+$ vp build
+EXIT 0
+$ shadcn add badge --yes
+  - src/components/ui/badge.tsx
+(none outside the app)
+```
+
+`doctor --fix` with no `extends` key:
+
+```text
+fixed 4 glue
+      wrote the extends line in tsconfig.json
+$ cat tsconfig.json
+{
+  "extends": "./.tinker/tsconfig.json",
+  // shadcn init may leave comments here
+  "compilerOptions": {},
+}
+doctor: all checks pass
+```
+
+- Before the fix, check 8 also lists 5 lines
+  `aliases.* ... matches no tsconfig path`.
+  These have the same cause; `--fix` clears
+  them too.
+
+### Probe 2: components.json does not parse
+
+A missing comma after `"rsc": false`:
+
+```text
+fail  8 style
+      components.json:5 does not parse
+      (CommaExpected)
+$ vp build
+Error: tinker doctor, style:
+ components.json:5 does not parse
+ (CommaExpected)
+EXIT 1
+```
+
+`SyntaxError` count in the build log: 0.
+None of the 7 probe builds printed one.
+
+### Probe 3: style link only in a comment
+
+```text
+2:// import style from "../style.css?url";
+fail  8 style
+      src/routes/__root.tsx:1 replaces the
+      base shell and does not link
+      src/style.css; ...
+$ vp build
+Error: tinker doctor, style: ...
+EXIT 1
+```
+
+- Control: a real `import style from`
+  `"../style.css?url"` plus the link: doctor
+  passes, build EXIT 0, page links the CSS.
+
+### Probe 4 (extra): @import in a CSS comment
+
+```text
+/* @import "tailwindcss"; */
+fail  8 style
+      src/style.css:1 does not @import
+      "tailwindcss"; shadcn's files in
+      src/components/ui need Tailwind
+$ vp build
+EXIT 1
+```
+
+### Not WORKS in Rerun 3
+
+- 8. Example route as `registry:page`:
+  NOT SUPPORTED (shadcn skips it, EXIT 0).
+- 9. Re-apply a template item:
+  NOT SUPPORTED, by design.
+
+### Base finding in Rerun 3
+
+Doctor passes a `components.json` that shadcn
+rejects. Check 8 reads it as JSONC. shadcn
+4.21.2 reads strict JSON and fails on a
+comment alone or a trailing comma alone.
+
+```text
+P1d: "// my note" on line 2, trailing comma
+doctor: all checks pass
+$ vp build
+EXIT 0
+$ shadcn add badge --dry-run
+Invalid configuration found in
+ $S/apps/7-probe/components.json.
+EXIT 1
+P1f (comment only): Invalid ... EXIT 1
+P1g (trailing comma only): Invalid ... EXIT 1
+```
+
+- Severity: low. The build does not read
+  `components.json`; shadcn's own error is
+  clear on the next `add`.
+- Fix idea: read `components.json` as strict
+  JSON. Keep JSONC for `tsconfig.json`: P1b
+  shows shadcn reads a commented tsconfig.
+
+### Noted, not a bug
+
+- Deleting a user `__root.tsx` leaves
+  `.tinker/routeTree.gen.ts` importing it.
+  Check 3 says `run tinker prepare`.
+  `tinker prepare` then writes the tree,
+  doctor passes, and the build gives EXIT 0.
+
+Log: `logs-fix3/7-jsonc-probes.txt`.
+Other logs: `logs-fix3/<case>.txt`,
+`logs-fix3/6-fix-recheck.txt`.
 
 ## 1. Empty folder to app, one shadcn add
 
@@ -400,3 +579,12 @@ No new base bug in the fixed run.
   the 0.1.0 upgrade. It checks the pack's
   sha256 and greps `uiProblems` in the
   installed base.
+- Rerun 3: case 6 takes `FIX_TGZ` (default:
+  the fix pack).
+- Rerun 3: new case 7
+  (`cases/7-jsonc-probes/run.sh`): probes 1-4
+  on an app with Tailwind, `init`, and a
+  button. It counts `SyntaxError` in each
+  build log and checks the pack's sha256 and
+  `lib/jsonc.mjs`. It ends with
+  `tinker prepare` to clear the stale tree.

@@ -1,9 +1,9 @@
 base folder: poc/start-base
 $ vp build
 vp build: EXIT 0
-$ curl -s http://127.0.0.1:46107/ | grep -ao '<p>[^<]*</p>'
+$ curl -s http://127.0.0.1:44993/ | grep -ao '<p>[^<]*</p>'
 <p>Hello, world.</p>
-$ curl -si http://127.0.0.1:46107/api/health
+$ curl -si http://127.0.0.1:44993/api/health
 HTTP/1.1 200 OK
 cache-control: no-store
 content-type: application/json
@@ -11,11 +11,11 @@ content-length: 26
 
 {"ok":true,"base":"0.2.0"}
 
-$ curl -s http://127.0.0.1:46107/tinker | grep -ao '<main>.*</main>'
+$ curl -s http://127.0.0.1:44993/tinker | grep -ao '<main>.*</main>'
 <main><h1>Tinker base</h1><p>@tinker/start <!-- -->0.2.0</p></main>
 server stopped: EXIT 0
 server log:
-tinker serve: http://127.0.0.1:46107
+tinker serve: http://127.0.0.1:44993
 $ tinker doctor 
 doctor: all checks pass
 EXIT 0

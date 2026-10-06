@@ -61,13 +61,24 @@ test("names a shell whose component renders no Outlet", () => {
 
 test("passes a shell that renders Outlet, uses Outlet as is, or imports its component", () => {
   const shells = [
-    "export const Route = createRootRoute({ component: () => <main><Outlet /></main> });\n",
+    'import { Outlet } from "@tanstack/react-router";\nexport const Route = createRootRoute({ component: () => <main><Outlet /></main> });\n',
+    'import { Outlet as Slot } from "@tanstack/react-router";\nexport const Route = createRootRoute({ component: () => <Slot /> });\n',
     'import { Outlet } from "@tanstack/react-router";\nexport const Route = createRootRoute({ component: Outlet });\n',
     'import { Layout } from "../layout.tsx";\nexport const Route = createRootRoute({ component: Layout });\n',
     "export const Route = createRootRoute({ shellComponent: ({ children }) => children });\n",
   ];
   for (const shell of shells)
     expect(routes(goodApp({ "src/routes/__root.tsx": shell })).status).toBe("ok");
+});
+
+test("a local value named Outlet is not TanStack's outlet", () => {
+  const root = goodApp({
+    "src/routes/__root.tsx":
+      'const Outlet = "nothing";\nexport const Route = createRootRoute({\n  component: () => <main>{Outlet}</main>,\n});\n',
+  });
+  expect(routes(root).lines).toEqual([
+    "src/routes/__root.tsx:3 sets component without <Outlet />; no page renders inside the shell",
+  ]);
 });
 
 test("names each of the six ways a route takes a base path", () => {

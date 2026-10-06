@@ -1,6 +1,162 @@
 18 checks: 18 WORKS, 0 STILL WITH CHANGE, 0 NOT SUPPORTED, 0 REGRESSED
 
-# Router rerun on the hardened base
+# Rerun 3 (pack fix3, f31dc41c)
+
+Date: 2026-10-06, 07:48 to 07:55 UTC.
+
+18 checks: 18 WORKS, 0 STILL WITH CHANGE, 0 NOT SUPPORTED, 0 REGRESSED
+
+- Pack: `packs-fix3/tinker-start-0.2.0.tgz`,
+  sha256 `f31dc41c457c…`.
+- The unpacked base equals the pack (`diff -r`).
+- One pack for the whole run: the base tree hash
+  was `41abef2efdce3a3a` before and after.
+  Log: `logs/rerun3-base-hash.txt`.
+- A run on the fix2 pack was cut off when the
+  base was swapped mid-run. It was thrown away.
+- `LOGS=logs/rerun3 ./run-all.sh`: every
+  script EXIT 0. Log: `logs/rerun3-run-all.txt`.
+- Non-zero steps are all planned breaks:
+  types 10, options 6, collision 20.
+- Logs: `logs/rerun3/<case>.txt`.
+
+## Changes per check, against rerun 1
+
+- **1 to 12, 13, 15, 18** — no change.
+  Same lines as rerun 1, save the check 8 nit fix.
+- **14** — same result. The build stop now
+  prints `Error:`, not `RolldownError:`:
+
+```text
+Error: tinker doctor, named files: src/router.tsx:1 is a
+  Start file the base does not read; router options go in src/router.ts
+vp build: EXIT 1
+```
+
+- **16** — same result. Dev still restarts
+  both ways:
+
+```text
+tinker: src/routes/__root.tsx added; restarting
+server restarted.  -> <html lang="vi"
+tinker: src/routes/__root.tsx removed; restarting
+server restarted.  -> <html lang="en"
+```
+
+  - The generator still logs
+    `Error: ⚠️ expected route file to exist`
+    once on remove. Pages answer 200.
+- **17** — same verdict, cleaner output.
+  - Each clash build now shows only tinker's
+    line. The generator's "Conflicting
+    configuration paths" is gone.
+  - Doctor now fails 1 check, not 2.
+    (`_wrap` still fails 2: check 3 names
+    `_wrap.tsx` with "fix check 7 first".)
+  - `src/` is unchanged by every clash build:
+
+```text
+Error: tinker doctor, routes: src/routes/tinker.tsx:3 takes /tinker, a base route
+vp build: EXIT 1
+src/ sha256 8866590813884807 before and after vp build: unchanged
+```
+
+## New collision steps (fix3)
+
+- `tinker prepare`, clash plus a new route
+  file `fresh.tsx`:
+
+```text
+tinker prepare: check 7 fails, so the route generator did not run
+  (it would stop, or write src/); fix the lines below:
+src/routes/tinker.tsx:3 takes /tinker, a base route
+tinker prepare: EXIT 1
+stack lines in output: 0
+src/ sha256 0d806a8f4068c3d8 before and after tinker prepare: unchanged
+```
+
+- `tinker doctor --fix`, same files. It ends
+  with check lines, has no stack trace, and
+  does not run the generator:
+
+```text
+fail  7 routes
+      src/routes/tinker.tsx:3 takes /tinker, a base route
+...
+doctor: 2 check(s) fail
+tinker doctor --fix: EXIT 1
+stack lines in output: 0
+src/ sha256 0d806a8f4068c3d8 before and after tinker doctor --fix: unchanged
+grep -c fresh .tinker/routeTree.gen.ts -> 0
+```
+
+- Clash removed, `--fix` again:
+  `fixed 3 generated folder / ran tinker prepare`,
+  EXIT 0, `src/` unchanged, `fresh` in the tree.
+- Wrong `createFileRoute` path
+  (`wrong-id.tsx` with `"/not-this-path"`):
+
+```text
+Error: tinker doctor, routes: src/routes/wrong-id.tsx:3
+  createFileRoute("/not-this-path") does not match its file;
+  set it to "/wrong-id", or TanStack's generator rewrites it in src/
+vp build: EXIT 1
+src/ sha256 0caf683be83cbbd7 before and after vp build: unchanged
+tinker prepare: EXIT 1 (same line), src/ unchanged
+```
+
+- Empty route file `empty.tsx`:
+
+```text
+Error: tinker doctor, routes: src/routes/empty.tsx:1 does not
+  export Route; TanStack skips the file, so /empty is a 404
+vp build: EXIT 1
+src/ sha256 0529cf4533b15e1b before and after vp build: unchanged
+tinker prepare: EXIT 1 (same line), src/ unchanged
+```
+
+Log: `logs/rerun3/collision.txt`
+
+## Base bugs, rerun 3
+
+- **Fixed:** bug 1 below (`tinker prepare`
+  hid a generator failure).
+  Now it exits 1 and prints check 7's line.
+- **Fixed:** both wording nits below.
+  - Check 5: `each named or seam file exports
+    what the base reads (src/router.ts)`.
+  - Check 8: `no src/style.css; every
+    stylesheet is linked`.
+- **New nit:** while check 7 fails, check 3's
+  "imports … which does not exist" line still
+  says `run tinker prepare`. Prepare then
+  refuses with exit 1.
+  - The "misses" line already says
+    `fix check 7 first, then run tinker prepare`.
+  - Repro: in `collision/`, run a passing build
+    with `src/routes/tinker_.settings.tsx`.
+    Remove that file, add `src/routes/tinker.tsx`,
+    then run `tinker doctor`:
+
+```text
+fail  3 generated folder
+      .tinker/routeTree.gen.ts:15 imports
+      ./../src/routes/tinker_.settings, which does not
+      exist; run tinker prepare
+```
+
+## Case changes, rerun 3
+
+- `collision/prove.sh`: `src/` hash around each
+  build, plus the prepare, `--fix`, wrong-path,
+  and empty-file steps above.
+- New: `collision/breaks/fresh.tsx.break`,
+  `collision/breaks/wrong-id.tsx.break`.
+- `run-all.sh`: `LOGS=<dir>` picks the log folder.
+
+# Rerun 1 (first 0.2.0 pack, 06:36 to 06:52)
+
+18 checks: 18 WORKS, 0 STILL WITH CHANGE, 0 NOT SUPPORTED, 0 REGRESSED
 
 - Base: `@tinker/start` 0.2.0, no patch.
 - Cases: `/tmp/stress-rerun/router/<case>/`.

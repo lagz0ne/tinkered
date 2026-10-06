@@ -1,6 +1,133 @@
 16 checks: 16 WORKS, 0 STILL WITH CHANGE, 0 NOT SUPPORTED, 0 REGRESSED
 
-# Rerun: server area on @tinker/start 0.2.0
+# Rerun 3 (pack fix3, f31dc41c)
+
+Date: 2026-10-06, 07:47 to 08:02 UTC.
+Pack: /tmp/stress-rerun/packs-fix3/tinker-start-0.2.0.tgz
+sha256 f31dc41c457c2db1…; unpacked base = pack.
+One pack for the whole run: the base tree hash
+was 41abef2efdce3a3a at start and at end.
+Logs: logs/fix3/ (base-start.txt, base-end.txt).
+logs/fix2-superseded/ is void: the base
+changed during that run.
+
+Rerun from the top:
+- proof.sh: all 15 cases.
+- probes.sh: all 19 probes.
+
+Result: 16 WORKS, 0 REGRESSED.
+
+- Builds: 14 EXIT 0. import-protection
+  EXIT 1, as it must.
+- Doctor: 14 pass. import-protection fails
+  only `10 boundary`.
+- Runtime output equals rerun 2 for all
+  14 served cases. ssr-defer differs only
+  in ms timings.
+- Not one case file changed since rerun 2.
+
+## What is new on fix3
+
+Boundary record survives a reload.
+Log: logs/fix3/probe-ip-two.txt
+
+- The build fails. `2 violation(s) kept`.
+- Doctor names `leak2.tsx:6:31` and
+  `leak.tsx:6:24`.
+- Then each of these loads the config:
+  - `tinker prepare` (EXIT 0)
+  - `vp test run --passWithNoTests` (EXIT 0)
+  - `tinker doctor --fix` (EXIT 1)
+  - `vp dev`
+- After each one, doctor still names both leaks.
+- After the leaks go: `ok    10 boundary`.
+- Note: `vp dev` gives HTTP 404 on `/` here.
+  The devloop area found the same: two copies
+  of the deps in this linked setup
+  (devloop RESULT.md, lines 110-112).
+
+Glue (check 4):
+
+- Comment + single quotes: build EXIT 0,
+  `ok    4 glue`
+- `import { tinker as base }`: build EXIT 0,
+  `ok    4 glue`
+- Two calls now stop the build at its start:
+  `Error: tinker doctor, glue: vite.config.ts:5`
+  `calls tinker() 2 times; call it once`
+  (no more "Duplicate declaration").
+- vite.config.mts: build EXIT 0, doctor passes,
+  `/fns` serves. Two calls in .mts stop the build:
+  `vite.config.mts:5 calls tinker() 2 times`.
+- 0 calls: doctor `vite.config.ts:2 does not`
+  `call tinker()`. The build fails with
+  Vite's `Cannot resolve entry module index.html`.
+- Logs: logs/fix3/probe-glue-*.txt
+
+Route clash (rerun 2's bug is fixed):
+
+- `tinker prepare: check 7 fails, so the route`
+  `generator did not run (it would stop, or`
+  `write src/); fix the lines below:`
+  `src/routes/api.health.ts:3 takes /api/health,`
+  `a base route` and `tinker prepare: EXIT 1`.
+- The build names it first:
+  `Error: tinker doctor, routes:`
+  `src/routes/api.health.ts:3 takes /api/health`.
+  No "Conflicting configuration" lines.
+  The route file is unchanged.
+- `tinker doctor --fix`: EXIT 1, and
+  `stack-trace lines ('    at '): 0`.
+- Log: logs/fix3/probe-route-collision.txt
+
+The other probes:
+
+- Stale `@ts-expect-error` in vite.config.ts
+  now fails: `vite.config.ts:5:3 TS2578`
+  `Unused '@ts-expect-error' directive.`
+- JSONC with `doctor --fix`: package.json gets
+  one added line (postinstall). The tsconfig
+  changes one line (extends). Its comment and
+  trailing commas stay.
+  Log: logs/fix3/probe-doctor-fix.txt
+- `export * from "./lib/start-impl.ts"` in
+  src/start.ts: `ok    5 named files`.
+  It serves `x-global-request: user` and
+  `globalFn=user`.
+  Log: logs/fix3/probe-gm-reexport.txt
+- Same as rerun 2: CSRF 403, wrong
+  `startInstance`, Start's server-entry refused,
+  no default export, unknown key, Zod type,
+  typed `context.globalFn`, fresh checkout.
+
+## Small gaps on fix3 (none blocks a check)
+
+1. vp build's tsc reads only vite.config.ts.
+   A stale `@ts-expect-error` in vite.config.mts
+   passes: `vp build: EXIT 0`.
+   The include list is
+   `["../src","../tests","../vite.config.ts",`
+   `"./routeTree.gen.ts"]`.
+2. Check 4 says `vite.config.ts calls tinker()`
+   `once` when the file is vite.config.mts.
+3. On a route clash, check 3 still says
+   `.tinker/routeTree.gen.ts is missing; run`
+   `tinker prepare`. But prepare refuses
+   (EXIT 1) until check 7 passes.
+   prepare then prints check 7's line,
+   so the user is not stuck.
+4. A build that stops at its start, on a fresh
+   clone with no postinstall, writes no route
+   tree. So doctor adds `fail  3 generated`
+   `folder … run tinker prepare` next to the
+   real fail (gm-wrong, se-start-handler,
+   se-nodefault). Here that advice works.
+
+## Base bugs found on fix3
+
+None.
+
+# Rerun 2: server area on the first 0.2.0 pack
 
 Base: /tmp/stress-rerun/base/package (packed 0.2.0).
 No base patch was applied.

@@ -14,15 +14,15 @@ export const say = {
   tailwind: (file, line) =>
     `${file}:${line} imports @tailwindcss/vite; tinker() adds Tailwind already`,
   parse: (file, { line, code }) =>
-    `${file}:${line} does not parse (${code}); doctor reads it as tsc does and never edits it`,
+    `${file}:${line} does not parse (${code}); doctor never edits a file that does not parse`,
   extends: 'tsconfig.json:1 does not extend "./.tinker/tsconfig.json"',
   paths: (line) =>
     `tsconfig.json:${line} sets compilerOptions.paths; it replaces the base's #tinker/* and @/* paths, so remove it`,
   strict: (line) => `tsconfig.json:${line} turns strict off; the base's files need strict`,
   postinstall:
     'package.json:1 has no "postinstall": "tinker prepare"; a fresh clone has no .tinker/',
-  passed:
-    "vite.config.ts calls tinker() once; tsconfig.json extends .tinker; postinstall runs tinker prepare",
+  passed: (file) =>
+    `${file} calls tinker() once; tsconfig.json extends .tinker; postinstall runs tinker prepare`,
   fixed: (written) => `wrote ${written.join(" and ")}`,
 };
 
@@ -57,9 +57,11 @@ function pluginCalls(source) {
   };
 }
 
-/** @param {string} root - From the glue check; why: parse its Vite config. */
-function viteProblems(root) {
-  const file = viteConfigs.find((name) => existsSync(join(root, name)));
+/**
+ * @param {string} root - From the glue check; why: parse its Vite config.
+ * @param {string | undefined} file - From the glue check; why: the config file Vite loads.
+ */
+function viteProblems(root, file) {
   if (!file) return [say.noVite];
   const source = parseSource(join(root, file));
   const { glue, calls, start } = pluginCalls(source);
@@ -131,13 +133,18 @@ function fixGlue(root, read, problems) {
 export function glue(root) {
   const read = {
     tsconfig: readJsonc(join(root, "tsconfig.json")),
-    pkg: readJsonc(join(root, "package.json")),
+    pkg: readJsonc(join(root, "package.json"), { strict: true }),
   };
+  const file = viteConfigs.find((name) => existsSync(join(root, name)));
   const problems = [
-    ...viteProblems(root),
+    ...viteProblems(root, file),
     ...tsconfigProblems(read.tsconfig),
     ...postinstallProblems(read.pkg),
   ].filter(Boolean);
   const fixable = problems.some((line) => line === say.extends || line === say.postinstall);
-  return verdict(problems, say.passed, fixable ? () => fixGlue(root, read, problems) : undefined);
+  return verdict(
+    problems,
+    say.passed(file),
+    fixable ? () => fixGlue(root, read, problems) : undefined,
+  );
 }

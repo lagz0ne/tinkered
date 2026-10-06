@@ -52,7 +52,9 @@ test("counts tinker() under the name it is imported as, in any Vite config file 
   expect(glue(goodApp({ "vite.config.ts": renamed })).status).toBe("ok");
   const mts = goodApp({ "vite.config.mts": renamed });
   rmSync(join(mts, "vite.config.ts"));
-  expect(glue(mts).status).toBe("ok");
+  expect(glue(mts).lines).toEqual([
+    "vite.config.mts calls tinker() once; tsconfig.json extends .tinker; postinstall runs tinker prepare",
+  ]);
   const twice = goodApp({
     "vite.config.mjs":
       'import { tinker as base } from "@tinker/start/vite";\nexport default { plugins: [base(), base()] };\n',
@@ -116,11 +118,21 @@ test("a tsconfig.json that does not parse is named at its line, and --fix never 
   const root = goodApp({ "tsconfig.json": broken });
   const result = glue(root);
   expect(result.lines).toEqual([
-    "tsconfig.json:4 does not parse (CommaExpected); doctor reads it as tsc does and never edits it",
+    "tsconfig.json:4 does not parse (CommaExpected); doctor never edits a file that does not parse",
   ]);
   expect(result.fix).toBeUndefined();
   expect(runCheck(root, glue, true).status).toBe("fail");
   expect(readFileSync(join(root, "tsconfig.json"), "utf8")).toBe(broken);
+});
+
+test("package.json is strict JSON, as npm reads it: a comment is named, and --fix never writes it", () => {
+  const broken = '{\n  // no comments in package.json\n  "name": "app"\n}\n';
+  const root = goodApp({ "package.json": broken });
+  expect(glue(root).lines).toEqual([
+    "package.json:2 does not parse (InvalidCommentToken); doctor never edits a file that does not parse",
+  ]);
+  expect(runCheck(root, glue, true).status).toBe("fail");
+  expect(readFileSync(join(root, "package.json"), "utf8")).toBe(broken);
 });
 
 test("--fix writes the extends line and the postinstall script, and keeps the rest", () => {

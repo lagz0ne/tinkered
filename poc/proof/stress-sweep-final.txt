@@ -1,0 +1,27 @@
+router/paths build=0 doctor=0 
+router/search build=0 doctor=0 
+router/types build=0 doctor=0 
+router/root build=0 doctor=0 
+router/collision build=0 doctor=0 
+router/regen build=0 doctor=0 
+router/head build=0 doctor=0 
+router/options build=0 doctor=0 
+router/boundaries build=0 doctor=0 
+server/cases/api-routes build=0 doctor=0 
+server/cases/env build=0 doctor=0 
+server/cases/exec-fns build=0 doctor=0 
+server/cases/fn-middleware build=0 doctor=0 
+server/cases/global-middleware build=0 doctor=0 
+server/cases/headers-cookies build=0 doctor=0 
+server/cases/import-protection build=1 doctor=1 fail  10 boundary 
+server/cases/node-host build=0 doctor=0 
+server/cases/prerender build=0 doctor=0 
+server/cases/selective-ssr build=0 doctor=0 
+server/cases/server-entry build=0 doctor=0 
+server/cases/server-fns build=0 doctor=0 
+server/cases/spa-mode build=0 doctor=0 
+server/cases/ssr-defer build=0 doctor=0 
+server/cases/stream-route build=0 doctor=0 
+devloop/cases/prod build=0 doctor=0 
+devloop/cases/tests build=0 doctor=0 
+devloop/cases/types build=0 doctor=0 

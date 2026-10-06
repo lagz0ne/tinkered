@@ -138,8 +138,8 @@ const breaks = [
   {
     name: "check 3 sends a clash to tinker prepare",
     file: "lib/checks/generated.mjs",
-    find: ".filter((file) => !routeClash(file, owned))",
-    replace: ".filter(() => true)",
+    find: "(file) => !routeClash(file, owned)",
+    replace: "() => true",
   },
   {
     name: "tinker prepare hides a stale tree",
@@ -156,7 +156,7 @@ const breaks = [
   {
     name: "vite.config.ts is not type-checked",
     file: "lib/prepare.mjs",
-    find: '"../vite.config.ts", ',
+    find: '"../vite.config.ts",',
     replace: "",
   },
   {
@@ -192,10 +192,10 @@ const breaks = [
     replace: "calls.length !== 1 && say.calls(",
   },
   {
-    name: "--fix runs the generator while a route clashes",
+    name: "tinker prepare runs the generator while check 7 fails",
     file: "lib/checks/generated.mjs",
-    find: 'if (!stale || routes(root).status === "fail") return;',
-    replace: "if (!stale) return;",
+    find: 'return checked.status === "fail" ? [say.notRun, ...checked.lines] : [];',
+    replace: "return [];",
   },
   {
     name: ".gitignore gets no newline before the append",
@@ -240,12 +240,6 @@ const breaks = [
     replace: ".filter(() => false)",
   },
   {
-    name: "the build runs tsc on top of doctor's stops",
-    file: "lib/hooks.mjs",
-    find: "errors: errors.length > 0 ? errors : checkTypes(root),",
-    replace: "errors: [...errors, ...checkTypes(root)],",
-  },
-  {
     name: "tinker prepare wipes the boundary record",
     file: "lib/prepare.mjs",
     find: "  return Object.keys(files);\n}",
@@ -263,6 +257,36 @@ const breaks = [
     file: "src/entry/error-detail.ts",
     find: "if (!dev) return undefined;",
     replace: "",
+  },
+  {
+    name: "components.json is read leniently",
+    file: "lib/checks/style.mjs",
+    find: 'readJsonc(join(root, "components.json"), { strict: true })',
+    replace: 'readJsonc(join(root, "components.json"))',
+  },
+  {
+    name: "package.json is read leniently",
+    file: "lib/checks/glue.mjs",
+    find: 'readJsonc(join(root, "package.json"), { strict: true })',
+    replace: 'readJsonc(join(root, "package.json"))',
+  },
+  {
+    name: "a postinstall prepare blocks the install",
+    file: "lib/prepare.mjs",
+    find: 'lifecycle !== "postinstall"',
+    replace: "true",
+  },
+  {
+    name: "check 3 says run tinker prepare while check 7 fails",
+    file: "lib/checks/generated.mjs",
+    find: 'routes(root).status === "fail" ? say.check7Next : say.prepareNext',
+    replace: "say.prepareNext",
+  },
+  {
+    name: "any value named Outlet counts as the outlet",
+    file: "lib/checks/routes.mjs",
+    find: "(outlet && usesOf(source, outlet.local).length > 0)",
+    replace: 'usesOf(source, "Outlet").length > 0',
   },
   {
     name: "the type check never runs",

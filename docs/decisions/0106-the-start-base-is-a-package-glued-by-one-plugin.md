@@ -264,7 +264,7 @@ compiler options are left out here):
       "#tinker/routes": ["/app/.tinker/routeTree.gen.ts"]
     }
   },
-  "include": ["../src", "../tests", "./routeTree.gen.ts"]
+  "include": ["../src", "../tests", "../vite.config.ts", "../vite.config.mts", "./routeTree.gen.ts"]
 }
 ```
 
@@ -278,8 +278,9 @@ A missing seam or named file maps to the base's default,
 such as `node_modules/@tinker/start/src/defaults/start.ts`.
 `tinker.d.ts` pulls in the base's type registers
 for the router and Start, as Nuxt's generated `nuxt.d.ts` does.
-`base.json` records the base version, the plugin options,
-and the hashes of the other generated files.
+`base.json` records the base version, `{ "base": "0.2.0" }`.
+Doctor's check 3 compares `.tinker/` with what this base
+would write, so it needs no stored hashes.
 
 ### The seam
 
@@ -562,17 +563,28 @@ Under it, one line per finding.
 It exits 1 on any `fail`.
 
 `--fix` writes only base-owned and generated things:
-the `.gitignore` lines, the tsconfig `extends` line,
+the `.gitignore` lines, the tsconfig `extends` key,
 the `postinstall` script, `.tinker/`, and base bytes.
-It never edits `src/`, the body of `vite.config.ts`,
-or `.env`.
+It never edits `src/`, the Vite config, or `.env`.
+
+- It inserts the `extends` key and the `postinstall` script,
+  and keeps every other byte of those files,
+  comments and trailing commas included.
+- It never writes a file that does not parse.
+  Doctor names the parse error at its line instead.
+- `tsconfig.json` is read as tsc reads it (JSONC).
+  `package.json` and `components.json` are strict JSON,
+  as npm and shadcn read them.
+  TypeScript 7 ships no JS config reader,
+  so the base uses `jsonc-parser`, VS Code's JSONC parser.
 
 Each check is one small file with its message table,
 `lib/checks/<name>.mjs`:
 
 1. **base version**: `@tinker/start` resolves,
-   and its peers match the versions it was tested with.
-   No fix yet: it prints the drift.
+   its peers match the versions it was tested with,
+   and each exact pin in `package.json` is what is installed.
+   No fix yet: it prints the drift at its `package.json` line.
 2. **base bytes**: every installed base file matches
    the hashes in the package's `files.json`.
    This is today's `flight-scaffold.mjs`, moved into the base.
@@ -582,11 +594,13 @@ Each check is one small file with its message table,
    The route tree lists every route file that exports `Route`,
    and imports no base folder that moved.
    `.gitignore` lists `.tinker/` and `.tanstack/`.
-   `--fix`: rewrite `.tinker/`, run `tinker prepare`
-   for the route tree, add the ignore lines.
-4. **glue**: `vite.config.ts`, parsed, imports `tinker`
-   and calls it once, with no `tanstackStart()`
-   and no `@tailwindcss/vite`.
+   While check 7 fails, each line says to fix check 7 first.
+   `--fix`: rewrite `.tinker/`, add the ignore lines,
+   and run `tinker prepare` for the route tree.
+4. **glue**: the Vite config (`vite.config.ts`, `.mts`,
+   `.js`, or `.mjs`), parsed, imports `tinker`
+   and calls it once, under the name it is imported as,
+   with no `tanstackStart()` and no `@tailwindcss/vite`.
    `tsconfig.json` extends `./.tinker/tsconfig.json`
    and sets no `paths` and no `strict: false`.
    `postinstall` runs `tinker prepare`.
@@ -594,17 +608,20 @@ Each check is one small file with its message table,
 5. **named files**: each named or seam file exports
    what the base reads,
    and no Start file sits where the glue never reads it.
-   No fix.
+   An `export *` from a local file is followed;
+   from a package, the export is not judged. No fix.
 6. **imports**: app code reaches the base only through
    its entries: no `#tinker/*` name, no path into the package,
    no `@tanstack/react-start/server-entry`.
    This is the reverse of `check-seam.mjs`. No fix.
 7. **routes**: `src/routes/` exists,
    each route file exports `Route`,
-   a user shell renders `<Outlet />`,
+   its `createFileRoute` path matches the file,
+   a user shell renders TanStack's `<Outlet />`,
    and no route takes or nests under a base path,
    in any of six forms. No fix.
-8. **style**: a user shell links `src/style.css`,
+8. **style**: a user shell imports `src/style.css`
+   with `?url`, read from its import lines,
    no stylesheet sits unlinked,
    Tailwind's packages are there when the stylesheet imports it,
    and `components.json` aliases land in `src/`. No fix.
@@ -624,9 +641,30 @@ when `apps/start-scaffold` moves (migration step 2).
 `check-schema.mjs` belongs to the Postgres example
 and moves with it.
 
+### TanStack's generator writes src/
+
+TanStack's route generator writes app files.
+It rewrites a `createFileRoute` path
+that does not match its file,
+and it fills an empty route file with a template.
+The installed generator (1.167.40) has no option
+that turns this off.
+So the base keeps it away from `src/` where it can:
+
+- Check 7 names a wrong path and an empty file first.
+- `vp build` runs doctor's build-start checks
+  before the generator, and stops on them.
+- `tinker prepare` and `doctor --fix` skip the generator
+  while check 7 fails, and print check 7's lines.
+- Only `vp dev` still runs it over such a file.
+  That is TanStack's dev feature: a new empty route file
+  gets its template.
+
 ### Build-start checks
 
-`tinker()` runs checks 5 to 8 when `vp build` starts.
+`vp build` checks in two steps.
+First, before TanStack's generator runs,
+`tinker()` runs checks 5 to 8.
 A fail stops the build with doctor's own line:
 
 ```text
@@ -636,7 +674,8 @@ tinker doctor, routes:
 vp build: EXIT 1
 ```
 
-Then it runs the app's own `tsc`.
+Then, at build start, after the generator wrote the route tree,
+it runs the app's own `tsc`.
 Vite strips types without checking them,
 so a wrong `<Link to>` used to ship:
 
@@ -651,10 +690,16 @@ vp build: EXIT 1
   A second `tinker()` or a `tanstackStart()`
   in `vite.config.ts` is the exception: it stops the build,
   because Start would fail later with no cause.
-- `tsc` reads `vite.config.ts` too,
+- `tsc` reads the Vite config too,
   so a `tinker()` option of the wrong type stops the build.
-- `tinker prepare` exits 1 when the route generator
-  stops on a clash, and prints check 7's line.
+- `tinker prepare` exits 1 when check 7 fails
+  or the route tree stays stale, with doctor's lines.
+  As the `postinstall` script it prints them and exits 0,
+  so a fresh clone of a broken app still installs
+  and can run doctor.
+- The boundary record (check 10) starts empty only when
+  a real build starts and its checks pass.
+  Loading `tinker()` never wipes it.
 - Checks 2, 3, 9, and 10 stay in doctor.
   They read installed bytes, generated files,
   the run-time env, or the last build.

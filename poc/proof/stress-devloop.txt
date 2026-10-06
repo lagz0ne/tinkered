@@ -2,11 +2,102 @@
 
 41 checks: 38 WORKS, 0 STILL WITH CHANGE, 3 NOT SUPPORTED, 0 REGRESSED
 
+- The same counts hold for rerun 2 and rerun 3 (pack fix3).
 - NOT SUPPORTED: T4, P4, P6.
 - Y6 was NOT SUPPORTED; doctor and the build now catch it.
 - P7 was not rerun (timing); it keeps its old result and counts as WORKS.
-- Logs: /tmp/stress-rerun/devloop/logs/
+- Logs: /tmp/stress-rerun/devloop/logs/ (rerun 3: logs/fix3/)
 - Scripts: /tmp/stress-rerun/devloop/*.sh
+
+## Rerun 3 (pack fix3, f31dc41c)
+
+Date: 2026-10-06.
+Pack: packs-fix3/tinker-start-0.2.0.tgz, sha256 f31dc41c457c...
+Result: 41 checks: 38 WORKS, 0 STILL WITH CHANGE, 3 NOT SUPPORTED, 0 REGRESSED
+
+Setup for rerun 3:
+- One hash covers the base files, without node_modules: 41abef2efdce.
+- The pack, base/package, and base-onecopy all give this hash.
+- Every log has the hash at its top and bottom, so the base did not change mid-run.
+- base-onecopy: refreshed from the pack; its node_modules link is unchanged.
+- The stress tree's base deps have no jsonc-parser (new in fix2).
+- So variants/base-onecopy/node_modules/jsonc-parser links the start-base tree's copy.
+- That is one folder above the base, so the base files stay as packed.
+- logs/discarded-fix2/: the fix2 run. The base changed mid-run, so these logs are not used.
+
+What reran: dev.sh (D1-D10), tests.sh, types.sh, mistakes.sh, prod.sh, probes.sh.
+Every script EXIT 0. Logs: logs/fix3/<name>.txt.
+
+Changes since rerun 2 (all still WORKS):
+- D5, D8, D9, D10: same as rerun 2, with no hand restart or reload.
+- D8 add: "User shell" in 1366 ms. D8 remove: "Tinker app" in 1442 ms.
+- D9: seam loaded in 1245 ms. D10: bye in 556 ms, unset in 1001 ms, shell wins.
+- D6: dev.sh now waits 2 s for the browser's reload; it navigates in 120 ms.
+- D7: in vp dev the generator still fills an empty route file (TanStack dev).
+- D7 at build: the build stops and the file stays at 0 bytes (probe I).
+- T3: vp test no longer writes .tinker/violations.json.
+- T7: doctor names the dead imports; tinker prepare heals; vp test passes.
+- Y4: doctor --fix still heals ("fixed 3 ... ran tinker prepare").
+- Y7: the build stops before the generator.
+- Y7: so doctor also says "routeTree.gen.ts misses src/routes/peek.tsx; run tinker prepare".
+- M1: one doctor line now: "vite.config.ts:1 does not import tinker ...".
+- M3: "Error: tinker doctor, routes: src/routes/index.tsx:18 does not export Route ...".
+- M3: the build stops before the generator, so TanStack's 3 warnings are gone.
+- M6: names the line: "package.json:17 @tinker/core is 0.0.0, tested with 0.0.1".
+- M9: a clean stop; the "errors: [Getter/Setter]" noise is gone.
+
+Probes (logs/fix3/probes.txt):
+
+A. tsconfig.json with a comment, trailing commas, no extends
+- doctor: "tsconfig.json:1 does not extend "./.tinker/tsconfig.json""
+- --fix: "wrote the extends line in tsconfig.json"
+- diff: one line added, the comment kept:
+- `+  "extends": "./.tinker/tsconfig.json",`
+- then doctor passes, tsc EXIT 0, vp build EXIT 0
+- A2: a tsconfig that does not parse:
+- "tsconfig.json:3 does not parse (CommaExpected); doctor reads it as tsc does and never edits it"
+- --fix: the same line; the sha stays dfd10eacc706
+
+B. .gitignore with no last newline
+- before: `.tinker/$` then `dist/` (no newline)
+- --fix: "ran tinker prepare; added .tanstack/ to .gitignore"
+- after: `.tinker/$`, `dist/$`, `.tanstack/$`
+
+C. A stale pin (react-start 1.168.61 in package.json, 1.168.60 installed)
+- doctor: "package.json:16 pins @tanstack/react-start 1.168.61, but 1.168.60 is installed; run install"
+- vp build warns with the same line, EXIT 0
+
+More probes, for fix2/fix3 changes that touch devloop:
+- E: `import { tinker as glue }` + `glue()`: doctor passes, build EXIT 0
+- F: tinker imported, never called: "vite.config.ts:2 does not call tinker(); add plugins: [tinker()]"
+- F: the build still fails with UNRESOLVED_ENTRY: no tinker(), no base
+- G: two calls: the build stops: "vite.config.ts:5 calls tinker() 2 times; call it once"
+- H: createFileRoute("/home") in index.tsx:
+- "src/routes/index.tsx:18 createFileRoute("/home") does not match its file; set it to "/" ..."
+- H: the build stops; index.tsx sha is the same before and after (src/ not rewritten)
+- H: tinker prepare EXIT 1:
+- "tinker prepare: check 7 fails, so the route generator did not run ...; fix the lines below:"
+- H: doctor --fix with check 7 failing and a new route file:
+- no crash, no generator run; check 3 says "fix check 7 first, then run tinker prepare"
+- I: empty route file: "src/routes/blank.tsx:1 does not export Route ..."; the build stops
+
+Rough edges in rerun 3 (not regressions):
+1. check 3 gives the wrong advice for a missing tree.
+- Repro: a fresh copy, an M3 or M9 mistake, then vp build (it stops) and tinker doctor.
+- check 3: ".tinker/routeTree.gen.ts is missing; run tinker prepare"
+- tinker prepare then refuses (EXIT 1) and prints check 7's lines.
+- The "misses" line already says "fix check 7 first"; the "missing" line does not.
+- logs/fix3/probes.txt J, logs/fix3/mistakes.txt M3, M9
+2. postinstall exits 1 while check 7 fails.
+- "postinstall": "tinker prepare" then fails, so the install fails.
+- `vp run postinstall` EXIT 1 with createFileRoute("/home").
+- prepare still writes tsconfig.json and base.json first.
+- Not proven: a real pnpm install. pnpm stops on a failed root postinstall.
+- logs/fix3/postinstall-check7.txt
+3. The transient error lines before D8/D9 restarts are still there.
+- logs/fix3/dev-server.txt
+
+## Rerun 2 (first hardened pack)
 
 ## Setup
 
@@ -325,3 +416,7 @@ Setup issue, not the base (the coordinator saw it too):
 - types.sh: Y1 runs vp run postinstall; Y8 adds a lone source-base copy.
 - mistakes.sh: M6 edits a base copy (variants/m6), never the packed base.
 - prod.sh: P6 builds a same-depth copy and an other-depth copy.
+- Rerun 3: dev.sh waits 2 s after the route tree reload before it navigates (D6).
+- Rerun 3: dev.sh writes its server log to $DEVLOG.
+- Rerun 3: probes.sh holds probes A-J. basesum.sh hashes the base files.
+- Rerun 3: variants/base-onecopy/node_modules/jsonc-parser was added (see Rerun 3 setup).

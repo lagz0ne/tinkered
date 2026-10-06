@@ -1,0 +1,61 @@
+
+######## C1 .gitignore with no trailing newline, lacks .tinker/ .tanstack/; doctor --fix
+fixed 3 generated folder
+      ran tinker prepare; added .tinker/ .tanstack/ to
+      .gitignore
+doctor: all checks pass
+doctor EXIT 0
+-- .gitignore after:
+node_modules$
+dist$
+.tinker/$
+.tanstack/$
+
+######## C2 src/routes/api/health.ts takes a base path
+error during build:
+Error: tinker doctor, routes: src/routes/api/health.ts:3 takes /api/health, a base route
+vp build: EXIT 1
+fail  7 routes
+      src/routes/api/health.ts:3 takes /api/health, a
+      base route
+doctor: 1 check(s) fail
+doctor: EXIT 1
+
+######## C3 src/routes/tinker_.settings.tsx: unnested, not under the base page
+dist/client/assets/tinker_.settings-DXVXVjlc.js    0.11 kB │ gzip:   0.12 kB
+dist/client/assets/tinker-DnyyRjSt.js              0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker_.settings-C4X5gbGF.js              0.23 kB │ gzip:  0.18 kB
+dist/server/assets/tinker-DsYPldtZ.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+
+######## C5 tinker prepare with a clash
+tinker prepare: check 7 fails, so the route generator did not run (it would stop, or write src/); fix the lines below:
+src/routes/tinker.tsx:3 takes /tinker, a base route
+prepare EXIT 1
+
+######## C7 src/router.ts re-exports router; shell with component defined below using Outlet
+dist/client/assets/tinker-Bk8CEdVS.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-j7JT2Tdz.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+
+######## C8 user shell: component renders no Outlet but the word Outlet sits in a JSX string
+error during build:
+Error: tinker doctor, routes: src/routes/__root.tsx:5 sets component without <Outlet />; no page renders inside the shell
+vp build: EXIT 1
+fail  7 routes
+      src/routes/__root.tsx:5 sets component without
+      <Outlet />; no page renders inside the shell
+doctor: 1 check(s) fail
+doctor: EXIT 1
+
+######## C9 doctor with a malformed tsconfig.json (trailing comma), --fix
+doctor: all checks pass
+doctor EXIT 0
+{
+  "extends": "./.tinker/tsconfig.json",
+  "compilerOptions": { "types": ["node"], },
+}

@@ -10,15 +10,17 @@ import {
 import { lineAt, readText } from "./paths.mjs";
 
 /**
- * Read a config file the way tsc reads tsconfig.json: comments and trailing commas are fine.
+ * Read a config file the way its tool reads it. tsc takes comments and trailing commas in
+ * tsconfig.json; package.json and components.json are strict JSON (`strict`).
  * TypeScript 7 ships no JS config reader, so this is jsonc-parser, the JSONC parser VS Code uses.
  * A parse error comes back with its line; the caller must then never write the file.
  * @param {string} path - From a check; why: the file to read; a missing file reads as `{}`.
+ * @param {{ strict?: boolean }} [options] - From a check; why: strict JSON for npm and shadcn files.
  */
-export function readJsonc(path) {
+export function readJsonc(path, { strict = false } = {}) {
   const text = readText(path);
   const errors = [];
-  const value = parse(text, errors, { allowTrailingComma: true });
+  const value = parse(text, errors, { allowTrailingComma: !strict, disallowComments: strict });
   if (text && errors.length > 0) {
     const [first] = errors;
     return {

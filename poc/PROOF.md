@@ -22,7 +22,7 @@ From the repo root, each by exit code:
   and that build runs doctor's build-start checks and `tsc`.
 - `vp check`: EXIT 0. 0 errors, 28 warnings, none in `poc/`.
 - `vp run -r test`: EXIT 0.
-  `poc/start-base`: 19 files, 92 tests.
+  `poc/start-base`: 21 files, 123 tests.
 - `vp run prose`: EXIT 0.
 
 ## 2. Doctor's checks and messages
@@ -36,6 +36,7 @@ Its `say` table holds every message below.
 ### 1 base version
 
 - `package.json:<line> <peer> is <found>, tested with <version>`
+- `package.json:<line> pins <name> <spec>, but <found> is installed; run install`
 - `package.json:1 does not install @tinker/start; add it and install`
 
 ### 2 base bytes
@@ -51,25 +52,34 @@ Its `say` table holds every message below.
 
 - `.tinker/ is missing; run tinker prepare`
 - `.tinker/<file> is stale; run tinker prepare`
-- `.tinker/routeTree.gen.ts is missing; run tinker prepare`
-- `.tinker/routeTree.gen.ts misses src/routes/<file>; run tinker prepare`
-- `.tinker/routeTree.gen.ts:<line> imports <path>, which does not exist; run tinker prepare`
+- `.tinker/routeTree.gen.ts is missing; <next>`
+- `.tinker/routeTree.gen.ts misses src/routes/<file>; <next>`
+- `.tinker/routeTree.gen.ts:<line> imports <path>, which does not exist; <next>`
+- `<next>` is `run tinker prepare`, or, while check 7 fails,
+  `fix check 7 first, then run tinker prepare`.
 - `.gitignore does not list .tinker/` (and `.tanstack/`)
 - `this tinker is base <a>, the app resolves <b>; run the app's own tinker`
 - `--fix`: `ran tinker prepare; added <lines> to .gitignore`
 
 ### 4 glue
 
+`<config>` is the Vite config the app has:
+`vite.config.ts`, `.mts`, `.js`, or `.mjs`.
+
 - `vite.config.ts is missing; add one with plugins: [tinker()]`
-- `vite.config.ts:1 does not import tinker from "@tinker/start/vite"`
-- `vite.config.ts:<line> calls tinker() <n> times; call it once: plugins: [tinker()]`
-- `vite.config.ts:<line> adds tanstackStart(); tinker() adds it already`
-- `vite.config.ts:<line> imports @tailwindcss/vite; tinker() adds Tailwind already`
+- `<config>:1 does not import tinker from "@tinker/start/vite"`
+- `<config>:<line> does not call tinker(); add plugins: [tinker()]`
+- `<config>:<line> calls tinker() <n> times; call it once: plugins: [tinker()]`
+- `<config>:<line> adds tanstackStart(); tinker() adds it already`
+- `<config>:<line> imports @tailwindcss/vite; tinker() adds Tailwind already`
+- `tsconfig.json:<line> does not parse (<code>); doctor never edits a file that does not parse`
+  (and the same for `package.json`)
 - `tsconfig.json:1 does not extend "./.tinker/tsconfig.json"`
 - `tsconfig.json:<line> sets compilerOptions.paths; it replaces the base's #tinker/* and @/* paths, so remove it`
 - `tsconfig.json:<line> turns strict off; the base's files need strict`
 - `package.json:1 has no "postinstall": "tinker prepare"; a fresh clone has no .tinker/`
-- `--fix`: `wrote the extends line in tsconfig.json and the postinstall script in package.json`
+- `--fix`: `wrote the extends line in tsconfig.json and the postinstall script in package.json`.
+  It inserts those two keys and keeps every other byte.
 
 ### 5 named files
 
@@ -89,6 +99,7 @@ Its `say` table holds every message below.
 
 - `src/routes/ is missing; create src/routes/index.tsx`
 - `<file>:<line> does not export Route; TanStack skips the file, so <path> is a 404`
+- `<file>:<line> createFileRoute("<path>") does not match its file; set it to "<id>", or TanStack's generator rewrites it in src/`
 - `src/routes/__root.tsx:<line> sets component without <Outlet />; no page renders inside the shell`
 - `<file>:<line> takes <path>, a base route`
 - `<file>:<line> nests under <path>, a base route with no outlet; the base page renders`
@@ -101,8 +112,11 @@ Its `say` table holds every message below.
 - `components.json:<line> aliases.<name> "<alias>" lands at <path>, outside src/; shadcn writes there`
 - `components.json:<line> aliases.<name> "<alias>" matches no tsconfig path`
 - `components.json:<line> tailwind.css is "<file>"; the base links src/style.css`
-- `src/style.css is missing; components.json needs it, with @import "tailwindcss"`
-- `src/style.css:1 does not @import "tailwindcss"; shadcn needs Tailwind`
+- `components.json:1 sets no tailwind.css; set it to "src/style.css"`
+- `components.json:<line> does not parse (<code>)`
+- `src/style.css is missing; shadcn's files in <ui folder> need it, with @import "tailwindcss"`
+- `src/style.css:1 does not @import "tailwindcss"; shadcn's files in <ui folder> need Tailwind`
+- The last two only once a file sits in shadcn's `ui` folder.
 
 ### 9 env
 
@@ -115,11 +129,12 @@ Its `say` table holds every message below.
 
 ### At build start
 
-`vp build` runs checks 5 to 8 and stops on a fail,
-each line led by `tinker doctor, <check>:`.
+`vp build` runs checks 5 to 8 before TanStack's route generator,
+and stops on a fail, each line led by `tinker doctor, <check>:`.
+So a stop comes before the generator could write `src/`.
 Checks 1 and 4 only warn, except a second `tinker()`
-or a `tanstackStart()` in `vite.config.ts`: those stop it.
-Then the app's own `tsc`:
+or a `tanstackStart()` in the Vite config: those stop it.
+Then, at build start, the app's own `tsc`:
 
 - `tsc found <n> type error(s); the build stops here:`
   then `<file>:<line>:<col> TS<code> <message>`
@@ -127,9 +142,18 @@ Then the app's own `tsc`:
 - An unknown `tinker()` option:
   `tinker(): unknown option <key>; known: root, prerender, pages, spa, sitemap`
 
+### tinker prepare
+
+- `tinker prepare: check 7 fails, so the route generator did not run (it would stop, or write src/); fix the lines below:`
+  then check 7's lines.
+- `tinker prepare: the route generator left the tree stale; fix the lines below:`
+  then the tree's gaps.
+- Both exit 1, except as the `postinstall` script:
+  there they print and exit 0, so a broken clone still installs.
+
 ## 3. Unit tests, and breaking each check
 
-`poc/start-base/tests/`: 19 files, 92 tests.
+`poc/start-base/tests/`: 21 files, 123 tests.
 Plain unit tests of our glue as functions,
 and base behavior through a scope.
 No test runs a build, dev, TanStack, a browser,
@@ -144,7 +168,13 @@ or a served page (ADR 0106, Testing the base).
 - Each doctor check over a fixture folder in a temp dir:
   the pass case, each fail with its exact message,
   and `--fix` where it applies (checks 2, 3, 4).
-- `buildChecks`, the function `tinker()` calls at build start.
+- `buildChecks`, the function `tinker()` runs before the generator.
+- The Vite hooks' plain parts (`lib/hooks.mjs`):
+  the boundary record and the dev restart rule.
+  `errorDetail`: a production error page shows no text.
+- `--fix` and the route generator: a fake `vite` package
+  notes whether `tinker prepare` ran the generator.
+  No Vite runs.
 - Through a scope: `readResult`, the health operation,
   the `env` tag, the start extension and its middleware,
   the response body owner, the default server entry,
@@ -160,13 +190,18 @@ caught    3 failed  check version always passes
 caught    5 failed  check named always passes
 caught    1 failed  tsconfig @/* goes back to ../src/*
 …
-102 of 102 breaks caught (41 logic, 61 message)
+133 of 133 breaks caught (62 logic, 71 message)
 ```
 
-- 41 logic breaks: each check passes always,
+- 62 logic breaks: each check passes always,
   each `--fix` does nothing, each glue function lies.
-- 61 message breaks: one mark in each `say` entry.
+- 71 message breaks: one mark in each `say` entry.
   So every doctor message has a test that reads it exactly.
+
+The review round's tests, run against the code before it
+(commit `42952102`, log `proof/fix-round-tests-before.txt`):
+31 fail, and 2 files cannot load (their modules were new).
+So each fix has a test that fails without it.
 
 ## 4. app-min builds, serves, and passes doctor
 
@@ -332,10 +367,55 @@ Case changes the reruns made, all in `/tmp`:
 - `@ts-expect-error` lines on `prerender` and `spa`
   went: the options are typed now, and the build runs `tsc`.
 
-Router, server, and devloop ran on the first 0.2.0 pack;
-shadcn ran on both. After the fixes below,
-every case copy was built again on the fixed pack
-(`proof/stress-sweep-fixpack.txt`):
+Router, server, and devloop first ran on the first 0.2.0 pack;
+shadcn ran on both. Every case copy was then built again
+on each later pack; the last sweep is below.
+
+### The review round, rerun
+
+A review found that `--fix` could erase or break user files.
+After the fixes:
+
+- The reviewer's own 22 mistakes, rerun on the final pack
+  (`proof/review-cases-1.txt` to `-3.txt`).
+  Each now stops the build, gets doctor's line, or passes,
+  as it should. Some of them:
+
+```text
+B1 tsconfig with a comment, --fix:
+   only "extends" added; comment kept
+C1 .gitignore with no last newline, --fix:
+   node_modules / dist / .tinker/ / .tanstack/
+C9 tsconfig with a trailing comma: doctor passes
+B2 export * in a seam file: build EXIT 0
+B3 import { tinker as base }: build EXIT 0
+B6 a leak, then tinker prepare:
+   doctor still names it
+B7 components.json:2 does not parse
+   (PropertyNameExpected): build EXIT 1
+B8 style.css?url only in a comment: build EXIT 1
+B10 vite.config.mts: build EXIT 0
+M2 createFileRoute("/abuot") in about.tsx:
+   build EXIT 1, src/routes/about.tsx unchanged
+M3 a pin with no install: package.json:16 named
+C5 tinker prepare with a clash:
+   check 7's line, prepare EXIT 1
+C8 a local const named Outlet: build EXIT 1
+```
+
+- The four areas reran on the fix3 pack
+  (each area's `Rerun 3` section in `proof/stress-<area>.txt`):
+  router 18 WORKS; server 16 WORKS;
+  shadcn 7 WORKS, 2 NOT SUPPORTED;
+  devloop 38 WORKS, 3 NOT SUPPORTED; 0 REGRESSED.
+  Their last findings went into the final pack:
+  `components.json` read as strict JSON,
+  "fix check 7 first" on every check 3 line,
+  a postinstall that never blocks an install,
+  `vite.config.mts` type-checked,
+  and only TanStack's imported `Outlet` counts.
+- The final pack, every case copy built again
+  (`proof/stress-sweep-final.txt`):
 
 ```text
 26 case apps   build=0 doctor=0
@@ -343,8 +423,9 @@ import-protection   build=1 doctor=1 (on purpose)
 fail  10 boundary
 ```
 
-The ten devloop mistakes, rerun on the fixed pack,
-give the same results (`proof/stress-devloop-mistakes-fixpack.txt`).
+- The ten devloop mistakes
+  (`proof/stress-devloop-mistakes-final.txt`)
+  and the five shadcn cases give the same lines as on fix3.
 
 ### What the reruns caught in 0.2.0
 
@@ -391,6 +472,12 @@ Not supported (5), each with its reason:
 
 Rough edges, none blocking:
 
+- `vp dev` still runs TanStack's generator over a route file:
+  it fills an empty one with a template,
+  and rewrites a wrong `createFileRoute` path.
+  `vp build`, `tinker prepare`, and `doctor --fix` do not.
+- A type error in `tests/` alone stops `vp build`:
+  the build checks the same files `tsc` does.
 - Adding or removing the shell or a seam file
   while `vp dev` runs prints one error line,
   then the restart; the page is fine a second later.

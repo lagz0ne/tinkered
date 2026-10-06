@@ -48,7 +48,7 @@ export function version(root) {
   const dir = installedBase(root);
   if (!dir) return fail([say.missing]);
   const base = readJson(join(dir, "package.json"));
-  const read = readJsonc(join(root, "package.json"));
+  const read = readJsonc(join(root, "package.json"), { strict: true });
   const pkg = read.error ? { text: "", value: {} } : read;
   const tested = Object.entries(base.tinker.tested);
   const drift = tested
