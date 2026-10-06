@@ -1,8 +1,8 @@
 control (no break): 0 failed test(s), 0 broken file(s)
-caught    6 failed  check version always passes
+caught    7 failed  check version always passes
 caught    9 failed  check bytes always passes
 caught   16 failed  check generated always passes
-caught   28 failed  check glue always passes
+caught   31 failed  check glue always passes
 caught    6 failed  check named always passes
 caught    3 failed  check imports always passes
 caught   12 failed  check routes always passes
@@ -54,10 +54,12 @@ caught    2 failed  any value named Outlet counts as the outlet
 caught    3 failed  a byte order mark breaks the parse
 caught    1 failed  --fix drops the byte order mark
 caught    1 failed  --fix always indents with two spaces
-caught    6 failed  an extends array never counts
-caught    2 failed  a file extended after .tinker is never read
+caught    9 failed  an extends array never counts
+caught    5 failed  a file extended after .tinker is never read
 caught    4 failed  a file extended before .tinker counts too
 caught    1 failed  the first extended file wins, not the last
+caught    1 failed  an extends name with no .json is not found
+caught    2 failed  an extended file's own extends is not followed
 caught    2 failed  a byte order mark passes strict JSON
 caught    1 failed  a byte order mark in package.json reads as a parse code
 caught    3 failed  --fix replaces the extends key
@@ -109,8 +111,8 @@ caught    2 failed  message glue.mjs say.tailwind
 caught    3 failed  message glue.mjs say.parse
 caught    1 failed  message glue.mjs say.mark
 caught    2 failed  message glue.mjs say.extends
-caught    2 failed  message glue.mjs say.paths
-caught    2 failed  message glue.mjs say.strict
+caught    4 failed  message glue.mjs say.paths
+caught    3 failed  message glue.mjs say.strict
 caught    2 failed  message glue.mjs say.postinstall
 caught    2 failed  message glue.mjs say.passed
 caught    2 failed  message glue.mjs say.fixed
@@ -139,11 +141,11 @@ caught    1 failed  message style.mjs say.noStyle
 caught    1 failed  message style.mjs say.noTailwind
 caught    4 failed  message style.mjs say.parse
 caught    1 failed  message style.mjs say.passed
-caught    1 failed  message version.mjs say.missing
+caught    2 failed  message version.mjs say.missing
 caught    2 failed  message version.mjs say.drift
 caught    1 failed  message version.mjs say.stale
 caught    2 failed  message version.mjs say.passed
 caught    1 failed  message typecheck.mjs say.noTypescript
 caught    1 failed  message typecheck.mjs say.failed
 
-146 of 146 breaks caught (74 logic, 72 message)
+148 of 148 breaks caught (76 logic, 72 message)

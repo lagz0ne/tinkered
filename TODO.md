@@ -63,9 +63,9 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 - **start/base-package** — promote `poc/start-base` to `packages/start` and `poc/app-min` to `apps/start-min`.
   Owner: lead (Claude, Start scaffold session); Opus writer. Worktree: `../tinkered-base-package`.
   Impact (ADR 0065): adds `@tinker/start` and `apps/start-min`; no existing public symbol changes.
-  Next: lead review, then land.
-  Proof: `poc/` is gone; both follow-ups have tests that failed before (4).
-  Tests 23 files, 166; 146 of 146 breaks; mutation 88.12 (88.07 on kills alone).
+  Next: lead re-review of the fix round, then land.
+  Proof: `poc/` is gone; the follow-ups and the review's three fixes each have tests that failed before.
+  Tests 23 files, 170; 148 of 148 breaks; mutation 88.21 (88.07 on kills alone).
   `apps/start-min` builds, serves `/`, `/api/health`, `/tinker`; doctor passes.
   The proof rerun caught a README that every pack ships but `files.json` did not pin; fixed.
   [Proof](docs/roadmap/start-base/PROOF.md#0-the-package).

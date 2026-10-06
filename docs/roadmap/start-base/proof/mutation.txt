@@ -1,16 +1,16 @@
-# vp run @tinker/start#mutate, card start/base-package, 2026-10-06, commit e0c24cf9
-# killed 1890, timeout 1, survived 203, no coverage 52; 88.12 (88.07 on kills alone)
+# vp run @tinker/start#mutate, card start/base-package review round, 2026-10-06, commit bd96bac8
+# killed 1904, timeout 3, survived 203, no coverage 52; 88.21 (88.07 on kills alone)
 ---------------------|------------------|----------|-----------|------------|----------|----------|
 File                 |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
 ---------------------|--------|---------|----------|-----------|------------|----------|----------|
-All files            |  88.12 |   90.31 |     1890 |         1 |        203 |       52 |        0 |
- lib                 |  88.35 |   90.71 |     1766 |         1 |        181 |       52 |        0 |
-  checks             |  90.99 |   91.73 |      899 |         0 |         81 |        8 |        0 |
+All files            |  88.21 |   90.38 |     1904 |         3 |        203 |       52 |        0 |
+ lib                 |  88.44 |   90.78 |     1780 |         3 |        181 |       52 |        0 |
+  checks             |  91.04 |   91.77 |      912 |         2 |         82 |        8 |        0 |
    boundary.mjs      | 100.00 |  100.00 |       10 |         0 |          0 |        0 |        0 |
    bytes.mjs         |  96.47 |   96.47 |       82 |         0 |          3 |        0 |        0 |
    env.mjs           | 100.00 |  100.00 |       21 |         0 |          0 |        0 |        0 |
    generated.mjs     |  91.40 |   91.89 |      170 |         0 |         15 |        1 |        0 |
-   glue.mjs          |  95.00 |   95.00 |      190 |         0 |         10 |        0 |        0 |
+   glue.mjs          |  94.91 |   94.91 |      203 |         2 |         11 |        0 |        0 |
    imports.mjs       |  89.66 |   89.66 |       52 |         0 |          6 |        0 |        0 |
    named.mjs         | 100.00 |  100.00 |       28 |         0 |          0 |        0 |        0 |
    result.mjs        | 100.00 |  100.00 |       16 |         0 |          0 |        0 |        0 |
@@ -23,7 +23,7 @@ All files            |  88.12 |   90.31 |     1890 |         1 |        203 |   
   hooks.mjs          |  86.36 |   90.48 |       19 |         0 |          2 |        1 |        0 |
   jsonc.mjs          |  83.95 |   83.95 |       68 |         0 |         13 |        0 |        0 |
   named.mjs          |  93.10 |   93.10 |       54 |         0 |          4 |        0 |        0 |
-  paths.mjs          |  79.59 |   81.25 |       39 |         0 |          9 |        1 |        0 |
+  paths.mjs          |  81.63 |   83.33 |       40 |         0 |          8 |        1 |        0 |
   prepare.mjs        | 100.00 |  100.00 |       63 |         0 |          0 |        0 |        0 |
   route-path.mjs     |  81.55 |   82.35 |       83 |         1 |         18 |        1 |        0 |
   serve.mjs          |  93.75 |   93.75 |       60 |         0 |          4 |        0 |        0 |
@@ -47,4 +47,4 @@ All files            |  88.12 |   90.31 |     1890 |         1 |        203 |   
   server-entry.ts    | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
   start.ts           |  96.15 |   96.15 |       25 |         0 |          1 |        0 |        0 |
 ---------------------|--------|---------|----------|-----------|------------|----------|----------|
-09:41:29 (466596) INFO MutationTestReportHelper Final mutation score of 88.12 is greater than or equal to break threshold 85
+10:18:44 (623389) INFO MutationTestReportHelper Final mutation score of 88.21 is greater than or equal to break threshold 85

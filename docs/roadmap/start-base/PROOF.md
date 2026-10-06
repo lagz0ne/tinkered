@@ -73,16 +73,16 @@ Each has a test that fails on the code before it
 
 ### Lanes
 
-- `vp run @tinker/start#test`: 23 files, 166 tests.
+- `vp run @tinker/start#test`: 23 files, 170 tests.
 - `vp check` lints and formats `packages/start`.
 - `vp run @tinker/start#mutate`: Stryker, floor 85.
-  At commit `e0c24cf9`: killed 1890, timeout 1,
+  At commit `bd96bac8`: killed 1904, timeout 3,
   survived 203, no coverage 52.
-  Score 88.12; 88.07 on kills alone
+  Score 88.21; 88.07 on kills alone
   (log `proof/mutation.txt`).
 - `node packages/start/scripts/break-each-check.mjs`:
-  146 of 146 breaks caught (74 logic, 72 message).
-  The six new breaks are the two follow-ups.
+  148 of 148 breaks caught (76 logic, 72 message).
+  The eight new breaks are the follow-ups.
 
 The lane leaves out the files that only run inside
 TanStack's runtime: `src/entry/server.ts`,
@@ -104,6 +104,41 @@ Two code changes came with the lane:
 - `doctor()` returns its lines and exit code;
   `planUpgrade()` says what an upgrade does
   before it writes or installs. The CLI prints.
+
+### The review round
+
+The review found three small bugs; each has a test
+that fails on the code before it
+(log `proof/fix-round-2-tests-before.txt`: 3 fail,
+and the `NODE_PATH` test below).
+
+- Check 4 finds an extended file as tsc does:
+  `./configs/strict` reads `configs/strict.json`.
+- Check 4 follows each extended file's own `extends`
+  chain, and reads a file once, so a loop ends:
+
+  ```text
+  configs/b.json:3 turns strict off;
+    the base's files need strict
+  ```
+
+- The installed base is found in the app's
+  `node_modules`, never through `NODE_PATH`.
+  The test runs check 1 in a child process
+  with `NODE_PATH` pointing at another base.
+
+Cleanups: the request tests use no timer.
+The forced-close test's operation waits on its signal.
+The graceful one waits on a gate the test opens
+once the session is closing and the close is still pending.
+The read-error test uses a self-linked file (`ELOOP`),
+which fails for root too.
+
+After the round: 23 files, 170 tests;
+148 of 148 breaks caught (76 logic, 72 message);
+mutation 88.21 at commit `bd96bac8`
+(killed 1904, timeout 3, survived 203, no coverage 52;
+88.07 on kills alone).
 
 ### apps/start-min
 
@@ -199,9 +234,11 @@ Its `say` table holds every message below.
 - `<file>:<line> sets compilerOptions.paths; it replaces the base's #tinker/* and @/* paths, so remove it`
 - `<file>:<line> turns strict off; the base's files need strict`
 - `<file>` is `tsconfig.json`, or a local file its `extends`
-  list names after `./.tinker/tsconfig.json`.
-  tsc reads that list in order, and the last file wins,
-  so doctor names the file whose value tsc uses.
+  chain names after `./.tinker/tsconfig.json`.
+  tsc applies a list in order, each file after its own chain,
+  so the last file wins; doctor names the file whose value tsc uses.
+  As tsc does, a name with no `.json` gets `.json` added
+  when the file is missing.
 - `package.json:1 has no "postinstall": "tinker prepare"; a fresh clone has no .tinker/`
 - `--fix`: `wrote the extends line in tsconfig.json and the postinstall script in package.json`.
   It inserts those two keys and keeps every other byte.
@@ -279,7 +316,7 @@ Then, at build start, the app's own `tsc`:
 
 ## 3. Unit tests, and breaking each check
 
-`packages/start/tests/`: 23 files, 166 tests.
+`packages/start/tests/`: 23 files, 170 tests.
 Plain unit tests of our glue as functions,
 and base behavior through a scope.
 No test runs a build, dev, TanStack, a browser,
@@ -316,14 +353,14 @@ in a scratch copy, then runs the tests
 
 ```text
 control (no break): 0 failed test(s), 0 broken file(s)
-caught    6 failed  check version always passes
+caught    7 failed  check version always passes
 caught    9 failed  check bytes always passes
 caught    7 failed  tsconfig @/* goes back to ../src/*
 …
-146 of 146 breaks caught (74 logic, 72 message)
+148 of 148 breaks caught (76 logic, 72 message)
 ```
 
-- 74 logic breaks: each check passes always,
+- 76 logic breaks: each check passes always,
   each `--fix` does nothing, each glue function lies.
 - 72 message breaks: one mark in each `say` entry.
   So every doctor message has a test that reads it exactly.
@@ -646,9 +683,9 @@ Rough edges, none blocking:
   so its old pin rule rewrites a `file:` tarball peer.
 - Check 4 sees `paths` and `strict: false`
   in the app tsconfig and in each local file
-  it extends after `.tinker/`.
-  A file those files extend in turn,
-  and other overrides, it does not judge.
+  its extends chain reads after `.tinker/`.
+  A package it extends, and other overrides,
+  it does not judge.
 - Lightpanda shows the stylesheet link but loads no CSS;
   the styled button was proven in Chrome.
 - In the rerun setup, an app and the base that load
