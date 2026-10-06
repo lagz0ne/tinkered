@@ -283,7 +283,8 @@ A missing seam or named file maps to the base's default,
 such as `node_modules/@tinker/start/src/defaults/start.ts`.
 `tinker.d.ts` pulls in the base's type registers
 for the router and Start, as Nuxt's generated `nuxt.d.ts` does.
-`base.json` records the base version, `{ "base": "0.2.0" }`.
+`base.json` records the base version and the parts that are on,
+`{ "base": "0.3.0", "parts": ["telemetry"] }`.
 Doctor's check 3 compares `.tinker/` with what this base
 would write, so it needs no stored hashes.
 
@@ -331,6 +332,7 @@ A part is an opt-in slice of the base, set in `tinker({ ... })`.
   Needs nothing from the app.
   Reads `VICTORIA_TRACES_URL`, `VICTORIA_LOGS_URL`,
   `OTEL_SERVICE_NAME`; each has a default.
+  Built (card `start/base-parts`, step 1).
 - **auth**: off by default. Route `/api/auth/$`.
   Needs `auth` and `readAccount` from the server seam.
 - **sync**: off by default; it turns `auth` on.
@@ -340,8 +342,36 @@ A part is an opt-in slice of the base, set in `tinker({ ... })`.
   `streamMessage`, and the `Register` bodies from the client seam.
 
 The plugin writes `.tinker/parts.ts` and `.tinker/parts.server.ts`.
-They export the enabled parts' extensions and router context;
-the base entries install them.
+Each exports one name per part,
+from that part's on or off module in the base,
+so the base entries read one fixed shape:
+
+```ts
+// .tinker/parts.server.ts, telemetry off;
+// /b stands for the base's absolute path
+export { telemetry } from "/b/src/parts/telemetry/off.ts";
+```
+
+`.tinker/base.json` records the parts that are on.
+`tinker prepare` and doctor read that record,
+so they use the switches of the last `tinker()` call.
+
+A part switch takes `true` or `false`.
+Any other value fails the build.
+
+Telemetry observes the app root.
+Core takes `observe` only when a root is made,
+so no extension can add it.
+So each entry makes a telemetry root first,
+from the part's `extensions` and `tags`,
+then the app root with the part's `observe`.
+The server entry also binds the part's `appTags`:
+the tag the ingest route hands a tab's batch to.
+With telemetry off, the telemetry root is empty.
+
+Each part reads its keys the way doctor does:
+the shell, then `.env`, then the default.
+An empty value reads as unset.
 
 ### Settings and the server entry
 
@@ -629,14 +659,18 @@ Each check is one small file with its message table,
    its `createFileRoute` path matches the file,
    a user shell renders TanStack's `<Outlet />`,
    and no route takes or nests under a base path,
-   in any of six forms. No fix.
+   in any of six forms.
+   An on part's route is a base path;
+   the line names the switch that frees it. No fix.
 8. **style**: a user shell imports `src/style.css`
    with `?url`, read from its import lines,
    no stylesheet sits unlinked,
    Tailwind's packages are there when the stylesheet imports it,
    and `components.json` aliases land in `src/`. No fix.
 9. **env**: each key `.env.example` lists is set
-   in `.env` or the shell.
+   in `.env` or the shell,
+   and each on part's key holds a value that part accepts.
+   A refused value is named at its `.env` line.
    No fix: doctor never writes a secret.
 10. **boundary**: each import boundary violation
     the last build kept in `.tinker/violations.json`.

@@ -6,8 +6,10 @@ Full logs: `proof/*.txt`, from real runs.
 The blocks below are cut from them:
 a line is left out or wrapped, and `…` marks a cut.
 
-Three rounds:
+Four rounds:
 
+- **0.3.0, the telemetry part** (card `start/base-parts`,
+  step 1 of 3). Section P.
 - **The package** (card `start/base-package`):
   the POC moves out of `poc/`. Section 0.
 - **0.2.0, the hardened base** (card `start/base-harden`):
@@ -22,6 +24,128 @@ Read their paths this way:
 - `poc/app-min` is now `apps/start-min`.
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
+
+## P. The telemetry part, 0.3.0
+
+Copied from `apps/start-scaffold/src/scaffold/telemetry`;
+the scaffold is not changed.
+It lives in `packages/start/src/parts/telemetry/`.
+
+### What changed from the scaffold
+
+- Settings are a resource over the `env` tag,
+  read once (ADR 0106). A bad URL stops the
+  telemetry root at its start, naming each key.
+- No pino. Core's log entry already holds
+  each record field, and pino's browser build
+  has no types, so the tab's path could not be
+  tested through a scope.
+  The server still prints one JSON line per record.
+- The side (server, ssr, browser) picks the sender,
+  not `createIsomorphicFn`, so both senders are tested.
+- The ingest route's checks moved into a session
+  resource, `telemetryEndpoint`; the route calls it.
+  So the replies are tested through a scope.
+- Dropped: the `history` cell and `frontendSpans` tag.
+  Nothing read them.
+
+### Gates
+
+```text
+vp install: EXIT 0
+vp run -r build: EXIT 0
+vp check: EXIT 0
+  0 errors, 28 warnings (as on main;
+  none in packages/start)
+vp run -r test: EXIT 0
+  @tinker/start: 236 passed (171 before)
+vp run prose: EXIT 0
+break-each-check: 172 of 172 caught
+  (97 logic, 75 message)
+```
+
+Mutation, `flock /tmp/mutation.lock`,
+alone, floor 85:
+
+- First run: 83.11. It failed the floor:
+  the scaffold's tests never sent a span
+  through the wire rules, and left most
+  queue bounds untested.
+- After the new tests: 87.53.
+  2536 killed, 12 timed out, 310 survived,
+  53 not covered, of 2911.
+  Kills alone: 87.12.
+- Two queue lines no input reaches are gone:
+  a health write after close stops publishing,
+  and a closed check no flush can meet.
+
+### Tests
+
+- `tests/telemetry.test.ts`: export to storage,
+  levels, cuts, retry, partial refusal,
+  close, the server timer, a stuck send,
+  queue bounds, the tab's sends, settings,
+  the router's part, the off part.
+- `tests/telemetry-ingest.test.ts`: the receive
+  operation, each reply status, origins,
+  a cut body, a torn body, a failed ingest,
+  and a tab's batch reaching the telemetry root.
+- `tests/parts.test.mjs` and the glue, prepare,
+  routes, and env tests: the switch, the record,
+  the parts files, the freed path, refused keys.
+- None runs a build, a server, TanStack, or a browser.
+  A fake `httpBackend` stands in for storage.
+
+### Builds and serves
+
+Log: `proof/12-telemetry-part.txt`.
+A stand-in storage keeps each POST.
+
+```text
+## telemetry on (the default)
+vp build: EXIT 0
+doctor: all checks pass
+<p>Hello, world.</p>
+POST /api/telemetry, same origin: 202
+POST /api/telemetry, other.test: 403
+what storage got
+      1 POST /logs
+      1 POST /traces
+spans: greet request.body
+  telemetry.endpoint telemetry.receive
+  tinker.health
+{"time":1,"level":30,"msg":"from a tab",
+  "service":"start-min","side":"browser"}
+
+## telemetry off
+// parts on: none.
+export { telemetry } from
+  "…/src/parts/telemetry/off.ts";
+doctor: all checks pass
+POST /api/telemetry: 200
+the app takes it
+
+## telemetry on, and the app's own route
+tinker doctor, routes:
+  src/routes/api.telemetry.ts:2 takes
+  /api/telemetry, a base route;
+  tinker({ telemetry: false }) frees it
+vp build: EXIT 1
+
+## a bad storage URL in .env
+fail  9 env
+  .env:2 sets VICTORIA_TRACES_URL;
+  the telemetry part needs an http(s) URL
+```
+
+### Not proven here
+
+- A tab's own records in a real browser.
+  start-min runs no work in the tab's scope:
+  the page opens and hydrates (agent-browser),
+  and storage gets no `browser` span.
+  The tab's sender is tested through a scope.
+- `vp dev`: only builds were served.
 
 ## 0. The package
 
