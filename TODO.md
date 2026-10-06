@@ -24,6 +24,29 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/base-package** — promote `poc/start-base` to `packages/start` and `poc/app-min` to `apps/start-min`.
+  Keep the tests, `doctor`, and the proof script; add the two follow-ups
+  (a second `extends` file sets `paths`; a BOM in `package.json`).
+  Impact block first (ADR 0065): new package entries.
+  Verify: same 129 tests and 140 breaks; repo gates; `tinker doctor` on `apps/start-min`.
+
+- **start/base-parts** — port telemetry, auth, and sync from `apps/start-scaffold/src/scaffold` into base parts.
+  Each part turns on in `tinker()`; tests through scope seams only.
+  Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
+
+- **start/scaffold-on-base** — move `apps/start-scaffold` onto the base.
+  Its examples (todos, profile, auth pages, mail) become registry items the user copies in.
+  Its seam, plain, and boundary checks move into `doctor` or stay as named checks.
+  Verify: the app builds and serves on the base; `src/scaffold/` is gone; doctor passes.
+
+- **start/shadcn-registry** — the `app` template item and the example items, built from source.
+  Template written once; examples updated with `shadcn add --diff`; base by `tinker upgrade`.
+  Verify: an empty folder to a served page in one `shadcn add`; publishing waits for the user's go.
+
+- **trial/base-image** — the writer trial image installs the packed base; its gate runs `tinker doctor`.
+  Replaces the `src/scaffold` exact-bytes check with doctor check 2 (base bytes).
+  Verify: a trial round stages and grades on the new image.
+
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
   and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
@@ -69,6 +92,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/base** — the Start base is a package, glued by one plugin (ADR 0106, accepted).
+  Owner: lead (Claude, Start scaffold session); Opus designer, four Opus stress agents, Opus writer and review.
+  POC in `poc/`: `@tinker/start` 0.2.0 + `poc/app-min` (two files in `src/`, one glue line each config).
+  Stress test: 84 checks, 46 → 79 work, 0 need a change, 5 not supported (listed in the ADR).
+  Every known mistake fails the build or `tinker doctor` names file and line; 11 checks.
+  Tests: 129 plain unit tests of the glue and scope seams, no wrappers; 140 of 140 planted breaks caught.
+  [Proof](poc/PROOF.md).
 
 - **core/extension-slot** — the trial shares its HTTP stack as a session resource; Core unchanged (ADR 0105).
   Owner: lead (Claude, Start scaffold session); Opus designer, Sol writer, Opus review (one fix round).

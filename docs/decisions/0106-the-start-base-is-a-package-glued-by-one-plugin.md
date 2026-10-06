@@ -1,10 +1,10 @@
 # 0106 The Start base is a package, glued by one plugin
 
-Date: 2026-10-06. Status: proposed (lead, card `start/base`).
+Date: 2026-10-06. Status: accepted (user, 2026-10-06, after the POC, stress test, and hardening; card `start/base`).
 Hardened by card `start/base-harden`: named files, build-start
 checks, and ten doctor checks, from four stress tests.
 Refines: 0100, 0101. Uses: 0050, 0065, 0099, 0102, 0103.
-Replaces, once accepted: the `runtime` copy-in item
+Replaces: the `runtime` copy-in item
 (`docs/roadmap/start-scaffold/REGISTRY.md`).
 
 ## Context

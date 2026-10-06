@@ -88,4 +88,4 @@ by a new decision that names the old one.
 - [0103](0103-the-protocol-layer-owns-the-reply.md): the protocol layer owns the reply.
 - [0104](0104-closing-begins-signal.md): a layer tells its resources when closing begins.
 - [0105](0105-a-shared-stack-is-a-resource-a-slot-is-a-tag.md): a shared stack is a resource; a slot is a tag.
-- [0106](0106-the-start-base-is-a-package-glued-by-one-plugin.md): the Start base is a package, glued by one plugin (proposed).
+- [0106](0106-the-start-base-is-a-package-glued-by-one-plugin.md): the Start base is a package, glued by one plugin.
