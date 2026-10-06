@@ -19,7 +19,7 @@ data: {"kind":"changes","events":[{"stream":"public","revision":1,"executionId":
 
 : connected
 
-first byte after 2.642784 s
+first byte after 2.749058 s
 curl: EXIT 28
 $ curl -s -N --max-time 2 :PORT/api/sync, Last-Event-ID: {"public":1,"private":null}
 event: changes

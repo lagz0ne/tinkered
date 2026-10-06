@@ -6,8 +6,10 @@ Full logs: `proof/*.txt`, from real runs.
 The blocks below are cut from them:
 a line is left out or wrapped, and `…` marks a cut.
 
-Five rounds:
+Six rounds:
 
+- **0.5.0, the sync part's server side**
+  (card `start/base-parts`, step 3a). Section R.
 - **0.4.0, the auth part** (card `start/base-parts`,
   step 2 of 3). Section Q.
 - **0.3.0, the telemetry part** (card `start/base-parts`,
@@ -26,6 +28,162 @@ Read their paths this way:
 - `poc/app-min` is now `apps/start-min`.
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
+
+## R. The sync part, server side, 0.5.0
+
+Sync is too big for one clean step, so it lands in two:
+3a, the server side (here), and 3b, the client side.
+Copied from `apps/start-scaffold/src/scaffold`
+(`backend/stream.ts`, `notifications.ts`, `events.ts`,
+`sync.schema.ts`, `sync.ts`, `protocol.ts`, and
+`src/routes/api.sync.ts`); the scaffold is not changed.
+It lives in `packages/start/src/parts/sync/`.
+
+### What it is
+
+- `tinker({ sync: true })` turns it on; it is off by default.
+  It turns auth on: the build prints
+  `tinker: sync turns auth on`, and the head of
+  `.tinker/parts.server.ts` says so too.
+  `auth: false` with it fails the build.
+- Route `GET /api/sync`, only while on: the stream.
+  Its wire rules sit in a session resource,
+  `syncEndpoint`, so a scope test reaches them.
+- It reads `database` from the server seam.
+  It reads no env key of its own.
+- `eventHistory` and the `Database` type are on
+  `@tinker/start/server`; `Register`, the `Sync` types,
+  the envelopes, and the readers on `@tinker/start`.
+- drizzle-orm is a dependency now; the tables and
+  the stream's query are base code.
+- Each run and factory destructures its ctx.
+  The stream's four account re-checks are one
+  `recheck` now; they behaved the same.
+
+### Left for 3b
+
+- `getBootstrap` and `getAccount`: only the client
+  calls them, so they come with it.
+- The sync client, tab lifetime, and router wiring.
+- The client seam names, and the server seam's
+  `bootstrap`: check 5 asks for what the base reads.
+
+### Gates
+
+```text
+vp install: EXIT 0
+vp run -r build: EXIT 0
+vp check: EXIT 0
+  0 errors, 28 warnings (as on main;
+  none in packages/start)
+vp run -r test: EXIT 0, twice
+  @tinker/start: 290 passed (259 before)
+vp run prose: EXIT 0
+break-each-check: 198 of 198 caught
+  (120 logic, 78 message)
+mutation: 87.10, EXIT 0
+  2939 killed, 26 timed out, 379 survived,
+  60 not covered, of 3404
+  Kills alone: 86.34
+  src/parts/sync: 298 of 389 killed,
+  80.21 (76.61 on kills alone)
+```
+
+The sync files score lower than the package.
+Most of their survivors are of two kinds:
+
+- The stream re-reads the account after a wake,
+  and again after the rows query (the scaffold's
+  guard against leaking a revoked account's rows).
+  Each check hides the other's mutants.
+- A wait guard whose mutant hangs, so the test
+  times out instead of failing.
+
+Two runs taught one thing about timeouts:
+a 30 s test timeout let Stryker's own 15 s timeout
+fire first, so 73 hanging mutants counted as
+timeouts, not kills (84.96 on kills alone).
+Warming PGlite once in a `beforeAll`, with Vitest's
+5 s test timeout kept, brought them back to kills.
+
+### Tests
+
+- `tests/sync.test.ts`, on an in-memory PGlite
+  stand-in seam (`tests/fixtures/app.server.ts`):
+  - notifications: commit, rollback, a read
+    before waiting, a listener that cannot start,
+    one that breaks, root close;
+  - stream framing: replay after a cursor,
+    100 to a frame, the greeting, each new commit,
+    a resumed cursor, private rows;
+  - cancel between events: a held read ends
+    on cancel, on a backend stop, on a graceful
+    request close;
+  - accounts: another account's cursor is
+    refused, a sign-out or a sign-in sends the
+    account frame, heartbeats, the 30 s lease;
+  - wire and params: each route reply,
+    `Last-Event-ID` before `?cursor=`,
+    a read failure is not a 400;
+  - the event history; the trace names.
+- `tests/sync-envelopes.test.ts`: each shared
+  reader and envelope, kept and refused.
+- The glue and doctor tests: the switch, the
+  record, the mount, check 5's `database` line,
+  check 7's `/api/sync` line, the build stop.
+- No test runs a build, a server, TanStack,
+  or a browser, and none waits on a timer.
+
+### Builds and serves
+
+Log: `proof/14-sync-part.txt`, in a scratch copy
+of apps/start-min with stand-in seams: an in-memory
+PGlite database with two public events.
+
+```text
+## sync on, with stand-in seams
+tinker: sync turns auth on
+vp build: EXIT 0 · doctor: all checks pass
+// …parts on: telemetry, auth, sync;
+//   sync turns auth on.
+curl -N :PORT/api/sync
+event: changes
+id: {"public":2,"private":null}
+data: {"kind":"changes","events":[…2 events…]}
+
+: connected
+first byte after 2.7 s (PGlite starts)
+curl -N, Last-Event-ID: {"public":1,…}
+event: changes
+id: {"public":2,"private":null}
+data: {…the second event…}
+
+: connected
+?cursor=bad: 400
+## sync off (the default)
+doctor: all checks pass
+GET /api/sync: the app takes it
+## sync on, and the app's own /api/sync
+src/routes/api.sync.ts:2 takes /api/sync,
+  a base route; tinker({ sync: false }) frees it
+vp build: EXIT 1
+## sync on, a seam without database
+tinker doctor, named files:
+  src/lib/tinker.server.ts:1 does not export
+  database; the sync part reads it
+vp build: EXIT 1
+## sync on, with auth: false
+tinker(): sync needs auth, but auth is false;
+  drop auth: false, or set sync: false
+vp build: EXIT 1
+```
+
+### Not proven here
+
+- A real Postgres server: the stand-in is PGlite,
+  in memory, with no server.
+- A tab's own stream use: that is 3b.
+- `vp dev`: only builds were served.
 
 ## Q. The auth part, 0.4.0
 
