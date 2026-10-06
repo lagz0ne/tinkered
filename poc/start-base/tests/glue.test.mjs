@@ -5,16 +5,6 @@ import { appFiles, ignoredFiles } from "../lib/named.mjs";
 import { baseDir } from "../lib/paths.mjs";
 import { fixture } from "./fixture.mjs";
 
-/**
- * Where an import lands through the Vite aliases, the way Vite replaces it.
- * @param {string} root - From a test; why: the app the aliases point into.
- * @param {string} name - From a test; why: the import to resolve.
- */
-function landing(root, name) {
-  const alias = aliases(root).find(({ find }) => find.test(name));
-  return alias && name.replace(alias.find, alias.replacement);
-}
-
 test("the glue picks up exactly five named files and two seam files", () => {
   expect(appFiles.map(({ file }) => file)).toEqual([
     "src/router.ts",
@@ -28,11 +18,26 @@ test("the glue picks up exactly five named files and two seam files", () => {
 
 test("an alias points at the app's named file, else at the base default, and keeps ?url", () => {
   const root = fixture({ "src/start.ts": "", "src/style.css": "" });
-  expect(landing(root, "#tinker/start")).toBe(join(root, "src/start.ts"));
-  expect(landing(root, "#tinker/server")).toBe(join(baseDir, "src/defaults/server.ts"));
-  expect(landing(root, "#tinker/style?url")).toBe(`${join(root, "src/style.css")}?url`);
-  expect(landing(root, "#tinker/app.server")).toBe(join(baseDir, "src/defaults/app.server.ts"));
-  expect(landing(root, "@/backend/greet.ts")).toBe(join(root, "src/backend/greet.ts"));
+  const table = aliases(root);
+  const imports = [
+    "#tinker/start",
+    "#tinker/server",
+    "#tinker/style?url",
+    "#tinker/app.server",
+    "@/backend/greet.ts",
+  ];
+  expect(
+    imports.map((name) => {
+      const alias = table.find(({ find }) => find.test(name));
+      return name.replace(alias.find, alias.replacement);
+    }),
+  ).toEqual([
+    join(root, "src/start.ts"),
+    join(baseDir, "src/defaults/server.ts"),
+    `${join(root, "src/style.css")}?url`,
+    join(baseDir, "src/defaults/app.server.ts"),
+    join(root, "src/backend/greet.ts"),
+  ]);
 });
 
 test("Start's usual files the glue does not read are listed, and the read ones are not", () => {

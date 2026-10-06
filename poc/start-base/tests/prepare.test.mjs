@@ -5,12 +5,9 @@ import { basePackage } from "../lib/paths.mjs";
 import { prepare, prepareExitCode, render } from "../lib/prepare.mjs";
 import { fixture, goodApp } from "./fixture.mjs";
 
-/** @param {string} root - From a test; why: the app whose rendered paths to read. */
-const pathsOf = (root) => JSON.parse(render(root)["tsconfig.json"]).compilerOptions.paths;
-
 test("every alias in the generated tsconfig is absolute, so shadcn writes inside the app", () => {
   const root = fixture({ "package.json": "{}" });
-  const paths = pathsOf(root);
+  const { paths } = JSON.parse(render(root)["tsconfig.json"]).compilerOptions;
   expect(paths["@/*"]).toEqual([`${root}/src/*`]);
   expect(
     Object.values(paths)
@@ -35,7 +32,7 @@ test("a named file the app has wins; a missing one maps to the base default", ()
     "src/router.ts": "export const router = () => ({});\n",
     "src/lib/tinker.server.ts": "export const extensions = [];\n",
   });
-  const paths = pathsOf(root);
+  const { paths } = JSON.parse(render(root)["tsconfig.json"]).compilerOptions;
   expect(paths["#tinker/router"]).toEqual([join(root, "src/router.ts")]);
   expect(paths["#tinker/app.server"]).toEqual([join(root, "src/lib/tinker.server.ts")]);
   expect(paths["#tinker/start"]).toEqual([

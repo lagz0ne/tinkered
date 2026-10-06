@@ -19,47 +19,36 @@ const refuse = operation({
   run: (_deps, { raise }) => raise("Refused", { why: "test" }),
 });
 
-/** A root scope that the test closes, with its close Result checked. */
-async function openRoot(tags: Parameters<typeof createScope>[0] = {}) {
-  const stop = new AbortController();
-  const root = createScope({ signal: stop.signal, ...tags });
-  await root.ready;
-  const close = async () => {
-    stop.abort();
-    expect((await root.closed).status).toBe("success");
-  };
-  return { root, close };
-}
-
 test("readResult returns a settled value and throws a settled failure as is", async () => {
-  const { root, close } = await openRoot({ tags: [env({ GREETING_NAME: "Ada" })] });
+  const root = createScope({ tags: [env({ GREETING_NAME: "Ada" })] });
   expect(readResult(root.settle(greet))).toBe("Hello, Ada.");
   const failed = root.settle(refuse);
   expect(failed.status).toBe("failed");
   expect(() => readResult(failed)).toThrow(failed.status === "failed" ? failed.error : undefined);
-  await close();
+  expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
 test("readResult turns a cancelled call into the base's Cancelled error", async () => {
-  const { root, close } = await openRoot();
+  const root = createScope();
   const stop = new AbortController();
   stop.abort();
   const cancelled = await root.settle(greet, { signal: stop.signal });
   expect(cancelled.status).toBe("cancelled");
   expect(() => readResult(cancelled)).toThrow(expect.objectContaining({ kind: "Cancelled" }));
-  await close();
+  expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
 test("the base's health operation reports the base version", async () => {
-  const { root, close } = await openRoot();
+  const root = createScope();
   expect(readResult(root.settle(health))).toEqual({ ok: true, base: version });
-  await close();
+  expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
 test("the start extension hands each request its root scope", async () => {
-  const { root, close } = await openRoot({ extensions: [startRequests] });
+  const root = createScope({ extensions: [startRequests] });
+  await root.ready;
   expect(root.resolve(startRequests).scope).toBe(root);
-  await close();
+  expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
 test("a request with no root scope fails before any work runs", async () => {
@@ -81,7 +70,7 @@ test("a request with no root scope fails before any work runs", async () => {
 });
 
 test("a held response body ends the request when read to the end, or when cancelled", async () => {
-  const { root, close } = await openRoot();
+  const root = createScope();
   const ends: boolean[] = [];
   /** Each request ends once, as the start middleware's own finish does. */
   const request = () => {
@@ -98,7 +87,7 @@ test("a held response body ends the request when read to the end, or when cancel
     .hold(new Response(new ReadableStream()), request());
   await open.body?.cancel();
   expect(ends).toEqual([true, false]);
-  await close();
+  expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
 test("with no src/server.ts, the server entry goes straight to the base", async () => {
