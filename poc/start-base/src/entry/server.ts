@@ -1,8 +1,10 @@
 import { createScope } from "@tinker/core";
 import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
 import { extensions } from "#tinker/app.server";
+import app from "#tinker/server";
 import type { getRouter } from "./router.tsx";
 import { responseBodies } from "../backend/body.server.ts";
+import { devErrorPage } from "./dev-error.ts";
 import { backendStop } from "../backend/lifetime.ts";
 import { env } from "../env.ts";
 import { raise } from "../errors.ts";
@@ -48,11 +50,15 @@ async function start() {
 
 const entry: {
   owned?: ReturnType<typeof start>;
-  fetch(request: Request): ReturnType<typeof renderRequest>;
+  fetch(request: Request): Promise<Response>;
 } = {
+  /** src/server.ts runs first; its `next` reaches the base's handler. */
   async fetch(request: Request) {
-    const { requestContext } = await (entry.owned ??= start());
-    return renderRequest(request, { context: requestContext });
+    return app.fetch(request, async (forwarded) => {
+      const { requestContext } = await (entry.owned ??= start());
+      const response = await renderRequest(forwarded, { context: requestContext });
+      return import.meta.env.DEV ? devErrorPage(forwarded, response) : response;
+    });
   },
 };
 export default entry;

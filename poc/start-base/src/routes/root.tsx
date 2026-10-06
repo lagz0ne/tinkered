@@ -1,5 +1,6 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
-/** The default page shell; src/routes/__root.tsx replaces it (a named file, ADR 0106). */
+import style from "#tinker/style?url";
+/** The default page shell; it links src/style.css. src/routes/__root.tsx replaces it (ADR 0106). */
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -7,6 +8,7 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Tinker app" },
     ],
+    links: [{ rel: "stylesheet", href: style }],
   }),
   component: () => <Outlet />,
   shellComponent: ({ children }) => (

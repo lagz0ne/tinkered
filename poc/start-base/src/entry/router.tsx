@@ -1,8 +1,27 @@
 import { createRouter } from "@tanstack/react-router";
+import type { RouterConstructorOptions, RouterHistory } from "@tanstack/react-router";
 import { createScope } from "@tinker/core";
 import { ScopeProvider } from "@tinker/react";
 import { extensions } from "#tinker/app";
+import { router } from "#tinker/router";
 import { routeTree } from "#tinker/routes";
+import { TinkerError, TinkerNotFound } from "./fallbacks.tsx";
+
+/** The app's route tree, base routes included. */
+export type RouteTree = typeof routeTree;
+
+/**
+ * What src/router.ts, a named file (ADR 0106), exports as `router`: the router options the base
+ * does not own. It gets the route tree, for route masks.
+ */
+export type RouterOptions = (
+  routeTree: RouteTree,
+) => Partial<
+  Omit<
+    RouterConstructorOptions<RouteTree, "never", false, RouterHistory, Record<string, unknown>>,
+    "routeTree" | "Wrap" | "context"
+  >
+>;
 
 /** Start calls this once per server render and once per browser tab. */
 export async function getRouter() {
@@ -20,8 +39,11 @@ export async function getRouter() {
   if (import.meta.hot) import.meta.hot.dispose(close);
   return Object.assign(
     createRouter({
-      routeTree,
       scrollRestoration: true,
+      defaultErrorComponent: TinkerError,
+      defaultNotFoundComponent: TinkerNotFound,
+      ...router(routeTree),
+      routeTree,
       Wrap: ({ children }) => <ScopeProvider scope={app}>{children}</ScopeProvider>,
     }),
     { close },

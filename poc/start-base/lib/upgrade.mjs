@@ -1,8 +1,8 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import { baseBytes } from "./doctor.mjs";
-import { installedBase, readJson } from "./paths.mjs";
+import { bytes } from "./checks/bytes.mjs";
+import { installedBase, installedVersion, readJson } from "./paths.mjs";
 
 /** @param {string} root - From upgrade; why: pick the package manager its lockfile names. */
 function installCommand(root) {
@@ -40,6 +40,28 @@ function notesBetween(text, from, to) {
 }
 
 /**
+ * The dependency edit an upgrade makes: the base's new spec, and each tested peer pinned to the
+ * version the new base was tested with. A workspace or catalog spec stays, and so does any
+ * spec (a file: tarball, a range) that already installs the tested version.
+ * @param {Record<string, string>} dependencies - From the app's package.json; why: the specs to edit.
+ * @param {string} spec - From the release; why: the new @tinker/start spec.
+ * @param {Record<string, string>} tested - From the new base; why: the peer versions it was tested with.
+ * @param {(name: string) => string | null} installed - From upgrade; why: the version a spec installs today.
+ */
+export function pinDependencies(dependencies, spec, tested, installed) {
+  const next = { ...dependencies, "@tinker/start": spec };
+  const changes = [["@tinker/start", dependencies["@tinker/start"], spec]];
+  for (const [name, version] of Object.entries(tested)) {
+    const current = dependencies[name];
+    if (!current || /^(workspace|catalog):/.test(current) || current === version) continue;
+    if (installed(name) === version) continue;
+    changes.push([name, current, version]);
+    next[name] = version;
+  }
+  return { dependencies: next, changes };
+}
+
+/**
  * @param {string} root - From upgrade; why: the app whose package.json changes.
  * @param {string} spec - From the release folder or version; why: the new dependency.
  * @param {Record<string, string>} tested - From the new base; why: pin peers it was tested with.
@@ -47,15 +69,10 @@ function notesBetween(text, from, to) {
 function writeDependencies(root, spec, tested) {
   const path = join(root, "package.json");
   const pkg = readJson(path);
-  const changes = [[`@tinker/start`, pkg.dependencies["@tinker/start"], spec]];
-  pkg.dependencies["@tinker/start"] = spec;
-  for (const [name, version] of Object.entries(tested)) {
-    const current = pkg.dependencies[name];
-    if (!current || /^(workspace|catalog):/.test(current) || current === version) continue;
-    changes.push([name, current, version]);
-    pkg.dependencies[name] = version;
-  }
-  writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
+  const { dependencies, changes } = pinDependencies(pkg.dependencies, spec, tested, (name) =>
+    installedVersion(root, name),
+  );
+  writeFileSync(path, JSON.stringify({ ...pkg, dependencies }, null, 2) + "\n");
   return changes;
 }
 
@@ -110,9 +127,11 @@ function finish(root) {
  * @param {{ from?: string, force: boolean }} options - From the CLI; why: release folder, edit override.
  */
 export function upgrade(root, version, options) {
-  const bytes = baseBytes(root);
-  if (bytes.status === "fail" && !options.force) {
-    console.log(`stop: ${bytes.reason}\nRun tinker doctor --fix first, or pass --force.`);
+  const pinned = bytes(root);
+  if (pinned.status === "fail" && !options.force) {
+    console.log(
+      `stop: ${pinned.lines.join("; ")}\nRun tinker doctor --fix first, or pass --force.`,
+    );
     return 1;
   }
   const next = release(root, version, options.from);

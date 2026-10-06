@@ -1,6 +1,6 @@
 {
   "name": "@tinker/start",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "POC for ADR 0106: the Start base as a package.",
   "bin": {
@@ -26,7 +26,8 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "release": "node scripts/pack.mjs"
+    "release": "node scripts/pack.mjs",
+    "test": "vp test"
   },
   "dependencies": {
     "@hono/node-server": "1.19.17",
@@ -43,7 +44,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "@tanstack/react-router": "1.170.41",
@@ -60,9 +64,9 @@
       "@tinker/core": "0.0.0",
       "@tinker/react": "0.0.0"
     },
-    "routes": [
-      "/api/health",
-      "/tinker"
-    ]
+    "routes": {
+      "/api/health": "src/routes/api.health.ts",
+      "/tinker": "src/routes/tinker.tsx"
+    }
   }
 }

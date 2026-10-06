@@ -1,0 +1,92 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { expect, test } from "vite-plus/test";
+import { glue } from "../../lib/checks/glue.mjs";
+import { runCheck } from "../../lib/doctor.mjs";
+import { fixture, goodApp } from "../fixture.mjs";
+
+const glued = 'import { tinker } from "@tinker/start/vite";\n';
+
+test("passes on one tinker() call, the extends line, and the postinstall script", () => {
+  expect(glue(goodApp())).toEqual({
+    status: "ok",
+    lines: [
+      "vite.config.ts calls tinker() once; tsconfig.json extends .tinker; postinstall runs tinker prepare",
+    ],
+  });
+});
+
+test("reads vite.config.ts as code: a comment or single quotes do not count", () => {
+  const root = goodApp({
+    "vite.config.ts":
+      "import { tinker } from '@tinker/start/vite';\n// tinker() below\nexport default { plugins: [tinker()] };\n",
+  });
+  expect(glue(root).status).toBe("ok");
+});
+
+test("fails with no vite.config.ts", () => {
+  const root = fixture({
+    "tsconfig.json": JSON.stringify({ extends: "./.tinker/tsconfig.json" }),
+    "package.json": JSON.stringify({ scripts: { postinstall: "tinker prepare" } }),
+  });
+  expect(glue(root).lines).toEqual(["vite.config.ts is missing; add one with plugins: [tinker()]"]);
+});
+
+test("names a missing import and a missing call", () => {
+  const root = goodApp({ "vite.config.ts": "export default { plugins: [] };\n" });
+  expect(glue(root).lines).toEqual([
+    'vite.config.ts:1 does not import tinker from "@tinker/start/vite"',
+    "vite.config.ts:1 calls tinker() 0 times; call it once: plugins: [tinker()]",
+  ]);
+});
+
+test("names a second tinker(), a tanstackStart(), and a Tailwind plugin, each at its line", () => {
+  const root = goodApp({
+    "vite.config.ts": `${glued}import tailwindcss from "@tailwindcss/vite";\nexport default {\n  plugins: [tinker(), tinker(), tanstackStart(), tailwindcss()],\n};\n`,
+  });
+  expect(glue(root).lines).toEqual([
+    "vite.config.ts:4 calls tinker() 2 times; call it once: plugins: [tinker()]",
+    "vite.config.ts:4 adds tanstackStart(); tinker() adds it already",
+    "vite.config.ts:2 imports @tailwindcss/vite; tinker() adds Tailwind already",
+  ]);
+});
+
+test("names a tsconfig that does not extend .tinker, or overrides paths or strict", () => {
+  const root = goodApp({
+    "tsconfig.json":
+      '{\n  "compilerOptions": {\n    "strict": false,\n    "paths": { "x": ["y"] }\n  }\n}\n',
+  });
+  expect(glue(root).lines).toEqual([
+    'tsconfig.json:1 does not extend "./.tinker/tsconfig.json"',
+    "tsconfig.json:4 sets compilerOptions.paths; it replaces the base's #tinker/* and @/* paths, so remove it",
+    "tsconfig.json:3 turns strict off; the base's files need strict",
+  ]);
+});
+
+test("names a package.json with no postinstall that runs tinker prepare", () => {
+  const root = goodApp({ "package.json": JSON.stringify({ scripts: { build: "vp build" } }) });
+  expect(glue(root).lines).toEqual([
+    'package.json:1 has no "postinstall": "tinker prepare"; a fresh clone has no .tinker/',
+  ]);
+});
+
+test("--fix writes the extends line and the postinstall script, and keeps the rest", () => {
+  const root = goodApp({
+    "tsconfig.json": JSON.stringify({ compilerOptions: { jsx: "react-jsx" } }),
+    "package.json": JSON.stringify({ scripts: { build: "vp build" } }),
+  });
+  expect(runCheck(root, glue, true).status).toBe("fixed");
+  expect(JSON.parse(readFileSync(join(root, "tsconfig.json"), "utf8"))).toEqual({
+    compilerOptions: { jsx: "react-jsx" },
+    extends: "./.tinker/tsconfig.json",
+  });
+  expect(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts).toEqual({
+    build: "vp build",
+    postinstall: "tinker prepare",
+  });
+});
+
+test("--fix never edits vite.config.ts", () => {
+  const root = goodApp({ "vite.config.ts": "export default {};\n" });
+  expect(glue(root).fix).toBeUndefined();
+});

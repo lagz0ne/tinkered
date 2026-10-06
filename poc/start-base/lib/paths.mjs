@@ -12,6 +12,20 @@ export function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
+/** @param {string} path - From a check; why: a missing file reads as empty text. */
+export function readText(path) {
+  return existsSync(path) ? readFileSync(path, "utf8") : "";
+}
+
+/**
+ * The 1-based line of a character offset, so a message can name file:line.
+ * @param {string} text - From a read file; why: count the newlines before the offset.
+ * @param {number} offset - From a parser or indexOf; why: a miss (-1) reads as line 1.
+ */
+export function lineAt(text, offset) {
+  return offset < 0 ? 1 : text.slice(0, offset).split("\n").length;
+}
+
 /** This base's own package.json. */
 export const basePackage = readJson(join(baseDir, "package.json"));
 
@@ -21,13 +35,25 @@ export function sha256(path) {
 }
 
 /**
- * The seam file the base reads, or the base's empty default (ADR 0106).
- * @param {string} root - From the app folder; why: look for the seam file there.
- * @param {"tinker.ts" | "tinker.server.ts"} name - From the alias; why: pick client or server.
+ * Where a package sits in the app's node_modules, walking up like Node; the link, not its target.
+ * @param {string} root - From the app folder; why: start the walk up there.
+ * @param {string} name - From a caller; why: the package to find.
  */
-export function seam(root, name) {
-  const own = join(root, "src/lib", name);
-  return existsSync(own) ? own : join(baseDir, "src/defaults", name.replace("tinker", "app"));
+export function findPackage(root, name) {
+  for (let dir = root; dir !== dirname(dir); dir = dirname(dir)) {
+    const path = join(dir, "node_modules", name);
+    if (existsSync(join(path, "package.json"))) return path;
+  }
+  return null;
+}
+
+/**
+ * @param {string} root - From the app folder; why: start the walk up there.
+ * @param {string} name - From a peer list; why: read its installed version.
+ */
+export function installedVersion(root, name) {
+  const path = findPackage(root, name);
+  return path && readJson(join(path, "package.json")).version;
 }
 
 /** @param {string} root - From the app folder; why: find the base the app resolves. */
@@ -38,18 +64,6 @@ export function installedBase(root) {
   } catch {
     return null;
   }
-}
-
-/**
- * @param {string} root - From the app folder; why: start the walk up there.
- * @param {string} name - From a peer list; why: read its installed version.
- */
-export function installedVersion(root, name) {
-  for (let dir = root; dir !== dirname(dir); dir = dirname(dir)) {
-    const path = join(dir, "node_modules", name, "package.json");
-    if (existsSync(path)) return readJson(path).version;
-  }
-  return null;
 }
 
 /**

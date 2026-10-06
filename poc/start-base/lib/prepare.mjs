@@ -1,6 +1,9 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
-import { basePackage } from "./paths.mjs";
+import { pathToFileURL } from "node:url";
+import { appFiles, pick } from "./named.mjs";
+import { baseDir, basePackage, findPackage } from "./paths.mjs";
 
 const compilerOptions = {
   target: "esnext",
@@ -20,15 +23,6 @@ const compilerOptions = {
   resolveJsonModule: true,
 };
 
-/**
- * @param {string} root - From the app folder; why: a missing seam file maps to the base default.
- * @param {string} file - From the alias list; why: the app's own seam file name.
- */
-function seamPath(root, file) {
-  if (existsSync(join(root, "src/lib", file))) return `../src/lib/${file}`;
-  return `../node_modules/@tinker/start/src/defaults/${file.replace("tinker", "app")}`;
-}
-
 /** @param {unknown} value - From render; why: one JSON style for every generated file. */
 function json(value) {
   return JSON.stringify(value, null, 2) + "\n";
@@ -36,14 +30,16 @@ function json(value) {
 
 /**
  * What `.tinker/` must hold for this app and this base version.
- * @param {string} root - From the app folder; why: seam paths depend on its files.
+ * Every path is absolute: shadcn reads `paths` with tsconfig-paths, which resolves an extended
+ * file's paths from the app folder, so a relative "../src/*" sent its writes one folder up.
+ * @param {string} root - From the app folder; why: aliases point at its files.
  */
 export function render(root) {
+  const base = findPackage(root, "@tinker/start") ?? baseDir;
   const paths = {
-    "@/*": ["../src/*"],
-    "#tinker/app": [seamPath(root, "tinker.ts")],
-    "#tinker/app.server": [seamPath(root, "tinker.server.ts")],
-    "#tinker/routes": ["./routeTree.gen.ts"],
+    "@/*": [`${join(root, "src")}/*`],
+    ...Object.fromEntries(appFiles.map((entry) => [entry.alias, [pick(root, base, entry)]])),
+    "#tinker/routes": [join(root, ".tinker/routeTree.gen.ts")],
   };
   return {
     "tsconfig.json": json({
@@ -62,4 +58,16 @@ export function prepare(root) {
   const files = render(root);
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
   return Object.keys(files);
+}
+
+/**
+ * Write `.tinker/routeTree.gen.ts` with no dev server and no build: resolving the app's own
+ * Vite config runs Start's route generator once, so a fresh clone type-checks.
+ * @param {string} root - From the CLI; why: load that app's vite.config.ts with its own Vite.
+ */
+export async function writeRouteTree(root) {
+  const require = createRequire(join(root, "package.json"));
+  const vite = await import(pathToFileURL(require.resolve("vite")).href);
+  await vite.resolveConfig({ root, logLevel: "silent" }, "serve");
+  return "routeTree.gen.ts";
 }
