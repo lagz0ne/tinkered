@@ -38,14 +38,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/extension-slot** — one extension can include another, or a unit can take a slot.
-  Asked by: `trial/flight-services` and `trial/services-routing` (second caller).
-  Owner: lead (Claude, Start scaffold session); Opus designer. Worktree: `../tinkered-extension-slot`.
-  Next: precedent, proposed ADR, and open questions for the user; code after the user decides.
-  Verify: the trial services drop the hand call `httpRequests.hooks!.start!`;
-  Core tests, `scripts/ticket.sh`, `pnpm validate` pass.
-  [Feedback](docs/roadmap/core-feedback.md#shared-unit-with-a-slot-2026-10-03).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -77,6 +69,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/extension-slot** — the trial shares its HTTP stack as a session resource; Core unchanged (ADR 0105).
+  Owner: lead (Claude, Start scaffold session); Opus designer, Sol writer, Opus review (one fix round).
+  Asked by: `trial/flight-services` and `trial/services-routing`.
+  The hand call `httpRequests.hooks!.start!` is gone; repeated resolves in one service session register once.
+  Wire differences zero over 2,160 calls; 148 trial tests; mutation 88.71 (86.90 from kills alone).
+  Held: an extension that includes another, if a shared piece needs a hook other than `start`.
 
 - **core/size-build** — a build step renames 48 private fields: Core 15,683 → 15,367 B gzip (−316 B).
   Owner: lead (Claude, Start scaffold session); Opus writer, Opus review (one fix round).
