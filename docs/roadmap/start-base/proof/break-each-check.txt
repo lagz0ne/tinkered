@@ -3,16 +3,16 @@ caught    7 failed  check version always passes
 caught    9 failed  check bytes always passes
 caught   16 failed  check generated always passes
 caught   32 failed  check glue always passes
-caught    6 failed  check named always passes
+caught    9 failed  check named always passes
 caught    3 failed  check imports always passes
-caught   15 failed  check routes always passes
+caught   17 failed  check routes always passes
 caught   16 failed  check style always passes
-caught    6 failed  check env always passes
+caught    9 failed  check env always passes
 caught    4 failed  check boundary always passes
 caught    1 failed  bytes --fix restores nothing
 caught    3 failed  generated --fix adds no ignore line
 caught   11 failed  glue --fix writes no extends
-caught    3 failed  build start stops nothing
+caught    4 failed  build start stops nothing
 caught    1 failed  build start warns about nothing
 caught    4 failed  a fix that fails reads as fixed
 caught    1 failed  aliases drop ?url
@@ -22,7 +22,7 @@ caught    2 failed  a named file is never picked
 caught    3 failed  src/router.tsx is not listed
 caught    7 failed  tsconfig @/* goes back to ../src/*
 caught    3 failed  route groups count as a segment
-caught    5 failed  nesting under a base route is missed
+caught    6 failed  nesting under a base route is missed
 caught    1 failed  a - folder counts as a route
 caught    2 failed  tsc errors read as none
 caught    1 failed  a second tinker() only warns
@@ -75,26 +75,37 @@ caught    2 failed  readResult hides a failure
 caught    1 failed  the dev error page never shows
 caught    1 failed  the default server entry skips the base
 caught    3 failed  a read body ends the request as cancelled
-caught    1 failed  an off part's route still mounts
+caught    2 failed  an off part's route still mounts
 caught    1 failed  the parts files have no alias
-caught    2 failed  a part switch is ignored
-caught    1 failed  a part switch that is not a boolean passes
-caught    4 failed  the recorded parts are ignored
+caught    3 failed  a part switch is ignored
+caught    2 failed  a part switch that is not a boolean passes
+caught   10 failed  the recorded parts are ignored
 caught    1 failed  a recorded part this base lacks is kept
 caught    2 failed  a parts file always imports the on module
 caught    2 failed  base.json records no parts
-caught    2 failed  check 7 ignores the on parts' routes
-caught    1 failed  check 7 names no part switch
-caught    2 failed  check 9 checks no part key
-caught    2 failed  check 9 blames .env for a shell value
-caught    2 failed  check 9 lets .env beat the shell
+caught    3 failed  check 7 ignores the on parts' routes
+caught    2 failed  check 7 names no part switch
+caught    3 failed  check 9 checks no part key
+caught    6 failed  check 9 blames .env for a shell value
+caught    6 failed  check 9 lets .env beat the shell
 caught    1 failed  an empty part key reads as set
-caught    4 failed  a part rule accepts any value
-caught    3 failed  an ftp URL passes as http
+caught    7 failed  a part rule accepts any value
+caught    4 failed  an ftp URL passes as http
 caught    1 failed  the telemetry part starts with a refused key
 caught    1 failed  a tab gets the storage URLs
 caught    1 failed  a tab's batch keeps the tab's service
-caught    3 failed  the ingest route takes any origin
+caught    4 failed  the ingest route takes any origin
+caught    3 failed  the parts' seam names are not checked
+caught    1 failed  a missing seam file reads as a missing name
+caught    2 failed  a route under a base splat is free
+caught    1 failed  an unset part key is not named
+caught    1 failed  an unset part key that .env.example lists is named twice
+caught    1 failed  listed keys come in parseEnv's sorted order
+caught    4 failed  a short secret passes
+caught    1 failed  a parts file exports every part, read or not
+caught    2 failed  the auth part takes a refused key
+caught    1 failed  the app root starts without reading the auth keys
+caught    1 failed  handleAuth hands the library another request
 caught    1 failed  the telemetry queue has no count bound
 caught    1 failed  message boundary.mjs say.none
 caught    1 failed  message boundary.mjs say.found
@@ -106,11 +117,12 @@ caught    2 failed  message bytes.mjs say.edited
 caught    1 failed  message bytes.mjs say.passed
 caught    1 failed  message bytes.mjs say.reinstall
 caught    1 failed  message bytes.mjs say.restored
-caught    2 failed  message env.mjs say.none
-caught    1 failed  message env.mjs say.missing
-caught    3 failed  message env.mjs say.refused
+caught    3 failed  message env.mjs say.none
+caught    2 failed  message env.mjs say.missing
+caught    7 failed  message env.mjs say.refused
+caught    1 failed  message env.mjs say.unset
 caught    1 failed  message env.mjs say.passed
-caught    2 failed  message env.mjs say.parts
+caught    3 failed  message env.mjs say.parts
 caught    1 failed  message generated.mjs say.otherBase
 caught    1 failed  message generated.mjs say.missing
 caught    1 failed  message generated.mjs say.stale
@@ -146,14 +158,16 @@ caught    1 failed  message imports.mjs say.serverEntry
 caught    1 failed  message imports.mjs say.passed
 caught    2 failed  message named.mjs say.export
 caught    2 failed  message named.mjs say.ignored
+caught    1 failed  message named.mjs say.noSeam
+caught    2 failed  message named.mjs say.partExport
 caught    1 failed  message named.mjs say.passed
 caught    1 failed  message routes.mjs say.missing
 caught    2 failed  message routes.mjs say.export
 caught    3 failed  message routes.mjs say.outlet
 caught    2 failed  message routes.mjs say.clash
-caught    1 failed  message routes.mjs say.partClash
+caught    2 failed  message routes.mjs say.partClash
 caught    2 failed  message routes.mjs say.id
-caught    3 failed  message routes.mjs say.passed
+caught    4 failed  message routes.mjs say.passed
 caught    2 failed  message style.mjs say.shell
 caught    2 failed  message style.mjs say.unlinked
 caught    1 failed  message style.mjs say.needs
@@ -172,4 +186,4 @@ caught    2 failed  message version.mjs say.passed
 caught    1 failed  message typecheck.mjs say.noTypescript
 caught    1 failed  message typecheck.mjs say.failed
 
-172 of 172 breaks caught (97 logic, 75 message)
+186 of 186 breaks caught (108 logic, 78 message)
