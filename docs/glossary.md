@@ -437,3 +437,24 @@ New sections are lists, one term per item (vertical layout,
 - **mounted auth handler** — The scaffold's `handleAuth` operation that calls better-auth's Request/Response API.
   Only the auth route and proof tests use this named protocol exception (ADR 0103).
 - **entry point** — The one file that creates a root scope and owns its stop signal and exit (ADR 0100).
+
+## Start base (ADR 0106, proposed)
+
+- **base** — The fixed Start setup: entries, the Start bridge, HTTP, telemetry, sync, and the auth mount.
+  It ships as the package `@tinker/start` and is never edited in an app.
+  Code names still avoid the layer word `Base`.
+- **userland** — The app's own files: `src/`, `tests/`, `drizzle/`, and its config.
+  The base never writes them.
+- **glue** — The two config lines that join an app to the base:
+  `tinker()` in `vite.config.ts` and `extends` in `tsconfig.json`.
+- **generated folder** — `.tinker/`: files that `tinker prepare` writes from the base and the plugin options.
+  It is gitignored and never edited.
+- **base part** — An opt-in slice of the base, set in `tinker({ ... })`: `telemetry`, `auth`, or `sync`.
+- **seam file** — `src/lib/tinker.ts` or `src/lib/tinker.server.ts`.
+  The only app files the base reads, through `#tinker/app` and `#tinker/app.server`.
+- **named file** — An app file the base looks for by path, in place of its default.
+  The list is `src/routes/__root.tsx` and `src/style.css`; no other base file can be replaced.
+- **doctor** — `tinker doctor`: one line per check of the base, glue, seams, rules, and env.
+  `--fix` repairs only base-owned and generated files.
+- **upgrade** — `tinker upgrade <version>`: swap the base package, rewrite `.tinker/`, run doctor.
+  It never merges and never writes `src/`.
