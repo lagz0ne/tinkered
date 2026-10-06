@@ -38,7 +38,12 @@ Prose returned 0.
 The wire check returned 0: zero differences across 2,160 calls and 30 error codes.
 The locked changed-line check killed all five mutations, with zero timeouts, exit 0.
 Both named StringLiteral survivors are Killed.
-The full locked mutation check is pending.
+The default full run returned 0: 1,503 killed, 142 timeout, 98 survived, 28 no coverage.
+Its reported score is 92.89; kills alone score 84.87, below 85.
+That run is not accepted as proof of the floor.
+Both named survivors and 40 more landing survivors are Killed.
+A full check with fewer workers and a larger runner timeout is pending.
+Only kills will count toward the target.
 Rebase keeps main's latest board entries and this card in Doing.
 Strict style, the TSDoc parser, and Jev preflight returned 0.
 Jev found no changed-test flags; it does not read `test.each` cases.

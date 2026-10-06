@@ -24,6 +24,20 @@
       "no_coverage": 28,
       "mutants": 1771,
       "score_with_timeouts_counted_as_survivors": 83.17
+    },
+    {
+      "run": "writer default workers",
+      "command": "flock /tmp/mutation.lock vp run flight-trial#mutate",
+      "exit_code": 0,
+      "score": 92.89,
+      "killed": 1503,
+      "timeout": 142,
+      "survived": 98,
+      "no_coverage": 28,
+      "mutants": 1771,
+      "score_with_timeouts_counted_as_survivors": 84.87,
+      "accepted": false,
+      "reason": "kills alone are below the floor of 85"
     }
   ],
   "gates": [
@@ -55,7 +69,7 @@
       "differences": 0
     }
   ],
-  "pending": ["full mutation check"],
+  "pending": ["full mutation check with fewer workers"],
   "advisory": {
     "style_exit_code": 0,
     "tsdoc_exit_code": 0,
