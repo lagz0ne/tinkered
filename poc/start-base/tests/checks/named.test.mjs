@@ -18,7 +18,7 @@ test("passes when each named and seam file exports what the base reads", () => {
     "src/lib/tinker.server.ts": "export function extensions() {}\n",
   });
   expect(named(root).lines).toEqual([
-    "src/router.ts, src/start.ts, src/server.ts, src/lib/tinker.ts, src/lib/tinker.server.ts export what the base reads; no Start file is ignored",
+    "each named or seam file exports what the base reads (src/router.ts, src/start.ts, src/server.ts, src/lib/tinker.ts, src/lib/tinker.server.ts); no Start file is ignored",
   ]);
 });
 

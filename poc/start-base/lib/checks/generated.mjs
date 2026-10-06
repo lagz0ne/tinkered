@@ -3,7 +3,8 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { prepare, render } from "../prepare.mjs";
 import { baseDir, basePackage, installedBase, lineAt, listFiles, readJson } from "../paths.mjs";
-import { isRouteFile } from "../route-path.mjs";
+import { isRouteFile, routeClash } from "../route-path.mjs";
+import { ownedPaths, routes } from "./routes.mjs";
 import { exportsOf, parseSource } from "../source.mjs";
 import { fail, verdict } from "./result.mjs";
 
@@ -17,6 +18,7 @@ export const say = {
     `.tinker/routeTree.gen.ts:${line} imports ${path}, which does not exist; run tinker prepare`,
   misses: (file) => `.tinker/routeTree.gen.ts misses ${file}; run tinker prepare`,
   ignore: (entry) => `.gitignore does not list ${entry}`,
+  generator: "tinker prepare: the route generator left the tree stale; fix the lines below:",
   passed: ".tinker/ matches this base and src/routes; .gitignore lists .tinker/ and .tanstack/",
   fixed: (added) =>
     `ran tinker prepare${added.length > 0 ? `; added ${added.join(" ")} to .gitignore` : ""}`,
@@ -45,19 +47,39 @@ function treeImports(tree) {
   });
 }
 
-/** @param {string} root - From the generated check; why: its route files must all be in the tree. */
-function routeTreeProblems(root) {
+/**
+ * What the route tree lacks: a route file that exports `Route` but is not in it, or an import
+ * of a file that is gone. A file that clashes with a base route is left out when `clashes` is
+ * false: the generator stops on it, so check 7 names it instead of "run tinker prepare".
+ * @param {string} root - From the generated check or tinker prepare; why: the app to compare.
+ * @param {boolean} clashes - From the caller; why: tinker prepare wants every gap.
+ */
+export function routeTreeProblems(root, clashes = false) {
   const tree = join(root, ".tinker/routeTree.gen.ts");
   if (!existsSync(tree)) return [say.noTree];
   const imports = treeImports(tree);
   const gone = imports.filter(({ file }) => !file).map(({ line, path }) => say.gone(line, path));
   const listed = new Set(imports.map(({ base }) => base));
   const routes = join(root, "src/routes");
+  const owned = ownedPaths(root);
   const misses = listFiles(routes)
     .filter((file) => isRouteFile(file) && exportsOf(parseSource(join(routes, file))).has("Route"))
+    .filter((file) => clashes || !routeClash(file, owned))
     .filter((file) => !listed.has(join(routes, file.replace(/\.[jt]sx?$/, ""))))
     .map((file) => say.misses(`src/routes/${file}`));
   return [...gone, ...misses];
+}
+
+/**
+ * After `tinker prepare` ran the generator: what still keeps the route tree stale, with check 7's
+ * lines for why. The generator logs a route clash and stops without failing, so prepare checks.
+ * @param {string} root - From tinker prepare; why: the app whose tree was just written.
+ */
+export function staleTree(root) {
+  const gaps = routeTreeProblems(root, true);
+  if (gaps.length === 0) return [];
+  const checked = routes(root);
+  return [say.generator, ...gaps, ...(checked.status === "fail" ? checked.lines : [])];
 }
 
 /** @param {string} root - From the generated check; why: the folders its .gitignore lacks. */

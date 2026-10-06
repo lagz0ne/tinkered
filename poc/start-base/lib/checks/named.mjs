@@ -9,7 +9,7 @@ export const say = {
   ignored: (file, hint) => `${file}:1 is a Start file the base does not read; ${hint}`,
   passed: (found) =>
     found.length > 0
-      ? `${found.join(", ")} export what the base reads; no Start file is ignored`
+      ? `each named or seam file exports what the base reads (${found.join(", ")}); no Start file is ignored`
       : "no named or seam files; the base defaults are in use",
 };
 

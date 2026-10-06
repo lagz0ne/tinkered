@@ -80,7 +80,7 @@ test("names a shadcn alias that lands outside src/, as a relative path did", () 
   ]);
 });
 
-test("names a shadcn alias with no path, a CSS file the base does not link, and a missing stylesheet", () => {
+test("names a shadcn alias with no path, and a CSS file the base does not link", () => {
   const root = goodApp({
     ...tailwindInstalled,
     "components.json": shadcn({ tailwind: { css: "src/app.css" }, aliases: { ui: "~/ui" } }),
@@ -89,14 +89,28 @@ test("names a shadcn alias with no path, a CSS file the base does not link, and 
   expect(style(root).lines).toEqual([
     'components.json:6 aliases.ui "~/ui" matches no tsconfig path',
     'components.json:3 tailwind.css is "src/app.css"; the base links src/style.css',
-    'src/style.css is missing; components.json needs it, with @import "tailwindcss"',
   ]);
 });
 
-test("names a shadcn stylesheet without Tailwind", () => {
-  const root = goodApp({ "components.json": shadcn({}), "src/style.css": "body {}\n" });
+test("a components.json with no UI file yet needs no stylesheet", () => {
+  const root = goodApp({ "components.json": shadcn({}) });
   prepare(root);
-  expect(style(root).lines).toEqual([
-    'src/style.css:1 does not @import "tailwindcss"; shadcn needs Tailwind',
+  expect(style(root)).toEqual({
+    status: "ok",
+    lines: ["no src/style.css; every stylesheet is linked"],
+  });
+});
+
+test("names a missing or Tailwind-less stylesheet once shadcn has a UI file", () => {
+  const button = { "src/components/ui/button.tsx": "export const Button = 1;\n" };
+  const missing = goodApp({ "components.json": shadcn({}), ...button });
+  prepare(missing);
+  expect(style(missing).lines).toEqual([
+    'src/style.css is missing; shadcn\'s files in src/components/ui need it, with @import "tailwindcss"',
+  ]);
+  const plain = goodApp({ "components.json": shadcn({}), "src/style.css": "body {}\n", ...button });
+  prepare(plain);
+  expect(style(plain).lines).toEqual([
+    'src/style.css:1 does not @import "tailwindcss"; shadcn\'s files in src/components/ui need Tailwind',
   ]);
 });

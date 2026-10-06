@@ -21,8 +21,8 @@ export const say = {
   passed: (owned) => `route files export Route; none takes a base path (${owned.join(", ")})`,
 };
 
-/** @param {string} root - From the routes check; why: read the paths the app's base mounts. */
-function ownedPaths(root) {
+/** @param {string} root - From a check; why: read the paths the app's base mounts. */
+export function ownedPaths(root) {
   const base = installedBase(root);
   return base ? Object.keys(readJson(join(base, "package.json")).tinker.routes) : [];
 }

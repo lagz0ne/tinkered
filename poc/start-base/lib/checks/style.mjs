@@ -17,9 +17,14 @@ export const say = {
     `components.json:${line} aliases.${name} "${alias}" matches no tsconfig path`,
   css: (line, css) =>
     `components.json:${line} tailwind.css is "${css}"; the base links src/style.css`,
-  noStyle: 'src/style.css is missing; components.json needs it, with @import "tailwindcss"',
-  noTailwind: 'src/style.css:1 does not @import "tailwindcss"; shadcn needs Tailwind',
-  passed: "src/style.css is linked by the shell; every stylesheet is linked",
+  noStyle: (ui) =>
+    `src/style.css is missing; shadcn's files in ${ui} need it, with @import "tailwindcss"`,
+  noTailwind: (ui) =>
+    `src/style.css:1 does not @import "tailwindcss"; shadcn's files in ${ui} need Tailwind`,
+  passed: (styled) =>
+    styled
+      ? "src/style.css is linked by the shell; every stylesheet is linked"
+      : "no src/style.css; every stylesheet is linked",
 };
 
 /** @param {string} root - From the style check; why: the paths shadcn reads, as tsconfig-paths merges them. */
@@ -63,13 +68,25 @@ function componentsProblems(root) {
     const inside = target === src || target.startsWith(src + sep);
     return inside ? null : say.aliasOut(lineOf(name), name, alias, relative(root, target));
   });
-  const style = readText(join(root, "src/style.css"));
   return [
     ...aliasLines,
     tailwind.css !== "src/style.css" && say.css(lineOf("css"), tailwind.css),
-    !style && say.noStyle,
-    style && !/@import\s+["']tailwindcss["']/.test(style) && say.noTailwind,
+    ...uiProblems(root, aliases.ui && aliasTarget(root, paths, aliases.ui)),
   ];
+}
+
+/**
+ * shadcn's UI files need Tailwind from src/style.css; a components.json with no UI file yet
+ * (an app template writes it up front) needs nothing.
+ * @param {string} root - From componentsProblems; why: the stylesheet lives there.
+ * @param {string | null | undefined} ui - From components.json; why: the folder shadcn adds UI files to.
+ */
+function uiProblems(root, ui) {
+  if (!ui || listFiles(ui).length === 0) return [];
+  const style = readText(join(root, "src/style.css"));
+  const where = relative(root, ui);
+  if (!style) return [say.noStyle(where)];
+  return /@import\s+["']tailwindcss["']/.test(style) ? [] : [say.noTailwind(where)];
 }
 
 /** @param {string} root - From the style check; why: Tailwind needs both packages in the app. */
@@ -134,5 +151,5 @@ export function style(root) {
     ...tailwindProblems(root),
     ...componentsProblems(root),
   ];
-  return verdict(problems.filter(Boolean), say.passed);
+  return verdict(problems.filter(Boolean), say.passed(styled));
 }

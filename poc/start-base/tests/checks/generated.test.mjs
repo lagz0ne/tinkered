@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { generated } from "../../lib/checks/generated.mjs";
+import { generated, staleTree } from "../../lib/checks/generated.mjs";
 import { runCheck } from "../../lib/doctor.mjs";
 import { basePackage } from "../../lib/paths.mjs";
 import { prepare, render } from "../../lib/prepare.mjs";
@@ -46,6 +46,25 @@ test("names a route file the tree misses, but not a file that exports no Route",
   expect(generated(root).lines).toEqual([
     ".tinker/routeTree.gen.ts misses src/routes/later.tsx; run tinker prepare",
   ]);
+});
+
+test("leaves a route that clashes with the base to check 7, not to tinker prepare", () => {
+  const root = preparedApp({
+    "src/routes/tinker.tsx": 'export const Route = createFileRoute("/tinker")({});\n',
+  });
+  expect(generated(root).status).toBe("ok");
+});
+
+test("after the generator stops on a clash, tinker prepare names the gap and the clash", () => {
+  const root = preparedApp({
+    "src/routes/tinker.tsx": 'export const Route = createFileRoute("/tinker")({});\n',
+  });
+  expect(staleTree(root)).toEqual([
+    "tinker prepare: the route generator left the tree stale; fix the lines below:",
+    ".tinker/routeTree.gen.ts misses src/routes/tinker.tsx; run tinker prepare",
+    "src/routes/tinker.tsx:1 takes /tinker, a base route",
+  ]);
+  expect(staleTree(preparedApp())).toEqual([]);
 });
 
 test("names a tree import that points at a base folder that moved", () => {
