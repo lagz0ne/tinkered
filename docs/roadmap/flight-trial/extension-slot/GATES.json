@@ -1,26 +1,31 @@
 {
   "card": "core/extension-slot",
-  "source_commit": "b756b5d98a04570a64617c295c503999f9f9c63a",
+  "base_commit": "f02930bfe46fec01cf206670e882bd6aeb136b0f",
   "core_unchanged": true,
   "reference_unchanged": true,
-  "regression": {
-    "command": "vp test tests/requests.test.ts",
-    "cwd": "tools/flight-trial",
-    "red_exit_code": 1,
-    "red_tests_failed": 4,
-    "green_exit_code": 0,
-    "green_tests_passed": 2,
-    "red_double_hand_call": {
-      "tests_failed": 2,
-      "log_rows": 3,
-      "expected_log_rows": 1
-    },
-    "red_install_beside_app": {
-      "tests_failed": 2,
-      "error": "MissingTag"
-    },
-    "red_note": "red run used a copy of this test written against main's services (hand call), in a scratch tree"
+  "services_unchanged": true,
+  "discarded_retry": {
+    "reason": "load caused 152 timeouts; not accepted as a stable pass",
+    "killed": 1467,
+    "timeout": 152,
+    "survived": 124,
+    "no_coverage": 28,
+    "mutants": 1771
   },
+  "mutation_runs": [
+    {
+      "run": "landing",
+      "reported_exit_code": 1,
+      "floor": 85,
+      "score": 84.98,
+      "killed": 1473,
+      "timeout": 32,
+      "survived": 238,
+      "no_coverage": 28,
+      "mutants": 1771,
+      "score_with_timeouts_counted_as_survivors": 83.17
+    }
+  ],
   "gates": [
     {
       "command": "vp run -r build",
@@ -32,19 +37,14 @@
       "warnings": 28
     },
     {
-      "command": "vp run -r test",
+      "command": "vp run flight-trial#test",
       "exit_code": 0,
-      "workspace_test_tasks": 9
+      "tests_passed": 148,
+      "test_files": 12
     },
     {
       "command": "vp run prose",
       "exit_code": 0
-    },
-    {
-      "command": "vp run flight-trial#test",
-      "exit_code": 0,
-      "test_files": 11,
-      "tests_passed": 123
     },
     {
       "command": "node tools/flight-trial/scripts/check-wire.mjs",
@@ -53,95 +53,17 @@
       "calls": 2160,
       "error_codes": 30,
       "differences": 0
-    },
-    {
-      "command": "flock /tmp/mutation.lock vp run flight-trial#mutate",
-      "exit_code": 0,
-      "floor": 85,
-      "score": 91.42,
-      "covered_score": 92.89,
-      "killed": 1467,
-      "timeout": 152,
-      "survived": 124,
-      "no_coverage": 28,
-      "mutants": 1771
     }
   ],
-  "mutation_retry": {
-    "first_exit_code": 1,
-    "first_score": 84.98,
-    "added_test": "both services return a Duffel error for a missing control route",
-    "red_exit_code": 1,
-    "green_exit_code": 0,
-    "mutant": {
-      "file": "services/http.ts",
-      "id": "66",
-      "line": 41,
-      "replacement": "false",
-      "before": "Survived",
-      "after": "Killed"
-    }
-  },
+  "pending": ["changed-line kill check", "full mutation check"],
   "advisory": {
     "style_exit_code": 0,
     "tsdoc_exit_code": 0,
     "preflight_exit_code": 0,
-    "file_flags": 0,
     "test_review_exit_code": 0,
     "test_flags": 0,
     "promises_exit_code": 0,
-    "unchanged_promise_gaps": 12,
-    "labels_added": 0
-  },
-  "final_rebase": {
-    "command": "git fetch origin && git rebase origin/main",
-    "exit_code": 0,
-    "origin_main": "08ddc349efea1c84bd3852f9da3a0c10f82a818d",
-    "source_unchanged": true,
-    "install_exit_code": 0,
-    "build_exit_code": 0
-  },
-  "review": {
-    "base_commit": "7a6dbfb7dfc3ff47d51214a0e883b042e26eb146",
-    "service_code_unchanged": true,
-    "mutation": {
-      "skipped": true,
-      "reason": "service code unchanged",
-      "prior_score": 91.42
-    },
-    "advisory": {
-      "style_exit_code": 0,
-      "tsdoc_exit_code": 0,
-      "preflight_exit_code": 0,
-      "file_flags": 0
-    },
-    "gates": [
-      {
-        "command": "vp run -r build",
-        "exit_code": 0
-      },
-      {
-        "command": "vp check",
-        "exit_code": 0,
-        "warnings": 28
-      },
-      {
-        "command": "vp run flight-trial#test",
-        "exit_code": 0,
-        "tests_passed": 123,
-        "test_files": 11
-      },
-      {
-        "command": "vp run prose",
-        "exit_code": 0
-      },
-      {
-        "command": "node tools/flight-trial/scripts/check-wire.mjs",
-        "exit_code": 0,
-        "calls": 2160,
-        "error_codes": 30,
-        "differences": 0
-      }
-    ]
+    "promise_flags": 13,
+    "new_promise_note": "existing public HEAD dispatch returns 404; README and labels are outside the allowed paths"
   }
 }

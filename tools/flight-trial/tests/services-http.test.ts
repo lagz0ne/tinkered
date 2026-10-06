@@ -1,4 +1,4 @@
-import { createScope, extension } from "@tinker/core";
+import { createScope, extension, isError } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {
@@ -20,6 +20,37 @@ const replies = [
   { status: 503, delivery: "rejected" },
   { status: 0, delivery: "unreachable" },
 ];
+
+const badRequests = [
+  { url: "ftp://127.0.0.1/", method: "GET" },
+  { url: "xhttp://127.0.0.1/", method: "GET" },
+  { url: "httpx://127.0.0.1/", method: "GET" },
+  { url: "http://127.0.0.1/", method: " GET" },
+  { url: "http://127.0.0.1/", method: "GET " },
+  { url: "http://127.0.0.1/", method: "GET\n" },
+  { url: "http://127.0.0.1/", method: "" },
+];
+
+test.each(badRequests)(
+  "outgoing HTTP rejects invalid URL or method %j before sending",
+  async (input) => {
+    const stop = new AbortController();
+    const scope = createScope({ signal: stop.signal });
+    try {
+      try {
+        await scope.run(httpRequest, { rawInput: input });
+        expect.fail("invalid HTTP input must fail");
+      } catch (error) {
+        if (!isError(error, "DataValidationFailed")) throw error;
+        if (!isError(error.payload.cause, "SchemaRejected")) throw error.payload.cause;
+        expect(error.payload.cause.payload.issues).not.toHaveLength(0);
+      }
+    } finally {
+      stop.abort();
+      await scope.closed;
+    }
+  },
+);
 
 function createGate<T>() {
   let resolve!: (value: T) => void;

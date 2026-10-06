@@ -22,7 +22,7 @@ const running: { stop: AbortController; closed: Promise<unknown> }[] = [];
 const inbox = resource({
   label: "test webhook inbox",
   async factory(_deps, ctx) {
-    const received: { body: string; signature: string }[] = [];
+    const received: { body: string; signature: string; contentType: string | undefined }[] = [];
     let holding = false;
     const waiting = new Set<ServerResponse>();
     const server = createServer(async (request, response) => {
@@ -47,6 +47,7 @@ const inbox = resource({
       received.push({
         body: Buffer.concat(chunks).toString("utf8"),
         signature: String(request.headers["stripe-signature"]),
+        contentType: request.headers["content-type"],
       });
       if (holding) {
         response.writeHead(200);
@@ -181,6 +182,7 @@ test("a confirmed intent sends a signed success webhook", async () => {
   await post(url, "/control/clock", { advanceMs: 20 });
   await expect.poll(() => received.length).toBe(1);
   const event = received.at(0)!;
+  expect(event.contentType).toBe("application/json");
   expect(JSON.parse(event.body)).toMatchObject({
     id: expect.stringMatching(/^evt_/),
     object: "event",

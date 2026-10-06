@@ -1,4 +1,4 @@
-import { createScope, extension, operation, resource, tag } from "@tinker/core";
+import { createScope, extension, operation, resource, tag, type Observe } from "@tinker/core";
 import { z } from "zod";
 import { afterEach, beforeEach, expect, test } from "vite-plus/test";
 import {
@@ -63,13 +63,16 @@ const running: {
   url: string;
   name: string;
   fault: { remaining: number };
+  logs: Observe.Log[];
 }[] = [];
 beforeEach(async () => {
   for (const app of [supplierApp, paymentApp]) {
     const stop = new AbortController();
+    const logs: Observe.Log[] = [];
     const scope = createScope({
       signal: stop.signal,
       extensions: [failingCalls, app],
+      observe: { log: (entry) => logs.push(entry) },
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -88,6 +91,7 @@ beforeEach(async () => {
       url,
       name: app === supplierApp ? "supplier" : "payment",
       fault: scope.resolve(failures),
+      logs,
     });
   }
 });
@@ -173,6 +177,9 @@ test("a thrown payment handler lets the same key retry", async () => {
   expect(failed.status).toBe(500);
   expect(await failed.json()).toEqual({
     error: { type: "invalid_request_error", code: "internal_error", message: "internal_error" },
+  });
+  expect(service.logs.find((entry) => entry.message === "HTTP request failed")).toMatchObject({
+    attributes: { error: { kind: "MissingTag", payload: { label: "unavailable routing driver" } } },
   });
   const retried = await fetch(`${service.url}/v1/payment_intents`, params);
   expect(retried.status).toBe(200);
@@ -288,4 +295,81 @@ test("a thrown handler cannot seed a route replay", async () => {
   expect(await retried.json()).toEqual({
     errors: [{ type: "invalid_request_error", code: "offer_not_found", title: "offer_not_found" }],
   });
+});
+
+test.each([{ now: -1 }, { advanceMs: -1 }, { now: 1.5 }, { advanceMs: "10" }, {}])(
+  "both services reject invalid clock settings %j with a Duffel body",
+  async (body) => {
+    for (const { url } of running) {
+      const response = await post(url, "/control/clock", body);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        errors: [{ type: "invalid_request_error", code: "invalid_clock", title: "invalid_clock" }],
+      });
+    }
+  },
+);
+
+test("route faults cannot intercept the control clock", async () => {
+  for (const { url } of running) {
+    await (
+      await post(url, "/control/routes", {
+        route: "POST /control/clock",
+        status: 503,
+        repeat: 1,
+      })
+    ).arrayBuffer();
+    const response = await post(url, "/control/clock", { now: 10000 });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ data: { now: 10000 } });
+  }
+});
+
+test("HEAD on an existing public route still returns 404 without a body", async () => {
+  for (const { url, name } of running) {
+    let path: string;
+    if (name === "payment") {
+      const response = await post(url, "/v1/payment_intents", { amount: 900, currency: "usd" });
+      const intent = z.object({ id: z.string() }).parse(await response.json());
+      path = `/v1/payment_intents/${intent.id}`;
+    } else {
+      const response = await post(url, "/air/offer_requests", {
+        data: { slices: [{ origin: "LHR", destination: "AMS", departure_date: "2027-01-15" }] },
+      });
+      const { data } = offersSchema.parse(await response.json());
+      path = `/air/offers/${data.offers[0].id}`;
+    }
+    const response = await fetch(`${url}${path}`, { method: "HEAD" });
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe("");
+    const read = await fetch(`${url}${path}`);
+    expect(read.status).toBe(200);
+    await read.arrayBuffer();
+  }
+});
+
+test("JSON without a content type still reaches the payment operation", async () => {
+  const { url } = running.find((service) => service.name === "payment")!;
+  const response = await fetch(`${url}/v1/payment_intents`, {
+    method: "POST",
+    body: JSON.stringify({ amount: 901, currency: "usd" }),
+  });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ amount: 901, currency: "usd" });
+});
+
+test("the payment-failed scenario sets the next confirmation outcome", async () => {
+  const { url } = running.find((service) => service.name === "payment")!;
+  await (await post(url, "/control/clock", { now: 10000 })).arrayBuffer();
+  await (await post(url, "/control/scenario", { name: "payment-failed" })).arrayBuffer();
+  const created = await post(url, "/v1/payment_intents", { amount: 901, currency: "usd" });
+  const intent = z.object({ id: z.string() }).parse(await created.json());
+  await (await post(url, `/v1/payment_intents/${intent.id}/confirm`, {})).arrayBuffer();
+  await (await post(url, "/control/clock", { advanceMs: 20 })).arrayBuffer();
+  await expect
+    .poll(async () => {
+      const response = await fetch(`${url}/v1/payment_intents/${intent.id}`);
+      return z.object({ status: z.string() }).parse(await response.json()).status;
+    })
+    .toBe("requires_payment_method");
 });
