@@ -3,16 +3,16 @@ caught    7 failed  check version always passes
 caught    9 failed  check bytes always passes
 caught   16 failed  check generated always passes
 caught   32 failed  check glue always passes
-caught    9 failed  check named always passes
+caught   12 failed  check named always passes
 caught    3 failed  check imports always passes
-caught   17 failed  check routes always passes
+caught   18 failed  check routes always passes
 caught   16 failed  check style always passes
 caught    9 failed  check env always passes
 caught    4 failed  check boundary always passes
 caught    1 failed  bytes --fix restores nothing
 caught    3 failed  generated --fix adds no ignore line
 caught   11 failed  glue --fix writes no extends
-caught    4 failed  build start stops nothing
+caught    5 failed  build start stops nothing
 caught    1 failed  build start warns about nothing
 caught    4 failed  a fix that fails reads as fixed
 caught    1 failed  aliases drop ?url
@@ -71,20 +71,20 @@ caught    1 failed  an edited .env keeps its old value
 caught    1 failed  serve hands out dot paths
 caught    3 failed  serve skips public/ files
 caught    2 failed  upgrade breaks a tarball peer
-caught    2 failed  readResult hides a failure
+caught    3 failed  readResult hides a failure
 caught    1 failed  the dev error page never shows
 caught    1 failed  the default server entry skips the base
 caught    3 failed  a read body ends the request as cancelled
-caught    2 failed  an off part's route still mounts
+caught    4 failed  an off part's route still mounts
 caught    1 failed  the parts files have no alias
-caught    3 failed  a part switch is ignored
+caught    5 failed  a part switch is ignored
 caught    2 failed  a part switch that is not a boolean passes
-caught   10 failed  the recorded parts are ignored
+caught   14 failed  the recorded parts are ignored
 caught    1 failed  a recorded part this base lacks is kept
 caught    2 failed  a parts file always imports the on module
 caught    2 failed  base.json records no parts
-caught    3 failed  check 7 ignores the on parts' routes
-caught    2 failed  check 7 names no part switch
+caught    4 failed  check 7 ignores the on parts' routes
+caught    3 failed  check 7 names no part switch
 caught    3 failed  check 9 checks no part key
 caught    6 failed  check 9 blames .env for a shell value
 caught    6 failed  check 9 lets .env beat the shell
@@ -95,17 +95,29 @@ caught    1 failed  the telemetry part starts with a refused key
 caught    1 failed  a tab gets the storage URLs
 caught    1 failed  a tab's batch keeps the tab's service
 caught    4 failed  the ingest route takes any origin
-caught    3 failed  the parts' seam names are not checked
-caught    1 failed  a missing seam file reads as a missing name
+caught    6 failed  the parts' seam names are not checked
+caught    2 failed  a missing seam file reads as a missing name
 caught    2 failed  a route under a base splat is free
 caught    1 failed  an unset part key is not named
 caught    1 failed  an unset part key that .env.example lists is named twice
 caught    1 failed  listed keys come in parseEnv's sorted order
 caught    4 failed  a short secret passes
-caught    1 failed  a parts file exports every part, read or not
+caught    2 failed  a parts file exports every part, read or not
 caught    2 failed  the auth part takes a refused key
 caught    2 failed  the app root starts without reading the auth keys
 caught    1 failed  handleAuth hands the library another request
+caught    1 failed  a part's needs are not turned on
+caught    1 failed  sync with auth: false passes
+caught    1 failed  the record does not say sync turned auth on
+caught    2 failed  another account's private cursor opens
+caught    3 failed  an account change sends no frame
+caught    1 failed  one frame carries any number of events
+caught    7 failed  the stream never greets
+caught    1 failed  a bad cursor fails the reply
+caught    1 failed  another account's cursor is not a 403
+caught    1 failed  ?cursor= beats Last-Event-ID
+caught    2 failed  the event history appends at the wrong revision
+caught    1 failed  a broken listener leaves its subscribers waiting
 caught    1 failed  the telemetry queue has no count bound
 caught    1 failed  message boundary.mjs say.none
 caught    1 failed  message boundary.mjs say.found
@@ -158,14 +170,14 @@ caught    1 failed  message imports.mjs say.serverEntry
 caught    1 failed  message imports.mjs say.passed
 caught    2 failed  message named.mjs say.export
 caught    2 failed  message named.mjs say.ignored
-caught    1 failed  message named.mjs say.noSeam
-caught    2 failed  message named.mjs say.partExport
+caught    2 failed  message named.mjs say.noSeam
+caught    4 failed  message named.mjs say.partExport
 caught    1 failed  message named.mjs say.passed
 caught    1 failed  message routes.mjs say.missing
 caught    2 failed  message routes.mjs say.export
 caught    3 failed  message routes.mjs say.outlet
 caught    2 failed  message routes.mjs say.clash
-caught    2 failed  message routes.mjs say.partClash
+caught    3 failed  message routes.mjs say.partClash
 caught    2 failed  message routes.mjs say.id
 caught    4 failed  message routes.mjs say.passed
 caught    2 failed  message style.mjs say.shell
@@ -186,4 +198,4 @@ caught    2 failed  message version.mjs say.passed
 caught    1 failed  message typecheck.mjs say.noTypescript
 caught    1 failed  message typecheck.mjs say.failed
 
-186 of 186 breaks caught (108 logic, 78 message)
+198 of 198 breaks caught (120 logic, 78 message)
