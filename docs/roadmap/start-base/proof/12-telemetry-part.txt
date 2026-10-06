@@ -5,12 +5,13 @@ vp build: EXIT 0
 $ cat .tinker/parts.server.ts
 // Written by tinker(); parts on: telemetry.
 export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server.ts";
+export { auth } from "node_modules/@tinker/start/src/parts/auth/off.ts";
 $ tinker doctor 
 doctor: all checks pass
 EXIT 0
 $ curl -s :PORT/ | grep -ao '<p>[^<]*</p>'
 <p>Hello, world.</p>
-$ curl -X POST :PORT/api/telemetry, origin http://127.0.0.1:44463: {"traces":[],"logs":[{"time":1,"level":30,"msg":"from a tab"
+$ curl -X POST :PORT/api/telemetry, origin http://127.0.0.1:42465: {"traces":[],"logs":[{"time":1,"level":30,"msg":"from a tab"
 202
 $ curl -X POST :PORT/api/telemetry, origin http://other.test: {"traces":[],"logs":[{"time":1,"level":30,"msg":"from a tab"
 403
@@ -29,10 +30,11 @@ vp build: EXIT 0
 $ cat .tinker/parts.server.ts
 // Written by tinker(); parts on: none.
 export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/off.ts";
+export { auth } from "node_modules/@tinker/start/src/parts/auth/off.ts";
 $ tinker doctor 
 doctor: all checks pass
 EXIT 0
-$ curl -X POST :PORT/api/telemetry, origin http://127.0.0.1:44827: {"traces":[],"logs":[{"time":1,"level":30,"msg":"from a tab"
+$ curl -X POST :PORT/api/telemetry, origin http://127.0.0.1:39971: {"traces":[],"logs":[{"time":1,"level":30,"msg":"from a tab"
 200
 $ curl -s -X POST :PORT/api/telemetry
 the app takes it

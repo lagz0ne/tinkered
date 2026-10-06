@@ -1,0 +1,75 @@
+
+## auth on, with a stand-in seam: the handler answers /api/auth/*
+$ vp build
+vp build: EXIT 0
+$ cat .tinker/parts.server.ts
+// Written by tinker(); parts on: telemetry, auth.
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server.ts";
+export { auth } from "node_modules/@tinker/start/src/parts/auth/on.server.ts";
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+$ curl -s :PORT/api/auth/get-session | grep -ao '"handled":"[^"]*","origin":"[^"]*"'
+"handled":"GET /api/auth/get-session","origin":"http://127.0.0.1:4318"
+$ curl -s -X POST :PORT/api/auth/sign-in/email
+{"handled":"POST /api/auth/sign-in/email","origin":"http://127.0.0.1:4318"}
+server stopped: EXIT 0
+
+## auth off (the default): /api/auth/* is the app's own
+$ vp build
+vp build: EXIT 0
+$ cat .tinker/parts.server.ts
+// Written by tinker(); parts on: telemetry.
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server.ts";
+export { auth } from "node_modules/@tinker/start/src/parts/auth/off.ts";
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+$ curl -s :PORT/api/auth/get-session | grep -ao 'the app takes it'
+the app takes it
+server stopped: EXIT 0
+
+## auth on, and the app's own /api/auth/$: the build names the switch
+$ vp build
+Error: tinker doctor, routes: src/routes/api.auth.$.ts:2 takes /api/auth/$, a base route; tinker({ auth: false }) frees it
+vp build: EXIT 1
+$ tinker doctor 
+fail  7 routes
+      src/routes/api.auth.$.ts:2 takes /api/auth/$, a
+      base route; tinker({ auth: false }) frees it
+doctor: 1 check(s) fail
+EXIT 1
+
+## auth on, and a seam without readAccount: the build stops
+$ vp build
+Error: tinker doctor, named files: src/lib/tinker.server.ts:1 does not export readAccount; the auth part reads it
+vp build: EXIT 1
+$ tinker doctor 
+fail  5 named files
+      src/lib/tinker.server.ts:1 does not export
+      readAccount; the auth part reads it
+doctor: 1 check(s) fail
+EXIT 1
+
+## auth on, and no seam at all: the build stops
+$ vp build
+Error: tinker doctor, named files: src/lib/tinker.server.ts is missing; the auth part reads auth and readAccount from it
+vp build: EXIT 1
+$ tinker doctor 
+fail  5 named files
+      src/lib/tinker.server.ts is missing; the auth part
+      reads auth and readAccount from it
+doctor: 1 check(s) fail
+EXIT 1
+
+## auth on, a short secret and no origin: doctor names them
+$ vp build
+vp build: EXIT 0
+$ tinker doctor 
+fail  9 env
+      .env does not set PUBLIC_ORIGIN; the auth part
+      needs it
+      .env:2 sets AUTH_SECRET; the auth part needs at
+      least 32 characters
+doctor: 1 check(s) fail
+EXIT 1
