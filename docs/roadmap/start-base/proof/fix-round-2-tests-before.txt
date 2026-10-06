@@ -1,0 +1,7 @@
+# start/base-package fix round: the new extends tests on the code before the fix (commit bd8faf8e)
+   × finds an extended file as tsc does: a name with no .json gets .json added 12ms
+   × follows each extended file's own extends chain, as tsc does 3ms
+   × an extends chain that loops is read once 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  3 failed | 28 passed (31)
