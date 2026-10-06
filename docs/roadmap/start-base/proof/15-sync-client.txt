@@ -1,0 +1,92 @@
+
+## sync on, client side: the server render, the tab, and its stream
+$ vp build
+tinker: sync turns auth on
+vp build: EXIT 0
+$ cat .tinker/parts.ts
+// Written by tinker(); parts on: telemetry, auth, sync; sync turns auth on.
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.ts";
+export { sync } from "node_modules/@tinker/start/src/parts/sync/on.ts";
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+$ curl -s :PORT/ | grep -ao '<p>count[^<]*<!-- -->[0-9]*</p>'  (getBootstrap, in the server render)
+<p>count <!-- -->2</p>
+$ storage: spans so far
+      1 auth.settings
+      1 bootstrap
+      1 database
+      1 records
+      1 router.tabLifetime
+      1 start.responseBodies
+      1 sync.bootstrap
+      1 sync.client
+      1 sync.history
+      1 sync.load
+      1 sync.router
+      1 sync.snapshotLoader
+      1 sync.snapshotSource
+      1 tinker.health
+browser engine: lightpanda (the default)
+$ agent-browser open http://127.0.0.1:33513/
+✓ 
+  http://127.0.0.1:33513/
+$ agent-browser eval document.querySelector("p")?.textContent
+"count 2"
+$ curl -s -X POST :PORT/api/bump  (a commit after the tab loaded)
+{"count":3}
+$ agent-browser eval document.querySelector("p")?.textContent
+"count 3"
+$ agent-browser close
+✓ Browser closed
+server stopped: EXIT 0
+$ storage: every span name, after the tab
+      1 auth
+      1 auth.settings
+      2 bootstrap
+      1 bump
+      1 database
+      3 records
+      2 request.body
+      3 router.tabLifetime
+      1 start.responseBodies
+      3 sync.bootstrap
+      3 sync.client
+      1 sync.endpoint
+      1 sync.eventSource
+      1 sync.history
+      2 sync.liveAccount
+      2 sync.load
+      1 sync.notifications
+      1 sync.open
+      1 sync.receive
+      3 sync.router
+      3 sync.snapshotLoader
+      3 sync.snapshotSource
+      1 sync.stream
+      2 telemetry.endpoint
+      2 telemetry.receive
+      1 tinker.health
+
+## sync on, and a client seam without streamMessage: the build stops
+$ vp build
+Error: tinker doctor, named files: src/lib/tinker.ts:1 does not export streamMessage; the sync part reads it
+vp build: EXIT 1
+$ tinker doctor 
+fail  5 named files
+      src/lib/tinker.ts:1 does not export streamMessage;
+      the sync part reads it
+doctor: 1 check(s) fail
+EXIT 1
+
+## sync on, and no Register bodies: the build stops
+$ vp build
+Error: tinker doctor, named files: src/ adds no Register bodies to "@tinker/start"; the sync part reads them: declare module "@tinker/start" { interface Register { … } }
+vp build: EXIT 1
+$ tinker doctor 
+fail  5 named files
+      src/ adds no Register bodies to "@tinker/start";
+      the sync part reads them: declare module
+      "@tinker/start" { interface Register { … } }
+doctor: 1 check(s) fail
+EXIT 1
