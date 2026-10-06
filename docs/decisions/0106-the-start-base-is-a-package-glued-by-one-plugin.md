@@ -316,7 +316,7 @@ App code reaches the base only through package entries:
 - `@tinker/start`: shared units, such as `startRequests`,
   the sync types, and `Register`.
 - `@tinker/start/server`: `readResult`, `httpRequest`, `env`,
-  `eventHistory`, `authSettings`.
+  `eventHistory` and the `Database` type, `authSettings`.
 - `@tinker/start/client`: `syncClient` and the client sync units.
 - `@tinker/start/testing`: `requestHeaders`, `handleAuth`,
   `httpBackend`.
@@ -347,6 +347,15 @@ A part is an opt-in slice of the base, set in `tinker({ ... })`.
   Needs `database` and `bootstrap` from the server seam.
   Needs `records`, `readSnapshot`, `readBootstrap`, `readBatch`,
   `streamMessage`, and the `Register` bodies from the client seam.
+  Server side built (card `start/base-parts`, step 3a):
+  the `/api/sync` stream, `eventHistory`, the sync tables,
+  and the shared envelopes on `@tinker/start`.
+  `auth: false` with `sync: true` fails the build;
+  the build says `tinker: sync turns auth on`.
+  Step 3b brings `getBootstrap`, `getAccount`,
+  the client units, and the client seam names;
+  until then, the server seam's `bootstrap`
+  is not read, and check 5 asks only for `database`.
 
 The plugin writes `.tinker/parts.ts` and `.tinker/parts.server.ts`.
 Each exports one name per part that its entry reads
@@ -362,6 +371,8 @@ export { telemetry } from "/b/src/parts/telemetry/off.ts";
 ```
 
 `.tinker/base.json` records the parts that are on.
+A part may need another (the part table's `needs`):
+sync turns auth on, and the parts file's head says so.
 `tinker prepare` and doctor read that record,
 so they use the switches of the last `tinker()` call.
 
