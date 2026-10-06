@@ -130,7 +130,9 @@ and the `NODE_PATH` test below).
 Cleanups: the request tests use no timer.
 The forced-close test's operation waits on its signal.
 The graceful one waits on a gate the test opens
-once the session is closing and the close is still pending.
+once `closing` fires: the session's cleanup has not run
+and the work sees no abort. That Core waits for the work
+is proven in `packages/core/tests/closing.test.ts:193`.
 The read-error test uses a self-linked file (`ELOOP`),
 which fails for root too.
 
