@@ -20,7 +20,7 @@ export const say = {
     'package.json:1 has no "postinstall": "tinker prepare"; a fresh clone has no .tinker/',
   passed:
     "vite.config.ts calls tinker() once; tsconfig.json extends .tinker; postinstall runs tinker prepare",
-  fixed: "set extends in tsconfig.json and postinstall in package.json",
+  fixed: (written) => `wrote ${written.join(" and ")}`,
 };
 
 /** @param {string} root - From the glue check; why: parse its vite.config.ts. */
@@ -81,17 +81,22 @@ function editJson(root, file, change) {
  * @param {string[]} problems - From the glue check; why: write only the lines that are wrong.
  */
 function fixGlue(root, problems) {
-  if (problems.includes(say.extends))
+  const written = [];
+  if (problems.includes(say.extends)) {
     editJson(root, "tsconfig.json", (config) => ({
       ...config,
       extends: "./.tinker/tsconfig.json",
     }));
-  if (problems.includes(say.postinstall))
+    written.push("the extends line in tsconfig.json");
+  }
+  if (problems.includes(say.postinstall)) {
     editJson(root, "package.json", (pkg) => ({
       ...pkg,
       scripts: { ...pkg.scripts, postinstall: "tinker prepare" },
     }));
-  return say.fixed;
+    written.push("the postinstall script in package.json");
+  }
+  return say.fixed(written);
 }
 
 /**

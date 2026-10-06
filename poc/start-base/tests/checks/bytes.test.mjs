@@ -43,6 +43,12 @@ test("skips a workspace link: a source checkout has no pinned bytes", () => {
   });
 });
 
+test("fails when the base does not resolve", () => {
+  expect(bytes(fixture({ "package.json": "{}" })).lines).toEqual([
+    "@tinker/start does not resolve",
+  ]);
+});
+
 test("passes when every installed file matches files.json", () => {
   expect(bytes(installedApp())).toEqual({ status: "ok", lines: ["2 files match files.json"] });
 });

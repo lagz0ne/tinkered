@@ -10,7 +10,10 @@ test("skips before any build has run", () => {
 });
 
 test("passes when the last build kept no violation", () => {
-  expect(boundary(fixture({ ".tinker/violations.json": "[]" })).status).toBe("ok");
+  expect(boundary(fixture({ ".tinker/violations.json": "[]" }))).toEqual({
+    status: "ok",
+    lines: ["the last build had no import boundary violations"],
+  });
 });
 
 test("names every violation the last build kept, with its importer line", () => {

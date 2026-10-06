@@ -75,7 +75,10 @@ test("--fix writes the extends line and the postinstall script, and keeps the re
     "tsconfig.json": JSON.stringify({ compilerOptions: { jsx: "react-jsx" } }),
     "package.json": JSON.stringify({ scripts: { build: "vp build" } }),
   });
-  expect(runCheck(root, glue, true).status).toBe("fixed");
+  expect(runCheck(root, glue, true)).toEqual({
+    status: "fixed",
+    lines: ["wrote the extends line in tsconfig.json and the postinstall script in package.json"],
+  });
   expect(JSON.parse(readFileSync(join(root, "tsconfig.json"), "utf8"))).toEqual({
     compilerOptions: { jsx: "react-jsx" },
     extends: "./.tinker/tsconfig.json",
