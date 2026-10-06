@@ -47,7 +47,7 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 ## Review
 
 - **core/size-build** — a build step renames 48 private fields: 15,683 → 15,367 B gzip (main after size-safe).
-  Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Rebased on `35404adc`.
+  Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Rebased on `69526f1c`.
   List after rebase: `defersFor` removed (size-safe deleted it); none added.
   Proof: types and exports match main; 856 tests on source, 866 on `dist`; validate green.
   Speed: N=61, ten scenarios, all "no difference we can see". Mutation 86.00 (85.09 without timeouts).

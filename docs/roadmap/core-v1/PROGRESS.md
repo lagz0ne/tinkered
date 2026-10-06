@@ -1266,7 +1266,7 @@ This writer does not push.
 
 Owner: Opus writer on `core/size-build`.
 Lead ruling: a build step may shrink shipped code (size Option 1).
-Rebased on `35404adc` (`core/size-safe` landed).
+Rebased on `69526f1c`; its Core is that of `35404adc` (`core/size-safe` landed).
 Core on main is 15,683 B gzip.
 The build step leaves 15,367 B gzip: 316 B smaller.
 The source does not change.
@@ -1393,6 +1393,7 @@ esbuild and Rolldown each bundled every app.
 ### Proof
 
 Base: `35404adc` from `origin/main`, built in its own worktree.
+`69526f1c`, the commit after it, changes only `TODO.md`.
 
 - `vp run --no-cache core#size`: 15,683 → 15,367 B gzip.
 - All three type files: byte-identical to main.
