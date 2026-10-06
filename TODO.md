@@ -33,12 +33,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/size-research** — path from 16,084 B to 13 KiB (13,312 B) gzip for Core.
-  Owner: lead (Claude, Start scaffold session); Opus researchers.
-  Round 1 done: sure wins about 1,224 B (code-only cuts and a build step).
-  User 2026-10-05: extension hooks and namespaces stay (ADR 0050, 0059, 0060).
-  Next: round 2 looks for cheaper hook and namespace code with the same API (about 650 B needed).
-
 - **core/size-build** — a build step renames private fields (about 514 B), checked by a guard.
   Owner: lead; Opus writer. Worktree: `../tinkered-size-build`. Lands after `core/size-safe`.
   Verify: same public types and exports; Core tests pass on the built files too.
@@ -69,6 +63,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Parked
 
+- **core/size-13k** — the rest of the path to 13 KiB, with the same API.
+  Parked 2026-10-06 (user: good for now). Measured, not landed:
+  cheaper namespace and resource code 871 B, cheaper hook code 503 B,
+  shorter error text 184 B, one tagged-call fast path 356 B (speed risk).
+  Restart when Core nears its 16 KiB cap again. Patches and reports: `~/.cache/size-research/`.
+
 - **core/traceparent** — one W3C `traceparent` helper for every package.
   Parked 2026-10-05: no package parses `traceparent` today (hono, http, and nats are gone).
   Restart when a package needs to read or write the header.
@@ -76,6 +76,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-research** — two rounds of Opus research on Core's size (goal was 13 KiB).
+  Owner: lead (Claude, Start scaffold session); eight Opus researchers.
+  Landed from it: `core/size-safe` (16,084 → 15,683 B); `core/size-build` next.
+  User 2026-10-06: good for now; no more trimming. Plan and patches kept for later.
+  [Plan](docs/roadmap/core-v1/PROGRESS.md#coresize-safe).
 
 - **core/size-safe** — round 1's code-only cuts: Core 16,084 → 15,683 B gzip (−401 B), same behavior.
   Owner: lead (Claude, Start scaffold session); Opus writer, Opus review.
