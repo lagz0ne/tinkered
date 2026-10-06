@@ -4,7 +4,7 @@ $ tsc --noEmit (before prepare)
 error TS5083: Cannot read file '.tinker/tsconfig.json'.
 ../../..node_modules/.pnpm/@tanstack+start-server-core@1.169.39/node_modules/@tanstack/start-server-core/dist/esm/session.d.ts(23,40): error TS2552: Cannot find name '_Algorithm'. Did you mean 'TAlgorithm'?
 $ tinker prepare  (the postinstall)
-tinker prepare: wrote .tinker/tsconfig.json, .tinker/base.json, .tinker/routeTree.gen.ts
+tinker prepare: wrote .tinker/tsconfig.json, .tinker/base.json, .tinker/parts.ts, .tinker/parts.server.ts, .tinker/routeTree.gen.ts
 $ tsc --noEmit
 tsc: EXIT 0
 $ tinker doctor 

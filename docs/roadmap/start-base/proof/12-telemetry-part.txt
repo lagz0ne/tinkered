@@ -1,0 +1,60 @@
+
+## telemetry on (the default): a page and a tab's batch reach storage
+$ vp build
+vp build: EXIT 0
+$ cat .tinker/parts.server.ts
+// Written by tinker(); parts on: telemetry.
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server.ts";
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+$ curl -s :PORT/ | grep -ao '<p>[^<]*</p>'
+<p>Hello, world.</p>
+$ curl -X POST :PORT/api/telemetry, origin http://127.0.0.1:44463: {"traces":[],"logs":[{"time":1,"level":30,"msg":"from a tab"
+202
+$ curl -X POST :PORT/api/telemetry, origin http://other.test: {"traces":[],"logs":[{"time":1,"level":30,"msg":"from a tab"
+403
+server stopped: EXIT 0
+$ what storage got
+      1 POST /logs
+      1 POST /traces
+spans: greet request.body telemetry.endpoint telemetry.receive tinker.health 
+{"time":1,"level":30,"msg":"from a tab","service":"start-min","side":"browser"}
+$ grep -c core.span server log
+8
+
+## telemetry off: /api/telemetry is the app's own route
+$ vp build
+vp build: EXIT 0
+$ cat .tinker/parts.server.ts
+// Written by tinker(); parts on: none.
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/off.ts";
+$ tinker doctor 
+doctor: all checks pass
+EXIT 0
+$ curl -X POST :PORT/api/telemetry, origin http://127.0.0.1:44827: {"traces":[],"logs":[{"time":1,"level":30,"msg":"from a tab"
+200
+$ curl -s -X POST :PORT/api/telemetry
+the app takes it
+$ grep -c core.span server log
+0
+server stopped: EXIT 0
+
+## telemetry on, and the app's own /api/telemetry: the build names the switch
+$ vp build
+Error: tinker doctor, routes: src/routes/api.telemetry.ts:2 takes /api/telemetry, a base route; tinker({ telemetry: false }) frees it
+vp build: EXIT 1
+$ tinker doctor 
+fail  7 routes
+      src/routes/api.telemetry.ts:2 takes /api/telemetry,
+      a base route; tinker({ telemetry: false }) frees it
+doctor: 1 check(s) fail
+EXIT 1
+
+## telemetry on, and a bad storage URL in .env: doctor names its line
+$ tinker doctor 
+fail  9 env
+      .env:2 sets VICTORIA_TRACES_URL; the telemetry part
+      needs an http(s) URL
+doctor: 1 check(s) fail
+EXIT 1

@@ -96,7 +96,7 @@ EXIT 1
 ## a <Link to> typo
 $ vp build
 RolldownError: tsc found 1 type error(s); the build stops here:
-src/routes/nav.tsx:2:71 TS2820 Type '"/tinkr"' is not assignable to type '"." | ".." | "/" | "/api/health" | "/nav" | "/tinker"'. Did you mean '"/tinker"'?
+src/routes/nav.tsx:2:71 TS2820 Type '"/tinkr"' is not assignable to type '"." | ".." | "/" | "/api/health" | "/api/telemetry" | "/nav" | "/tinker"'. Did you mean '"/tinker"'?
 vp build: EXIT 1
 $ tinker doctor 
 doctor: all checks pass
@@ -181,5 +181,5 @@ EXIT 1
 
 ## a tinker() option the base would drop
 $ vp build
-Error: tinker(): unknown option prerendr; known: root, prerender, pages, spa, sitemap
+Error: tinker(): unknown option prerendr; known: root, prerender, pages, spa, sitemap, telemetry
 vp build: EXIT 1
