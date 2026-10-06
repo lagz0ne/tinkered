@@ -352,10 +352,13 @@ A part is an opt-in slice of the base, set in `tinker({ ... })`.
   and the shared envelopes on `@tinker/start`.
   `auth: false` with `sync: true` fails the build;
   the build says `tinker: sync turns auth on`.
-  Step 3b brings `getBootstrap`, `getAccount`,
-  the client units, and the client seam names;
-  until then, the server seam's `bootstrap`
-  is not read, and check 5 asks only for `database`.
+  Client side built (step 3b): `getBootstrap`
+  (the seam's `bootstrap`) and `getAccount`
+  (auth's `readAccount`), the tab's sync client,
+  stream, and lifetime, and the router wiring
+  (context, dehydrate, hydrate) in `.tinker/parts.ts`.
+  The tab opens its stream through `eventSourceBackend`,
+  a tag, as fetch goes through `httpBackend`.
 
 The plugin writes `.tinker/parts.ts` and `.tinker/parts.server.ts`.
 Each exports one name per part that its entry reads
@@ -667,6 +670,8 @@ Each check is one small file with its message table,
    `--fix`: the `extends` line and the `postinstall` script.
 5. **named files**: each named or seam file exports
    what the base reads, each on part's seam names included,
+   and some file in `src/` declares the `Register` bodies
+   while sync is on,
    and no Start file sits where the glue never reads it.
    An `export *` from a local file is followed;
    from a package, the export is not judged. No fix.
