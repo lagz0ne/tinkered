@@ -2,7 +2,7 @@ control (no break): 0 failed test(s), 0 broken file(s)
 caught    5 failed  check version always passes
 caught    7 failed  check bytes always passes
 caught   14 failed  check generated always passes
-caught   13 failed  check glue always passes
+caught   17 failed  check glue always passes
 caught    6 failed  check named always passes
 caught    3 failed  check imports always passes
 caught   12 failed  check routes always passes
@@ -11,7 +11,7 @@ caught    3 failed  check env always passes
 caught    3 failed  check boundary always passes
 caught    1 failed  bytes --fix restores nothing
 caught    2 failed  generated --fix adds no ignore line
-caught    2 failed  glue --fix writes no extends
+caught    6 failed  glue --fix writes no extends
 caught    3 failed  build start stops nothing
 caught    1 failed  build start warns about nothing
 caught    3 failed  a fix that fails reads as fixed
@@ -20,7 +20,7 @@ caught    1 failed  the shell never replaces the base's
 caught    1 failed  an unknown tinker() option is dropped
 caught    2 failed  a named file is never picked
 caught    3 failed  src/router.tsx is not listed
-caught    5 failed  tsconfig @/* goes back to ../src/*
+caught    6 failed  tsconfig @/* goes back to ../src/*
 caught    3 failed  route groups count as a segment
 caught    4 failed  nesting under a base route is missed
 caught    1 failed  a - folder counts as a route
@@ -31,7 +31,7 @@ caught    1 failed  tinker prepare hides a stale tree
 caught    1 failed  shadcn needs Tailwind before any UI file
 caught    1 failed  vite.config.ts is not type-checked
 caught    5 failed  a tsconfig that does not parse reads as empty
-caught    1 failed  --fix drops the comments of tsconfig.json
+caught    2 failed  --fix drops the comments of tsconfig.json
 caught    1 failed  --fix writes a tsconfig that does not parse
 caught    2 failed  a renamed tinker import counts no call
 caught    1 failed  a config with no tinker() call stops the build
@@ -51,6 +51,13 @@ caught    1 failed  package.json is read leniently
 caught    1 failed  a postinstall prepare blocks the install
 caught    3 failed  check 3 says run tinker prepare while check 7 fails
 caught    2 failed  any value named Outlet counts as the outlet
+caught    1 failed  a byte order mark breaks the parse
+caught    1 failed  --fix drops the byte order mark
+caught    1 failed  --fix always indents with two spaces
+caught    2 failed  an extends array never counts
+caught    2 failed  --fix replaces the extends key
+caught    1 failed  lazy routes read as missed
+caught    1 failed  an extends array breaks shadcn's alias read
 caught    2 failed  the type check never runs
 caught    1 failed  .env beats the shell
 caught    1 failed  an edited .env keeps its old value
@@ -133,4 +140,4 @@ caught    1 failed  message version.mjs say.passed
 caught    1 failed  message typecheck.mjs say.noTypescript
 caught    1 failed  message typecheck.mjs say.failed
 
-133 of 133 breaks caught (62 logic, 71 message)
+140 of 140 breaks caught (69 logic, 71 message)

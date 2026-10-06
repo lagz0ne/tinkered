@@ -1,0 +1,102 @@
+
+######## N1 tsconfig: no extends, CRLF, tabs, comments, trailing comma; doctor --fix keeps bytes
+fixed 4 glue
+      wrote the extends line in tsconfig.json
+doctor: all checks pass
+doctor EXIT 0
+-- diff (bytes):
+1,8c1,10
+< 0000000   {  \r  \n  \t   /   /       m   y       o   p   t   i   o   n
+< 0000020   s  \r  \n  \t   "   c   o   m   p   i   l   e   r   O   p   t
+< 0000040   i   o   n   s   "   :       {  \r  \n  \t  \t   "   n   o   U
+< 0000060   n   c   h   e   c   k   e   d   I   n   d   e   x   e   d   A
+< 0000100   c   c   e   s   s   "   :       t   r   u   e   ,       /   *
+< 0000120       k   e   e   p       *   /  \r  \n  \t   }   ,  \r  \n   }
+< 0000140  \r  \n
+< 0000142
+---
+> 0000000   {  \r  \n  \t   "   e   x   t   e   n   d   s   "   :       "
+> 0000020   .   /   .   t   i   n   k   e   r   /   t   s   c   o   n   f
+> 0000040   i   g   .   j   s   o   n   "   ,  \r  \n  \t   /   /       m
+> 0000060   y       o   p   t   i   o   n   s  \r  \n  \t   "   c   o   m
+> 0000100   p   i   l   e   r   O   p   t   i   o   n   s   "   :       {
+> 0000120  \r  \n  \t  \t   "   n   o   U   n   c   h   e   c   k   e   d
+> 0000140   I   n   d   e   x   e   d   A   c   c   e   s   s   "   :    
+> 0000160   t   r   u   e   ,       /   *       k   e   e   p       *   /
+> 0000200  \r  \n  \t   }   ,  \r  \n   }  \r  \n
+> 0000212
+-- after:
+{^M$
+^I"extends": "./.tinker/tsconfig.json",^M$
+^I// my options^M$
+^I"compilerOptions": {^M$
+^I^I"noUncheckedIndexedAccess": true, /* keep */^M$
+^I},^M$
+}^M$
+tsc EXIT 0
+
+######## N2 tsconfig extends an array (TS 5+), base first
+tsc EXIT 0
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+-- doctor --fix:
+doctor: all checks pass
+doctor EXIT 0
+{
+  "extends": ["./.tinker/tsconfig.json", "./strict.json"]
+}
+
+######## N3 tsconfig.json with a UTF-8 BOM (tsc accepts it)
+tsc EXIT 0
+dist/client/assets/tinker-BowW8CWf.js    0.21 kB │ gzip:   0.17 kB
+dist/server/assets/tinker-BTSrw2NY.js                        0.43 kB │ gzip:  0.26 kB
+vp build: EXIT 0
+doctor: all checks pass
+doctor: EXIT 0
+
+######## N4 package.json with a trailing comma (npm refuses it); doctor --fix
+12:    "postinstall": "tinker prepare",
+error: Failed to parse JSON file at /tmp/rv-sb-fix/apps/n4/package.json
+vp build: EXIT 1
+fail  4 glue
+      package.json:13 does not parse
+      (PropertyNameExpected); doctor never edits a file
+      that does not parse
+doctor: 1 check(s) fail
+doctor: EXIT 1
+-- doctor --fix:
+fail  4 glue
+      package.json:13 does not parse
+      (PropertyNameExpected); doctor never edits a file
+      that does not parse
+doctor: 1 check(s) fail
+doctor EXIT 1
+package.json unchanged
+
+######## N5 components.json with a comment (shadcn reads strict JSON)
+error during build:
+Error: tinker doctor, style: components.json:2 does not parse (InvalidCommentToken)
+vp build: EXIT 1
+fail  8 style
+      components.json:2 does not parse
+      (InvalidCommentToken)
+doctor: 1 check(s) fail
+doctor: EXIT 1
+
+######## N6 package.json with no scripts and a missing postinstall; tab indent; doctor --fix
+fixed 4 glue
+      wrote the postinstall script in package.json
+doctor: all checks pass
+doctor EXIT 0
+{$
+^I"scripts": {$
+^I^I"postinstall": "tinker prepare"$
+^I},$
+^I"name": "app-min",$
+^I"version": "0.0.0",$
+^I"private": true,$
+^I"type": "module",$
+still strict JSON

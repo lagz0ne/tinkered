@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { lineOfKey, readJsonc, writeKey } from "../jsonc.mjs";
+import { lineOfKey, prependExtends, readJsonc, writeKey } from "../jsonc.mjs";
 import { callsOf, importsFrom, parseSource, specifiers } from "../source.mjs";
 import { verdict } from "./result.mjs";
 
@@ -25,6 +25,9 @@ export const say = {
     `${file} calls tinker() once; tsconfig.json extends .tinker; postinstall runs tinker prepare`,
   fixed: (written) => `wrote ${written.join(" and ")}`,
 };
+
+/** The generated tsconfig the app's tsconfig.json must extend; an array of files may hold it. */
+const tinkerConfig = "./.tinker/tsconfig.json";
 
 /** The config file names Vite looks for, in its order. */
 const viteConfigs = ["vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs"];
@@ -80,7 +83,7 @@ function tsconfigProblems(tsconfig) {
   if (tsconfig.error) return [say.parse("tsconfig.json", tsconfig.error)];
   const { extends: parent, compilerOptions = {} } = tsconfig.value;
   return [
-    parent !== "./.tinker/tsconfig.json" && say.extends,
+    ![parent].flat().includes(tinkerConfig) && say.extends,
     "paths" in compilerOptions && say.paths(lineOfKey(tsconfig.text, ["compilerOptions", "paths"])),
     compilerOptions.strict === false &&
       say.strict(lineOfKey(tsconfig.text, ["compilerOptions", "strict"])),
@@ -104,21 +107,11 @@ function postinstallProblems(pkg) {
 function fixGlue(root, read, problems) {
   const written = [];
   if (problems.includes(say.extends)) {
-    writeKey(
-      join(root, "tsconfig.json"),
-      read.tsconfig.text,
-      ["extends"],
-      "./.tinker/tsconfig.json",
-    );
+    prependExtends(join(root, "tsconfig.json"), read.tsconfig, tinkerConfig);
     written.push("the extends line in tsconfig.json");
   }
   if (problems.includes(say.postinstall)) {
-    writeKey(
-      join(root, "package.json"),
-      read.pkg.text,
-      ["scripts", "postinstall"],
-      "tinker prepare",
-    );
+    writeKey(join(root, "package.json"), read.pkg, ["scripts", "postinstall"], "tinker prepare");
     written.push("the postinstall script in package.json");
   }
   return say.fixed(written);

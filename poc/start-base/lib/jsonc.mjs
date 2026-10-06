@@ -9,43 +9,99 @@ import {
 } from "jsonc-parser";
 import { lineAt, readText } from "./paths.mjs";
 
+/** A UTF-8 byte order mark: tsc and npm accept one at the start; the parser does not. */
+const bom = "\uFEFF";
+
 /**
  * Read a config file the way its tool reads it. tsc takes comments and trailing commas in
  * tsconfig.json; package.json and components.json are strict JSON (`strict`).
  * TypeScript 7 ships no JS config reader, so this is jsonc-parser, the JSONC parser VS Code uses.
- * A parse error comes back with its line; the caller must then never write the file.
+ * A leading byte order mark is set aside, and kept for a write. A parse error comes back with
+ * its line; the caller must then never write the file.
  * @param {string} path - From a check; why: the file to read; a missing file reads as `{}`.
  * @param {{ strict?: boolean }} [options] - From a check; why: strict JSON for npm and shadcn files.
  */
 export function readJsonc(path, { strict = false } = {}) {
-  const text = readText(path);
+  const raw = readText(path);
+  const marked = raw.startsWith(bom);
+  const text = marked ? raw.slice(1) : raw;
   const errors = [];
   const value = parse(text, errors, { allowTrailingComma: !strict, disallowComments: strict });
   if (text && errors.length > 0) {
     const [first] = errors;
     return {
       text,
+      marked,
       error: { line: lineAt(text, first.offset), code: printParseErrorCode(first.error) },
     };
   }
-  return { text, value: value ?? {} };
+  return { text, marked, value: value ?? {} };
 }
 
 /**
- * Set one key and keep every other byte: comments, order, and formatting stay.
- * A new top-level key goes first, so no existing line moves.
+ * The file's own layout, so a new key reads like its neighbours: the first indent, and CRLF.
+ * @param {string} text - From readJsonc; why: the file to copy the layout of.
+ */
+function layoutOf(text) {
+  const indent = text.match(/^([ \t]+)\S/m)?.[1] ?? "  ";
+  const tabs = indent.startsWith("\t");
+  return {
+    insertSpaces: !tabs,
+    tabSize: tabs ? 1 : indent.length,
+    eol: text.includes("\r\n") ? "\r\n" : "\n",
+  };
+}
+
+/**
+ * @param {string} path - From a --fix; why: the file to write.
+ * @param {{ marked: boolean }} read - From readJsonc; why: put a byte order mark back.
+ * @param {string} text - From the edit; why: the new text.
+ */
+function writeBack(path, read, text) {
+  writeFileSync(path, `${read.marked ? bom : ""}${text}`);
+}
+
+/**
+ * Set one key and keep every other byte: comments, order, indent, line ends, and a byte order
+ * mark stay. A new key goes first in its object, so no existing line moves.
  * @param {string} path - From a --fix; why: the file to edit in place.
- * @param {string} text - From readJsonc; why: the text that parsed, never a failed parse.
- * @param {string[]} key - From a --fix; why: the path to the key, such as ["extends"].
+ * @param {{ text: string, marked: boolean }} read - From readJsonc; why: a text that parsed, never a failed parse.
+ * @param {string[]} key - From a --fix; why: the path to the key, such as ["scripts", "postinstall"].
  * @param {string} value - From a --fix; why: the value the base owns.
  */
-export function writeKey(path, text, key, value) {
-  const base = text || "{}\n";
-  const edits = modify(base, key, value, {
-    formattingOptions: { insertSpaces: true, tabSize: 2 },
+export function writeKey(path, read, key, value) {
+  const text = read.text || "{}\n";
+  const edits = modify(text, key, value, {
+    formattingOptions: layoutOf(text),
     getInsertionIndex: () => 0,
   });
-  writeFileSync(path, applyEdits(base, edits));
+  writeBack(path, read, applyEdits(text, edits));
+}
+
+/**
+ * Put one file first in tsconfig's `extends` and keep what it already extends: an array gets
+ * the entry before its first item; a single file becomes a two-item array. No other byte moves.
+ * @param {string} path - From the glue fix; why: the tsconfig.json to edit.
+ * @param {{ text: string, marked: boolean }} read - From readJsonc; why: a text that parsed.
+ * @param {string} entry - From the glue fix; why: the file the base owns, "./.tinker/tsconfig.json".
+ */
+export function prependExtends(path, read, entry) {
+  const node = findNodeAtLocation(parseTree(read.text, [], { allowTrailingComma: true }), [
+    "extends",
+  ]);
+  if (!node) return writeKey(path, read, ["extends"], entry);
+  const quoted = JSON.stringify(entry);
+  const [first] = node.children ?? [];
+  const old = read.text.slice(node.offset, node.offset + node.length);
+  const edit =
+    node.type !== "array"
+      ? { offset: node.offset, length: node.length, content: `[${quoted}, ${old}]` }
+      : {
+          offset: first ? first.offset : node.offset + 1,
+          length: 0,
+          content: first ? `${quoted}, ` : quoted,
+        };
+  writeBack(path, read, applyEdits(read.text, [edit]));
 }
 
 /**

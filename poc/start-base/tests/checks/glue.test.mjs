@@ -135,6 +135,60 @@ test("package.json is strict JSON, as npm reads it: a comment is named, and --fi
   expect(readFileSync(join(root, "package.json"), "utf8")).toBe(broken);
 });
 
+test("an extends array that holds .tinker passes; --fix adds .tinker first to one that lacks it", () => {
+  const listed = goodApp({
+    "strict.json": '{ "compilerOptions": { "noUncheckedIndexedAccess": true } }\n',
+    "tsconfig.json": '{\n  "extends": ["./.tinker/tsconfig.json", "./strict.json"]\n}\n',
+  });
+  expect(glue(listed).status).toBe("ok");
+  const lacking = goodApp({
+    "strict.json": '{ "compilerOptions": { "noUncheckedIndexedAccess": true } }\n',
+    "tsconfig.json": '{\n  "extends": ["./strict.json"]\n}\n',
+  });
+  expect(runCheck(lacking, glue, true).status).toBe("fixed");
+  expect(readFileSync(join(lacking, "tsconfig.json"), "utf8")).toBe(
+    '{\n  "extends": ["./.tinker/tsconfig.json", "./strict.json"]\n}\n',
+  );
+});
+
+test("--fix keeps an extends that names another file: .tinker goes first, the file stays", () => {
+  const root = goodApp({
+    "strict.json": "{}\n",
+    "tsconfig.json": '{\n  "extends": "./strict.json"\n}\n',
+  });
+  expect(runCheck(root, glue, true).status).toBe("fixed");
+  expect(JSON.parse(readFileSync(join(root, "tsconfig.json"), "utf8")).extends).toEqual([
+    "./.tinker/tsconfig.json",
+    "./strict.json",
+  ]);
+});
+
+test("a tsconfig.json with a byte order mark parses, and --fix keeps the mark", () => {
+  const marked = goodApp({
+    "tsconfig.json": '\uFEFF{\n  "extends": "./.tinker/tsconfig.json"\n}\n',
+  });
+  expect(glue(marked).status).toBe("ok");
+  const bare = goodApp({ "tsconfig.json": '\uFEFF{\n  "compilerOptions": {}\n}\n' });
+  expect(runCheck(bare, glue, true).status).toBe("fixed");
+  expect(readFileSync(join(bare, "tsconfig.json"), "utf8")).toBe(
+    '\uFEFF{\n  "extends": "./.tinker/tsconfig.json",\n  "compilerOptions": {}\n}\n',
+  );
+});
+
+test("--fix indents a new key as the file does: tabs and CRLF stay", () => {
+  const root = goodApp({
+    "tsconfig.json": '{\r\n\t// my options\r\n\t"compilerOptions": {},\r\n}\r\n',
+    "package.json": '{\n\t"name": "app"\n}\n',
+  });
+  expect(runCheck(root, glue, true).status).toBe("fixed");
+  expect(readFileSync(join(root, "tsconfig.json"), "utf8")).toBe(
+    '{\r\n\t"extends": "./.tinker/tsconfig.json",\r\n\t// my options\r\n\t"compilerOptions": {},\r\n}\r\n',
+  );
+  expect(readFileSync(join(root, "package.json"), "utf8")).toBe(
+    '{\n\t"scripts": {\n\t\t"postinstall": "tinker prepare"\n\t},\n\t"name": "app"\n}\n',
+  );
+});
+
 test("--fix writes the extends line and the postinstall script, and keeps the rest", () => {
   const root = goodApp({
     "tsconfig.json": JSON.stringify({ compilerOptions: { jsx: "react-jsx" } }),

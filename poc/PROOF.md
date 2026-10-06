@@ -22,7 +22,7 @@ From the repo root, each by exit code:
   and that build runs doctor's build-start checks and `tsc`.
 - `vp check`: EXIT 0. 0 errors, 28 warnings, none in `poc/`.
 - `vp run -r test`: EXIT 0.
-  `poc/start-base`: 21 files, 123 tests.
+  `poc/start-base`: 21 files, 129 tests.
 - `vp run prose`: EXIT 0.
 
 ## 2. Doctor's checks and messages
@@ -153,7 +153,7 @@ Then, at build start, the app's own `tsc`:
 
 ## 3. Unit tests, and breaking each check
 
-`poc/start-base/tests/`: 21 files, 123 tests.
+`poc/start-base/tests/`: 21 files, 129 tests.
 Plain unit tests of our glue as functions,
 and base behavior through a scope.
 No test runs a build, dev, TanStack, a browser,
@@ -190,10 +190,10 @@ caught    3 failed  check version always passes
 caught    5 failed  check named always passes
 caught    1 failed  tsconfig @/* goes back to ../src/*
 …
-133 of 133 breaks caught (62 logic, 71 message)
+140 of 140 breaks caught (69 logic, 71 message)
 ```
 
-- 62 logic breaks: each check passes always,
+- 69 logic breaks: each check passes always,
   each `--fix` does nothing, each glue function lies.
 - 71 message breaks: one mark in each `say` entry.
   So every doctor message has a test that reads it exactly.
@@ -426,6 +426,35 @@ fail  10 boundary
 - The ten devloop mistakes
   (`proof/stress-devloop-mistakes-final.txt`)
   and the five shadcn cases give the same lines as on fix3.
+
+### Re-review, round 3
+
+Three small bugs, each with a test that fails without its fix
+(`proof/round3-tests-before.txt`: 6 fail on commit `65356502`):
+
+- An `extends` array that holds `./.tinker/tsconfig.json`
+  now passes check 4; `--fix` puts that file first in an
+  array that lacks it, and never drops a file.
+  The same array crashed check 8's alias read; now it is read
+  as tsc reads it, the last file winning.
+- The route tree's `import('./…')`, which a lazy route
+  (`about.lazy.tsx`) gets, counts as in the tree.
+- A tsconfig.json with a byte order mark parses;
+  `--fix` keeps the mark, and the file's tabs and CRLF.
+
+The reviewer's cases N1 to N6, on the new pack
+(`proof/review-cases-round3.txt`):
+
+```text
+N1 tabs, CRLF, comment, no extends, --fix:
+   one line added, with a tab and CRLF
+N2 extends ["./.tinker/…", "./strict.json"]: passes
+N3 a byte order mark: build EXIT 0, doctor passes
+N4 package.json with a trailing comma: named,
+   never written
+N6 package.json with tabs, no scripts, --fix:
+   "scripts" added with tabs; still strict JSON
+```
 
 ### What the reruns caught in 0.2.0
 

@@ -31,16 +31,21 @@ export const say = {
 };
 
 /**
- * The paths shadcn reads, as tsconfig-paths merges them; null when a tsconfig does not parse
- * (check 4 names that line, so the alias lines here would only guess).
+ * The paths shadcn reads, as tsconfig-paths merges them: the app's own, else the last extended
+ * file that sets them (an extends array, as tsc reads it; a package name is skipped). Null when
+ * a tsconfig does not parse: check 4 names that line, so the alias lines here would only guess.
  * @param {string} root - From componentsProblems; why: the app's tsconfig.json.
  */
 function mergedPaths(root) {
   const own = readJsonc(join(root, "tsconfig.json"));
   if (own.error) return null;
-  const parent = own.value.extends ? readJsonc(resolve(root, own.value.extends)) : { value: {} };
-  if (parent.error) return null;
-  return own.value.compilerOptions?.paths ?? parent.value.compilerOptions?.paths ?? {};
+  const parents = [own.value.extends ?? []]
+    .flat()
+    .filter((file) => /^\.{1,2}\//.test(file))
+    .map((file) => readJsonc(resolve(root, file)));
+  if (parents.some((parent) => parent.error)) return null;
+  const found = [own, ...parents.reverse()].find((read) => read.value.compilerOptions?.paths);
+  return found?.value.compilerOptions.paths ?? {};
 }
 
 /**

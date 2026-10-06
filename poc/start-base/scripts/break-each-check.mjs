@@ -53,8 +53,8 @@ const breaks = [
   {
     name: "glue --fix writes no extends",
     file: "lib/checks/glue.mjs",
-    find: '["extends"],',
-    replace: '["extend"],',
+    find: 'prependExtends(join(root, "tsconfig.json"), read.tsconfig, tinkerConfig);',
+    replace: "",
   },
   {
     name: "build start stops nothing",
@@ -168,9 +168,9 @@ const breaks = [
   {
     name: "--fix drops the comments of tsconfig.json",
     file: "lib/jsonc.mjs",
-    find: "writeFileSync(path, applyEdits(base, edits));",
+    find: "writeBack(path, read, applyEdits(text, edits));",
     replace:
-      'writeFileSync(path, JSON.stringify(parse(applyEdits(base, edits)), null, 2) + "\\n");',
+      'writeBack(path, read, JSON.stringify(parse(applyEdits(text, edits)), null, 2) + "\\n");',
   },
   {
     name: "--fix writes a tsconfig that does not parse",
@@ -287,6 +287,48 @@ const breaks = [
     file: "lib/checks/routes.mjs",
     find: "(outlet && usesOf(source, outlet.local).length > 0)",
     replace: 'usesOf(source, "Outlet").length > 0',
+  },
+  {
+    name: "a byte order mark breaks the parse",
+    file: "lib/jsonc.mjs",
+    find: "const marked = raw.startsWith(bom);",
+    replace: "const marked = false;",
+  },
+  {
+    name: "--fix drops the byte order mark",
+    file: "lib/jsonc.mjs",
+    find: '${read.marked ? bom : ""}',
+    replace: "",
+  },
+  {
+    name: "--fix always indents with two spaces",
+    file: "lib/jsonc.mjs",
+    find: "insertSpaces: !tabs,",
+    replace: "insertSpaces: true,",
+  },
+  {
+    name: "an extends array never counts",
+    file: "lib/checks/glue.mjs",
+    find: "![parent].flat().includes(tinkerConfig)",
+    replace: "parent !== tinkerConfig",
+  },
+  {
+    name: "--fix replaces the extends key",
+    file: "lib/jsonc.mjs",
+    find: '  if (!node) return writeKey(path, read, ["extends"], entry);',
+    replace: '  return writeKey(path, read, ["extends"], entry);',
+  },
+  {
+    name: "lazy routes read as missed",
+    file: "lib/checks/generated.mjs",
+    find: "(?:from |import\\()'",
+    replace: "from '",
+  },
+  {
+    name: "an extends array breaks shadcn's alias read",
+    file: "lib/checks/style.mjs",
+    find: "[own.value.extends ?? []]\n    .flat()",
+    replace: "[own.value.extends ?? []]",
   },
   {
     name: "the type check never runs",

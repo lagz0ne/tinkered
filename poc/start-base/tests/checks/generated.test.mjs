@@ -40,6 +40,16 @@ test("names a stale generated file and a missing route tree", () => {
   ]);
 });
 
+test("a lazy route counts as in the tree: the tree imports it with import()", () => {
+  const root = preparedApp({
+    "src/routes/about.lazy.tsx": 'export const Route = createLazyFileRoute("/about")({});\n',
+  });
+  write(root, {
+    ".tinker/routeTree.gen.ts": `${tree}const About = createFileRoute('/about')().lazy(() => import('./../src/routes/about.lazy').then((d) => d.Route))\n`,
+  });
+  expect(generated(root).status).toBe("ok");
+});
+
 test("names a route file the tree misses", () => {
   const root = preparedApp({
     "src/routes/later.tsx": 'export const Route = createFileRoute("/later")({});\n',

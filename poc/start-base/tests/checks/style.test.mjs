@@ -94,6 +94,19 @@ test("reads tsconfig.json as tsc does, so a comment does not hide shadcn's alias
   expect(style(root).status).toBe("ok");
 });
 
+test("reads shadcn's aliases through an extends array, the last file winning", () => {
+  const root = goodApp({
+    ...tailwindInstalled,
+    "components.json": shadcn({}),
+    "src/style.css": '@import "tailwindcss";\n',
+    "strict.json": "{}\n",
+    "tsconfig.json":
+      '{ "extends": ["@tsconfig/strictest", "./.tinker/tsconfig.json", "./strict.json"] }\n',
+  });
+  prepare(root);
+  expect(style(root).status).toBe("ok");
+});
+
 test("names a stylesheet nothing links", () => {
   expect(style(goodApp({ "src/styles.css": "" })).lines).toEqual([
     "src/styles.css:1 is never linked: nothing imports it, and the shell links only src/style.css",

@@ -264,9 +264,12 @@ compiler options are left out here):
       "#tinker/routes": ["/app/.tinker/routeTree.gen.ts"]
     }
   },
-  "include": ["../src", "../tests", "../vite.config.ts", "../vite.config.mts", "./routeTree.gen.ts"]
+  "include": ["../src", "../tests", "./routeTree.gen.ts"]
 }
 ```
+
+`include` also lists `../vite.config.ts` and `../vite.config.mts`,
+so the build's `tsc` checks the Vite config too.
 
 Every path is absolute; `/app` stands for the app folder.
 shadcn reads `paths` with tsconfig-paths,
@@ -568,8 +571,12 @@ the `postinstall` script, `.tinker/`, and base bytes.
 It never edits `src/`, the Vite config, or `.env`.
 
 - It inserts the `extends` key and the `postinstall` script,
-  and keeps every other byte of those files,
-  comments and trailing commas included.
+  and keeps every other byte of those files:
+  comments, trailing commas, indent, line ends,
+  and a byte order mark.
+- An `extends` array that holds `./.tinker/tsconfig.json` passes.
+  `--fix` puts that file first in the array, or turns a single
+  other file into a two-item array; it never drops a file.
 - It never writes a file that does not parse.
   Doctor names the parse error at its line instead.
 - `tsconfig.json` is read as tsc reads it (JSONC).

@@ -1,0 +1,9 @@
+Round 3 tests, run against the code before the round 3 fixes (commit 65356502).
+
+before the fixes: 6 failed tests, 123 passed
+FAIL checks/generated.test.mjs :: a lazy route counts as in the tree: the tree imports it with import()
+FAIL checks/glue.test.mjs :: an extends array that holds .tinker passes; --fix adds .tinker first to one that lacks it
+FAIL checks/glue.test.mjs :: --fix keeps an extends that names another file: .tinker goes first, the file stays
+FAIL checks/glue.test.mjs :: a tsconfig.json with a byte order mark parses, and --fix keeps the mark
+FAIL checks/glue.test.mjs :: --fix indents a new key as the file does: tabs and CRLF stay
+FAIL checks/style.test.mjs :: reads shadcn's aliases through an extends array, the last file winning

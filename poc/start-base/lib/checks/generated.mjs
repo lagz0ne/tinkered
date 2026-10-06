@@ -48,12 +48,13 @@ function otherBase(root) {
 }
 
 /**
- * Each relative import in the route tree, resolved to a file on disk (or not).
+ * Each relative import in the route tree, resolved to a file on disk (or not): static imports,
+ * and the `import('./…')` a lazy route (`about.lazy.tsx`) gets.
  * @param {string} tree - From treeGaps; why: the generated file's path.
  */
 function treeImports(tree) {
   const text = readFileSync(tree, "utf8");
-  return [...text.matchAll(/from '(\.[^']+)'/g)].map((match) => {
+  return [...text.matchAll(/(?:from |import\()'(\.[^']+)'/g)].map((match) => {
     const base = resolve(dirname(tree), match[1]);
     const file = ["", ".tsx", ".ts", ".jsx", ".js"].map((ext) => base + ext).find(existsSync);
     return { path: match[1], line: lineAt(text, match.index), base, file };
