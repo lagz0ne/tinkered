@@ -1,5 +1,6 @@
-# vp run @tinker/start#mutate, card start/base-parts step 3a (sync, server side), 2026-10-06, commit f563a07a; EXIT 0
+# vp run @tinker/start#mutate, card start/base-parts step 3a (sync, server side), 2026-10-06, commit 2fd4f397; EXIT 0
 # killed 2939, timeout 26, survived 379, no coverage 60; 87.10 (86.34 on kills alone); src/parts/sync: 298 of 389 killed, 80.21 (76.61 on kills alone)
+# 6 Stryker test workers exited with SIGILL; Stryker restarted them and retried; the totals match the run before
 ----------------------------|------------------|----------|-----------|------------|----------|----------|
                             | % Mutation score |          |           |            |          |          |
 File                        |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
@@ -77,4 +78,4 @@ All files                   |  87.10 |   88.67 |     2939 |        26 |        3
   server-entry.ts           | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
   start.ts                  |  96.15 |   96.15 |       25 |         0 |          1 |        0 |        0 |
 ----------------------------|--------|---------|----------|-----------|------------|----------|----------|
-17:27:57 (1550436) INFO MutationTestReportHelper Final mutation score of 87.10 is greater than or equal to break threshold 85
+19:58:11 (1697734) INFO MutationTestReportHelper Final mutation score of 87.10 is greater than or equal to break threshold 85

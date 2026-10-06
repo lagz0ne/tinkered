@@ -77,7 +77,7 @@ vp check: EXIT 0
   0 errors, 28 warnings (as on main;
   none in packages/start)
 vp run -r test: EXIT 0, twice
-  @tinker/start: 290 passed (259 before)
+  @tinker/start: 291 passed (259 before)
 vp run prose: EXIT 0
 break-each-check: 198 of 198 caught
   (120 logic, 78 message)
@@ -103,8 +103,14 @@ Two runs taught one thing about timeouts:
 a 30 s test timeout let Stryker's own 15 s timeout
 fire first, so 73 hanging mutants counted as
 timeouts, not kills (84.96 on kills alone).
-Warming PGlite once in a `beforeAll`, with Vitest's
-5 s test timeout kept, brought them back to kills.
+Warming PGlite and drizzle once in a `beforeAll`,
+with Vitest's 5 s test timeout kept, brought them
+back to kills. The last run's totals match the one
+before it; 6 test workers exited with SIGILL in it,
+and Stryker restarted them and retried.
+break-each-check ran before the last test commit
+(`2fd4f397`), which only warms more modules and splits
+one test in two; it removes no assertion.
 
 ### Tests
 
