@@ -28,8 +28,8 @@
     "S14": 1
   },
   "mutation": "See mutation.log; runs after the final proof commit.",
-  "rebased origin/main": "871b5a92c965a1e5ada35adfa01bc05bb32f04c6",
-  "Start source tests after rebase": 408,
+  "rebased origin/main": "4423d86e9c2592d660888ad34748cf492e57169d",
+  "Start source tests after rebase": 421,
   "timing exit": 0,
   "timing A": "105e85a0b3bd6a53384a98095ea743b7815f0a9b",
   "timing B": "fa1cc594de4dcbad87b00028f67cb2183937bcfe",
@@ -39,5 +39,7 @@
   "first full mutation setup": 1,
   "clean main mutation setup": 1,
   "fixed mutation setup": 0,
-  "fixed setup tests": 863
+  "fixed setup tests": 863,
+  "git diff 871b5a92..origin/main -- packages/core": "empty output, exit 0",
+  "runtime after rebase and copy repair": "unchanged"
 }

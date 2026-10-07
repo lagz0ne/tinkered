@@ -1,18 +1,18 @@
-Rebased on origin/main 871b5a92; built before the checks.
+Rebased on origin/main 4423d86e; built before the checks.
 vp install: EXIT 0
 
 $ vp run -r build
-✔ Build complete in 1568ms
-✔ Build complete in 23ms
-✔ Build complete in 571ms
-✔ Build complete in 535ms
-✔ Build complete in 923ms
+✔ Build complete in 1985ms
+✔ Build complete in 129ms
+✔ Build complete in 827ms
+✔ Build complete in 1083ms
+✔ Build complete in 1491ms
 vp run: 0/12 cache hit (0%). (Run `vp run --last-details` for full details)
 EXIT 0
 
 $ scripts/ticket.sh --check-only --no-mutation op-fast
 == gate core/top-fast: vp check ==
-Found 0 errors and 28 warnings in 638 files (9.3s, 8 threads)
+Found 0 errors and 28 warnings in 642 files (7.5s, 8 threads)
 == gate core/top-fast: vp run -r test ==
       Tests  863 passed (863)
       Tests  4 passed (4)
@@ -21,7 +21,7 @@ Found 0 errors and 28 warnings in 638 files (9.3s, 8 threads)
       Tests  1 passed (1)
       Tests  66 passed (66)
       Tests  148 passed (148)
-      Tests  408 passed (408)
+      Tests  421 passed (421)
       Tests  25 passed (25)
 vp run: 0/10 cache hit (0%). (Run `vp run --last-details` for full details)
 == gate core/top-fast: core tests on the built files ==
@@ -48,8 +48,8 @@ test:registry: EXIT 0
 PROOF PASS: real auth, SMTP, migrations, two-tab sync, and profile page
 browser session stopped: EXIT 0
 browser session stopped: EXIT 0
-server PID 2874221 stopped: EXIT 0; signal none
-relay PID 2874125 stopped: EXIT 0
+server PID 2918051 stopped: EXIT 0; signal none
+relay PID 2918004 stopped: EXIT 0
 docker compose down -v: EXIT 0; only the proof project
 test:compose: EXIT 0
 EXIT 0

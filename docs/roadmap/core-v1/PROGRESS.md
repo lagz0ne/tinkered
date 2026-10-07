@@ -1666,3 +1666,28 @@ new URL("../dist/index.mjs", import.meta.url).href;
 ```
 
 The full fault run still follows on a clean rebased commit.
+
+### Lead-requested rebase
+
+Fetched and rebased on `4423d86e`, exit 0, with no conflict.
+Main's board stays intact; its only added text is this card in Review.
+
+```bash
+git diff 871b5a92..origin/main -- packages/core
+```
+
+That command prints nothing and returns 0.
+The newer main commits change no Core file.
+Core source, tests, and build settings also match the earlier timing build.
+The copy-list repair changes no runtime code.
+[Rebase checks](op-fast/rebase.log).
+
+All gates ran again after the rebase, each exit 0.
+Build and install pass.
+Code check: 0 errors and the same 28 warnings.
+All ten normal test tasks pass: Core has 863 tests; Start has 421.
+Core's built-file lane passes 873 tests.
+Prose, scaffold, and all 18 release lanes pass.
+Runtime size is still 15,724 B gzip.
+The first full fault attempt had stopped at setup.
+A new full run follows on the clean rebased commit with that setup repaired.

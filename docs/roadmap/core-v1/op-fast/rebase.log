@@ -1,0 +1,14 @@
+git fetch origin && git rebase origin/main: EXIT 0
+No conflicts. Main board kept; only the op-fast Review card added.
+origin/main: 4423d86e9c2592d660888ad34748cf492e57169d
+
+$ git diff 871b5a92..origin/main -- packages/core
+(empty output)
+EXIT 0
+
+$ git diff 1005c24e..HEAD -- packages/core/src packages/core/tests packages/core/build packages/core/vite.config.ts
+(empty output)
+EXIT 0
+
+The runtime and timing builds are unchanged.
+The earlier full mutation attempt failed during setup, so a new full lane follows after the copy repair.
