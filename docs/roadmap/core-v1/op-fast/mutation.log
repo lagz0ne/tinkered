@@ -1,0 +1,21 @@
+$ git rev-parse HEAD
+aee4ec3f0fd2e92b1c5ea6e5438e765d06126997
+$ git status --porcelain
+(empty)
+$ vp run core#mutate (under /tmp/mutation.lock)
+
+-----------------|------------------|----------|-----------|------------|----------|----------|
+                 | % Mutation score |          |           |            |          |          |
+File             |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+-----------------|--------|---------|----------|-----------|------------|----------|----------|
+All files        |  85.82 |   86.59 |     2978 |        25 |        465 |       31 |        3 |
+ errors.ts       |  90.82 |   90.82 |       87 |         2 |          9 |        0 |        0 |
+ index.ts        |  85.62 |   86.44 |     2802 |        21 |        443 |       31 |        3 |
+ testing.ts      |  87.38 |   87.38 |       88 |         2 |         13 |        0 |        0 |
+ trace-random.ts | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
+-----------------|--------|---------|----------|-----------|------------|----------|----------|
+
+Killed alone: 2978 / (2978 + 25 + 465 + 31) = 85.11%.
+Required package floor: 85%. PASS. Timeouts do not count as kills.
+The 3 runtime-error mutants are excluded from Stryker's score denominator.
+EXIT 0
