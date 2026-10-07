@@ -38,13 +38,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/shadcn-registry** — the `app` template item and the example items, built from source.
-  Template written once; examples updated with `shadcn add --diff`; base by `tinker upgrade`.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-shadcn-registry`.
-  Runs beside trial/base-image (user 2026-10-07: take care of both).
-  Next: finish the local CLI proof and gates; writer `start/shadcn-registry`.
-  Verify: an empty folder to a served page in one `shadcn add`; publishing waits for the user's go.
-
 - **trial/base-image** — the writer trial image installs the packed base; its gate runs `tinker doctor`.
   Replaces the `src/scaffold` exact-bytes check with doctor check 2 (base bytes).
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-trial-base-image`.
@@ -55,6 +48,14 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **start/shadcn-registry** — the `app` template item and the example items, built from source.
+  Template written once; examples updated with `shadcn add --diff`; base by `tinker upgrade`.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-shadcn-registry`.
+  Runs beside trial/base-image (user 2026-10-07: take care of both).
+  Next: lead reviews the saved code, CLI proof, and gates.
+  Proof: [Section V](docs/roadmap/start-base/PROOF.md#v-one-local-shadcn-add-starts-an-app).
+  Verify: an empty folder to a served page in one `shadcn add`; publishing waits for the user's go.
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

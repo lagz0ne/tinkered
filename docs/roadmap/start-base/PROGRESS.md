@@ -1,5 +1,67 @@
 # Start base progress
 
+## start/shadcn-registry
+
+Owner: writer on `start/shadcn-registry`; lead reviews and lands.
+Next: review the saved local registry proof and gates.
+Verify: an empty folder becomes a served page in one add;
+examples build, doctor passes, diff and upgrade keep user files.
+
+### What changed
+
+The source registry has ten items.
+`app` is the ten-file small app, written once.
+`runtime` and `starter` remain for old users.
+The base stays in its package and updates through `tinker upgrade`.
+Examples are copied user files and update through `shadcn add --diff`.
+`registry:build` reads source and writes all emitted items.
+`test:registry` checks every item and the full registry index.
+It refuses base targets and duplicate targets within an item.
+It builds the small app and the complete demo in scratch folders.
+The complete demo also passes its plain check there.
+The real CLI proof runs as a script, outside scope tests.
+
+### Assumptions
+
+The existing demo's feature bodies and page links stay joined.
+A feature item that needs sync depends on the complete demo.
+It copies auth, sync wiring, features, and migrations together.
+The config it copies is `tinker({ auth: true, sync: true })`.
+It replaces the first page and empty seams at the first copy.
+This needs `--overwrite`; later updates start with `--diff`.
+The mail item alone needs neither auth, sync, nor Postgres.
+It needs SMTP settings only when it sends mail.
+The minimal env example has only optional commented settings.
+This lets a new small app pass doctor without creating a secret.
+The demo has the full env example and needs `.env` before doctor.
+The upgrade target is a local version-bump fixture, 0.6.1.
+No published release or new base behavior is claimed.
+The proof keeps its scratch folder for review.
+
+### Proof
+
+[Section V](PROOF.md#v-one-local-shadcn-add-starts-an-app)
+and the [full log](proof/18-shadcn-registry.txt)
+show the CLI copy, package install, build, doctor, and HTTP 200.
+They also show source diff, unchanged base bytes,
+upgrade with unchanged source and config, and server cleanup.
+Three raw NUL bytes from the HTTP reply are escaped in the text log.
+No package or registry is published.
+
+### Core feedback
+
+No Core change was needed.
+The base host prints the requested port when it is zero,
+instead of the real port chosen by the OS:
+
+```bash
+HOST=127.0.0.1 PORT=0 npx tinker serve
+# Prints: tinker serve: http://127.0.0.1:0
+```
+
+The proof chooses a free fixed port before starting the host.
+No base code or doctor check is changed by this card.
+
 ## start/scaffold-on-base, Step 1
 
 Owner: Sol writer; lead reviews and lands.

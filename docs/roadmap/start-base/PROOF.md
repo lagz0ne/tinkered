@@ -31,6 +31,81 @@ Read their paths this way:
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
 
+## V. One local shadcn add starts an app
+
+Card `start/shadcn-registry`.
+Date: 2026-10-07.
+Branch: `start/shadcn-registry`.
+
+Run from this repo root:
+
+```bash
+node apps/start-scaffold/maintain/proof-registry.mjs
+```
+
+[Full local CLI log](proof/18-shadcn-registry.txt).
+[Assumptions and item needs](PROGRESS.md#startshadcn-registry).
+[Local setup](../../../apps/start-scaffold/README.md#local-registry).
+
+```text
+Local registry http://127.0.0.1:39433/r
+server PID 2032302
+one shadcn add wrote the empty app
+npm install: EXIT 0
+vp build: EXIT 0
+doctor: all checks pass
+GET / returned Hello, world. (HTTP 200)
+App server PID 2032827 stopped
+standalone mail: build and doctor EXIT 0
+source change appears in --diff
+user files, package.json, every base byte unchanged
+upgrade 0.6.0 -> 0.6.1: no user source or config changed
+todos, profile, auth pages, counter, wiring:
+  build and doctor EXIT 0
+registry server PID 2032302 stopped
+proof script: EXIT 0
+```
+
+The app item writes ten user files once.
+Its package, config, page, and greet operation come from
+`apps/start-min`.
+The seams start with empty extensions.
+The env example lists optional host settings as comments.
+The small app needs no secret and doctor passes at once.
+The base files are never copied into the app.
+
+`TINKER_PACKAGE_DIR` points at packed Core, React, and Start.
+It changes private package specs to absolute `file:` paths.
+`TINKER_REGISTRY_URL` sets links between local items.
+`TINKER_REGISTRY_OUT` keeps proof builds outside this repo.
+The checked-in build uses release version specs.
+It is ready for review, with no published package or domain.
+
+The mail item alone builds with no Postgres or SMTP.
+The other examples share the complete demo's bodies.
+Their dependency copies that demo and enables auth and sync.
+It also replaces the first page and empty seams.
+The first copy needs `--overwrite` and `cp .env.example .env`.
+Build and doctor pass without a running Postgres.
+Live demo use needs Postgres and SMTP.
+That copied demo's live use was not run in this proof.
+The app's real-service check is a separate gate.
+
+The diff proof changes the mail source and rebuilds the
+local registry, then restores the source in `finally`.
+It hashes user source and every installed base file.
+A dry diff changes none of them or package.json.
+The upgrade uses a local 0.6.1 version-bump fixture.
+It keeps source and config; only package and install files change.
+It proves the update path, not a future feature release.
+Every proof server stops by its own PID.
+Nothing is published.
+
+Publishing still needs the user's go, exact domain,
+and a place to install real Core, React, and Start releases.
+Those release specs replace the local `file:` paths.
+The registry's `/r` URL must use that exact domain.
+
 ## U. The app checks and example items
 
 Card `start/scaffold-on-base`, Step 2.
