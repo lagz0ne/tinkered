@@ -1,0 +1,49 @@
+Measured code: a4a7bea5015bf510f4c6b62e35a09d83c7d93bf6
+Rebased code: 8094cfed (same Start source and tests)
+Latest main: 2426acab (only playground changes after the pinned base)
+Base: df2a6da8bea9072cd6079317ccd93ffa3c410273
+
+Final checks by exit code:
+git fetch origin && git rebase origin/main: EXIT 0 (TODO conflict resolved, both cards kept)
+vp install: EXIT 0
+vp run -r build: EXIT 0
+vp check: EXIT 0 (0 errors, 28 warnings; clean main also has 28 warnings)
+vp run -r --concurrency-limit 1 test: EXIT 1 after final catch-up (five sync timeouts)
+The earlier normal-limit recursive run returned EXIT 0 (all 10 tasks).
+vp run prose: EXIT 0
+vp run @tinker-start-scaffold#check: EXIT 1
+pnpm validate: EXIT 0 (all 18 deterministic lanes)
+
+Additional proof:
+New SSR telemetry tests: 3 passed, EXIT 0.
+Start tests: 407 passed / 37 files with normal test limits in the recursive run.
+Start tests with --testTimeout 60000: 407 passed / 37 files, EXIT 0.
+Earlier default test runs timed out on both trees; no test source or config was changed.
+Main's exact first sync test timed out too (tests/sync.test.ts:86), EXIT 1.
+Main's recursive test run also timed out in flight-trial navigation, EXIT 1.
+
+Regression on clean main's implementation:
+Only the new test and test-entry exports were copied into the baseline.
+The test supplies old-part defaults, so it runs without new fields.
+2 passed, 1 failed: process close sends two renders from one queue with side ssr.
+Expected stringValue:ssr / side:ssr; received server.
+EXIT 1. Baseline changes were removed before timing.
+
+Scaffold failure on both trees:
+The original branch check reached test:compose, but Docker service startup returned 255.
+The clean-main check also failed test:compose; Docker printed:
+Pool overlaps with other one on this address space.
+Main scaffold check EXIT 1.
+Earlier plain, schema, import, middleware, serve, registry, and doctor steps passed.
+No Docker or host settings were changed.
+
+Jev pre-flight: EXIT 0; no file or unit flags.
+New tests: EXIT 0; 0/3 flags.
+Promises: EXIT 0; 0/178 README gaps.
+Final labels: none required.
+Strict style census: EXIT 0 on changed source and new tests.
+Core feedback: none.
+
+Full logs and timing driver: /home/paseo/.cache/tinkered-briefs/ssr-root-*.log
+Driver: /home/paseo/.cache/tinkered-briefs/ssr-root-ab-side.mjs
+No live browser or real remote-store result is claimed.

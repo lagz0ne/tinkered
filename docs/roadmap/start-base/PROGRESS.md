@@ -82,7 +82,7 @@ Assumptions and limits:
 ## start/ssr-telemetry-root
 
 Owner: Codex writer, branch `start/ssr-telemetry-root`.
-Next: finish checks, save proof, then lead review.
+Next: lead review; rerun tests on a quiet box and restore the Docker test network.
 Verify: render close does not wait on a held storage send;
 two renders share the process queue with side `ssr`;
 process close sends their records.
@@ -117,7 +117,53 @@ No publish or push is part of this card.
 
 ### Proof
 
-Checks and the queue verdict are pending.
+- Fetch and rebase: EXIT 0.
+  The board conflict kept both the lead's card and this card.
+- Install and recursive build: EXIT 0.
+- `vp check`: EXIT 0; 28 warnings, the same count as main.
+- Recursive tests before the last catch-up: EXIT 0, all 10 tasks.
+  Start: 407 tests in 37 files, with normal test limits.
+  The catch-up adds only the playground fix from main `2426acab`.
+  Start source and tests match the measured fix byte for byte.
+  The fresh recursive run then returned 1: five sync tests timed out.
+  Earlier runs timed out on both trees while the box was busy.
+  A separate Start run with a 60-second limit passed all 407 tests.
+- The three new tests: EXIT 0 with normal test limits.
+- The two-render test on main: EXIT 1; expected `ssr`, received `server`.
+- Prose: EXIT 0.
+- Scaffold check: EXIT 1 on both trees.
+  Its Docker proof could not start the test services.
+  Main printed: `Pool overlaps with other one on this address space`.
+  No Docker, host, DNS, or tunnel setting was changed.
+- `pnpm validate`: EXIT 0, all 18 lanes.
+- Jev pre-flight: EXIT 0, no flags.
+  New tests: 0 of 3 flagged; promises: 0 of 178 gaps.
+  Final labels: none needed.
+- Strict style census on the changed source and new tests: EXIT 0.
+- The mutation result and kills-only floor are in
+  [the mutation proof](proof/ssr-telemetry-root-mutation.txt).
+- [Gate proof](proof/ssr-telemetry-root-gates.txt).
+
+### Queue verdict
+
+`benchctl ab`: EXIT 0; **b is faster**.
+A is clean main `df2a6da8`; B is clean fix `a4a7bea5`.
+Each side starts `start-min`, sends 300 warm-up requests,
+then 1,000 requests with 16 at once, and stops the server by PID.
+Eight rounds, one run per side per round.
+A median: 8,472 ms; B median: 6,352 ms.
+The whole-side time fell 25.0%.
+The 95% range for the gap was -3,312.2 to -933.5 ms.
+The first job failed because command file paths were not mapped.
+The second job used paths from the clean base folder.
+[Timing proof](proof/ssr-telemetry-root-ab.txt).
+
+### Limits and Core feedback
+
+The Docker proof did not reach its live browser checks.
+The timing result covers the local app, not a real remote store.
+The held-send test proves render close without a time guess.
+Core feedback: none.
 
 ## start/registry-no-overwrite
 

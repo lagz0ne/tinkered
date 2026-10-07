@@ -1,0 +1,15 @@
+A: df2a6da8bea9072cd6079317ccd93ffa3c410273 (clean origin/main)
+B: a4a7bea5015bf510f4c6b62e35a09d83c7d93bf6 (clean fix)
+Each side: start start-min, 300 warm-up requests, 1000 requests, stop by PID.
+Concurrency: 16. Rounds: 8. Runs per round: 1.
+Command from /home/paseo/next/ssr-telemetry-base:
+benchctl ab --rounds 8 --runs-per-round 1 \
+  --a 'node ../../.cache/tinkered-briefs/ssr-root-ab-side.mjs . 1000' \
+  --b 'node ../../.cache/tinkered-briefs/ssr-root-ab-side.mjs ../fix-ssr-telemetry-root 1000'
+
+A median 8472 ms   B median 6352 ms
+delta -2119.7 ms (-25.0%)   95% range [-3312.2, -933.5] ms
+verdict: b is faster
+(waited 436.0s in the queue)
+
+EXIT 0
