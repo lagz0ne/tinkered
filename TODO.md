@@ -51,13 +51,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **start/registry-no-overwrite** — saved for lead review.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Next: review the code and local CLI proof; never publish from this card.
-  Verify: nine fresh app adds keep edited config and seams byte for byte.
-  Doctor names the switches and exports; all nine build, doctor, and serve.
-  [Proof](docs/roadmap/start-base/PROOF.md#x-examples-keep-the-users-app-files).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -84,6 +77,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/registry-no-overwrite** — example items add only their own files; nothing needs `--overwrite`.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Each item names its parts and seam exports; doctor prints the exact switch and export line to add.
+  The registry build rejects an item that lists a protected app file (11 targets).
+  Proof: nine fresh apps, nine adds, edited files byte for byte the same; mutation 86.39 on kills.
 
 - **start/github-release** — Core, React, and Start ship as one set, 0.7.0, tag `start-v0.7.0` (ADR 0106).
   Owner: lead (Claude, Start scaffold session); Sol writer.
