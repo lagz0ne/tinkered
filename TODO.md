@@ -70,6 +70,11 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **release start-v0.7.0** — the first public release (user's go, 2026-10-07).
+  [Release](https://github.com/lagz0ne/tinkered/releases/tag/start-v0.7.0): Core, React, and Start 0.7.0 tarballs; sha256 match the manifest.
+  Registry: `https://raw.githubusercontent.com/lagz0ne/tinkered/start-v0.7.0/apps/start-scaffold/public/r/app.json`.
+  Proof from the real URLs: empty folder, one `shadcn add`, `npm install`, `vp build` EXIT 0, doctor all pass, `GET /` 200 "Hello, world.".
+
 - **repo/no-import-extensions** — no TypeScript import names a `.ts`, `.tsx`, or `.mts` ending, anywhere (user 2026-10-07).
   Owner: lead (Claude, Start scaffold session); Sol writer. No mutation run (user).
   2,453 import paths and 781 paths in strings changed by `scripts/strip-import-extensions.mjs` (rerunnable).
