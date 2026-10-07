@@ -834,3 +834,19 @@ An earlier overlapping build failed; the gate passed,
 and the proof was rerun after the gate ended.
 No Core feedback: this work adds release paths, not Core behavior.
 Nothing was tagged, pushed, or published.
+
+## start/serve-fast
+
+- Owner: Codex, branch `start/serve-fast`.
+- Scope: built files, host compression, client compile hint.
+- Assumption: the build stays fixed until the host restarts.
+- Assumption: build output may run before prerendered HTML
+  exists; HTML without a build copy uses stream compression.
+- The file set replaces failed filesystem reads on page misses.
+- The client build writes Brotli and gzip copies.
+- The host compresses JS, CSS, and HTML by accepted encoding.
+- Hashed assets keep a one-year cache; other files revalidate.
+- The entry hint changes the output hash and shifts source maps.
+  `tinker({ compileHints: false })` turns it off.
+- Tests are plain glue tests; no server or browser in a test.
+- Proof and gates: pending.
