@@ -1,6 +1,11 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  pack: {
+    entry: ["main.ts"],
+    deps: { neverBundle: ["@tinker/core"] },
+    exports: false,
+  },
   lint: {
     options: {
       typeAware: true,

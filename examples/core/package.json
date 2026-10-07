@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types main.ts",
-    "dev": "node --experimental-strip-types main.ts",
+    "start": "vp pack && node dist/main.mjs",
+    "dev": "vp run start",
+    "build": "vp pack",
     "check": "vp check",
     "test": "vp test"
   },

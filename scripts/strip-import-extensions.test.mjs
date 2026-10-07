@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { stripDocument, stripSource } from "./strip-import-extensions.mjs";
+import { createHash } from "node:crypto";
+import {
+  stripDocument,
+  stripHtml,
+  stripJsonLines,
+  stripSource,
+} from "./strip-import-extensions.mjs";
 
 const ts = "." + "ts";
 const tsx = "." + "tsx";
@@ -42,4 +48,35 @@ await test("rewrites Markdown samples and source held in fixture strings and tem
   );
   const template = "const fixture = `" + sample + "`;";
   assert.equal(stripSource(template, "fixture.mjs").text, template.replace(`a${ts}`, "a"));
+});
+
+await test("rewrites highlighted HTML samples and keeps entry file paths and color spans", () => {
+  const input =
+    `<script type="module" src="/main${tsx}"></script><pre><code>` +
+    `<span class="keyword">import</span> x from <span class="string">&quot;./x${ts}&quot;</span>;` +
+    "</code></pre>";
+  assert.deepEqual(stripHtml(input), { text: input.replace(`./x${ts}`, "./x"), count: 1 });
+});
+
+await test("rewrites saved judge code and keeps its ID tied to its state", () => {
+  const row = {
+    id: "old",
+    judge: "leakedInternal",
+    label: false,
+    state: { code: `import x from "./x${ts}";`, file: "x.ts" },
+    why: "a private module",
+  };
+  const result = stripJsonLines(JSON.stringify(row) + "\n");
+  const changed = JSON.parse(result.text);
+  assert.equal(result.count, 1);
+  assert.deepEqual(changed.state, { code: 'import x from "./x";', file: "x.ts" });
+  assert.equal(
+    changed.id,
+    createHash("sha256")
+      .update(row.judge + "false" + JSON.stringify(changed.state))
+      .digest("hex")
+      .slice(0, 12),
+  );
+  assert.equal(changed.why, row.why);
+  assert.deepEqual(stripJsonLines(result.text), { text: result.text, count: 0 });
 });

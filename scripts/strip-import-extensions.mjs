@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
@@ -121,10 +122,96 @@ function stripJson(text) {
   return { ...result, text: result.text.slice(1, -1) };
 }
 
+/** Saved judge inputs are code samples too; their IDs must still match their edited state. */
+export function stripJsonLines(text) {
+  let count = 0;
+  text = text
+    .split("\n")
+    .map((line) => {
+      if (!line.trim()) return line;
+      const result = stripJson(line);
+      if (!result.count) return line;
+      count += result.count;
+      const row = JSON.parse(result.text);
+      if (typeof row.id === "string" && typeof row.label === "boolean" && row.judge && row.state)
+        row.id = createHash("sha256")
+          .update(row.judge + String(row.label) + JSON.stringify(row.state))
+          .digest("hex")
+          .slice(0, 12);
+      return JSON.stringify(row);
+    })
+    .join("\n");
+  return { text, count };
+}
+
+/** Decode a highlighted sample while keeping each character's place in the HTML. */
+function htmlText(html) {
+  const entities = {
+    "&quot;": '"',
+    "&#39;": "'",
+    "&apos;": "'",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&amp;": "&",
+  };
+  const offsets = [];
+  let text = "";
+  for (const part of html.matchAll(/<[^>]*>|&(?:quot|apos|lt|gt|amp|#39);|[^<&]+|[<&]/g)) {
+    if (part[0].startsWith("<") && part[0].length > 1) continue;
+    const value = entities[part[0]] ?? part[0];
+    for (let i = 0; i < value.length; i++)
+      offsets.push({
+        start: part.index + i,
+        end: part.index + (entities[part[0]] ? part[0].length : i + 1),
+      });
+    text += value;
+  }
+  return { text, offsets };
+}
+
+/** Remove parsed module endings from code samples without losing their color spans. */
+function stripHighlighted(html) {
+  const { text, offsets } = htmlText(html);
+  const edits = [];
+  let count = 0;
+  function visit(node) {
+    const source = moduleSource(node);
+    const suffix = source?.type === "Literal" ? source.value?.match?.(ending)?.[0] : null;
+    if (suffix) {
+      edits.push(...offsets.slice(source.end - 1 - suffix.length, source.end - 1));
+      count++;
+    }
+    Object.values(node)
+      .flatMap((value) => (Array.isArray(value) ? value : [value]))
+      .filter((value) => value && typeof value === "object")
+      .forEach(visit);
+  }
+  visit(parseSync("sample.tsx", text).program);
+  for (const { start, end } of edits.sort((a, b) => b.start - a.start))
+    html = html.slice(0, start) + html.slice(end);
+  return { text: html, count };
+}
+
+/** HTML entry paths stay; only module paths in inline code and highlighted samples change. */
+export function stripHtml(text) {
+  let count = 0;
+  text = text.replace(
+    /(<(script|code)\b[^>]*>)([\s\S]*?)(<\/\2>)/g,
+    (_, open, tag, code, close) => {
+      const result = tag === "code" ? stripHighlighted(code) : stripSource(code, "sample.mjs");
+      count += result.count;
+      return open + result.text + close;
+    },
+  );
+  return { text, count };
+}
+
 /** Select the source reader while preserving each file's existing layout. */
 function stripFile(file, text) {
   if (file.endsWith(".json")) return stripJson(text);
+  if (file.endsWith(".jsonl")) return stripJsonLines(text);
   if (file.endsWith(".sh")) return stripShell(text);
+  if (file.endsWith(".html")) return stripHtml(text);
   if (/\.(?:md|txt)$/.test(file)) return stripDocument(text);
   return stripSource(text, file);
 }
@@ -138,7 +225,7 @@ function main() {
     .filter(Boolean);
   const counts = new Map();
   for (const file of new Set(files)) {
-    if (!/\.(?:[cm]?[jt]sx?|md|json|txt|sh)$/.test(file)) continue;
+    if (!/\.(?:[cm]?[jt]sx?|md|jsonl?|txt|sh|html)$/.test(file)) continue;
     const text = readFileSync(file, "utf8");
     const result = stripFile(file, text);
     if (!result.count) continue;
