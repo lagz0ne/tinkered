@@ -930,6 +930,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   It adds no wait between synchronous cleanups.
   If a cleanup returns a promise, close waits for it before the next cleanup.
 - A destructured operation defer keeps its run's cleanup.
+- Settle keeps the call signal chosen before its body runs.
 - A throwing hook or cleanup never stops the rest: every cause lands in teardown errors, in order.
 - Close is safe to repeat: hooks run once, a re-entering close tears down once, closing again re-reports.
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close

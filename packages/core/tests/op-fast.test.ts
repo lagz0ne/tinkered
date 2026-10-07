@@ -96,3 +96,24 @@ test("closing keeps the web AbortError code for callers", async () => {
   expect((await root.close({ graceful: true })).status).toBe("success");
   expect(closing.reason).toMatchObject({ name: "AbortError", code: 20 });
 });
+
+for (const controller of [false, true]) {
+  test(`settle keeps the call signal chosen before its body runs (controller: ${controller})`, async () => {
+    const root = createScope();
+    const stop = new AbortController();
+    const cause = new Error("late signal");
+    stop.abort(cause);
+    const call: { signal?: AbortSignal } = {};
+    const op = operation({
+      label: "replace-signal",
+      run: () => {
+        call.signal = stop.signal;
+        throw cause;
+      },
+    });
+    const result = controller ? root.controller(op).settle(call) : root.settle(op, call);
+    if (result.status !== "failed") throw result;
+    expect(result.error).toBe(cause);
+    expect((await root.close({ graceful: true })).status).toBe("success");
+  });
+}

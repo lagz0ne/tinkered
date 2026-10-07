@@ -1,0 +1,6 @@
+jev calibrate — median(true) − median(false), pairs ordered; floor 30 points / 90%
+
+  ~ stateOutsideCell         provisional true  3 (med 89%)  false 334 (med 56%)  sep 33%  ordered 98%
+
+wrote /home/paseo/next/fix-op-fast/tools/jev/calibration.json
+Advisory only — a noisy judge prints as a note, never as a flag.

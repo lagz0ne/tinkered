@@ -2117,10 +2117,11 @@ class OperationControl<T, I> {
       const layer = this.layer;
       const twin = OperationControl.recover(this);
       this.settler = (call) => {
+        const signal = call?.signal;
         try {
-          return settledValue(layer, twin.run(call), call?.signal);
+          return settledValue(layer, twin.run(call), signal);
         } catch (error) {
-          return failedRun(layer, error, call?.signal);
+          return failedRun(layer, error, signal);
         }
       };
     }
@@ -4530,6 +4531,7 @@ function handleFor(layer: Layer): Scope.Handle {
   }) as Scope.Handle["run"];
   /** `settle` runs through a twin controller whose caller is RECOVERED; `run` stays as it was. */
   const settle = ((op: unknown, call?: Scope.Invocation<unknown>) => {
+    const signal = call?.signal;
     try {
       ensureRunning(layer);
       return settledValue(
@@ -4539,10 +4541,10 @@ function handleFor(layer: Layer): Scope.Handle {
               call,
             )
           : runInline(layer, op as Scope.Inline<Scope.Depends, unknown, unknown>, call, RECOVERED),
-        call?.signal,
+        signal,
       );
     } catch (error) {
-      return failedRun(layer, error, call?.signal);
+      return failedRun(layer, error, signal);
     }
   }) as Scope.Handle["settle"];
   return {

@@ -1487,7 +1487,7 @@ Dropped its redundant span guard to stay within the code check's branch cap.
 
 ### Tests
 
-Added five behavior checks in `packages/core/tests/op-fast.test.ts`.
+Added seven behavior checks in `packages/core/tests/op-fast.test.ts`.
 The two sync-close checks failed on unpatched main, exit 1.
 They pin no extra promise turns, cleanup order, both close result shapes,
 and the same result when a later close asks for the other mode.
@@ -1531,5 +1531,49 @@ Size, measured after each patch in order:
 - Shared closing reason: 15,718 B (+3).
 - Redundant span guard removed: -8 B.
 - Closing reason web code kept: +16 B.
-- Final code: 15,726 B; total +359 B; cap 16,384 B.
+- First code: 15,726 B; total +359 B.
+- Settle signal read order kept: -2 B.
+- Final code: 15,724 B; total +357 B; cap 16,384 B.
 - Hot names end at V8 slot 255; no slot headroom remains.
+
+Review caught one more change in the study patch.
+It moved the settle signal read past the run and inside the catch boundary.
+A body that replaces its call signal could turn a real failure into cancellation.
+The signal is now read once before the run, outside the try, as on main.
+Two scope and controller regression checks failed on the first patch, exit 1.
+The run still uses the same call object; only settle's chosen signal stays fixed.
+The first timing run is not final proof; its built code predates this read-order fix.
+It will be replaced by a clean-tree timing run after the fix is built.
+
+After the signal read fix, the checkpoint returns 0.
+Core: 863 source tests and 873 built-file tests.
+All ten normal test tasks pass, including Start's 405 tests.
+Build, code check (0 errors, 28 warnings), prose, scaffold,
+and all 18 release lanes return 0.
+Default Maglev still inlines the operation context into `runOnce`.
+[Gate exit codes](op-fast/gates.json).
+[Advisory notes](op-fast/ADVISORY.md).
+
+Core feedback from this card is a read-order trap in the study patch:
+
+```ts
+const call: { signal?: AbortSignal } = {};
+const stop = new AbortController();
+const cause = new Error("late signal");
+stop.abort(cause);
+const root = createScope();
+const result = root.settle(
+  operation({
+    run: () => {
+      call.signal = stop.signal;
+      throw cause;
+    },
+  }),
+  call,
+);
+```
+
+Main and the final fix report failed with that cause.
+The first patch reported cancelled.
+The two new scope and controller tests pin that difference.
+No missing Core feature was found.

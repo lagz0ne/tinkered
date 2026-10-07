@@ -1,0 +1,8 @@
+packages/core/tests/op-fast.test.ts
+  ✓ L5 sync resource cleanup closes without extra turns (graceful: ${…})
+  ✓ L39 close waits for async cleanup before running earlier cleanup
+  ✓ L68 a destructured operation defer keeps its run's cleanup
+  ✓ L89 closing keeps the web AbortError code for callers
+  ✓ L101 settle keeps the call signal chosen before its body runs (controller: ${…})
+
+jev tests: 0/5 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.

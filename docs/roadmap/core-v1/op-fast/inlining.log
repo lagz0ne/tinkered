@@ -2,5 +2,5 @@ Node v24.21.0; V8 13.6.233.17-node.53
 Default flags; Maglev enabled; no raised inline budget.
 node --trace-turbo-inlining bench/op-fast.mjs packages/core/dist settle 500000
 {"OperationCtx":"It","runOnce":"Zt"}
-Inlining 0x7a6daf8 {0x258f5f89ea19 <SharedFunctionInfo It>} into 0x7a6cf50 {0x258f5f89a689 <SharedFunctionInfo Zt>} (inside try-block)
+Inlining 0x158ce528 {0x0554f5edea19 <SharedFunctionInfo It>} into 0x158cd980 {0x0554f5eda689 <SharedFunctionInfo Zt>} (inside try-block)
 OperationCtx inlined into runOnce: PASS
