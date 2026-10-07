@@ -46,18 +46,21 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
+reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
+
+## Review
+
 - **start/scaffold-on-base** — move `apps/start-scaffold` onto the base.
   Its examples (todos, profile, auth pages, mail) become registry items the user copies in.
   Its seam, plain, and boundary checks move into `doctor` or stay as named checks.
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-scaffold-on-base`.
   Step 1: the app on the base, parts on, `src/scaffold/` gone. Step 2: its checks and examples.
-  First real proof of auth and sync: better-auth on Postgres, two tabs.
+  Step 1 saved for review; the lead lands it before sending Step 2.
+  Next: review the code and the final clean-tree mutation log.
+  Proof: better-auth on Postgres; two live tabs receive one saved todo.
+  [Track](docs/roadmap/start-base/PROGRESS.md).
   Verify: the app builds and serves on the base; `src/scaffold/` is gone; doctor passes.
-
-Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
-reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
-
-## Review
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

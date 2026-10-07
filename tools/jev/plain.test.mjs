@@ -456,14 +456,14 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
         id: "S24",
         line: 1,
         message:
-          "raw fetch: import httpRequest from @/lib/tinker.server, depend on httpRequest.controller, and run it with rawInput so requests have spans and inherit the caller's cancel signal (ADR 0102); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code. Fix: import { operation } from '@tinker/core'; import { httpRequest } from '@/lib/tinker.server'; import { raise } from '@/errors'; export const postNotice = operation({ label: 'postNotice', depends: { request: httpRequest.controller }, run: async ({ request }) => { const reply = await request.run({ rawInput: { url: 'https://api.example.com/notices', method: 'POST', body: 'The order is ready.' } }); if (reply.status < 200 || reply.status >= 300) { raise('NotificationFailed', {}); } return { sent: true }; } });",
+          "raw fetch: import httpRequest from @tinker/start/server, depend on httpRequest.controller, and run it with rawInput so requests have spans and inherit the caller's cancel signal (ADR 0102); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code. Fix: import { operation } from '@tinker/core'; import { httpRequest } from '@tinker/start/server'; import { raise } from '@/errors'; export const postNotice = operation({ label: 'postNotice', depends: { request: httpRequest.controller }, run: async ({ request }) => { const reply = await request.run({ rawInput: { url: 'https://api.example.com/notices', method: 'POST', body: 'The order is ready.' } }); if (reply.status < 200 || reply.status >= 300) { raise('NotificationFailed', {}); } return { sent: true }; } });",
       },
     ]);
   });
 
   void it("S24 leaves the scaffold's built-in fetch backend alone", () => {
     const source = readFileSync(
-      new URL("../../apps/start-scaffold/src/scaffold/http-backend.ts", import.meta.url),
+      new URL("../../packages/start/src/backend/http-backend.ts", import.meta.url),
       "utf8",
     );
     for (const file of [

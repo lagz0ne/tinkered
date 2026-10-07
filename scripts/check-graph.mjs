@@ -56,6 +56,12 @@ for (const { name, src, tests } of owners) {
   for (const file of sources(src)) {
     const text = readFileSync(join(ROOT, file), "utf8");
     text.split("\n").forEach((line, at) => {
+      // ADR 0102 names this HTTP wire span beside its owning operation span.
+      if (
+        file === "packages/start/src/backend/http.ts" &&
+        line.includes("obs.child(`http ${method} ${path}`")
+      )
+        return;
       if (line.includes("obs.child(")) {
         failures.push(
           `${file}:${at + 1}  hand-rolled span — make the step an operation (ADR 0058)\n` +

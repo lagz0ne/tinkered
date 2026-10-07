@@ -1,0 +1,58 @@
+STEP 1: scaffold on @tinker/start; telemetry, auth, sync on
+vp build: EXIT 0
+ok    1 base version
+      @tinker/start 0.6.0; 4 peers match the tested
+      versions
+skip  2 base bytes
+      workspace link to ../../packages/start; a source
+      checkout has no pinned bytes
+ok    3 generated folder
+      .tinker/ matches this base and src/routes;
+      .gitignore lists .tinker/ and .tanstack/
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker; postinstall runs tinker prepare
+ok    5 named files
+      each named or seam file exports what the base reads
+      (src/lib/tinker.ts, src/lib/tinker.server.ts); no
+      Start file is ignored
+ok    6 imports
+      38 files in src/ import the base only through its
+      entries
+ok    7 routes
+      route files export Route; none takes a base path
+      (/api/health, /tinker, /api/telemetry, /api/auth/$,
+      /api/sync)
+ok    8 style
+      src/style.css is linked by the shell; every
+      stylesheet is linked
+ok    9 env
+      18 key(s) from .env.example are set; part keys read
+      well: telemetry, auth, sync
+ok    10 boundary
+      the last build had no import boundary violations
+doctor: all checks pass
+tinker doctor: EXIT 0
+docker compose up --wait postgres mailpit: EXIT 0; isolated proof project
+Own network uses 10.254.251.0/28; the host default address pools are full
+Own TCP relays reach Postgres and Mailpit through docker compose exec; host loopback is outside this workspace
+run app migrations: EXIT 0
+GET /api/health: 200 {"ok":true,"base":"0.6.0"}
+databaseSetup ran app migrations: 4 migration rows on real Postgres
+curl POST /api/auth/sign-up/email: 200; account step-one@example.com
+Mailpit: real SMTP verification message received
+curl POST /api/auth/sign-in/email: 200; same real Postgres account
+browser engine: Lightpanda (agent-browser default); 127.0.0.1 only
+tab one: real better-auth browser sign-in succeeded
+two live Lightpanda tabs: one per session, same real account; Lightpanda permits one target per session
+tab one added todo: Step one crosses two tabs
+tab two received todo through /api/sync: Step one crosses two tabs
+tab two sync requests: [REQ-0000000007] GET http://127.0.0.1:36109/api/sync?cursor=%7B%22public%22%3A0%2C%22private%22%3Anull%7D (EventSource) 200
+[REQ-0000000017] GET http://127.0.0.1:36109/api/sync?cursor=%7B%22public%22%3A0%2C%22private%22%3A%7B%22accountId%22%3A%2202H8u2NJh5W6CVQ0D5PLTF3MjuTrLGJB%22%2C%22revision%22%3A0%7D%7D (EventSource) 200
+Postgres saved todo: Step one crosses two tabs
+PROOF PASS: real auth, SMTP, migrations, and two-tab sync
+browser session stopped: EXIT 0
+browser session stopped: EXIT 0
+server PID 1911221 stopped: EXIT 0; signal none
+relay PID 1911098 stopped: EXIT 0
+docker compose down -v: EXIT 0; only the proof project

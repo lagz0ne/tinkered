@@ -31,6 +31,65 @@ Read their paths this way:
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
 
+## T. The scaffold runs on the base
+
+Card `start/scaffold-on-base`, Step 1.
+Date: 2026-10-07.
+
+Run from the repo root:
+
+```bash
+node packages/start/scripts/scaffold-proof.mjs
+```
+
+Full log: [16-scaffold-on-base.txt](proof/16-scaffold-on-base.txt).
+The app keeps its own auth, database, mail, and migrations.
+The base mounts telemetry, auth, and sync.
+The app owns none of their route files.
+
+```text
+vp build: EXIT 0
+doctor: all checks pass
+tinker doctor: EXIT 0
+run app migrations: EXIT 0
+GET /api/health: 200 {"ok":true,"base":"0.6.0"}
+curl POST /api/auth/sign-up/email: 200
+Mailpit: real SMTP verification message received
+curl POST /api/auth/sign-in/email: 200
+tab one: real better-auth browser sign-in succeeded
+tab one added todo: Step one crosses two tabs
+tab two received todo through /api/sync
+Postgres saved todo: Step one crosses two tabs
+PROOF PASS: real auth, SMTP, migrations, two-tab sync
+server stopped: EXIT 0
+relay stopped: EXIT 0
+docker compose down -v: EXIT 0
+```
+
+Tab two records `GET /api/sync` as EventSource, status 200.
+It shows the new todo without a reload.
+Each tab uses the same real account.
+Lightpanda allows one target per browser session.
+The proof uses two sessions, with one live tab each.
+
+The script starts only its own Compose project.
+The host's default network address pools are full.
+A temp Compose file gives this project a free small subnet.
+The workspace cannot reach host loopback ports.
+Its own TCP relays use `docker compose exec` to reach
+Postgres and Mailpit from local ports.
+It edits no host service or Docker setting.
+Cleanup stops each owned PID and removes its own volumes.
+
+Not proved here:
+
+- Packed base byte hashes: doctor skips a workspace link.
+- Trace or log storage: the part is on;
+  this run points its storage URLs at a closed local port.
+- Email link clicks: sign-in does not need them here.
+- Trial images and the new registry layout.
+- One browser with two targets: Lightpanda refused it.
+
 ## S. The sync part, client side, 0.6.0
 
 Step 3b of card `start/base-parts`: the client side of sync.

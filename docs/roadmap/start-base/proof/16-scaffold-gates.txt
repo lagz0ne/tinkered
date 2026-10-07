@@ -1,0 +1,141 @@
+STEP 1 gate evidence; 2026-10-07
+git fetch origin; git rebase origin/main: EXIT 0 (setup)
+vp install: EXIT 0
+vp run -r build: EXIT 0; 11 tasks
+vp check: EXIT 0; 0 errors, 28 warnings
+clean origin/main check: EXIT 0; 0 errors, 28 warnings
+vp run -r test: EXIT 0; 1838 passed, 1 old skip; 10 tasks
+Jev tools: 148; Core: 856; blueprint: 148; React: 118 passed, 1 skipped
+Start: 387; scaffold: 25; flight trial: 87
+Core example: 4; React example: 64; playground: 1
+node --test tools/writer-trial/*.test.mjs: EXIT 0; 92 passed
+fixed flight reference in a disposable copy: build, types, tests, plain: EXIT 0; 3 tests
+pnpm validate: EXIT 0; all 17 deterministic lanes
+vp run prose: EXIT 0; 0 hits
+style census --strict: EXIT 0; Style census: OK
+node tools/jev/docs.mjs (changed TypeScript): EXIT 0; 0 S26 rows
+SCIP Start index and public export refs: EXIT 0
+node tools/jev/preflight.mjs: EXIT 0; labels for all non-noisy model flags
+node tools/jev/tests.mjs (changed seams): EXIT 0; 0/48 flagged
+node tools/jev/tests.mjs (request file): EXIT 0; 0/4 flagged
+node tools/jev/promises.mjs start: EXIT 0; 0/175 gaps (43 unsure)
+node tools/jev/promises.mjs ../apps/start-scaffold: EXIT 0; 0/25 gaps (1 unsure)
+New doctor checks: none; new planted breaks not required
+Real proof: EXIT 0; see 16-scaffold-on-base.txt
+
+Prepare regression:
+Without the real-path fix: EXIT 1
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-scaffold-on-base/packages/start
+
+ ❯ tests/prepare.test.mjs (10 tests | 1 failed | 9 skipped) 14ms
+   × linked parts use the real base path so sync has one Register 13ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 skipped (10)
+   Start at  01:40:30
+   Duration  273ms (transform 52%, import 26%, tests 16%, worker 7%)
+
+
+note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/prepare.test.mjs > linked parts use the real base path so sync has one Register
+AssertionError: expected '// Written by tinker(); parts on: syn…' to contain 'export { sync } from "/home/paseo/nex…'
+
+- Expected
++ Received
+
+- export { sync } from "/home/paseo/next/tinkered-scaffold-on-base/packages/start/src/parts/sync/on.ts";
++ // Written by tinker(); parts on: sync; sync turns auth on.
++ export { telemetry } from "/tmp/tinker-test-YhXpZX/node_modules/@tinker/start/src/parts/telemetry/off.ts";
++ export { sync } from "/tmp/tinker-test-YhXpZX/node_modules/@tinker/start/src/parts/sync/on.ts";
++
+
+ ❯ tests/prepare.test.mjs:128:46
+    126| test("linked parts use the real base path so sync has one Register", (…
+    127|   const root = goodApp();
+    128|   expect(render(root, ["sync"])["parts.ts"]).toContain(
+       |                                              ^
+    129|     `export { sync } from ${JSON.stringify(join(baseDir, "src/parts/sy…
+    130|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+With the real-path fix: EXIT 0
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-scaffold-on-base/packages/start
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 9 skipped (10)
+   Start at  01:40:31
+   Duration  276ms (transform 59%, import 26%, tests 10%, worker 5%)
+
+
+note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
+
+Native public entry regression:
+Without native JSON import fix: EXIT 1
+
+node:internal/modules/esm/assert:110
+        throw new ERR_IMPORT_ATTRIBUTE_MISSING(url, 'type', validType);
+              ^
+
+TypeError [ERR_IMPORT_ATTRIBUTE_MISSING]: Module "file:///home/paseo/next/tinkered-scaffold-on-base/packages/start/package.json" needs an import attribute of "type: json"
+    at validateAttributes (node:internal/modules/esm/assert:110:15)
+    at defaultLoadSync (node:internal/modules/esm/load:163:3)
+    at #loadAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:806:12)
+    at #loadSync (node:internal/modules/esm/loader:838:53)
+    at ModuleLoader.load (node:internal/modules/esm/loader:787:26)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:498:31)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:564:36)
+    at afterResolve (node:internal/modules/esm/loader:611:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:617:12)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33) {
+  code: 'ERR_IMPORT_ATTRIBUTE_MISSING'
+}
+
+Node.js v24.21.0
+
+With native JSON import fix: EXIT 0
+
+
+Label replies:
+label: configNotTag false ← apps/start-scaffold/src/backend/auth.ts#auth (bb8d0ffe2ec6)
+label: ignoresAbortAfterAwait false ← apps/start-scaffold/src/backend/auth.ts#auth (2cd14f6f2f9c)
+label: configNotTag false ← apps/start-scaffold/src/backend/database.ts#databaseSettings (caea8d137ba1)
+label: configNotTag false ← apps/start-scaffold/src/backend/database.ts#database (6ed19553c1c7)
+label: stopOnlyInDefer false ← apps/start-scaffold/src/backend/database.ts#database (02a1ba52bdfb)
+label: ignoresAbortAfterAwait false ← apps/start-scaffold/src/backend/database.ts#database (aa5775586c33)
+label: configNotTag false ← apps/start-scaffold/src/backend/mail.ts#mailSettings (14c636f1eada)
+label: stopOnlyInDefer false ← apps/start-scaffold/src/backend/mail.ts#mail (18662a845e7b)
+label: ignoresAbortAfterAwait false ← apps/start-scaffold/src/backend/mail.ts#mail (837b1228e50e)
+label: configNotTag false ← packages/start/src/backend/http.ts#httpRequest (ceb0c42b5c97)
+
+label: already in the bank (bb8d0ffe2ec6)
+label: already in the bank (2cd14f6f2f9c)
+label: configNotTag false ← apps/start-scaffold/src/backend/database.ts#databaseSettings (a1e9d9174be5)
+label: already in the bank (6ed19553c1c7)
+label: already in the bank (02a1ba52bdfb)
+label: already in the bank (aa5775586c33)
+label: configNotTag false ← apps/start-scaffold/src/backend/mail.ts#mailSettings (d1f5dc7b37de)
+label: already in the bank (18662a845e7b)
+label: already in the bank (837b1228e50e)
+label: already in the bank (ceb0c42b5c97)
+label: effectWithoutDefer false ← apps/start-scaffold/src/backend/database.ts#database (c9a497c4ac60)
+label: already in the bank (f44c0fa2a381)
+label: configNotTag false ← packages/start/src/parts/auth/settings.ts#authSettings (12c87f31f50b)
+
+
+Step 2 exclusions:
+scripts/check-schema.mjs: EXIT 1; copied app lacks generated .tinker/tsconfig.json
+maintain/check-imports.mjs: EXIT 1; base schema exports load drizzle declarations
+Old registry and writer image copy paths: deferred, missing removed source files
+The final clean-tree mutation run is recorded in 16-scaffold-mutation.txt.
+
+node tools/jev/calibrate.mjs: EXIT 0; full bank
+Final configNotTag and effectWithoutDefer calibration: EXIT 0
+14 new labeled cases committed; existing migrate label reused.
