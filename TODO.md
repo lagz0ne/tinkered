@@ -38,20 +38,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **repo/no-import-extensions** — drop TypeScript import endings across the repo.
+  Owner: lead (Claude, Start scaffold session); Codex writer.
+  Branch: `repo/no-import-extensions`.
+  Next: fix doctor text and saved module paths from the lead review.
+  No mutation runs and no publish.
+  Both Start cards have landed; rebased on `381e2ef3`.
+  The first release waits for this card.
+  Verify: all build, type, test, prose, registry, and budget gates pass.
+  [Proof](docs/roadmap/repo-style/PROGRESS.md).
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **repo/no-import-extensions** — drop TypeScript import endings across the repo.
-  Owner: lead (Claude, Start scaffold session); Codex writer.
-  Branch: `repo/no-import-extensions`.
-  Next: lead review; no mutation runs and no publish.
-  Land after start/github-release and start/registry-no-overwrite.
-  The first release waits for this card.
-  Verify: all build, type, test, prose, registry, and budget gates pass.
-  [Proof](docs/roadmap/repo-style/PROGRESS.md).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

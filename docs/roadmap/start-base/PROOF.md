@@ -89,7 +89,7 @@ todos-example: needs the sync part; set tinker({
 sync: true }) in vite.config.ts
 todos-example: src/lib/tinker.server.ts:1 needs
 auth; add export { auth } from
-"../backend/auth.ts";
+"../backend/auth";
 ```
 
 It also names all other missing seam exports.
