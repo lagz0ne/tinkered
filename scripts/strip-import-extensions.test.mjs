@@ -72,7 +72,7 @@ await test("rewrites saved judge code and keeps its ID tied to its state", () =>
   assert.deepEqual(changed.state, { code: 'import x from "./x";', file: "x.ts" });
   assert.equal(
     changed.id,
-    createHash("sha256")
+    createHash("sha1")
       .update(row.judge + "false" + JSON.stringify(changed.state))
       .digest("hex")
       .slice(0, 12),

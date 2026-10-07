@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Counts patterns the coding convention forbids or watches. grep/awk only.
+# Counts forbidden and watched patterns; module paths use the source parser.
 # Usage: bash style-census.sh [FILE|DIR ...] [--strict]
-# Source checks (S*) run on .ts/.tsx that are not tests.
-# Test checks (T*) run on *.test.ts / *.test.tsx / *.spec.ts / *.spec.tsx.
+# Source checks (S*) run on .ts/.tsx/.mts that are not tests.
+# Test checks (T*) run on .test/.spec files with .ts/.tsx/.mts endings.
 # Watch checks (W*) are reported, never enforced; the formatter or a reviewer decides.
 # Performance checks (P*) run on source and are enforced like S*.
 # --strict exits 1 when any S*, T*, or P* id has a hit.

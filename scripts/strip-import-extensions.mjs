@@ -134,7 +134,7 @@ export function stripJsonLines(text) {
       count += result.count;
       const row = JSON.parse(result.text);
       if (typeof row.id === "string" && typeof row.label === "boolean" && row.judge && row.state)
-        row.id = createHash("sha256")
+        row.id = createHash("sha1")
           .update(row.judge + String(row.label) + JSON.stringify(row.state))
           .digest("hex")
           .slice(0, 12);
