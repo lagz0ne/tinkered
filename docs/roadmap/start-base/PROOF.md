@@ -64,9 +64,9 @@ The package scripts also stayed the same.
 Dependencies were added through shadcn's dependency fields.
 
 ```text
-Local registry http://127.0.0.1:43317/r
-registry server PID 2137465
-Own TCP relay PID 2139004
+Local registry http://127.0.0.1:37045/r
+registry server PID 2277724
+Own TCP relay PID 2277900
 9 fresh apps; 9 adds without --overwrite
 edited config and both seams unchanged byte for byte
 app scripts unchanged
@@ -74,8 +74,8 @@ applied doctor's switches and export lines by hand
 9 items: build, doctor, serve EXIT 0
 GET /: Hello, world. (HTTP 200)
 GET /demo: A shared counter (HTTP 200)
-relay PID 2139004 stopped
-registry server PID 2137465 stopped
+relay PID 2277900 stopped
+registry server PID 2277724 stopped
 own Compose project removed
 proof command EXIT 0
 ```

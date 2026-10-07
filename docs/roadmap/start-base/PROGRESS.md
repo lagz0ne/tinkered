@@ -94,6 +94,19 @@ A first copied-starter build found its old package-name imports.
 The final registry rewrites those to the consumer's app paths.
 It also adds PGlite through the item's dev dependency field.
 
+The branch caught up with the local GitHub release work.
+The final CLI proof uses the three packed 0.7.0 packages.
+The release URLs and version rules stay as that writer left them.
+The root test run passes 1704 tests, with one existing skip.
+Start passes 401 tests; the source app passes 25.
+All 17 release checks pass; lint has 28 warnings and no error.
+
+An early mutation dry run hit an existing PGlite test timeout.
+Its unchanged retry passed the kills-only floor.
+Main then moved, so that run is not the final mutation proof.
+The linked mutation log is rerun on the clean rebased code commit.
+Only that log is saved after the final run.
+
 Core feedback: none.
 
 ## start/shadcn-registry

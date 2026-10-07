@@ -10,4 +10,4 @@ caught    1 failed  message examples.mjs say.passed
 
 8 of 8 breaks caught (4 logic, 4 message); BREAKS=example missing,example startup,example requirements,message examples.mjs
 
-Break command EXIT 0.
+EXIT 0
