@@ -7,8 +7,9 @@ if (!["supplier-a", "supplier-b", "supplier-c", "payment"].includes(name))
 const child = spawn(
   process.execPath,
   [
-    new URL(`../services/${name === "payment" ? "payment" : "supplier"}/main.ts`, import.meta.url)
-      .pathname,
+    "--input-type=module",
+    "-e",
+    `import { ${name === "payment" ? "paymentMain" : "supplierMain"} as main } from ${JSON.stringify(new URL("../dist/index.mjs", import.meta.url).href)}; process.exitCode = await main(process.env, process.argv.at(1));`,
     name,
   ],
   { stdio: "inherit" },

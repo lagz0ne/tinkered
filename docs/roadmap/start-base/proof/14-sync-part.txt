@@ -5,8 +5,8 @@ tinker: sync turns auth on
 vp build: EXIT 0
 $ cat .tinker/parts.server.ts
 // Written by tinker(); parts on: telemetry, auth, sync; sync turns auth on.
-export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server.ts";
-export { auth } from "node_modules/@tinker/start/src/parts/auth/on.server.ts";
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server";
+export { auth } from "node_modules/@tinker/start/src/parts/auth/on.server";
 $ jq .parts .tinker/base.json
 ["telemetry","auth","sync"]
 $ tinker doctor 

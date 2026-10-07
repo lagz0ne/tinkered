@@ -15,7 +15,12 @@ const childEntry = resource({
   async factory({ service, settings }, ctx) {
     const child = spawn(
       process.execPath,
-      [new URL(`../services/${service}/main.ts`, import.meta.url).pathname, "supplier-a"],
+      [
+        "--input-type=module",
+        "-e",
+        `import { ${service === "payment" ? "paymentMain" : "supplierMain"} as main } from ${JSON.stringify(new URL("../dist/index.mjs", import.meta.url).href)}; process.exitCode = await main(process.env, process.argv.at(1));`,
+        "supplier-a",
+      ],
       { env: { ...process.env, ...settings, PORT: "0" }, stdio: ["ignore", "pipe", "inherit"] },
     );
     const ended = once(child, "exit").then(([code, signal]) =>

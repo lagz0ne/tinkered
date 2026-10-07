@@ -123,7 +123,7 @@ The copied client has no frame, config tag, or retry.
 - **command meta** — RETIRED by ADR 0056: a command is a plain operation that answers an exit code; the meta tag and `commands(op)` are gone.
 - **loading policy** — Follows the process: a CLI loads only the selected command (usage loads nothing); a server imports every route at mount and warms pools at boot via `scope.resolve`. Frames are cheap to import: driver imports live inside `open`/loaders.
 - **exit codes** — 0 success · 1 failure · 2 usage or the operation's `parse` failure · 130 interrupted (SIGINT/SIGTERM).
-- **lazy module** — A resource whose factory imports: `resource({ factory: () => import("./x.ts").then((m) => m.op) })`. Built once per owner on first `resolve`, cached, presettable, spanned. The lazy unit — no separate primitive (ADR 0042, core-feedback register).
+- **lazy module** — A resource whose factory imports: `resource({ factory: () => import("./x").then((m) => m.op) })`. Built once per owner on first `resolve`, cached, presettable, spanned. The lazy unit — no separate primitive (ADR 0042, core-feedback register).
 
 ## Harness (`@tinker/harness`)
 

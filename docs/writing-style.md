@@ -1,5 +1,7 @@
 # Writing style — plain words, one lint
 
+Omit `.ts`, `.tsx`, and `.mts` endings in imports and exports.
+
 **The rule:** a word is jargon when it has no row in [`glossary.md`](glossary.md) and a plainer word
 says the same thing. Cut it. Repo terms (`seam`, `ambient`, `blast radius`, `smell`) are defined there,
 so they stay.

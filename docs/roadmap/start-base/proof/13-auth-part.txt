@@ -4,8 +4,8 @@ $ vp build
 vp build: EXIT 0
 $ cat .tinker/parts.server.ts
 // Written by tinker(); parts on: telemetry, auth.
-export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server.ts";
-export { auth } from "node_modules/@tinker/start/src/parts/auth/on.server.ts";
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server";
+export { auth } from "node_modules/@tinker/start/src/parts/auth/on.server";
 $ tinker doctor 
 doctor: all checks pass
 EXIT 0
@@ -20,8 +20,8 @@ $ vp build
 vp build: EXIT 0
 $ cat .tinker/parts.server.ts
 // Written by tinker(); parts on: telemetry.
-export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server.ts";
-export { auth } from "node_modules/@tinker/start/src/parts/auth/off.ts";
+export { telemetry } from "node_modules/@tinker/start/src/parts/telemetry/on.server";
+export { auth } from "node_modules/@tinker/start/src/parts/auth/off";
 $ tinker doctor 
 doctor: all checks pass
 EXIT 0

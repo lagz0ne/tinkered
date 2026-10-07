@@ -1,5 +1,7 @@
 # Flight trial rules
 
+Omit `.ts`, `.tsx`, and `.mts` endings in imports and exports.
+
 Grow the supplied Start app one round at a time.
 Follow `AGENTS.md`; read only the app skills for the work you change.
 Keep the packed `@tinker/start` base unchanged.

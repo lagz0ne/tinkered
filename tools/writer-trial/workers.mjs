@@ -179,7 +179,7 @@ if (action === "create") {
             strict: true,
             noEmit: true,
             skipLibCheck: true,
-            allowImportingTsExtensions: true,
+
             types: ["node", "react", "react-dom"],
           },
           include: ["src", "tests"],

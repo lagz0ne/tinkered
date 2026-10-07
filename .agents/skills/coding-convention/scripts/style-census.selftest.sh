@@ -93,6 +93,35 @@ export const u = `/** one line */`; export const b = x[1] + 1;
 TS
 check "flags x[0] after a template holding /**" S14 2 "$(id_count S14 "$tmp/template.ts")"
 
+# Build the bad endings so the repo cleanup does not rewrite this negative fixture.
+ts='.ts'
+tsx='.tsx'
+mts='.mts'
+cat >"$tmp/imports.mts" <<TS
+import a from "./a${ts}";
+export * from './b${tsx}';
+import(
+  "./c${mts}"
+);
+type D = import("./d${ts}").D;
+TS
+check "flags static, export, dynamic, and type imports" S17 4 "$(id_count S17 "$tmp/imports.mts")"
+if bash "$census" "$tmp/imports.mts" --strict >"$tmp/strict.log" 2>&1; then
+  echo "FAIL bad import endings passed strict mode"
+  fail=1
+fi
+cat >"$tmp/imports.test.ts" <<'TS'
+import { x } from "../src/index";
+export * from "./b";
+import "./plain.mjs";
+import "./style.css";
+import "./data.json";
+import "./asset.ts?url";
+const path = "./file.ts";
+TS
+check "keeps extensionless modules, assets, queries, and plain strings" S17 0 "$(id_count S17 "$tmp/imports.test.ts")"
+check "allows the extensionless public test entry" T04 0 "$(id_count T04 "$tmp/imports.test.ts")"
+
 if (( fail )); then
   echo "style-census selftest: FAIL"
   exit 1

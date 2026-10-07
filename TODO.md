@@ -38,16 +38,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **repo/no-import-extensions** — drop TypeScript import endings across the repo.
-  Owner: Codex writer; branch `repo/no-import-extensions`.
-  Next: save a safe repeat script, then its output, then checks and docs.
-  Verify: build, check, tests, prose, registry, validate, ticket gate, and census pass.
-  No mutation runs; no push or publish.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **repo/no-import-extensions** — drop TypeScript import endings across the repo.
+  Owner: Codex writer; branch `repo/no-import-extensions`.
+  Next: lead review; no mutation runs and no publish.
+  Verify: all build, type, test, prose, registry, and budget gates pass.
+  [Proof](docs/roadmap/repo-style/PROGRESS.md).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

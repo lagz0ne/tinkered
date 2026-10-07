@@ -47,10 +47,10 @@ AssertionError: expected '// Written by tinker(); parts on: syn…' to contain '
 - Expected
 + Received
 
-- export { sync } from "/home/paseo/next/tinkered-scaffold-on-base/packages/start/src/parts/sync/on.ts";
+- export { sync } from "/home/paseo/next/tinkered-scaffold-on-base/packages/start/src/parts/sync/on";
 + // Written by tinker(); parts on: sync; sync turns auth on.
-+ export { telemetry } from "/tmp/tinker-test-YhXpZX/node_modules/@tinker/start/src/parts/telemetry/off.ts";
-+ export { sync } from "/tmp/tinker-test-YhXpZX/node_modules/@tinker/start/src/parts/sync/on.ts";
++ export { telemetry } from "/tmp/tinker-test-YhXpZX/node_modules/@tinker/start/src/parts/telemetry/off";
++ export { sync } from "/tmp/tinker-test-YhXpZX/node_modules/@tinker/start/src/parts/sync/on";
 +
 
  ❯ tests/prepare.test.mjs:128:46

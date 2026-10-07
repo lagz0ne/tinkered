@@ -90,7 +90,7 @@ The other probes:
   changes one line (extends). Its comment and
   trailing commas stay.
   Log: logs/fix3/probe-doctor-fix.txt
-- `export * from "./lib/start-impl.ts"` in
+- `export * from "./lib/start-impl"` in
   src/start.ts: `ok    5 named files`.
   It serves `x-global-request: user` and
   `globalFn=user`.

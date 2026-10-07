@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 export function prepareServices(repo, context) {
   const tool = join(repo, "tools/flight-trial");
   mkdirSync(context, { recursive: true });
-  for (const dir of ["services", "src", "data"])
+  for (const dir of ["dist", "data"])
     cpSync(join(tool, dir), join(context, dir), { recursive: true });
   mkdirSync(join(context, "scripts"), { recursive: true });
   copyFileSync(
@@ -89,7 +89,7 @@ export function buildServices(context, image) {
 
 if (import.meta.main) {
   const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-  execFileSync(join(repo, "node_modules/.bin/vp"), ["run", "core#build"], {
+  execFileSync(join(repo, "node_modules/.bin/vp"), ["run", "flight-trial#build"], {
     cwd: repo,
     stdio: "inherit",
   });

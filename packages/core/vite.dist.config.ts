@@ -14,7 +14,7 @@ export default defineConfig({
   ...base,
   resolve: {
     alias: {
-      "../src/index.ts": built("index.mjs"),
+      "../src/index": built("index.mjs"),
       "@tinker/core/testing": built("testing.mjs"),
     },
   },

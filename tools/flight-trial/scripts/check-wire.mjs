@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { createScope, extension, operation, resource, tag } from "@tinker/core";
 import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
+import { createServer } from "vite-plus";
 
 const base = "880f1c4f";
 const root = resolve(import.meta.dirname, "../../..");
@@ -60,7 +60,14 @@ const services = [];
 const seen = new Set();
 let comparisons = 0;
 async function start(directory, name) {
-  const api = await import(pathToFileURL(resolve(directory, "src/index.ts")));
+  const vite = await createServer({
+    configFile: false,
+    root: directory,
+    server: { middlewareMode: true, watch: null },
+    appType: "custom",
+  });
+  const api = await vite.ssrLoadModule("/src/index");
+  await vite.close();
   const stop = new AbortController();
   const app = name === "supplier" ? api.supplierApp : api.paymentApp;
   const scope = createScope({

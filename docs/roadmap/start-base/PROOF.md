@@ -957,7 +957,7 @@ POST /api/auth/sign-in/email:
   {"handled":"POST /api/auth/sign-in/email",
    "origin":"http://127.0.0.1:4318"}
 ## auth off (the default)
-export { auth } from "…/parts/auth/off.ts";
+export { auth } from "…/parts/auth/off";
 doctor: all checks pass
 GET /api/auth/get-session: the app takes it
 ## auth on, and the app's own /api/auth/$
@@ -1082,7 +1082,7 @@ spans: greet request.body
 ## telemetry off
 // parts on: none.
 export { telemetry } from
-  "…/src/parts/telemetry/off.ts";
+  "…/src/parts/telemetry/off";
 doctor: all checks pass
 POST /api/telemetry: 200
 the app takes it

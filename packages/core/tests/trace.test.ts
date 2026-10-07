@@ -54,7 +54,7 @@ test("importing core draws no random values; the id stream seeds on the first ob
           await observed.close();
           process.stdout.write("ok");
         `,
-        new URL("../src/index.ts", import.meta.url).href,
+        new URL("../dist/index.mjs", import.meta.url).href,
       ],
       { encoding: "utf8" },
     ),

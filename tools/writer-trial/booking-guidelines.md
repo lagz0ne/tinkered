@@ -1,5 +1,7 @@
 # Booking-only rules
 
+Omit `.ts`, `.tsx`, and `.mts` endings in imports and exports.
+
 Staged with the default worker rules for the booking suite.
 They pin the generic words to the room-booking app.
 

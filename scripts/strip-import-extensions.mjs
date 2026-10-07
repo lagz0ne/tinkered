@@ -26,6 +26,7 @@ function quoted(value, quote) {
 function moduleSource(node) {
   if (moduleNodes.has(node.type)) return node.source;
   if (node.type === "TSExternalModuleReference") return node.expression;
+  if (node.type === "TSModuleDeclaration") return node.id;
   return null;
 }
 
@@ -45,7 +46,7 @@ function sampleEdit(node, text) {
 
 /** Parse module paths, including code held in fixture strings and template pieces. */
 export function stripSource(text, file = "sample.tsx") {
-  if (!/\.(?:ts|tsx|mts)\b/.test(text)) return { text, count: 0 };
+  if (!/\b(?:import|export|require|module)\b/.test(text)) return { text, count: 0 };
   const edits = [];
   let count = 0;
   function visit(node) {
@@ -57,7 +58,6 @@ export function stripSource(text, file = "sample.tsx") {
         text: quoted(source.value.replace(ending, ""), text[source.start]),
       });
       count++;
-      return;
     }
     const inner = sampleEdit(node, text);
     if (inner?.count) {
@@ -90,7 +90,28 @@ export function stripDocument(text) {
       /(```[^\n]*\n)([\s\S]*?)(```)/g,
       (_, open, code, close) => open + replace(code) + close,
     );
-  } else return stripSource(text);
+  }
+  text = text.replace(/(?<!`)`([^`\n]+)`(?!`)/g, (_, code) => `\`${replace(code)}\``);
+  const source = stripSource(text);
+  text = source.text;
+  count += source.count;
+  text = text.replace(
+    /\b(?:import|export)\b[^\n;]*?\bfrom\s*["'][^"']+["']|\bimport\s*(?:\(\s*["'][^"']+["']\s*\)|["'][^"']+["'])/g,
+    replace,
+  );
+  return { text, count };
+}
+
+/** Shell arguments and here-doc lines hold TypeScript samples, rather than shell imports. */
+function stripShell(text) {
+  let count = 0;
+  const rewrite = (code) => {
+    const result = stripSource(code);
+    count += result.count;
+    return result.text;
+  };
+  text = text.replace(/'([^'\n]*)'/g, (_, code) => `'${rewrite(code)}'`);
+  text = text.replace(/^(?:import|export)\b[^\n]*/gm, rewrite);
   return { text, count };
 }
 
@@ -98,6 +119,14 @@ export function stripDocument(text) {
 function stripJson(text) {
   const result = stripSource(`(${text})`);
   return { ...result, text: result.text.slice(1, -1) };
+}
+
+/** Select the source reader while preserving each file's existing layout. */
+function stripFile(file, text) {
+  if (file.endsWith(".json")) return stripJson(text);
+  if (file.endsWith(".sh")) return stripShell(text);
+  if (/\.(?:md|txt)$/.test(file)) return stripDocument(text);
+  return stripSource(text, file);
 }
 
 /** Walk tracked files and new source files; git omits dependencies and build output. */
@@ -111,11 +140,7 @@ function main() {
   for (const file of new Set(files)) {
     if (!/\.(?:[cm]?[jt]sx?|md|json|txt|sh)$/.test(file)) continue;
     const text = readFileSync(file, "utf8");
-    const result = file.endsWith(".json")
-      ? stripJson(text)
-      : /\.(?:md|txt|sh)$/.test(file)
-        ? stripDocument(text)
-        : stripSource(text, file);
+    const result = stripFile(file, text);
     if (!result.count) continue;
     writeFileSync(file, result.text);
     const group = /^(packages|apps)\//.test(file)

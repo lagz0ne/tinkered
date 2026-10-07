@@ -31,10 +31,9 @@ async function main() {
     const child = spawn(
       process.execPath,
       [
-        new URL(
-          `../services/${service.name === "payment" ? "payment" : "supplier"}/main.ts`,
-          import.meta.url,
-        ).pathname,
+        "--input-type=module",
+        "-e",
+        `import { ${service.name === "payment" ? "paymentMain" : "supplierMain"} as main } from ${JSON.stringify(new URL("../dist/index.mjs", import.meta.url).href)}; process.exitCode = await main(process.env, process.argv.at(1));`,
         service.name,
       ],
       {

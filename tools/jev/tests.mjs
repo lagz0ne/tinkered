@@ -39,9 +39,7 @@ function readFiles(target) {
 /** File-level: a private `../src/*` import, mocks, sleeps, `.only`/`.skip`, helpers over 3 or 20 lines. */
 function fileNotes(src, file) {
   const notes = [];
-  if (
-    imports(src, file).some((i) => i.source.startsWith("../src/") && i.source !== "../src/index.ts")
-  )
+  if (imports(src, file).some((i) => i.source.startsWith("../src/") && i.source !== "../src/index"))
     notes.push("privateImport");
   if (/\bvi\.(mock|fn|spyOn)\(/.test(src)) notes.push("mock");
   if (/\bsetTimeout\(/.test(src)) notes.push("sleep");

@@ -30,7 +30,7 @@ await test("the S24 fix text typechecks against the Start base", (t) => {
           target: "esnext",
           module: "esnext",
           moduleResolution: "bundler",
-          allowImportingTsExtensions: true,
+
           types: ["node"],
           paths: { "@/*": ["./src/*"] },
         },

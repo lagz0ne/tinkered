@@ -371,7 +371,7 @@ function builderNames(program) {
       (n) =>
         n.type === "ImportDeclaration" &&
         n.source.value.startsWith(".") &&
-        /(?:^|\/)sync\/index\.ts$/.test(n.source.value),
+        /(?:^|\/)sync\/index$/.test(n.source.value),
     )
     .flatMap((n) => n.specifiers ?? [])
     .filter((sp) => sp.type === "ImportSpecifier" && sp.imported?.name === "family")

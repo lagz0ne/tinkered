@@ -1,5 +1,7 @@
 # Worker rules
 
+Omit `.ts`, `.tsx`, and `.mts` endings in imports and exports.
+
 These rules are part of acceptance.
 The task behavior still applies.
 Keep the supplied scripts and checks unchanged.

@@ -5,6 +5,10 @@ description: Use whenever writing, editing, or reviewing TypeScript source or te
 
 # Coding convention
 
+Omit `.ts`, `.tsx`, and `.mts` endings in imports and exports.
+Node imports of `.js` and `.mjs` keep their endings.
+Imports of `.json`, `.css`, assets, and `?url` queries keep their endings.
+
 Write for a reader who wants to reason about the code. Each rule is an aim,
 then the shape it gives. When unsure, pick the shape easiest to hold in your
 head.
@@ -113,7 +117,7 @@ head.
 Tests prove behavior at the public seam. There are no unit tests of helpers
 or private modules.
 
-- A test file imports only the package entry (`../src/index.ts`), never a
+- A test file imports only the package entry (`../src/index`), never a
   private module.
 - Flat `test("does x", ...)`, or `it` inside one `describe` per file. The
   title says the behavior in plain words. A regression test names the bug.

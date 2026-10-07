@@ -19,8 +19,8 @@ while (( $# )); do
 done
 (( ${#targets[@]} )) || targets=(.)
 
-test_glob='.*\.(test|spec)\.tsx?$'
-all_files=$(find "${targets[@]}" -type f \( -name '*.ts' -o -name '*.tsx' \) \
+test_glob='.*\.(test|spec)\.(ts|tsx|mts)$'
+all_files=$(find "${targets[@]}" -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.mts' \) \
   -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.stryker-tmp/*' \
   -not -name '*.d.ts' 2>/dev/null || true)
 src_files=$(printf '%s\n' "$all_files" | grep -Ev "$test_glob" || true)
@@ -43,11 +43,12 @@ S12|all|ts-ignore / ts-expect-error|@ts-(ignore|expect-error)
 S13|all|lint disable|(eslint|oxlint|biome)-disable
 S14|src|tuple index read x[N]|[a-zA-Z_]+\[[0-9]\][^=]
 S15|src|Object.freeze of a value (empty-literal sentinel allowed)|Object\.freeze\((?!\[\]\)|\{\}\))
+S17|all|TypeScript import ending (omit .ts/.tsx/.mts)|(parser)
 S16|src|preset() call in source (test-only API)|^(?![[:space:]]*[*/])(?:(?!//|/\*|["\x27\x60]).)*(?<!function )\bpreset\b[[:space:]]*(<[^;>]*>)?[[:space:]]*\(
 T01|test|mock or spy|\bvi\.(mock|fn|spyOn|doMock|stubGlobal|useFakeTimers)\(
 T02|test|sleeping in a test|\bsetTimeout\(|(?<!\.)\bsleep\(
 T03|test|only / skip left in|\.(only|skip)\(
-T04|test|import of a private source module|from "\.\./src/(?!index\.ts")|from "\.\./src/[^"]*/[^"]+"
+T04|test|import of a private source module|from "\.\./src/(?!index")|from "\.\./src/[^"]*/[^"]+"
 T05|test|internals asserted|Object\.(isFrozen|getPrototypeOf|getOwnPropertyDescriptor)\(
 T06|test|cast through unknown|as unknown as
 T08|test|isError inside expect (guard used as assertion)|expect\(isError\(
@@ -108,7 +109,9 @@ for my $file (@ARGV) {
 
 hits() {
   local id=$1 regex=$2 files=$3
-  if [[ "$doc_blind" == *" $id "* ]]; then
+  if [[ "$id" == S17 ]]; then
+    printf '%s\n' "$files" | xargs -r node "$(dirname "${BASH_SOURCE[0]}")/import-extensions.mjs"
+  elif [[ "$doc_blind" == *" $id "* ]]; then
     printf '%s\n' "$files" | xargs -r perl -e "$doc_blind_grep" -- "$regex" 2>/dev/null || true
   else
     printf '%s\n' "$files" | xargs -r grep -nHP -- "$regex" 2>/dev/null || true

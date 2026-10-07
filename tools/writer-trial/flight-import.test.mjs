@@ -22,6 +22,17 @@ await test("feature HTTP advice loads without the server barrel's import loop", 
 export { httpRequest } from ${JSON.stringify(http)};
 `,
     );
+    writeFileSync(
+      join(root, "run.mjs"),
+      `
+import { createServer } from "vite-plus";
+const vite = await createServer({ configFile: false, root: ${JSON.stringify(root)},
+  server: { middlewareMode: true, watch: null }, appType: "custom",
+  ssr: { noExternal: ["@tinker/start"] } });
+try { await vite.ssrLoadModule("/lib/tinker.server.mjs"); }
+finally { await vite.close(); }
+`,
+    );
     const load = async (path) => {
       writeFileSync(
         join(root, "backend/flights.mjs"),
@@ -34,7 +45,7 @@ export const search = operation({
 });
 `,
       );
-      return spawnSync(process.execPath, [join(root, "lib/tinker.server.mjs")], {
+      return spawnSync(process.execPath, [join(root, "run.mjs")], {
         encoding: "utf8",
       });
     };

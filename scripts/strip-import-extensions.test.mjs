@@ -6,7 +6,7 @@ const ts = "." + "ts";
 const tsx = "." + "tsx";
 const mts = "." + "mts";
 
-test("rewrites module paths, preserves assets and plain strings, and is safe to repeat", () => {
+await test("rewrites module paths, preserves assets and plain strings, and is safe to repeat", () => {
   const input = `import a from './a${ts}';
 export * from "./dir/index${mts}";
 import("./view${tsx}");
@@ -31,7 +31,7 @@ const text = "雪"; import "./snow${ts}";`;
   assert.deepEqual(stripSource(result.text), { text: result.text, count: 0 });
 });
 
-test("rewrites Markdown samples and source held in fixture strings and templates", () => {
+await test("rewrites Markdown samples and source held in fixture strings and templates", () => {
   const sample = `import a from "./a${ts}";`;
   const markdown = "Text.\n```ts\n" + sample + "\n```\n";
   assert.equal(stripDocument(markdown).text, markdown.replace(`a${ts}`, "a"));

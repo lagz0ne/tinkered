@@ -1,5 +1,7 @@
 # Writer brief: the fixed part
 
+Omit `.ts`, `.tsx`, and `.mts` endings in imports and exports.
+
 Every ticket brief is this file plus the ticket's target (and its impact
 block, when there is one). You finish all checks before the lead reads.
 

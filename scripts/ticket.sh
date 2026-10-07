@@ -9,6 +9,17 @@ set -euo pipefail
 # use the workspace's toolchain whether or not `vp` is global
 export PATH="$(git rev-parse --show-toplevel)/node_modules/.bin:$PATH"
 
+no_mutation=0
+check_only=0
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --no-mutation) no_mutation=1 ;;
+    --check-only) check_only=1 ;;
+    *) echo "unknown option: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
 if [ $# -eq 3 ]; then
   PKG="$1"
   NN="$2"
@@ -43,8 +54,17 @@ if [ "$PKG" = "core" ]; then
 fi
 echo "== gate ${TAG}: size budget =="
 vp run "${PKG}#size"
-echo "== gate ${TAG}: mutation (best-effort until thresholds finalized) =="
-vp run -r mutate || echo "  (mutate not wired yet — skipped)"
+if (( no_mutation )); then
+  echo "== gate ${TAG}: mutation skipped by request =="
+else
+  echo "== gate ${TAG}: mutation (best-effort until thresholds finalized) =="
+  vp run -r mutate || echo "  (mutate not wired yet — skipped)"
+fi
+
+if (( check_only )); then
+  echo "== gate ${TAG}: checks pass; no checkpoint requested =="
+  exit 0
+fi
 
 git add -A
 git commit -m "${PKG}(t${NN}): ${TITLE}

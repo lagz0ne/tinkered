@@ -1,6 +1,6 @@
 $ cat src/backend/peek.ts
-import { responseBodies } from "@tinker/start/src/backend/body.server.ts";
-import { requestStop } from "../../node_modules/@tinker/start/src/backend/lifetime.ts";
+import { responseBodies } from "@tinker/start/src/backend/body.server";
+import { requestStop } from "../../node_modules/@tinker/start/src/backend/lifetime";
 export const peek = [responseBodies, requestStop];
 $ tinker doctor 
 ok    1 base version

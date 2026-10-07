@@ -128,7 +128,7 @@ test("a caller awaiting finally can catch the original managed subflow error", a
 
 for (const owner of ["root", "session"]) {
   test(`a detached callback rejection after its ${owner} closes belongs to the host`, async () => {
-    const entry = new URL("../src/index.ts", import.meta.url).href;
+    const entry = new URL("../dist/index.mjs", import.meta.url).href;
     const script = `
       import { createScope, operation } from ${JSON.stringify(entry)};
       const cause = new Error("host panic");
