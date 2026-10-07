@@ -1508,7 +1508,8 @@ Use its `lifecycle` scenario and a separate close loop through the queue.
 
 ### Proof
 
-Full gate, size, queue, inline, and clean-commit fault proof follow here.
+Final gate, size, queue, and inline proof are below.
+The clean-commit fault proof is linked below.
 
 First green checks: build, code check (0 errors, 28 warnings),
 Core source (861 tests), Core built files (871 tests),
@@ -1543,7 +1544,7 @@ The signal is now read once before the run, outside the try, as on main.
 Two scope and controller regression checks failed on the first patch, exit 1.
 The run still uses the same call object; only settle's chosen signal stays fixed.
 The first timing run is not final proof; its built code predates this read-order fix.
-It will be replaced by a clean-tree timing run after the fix is built.
+A clean-tree timing run after the fix was built replaces it.
 
 After the signal read fix, the checkpoint returns 0.
 Core: 863 source tests and 873 built-file tests.
@@ -1577,3 +1578,67 @@ Main and the final fix report failed with that cause.
 The first patch reported cancelled.
 The two new scope and controller tests pin that difference.
 No missing Core feature was found.
+
+### Final queue proof
+
+A: `105e85a0`, clean and built.
+B: `fa1cc594`, clean and built, after the signal read fix.
+The queue uses Node 24.21.0 and V8 13.6.233.17-node.53.
+The local default-Maglev inline proof uses those same versions.
+Each shared-probe scenario ran 61 A/B pairs, one queue job per scenario.
+The same probe runs against both builds.
+The pair verdict uses a two-sided sign test, ties left out, with p < 0.01.
+
+Median ns per call, A to B:
+
+- `op`: 64.2 to 57.7; b is faster.
+- `run`: 75.5 to 71.7; b is faster.
+- `tagged`: 208.6 to 179.6; b is faster.
+- `session`: 509.2 to 510.4; no difference we can see.
+- `lifecycle`: 849.8 to 854.0; no difference we can see.
+
+No scenario says b is slower.
+Two whole-process checks use the same driver for both builds.
+Each ran through `benchctl ab --rounds 10` from the clean base root.
+
+- Settle, 2 million calls: 396 to 283 ms; verdict: b is faster.
+- Forced close, 100,000 roots with sync cleanup:
+  437 to 367 ms; verdict: b is faster.
+
+[Raw pairs](op-fast/timing.csv).
+[Pair verdicts](op-fast/timing-summary.json).
+[Queue header and exits](op-fast/timing.log).
+[Settle verdict](op-fast/ab-settle.log).
+[Close verdict](op-fast/ab-close.log).
+[Regression failures](op-fast/regressions.log).
+
+After timing, rebased on `871b5a92` from `origin/main`.
+Those five upstream commits change Start and its proof.
+Core source, tests, build settings, lockfile, and both probe files are unchanged.
+The timing compares the same Core builds as the final branch.
+The full gate ran again after the rebase, exit 0.
+Core still has 863 source tests and 873 built-file tests.
+Start now has 408 tests; all ten normal test tasks pass.
+Code check: 0 errors, 28 warnings, as before.
+Scaffold and all 18 release lanes pass again.
+[Trimmed gate output](op-fast/gates.log).
+[Changed-declaration style census](op-fast/style-census.log).
+Saved work stays in Review; the lead reviews and lands it.
+
+### Last fault run
+
+The full Core lane runs alone under `/tmp/mutation.lock`.
+It runs on the clean code-and-proof commit, after every other change is saved.
+Its header names that commit and records the empty worktree status.
+Only its header and summary are saved in [the fault log](op-fast/mutation.log).
+The commit after that run adds only that log.
+The floor is 85 on kills alone; timeouts do not count as kills.
+
+### Limits
+
+The one-job close path applies when there is no body, child, or pending work.
+An async cleanup still waits; the other close paths keep their prior waits.
+This ticket does not measure heap bytes or promise a speedup for every workload.
+The session and lifecycle probes show no difference we can see.
+The full-file style census has four prior hits, also seen on clean main.
+The changed-declaration census is green.

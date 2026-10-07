@@ -1,0 +1,105 @@
+Untouched origin/main Core at 105e85a0; local temporary test file.
+vp run core#test -- tests/op-fast.test.ts
+EXIT 1
+~/packages/core$ vp test -- tests/op-fast.test.ts ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/fix-op-fast/packages/core
+
+ ❯ tests/op-fast.test.ts (4 tests | 2 failed) 32ms
+   × sync resource cleanup closes without extra turns (graceful: true) 23ms
+   × sync resource cleanup closes without extra turns (graceful: false) 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/op-fast.test.ts > sync resource cleanup closes without extra turns (graceful: true)
+ FAIL  tests/op-fast.test.ts > sync resource cleanup closes without extra turns (graceful: false)
+AssertionError: expected [] to deeply equal [ 'scope', 'resource' ]
+
+Compared values have no visual difference.
+
+ ❯ tests/op-fast.test.ts:29:19
+     27|     await Promise.resolve();
+     28|     await Promise.resolve();
+     29|     expect(calls).toEqual(["scope", "resource"]);
+       |                   ^
+     30|     expect(result).toEqual(
+     31|       graceful
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  16:39:54
+   Duration  853ms (transform 84%, import 9%, tests 5%, worker 1%)
+
+
+
+First shipped patch, before the settle signal read fix.
+vp run core#test -- tests/op-fast.test.ts
+EXIT 1
+~/packages/core$ vp test -- tests/op-fast.test.ts ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/fix-op-fast/packages/core
+
+ ❯ tests/op-fast.test.ts (7 tests | 2 failed) 15ms
+   × settle keeps the call signal chosen before its body runs (controller: false) 4ms
+   × settle keeps the call signal chosen before its body runs (controller: true) 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/op-fast.test.ts > settle keeps the call signal chosen before its body runs (controller: false)
+{
+  status: 'cancelled',
+  reason: {
+    stack: 'Error: late signal\n' +
+      '    at /home/paseo/next/fix-op-fast/packages/core/tests/op-fast.test.ts:104:19\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n' +
+      '    at new Promise (<anonymous>)\n' +
+      '    at runWithCancel (file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n' +
+      '    at new Promise (<anonymous>)\n' +
+      '    at runWithTimeout (file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64',
+    message: 'late signal',
+    constructor: 'Function<Error>',
+    name: 'Error',
+    toString: 'Function<toString>'
+  },
+  stacks: []
+}
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/op-fast.test.ts > settle keeps the call signal chosen before its body runs (controller: true)
+{
+  status: 'cancelled',
+  reason: {
+    stack: 'Error: late signal\n' +
+      '    at /home/paseo/next/fix-op-fast/packages/core/tests/op-fast.test.ts:104:19\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n' +
+      '    at new Promise (<anonymous>)\n' +
+      '    at runWithCancel (file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n' +
+      '    at new Promise (<anonymous>)\n' +
+      '    at runWithTimeout (file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n' +
+      '    at file:///home/paseo/next/fix-op-fast/node_modules/.pnpm/vitest@5.0.1_@types+node@26.5.1_@vitest+browser-playwright@5.0.1_@vitest+browser-previe_3410da78b255bc486801bc3ea06682af/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64',
+    message: 'late signal',
+    constructor: 'Function<Error>',
+    name: 'Error',
+    toString: 'Function<toString>'
+  },
+  stacks: []
+}
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 5 passed (7)
+   Start at  17:00:35
+   Duration  392ms (transform 78%, import 13%, tests 7%, worker 2%)
+
+

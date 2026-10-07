@@ -1,0 +1,77 @@
+Rebased on origin/main 871b5a92; built before the checks.
+vp install: EXIT 0
+
+$ vp run -r build
+✔ Build complete in 1568ms
+✔ Build complete in 23ms
+✔ Build complete in 571ms
+✔ Build complete in 535ms
+✔ Build complete in 923ms
+vp run: 0/12 cache hit (0%). (Run `vp run --last-details` for full details)
+EXIT 0
+
+$ scripts/ticket.sh --check-only --no-mutation op-fast
+== gate core/top-fast: vp check ==
+Found 0 errors and 28 warnings in 638 files (9.3s, 8 threads)
+== gate core/top-fast: vp run -r test ==
+      Tests  863 passed (863)
+      Tests  4 passed (4)
+      Tests  118 passed | 1 skipped (119)
+      Tests  87 passed (87)
+      Tests  1 passed (1)
+      Tests  66 passed (66)
+      Tests  148 passed (148)
+      Tests  408 passed (408)
+      Tests  25 passed (25)
+vp run: 0/10 cache hit (0%). (Run `vp run --last-details` for full details)
+== gate core/top-fast: core tests on the built files ==
+      Tests  873 passed (873)
+vp run: 0/2 cache hit (0%). (Run `vp run --last-details` for full details)
+== gate core/top-fast: size budget ==
+core runtime size: 15724 B gzip (cap 16384 B; all runtime files)
+vp run: 0/2 cache hit (0%). (Run `vp run --last-details` for full details)
+== gate core/top-fast: mutation skipped by request ==
+== gate core/top-fast: checks pass; no checkpoint requested ==
+EXIT 0
+
+$ vp run prose
+prose-lint: 0 hit(s) in 221 file(s)
+EXIT 0
+
+$ vp run @tinker-start-scaffold#check
+test:schema: EXIT 0
+test:imports: EXIT 0
+test:middleware: EXIT 0
+test:serve: EXIT 0
+test:seam:fixture: EXIT 0
+test:registry: EXIT 0
+PROOF PASS: real auth, SMTP, migrations, two-tab sync, and profile page
+browser session stopped: EXIT 0
+browser session stopped: EXIT 0
+server PID 2874221 stopped: EXIT 0; signal none
+relay PID 2874125 stopped: EXIT 0
+docker compose down -v: EXIT 0; only the proof project
+test:compose: EXIT 0
+EXIT 0
+
+$ pnpm validate
+PASS  lint/types/format/complexity
+PASS  module endings in docs, registry JSON, and templates
+PASS  tests
+PASS  core tests on the built files
+PASS  core size (<= 16 KiB gzip)
+PASS  promises (0 sync / <=10 async)
+PASS  deep-chain (no overflow)
+PASS  live-heap-per-request
+PASS  CRAP ceiling
+PASS  core hot names at V8 slot <= 255 (release block last)
+PASS  graph (span-tree per source owner, no hand-rolled span)
+PASS  ambient reads off ctx (no bare time/random)
+PASS  cast-free examples (0 casts)
+PASS  core runtime and testing entries (package imports only)
+PASS  blueprint tests
+PASS  blueprint size (<= 20 kB gzip)
+PASS  blueprint source retains corpus and evals
+PASS  two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)
+All deterministic budget lanes PASS (18)
+EXIT 0

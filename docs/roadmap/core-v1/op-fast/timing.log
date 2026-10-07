@@ -1,0 +1,30 @@
+fa1cc594de4dcbad87b00028f67cb2183937bcfe
+B status --porcelain: empty
+105e85a0b3bd6a53384a98095ea743b7815f0a9b
+A status --porcelain: empty
+queued.sh: N=61 core=6
+  A /home/paseo/next/op-fast-base
+  B /home/paseo/next/fix-op-fast
+  -> /home/paseo/next/fix-op-fast/.bench/ab.csv
+[benchctl] exit 0 in 104.2s, waited 0.0s in the queue
+done op 18:42:56 batch A 61/61 B 61/61
+ALLDONE
+[benchctl] exit 0 in 104.8s, waited 0.0s in the queue
+done run 18:44:41 batch A 61/61 B 61/61
+ALLDONE
+[benchctl] exit 0 in 106.2s, waited 0.0s in the queue
+done tagged 18:46:27 batch A 61/61 B 61/61
+ALLDONE
+[benchctl] exit 0 in 101.6s, waited 0.0s in the queue
+done session 18:48:08 batch A 61/61 B 61/61
+ALLDONE
+[benchctl] exit 0 in 107.6s, waited 0.0s in the queue
+done lifecycle 18:49:56 batch A 61/61 B 61/61
+ALLDONE
+ALLDONE
+
+EXIT 0
+
+Queue runtime, checked through benchctl exec:
+[benchctl] exit 0 in 0.1s, waited 0.0s in the queue
+{"node":"24.21.0","acorn":"8.18.0","ada":"4.0.0","amaro":"1.1.11","ares":"1.34.8","brotli":"1.2.0","cldr":"48.0","icu":"78.3","llhttp":"9.4.3","merve":"1.2.2","modules":"137","napi":"10","nbytes":"0.1.4","ncrypto":"0.0.1","nghttp2":"1.70.0","nghttp3":"","ngtcp2":"","openssl":"3.5.8","simdjson":"4.6.7","simdutf":"6.4.0","sqlite":"3.53.4","tz":"2026c","undici":"7.29.1","unicode":"17.0","uv":"1.52.1","uvwasi":"0.0.23","v8":"13.6.233.17-node.53","zlib":"1.3.2.1-motley-8002e91","zstd":"1.5.7"}

@@ -27,5 +27,13 @@
     "S10": 1,
     "S14": 1
   },
-  "mutation": "See mutation.log; runs after the final proof commit."
+  "mutation": "See mutation.log; runs after the final proof commit.",
+  "rebased origin/main": "871b5a92c965a1e5ada35adfa01bc05bb32f04c6",
+  "Start source tests after rebase": 408,
+  "timing exit": 0,
+  "timing A": "105e85a0b3bd6a53384a98095ea743b7815f0a9b",
+  "timing B": "fa1cc594de4dcbad87b00028f67cb2183937bcfe",
+  "paired scenarios": "op/run/tagged: b is faster; session/lifecycle: no difference we can see",
+  "benchctl ab settle": "b is faster",
+  "benchctl ab close": "b is faster"
 }

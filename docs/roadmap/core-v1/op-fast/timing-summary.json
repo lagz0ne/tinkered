@@ -1,0 +1,65 @@
+{
+  "method": "two-sided paired sign test, ties omitted, p < 0.01; medians in ns",
+  "scenarios": [
+    {
+      "scenario": "op",
+      "rounds": 61,
+      "median_a_ns": 64.2,
+      "median_b_ns": 57.7,
+      "median_change_percent": -10.124610591900307,
+      "faster_pairs": 59,
+      "slower_pairs": 2,
+      "ties": 0,
+      "paired_sign_p": 1.6410484082740595e-15,
+      "verdict": "b is faster"
+    },
+    {
+      "scenario": "run",
+      "rounds": 61,
+      "median_a_ns": 75.5,
+      "median_b_ns": 71.7,
+      "median_change_percent": -5.033112582781452,
+      "faster_pairs": 57,
+      "slower_pairs": 2,
+      "ties": 2,
+      "paired_sign_p": 6.144390551909851e-15,
+      "verdict": "b is faster"
+    },
+    {
+      "scenario": "tagged",
+      "rounds": 61,
+      "median_a_ns": 208.6,
+      "median_b_ns": 179.6,
+      "median_change_percent": -13.902205177372961,
+      "faster_pairs": 56,
+      "slower_pairs": 5,
+      "ties": 0,
+      "paired_sign_p": 5.645556938604912e-12,
+      "verdict": "b is faster"
+    },
+    {
+      "scenario": "session",
+      "rounds": 61,
+      "median_a_ns": 509.2,
+      "median_b_ns": 510.4,
+      "median_change_percent": 0.23566378633150808,
+      "faster_pairs": 27,
+      "slower_pairs": 34,
+      "ties": 0,
+      "paired_sign_p": 0.4426260049464714,
+      "verdict": "no difference we can see"
+    },
+    {
+      "scenario": "lifecycle",
+      "rounds": 61,
+      "median_a_ns": 849.8,
+      "median_b_ns": 854.0,
+      "median_change_percent": 0.49423393739704835,
+      "faster_pairs": 23,
+      "slower_pairs": 38,
+      "ties": 0,
+      "paired_sign_p": 0.07217743850092258,
+      "verdict": "no difference we can see"
+    }
+  ]
+}

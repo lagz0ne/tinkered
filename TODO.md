@@ -38,13 +38,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/op-fast** — use the five proven run and close fixes.
-  Owner: writer (Codex, op-fast session); lead reviews and lands.
-  Next: apply the study patches and check run hooks and close.
-  Verify: Core gate, size cap, queue verdicts, inline proof,
-  and a clean-commit fault score of 85 on kills alone.
-  [Track](docs/roadmap/core-v1/PROGRESS.md#coreop-fast).
-
 - **perf round 1 fixes** — four Sol writers land the study's proven fixes (study: `/home/paseo/perf/index.html`).
   Owner: lead (Claude, Start scaffold session). Cards: `start/telemetry-fast` (queue bytes, 32 KB browser cap, zod off the client),
   `start/ssr-telemetry-root` (one telemetry root per process), `start/serve-fast` (compression, static set, compile hint),
@@ -62,6 +55,17 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **core/op-fast** — cheaper runs and sync cleanup in one promise job.
+  Owner: writer (Codex, op-fast session); lead reviews and lands.
+  Next: lead review after the linked clean-commit fault proof.
+  Proof: seven new tests; Core source and built-file tests pass.
+  Core gate, scaffold, size cap, and all release lanes pass.
+  `op`, `run`, `tagged`: b is faster.
+  `session`, `lifecycle`: no difference we can see.
+  Settle and forced-close whole-process checks: b is faster.
+  Default Maglev inlines the operation context into `runOnce`.
+  [Track and clean-commit fault log](docs/roadmap/core-v1/PROGRESS.md#coreop-fast).
 
 - **start/sync-fast** — shared rows and stalled-client checks are saved.
   Owner: writer (Codex, sync-fast session).
