@@ -38,6 +38,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **repo/no-import-extensions** — no TypeScript import names a `.ts`, `.tsx`, or `.mts` ending, anywhere.
+  User 2026-10-07: "remove every extension import and change writing prose to not having that again".
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-no-ext`.
+  `allowImportingTsExtensions` off and bundler resolution, so `tsc` rejects a `.ts` import.
+  House style, style census, contributor brief, trial guidelines, and a doctor check say so too.
+  No mutation run (user). Lands after start/github-release and start/registry-no-overwrite; the first release waits for it.
+  Verify: a grep finds no `.ts` import ending; every gate passes.
+
 - **start/registry-no-overwrite** — demo items must not replace the user's app files.
   Today the full demo needs `--overwrite`: it replaces `vite.config.ts`, the seams, and `src/routes/index.tsx`.
   Fix: items add only their own files; doctor names the switch (`tinker({ auth: true, sync: true })`) and the seam names to add.
