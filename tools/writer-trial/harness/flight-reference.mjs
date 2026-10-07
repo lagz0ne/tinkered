@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { listFiles } from "../suite.mjs";
 
@@ -37,6 +37,13 @@ export function placeFlightReference(reference, seed, project, round) {
     join(project, "src/lib/extensions.server.ts"),
     'import { databaseSetup } from "../backend/database.ts";\nexport const extensions = [databaseSetup];\n',
   );
+  for (const file of ["Profile.tsx", "auth-actions.ts", "profile-actions.ts", "error-text.ts"])
+    rmSync(join(project, "src/frontend", file));
+  const syncTest = join(project, "tests/sync-client.test.ts");
+  writeFileSync(
+    syncTest,
+    readFileSync(syncTest, "utf8").replaceAll("todos: [],", "todos: [], bookings: [],"),
+  );
   const config = readFileSync(join(seed, "vitest.config.ts"), "utf8").replace(
     "testTimeout: 30000,",
     'testTimeout: 30000,\n    include: ["tests/**/*.test.ts", "tests/**/*.proof.ts"],',
@@ -45,11 +52,11 @@ export function placeFlightReference(reference, seed, project, round) {
 }
 
 function portSource(source, file, round) {
+  source = source.replace(/"(?:\.\.\/|\.\/)scaffold\/backend\/[^"]+"/g, '"@tinker/start/server"');
   source = source.replace(
-    /"(?:\.\.\/|\.\/)scaffold\/(?:backend\/[^"]+|start\.ts)"/g,
-    '"@tinker/start/server"',
+    /"(?:\.\.\/|\.\/)scaffold\/(?:sync\.ts|errors\.ts|start\.ts)"/g,
+    '"@tinker/start"',
   );
-  source = source.replace(/"(?:\.\.\/|\.\/)scaffold\/(?:sync\.ts|errors\.ts)"/g, '"@tinker/start"');
   source = source.replace(/"(?:\.\.\/|\.\/)scaffold\/frontend\/[^"]+"/g, '"@tinker/start/client"');
   source = source.replaceAll('"@tinker-start-scaffold/transport"', '"@tinker/start/testing"');
   if (file === "src/lib/tinker.ts") source += "\nexport const extensions = [];\n";
@@ -58,10 +65,8 @@ function portSource(source, file, round) {
   if (file === "src/errors.ts")
     source = source.replace(
       "    NotificationFailed:",
-      "    BadSettings: { part: string; keys: string[] };\n    NotificationFailed:",
+      "    BadSettings: { part: string; keys: string[] };\n    RetryNotAvailable: Record<string, never>;\n    NotificationFailed:",
     );
-  if (file === "tests/sync-client.test.ts")
-    source = source.replaceAll("todos: [],", "todos: [], bookings: [],");
   if (round === 1 && file === "src/backend/flight-search.ts")
     source = source.replace(
       "].map(async ({ supplier, url }) => {",
@@ -73,7 +78,8 @@ function portSource(source, file, round) {
 /** Prepare and list the port with the same installed packages as the grader, offline. */
 export function prepareFlightReference(project, image) {
   const container = `flight-reference-${process.pid}-${Date.now().toString(36)}`;
-  const run = (args) => execFileSync("docker", args, { encoding: "utf8", timeout: 120000 });
+  const run = (args, input) =>
+    execFileSync("docker", args, { input, encoding: "utf8", timeout: 120000 });
   try {
     run([
       "run",
@@ -89,11 +95,22 @@ export function prepareFlightReference(project, image) {
       "/work:rw,nosuid,size=1g,uid=1001,gid=1001",
       image,
     ]);
-    run(["exec", container, "sh", "-c", "cp -R /home/pwuser/flight-seed/. /work/"]);
-    run(["cp", `${project}/.`, `${container}:/work/`]);
+    run([
+      "exec",
+      container,
+      "sh",
+      "-c",
+      "cp -R /home/pwuser/flight-seed/. /work/ && rm -rf /work/src",
+    ]);
+    run(
+      ["exec", "-i", container, "tar", "-xf", "-", "-C", "/work"],
+      execFileSync("tar", ["-C", project, "-cf", "-", "."], { maxBuffer: 16e6 }),
+    );
     run(["exec", container, "tinker", "prepare"]);
     run(["exec", container, "vp", "fmt"]);
     run(["exec", container, "sh", "-c", "node scripts/check-plain.mjs --list > PLAIN.md"]);
+    run(["exec", container, "tinker", "doctor"]);
+    run(["exec", container, "vp", "build"]);
     run(["cp", `${container}:/work/.`, project]);
   } finally {
     run(["rm", "-f", container]);

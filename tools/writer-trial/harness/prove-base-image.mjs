@@ -105,6 +105,7 @@ try {
       .map(([key, value]) => `${key}=${value}`)
       .join("\n") + "\n",
   );
+  docker(["exec", worker.container, "rm", "-rf", "/work/src"]);
   docker(["cp", `${project}/.`, `${worker.container}:/work/`]);
   docker(["exec", worker.container, "tinker", "prepare"]);
   docker(["exec", worker.container, "vp", "fmt"]);
