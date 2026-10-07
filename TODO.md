@@ -45,17 +45,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   A deeper study round runs beside them until 15:00 UTC (`/home/paseo/perf/deep/`).
   Verify: each bug has a test that fails on main; each speed claim has a `benchctl ab` verdict.
 
-- **playground/vendor-chunks** — ship each imported file.
-  Owner: writer (Codex, vendor-chunks session).
-  Next: fix file copying; compare the edge fade.
-  Verify: a failing test turns green; fresh build shows tiles.
-  Compare Chrome traces and check the live page; do not deploy.
-  [Track](docs/roadmap/playground-v2/PROGRESS.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **playground/vendor-chunks** — fresh builds show 144 tiles.
+  Owner: writer (Codex, vendor-chunks session).
+  Next: lead review; the overlay trial is dropped.
+  Proof: the missing-file test failed before the fix.
+  Playground 66 tests and all 18 release checks pass.
+  The scaffold check fails here and on clean main.
+  [Track](docs/roadmap/playground-v2/PROGRESS.md).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

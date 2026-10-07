@@ -877,3 +877,116 @@ Live proof logs:
 - `/tmp/tinkered-playground-live-deploy-log.json`
 - `/tmp/tinkered-playground-main-build.log`
 - `/tmp/tinkered-playground-main-check.log`
+
+## playground/vendor-chunks — 2026-10-07
+
+Owner: writer (Codex, vendor-chunks session).
+Status: Review; the code is saved and the lead reads next.
+
+A fresh build showed the shell but no game tiles.
+Core's entry imported a shared file that the vendor step did not copy.
+The new copy step reads the import graph with esbuild.
+It copies the entry and each local file without changing their bytes.
+It keeps nested paths and leaves bare imports for the import map.
+It does not copy files the entry never imports.
+Both Core and React use this step.
+
+Two plain file tests cover the vendor output and a small import graph.
+The output test failed before the fix with a missing shared file.
+The graph test covers nested imports, re-exports, dynamic imports,
+and a cycle between chunks; unused files stay out.
+The Playground's 66 tests pass after the fix.
+The built game shows 144 tiles in Chrome.
+The live page also shows 144 tiles at `https://playground.tini.works`.
+No live settings were changed.
+
+The field overlay from the study was tried and dropped.
+At 1280 by 577 it paints a dark box at the board's edges.
+At 390 by 844 it also dims the caption below the board.
+The brief allows this change only when the look stays the same.
+The current mask stays in the shipped code.
+
+Both Chrome traces ran through the queue on one CPU core.
+Each trace covers five seconds after a 2.5-second warm-up.
+The storm uses height 3, speed 12, and a 100-millisecond gap.
+The current mask has 32 tasks of at least 50 milliseconds,
+with 3372.8 milliseconds total.
+The overlay trial has 31 such tasks,
+with 3435.3 milliseconds total.
+Count only `RunTask`; its enclosing event would count each task twice.
+These two traces do not prove a clear speed gain.
+
+The timing check uses clean main `df2a6da8` as A.
+B is the clean overlay trial `c425aae6`.
+It compares 120 frames, with Chrome startup and warm-up on both sides.
+A's local proof server serves the missing shared file from Core's dist.
+This lets the old mask render without changing main's files.
+The timing check has three pairs, one run per side per pair.
+Its verdict is `no difference we can see`.
+The median whole run is 22734 milliseconds for A, 21721 for B.
+The 95-percent range crosses zero: -4353 to 1895 milliseconds.
+The installed CLI uses `--rounds` and `--runs-per-round`.
+Three pairs means six timed runs, under the brief's limit of ten.
+The queue waited 991.5 seconds before this comparison ran.
+The trial is separate from the branch for review.
+
+Assume that blank means the game iframe, not the shell around it.
+The live URL comes from this track's deploy notes.
+The copy step uses the existing esbuild dependency.
+No package API changed; no cross-package impact block is needed.
+No Start files changed; its mutation lane does not apply.
+No Core workaround or missing feature was found.
+
+Proof files are in `/home/paseo/.cache/tinkered-proof/vendor-chunks`.
+`regression-red.log` shows the failing test before the fix.
+`side-by-side.png` shows the mask and the rejected overlay together.
+`preview/index.html` shows the desktop and phone pairs.
+The comparison page stays local because the brief forbids publishing.
+`trace-before-summary.json` and `trace-after-summary.json` hold the counts.
+`browser-probe.mjs` and `trace-summary.mjs` hold the proof commands.
+`ab-overlay.log` holds the queue's verdict.
+
+Checks by exit code:
+
+- Fetch and rebase: 0; kept both board cards in the conflict.
+- Install: 0.
+- Full build: 0.
+- Fresh Playground build and both vendor tests: 0.
+- Code check: 0; 28 warnings, matching clean main.
+- Default package tests: 1; five-second time limits failed.
+- One package at a time: 1; two Flight tests hit the same limit.
+- Bounded package tests: 0; two workers and 60-second limits.
+  All nine Vitest packages passed: 1709 tests, one existing skip.
+  Jev's Node tests passed in the default run.
+- Prose: 0.
+- Start scaffold check: 1 here and on clean main `df2a6da8`.
+  The first run here lost Core's types during the registry check.
+  Its generated tests reported `TS2307` for `@tinker/core`.
+  The separate run passed the registry check.
+  It failed at Docker network setup, exactly as clean main did.
+  Docker prints `Pool overlaps with other one on this address space`.
+  Both failures reach `packages/start/scripts/scaffold-proof.mjs:76`.
+  No Start or scaffold files changed for this card.
+- Release checks: 0; all 18 lanes pass.
+- Strict style census: 0.
+- Jev pre-flight and review: 0; both skip the changed `.mjs` files.
+  The full diff was read by hand.
+- Jev test quality: 0; neither new test was flagged.
+- Jev promises: 0; it skips `.mjs` tests.
+  The README states the new file-copy promise.
+  It found 29 gaps in unchanged TypeScript tests.
+  Those gaps concern existing editor, engine, and storage behavior.
+  They are outside this card; no test or source there changed.
+  No labels were added; calibration does not apply.
+
+No speed gain ships with this change.
+The overlay did not keep the look, so it was dropped.
+The timing trial cannot prove how a real GPU behaves.
+The full scaffold gate is not green.
+The separate run and clean main both fail at Docker network setup.
+The host network pool must be fixed before that gate can pass.
+No deployment or push was attempted.
+
+The final branch commits are the vendor fix, its lint-free tests,
+and this proof note with the card moved to Review.
+The comparison trees stay pinned for the lead to inspect.
