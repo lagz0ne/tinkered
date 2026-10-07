@@ -96,14 +96,8 @@ export function stripDocument(text) {
 
 /** Registry JSON holds source in content fields; paths and package exports stay intact. */
 function stripJson(text) {
-  let count = 0;
-  const value = JSON.parse(text, (_, value) => {
-    if (typeof value !== "string") return value;
-    const result = stripDocument(value);
-    count += result.count;
-    return result.text;
-  });
-  return { text: count ? JSON.stringify(value, null, 2) + "\n" : text, count };
+  const result = stripSource(`(${text})`);
+  return { ...result, text: result.text.slice(1, -1) };
 }
 
 /** Walk tracked files and new source files; git omits dependencies and build output. */
