@@ -31,6 +31,59 @@ Read their paths this way:
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
 
+## W. GitHub release paths, served locally
+
+Card `start/github-release`.
+Date: 2026-10-07.
+Branch: `start/github-release`.
+Full log: [20-github-release.txt](proof/20-github-release.txt).
+Release steps: [RELEASE.md](RELEASE.md).
+
+```bash
+node scripts/proof-github-release.mjs
+```
+
+Core, React, and Start share `0.7.0`.
+They ship as one tested set under tag `start-v0.7.0`.
+The second dry set, `0.7.1`, changes version metadata only.
+Neither version was published.
+
+The log lists each tarball's size and sha256.
+The dry folders hold `assets/` and the registry at its repo paths.
+The app item and React's Core dependency contain release URLs.
+The registry links contain raw GitHub URLs at the same tag.
+
+The proof copies those files into a local mirror.
+Only those copies replace the two GitHub origins with 127.0.0.1.
+All URL paths stay the same.
+It also changes the packed upgrade URL default and hashes
+those proof bytes again in `files.json`.
+The original dry tarballs stay untouched.
+
+Key lines from the log, wrapped:
+
+```text
+PASS: one shadcn add in an empty folder.
+doctor: all checks pass
+PASS: GET / HTTP 200; Hello, world.
+PASS: edited base refused before package.json changed.
+PASS: upgrade 0.7.0 -> 0.7.1 writes all three new URLs;
+  every user file unchanged.
+PASS: every proof server stopped by PID.
+  Nothing published.
+```
+
+The refused upgrade returned 1 and named `src/index.ts`.
+The successful upgrade installed the second set,
+ran prepare and doctor, then built again.
+User source, seams, and config matched their earlier hashes.
+Only package.json, the lockfile, installed packages,
+and generated or built files may change.
+
+Not proven: public GitHub downloads or raw hosting,
+other package managers, a real code upgrade,
+or live demo auth, sync, and mail.
+
 ## V. One local shadcn add starts an app
 
 Card `start/shadcn-registry`.

@@ -49,3 +49,6 @@ scratch/
 examples/**/*.d.ts
 .bench/
 .vitest/
+
+# local GitHub release assets
+.release/

@@ -492,3 +492,38 @@ The retry passed; the last run schedules one package at a time.
 Rounds 2 through 5 and real model writers remain unproven.
 Nothing was pushed or published.
 Core feedback: none.
+
+## start/github-release
+
+Writer: Sol, branch `start/github-release`.
+Core, React, and Start now share `0.7.0`.
+One tag names the set tested together.
+Core and React changed only their package versions.
+The registry file lists did not change.
+
+The dry release script builds and packs three tarballs.
+It writes asset sizes and sha256 in `manifest.json`.
+It fills app packages and registry links with GitHub URLs.
+The script has no publish mode and never calls `gh` or git.
+Upgrade writes three release URLs and installs the set.
+It still refuses edited base bytes before a package write.
+The new base's tested peers are read after the first install.
+Drifted peers cause one more install before prepare and doctor.
+
+Proof: [20-github-release.txt](proof/20-github-release.txt).
+The local mirror keeps GitHub paths and changes origins only.
+Its packed upgrade code uses the local origin too;
+its byte pins are made again, only for this proof.
+The original dry tarballs stay untouched.
+A single shadcn add in an empty folder passed.
+Install, build, doctor, GET /, and a version-only upgrade passed.
+All user files stayed the same; every server stopped by PID.
+The three new URL specs have plain function tests.
+The upgrade test failed against the old upgrade code.
+
+Assumptions: all three share Start's next version, `0.7.0`.
+`0.7.1` is a dry fixture, not a code change or a public release.
+The README keeps the requested shadcn command on one line.
+The full gates and final clean-commit mutation log follow.
+No Core feedback: this work adds release paths, not Core behavior.
+Nothing was tagged, pushed, or published.
