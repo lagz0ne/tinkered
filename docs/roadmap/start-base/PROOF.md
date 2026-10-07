@@ -36,7 +36,8 @@ Read their paths this way:
 Card `start/telemetry-fast`.
 Branch `start/telemetry-fast`.
 Date: 2026-10-07.
-Base: clean `origin/main` at `df2a6da8`.
+Probe base: clean `origin/main` at `df2a6da8`.
+Final code was rebased onto `2426acab`; that adds the playground fix.
 
 New regression: closing a tab never sends a batch
 above 32,000 UTF-8 bytes.
@@ -47,10 +48,10 @@ and sends the fitting record and the whole remaining backlog.
 Built `start-min` entry, with source maps:
 
 - Before: `index-B7mgwKzW.js`, 493,762 bytes.
-  Gzip at level 9: 153,581 bytes.
+  Python gzip at level 9: 153,581 bytes.
   Source map: 18 zod modules.
 - After: `index-CYmq-gbh.js`, 401,027 bytes.
-  Gzip at level 9: 128,110 bytes.
+  Python gzip at level 9: 128,110 bytes.
   Source map: zero zod modules.
 
 The byte counts include the source-map URL.
@@ -93,8 +94,9 @@ Final gates:
 - Focused telemetry tests: exit 0; 45 tests pass.
 - All Start tests with one worker and a 30-second limit:
   exit 0; 405 tests pass.
-- Normal recursive tests: exit 1; three sync tests
-  exceed the five-second limit on this busy box.
+- Final normal recursive tests: exit 0; all ten tasks pass.
+  Start passes all 405 tests at the normal five-second limit.
+  Earlier runs timed out on three sync tests.
 - The full test set passed under each package's own config
   with a 30-second limit; Node-only Jev passed separately.
 - `vp run prose`: exit 0; no hits.

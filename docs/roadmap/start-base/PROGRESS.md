@@ -3,7 +3,7 @@
 ## start/telemetry-fast
 
 Owner: Sol writer; lead reviews and lands.
-Next: final fault check, then lead review.
+Next: lead review after the linked clean-commit fault proof.
 Verify: each browser body is at most 32,000 UTF-8 bytes;
 server records keep their 48,000-byte cap;
 the built minimal client contains no zod.
@@ -35,7 +35,7 @@ The queue probe's ten-run verdict: **b is faster**.
 A median 2,531 ms; B median 1,145 ms.
 The median gap is 54.8 percent.
 The built minimal entry drops from 493,762 to 401,027 bytes.
-Gzip at level 9 drops from 153,581 to 128,110 bytes.
+Python gzip at level 9 drops from 153,581 to 128,110 bytes.
 Its source map drops from 18 zod modules to zero.
 The probe and the size counts are in [the proof](PROOF.md#y-telemetry-queue-and-client-bytes).
 
@@ -44,11 +44,12 @@ Gate notes:
 - Install, full build, and code check returned 0.
   Code check prints zero errors and 28 warnings, the same as main.
 - All 405 Start tests passed with one worker and a 30-second limit.
-- The normal recursive test run returned 1.
-  Three sync tests crossed its five-second limit on this busy box.
+- The final normal recursive test run returned 0: all ten tasks passed.
+  It includes all 405 Start tests at the normal five-second limit.
+  Earlier runs timed out on three sync tests.
   No test or config file was changed to extend that limit.
-- The full test set runs with a 30-second limit under each own config.
-  The Node-only Jev suite runs separately, without Vitest flags.
+- The full test set also passed with a 30-second limit under each own config.
+  The Node-only Jev suite ran separately, without Vitest flags.
 - Prose returned 0, with no hits.
 - The full scaffold check returned 0.
   Its real auth, SMTP, migrations, two-tab sync, and profile proof passed.
@@ -60,7 +61,9 @@ Gate notes:
   The changed queue's five labels are new; the endpoint label already existed.
   Test quality flags no test entry; promise checks find no gap.
   Calibration is committed.
-- The final fault log will name the clean code commit.
+- Main then added the playground vendor fix; this branch was rebased.
+  Build, code check, and all ten normal test tasks passed after that rebase.
+- The final fault log names the clean code commit.
   Only its header and summary table are saved afterward.
 
 Assumptions and limits:

@@ -60,12 +60,11 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 - **start/telemetry-fast** — size records once and cap browser bodies at 32,000 bytes.
   Owner: Sol writer; lead reviews and lands.
-  Next: final fault check, then lead review.
-  Proof: regression fails on main; 405 Start tests pass at a 30-second limit;
-  all package configs pass at that limit; code check, scaffold, and validate pass.
+  Next: lead review after the linked clean-commit fault proof.
+  Proof: regression fails on main; 405 Start tests and all ten normal test tasks pass;
+  code check, scaffold, and validate pass.
   Queue verdict: b is faster; median 2,531 to 1,145 ms.
   Minimal client: 493,762 to 401,027 bytes; zero zod modules.
-  The normal five-second test gate still times out on three sync tests.
   [Track](docs/roadmap/start-base/PROGRESS.md).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
