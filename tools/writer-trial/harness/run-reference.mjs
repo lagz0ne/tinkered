@@ -4,7 +4,7 @@ import { cpSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "nod
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { placeFlightReference } from "./flight-reference.mjs";
+import { placeFlightReference, prepareFlightReference } from "./flight-reference.mjs";
 import { checkFlight } from "../flight-check.mjs";
 import { flightEnvironment, pinFlightImages } from "../flight-network.mjs";
 import { jevAsk } from "../broker.mjs";
@@ -125,6 +125,7 @@ for (const round of rounds) {
       ["fmt", join(project, "src/backend/flight-search.ts"), join(project, plants[round].file)],
       { cwd: repo, stdio: "inherit" },
     );
+    prepareFlightReference(project, images.image);
     const archive = join(logs, "source.tar");
     execFileSync("tar", ["-C", project, "-cf", archive, "."]);
     const result = checkFlight({

@@ -135,6 +135,25 @@ try {
   console.log(`SCORE ${JSON.stringify(checked.score)}`);
   assert.equal(check.machine, "machine-pass");
 } finally {
+  const saved = JSON.parse(readFileSync(join(trial, "manifest.json"))).workers;
+  writeFileSync(join(trial, "reference-session.jsonl"), "");
+  writeFileSync(
+    join(trial, "reference-report.md"),
+    "# Fixed reference proof\n\nNo model writer ran.\n",
+  );
+  for (const [index, worker] of saved.entries())
+    if (worker.status !== "saved")
+      run("node", [
+        "tools/writer-trial/review.mjs",
+        "save",
+        name,
+        "1",
+        String(index + 1),
+        "--session",
+        join(trial, "reference-session.jsonl"),
+        "--report",
+        join(trial, "reference-report.md"),
+      ]);
   run("node", ["tools/writer-trial/workers.mjs", "export", name]);
   run("node", ["tools/writer-trial/workers.mjs", "cleanup", name]);
   console.log(`CLEANUP ${name} EXIT 0; results kept at ${trial}`);

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { listFiles } from "../suite.mjs";
@@ -6,6 +7,7 @@ import { listFiles } from "../suite.mjs";
 export function placeFlightReference(reference, seed, project, round) {
   cpSync(seed, project, { recursive: true });
   const excluded = new Set([
+    "src/client.tsx",
     "src/server.ts",
     "src/start.ts",
     "src/router.tsx",
@@ -66,4 +68,34 @@ function portSource(source, file, round) {
       "].slice(0, 1).map(async ({ supplier, url }) => {",
     );
   return source;
+}
+
+/** Prepare and list the port with the same installed packages as the grader, offline. */
+export function prepareFlightReference(project, image) {
+  const container = `flight-reference-${process.pid}-${Date.now().toString(36)}`;
+  const run = (args) => execFileSync("docker", args, { encoding: "utf8", timeout: 120000 });
+  try {
+    run([
+      "run",
+      "-d",
+      "--name",
+      container,
+      "--network",
+      "none",
+      "--read-only",
+      "--tmpfs",
+      "/tmp:rw,nosuid,size=512m",
+      "--tmpfs",
+      "/work:rw,nosuid,size=1g,uid=1001,gid=1001",
+      image,
+    ]);
+    run(["exec", container, "sh", "-c", "cp -R /home/pwuser/flight-seed/. /work/"]);
+    run(["cp", `${project}/.`, `${container}:/work/`]);
+    run(["exec", container, "tinker", "prepare"]);
+    run(["exec", container, "vp", "fmt"]);
+    run(["exec", container, "sh", "-c", "node scripts/check-plain.mjs --list > PLAIN.md"]);
+    run(["cp", `${container}:/work/.`, project]);
+  } finally {
+    run(["rm", "-f", container]);
+  }
 }
