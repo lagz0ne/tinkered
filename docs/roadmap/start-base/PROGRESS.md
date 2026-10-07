@@ -1,5 +1,74 @@
 # Start base progress
 
+## start/sync-test-warm
+
+Owner: Sol writer; lead reviews and lands.
+Next: lead review after the linked clean-commit fault proof.
+Verify: the linked final fault log clears 75 on kills alone.
+
+Each test file warms one PGlite database in `beforeAll`.
+The base template includes the sync tables and wake trigger.
+Each scope owns and closes its own `clone()`.
+The file closes the template in `afterAll`.
+The listener-refusal fixture now closes its client too.
+
+The scaffold template stays empty.
+Its tests still run the real migrate operation.
+The two generated registry files copy that same test fixture.
+No production source, test title, or test count changed.
+No test, hook default, or Stryker timeout was raised.
+Warm setup keeps the existing 60-second allowance.
+
+Three verbose sync runs on each side ran beside the full test suite.
+All twelve commands returned 0.
+All runs kept 39 sync tests, 426 Start tests, and 25 scaffold tests.
+The median test times were 1,499, 1,509, and 1,505 ms before.
+They were 711, 746, and 735 ms after.
+The slowest test fell from 4,238 to 2,049 ms across those runs.
+[Every test time](proof/sync-test-warm-times.txt).
+
+The original loaded runs and original fault dry run passed.
+The old five-second timeout was not seen in this run.
+No new regression test was added: the brief requires unchanged counts.
+This proves less setup time under the tested load.
+It does not prove every possible busy-host load fits five seconds.
+
+Checks:
+
+- Install, full build, and code check returned 0.
+  Code check prints zero errors and the same 28 warnings.
+- The full test suite and prose returned 0.
+- The full scaffold check returned 0.
+  All 90 emitted registry files match their source.
+  Its real-service proof passed; nothing was published.
+- `pnpm validate` returned 0; all 18 lanes passed.
+- Three consecutive fault dry runs returned 0.
+  Each ran all 426 Start tests.
+- Jev pre-flight has zero flags.
+  Start tests have zero flags among 186 entries.
+  Scaffold tests have zero flags among 25 entries.
+  Promise checks have zero gaps among 184 titles.
+  There are 41 unsure titles, which need no label.
+  TSDoc checks have zero rows; no labels were added.
+- The strict style census returns 1 on this tree and on main.
+  Its unchanged hits are `S16`, `T04`, and `T07`.
+  It treats the scaffold's test fixture as source.
+  Existing private imports and one error-text check still hit.
+  No strict hit was added; cleanup stays outside this test-speed fix.
+
+Assumptions and limits:
+
+- No separate study or patch was supplied for this card.
+  The Start server study covers other work.
+- PGlite 0.5.8 has `clone()`; the copied databases stay isolated.
+- The card exempts a timing queue verdict.
+  The proof uses Vitest's own per-test times.
+- Core feedback: none.
+
+[Gate and judge proof](proof/sync-test-warm-gates.txt).
+[Final clean-commit fault proof](proof/sync-test-warm-mutation.txt).
+Only that fault log is committed after the full run.
+
 ## start/telemetry-fast
 
 Owner: Sol writer; lead reviews and lands.

@@ -43,6 +43,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
+- **start/sync-test-warm** — warm one database and copy it for each test.
+  Owner: Sol writer; lead reviews and lands.
+  Next: lead review after the linked clean-commit fault proof.
+  Verify: full gates and three fault dry runs returned 0;
+  all counts stay the same; the final fault log must clear 75 on kills alone.
+  Loaded median test times: 1,499–1,509 ms → 711–746 ms.
+  [Track](docs/roadmap/start-base/PROGRESS.md#startsync-test-warm).
+
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
