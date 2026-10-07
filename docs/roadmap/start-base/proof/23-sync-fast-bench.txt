@@ -1,0 +1,30 @@
+A: clean origin/main at 105e85a0.
+B source: clean commit 1363990bed23738c69477be1528ebd7add924b90.
+The later edits change tests, notes, and judge scores only.
+
+Study probe: /home/paseo/perf/deep/sync-fanout/probe.ts.
+Bundle builder: /home/paseo/.cache/tinkered-briefs/sync-fast-bundle.mjs.
+Change to the probe: pass makeTestClock to both roots so the 30 s lease cannot end a measurement.
+PGlite and per-stream session-table reads stay on. No free-auth flag.
+Each benchmark uses 5 rounds with 1 timed run per side per round.
+The verdict times the whole process, including opening and closing streams.
+
+$ benchctl ab --cwd /home/paseo/next/sync-fast-base --a "node --expose-gc packages/start/.bench/sync-fast.mjs 100 10 --json" --b "node --expose-gc ../fix-sync-fast/packages/start/.bench/sync-fast.mjs 100 10 --json" --rounds 5 --runs-per-round 1
+A median 11670 ms   B median 7824 ms
+delta -3845.7 ms (-33.0%)   95% range [-6402.6, -1729.1] ms
+verdict: b is faster
+(waited 80.7s in the queue)
+EXIT 0
+
+$ benchctl ab --cwd /home/paseo/next/sync-fast-base --a "node --expose-gc packages/start/.bench/sync-fast.mjs 1000 5 --json" --b "node --expose-gc ../fix-sync-fast/packages/start/.bench/sync-fast.mjs 1000 5 --json" --rounds 5 --runs-per-round 1
+A median 15295 ms   B median 8773 ms
+delta -6521.9 ms (-42.6%)   95% range [-10257.0, -6383.2] ms
+verdict: b is faster
+(waited 102.3s in the queue)
+EXIT 0
+
+$ benchctl exec --cwd /home/paseo/next/sync-fast-base -- node packages/start/.bench/counts.mjs
+[benchctl] exit 0 in 15.7s, waited 328.4s in the queue
+a {"N":1000,"commits":1,"private":false,"seed":0,"freeAuth":false,"openMs":1525,"open":{"eventSelects":1000,"otherQueries":0,"accountReads":1000,"wakes":0,"authQueries":1000},"perCommit":{"eventSelects":2000,"otherQueries":4,"accountReads":1000,"wakes":1,"authQueries":1000},"cpuMsPerCommit":1819.667,"wallMsPerCommit":1822.358,"framesPerCommit":1000,"heapPerStreamBytes":16259,"heapGrowthAfterCommitsBytes":1977072,"heapUsedMB":40.1}
+b {"N":1000,"commits":1,"private":false,"seed":0,"freeAuth":false,"openMs":879.8,"open":{"eventSelects":1,"otherQueries":0,"accountReads":1000,"wakes":0,"authQueries":1000},"perCommit":{"eventSelects":1,"otherQueries":4,"accountReads":1000,"wakes":1,"authQueries":1000},"cpuMsPerCommit":578.865,"wallMsPerCommit":577.488,"framesPerCommit":1000,"heapPerStreamBytes":16918,"heapGrowthAfterCommitsBytes":1990200,"heapUsedMB":40.7}
+EXIT 0

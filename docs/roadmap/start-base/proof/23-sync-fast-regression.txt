@@ -1,0 +1,58 @@
+Source: origin/main 105e85a0; the two new tests over the unchanged source.
+$ vp test run tests/sync.test.ts -t "stopped reading" --testTimeout=120000
+EXIT 1
+
+note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
+
+ RUN  v5.0.1 /home/paseo/next/fix-sync-fast/packages/start
+
+ ❯ tests/sync.test.ts (36 tests | 2 failed | 34 skipped) 14433ms
+   × the lease closes a client that stopped reading 3343ms
+   × a heartbeat checks sign-out even when the client stopped reading 3325ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/sync.test.ts > the lease closes a client that stopped reading
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/sync.test.ts:1109:31
+    1107|   expect((await session.close({ graceful: true })).status).toBe("succe…
+    1108|   expect((await root.close({ graceful: true })).status).toBe("success"…
+    1109|   expect(closedBeforeReading).toBe(true);
+       |                               ^
+    1110| });
+    1111|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/sync.test.ts > a heartbeat checks sign-out even when the client stopped reading
+AssertionError: expected 1 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ tests/sync.test.ts:1134:32
+    1132|   expect((await session.close({ graceful: true })).status).toBe("succe…
+    1133|   expect((await root.close({ graceful: true })).status).toBe("success"…
+    1134|   expect(checkedBeforeReading).toBe(2);
+       |                                ^
+    1135| });
+    1136|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 34 skipped (36)
+   Start at  16:41:19
+   Duration  17.03s (tests 86%, import 11%, transform 3%)
+

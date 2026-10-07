@@ -1,0 +1,6 @@
+Two copies of the same scaffold and base, with local PGlite and mail presets.
+Only src/routes/index.tsx differs between copies.
+Both builds and requests returned EXIT 0 and HTTP 200.
+No server was started; each built fetch ran in its own child, then built.close was awaited.
+{"beforeBytes":9268,"afterBytes":9193,"savedBytes":75,"visibleBody":"same","snapshotCopies":[2,1],"note":"asset hashes in preload links differ after the route build"}
+EXIT 0

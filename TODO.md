@@ -38,13 +38,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/sync-fast** — share row reads and close stalled streams.
-  Owner: writer (Codex, sync-fast session).
-  Next: apply the study patches and prove the stalled-stream fixes.
-  Verify: test-clock regressions, full gates, queue at 100 and 1,000 streams,
-  HTML size proof, and clean-commit Start mutation kills at least 75%.
-  [Track](docs/roadmap/start-base/PROGRESS.md).
-
 - **perf round 1 fixes** — four Sol writers land the study's proven fixes (study: `/home/paseo/perf/index.html`).
   Owner: lead (Claude, Start scaffold session). Cards: `start/telemetry-fast` (queue bytes, 32 KB browser cap, zod off the client),
   `start/ssr-telemetry-root` (one telemetry root per process), `start/serve-fast` (compression, static set, compile hint),
@@ -62,6 +55,15 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **start/sync-fast** — shared rows and stalled-client checks are saved.
+  Owner: writer (Codex, sync-fast session).
+  Next: lead review after the clean-commit mutation log.
+  Proof: both stalled-client tests fail before the fix; all gates pass.
+  Queue verdict at 100 and 1,000 streams: b is faster.
+  At 1,000 streams, event reads per commit change from 2,000 to one.
+  Home HTML changes from 9,268 to 9,193 bytes and keeps one snapshot.
+  [Track](docs/roadmap/start-base/PROGRESS.md).
 
 - **playground/vendor-chunks** — fresh builds show 144 tiles.
   Owner: writer (Codex, vendor-chunks session).

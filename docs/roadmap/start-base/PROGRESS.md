@@ -933,7 +933,34 @@ All 38 sync tests passed before the final retry test was added.
 The two stalled-client tests and the retry test pass too.
 The home page changed from 9,268 to 9,193 bytes.
 Its visible body stayed the same, and one snapshot copy is gone.
-Full gates and queue verdicts are pending.
+All normal test tasks pass: Start has 410 tests, including 39 sync tests.
+The first full run hit the 5 s limit in the new shared-read test.
+The five new database tests now have a 30 s limit, with no sleep waits.
+Source census passes; seven private imports and one error-message check
+in the old glue test file are the same on clean main.
+Jev found no source-file flags and no test-entry flags.
+Four resource flags were labeled false with ownership and close checks.
+The two changed judges were calibrated; the other scores are retained.
+The promise check has no gap and 39 unsure answers.
+Proof: [regressions](proof/23-sync-fast-regression.txt),
+[HTML](proof/23-sync-fast-html.txt),
+and [Jev](proof/23-sync-fast-jev.txt).
+The 100-stream queue verdict is `b is faster`.
+Whole-probe medians: 11,670 ms before, 7,824 ms after.
+The 1,000-stream queue verdict is `b is faster` too.
+Whole-probe medians: 15,295 ms before, 8,773 ms after.
+Both runs use five rounds and one timed run per side in each round.
+Both roots use a test clock so the lease cannot end the probe.
+The probe keeps PGlite account reads on, one per session per wake.
+A separate queued count at 1,000 streams saw 2,000 event reads become one.
+Opening reads changed from 1,000 to one.
+Account reads stayed at 1,000 per commit; both sides sent 1,000 frames.
+Proof: [queue verdicts](proof/23-sync-fast-bench.txt)
+and [gates](proof/23-sync-fast-gates.txt).
+Required final proof: a clean code commit and mutation kills alone at least 75%.
+The commit and result go in [the mutation log](proof/23-sync-fast-mutation.txt).
+Only that log is committed after the final mutation run.
+Real Postgres speed and a shared heartbeat timer are not proven.
 Assumption: keep account reads per session and timers per stream.
 The optional shared heartbeat timer is not part of this card.
 Core feedback: none.

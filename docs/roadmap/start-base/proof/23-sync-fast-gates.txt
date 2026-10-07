@@ -1,0 +1,78 @@
+Code source: 1363990bed23738c69477be1528ebd7add924b90.
+The final test change raises only the five new database test limits to 30 s.
+
+$ git fetch origin && git rebase origin/main
+Current branch start/sync-fast is up to date.
+EXIT 0
+$ vp install
+EXIT 0
+$ vp run -r build
+12 build tasks, no failed task.
+EXIT 0
+$ vp check
+Found 0 errors and 28 warnings in 635 files.
+EXIT 0
+$ vp run -r test
+Test Files  39 passed (39)
+Tests  856 passed (856)
+Test Files  1 passed (1)
+Tests  4 passed (4)
+Test Files  8 passed (8)
+Tests  118 passed | 1 skipped (119)
+Test Files  21 passed (21)
+Tests  87 passed (87)
+Test Files  1 passed (1)
+Tests  1 passed (1)
+Test Files  9 passed (9)
+Tests  66 passed (66)
+Test Files  12 passed (12)
+Tests  148 passed (148)
+Test Files  36 passed (36)
+Tests  410 passed (410)
+Test Files  6 passed (6)
+Tests  25 passed (25)
+vp run: 0/10 cache hit (0%). (Run `vp run --last-details` for full details)
+EXIT 0
+$ vp run prose
+prose-lint: 0 hits.
+EXIT 0
+$ vp run @tinker-start-scaffold#check
+check:plain: EXIT 0
+test:schema: EXIT 0
+test:imports: EXIT 0
+test:middleware: EXIT 0
+test:serve: EXIT 0
+test:seam:fixture: EXIT 0
+test:registry: EXIT 0
+docker compose up --wait postgres mailpit: EXIT 0; isolated proof project
+PROOF PASS: real auth, SMTP, migrations, two-tab sync, and profile page
+server PID 2767085 stopped: EXIT 0; signal none
+relay PID 2767041 stopped: EXIT 0
+docker compose down -v: EXIT 0; only the proof project
+test:compose: EXIT 0
+EXIT 0
+$ pnpm validate
+PASS  lint/types/format/complexity
+PASS  module endings in docs, registry JSON, and templates
+PASS  tests
+PASS  core tests on the built files
+PASS  core size (<= 16 KiB gzip)
+PASS  promises (0 sync / <=10 async)
+PASS  deep-chain (no overflow)
+PASS  live-heap-per-request
+PASS  CRAP ceiling
+PASS  core hot names at V8 slot <= 255 (release block last)
+PASS  graph (span-tree per source owner, no hand-rolled span)
+PASS  ambient reads off ctx (no bare time/random)
+PASS  cast-free examples (0 casts)
+PASS  core runtime and testing entries (package imports only)
+PASS  blueprint tests
+PASS  blueprint size (<= 20 kB gzip)
+PASS  blueprint source retains corpus and evals
+PASS  two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)
+All deterministic budget lanes PASS (18)
+EXIT 0
+
+Earlier normal test gate: EXIT 1, only the new shared-read test hit its 5 s limit.
+The successful rerun above uses 30 s limits for the five new PGlite tests.
+No real sleep wait was added.

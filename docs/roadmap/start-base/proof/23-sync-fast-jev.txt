@@ -1,0 +1,86 @@
+jev pre-flight (advisory) — clear or explain these before reporting
+
+  ✓ apps/start-scaffold/src/routes/index.tsx
+  ✓ packages/start/src/parts/sync/notifications.server.ts
+  ✓ packages/start/src/parts/sync/stream.server.ts
+
+jev lint (advisory) — 3 file(s)
+
+packages/start/src/parts/sync/notifications.server.ts
+  ⚠ resource notifications (L7): stateOutsideCell 73%, ignoresAbortAfterAwait 80%
+packages/start/src/parts/sync/stream.server.ts
+  ✓ operation liveAccount (L12)
+  ⚠ resource eventStream (L36): stateOutsideCell 69%, ignoresAbortAfterAwait 90%
+  ✓ operation openSync (L252)
+
+jev lint: 4 unit(s), 2 ⚠ flag(s), 0 ℹ note(s). By question: {"stateOutsideCell":2,"ignoresAbortAfterAwait":2}
+Advisory only — model ⚠ hits are fixed or explained, then labeled (a ~ hit: read it, no line owed); unitCouldBeModuleLevel (code) is deterministic and needs no label or calibration. vp check / tests / the lead decide.
+
+jev pre-flight: 0 file flag(s) plus the lint notes above. An ℹ note is a hint: no fix or label owed. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (tools/jev/label.mjs). Not a gate.
+
+Labels: stateOutsideCell=false and ignoresAbortAfterAwait=false for notifications and eventStream.
+Reasons live in tools/jev/cases.jsonl.
+The two changed judges were calibrated; other scores are retained.
+jev calibrate — median(true) − median(false), pairs ordered; floor 30 points / 90%
+
+  ~ stateOutsideCell         provisional true  3 (med 90%)  false 320 (med 56%)  sep 34%  ordered 98%
+
+wrote /home/paseo/next/fix-sync-fast/tools/jev/calibration.json
+Advisory only — a noisy judge prints as a note, never as a flag.
+jev calibrate — median(true) − median(false), pairs ordered; floor 30 points / 90%
+
+  ~ ignoresAbortAfterAwait   provisional true  2 (med 72%)  false 50 (med 85%)  sep -13%  ordered 2%
+
+wrote /home/paseo/next/fix-sync-fast/tools/jev/calibration.json
+Advisory only — a noisy judge prints as a note, never as a flag.
+
+packages/start/tests/sync.test.ts  ⚠ privateImport, helpers 4 > 3
+  ✓ L86 a wait holds until a wake, a close, or a stop, and returns at once when it has nothing to wait for
+  ✓ L120 a wait on a broken listener returns at once
+  ✓ L149 notifications wake after a commit, stay silent on a rollback, and a read before waiting still wakes
+  ✓ L165 the stream replays after its cursor in one frame, greets once, then sends each new commit
+  ✓ L193 a resumed cursor skips what it has; one frame carries at most 100 events
+  ✓ L216 an account's own private events replay beside the public ones; another account's cursor is refused
+  ✓ L244 a held stream whose account signs out sends the account frame, then no saved rows
+  ✓ L266 an anonymous stream that signs in is an account change too
+  ✓ L286 a quiet stream sends a heartbeat each 10 s, closes at its 30 s lease, and at a heartbeat after sign-out
+  ✓ L326 a stream whose request stopped while it opened is Cancelled
+  ✓ L340 a backend stop ends a held stream, and the request ends clean
+  ✓ L364 a listener that cannot start fails the subscribe; one that breaks ends its subscribers
+  ✓ L415 a root that never listened closes clean
+  ✓ L424 closing the root wakes and disconnects each subscriber
+  ✓ L440 the sync route answers each request with the stream or its status
+  ✓ L491 a request that fails to read, or a stream that fails to open, fails the reply, not as a 400
+  ✓ L517 the event history locks a stream, appends in order, saves a result, and keeps owners apart
+  ✓ L568 the stream reads the account with no cookie cache and no refresh
+  ✓ L596 a body cancelled while it waits stops its wait at once
+  ✓ L626 a graceful close of the request ends a held read
+  ✓ L642 a stream opened after a wake still replays; a signed-in tab with no account cursor gets the account frame at once
+  ✓ L672 a request that stops while its account is read gets a body that has already ended
+  ✓ L698 a query that fails errors the body, and the request still ends clean
+  ✓ L721 the sync part's work shows on the trace under its own names
+  ✓ L792 only the check before the rows read can catch a sign-out whose rows cannot be read
+  ✓ L824 only the check after the rows read can stop rows of an account that signed out during it
+  ✓ L849 a sign-out that lands during the heartbeat's account read sends the account frame, not a heartbeat
+  ✓ L876 the stream reads the account once per wake, not once per pull
+  ✓ L906 a listener that breaks while it connects fails the subscribe as disconnected
+  ✓ L930 a subscribe whose listener is replaced while it connects fails as disconnected
+  ✓ L960 a closed subscriber is not told when the listener breaks
+  ✓ L991 a quiet stream reads the account once per heartbeat, and once more only for a wake during it
+  ✓ L1024 a request whose stream was never opened ends clean
+  ✓ L1038 a private cursor resumes past revision 0
+  ✓ L1053 the lease closes a client that stopped reading
+  ✓ L1079 a heartbeat checks sign-out even when the client stopped reading
+  ✓ L1106 streams at the same cursor share one read per wake and skip the empty read after a short page
+  ✓ L1144 shared private rows keep accounts apart and check each session after sign-out
+  ✓ L1211 a failed shared row read can be retried by another open stream
+
+jev tests: 0/39 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.
+
+jev promises: 0/181 titles have no README line (39 more unsure, under 70%). Write the gaps, or say why they are not promises.
+
+Source census: EXIT 0.
+The same test-file hits on clean origin/main and this tree:
+T04       7  import of a private source module
+T07       1  instanceof or message assert around an error
+No new strict test hits. The brief permits glue tests of private pieces.

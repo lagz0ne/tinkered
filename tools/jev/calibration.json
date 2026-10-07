@@ -22,10 +22,10 @@
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 318,
-    "medianTrue": 0.89,
+    "falses": 320,
+    "medianTrue": 0.9,
     "medianFalse": 0.56,
-    "separation": 0.33,
+    "separation": 0.34,
     "ordered": 0.98,
     "at": "2026-10-07"
   },
@@ -62,11 +62,11 @@
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 2,
-    "falses": 48,
-    "medianTrue": 0.78,
+    "falses": 50,
+    "medianTrue": 0.72,
     "medianFalse": 0.85,
-    "separation": -0.07,
-    "ordered": 0.17,
+    "separation": -0.13,
+    "ordered": 0.02,
     "at": "2026-10-07"
   },
   "readsMoreThanRendered": {
