@@ -82,7 +82,7 @@ Assumptions and limits:
 ## start/ssr-telemetry-root
 
 Owner: Codex writer, branch `start/ssr-telemetry-root`.
-Next: lead review; rerun tests on a quiet box and restore the Docker test network.
+Next: lead review after the linked clean-commit fault proof.
 Verify: render close does not wait on a held storage send;
 two renders share the process queue with side `ssr`;
 process close sends their records.
@@ -95,7 +95,7 @@ Only the browser tab keeps its own telemetry root.
 The process root still closes last and sends what is left.
 The observer and its settings use one `ssr` namespace.
 The queue stays owned by the process root.
-No queue, observer, or record implementation changed.
+This card changes no queue, observer, or record implementation.
 
 ### Tests and assumptions
 
@@ -104,12 +104,13 @@ A gate holds storage open while render close finishes.
 Two closed renders leave four records in the process queue.
 Process close sends both traces and both log records with side `ssr`.
 Telemetry off needs no storage settings.
-The two-render test fails on main: its records have side `server`.
+The two-render test fails on main `105e85a0`:
+its records have side `server`.
 Main received only the test file and test-entry exports for that run.
 Test defaults let the old part run without new fields.
 The base tree was restored before timing.
 
-The process root already owned by the server entry is the one owner.
+The server entry's existing process root is the one owner.
 No second process root is added, unlike the study's throwaway patch.
 Four test-entry exports let the tests use the public test seam.
 The browser's close result keeps its existing error order.
@@ -117,50 +118,53 @@ No publish or push is part of this card.
 
 ### Proof
 
+The branch was rebased onto main `105e85a0`.
+That main includes `start/telemetry-fast`.
+Only the board and progress notes had conflicts.
+Both cards were kept.
+The old-base mutation run was stopped and does not count.
+
 - Fetch and rebase: EXIT 0.
-  The board conflict kept both the lead's card and this card.
+  A second fetch before the final proof found no new main commit.
 - Install and recursive build: EXIT 0.
 - `vp check`: EXIT 0; 28 warnings, the same count as main.
-- Recursive tests before the last catch-up: EXIT 0, all 10 tasks.
-  Start: 407 tests in 37 files, with normal test limits.
-  The catch-up adds only the playground fix from main `2426acab`.
-  Start source and tests match the measured fix byte for byte.
-  The fresh recursive run then returned 1: five sync tests timed out.
-  Earlier runs timed out on both trees while the box was busy.
-  A separate Start run with a 60-second limit passed all 407 tests.
-- The three new tests: EXIT 0 with normal test limits.
-- The two-render test on main: EXIT 1; expected `ssr`, received `server`.
+- Recursive tests: EXIT 0, all 10 tasks with normal test limits.
+  Start: all 408 tests in 37 files.
+  The three new scope tests are included.
+- The two-render test on main: EXIT 1.
+  It expected `ssr` and received `server`.
 - Prose: EXIT 0.
-- Scaffold check: EXIT 1 on both trees.
-  Its Docker proof could not start the test services.
-  Main printed: `Pool overlaps with other one on this address space`.
+- Full scaffold check: EXIT 0.
+  Its real auth, SMTP, migrations, two-tab sync, and profile proof passed.
+  The proof stopped only its own servers and Docker project.
   No Docker, host, DNS, or tunnel setting was changed.
 - `pnpm validate`: EXIT 0, all 18 lanes.
 - Jev pre-flight: EXIT 0, no flags.
-  New tests: 0 of 3 flagged; promises: 0 of 178 gaps.
+  New tests: 0 of 3 flagged.
+  Promises: 0 of 179 gaps; 46 unsure.
   Final labels: none needed.
 - Strict style census on the changed source and new tests: EXIT 0.
-- The mutation result and kills-only floor are in
+- The final mutation result and kills-only floor are in
   [the mutation proof](proof/ssr-telemetry-root-mutation.txt).
+  Only its header and summary table are committed after that run.
 - [Gate proof](proof/ssr-telemetry-root-gates.txt).
 
 ### Queue verdict
 
-`benchctl ab`: EXIT 0; **b is faster**.
-A is clean main `df2a6da8`; B is clean fix `a4a7bea5`.
+The fresh `benchctl ab` run returned 0: **b is faster**.
+A is clean main `105e85a0`; B is clean fix `9b2cf375`.
 Each side starts `start-min`, sends 300 warm-up requests,
 then 1,000 requests with 16 at once, and stops the server by PID.
 Eight rounds, one run per side per round.
-A median: 8,472 ms; B median: 6,352 ms.
-The whole-side time fell 25.0%.
-The 95% range for the gap was -3,312.2 to -933.5 ms.
-The first job failed because command file paths were not mapped.
-The second job used paths from the clean base folder.
+The shared lock kept the run apart from mutation work.
+A median: 8,945 ms; B median: 6,281 ms.
+The whole-side time fell 29.8%.
+The 95% range for the gap was -2,840.7 to -2,383.8 ms.
+Only proof notes change after this timed commit.
 [Timing proof](proof/ssr-telemetry-root-ab.txt).
 
 ### Limits and Core feedback
 
-The Docker proof did not reach its live browser checks.
 The timing result covers the local app, not a real remote store.
 The held-send test proves render close without a time guess.
 Core feedback: none.

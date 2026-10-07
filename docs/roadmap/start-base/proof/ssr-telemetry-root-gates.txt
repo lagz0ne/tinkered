@@ -1,49 +1,41 @@
-Measured code: a4a7bea5015bf510f4c6b62e35a09d83c7d93bf6
-Rebased code: 8094cfed (same Start source and tests)
-Latest main: 2426acab (only playground changes after the pinned base)
-Base: df2a6da8bea9072cd6079317ccd93ffa3c410273
+SSR telemetry root: final rebased gate proof
+Base: origin/main 105e85a0b3bd6a53384a98095ea743b7815f0a9b
+Checked HEAD: 9b2cf37573e0d19f902f338b4fe35c91d97f7478
+Code commit: bff9671e
+Only proof notes change after these checks.
 
-Final checks by exit code:
-git fetch origin && git rebase origin/main: EXIT 0 (TODO conflict resolved, both cards kept)
-vp install: EXIT 0
-vp run -r build: EXIT 0
-vp check: EXIT 0 (0 errors, 28 warnings; clean main also has 28 warnings)
-vp run -r --concurrency-limit 1 test: EXIT 1 after final catch-up (five sync timeouts)
-The earlier normal-limit recursive run returned EXIT 0 (all 10 tasks).
-vp run prose: EXIT 0
-vp run @tinker-start-scaffold#check: EXIT 1
-pnpm validate: EXIT 0 (all 18 deterministic lanes)
+Command                                                   Exit
+ git fetch origin && git rebase origin/main                   0
+ vp install                                                  0
+ vp run -r build                                             0
+ vp check                                                    0
+ vp run -r --concurrency-limit 1 test                         0
+ vp run prose                                                0
+ vp run @tinker-start-scaffold#check                          0
+ pnpm validate                                               0
+ strict style census: changed source and new tests            0
+ node tools/jev/preflight.mjs origin/main..HEAD               0
+ node tools/jev/tests.mjs packages/start/tests/ssr-telemetry.test.ts 0
+ node tools/jev/promises.mjs start                            0
+ final git fetch origin && git rebase origin/main             0
 
-Additional proof:
-New SSR telemetry tests: 3 passed, EXIT 0.
-Start tests: 407 passed / 37 files with normal test limits in the recursive run.
-Start tests with --testTimeout 60000: 407 passed / 37 files, EXIT 0.
-Earlier default test runs timed out on both trees; no test source or config was changed.
-Main's exact first sync test timed out too (tests/sync.test.ts:86), EXIT 1.
-Main's recursive test run also timed out in flight-trial navigation, EXIT 1.
+Code check: zero errors, 28 warnings (same count as main).
+Recursive tests: all ten tasks pass at normal test limits.
+Start: 408 tests, 37 files.
+Scaffold: every task passes, including real auth, SMTP, migrations, two-tab sync, and profile proof.
+Validate: all 18 lanes pass.
+Jev: no file/unit flags; 0/3 new tests flagged; 0/179 promise gaps, 46 unsure.
+Final labels: none needed. Core feedback: none.
 
-Regression on clean main's implementation:
-Only the new test and test-entry exports were copied into the baseline.
-The test supplies old-part defaults, so it runs without new fields.
-2 passed, 1 failed: process close sends two renders from one queue with side ssr.
-Expected stringValue:ssr / side:ssr; received server.
-EXIT 1. Baseline changes were removed before timing.
+Main regression (clean 105e85a0, only public testing exports and the new test copied): EXIT 1.
+Two tests pass. The two-render test fails: expected side ssr, received server.
+The copied test and exports were removed before timing; the base tree is clean.
 
-Scaffold failure on both trees:
-The original branch check reached test:compose, but Docker service startup returned 255.
-The clean-main check also failed test:compose; Docker printed:
-Pool overlaps with other one on this address space.
-Main scaffold check EXIT 1.
-Earlier plain, schema, import, middleware, serve, registry, and doctor steps passed.
-No Docker or host settings were changed.
+Three scope tests, without server/browser/TanStack/Vite inside the test:
+- render close finishes while a storage send is held;
+- two renders share one queue, and process close sends their ssr records;
+- telemetry off needs no storage settings.
 
-Jev pre-flight: EXIT 0; no file or unit flags.
-New tests: EXIT 0; 0/3 flags.
-Promises: EXIT 0; 0/178 README gaps.
-Final labels: none required.
-Strict style census: EXIT 0 on changed source and new tests.
-Core feedback: none.
-
-Full logs and timing driver: /home/paseo/.cache/tinkered-briefs/ssr-root-*.log
-Driver: /home/paseo/.cache/tinkered-briefs/ssr-root-ab-side.mjs
-No live browser or real remote-store result is claimed.
+Mutation: the old-base run was stopped; it does not count.
+The final run, clean-HEAD header, summary table, and kills-only floor are in ssr-telemetry-root-mutation.txt.
+Only that log is committed after the final mutation run.

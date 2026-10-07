@@ -69,13 +69,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 - **start/ssr-telemetry-root** — page renders borrow the process telemetry root.
   Owner: Codex writer, branch `start/ssr-telemetry-root`.
-  Next: lead review; rerun tests on a quiet box and restore the Docker test network.
-  Proof: build, check, prose, and validate returned 0.
-  Full tests passed before catch-up; the last run has five sync timeouts.
-  Proof: three scope tests pass; the two-render test fails on main.
-  Queue verdict: **b is faster**; whole-side time fell 25.0%.
+  Next: lead review after the linked clean-commit fault proof.
+  Proof: rebased onto main `105e85a0`; all required gates returned 0.
+  All 408 Start tests and all ten normal test tasks pass.
+  Three scope tests pass; the two-render test fails on main.
+  Queue verdict: **b is faster**; whole-side time fell 29.8%.
+  Full scaffold and all 18 release checks pass.
   Mutation result: [proof](docs/roadmap/start-base/proof/ssr-telemetry-root-mutation.txt), floor 75 on kills alone.
-  Docker proof fails on main too: its test services cannot start.
   [Track](docs/roadmap/start-base/PROGRESS.md#startssr-telemetry-root).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
