@@ -24,13 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/github-release** — ship Core, React, and Start as tarballs on a GitHub release (ADR 0106).
-  Real versions for Core and React; a release script packs the three and builds the registry.
-  `tinker upgrade <v>` writes the release URLs; the template's `package.json` uses them.
-  The registry is read by raw GitHub URL at the same tag.
-  Stop before `gh release create`: a release is public and waits for the user's go.
-  Verify: from tarballs served at 127.0.0.1 with the release's paths, an empty folder installs, builds, and passes doctor.
-
 - **start/registry-no-overwrite** — demo items must not replace the user's app files.
   Today the full demo needs `--overwrite`: it replaces `vite.config.ts`, the seams, and `src/routes/index.tsx`.
   Fix: items add only their own files; doctor names the switch (`tinker({ auth: true, sync: true })`) and the seam names to add.
@@ -49,6 +42,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
 ## Doing
+
+- **start/github-release** — ship Core, React, and Start as tarballs on a GitHub release (ADR 0106).
+  Real versions for Core and React; a release script packs the three and builds the registry.
+  `tinker upgrade <v>` writes the release URLs; the template's `package.json` uses them.
+  The registry is read by raw GitHub URL at the same tag.
+  Stop before `gh release create`: a release is public and waits for the user's go.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-github-release`.
+  Verify: from tarballs served at 127.0.0.1 with the release's paths, an empty folder installs, builds, and passes doctor.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
