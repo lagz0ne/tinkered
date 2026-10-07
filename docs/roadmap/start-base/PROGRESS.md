@@ -3,7 +3,7 @@
 ## start/telemetry-fast
 
 Owner: Sol writer; lead reviews and lands.
-Next: finish the queue speed check and final gates.
+Next: final fault check, then lead review.
 Verify: each browser body is at most 32,000 UTF-8 bytes;
 server records keep their 48,000-byte cap;
 the built minimal client contains no zod.
@@ -30,6 +30,38 @@ It checks every body and every record sent.
 The test failed on clean `origin/main` at `df2a6da8`:
 46,524 bytes exceeds 32,000.
 It passes with the fix.
+
+The queue probe's ten-run verdict: **b is faster**.
+A median 2,531 ms; B median 1,145 ms.
+The median gap is 54.8 percent.
+The built minimal entry drops from 493,762 to 401,027 bytes.
+Gzip at level 9 drops from 153,581 to 128,110 bytes.
+Its source map drops from 18 zod modules to zero.
+The probe and the size counts are in [the proof](PROOF.md#y-telemetry-queue-and-client-bytes).
+
+Gate notes:
+
+- Install, full build, and code check returned 0.
+  Code check prints zero errors and 28 warnings, the same as main.
+- All 405 Start tests passed with one worker and a 30-second limit.
+- The normal recursive test run returned 1.
+  Three sync tests crossed its five-second limit on this busy box.
+  No test or config file was changed to extend that limit.
+- The full test set runs with a 30-second limit under each own config.
+  The Node-only Jev suite runs separately, without Vitest flags.
+- Prose returned 0, with no hits.
+- The full scaffold check returned 0.
+  Its real auth, SMTP, migrations, two-tab sync, and profile proof passed.
+  Earlier runs met another writer's fixed-subnet proof network.
+  No Docker config was changed; each proof removed only its own project.
+- `pnpm validate` returned 0; all 18 lanes passed.
+- Jev pre-flight has zero file flags.
+  Six resource flags are labeled false with reasons in the bank.
+  The changed queue's five labels are new; the endpoint label already existed.
+  Test quality flags no test entry; promise checks find no gap.
+  Calibration is committed.
+- The final fault log will name the clean code commit.
+  Only its header and summary table are saved afterward.
 
 Assumptions and limits:
 

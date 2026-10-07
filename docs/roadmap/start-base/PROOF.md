@@ -49,14 +49,85 @@ Built `start-min` entry, with source maps:
 - Before: `index-B7mgwKzW.js`, 493,762 bytes.
   Gzip at level 9: 153,581 bytes.
   Source map: 18 zod modules.
-- After: `index-GGIw-F_R.js`, 400,916 bytes.
-  Gzip at level 9: 128,068 bytes.
+- After: `index-CYmq-gbh.js`, 401,027 bytes.
+  Gzip at level 9: 128,110 bytes.
   Source map: zero zod modules.
 
 The byte counts include the source-map URL.
 These are built files; no browser timing is claimed.
-Final queue code changes need one final size check.
-Speed and final gate proof will be recorded below.
+Queue probe: `bench/telemetry-fast.mjs`.
+Both sides use the same bundled probe and the same built Core.
+It runs 100,000 tiny observed operations, flushing every 500.
+It excludes stdout and measures the whole process.
+The final comparison ran ten rounds, one run per side per round.
+
+```text
+A median 2531 ms   B median 1145 ms
+delta -1386.4 ms (-54.8%)
+95% range [-1603.8, -1222.5] ms
+verdict: b is faster
+```
+
+`benchctl ab --runs 10` is read as ten runs per round.
+An earlier six-round comparison is not the proof above.
+The final command uses explicit round and run counts:
+
+```bash
+next_probe=../fix-telemetry-fast/.bench
+benchctl ab --rounds 10 --runs-per-round 1 \
+  --a 'node .bench/telemetry-probe.mjs' \
+  --b "node $next_probe/telemetry-probe.mjs"
+```
+
+Run from the clean base worktree root.
+The probe bodies are built from each tree's source.
+The source test file used for the regression was restored.
+No source edits remain in the base.
+
+Final gates:
+
+- `vp install`: exit 0.
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0; zero errors, 28 warnings.
+  Main also prints 28 warnings.
+- Focused telemetry tests: exit 0; 45 tests pass.
+- All Start tests with one worker and a 30-second limit:
+  exit 0; 405 tests pass.
+- Normal recursive tests: exit 1; three sync tests
+  exceed the five-second limit on this busy box.
+- The full test set passed under each package's own config
+  with a 30-second limit; Node-only Jev passed separately.
+- `vp run prose`: exit 0; no hits.
+- `vp run @tinker-start-scaffold#check`: exit 0.
+  Real auth, SMTP, migrations, two-tab sync, and profile pass.
+- `pnpm validate`: exit 0; all 18 lanes pass.
+- Jev pre-flight, test quality, and promises: exit 0.
+  Resource flags have false labels and reasons.
+  Calibration is committed.
+- Strict census: queue and schema files pass.
+  The full telemetry target keeps main's S06 console
+  and T04 private-import hits.
+
+The full test commands use one worker and one task at a time.
+They run unscoped and scoped names separately;
+the Node-only suite cannot take a Vitest timeout flag.
+
+```bash
+VITEST_MAX_WORKERS=1 vp run \
+  --concurrency-limit=1 --filter='*' \
+  --filter='!@tinker/jev' test -- \
+  --testTimeout=30000
+VITEST_MAX_WORKERS=1 vp run \
+  --concurrency-limit=1 --filter='@tinker/*' \
+  --filter='!@tinker/jev' test -- \
+  --testTimeout=30000
+vp run @tinker/jev#test
+```
+
+The final fault check is saved in
+[the clean-commit log](proof/22-telemetry-fast-mutation.txt).
+Its header names the checked commit and its clean tree.
+Only that log is committed after the run.
 
 ## X. Examples keep the user's app files
 
