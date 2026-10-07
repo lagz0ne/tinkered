@@ -1,0 +1,41 @@
+note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-github-release/packages/start
+
+ ❯ tests/upgrade.test.mjs (8 tests | 1 failed | 7 skipped) 33ms
+   × an upgrade without --from writes the three URLs for one GitHub tag 31ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/upgrade.test.mjs > an upgrade without --from writes the three URLs for one GitHub tag
+AssertionError: expected { '@tinker/start': '0.7.0', zod: '^4' } to deeply equal { zod: '^4', …(3) }
+
+- Expected
++ Received
+
+  {
+-   "@tinker/core": "https://github.com/lagz0ne/tinkered/releases/download/start-v0.7.0/tinker-core-0.7.0.tgz",
+-   "@tinker/react": "https://github.com/lagz0ne/tinkered/releases/download/start-v0.7.0/tinker-react-0.7.0.tgz",
+-   "@tinker/start": "https://github.com/lagz0ne/tinkered/releases/download/start-v0.7.0/tinker-start-0.7.0.tgz",
++   "@tinker/start": "0.7.0",
+    "zod": "^4",
+  }
+
+ ❯ tests/upgrade.test.mjs:159:73
+    157| test("an upgrade without --from writes the three URLs for one GitHub t…
+    158|   const root = installedApp({ "@tinker/start": "file:base.tgz", zod: "…
+    159|   expect(planUpgrade(root, "0.7.0", { force: false }).pkg.dependencies…
+       |                                                                         ^
+    160|     zod: "^4",
+    161|     "@tinker/core":
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 skipped (8)
+   Start at  07:28:30
+   Duration  245ms (transform 43%, tests 28%, import 23%, worker 5%)
+
+
+EXIT 1

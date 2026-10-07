@@ -53,18 +53,21 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Runs beside start/github-release; the first release waits for both (user said go, 2026-10-07).
   Verify: an edited `vite.config.ts` survives adding every item; doctor names what is missing.
 
+Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
+reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
+
+## Review
+
 - **start/github-release** — ship Core, React, and Start as tarballs on a GitHub release (ADR 0106).
   Real versions for Core and React; a release script packs the three and builds the registry.
   `tinker upgrade <v>` writes the release URLs; the template's `package.json` uses them.
   The registry is read by raw GitHub URL at the same tag.
   Stop before `gh release create`: a release is public and waits for the user's go.
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-github-release`.
+  Next: lead review the final mutation proof and land; keep publication on hold.
+  Proof: build, check, all tests, prose, scaffold checks, 17 validate lanes, and the HTTP release proof passed.
+  [Track](docs/roadmap/start-base/PROGRESS.md#startgithub-release).
   Verify: from tarballs served at 127.0.0.1 with the release's paths, an empty folder installs, builds, and passes doctor.
-
-Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
-reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
-
-## Review
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.

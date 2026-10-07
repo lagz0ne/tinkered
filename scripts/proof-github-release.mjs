@@ -100,12 +100,17 @@ try {
       const pkgPath = join(unpacked, "package/package.json");
       await writeFile(pkgPath, rewrite(await readFile(pkgPath, "utf8")));
       if (name === "start") {
+        const pinned = JSON.parse(await readFile(join(unpacked, "package/files.json"), "utf8"));
+        assert.deepEqual(
+          pinned,
+          await hashes(join(unpacked, "package"), new Set(["files.json", "package.json"])),
+        );
+        console.log(`PASS: original Start ${version} byte pins match every packed file.`);
         const urls = join(unpacked, "package/lib/release.mjs");
         await writeFile(urls, rewrite(await readFile(urls, "utf8")));
-        const pinned = await hashes(
-          join(unpacked, "package"),
-          new Set(["files.json", "package.json"]),
-        );
+        pinned["lib/release.mjs"] = createHash("sha256")
+          .update(await readFile(urls))
+          .digest("hex");
         await writeFile(
           join(unpacked, "package/files.json"),
           JSON.stringify(pinned, null, 2) + "\n",

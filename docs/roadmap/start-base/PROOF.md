@@ -59,6 +59,8 @@ All URL paths stay the same.
 It also changes the packed upgrade URL default and hashes
 those proof bytes again in `files.json`.
 The original dry tarballs stay untouched.
+Their Start byte pins match every original packed file
+before the proof changes its one URL default.
 
 Key lines from the log, wrapped:
 

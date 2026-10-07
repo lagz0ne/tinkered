@@ -516,6 +516,7 @@ The local mirror keeps GitHub paths and changes origins only.
 Its packed upgrade code uses the local origin too;
 its byte pins are made again, only for this proof.
 The original dry tarballs stay untouched.
+The proof checks their byte pins before its URL edit.
 A single shadcn add in an empty folder passed.
 Install, build, doctor, GET /, and a version-only upgrade passed.
 All user files stayed the same; every server stopped by PID.
@@ -525,6 +526,33 @@ The upgrade test failed against the old upgrade code.
 Assumptions: all three share Start's next version, `0.7.0`.
 `0.7.1` is a dry fixture, not a code change or a public release.
 The README keeps the requested shadcn command on one line.
-The full gates and final clean-commit mutation log follow.
+Gates: [20-github-release-gates.txt](proof/20-github-release-gates.txt).
+Fetch, rebase, install, full build, check, all package tests,
+prose, scaffold check, and all 17 validate lanes returned 0.
+Check printed 0 errors and 28 warnings.
+The root test tasks passed 1,844 tests, with one skipped.
+Start passed 393 tests; 12 are the upgrade and URL function tests.
+The regression log shows the new URL test failing on the old code:
+[20-github-release-regression.txt](proof/20-github-release-regression.txt).
+
+Jev preflight: zero flags; it does not read `.mjs` files.
+Jev checked the two changed `.mjs` test files by path:
+zero flags across 12 entries.
+The package test review's notes are in old TypeScript tests.
+No TypeScript file changed here.
+The strict census prints the same T04 and T07 hits on main.
+The promises tool reads TypeScript tests only.
+Two old README gaps were filled; the last run has zero gaps,
+with 44 unsure answers below its 70% floor.
+No judge label lines were needed.
+
+Final clean-commit mutation proof:
+[20-github-release-mutation.txt](proof/20-github-release-mutation.txt).
+That log names the code commit and records kills alone.
+Only that log is committed after the last mutation run.
+
+The final HTTP proof ran alone.
+An earlier overlapping build failed; the gate passed,
+and the proof was rerun after the gate ended.
 No Core feedback: this work adds release paths, not Core behavior.
 Nothing was tagged, pushed, or published.
