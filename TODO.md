@@ -42,6 +42,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Template written once; examples updated with `shadcn add --diff`; base by `tinker upgrade`.
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-shadcn-registry`.
   Runs beside trial/base-image (user 2026-10-07: take care of both).
+  Next: finish the local CLI proof and gates; writer `start/shadcn-registry`.
   Verify: an empty folder to a served page in one `shadcn add`; publishing waits for the user's go.
 
 - **trial/base-image** — the writer trial image installs the packed base; its gate runs `tinker doctor`.
