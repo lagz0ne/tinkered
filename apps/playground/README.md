@@ -46,6 +46,9 @@ The app build writes the site to `apps/playground/dist`.
 `scripts/build-vendor.mjs` produces what the preview iframe imports through its import map: the
 library dists, React as browser ESM, and `esbuild.wasm` — checked against the esbuild-wasm JS version
 so a mismatch can never ship.
+The vendor step copies each entry and every local file it imports.
+It follows nested imports, re-exports, and dynamic imports.
+It leaves bare imports for the import map and skips unused files.
 
 ## The shape (read this before changing it)
 

@@ -42,12 +42,9 @@ test("copies nested, re-exported, and dynamic imports without copying unused fil
     }
     writeFileSync(join(sourceDir, "unused.mjs"), "export const unused = true;");
     await copyModuleGraph(join(sourceDir, "index.mjs"), join(outputDir, "core.mjs"));
-    expect(readdirSync(outputDir, { recursive: true }).sort()).toEqual([
-      "chunk.mjs",
-      "core.mjs",
-      "nested",
-      "nested/lazy.mjs",
-    ]);
+    expect(
+      readdirSync(outputDir, { recursive: true }).sort((left, right) => left.localeCompare(right)),
+    ).toEqual(["chunk.mjs", "core.mjs", "nested", "nested/lazy.mjs"]);
     for (const [file, content] of Object.entries(files)) {
       expect(readFileSync(join(outputDir, file === "index.mjs" ? "core.mjs" : file), "utf8")).toBe(
         content,
