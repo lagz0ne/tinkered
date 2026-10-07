@@ -38,72 +38,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **perf round 1 fixes** — four Sol writers land the study's proven fixes (study: `/home/paseo/perf/index.html`).
-  Owner: lead (Claude, Start scaffold session). Cards: `start/telemetry-fast` (queue bytes, 32 KB browser cap, zod off the client),
-  `start/ssr-telemetry-root` (one telemetry root per process), `start/serve-fast` (compression, static set, compile hint),
-  `playground/vendor-chunks` (blank page after a fresh build).
-  A deeper study round runs beside them until 15:00 UTC (`/home/paseo/perf/deep/`).
-  Verify: each bug has a test that fails on main; each speed claim has a `benchctl ab` verdict.
-
-- **start/serve-fast** — compress built files and HTML.
-  Owner: Codex, `start/serve-fast` writer.
-  Next: file set at start, build compression, client compile hint.
-  Verify: curl bytes, Chrome trace, queue verdict, gates.
-  [Track](docs/roadmap/start-base/PROGRESS.md#startserve-fast).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **core/op-fast** — cheaper runs and sync cleanup in one promise job.
-  Owner: writer (Codex, op-fast session); lead reviews and lands.
-  Next: lead review after the linked clean-commit fault proof.
-  Proof: eleven new tests; Core source and built-file tests pass.
-  First full fault run: 84.71% on kills alone; new seam checks added.
-  Core gate, scaffold, size cap, and all release lanes pass.
-  `op`, `run`, `tagged`: b is faster.
-  `session`, `lifecycle`: no difference we can see.
-  Settle and forced-close whole-process checks: b is faster.
-  Default Maglev inlines the operation context into `runOnce`.
-  [Track and clean-commit fault log](docs/roadmap/core-v1/PROGRESS.md#coreop-fast).
-
-- **start/sync-fast** — shared rows and stalled-client checks are saved.
-  Owner: writer (Codex, sync-fast session).
-  Next: lead review after the clean-commit mutation log.
-  Proof: both stalled-client tests fail before the fix; all gates pass.
-  Queue verdict at 100 and 1,000 streams: b is faster.
-  At 1,000 streams, event reads per commit change from 2,000 to one.
-  Home HTML changes from 9,268 to 9,193 bytes and keeps one snapshot.
-  [Track](docs/roadmap/start-base/PROGRESS.md).
-
-- **playground/vendor-chunks** — fresh builds show 144 tiles.
-  Owner: writer (Codex, vendor-chunks session).
-  Next: lead review; the overlay trial is dropped.
-  Proof: the missing-file test failed before the fix.
-  Playground 66 tests and all 18 release checks pass.
-  The scaffold check fails here and on clean main.
-  [Track](docs/roadmap/playground-v2/PROGRESS.md).
-
-- **start/telemetry-fast** — size records once and cap browser bodies at 32,000 bytes.
-  Owner: Sol writer; lead reviews and lands.
-  Next: lead review after the linked clean-commit fault proof.
-  Proof: regression fails on main; 405 Start tests and all ten normal test tasks pass;
-  code check, scaffold, and validate pass.
-  Queue verdict: b is faster; median 2,531 to 1,145 ms.
-  Minimal client: 493,762 to 401,027 bytes; zero zod modules.
-  [Track](docs/roadmap/start-base/PROGRESS.md).
-
-- **start/ssr-telemetry-root** — page renders borrow the process telemetry root.
-  Owner: Codex writer, branch `start/ssr-telemetry-root`.
-  Next: lead review after the linked clean-commit fault proof.
-  Proof: rebased onto main `105e85a0`; all required gates returned 0.
-  All 408 Start tests and all ten normal test tasks pass.
-  Three scope tests pass; the two-render test fails on main.
-  Queue verdict: **b is faster**; whole-side time fell 29.8%.
-  Full scaffold and all 18 release checks pass.
-  Mutation result: [proof](docs/roadmap/start-base/proof/ssr-telemetry-root-mutation.txt), floor 75 on kills alone.
-  [Track](docs/roadmap/start-base/PROGRESS.md#startssr-telemetry-root).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
@@ -131,6 +69,16 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **perf fixes 2026-10-07** — the study's proven fixes, landed (study: `/home/paseo/perf/index.html`).
+  Owner: lead (Claude, Start scaffold session); Sol writers.
+  `playground/vendor-chunks`: a fresh build shows 144 tiles again.
+  `start/telemetry-fast`: records sized once (b is faster, -54.8%); browser bodies capped at 32,000 B; zod off the client (494 -> 401 KB).
+  `start/ssr-telemetry-root`: one telemetry root per process; no page waits on a telemetry send (b is faster, -29.8%).
+  `start/serve-fast`: file set read once, compression, compile hint (file misses 956 -> 132 ms, b is faster).
+  `start/sync-fast`: one shared read per wake (2,000 -> 1 reads); stalled clients closed by lease and sign-out; one snapshot on `/` (b is faster, -33% at 100 streams, -42.6% at 1,000).
+  `core/op-fast`: OperationCtx inlined under Maglev, no per-op closures, one-turn close, shared abort reason.
+  N=61: op 64.2 -> 57.7 ns, run 75.5 -> 71.7, tagged 208.6 -> 179.6 (b is faster); session, lifecycle no difference. Core 15,367 -> 15,724 B gzip.
 
 - **release start-v0.7.0** — the first public release (user's go, 2026-10-07).
   [Release](https://github.com/lagz0ne/tinkered/releases/tag/start-v0.7.0): Core, React, and Start 0.7.0 tarballs; sha256 match the manifest.
