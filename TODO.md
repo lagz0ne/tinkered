@@ -24,11 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/registry-no-overwrite** — demo items must not replace the user's app files.
-  Today the full demo needs `--overwrite`: it replaces `vite.config.ts`, the seams, and `src/routes/index.tsx`.
-  Fix: items add only their own files; doctor names the switch (`tinker({ auth: true, sync: true })`) and the seam names to add.
-  Verify: an edited `vite.config.ts` survives adding every item; doctor names what is missing.
-
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
   and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
@@ -42,6 +37,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
 ## Doing
+
+- **start/registry-no-overwrite** — demo items must not replace the user's app files.
+  Today the full demo needs `--overwrite`: it replaces `vite.config.ts`, the seams, and `src/routes/index.tsx`.
+  Fix: items add only their own files; doctor names the switch (`tinker({ auth: true, sync: true })`) and the seam names to add.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-registry-no-overwrite`.
+  Runs beside start/github-release; the first release waits for both (user said go, 2026-10-07).
+  Verify: an edited `vite.config.ts` survives adding every item; doctor names what is missing.
 
 - **start/github-release** — ship Core, React, and Start as tarballs on a GitHub release (ADR 0106).
   Real versions for Core and React; a release script packs the three and builds the registry.
