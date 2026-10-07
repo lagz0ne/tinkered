@@ -45,8 +45,11 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 ## Review
 
 - **repo/no-import-extensions** — drop TypeScript import endings across the repo.
-  Owner: Codex writer; branch `repo/no-import-extensions`.
+  Owner: lead (Claude, Start scaffold session); Codex writer.
+  Branch: `repo/no-import-extensions`.
   Next: lead review; no mutation runs and no publish.
+  Land after start/github-release and start/registry-no-overwrite.
+  The first release waits for this card.
   Verify: all build, type, test, prose, registry, and budget gates pass.
   [Proof](docs/roadmap/repo-style/PROGRESS.md).
 
