@@ -58,17 +58,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **start/github-release** — ship Core, React, and Start as tarballs on a GitHub release (ADR 0106).
-  Real versions for Core and React; a release script packs the three and builds the registry.
-  `tinker upgrade <v>` writes the release URLs; the template's `package.json` uses them.
-  The registry is read by raw GitHub URL at the same tag.
-  Stop before `gh release create`: a release is public and waits for the user's go.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-github-release`.
-  Next: lead review the final mutation proof and land; keep publication on hold.
-  Proof: build, check, all tests, prose, scaffold checks, 17 validate lanes, and the HTTP release proof passed.
-  [Track](docs/roadmap/start-base/PROGRESS.md#startgithub-release).
-  Verify: from tarballs served at 127.0.0.1 with the release's paths, an empty folder installs, builds, and passes doctor.
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -95,6 +84,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/github-release** — Core, React, and Start ship as one set, 0.7.0, tag `start-v0.7.0` (ADR 0106).
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  `node scripts/release.mjs <v> --dry` packs the three tarballs and the registry with release URLs; it has no publish mode.
+  `tinker upgrade <v>` writes the three URLs; it stops on edited base bytes.
+  Proof: a local stand-in for GitHub; empty folder to `GET /` 200. Steps: `docs/roadmap/start-base/RELEASE.md`.
 
 - **trial/base-image** — the Flight trial image installs packed Start, Core, and React; the gate runs `tinker doctor`.
   Owner: lead (Claude, Start scaffold session); Sol writer.
