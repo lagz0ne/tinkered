@@ -1,20 +1,21 @@
-# vp run @tinker/start#mutate, card start/base-parts step 3a (sync, server side), 2026-10-06, commit 2fd4f397; EXIT 0
-# killed 2939, timeout 26, survived 379, no coverage 60; 87.10 (86.34 on kills alone); src/parts/sync: 298 of 389 killed, 80.21 (76.61 on kills alone)
-# 6 Stryker test workers exited with SIGILL; Stryker restarted them and retried; the totals match the run before
+$ git rev-parse HEAD
+a1de69b12c2377242dc767f8d3dffa4fb0318f49
+$ git status --porcelain
+$ flock /tmp/mutation.lock vp run @tinker/start#mutate
 ----------------------------|------------------|----------|-----------|------------|----------|----------|
                             | % Mutation score |          |           |            |          |          |
 File                        |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
 ----------------------------|--------|---------|----------|-----------|------------|----------|----------|
-All files                   |  87.10 |   88.67 |     2939 |        26 |        379 |       60 |        0 |
- lib                        |  89.50 |   91.62 |     1975 |         3 |        181 |       51 |        0 |
-  checks                    |  91.77 |   92.37 |      991 |         2 |         82 |        7 |        0 |
+All files                   |  88.05 |   89.52 |     3408 |        27 |        402 |       64 |        1 |
+ lib                        |  89.22 |   91.32 |     2017 |         3 |        192 |       52 |        0 |
+  checks                    |  91.75 |   92.33 |     1021 |         2 |         85 |        7 |        0 |
    boundary.mjs             | 100.00 |  100.00 |       10 |         0 |          0 |        0 |        0 |
    bytes.mjs                |  96.47 |   96.47 |       82 |         0 |          3 |        0 |        0 |
    env.mjs                  | 100.00 |  100.00 |       55 |         0 |          0 |        0 |        0 |
    generated.mjs            |  91.40 |   91.89 |      170 |         0 |         15 |        1 |        0 |
    glue.mjs                 |  94.98 |   94.98 |      206 |         2 |         11 |        0 |        0 |
-   imports.mjs              |  89.66 |   89.66 |       52 |         0 |          6 |        0 |        0 |
-   named.mjs                | 100.00 |  100.00 |       45 |         0 |          0 |        0 |        0 |
+   imports.mjs              |  89.83 |   89.83 |       53 |         0 |          6 |        0 |        0 |
+   named.mjs                |  96.10 |   96.10 |       74 |         0 |          3 |        0 |        0 |
    result.mjs               | 100.00 |  100.00 |       16 |         0 |          0 |        0 |        0 |
    routes.mjs               |  93.16 |   93.16 |      109 |         0 |          8 |        0 |        0 |
    style.mjs                |  85.02 |   86.55 |      193 |         0 |         30 |        4 |        0 |
@@ -31,10 +32,10 @@ All files                   |  87.10 |   88.67 |     2939 |        26 |        3
   prepare.mjs               |  98.84 |   98.84 |       85 |         0 |          1 |        0 |        0 |
   route-path.mjs            |  83.48 |   84.21 |       95 |         1 |         18 |        1 |        0 |
   serve.mjs                 |  93.75 |   93.75 |       60 |         0 |          4 |        0 |        0 |
-  source.mjs                |  82.94 |   85.37 |      175 |         0 |         30 |        6 |        0 |
+  source.mjs                |  80.60 |   83.11 |      187 |         0 |         38 |        7 |        0 |
   typecheck.mjs             |  85.37 |   87.50 |       35 |         0 |          5 |        1 |        0 |
   upgrade.mjs               |  68.42 |   91.92 |       91 |         0 |          8 |       34 |        0 |
- src                        |  82.66 |   83.29 |      964 |        23 |        198 |        9 |        0 |
+ src                        |  86.44 |   87.08 |     1391 |        24 |        210 |       12 |        1 |
   backend                   |  72.32 |   72.32 |       81 |         0 |         31 |        0 |        0 |
    body.server.ts           |  82.81 |   82.81 |       53 |         0 |         11 |        0 |        0 |
    headers.server.ts        |   0.00 |    0.00 |        0 |         0 |          2 |        0 |        0 |
@@ -48,20 +49,28 @@ All files                   |  87.10 |   88.67 |     2939 |        26 |        3
   entry                     |  96.43 |   96.43 |       27 |         0 |          1 |        0 |        0 |
    dev-error.ts             |  95.83 |   95.83 |       23 |         0 |          1 |        0 |        0 |
    error-detail.ts          | 100.00 |  100.00 |        4 |         0 |          0 |        0 |        0 |
-  parts                     |  83.15 |   83.89 |      826 |        23 |        163 |        9 |        0 |
+  parts                     |  87.22 |   87.94 |     1252 |        24 |        175 |       12 |        1 |
    auth                     |  92.00 |   92.00 |       23 |         0 |          2 |        0 |        0 |
     handle.server.ts        | 100.00 |  100.00 |        4 |         0 |          0 |        0 |        0 |
     off.ts                  | 100.00 |  100.00 |        2 |         0 |          0 |        0 |        0 |
     on.server.ts            | 100.00 |  100.00 |        2 |         0 |          0 |        0 |        0 |
     settings.ts             |  88.24 |   88.24 |       15 |         0 |          2 |        0 |        0 |
-   sync                     |  80.21 |   81.68 |      298 |        14 |         70 |        7 |        0 |
+   sync                     |  88.93 |   90.01 |      724 |        15 |         82 |       10 |        1 |
+    client                  |  90.51 |   91.57 |      387 |         4 |         36 |        5 |        1 |
+     events.ts              |  93.95 |   93.95 |      199 |         3 |         13 |        0 |        0 |
+     owner.ts               |  86.84 |   86.84 |       33 |         0 |          5 |        0 |        1 |
+     router.ts              |  92.86 |   92.86 |       13 |         0 |          1 |        0 |        0 |
+     sync.ts                |  86.96 |   89.74 |      139 |         1 |         16 |        5 |        0 |
+     tab.ts                 |  75.00 |   75.00 |        3 |         0 |          1 |        0 |        0 |
     endpoint.server.ts      |  94.87 |   94.87 |       37 |         0 |          2 |        0 |        0 |
-    envelopes.ts            |  88.46 |   88.46 |       23 |         0 |          3 |        0 |        0 |
+    envelopes.ts            |  89.29 |   89.29 |       25 |         0 |          3 |        0 |        0 |
     history.server.ts       |  91.89 |   94.44 |       34 |         0 |          2 |        1 |        0 |
-    notifications.server.ts |  82.95 |   83.91 |       70 |         3 |         14 |        1 |        0 |
-    protocol.ts             |  87.50 |   87.50 |        7 |         0 |          1 |        0 |        0 |
+    notifications.server.ts |  94.32 |   94.32 |       83 |         0 |          5 |        0 |        0 |
+    off.ts                  |  66.67 |   66.67 |        4 |         0 |          2 |        0 |        0 |
+    on.ts                   | 100.00 |  100.00 |        2 |         0 |          0 |        0 |        0 |
+    protocol.ts             | 100.00 |  100.00 |        8 |         0 |          0 |        0 |        0 |
     schema.ts               |  60.00 |   85.71 |        6 |         0 |          1 |        3 |        0 |
-    stream.server.ts        |  72.93 |   73.74 |      121 |        11 |         47 |        2 |        0 |
+    stream.server.ts        |  82.32 |   82.78 |      138 |        11 |         31 |        1 |        0 |
    telemetry                |  84.68 |   84.96 |      505 |         9 |         91 |        2 |        0 |
     delivery.ts             |  94.51 |   94.51 |       86 |         0 |          5 |        0 |        0 |
     health.ts               |  25.00 |   25.00 |        1 |         0 |          3 |        0 |        0 |
@@ -74,8 +83,11 @@ All files                   |  87.10 |   88.67 |     2939 |        26 |        3
     records.ts              | 100.00 |  100.00 |       91 |         0 |          0 |        0 |        0 |
     settings.ts             |  78.95 |   78.95 |       15 |         0 |          4 |        0 |        0 |
   env.ts                    |   0.00 |    0.00 |        0 |         0 |          2 |        0 |        0 |
-  errors.ts                 | 100.00 |  100.00 |        2 |         0 |          0 |        0 |        0 |
+  errors.ts                 | 100.00 |  100.00 |        3 |         0 |          0 |        0 |        0 |
   server-entry.ts           | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
   start.ts                  |  96.15 |   96.15 |       25 |         0 |          1 |        0 |        0 |
 ----------------------------|--------|---------|----------|-----------|------------|----------|----------|
-19:58:11 (1697734) INFO MutationTestReportHelper Final mutation score of 87.10 is greater than or equal to break threshold 85
+00:16:27 (1835621) INFO MutationTestReportHelper Final mutation score of 88.05 is greater than or equal to break threshold 85
+EXIT 0
+# killed 3408, timeout 27, survived 402, no coverage 64, runtime error 1; 88.05; 87.36 on kills alone (3408 of 3901)
+# src/parts/sync: 724 of 831 killed, 87.12 on kills alone; src/parts/sync/client: 387 of 432, 89.58
