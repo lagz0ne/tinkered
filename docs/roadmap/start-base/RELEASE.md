@@ -65,6 +65,7 @@ Every server stops by its own PID.
 
 These are instructions for the lead, not steps this card runs.
 Catch up to main, run the gates, and review the proof first.
+The first release also waits for `start/registry-no-overwrite`.
 Keep the package files and generated registry at `0.7.0`.
 From a clean, committed repo root:
 
