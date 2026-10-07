@@ -1,0 +1,31 @@
+$ git rev-parse HEAD
+df2691dcc0eaab3c598e05673d4a760ef9d858fc
+$ git status --porcelain
+
+$ flock /tmp/mutation.lock vp run @tinker/start#mutate
+
+Base: origin/main 105e85a0b3bd6a53384a98095ea743b7815f0a9b.
+The tree was clean before and after this run.
+The old-base run was stopped and does not count.
+This is the one requested mutation attempt on the rebased HEAD.
+Only this header and summary table are saved after the run.
+
+Stop reason: initial test run failed before mutation testing.
+Test: packages/start/tests/sync.test.ts:193
+Title: a resumed cursor skips what it has; one frame carries at most 100 events
+Failure: Test timed out in 5000ms.
+Stryker emitted no score table; the summary below records the actual result.
+No old mutation report was used.
+
+Summary                          Result
+Source files instrumented         78
+Mutants instrumented              4218
+Initial test run                  Failed
+Mutation testing                  Not started
+Mutants tested                    0
+Killed-only score                 Not measured
+Required killed-only floor        75 percent
+Floor result                      UNPROVEN
+Command exit code                 1
+Tree changes during run           None
+
