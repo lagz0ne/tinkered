@@ -808,6 +808,54 @@ update in three different ways:
   To see a newer one, run
   `shadcn add @tinker/<item> --diff` and merge by hand.
 
+### Where the packages come from
+
+The user, 2026-10-07: GitHub, not npm or JSR.
+
+- Core, React, and Start ship as packed tarballs,
+  attached to a GitHub release of `lagz0ne/tinkered`.
+- An app names each one by its release URL:
+
+```text
+@tinker/start: https://github.com/
+  lagz0ne/tinkered/releases/download/
+  start-v0.7.0/tinker-start-0.7.0.tgz
+(one line in package.json)
+```
+
+- npm, pnpm, and bun install a tarball URL.
+  The `tinker` bin and `postinstall` both work.
+- No account, token, or domain:
+  the repo is public.
+- The registry is read from the same release tag,
+  by its raw GitHub URL:
+
+```text
+https://raw.githubusercontent.com/
+  lagz0ne/tinkered/start-v0.7.0/
+  apps/start-scaffold/public/r/app.json
+```
+
+- So one tag pins the base, its peers,
+  and the template and examples that match them.
+- `tinker upgrade 0.7.0` writes the three URLs
+  for tag `start-v0.7.0`, then installs.
+- Core and React get real versions;
+  `0.0.0` cannot name a release.
+- Making a release is public.
+  It runs only when the user says go.
+
+Rejected:
+
+- **npm:** needs an account and the `@tinker` scope.
+- **JSR:** installs no `bin` and runs no `postinstall`,
+  so `tinker doctor` and `tinker prepare` would need `npx`.
+  It also asks for explicit export types.
+- **Git dependencies:** only pnpm reads a subfolder,
+  and Core and React would build on every install.
+- **GitHub Packages:** installs need a token,
+  even for a public package.
+
 ### Testing the base
 
 The user, 2026-10-06:
@@ -923,7 +971,7 @@ so the lead writes an impact block first (ADR 0065).
 - A usual Start file in the wrong place fails the build,
   so a Start user's habit gets a message, not silence.
 - `packages/start` is a new package,
-  with its own tests and mutation lane (floor 85).
+  with its own tests and mutation lane (floor 75, user 2026-10-06).
 - Base source stays readable in `node_modules`.
   But an upgrade's diff no longer shows in the app's git history;
   `UPGRADE.md` and the package diff replace it.

@@ -24,6 +24,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/github-release** — ship Core, React, and Start as tarballs on a GitHub release (ADR 0106).
+  Real versions for Core and React; a release script packs the three and builds the registry.
+  `tinker upgrade <v>` writes the release URLs; the template's `package.json` uses them.
+  The registry is read by raw GitHub URL at the same tag.
+  Stop before `gh release create`: a release is public and waits for the user's go.
+  Verify: from tarballs served at 127.0.0.1 with the release's paths, an empty folder installs, builds, and passes doctor.
+
 - **start/registry-no-overwrite** — demo items must not replace the user's app files.
   Today the full demo needs `--overwrite`: it replaces `vite.config.ts`, the seams, and `src/routes/index.tsx`.
   Fix: items add only their own files; doctor names the switch (`tinker({ auth: true, sync: true })`) and the seam names to add.
