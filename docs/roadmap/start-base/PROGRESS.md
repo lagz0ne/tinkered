@@ -1,5 +1,101 @@
 # Start base progress
 
+## start/registry-no-overwrite
+
+Owner: Sol writer; lead reviews and lands.
+Next: review the saved code and local proof.
+Verify: examples keep edited app files;
+doctor prints switches and exact seam exports;
+build, doctor, and local HTTP pass after the hand edits.
+
+### What changed
+
+Only `app` owns its template files.
+The registry build refuses an example that targets any of them.
+It also refuses two items that own the same target.
+The demo owns a new `/demo` page and its own env sample.
+It copies no Vite config, tsconfig, package file, or seam.
+The user's first page and scripts stay theirs.
+The copied demo's home links point at `/demo`.
+
+Each example names `meta.parts` and `meta.seams`.
+A copied `src/examples/<item>.tinker.json` file holds those needs.
+Doctor's named-files check reads it with no network.
+It prints each missing part switch and exact seam export line.
+It also checks that the server extensions list joins
+`databaseSetup`, or re-exports the copied demo's startup list.
+These findings stop a build too.
+Doctor never applies these edits to the user's files.
+
+### Item needs
+
+- `app`: no required part or seam name.
+  Telemetry stays on by default.
+- `runtime`: no required part or seam name.
+  It remains package-only.
+- `mail-example`: no required part or seam name.
+  It owns mail and the demo's error declarations.
+- `todos-example`: auth and sync; the demo seam names below.
+- `profile-example`: auth and sync; the demo seam names below.
+- `auth-pages-example`: auth and sync; the demo seam names below.
+- `counter-example`: auth and sync; the demo seam names below.
+- `example-wiring`: auth and sync; the demo seam names below.
+- `postgres-auth-mail-example`: auth and sync;
+  the demo seam names below.
+- `starter`: auth and sync; the demo seam names below.
+
+The server seam names are `extensions`, `database`,
+`auth`, `readAccount`, and `bootstrap`.
+The extensions list must include `databaseSetup`.
+The browser seam names are `records`, `readSnapshot`,
+`readBootstrap`, `readBatch`, and `streamMessage`.
+The copied browser module also adds the demo's `Register` bodies.
+SMTP settings are needed only when mail runs.
+Auth needs `AUTH_SECRET` and `PUBLIC_ORIGIN`.
+Live sync needs Postgres and the copied migrations.
+
+### Assumptions and scope
+
+The existing demo's feature bodies stay together.
+Each feature item adds its own requirements file
+and depends on the shared Postgres demo.
+Mail alone still works without auth, sync, or Postgres.
+Starter now adds tests and guides to an existing app.
+Its tests use paths into that app, so its package name is free.
+Its guides use direct commands instead of adding scripts.
+No base file or public package symbol changes.
+No release version, release script, or upgrade URL changes.
+
+### Proof
+
+[Section X](PROOF.md#x-examples-keep-the-users-app-files)
+and its full logs show the real CLI adds and byte hashes.
+Nine fresh apps each pass build, doctor, and local HTTP.
+The protected files and package scripts survive every add.
+Doctor first names the missing switches and exports.
+The proof applies those lines, then runs the checks again.
+It uses real Postgres for startup and the demo page.
+It stops servers by PID and removes only its own Compose project.
+Nothing is published or pushed.
+
+Eight new check tests pass.
+Eight planted doctor breaks are caught.
+Jev finds no new test flag or promise gap.
+The old Start file notes concern unchanged private imports
+and helpers; they remain outside this card.
+No new Jev label or calibration row is needed.
+The final gates, release checks, and mutation counts
+are saved in the linked logs.
+
+The first two HTTP proof tries could not reach Docker services.
+Docker's host loopback is outside this workspace.
+The final run uses the same owned TCP relay as the source app proof.
+A first copied-starter build found its old package-name imports.
+The final registry rewrites those to the consumer's app paths.
+It also adds PGlite through the item's dev dependency field.
+
+Core feedback: none.
+
 ## start/shadcn-registry
 
 Owner: writer on `start/shadcn-registry`; lead reviews and lands.

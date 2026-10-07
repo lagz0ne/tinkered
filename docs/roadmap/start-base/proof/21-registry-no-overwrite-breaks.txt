@@ -1,0 +1,13 @@
+control (no break): 0 failed test(s), 0 broken file(s)
+caught    2 failed  example missing parts are missed
+caught    3 failed  example missing seam exports are missed
+caught    1 failed  example startup extension is missed
+caught    1 failed  example requirements are not checked by doctor
+caught    2 failed  message examples.mjs say.part
+caught    2 failed  message examples.mjs say.seam
+caught    1 failed  message examples.mjs say.setup
+caught    1 failed  message examples.mjs say.passed
+
+8 of 8 breaks caught (4 logic, 4 message); BREAKS=example missing,example startup,example requirements,message examples.mjs
+
+Break command EXIT 0.

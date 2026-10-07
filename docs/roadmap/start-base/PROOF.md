@@ -31,6 +31,100 @@ Read their paths this way:
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
 
+## X. Examples keep the user's app files
+
+Card `start/registry-no-overwrite`.
+Date: 2026-10-07.
+Branch: `start/registry-no-overwrite`.
+
+Run from this repo root:
+
+```bash
+node apps/start-scaffold/maintain/\
+  proof-no-overwrite.mjs
+```
+
+Full logs:
+
+- [Real CLI adds](proof/21-registry-no-overwrite.txt).
+- [New doctor breaks](proof/21-registry-no-overwrite-breaks.txt).
+- [Final gates](proof/21-registry-no-overwrite-gates.txt).
+- [Release checks](proof/21-registry-no-overwrite-validate.txt).
+- [Jev](proof/21-registry-no-overwrite-jev.txt).
+- [Start mutation](proof/21-registry-no-overwrite-mutation.txt).
+  Its header names the clean code commit.
+  Only that log is committed after the run.
+
+The real CLI proof added all nine non-app items.
+Each started on a fresh `app` with real packed packages.
+None used an overwrite flag.
+Before each add, it edited Vite config and both seams.
+SHA-256 hashes before and after matched for nine app files.
+The package scripts also stayed the same.
+Dependencies were added through shadcn's dependency fields.
+
+```text
+Local registry http://127.0.0.1:43317/r
+registry server PID 2137465
+Own TCP relay PID 2139004
+9 fresh apps; 9 adds without --overwrite
+edited config and both seams unchanged byte for byte
+app scripts unchanged
+applied doctor's switches and export lines by hand
+9 items: build, doctor, serve EXIT 0
+GET /: Hello, world. (HTTP 200)
+GET /demo: A shared counter (HTTP 200)
+relay PID 2139004 stopped
+registry server PID 2137465 stopped
+own Compose project removed
+proof command EXIT 0
+```
+
+Before the hand edits, doctor prints these lines for todos:
+
+```text
+todos-example: needs the auth part; set tinker({
+auth: true }) in vite.config.ts
+todos-example: needs the sync part; set tinker({
+sync: true }) in vite.config.ts
+todos-example: src/lib/tinker.server.ts:1 needs
+auth; add export { auth } from
+"../backend/auth.ts";
+```
+
+It also names all other missing seam exports.
+An empty server extensions list gets a database startup line.
+The proof joins that extension and keeps the user's own exports.
+The next build and doctor pass.
+The demo runs at `/demo`; the user's first page stays at `/`.
+Postgres and Mailpit run in one owned Compose project.
+Each app server and the local relay stop by PID.
+
+The registry build refuses all app-owned targets.
+It also refuses duplicate targets across items.
+The registry check plants eleven protected targets and a duplicate.
+Each bad registry is refused before source files are read.
+It also builds the app and the app plus starter.
+The copied starter tests use app paths, not a fixed package name.
+No item changes package scripts.
+The copied guides use direct check commands.
+
+The new tests call the doctor check directly.
+The new break run catches eight of eight breaks:
+four logic breaks and four message breaks.
+The control run has no failed test or broken file.
+
+Not proved by the CLI proof:
+
+- Feature bodies installed on their own.
+  The demo still shares its bodies through one dependency.
+- Sign-in, a profile save, or mail sending in a copied app.
+  The source app's separate Compose gate covers those flows.
+- Public hosting, published packages, or a future release.
+
+Nothing was published or pushed.
+[Item needs and assumptions](PROGRESS.md#startregistry-no-overwrite).
+
 ## W. GitHub release paths, served locally
 
 Card `start/github-release`.

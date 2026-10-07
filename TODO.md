@@ -46,17 +46,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   No mutation run (user). Lands after start/github-release and start/registry-no-overwrite; the first release waits for it.
   Verify: a grep finds no `.ts` import ending; every gate passes.
 
-- **start/registry-no-overwrite** — demo items must not replace the user's app files.
-  Today the full demo needs `--overwrite`: it replaces `vite.config.ts`, the seams, and `src/routes/index.tsx`.
-  Fix: items add only their own files; doctor names the switch (`tinker({ auth: true, sync: true })`) and the seam names to add.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-registry-no-overwrite`.
-  Runs beside start/github-release; the first release waits for both (user said go, 2026-10-07).
-  Verify: an edited `vite.config.ts` survives adding every item; doctor names what is missing.
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **start/registry-no-overwrite** — saved for lead review.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Next: review the code and local CLI proof; never publish from this card.
+  Verify: nine fresh app adds keep edited config and seams byte for byte.
+  Doctor names the switches and exports; all nine build, doctor, and serve.
+  [Proof](docs/roadmap/start-base/PROOF.md#x-examples-keep-the-users-app-files).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
