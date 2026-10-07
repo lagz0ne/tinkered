@@ -1,6 +1,6 @@
 # Flight trial rules
 
-Grow the supplied Start scaffold one round at a time.
+Grow the supplied Start app one round at a time.
 Follow `AGENTS.md`; read only the app skills for the work you change.
 Keep the packed `@tinker/start` base unchanged.
 Use the supplied Core and React packages.
@@ -61,7 +61,7 @@ Check each call's exit code; a timeout or a missing file is not a pass.
 - Helpers take and return plain values, never controllers, scopes, or sessions.
   Read and write cells inside operation bodies; do not move a run body to a closure.
 - Resources own cleanup, streams, and watchers; use defer and abort signals.
-  For HTTP, depend on `httpRequest.controller` from `@/scaffold/backend/http`.
+  For HTTP, depend on `httpRequest.controller` from `@tinker/start/server`.
   Run it; never call built-in `fetch` in app code.
 
 ## Errors and input

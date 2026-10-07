@@ -412,3 +412,83 @@ The new source registry alone does not make that image work.
 links the check, regression, and real-service logs.
 No public API changes across packages.
 Core feedback: none.
+
+## trial/base-image
+
+The Flight image installs packed Start, Core, and React.
+Start is `0.6.0`; its four tested peers match.
+The image runs `tinker prepare` after installing with scripts off.
+Generated `.tinker/`, `.tanstack/`, and route files are ignored.
+The seed copies app source without reading the registry.
+
+The gate uses the image's trusted Start CLI.
+It runs prepare and doctor on the submitted app.
+Doctor check 2 checks the installed base's packed file hashes.
+A planted edit to `src/routes/tinker.tsx` is named and blocked.
+The old `scaffold.json` check and copied seam checker are gone.
+The trusted plain check stays.
+Doctor 10 skips before the first build;
+the following builds enforce browser and server imports.
+
+### Saved image
+
+- Tag: `tinker-writer-flight:20261007.base.1`.
+- ID: `sha256:ac92a1f0d212037d39eced87b347b61d73b8166c835e9c8409e1a93d6968e06a`.
+- Keeper: `tinker-flight-keep-20261007.base.1-app`.
+- Tar: `/home/paseo/.local/share/tinker-writer-trial/image-20261007.base.1/image.tar.gz`.
+- Services stay `tinker-flight-services:20261004160855439`.
+- Old images, keepers, and tarballs stay saved.
+
+### Round proof
+
+Trial `flight-base-20261007-base-1-pass` staged round 1.
+The fixed reference was ported at proof time.
+Its historical source was kept.
+No model writer ran.
+The seed passed doctor and build offline without an install.
+The reference passed 28 app tests and three browser cases.
+
+```text
+ROUND 1 machine-pass; own 0; teacher 0; Jev 0
+```
+
+The score has one passed round and no failed round.
+Its status is pending because rounds 2 through 5 were not run.
+Normal cleanup removed the trial's containers and volumes.
+Saved results remain outside the temporary project.
+
+Proof runner: `tools/writer-trial/harness/prove-base-image.mjs`.
+[Build, round, isolation, and check log](proof/19-trial-base-image.txt).
+The writer-trial README lists the new image flow and proof command.
+
+### Checks and limits
+
+Build, check, package tests, prose, and writer tests returned 0.
+Full test run: 1,840 passed and one skipped.
+That includes 1,692 package tests and 148 plain-rule tests.
+Writer-trial tests: 93 passed.
+The doctor gate test fails with the old gate and passes with this gate.
+The isolation proof passed and removed its own containers.
+All 17 deterministic budget lanes passed.
+Jev preflight: zero flags.
+Jev test review: zero flags across 38 entries.
+No label lines were needed.
+The promises tool only reads package TypeScript tests;
+it cannot read these tool `.mjs` tests.
+No package tests or Start package files changed.
+No mutation lane was needed.
+
+### Assumptions and deviations
+
+Round 1 is the requested single-round proof.
+The reference port uses the current base's auth, database, and mail setup.
+It keeps the Flight tables and migrations from the fixed answer.
+It removes old framework entry files and unused seed form helpers.
+The checked-in reference remains unchanged.
+An early grade caught a missing Flight schema path;
+the port was fixed, then a fresh trial passed.
+An early parallel package run hit a five-second type-check timeout.
+The retry passed; the last run schedules one package at a time.
+Rounds 2 through 5 and real model writers remain unproven.
+Nothing was pushed or published.
+Core feedback: none.

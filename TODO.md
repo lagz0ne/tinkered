@@ -43,17 +43,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **trial/base-image** — the writer trial image installs the packed base; its gate runs `tinker doctor`.
-  Replaces the `src/scaffold` exact-bytes check with doctor check 2 (base bytes).
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-trial-base-image`.
-  Runs beside start/shadcn-registry (user 2026-10-07). Grades the fixed reference; no paid model run.
-  Next: pack the base, switch the gate, and grade the reference.
-  Verify: a trial round stages and grades on the new image.
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **trial/base-image** — the image installs packed Start, Core, and React.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Worktree: `../tinkered-trial-base-image`.
+  Next: lead review and landing; nothing pushed.
+  Verify: doctor catches a changed base file; round 1 is `machine-pass`.
+  App, teacher, and Jev returned 0; three browser cases passed.
+  New image `tinker-writer-flight:20261007.base.1`; keeper and tar saved.
+  [Proof](docs/roadmap/start-base/proof/19-trial-base-image.txt).
+  [Track](docs/roadmap/start-base/PROGRESS.md#trialbase-image).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
