@@ -31,6 +31,33 @@ Read their paths this way:
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
 
+## Y. Telemetry queue and client bytes
+
+Card `start/telemetry-fast`.
+Branch `start/telemetry-fast`.
+Date: 2026-10-07.
+Base: clean `origin/main` at `df2a6da8`.
+
+New regression: closing a tab never sends a batch
+above 32,000 UTF-8 bytes.
+Main failed with a 46,524-byte body.
+The fix passes, drops an oversized record,
+and sends the fitting record and the whole remaining backlog.
+
+Built `start-min` entry, with source maps:
+
+- Before: `index-B7mgwKzW.js`, 493,762 bytes.
+  Gzip at level 9: 153,581 bytes.
+  Source map: 18 zod modules.
+- After: `index-GGIw-F_R.js`, 400,916 bytes.
+  Gzip at level 9: 128,068 bytes.
+  Source map: zero zod modules.
+
+The byte counts include the source-map URL.
+These are built files; no browser timing is claimed.
+Final queue code changes need one final size check.
+Speed and final gate proof will be recorded below.
+
 ## X. Examples keep the user's app files
 
 Card `start/registry-no-overwrite`.

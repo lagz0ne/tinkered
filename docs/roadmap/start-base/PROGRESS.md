@@ -1,5 +1,49 @@
 # Start base progress
 
+## start/telemetry-fast
+
+Owner: Sol writer; lead reviews and lands.
+Next: finish the queue speed check and final gates.
+Verify: each browser body is at most 32,000 UTF-8 bytes;
+server records keep their 48,000-byte cap;
+the built minimal client contains no zod.
+
+The queue keeps each record's size from ingest.
+One encoder is shared; flush never encodes records to size them.
+Accepted records subtract their saved sizes from the queue total.
+Queue health is published once per input batch.
+The browser reserves its JSON envelope and commas.
+A browser record over 31,976 bytes is dropped at ingest,
+so an oversized record cannot stop the close drain.
+
+Schemas moved to `records.server.ts`.
+`records.ts` imports their types only.
+The trusted ingest operation accepts records already made by the app.
+The server route still checks outside data with zod.
+Package `sideEffects: false` drops unused sync exports from the client.
+The existing barrel exports and public types stay the same.
+No upgrade note is needed.
+
+The regression closes a browser-side scope with a backlog.
+It uses non-ASCII records, a fitting large record, and an oversized one.
+It checks every body and every record sent.
+The test failed on clean `origin/main` at `df2a6da8`:
+46,524 bytes exceeds 32,000.
+It passes with the fix.
+
+Assumptions and limits:
+
+- The cap includes the JSON envelope, not only records.
+- The package metadata change is needed to drop unused sync schemas.
+- Existing console calls and private test imports are kept.
+  The full strict census reports the same S06 and T04 hits on main.
+  The queue and schema files pass the strict census.
+- The optional BigInt timestamp change is not taken.
+  It has no separate verdict here.
+- No new Chrome run proves page-close delivery under other keepalive traffic.
+- No claim is made that sync-enabled apps contain no zod.
+- Core feedback: none; no new workaround was needed.
+
 ## start/registry-no-overwrite
 
 Owner: Sol writer; lead reviews and lands.
