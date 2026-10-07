@@ -139,3 +139,12 @@ The final clean-tree mutation run is recorded in 16-scaffold-mutation.txt.
 node tools/jev/calibrate.mjs: EXIT 0; full bank
 Final configNotTag and effectWithoutDefer calibration: EXIT 0
 14 new labeled cases committed; existing migrate label reused.
+
+After source commit 9f2f597b:
+Fetch/rebase/install/build/check/tests/prose chain: EXIT 0
+origin/main: 64b8e4a9; branch up to date
+node tools/jev/preflight.mjs main..HEAD: EXIT 0
+One additional low-confidence mail config flag was labeled false:
+label: configNotTag false ← apps/start-scaffold/src/backend/mail.ts#mail (2da48fb5c48d)
+node tools/jev/calibrate.mjs --judge configNotTag: EXIT 0
+The bank now has 15 new cases for this step.

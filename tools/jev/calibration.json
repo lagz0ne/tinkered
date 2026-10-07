@@ -32,11 +32,11 @@
   "configNotTag": {
     "status": "provisional",
     "trues": 2,
-    "falses": 113,
-    "medianTrue": 0.62,
-    "medianFalse": 0.42,
+    "falses": 114,
+    "medianTrue": 0.64,
+    "medianFalse": 0.44,
     "separation": 0.2,
-    "ordered": 0.73,
+    "ordered": 0.74,
     "at": "2026-10-07"
   },
   "handRolledLifetime": {
