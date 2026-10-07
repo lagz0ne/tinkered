@@ -51,22 +51,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **start/scaffold-on-base** — move `apps/start-scaffold` onto the base.
-  Its examples (todos, profile, auth pages, mail) become registry items the user copies in.
-  Its seam, plain, and boundary checks move into `doctor` or stay as named checks.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-scaffold-on-base`.
-  Step 1: the app on the base, parts on, `src/scaffold/` gone. Step 2: its checks and examples.
-  Step 1 landed on main: the app on the base; tests 1,838; mutation 87.26 on kills.
-  Step 2 writer: Codex; branch `start/scaffold-on-base-2`.
-  Next: lead reviews and lands Step 2; no registry publishing.
-  Step 2: all named checks pass; nine registry items build; three new breaks caught.
-  Gates: 1,840 tests pass; check, prose, and 17 validate lanes pass.
-  Full Start mutation proof names the clean code commit in its log.
-  Proof: real sign-in, two-tab sync, and profile mail pass.
-  [Step 2 proof](docs/roadmap/start-base/PROOF.md#u-the-app-checks-and-example-items).
-  [Track](docs/roadmap/start-base/PROGRESS.md).
-  Verify: the app builds and serves on the base; `src/scaffold/` is gone; doctor passes.
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -93,6 +77,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/scaffold-on-base** — `apps/start-scaffold` runs on the base: `tinker({ auth: true, sync: true })`.
+  Owner: lead (Claude, Start scaffold session); Sol writers. Landed in two steps on main.
+  Step 1 fc276a61: `src/scaffold/` gone; first real proof of auth and sync (better-auth, Postgres, two tabs).
+  Step 2 (this landing): seam and boundary checks moved into doctor 5, 6, 10; eight named app checks;
+  one command runs them all: `vp run @tinker-start-scaffold#check`.
+  Registry: 9 items, 77 files; the runtime item installs `@tinker/start`; nothing published.
+  Tests 1,840; mutation 87.30 on kills. Proof: [PROOF sections T and U](docs/roadmap/start-base/PROOF.md).
 
 - **start/base-parts** — telemetry, auth, and sync are base parts, each set in `tinker({ ... })` (ADR 0106).
   Owner: lead (Claude, Start scaffold session); Opus writer. Landed in four steps on main.
