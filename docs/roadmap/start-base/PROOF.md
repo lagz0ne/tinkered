@@ -43,9 +43,14 @@ Run from this repo root:
 node apps/start-scaffold/maintain/proof-registry.mjs
 ```
 
-[Full local CLI log](proof/18-shadcn-registry.txt).
-[Assumptions and item needs](PROGRESS.md#startshadcn-registry).
-[Local setup](../../../apps/start-scaffold/README.md#local-registry).
+Full logs:
+
+- [Local CLI](proof/18-shadcn-registry.txt).
+- [Final gates](proof/18-shadcn-gates.txt).
+- [Release checks](proof/18-shadcn-validate.txt).
+- [Jev](proof/18-shadcn-jev.txt).
+  [Assumptions and item needs](PROGRESS.md#startshadcn-registry).
+  [Local setup](../../../apps/start-scaffold/README.md#local-registry).
 
 ```text
 Local registry http://127.0.0.1:39433/r

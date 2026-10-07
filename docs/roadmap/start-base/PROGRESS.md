@@ -48,6 +48,35 @@ upgrade with unchanged source and config, and server cleanup.
 Three raw NUL bytes from the HTTP reply are escaped in the text log.
 No package or registry is published.
 
+### Gates and retries
+
+The final chain ran one step at a time and returned 0.
+Build, check, all package tests, prose, and the app check passed.
+The root tests passed 1840 checks, with one existing skip.
+The app passed 25 scope tests.
+The registry check matched 142 emitted files in ten items.
+The real-service gate passed auth, SMTP, migrations,
+two-tab todo sync, and profile save.
+It stopped both browser sessions, its server and relay PIDs,
+and removed only its own Compose project.
+`pnpm validate` passed all 17 release checks.
+Check has 28 warnings; the main check tree has the same 28.
+Jev preflight returned 0 with no TypeScript source changes.
+No TypeScript tests changed, so the test judges were not needed.
+No labels or calibration changed.
+No mutation run was needed: `packages/start` did not change.
+
+An early test run hit the five-second tsc test timeout.
+The retry passed without changing that test.
+An early Compose gate overlapped the release size build,
+which briefly removed Core's built files.
+The final gate ran after those jobs ended and passed.
+One main-check setup command ran in `/tmp` by mistake.
+It made a package file and lockfile there.
+Only those new files and the empty node_modules folder were removed.
+Both affected main tests then passed, 11 checks in two files.
+The main check worktree was removed after its checks.
+
 ### Core feedback
 
 No Core change was needed.
