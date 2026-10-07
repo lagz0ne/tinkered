@@ -507,8 +507,9 @@ It fills app packages and registry links with GitHub URLs.
 The script has no publish mode and never calls `gh` or git.
 Upgrade writes three release URLs and installs the set.
 It still refuses edited base bytes before a package write.
-The new base's tested peers are read after the first install.
-Drifted peers cause one more install before prepare and doctor.
+The new base's tested peers are read before install.
+This avoids an old exact peer making npm refuse the new base.
+All three Tinker specs stay release URLs during that peer rewrite.
 
 Proof: [20-github-release.txt](proof/20-github-release.txt).
 The local mirror keeps GitHub paths and changes origins only.
