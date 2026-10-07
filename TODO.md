@@ -38,6 +38,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **start/sync-fast** — share row reads and close stalled streams.
+  Owner: writer (Codex, sync-fast session).
+  Next: apply the study patches and prove the stalled-stream fixes.
+  Verify: test-clock regressions, full gates, queue at 100 and 1,000 streams,
+  HTML size proof, and clean-commit Start mutation kills at least 75%.
+  [Track](docs/roadmap/start-base/PROGRESS.md).
+
 - **perf round 1 fixes** — four Sol writers land the study's proven fixes (study: `/home/paseo/perf/index.html`).
   Owner: lead (Claude, Start scaffold session). Cards: `start/telemetry-fast` (queue bytes, 32 KB browser cap, zod off the client),
   `start/ssr-telemetry-root` (one telemetry root per process), `start/serve-fast` (compression, static set, compile hint),

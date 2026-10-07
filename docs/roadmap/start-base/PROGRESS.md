@@ -907,3 +907,33 @@ Nothing was tagged, pushed, or published.
 - No Core feedback: this change uses plain host glue.
 - Held: total SSR speed, Chrome memory, other browsers,
   and prerendered HTML created after the output hook.
+
+## start/sync-fast
+
+Writer: Codex, branch `start/sync-fast`.
+The study patches share one row read at each cursor and wake.
+Each session keeps its own account check.
+A page of fewer than 100 rows skips the next empty read.
+Read failures leave the shared map so a later stream can try again.
+The map is released at each wake and when its last stream closes.
+
+The request owns a watch loop even while its client stops reading.
+It checks the account at wakes and at each 10 s heartbeat.
+It closes at the 30 s lease before sending another heartbeat.
+Heartbeat frames wait for a pull and never build up for a stalled client.
+The request stops and awaits the loop on close.
+A shared symbol stops waits without building an exception stack.
+
+The scaffold's home loader still awaits its snapshot.
+It returns no data, so only the sync store sends the snapshot.
+No component reads home loader data.
+
+The lease and stalled sign-out tests both failed before the fix.
+All 38 sync tests passed before the final retry test was added.
+The two stalled-client tests and the retry test pass too.
+The home page changed from 9,268 to 9,193 bytes.
+Its visible body stayed the same, and one snapshot copy is gone.
+Full gates and queue verdicts are pending.
+Assumption: keep account reads per session and timers per stream.
+The optional shared heartbeat timer is not part of this card.
+Core feedback: none.
