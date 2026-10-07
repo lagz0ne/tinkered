@@ -849,6 +849,8 @@ Nothing was tagged, pushed, or published.
 - The entry hint changes the output hash and shifts source maps.
   `tinker({ compileHints: false })` turns it off.
 - Tests are plain glue tests; no server or browser in a test.
+- Wire and Chrome proof below ran before telemetry-fast landed.
+  The byte and trace counts describe that earlier bundle.
 - Curl, default start-min build:
   - JS: 493,719 B before; gzip 153,948 B; Brotli 133,123 B.
   - HTML: 2,063 B before; gzip 1,092 B; Brotli 1,038 B.
@@ -859,8 +861,9 @@ Nothing was tagged, pushed, or published.
   - HEAD has no body and keeps the chosen encoding.
 - Queue: **verdict: b is faster**.
   Eight pairs, one run per side; 5,000 page-file misses.
-  A: clean `origin/main` tree at `2426acab`.
-  B: clean tree at `a72cbfc9`.
+  A: clean `origin/main` tree at `105e85a0`.
+  B: clean tree at `84adba42`.
+  A median: 956 ms; B median: 132 ms.
   This measures file lookup, not the whole app request.
 - Chrome: three cold loads per side, fresh browser each time.
   Main-thread lazy functions: median 872 before, 17 after.
@@ -879,9 +882,12 @@ Nothing was tagged, pushed, or published.
   Its new test failed with the first guard and passes now.
 - Package tests: 417 pass with a 60 s default timeout
   and two workers; changed glue tests: 30 pass unchanged.
-  The whole default test run also passes.
+  After telemetry-fast landed, all 418 package tests pass
+  in the whole default test run.
 - Gates: build 0, check 0, tests 0, prose 0,
   scaffold 0, validate 0 (18 lanes).
+  The first rebased run hit the known supplier timeout.
+  Its full retry passes.
   Earlier flight and typecheck timeouts also ran on main;
   the final whole run passes without raised timeouts.
 - Scaffold check: first run 1, Postgres health check failed;
@@ -890,6 +896,8 @@ Nothing was tagged, pushed, or published.
   No labels were added.
   The source judge and promise list skip `.mjs` files;
   the test judge read the changed `.mjs` tests by path.
+- The old-base mutation passed but does not count.
+  The final mutation runs on the rebased clean HEAD.
 - Mutation: read the clean-tree header and table in
   `proof/serve-fast-mutation.txt`; floor 75 on kills alone.
 - [Receipts](proof/serve-fast-gates.txt).

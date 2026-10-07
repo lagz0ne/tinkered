@@ -1,17 +1,21 @@
 start/serve-fast, 2026-10-07
-Final base: 2426acab (origin/main after catch-up)
-Earlier wire/Chrome base: df2a6da8; Start code is unchanged between the bases.
-Final measured B: a72cbfc9, clean; later changes are proof and docs only
+Final base: 105e85a0 (origin/main after telemetry-fast landed)
+Final measured B: 84adba42, clean; later changes are proof and docs only
+Wire/Chrome proof below predates telemetry-fast; its base was df2a6da8.
+Those byte and trace counts describe that earlier bundle.
 Assumption: dist/client stays fixed until the host restarts
 
 git fetch origin && git rebase origin/main: EXIT 0
 vp install: EXIT 0
 vp run -r build: EXIT 0
 vp check: EXIT 0 (28 warnings)
-vp run -r test: EXIT 0 (final default run); earlier run EXIT 1 on flight timeouts
+vp run -r test: EXIT 0 (final default run); 418 Start tests
+First rebased default run: EXIT 1 on supplier shared-search timeout; full retry EXIT 0.
+Earlier default run: EXIT 1 on flight timeouts
 Earlier serial run: EXIT 1 on supplier shared-search timeout; same failure observed on main.
 vp run prose: EXIT 0
-vp run @tinker-start-scaffold#check: EXIT 1 first (Postgres unhealthy); EXIT 0 rerun
+vp run @tinker-start-scaffold#check: EXIT 0 on rebased HEAD
+Earlier scaffold check: EXIT 1 first (Postgres unhealthy); EXIT 0 rerun
 pnpm validate: EXIT 0, all 18 lanes pass
 vp test --testTimeout 60000 --maxWorkers 2 (packages/start): EXIT 0; 417 tests
 Four failed flight tests, 60 s default timeout and one worker: EXIT 0; 4 tests
@@ -44,11 +48,16 @@ benchctl ab --rounds 8 --runs-per-round 1
 Probe calls serving glue for 5,000 page misses, alternating / and /posts/1.
 No server, SSR, or network in the queue probe.
 
-A median 1180 ms   B median 191 ms
-delta -988.9 ms (-83.8%)   95% range [-1046.9, -977.0] ms
+A: 105e85a0b3bd6a53384a98095ea743b7815f0a9b; empty status
+B: 84adba42f3a7787527fce6fdb8bff8cc8a71fd48; empty status
+A median 956 ms   B median 132 ms
+delta -823.6 ms (-86.1%)   95% range [-978.8, -769.8] ms
 verdict: b is faster
 
-Curl: default start-min build, localhost, raw transfer; no --compressed.
+Old-base mutation: EXIT 0, discarded after main moved; not landing proof.
+Final mutation must use the rebased clean HEAD; only its header/table is saved.
+
+Curl: earlier default start-min build, localhost, raw transfer; no --compressed.
 
 serve-fast-base /assets/index-B7mgwKzW.js identity
 cache-control: public,max-age=31536000,immutable
