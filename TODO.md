@@ -43,16 +43,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **repo/no-import-extensions** — drop TypeScript import endings across the repo.
-  Owner: lead (Claude, Start scaffold session); Codex writer.
-  Branch: `repo/no-import-extensions`.
-  Next: lead review of the saved fix round.
-  No mutation runs and no publish.
-  Both Start cards have landed; rebased on `381e2ef3`.
-  The first release waits for this card.
-  Verify: all build, type, test, prose, registry, and budget gates pass.
-  [Proof](docs/roadmap/repo-style/PROGRESS.md).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -79,6 +69,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **repo/no-import-extensions** — no TypeScript import names a `.ts`, `.tsx`, or `.mts` ending, anywhere (user 2026-10-07).
+  Owner: lead (Claude, Start scaffold session); Sol writer. No mutation run (user).
+  2,453 import paths and 781 paths in strings changed by `scripts/strip-import-extensions.mjs` (rerunnable).
+  `allowImportingTsExtensions` gone from 21 tsconfigs; bundler resolution; `tsc` rejects a `.ts` import.
+  Kept out by: the coding convention and style census, the contributor brief, trial guidelines,
+  doctor (it names the file and line), and `scripts/check-import-extensions.mjs` in `pnpm validate`.
 
 - **start/registry-no-overwrite** — example items add only their own files; nothing needs `--overwrite`.
   Owner: lead (Claude, Start scaffold session); Sol writer.
