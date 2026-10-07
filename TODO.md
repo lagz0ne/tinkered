@@ -45,6 +45,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   A deeper study round runs beside them until 15:00 UTC (`/home/paseo/perf/deep/`).
   Verify: each bug has a test that fails on main; each speed claim has a `benchctl ab` verdict.
 
+- **start/ssr-telemetry-root** — page renders borrow the process telemetry root.
+  Owner: Codex writer, branch `start/ssr-telemetry-root`.
+  Next: share the queue, keep records marked `ssr`, run all checks.
+  Verify: held sends do not hold render close; process close sends both renders.
+  Verify: one test fails on main; queue timing verdict; Start mutation kills at least 75%.
+
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 

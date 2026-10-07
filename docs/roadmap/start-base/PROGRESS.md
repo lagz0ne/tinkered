@@ -79,6 +79,46 @@ Assumptions and limits:
 - No claim is made that sync-enabled apps contain no zod.
 - Core feedback: none; no new workaround was needed.
 
+## start/ssr-telemetry-root
+
+Owner: Codex writer, branch `start/ssr-telemetry-root`.
+Next: finish checks, save proof, then lead review.
+Verify: render close does not wait on a held storage send;
+two renders share the process queue with side `ssr`;
+process close sends their records.
+
+### What changed
+
+The server entry keeps its existing process telemetry root.
+Each render borrows its observer.
+Only the browser tab keeps its own telemetry root.
+The process root still closes last and sends what is left.
+The observer and its settings use one `ssr` namespace.
+The queue stays owned by the process root.
+No queue, observer, or record implementation changed.
+
+### Tests and assumptions
+
+Three tests use scopes, without a server or browser.
+A gate holds storage open while render close finishes.
+Two closed renders leave four records in the process queue.
+Process close sends both traces and both log records with side `ssr`.
+Telemetry off needs no storage settings.
+The two-render test fails on main: its records have side `server`.
+Main received only the test file and test-entry exports for that run.
+Test defaults let the old part run without new fields.
+The base tree was restored before timing.
+
+The process root already owned by the server entry is the one owner.
+No second process root is added, unlike the study's throwaway patch.
+Four test-entry exports let the tests use the public test seam.
+The browser's close result keeps its existing error order.
+No publish or push is part of this card.
+
+### Proof
+
+Checks and the queue verdict are pending.
+
 ## start/registry-no-overwrite
 
 Owner: Sol writer; lead reviews and lands.
