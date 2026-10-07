@@ -24,11 +24,17 @@ function quoted(value, quote) {
 }
 
 /** Pick only syntax that names a module, rather than arbitrary path strings. */
-function moduleSource(node) {
+function moduleSource(node, inSeams = false) {
   if (moduleNodes.has(node.type)) return node.source;
   if (node.type === "TSExternalModuleReference") return node.expression;
   if (node.type === "TSModuleDeclaration") return node.id;
+  if (inSeams && node.type === "Property" && propertyName(node) === "from") return node.value;
   return null;
+}
+
+/** Registry seam metadata names modules in plain `from` fields as well as export lines. */
+function propertyName(node) {
+  return node.key?.name ?? node.key?.value;
 }
 
 /** Rewrite an embedded code sample without changing the surrounding string's meaning. */
@@ -47,11 +53,11 @@ function sampleEdit(node, text) {
 
 /** Parse module paths, including code held in fixture strings and template pieces. */
 export function stripSource(text, file = "sample.tsx") {
-  if (!/\b(?:import|export|require|module)\b/.test(text)) return { text, count: 0 };
+  if (!/\b(?:import|export|require|module|seams)\b/.test(text)) return { text, count: 0 };
   const edits = [];
   let count = 0;
-  function visit(node) {
-    const source = moduleSource(node);
+  function visit(node, inSeams = false) {
+    const source = moduleSource(node, inSeams);
     if (source?.type === "Literal" && ending.test(source.value)) {
       edits.push({
         start: source.start,
@@ -69,7 +75,7 @@ export function stripSource(text, file = "sample.tsx") {
     Object.values(node)
       .flatMap((value) => (Array.isArray(value) ? value : [value]))
       .filter((value) => value && typeof value === "object")
-      .forEach(visit);
+      .forEach((child) => visit(child, inSeams || propertyName(node) === "seams"));
   }
   visit(parseSync(file, text).program);
   for (const edit of edits.sort((a, b) => b.start - a.start))
@@ -79,6 +85,14 @@ export function stripSource(text, file = "sample.tsx") {
 
 /** Code samples may be Markdown fences, inline code, or plain source fragments. */
 export function stripDocument(text) {
+  if (/^\s*\{/.test(text)) {
+    try {
+      JSON.parse(text);
+      return stripJson(text);
+    } catch {
+      /** A source fragment beginning with a block is not JSON. */
+    }
+  }
   if (!/\b(?:import|export)\b/.test(text)) return { text, count: 0 };
   let count = 0;
   const replace = (source) => {

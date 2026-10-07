@@ -6,6 +6,10 @@ const VP = "/home/paseo/.local/vp/bin/vp";
 const strip = "node --experimental-strip-types";
 const lanes = [
   ["lint/types/format/complexity", `${VP} check`],
+  [
+    "module endings in docs, registry JSON, and templates",
+    "node --test scripts/strip-import-extensions.test.mjs scripts/check-import-extensions.test.mjs && node scripts/check-import-extensions.mjs",
+  ],
   ["tests", `${VP} run --no-cache core#test`],
   // core/size-build: the build renames private fields, so the tests also run on what users import.
   ["core tests on the built files", `${VP} run --no-cache core#test:dist`],
