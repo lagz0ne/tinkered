@@ -1,5 +1,5 @@
 import { data, tag } from "@tinker/core";
-import type { Telemetry } from "./records.ts";
+import type { Telemetry } from "./records";
 export const frontendSpans = tag<() => Telemetry.Row[]>({ label: "frontend.spans" });
 export const exportHealth = data<Telemetry.Health>({
   label: "telemetry.exportHealth",

@@ -1,12 +1,8 @@
 import { operation } from "@tinker/core";
 import { z } from "zod";
-import { syncClient } from "../scaffold/frontend/sync.ts";
-import { profile, bookingNotice } from "./state.ts";
-import {
-  holdFlightSeat,
-  payFlightBooking,
-  retryFlightMail,
-} from "../transport/bookings.functions.ts";
+import { syncClient } from "../scaffold/frontend/sync";
+import { profile, bookingNotice } from "./state";
+import { holdFlightSeat, payFlightBooking, retryFlightMail } from "../transport/bookings.functions";
 export const holdSeat = operation({
   label: "hold seat",
   input: z.string(),

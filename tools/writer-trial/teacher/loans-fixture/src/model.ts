@@ -4,7 +4,7 @@
  */
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { fail } from "./errors.ts";
+import { fail } from "./errors";
 
 /** One tool in the library. */
 export type Tool = { id: string; name: string; copies: number; retired: boolean };

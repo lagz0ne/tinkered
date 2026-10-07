@@ -1,15 +1,15 @@
 import { operation } from "@tinker/core";
-import { database } from "./database.ts";
-import { currentUser, principal } from "./auth.ts";
-import { eventHistory } from "../scaffold/backend/events.ts";
-import { readCursor, readPrivateCursor, readFeatureEvent } from "../contracts/sync.ts";
-import type { Sync } from "../contracts/sync.ts";
-import { raise } from "../errors.ts";
+import { database } from "./database";
+import { currentUser, principal } from "./auth";
+import { eventHistory } from "../scaffold/backend/events";
+import { readCursor, readPrivateCursor, readFeatureEvent } from "../contracts/sync";
+import type { Sync } from "../contracts/sync";
+import { raise } from "../errors";
 export const bootstrapPublic = operation({
   label: "bootstrapPublic",
   depends: { database, history: eventHistory },
   run: async ({ database, history }) => {
-    const { counter } = await import("./sync.schema.ts");
+    const { counter } = await import("./sync.schema");
     return database.transaction(async (tx) => {
       const revision = await history.lock(tx, "public");
       return {
@@ -26,8 +26,8 @@ export const bootstrapPrivate = operation({
   run: async ({ currentUser, database, history }) => {
     const [{ eq, asc }, { user }, { todo }] = await Promise.all([
       import("drizzle-orm"),
-      import("./schema.ts"),
-      import("./todos.schema.ts"),
+      import("./schema"),
+      import("./todos.schema"),
     ]);
     return database.transaction(async (tx) => {
       const revision = await history.lock(tx, currentUser.id);
@@ -43,7 +43,7 @@ export const bootstrapPrivate = operation({
           .where(eq(user.id, currentUser.id))
       ).at(0);
       if (!profile) raise("SignInRequired", {});
-      const { booking } = await import("./bookings.schema.ts");
+      const { booking } = await import("./bookings.schema");
       const bookings = await tx
         .select()
         .from(booking)
@@ -77,7 +77,7 @@ export const replayPublic = operation({
   run: async ({ database, principal }, ctx) => {
     const [{ and, eq, gt, asc }, { event }] = await Promise.all([
       import("drizzle-orm"),
-      import("../scaffold/backend/sync.schema.ts"),
+      import("../scaffold/backend/sync.schema"),
     ]);
     return {
       accountId: principal?.id ?? null,
@@ -100,7 +100,7 @@ export const replayPrivate = operation({
     if (ctx.input.accountId !== currentUser.id) raise("StreamDenied", {});
     const [{ and, eq, gt, asc }, { event }] = await Promise.all([
       import("drizzle-orm"),
-      import("../scaffold/backend/sync.schema.ts"),
+      import("../scaffold/backend/sync.schema"),
     ]);
     return (
       await database

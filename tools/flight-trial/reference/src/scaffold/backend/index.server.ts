@@ -1,11 +1,11 @@
-export { startRequests } from "../start.ts";
-export { readResult } from "./result.server.ts";
-export { responseBodies } from "./body.server.ts";
-export { openSync, eventStream } from "./stream.ts";
-export { notifications } from "./notifications.ts";
+export { startRequests } from "../start";
+export { readResult } from "./result.server";
+export { responseBodies } from "./body.server";
+export { openSync, eventStream } from "./stream";
+export { notifications } from "./notifications";
 
-export { browserTelemetry, receiveTelemetry, telemetryOrigin } from "../telemetry/ingest.server.ts";
+export { browserTelemetry, receiveTelemetry, telemetryOrigin } from "../telemetry/ingest.server";
 
-export { backendStop, requestStop } from "./lifetime.ts";
-export { http, httpRequest } from "./http.ts";
-export { httpBackend } from "../http-backend.ts";
+export { backendStop, requestStop } from "./lifetime";
+export { http, httpRequest } from "./http";
+export { httpBackend } from "../http-backend";

@@ -1,6 +1,6 @@
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
-import { readFlights, type Flights } from "../../src/flights.ts";
+import { readFlights, type Flights } from "../../src/flights";
 import {
   calls,
   clock,
@@ -12,7 +12,7 @@ import {
   listener,
   wireErrors,
   commonErrors,
-} from "../http.ts";
+} from "../http";
 
 const errors = {
   ...commonErrors,

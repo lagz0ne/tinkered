@@ -5,7 +5,7 @@ import reactIndex from "../../../../packages/react/src/index.ts?raw";
 import sessionsApp from "../../example/sessions/App.tsx?raw";
 import sessionsModel from "../../example/sessions/model.ts?raw";
 import playgroundErrors from "../errors.ts?raw";
-import type { PlaygroundFile } from "@/lib/files.ts";
+import type { PlaygroundFile } from "@/lib/files";
 
 /** One file navigation can open: an editable tab or a bundled package source. `editable` marks the
  * ones held in `filesCell`; package sources are text only and never enter the session. */

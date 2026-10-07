@@ -1,4 +1,4 @@
-import type { Random } from "./index.ts";
+import type { Random } from "./index";
 
 export declare namespace TraceRandom {
   type State = { a: number; b: number; c: number; d: number };

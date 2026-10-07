@@ -9,10 +9,10 @@ import {
   PACKAGE_SOURCES,
   sourceFiles,
   trackCursor,
-} from "../src/index.ts";
-import { isError as isPlaygroundError, raise } from "@/errors.ts";
-import { DEFAULT_FILES } from "@/lib/files.ts";
-import { filesCell } from "@/state.ts";
+} from "../src/index";
+import { isError as isPlaygroundError, raise } from "@/errors";
+import { DEFAULT_FILES } from "@/lib/files";
+import { filesCell } from "@/state";
 
 /** Text of a starter file or bundled package source, so a test can pick an exact offset. */
 const contentOf = (name: string): string => {

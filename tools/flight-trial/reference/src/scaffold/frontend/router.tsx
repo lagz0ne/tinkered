@@ -1,17 +1,17 @@
-import { accountOwner, tabStop, pageEvents, tabLifetime } from "./owner.ts";
-import { syncStreaming, loadSnapshot, checkAccount } from "./events.ts";
-import { syncClient, applyBootstrap } from "./sync.ts";
+import { accountOwner, tabStop, pageEvents, tabLifetime } from "./owner";
+import { syncStreaming, loadSnapshot, checkAccount } from "./events";
+import { syncClient, applyBootstrap } from "./sync";
 import { readSnapshot } from "@/lib/tinker";
 import { createRouter } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { createScope } from "@tinker/core";
 import { ScopeProvider } from "@tinker/react";
 import { routeTree } from "@/routeTree.gen";
-import { frontendSpans } from "../telemetry/state.ts";
-import { history, observer, telemetry, telemetrySettings } from "../telemetry/index.ts";
+import { frontendSpans } from "../telemetry/state";
+import { history, observer, telemetry, telemetrySettings } from "../telemetry/index";
 const readTelemetrySettings = createIsomorphicFn()
   .server(async () => {
-    const { readSettings } = await import("../backend/settings.server.ts");
+    const { readSettings } = await import("../backend/settings.server");
     return { ...readSettings({ ...process.env }).telemetry, side: "ssr" as const };
   })
   .client(() => ({ side: "browser" as const, service: "start-scaffold", level: "info" as const }));

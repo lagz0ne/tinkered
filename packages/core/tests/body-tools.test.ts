@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, LEVELS, operation, originOf, resource, type Observe } from "../src/index.ts";
+import { createScope, LEVELS, operation, originOf, resource, type Observe } from "../src/index";
 
 test("a destructured operation logger stays the same and sends every level in order", () => {
   const records: Observe.Log[] = [];

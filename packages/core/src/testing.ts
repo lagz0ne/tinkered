@@ -1,4 +1,4 @@
-import { presetSym } from "./preset-symbol.ts";
+import { presetSym } from "./preset-symbol";
 import type {
   Clock as CoreClock,
   Data,
@@ -6,8 +6,8 @@ import type {
   Random as CoreRandom,
   Resource,
   Scope,
-} from "./index.ts";
-import { nextTraceWord, seededTraceRandom } from "./trace-random.ts";
+} from "./index";
+import { nextTraceWord, seededTraceRandom } from "./trace-random";
 
 export declare namespace Clock {
   /** A controllable clock for tests: reads a virtual time that moves only when advanced by hand.

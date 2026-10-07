@@ -13,8 +13,8 @@ import {
   stopSignal,
   webhookUrl,
   webhookSecret,
-} from "../src/index.ts";
-import { web } from "../services/http.ts";
+} from "../src/index";
+import { web } from "../services/http";
 
 const services = [
   { name: "supplier", app: supplierApp, path: "/air/offer_requests" },

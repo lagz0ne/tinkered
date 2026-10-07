@@ -11,7 +11,7 @@ import {
   stopSignal,
   webhookUrl,
   webhookSecret,
-} from "../src/index.ts";
+} from "../src/index";
 
 /** The real graph rejects a missing driver; no HTTP code or globals are patched. */
 const unavailable = tag<string>({ label: "unavailable routing driver" });

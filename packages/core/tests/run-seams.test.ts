@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, extension, isError, operation, resource, tag } from "../src/index.ts";
+import { createScope, extension, isError, operation, resource, tag } from "../src/index";
 
 /** Seams the run side must keep; each one failed under a surviving mutant of the run-side cuts. */
 const zone = tag<string>({ label: "zone", default: "base" });

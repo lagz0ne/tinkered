@@ -19,7 +19,7 @@ import {
   waves,
   type ErrorCode,
   type Frames,
-} from "../example/index.ts";
+} from "../example/index";
 
 /** A hand-driven frame source: `request` queues a callback, `pump` runs the queued frame, and
  * `pending` counts what is still queued. Stands in for requestAnimationFrame with no DOM and no

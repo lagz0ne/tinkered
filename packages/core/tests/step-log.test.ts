@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, LEVELS, operation, resource, type Observe } from "../src/index.ts";
+import { createScope, LEVELS, operation, resource, type Observe } from "../src/index";
 
 test("an observed operation logs its label, elapsed time, outcome, level, and span", () => {
   const lines: Observe.Log[] = [];

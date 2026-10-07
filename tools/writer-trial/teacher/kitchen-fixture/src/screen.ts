@@ -1,16 +1,9 @@
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import {
-  addTicket,
-  cancelTicket,
-  serveTicket,
-  setStove,
-  startCooking,
-  undoKitchen,
-} from "./model.ts";
-import type { Ticket, TicketState } from "./model.ts";
-import { errorKind } from "./errors.ts";
-import type { Name } from "./errors.ts";
+import { addTicket, cancelTicket, serveTicket, setStove, startCooking, undoKitchen } from "./model";
+import type { Ticket, TicketState } from "./model";
+import { errorKind } from "./errors";
+import type { Name } from "./errors";
 
 /** The new-ticket form: table and qty text as typed, and the chosen dish. */
 export type TicketDraft = { table: string; dish: string; qty: string };

@@ -3,8 +3,8 @@ import { createScope, operation } from "@tinker/core";
 import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useRun } from "../src/index.ts";
-import { deferred } from "./support/deferred.ts";
+import { ScopeProvider, useRun } from "../src/index";
+import { deferred } from "./support/deferred";
 
 function Runner<T>({
   op,

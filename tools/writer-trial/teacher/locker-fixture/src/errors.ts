@@ -1,4 +1,4 @@
-import type { Size } from "./model.ts";
+import type { Size } from "./model";
 
 type Payloads = {
   BlankRecipient: { recipient: unknown };

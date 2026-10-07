@@ -1,18 +1,18 @@
 import { operation } from "@tinker/core";
-import { database } from "./database.ts";
-import { currentUser } from "./auth.ts";
-import { readTodoCommand } from "../contracts/commands.ts";
-import { eventHistory } from "../scaffold/backend/events.ts";
-import type { Todos } from "../contracts/todos.ts";
-import type { Sync } from "../contracts/sync.ts";
-import { raise } from "../errors.ts";
+import { database } from "./database";
+import { currentUser } from "./auth";
+import { readTodoCommand } from "../contracts/commands";
+import { eventHistory } from "../scaffold/backend/events";
+import type { Todos } from "../contracts/todos";
+import type { Sync } from "../contracts/sync";
+import { raise } from "../errors";
 export const listTodos = operation({
   label: "listTodos",
   depends: { currentUser, database },
   run: async ({ currentUser, database }): Promise<Todos.Row[]> => {
     const [{ asc, eq }, { todo }] = await Promise.all([
       import("drizzle-orm"),
-      import("./todos.schema.ts"),
+      import("./todos.schema"),
     ]);
     return database
       .select({ id: todo.id, title: todo.title, done: todo.done })
@@ -28,8 +28,8 @@ export const changeTodo = operation({
   run: async ({ currentUser, database, history }, ctx) => {
     const [{ and, asc, eq }, { todo }, { execution }] = await Promise.all([
       import("drizzle-orm"),
-      import("./todos.schema.ts"),
-      import("../scaffold/backend/sync.schema.ts"),
+      import("./todos.schema"),
+      import("../scaffold/backend/sync.schema"),
     ]);
     await database.transaction(async (tx) => {
       await history.lock(tx, currentUser.id);

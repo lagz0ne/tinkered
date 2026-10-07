@@ -1,8 +1,8 @@
 import { operation, resource, type Operation } from "@tinker/core";
-import { flightSettings, flightSettingsSchema } from "./flight-settings.server.ts";
-import { searchFlights } from "./flight-search.ts";
-import { backendStop, requestStop } from "../scaffold/backend/lifetime.ts";
-import type { Flights } from "../contracts/flights.ts";
+import { flightSettings, flightSettingsSchema } from "./flight-settings.server";
+import { searchFlights } from "./flight-search";
+import { backendStop, requestStop } from "../scaffold/backend/lifetime";
+import type { Flights } from "../contracts/flights";
 /** The request owns SSE framing until search ends or its reader cancels. */
 const flightSearchStream = resource({
   label: "flight search body",

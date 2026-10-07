@@ -9,8 +9,8 @@ import {
   stopSignal,
   webhookUrl,
   webhookSecret,
-} from "../src/index.ts";
-import { errorShape, web, wireErrors } from "../services/http.ts";
+} from "../src/index";
+import { errorShape, web, wireErrors } from "../services/http";
 
 const sessionAudit = extension({
   label: "service session audit",

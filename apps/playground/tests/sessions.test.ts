@@ -9,7 +9,7 @@ import {
   editTitle,
   harbor,
   projectBrief,
-} from "../example/sessions/index.ts";
+} from "../example/sessions/index";
 
 test("resetting a title keeps its notes and the other project draft", async () => {
   const scope = createScope();

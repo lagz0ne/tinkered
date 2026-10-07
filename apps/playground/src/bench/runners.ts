@@ -11,8 +11,8 @@ import { observer as observer3, use$ } from "legend3/react";
 import { createContext, createElement as h, useContext, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { raise } from "@/errors.ts";
-import { measureBatch } from "./sampling.ts";
+import { raise } from "@/errors";
+import { measureBatch } from "./sampling";
 import { create } from "zustand";
 
 /** In-browser port of bench/react-stores.mjs. N components each subscribe to ONE slice; we update

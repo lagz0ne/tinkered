@@ -1,4 +1,4 @@
-import { failTask } from "./errors.ts";
+import { failTask } from "./errors";
 
 export declare namespace Tasks {
   /** A copy of a task's current state. IDs are unique within one task list. */

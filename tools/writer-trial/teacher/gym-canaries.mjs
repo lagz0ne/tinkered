@@ -311,8 +311,8 @@ const staleClassTar = patch("bad-stale-class-id", "screen.ts", [
 // only when the signups changed.
 const noOpKeepsAlertTar = patch("bad-no-op-keeps-alert", "screen.ts", [
   [
-    'import { addClass, classes, joinClass, leaveClass, setCapacity, undoGym } from "./model.ts";',
-    'import { addClass, classes, joinClass, leaveClass, setCapacity, signups, undoGym } from "./model.ts";',
+    'import { addClass, classes, joinClass, leaveClass, setCapacity, undoGym } from "./model";',
+    'import { addClass, classes, joinClass, leaveClass, setCapacity, signups, undoGym } from "./model";',
   ],
   [
     "    join: joinClass.controller,\n  },\n  run: ({ draft, chosen, saved, shown, join }) => {\n",

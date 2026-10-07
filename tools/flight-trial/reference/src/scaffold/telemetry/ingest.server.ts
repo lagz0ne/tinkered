@@ -1,8 +1,8 @@
 import { operation, tag } from "@tinker/core";
-import { telemetryBatch } from "./records.ts";
-import type { Telemetry } from "./records.ts";
-import { backendStop, requestStop } from "../backend/lifetime.ts";
-import { raise } from "../errors.ts";
+import { telemetryBatch } from "./records";
+import type { Telemetry } from "./records";
+import { backendStop, requestStop } from "../backend/lifetime";
+import { raise } from "../errors";
 
 /** Borrowed from the backend telemetry root. Requests neither create nor close that owner. */
 export const browserTelemetry = tag<(batch: Telemetry.Batch) => Promise<void>>({

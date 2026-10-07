@@ -1,10 +1,10 @@
 import * as yaml from "yaml";
 import { z } from "zod";
-import { raise } from "./errors.ts";
-import { readUnits } from "./extract.ts";
+import { raise } from "./errors";
+import { readUnits } from "./extract";
 
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
 
 export declare namespace Blueprint {
   /** One parsed node. `kind` is the YAML key; `depends` is always an array. */

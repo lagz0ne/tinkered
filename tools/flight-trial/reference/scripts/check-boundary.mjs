@@ -14,10 +14,7 @@ try {
   const router = join(proof, "src/router.tsx");
   const original = await readFile(router, "utf8");
   const components = JSON.parse(await readFile(join(source, "components.json"), "utf8"));
-  await writeFile(
-    join(proof, "src/backend/http.ts"),
-    'export { database } from "./database.ts";\n',
-  );
+  await writeFile(join(proof, "src/backend/http.ts"), 'export { database } from \"./database\";\n');
   for (const [specifier, unit] of [
     ["./backend/index.ts", "database"],
     ["./backend/http.ts", "database"],

@@ -1,7 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { polls, votes } from "./model.ts";
+import { polls, votes } from "./model";
 import {
   chooseChoice,
   chooseFilter,
@@ -23,9 +23,9 @@ import {
   typeVoter,
   voteDraft,
   voteRows,
-} from "./screen.ts";
-import type { PollFilter, PollRow, VoteRow } from "./screen.ts";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
+} from "./screen";
+import type { PollFilter, PollRow, VoteRow } from "./screen";
+import { Field, NamedTable, Notice, Page } from "./layout";
 
 const filters: readonly PollFilter[] = ["All", "Open", "Closed"];
 

@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension, namespace, operation, resource, tag } from "../src/index.ts";
+import { createScope, data, extension, namespace, operation, resource, tag } from "../src/index";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");

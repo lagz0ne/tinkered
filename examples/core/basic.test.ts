@@ -1,7 +1,7 @@
 import { createScope } from "@tinker/core";
 import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
-import { count, doubled, region, stamp, store } from "./index.ts";
+import { count, doubled, region, stamp, store } from "./index";
 
 test("a child session changes its own count without changing the root's count", async () => {
   const stop = new AbortController();

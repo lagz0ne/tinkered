@@ -2,7 +2,7 @@ import type { Resource } from "@tinker/core";
 import { createScope, resource } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, SessionProvider, useResource } from "../src/index.ts";
+import { ScopeProvider, SessionProvider, useResource } from "../src/index";
 
 let builds = 0;
 const perSession = resource({

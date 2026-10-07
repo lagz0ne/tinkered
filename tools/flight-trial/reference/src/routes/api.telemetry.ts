@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { startRequests } from "../scaffold/start.ts";
-import { receiveTelemetry, telemetryOrigin } from "../scaffold/telemetry/ingest.server.ts";
-import { telemetryBatch } from "../scaffold/telemetry/records.ts";
-import type { Telemetry } from "../scaffold/telemetry/records.ts";
-import { requestBody } from "../scaffold/backend/request-body.server.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
-import { isError } from "../errors.ts";
+import { startRequests } from "../scaffold/start";
+import { receiveTelemetry, telemetryOrigin } from "../scaffold/telemetry/ingest.server";
+import { telemetryBatch } from "../scaffold/telemetry/records";
+import type { Telemetry } from "../scaffold/telemetry/records";
+import { requestBody } from "../scaffold/backend/request-body.server";
+import { readResult } from "../scaffold/backend/result.server";
+import { isError } from "../errors";
 
 const browserBatch = telemetryBatch.refine(
   (batch) =>

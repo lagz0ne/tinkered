@@ -1,8 +1,8 @@
-import type { presetSym } from "./preset-symbol.ts";
-import { nextTraceWord, seededTraceRandom } from "./trace-random.ts";
-import { isError, raise } from "./errors.ts";
-import { causesOf, closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } from "./errors.ts";
-import type { Origin, RunResult } from "./errors.ts";
+import type { presetSym } from "./preset-symbol";
+import { nextTraceWord, seededTraceRandom } from "./trace-random";
+import { isError, raise } from "./errors";
+import { causesOf, closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } from "./errors";
+import type { Origin, RunResult } from "./errors";
 
 export { originOf };
 export type { Origin, RunResult };
@@ -4845,7 +4845,7 @@ function ownEntry(
 }
 
 export { isError };
-export type { Errors } from "./errors.ts";
+export type { Errors } from "./errors";
 
 /** A record that keeps a session's close on the full path: a built resource instance, default or
  * named, or a watcher, default or named. */

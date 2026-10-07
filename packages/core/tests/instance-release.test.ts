@@ -10,7 +10,7 @@ import {
   tag,
   type Observe,
   type Resource,
-} from "../src/index.ts";
+} from "../src/index";
 
 test("a late default dependency stays open through its dependent's async cleanup", async () => {
   let finishBuild!: () => void;

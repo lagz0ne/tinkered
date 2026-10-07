@@ -123,8 +123,8 @@ This is a sketch for review, not a callable API today.
 ```ts
 import { operation } from "@tinker/core";
 import { io, main } from "@tinker/process";
-import { searchMcp } from "./search.ts";
-import { stdio, streams } from "./stdio.ts";
+import { searchMcp } from "./search";
+import { stdio, streams } from "./stdio";
 
 const ping = operation({
   label: "ping",

@@ -1,8 +1,8 @@
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { discardMoveEdit, moveStock, openMoveEdit, saveMoveEdit } from "./model.ts";
-import { errorKind, fail } from "./errors.ts";
-import type { Name } from "./errors.ts";
+import { discardMoveEdit, moveStock, openMoveEdit, saveMoveEdit } from "./model";
+import { errorKind, fail } from "./errors";
+import type { Name } from "./errors";
 
 /** The move form text, exactly as typed. Quantity stays text until submit. */
 export type FormText = { item: string; from: string; to: string; quantity: string };

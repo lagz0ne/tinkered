@@ -1,8 +1,8 @@
 import { operation, resource } from "@tinker/core";
 import * as esbuild from "esbuild-wasm";
-import { raise } from "@/errors.ts";
-import type { PlaygroundFile } from "@/lib/files.ts";
-import { entry } from "@/state.ts";
+import { raise } from "@/errors";
+import type { PlaygroundFile } from "@/lib/files";
+import { entry } from "@/state";
 
 export declare namespace Compiler {
   /** The seam: the one call the shell makes of its compiler. The real one is esbuild-wasm over a

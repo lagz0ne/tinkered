@@ -1,7 +1,7 @@
 import { createScope, operation, resource } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useRun, useResource, useSpans } from "../src/index.ts";
+import { ScopeProvider, useRun, useResource, useSpans } from "../src/index";
 
 const res = resource({ label: "res", factory: () => ({ ok: true }) });
 const op = operation({ label: "op", run: () => 1 });

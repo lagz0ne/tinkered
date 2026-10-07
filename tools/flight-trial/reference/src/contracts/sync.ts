@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { bookingRecord } from "./bookings.ts";
+import { bookingRecord } from "./bookings";
 import {
   eventEnvelope,
   snapshotEnvelope,
   batchEnvelope,
   bootstrapEnvelope,
-} from "../scaffold/sync.ts";
-export { readExecution, readCursor, readPrivateCursor, readRetry } from "../scaffold/sync.ts";
-export type { Sync } from "../scaffold/sync.ts";
+} from "../scaffold/sync";
+export { readExecution, readCursor, readPrivateCursor, readRetry } from "../scaffold/sync";
+export type { Sync } from "../scaffold/sync";
 export declare namespace FeatureSync {
   type Change = z.infer<typeof change>;
   type Result = z.infer<typeof result>;

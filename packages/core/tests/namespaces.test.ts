@@ -9,7 +9,7 @@ import {
   resource,
   tag,
   type Ns,
-} from "../src/index.ts";
+} from "../src/index";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");

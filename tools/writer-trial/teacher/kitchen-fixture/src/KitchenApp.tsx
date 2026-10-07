@@ -1,7 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { MENU, stove, tickets } from "./model.ts";
+import { MENU, stove, tickets } from "./model";
 import {
   chooseDish,
   chooseFilter,
@@ -19,9 +19,9 @@ import {
   typeQty,
   typeStove,
   typeTable,
-} from "./screen.ts";
-import type { TicketFilter, TicketRow } from "./screen.ts";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
+} from "./screen";
+import type { TicketFilter, TicketRow } from "./screen";
+import { Field, NamedTable, Notice, Page } from "./layout";
 
 const filters: readonly TicketFilter[] = ["All", "Waiting", "Cooking", "Served"];
 

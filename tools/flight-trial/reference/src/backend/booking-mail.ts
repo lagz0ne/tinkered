@@ -1,15 +1,15 @@
 import { operation, resource, type Operation } from "@tinker/core";
 import { eq, asc, and } from "drizzle-orm";
-import { database } from "./database.ts";
-import { currentUser } from "./auth.ts";
-import { booking } from "./bookings.schema.ts";
-import { user } from "./schema.ts";
-import { bookingCommand, type Bookings } from "../contracts/bookings.ts";
-import type { Sync } from "../contracts/sync.ts";
-import { eventHistory } from "../scaffold/backend/events.ts";
-import { execution } from "../scaffold/backend/sync.schema.ts";
-import { sendMail } from "./mail.ts";
-import { raise } from "../errors.ts";
+import { database } from "./database";
+import { currentUser } from "./auth";
+import { booking } from "./bookings.schema";
+import { user } from "./schema";
+import { bookingCommand, type Bookings } from "../contracts/bookings";
+import type { Sync } from "../contracts/sync";
+import { eventHistory } from "../scaffold/backend/events";
+import { execution } from "../scaffold/backend/sync.schema";
+import { sendMail } from "./mail";
+import { raise } from "../errors";
 /** SMTP runs after the booking commit, outside its stream lock; only the final mail state needs a new lock. */
 const deliverBookingMail = operation({
   label: "deliver flight confirmation",

@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope, type Scope } from "@tinker/core";
-import { run } from "../tinker/process/index.ts";
+import { run } from "../tinker/process/index";
 import {
   corpus,
   corpusPath,
@@ -12,7 +12,7 @@ import {
   readCorpus,
   readTemplate,
   shell,
-} from "../src/index.ts";
+} from "../src/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

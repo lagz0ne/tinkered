@@ -1,7 +1,7 @@
 import type { ChangeEvent, FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { bookings, editDraft, rooms } from "./model.ts";
+import { bookings, editDraft, rooms } from "./model";
 import {
   bookForm,
   bookingLines,
@@ -25,9 +25,9 @@ import {
   typeBookForm,
   typeEditForm,
   typeSeriesTitle,
-} from "./screen.ts";
-import type { BookField, BookingLine, EditField, Filter } from "./screen.ts";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
+} from "./screen";
+import type { BookField, BookingLine, EditField, Filter } from "./screen";
+import { Field, NamedTable, Notice, Page } from "./layout";
 
 const filters: readonly Filter[] = ["All", ...rooms];
 

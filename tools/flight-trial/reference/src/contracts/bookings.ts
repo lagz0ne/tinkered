@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flightRow } from "./flights.ts";
+import { flightRow } from "./flights";
 export const supplierOrder = z.object({
   id: z.string(),
   type: z.enum(["hold", "instant"]),

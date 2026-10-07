@@ -1,8 +1,8 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
-import { editDraft, moves, stock, undoMove } from "./model.ts";
+import { Field, NamedTable, Notice, Page } from "./layout";
+import { editDraft, moves, stock, undoMove } from "./model";
 import {
   bookingForm,
   chooseFilter,
@@ -15,7 +15,7 @@ import {
   submitEditSave,
   submitMove,
   typeEditField,
-} from "./screen.ts";
+} from "./screen";
 
 /** The move form: labeled text inputs with the packet's initial text. */
 function MoveForm(): ReactElement {

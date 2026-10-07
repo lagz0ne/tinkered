@@ -2,13 +2,7 @@ import type { Scope } from "@tinker/core";
 import { createScope, data, resource } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import {
-  ScopeProvider,
-  SessionProvider,
-  useController,
-  useData,
-  useResource,
-} from "../src/index.ts";
+import { ScopeProvider, SessionProvider, useController, useData, useResource } from "../src/index";
 
 const cell = data({ label: "cell", initial: "root" });
 

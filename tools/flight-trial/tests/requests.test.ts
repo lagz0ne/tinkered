@@ -11,8 +11,8 @@ import {
   stopSignal,
   webhookUrl,
   webhookSecret,
-} from "../src/index.ts";
-import { requests } from "../services/http.ts";
+} from "../src/index";
+import { requests } from "../services/http";
 
 const services = [
   { name: "supplier", app: supplierApp },

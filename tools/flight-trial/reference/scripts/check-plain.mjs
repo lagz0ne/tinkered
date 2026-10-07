@@ -1306,7 +1306,7 @@ if (process.argv.includes("--prove")) {
     [
       "http-backend-constant-key",
       "http-backend",
-      'import {operation} from "@tinker/core"; import * as t from "./scaffold/http-backend.ts"; const key = "httpBackend" as const; const probe = operation({depends: {send: t[key]}, run: () => 1});',
+      'import {operation} from \"@tinker/core\"; import * as t from \"./scaffold/http-backend\"; const key = \"httpBackend\" as const; const probe = operation({depends: {send: t[key]}, run: () => 1});',
     ],
     [
       "operation-request-custom-reader",
@@ -1336,13 +1336,13 @@ if (process.argv.includes("--prove")) {
     [
       "mounted-auth-direct",
       "protocol-auth",
-      'import {operation} from "@tinker/core"; import {handleAuth} from "../scaffold/backend/auth.server.ts"; const probe = operation({depends: {mounted: handleAuth.controller}, run: () => 1});',
+      'import {operation} from \"@tinker/core\"; import {handleAuth} from \"../scaffold/backend/auth.server\"; const probe = operation({depends: {mounted: handleAuth.controller}, run: () => 1});',
       "src/backend/plain-probe.ts",
     ],
     [
       "mounted-auth-scaffold",
       "protocol-auth",
-      'import {operation} from "@tinker/core"; import {handleAuth} from "./backend/auth.server.ts"; const probe = operation({depends: {mounted: handleAuth.controller}, run: () => 1});',
+      'import {operation} from \"@tinker/core\"; import {handleAuth} from \"./backend/auth.server\"; const probe = operation({depends: {mounted: handleAuth.controller}, run: () => 1});',
       "src/scaffold/plain-probe.ts",
     ],
 
@@ -1355,13 +1355,13 @@ if (process.argv.includes("--prove")) {
     [
       "request-headers-direct",
       "protocol-headers",
-      'import {operation} from "@tinker/core"; import {requestHeaders} from "../scaffold/backend/headers.server.ts"; const probe = operation({depends: {headers: requestHeaders}, run: ({headers}) => headers.get("x")});',
+      'import {operation} from \"@tinker/core\"; import {requestHeaders} from \"../scaffold/backend/headers.server\"; const probe = operation({depends: {headers: requestHeaders}, run: ({headers}) => headers.get(\"x\")});',
       "src/backend/plain-probe.ts",
     ],
     [
       "request-headers-scaffold",
       null,
-      'import {operation} from "@tinker/core"; import {requestHeaders} from "./backend/headers.server.ts"; const probe = operation({depends: {headers: requestHeaders}, run: ({headers}) => headers.get("x")});',
+      'import {operation} from \"@tinker/core\"; import {requestHeaders} from \"./backend/headers.server\"; const probe = operation({depends: {headers: requestHeaders}, run: ({headers}) => headers.get(\"x\")});',
       "src/scaffold/plain-probe.ts",
     ],
 
@@ -1656,14 +1656,14 @@ if (process.argv.includes("--prove")) {
     [
       "http-backend-dependency",
       "http-backend",
-      'import {operation} from "@tinker/core"; import {httpBackend as backend} from "./scaffold/http-backend.ts"; const probe = operation({depends: {send: backend}, run: ({send}) => send("https://example.test/x")});',
+      'import {operation} from \"@tinker/core\"; import {httpBackend as backend} from \"./scaffold/http-backend\"; const probe = operation({depends: {send: backend}, run: ({send}) => send(\"https://example.test/x\")});',
     ],
     [
       "http-resource-dependency",
       "http-resource",
-      'import {operation} from "@tinker/core"; import {http as client} from "./scaffold/backend/http.ts"; const probe = operation({depends: {client}, run: ({client}) => client.send("https://example.test/x", {method: "GET", signal: new AbortController().signal})});',
+      'import {operation} from \"@tinker/core\"; import {http as client} from \"./scaffold/backend/http\"; const probe = operation({depends: {client}, run: ({client}) => client.send(\"https://example.test/x\", {method: \"GET\", signal: new AbortController().signal})});',
     ],
-    ["http-resource-export", "http-resource", 'export {http} from "./scaffold/backend/http.ts";'],
+    ["http-resource-export", "http-resource", 'export {http} from \"./scaffold/backend/http\";'],
     [
       "fetch-tag-value",
       "http-request",

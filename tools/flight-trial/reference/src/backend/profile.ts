@@ -1,19 +1,19 @@
 import { operation, resource } from "@tinker/core";
-import { principal, currentUser } from "./auth.ts";
-import { database } from "./database.ts";
-import { sendMail } from "./mail.ts";
-import { eventHistory } from "../scaffold/backend/events.ts";
-import { readProfileCommand } from "../contracts/commands.ts";
-import { readExecution, readRetry, readFeatureResult } from "../contracts/sync.ts";
-import type { Sync } from "../contracts/sync.ts";
-import type { Profile } from "../contracts/profile.ts";
-import { raise } from "../errors.ts";
+import { principal, currentUser } from "./auth";
+import { database } from "./database";
+import { sendMail } from "./mail";
+import { eventHistory } from "../scaffold/backend/events";
+import { readProfileCommand } from "../contracts/commands";
+import { readExecution, readRetry, readFeatureResult } from "../contracts/sync";
+import type { Sync } from "../contracts/sync";
+import type { Profile } from "../contracts/profile";
+import { raise } from "../errors";
 export const readProfile = operation({
   label: "readProfile",
   depends: { principal, database },
   run: async ({ principal, database }): Promise<Profile.Value | null> => {
     if (principal === null) return null;
-    const [{ eq }, { user }] = await Promise.all([import("drizzle-orm"), import("./schema.ts")]);
+    const [{ eq }, { user }] = await Promise.all([import("drizzle-orm"), import("./schema")]);
     return (
       (
         await database
@@ -37,7 +37,7 @@ const notifyProfile = operation({
   run: async ({ database, history, send }, ctx) => {
     const [{ eq }, { execution }] = await Promise.all([
       import("drizzle-orm"),
-      import("../scaffold/backend/sync.schema.ts"),
+      import("../scaffold/backend/sync.schema"),
     ]);
     const stored = (
       await database.select().from(execution).where(eq(execution.id, ctx.input.executionId))
@@ -92,8 +92,8 @@ export const saveProfile = operation({
   run: async ({ currentUser, database, history, notify }, ctx) => {
     const [{ eq }, { user }, { execution }] = await Promise.all([
       import("drizzle-orm"),
-      import("./schema.ts"),
-      import("../scaffold/backend/sync.schema.ts"),
+      import("./schema"),
+      import("../scaffold/backend/sync.schema"),
     ]);
     await database.transaction(async (tx) => {
       await history.lock(tx, currentUser.id);
@@ -132,7 +132,7 @@ export const retryNotification = operation({
   input: readRetry,
   depends: { currentUser, database, history: eventHistory, notify: notificationWork },
   run: async ({ currentUser, database, history, notify }, ctx) => {
-    const { execution } = await import("../scaffold/backend/sync.schema.ts");
+    const { execution } = await import("../scaffold/backend/sync.schema");
     await database.transaction(async (tx) => {
       await history.lock(tx, currentUser.id);
       if (await history.find(tx, ctx.input.executionId, currentUser.id)) return;

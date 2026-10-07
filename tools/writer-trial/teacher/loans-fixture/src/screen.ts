@@ -1,9 +1,9 @@
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { addTool, lendTool, loansOf, retireTool, returnLoan, undoLibrary } from "./model.ts";
-import type { Loan, Tool } from "./model.ts";
-import { errorKind } from "./errors.ts";
-import type { Name } from "./errors.ts";
+import { addTool, lendTool, loansOf, retireTool, returnLoan, undoLibrary } from "./model";
+import type { Loan, Tool } from "./model";
+import { errorKind } from "./errors";
+import type { Name } from "./errors";
 
 /** The new-tool form text, exactly as typed. */
 export type ToolDraft = { name: string; copies: string };

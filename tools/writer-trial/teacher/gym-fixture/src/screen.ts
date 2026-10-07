@@ -1,9 +1,9 @@
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { addClass, classes, joinClass, leaveClass, setCapacity, undoGym } from "./model.ts";
-import type { GymClass, Signup } from "./model.ts";
-import { errorKind } from "./errors.ts";
-import type { Name } from "./errors.ts";
+import { addClass, classes, joinClass, leaveClass, setCapacity, undoGym } from "./model";
+import type { GymClass, Signup } from "./model";
+import { errorKind } from "./errors";
+import type { Name } from "./errors";
 
 /** The typed form text: Name and Capacity from the class form, Member from the member form. */
 export type GymDraft = { name: string; capacity: string; member: string };

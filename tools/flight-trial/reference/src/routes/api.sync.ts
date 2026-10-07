@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ZodError } from "zod";
-import { openSync } from "../scaffold/backend/stream.ts";
-import { startRequests } from "../scaffold/start.ts";
-import { isError as isAppError } from "../errors.ts";
-import { streamRequest, streamCursor } from "../scaffold/protocol.ts";
-import type { Stream } from "../scaffold/protocol.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
+import { openSync } from "../scaffold/backend/stream";
+import { startRequests } from "../scaffold/start";
+import { isError as isAppError } from "../errors";
+import { streamRequest, streamCursor } from "../scaffold/protocol";
+import type { Stream } from "../scaffold/protocol";
+import { readResult } from "../scaffold/backend/result.server";
 export const Route = createFileRoute("/api/sync")({
   server: {
     middleware: [startRequests.middleware],

@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
-import { draft, save, saveDraft, typeDraft } from "./index.ts";
+import { draft, save, saveDraft, typeDraft } from "./index";
 
 test("typing then saving posts once and clears the draft", async () => {
   const seen: string[] = [];

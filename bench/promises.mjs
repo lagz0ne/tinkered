@@ -9,7 +9,7 @@ const hook = createHook({
   },
 });
 
-const { createScope, data, operation, tag } = await import("../packages/core/src/index.ts");
+const { createScope, data, operation, tag } = await import("../packages/core/src/index");
 
 const measure = (fn) => {
   promises = 0;

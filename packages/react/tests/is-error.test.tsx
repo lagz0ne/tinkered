@@ -1,8 +1,8 @@
 import { createScope } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, isError, useScope } from "../src/index.ts";
-import { Catch } from "./support/boundary.tsx";
+import { ScopeProvider, isError, useScope } from "../src/index";
+import { Catch } from "./support/boundary";
 
 function Orphan(): React.ReactElement {
   useScope();

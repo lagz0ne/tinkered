@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, namespace, operation, tag } from "../src/index.ts";
+import { createScope, data, isError, namespace, operation, tag } from "../src/index";
 
 /** A session that ended keeps main's end state: its signal reads aborted (ADR 0028). */
 for (const tagged of [false, true]) {

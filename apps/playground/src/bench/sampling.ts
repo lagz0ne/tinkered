@@ -1,4 +1,4 @@
-import { raise } from "@/errors.ts";
+import { raise } from "@/errors";
 
 const MIN_SAMPLE_MS = 2;
 

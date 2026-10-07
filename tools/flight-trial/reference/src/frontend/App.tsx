@@ -1,13 +1,13 @@
-import { Counter } from "./Counter.tsx";
+import { Counter } from "./Counter";
 import { Link, Navigate } from "@tanstack/react-router";
 import { useData, useRun } from "@tinker/react";
-import type { Profile } from "../contracts/profile.ts";
-import { profile, nameDraft, pending, notice, authMode, profileResult } from "./state.ts";
-import { signIn, signOut, saveName, setAuthMode, editName, retryMail } from "./actions.ts";
-import { isError } from "../errors.ts";
-import { Button } from "./ui/button.tsx";
-import { Input } from "./ui/input.tsx";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card.tsx";
+import type { Profile } from "../contracts/profile";
+import { profile, nameDraft, pending, notice, authMode, profileResult } from "./state";
+import { signIn, signOut, saveName, setAuthMode, editName, retryMail } from "./actions";
+import { isError } from "../errors";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
 /**
  * @param error - From a form action failure; why: pick the shown message.
  */

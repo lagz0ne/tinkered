@@ -1,5 +1,5 @@
 import { data, resource, operation } from "@tinker/core";
-import { searchEvent, searchInput, type Flights } from "../contracts/flights.ts";
+import { searchEvent, searchInput, type Flights } from "../contracts/flights";
 export const flightDraft = data({
   label: "flight draft",
   initial: { origin: "LHR", destination: "AMS", date: "2027-01-15" },

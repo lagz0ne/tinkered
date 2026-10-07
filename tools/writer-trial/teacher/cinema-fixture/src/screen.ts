@@ -1,9 +1,9 @@
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { buySeats, holdSeat, releaseSeat, undoSeats } from "./model.ts";
-import type { Seat, SeatState } from "./model.ts";
-import { errorKind } from "./errors.ts";
-import type { Name } from "./errors.ts";
+import { buySeats, holdSeat, releaseSeat, undoSeats } from "./model";
+import type { Seat, SeatState } from "./model";
+import { errorKind } from "./errors";
+import type { Name } from "./errors";
 
 /** The seat form: row, number, and customer text as typed. */
 export type SeatDraft = { row: string; number: string; customer: string };

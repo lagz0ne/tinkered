@@ -1,9 +1,9 @@
 import { operation } from "@tinker/core";
-import { navigationCell } from "@/navigation.ts";
-import { raise } from "@/errors.ts";
-import type { Place } from "@/lib/definitions.ts";
-import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
-import { THEMES, type ThemeId } from "@/lib/themes.ts";
+import { navigationCell } from "@/navigation";
+import { raise } from "@/errors";
+import type { Place } from "@/lib/definitions";
+import { DEFAULT_FILES, ENTRY } from "@/lib/files";
+import { THEMES, type ThemeId } from "@/lib/themes";
 import {
   activeCell,
   dirtyCell,
@@ -14,7 +14,7 @@ import {
   themeCell,
   type View,
   viewCell,
-} from "@/state.ts";
+} from "@/state";
 
 /** Every user action is an operation: typed input admitted at the door, the cells it touches
  * declared as controller deps, and no React in sight — `scope.run(addFile)` in a test does exactly

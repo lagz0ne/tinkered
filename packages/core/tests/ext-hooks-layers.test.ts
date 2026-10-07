@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension, namespace, operation, tag } from "../src/index.ts";
+import { createScope, data, extension, namespace, operation, tag } from "../src/index";
 
 test("a tagged run invokes its hook once with the original call", async () => {
   const zone = tag({ label: "zone", default: "base" });

@@ -10,7 +10,7 @@ import {
   verify,
   verifyChecks,
   type Blueprint,
-} from "../src/index.ts";
+} from "../src/index";
 
 const namespaceSource = 'const client = resource({ label: "client", target: "namespace" });';
 const namespaceYaml = `- resource:

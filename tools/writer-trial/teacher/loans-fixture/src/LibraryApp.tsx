@@ -1,7 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { loans, tools } from "./model.ts";
+import { loans, tools } from "./model";
 import {
   chooseFilter,
   chooseTool,
@@ -19,9 +19,9 @@ import {
   typeCopies,
   typeMember,
   typeName,
-} from "./screen.ts";
-import type { LoanRow, ToolFilter, ToolRow } from "./screen.ts";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
+} from "./screen";
+import type { LoanRow, ToolFilter, ToolRow } from "./screen";
+import { Field, NamedTable, Notice, Page } from "./layout";
 
 const filters: readonly ToolFilter[] = ["All", "Available", "Retired"];
 

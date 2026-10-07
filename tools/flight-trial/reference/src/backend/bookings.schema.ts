@@ -1,7 +1,7 @@
 import { pgTable, text, jsonb } from "drizzle-orm/pg-core";
-import { user } from "./schema.ts";
-import type { Bookings } from "../contracts/bookings.ts";
-import type { Flights } from "../contracts/flights.ts";
+import { user } from "./schema";
+import type { Bookings } from "../contracts/bookings";
+import type { Flights } from "../contracts/flights";
 export const booking = pgTable("flight_booking", {
   id: text().primaryKey(),
   ownerId: text("owner_id")

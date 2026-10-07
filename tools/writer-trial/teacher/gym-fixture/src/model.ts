@@ -4,7 +4,7 @@
  */
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { fail } from "./errors.ts";
+import { fail } from "./errors";
 
 /** One gym class. */
 export type GymClass = { id: string; name: string; capacity: number };

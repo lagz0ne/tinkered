@@ -13,7 +13,7 @@ import {
   projects,
   resetForm,
   toggleRoute,
-} from "./model.ts";
+} from "./model";
 import "./sessions.css";
 
 type Project = (typeof projects)[number];

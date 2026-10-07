@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, type Scope } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
-import { run } from "../tinker/process/index.ts";
+import { run } from "../tinker/process/index";
 import {
   check,
   corpusPath,
@@ -14,7 +14,7 @@ import {
   readBlueprint,
   shell,
   type Blueprint,
-} from "../src/index.ts";
+} from "../src/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const trackerPath = join(here, "..", "examples", "tracker.yaml");

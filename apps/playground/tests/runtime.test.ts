@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
-import { runtime } from "@/services.ts";
-import { statusCell } from "@/state.ts";
+import { runtime } from "@/services";
+import { statusCell } from "@/state";
 
 const post = (data: unknown) => window.dispatchEvent(new MessageEvent("message", { data }));
 

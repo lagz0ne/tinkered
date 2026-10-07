@@ -12,7 +12,7 @@ import {
   stopSignal,
   webhookUrl,
   webhookSecret,
-} from "../src/index.ts";
+} from "../src/index";
 
 const observed = resource({
   label: "protocol operation calls",

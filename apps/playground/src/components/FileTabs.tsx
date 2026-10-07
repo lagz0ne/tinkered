@@ -1,6 +1,6 @@
 import { FileCode2, Plus, X } from "lucide-react";
 import type { ReactElement } from "react";
-import { cn } from "@/lib/utils.ts";
+import { cn } from "@/lib/utils";
 
 type FileTabsProps = {
   files: readonly string[];

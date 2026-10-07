@@ -7,7 +7,7 @@
  */
 import { Children, cloneElement } from "react";
 import type { ReactElement, ReactNode } from "react";
-import { LAYOUT_NAME } from "./layout-choice.ts";
+import { LAYOUT_NAME } from "./layout-choice";
 
 /**
  * One layout: how labels, table names, row buttons, row headers, columns, and the alert look,

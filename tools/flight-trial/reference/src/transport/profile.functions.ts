@@ -1,10 +1,10 @@
-import { readRetry } from "../contracts/sync.ts";
+import { readRetry } from "../contracts/sync";
 import { createServerFn } from "@tanstack/react-start";
-import { readProfileCommand } from "../contracts/commands.ts";
-import { readProfile, saveProfile, retryNotification } from "../backend/index.ts";
-import { startRequests } from "../scaffold/start.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
-import { readReceipt } from "./result.server.ts";
+import { readProfileCommand } from "../contracts/commands";
+import { readProfile, saveProfile, retryNotification } from "../backend/index";
+import { startRequests } from "../scaffold/start";
+import { readResult } from "../scaffold/backend/result.server";
+import { readReceipt } from "./result.server";
 export const getProfile = createServerFn({ method: "GET" })
   .middleware([startRequests.middleware])
   .handler(async ({ context }) =>

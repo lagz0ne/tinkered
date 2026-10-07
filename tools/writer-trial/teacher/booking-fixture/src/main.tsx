@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
-import { BookingApp } from "./index.ts";
+import { BookingApp } from "./index";
 
 const root = document.getElementById("root");
 if (root === null) {

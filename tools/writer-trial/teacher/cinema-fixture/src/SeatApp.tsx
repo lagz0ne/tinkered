@@ -1,8 +1,8 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
-import { seats } from "./model.ts";
+import { Field, NamedTable, Notice, Page } from "./layout";
+import { seats } from "./model";
 import {
   chooseFilter,
   notice,
@@ -16,8 +16,8 @@ import {
   typeCustomer,
   typeNumber,
   typeRow,
-} from "./screen.ts";
-import type { SeatFilter, SeatLine } from "./screen.ts";
+} from "./screen";
+import type { SeatFilter, SeatLine } from "./screen";
 
 const filters: readonly SeatFilter[] = ["All", "Free", "Held", "Sold"];
 

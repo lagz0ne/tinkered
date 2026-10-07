@@ -1,15 +1,15 @@
 import { operation, type Operation } from "@tinker/core";
 import { eq, asc, and } from "drizzle-orm";
-import { database } from "./database.ts";
-import { currentUser } from "./auth.ts";
-import { booking } from "./bookings.schema.ts";
-import { bookingCommand, type Bookings } from "../contracts/bookings.ts";
-import { eventHistory } from "../scaffold/backend/events.ts";
-import { execution } from "../scaffold/backend/sync.schema.ts";
-import { readSupplierOrder, paySupplierOrder } from "./flight-http.ts";
-import { createPaymentIntent, confirmPaymentIntent, refundPayment } from "./payment-http.ts";
-import { sendBookingMail } from "./booking-mail.ts";
-import { raise } from "../errors.ts";
+import { database } from "./database";
+import { currentUser } from "./auth";
+import { booking } from "./bookings.schema";
+import { bookingCommand, type Bookings } from "../contracts/bookings";
+import { eventHistory } from "../scaffold/backend/events";
+import { execution } from "../scaffold/backend/sync.schema";
+import { readSupplierOrder, paySupplierOrder } from "./flight-http";
+import { createPaymentIntent, confirmPaymentIntent, refundPayment } from "./payment-http";
+import { sendBookingMail } from "./booking-mail";
+import { raise } from "../errors";
 export const payBooking = operation({
   label: "pay flight booking",
   input: bookingCommand,

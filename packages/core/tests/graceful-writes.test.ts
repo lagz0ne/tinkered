@@ -10,7 +10,7 @@ import {
   resource,
   tag,
   type Scope,
-} from "../src/index.ts";
+} from "../src/index";
 
 function gate() {
   let resolve = (): void => undefined;

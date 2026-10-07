@@ -1,5 +1,5 @@
 import { resource } from "@tinker/core";
-import { modeCell, viewCell } from "@/state.ts";
+import { modeCell, viewCell } from "@/state";
 
 /** Is this an Escape signal posted by the preview iframe's own document? */
 const isEscape = (value: unknown): value is { __pg: "escape" } =>

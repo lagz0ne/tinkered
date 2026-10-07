@@ -9,7 +9,7 @@ import {
   resource,
   tag,
   type Observe,
-} from "../src/index.ts";
+} from "../src/index";
 
 const readSpan = operation({ label: "readSpan", run: (_deps, ctx) => ctx.obs.span });
 const seed: Observe.Trace = {

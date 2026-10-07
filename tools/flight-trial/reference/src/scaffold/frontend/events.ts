@@ -1,11 +1,11 @@
 import { operation, extension, resource } from "@tinker/core";
-import { tabStop } from "./owner.ts";
-import { getBootstrap, getAccount } from "../sync.functions.ts";
-import { syncClient, applyBootstrap } from "./sync.ts";
+import { tabStop } from "./owner";
+import { getBootstrap, getAccount } from "../sync.functions";
+import { syncClient, applyBootstrap } from "./sync";
 import { streamMessage } from "@/lib/tinker";
-import { streamInput } from "../sync.ts";
-import type { Sync } from "../sync.ts";
-import type { Stream } from "../protocol.ts";
+import { streamInput } from "../sync";
+import type { Sync } from "../sync";
+import type { Stream } from "../protocol";
 /** The network client is replaced only in scope tests. */
 export const snapshotSource = resource({
   label: "sync.snapshotSource",

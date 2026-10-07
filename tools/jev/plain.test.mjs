@@ -44,7 +44,7 @@ void describe("plain rules in a test file", () => {
   });
 
   void it("T04 fires on an import of a private source module", () => {
-    const src = 'import { a } from "../src/model";\nimport { b } from "../src/model.ts";\n';
+    const src = 'import { a } from "../src/model";\nimport { b } from "../src/model";\n';
     assert.deepEqual(hits(src, TEST), [
       ["T04", 1],
       ["T04", 2],
@@ -141,7 +141,7 @@ void describe("plain rules in a source file", () => {
 
   void it("S18 fires on a sync family made inside a function", () => {
     const src = [
-      'import { family } from "../src/tinker/sync/index.ts";',
+      'import { family } from "../src/tinker/sync/index";',
       "const todos = (label: string) => family({ label, initial: '' });",
     ].join("\n");
     assert.deepEqual(hits(src, SRC), [["S18", 2]]);
@@ -825,7 +825,7 @@ void describe("plain rules never fire on", () => {
   });
 
   void it("an import of the public entry src/index", () => {
-    const src = 'import { a } from "../src/index";\nimport { b } from "../src/index.ts";\n';
+    const src = 'import { a } from "../src/index";\nimport { b } from "../src/index";\n';
     assert.deepEqual(hits(src, TEST), []);
   });
 

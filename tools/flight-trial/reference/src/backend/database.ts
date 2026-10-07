@@ -1,6 +1,6 @@
 import { operation, resource, tag } from "@tinker/core";
-import type { Database } from "../scaffold/backend/database.ts";
-export type { Database } from "../scaffold/backend/database.ts";
+import type { Database } from "../scaffold/backend/database";
+export type { Database } from "../scaffold/backend/database";
 export const databaseSettings = tag<{ url: string; migrations: string }>({
   label: "database.settings",
 });

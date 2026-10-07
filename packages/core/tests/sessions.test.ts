@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, extension, isError, operation, resource } from "../src/index.ts";
+import { createScope, extension, isError, operation, resource } from "../src/index";
 
 test("a session hook that throws before next still lets the body run and rethrows the hook error", async () => {
   const boom = new Error("sync-hook-boom");

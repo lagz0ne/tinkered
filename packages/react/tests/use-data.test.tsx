@@ -2,7 +2,7 @@ import { createScope, data } from "@tinker/core";
 import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useData } from "../src/index.ts";
+import { ScopeProvider, useData } from "../src/index";
 
 const count = data({ label: "count", initial: 0 });
 const config = data({ label: "config", initial: { theme: "dark" } });

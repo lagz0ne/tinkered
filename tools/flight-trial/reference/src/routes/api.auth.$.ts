@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { handleAuth } from "../scaffold/backend/auth.server.ts";
-import { startRequests } from "../scaffold/start.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
+import { handleAuth } from "../scaffold/backend/auth.server";
+import { startRequests } from "../scaffold/start";
+import { readResult } from "../scaffold/backend/result.server";
 export const Route = createFileRoute("/api/auth/$")({
   server: {
     middleware: [startRequests.middleware],

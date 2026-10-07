@@ -1,5 +1,5 @@
 import { operation, resource, tag, type Operation, type Resource, type Tag } from "@tinker/core";
-import { argv, io, jsonLine, positionals, type Process } from "../tinker/process/index.ts";
+import { argv, io, jsonLine, positionals, type Process } from "../tinker/process/index";
 import {
   createGateway,
   experimental_evaluate as evaluate,
@@ -24,12 +24,12 @@ import {
   templateQuestion,
   verifyChecks,
   type Blueprint,
-} from "./blueprint.ts";
-import { raise } from "./errors.ts";
-import { readUnits } from "./extract.ts";
+} from "./blueprint";
+import { raise } from "./errors";
+import { readUnits } from "./extract";
 
-export { isError } from "./blueprint.ts";
-export type { Errors } from "./blueprint.ts";
+export { isError } from "./blueprint";
+export type { Errors } from "./blueprint";
 export {
   goldenCasesOf,
   gradeTemplate,
@@ -40,9 +40,9 @@ export {
   readEval,
   readTemplate,
   verifyChecks,
-} from "./blueprint.ts";
-export { readUnits } from "./extract.ts";
-export type { Blueprint } from "./blueprint.ts";
+} from "./blueprint";
+export { readUnits } from "./extract";
+export type { Blueprint } from "./blueprint";
 
 /** Where the templates live. Default: the shipped `corpus/` folder, resolved from
  * this module; a test rebinds it to a fixture. */

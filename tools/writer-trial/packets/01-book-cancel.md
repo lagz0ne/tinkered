@@ -112,8 +112,8 @@ export const bookings: Data.Cell<readonly Booking[]>;
 export const bookBooking: Operation.Handle<Booking, BookInput>;
 export const cancelBooking: Operation.Handle<void, { id: string }>;
 export function BookingApp(): ReactElement;
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
 ```
 
 Notes on the shape above:

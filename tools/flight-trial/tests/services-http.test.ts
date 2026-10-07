@@ -9,9 +9,9 @@ import {
   stopSignal,
   webhookUrl,
   webhookSecret,
-} from "../src/index.ts";
-import { httpBackend, httpRequest } from "../services/http-client.ts";
-import { calls } from "../services/http.ts";
+} from "../src/index";
+import { httpBackend, httpRequest } from "../services/http-client";
+import { calls } from "../services/http";
 
 const replies = [
   { status: 200, delivery: "delivered" },

@@ -3,9 +3,9 @@ import { createScope, resource } from "@tinker/core";
 import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useResource } from "../src/index.ts";
-import { Catch } from "./support/boundary.tsx";
-import { deferred } from "./support/deferred.ts";
+import { ScopeProvider, useResource } from "../src/index";
+import { Catch } from "./support/boundary";
+import { deferred } from "./support/deferred";
 
 function Local<T>({ handle }: { handle: Resource.Handle<T> }): React.ReactElement {
   const q = useResource(handle, { suspense: false });

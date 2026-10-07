@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, operation, resource, tag } from "../src/index.ts";
+import { createScope, data, isError, operation, resource, tag } from "../src/index";
 
 /** A tagged call runs on a frame: its child session attaches to the parent only when the run
  * needs a lifetime. Each test sits at one boundary and checks the outcome ADR 0038, 0067, 0071

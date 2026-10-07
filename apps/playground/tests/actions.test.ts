@@ -1,18 +1,10 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, isError } from "@tinker/core";
-import {
-  addFile,
-  closeFile,
-  editFile,
-  renameFile,
-  reset,
-  selectFile,
-  setTheme,
-} from "@/actions.ts";
-import { isError as isPlaygroundError } from "@/errors.ts";
-import { goBack, navigationCell, openSource } from "../src/index.ts";
-import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
-import { activeCell, dirtyCell, filesCell, themeCell } from "@/state.ts";
+import { addFile, closeFile, editFile, renameFile, reset, selectFile, setTheme } from "@/actions";
+import { isError as isPlaygroundError } from "@/errors";
+import { goBack, navigationCell, openSource } from "../src/index";
+import { DEFAULT_FILES, ENTRY } from "@/lib/files";
+import { activeCell, dirtyCell, filesCell, themeCell } from "@/state";
 
 const names = (files: readonly { name: string }[]) => files.map((f) => f.name);
 

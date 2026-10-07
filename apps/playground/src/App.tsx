@@ -23,24 +23,24 @@ import {
   selectFile,
   setTheme,
   setView,
-} from "@/actions.ts";
-import { FileTabs } from "@/components/FileTabs.tsx";
-import { Button } from "@/components/ui/button.tsx";
+} from "@/actions";
+import { FileTabs } from "@/components/FileTabs";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select.tsx";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
-import { codeEditor } from "@/lib/code-editor.ts";
-import { immersive } from "@/lib/fullscreen.ts";
-import { previewDocument } from "@/lib/preview.ts";
-import { ENTRY } from "@/lib/files.ts";
-import { THEMES } from "@/lib/themes.ts";
-import { Editor } from "@/components/Editor.tsx";
-import { SourcePicker } from "@/components/SourcePicker.tsx";
+} from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { codeEditor } from "@/lib/code-editor";
+import { immersive } from "@/lib/fullscreen";
+import { previewDocument } from "@/lib/preview";
+import { ENTRY } from "@/lib/files";
+import { THEMES } from "@/lib/themes";
+import { Editor } from "@/components/Editor";
+import { SourcePicker } from "@/components/SourcePicker";
 import {
   followDefinition,
   goBack,
@@ -48,7 +48,7 @@ import {
   navigationCell,
   openSource,
   trackCursor,
-} from "@/navigation.ts";
+} from "@/navigation";
 import {
   activeCell,
   bundleCell,
@@ -59,19 +59,17 @@ import {
   themeCell,
   type View,
   viewCell,
-} from "@/state.ts";
+} from "@/state";
 
 /** The benchmark pulls in Zustand/Jotai/Legend/Preact — lazy-loaded so it costs nothing until
  * opened. (The view as a whole: every component reads exactly the cells it renders — a selector where
  * it wants a slice, an isEqual where "changed" is a policy — and runs operations for what the user
  * does. There is no useEffect here: the effects are resources, started once at the composition
  * root.) */
-const BenchPage = lazy(() =>
-  import("@/bench/BenchPage.tsx").then((m) => ({ default: m.BenchPage })),
-);
+const BenchPage = lazy(() => import("@/bench/BenchPage").then((m) => ({ default: m.BenchPage })));
 
 const SessionsPage = lazy(() =>
-  import("../example/sessions/App.tsx").then((m) => ({ default: m.SessionsPage })),
+  import("../example/sessions/App").then((m) => ({ default: m.SessionsPage })),
 );
 
 function ViewToggle(): ReactElement {

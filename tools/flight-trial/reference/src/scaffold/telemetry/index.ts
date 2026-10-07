@@ -2,13 +2,13 @@ import type pino from "pino";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { data, extension, operation, resource } from "@tinker/core";
 import type { Observe } from "@tinker/core";
-import { encodeValue, logRecord, telemetryBatch } from "./records.ts";
-import type { Telemetry } from "./records.ts";
-import { queue } from "./queue.ts";
-import { telemetrySettings } from "./state.ts";
-export { httpBackend } from "../http-backend.ts";
-export { telemetrySettings, exportHealth } from "./state.ts";
-export type { Telemetry } from "./records.ts";
+import { encodeValue, logRecord, telemetryBatch } from "./records";
+import type { Telemetry } from "./records";
+import { queue } from "./queue";
+import { telemetrySettings } from "./state";
+export { httpBackend } from "../http-backend";
+export { telemetrySettings, exportHealth } from "./state";
+export type { Telemetry } from "./records";
 
 export const history = data<Telemetry.Row[]>({ label: "telemetry.history", initial: [] });
 /** Transfers the records to the telemetry root; callers must not edit them afterward. */

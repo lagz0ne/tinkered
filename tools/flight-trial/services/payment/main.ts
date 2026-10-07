@@ -1,7 +1,7 @@
 import { createScope } from "@tinker/core";
 import { z } from "zod";
-import { app, webhookUrl, secret, webhookDelayMs } from "./index.ts";
-import { port, host, controlToken, stopSignal } from "../http.ts";
+import { app, webhookUrl, secret, webhookDelayMs } from "./index";
+import { port, host, controlToken, stopSignal } from "../http";
 
 /**
  * This entry owns its root and process signals; resources own the service.

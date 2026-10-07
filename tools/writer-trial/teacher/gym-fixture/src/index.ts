@@ -1,13 +1,5 @@
-export type { GymClass, Signup } from "./model.ts";
-export {
-  classes,
-  signups,
-  addClass,
-  setCapacity,
-  joinClass,
-  leaveClass,
-  undoGym,
-} from "./model.ts";
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
-export { GymApp } from "./GymApp.tsx";
+export type { GymClass, Signup } from "./model";
+export { classes, signups, addClass, setCapacity, joinClass, leaveClass, undoGym } from "./model";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
+export { GymApp } from "./GymApp";

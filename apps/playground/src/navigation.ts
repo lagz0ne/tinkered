@@ -1,8 +1,8 @@
 import { data, operation } from "@tinker/core";
-import { raise } from "@/errors.ts";
-import { resolveDefinition, type Place } from "@/lib/definitions.ts";
-import { sourceFiles, type Source } from "@/lib/sources.ts";
-import { filesCell } from "@/state.ts";
+import { raise } from "@/errors";
+import { resolveDefinition, type Place } from "@/lib/definitions";
+import { sourceFiles, type Source } from "@/lib/sources";
+import { filesCell } from "@/state";
 
 /** Where navigation stands: `place` is the spot shown now (absent until the first open), `back`
  * holds where it came from, newest last; `forward` holds what a back-jump would undo, newest last.

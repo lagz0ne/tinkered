@@ -3,7 +3,7 @@ import { serve } from "@hono/node-server";
 import { Hono, type Context, type Next } from "hono";
 import { createMiddleware } from "hono/factory";
 import { data, operation, resource, tag, type Scope, type RunResult } from "@tinker/core";
-import { failFlightService } from "../src/errors.ts";
+import { failFlightService } from "../src/errors";
 import { z } from "zod";
 
 export declare namespace Wire {

@@ -1,8 +1,8 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
-import { parcels } from "./model.ts";
+import { Field, NamedTable, Notice, Page } from "./layout";
+import { parcels } from "./model";
 import {
   chooseFilter,
   chooseParcel,
@@ -20,8 +20,8 @@ import {
   typeLocker,
   typeRecipient,
   typeSize,
-} from "./screen.ts";
-import type { ParcelFilter, ParcelRow } from "./screen.ts";
+} from "./screen";
+import type { ParcelFilter, ParcelRow } from "./screen";
 
 const filters: readonly ParcelFilter[] = ["All", "Held", "Stored", "Collected"];
 

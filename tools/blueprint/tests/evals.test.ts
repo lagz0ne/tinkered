@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
-import { run } from "../tinker/process/index.ts";
+import { run } from "../tinker/process/index";
 import {
   corpus,
   corpusPath,
@@ -22,7 +22,7 @@ import {
   readEval,
   shell,
   type Blueprint,
-} from "../src/index.ts";
+} from "../src/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const provisionalCorpus = join(here, "fixtures", "corpus-provisional");

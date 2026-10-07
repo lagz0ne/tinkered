@@ -1,6 +1,6 @@
 import { operation, type Operation } from "@tinker/core";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { paymentSettings } from "./payment-http.ts";
+import { paymentSettings } from "./payment-http";
 /** The receiver owns its wall clock, secret, raw bytes, and signature check. */
 export const verifyPaymentSignature = operation({
   label: "verify payment webhook signature",

@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
-import { privateFields } from "./build/private-fields.ts";
+import { privateFields } from "./build/private-fields";
 
 export default defineConfig({
   resolve: {

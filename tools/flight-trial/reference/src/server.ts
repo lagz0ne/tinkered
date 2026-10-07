@@ -6,17 +6,17 @@ import {
   telemetry,
   telemetrySettings,
   ingestTelemetry,
-} from "./scaffold/telemetry/index.ts";
-import { startRequests } from "./scaffold/start.ts";
-import { browserTelemetry, telemetryOrigin } from "./scaffold/telemetry/ingest.server.ts";
-import { readSettings } from "./scaffold/backend/settings.server.ts";
-import { backendStop } from "./scaffold/backend/lifetime.ts";
+} from "./scaffold/telemetry/index";
+import { startRequests } from "./scaffold/start";
+import { browserTelemetry, telemetryOrigin } from "./scaffold/telemetry/ingest.server";
+import { readSettings } from "./scaffold/backend/settings.server";
+import { backendStop } from "./scaffold/backend/lifetime";
 import { createStartHandler as createStartFetch } from "@tanstack/react-start/server";
 import { defaultStreamHandler as renderStartStream } from "@tanstack/react-start/server";
-import type { getRouter } from "./router.tsx";
-import { responseBodies } from "./scaffold/backend/body.server.ts";
-import { setup } from "./scaffold/backend/entry.server.ts";
-import { raise } from "./scaffold/errors.ts";
+import type { getRouter } from "./router";
+import { responseBodies } from "./scaffold/backend/body.server";
+import { setup } from "./scaffold/backend/entry.server";
+import { raise } from "./scaffold/errors";
 const renderRequest = createStartFetch(async (context) => {
   const { requestContext } = await (entry.owned ??= start());
   const bodies = requestContext.scope.resolve(responseBodies);

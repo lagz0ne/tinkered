@@ -1,8 +1,8 @@
 import { createHmac } from "node:crypto";
 import { data, extension, operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
-import { httpRequest } from "../http-client.ts";
-import { isError } from "../errors.ts";
+import { httpRequest } from "../http-client";
+import { isError } from "../errors";
 import {
   calls,
   clock,
@@ -16,7 +16,7 @@ import {
   commonErrors,
   stopSignal,
   type Wire,
-} from "../http.ts";
+} from "../http";
 
 const errors = {
   ...commonErrors,

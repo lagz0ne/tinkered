@@ -62,7 +62,7 @@ const processEntry = resource({
     if (address === null || typeof address === "string") expect.fail("TCP port required");
     const port = address.port;
     await new Promise<void>((resolve) => probe.close(() => resolve()));
-    const { supplierMain, paymentMain } = await import("../src/index.ts");
+    const { supplierMain, paymentMain } = await import("../src/index");
     const env = { ...settings, PORT: String(port) };
     const ended = (
       service === "supplier" ? supplierMain(env, "supplier-a") : paymentMain(env)

@@ -1,9 +1,9 @@
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { collectParcel, receiveParcel, returnToDesk, storeParcel, undoDesk } from "./model.ts";
-import type { Parcel, ParcelState, Size } from "./model.ts";
-import { errorKind } from "./errors.ts";
-import type { Name } from "./errors.ts";
+import { collectParcel, receiveParcel, returnToDesk, storeParcel, undoDesk } from "./model";
+import type { Parcel, ParcelState, Size } from "./model";
+import { errorKind } from "./errors";
+import type { Name } from "./errors";
 
 /** The receive form: recipient and size text as typed. */
 export type ReceiveDraft = { recipient: string; size: string };

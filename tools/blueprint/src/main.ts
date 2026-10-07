@@ -1,6 +1,6 @@
-import { main } from "../tinker/process/index.ts";
+import { main } from "../tinker/process/index";
 import { readFileSync } from "node:fs";
-import { engine, shell } from "./index.ts";
+import { engine, shell } from "./index";
 
 function keyFrom(argv: readonly string[]): string | undefined {
   const at = argv.indexOf("--key-file");

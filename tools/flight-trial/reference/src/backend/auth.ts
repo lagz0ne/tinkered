@@ -1,9 +1,9 @@
 import { operation, resource, tag } from "@tinker/core";
 import type { BetterAuthPlugin } from "better-auth";
-import { database } from "./database.ts";
-import { sendMail } from "./mail.ts";
-import { requestHeaders } from "../scaffold/backend/headers.server.ts";
-import { raise } from "../errors.ts";
+import { database } from "./database";
+import { sendMail } from "./mail";
+import { requestHeaders } from "../scaffold/backend/headers.server";
+import { raise } from "../errors";
 export declare namespace Auth {
   type Settings = {
     origin: string | { allowedHosts: string[]; fallback: string };
@@ -20,7 +20,7 @@ export const auth = resource({
     const [{ betterAuth }, { drizzleAdapter }, schema] = await Promise.all([
       import("better-auth"),
       import("better-auth/adapters/drizzle"),
-      import("./schema.ts"),
+      import("./schema"),
     ]);
     return betterAuth({
       baseURL: settings.origin,

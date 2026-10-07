@@ -1,7 +1,7 @@
 import { operation, tag, type Operation } from "@tinker/core";
 import { z } from "zod";
-import { httpRequest } from "../scaffold/backend/http.ts";
-import { raise } from "../errors.ts";
+import { httpRequest } from "../scaffold/backend/http";
+import { raise } from "../errors";
 export const paymentSettingsSchema = z.object({
   PAYMENT_URL: z.url(),
   WEBHOOK_SECRET: z.string().min(1),

@@ -1,11 +1,11 @@
 import { operation, type Operation } from "@tinker/core";
 import { z } from "zod";
-import { offer, type Flights } from "../contracts/flights.ts";
-import { httpRequest } from "../scaffold/backend/http.ts";
-import { flightSettings } from "./flight-settings.server.ts";
-import { flightQuote } from "./bookings.schema.ts";
-import { database } from "./database.ts";
-import { isError, raise } from "../errors.ts";
+import { offer, type Flights } from "../contracts/flights";
+import { httpRequest } from "../scaffold/backend/http";
+import { flightSettings } from "./flight-settings.server";
+import { flightQuote } from "./bookings.schema";
+import { database } from "./database";
+import { isError, raise } from "../errors";
 const searchReply = z.object({ data: z.object({ offers: z.array(offer) }) });
 const searchSupplier = operation({
   label: "search flight supplier",

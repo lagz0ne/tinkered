@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { openFlightSearch } from "../backend/flight-stream.ts";
-import { flightSettingsSchema } from "../backend/flight-settings.server.ts";
-import { searchInput } from "../contracts/flights.ts";
-import { startRequests } from "../scaffold/start.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
+import { openFlightSearch } from "../backend/flight-stream";
+import { flightSettingsSchema } from "../backend/flight-settings.server";
+import { searchInput } from "../contracts/flights";
+import { startRequests } from "../scaffold/start";
+import { readResult } from "../scaffold/backend/result.server";
 export const Route = createFileRoute("/api/flights/search")({
   server: {
     middleware: [startRequests.middleware],

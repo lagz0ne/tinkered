@@ -1,8 +1,8 @@
 import { operation } from "@tinker/core";
-import { database } from "./database.ts";
-import { eventHistory } from "../scaffold/backend/events.ts";
-import { readExecution } from "../contracts/sync.ts";
-import { raise } from "../errors.ts";
+import { database } from "./database";
+import { eventHistory } from "../scaffold/backend/events";
+import { readExecution } from "../contracts/sync";
+import { raise } from "../errors";
 export const incrementCounter = operation({
   label: "incrementCounter",
   input: readExecution,
@@ -10,8 +10,8 @@ export const incrementCounter = operation({
   run: async ({ database, history }, ctx) => {
     const [{ eq, sql }, { counter }, { execution }] = await Promise.all([
       import("drizzle-orm"),
-      import("./sync.schema.ts"),
-      import("../scaffold/backend/sync.schema.ts"),
+      import("./sync.schema"),
+      import("../scaffold/backend/sync.schema"),
     ]);
     await database.transaction(async (tx) => {
       await history.lock(tx, "public");

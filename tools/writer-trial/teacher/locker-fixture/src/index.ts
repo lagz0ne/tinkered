@@ -1,4 +1,4 @@
-export type { Parcel, Size } from "./model.ts";
+export type { Parcel, Size } from "./model";
 export {
   LOCKERS,
   parcels,
@@ -7,7 +7,7 @@ export {
   collectParcel,
   returnToDesk,
   undoDesk,
-} from "./model.ts";
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
-export { LockerApp } from "./LockerApp.tsx";
+} from "./model";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
+export { LockerApp } from "./LockerApp";

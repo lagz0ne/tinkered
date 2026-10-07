@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
-import base from "./vite.config.ts";
+import base from "./vite.config";
 
 /** A built file in `dist`, by name. */
 const built = (file: string) => fileURLToPath(new URL(`./dist/${file}`, import.meta.url));

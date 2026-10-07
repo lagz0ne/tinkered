@@ -2,7 +2,7 @@ import type { Data, Namespace, Resource } from "@tinker/core";
 import { createScope, data, namespace, resource, tag } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, SessionProvider, useRelease, useResource } from "../src/index.ts";
+import { ScopeProvider, SessionProvider, useRelease, useResource } from "../src/index";
 
 const projectName = tag({ label: "project-name", default: "plain" });
 const ocean = namespace({ tags: projectName("ocean") });

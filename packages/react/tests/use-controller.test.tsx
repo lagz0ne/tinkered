@@ -1,7 +1,7 @@
 import { createScope, data } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useController, useData } from "../src/index.ts";
+import { ScopeProvider, useController, useData } from "../src/index";
 
 const counter = data({ label: "counter", initial: 0 });
 

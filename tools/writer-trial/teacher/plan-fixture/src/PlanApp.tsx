@@ -1,9 +1,9 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
-import { courses } from "./model.ts";
-import type { Course } from "./model.ts";
+import { Field, NamedTable, Notice, Page } from "./layout";
+import { courses } from "./model";
+import type { Course } from "./model";
 import {
   courseFilter,
   courseForm,
@@ -18,9 +18,9 @@ import {
   submitRemoveLink,
   submitUndo,
   typeTitle,
-} from "./screen.ts";
-import { submitComplete, submitReopen } from "./screen.ts";
-import { isReady } from "./model.ts";
+} from "./screen";
+import { submitComplete, submitReopen } from "./screen";
+import { isReady } from "./model";
 
 /** The button one course row has: Reopen when complete, Complete otherwise. */
 function CourseButton(props: { readonly row: Course }): ReactElement {

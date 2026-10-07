@@ -7,9 +7,9 @@ import {
   removePrerequisite,
   reopenCourse,
   undoPlan,
-} from "./model.ts";
-import { errorKind, fail } from "./errors.ts";
-import type { Name } from "./errors.ts";
+} from "./model";
+import { errorKind, fail } from "./errors";
+import type { Name } from "./errors";
 
 /** The new-course form text, exactly as typed. */
 export type TitleText = { title: string };

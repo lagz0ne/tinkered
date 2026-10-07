@@ -104,8 +104,8 @@ const draftTar = patch(goodTar, "bad-draft", (src) => {
     "    open: openMoveEdit.controller,\n    noticeCell: notice.controller,\n    list: moves.controller,\n  },\n  run: ({ edit, open, noticeCell, list }, ctx) =>",
   );
   out = out.replace(
-    'import { discardMoveEdit, moveStock, openMoveEdit, saveMoveEdit } from "./model.ts";',
-    'import { discardMoveEdit, moves, moveStock, openMoveEdit, saveMoveEdit } from "./model.ts";',
+    'import { discardMoveEdit, moveStock, openMoveEdit, saveMoveEdit } from "./model";',
+    'import { discardMoveEdit, moves, moveStock, openMoveEdit, saveMoveEdit } from "./model";',
   );
   writeFileSync(p, out);
 });

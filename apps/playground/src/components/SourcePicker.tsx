@@ -1,10 +1,10 @@
 import { useData, useRun } from "@tinker/react";
 import { ArrowUpRight, FileCode, Lock, Search, SearchX, X } from "lucide-react";
 import { useId, type ReactElement } from "react";
-import { setPickerOpen, setSearch } from "@/actions.ts";
-import { openSource } from "@/navigation.ts";
-import { PACKAGE_SOURCES } from "@/lib/sources.ts";
-import { filesCell, pickerOpenCell, searchCell } from "@/state.ts";
+import { setPickerOpen, setSearch } from "@/actions";
+import { openSource } from "@/navigation";
+import { PACKAGE_SOURCES } from "@/lib/sources";
+import { filesCell, pickerOpenCell, searchCell } from "@/state";
 
 const sameNames = (a: string[], b: string[]): boolean =>
   a.length === b.length && a.every((name, i) => name === b[i]);

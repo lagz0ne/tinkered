@@ -3,7 +3,7 @@
  * timing lane `bench/warm-read.mjs`, run through the queue (tests/busy-host-flake). */
 import { createHook } from "node:async_hooks";
 import { expect, test } from "vite-plus/test";
-import { createScope, resource } from "../src/index.ts";
+import { createScope, resource } from "../src/index";
 
 test("a cached resource resolve allocates no promise on the hot path", () => {
   const conn = resource({ label: "conn", factory: () => ({ open: true }) });

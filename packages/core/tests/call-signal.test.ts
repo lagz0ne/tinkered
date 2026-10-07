@@ -9,7 +9,7 @@ import {
   resource,
   tag,
   type RunResult,
-} from "../src/index.ts";
+} from "../src/index";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;

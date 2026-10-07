@@ -1,6 +1,6 @@
 import { createFileRoute, ClientOnly } from "@tanstack/react-router";
-import { refreshFlightBookings } from "../transport/bookings.functions.ts";
-import { BookingsPage } from "../frontend/Bookings.tsx";
+import { refreshFlightBookings } from "../transport/bookings.functions";
+import { BookingsPage } from "../frontend/Bookings";
 export const Route = createFileRoute("/bookings")({
   loader: async ({ context }) => {
     await refreshFlightBookings();

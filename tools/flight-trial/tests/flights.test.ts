@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { generateFlights, readFlights, type Flights } from "../src/index.ts";
+import { generateFlights, readFlights, type Flights } from "../src/index";
 
 const suppliers: Flights.Supplier["id"][] = ["supplier-a", "supplier-b", "supplier-c"];
 const query: Flights.Query = {

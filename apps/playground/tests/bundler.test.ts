@@ -1,11 +1,11 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, type Scope } from "@tinker/core";
 import { preset, makeTestClock } from "@tinker/core/testing";
-import { addFile, editFile } from "@/actions.ts";
-import { compiler } from "@/compiler.ts";
-import { bundler } from "@/services.ts";
-import { bundleCell, debounce, statusCell } from "@/state.ts";
-import { fakeCompiler } from "./fixtures.ts";
+import { addFile, editFile } from "@/actions";
+import { compiler } from "@/compiler";
+import { bundler } from "@/services";
+import { bundleCell, debounce, statusCell } from "@/state";
+import { fakeCompiler } from "./fixtures";
 
 /** A scope whose compiler is the fake and whose debounce is zero: an edit compiles on the next tick. */
 function readScope(gate?: () => Promise<void>) {

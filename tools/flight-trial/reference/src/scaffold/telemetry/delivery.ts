@@ -1,8 +1,8 @@
 import { resource } from "@tinker/core";
 import { createIsomorphicFn } from "@tanstack/react-start";
-import { telemetrySettings } from "./state.ts";
-import type { Telemetry } from "./records.ts";
-import { httpBackend } from "../http-backend.ts";
+import { telemetrySettings } from "./state";
+import type { Telemetry } from "./records";
+import { httpBackend } from "../http-backend";
 
 /** The server factory keeps storage URLs out of the browser. */
 export const delivery = resource({

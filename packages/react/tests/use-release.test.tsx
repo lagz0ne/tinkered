@@ -3,9 +3,9 @@ import { createScope, data, resource } from "@tinker/core";
 import { Suspense, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useController, useData, useRelease, useResource } from "../src/index.ts";
-import { Catch } from "./support/boundary.tsx";
-import { deferred } from "./support/deferred.ts";
+import { ScopeProvider, useController, useData, useRelease, useResource } from "../src/index";
+import { Catch } from "./support/boundary";
+import { deferred } from "./support/deferred";
 
 type Boxed = { v: number };
 

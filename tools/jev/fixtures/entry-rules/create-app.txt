@@ -2,13 +2,13 @@ import type { Hono } from "hono";
 import { createScope, type Observe, type Scope } from "@tinker/core";
 import { hono, type HonoScope } from "@tinker/hono";
 import { type Sync } from "@tinker/sync";
-import { api } from "../client/api.ts";
-import { draftGuardrails, draftHelper } from "./draft.ts";
-import { publishIssues } from "./operations.ts";
-import { publishAfterCommit } from "./publish.ts";
-import { issueRoutes, onError, reportUnmapped } from "./routes.ts";
-import { src } from "./sync.ts";
-import { store } from "./store.ts";
+import { api } from "../client/api";
+import { draftGuardrails, draftHelper } from "./draft";
+import { publishIssues } from "./operations";
+import { publishAfterCommit } from "./publish";
+import { issueRoutes, onError, reportUnmapped } from "./routes";
+import { src } from "./sync";
+import { store } from "./store";
 
 export type AppConfig = {
   readonly dataPath?: string;

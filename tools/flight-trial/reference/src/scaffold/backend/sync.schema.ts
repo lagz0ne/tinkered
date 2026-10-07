@@ -1,5 +1,5 @@
 import { pgTable, text, integer, jsonb, primaryKey } from "drizzle-orm/pg-core";
-import type { Sync } from "../sync.ts";
+import type { Sync } from "../sync";
 export const stream = pgTable("sync_stream", {
   id: text().primaryKey(),
   revision: integer().notNull().default(0),

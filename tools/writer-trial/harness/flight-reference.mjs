@@ -35,7 +35,7 @@ export function placeFlightReference(reference, seed, project, round) {
   }
   writeFileSync(
     join(project, "src/lib/extensions.server.ts"),
-    'import { databaseSetup } from "../backend/database.ts";\nexport const extensions = [databaseSetup];\n',
+    'import { databaseSetup } from "../backend/database";\nexport const extensions = [databaseSetup];\n',
   );
   for (const file of ["Profile.tsx", "auth-actions.ts", "profile-actions.ts", "error-text.ts"])
     rmSync(join(project, "src/frontend", file));
@@ -70,7 +70,7 @@ function portSource(source, file, round) {
     source += '\nexport { event, execution, stream } from "@tinker/start/server";\n';
   if (file === "src/lib/tinker.ts") source += "\nexport const extensions = [];\n";
   if (file === "src/lib/tinker.server.ts")
-    source += '\nexport { extensions } from "./extensions.server.ts";\n';
+    source += '\nexport { extensions } from "./extensions.server";\n';
   if (file === "src/errors.ts")
     source = source.replace(
       "    NotificationFailed:",

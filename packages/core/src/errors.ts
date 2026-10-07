@@ -1,4 +1,4 @@
-import type { Data, Resource } from "./index.ts";
+import type { Data, Resource } from "./index";
 
 /** The registry: core makes no error of its own outside it. */
 type Payloads = {

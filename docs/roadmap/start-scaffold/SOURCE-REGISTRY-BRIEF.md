@@ -52,7 +52,7 @@ Source files copy to `src/tinker/<item>/` in apps.
 Cross-item imports use sibling paths, such as:
 
 ```ts
-import { jobs } from "../jobs/index.ts";
+import { jobs } from "../jobs/index";
 ```
 
 Keep one copy per item in each consumer.

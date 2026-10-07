@@ -4,7 +4,7 @@
  */
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { fail } from "./errors.ts";
+import { fail } from "./errors";
 
 /** Where one ticket is in the kitchen. */
 export type TicketState = "waiting" | "cooking" | "served";

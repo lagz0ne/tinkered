@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import * as core from "../src/index.ts";
+import * as core from "../src/index";
 
 test("the main entry keeps test helpers in the testing entry", () => {
   expect(

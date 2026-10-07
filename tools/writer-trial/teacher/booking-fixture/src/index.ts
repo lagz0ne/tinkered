@@ -1,4 +1,4 @@
-export type { BookInput, Booking, EditInput, Room, SeriesInput } from "./model.ts";
+export type { BookInput, Booking, EditInput, Room, SeriesInput } from "./model";
 export {
   bookBooking,
   bookSeries,
@@ -12,7 +12,7 @@ export {
   rooms,
   saveEdit,
   undoChange,
-} from "./model.ts";
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
-export { BookingApp } from "./BookingApp.tsx";
+} from "./model";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
+export { BookingApp } from "./BookingApp";

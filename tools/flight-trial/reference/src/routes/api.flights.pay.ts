@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { payBooking } from "../backend/payments.ts";
-import { readAccount } from "../backend/auth.ts";
-import { startRequests } from "../scaffold/start.ts";
-import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server.ts";
-import { paymentSettings, paymentSettingsSchema } from "../backend/payment-http.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
-import { isError } from "../errors.ts";
+import { payBooking } from "../backend/payments";
+import { readAccount } from "../backend/auth";
+import { startRequests } from "../scaffold/start";
+import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server";
+import { paymentSettings, paymentSettingsSchema } from "../backend/payment-http";
+import { readResult } from "../scaffold/backend/result.server";
+import { isError } from "../errors";
 export const Route = createFileRoute("/api/flights/pay")({
   server: {
     middleware: [startRequests.middleware],

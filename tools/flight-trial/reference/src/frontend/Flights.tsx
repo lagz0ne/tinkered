@@ -7,9 +7,9 @@ import {
   flightNotice,
   editFlightDraft,
   findFlights,
-} from "./flights.ts";
-import { bookingNotice } from "./state.ts";
-import { holdSeat } from "./bookings.ts";
+} from "./flights";
+import { bookingNotice } from "./state";
+import { holdSeat } from "./bookings";
 export function FlightsPage() {
   const hold = useRun(holdSeat);
   const held = useData(bookingNotice);

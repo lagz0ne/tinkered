@@ -11,7 +11,7 @@ import {
   useResource,
   useRun,
   useScope,
-} from "../src/index.ts";
+} from "../src/index";
 
 const project = namespace();
 const title = data({ label: "form-title", initial: "new" });

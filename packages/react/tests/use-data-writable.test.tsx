@@ -2,7 +2,7 @@ import type { Data } from "@tinker/core";
 import { createScope, data } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useData } from "../src/index.ts";
+import { ScopeProvider, useData } from "../src/index";
 
 function Counter({ cell }: { cell: Data.Cell<number> }): React.ReactElement {
   const [count, setCount] = useData(cell, { writable: true });

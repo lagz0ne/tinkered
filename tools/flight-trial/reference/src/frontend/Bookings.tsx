@@ -1,6 +1,6 @@
 import { useData, useRun } from "@tinker/react";
-import { payHold, retryConfirmation } from "./bookings.ts";
-import { profile, bookingRows, bookingNotice } from "./state.ts";
+import { payHold, retryConfirmation } from "./bookings";
+import { profile, bookingRows, bookingNotice } from "./state";
 export function BookingsPage() {
   const retry = useRun(retryConfirmation);
   const notice = useData(bookingNotice);

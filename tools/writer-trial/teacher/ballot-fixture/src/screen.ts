@@ -1,9 +1,9 @@
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { castVote, closePoll, createPoll, undoPoll, voteCount, withdrawVote } from "./model.ts";
-import type { Poll, Vote } from "./model.ts";
-import { errorKind } from "./errors.ts";
-import type { Name } from "./errors.ts";
+import { castVote, closePoll, createPoll, undoPoll, voteCount, withdrawVote } from "./model";
+import type { Poll, Vote } from "./model";
+import { errorKind } from "./errors";
+import type { Name } from "./errors";
 
 /** The new-poll form text, exactly as typed. */
 export type PollDraft = { question: string; choices: string; limit: string };

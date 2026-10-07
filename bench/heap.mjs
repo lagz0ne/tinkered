@@ -1,8 +1,7 @@
 // Live-heap-per-request budget (ADR 0016): a few KB per request, near hand-wired DI.
 // Authoritative run is via `bench` in a sandbox; this is runnable standalone with --expose-gc.
 // A "request" = a fresh scope that resolves an op (with a data dep) and builds a resource, kept live.
-const { createScope, data, operation, resource, tag } =
-  await import("../packages/core/src/index.ts");
+const { createScope, data, operation, resource, tag } = await import("../packages/core/src/index");
 if (!globalThis.gc) {
   console.error("run with --expose-gc");
   process.exit(1);

@@ -4,7 +4,7 @@
 //   benchctl exec -- node --experimental-strip-types bench/warm-read.mjs
 // Same promise as the old test: deep < shallow * 5 + 100 ns per read (was + 10 ms per 100k reads).
 // A re-walk of 200 layers costs 200 map lookups per read, far past that limit.
-const { createScope, data } = await import("../packages/core/src/index.ts");
+const { createScope, data } = await import("../packages/core/src/index");
 
 const ITERS = 100_000;
 const ROUNDS = 15;

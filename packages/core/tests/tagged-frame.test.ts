@@ -8,7 +8,7 @@ import {
   originOf,
   resource,
   tag,
-} from "../src/index.ts";
+} from "../src/index";
 
 const zone = tag({ label: "frame-zone", default: "root" });
 const tags = [zone("call")];

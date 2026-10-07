@@ -2,9 +2,9 @@ import type { Operation, Scope } from "@tinker/core";
 import { createScope, operation } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useRun } from "../src/index.ts";
-import { Catch } from "./support/boundary.tsx";
-import { deferred } from "./support/deferred.ts";
+import { ScopeProvider, useRun } from "../src/index";
+import { Catch } from "./support/boundary";
+import { deferred } from "./support/deferred";
 
 type Resolver = (...call: Scope.CallArgs<number>) => Promise<number>;
 type Ctl = { readonly run: Resolver; readonly reset: () => void };

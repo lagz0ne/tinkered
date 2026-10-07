@@ -1,4 +1,4 @@
-import type { Errors as ScaffoldErrors } from "./scaffold/errors.ts";
+import type { Errors as ScaffoldErrors } from "./scaffold/errors";
 export declare namespace Errors {
   type Payloads = {
     NotificationFailed: Record<string, never>;

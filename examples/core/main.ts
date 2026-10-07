@@ -1,6 +1,6 @@
 import { createScope, type Scope } from "@tinker/core";
 import { makeTestClock } from "@tinker/core/testing";
-import { count, doubled, region, stamp, store } from "./index.ts";
+import { count, doubled, region, stamp, store } from "./index";
 
 if (import.meta.main) {
   const stop = new AbortController();

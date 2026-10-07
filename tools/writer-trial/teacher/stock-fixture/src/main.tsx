@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
-import { StockApp } from "./index.ts";
+import { StockApp } from "./index";
 
 const root = document.getElementById("root");
 if (root === null) {

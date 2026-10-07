@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { startRequests } from "../scaffold/start.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
-import { readAccount } from "../backend/auth.ts";
-import { refreshBookings, holdFlight } from "../backend/bookings.ts";
-import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server.ts";
+import { startRequests } from "../scaffold/start";
+import { readResult } from "../scaffold/backend/result.server";
+import { readAccount } from "../backend/auth";
+import { refreshBookings, holdFlight } from "../backend/bookings";
+import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server";
 export const refreshFlightBookings = createServerFn({ method: "GET" })
   .middleware([startRequests.middleware])
   .handler(async ({ context }) => {
@@ -19,11 +19,11 @@ export const refreshFlightBookings = createServerFn({ method: "GET" })
     );
   });
 
-import { payBooking } from "../backend/payments.ts";
-import { retryBookingMail } from "../backend/booking-mail.ts";
-import { holdCommand, bookingCommand } from "../contracts/bookings.ts";
-import { paymentSettings, paymentSettingsSchema } from "../backend/payment-http.ts";
-import { readReceipt } from "./result.server.ts";
+import { payBooking } from "../backend/payments";
+import { retryBookingMail } from "../backend/booking-mail";
+import { holdCommand, bookingCommand } from "../contracts/bookings";
+import { paymentSettings, paymentSettingsSchema } from "../backend/payment-http";
+import { readReceipt } from "./result.server";
 export const holdFlightSeat = createServerFn({ method: "POST" })
   .middleware([startRequests.middleware])
   .validator(holdCommand)

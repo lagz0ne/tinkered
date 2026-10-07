@@ -98,22 +98,22 @@ if (process.argv.includes("--prove")) {
   const cases = [
     {
       name: "relative-export",
-      source: 'export { fail } from "../errors.ts";',
+      source: 'export { fail } from \"../errors\";',
       path: "../errors.ts",
     },
     {
       name: "type-import",
-      source: 'import type { Database } from "../backend/database.ts";',
+      source: 'import type { Database } from \"../backend/database\";',
       path: "../backend/database.ts",
     },
     {
       name: "dynamic-import",
-      source: 'import("../backend/database.ts");',
+      source: 'import(\"../backend/database\");',
       path: "../backend/database.ts",
     },
     {
       name: "import-type",
-      source: 'export type S = import("../frontend/state.ts").State;',
+      source: 'export type S = import(\"../frontend/state\").State;',
       path: "../frontend/state.ts",
     },
     ...["", "/frontend", "/backend", "/proof"].map((entry) => ({
@@ -127,7 +127,7 @@ if (process.argv.includes("--prove")) {
       source: 'declare module "../frontend/state.ts" { type State = string; }',
       path: "../frontend/state.ts",
     },
-    { name: "import-equals", source: 'import x = require("../errors.ts");', path: "../errors.ts" },
+    { name: "import-equals", source: 'import x = require(\"../errors\");', path: "../errors.ts" },
     { name: "glob", source: 'import.meta.glob("../backend/*.ts");', path: "../backend/*.ts" },
     {
       name: "triple-slash",

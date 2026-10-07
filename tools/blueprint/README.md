@@ -551,7 +551,7 @@ Pass shared Core settings through `run` or `main`.
 `run` returns the exit code; its caller owns any output it keeps.
 
 ```ts
-import { run } from "./src/tinker/process/index.ts";
+import { run } from "./src/tinker/process/index";
 import { corpusPath, shell } from "private blueprint CLI";
 
 const stdout: string[] = [];
@@ -571,7 +571,7 @@ An app entry sets `process.exitCode` after `main` returns.
 This lets Node finish pending output before exit.
 
 ```ts
-import { main } from "./src/tinker/process/index.ts";
+import { main } from "./src/tinker/process/index";
 import { shell } from "private blueprint CLI";
 
 if (import.meta.main) {

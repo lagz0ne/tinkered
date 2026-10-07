@@ -1,7 +1,7 @@
-import type { Compiler } from "@/compiler.ts";
-import { raise } from "@/errors.ts";
-import type { PlaygroundFile } from "@/lib/files.ts";
-import type { Saved, Storage } from "@/state.ts";
+import type { Compiler } from "@/compiler";
+import { raise } from "@/errors";
+import type { PlaygroundFile } from "@/lib/files";
+import type { Saved, Storage } from "@/state";
 
 /** A Map-backed session store: what `localStorage` does minus the browser — a save keeps a copy,
  * a load returns the copy or nothing. `seed` is the session a returning visitor left behind. */

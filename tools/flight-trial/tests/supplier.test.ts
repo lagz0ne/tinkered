@@ -95,7 +95,7 @@ async function search(url: string) {
 
 test("search returns data flights shared by suppliers A and B", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopA = new AbortController();
   const scopeA = createScope({
     signal: stopA.signal,
@@ -145,7 +145,7 @@ test("search returns data flights shared by suppliers A and B", async () => {
 
 test("only one of two parallel orders takes the last seat", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -176,7 +176,7 @@ test("only one of two parallel orders takes the last seat", async () => {
 
 test("an expired hold frees its seat on the service clock", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -225,7 +225,7 @@ test("an expired hold frees its seat on the service clock", async () => {
 
 test("price changes make a searched offer stale", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -260,7 +260,7 @@ test("price changes make a searched offer stale", async () => {
 
 test("a paid hold keeps its seat after the hold time", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -301,7 +301,7 @@ test("a paid hold keeps its seat after the hold time", async () => {
 
 test("the call log counts a delayed call before it ends and records its final status", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -351,7 +351,7 @@ test("the call log counts a delayed call before it ends and records its final st
 
 test("control can repeat a route reply without taking another seat", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -381,7 +381,7 @@ test("control can repeat a route reply without taking another seat", async () =>
 
 test("control needs the grader token", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -411,7 +411,7 @@ test("control needs the grader token", async () => {
 
 test("holds expire on real time before the grader sets a clock", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -446,7 +446,7 @@ test("holds expire on real time before the grader sets a clock", async () => {
 
 test("the grader can change a loaded flight before its first search", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -513,7 +513,7 @@ test("the grader can change a loaded flight before its first search", async () =
 
 test("a business group pays its fare for each passenger and uses only that cabin", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -585,7 +585,7 @@ test("a business group pays its fare for each passenger and uses only that cabin
 
 test("search filters the date and the whole group's seat count", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -651,7 +651,7 @@ test("search filters the date and the whole group's seat count", async () => {
 
 test("bad supplier requests return a named Duffel error", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -729,7 +729,7 @@ test("bad supplier requests return a named Duffel error", async () => {
 
 test("a hold accepts only its exact amount and keeps its payment fields", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -784,7 +784,7 @@ test("a hold accepts only its exact amount and keeps its payment fields", async 
 
 test("a scenario reset restores stock and clears quotes, orders, route rules and calls", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -836,7 +836,7 @@ test("a scenario reset restores stock and clears quotes, orders, route rules and
 
 test("the grader rejects bad flight, route, scenario and clock changes", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -889,7 +889,7 @@ test("the grader rejects bad flight, route, scenario and clock changes", async (
 
 test("an expired hold does not undo a later grader seat edit", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -921,7 +921,7 @@ test("an expired hold does not undo a later grader seat edit", async () => {
 
 test("stopping a service ends its virtual waits and closes its HTTP port", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -965,7 +965,7 @@ test("stopping a service ends its virtual waits and closes its HTTP port", async
 
 test("advancing before setting a clock starts a test clock from real time", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -999,7 +999,7 @@ test("advancing before setting a clock starts a test clock from real time", asyn
 
 test("a delayed call cannot restore a replaced route rule", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -1055,7 +1055,7 @@ test("a delayed call cannot restore a replaced route rule", async () => {
 
 test("parallel delayed calls consume only the chosen number of repeats", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -1112,7 +1112,7 @@ test("parallel delayed calls consume only the chosen number of repeats", async (
 
 test("a call finishing after reset cannot return to the new call log", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -1159,7 +1159,7 @@ test("a call finishing after reset cannot return to the new call log", async () 
 
 test("only an unpaid hold can accept a payment", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -1207,7 +1207,7 @@ test("only an unpaid hold can accept a payment", async () => {
 
 test("an early quote survives 200 searches and expires on the service clock", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -1264,7 +1264,7 @@ test("an early quote survives 200 searches and expires on the service clock", as
 
 test("stored offer count and state bytes stay bounded after many searches", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -1310,7 +1310,7 @@ test("stored offer count and state bytes stay bounded after many searches", asyn
 
 test("search accepts supported passenger kinds and rejects an unknown kind", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1352,7 +1352,7 @@ test("search accepts supported passenger kinds and rejects an unknown kind", asy
 
 test("an expired business hold restores its cabin for the default one passenger", async () => {
   const { supplierApp, supplierId, holdMs, port, host, controlToken, stopSignal } =
-    await import("../src/index.ts");
+    await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,

@@ -3,8 +3,8 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { type Observe } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
-import { run } from "../tinker/process/index.ts";
-import { corpusPath, judge, shell, type Blueprint } from "../src/index.ts";
+import { run } from "../tinker/process/index";
+import { corpusPath, judge, shell, type Blueprint } from "../src/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const trackerPath = join(here, "..", "examples", "tracker.yaml");

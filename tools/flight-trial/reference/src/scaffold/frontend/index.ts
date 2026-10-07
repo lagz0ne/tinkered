@@ -1,10 +1,10 @@
-export { accountOwner, tabStop, pageEvents, tabLifetime } from "./owner.ts";
-export { syncClient, applyBootstrap, applyEvents, leaveAccount } from "./sync.ts";
-export type { Sync } from "../sync.ts";
+export { accountOwner, tabStop, pageEvents, tabLifetime } from "./owner";
+export { syncClient, applyBootstrap, applyEvents, leaveAccount } from "./sync";
+export type { Sync } from "../sync";
 export {
   receiveMessage,
   loadSnapshot,
   checkAccount,
   refreshAccount,
   snapshotSource,
-} from "./events.ts";
+} from "./events";

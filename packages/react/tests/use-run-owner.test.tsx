@@ -1,8 +1,8 @@
 import { createScope, operation, tag, type Operation } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useRun, type Run } from "../src/index.ts";
-import { deferred } from "./support/deferred.ts";
+import { ScopeProvider, useRun, type Run } from "../src/index";
+import { deferred } from "./support/deferred";
 
 const answer = tag<Promise<string>>({ label: "answer" });
 const readAnswer = operation({

@@ -370,7 +370,7 @@ so the base entries read one fixed shape:
 ```ts
 // .tinker/parts.server.ts, telemetry off;
 // /b stands for the base's absolute path
-export { telemetry } from "/b/src/parts/telemetry/off.ts";
+export { telemetry } from "/b/src/parts/telemetry/off";
 ```
 
 `.tinker/base.json` records the parts that are on.
@@ -429,12 +429,12 @@ The entry installs them after the base's own:
 
 ```ts
 // src/lib/tinker.server.ts (todos example)
-import { databaseSetup } from "../backend/database.ts";
+import { databaseSetup } from "../backend/database";
 
 export const extensions = [databaseSetup];
-export { database } from "../backend/database.ts";
-export { auth, readAccount } from "../backend/auth.ts";
-export { bootstrap } from "../backend/sync.ts";
+export { database } from "../backend/database";
+export { auth, readAccount } from "../backend/auth";
+export { bootstrap } from "../backend/sync";
 ```
 
 `databaseSetup` is today's base `setup` extension,
@@ -470,7 +470,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { startRequests } from "@tinker/start";
 import { readResult } from "@tinker/start/server";
-import { greet } from "../backend/greet.ts";
+import { greet } from "../backend/greet";
 
 const runGreet = createServerFn({ method: "GET" })
   .middleware([startRequests.middleware])
@@ -541,7 +541,7 @@ So no file is ignored in silence.
 
 ```ts
 import type { RouterOptions } from "@tinker/start";
-import { NotFound } from "./frontend/not-found.tsx";
+import { NotFound } from "./frontend/not-found";
 
 export const router: RouterOptions = () => ({
   defaultPreload: "intent",

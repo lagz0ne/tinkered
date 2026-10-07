@@ -1,10 +1,10 @@
 import { operation, resource, type Operation } from "@tinker/core";
 import { z } from "zod";
-import { httpRequest } from "../scaffold/backend/http.ts";
-import { flightSettings } from "./flight-settings.server.ts";
-import { offer } from "../contracts/flights.ts";
-import { supplierOrder } from "../contracts/bookings.ts";
-import { raise } from "../errors.ts";
+import { httpRequest } from "../scaffold/backend/http";
+import { flightSettings } from "./flight-settings.server";
+import { offer } from "../contracts/flights";
+import { supplierOrder } from "../contracts/bookings";
+import { raise } from "../errors";
 const supplierUrls = resource({
   label: "flight supplier URLs",
   target: "session",

@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { App, FormApp } from "./index.ts";
+import { App, FormApp } from "./index";
 import "./style.css";
 
 /** The browser owns this element; each provider owns and closes its scope. */

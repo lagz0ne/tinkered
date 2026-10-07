@@ -1,4 +1,4 @@
-export type { Poll, Vote } from "./model.ts";
+export type { Poll, Vote } from "./model";
 export {
   polls,
   votes,
@@ -8,7 +8,7 @@ export {
   castVote,
   withdrawVote,
   undoPoll,
-} from "./model.ts";
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
-export { PollApp } from "./PollApp.tsx";
+} from "./model";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
+export { PollApp } from "./PollApp";

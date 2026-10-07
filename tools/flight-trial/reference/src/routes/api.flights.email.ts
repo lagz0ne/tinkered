@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { retryBookingMail } from "../backend/booking-mail.ts";
-import { readAccount } from "../backend/auth.ts";
-import { startRequests } from "../scaffold/start.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
-import { isError } from "../errors.ts";
+import { retryBookingMail } from "../backend/booking-mail";
+import { readAccount } from "../backend/auth";
+import { startRequests } from "../scaffold/start";
+import { readResult } from "../scaffold/backend/result.server";
+import { isError } from "../errors";
 export const Route = createFileRoute("/api/flights/email")({
   server: {
     middleware: [startRequests.middleware],

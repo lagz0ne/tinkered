@@ -1,1 +1,1 @@
-export { getRouter } from "./scaffold/frontend/router.tsx";
+export { getRouter } from "./scaffold/frontend/router";

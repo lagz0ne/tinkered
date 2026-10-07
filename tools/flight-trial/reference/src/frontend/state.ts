@@ -1,7 +1,7 @@
-import type { Todos } from "../contracts/todos.ts";
-import type { Sync } from "../contracts/sync.ts";
+import type { Todos } from "../contracts/todos";
+import type { Sync } from "../contracts/sync";
 import { data } from "@tinker/core";
-import type { Profile } from "../contracts/profile.ts";
+import type { Profile } from "../contracts/profile";
 export const profile = data<Profile.Value | null>({
   label: "profile",
   initial: null,
@@ -17,6 +17,6 @@ export const profileResult = data<{ executionId: string; result: Sync.Result } |
   initial: null,
 });
 
-import type { Bookings } from "../contracts/bookings.ts";
+import type { Bookings } from "../contracts/bookings";
 export const bookingRows = data<Bookings.Row[]>({ label: "saved flight bookings", initial: [] });
 export const bookingNotice = data({ label: "booking notice", initial: "" });

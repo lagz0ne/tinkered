@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
-import { GymApp } from "./index.ts";
+import { GymApp } from "./index";
 
 const root = document.getElementById("root");
 if (root === null) {

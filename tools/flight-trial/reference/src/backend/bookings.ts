@@ -1,13 +1,13 @@
 import { operation, type Operation } from "@tinker/core";
 import { eq, asc } from "drizzle-orm";
-import { database } from "./database.ts";
-import { currentUser } from "./auth.ts";
-import { booking, flightQuote } from "./bookings.schema.ts";
-import { eventHistory } from "../scaffold/backend/events.ts";
-import { execution } from "../scaffold/backend/sync.schema.ts";
-import { holdCommand, type Bookings } from "../contracts/bookings.ts";
-import { readSupplierOffer, readSupplierOrder, holdSupplierOffer } from "./flight-http.ts";
-import { raise, isError } from "../errors.ts";
+import { database } from "./database";
+import { currentUser } from "./auth";
+import { booking, flightQuote } from "./bookings.schema";
+import { eventHistory } from "../scaffold/backend/events";
+import { execution } from "../scaffold/backend/sync.schema";
+import { holdCommand, type Bookings } from "../contracts/bookings";
+import { readSupplierOffer, readSupplierOrder, holdSupplierOffer } from "./flight-http";
+import { raise, isError } from "../errors";
 export const listBookings = operation({
   label: "list flight bookings",
   depends: { database, currentUser },

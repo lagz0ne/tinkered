@@ -1,6 +1,6 @@
 import { resource } from "@tinker/core";
-import { compile } from "@/compiler.ts";
-import { isError } from "@/errors.ts";
+import { compile } from "@/compiler";
+import { isError } from "@/errors";
 import {
   activeCell,
   bundleCell,
@@ -10,7 +10,7 @@ import {
   statusCell,
   storage,
   themeCell,
-} from "@/state.ts";
+} from "@/state";
 
 /** Every effect the shell has is a resource: built once per scope, its deps declared, its cleanup a
  * `defer` the scope runs on close. Resolving one starts it; nothing is stopped by hand. React never

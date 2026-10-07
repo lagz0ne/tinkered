@@ -6,7 +6,7 @@
  */
 import { data, operation } from "@tinker/core";
 import type { Data, Operation } from "@tinker/core";
-import { fail } from "./errors.ts";
+import { fail } from "./errors";
 
 export type Item = "Cable" | "Stand";
 export type Place = "East" | "West";
@@ -221,5 +221,5 @@ export const undoMove: Operation.Handle<void, void> = operation({
   },
 });
 
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
+export { isError } from "./errors";
+export type { Errors } from "./errors";

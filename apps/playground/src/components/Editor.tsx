@@ -1,6 +1,6 @@
 import { useResource } from "@tinker/react";
 import type { ReactElement } from "react";
-import { codeEditor } from "@/lib/code-editor.ts";
+import { codeEditor } from "@/lib/code-editor";
 import "./code-view.css";
 
 /** The mount point of the `codeEditor` resource's host. The component holds no editor state at

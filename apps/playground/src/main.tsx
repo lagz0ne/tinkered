@@ -2,8 +2,8 @@ import { createScope } from "@tinker/core";
 import { ScopeProvider } from "@tinker/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "@/App.tsx";
-import { bundler, persistence, runtime } from "@/services.ts";
+import { App } from "@/App";
+import { bundler, persistence, runtime } from "@/services";
 import "@/globals.css";
 
 /** The composition root. The app owns its scope; the services are resources, so resolving them is

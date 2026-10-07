@@ -257,7 +257,11 @@ void describe("shape findings", () => {
     );
     assert.deepEqual(readOnly, []);
     const otherModule = inspectShape(
-      `import { useData } from "./cells.ts";\nfunction MoveForm() {\n  const [item, setItem] = useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      `import { useData } from "./cells";
+function MoveForm() {
+  const [item, setItem] = useData(formItem, { writable: true });
+  return <p>{item}</p>;
+}`,
       "a.tsx",
     );
     assert.deepEqual(otherModule, []);

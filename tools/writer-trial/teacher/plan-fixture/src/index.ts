@@ -1,4 +1,4 @@
-export type { Course } from "./model.ts";
+export type { Course } from "./model";
 export {
   courses,
   createCourse,
@@ -7,7 +7,7 @@ export {
   completeCourse,
   reopenCourse,
   undoPlan,
-} from "./model.ts";
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
-export { PlanApp } from "./PlanApp.tsx";
+} from "./model";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
+export { PlanApp } from "./PlanApp";

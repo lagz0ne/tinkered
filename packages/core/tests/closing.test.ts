@@ -7,7 +7,7 @@ import {
   resource,
   type Resource,
   type Scope,
-} from "../src/index.ts";
+} from "../src/index";
 
 function waiting(ctx: Resource.Ctx) {
   let finish = (): void => undefined;

@@ -9,7 +9,7 @@ import {
   resource,
   tag,
   type Scope,
-} from "../src/index.ts";
+} from "../src/index";
 
 const draft = data({ label: "draft", initial: 0 });
 const shared = data({ label: "shared", initial: "none" });

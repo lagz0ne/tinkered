@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, tag, type Observe } from "../src/index.ts";
+import { createScope, operation, tag, type Observe } from "../src/index";
 
 function managed(message: string): Error {
   return Object.assign(new Error(message), { kind: "Caught", payload: { message } });

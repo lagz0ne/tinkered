@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension, isError, operation, resource, tag } from "../src/index.ts";
+import { createScope, data, extension, isError, operation, resource, tag } from "../src/index";
 
 /** ADR 0072: a tagged call comes back as a value when its child session ended in place, and as
  * a native promise when the session must wait. One test per case on the wait list. */

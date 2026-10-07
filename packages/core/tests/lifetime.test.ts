@@ -1,6 +1,6 @@
 import { getEventListeners } from "node:events";
 import { expect, expectTypeOf, test } from "vite-plus/test";
-import { createScope, data, extension, operation, resource, type Scope } from "../src/index.ts";
+import { createScope, data, extension, operation, resource, type Scope } from "../src/index";
 
 const count = data({ label: "count", initial: 0 });
 

@@ -14,10 +14,10 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { raise } from "./errors.ts";
+import { raise } from "./errors";
 
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
 
 const ScopeContext = createContext<Scope.Handle | undefined>(undefined);
 const NamespaceContext = createContext<Namespace | undefined>(undefined);

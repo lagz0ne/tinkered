@@ -1,7 +1,7 @@
 import { createScope, isError as isCoreError, tag } from "@tinker/core";
 import type { Operation, RunResult, Scope, Tag } from "@tinker/core";
-import { isError, raise } from "./errors.ts";
-import type { Errors } from "./errors.ts";
+import { isError, raise } from "./errors";
+import type { Errors } from "./errors";
 
 export declare namespace Process {
   /** Borrowed writers; callers choose whether to collect or stream their output. */

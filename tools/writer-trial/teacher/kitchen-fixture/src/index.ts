@@ -1,4 +1,4 @@
-export type { Ticket } from "./model.ts";
+export type { Ticket } from "./model";
 export {
   MENU,
   tickets,
@@ -9,7 +9,7 @@ export {
   cancelTicket,
   setStove,
   undoKitchen,
-} from "./model.ts";
-export { isError } from "./errors.ts";
-export type { Errors } from "./errors.ts";
-export { KitchenApp } from "./KitchenApp.tsx";
+} from "./model";
+export { isError } from "./errors";
+export type { Errors } from "./errors";
+export { KitchenApp } from "./KitchenApp";

@@ -1,8 +1,8 @@
-import { flightRows } from "./flights.ts";
-import { bookingRows } from "./state.ts";
+import { flightRows } from "./flights";
+import { bookingRows } from "./state";
 import { resource } from "@tinker/core";
-import { profile, todos, counter, nameDraft, profileResult } from "./state.ts";
-import type { Sync } from "../contracts/sync.ts";
+import { profile, todos, counter, nameDraft, profileResult } from "./state";
+import type { Sync } from "../contracts/sync";
 /** Saved records have one publisher; drafts belong to the local editor. */
 export const records = resource({
   label: "records",

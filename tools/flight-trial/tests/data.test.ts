@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { expect, test } from "vite-plus/test";
-import { generateFlights, isError, readFlights, type Flights } from "../src/index.ts";
+import { generateFlights, isError, readFlights, type Flights } from "../src/index";
 
 const knownFlight: Flights.Flight = {
   id: "1355-LHR-JFK-2027-01-15-1",

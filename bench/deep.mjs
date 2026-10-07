@@ -2,7 +2,7 @@
 // ITERATIVE / async and must survive very deep trees (>=10k). Two BUILD-time paths recurse on the
 // native stack and have finite (but unrealistic) ceilings — asserted at realistic depths, ceilings
 // documented in ADR 0029.
-const { createScope, resource, data } = await import("../packages/core/src/index.ts");
+const { createScope, resource, data } = await import("../packages/core/src/index");
 
 let fail = false;
 const assert = (label, ok) => {

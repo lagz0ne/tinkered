@@ -1,8 +1,8 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { Field, NamedTable, Notice, Page } from "./layout.tsx";
-import { classes, signups } from "./model.ts";
+import { Field, NamedTable, Notice, Page } from "./layout";
+import { classes, signups } from "./model";
 import {
   chooseClass,
   chooseFilter,
@@ -21,8 +21,8 @@ import {
   typeCapacity,
   typeMember,
   typeName,
-} from "./screen.ts";
-import type { SignupFilter, SignupLine } from "./screen.ts";
+} from "./screen";
+import type { SignupFilter, SignupLine } from "./screen";
 
 const filters: readonly SignupFilter[] = ["All", "Booked", "Waiting"];
 

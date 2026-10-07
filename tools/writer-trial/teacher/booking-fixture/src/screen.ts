@@ -11,10 +11,10 @@ import {
   renameSeries,
   saveEdit,
   undoChange,
-} from "./model.ts";
-import type { Booking, Room } from "./model.ts";
-import { errorKind, fail } from "./errors.ts";
-import type { Name } from "./errors.ts";
+} from "./model";
+import type { Booking, Room } from "./model";
+import { errorKind, fail } from "./errors";
+import type { Name } from "./errors";
 
 /** The booking form text as typed. */
 export type BookForm = {

@@ -1,6 +1,6 @@
 import { data, tag } from "@tinker/core";
-import { DEFAULT_FILES, ENTRY, type PlaygroundFile } from "@/lib/files.ts";
-import { THEMES, type ThemeId } from "@/lib/themes.ts";
+import { DEFAULT_FILES, ENTRY, type PlaygroundFile } from "@/lib/files";
+import { THEMES, type ThemeId } from "@/lib/themes";
 
 /** The build/runtime status shown in the bottom bar; `ms` is the last compile's duration. */
 export type Status = { kind: "ok" | "error" | "info"; text: string; ms?: number };

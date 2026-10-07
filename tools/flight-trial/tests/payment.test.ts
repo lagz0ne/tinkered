@@ -5,7 +5,7 @@ import { createServer, type ServerResponse } from "node:http";
 import { once } from "node:events";
 import { afterAll, afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
-import { httpBackend } from "../services/http-client.ts";
+import { httpBackend } from "../services/http-client";
 
 const intentSchema = z.object({
   id: z.string().startsWith("pi_"),
@@ -159,7 +159,7 @@ test("a confirmed intent sends a signed success webhook", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -209,7 +209,7 @@ test("parallel calls with one key return the same intent", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -257,7 +257,7 @@ test("a late webhook waits for the chosen time", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -297,7 +297,7 @@ test("twice sends the same signed event twice", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -334,7 +334,7 @@ test("the failed scenario sends a payment failure webhook", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -373,7 +373,7 @@ test("never sends nothing until the grader asks for a webhook now", async () => 
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -413,7 +413,7 @@ test("refund keys return the same refund and cannot refund more than paid", asyn
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -452,7 +452,7 @@ test("payment accepts Stripe form bodies", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -495,7 +495,7 @@ test("the grader can cancel a pending webhook and send it now", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -535,7 +535,7 @@ test("an injected payment failure uses Stripe's error shape", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -572,7 +572,7 @@ test("repeated confirmation keeps one delivery and a key keeps its original repl
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -655,7 +655,7 @@ test("partial refunds share the paid limit only with the same intent", async () 
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -715,7 +715,7 @@ test("bad payment input and missing resources return Stripe errors", async () =>
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -805,7 +805,7 @@ test("a payment scenario reset clears intents, keys, route faults and old delive
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -859,7 +859,7 @@ test("the grader rejects an unknown intent and invalid webhook plans", async () 
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -911,7 +911,7 @@ test("manual late and twice plans change only the chosen intent", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -972,7 +972,7 @@ test("a failed outcome uses the default confirmation plan", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
@@ -1012,7 +1012,7 @@ test("parallel delayed payment calls consume one saved route reply", async () =>
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1106,7 +1106,7 @@ test("a delayed payment call cannot overwrite its replacement rule", async () =>
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1190,7 +1190,7 @@ test("resetting payment while a call waits clears its fault and old log entry", 
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1262,7 +1262,7 @@ test("stopping payment ends a delayed call with a Stripe service-stopped error",
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1325,7 +1325,7 @@ test("Stripe form metadata keeps plain values and drops unsafe nested keys", asy
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1379,7 +1379,7 @@ test("payment paths require the complete Stripe route", async () => {
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1432,7 +1432,7 @@ test("pipelined payment calls protect a key while its first call is still pendin
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1490,7 +1490,7 @@ test("a confirmation sends its webhook before the grader sets a clock", async ()
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -1528,7 +1528,7 @@ test("stopping payment aborts an outgoing webhook and closes its HTTP port", asy
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   await fetch(`${webhookUrl}/control/hold`);
   const stop = new AbortController();
   const scope = createScope({
@@ -1573,7 +1573,7 @@ test("a graceful close aborts a webhook while its response body is open", async 
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   await fetch(`${webhookUrl}/control/hold`);
   const stop = new AbortController();
   const scope = createScope({
@@ -1625,7 +1625,7 @@ test("a graceful close ends a queued webhook without advancing the clock", async
     host,
     controlToken,
     stopSignal,
-  } = await import("../src/index.ts");
+  } = await import("../src/index");
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,

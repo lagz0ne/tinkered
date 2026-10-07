@@ -2,8 +2,8 @@ import { createScope, data } from "@tinker/core";
 import { StrictMode } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, isError, useScope } from "../src/index.ts";
-import { Catch } from "./support/boundary.tsx";
+import { ScopeProvider, isError, useScope } from "../src/index";
+import { Catch } from "./support/boundary";
 
 const greeting = data({ label: "greeting", initial: "hi" });
 

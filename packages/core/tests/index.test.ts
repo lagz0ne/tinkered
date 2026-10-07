@@ -14,7 +14,7 @@ import {
   type Resource,
   type Scope,
   tag,
-} from "../src/index.ts";
+} from "../src/index";
 import { z } from "zod";
 
 const asNumber = (v: unknown): number => {

@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { verifyPaymentSignature } from "../backend/payment-signature.ts";
+import { verifyPaymentSignature } from "../backend/payment-signature";
 import { createFileRoute } from "@tanstack/react-router";
-import { receivePayment } from "../backend/payments.ts";
-import { startRequests } from "../scaffold/start.ts";
-import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server.ts";
-import { paymentSettings, paymentSettingsSchema } from "../backend/payment-http.ts";
-import { readResult } from "../scaffold/backend/result.server.ts";
+import { receivePayment } from "../backend/payments";
+import { startRequests } from "../scaffold/start";
+import { flightSettings, flightSettingsSchema } from "../backend/flight-settings.server";
+import { paymentSettings, paymentSettingsSchema } from "../backend/payment-http";
+import { readResult } from "../scaffold/backend/result.server";
 const paymentEvent = z.object({
   id: z.string(),
   type: z.enum(["payment_intent.succeeded", "payment_intent.payment_failed"]),

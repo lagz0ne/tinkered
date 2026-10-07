@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { expect, test } from "vite-plus/test";
-import { createScope, operation } from "../src/index.ts";
+import { createScope, operation } from "../src/index";
 
 function managed(message: string): Error {
   return Object.assign(new Error(message), { kind: "Caught", payload: { message } });

@@ -12,7 +12,7 @@ import {
   type Operation,
   type RunResult,
   type Scope,
-} from "../src/index.ts";
+} from "../src/index";
 
 const zone = tag({ label: "zone", default: "home" });
 

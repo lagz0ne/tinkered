@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
-import { KitchenApp } from "./index.ts";
+import { KitchenApp } from "./index";
 
 const root = document.getElementById("root");
 if (root === null) {
