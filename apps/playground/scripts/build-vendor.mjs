@@ -7,10 +7,11 @@
 //
 // Output: apps/playground/public/vendor/*.mjs and public/esbuild.wasm.
 import { build } from "esbuild";
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { copyModuleGraph } from "./copy-module-graph.mjs";
 
 const require = createRequire(import.meta.url);
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -24,7 +25,7 @@ const copies = [
   [join(repoRoot, "packages/react/dist/index.mjs"), "tinker-react.mjs"],
 ];
 for (const [from, name] of copies) {
-  writeFileSync(join(outDir, name), readFileSync(from));
+  await copyModuleGraph(from, join(outDir, name));
 }
 
 // 2. React & friends: bundle CJS -> browser ESM. "react" external => shared single instance.
