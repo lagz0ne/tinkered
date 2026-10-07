@@ -1,0 +1,20 @@
+$ git rev-parse HEAD
+dffc4695a8fea8c8d0fe68dbdf9a27ec3749703e
+$ git status --porcelain
+(empty)
+$ vp run core#mutate (under /tmp/mutation.lock)
+
+-----------------|------------------|----------|-----------|------------|----------|----------|
+                 | % Mutation score |          |           |            |          |          |
+File             |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+-----------------|--------|---------|----------|-----------|------------|----------|----------|
+All files        |  85.80 |   86.76 |     2964 |        38 |        458 |       39 |        3 |
+ errors.ts       |  90.82 |   90.82 |       87 |         2 |          9 |        0 |        0 |
+ index.ts        |  85.59 |   86.62 |     2788 |        34 |        436 |       39 |        3 |
+ testing.ts      |  87.38 |   87.38 |       88 |         2 |         13 |        0 |        0 |
+ trace-random.ts | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
+-----------------|--------|---------|----------|-----------|------------|----------|----------|
+
+Killed alone: 2964 / (2964 + 38 + 458 + 39) = 84.71%.
+Required floor: 85%. FAIL. Timeouts do not count as kills.
+CLI EXIT 0; its score includes timeouts.
