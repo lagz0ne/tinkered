@@ -38,6 +38,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **perf round 1 fixes** — four Sol writers land the study's proven fixes (study: `/home/paseo/perf/index.html`).
+  Owner: lead (Claude, Start scaffold session). Cards: `start/telemetry-fast` (queue bytes, 32 KB browser cap, zod off the client),
+  `start/ssr-telemetry-root` (one telemetry root per process), `start/serve-fast` (compression, static set, compile hint),
+  `playground/vendor-chunks` (blank page after a fresh build).
+  A deeper study round runs beside them until 15:00 UTC (`/home/paseo/perf/deep/`).
+  Verify: each bug has a test that fails on main; each speed claim has a `benchctl ab` verdict.
+
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
