@@ -122,3 +122,35 @@ EXIT 0
 $ node scripts/check-schema.mjs
 No schema changes; no new migration files or folders.
 EXIT 0
+
+Final refresh after both SSR and serve cards landed.
+Rebased onto origin/main 4423d86e.
+Checked HEAD 59baf7bbd34fddf53b6a86a327cd820904b2bbc5.
+The progress-note conflict kept both cards; the board merged cleanly.
+The sync source, tests, and timeout limits are unchanged by this rebase.
+
+$ git fetch origin && git rebase origin/main
+EXIT 0
+$ vp install
+EXIT 0
+$ vp run -r build
+12 build tasks, no failed task.
+EXIT 0
+$ vp check
+Found 0 errors and 28 warnings in 640 files.
+EXIT 0
+$ vp run -r test
+All test tasks passed; Start: 426 tests, including 39 sync tests.
+EXIT 0
+$ vp run prose
+EXIT 0
+$ vp run @tinker-start-scaffold#check
+All checks passed, including real auth, SMTP, migrations, two-tab sync,
+and the profile page in an isolated proof project.
+server PID 2913508 stopped: EXIT 0; signal none
+relay PID 2913460 stopped: EXIT 0
+docker compose down -v: EXIT 0; only the proof project
+EXIT 0
+$ pnpm validate
+All deterministic budget lanes PASS (18)
+EXIT 0
