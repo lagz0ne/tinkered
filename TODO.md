@@ -24,6 +24,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/registry-no-overwrite** — demo items must not replace the user's app files.
+  Today the full demo needs `--overwrite`: it replaces `vite.config.ts`, the seams, and `src/routes/index.tsx`.
+  Fix: items add only their own files; doctor names the switch (`tinker({ auth: true, sync: true })`) and the seam names to add.
+  Verify: an edited `vite.config.ts` survives adding every item; doctor names what is missing.
+
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
   and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
@@ -48,14 +53,6 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **start/shadcn-registry** — the `app` template item and the example items, built from source.
-  Template written once; examples updated with `shadcn add --diff`; base by `tinker upgrade`.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-shadcn-registry`.
-  Runs beside trial/base-image (user 2026-10-07: take care of both).
-  Next: lead reviews the saved code, CLI proof, and gates.
-  Proof: [Section V](docs/roadmap/start-base/PROOF.md#v-one-local-shadcn-add-starts-an-app).
-  Verify: an empty folder to a served page in one `shadcn add`; publishing waits for the user's go.
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
@@ -83,6 +80,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/shadcn-registry** — one `shadcn add <registry>/app.json` turns an empty folder into an app on the base.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  10 items, 142 files built from source; `app` written once; examples by `shadcn add --diff`; base by `tinker upgrade`.
+  Proof (local registry at 127.0.0.1; nothing published): empty folder to `GET /` 200; every example builds and passes doctor.
+  [PROOF section V](docs/roadmap/start-base/PROOF.md). Publishing waits for the user's go and a domain.
 
 - **start/scaffold-on-base** — `apps/start-scaffold` runs on the base: `tinker({ auth: true, sync: true })`.
   Owner: lead (Claude, Start scaffold session); Sol writers. Landed in two steps on main.
