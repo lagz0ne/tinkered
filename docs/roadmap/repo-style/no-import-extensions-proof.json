@@ -1,13 +1,156 @@
 {
-  "branch": "repo/no-import-extensions",
-  "base": "381e2ef3",
-  "round": "lead fix round",
-  "status": "ordered gates pending",
-  "summary": [
-    "Rebase complete; parser output committed.",
-    "Saved module check: 0 hits.",
-    "Cleanup and saved-text tests: 5 passed.",
-    "Doctor item test: 9 passed; old main item fails the no-ending assertion.",
-    "No push, publish, or mutation run this round."
-  ]
+  "header": {
+    "branch": "repo/no-import-extensions",
+    "main": "381e2ef3",
+    "round": "lead fix round"
+  },
+  "summary": {
+    "gates": [
+      {
+        "gate": "install",
+        "command": "vp install",
+        "exit": 0
+      },
+      {
+        "gate": "build",
+        "command": "vp run -r build",
+        "exit": 0
+      },
+      {
+        "gate": "check",
+        "command": "vp check",
+        "exit": 0
+      },
+      {
+        "gate": "tests",
+        "command": "vp run -r test",
+        "exit": 0
+      },
+      {
+        "gate": "prose",
+        "command": "vp run prose",
+        "exit": 0
+      },
+      {
+        "gate": "scaffold",
+        "command": "vp run @tinker-start-scaffold#check",
+        "exit": 0
+      },
+      {
+        "gate": "validate",
+        "command": "pnpm validate",
+        "exit": 0
+      },
+      {
+        "gate": "ticket",
+        "command": "scripts/ticket.sh --no-mutation --check-only core no-import-extensions \"Remove TypeScript import endings\"",
+        "exit": 0
+      },
+      {
+        "gate": "census",
+        "command": "bash .agents/skills/coding-convention/scripts/style-census.sh packages/core packages/react packages/start tools/blueprint tools/flight-trial tools/writer-trial apps/playground apps/start-scaffold examples",
+        "exit": 0
+      },
+      {
+        "gate": "writer-tests",
+        "command": "node --test tools/writer-trial/*.test.mjs",
+        "exit": 0
+      },
+      {
+        "gate": "census-selftest",
+        "command": "bash .agents/skills/coding-convention/scripts/style-census.selftest.sh",
+        "exit": 0
+      },
+      {
+        "gate": "saved-check",
+        "command": "node scripts/check-import-extensions.mjs",
+        "exit": 0
+      },
+      {
+        "gate": "cleanup-tests",
+        "command": "node --test scripts/strip-import-extensions.test.mjs scripts/check-import-extensions.test.mjs",
+        "exit": 0
+      }
+    ],
+    "rebaseExit": 0,
+    "cleanupRerunExit": 0,
+    "cleanupRerunOutput": "{}",
+    "stringEndingsFixed": 781,
+    "fixedEndingsByFile": {
+      "apps/start-scaffold/README.md": 7,
+      "apps/start-scaffold/maintain/proof-no-overwrite.mjs": 1,
+      "apps/start-scaffold/maintain/proof-registry.mjs": 3,
+      "apps/start-scaffold/public/r/auth-pages-example.json": 24,
+      "apps/start-scaffold/public/r/counter-example.json": 24,
+      "apps/start-scaffold/public/r/example-wiring.json": 24,
+      "apps/start-scaffold/public/r/postgres-auth-mail-example.json": 143,
+      "apps/start-scaffold/public/r/profile-example.json": 24,
+      "apps/start-scaffold/public/r/registry.json": 323,
+      "apps/start-scaffold/public/r/starter.json": 58,
+      "apps/start-scaffold/public/r/todos-example.json": 24,
+      "apps/start-scaffold/registry.json": 84,
+      "apps/start-scaffold/templates/demo-frontend-Profile.tsx.txt": 8,
+      "apps/start-scaffold/templates/demo-frontend-Todos.tsx.txt": 7,
+      "apps/start-scaffold/templates/demo-route.tsx.txt": 1,
+      "apps/start-scaffold/templates/demo-routes-profile.tsx.txt": 1,
+      "apps/start-scaffold/templates/demo-routes-todos.tsx.txt": 1,
+      "apps/start-scaffold/templates/demo.server.ts.txt": 4,
+      "apps/start-scaffold/templates/demo.ts.txt": 3,
+      "docs/roadmap/start-base/PROOF.md": 1,
+      "packages/start/tests/checks/examples.test.mjs": 13,
+      "apps/start-scaffold/maintain/registry-source.mjs": 3
+    },
+    "oldProofEndingsRemovedWithFullOutput": 101,
+    "rule": {
+      "command": "node scripts/check-import-extensions.mjs",
+      "scope": "Saved .md, .json and .txt files; decoded JSON strings and seam from fields",
+      "rejects": "Quoted module paths after from, import(, or side-effect import with .ts/.tsx/.mts endings",
+      "keeps": "Asset/query imports and physical file/copy target paths",
+      "hits": 0,
+      "gate": "pnpm validate; 18 lanes passed"
+    },
+    "tests": {
+      "rootPassed": 1855,
+      "reactSkipped": 1,
+      "startPassed": 404,
+      "doctorExampleTestsPassed": 9,
+      "cleanupAndSavedTextTestsPassed": 5,
+      "writerTrialPassed": 93,
+      "coreDistPassed": 866
+    },
+    "doctorRegression": {
+      "originalMainItem": "No-ending assertion FAIL (expected)",
+      "fixedItem": "No-ending assertion PASS",
+      "todoSuggestionLines": 10,
+      "typeScriptModuleEndings": 0
+    },
+    "registry": {
+      "items": 10,
+      "emittedFilesMatchingSource": 90,
+      "realServiceProof": "PASS; auth, SMTP, migrations, two-tab sync and profile page",
+      "cleanup": "Browser sessions, server, relay and own Compose project stopped"
+    },
+    "lint": {
+      "exit": 0,
+      "errors": 0,
+      "warnings": 28
+    },
+    "prose": {
+      "exit": 0,
+      "hits": 0
+    },
+    "census": {
+      "regularExit": 0,
+      "savedRuleHits": 0,
+      "strictBranchExit": 1,
+      "strictMainExit": 1,
+      "branchOldHits": 89,
+      "mainOldHits": 89,
+      "existingRuleCountsMatch": true,
+      "S17Hits": 0
+    },
+    "notRun": ["Mutation runs", "Publishing", "Pushing", "Landing on main"],
+    "proofPolicy": "Headers and summaries only; full output remains in /tmp logs.",
+    "extraStringEndingsFixed": 212
+  }
 }
