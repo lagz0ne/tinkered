@@ -849,4 +849,51 @@ Nothing was tagged, pushed, or published.
 - The entry hint changes the output hash and shifts source maps.
   `tinker({ compileHints: false })` turns it off.
 - Tests are plain glue tests; no server or browser in a test.
-- Proof and gates: pending.
+- Curl, default start-min build:
+  - JS: 493,719 B before; gzip 153,948 B; Brotli 133,123 B.
+  - HTML: 2,063 B before; gzip 1,092 B; Brotli 1,038 B.
+  - The 1 B CSS file grows to 21 B gzip or 5 B Brotli.
+    Small files can grow when compressed.
+  - JS and CSS keep the one-year cache.
+    JS, CSS, and HTML vary by accepted encoding.
+  - HEAD has no body and keeps the chosen encoding.
+- Queue: **verdict: b is faster**.
+  Eight pairs, one run per side; 5,000 page-file misses.
+  A: clean `origin/main` tree at `df2a6da8`.
+  B: clean tree at `9c1e9cc1`.
+  This measures file lookup, not the whole app request.
+- Chrome: three cold loads per side, fresh browser each time.
+  Main-thread lazy functions: median 872 before, 17 after.
+  `V8.CompileCode`: median 429.1 ms before, 1.0 ms after.
+  Each load showed Hello, world and finished hydration.
+  The shared host was busy; total page speed is not proven.
+- A source-map build also passes:
+  the entry starts with the hint, and its map starts with
+  an empty line; 145 source files are mapped.
+- Twelve new glue tests; four old-behavior checks fail
+  with main's serving code behind a call-shape adapter.
+  They cover the fixed file list, cache and HEAD rules,
+  on-demand compression, and use of the built copy.
+- Package tests: 416 pass with a 60 s default timeout
+  and two workers; changed glue tests: 29 pass unchanged.
+- Gates: build 0, check 0, prose 0, validate 0 (18 lanes).
+  The first whole test run exits 1 on four flight timeouts.
+  A last run with one task at a time exits 1 on one:
+  `supplier.test.ts`, search shared by suppliers A and B.
+  The same test also times out in the clean main tree.
+  All four pass with a 60 s default timeout and one worker.
+- Scaffold check: first run 1, Postgres health check failed;
+  full rerun 0; main's compose check also passes.
+- Jev: preflight 0; tests 0 flags; promises 0 gaps.
+  No labels were added.
+  The source judge and promise list skip `.mjs` files;
+  the test judge read the changed `.mjs` tests by path.
+- Mutation: read the clean-tree header and table in
+  `proof/serve-fast-mutation.txt`; floor 75 on kills alone.
+- [Receipts](proof/serve-fast-gates.txt).
+- Kept the study's entry-only hint and map shift.
+  Added a hash contribution so the hint changes the URL.
+  Brotli quality is 11 at build and 4 while serving.
+- No Core feedback: this change uses plain host glue.
+- Held: total SSR speed, Chrome memory, other browsers,
+  and prerendered HTML created after the output hook.

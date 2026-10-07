@@ -1,0 +1,184 @@
+start/serve-fast, 2026-10-07
+Base: df2a6da8 (origin/main at setup)
+Measured B: 9c1e9cc1, clean; later changes are proof and docs only
+Assumption: dist/client stays fixed until the host restarts
+
+git fetch origin && git rebase origin/main: EXIT 0
+vp install: EXIT 0
+vp run -r build: EXIT 0
+vp check: EXIT 0 (28 warnings)
+vp run -r test: EXIT 1 (four flight test timeouts)
+vp run -r --concurrency-limit 1 test: EXIT 1 (supplier shared-search timeout)
+vp run prose: EXIT 0
+vp run @tinker-start-scaffold#check: EXIT 1 first (Postgres unhealthy); EXIT 0 rerun
+pnpm validate: EXIT 0, all 18 lanes pass
+vp test --testTimeout 60000 --maxWorkers 2 (packages/start): EXIT 0; 416 tests
+Four failed flight tests, 60 s default timeout and one worker: EXIT 0; 4 tests
+Changed glue tests: EXIT 0; 29 tests
+Main sync tests: EXIT 1; 31 timeouts, 3 pass
+Main typecheck test: EXIT 1; 5 s timeout
+Main supplier shared-search test: EXIT 1; 5 s timeout
+Main scaffold compose test: EXIT 0
+Source-map build: EXIT 0; entry hint and map line shift; 145 sources
+Regression adapter: old asset(root, request) behind createAssets(root) call shape
+Regression tests on old serving code: EXIT 1; all four outcomes fail
+  a host keeps its file list until restart
+  unhashed assets need revalidation and HEAD has no body
+  JS, CSS, and HTML compress on demand with Vary
+  the host uses a build's compressed copy
+
+Jev preflight: EXIT 0; no changed TypeScript source units
+Jev tests: EXIT 0; 0/29 flagged
+Jev promises: EXIT 0; 0/175 gaps, 45 unsure; tool skips .mjs titles
+Labels: none
+Style census: OK
+Core feedback: none; plain glue only
+
+Queue command from clean /home/paseo/next/serve-fast-base:
+benchctl ab --rounds 8 --runs-per-round 1
+  --a 'node ../../.cache/tinkered-briefs/serve-fast-probe.mjs .'
+  --b 'node ../../.cache/tinkered-briefs/serve-fast-probe.mjs ../fix-serve-fast'
+Probe calls serving glue for 5,000 page misses, alternating / and /posts/1.
+No server, SSR, or network in the queue probe.
+
+A median 1148 ms   B median 194 ms
+delta -953.6 ms (-83.1%)   95% range [-1024.2, -918.7] ms
+verdict: b is faster
+(waited 784.9s in the queue)
+
+Curl: default start-min build, localhost, raw transfer; no --compressed.
+
+serve-fast-base /assets/index-B7mgwKzW.js identity
+cache-control: public,max-age=31536000,immutable
+content-type: text/javascript
+content-length: 493719
+WIRE_BYTES=493719
+
+serve-fast-base /assets/index-B7mgwKzW.js gzip
+cache-control: public,max-age=31536000,immutable
+content-type: text/javascript
+content-length: 493719
+WIRE_BYTES=493719
+
+serve-fast-base /assets/index-B7mgwKzW.js br
+cache-control: public,max-age=31536000,immutable
+content-type: text/javascript
+content-length: 493719
+WIRE_BYTES=493719
+
+serve-fast-base /assets/style-x1XGuNl0.css identity
+cache-control: public,max-age=31536000,immutable
+content-type: text/css
+content-length: 1
+WIRE_BYTES=1
+
+serve-fast-base /assets/style-x1XGuNl0.css gzip
+cache-control: public,max-age=31536000,immutable
+content-type: text/css
+content-length: 1
+WIRE_BYTES=1
+
+serve-fast-base /assets/style-x1XGuNl0.css br
+cache-control: public,max-age=31536000,immutable
+content-type: text/css
+content-length: 1
+WIRE_BYTES=1
+
+serve-fast-base / identity
+content-type: text/html; charset=utf-8
+WIRE_BYTES=2063
+
+serve-fast-base / gzip
+content-type: text/html; charset=utf-8
+WIRE_BYTES=2063
+
+serve-fast-base / br
+content-type: text/html; charset=utf-8
+WIRE_BYTES=2063
+
+fix-serve-fast /assets/index-QzMdsY6j.js identity
+cache-control: public,max-age=31536000,immutable
+content-length: 493748
+content-type: text/javascript
+vary: Accept-Encoding
+WIRE_BYTES=493748
+
+fix-serve-fast /assets/index-QzMdsY6j.js gzip
+cache-control: public,max-age=31536000,immutable
+content-encoding: gzip
+content-length: 153948
+content-type: text/javascript
+vary: Accept-Encoding
+WIRE_BYTES=153948
+
+fix-serve-fast /assets/index-QzMdsY6j.js br
+cache-control: public,max-age=31536000,immutable
+content-encoding: br
+content-length: 133123
+content-type: text/javascript
+vary: Accept-Encoding
+WIRE_BYTES=133123
+
+fix-serve-fast /assets/style-x1XGuNl0.css identity
+cache-control: public,max-age=31536000,immutable
+content-length: 1
+content-type: text/css
+vary: Accept-Encoding
+WIRE_BYTES=1
+
+fix-serve-fast /assets/style-x1XGuNl0.css gzip
+cache-control: public,max-age=31536000,immutable
+content-encoding: gzip
+content-length: 21
+content-type: text/css
+vary: Accept-Encoding
+WIRE_BYTES=21
+
+fix-serve-fast /assets/style-x1XGuNl0.css br
+cache-control: public,max-age=31536000,immutable
+content-encoding: br
+content-length: 5
+content-type: text/css
+vary: Accept-Encoding
+WIRE_BYTES=5
+
+fix-serve-fast / identity
+content-type: text/html; charset=utf-8
+vary: Accept-Encoding
+WIRE_BYTES=2063
+
+fix-serve-fast / gzip
+content-encoding: gzip
+content-type: text/html; charset=utf-8
+vary: Accept-Encoding
+WIRE_BYTES=1092
+
+fix-serve-fast / br
+content-encoding: br
+content-type: text/html; charset=utf-8
+vary: Accept-Encoding
+WIRE_BYTES=1038
+
+fix-serve-fast HEAD / br
+HTTP/1.1 200 OK
+content-encoding: br
+content-type: text/html; charset=utf-8
+vary: Accept-Encoding
+Date: Wed, 07 Oct 2026 14:33:54 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+
+
+Chrome: agent-browser --engine chrome --session serve-fast on every command
+Categories: devtools.timeline,v8,disabled-by-default-v8.compile
+Fresh Chrome per load; before/after alternated; hydration true in all six.
+Before V8.CompileCode ms: 99.5, 529.3, 429.1; median 429.1
+After V8.CompileCode ms: 1.0, 1.0, 1.0; median 1.0
+Before lazy functions: 873, 872, 872; median 872
+After lazy functions: 17, 17, 17; median 17
+Trace files: /home/paseo/.cache/tinkered-briefs/serve-fast-{before,after}-{1,2,3}.json
+Chrome traces are diagnostic, not a queue verdict on total page time.
+Brotli: build quality 11; serving quality 4.
+Not proven: total SSR time, Chrome memory, other engines, post-hook prerender compression.
+No push or publish; proof servers stopped by their own PIDs.
