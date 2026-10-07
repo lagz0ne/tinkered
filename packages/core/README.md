@@ -393,6 +393,7 @@ point that actually starts it.
 Resources read `ctx.closing`; extension hooks read `event.closing`.
 It is an `AbortSignal` that fires when the owner begins closing.
 It fires on graceful and forced close, before Core drains running work.
+Its reason keeps the web abort name `AbortError` and code `20`.
 A parent's closing also fires in its child sessions.
 Closing one session leaves its parent and siblings live.
 Each owner keeps the same signal, created on first read.
@@ -925,6 +926,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A closed scope's held controller reads the initial value back; late writes fail with `Disposed`.
 - Close runs children first, then `onClose` hooks and cleanups latest-first — a later `onClose` before
   an earlier resource cleanup; a dependent's cleanup before its dependency's.
+- With no body, child, or pending work, close runs synchronous cleanup in its first promise job.
+  It adds no wait between synchronous cleanups.
+  If a cleanup returns a promise, close waits for it before the next cleanup.
+- A destructured operation defer keeps its run's cleanup.
 - A throwing hook or cleanup never stops the rest: every cause lands in teardown errors, in order.
 - Close is safe to repeat: hooks run once, a re-entering close tears down once, closing again re-reports.
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close

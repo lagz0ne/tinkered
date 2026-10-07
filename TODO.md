@@ -38,6 +38,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/op-fast** — use the five proven run and close fixes.
+  Owner: writer (Codex, op-fast session); lead reviews and lands.
+  Next: apply the study patches and check run hooks and close.
+  Verify: Core gate, size cap, queue verdicts, inline proof,
+  and a clean-commit fault score of 85 on kills alone.
+  [Track](docs/roadmap/core-v1/PROGRESS.md#coreop-fast).
+
 - **perf round 1 fixes** — four Sol writers land the study's proven fixes (study: `/home/paseo/perf/index.html`).
   Owner: lead (Claude, Start scaffold session). Cards: `start/telemetry-fast` (queue bytes, 32 KB browser cap, zod off the client),
   `start/ssr-telemetry-root` (one telemetry root per process), `start/serve-fast` (compression, static set, compile hint),

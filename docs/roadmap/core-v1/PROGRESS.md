@@ -1459,3 +1459,77 @@ It ran alone, after the bench, once another lane let go of the lock.
 Saved work waits in Review.
 The lead owns review and `scripts/ticket.sh` at landing.
 This writer does not push.
+
+## core/op-fast
+
+Owner: writer (Codex, op-fast session); lead reviews and lands.
+Base: `105e85a0` from `origin/main`, built in its own clean worktree.
+
+### Change
+
+Started from all five patches in the writer brief.
+The operation context makes its defer function only when read.
+Settle uses a value helper without a new function for each call.
+Run hooks enter and leave their access window without extra functions.
+A bodyless close with no child or pending work drains sync cleanup in one promise job.
+A cleanup that returns a promise still delays the next cleanup and the close result.
+The first close still owns the mode and result.
+All six extension hook kinds remain.
+
+The closing signal uses one shared cancel reason with no stack.
+The reason keeps web abort code 20: Start's HTTP tests require it.
+The study patch omitted that code and failed two consumer tests here.
+The shipped tests keep the old output without a per-close stack.
+
+The call guard adds one branch to `runOnce`.
+Dropped its redundant span guard to stay within the code check's branch cap.
+`closeSpan` already returns at once when there is no span.
+
+### Tests
+
+Added five behavior checks in `packages/core/tests/op-fast.test.ts`.
+The two sync-close checks failed on unpatched main, exit 1.
+They pin no extra promise turns, cleanup order, both close result shapes,
+and the same result when a later close asks for the other mode.
+The other checks cover waiting for async cleanup,
+a destructured operation defer, and the closing reason's web abort code.
+Existing tests cover order and skipping `next()` for run, session,
+resolve, write, start, and close hooks.
+
+### Assumptions
+
+The writer saves work for lead review; the lead owns landing on main.
+No push or publish, as the common brief requires.
+The Core checkpoint runs in check-only mode with its global mutation step off.
+Its mutation step hides failures and runs every package at once.
+Core's own lane runs alone under the lock and its exit code is recorded.
+There is no `close` scenario in the shared probe.
+Use its `lifecycle` scenario and a separate close loop through the queue.
+
+### Proof
+
+Full gate, size, queue, inline, and clean-commit fault proof follow here.
+
+First green checks: build, code check (0 errors, 28 warnings),
+Core source (861 tests), Core built files (871 tests),
+Start HTTP and sync (60 tests), prose, and scaffold check all returned 0.
+The changed-declaration style census returns 0.
+The whole Core file has four prior census hits; clean main has the same four.
+They are two tracked `thenDone` calls, a browser UUID comment,
+and the first panic's array read (its doc explains the speed cost of destructuring).
+No new hit; left those lines outside this card's hot-path diff.
+TSDoc shape: zero S26 rows.
+The first V8 trace confirms the context constructor inlines into `runOnce`.
+
+Size, measured after each patch in order:
+
+- Main: 15,367 B gzip across all runtime files.
+- Context inline: 15,392 B (+25).
+- Hook functions: 15,428 B (+36).
+- Lazy defer and settle: 15,474 B (+46).
+- Sync-first close: 15,715 B (+241).
+- Shared closing reason: 15,718 B (+3).
+- Redundant span guard removed: -8 B.
+- Closing reason web code kept: +16 B.
+- Final code: 15,726 B; total +359 B; cap 16,384 B.
+- Hot names end at V8 slot 255; no slot headroom remains.

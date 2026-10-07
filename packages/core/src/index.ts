@@ -2116,7 +2116,13 @@ class OperationControl<T, I> {
     if (this.settler === undefined) {
       const layer = this.layer;
       const twin = OperationControl.recover(this);
-      this.settler = (call) => settleRun(layer, () => twin.run(call), call?.signal);
+      this.settler = (call) => {
+        try {
+          return settledValue(layer, twin.run(call), call?.signal);
+        } catch (error) {
+          return failedRun(layer, error, call?.signal);
+        }
+      };
     }
     return this.settler;
   }
@@ -2229,6 +2235,11 @@ class CancelReason {
   }
 }
 
+/** One reason for every close signal (`ctx.closing`): a no-reason `abort()` mints a
+ * `DOMException` with a stack capture per close. Keep its web abort code for callers that
+ * pass the closing signal to I/O and report that code. */
+const CLOSING_REASON = Object.assign(new CancelReason(), { code: 20 });
+
 function isCancelReason(error: unknown): boolean {
   return typeof error === "object" && error !== null && cancelBrand in error;
 }
@@ -2320,6 +2331,17 @@ function runBody<T, I>(
   pending: PendingSlot[] | undefined,
 ): T {
   if (pending === undefined) return override ? override(deps, ctx) : target.run(deps, ctx);
+  return runParked(override, target, deps, ctx, pending);
+}
+
+/** The parked tail of {@link runBody}, out of line so its closure stays out of the hot inline budget. */
+function runParked<T, I>(
+  override: Operation.Handle<T, I>["run"] | undefined,
+  target: Operation.Handle<T, I>,
+  deps: Record<string, unknown>,
+  ctx: Operation.Ctx<I>,
+  pending: PendingSlot[],
+): T {
   return settleDeps(deps, pending).then(() =>
     override ? override(deps, ctx) : target.run(deps, ctx),
   ) as T;
@@ -2352,16 +2374,21 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     const given = call?.input;
     const rawInput = given !== undefined ? given : call?.rawInput;
     this.rawInput = rawInput;
-    this.input = given !== undefined ? given : parseInput(target, rawInput);
+    this.input =
+      given !== undefined ? given : target.input ? parseInput(target, rawInput) : (undefined as I);
     this.span = span;
     this.clock = owner.clock;
     this.random = owner.random;
   }
+  private deferFn: ((fn: (end: Scope.End) => void | PromiseLike<void>) => void) | undefined;
   /** These callbacks belong to this run. An async tail or teardown error grows the layer at
-   * its own gate; a close during cleanup grows it through the active tagged stack. */
-  readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    (this.hooks ??= []).push(fn);
-  };
+   * its own gate; a close during cleanup grows it through the active tagged stack. Built on the
+   * first read and kept, so a run that never defers pays no closure. */
+  get defer(): (fn: (end: Scope.End) => void | PromiseLike<void>) => void {
+    return (this.deferFn ??= (fn) => {
+      (this.hooks ??= []).push(fn);
+    });
+  }
   get obs(): Observe.Ctx {
     return (this.tools ??= obsCtx(this.layer, this.span));
   }
@@ -2664,9 +2691,17 @@ function runOnce<T, I>(
   sees: boolean,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
-  if (hasCallNs(call))
-    return runNsCall(layer, target, up, caller, call as Scope.Invocation<I> & { readonly ns: Ns });
+  if (call !== undefined) {
+    if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
+    if (hasCallNs(call))
+      return runNsCall(
+        layer,
+        target,
+        up,
+        caller,
+        call as Scope.Invocation<I> & { readonly ns: Ns },
+      );
+  }
   ensureRunning(layer, caller);
   const obs = layer.obs;
   const span = openSpan(obs, layer, up, target.label, "operation");
@@ -2697,7 +2732,7 @@ function runOnce<T, I>(
     buildDepth--;
   }
   if (!isThenable(result)) {
-    if (span) closeSpan(obs, span, "ok");
+    closeSpan(obs, span, "ok");
     finishRun(layer, ctx, held, "ok");
     return result;
   }
@@ -3988,7 +4023,7 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
     /** Graceful drain retains state; call entry checks `closing` instead. */
     layer.closed = force || layer.aborted;
     layer.closing = startClose(layer, force, hooks, withData);
-    layer.closeAbort?.abort();
+    layer.closeAbort?.abort(CLOSING_REASON);
   }
   /** A `close()` re-entered from within this layer's (or an ancestor's) own teardown is a request-only
    * acknowledgement: return an already-resolved best-effort `Result` so it never waits on itself (no
@@ -4067,8 +4102,30 @@ function startClose(
 ): Promise<Scope.Result> {
   const forced = force || layer.aborted;
   markSwept(layer);
-  const run = async (): Promise<Scope.Result> => {
+  /** Sync first: with no body to read, no child, and no owned work, nothing below waits unless a
+   * defer returns a promise, so the whole teardown runs in this one job and the close settles on
+   * the next tick (perf probe; the async `run` keeps every other case). */
+  const first = (): Scope.Result | Promise<Scope.Result> => {
     if (forced) abortSubtree(layer);
+    if (layer.bodyEnd !== undefined || layer.children.size !== 0 || layer.pending.size !== 0)
+      return run();
+    prepareTeardown(layer, forced, undefined);
+    layer.closed = true;
+    const settled = settleOutcome(layer, undefined);
+    const built = collectLayerInstances(layer);
+    const wait = built.length
+      ? closeInstancesSync(layer, settled, built)
+      : drainDefersSync(layer, layer.hooks, settled);
+    return wait ? wait.then(tail) : tail();
+  };
+  const tail = (): Scope.Result | Promise<Scope.Result> => {
+    const finalSettled = settleOutcome(layer, undefined);
+    const keeps = hooks !== undefined || withData;
+    const teardownErrors = finishLayer(layer, keeps);
+    const ended = buildResult(finalSettled, layer, teardownErrors);
+    return keeps ? keepData(layer, ended, hooks, withData) : ended;
+  };
+  const run = async (): Promise<Scope.Result> => {
     /** Read the end recorded when the body settled, before its own close abort (Q5).
      * A bodyless layer gets its outcome from the close request. */
     const body = await layer.bodyEnd;
@@ -4090,7 +4147,82 @@ function startClose(
     const ended = buildResult(finalSettled, layer, teardownErrors);
     return keeps ? keepData(layer, ended, hooks, withData) : ended;
   };
-  return READY.then(run);
+  return READY.then(first);
+}
+
+/** {@link closeInstances} without a yield when no step waits; a promise only when one does. */
+function closeInstancesSync(
+  layer: Layer,
+  settled: Scope.Outcome,
+  built: ResourceInstance[],
+): Promise<void> | undefined {
+  for (const owned of built) unlinkInstance(owned, settled);
+  const wait = drainDefersSync(layer, [...layer.hooks], settled);
+  return wait ? wait.then(() => finishBuilt(layer, built)) : finishBuilt(layer, built);
+}
+
+function finishBuilt(layer: Layer, built: ResourceInstance[]): Promise<void> | undefined {
+  for (const owned of built) {
+    const finished = finishInstance(owned);
+    if (finished) ignoreRejection(finished);
+  }
+  return layer.pending.size ? joinPending(layer) : undefined;
+}
+
+async function joinPending(layer: Layer): Promise<void> {
+  while (layer.pending.size) await Promise.all(layer.pending);
+}
+
+/** {@link drainEntries} in this job until an entry returns a promise; the rest waits on it. */
+function drainDefersSync(
+  layer: Layer,
+  entries: DeferEntry[],
+  end: Scope.End,
+): Promise<void> | undefined {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const pending = drainEntrySync(layer, entries[i], end);
+    if (pending) return drainRest(layer, entries, i, pending, end);
+  }
+  return undefined;
+}
+
+async function drainRest(
+  layer: Layer,
+  entries: DeferEntry[],
+  i: number,
+  pending: Promise<void>,
+  end: Scope.End,
+): Promise<void> {
+  await pending;
+  for (let j = i - 1; j >= 0; j--) await drainCloseEntry(layer, entries[j], end);
+}
+
+/** One {@link drainCloseEntry} step: `undefined` when it finished in this job. */
+function drainEntrySync(
+  layer: Layer,
+  entry: DeferEntry,
+  end: Scope.End,
+): Promise<void> | undefined {
+  if (entry.owned) {
+    const owned = entry.owned as ResourceInstance;
+    if (isHeld(owned)) {
+      finishTracked(owned);
+      return undefined;
+    }
+    return finishHook(owned, entry.fn);
+  }
+  let pending: void | PromiseLike<void>;
+  tearing.push(layer);
+  try {
+    pending = entry.fn(end);
+  } catch (cause) {
+    addError(layer, cause);
+    return undefined;
+  } finally {
+    tearing.pop();
+  }
+  if (!isThenable(pending)) return undefined;
+  return Promise.resolve(pending).then(undefined, (cause: unknown) => addError(layer, cause));
 }
 
 /** Detach the layer and clear all its state after teardown; returns the collected teardown errors
@@ -4198,7 +4330,7 @@ function endInPlace(layer: Layer): void {
   layer.closed = true;
   layer.aborted = true;
   layer.closing = ENDED_CLEAN;
-  layer.closeAbort?.abort();
+  layer.closeAbort?.abort(CLOSING_REASON);
   finishLayer(layer, false);
 }
 
@@ -4397,24 +4529,22 @@ function handleFor(layer: Layer): Scope.Handle {
     return (controllerOf(op) as { run(call?: Scope.Invocation<I>): T }).run(call);
   }) as Scope.Handle["run"];
   /** `settle` runs through a twin controller whose caller is RECOVERED; `run` stays as it was. */
-  const settle = ((op: unknown, call?: Scope.Invocation<unknown>) =>
-    settleRun(
-      layer,
-      () => {
-        ensureRunning(layer);
-        if (!isOperation(op))
-          return runInline(
-            layer,
-            op as Scope.Inline<Scope.Depends, unknown, unknown>,
-            call,
-            RECOVERED,
-          );
-        return OperationControl.recover(controllerOf(op) as OperationControl<unknown, unknown>).run(
-          call,
-        );
-      },
-      call?.signal,
-    )) as Scope.Handle["settle"];
+  const settle = ((op: unknown, call?: Scope.Invocation<unknown>) => {
+    try {
+      ensureRunning(layer);
+      return settledValue(
+        layer,
+        isOperation(op)
+          ? OperationControl.recover(controllerOf(op) as OperationControl<unknown, unknown>).run(
+              call,
+            )
+          : runInline(layer, op as Scope.Inline<Scope.Depends, unknown, unknown>, call, RECOVERED),
+        call?.signal,
+      );
+    } catch (error) {
+      return failedRun(layer, error, call?.signal);
+    }
+  }) as Scope.Handle["settle"];
   return {
     controller,
     resolve,
@@ -5008,15 +5138,23 @@ function settleRun(
   signal?: AbortSignal,
 ): RunResult<unknown> | Promise<RunResult<unknown>> {
   try {
-    const result = run();
-    if (!isThenable(result)) return { status: "success", value: result };
-    return Promise.resolve(result).then(
-      (value): RunResult<unknown> => ({ status: "success", value }),
-      (error: unknown) => failedRun(layer, error, signal),
-    );
+    return settledValue(layer, run(), signal);
   } catch (error) {
     return failedRun(layer, error, signal);
   }
+}
+
+/** `settleRun` once the run returned: a value is `success`; a promise settles to one. */
+function settledValue(
+  layer: Layer,
+  result: unknown,
+  signal?: AbortSignal,
+): RunResult<unknown> | Promise<RunResult<unknown>> {
+  if (!isThenable(result)) return { status: "success", value: result };
+  return Promise.resolve(result).then(
+    (value): RunResult<unknown> => ({ status: "success", value }),
+    (error: unknown) => failedRun(layer, error, signal),
+  );
 }
 
 /** `settle` received `error`: each stuck panic on its cause chain is recovered (Go's `recover`). */
@@ -5036,7 +5174,7 @@ function closingOf(layer: Layer): AbortSignal {
   for (let owner: Layer | undefined = layer; owner !== undefined; owner = owner.up) {
     signals.push((owner.closeAbort ??= new AbortController()).signal);
   }
-  if (layer.closed || layer.closing || layer.swept) layer.closeAbort!.abort();
+  if (layer.closed || layer.closing || layer.swept) layer.closeAbort!.abort(CLOSING_REASON);
   return (layer.stop = AbortSignal.any(signals));
 }
 
@@ -5049,7 +5187,7 @@ function detachLayer(layer: Layer): Layer | undefined {
 }
 
 function beginClosing(layer: Layer): void {
-  layer.closeAbort?.abort();
+  layer.closeAbort?.abort(CLOSING_REASON);
 }
 
 /** Run the extensions' `start` onion (ADR 0050): registration order, first is outermost. Each
@@ -5816,18 +5954,45 @@ function invokeRunHooks<T, I>(
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined,
 ): unknown {
-  const runs = run.layer.exts.runs ?? [];
-  const at = (index: number): unknown =>
-    withHookAccess(run, () => {
-      if (index === runs.length) return runHookBody(run, target, chain);
-      const ext = runs[index];
-      const op = hookTarget as
-        | Operation.Handle<unknown, unknown>
-        | Scope.Inline<Scope.Depends, unknown, unknown>;
-      const next = (): unknown => at(index + 1);
-      return ext.hooks!.run!(new RunEvent(run, ext.label, chain, op, call, next));
-    });
-  return at(0);
+  return stepRunHook(run, target, hookTarget, call, chain, run.layer.exts.runs ?? [], 0);
+}
+
+/** Enter a hook's access window, as {@link withHookAccess} does, without a thunk. */
+function enterHookAccess(run: HookRun): typeof activeHookOwner {
+  if (!run.live) raise("Disposed", { reason: "run is finished" });
+  if (run.layer.aborted) throw run.layer.reason;
+  const previous = activeHookOwner;
+  activeHookOwner = run.layer;
+  buildDepth++;
+  return previous;
+}
+
+function exitHookAccess(previous: typeof activeHookOwner): void {
+  buildDepth--;
+  activeHookOwner = previous;
+}
+
+function stepRunHook<T, I>(
+  run: HookRun,
+  target: Operation.Handle<T, I>,
+  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
+  call: Scope.Invocation<I> | undefined,
+  chain: readonly Namespace[] | undefined,
+  runs: NonNullable<ExtRoutes["runs"]>,
+  index: number,
+): unknown {
+  const previous = enterHookAccess(run);
+  try {
+    if (index === runs.length) return runHookBody(run, target, chain);
+    const ext = runs[index];
+    const op = hookTarget as
+      | Operation.Handle<unknown, unknown>
+      | Scope.Inline<Scope.Depends, unknown, unknown>;
+    const next = (): unknown => stepRunHook(run, target, hookTarget, call, chain, runs, index + 1);
+    return ext.hooks!.run!(new RunEvent(run, ext.label, chain, op, call, next));
+  } finally {
+    exitHookAccess(previous);
+  }
 }
 
 function runHookBody<T, I>(
@@ -5848,9 +6013,19 @@ function runHookBody<T, I>(
     const deps = readOpDeps(run.layer, target, ctx.span, run.held, chain, ctx);
     const pending = parked;
     const override = presetFor(run.layer, target) as Operation.Handle<T, I>["run"] | undefined;
-    const body = (): T =>
-      withHookAccess(run, () => runBody(override, target, deps, ctx, undefined));
-    const result = pending === undefined ? body() : settleDeps(deps, pending).then(body);
+    let result: unknown;
+    if (pending === undefined) {
+      const previous = enterHookAccess(run);
+      try {
+        result = runBody(override, target, deps, ctx, undefined);
+      } finally {
+        exitHookAccess(previous);
+      }
+    } else {
+      result = settleDeps(deps, pending).then(() =>
+        withHookAccess(run, () => runBody(override, target, deps, ctx, undefined)),
+      );
+    }
     if (isThenable(result)) {
       const ready = Promise.resolve(result);
       (run.work ??= []).push(ready);
