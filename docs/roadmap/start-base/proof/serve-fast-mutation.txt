@@ -1,0 +1,13 @@
+$ git rev-parse HEAD
+378ae59f0ea1c1d30260ab12ce111e39b9491b66
+$ git status --porcelain
+$ flock /tmp/mutation.lock vp run @tinker/start#mutate
+
+EXIT 1
+Initial test failed: a root that never listened closes clean.
+File: packages/start/tests/sync.test.ts:426
+Error: Test timed out in 5000ms.
+Summary table: not produced; mutation testing did not start.
+Kills-only score: unavailable; the 75 floor is not proven.
+One run on the rebased HEAD, as the lead requested.
+Old-base results do not count.
