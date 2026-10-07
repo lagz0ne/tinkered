@@ -38,13 +38,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **repo/no-import-extensions** — no TypeScript import names a `.ts`, `.tsx`, or `.mts` ending, anywhere.
-  User 2026-10-07: "remove every extension import and change writing prose to not having that again".
-  Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-no-ext`.
-  `allowImportingTsExtensions` off and bundler resolution, so `tsc` rejects a `.ts` import.
-  House style, style census, contributor brief, trial guidelines, and a doctor check say so too.
-  No mutation run (user). Lands after start/github-release and start/registry-no-overwrite; the first release waits for it.
-  Verify: a grep finds no `.ts` import ending; every gate passes.
+- **repo/no-import-extensions** — drop TypeScript import endings across the repo.
+  Owner: Codex writer; branch `repo/no-import-extensions`.
+  Next: save a safe repeat script, then its output, then checks and docs.
+  Verify: build, check, tests, prose, registry, validate, ticket gate, and census pass.
+  No mutation runs; no push or publish.
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
