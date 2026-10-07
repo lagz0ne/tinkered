@@ -76,3 +76,49 @@ EXIT 0
 Earlier normal test gate: EXIT 1, only the new shared-read test hit its 5 s limit.
 The successful rerun above uses 30 s limits for the five new PGlite tests.
 No real sleep wait was added.
+
+Refresh after main moved during the first mutation run.
+That unfinished mutation run was stopped with SIGINT: EXIT 130.
+No result from that run is used as proof.
+Rebased onto origin/main 871b5a92c965a1e5ada35adfa01bc05bb32f04c6.
+Checked HEAD 0b84fbcf68a992e926552f70ad68805055817127.
+The sync source and tests are unchanged by the rebase.
+
+$ git fetch origin && git rebase origin/main
+EXIT 0
+$ vp install
+EXIT 0
+$ vp run -r build
+12 build tasks, no failed task.
+EXIT 0
+$ vp check
+Found 0 errors and 28 warnings in 636 files.
+EXIT 0
+$ vp run -r test
+All test tasks passed; Start: 413 tests, including 39 sync tests.
+EXIT 0
+$ vp run prose
+EXIT 0
+$ vp run @tinker-start-scaffold#check
+All checks passed, including isolated real-service proof.
+server PID 2858127 stopped: EXIT 0; signal none
+relay PID 2858081 stopped: EXIT 0
+EXIT 0
+$ pnpm validate
+All deterministic budget lanes PASS (18)
+EXIT 0
+
+Supplemental scaffold checks:
+$ vp run typecheck
+EXIT 0
+$ node scripts/check-plain.mjs --prove
+Plain proof passed: 177 planted cases.
+EXIT 0
+$ vp run doctor
+EXIT 1: local settings missing; no .env file exists.
+$ vp run doctor (child environment filled from .env.example)
+doctor: all checks pass
+EXIT 0
+$ node scripts/check-schema.mjs
+No schema changes; no new migration files or folders.
+EXIT 0

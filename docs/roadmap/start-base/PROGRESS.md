@@ -933,7 +933,7 @@ All 38 sync tests passed before the final retry test was added.
 The two stalled-client tests and the retry test pass too.
 The home page changed from 9,268 to 9,193 bytes.
 Its visible body stayed the same, and one snapshot copy is gone.
-All normal test tasks pass: Start has 410 tests, including 39 sync tests.
+All normal test tasks pass: Start has 413 tests, including 39 sync tests.
 The first full run hit the 5 s limit in the new shared-read test.
 The five new database tests now have a 30 s limit, with no sleep waits.
 Source census passes; seven private imports and one error-message check
@@ -957,6 +957,12 @@ Opening reads changed from 1,000 to one.
 Account reads stayed at 1,000 per commit; both sides sent 1,000 frames.
 Proof: [queue verdicts](proof/23-sync-fast-bench.txt)
 and [gates](proof/23-sync-fast-gates.txt).
+Main moved during the first mutation run, so that run was stopped.
+The branch was rebased onto `871b5a92`; no sync code or test changed.
+Install, build, and every normal gate passed again after the rebase.
+The scaffold's plain proof caught all 177 planted cases.
+Its doctor needs local settings and passes with `.env.example` values.
+No local services or secret values were added for that doctor check.
 Required final proof: a clean code commit and mutation kills alone at least 75%.
 The commit and result go in [the mutation log](proof/23-sync-fast-mutation.txt).
 Only that log is committed after the final mutation run.
