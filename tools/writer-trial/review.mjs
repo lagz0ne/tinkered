@@ -83,7 +83,6 @@ const TEACHER_HELPERS = {
     "flight-proxy.mjs",
     "flight-router.mjs",
     "flight-plain.mjs",
-    "flight-scaffold.mjs",
     "gate.mjs",
   ],
   "evaluate.mjs": ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"],
@@ -307,7 +306,6 @@ if (command === "save") {
         round,
         image: manifest.image,
         images: manifest.flightImages,
-        scaffold: JSON.parse(readFileSync(frozenPath("scaffold.json"))),
         logDir: checkDir,
         teacherPins: manifest.frozen?.teacher,
       });

@@ -27,6 +27,8 @@ function failedAlongsideMissingPlain(flight) {
     (flight.plainExit === 1 && flight.unavailable === "Image check:plain script unavailable");
   return (
     missingPlain &&
-    [flight.scaffoldExit, flight.ownExit, flight.teacherExit].some((exit) => exit === 1)
+    [flight.doctorExit, flight.scaffoldExit, flight.ownExit, flight.teacherExit].some(
+      (exit) => exit === 1,
+    )
   );
 }

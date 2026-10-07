@@ -38,13 +38,13 @@ const sandbox = [
 ];
 
 /** Submitted files stay in an app container; teacher code and credentials stay in a separate one. */
-export function checkFlight({ archive, round, image, images, scaffold, logDir, teacherPins }) {
+export function checkFlight({ archive, round, image, images, logDir, teacherPins }) {
   let snapshot;
   try {
     snapshot = readFlightTeacher(teacherPins, round);
   } catch (error) {
     const result = unavailableTeacher(error, teacherPins);
-    for (const name of ["own", "teacher", "scaffold", "plain"])
+    for (const name of ["own", "teacher", "doctor", "plain"])
       writeFileSync(join(logDir, `${name}.log`), `${result.unavailable}\nEXIT 1\n`);
     return result;
   }
@@ -56,7 +56,7 @@ export function checkFlight({ archive, round, image, images, scaffold, logDir, t
   const state = startFlight(prefix, images);
   let ownExit = 0,
     teacherExit = 0,
-    scaffoldExit = 0;
+    doctorExit = 0;
   const app = `${prefix}-app`;
   try {
     run([
@@ -82,7 +82,7 @@ export function checkFlight({ archive, round, image, images, scaffold, logDir, t
       readFileSync(archive),
     );
     const resetExit = resetRouter(app, own);
-    scaffoldExit = checkScaffold(app, scaffold, seam);
+    doctorExit = checkDoctor(app, seam);
     const plainResult = checkFlightPlain(app, plain);
     ownExit = checkOwn(app, own) || resetExit;
     teacherExit = checkTeacher(state, app, round, image, teacher, snapshot.files);
@@ -95,7 +95,7 @@ export function checkFlight({ archive, round, image, images, scaffold, logDir, t
     const result = {
       ownExit,
       teacherExit,
-      scaffoldExit,
+      doctorExit,
       ...plainResult,
       generatedRouterHash,
       images,
@@ -112,7 +112,7 @@ export function checkFlight({ archive, round, image, images, scaffold, logDir, t
   } finally {
     writeFileSync(join(logDir, "own.log"), own.join(""));
     writeFileSync(join(logDir, "teacher.log"), teacher.join(""));
-    writeFileSync(join(logDir, "scaffold.log"), seam.join(""));
+    writeFileSync(join(logDir, "doctor.log"), seam.join(""));
     writeFileSync(join(logDir, "plain.log"), plain.join(""));
     stopFlight(state);
   }
@@ -122,7 +122,7 @@ function unavailableTeacher(error, pins) {
   return {
     ownExit: null,
     teacherExit: 1,
-    scaffoldExit: null,
+    doctorExit: null,
     unscored: true,
     unavailable: `Teacher check unavailable: ${error.message}`,
     teacherHash: pins?.hash ?? null,
@@ -158,28 +158,32 @@ function checkRouter(app, own) {
   }
 }
 
-function checkScaffold(app, scaffold, seam) {
+function checkDoctor(app, log) {
   try {
-    run(
-      ["exec", "-i", app, "sh", "-c", "cat > /tmp/flight-scaffold.mjs"],
-      readFileSync(join(here, "flight-scaffold.mjs")),
-    );
-    seam.push(run(["exec", app, "node", "/tmp/flight-scaffold.mjs", JSON.stringify(scaffold)]));
-    seam.push(
+    log.push(
       run([
         "exec",
         app,
         "node",
-        "/home/pwuser/flight-seed/scripts/check-seam.mjs",
-        "/work/src/scaffold",
+        "/home/pwuser/flight-tools/node_modules/@tinker/start/bin/tinker.mjs",
+        "prepare",
       ]),
     );
-    seam.push("EXIT 0 scaffold\n");
+    log.push(
+      run([
+        "exec",
+        app,
+        "node",
+        "/home/pwuser/flight-tools/node_modules/@tinker/start/bin/tinker.mjs",
+        "doctor",
+      ]),
+    );
+    log.push("EXIT 0 doctor\n");
+    return 0;
   } catch (error) {
-    seam.push(`${error.stdout ?? ""}${error.stderr ?? ""}\nEXIT 1 scaffold\n`);
+    log.push(`${error.stdout ?? ""}${error.stderr ?? ""}\nEXIT 1 doctor\n`);
     return 1;
   }
-  return 0;
 }
 
 /** Run the image's trusted script on the submitted project, never a writer's replacement. */
@@ -307,22 +311,19 @@ function copyTeacher(container, files) {
 }
 
 if (import.meta.main) {
-  const [archive, round, image, configFile, scaffoldFile, logDir, manifestFile] =
-    process.argv.slice(2);
+  const [archive, round, image, configFile, logDir, manifestFile] = process.argv.slice(2);
   if (!manifestFile)
     throw new Error(
-      "flight-check <archive> <round> <image> <images.json> <scaffold.json> <log-dir> <manifest.json>",
+      "flight-check <archive> <round> <image> <images.json> <log-dir> <manifest.json>",
     );
   const result = checkFlight({
     archive,
     round: Number(round),
     image,
     images: JSON.parse(readFileSync(configFile)),
-    scaffold: JSON.parse(readFileSync(scaffoldFile)),
     logDir,
     teacherPins: JSON.parse(readFileSync(manifestFile)).frozen?.teacher,
   });
   console.log(JSON.stringify(result));
-  process.exitCode =
-    result.ownExit || result.teacherExit || result.scaffoldExit || result.plainExit;
+  process.exitCode = result.ownExit || result.teacherExit || result.doctorExit || result.plainExit;
 }

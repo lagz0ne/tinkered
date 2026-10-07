@@ -198,9 +198,12 @@ if (action === "create") {
       run("docker", ["exec", container, "sh", "-c", "cp -R /home/pwuser/flight-seed/. /work/"]);
       writeFileSync(
         join(seed, ".oxfmtrc.json"),
-        '{\n  "ignorePatterns": ["src/routeTree.gen.ts", "FEEDBACK.md", "TASK.md"]\n}\n',
+        '{\n  "ignorePatterns": [".tinker/**", ".tanstack/**", "src/routeTree.gen.ts", "FEEDBACK.md", "TASK.md"]\n}\n',
       );
-      writeFileSync(join(seed, ".prettierignore"), "TASK.md\nFEEDBACK.md\nsrc/routeTree.gen.ts\n");
+      writeFileSync(
+        join(seed, ".prettierignore"),
+        "TASK.md\nFEEDBACK.md\n.tinker/\n.tanstack/\nsrc/routeTree.gen.ts\n",
+      );
       const env = Object.entries(flightEnvironment())
         .map(([key, value]) => `${key}=${value}`)
         .join("\n");
@@ -209,7 +212,7 @@ if (action === "create") {
         join(seed, "SERVICES.md"),
         readFileSync(join(root, frozen.dir, "rules/SERVICES.md")),
       );
-      for (const file of ["scaffold.json", "starter.json"]) {
+      for (const file of ["starter.json"]) {
         const baseline = join(root, frozen.dir, file);
         run("docker", ["cp", `${container}:/home/pwuser/${file}`, baseline]);
         frozen.files[file] = sha256File(baseline);
@@ -225,11 +228,14 @@ if (action === "create") {
     writeFileSync(
       join(seed, ".gitignore"),
       suite === "flight"
-        ? "node_modules/\ndist/\n.env\n.vite/\nsrc/routeTree.gen.ts\n"
+        ? "node_modules/\ndist/\n.env\n.vite/\n.tinker/\n.tanstack/\nsrc/routeTree.gen.ts\n"
         : "node_modules/\ndist/\n.vite/\n",
     );
     run("docker", ["cp", `${seed}/.`, `${container}:/work`]);
-    if (suite === "flight") run("docker", ["exec", container, "vp", "fmt", ".oxfmtrc.json"]);
+    if (suite === "flight") {
+      run("docker", ["exec", container, "vp", "fmt", ".oxfmtrc.json"]);
+      run("docker", ["exec", container, "tinker", "prepare"]);
+    }
     run("docker", ["exec", container, "git", "init", "-q", "/work"]);
     run("docker", ["exec", container, "git", "-C", "/work", "add", "."]);
     run("docker", [
@@ -357,7 +363,7 @@ if (action === "create") {
         w.container,
         "node",
         "-e",
-        "require('node:fs').appendFileSync('/work/.prettierignore','\\nTASK.md\\nFEEDBACK.md\\nsrc/routeTree.gen.ts\\n');",
+        "require('node:fs').appendFileSync('/work/.prettierignore','\\nTASK.md\\nFEEDBACK.md\\n.tinker/\\n.tanstack/\\nsrc/routeTree.gen.ts\\n');",
       ]);
     const ext = join(w.dir, ".pi/extensions/trial");
     copyTrialTools(manifest.frozen ? join(root, manifest.frozen.dir, "tools") : here, ext);

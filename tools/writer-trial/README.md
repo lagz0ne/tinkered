@@ -153,16 +153,21 @@ It leaves service and dependency images and keepers unchanged.
 Other suites keep Playwright 1.55.0.
 The browser uses `flight-app`.
 Chromium tried HTTPS for the host name `app` in the proof.
-The image reads the Start registry's starter and its required items.
-It copies their files, tests, all five skills, and `AGENTS.md`.
+The image copies the app source, tests, scripts,
+all five skills, and `AGENTS.md`.
+It reads the app's starter package file.
 It uses the default `@/lib` alias.
-Core and React are packed tarballs, with no workspace links.
-Generated router files and frozen `TASK.md` are ignored by formatting.
+Start, Core, and React are packed tarballs, with no workspace links.
+Start's release script writes the base file hashes.
+The app uses the base's tested peer pins.
+After installing with scripts off, the image runs `tinker prepare`.
+Generated `.tinker/` and `.tanstack/` files,
+and frozen `TASK.md`, are ignored by formatting.
 The image and stage write `.prettierignore`.
 Vite+ reads this file when the scaffold's Vite config owns formatting.
-The image's seam script has its own read-only package link.
+The image's plain script has its own read-only package link.
 Flight runs one Vitest worker at a time to fit the memory limit.
-Each new tag saves its build folder and `image.tar`.
+Each new tag saves its build folder and `image.tar.gz`.
 Keeper containers hold the app, services, Postgres, and Mailpit images.
 Create also keeps the dependency images for older saved app images.
 Keepers use no network and survive trial cleanup.
@@ -185,24 +190,28 @@ No ports are published on the host.
 It runs build first to create the Start router's generated file.
 Then it runs the writer's check, test, and build.
 Teacher checks run in a separate container on both networks.
-The scaffold gate also runs the image's `check:plain` on `/work`.
+The gate also runs the image's `check:plain` on `/work`.
 It uses the trusted package and script, not the writer's copy.
 Missing `check:plain` fails as unavailable and earns no score.
 An available script's findings block the gate.
 Saved images keep their bytes; add the script with a new image tag.
 The app has only its own network.
 All check containers and networks are removed after the run.
-`scaffold.log` names the hash and seam results.
+`doctor.log` names all doctor results.
+`plain.log` names the plain results.
 
-The flight gate blocks changed, missing, added, or linked scaffold files.
-It runs the image's seam script, not the writer's copy.
+The Flight gate runs the image's trusted `tinker prepare`,
+then all ten `tinker doctor` checks on `/work`.
+Check 2 compares installed base bytes with the packed release hashes.
+Any failed doctor check blocks the gate.
+There is no `scaffold.json` or copied scaffold byte check.
 Exact starter source bytes are teacher-owned baseline files.
 They are read and named in `jev.json`, without asking Jev again.
-The generated `src/routeTree.gen.ts` is also named there
-when its saved bytes match the router made by the fresh build.
+Generated route files live in `.tinker/`, outside the judged source.
+The gate removes the saved route tree and checks the fresh build
+made a new regular file.
 Changed source and tests use the same frozen Jev gate as other suites.
-The untouched registry has S17 and S24 findings under that gate;
-this baseline rule lets the required starter pass without editing it.
+This baseline rule lets the required starter pass without editing it.
 
 Packets come from `flight/`; checks come from `teacher/flight/`.
 Round 1 must exist before create.
@@ -261,8 +270,8 @@ Each proof needs a fresh folder; saved results are never overwritten.
 
 Every suite's Jev gate blocks bare `fetch` in app code (S24).
 Flight callers depend on `httpRequest.controller` and run it (ADR 0102).
-The Start scaffold ships it in `src/scaffold/backend/http.ts`.
-Only `src/scaffold/http-backend.ts` wraps the built-in and is exempt from S24.
+The base exports it from `@tinker/start/server`.
+App code imports only the base's public entries.
 Writer advice and saved checks use the same rule.
 Trials keep their frozen Jev files; this change does not refresh them.
 

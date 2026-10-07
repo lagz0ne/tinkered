@@ -89,16 +89,16 @@ export function machineVerdict({ ownExit, teacherExit, gate }) {
   return ownExit === 0 && teacherExit === 0 && gatePass ? "machine-pass" : "machine-fail";
 }
 
-/** The scaffold and plain checks block flight; a missing check stays unavailable. */
+/** The doctor and plain checks block flight; a missing check stays unavailable. */
 export function flightGate(flight) {
   if (!flight) return null;
   const blocking = [];
-  if (flight.scaffoldExit)
+  if (failedBaseCheck(flight))
     blocking.push({
-      rule: "flight-scaffold",
-      file: "src/scaffold/",
-      message: "Keep the scaffold unchanged and pass its seam check",
-      fix: "Restore the original scaffold",
+      rule: "flight-doctor",
+      file: "node_modules/@tinker/start/",
+      message: "Pass all tinker doctor checks, including check 2 base bytes",
+      fix: "Restore the packed base and fix the named doctor findings",
     });
   if (flight.plainExit)
     blocking.push({
@@ -115,3 +115,5 @@ export function flightGate(flight) {
     reasons: flight.unavailable ? [flight.unavailable] : [],
   };
 }
+
+const failedBaseCheck = (flight) => flight.doctorExit || flight.scaffoldExit;

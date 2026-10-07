@@ -270,7 +270,7 @@ void describe("flight frozen packets", () => {
       assert.ok(frozen.files["rules/SERVICES.md"]);
       assert.match(
         readFrozenGuidelines(root, frozen, "flight"),
-        /Keep `src\/scaffold\/` unchanged/,
+        /Keep the packed `@tinker\/start` base unchanged/,
       );
       assert.deepEqual(roundsFor("flight"), [1, 2, 3, 4, 5]);
     } finally {

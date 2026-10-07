@@ -13,7 +13,7 @@ export function routerHash(path) {
 }
 
 if (import.meta.main) {
-  const path = "/work/src/routeTree.gen.ts";
+  const path = "/work/.tinker/routeTree.gen.ts";
   if (process.argv[2] === "reset") {
     resetRouter(path);
     console.log("PASS submitted router removed before build");

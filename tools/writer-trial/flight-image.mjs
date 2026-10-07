@@ -11,39 +11,10 @@ export function prepareFlight(repo, home, config, build, appOnly = false) {
     throw new Error(`Flight image already saved: ${context}; use a new tag to rebuild`);
   }
   mkdirSync(context, { recursive: true });
-  writeFileSync(join(context, ".dockerignore"), "services/\nimage.tar\nimage.json\n");
+  writeFileSync(join(context, ".dockerignore"), "services/\nimage.tar\nimage.tar.gz\nimage.json\n");
   const seed = join(context, "seed");
   mkdirSync(seed, { recursive: true });
-  const app = join(repo, "apps/start-scaffold");
-  const registry = JSON.parse(readFileSync(join(app, "registry.json")));
-  const included = new Set();
-  const copyItem = (name) => {
-    if (included.has(name)) return;
-    const item = registry.items.find((row) => row.name === name);
-    if (!item) throw new Error(`Missing registry item ${name}`);
-    for (const dependency of item.registryDependencies ?? [])
-      copyItem(dependency.split("/").at(-1));
-    for (const file of item.files) {
-      const target = file.target.startsWith("@lib/")
-        ? file.target.replace("@lib/", "src/lib/")
-        : file.target.slice(2);
-      mkdirSync(join(seed, target, ".."), { recursive: true });
-      copyFileSync(join(app, file.path), join(seed, target));
-    }
-    included.add(name);
-  };
-  copyItem("starter");
-  cpSync(join(app, "tests"), join(seed, "tests"), { recursive: true });
-  copyFileSync(join(app, "components.json"), join(seed, "components.json"));
-  const pkg = JSON.parse(readFileSync(join(seed, "package.json")));
-  for (const name of ["core", "react"]) {
-    execFileSync(
-      "pnpm",
-      ["--dir", join(repo, "packages", name), "pack", "--out", join(seed, `${name}.tgz`)],
-      { stdio: "inherit" },
-    );
-    pkg.dependencies[`@tinker/${name}`] = `file:./${name}.tgz`;
-  }
+  const { pkg, base } = packSeed(repo, seed);
   pkg.devDependencies.playwright = "1.63.0";
   writeFileSync(join(seed, "package.json"), JSON.stringify(pkg, null, 2) + "\n");
   execFileSync(join(repo, "node_modules/.bin/vp"), ["fmt", join(seed, "package.json")], {
@@ -51,20 +22,19 @@ export function prepareFlight(repo, home, config, build, appOnly = false) {
   });
   writeFileSync(
     join(seed, ".gitignore"),
-    "node_modules/\ndist/\n.env\n.vite/\nsrc/routeTree.gen.ts\n",
+    "node_modules/\ndist/\n.env\n.vite/\n.tinker/\n.tanstack/\nsrc/routeTree.gen.ts\n",
   );
   writeFileSync(
     join(seed, ".oxfmtrc.json"),
-    '{\n  "ignorePatterns": ["src/routeTree.gen.ts", "FEEDBACK.md", "TASK.md"]\n}\n',
+    '{\n  "ignorePatterns": [".tinker/**", ".tanstack/**", "src/routeTree.gen.ts", "FEEDBACK.md", "TASK.md"]\n}\n',
   );
   execFileSync(join(repo, "node_modules/.bin/vp"), ["fmt", join(seed, ".oxfmtrc.json")], {
     stdio: "inherit",
   });
-  writeFileSync(join(seed, ".prettierignore"), "TASK.md\nFEEDBACK.md\nsrc/routeTree.gen.ts\n");
-  const scaffold = {};
-  for (const file of registry.items.find((item) => item.name === "runtime").files)
-    scaffold[file.path] = sha256File(join(seed, file.path));
-  writeFileSync(join(context, "scaffold.json"), JSON.stringify(scaffold, null, 2) + "\n");
+  writeFileSync(
+    join(seed, ".prettierignore"),
+    "TASK.md\nFEEDBACK.md\n.tinker/\n.tanstack/\nsrc/routeTree.gen.ts\n",
+  );
   const starter = Object.fromEntries(
     listFiles(seed)
       .filter((file) => /^(src|tests)\//.test(file) && /\.tsx?$/.test(file))
@@ -77,14 +47,13 @@ export function prepareFlight(repo, home, config, build, appOnly = false) {
 USER root
 RUN mkdir -p /work /home/pwuser/flight-tools /home/pwuser/flight-seed && chown -R pwuser:pwuser /work /home/pwuser/flight-tools /home/pwuser/flight-seed
 COPY --chown=pwuser:pwuser seed/ /home/pwuser/flight-seed/
-COPY --chown=pwuser:pwuser scaffold.json /home/pwuser/scaffold.json
 USER pwuser
 WORKDIR /home/pwuser/flight-tools
 RUN cp /home/pwuser/flight-seed/package.json . && cp /home/pwuser/flight-seed/*.tgz . && npm install --ignore-scripts --no-audit --no-fund
 RUN ln -s /tmp node_modules/.vite && ln -s /tmp node_modules/.vite-temp && ln -s /tmp node_modules/.vitest
 ENV PATH="/home/pwuser/flight-tools/node_modules/.bin:$PATH"
 WORKDIR /work
-RUN cp -R /home/pwuser/flight-seed/. . && ln -s /home/pwuser/flight-tools/node_modules node_modules
+RUN cp -R /home/pwuser/flight-seed/. . && ln -s /home/pwuser/flight-tools/node_modules node_modules && tinker prepare
 COPY --chown=pwuser:pwuser starter.json /home/pwuser/starter.json
 RUN ln -s /home/pwuser/flight-tools/node_modules /home/pwuser/flight-seed/node_modules
 CMD ["sleep", "infinity"]
@@ -117,6 +86,7 @@ CMD ["sleep", "infinity"]
     { stdio: "inherit" },
   );
   execFileSync("docker", ["save", "-o", join(context, "image.tar"), image]);
+  execFileSync("gzip", [join(context, "image.tar")]);
   if (!appOnly) {
     buildServices(services, config.flight.servicesImage);
     keepFlightDependencies(config.flight);
@@ -131,11 +101,47 @@ CMD ["sleep", "infinity"]
       {
         image: inspect(config.flight.image),
         servicesImage: inspect(config.flight.servicesImage),
-        scaffold,
+        base: { version: base.version, tested: base.tinker.tested },
       },
       null,
       2,
     ) + "\n",
   );
   return context;
+}
+
+function packSeed(repo, seed) {
+  const app = join(repo, "apps/start-scaffold");
+  for (const folder of ["src", "tests", "scripts", "drizzle", ".agents"])
+    cpSync(join(app, folder), join(seed, folder), {
+      recursive: true,
+      filter: (path) => !path.endsWith("routeTree.gen.ts"),
+    });
+  for (const file of [
+    "vite.config.ts",
+    "vitest.config.ts",
+    "tsconfig.json",
+    "components.json",
+    "drizzle.config.ts",
+    "PLAIN.md",
+    "AGENTS.md",
+  ])
+    copyFileSync(join(app, file), join(seed, file));
+  copyFileSync(join(app, "starter.package.json"), join(seed, "package.json"));
+  const pkg = JSON.parse(readFileSync(join(seed, "package.json")));
+  for (const name of ["core", "react"]) {
+    execFileSync(
+      "pnpm",
+      ["--dir", join(repo, "packages", name), "pack", "--out", join(seed, `${name}.tgz`)],
+      { stdio: "inherit" },
+    );
+    pkg.dependencies[`@tinker/${name}`] = `file:./${name}.tgz`;
+  }
+  const base = JSON.parse(readFileSync(join(repo, "packages/start/package.json")));
+  execFileSync("node", [join(repo, "packages/start/scripts/pack.mjs"), seed], { stdio: "inherit" });
+  copyFileSync(join(seed, `tinker-start-${base.version}.tgz`), join(seed, "start.tgz"));
+  pkg.dependencies["@tinker/start"] = "file:./start.tgz";
+  for (const [name, pin] of Object.entries(base.tinker.tested))
+    if (!name.startsWith("@tinker/")) pkg.dependencies[name] = pin;
+  return { pkg, base };
 }

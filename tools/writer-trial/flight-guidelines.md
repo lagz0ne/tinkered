@@ -2,7 +2,9 @@
 
 Grow the supplied Start scaffold one round at a time.
 Follow `AGENTS.md`; read only the app skills for the work you change.
-Keep `src/scaffold/` unchanged and use the supplied Core and React packages.
+Keep the packed `@tinker/start` base unchanged.
+Use the supplied Core and React packages.
+Run `tinker prepare` after any install that skips scripts.
 Keep feature work in tags, data, resources, and operations.
 
 Settings come from `.env`.
@@ -24,8 +26,8 @@ Run build before check and tests.
 `npm run check` includes the full test run and can exceed 120 seconds.
 Run `vp check` and `npm run typecheck` alone, then tests file by file.
 Run all behavior and browser tests.
-Also run `npm run check:plain`, `npm run test:seam`,
-`npm run test:boundary`, and `npm run test:schema`.
+Also run `npm run check:plain`, `tinker doctor`,
+and `npm run test:schema`.
 If check:plain fails on PLAIN.md, `npm run check:plain -- --list` prints the full expected file.
 Stop every server you start before you run the tests.
 The sandbox has 2 GiB of memory.

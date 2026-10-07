@@ -4,6 +4,7 @@ import { cpSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "nod
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { placeFlightReference } from "./flight-reference.mjs";
 import { checkFlight } from "../flight-check.mjs";
 import { flightEnvironment, pinFlightImages } from "../flight-network.mjs";
 import { jevAsk } from "../broker.mjs";
@@ -20,7 +21,6 @@ const context = join(
   ".local/share/tinker-writer-trial",
   `image-${config.flight.image.split(":").at(-1)}`,
 );
-const scaffold = JSON.parse(readFileSync(join(context, "scaffold.json")));
 const reference = join(repo, "tools/flight-trial/reference");
 const proof = resolve(process.argv[2] ?? join(repo, "tools/writer-trial/.logs/reference"));
 const rounds =
@@ -62,7 +62,7 @@ const results = [];
 mkdirSync(proof, { recursive: true });
 const frozenInfo = freezeTrial(proof, "flight");
 const frozen = join(proof, frozenInfo.dir);
-for (const file of ["scaffold.json", "starter.json"]) {
+for (const file of ["starter.json"]) {
   cpSync(join(context, file), join(frozen, file));
   frozenInfo.files[file] = sha256File(join(frozen, file));
 }
@@ -101,22 +101,8 @@ for (const round of rounds) {
   const root = join(proof, `round-${round}`);
   const project = join(root, "project");
   mkdirSync(root, { recursive: true });
-  cpSync(join(context, "seed"), project, { recursive: true });
+  placeFlightReference(reference, join(context, "seed"), project, round);
   symlinkSync("/home/pwuser/flight-tools/node_modules", join(project, "node_modules"));
-  for (const folder of ["src", "scripts", "drizzle"])
-    cpSync(join(reference, folder), join(project, folder), {
-      recursive: true,
-      filter: (path) => !path.endsWith("routeTree.gen.ts"),
-    });
-  for (const file of [
-    "PLAIN.md",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "tsconfig.json",
-    "components.json",
-    "drizzle.config.ts",
-  ])
-    cpSync(join(reference, file), join(project, file));
   writeFileSync(
     join(project, ".env"),
     Object.entries(flightEnvironment())
@@ -124,19 +110,6 @@ for (const round of rounds) {
       .join("\n") + "\n",
   );
   cpSync(join(repo, "tools/writer-trial/flight-services.md"), join(project, "SERVICES.md"));
-  cpSync(join(reference, "tests"), join(project, "tests"), { recursive: true });
-  const syncTest = join(project, "tests/sync-client.test.ts");
-  writeFileSync(
-    syncTest,
-    readFileSync(syncTest, "utf8").replaceAll("todos: [],", "todos: [], bookings: [],"),
-  );
-  if (round === 1) {
-    const path = join(project, "src/backend/flight-search.ts");
-    const source = readFileSync(path, "utf8");
-    const anchor = "].map(async ({ supplier, url }) => {";
-    assert.equal(source.split(anchor).length - 1, 1, "One supplier-list anchor");
-    writeFileSync(path, source.replace(anchor, "].slice(0, 1).map(async ({ supplier, url }) => {"));
-  }
   for (const label of labels) {
     const logs = join(root, label);
     mkdirSync(logs);
@@ -149,12 +122,7 @@ for (const round of rounds) {
     }
     execFileSync(
       join(repo, "node_modules/.bin/vp"),
-      [
-        "fmt",
-        join(project, "src/backend/flight-search.ts"),
-        syncTest,
-        join(project, plants[round].file),
-      ],
+      ["fmt", join(project, "src/backend/flight-search.ts"), join(project, plants[round].file)],
       { cwd: repo, stdio: "inherit" },
     );
     const archive = join(logs, "source.tar");
@@ -164,7 +132,6 @@ for (const round of rounds) {
       round,
       image: images.image,
       images,
-      scaffold,
       logDir: logs,
       teacherPins: frozenInfo.teacher,
     });

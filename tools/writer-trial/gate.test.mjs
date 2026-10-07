@@ -357,3 +357,11 @@ void describe("flight checks", () => {
     assert.equal(flightGate({ scaffoldExit: 0, plainExit: 0 }), null);
   });
 });
+
+void describe("flight base doctor", () => {
+  void it("blocks a failed doctor even when own and teacher checks pass", () => {
+    const gate = flightGate({ doctorExit: 1, plainExit: 0 });
+    assert.equal(gate.blocking[0].rule, "flight-doctor");
+    assert.equal(machineVerdict({ ownExit: 0, teacherExit: 0, gate }), "machine-fail");
+  });
+});
