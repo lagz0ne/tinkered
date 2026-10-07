@@ -1642,3 +1642,27 @@ This ticket does not measure heap bytes or promise a speedup for every workload.
 The session and lifecycle probes show no difference we can see.
 The full-file style census has four prior hits, also seen on clean main.
 The changed-declaration census is green.
+
+### Fault lane setup repair
+
+The first full fault lane stopped before testing any mutants, exit 1.
+A prior test spawns Node and imports the built entry from the test's own tree.
+Core's fault config left `dist` out of its copied test tree.
+The spawned test could not find `dist/index.mjs` there.
+A setup-only run on clean main at `105e85a0` failed with the same missing file.
+
+Removed `dist` from that copy skip list.
+The lane now copies the built files needed by those tests.
+It still mutates the same five source files, with no new test or source exclusion.
+All score floors stay the same.
+The setup-only run now passes all 863 tests, exit 0.
+Runtime code and the measured builds do not change.
+[Setup failure on main and the fixed run](op-fast/mutation-setup.log).
+
+The prior test's failing import is:
+
+```ts
+new URL("../dist/index.mjs", import.meta.url).href;
+```
+
+The full fault run still follows on a clean rebased commit.

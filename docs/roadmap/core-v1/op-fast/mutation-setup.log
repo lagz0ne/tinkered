@@ -1,0 +1,92 @@
+Original lane on clean code-and-proof commit 1005c24e: EXIT 1 before testing any mutants.
+A spawned test could not import sandbox/dist/index.mjs.
+
+Reproduced on clean origin/main Core at 105e85a0:
+$ flock /tmp/mutation.lock vp run core#mutate --dryRunOnly
+EXIT 1
+~/packages/core$ stryker run --dryRunOnly ⊘ cache disabled
+19:37:08 (2903256) INFO ProjectReader Found 5 of 54 file(s) to be mutated.
+19:37:09 (2903256) INFO Instrumenter Instrumented 5 source file(s) with 3411 mutant(s)
+19:37:09 (2903256) INFO ConcurrencyTokenProvider Creating 7 test runner process(es).
+19:37:09 (2903256) INFO BroadcastReporter Detected that current console does not support the "progress" reporter, downgrading to "progress-append-only" reporter
+19:37:10 (2903256) INFO DryRunExecutor Note: running the dry-run only. No mutations will be tested.
+19:37:10 (2903256) INFO DryRunExecutor Starting initial test run (vitest test runner with "perTest" coverage analysis). This may take a while.
+19:37:28 (2903256) ERROR DryRunExecutor One or more tests failed in the initial test run:
+	importing core draws no random values; the id stream seeds on the first observed span
+		Command failed: /home/paseo/.local/vp/js_runtime/node/24.21.0/bin/node --experimental-strip-types --no-warnings --input-type=module --eval 
+          import assert from "node:assert/strict";
+          const getRandomValues = crypto.getRandomValues.bind(crypto);
+          let allowed = false;
+          crypto.getRandomValues = (words) => {
+            assert.ok(allowed, "random values are not allowed in global scope");
+            return getRandomValues(words);
+          };
+          const { createScope } = await import(process.argv[1]);
+          const off = createScope();
+          assert.equal(off.run({ run: () => 42 }), 42);
+          await off.close();
+          const observed = createScope({ observe: { history: 10 } });
+          allowed = true;
+          const first = observed.run({ run: (_deps, { obs }) => obs.span });
+          allowed = false;
+          const second = observed.run({ run: (_deps, { obs }) => obs.span });
+          for (const span of [first, second]) {
+            assert.match(span.traceId, /^[0-9a-f]{32}$/);
+            assert.match(span.spanId, /^[0-9a-f]{16}$/);
+            assert.notEqual(span.traceId, "0".repeat(32));
+            assert.notEqual(span.spanId, "0".repeat(16));
+          }
+          await observed.close();
+          process.stdout.write("ok");
+         file:///home/paseo/next/op-fast-base/packages/core/.stryker-tmp/sandbox-jnAkye/dist/index.mjs
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/paseo/next/op-fast-base/packages/core/.stryker-tmp/sandbox-jnAkye/dist/index.mjs' imported from /home/paseo/next/op-fast-base/packages/core/.stryker-tmp/sandbox-jnAkye/[eval1]
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+    at node:internal/modules/esm/loader:636:32
+    at TracingChannel.tracePromise (node:diagnostics_channel:362:14) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/paseo/next/op-fast-base/packages/core/.stryker-tmp/sandbox-jnAkye/dist/index.mjs'
+}
+
+Node.js v24.21.0
+
+19:37:28 (2903256) ERROR Stryker There were failed tests in the initial test run.
+file:///home/paseo/next/op-fast-base/node_modules/.pnpm/@stryker-mutator+core@10.0.0_@types+node@26.5.1/node_modules/@stryker-mutator/core/dist/src/process/3-dry-run-executor.js:65
+                    throw new ConfigError('There were failed tests in the initial test run.');
+                          ^
+
+ConfigError: There were failed tests in the initial test run.
+    at DryRunExecutor.validateResultCompleted (file:///home/paseo/next/op-fast-base/node_modules/.pnpm/@stryker-mutator+core@10.0.0_@types+node@26.5.1/node_modules/@stryker-mutator/core/dist/src/process/3-dry-run-executor.js:65:27)
+    at DryRunExecutor.executeDryRun (file:///home/paseo/next/op-fast-base/node_modules/.pnpm/@stryker-mutator+core@10.0.0_@types+node@26.5.1/node_modules/@stryker-mutator/core/dist/src/process/3-dry-run-executor.js:100:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async WorkItem.execute (file:///home/paseo/next/op-fast-base/node_modules/.pnpm/@stryker-mutator+core@10.0.0_@types+node@26.5.1/node_modules/@stryker-mutator/core/dist/src/concurrent/pool.js:32:28)
+    at async file:///home/paseo/next/op-fast-base/node_modules/.pnpm/@stryker-mutator+core@10.0.0_@types+node@26.5.1/node_modules/@stryker-mutator/core/dist/src/concurrent/pool.js:69:13 {
+  innerError: undefined
+}
+
+Node.js v24.21.0
+
+
+After copying built files into the sandbox (no new exclusion):
+$ flock /tmp/mutation.lock vp run core#mutate --dryRunOnly
+EXIT 0
+~/packages/core$ stryker run --dryRunOnly ⊘ cache disabled
+19:38:21 (2904805) INFO ProjectReader Found 5 of 64 file(s) to be mutated.
+19:38:22 (2904805) INFO Instrumenter Instrumented 5 source file(s) with 3502 mutant(s)
+19:38:22 (2904805) INFO ConcurrencyTokenProvider Creating 7 test runner process(es).
+19:38:23 (2904805) INFO BroadcastReporter Detected that current console does not support the "progress" reporter, downgrading to "progress-append-only" reporter
+19:38:23 (2904805) INFO DryRunExecutor Note: running the dry-run only. No mutations will be tested.
+19:38:23 (2904805) INFO DryRunExecutor Starting initial test run (vitest test runner with "perTest" coverage analysis). This may take a while.
+19:38:45 (2904805) INFO DryRunExecutor Initial test run succeeded. Ran 863 tests in 21 seconds (net 13903.608946999995 ms, overhead 7708.391053000005 ms).
+19:38:45 (2904805) INFO MutationTestExecutor The dry-run has been completed successfully. No mutations have been executed.
+

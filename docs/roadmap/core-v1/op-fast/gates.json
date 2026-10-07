@@ -35,5 +35,9 @@
   "timing B": "fa1cc594de4dcbad87b00028f67cb2183937bcfe",
   "paired scenarios": "op/run/tagged: b is faster; session/lifecycle: no difference we can see",
   "benchctl ab settle": "b is faster",
-  "benchctl ab close": "b is faster"
+  "benchctl ab close": "b is faster",
+  "first full mutation setup": 1,
+  "clean main mutation setup": 1,
+  "fixed mutation setup": 0,
+  "fixed setup tests": 863
 }
