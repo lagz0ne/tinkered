@@ -1,20 +1,21 @@
 start/serve-fast, 2026-10-07
-Base: df2a6da8 (origin/main at setup)
-Measured B: 9c1e9cc1, clean; later changes are proof and docs only
+Final base: 2426acab (origin/main after catch-up)
+Earlier wire/Chrome base: df2a6da8; Start code is unchanged between the bases.
+Final measured B: a72cbfc9, clean; later changes are proof and docs only
 Assumption: dist/client stays fixed until the host restarts
 
 git fetch origin && git rebase origin/main: EXIT 0
 vp install: EXIT 0
 vp run -r build: EXIT 0
 vp check: EXIT 0 (28 warnings)
-vp run -r test: EXIT 1 (four flight test timeouts)
-vp run -r --concurrency-limit 1 test: EXIT 1 (supplier shared-search timeout)
+vp run -r test: EXIT 0 (final default run); earlier run EXIT 1 on flight timeouts
+Earlier serial run: EXIT 1 on supplier shared-search timeout; same failure observed on main.
 vp run prose: EXIT 0
 vp run @tinker-start-scaffold#check: EXIT 1 first (Postgres unhealthy); EXIT 0 rerun
 pnpm validate: EXIT 0, all 18 lanes pass
-vp test --testTimeout 60000 --maxWorkers 2 (packages/start): EXIT 0; 416 tests
+vp test --testTimeout 60000 --maxWorkers 2 (packages/start): EXIT 0; 417 tests
 Four failed flight tests, 60 s default timeout and one worker: EXIT 0; 4 tests
-Changed glue tests: EXIT 0; 29 tests
+Changed glue tests: EXIT 0; 30 tests
 Main sync tests: EXIT 1; 31 timeouts, 3 pass
 Main typecheck test: EXIT 1; 5 s timeout
 Main supplier shared-search test: EXIT 1; 5 s timeout
@@ -22,14 +23,16 @@ Main scaffold compose test: EXIT 0
 Source-map build: EXIT 0; entry hint and map line shift; 145 sources
 Regression adapter: old asset(root, request) behind createAssets(root) call shape
 Regression tests on old serving code: EXIT 1; all four outcomes fail
+Public gzip download compatibility test: EXIT 1 before guard fix; EXIT 0 after.
+Thirteen new tests; public gzip test uses real gzip bytes.
   a host keeps its file list until restart
   unhashed assets need revalidation and HEAD has no body
   JS, CSS, and HTML compress on demand with Vary
   the host uses a build's compressed copy
 
 Jev preflight: EXIT 0; no changed TypeScript source units
-Jev tests: EXIT 0; 0/29 flagged
-Jev promises: EXIT 0; 0/175 gaps, 45 unsure; tool skips .mjs titles
+Jev tests: EXIT 0; 0/30 flagged
+Jev promises: EXIT 0; 0/175 gaps, 42 unsure; tool skips .mjs titles
 Labels: none
 Style census: OK
 Core feedback: none; plain glue only
@@ -41,10 +44,9 @@ benchctl ab --rounds 8 --runs-per-round 1
 Probe calls serving glue for 5,000 page misses, alternating / and /posts/1.
 No server, SSR, or network in the queue probe.
 
-A median 1148 ms   B median 194 ms
-delta -953.6 ms (-83.1%)   95% range [-1024.2, -918.7] ms
+A median 1180 ms   B median 191 ms
+delta -988.9 ms (-83.8%)   95% range [-1046.9, -977.0] ms
 verdict: b is faster
-(waited 784.9s in the queue)
 
 Curl: default start-min build, localhost, raw transfer; no --compressed.
 

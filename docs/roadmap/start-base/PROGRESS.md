@@ -859,8 +859,8 @@ Nothing was tagged, pushed, or published.
   - HEAD has no body and keeps the chosen encoding.
 - Queue: **verdict: b is faster**.
   Eight pairs, one run per side; 5,000 page-file misses.
-  A: clean `origin/main` tree at `df2a6da8`.
-  B: clean tree at `9c1e9cc1`.
+  A: clean `origin/main` tree at `2426acab`.
+  B: clean tree at `a72cbfc9`.
   This measures file lookup, not the whole app request.
 - Chrome: three cold loads per side, fresh browser each time.
   Main-thread lazy functions: median 872 before, 17 after.
@@ -870,20 +870,22 @@ Nothing was tagged, pushed, or published.
 - A source-map build also passes:
   the entry starts with the hint, and its map starts with
   an empty line; 145 source files are mapped.
-- Twelve new glue tests; four old-behavior checks fail
+- Thirteen new glue tests; four old-behavior checks fail
   with main's serving code behind a call-shape adapter.
   They cover the fixed file list, cache and HEAD rules,
   on-demand compression, and use of the built copy.
-- Package tests: 416 pass with a 60 s default timeout
-  and two workers; changed glue tests: 29 pass unchanged.
-- Gates: build 0, check 0, prose 0, validate 0 (18 lanes).
-  The first whole test run exits 1 on four flight timeouts.
-  A last run with one task at a time exits 1 on one:
-  `supplier.test.ts`, search shared by suppliers A and B.
-  The same test also times out in the clean main tree.
-  All four pass with a 60 s default timeout and one worker.
+- A public gzip download keeps its raw bytes and has no
+  response encoding, even when the client accepts Brotli.
+  Its new test failed with the first guard and passes now.
+- Package tests: 417 pass with a 60 s default timeout
+  and two workers; changed glue tests: 30 pass unchanged.
+  The whole default test run also passes.
+- Gates: build 0, check 0, tests 0, prose 0,
+  scaffold 0, validate 0 (18 lanes).
+  Earlier flight and typecheck timeouts also ran on main;
+  the final whole run passes without raised timeouts.
 - Scaffold check: first run 1, Postgres health check failed;
-  full rerun 0; main's compose check also passes.
+  full reruns 0; main's compose check also passes.
 - Jev: preflight 0; tests 0 flags; promises 0 gaps.
   No labels were added.
   The source judge and promise list skip `.mjs` files;
