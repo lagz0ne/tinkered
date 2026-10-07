@@ -48,16 +48,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **trial/base-image** — the image installs packed Start, Core, and React.
-  Owner: lead (Claude, Start scaffold session); Sol writer.
-  Worktree: `../tinkered-trial-base-image`.
-  Next: lead review and landing; nothing pushed.
-  Verify: doctor catches a changed base file; round 1 is `machine-pass`.
-  App, teacher, and Jev returned 0; three browser cases passed.
-  New image `tinker-writer-flight:20261007.base.1`; keeper and tar saved.
-  [Proof](docs/roadmap/start-base/proof/19-trial-base-image.txt).
-  [Track](docs/roadmap/start-base/PROGRESS.md#trialbase-image).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -84,6 +74,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **trial/base-image** — the Flight trial image installs packed Start, Core, and React; the gate runs `tinker doctor`.
+  Owner: lead (Claude, Start scaffold session); Sol writer.
+  Image `tinker-writer-flight:20261007.base.1` (keeper and tar saved; old images kept).
+  Doctor check 2 replaces the scaffold hashes; a planted base edit is named and blocked.
+  Round 1 on the fixed reference: `machine-pass`, three browser cases; no model writer ran.
+  [Proof](docs/roadmap/start-base/proof/19-trial-base-image.txt).
 
 - **start/shadcn-registry** — one `shadcn add <registry>/app.json` turns an empty folder into an app on the base.
   Owner: lead (Claude, Start scaffold session); Sol writer.
