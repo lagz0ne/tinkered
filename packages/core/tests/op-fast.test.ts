@@ -1,5 +1,13 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, resource, type Scope } from "../src/index";
+import {
+  createScope,
+  data,
+  extension,
+  isError,
+  operation,
+  resource,
+  type Scope,
+} from "../src/index";
 
 for (const graceful of [true, false]) {
   test(`sync resource cleanup closes without extra turns (graceful: ${graceful})`, async () => {
@@ -14,6 +22,8 @@ for (const graceful of [true, false]) {
       },
     });
     const root = createScope();
+    const draft = data({ label: "sync-close-discarded", initial: 0 });
+    root.controller(draft).set(7);
     root.resolve(owned);
     root.onClose(() => {
       calls.push("scope");
@@ -94,7 +104,94 @@ test("closing keeps the web AbortError code for callers", async () => {
   const root = createScope();
   const closing = root.resolve(owned);
   expect((await root.close({ graceful: true })).status).toBe("success");
-  expect(closing.reason).toMatchObject({ name: "AbortError", code: 20 });
+  expect(closing.reason).toMatchObject({
+    name: "AbortError",
+    code: 20,
+    message: expect.stringMatching(/\S/),
+  });
+});
+
+test("a saved run next refuses to start a body after its run has finished", async () => {
+  let next = (): unknown => undefined;
+  const around = extension({
+    label: "save-next",
+    hooks: {
+      run: (event) => {
+        next = event.next;
+        return 7;
+      },
+    },
+  });
+  const op = operation({ label: "late-body", run: () => 9 });
+  const root = createScope({ extensions: [around] });
+  expect(root.settle(op)).toEqual({ status: "success", value: 7 });
+  let error: unknown;
+  try {
+    next();
+  } catch (cause) {
+    error = cause;
+  }
+  if (!isError(error, "Disposed")) throw error;
+  expect(error.payload.reason).toBe("run is finished");
+  expect((await root.close({ graceful: true })).status).toBe("success");
+});
+
+test("a hooked run waits for its async resource before calling its body", async () => {
+  const calls: string[] = [];
+  let release = (_value: number): void => undefined;
+  const ready = new Promise<number>((resolve) => {
+    release = resolve;
+  });
+  const owned = resource({ label: "async-hook-input", factory: () => ready });
+  const op = operation({
+    label: "async-hook-body",
+    depends: { owned },
+    run: async ({ owned }, { defer }) => {
+      defer(() => {
+        calls.push("cleanup");
+      });
+      calls.push("body");
+      return owned + 1;
+    },
+  });
+  const around = extension({
+    label: "around-async-input",
+    hooks: {
+      run: async (event) => {
+        calls.push("before");
+        const value = await event.next();
+        calls.push("after");
+        return value;
+      },
+    },
+  });
+  const root = createScope({ extensions: [around] });
+  const running = root.settle(op);
+  expect(calls).toEqual(["before"]);
+  release(7);
+  expect(await running).toEqual({ status: "success", value: 8 });
+  expect((await root.close({ graceful: true })).status).toBe("success");
+  expect(calls).toEqual(["before", "body", "after", "cleanup"]);
+});
+
+test("a sync cleanup close keeps written data when withData is set", async () => {
+  const draft = data({ label: "sync-close-draft", initial: 0 });
+  const root = createScope();
+  root.controller(draft).set(7);
+  root.onClose(() => undefined);
+  const ended = await root.close({ graceful: true, withData: true });
+  expect(ended.status).toBe("success");
+  expect(ended.data?.get(draft)).toEqual({ present: true, value: 7 });
+});
+
+test("an async scope cleanup failure is returned with the close result", async () => {
+  const cause = new Error("async cleanup failed");
+  const root = createScope();
+  root.onClose(() => Promise.reject(cause));
+  expect(await root.close({ graceful: true })).toEqual({
+    status: "success",
+    teardownErrors: [cause],
+  });
 });
 
 for (const controller of [false, true]) {

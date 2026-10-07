@@ -192,6 +192,7 @@ A namespace chain selects buckets in that owner; it does not find a sibling sess
 A run hook may refuse raw input before its parser runs.
 
 Graceful close joins hook waits before and after `next()`.
+After a run finishes, a saved `next()` raises `Disposed` and starts no body.
 A waiting hook can still use its saved controllers during graceful close.
 Saved data controllers can read, update, and watch through the run's deferred cleanup.
 Forced close aborts its signal and prevents a late `next()` from starting the body.
@@ -394,6 +395,7 @@ Resources read `ctx.closing`; extension hooks read `event.closing`.
 It is an `AbortSignal` that fires when the owner begins closing.
 It fires on graceful and forced close, before Core drains running work.
 Its reason keeps the web abort name `AbortError` and code `20`.
+Its message gives the caller a non-empty reason for the stop.
 A parent's closing also fires in its child sessions.
 Closing one session leaves its parent and siblings live.
 Each owner keeps the same signal, created on first read.

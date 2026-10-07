@@ -7,8 +7,8 @@
   "warnings": 28,
   "vp run -r test": 0,
   "normal test tasks": 10,
-  "Core source tests": 863,
-  "Core dist tests": 873,
+  "Core source tests": 867,
+  "Core dist tests": 877,
   "vp run prose": 0,
   "vp run @tinker-start-scaffold#check": 0,
   "pnpm validate": 0,
@@ -28,8 +28,8 @@
     "S14": 1
   },
   "mutation": "See mutation.log; runs after the final proof commit.",
-  "rebased origin/main": "4423d86e9c2592d660888ad34748cf492e57169d",
-  "Start source tests after rebase": 421,
+  "rebased origin/main": "83c8a72b2e983dae84f3da3e63db00c9a89fa90e",
+  "Start source tests after rebase": 426,
   "timing exit": 0,
   "timing A": "105e85a0b3bd6a53384a98095ea743b7815f0a9b",
   "timing B": "fa1cc594de4dcbad87b00028f67cb2183937bcfe",
@@ -41,5 +41,10 @@
   "fixed mutation setup": 0,
   "fixed setup tests": 863,
   "git diff 871b5a92..origin/main -- packages/core": "empty output, exit 0",
-  "runtime after rebase and copy repair": "unchanged"
+  "runtime after rebase and copy repair": "unchanged",
+  "public rule tests": 11,
+  "first complete mutation on kills alone": "84.71% (FAIL; CLI includes timeouts)",
+  "git diff 4423d86e..origin/main -- packages/core": "empty output, exit 0",
+  "git diff dffc4695..HEAD -- packages/core": "empty output after rebase, exit 0",
+  "temporary gate failure": "Two Start sync 5 s timeouts with concurrent checks. Standalone full ticket rerun EXIT 0."
 }

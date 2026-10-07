@@ -1,31 +1,33 @@
 jev calibrate — median(true) − median(false), pairs ordered; floor 30 points / 90%
 
   ~ runForwardsToClosure     provisional true  3 (med 94%)  false 57 (med 4%)  sep 90%  ordered 98%
-  ~ effectWithoutDefer       provisional true  4 (med 75%)  false 119 (med 52%)  sep 23%  ordered 78%
-  ~ stateOutsideCell         provisional true  3 (med 88%)  false 331 (med 56%)  sep 32%  ordered 98%
-  ~ configNotTag             provisional true  2 (med 61%)  false 119 (med 44%)  sep 17%  ordered 71%
-  ~ handRolledLifetime       provisional true  4 (med 76%)  false 61 (med 3%)  sep 72%  ordered 94%
-  ~ stopOnlyInDefer          provisional true  1 (med 84%)  false 101 (med 48%)  sep 36%  ordered 99%
-  ~ ignoresAbortAfterAwait   provisional true  2 (med 79%)  false 48 (med 85%)  sep -6%  ordered 21%
-  ✓ inputDefaultMasks        proven      true 34 (med 92%)  false 73 (med 42%)  sep 50%  ordered 94%
-  ✗ noOpRejected             noisy       true  7 (med 79%)  false 52 (med 19%)  sep 60%  ordered 88%
-  ~ readsMoreThanRendered    provisional true  1 (med 92%)  false 48 (med 4%)  sep 88%  ordered 100%
-  ~ subscribesToWriteOnly    provisional true  1 (med 94%)  false 48 (med 11%)  sep 83%  ordered 100%
-  ~ runDuringRender          provisional true  1 (med 95%)  false 46 (med 17%)  sep 77%  ordered 100%
-  ✓ domainLogicInRender      proven      true  6 (med 88%)  false 43 (med 6%)  sep 81%  ordered 100%
+  ~ effectWithoutDefer       provisional true  4 (med 76%)  false 119 (med 50%)  sep 26%  ordered 79%
+  ~ stateOutsideCell         provisional true  3 (med 88%)  false 336 (med 56%)  sep 32%  ordered 97%
+  ~ configNotTag             provisional true  2 (med 62%)  false 119 (med 46%)  sep 16%  ordered 72%
+  ~ handRolledLifetime       provisional true  4 (med 76%)  false 61 (med 3%)  sep 72%  ordered 95%
+  ~ stopOnlyInDefer          provisional true  1 (med 85%)  false 101 (med 49%)  sep 36%  ordered 99%
+  ~ ignoresAbortAfterAwait   provisional true  2 (med 79%)  false 50 (med 85%)  sep -6%  ordered 19%
+  ✓ inputDefaultMasks        proven      true 34 (med 91%)  false 73 (med 40%)  sep 51%  ordered 95%
+  ✗ noOpRejected             noisy       true  7 (med 76%)  false 52 (med 18%)  sep 58%  ordered 88%
+  ~ readsMoreThanRendered    provisional true  1 (med 91%)  false 48 (med 4%)  sep 87%  ordered 100%
+  ~ subscribesToWriteOnly    provisional true  1 (med 94%)  false 48 (med 12%)  sep 82%  ordered 100%
+  ~ runDuringRender          provisional true  1 (med 96%)  false 46 (med 18%)  sep 77%  ordered 100%
+  ✓ domainLogicInRender      proven      true  6 (med 88%)  false 43 (med 6%)  sep 82%  ordered 100%
   ~ effectOwnedByComponent   provisional true  1 (med 95%)  false 46 (med 5%)  sep 90%  ordered 100%
-  ✗ survivorMatters          noisy       true 25 (med 82%)  false 16 (med 72%)  sep 9%  ordered 82%
-  ~ leakedInternal           provisional true  1 (med 74%)  false 69 (med 21%)  sep 53%  ordered 87%
+  ✗ survivorMatters          noisy       true 25 (med 82%)  false 16 (med 72%)  sep 9%  ordered 84%
+  ~ leakedInternal           provisional true  1 (med 73%)  false 69 (med 21%)  sep 52%  ordered 80%
   · helperAlone              retired     30 labeled cases kept in the bank
   · manyCauses               retired     46 labeled cases kept in the bank
   · negativeTwin             retired     21 labeled cases kept in the bank
   · reprovesSamePromise      retired     10 labeled cases kept in the bank
   · typeGuarantee            retired     5 labeled cases kept in the bank
   · titleVague               retired     161 labeled cases kept in the bank
-  ✗ wrapsCallersStep         noisy       true 17 (med 77%)  false 13 (med 30%)  sep 47%  ordered 86%
+  ✗ wrapsCallersStep         noisy       true 17 (med 78%)  false 13 (med 32%)  sep 46%  ordered 85%
   ~ partialStub              provisional true  0 (med NaN%)  false 47 (med 7%)  sep NaN%  ordered 0%
   ~ memoKeyIgnoresInput      provisional true  0 (med NaN%)  false 50 (med 5%)  sep NaN%  ordered 0%
   · docRestatesCode          retired     392 labeled cases kept in the bank
 
 wrote /home/paseo/next/fix-op-fast/tools/jev/calibration.json
 Advisory only — a noisy judge prints as a note, never as a flag.
+
+EXIT 0

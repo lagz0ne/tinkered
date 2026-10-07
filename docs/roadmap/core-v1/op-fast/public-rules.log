@@ -1,0 +1,45 @@
+$ flock /tmp/mutation.lock vp run core#mutate --mutate 'src/index.ts:2340-2420,src/index.ts:4100-4240,src/index.ts:5940-6100'
+EXIT 0 (narrow run; not a full floor proof)
+
+Observable wrong results now caught:
+2223 | L4124 | Survived -> Killed | false
+2281 | L4226 | Survived -> Killed | () => undefined
+3437 | L6026 | NoCoverage -> Killed | {}
+3438 | L6027 | NoCoverage -> Killed | () => undefined
+3439 | L6028 | NoCoverage -> Killed | () => undefined
+3430 | L6019 | Survived -> Killed | true
+
+----------|------------------|----------|-----------|------------|----------|----------|
+          | % Mutation score |          |           |            |          |          |
+File      |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+----------|--------|---------|----------|-----------|------------|----------|----------|
+All files |  86.05 |   88.52 |      180 |         5 |         24 |        6 |        0 |
+ index.ts |  86.05 |   88.52 |      180 |         5 |         24 |        6 |        0 |
+----------|--------|---------|----------|-----------|------------|----------|----------|
+20:59:52 (2976691) INFO MutationTestReportHelper Final mutation score of 86.05 is greater than or equal to break threshold 85
+20:59:52 (2976691) INFO JsonReporter Your report can be found at: file:///home/paseo/next/fix-op-fast/packages/core/reports/mutation/mutation.json
+20:59:52 (2976691) INFO MutationTestExecutor Done in 1 minute and 46 seconds.
+
+
+$ flock /tmp/mutation.lock vp run core#mutate --mutate 'src/index.ts:2220-2230,src/index.ts:5960-5970'
+EXIT 0 (narrow run; not a full floor proof)
+
+Observable late-body and missing-message bugs now caught:
+1002 | L2226 | NoCoverage -> Killed | {}
+1003 | L2227 | NoCoverage -> Killed | ""
+3407 | L5964 | NoCoverage -> Killed | ""
+3408 | L5964 | NoCoverage -> Killed | {}
+3409 | L5964 | NoCoverage -> Killed | ""
+3405 | L5964 | Survived -> Killed | false
+
+----------|------------------|----------|-----------|------------|----------|----------|
+          | % Mutation score |          |           |            |          |          |
+File      |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+----------|--------|---------|----------|-----------|------------|----------|----------|
+All files |  86.67 |   86.67 |       13 |         0 |          2 |        0 |        0 |
+ index.ts |  86.67 |   86.67 |       13 |         0 |          2 |        0 |        0 |
+----------|--------|---------|----------|-----------|------------|----------|----------|
+21:16:49 (2995961) INFO MutationTestReportHelper Final mutation score of 86.67 is greater than or equal to break threshold 85
+21:16:49 (2995961) INFO JsonReporter Your report can be found at: file:///home/paseo/next/fix-op-fast/packages/core/reports/mutation/mutation.json
+21:16:49 (2995961) INFO MutationTestExecutor Done in 19 seconds.
+

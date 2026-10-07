@@ -6,7 +6,7 @@ Jev points; it does not block a gate.
 The file judge skips Core because it is over 100,000 characters.
 The unit pass still reads all 251 functions.
 The review pass reported 70 unit flags.
-The final source pass reported 67; three wrapper hits are noisy notes.
+The rebased source pass reported 70; four wrapper hits are noisy notes.
 Each state, effect, and lifetime flag is labelled false in the case bank.
 Core owns the scope, run, and resource state these functions use.
 That state runs the close and borrow protocol; it is not an app's data cell.
@@ -18,15 +18,17 @@ The bank and its calibration are committed.
 
 ## Tests
 
-The seven new cases have zero test-quality flags.
+The eleven new cases have zero test-quality flags.
 The package pass points at seven old tests and one old sleep fixture.
 They are outside this card and remain as on main.
 The flags are error guard assertions, equality followed by shape checks,
 and the timer fixture in the caught-subflow tests.
 The source and built-file lanes still run every test.
 
-The promise pass reports 46 old titles without a matched README line.
+The rebased promise pass reports 44 old titles without a matched README line.
 No new title is flagged.
+The async scope cleanup title has an unsure match.
+Its rule is already written: every cleanup cause lands in teardown errors.
 The README now states the sync close, async cleanup wait,
 operation defer, web abort code, and settle signal read guarantees.
 The old titles below include type checks and private cleanup details,

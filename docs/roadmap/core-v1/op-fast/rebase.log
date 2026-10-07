@@ -1,14 +1,21 @@
 git fetch origin && git rebase origin/main: EXIT 0
-No conflicts. Main board kept; only the op-fast Review card added.
-origin/main: 4423d86e9c2592d660888ad34748cf492e57169d
+origin/main: 83c8a72b2e983dae84f3da3e63db00c9a89fa90e
+TODO.md: kept main board and re-added this card.
+Advisory bank: kept main rows and Core rows.
 
-$ git diff 871b5a92..origin/main -- packages/core
+$ git diff 4423d86e..origin/main -- packages/core
 (empty output)
 EXIT 0
 
-$ git diff 1005c24e..HEAD -- packages/core/src packages/core/tests packages/core/build packages/core/vite.config.ts
+$ git diff dffc4695..HEAD -- packages/core
 (empty output)
 EXIT 0
 
-The runtime and timing builds are unchanged.
-The earlier full mutation attempt failed during setup, so a new full lane follows after the copy repair.
+$ git diff fa1cc594..HEAD -- packages/core/src packages/core/tests packages/core/build packages/core/vite.config.ts
+(empty output)
+EXIT 0
+
+Core is byte-for-byte the same before and after the rebase.
+The five later added tests are not part of that comparison.
+The runtime stays unchanged; the timing and V8 proof still apply.
+The full mutation lane runs again because of the new public seam tests.

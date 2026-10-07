@@ -1,31 +1,31 @@
-Rebased on origin/main 4423d86e; built before the checks.
+Rebased on origin/main 83c8a72b; installed and built before the checks.
 vp install: EXIT 0
 
 $ vp run -r build
-✔ Build complete in 1985ms
-✔ Build complete in 129ms
-✔ Build complete in 827ms
-✔ Build complete in 1083ms
-✔ Build complete in 1491ms
+✔ Build complete in 1324ms
+✔ Build complete in 24ms
+✔ Build complete in 494ms
+✔ Build complete in 537ms
+✔ Build complete in 806ms
 vp run: 0/12 cache hit (0%). (Run `vp run --last-details` for full details)
 EXIT 0
 
 $ scripts/ticket.sh --check-only --no-mutation op-fast
 == gate core/top-fast: vp check ==
-Found 0 errors and 28 warnings in 642 files (7.5s, 8 threads)
+Found 0 errors and 28 warnings in 642 files (5.9s, 8 threads)
 == gate core/top-fast: vp run -r test ==
-      Tests  863 passed (863)
+      Tests  867 passed (867)
       Tests  4 passed (4)
       Tests  118 passed | 1 skipped (119)
       Tests  87 passed (87)
       Tests  1 passed (1)
       Tests  66 passed (66)
       Tests  148 passed (148)
-      Tests  421 passed (421)
+      Tests  426 passed (426)
       Tests  25 passed (25)
 vp run: 0/10 cache hit (0%). (Run `vp run --last-details` for full details)
 == gate core/top-fast: core tests on the built files ==
-      Tests  873 passed (873)
+      Tests  877 passed (877)
 vp run: 0/2 cache hit (0%). (Run `vp run --last-details` for full details)
 == gate core/top-fast: size budget ==
 core runtime size: 15724 B gzip (cap 16384 B; all runtime files)
@@ -39,17 +39,43 @@ prose-lint: 0 hit(s) in 221 file(s)
 EXIT 0
 
 $ vp run @tinker-start-scaffold#check
+Plain check passed: 42 files, 10 plain functions (cap 17).
+check:plain: EXIT 0
+PASS: drizzle-kit generate EXIT 0; No schema changes; no new migration files or folders.
 test:schema: EXIT 0
+PASS: public backend import leaves drivers, auth, and SMTP unloaded; Drizzle table declarations are allowed.
 test:imports: EXIT 0
+PASS: SSE serializes committed replay, dedupes native middleware, refuses private/bad cursors, and ends idle streams on host close.
+PASS: native global/route/function middleware runs once per request; direct SSR calls keep Ada and Grace apart.
 test:middleware: EXIT 0
+PASS built starter serves native Response.json
 test:serve: EXIT 0
+PASS: installed base + note app + its own Register; tsc --noEmit EXIT 0.
 test:seam:fixture: EXIT 0
+registry:build: EXIT 0
+PASS: registry build rejects protected target ~/package.json.
+PASS: registry build rejects protected target ~/vite.config.ts.
+PASS: registry build rejects protected target ~/tsconfig.json.
+PASS: registry build rejects protected target ~/src/backend/greet.ts.
+PASS: registry build rejects protected target ~/src/routes/index.tsx.
+PASS: registry build rejects protected target ~/src/lib/tinker.ts.
+PASS: registry build rejects protected target ~/src/lib/tinker.server.ts.
+PASS: registry build rejects protected target ~/.env.example.
+PASS: registry build rejects protected target ~/.gitignore.
+PASS: registry build rejects protected target ~/components.json.
+PASS: registry build rejects protected target ~/vite.config.mts.
+PASS: app composition build EXIT 0.
+PASS: app + starter composition build EXIT 0.
+PASS: 10 registry items; 90 emitted files match source. No publish.
 test:registry: EXIT 0
-PROOF PASS: real auth, SMTP, migrations, two-tab sync, and profile page
+vp build: EXIT 0
+tinker doctor: EXIT 0
+docker compose up --wait postgres mailpit: EXIT 0; isolated proof project
+run app migrations: EXIT 0
 browser session stopped: EXIT 0
 browser session stopped: EXIT 0
-server PID 2918051 stopped: EXIT 0; signal none
-relay PID 2918004 stopped: EXIT 0
+server PID 2983712 stopped: EXIT 0; signal none
+relay PID 2983631 stopped: EXIT 0
 docker compose down -v: EXIT 0; only the proof project
 test:compose: EXIT 0
 EXIT 0
@@ -75,3 +101,10 @@ PASS  blueprint source retains corpus and evals
 PASS  two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)
 All deterministic budget lanes PASS (18)
 EXIT 0
+
+An earlier concurrent run timed out in two Start sync tests (5 s).
+The standalone full ticket rerun above passes all ten test tasks.
+No test timeout or source setting was changed.
+
+Full mutation follows on the clean proof HEAD; see mutation.log.
+The earlier complete lane was below 85 on kills alone (mutation-attempt.log).

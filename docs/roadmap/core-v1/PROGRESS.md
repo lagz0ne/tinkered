@@ -1691,3 +1691,45 @@ Prose, scaffold, and all 18 release lanes pass.
 Runtime size is still 15,724 B gzip.
 The first full fault attempt had stopped at setup.
 A new full run follows on the clean rebased commit with that setup repaired.
+
+### Kills alone and the newer main
+
+The first complete fault run exits 0, but fails the required floor.
+It kills 2,964 of 3,499 counted mutants: 84.71% on kills alone.
+The tool reports 85.80% because it counts 38 timeouts as kills.
+[Header and summary of that run](op-fast/mutation-attempt.log).
+We keep the required floor and every source file in the lane.
+
+Four added tests cover public rules missing from the changed paths.
+A hooked run waits for its async resource before the body starts.
+A saved run `next` refuses a finished run instead of starting a late body.
+The closing reason also keeps a non-empty message for callers.
+A synchronous close with `withData` hands over written data.
+An async scope cleanup failure appears in the close result.
+The two existing close cases now also check that default close drops data.
+These are distinct shipped rules, rather than tests of private helpers.
+A narrow fault run checks the wrong results those rules reject.
+[Wrong results caught by public rules](op-fast/public-rules.log).
+The full lane follows on the clean code-and-proof commit.
+
+Fetched and rebased onto `83c8a72b`, exit 0.
+Kept main's board and re-added this card in Review.
+Merged both sets of advisory labels and refreshed their calibration.
+Core was byte-for-byte unchanged by the rebase.
+The later tests change no runtime code or build setting.
+The earlier timing and default Maglev proof still apply.
+
+```bash
+git diff 4423d86e..origin/main -- packages/core
+```
+
+That command prints nothing and returns 0.
+[Rebase checks and runtime comparison](op-fast/rebase.log).
+
+All gates ran again on `83c8a72b`, each exit 0.
+Core has 867 source tests and 877 built-file tests; Start has 426.
+Code check has 0 errors and the same 28 warnings.
+Scaffold and all 18 release lanes pass.
+One concurrent gate attempt hit two five-second Start sync timeouts.
+The standalone full ticket rerun passes without changing any timeout.
+[Gate output](op-fast/gates.log).

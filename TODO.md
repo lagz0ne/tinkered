@@ -59,7 +59,8 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 - **core/op-fast** — cheaper runs and sync cleanup in one promise job.
   Owner: writer (Codex, op-fast session); lead reviews and lands.
   Next: lead review after the linked clean-commit fault proof.
-  Proof: seven new tests; Core source and built-file tests pass.
+  Proof: eleven new tests; Core source and built-file tests pass.
+  First full fault run: 84.71% on kills alone; new seam checks added.
   Core gate, scaffold, size cap, and all release lanes pass.
   `op`, `run`, `tagged`: b is faster.
   `session`, `lifecycle`: no difference we can see.
