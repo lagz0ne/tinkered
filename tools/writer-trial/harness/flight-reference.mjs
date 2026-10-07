@@ -44,6 +44,13 @@ export function placeFlightReference(reference, seed, project, round) {
     syncTest,
     readFileSync(syncTest, "utf8").replaceAll("todos: [],", "todos: [], bookings: [],"),
   );
+  writeFileSync(
+    join(project, "drizzle.config.ts"),
+    readFileSync(join(reference, "drizzle.config.ts"), "utf8").replace(
+      '    "./src/scaffold/backend/sync.schema.ts",\n',
+      "",
+    ),
+  );
   const config = readFileSync(join(seed, "vitest.config.ts"), "utf8").replace(
     "testTimeout: 30000,",
     'testTimeout: 30000,\n    include: ["tests/**/*.test.ts", "tests/**/*.proof.ts"],',
@@ -59,6 +66,8 @@ function portSource(source, file, round) {
   );
   source = source.replace(/"(?:\.\.\/|\.\/)scaffold\/frontend\/[^"]+"/g, '"@tinker/start/client"');
   source = source.replaceAll('"@tinker-start-scaffold/transport"', '"@tinker/start/testing"');
+  if (file === "src/backend/sync.schema.ts")
+    source += '\nexport { event, execution, stream } from "@tinker/start/server";\n';
   if (file === "src/lib/tinker.ts") source += "\nexport const extensions = [];\n";
   if (file === "src/lib/tinker.server.ts")
     source += '\nexport { extensions } from "./extensions.server.ts";\n';
@@ -111,6 +120,7 @@ export function prepareFlightReference(project, image) {
     run(["exec", container, "sh", "-c", "node scripts/check-plain.mjs --list > PLAIN.md"]);
     run(["exec", container, "tinker", "doctor"]);
     run(["exec", container, "vp", "build"]);
+    run(["exec", container, "node", "scripts/check-schema.mjs"]);
     run(["cp", `${container}:/work/.`, project]);
   } finally {
     run(["rm", "-f", container]);

@@ -7,7 +7,7 @@ Suites share one repeatable flow:
 - **Booking** — grows over rounds 1-5.
 - **Stock** — one fresh round.
 - **Plan** — one fresh round with course prerequisites.
-- **Flight** — Start scaffold and real local services, rounds 1-5.
+- **Flight** — Start base and real local services, rounds 1-5.
 
 ## What workers can see
 
@@ -150,6 +150,23 @@ node tools/writer-trial/prepare.mjs \
 This saves the new writer tar and keeper.
 It leaves service and dependency images and keepers unchanged.
 
+The fixed answer can prove this setup without a model writer.
+Use a fresh trial name for each run:
+
+```bash
+runner=tools/writer-trial/harness
+node "$runner/prove-base-image.mjs" \
+  flight-base-check-01
+```
+
+This checks the seed offline, plants a base edit,
+stages round 1, places the fixed answer, and grades it.
+It exports results and calls the normal trial cleanup.
+The old reference source stays as a saved fixture.
+The proof ports its imports onto the base,
+and uses the current app's auth, database, and mail settings.
+The services image stays unchanged.
+
 Other suites keep Playwright 1.55.0.
 The browser uses `flight-app`.
 Chromium tried HTTPS for the host name `app` in the proof.
@@ -164,7 +181,7 @@ After installing with scripts off, the image runs `tinker prepare`.
 Generated `.tinker/` and `.tanstack/` files,
 and frozen `TASK.md`, are ignored by formatting.
 The image and stage write `.prettierignore`.
-Vite+ reads this file when the scaffold's Vite config owns formatting.
+Vite+ reads this file when the app's Vite config owns formatting.
 The image's plain script has its own read-only package link.
 Flight runs one Vitest worker at a time to fit the memory limit.
 Each new tag saves its build folder and `image.tar.gz`.
