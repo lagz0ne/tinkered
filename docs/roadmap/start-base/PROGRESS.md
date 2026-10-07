@@ -212,3 +212,112 @@ The app has no promise gap.
 Calibration is saved with the labeled bank.
 The final mutation log must name clean code HEAD;
 only that log is committed after the run.
+
+## start/scaffold-on-base, Step 2
+
+Owner: Codex writer; lead reviews and lands.
+Branch: `start/scaffold-on-base-2`, from `fc276a61`.
+Next: review this saved step; do not publish the registry.
+Verify: all named checks, registry build, doctor breaks,
+repo gates, and a clean-commit mutation run.
+
+### Assumptions
+
+Follow the brief's split for plain and schema checks.
+ADR 0106's older plan put plain in doctor;
+the brief keeps this app rule as a named check.
+The source registry prepares the current full demo.
+A separate app template and a real registry CLI install
+belong to `start/shadcn-registry`.
+No trial image is rebuilt.
+
+### Check owners
+
+- `scripts/check-seam.mjs`: removed.
+  Doctor 5 already checks the names read from both seams.
+  Doctor 6 already reverses the old copied-folder rule:
+  app imports use only the base's public entries.
+  Add its missing module declaration, import-equals,
+  and absolute base path rules.
+  Two direct check tests fail without these fixes.
+  Three planted breaks are caught.
+- `scripts/check-boundary.mjs`: removed.
+  The plugin already enforces browser and server imports.
+  Doctor 10 reports the last build's violations.
+  No new boundary rule or duplicate proof is needed.
+- `scripts/check-plain.mjs`: named `check:plain`.
+  App forms and app HTTP rules stay app rules.
+  Resolve base symbols from the installed package.
+  Remove copied-folder and app-root exceptions.
+  Regenerate the list: ten app functions, cap 17.
+- `scripts/check-schema.mjs`: named `test:schema`.
+  App migrations remain app files.
+  Prepare the copied app before schema generation.
+- `maintain/check-imports.mjs`: named `test:imports`.
+  Service clients load only inside factories.
+  Drizzle table declarations may load at import.
+- `maintain/check-middleware.mjs`: named `test:middleware`.
+  App SSR, routes, and server functions share one session.
+  Use the public base entries and named Start file.
+- `maintain/check-serve.mjs`: named `test:serve`.
+  The base host must serve the app's native JSON reply.
+  It runs `tinker serve`; the copied host script is gone.
+- `maintain/check-seam-fixture.mjs`: named
+  `test:seam:fixture`.
+  Notes compile on the base with their own Register bodies.
+  It prepares fresh paths and copies no demo feature.
+- `maintain/check-registry.mjs`: named `test:registry`.
+  Emitted files must match their live source.
+  The complete copied app must build and pass plain.
+- `maintain/check-compose.mjs`: named `test:compose`.
+  Real Postgres, auth, SMTP, and browser sync need a proof.
+  It uses the owned Compose proof, with PID cleanup.
+  The proof now saves a profile through its split page.
+
+`vp run @tinker-start-scaffold#check` runs them all.
+It builds the registry before checking the emitted files.
+These proof scripts run outside unit tests.
+
+### Example ownership
+
+Nine items are built locally.
+`runtime` has zero files and installs `@tinker/start`.
+Todos, profile, auth pages, mail, and counter
+have separate copy-in items.
+`example-wiring` owns shared state, UI, sync, and migrations.
+The full example and starter join those items.
+Each file has one owner and keeps its app path.
+Auth and profile forms and actions now have separate files.
+The old action entry re-exports them for existing users.
+Examples name their needed parts in their metadata.
+They do not pin the base again during an example update.
+
+The registry check uses the installed workspace dependencies.
+It does not prove an independent package install,
+a shadcn CLI add, or a base upgrade across releases.
+Those proofs stay with the publishing card.
+
+### Outside users
+
+No outside consumer source changes in this step.
+The fixed flight reference keeps its old copied runtime
+and its own plain check; its package tests stay green.
+Jev's import snippet still uses the public base server entry.
+Writer import tests still read the app's shipped guides.
+Those guides now name the base's public entries.
+
+`trial/base-image` must pack and install Start with Core
+and React, using `@tinker/start: file:./start.tgz`.
+It must replace the empty runtime-file hash list with
+packed base bytes and run its trusted doctor.
+Replace copied seam and folder checks in `flight-check.mjs`.
+Ignore `.tinker/` and `.tanstack/`, not a route tree in src.
+Use a new image tag; never change a pinned runner tree.
+The new source registry alone does not make that image work.
+
+### Proof
+
+[PROOF section U](PROOF.md#u-the-app-checks-and-example-items)
+links the check, regression, and real-service logs.
+No public API changes across packages.
+Core feedback: none.

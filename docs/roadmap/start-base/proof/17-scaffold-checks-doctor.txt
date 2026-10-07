@@ -1,0 +1,82 @@
+===== doctor-red =====
+~/packages/start$ vp test -- tests/checks/imports.test.mjs ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-scaffold-on-base/packages/start
+
+ ❯ tests/checks/imports.test.mjs (4 tests | 2 failed) 27ms
+   × names module declarations and import-equals that bypass the base entries 11ms
+   × names an absolute path into the linked base 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/checks/imports.test.mjs > names module declarations and import-equals that bypass the base entries
+AssertionError: expected [ Array(1) ] to deeply equal [ …(2) ]
+
+- Expected
++ Received
+
+  [
+-   "src/peek.ts:1 \"#tinker/app\" is a base-only name; app code cannot import it",
+-   "src/peek.ts:2 \"@tinker/start/src/index.ts\" is not a base entry; use @tinker/start, @tinker/start/server, @tinker/start/client, or @tinker/start/vite",
++   "2 files in src/ import the base only through its entries",
+  ]
+
+ ❯ tests/checks/imports.test.mjs:44:31
+     42|     "src/peek.ts": 'declare module "#tinker/app" { interface X {} }\ni…
+     43|   });
+     44|   expect(imports(root).lines).toEqual([
+       |                               ^
+     45|     'src/peek.ts:1 "#tinker/app" is a base-only name; app code cannot …
+     46|     'src/peek.ts:2 "@tinker/start/src/index.ts" is not a base entry; u…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/checks/imports.test.mjs > names an absolute path into the linked base
+AssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "src/peek.ts:1 \"/home/paseo/next/tinkered-scaffold-on-base/packages/start/src/errors.ts\" reaches into the base by path; use a base entry",
++   "2 files in src/ import the base only through its entries",
+  ]
+
+ ❯ tests/checks/imports.test.mjs:53:31
+     51|   const path = join(baseDir, "src/errors.ts");
+     52|   const root = goodApp({ "src/peek.ts": `export { raise } from "${path…
+     53|   expect(imports(root).lines).toEqual([
+       |                               ^
+     54|     `src/peek.ts:1 "${path}" reaches into the base by path; use a base…
+     55|   ]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  03:10:38
+   Duration  293ms (transform 43%, import 27%, tests 26%, worker 4%)
+
+
+
+===== doctor-green =====
+~/packages/start$ vp test -- tests/checks/imports.test.mjs ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-scaffold-on-base/packages/start
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  03:12:38
+   Duration  271ms (transform 48%, import 30%, tests 16%, worker 4%)
+
+
+
+===== breaks =====
+control (no break): 0 failed test(s), 0 broken file(s)
+caught    1 failed  seam module declarations are missed
+caught    1 failed  seam import equals is missed
+caught    2 failed  seam absolute base paths are missed
+
+3 of 3 breaks caught (3 logic, 0 message); BREAKS=seam module,seam import,seam absolute

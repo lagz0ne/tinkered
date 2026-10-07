@@ -57,9 +57,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Owner: lead (Claude, Start scaffold session); Sol writer. Worktree: `../tinkered-scaffold-on-base`.
   Step 1: the app on the base, parts on, `src/scaffold/` gone. Step 2: its checks and examples.
   Step 1 landed on main: the app on the base; tests 1,838; mutation 87.26 on kills.
-  Broken until Step 2: `registry:build` and the old `test:schema`, `test:imports` scripts.
-  Next: Step 2 on a fresh branch off main.
-  Proof: better-auth on Postgres; two live tabs receive one saved todo.
+  Step 2 writer: Codex; branch `start/scaffold-on-base-2`.
+  Next: lead reviews and lands Step 2; no registry publishing.
+  Step 2: all named checks pass; nine registry items build; three new breaks caught.
+  Gates: 1,840 tests pass; check, prose, and 17 validate lanes pass.
+  Full Start mutation proof names the clean code commit in its log.
+  Proof: real sign-in, two-tab sync, and profile mail pass.
+  [Step 2 proof](docs/roadmap/start-base/PROOF.md#u-the-app-checks-and-example-items).
   [Track](docs/roadmap/start-base/PROGRESS.md).
   Verify: the app builds and serves on the base; `src/scaffold/` is gone; doctor passes.
 

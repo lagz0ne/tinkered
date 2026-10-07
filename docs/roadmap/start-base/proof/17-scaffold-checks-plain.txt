@@ -1,0 +1,14 @@
+===== plain-final-breaks =====
+Plain check passed: 42 files, 10 plain functions (cap 17).
+PASS: response-userland-refused protocol-response EXIT 1; /tmp/start-plain-proof-response-userland-refused.log
+PASS: request-headers-constant-key protocol-headers EXIT 1; /tmp/start-plain-proof-request-headers-constant-key.log
+PASS: http-backend-constant-key http-backend EXIT 1; /tmp/start-plain-proof-http-backend-constant-key.log
+PASS: mounted-auth-bracket protocol-auth EXIT 1; /tmp/start-plain-proof-mounted-auth-bracket.log
+PASS: request-headers-bracket protocol-headers EXIT 1; /tmp/start-plain-proof-request-headers-bracket.log
+PASS: request-headers-testing protocol-headers EXIT 1; /tmp/start-plain-proof-request-headers-testing.log
+PASS: request-headers-direct protocol-headers EXIT 1; /tmp/start-plain-proof-request-headers-direct.log
+PASS: http-backend-dependency http-backend EXIT 1; /tmp/start-plain-proof-http-backend-dependency.log
+PASS: http-resource-dependency http-resource EXIT 1; /tmp/start-plain-proof-http-resource-dependency.log
+PASS: http-resource-export http-resource EXIT 1; /tmp/start-plain-proof-http-resource-export.log
+PASS: scope-entry-module scope-entry-only EXIT 1; /tmp/start-plain-proof-scope-entry-module.log
+Plain proof passed: 11 planted cases.

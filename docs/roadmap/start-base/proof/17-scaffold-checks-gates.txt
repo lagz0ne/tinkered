@@ -1,0 +1,20 @@
+Step 2 gate evidence; 2026-10-07
+Setup git fetch origin; git rebase origin/main: EXIT 0
+vp install: EXIT 0
+vp run -r build: EXIT 0; 11 tasks
+vp check: EXIT 0; 0 errors, 28 warnings
+vp run -r test: EXIT 0; 1840 passed, 1 old skip; 10 tasks
+Start: 389; scaffold: 25; Core: 856; React: 118 passed, 1 skipped
+Jev tools: 148; blueprint: 148; flight trial: 87
+Core example: 4; React example: 64; playground: 1
+node --test tools/writer-trial/*.test.mjs: EXIT 0; 92 passed
+pnpm validate: EXIT 0; all 17 deterministic lanes
+vp run prose: EXIT 0; 0 hits
+Style census --strict: EXIT 0; Style census: OK
+node tools/jev/docs.mjs (7 changed TypeScript files): EXIT 0; 0 S26 rows
+New doctor rules: module declarations, import-equals, absolute base paths
+BREAKS='seam module,seam import,seam absolute': EXIT 0; 3 of 3 caught
+Doctor regression without fixes: EXIT 1; 2 failed, 2 passed
+Doctor regression with fixes: EXIT 0; 4 passed
+Initial parallel test run failed while validate rebuilt Core dist.
+The final build/check/test/prose chain ran in order, after validate finished; EXIT 0.

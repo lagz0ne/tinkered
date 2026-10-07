@@ -1,0 +1,183 @@
+===== app-check =====
+~/apps/start-scaffold$ node maintain/check-app.mjs ⊘ cache disabled
+~/apps/start-scaffold$ node scripts/check-plain.mjs ⊘ cache disabled
+Plain check passed: 42 files, 10 plain functions (cap 17).
+
+check:plain: EXIT 0
+~/apps/start-scaffold$ node scripts/check-schema.mjs ⊘ cache disabled
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/tmp/start-seam-schema-kihQ4B/drizzle.config.ts'
+No schema changes, nothing to migrate 😴
+PASS: drizzle-kit generate EXIT 0; No schema changes; no new migration files or folders.
+
+test:schema: EXIT 0
+~/apps/start-scaffold$ node maintain/check-imports.mjs ⊘ cache disabled
+PASS: public backend import leaves drivers, auth, and SMTP unloaded; Drizzle table declarations are allowed.
+
+test:imports: EXIT 0
+~/apps/start-scaffold$ node maintain/check-middleware.mjs ⊘ cache disabled
+{"level":30,"time":1791343191481,"service":"tinker-app","side":"server","traceId":"eed2dd9086fdb854a48660bf272516fc","spanId":"a48660bf272516fc","msg":"core.span"}
+{"level":30,"time":1791343191572,"service":"tinker-app","side":"server","traceId":"5f6371d534375d75a32340d4acbe30ba","spanId":"dfd9ec5f82bf2cfe","msg":"core.span"}
+{"level":30,"time":1791343193904,"service":"tinker-app","side":"server","traceId":"5f6371d534375d75a32340d4acbe30ba","spanId":"e8171121664525a3","msg":"core.span"}
+{"level":30,"time":1791343193987,"service":"tinker-app","side":"server","traceId":"5f6371d534375d75a32340d4acbe30ba","spanId":"a32340d4acbe30ba","msg":"core.span"}
+{"level":30,"time":1791343194005,"service":"tinker-app","side":"ssr","traceId":"d271bb919d56f4418dfd48a0f65e5d3d","spanId":"e4ad205ae01e3e47","msg":"core.span"}
+{"level":30,"time":1791343194005,"service":"tinker-app","side":"ssr","traceId":"d271bb919d56f4418dfd48a0f65e5d3d","spanId":"2f97196d3af64863","msg":"core.span"}
+{"level":30,"time":1791343194006,"service":"tinker-app","side":"ssr","traceId":"b7d41097a629ec2c31e2d5f5b9df36fa","spanId":"605330e2207bb2f4","msg":"core.span"}
+{"level":30,"time":1791343194006,"service":"tinker-app","side":"ssr","traceId":"b7d41097a629ec2c31e2d5f5b9df36fa","spanId":"4844c82cc7b6dcc9","msg":"core.span"}
+{"level":30,"time":1791343194006,"service":"tinker-app","side":"ssr","traceId":"d271bb919d56f4418dfd48a0f65e5d3d","spanId":"a9acdd548372c0dc","msg":"core.span"}
+{"level":30,"time":1791343194006,"service":"tinker-app","side":"ssr","traceId":"b7d41097a629ec2c31e2d5f5b9df36fa","spanId":"ae98d9fe4739088d","msg":"core.span"}
+{"level":30,"time":1791343194006,"service":"tinker-app","side":"ssr","traceId":"d271bb919d56f4418dfd48a0f65e5d3d","spanId":"8dfd48a0f65e5d3d","msg":"core.span"}
+{"level":30,"time":1791343194006,"service":"tinker-app","side":"ssr","traceId":"b7d41097a629ec2c31e2d5f5b9df36fa","spanId":"31e2d5f5b9df36fa","msg":"core.span"}
+{"level":30,"time":1791343194017,"service":"tinker-app","side":"server","traceId":"3e9b30fdc38ac9c8ade17c3ddcc0addc","spanId":"ade17c3ddcc0addc","msg":"core.span"}
+{"level":30,"time":1791343194017,"service":"tinker-app","side":"server","traceId":"3b3b7261ae6a384708ccb923d1bb5bab","spanId":"08ccb923d1bb5bab","msg":"core.span"}
+{"level":30,"time":1791343194019,"service":"tinker-app","side":"server","traceId":"31f39387cea43dfea3cc80a8a8a1f179","spanId":"a3cc80a8a8a1f179","msg":"core.span"}
+{"level":30,"time":1791343194019,"service":"tinker-app","side":"server","traceId":"05632041eac7a6de2dc9b2ee8a44a417","spanId":"2dc9b2ee8a44a417","msg":"core.span"}
+{"level":30,"time":1791343194024,"service":"tinker-app","side":"server","traceId":"9639fc36411f49792121dd768eeaa159","spanId":"2121dd768eeaa159","msg":"core.span"}
+{"level":30,"time":1791343194061,"service":"tinker-app","side":"ssr","traceId":"d76b24fe6c84ebeb43614160985ac03c","spanId":"142b01165a3e788f","msg":"core.span"}
+{"level":30,"time":1791343194062,"service":"tinker-app","side":"ssr","traceId":"d76b24fe6c84ebeb43614160985ac03c","spanId":"8e2a1076923294b4","msg":"core.span"}
+{"level":30,"time":1791343194062,"service":"tinker-app","side":"ssr","traceId":"d76b24fe6c84ebeb43614160985ac03c","spanId":"16984b1d5d082196","msg":"core.span"}
+{"level":30,"time":1791343194062,"service":"tinker-app","side":"ssr","traceId":"d76b24fe6c84ebeb43614160985ac03c","spanId":"43614160985ac03c","msg":"core.span"}
+{"level":30,"time":1791343194062,"service":"tinker-app","side":"server","traceId":"de5d1455770ef511a979f226afe84489","spanId":"a979f226afe84489","msg":"core.span"}
+{"level":30,"time":1791343194065,"service":"tinker-app","side":"server","traceId":"de5d1455770ef511a979f226afe84489","spanId":"830c714724fa4281","msg":"core.span"}
+{"level":30,"time":1791343194065,"service":"tinker-app","side":"server","traceId":"de5d1455770ef511a979f226afe84489","spanId":"ff09e30112283c65","msg":"core.span"}
+{"level":30,"time":1791343194173,"service":"tinker-app","side":"server","traceId":"de5d1455770ef511a979f226afe84489","spanId":"27a5a6f8d1bd06c7","msg":"core.span"}
+{"level":30,"time":1791343194181,"service":"tinker-app","side":"server","traceId":"de5d1455770ef511a979f226afe84489","spanId":"945bbcf4c7c3710e","msg":"core.span"}
+{"level":30,"time":1791343194184,"service":"tinker-app","side":"server","traceId":"de5d1455770ef511a979f226afe84489","spanId":"9921129d9987dad5","msg":"core.span"}
+{"level":30,"time":1791343194190,"service":"tinker-app","side":"ssr","traceId":"9848bc1844dfe51e4e47191b77f5a52a","spanId":"6735c408bd33e131","msg":"core.span"}
+{"level":30,"time":1791343194190,"service":"tinker-app","side":"ssr","traceId":"9848bc1844dfe51e4e47191b77f5a52a","spanId":"14e774d861192d7f","msg":"core.span"}
+{"level":30,"time":1791343194190,"service":"tinker-app","side":"ssr","traceId":"9848bc1844dfe51e4e47191b77f5a52a","spanId":"aa807fb011cc88eb","msg":"core.span"}
+{"level":30,"time":1791343194190,"service":"tinker-app","side":"ssr","traceId":"9848bc1844dfe51e4e47191b77f5a52a","spanId":"4e47191b77f5a52a","msg":"core.span"}
+{"level":30,"time":1791343194196,"service":"tinker-app","side":"server","traceId":"a8c5b0d08addf690a5b312a70d69a1bb","spanId":"88afd3f6eda3dd05","msg":"core.span"}
+{"level":30,"time":1791343194234,"service":"tinker-app","side":"server","traceId":"a8c5b0d08addf690a5b312a70d69a1bb","spanId":"a5b312a70d69a1bb","msg":"core.span"}
+{"level":30,"time":1791343194235,"service":"tinker-app","side":"server","traceId":"de5d1455770ef511a979f226afe84489","spanId":"d0b8cc3c909ccbe9","msg":"core.span"}
+{"level":30,"time":1791343194239,"service":"tinker-app","side":"ssr","traceId":"665a8a6f95e23854832ddff8f5988ff7","spanId":"2eb80f661f6eda71","msg":"core.span"}
+{"level":30,"time":1791343194240,"service":"tinker-app","side":"ssr","traceId":"665a8a6f95e23854832ddff8f5988ff7","spanId":"43470ee7beea042c","msg":"core.span"}
+{"level":30,"time":1791343194240,"service":"tinker-app","side":"ssr","traceId":"665a8a6f95e23854832ddff8f5988ff7","spanId":"47236ad9c387daf1","msg":"core.span"}
+{"level":30,"time":1791343194240,"service":"tinker-app","side":"ssr","traceId":"665a8a6f95e23854832ddff8f5988ff7","spanId":"832ddff8f5988ff7","msg":"core.span"}
+{"level":30,"time":1791343194241,"service":"tinker-app","side":"server","traceId":"50c7efa839130a9342580b60ac7dac63","spanId":"42580b60ac7dac63","msg":"core.span"}
+{"level":30,"time":1791343194242,"service":"tinker-app","side":"server","traceId":"50c7efa839130a9342580b60ac7dac63","spanId":"e0cf65bda190d373","msg":"core.span"}
+{"level":30,"time":1791343194244,"service":"tinker-app","side":"server","traceId":"50c7efa839130a9342580b60ac7dac63","spanId":"adf34a428adf1fc4","msg":"core.span"}
+{"level":30,"time":1791343194246,"service":"tinker-app","side":"server","traceId":"50c7efa839130a9342580b60ac7dac63","spanId":"27d9fc5e368a23a3","msg":"core.span"}
+{"level":30,"time":1791343194246,"service":"tinker-app","side":"server","traceId":"50c7efa839130a9342580b60ac7dac63","spanId":"c3a8aceb624e619f","msg":"core.span"}
+{"level":30,"time":1791343194252,"service":"tinker-app","side":"ssr","traceId":"620c39cd05fc9914326a62b340397a05","spanId":"c33375c04851d6f1","msg":"core.span"}
+{"level":30,"time":1791343194252,"service":"tinker-app","side":"ssr","traceId":"620c39cd05fc9914326a62b340397a05","spanId":"cc213a7401e7acb8","msg":"core.span"}
+{"level":30,"time":1791343194252,"service":"tinker-app","side":"ssr","traceId":"620c39cd05fc9914326a62b340397a05","spanId":"43f8e19ea22de4cc","msg":"core.span"}
+{"level":30,"time":1791343194252,"service":"tinker-app","side":"ssr","traceId":"620c39cd05fc9914326a62b340397a05","spanId":"326a62b340397a05","msg":"core.span"}
+{"level":30,"time":1791343194253,"service":"tinker-app","side":"server","traceId":"592244319f02f7ba5a358cb4668b6926","spanId":"5a358cb4668b6926","msg":"core.span"}
+{"level":30,"time":1791343194256,"service":"tinker-app","side":"server","traceId":"592244319f02f7ba5a358cb4668b6926","spanId":"53525f096eadce1c","msg":"core.span"}
+{"level":30,"time":1791343194257,"service":"tinker-app","side":"server","traceId":"592244319f02f7ba5a358cb4668b6926","spanId":"9b2c15ce9bf1f599","msg":"core.span"}
+{"level":30,"time":1791343194259,"service":"tinker-app","side":"server","traceId":"592244319f02f7ba5a358cb4668b6926","spanId":"5e0eaa395a47a398","msg":"core.span"}
+{"level":30,"time":1791343194260,"service":"tinker-app","side":"server","traceId":"592244319f02f7ba5a358cb4668b6926","spanId":"2dc3aa0aa5f4372f","msg":"core.span"}
+{"level":50,"time":1791343194260,"service":"tinker-app","side":"server","traceId":"592244319f02f7ba5a358cb4668b6926","spanId":"2dc3aa0aa5f4372f","attributes":{"ms":"6","outcome":"\"failed\""},"msg":"sync.open"}
+{"level":30,"time":1791343194268,"service":"tinker-app","side":"ssr","traceId":"b085dbbcd7b9f5572cc0080b38896d37","spanId":"92e884e1e17ba35e","msg":"core.span"}
+{"level":30,"time":1791343194268,"service":"tinker-app","side":"ssr","traceId":"b085dbbcd7b9f5572cc0080b38896d37","spanId":"3fa7bcd1a3643784","msg":"core.span"}
+{"level":30,"time":1791343194268,"service":"tinker-app","side":"ssr","traceId":"b085dbbcd7b9f5572cc0080b38896d37","spanId":"a64f09a1be444372","msg":"core.span"}
+{"level":30,"time":1791343194268,"service":"tinker-app","side":"ssr","traceId":"b085dbbcd7b9f5572cc0080b38896d37","spanId":"2cc0080b38896d37","msg":"core.span"}
+{"level":30,"time":1791343194269,"service":"tinker-app","side":"server","traceId":"757d608549205c274b6320e6c939e619","spanId":"4b6320e6c939e619","msg":"core.span"}
+{"level":30,"time":1791343194271,"service":"tinker-app","side":"ssr","traceId":"57decef31c54614b4e621637486d38cc","spanId":"0809c373298331e6","msg":"core.span"}
+{"level":30,"time":1791343194271,"service":"tinker-app","side":"ssr","traceId":"57decef31c54614b4e621637486d38cc","spanId":"ee52cc5c9d0490c8","msg":"core.span"}
+{"level":30,"time":1791343194271,"service":"tinker-app","side":"ssr","traceId":"57decef31c54614b4e621637486d38cc","spanId":"e965ce645684b43a","msg":"core.span"}
+{"level":30,"time":1791343194271,"service":"tinker-app","side":"ssr","traceId":"57decef31c54614b4e621637486d38cc","spanId":"4e621637486d38cc","msg":"core.span"}
+{"level":30,"time":1791343194272,"service":"tinker-app","side":"server","traceId":"db50ca40eb6cdccd9324ddd02a1f9dac","spanId":"9324ddd02a1f9dac","msg":"core.span"}
+{"level":30,"time":1791343194273,"service":"tinker-app","side":"server","traceId":"db50ca40eb6cdccd9324ddd02a1f9dac","spanId":"4f38e831991cee87","msg":"core.span"}
+{"level":30,"time":1791343194274,"service":"tinker-app","side":"server","traceId":"db50ca40eb6cdccd9324ddd02a1f9dac","spanId":"a5dac7ecdbcc6d06","msg":"core.span"}
+{"level":30,"time":1791343194278,"service":"tinker-app","side":"server","traceId":"db50ca40eb6cdccd9324ddd02a1f9dac","spanId":"ecaa46b92d2bdb18","msg":"core.span"}
+{"level":30,"time":1791343194279,"service":"tinker-app","side":"server","traceId":"db50ca40eb6cdccd9324ddd02a1f9dac","spanId":"77405065fa4760f4","msg":"core.span"}
+PASS: SSE serializes committed replay, dedupes native middleware, refuses private/bad cursors, and ends idle streams on host close.
+PASS: native global/route/function middleware runs once per request; direct SSR calls keep Ada and Grace apart.
+
+test:middleware: EXIT 0
+~/apps/start-scaffold$ node maintain/check-serve.mjs ⊘ cache disabled
+GET /proof/response: 200 {"ok":true}
+PASS built starter serves native Response.json
+
+test:serve: EXIT 0
+~/apps/start-scaffold$ node maintain/check-seam-fixture.mjs ⊘ cache disabled
+PASS: installed base + note app + its own Register; tsc --noEmit EXIT 0.
+
+test:seam:fixture: EXIT 0
+~/apps/start-scaffold$ node maintain/build-registry.mjs ⊘ cache disabled
+- Building runtime...
+- Building todos-example...
+- Building profile-example...
+- Building auth-pages-example...
+- Building mail-example...
+- Building counter-example...
+- Building example-wiring...
+- Building postgres-auth-mail-example...
+- Building starter...
+✔ Building registry.
+Done in 947ms using pnpm v12.4.1
+tinker: sync turns auth on
+Finished in 1261ms on 11 files using 8 threads.
+3:20:07 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+
+registry:build: EXIT 0
+~/apps/start-scaffold$ node maintain/check-registry.mjs ⊘ cache disabled
+PASS: 9 registry items; 77 files match source; composed app build and plain check EXIT 0.
+No publish or registry CLI install. The local composition uses the installed workspace dependencies.
+
+test:registry: EXIT 0
+~/apps/start-scaffold$ node maintain/check-compose.mjs ⊘ cache disabled
+scaffold on @tinker/start; telemetry, auth, sync on
+vp build: EXIT 0
+ok    1 base version
+      @tinker/start 0.6.0; 4 peers match the tested
+      versions
+skip  2 base bytes
+      workspace link to ../../packages/start; a source
+      checkout has no pinned bytes
+ok    3 generated folder
+      .tinker/ matches this base and src/routes;
+      .gitignore lists .tinker/ and .tanstack/
+ok    4 glue
+      vite.config.ts calls tinker() once; tsconfig.json
+      extends .tinker; postinstall runs tinker prepare
+ok    5 named files
+      each named or seam file exports what the base reads
+      (src/lib/tinker.ts, src/lib/tinker.server.ts); no
+      Start file is ignored
+ok    6 imports
+      42 files in src/ import the base only through its
+      entries
+ok    7 routes
+      route files export Route; none takes a base path
+      (/api/health, /tinker, /api/telemetry, /api/auth/$,
+      /api/sync)
+ok    8 style
+      src/style.css is linked by the shell; every
+      stylesheet is linked
+ok    9 env
+      18 key(s) from .env.example are set; part keys read
+      well: telemetry, auth, sync
+ok    10 boundary
+      the last build had no import boundary violations
+doctor: all checks pass
+tinker doctor: EXIT 0
+docker compose up --wait postgres mailpit: EXIT 0; isolated proof project
+Own network uses 10.254.251.0/28; the host default address pools are full
+Own TCP relays reach Postgres and Mailpit through docker compose exec; host loopback is outside this workspace
+run app migrations: EXIT 0
+GET /api/health: 200 {"ok":true,"base":"0.6.0"}
+databaseSetup ran app migrations: 4 migration rows on real Postgres
+curl POST /api/auth/sign-up/email: 200; account step-one@example.com
+Mailpit: real SMTP verification message received
+curl POST /api/auth/sign-in/email: 200; same real Postgres account
+browser engine: Lightpanda (agent-browser default); 127.0.0.1 only
+tab one: real better-auth browser sign-in succeeded
+two live Lightpanda tabs: one per session, same real account; Lightpanda permits one target per session
+tab one added todo: Step one crosses two tabs
+tab two received todo through /api/sync: Step one crosses two tabs
+tab two sync requests: [REQ-0000000007] GET http://127.0.0.1:42791/api/sync?cursor=%7B%22public%22%3A0%2C%22private%22%3Anull%7D (EventSource) 200
+[REQ-0000000017] GET http://127.0.0.1:42791/api/sync?cursor=%7B%22public%22%3A0%2C%22private%22%3A%7B%22accountId%22%3A%222QikBdDWG0OdgWnx86b2IW9JCfGlr2De%22%2C%22revision%22%3A0%7D%7D (EventSource) 200
+Postgres saved todo: Step one crosses two tabs
+PROOF PASS: real auth, SMTP, migrations, and two-tab sync
+browser session stopped: EXIT 0
+browser session stopped: EXIT 0
+server PID 1964708 stopped: EXIT 0; signal none
+relay PID 1964251 stopped: EXIT 0
+docker compose down -v: EXIT 0; only the proof project
+
+test:compose: EXIT 0

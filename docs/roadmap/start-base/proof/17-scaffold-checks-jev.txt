@@ -1,0 +1,419 @@
+===== jev-preflight =====
+jev pre-flight (advisory) — clear or explain these before reporting
+
+  ✓ apps/start-scaffold/src/frontend/App.tsx
+  ✓ apps/start-scaffold/src/frontend/actions.ts
+  ✓ apps/start-scaffold/src/routes/profile.tsx
+  ✓ apps/start-scaffold/src/frontend/Profile.tsx
+  ✓ apps/start-scaffold/src/frontend/auth-actions.ts
+  ✓ apps/start-scaffold/src/frontend/error-text.ts
+  ✓ apps/start-scaffold/src/frontend/profile-actions.ts
+
+jev lint (advisory) — 7 file(s)
+
+apps/start-scaffold/src/frontend/App.tsx
+  ✓ component AccountForm (L10)
+  ✓ component App (L98)
+apps/start-scaffold/src/frontend/Profile.tsx
+  ✓ component ProfileForm (L11)
+  ✓ component ProfilePage (L79)
+apps/start-scaffold/src/frontend/auth-actions.ts
+  ✓ resource authClient (L8)
+  ✓ operation signIn (L15)
+  ✓ operation signOut (L46)
+  ✓ operation setAuthMode (L56)
+apps/start-scaffold/src/frontend/error-text.ts
+  ✓ function errorText (L5)
+apps/start-scaffold/src/frontend/profile-actions.ts
+  ✓ operation saveName (L10)
+  ✓ operation retryMail (L40)
+  ✓ operation editName (L68)
+
+jev lint: 12 unit(s), 0 ⚠ flag(s), 0 ℹ note(s). By question: {}
+Advisory only — model ⚠ hits are fixed or explained, then labeled (a ~ hit: read it, no line owed); unitCouldBeModuleLevel (code) is deterministic and needs no label or calibration. vp check / tests / the lead decide.
+
+jev pre-flight: 0 file flag(s) plus the lint notes above. An ℹ note is a hint: no fix or label owed. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (tools/jev/label.mjs). Not a gate.
+
+===== jev-tests =====
+packages/start/tests/checks/imports.test.mjs
+  ✓ L7 passes when src/ reaches the base only through its entries
+  ✓ L19 names each import that goes around the base's entries, at its line
+  ✓ L39 names module declarations and import-equals that bypass the base entries
+  ✓ L50 names an absolute path into the linked base
+
+jev tests: 0/4 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.
+
+===== jev-promises =====
+jev promises (advisory) — start: 175 test titles, 373 README candidates
+
+  ✓ handleAuth hands the whole request to the app's auth library and returns its reply  ← and returns its reply as is.… (50%)
+  ✓ handleAuth takes only a request, and a failing auth library fails the call  ← a failing library fails the call.… (80%)
+  ✓ the part reads its two keys once and hands them to the app's auth library  ← and hands them to the app's `auth` as `authSettings`.… (61%)
+  ✓ an unset, empty, or refused key is named in one BadSettings  ← at its start with `BadSettings`, naming each key.… (36%)
+  ✓ with auth on, the app root does not start while an auth key is refused  ← With auth on, the app root does not start… (60%)
+  ✓ with auth on and good keys, the app root starts with them read  ← and hands them to the app's `auth` as `authSettings`.… (40%)
+  ✓ with auth off, the app root reads no auth key  ← With auth off, the app root reads no auth key.… (100%)
+  ✓ the auth part's work shows on the trace as auth.settings and handleAuth  ← as `auth.settings` and `handleAuth`.… (57%)
+  ✓ a production error page shows no error text; dev shows the message  ← In production, the error page shows no error text.… (95%)
+  ✓ closing the HTTP resource aborts a request still in flight  ← Releasing the HTTP resource aborts its own pending sends.… (80%)
+  ✓ a bound HTTP backend gets the request and returns text without network  ← Bind `httpBackend` in scope tests to send without network.… (93%)
+  ✓ network failures keep method, path, and only cause name and code  ← method, path, and only the cause's name and code.… (93%)
+  ✓ an abort failure keeps its numeric code without its message  ← An abort failure keeps its numeric code without its message.… (100%)
+  ✓ a string cause keeps the outer error name and code without private text  ← method, path, and only the cause's name and code.… (41%)
+  ✓ network failures keep readable cause fields when the other field has a wrong type  ← an unreadable inner field keeps its readable outer field.… (39%)
+  ✓ closing the caller aborts HTTP body reading  ← Closing the root scope cancels each open body.… (92%)
+  ✓ an HTTP method is normalized once for sending and spans  ← The method accepts HTTP token characters and becomes upper-case.… (76%)
+  ? an HTTP method rejects non-token characters before sending  — no README line (55%, unsure)
+  ✓ HTTP replies keep each set-cookie value and joined repeated headers  ← Each set-cookie stays separate; other headers stay joined.… (95%)
+  ✓ backend stop settles a server function's signalled HTTP call  ← The backend and request stop tags end HTTP waits… (50%)
+  ? request end settles its tagged HTTP call and leaves siblings open  — no README line (59%, unsure)
+  ✓ ending the server function's call signal still cancels its HTTP work  ← an account exit or its call's stop cancels it.… (75%)
+  ✓ forced root and session closes still cancel a never-answering HTTP request  ← Closing the root scope cancels each open body.… (87%)
+  ✓ backend stop settles HTTP while other running work finishes  ← A graceful close ends HTTP waits before other work drains.… (77%)
+  ✓ a direct graceful session close settles a hung HTTP send without stop tags  ← A graceful close ends HTTP waits before other work drains.… (85%)
+  ✓ a direct graceful root close reaches a session's hung HTTP send without stop tags  ← A graceful close ends HTTP waits before other work drains.… (59%)
+  ✓ backendStop ends a pending HTTP send without closing its root  ← Releasing the HTTP resource aborts its own pending sends.… (60%)
+  ? running work finishes on graceful close when the HTTP backend answers  — no README line (48%, unsure)
+  ✓ releasing HTTP aborts a held direct send and leaves the scope open  ← Releasing the HTTP resource aborts its own pending sends.… (82%)
+  ✓ readResult returns a settled value and throws a settled failure as is  ← `readResult` returns a settled value.… (60%)
+  ✓ readResult turns a cancelled call into the base's Cancelled error  ← and a cancelled call as the base's `Cancelled` error.… (90%)
+  ✓ the base's health operation reports the base version  ← `/api/health` answers `{"ok":true,"base":"<version>"}`.… (100%)
+  ✓ the start extension hands each request its root scope  ← Each request runs in its own session of the root… (80%)
+  ✓ a request with no root scope fails before any work runs  ← A request with no root scope fails before any work.… (99%)
+  ? a held response body ends the request when read to the end, or when cancelled  — no README line (37%, unsure)
+  ✓ with no src/server.ts, the server entry goes straight to the base  ← goes straight to the base.… (60%)
+  ✓ dev turns Start's JSON 500 into a page that reloads after the fix  ← becomes a page that reloads after the fix.… (85%)
+  ✓ dev passes on any response that is not a page load's JSON 500  ← Every other response passes through.… (89%)
+  ✓ a response with no body ends its request at once and passes through  ← A response with no body ends it at once.… (91%)
+  ✓ a held body keeps its status and headers, and ends its request once  ← A held body keeps its status and headers.… (63%)
+  ✓ a body that fails to read ends its request by force and fails the read  ← A body that is cancelled or fails to read,… (53%)
+  ✓ closing the scope cancels each open body and ends its request by force  ← Closing the root scope cancels each open body.… (85%)
+  ✓ a request that cannot end fails the body's cancel, and the scope's close  ← A request that cannot end fails the body's cancel,… (41%)
+  ✓ an HTTP request makes two spans and records its status  ← The request returns status, headers, and body text.… (29%)
+  ✓ binding after the factory ends closes the tab once on a real page hide  ← that observes the app root and closes after it.… (51%)
+  ? the server side has no page and binds without listening  — no README line (37%, unsure)
+  ✓ the account owner versions each account and stops its work; the tab stop stops it too  ← an account exit or its call's stop cancels it.… (70%)
+  ✓ closing the root stops the account's work  ← Closing the root scope cancels each open body.… (93%)
+  ✓ a snapshot sets the records and cursors once; a stale version or an older snapshot is ignored  ← A snapshot sets the records and cursors once… (49%)
+  ✓ events apply in order: a repeat is skipped, a gap stops the batch, an unknown stream is skipped  ← Changes apply in order: a repeat is skipped,… (46%)
+  ✓ an event before its receipt finishes the write only after the receipt, with its result  ← A write waits for its result event.… (81%)
+  ✓ a receipt before its event waits for the result event  ← A write waits for its result event.… (78%)
+  ✓ a rejected write fails with its message; a send that throws is retried after 500 ms  ← A send that throws is retried after 500 ms;… (89%)
+  ✓ an account exit stops local waits and ignores the old account's late events  ← an account exit or its call's stop cancels it.… (81%)
+  ? a snapshot for another account while a write is pending leaves the account, and waits  — no README line (43%, unsure)
+  ✓ closing the root cancels a write that waits for its result  ← or a root close fails a wait that no signal stops.… (44%)
+  ✓ an anonymous snapshot keeps the tab anonymous on the public stream  ← keeps the tab anonymous on the public stream.… (95%)
+  ? an account that leaves and joins again takes its snapshot afresh  — no README line (55%, unsure)
+  ✓ a wait for an old account version, or with a stopped signal, fails at once  ← stopped signal, fails at once.… (58%)
+  ✓ closing the root fails a wait that no signal stops  ← or a root close fails a wait that no signal stops.… (76%)
+  ? an account exit fails a wait that no signal stops  — no README line (58%, unsure)
+  ✓ a result for a write this tab did not send is not kept for a later write of that id  ← this tab did not send is not kept for a later write… (64%)
+  ✓ a finished write forgets its id: a repeat waits for its own result  ← A write waits for its result event.… (65%)
+  ? a call stopped before it sends fails at once, and sends nothing  — no README line (31%, unsure)
+  ✓ a send that fails because its call stopped fails with its own error, and is not retried  ← with its own error, and is not retried.… (77%)
+  ✓ a result that lands as its call stops fails the call  ← A send that fails because its call stopped fails… (86%)
+  ✓ the sync client's work shows on the trace under its own names  ← Each kind leaves on its own: when the trace send… (55%)
+  ✓ the account owner needs the tab's stop signal bound  ← an account exit or its call's stop cancels it.… (60%)
+  ✓ a page hide before anything is bound closes nothing; a root with no page ends clean  ← A root that never listened closes clean.… (72%)
+  ✓ the sync readers take an app's wire values, and refuse each broken one  ← wire values and refuse each broken one;… (73%)
+  ? a snapshot keeps the app's own fields beside the stream and revision  — no README line (36%, unsure)
+  ✓ a tab loads its snapshot once per account, and shares a load in flight  ← A tab loads its snapshot once per account,… (58%)
+  ? an account check keeps the same account, and leaves a changed one  — no README line (54%, unsure)
+  ✓ each snapshot load and account read stops with its call  ← an account exit or its call's stop cancels it.… (84%)
+  ✓ a sign-in holds loads and checks until it completes, with its own load  ← loads and account checks until it completes.… (93%)
+  ? a frame of changes applies; an account frame leaves the account; a stale version or a bad frame does neither  — no README line (62%, unsure)
+  ? a connection opens from the applied cursors, applies each frame, and ends true on an account change  — no README line (58%, unsure)
+  ? an anonymous tab connects from the start of the public stream  — no README line (54%, unsure)
+  ? an error, a bad frame, a ninth unread frame, or a stop ends a connection false  — no README line (47%, unsure)
+  ✓ eight unread frames wait in order, and a frame after the end is dropped  ← Eight unread frames wait; a ninth closes the… (77%)
+  ✓ a second connect closes the first; a stopped signal closes at once; closing the root closes the last  ← Closing the root scope cancels each open body.… (61%)
+  ? a refresh keeps the same account's cursors, and reloads after a change  — no README line (49%, unsure)
+  ✓ a refresh that ends after an account exit leaves the new account alone  ← an account exit or its call's stop cancels it.… (74%)
+  ? the tab streams once started: an account frame reloads, an ended connection re-checks, 500 ms apart  — no README line (49%, unsure)
+  ? a connection that fails to open logs a reconnect, and the tab tries again  — no README line (53%, unsure)
+  ? the router side loads and checks through the loader, dehydrates, and hydrates then streams  — no README line (63%, unsure)
+  ? the on part streams through the tab's owner; the off part adds nothing and binds nothing  — no README line (60%, unsure)
+  ✓ a tab whose snapshot came another way still loads its own at the next version  ← its own at the next version.… (45%)
+  ✓ a load that cannot apply yet is tried again; a newer load is not dropped when an older one ends  ← and a newer load is not dropped when an older one ends.… (63%)
+  ✓ a snapshot that cannot apply while a write is pending is loaded again  ← apply yet (a write is pending) is tried again,… (50%)
+  ? an account change begun twice holds the tab until the latest one ends  — no README line (56%, unsure)
+  ✓ frames from an old connection after a reconnect are dropped  ← and what is left is dropped.… (85%)
+  ✓ before any connection, close does nothing and next ends at once; a root that never connected closes clean  ← nothing, and reading the next frame ends at once.… (46%)
+  ? a connection that applies changes, then errors, ends false  — no README line (61%, unsure)
+  ✓ the tab logs a reconnect only after a failure, and checks nothing more once it stops  ← a failure, and checks nothing more once it stops.… (62%)
+  ✓ a tab stream that fails surfaces its error when the tab closes  ← A stream loop that fails surfaces its error… (67%)
+  ? the tab's sync work shows on the trace under its own names  — no README line (46%, unsure)
+  ? a wait holds until a wake, a close, or a stop, and returns at once when it has nothing to wait for  — no README line (54%, unsure)
+  ? a wait on a broken listener returns at once  — no README line (48%, unsure)
+  ? notifications wake after a commit, stay silent on a rollback, and a read before waiting still wakes  — no README line (45%, unsure)
+  ✓ the stream replays after its cursor in one frame, greets once, then sends each new commit  ← It replays the events after the cursor,… (43%)
+  ✓ a resumed cursor skips what it has; one frame carries at most 100 events  ← at most 100 to a frame,… (65%)
+  ✓ an account's own private events replay beside the public ones; another account's cursor is refused  ← public and the account's own: each stream… (40%)
+  ? a held stream whose account signs out sends the account frame, then no saved rows  — no README line (59%, unsure)
+  ✓ an anonymous stream that signs in is an account change too  ← or an anonymous stream that signs in,… (68%)
+  ✓ a quiet stream sends a heartbeat each 10 s, closes at its 30 s lease, and at a heartbeat after sign-out  ← A quiet stream sends `: heartbeat` each 10 s,… (61%)
+  ✓ a stream whose request stopped while it opened is Cancelled  ← so the stream's open fails; a listener that breaks… (38%)
+  ✓ a backend stop ends a held stream, and the request ends clean  ← A request or backend stop ends it.… (47%)
+  ✓ a listener that cannot start fails the subscribe; one that breaks ends its subscribers  ← A listener that cannot start fails the subscribe,… (63%)
+  ✓ a root that never listened closes clean  ← A root that never listened closes clean.… (100%)
+  ✓ closing the root wakes and disconnects each subscriber  ← Closing the root scope cancels each open body.… (75%)
+  ✓ the sync route answers each request with the stream or its status  ← Route: `GET /api/sync`, a Server-Sent Events stream.… (75%)
+  ? a request that fails to read, or a stream that fails to open, fails the reply, not as a 400  — no README line (53%, unsure)
+  ✓ the event history locks a stream, appends in order, saves a result, and keeps owners apart  ← `eventHistory` locks a stream, appends events… (58%)
+  ✓ the stream reads the account with no cookie cache and no refresh  ← no cookie cache, and no session refresh.… (61%)
+  ✓ a body cancelled while it waits stops its wait at once  ← A body cancelled while it waits stops its wait at once.… (100%)
+  ✓ a graceful close of the request ends a held read  ← a read body is let go, and the request ends clean.… (71%)
+  ? a stream opened after a wake still replays; a signed-in tab with no account cursor gets the account frame at once  — no README line (67%, unsure)
+  ✓ a request that stops while its account is read gets a body that has already ended  ← A request or backend stop ends it.… (36%)
+  ? a query that fails errors the body, and the request still ends clean  — no README line (52%, unsure)
+  ✓ the sync part's work shows on the trace under its own names  ← Each kind leaves on its own: when the trace send… (52%)
+  ? only the check before the rows read can catch a sign-out whose rows cannot be read  — no README line (42%, unsure)
+  ✓ only the check after the rows read can stop rows of an account that signed out during it  ← Only the check after the rows read can stop rows… (66%)
+  ✓ a sign-out that lands during the heartbeat's account read sends the account frame, not a heartbeat  ← then sends the account frame instead.… (89%)
+  ✓ the stream reads the account once per wake, not once per pull  ← Each wake re-reads the account before it reads… (71%)
+  ✓ a listener that breaks while it connects fails the subscribe as disconnected  ← replaced while it connects fails as disconnected.… (41%)
+  ✓ a subscribe whose listener is replaced while it connects fails as disconnected  ← replaced while it connects fails as disconnected.… (80%)
+  ✓ a closed subscriber is not told when the listener breaks  ← A closed subscriber is not told when it breaks.… (91%)
+  ? a quiet stream reads the account once per heartbeat, and once more only for a wake during it  — no README line (52%, unsure)
+  ✓ a request whose stream was never opened ends clean  ← a read body is let go, and the request ends clean.… (56%)
+  ✓ a private cursor resumes past revision 0  ← resumes past its own revision,… (52%)
+  ✓ receiveTelemetry takes a plain batch and hands it to the telemetry root  ← to the telemetry root, as a plain batch.… (97%)
+  ✓ receiveTelemetry raises Cancelled once the backend or the request stops  ← A request or backend stop ends it.… (72%)
+  ? the ingest route answers each case with its status, and only a good batch is taken  — no README line (39%, unsure)
+  ✓ with no origin bound, the route expects the request's own; a preview host's is https  ← The route expects the request's own origin;… (93%)
+  ✓ a bound public origin is the one the route expects  ← The route expects the request's own origin;… (86%)
+  ✓ closing the scope cancels an unfinished request body, and the route answers 503  ← Closing the root scope cancels each open body.… (58%)
+  ✓ a body that fails to read fails the reply, as the route's own error  ← A body that is cancelled or fails to read,… (51%)
+  ? an ingest that fails, not by a stop, fails the reply  — no README line (50%, unsure)
+  ? on the server, a tab's batch joins the telemetry root under the server's service  — no README line (58%, unsure)
+  ✓ the route lets go of the body it read, and the request ends clean  ← a read body is let go, and the request ends clean.… (95%)
+  ✓ a refused request never opens its body, and its session ends clean  ← A refused post's body is never opened;… (75%)
+  ? a body that comes while the backend stops is cancelled unread, and answered 503  — no README line (48%, unsure)
+  ✓ a batch is taken only when every record keeps the wire rules  ← A batch is taken only when every record keeps… (56%)
+  ✓ a value is cut to 2048 characters; a bigint, undefined, or a cycle still encodes  ← A bigint, `undefined`, or a cycle still… (91%)
+  ? finished spans reach storage as OTLP JSON  — no README line (36%, unsure)
+  ✓ log lines reach storage as JSON lines, one per span too  ← Each finished span and log line at info or above… (79%)
+  ✓ lines below info are dropped; warn and error keep their level  ← Lines below info are dropped;… (45%)
+  ✓ a span that never ended is sent with its start as its end; long names are cut  ← A span with no end is sent with its start as its end.… (89%)
+  ✓ a storage failure keeps the business result and retries the retained records  ← keeps its records for the next send.… (58%)
+  ? only the kind storage refused is kept: accepted traces leave, refused logs stay  — no README line (51%, unsure)
+  ✓ a storage that cannot be reached counts as a refusal  ← A send that storage refuses, or that throws,… (46%)
+  ✓ closing the telemetry root sends the finished records  ← a server render sends when it closes.… (63%)
+  ? a server root sends on its own once a second has passed  — no README line (54%, unsure)
+  ✓ a stuck storage request is aborted by the owned clock during close  ← then the owned clock aborts a stuck storage request.… (94%)
+  ✓ a full queue drops records past 512 and reports them; each send stays within 64 KiB  ← and counts the drops; each send stays within 64 KiB.… (73%)
+  ? a record over 48 KB is dropped; one send takes at most 64 records  — no README line (37%, unsure)
+  ✓ sent records free the byte budget for later records  ← Sent records free their room.… (87%)
+  ✓ telemetry sends through httpBackend without tracing its own requests  ← Its own sends are not traced.… (95%)
+  ? a tab sends its batch to the base's ingest route: same origin, kept alive  — no README line (48%, unsure)
+  ✓ a tab whose send throws keeps its records for the next send  ← keeps its records for the next send.… (90%)
+  ? the part reads its three keys once: defaults, set values, and the browser's none  — no README line (61%, unsure)
+  ✓ a bad storage URL stops the telemetry root at its start, naming each bad key  ← at its start with `BadSettings`, naming each key.… (65%)
+  ✓ the router's part records a server render as ssr  ← `ssr` (a server render), or `browser` (a tab).… (72%)
+  ✓ the off part leaves the telemetry root empty and the app root unobserved  ← With telemetry off, it is empty,… (53%)
+  ✓ a record of exactly 48,000 bytes is kept; one byte more is dropped  ← one record is at most 48,000 bytes,… (71%)
+  ? the queue holds 1 MiB to the byte, and counts what it holds after a refused send  — no README line (56%, unsure)
+  ✓ one send carries at most 48,000 bytes: four 12,000-byte records go, the fifth waits  ← and carries at most 48,000 bytes.… (90%)
+  ✓ while a send runs, the health says sending, and new records wait for the next  ← keeps its records for the next send.… (88%)
+  ? after a refused send, new records keep the failed health  — no README line (55%, unsure)
+  ✓ a queue on a root with no telemetry extension still sends what it holds at close  ← Closing sends what is left, for at most 1.5 s;… (95%)
+  ? closing gives up on storage after 1.5 s; what is left is dropped  — no README line (38%, unsure)
+  ✓ a log line outside any span, and long keys, messages, and errors, are cut  ← Names and keys are cut to 256 characters,… (80%)
+  ✓ a server groups the spans it sends by side: server, browser, then ssr  ← server, then browser, then ssr.… (54%)
+  ✓ a trace send that throws keeps the traces; the logs sent beside them leave  ← fails, the traces stay and the logs sent beside them leave.… (95%)
+
+jev promises: 0/175 titles have no README line (45 more unsure, under 70%). Write the gaps, or say why they are not promises.
+
+
+===== jev-all-tests =====
+packages/start/tests/auth.test.ts  ⚠ privateImport
+  ✓ L16 handleAuth hands the whole request to the app's auth library and returns its reply
+  ✓ L31 handleAuth takes only a request, and a failing auth library fails the call
+  ✓ L52 the part reads its two keys once and hands them to the app's auth library
+  ✓ L61 an unset, empty, or refused key is named in one BadSettings
+  ✓ L79 with auth on, the app root does not start while an auth key is refused
+  ✓ L91 with auth on and good keys, the app root starts with them read
+  ✓ L99 with auth off, the app root reads no auth key
+  ✓ L106 the auth part's work shows on the trace as auth.settings and handleAuth
+packages/start/tests/error-detail.test.ts  ⚠ privateImport
+  ✓ L4 a production error page shows no error text; dev shows the message
+packages/start/tests/http.test.ts
+  ✓ L31 closing the HTTP resource aborts a request still in flight
+  ✓ L66 a bound HTTP backend gets the request and returns text without network
+  ✓ L123 network failures keep method, path, and only cause name and code
+  ✓ L168 an abort failure keeps its numeric code without its message
+  ✓ L196 a string cause keeps the outer error name and code without private text
+  ✓ L229 network failures keep readable cause fields when the other field has a wrong type
+  ✓ L272 closing the caller aborts HTTP body reading
+  ✓ L316 an HTTP method is normalized once for sending and spans
+  ✓ L346 an HTTP method rejects non-token characters before sending
+  ✓ L372 HTTP replies keep each set-cookie value and joined repeated headers
+  ✓ L405 backend stop settles a server function's signalled HTTP call
+  ✓ L430 backend stop settles HTTP in a root call with ${…}
+  ✓ L455 request end settles its tagged HTTP call and leaves siblings open
+  ✓ L489 ending the server function's call signal still cancels its HTTP work
+  ✓ L506 an HTTP request after ${…} ends fails before sending
+  ✓ L535 forced root and session closes still cancel a never-answering HTTP request
+  ✓ L558 backend stop settles HTTP while other running work finishes
+  ✓ L598 a direct graceful session close settles a hung HTTP send without stop tags
+  ✓ L622 a direct graceful root close reaches a session's hung HTTP send without stop tags
+  ✓ L643 backendStop ends a pending HTTP send without closing its root
+  ✓ L672 running work finishes on graceful close when the HTTP backend answers
+  ✓ L710 releasing HTTP aborts a held direct send and leaves the scope open
+packages/start/tests/server.test.ts  ⚠ privateImport
+  ✓ L22 readResult returns a settled value and throws a settled failure as is
+  ✓ L31 readResult turns a cancelled call into the base's Cancelled error
+  ✓ L41 the base's health operation reports the base version
+  ✓ L47 the start extension hands each request its root scope
+  ✓ L54 a request with no root scope fails before any work runs
+  ✓ L84 a held response body ends the request when read to the end, or when cancelled
+  ✓ L97 with no src/server.ts, the server entry goes straight to the base
+  ✓ L103 dev turns Start's JSON 500 into a page that reloads after the fix
+  ✓ L118 dev passes on any response that is not a page load's JSON 500
+  ✓ L129 a response with no body ends its request at once and passes through
+  ✓ L141 a held body keeps its status and headers, and ends its request once
+  ✓ L156 a body that fails to read ends its request by force and fails the read
+  ✓ L174 closing the scope cancels each open body and ends its request by force
+  ✓ L199 a request that cannot end fails the body's cancel, and the scope's close
+packages/start/tests/span-tree.test.ts
+  ✓ L11 an HTTP request makes two spans and records its status
+packages/start/tests/sync-client.test.ts  ⚠ privateImport, helper heldWrite 21 lines > 20
+  ✓ L39 binding after the factory ends closes the tab once on a real page hide
+  ✓ L56 the server side has no page and binds without listening
+  ✓ L62 the account owner versions each account and stops its work; the tab stop stops it too
+  ✓ L79 closing the root stops the account's work
+  ✓ L90 a snapshot sets the records and cursors once; a stale version or an older snapshot is ignored
+  ✓ L124 events apply in order: a repeat is skipped, a gap stops the batch, an unknown stream is skipped
+  ✓ L152 an event before its receipt finishes the write only after the receipt, with its result
+  ✓ L189 a receipt before its event waits for the result event
+  ✓ L221 a rejected write fails with its message; a send that throws is retried after 500 ms
+  ✓ L268 an account exit stops local waits and ignores the old account's late events
+  ✓ L309 a snapshot for another account while a write is pending leaves the account, and waits
+  ✓ L347 closing the root cancels a write that waits for its result
+  ✓ L413 an anonymous snapshot keeps the tab anonymous on the public stream
+  ✓ L430 an account that leaves and joins again takes its snapshot afresh
+  ✓ L449 a wait for an old account version, or with a stopped signal, fails at once
+  ✓ L467 closing the root fails a wait that no signal stops
+  ✓ L479 an account exit fails a wait that no signal stops
+  ✓ L492 a result for a write this tab did not send is not kept for a later write of that id
+  ✓ L523 a finished write forgets its id: a repeat waits for its own result
+  ✓ L569 a call stopped before it sends fails at once, and sends nothing
+  ✓ L607 a send that fails because its call stopped fails with its own error, and is not retried
+  ✓ L638 a result that lands as its call stops fails the call
+  ✓ L658 the sync client's work shows on the trace under its own names
+  ✓ L681 the account owner needs the tab's stop signal bound
+  ✓ L687 a page hide before anything is bound closes nothing; a root with no page ends clean
+packages/start/tests/sync-envelopes.test.ts
+  ✓ L23 the sync readers take an app's wire values, and refuse each broken one
+  ✓ L167 a snapshot keeps the app's own fields beside the stream and revision
+packages/start/tests/sync-tab.test.ts  ⚠ privateImport, helper sources 35 lines > 20
+  ✓ L101 a tab loads its snapshot once per account, and shares a load in flight
+  ✓ L129 an account check keeps the same account, and leaves a changed one
+  ✓ L150 each snapshot load and account read stops with its call
+  ✓ L178 a sign-in holds loads and checks until it completes, with its own load
+  ✓ L202 a frame of changes applies; an account frame leaves the account; a stale version or a bad frame does neither
+  ✓ L235 a connection opens from the applied cursors, applies each frame, and ends true on an account change
+  ✓ L255 an anonymous tab connects from the start of the public stream
+  ✓ L273 an error, a bad frame, a ninth unread frame, or a stop ends a connection false
+  ✓ L308 eight unread frames wait in order, and a frame after the end is dropped
+  ✓ L324 a second connect closes the first; a stopped signal closes at once; closing the root closes the last
+  ✓ L341 a refresh keeps the same account's cursors, and reloads after a change
+  ✓ L362 a refresh that ends after an account exit leaves the new account alone
+  ✓ L390 the tab streams once started: an account frame reloads, an ended connection re-checks, 500 ms apart
+  ✓ L436 a connection that fails to open logs a reconnect, and the tab tries again
+  ✓ L473 the router side loads and checks through the loader, dehydrates, and hydrates then streams
+  ✓ L506 the on part streams through the tab's owner; the off part adds nothing and binds nothing
+  ✓ L527 a tab whose snapshot came another way still loads its own at the next version
+  ✓ L541 a load that cannot apply yet is tried again; a newer load is not dropped when an older one ends
+  ✓ L578 a snapshot that cannot apply while a write is pending is loaded again
+  ✓ L602 an account change begun twice holds the tab until the latest one ends
+  ✓ L632 frames from an old connection after a reconnect are dropped
+  ✓ L647 before any connection, close does nothing and next ends at once; a root that never connected closes clean
+  ✓ L661 a connection that applies changes, then errors, ends false
+  ✓ L683 the tab logs a reconnect only after a failure, and checks nothing more once it stops
+  ✓ L735 a tab stream that fails surfaces its error when the tab closes
+  ✓ L767 the tab's sync work shows on the trace under its own names
+packages/start/tests/sync.test.ts  ⚠ privateImport, helpers 4 > 3
+  ✓ L86 a wait holds until a wake, a close, or a stop, and returns at once when it has nothing to wait for
+  ✓ L120 a wait on a broken listener returns at once
+  ✓ L149 notifications wake after a commit, stay silent on a rollback, and a read before waiting still wakes
+  ✓ L165 the stream replays after its cursor in one frame, greets once, then sends each new commit
+  ✓ L193 a resumed cursor skips what it has; one frame carries at most 100 events
+  ✓ L216 an account's own private events replay beside the public ones; another account's cursor is refused
+  ✓ L244 a held stream whose account signs out sends the account frame, then no saved rows
+  ✓ L266 an anonymous stream that signs in is an account change too
+  ✓ L286 a quiet stream sends a heartbeat each 10 s, closes at its 30 s lease, and at a heartbeat after sign-out
+  ✓ L337 a stream whose request stopped while it opened is Cancelled
+  ✓ L351 a backend stop ends a held stream, and the request ends clean
+  ✓ L375 a listener that cannot start fails the subscribe; one that breaks ends its subscribers
+  ✓ L426 a root that never listened closes clean
+  ✓ L435 closing the root wakes and disconnects each subscriber
+  ✓ L451 the sync route answers each request with the stream or its status
+  ✓ L502 a request that fails to read, or a stream that fails to open, fails the reply, not as a 400
+  ✓ L528 the event history locks a stream, appends in order, saves a result, and keeps owners apart
+  ✓ L579 the stream reads the account with no cookie cache and no refresh
+  ✓ L607 a body cancelled while it waits stops its wait at once
+  ✓ L637 a graceful close of the request ends a held read
+  ✓ L653 a stream opened after a wake still replays; a signed-in tab with no account cursor gets the account frame at once
+  ✓ L683 a request that stops while its account is read gets a body that has already ended
+  ✓ L709 a query that fails errors the body, and the request still ends clean
+  ✓ L732 the sync part's work shows on the trace under its own names
+  ✓ L803 only the check before the rows read can catch a sign-out whose rows cannot be read
+  ✓ L835 only the check after the rows read can stop rows of an account that signed out during it
+  ✓ L860 a sign-out that lands during the heartbeat's account read sends the account frame, not a heartbeat
+  ✓ L898 the stream reads the account once per wake, not once per pull
+  ✓ L928 a listener that breaks while it connects fails the subscribe as disconnected
+  ✓ L952 a subscribe whose listener is replaced while it connects fails as disconnected
+  ✓ L982 a closed subscriber is not told when the listener breaks
+  ✓ L1013 a quiet stream reads the account once per heartbeat, and once more only for a wake during it
+  ✓ L1058 a request whose stream was never opened ends clean
+  ✓ L1072 a private cursor resumes past revision 0
+packages/start/tests/telemetry-ingest.test.ts  ⚠ privateImport
+  ✓ L61 receiveTelemetry takes a plain batch and hands it to the telemetry root
+  ✓ L81 receiveTelemetry raises Cancelled once the backend or the request stops
+  ✓ L105 the ingest route answers each case with its status, and only a good batch is taken
+  ✓ L173 with no origin bound, the route expects the request's own; a preview host's is https
+  ✓ L201 a bound public origin is the one the route expects
+  ✓ L219 closing the scope cancels an unfinished request body, and the route answers 503
+  ✓ L260 a body that fails to read fails the reply, as the route's own error
+  ✓ L285 an ingest that fails, not by a stop, fails the reply
+  ✓ L301 on the server, a tab's batch joins the telemetry root under the server's service
+  ✓ L330 the route lets go of the body it read, and the request ends clean
+  ✓ L346 a refused request never opens its body, and its session ends clean
+  ✓ L362 a body that comes while the backend stops is cancelled unread, and answered 503
+packages/start/tests/telemetry-records.test.ts  ⚠ privateImport
+  ✓ L48 a batch is taken only when every record keeps the wire rules
+  ✓ L112 a value is cut to 2048 characters; a bigint, undefined, or a cycle still encodes
+packages/start/tests/telemetry.test.ts  ⚠ privateImport
+  ✓ L90 finished spans reach storage as OTLP JSON
+  ✓ L158 log lines reach storage as JSON lines, one per span too
+  ✓ L206 lines below info are dropped; warn and error keep their level
+  ✓ L229 a span that never ended is sent with its start as its end; long names are cut
+  ✓ L288 a storage failure keeps the business result and retries the retained records
+  ✓ L311 only the kind storage refused is kept: accepted traces leave, refused logs stay
+  ✓ L326 a storage that cannot be reached counts as a refusal
+  ✓ L344 closing the telemetry root sends the finished records
+  ✓ L359 a server root sends on its own once a second has passed
+  ✓ L381 a stuck storage request is aborted by the owned clock during close
+  ✓ L409 a full queue drops records past 512 and reports them; each send stays within 64 KiB
+  ✓ L426 a record over 48 KB is dropped; one send takes at most 64 records
+  ✓ L451 sent records free the byte budget for later records
+  ✓ L474 telemetry sends through httpBackend without tracing its own requests
+  ✓ L493 a tab sends its batch to the base's ingest route: same origin, kept alive
+  ✓ L529 a tab whose send throws keeps its records for the next send
+  ✓ L549 the part reads its three keys once: defaults, set values, and the browser's none
+  ✓ L571 a bad storage URL stops the telemetry root at its start, naming each bad key
+  ✓ L586 the router's part records a server render as ssr
+  ✓ L597 the off part leaves the telemetry root empty and the app root unobserved
+  ✓ L605 a record of exactly 48,000 bytes is kept; one byte more is dropped
+  ✓ L617 the queue holds 1 MiB to the byte, and counts what it holds after a refused send
+  ✓ L634 one send carries at most 48,000 bytes: four 12,000-byte records go, the fifth waits
+  ✓ L649 while a send runs, the health says sending, and new records wait for the next
+  ✓ L676 after a refused send, new records keep the failed health
+  ✓ L694 a queue on a root with no telemetry extension still sends what it holds at close
+  ✓ L704 closing gives up on storage after 1.5 s; what is left is dropped
+  ✓ L739 a log line outside any span, and long keys, messages, and errors, are cut
+  ✓ L787 a server groups the spans it sends by side: server, browser, then ssr
+  ✓ L831 a trace send that throws keeps the traces; the logs sent beside them leave
+
+jev tests: 0/177 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.

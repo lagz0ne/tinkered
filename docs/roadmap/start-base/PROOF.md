@@ -31,6 +31,128 @@ Read their paths this way:
 - `poc/scripts/proof-hardened.sh` is now
   `packages/start/scripts/proof.sh`.
 
+## U. The app checks and example items
+
+Card `start/scaffold-on-base`, Step 2.
+Date: 2026-10-07.
+Branch: `start/scaffold-on-base-2`.
+
+[Check owners and assumptions](PROGRESS.md#startscaffold-on-base-step-2)
+list the owner and reason for each old check.
+The brief keeps plain as an app rule.
+Doctor owns the base import rules.
+
+Run every named app check:
+
+```bash
+vp run @tinker-start-scaffold#check
+```
+
+Full logs:
+
+- [Gates](proof/17-scaffold-checks-gates.txt).
+- [Named app checks](proof/17-scaffold-checks-app.txt).
+- [Doctor regression](proof/17-scaffold-checks-doctor.txt).
+- [Plain rule breaks](proof/17-scaffold-checks-plain.txt).
+- [Registry copy proof](proof/17-scaffold-checks-registry.txt).
+- [Real services](proof/17-scaffold-checks-compose.txt).
+- [Jev](proof/17-scaffold-checks-jev.txt).
+- [Full Start mutation](proof/17-scaffold-checks-mutation.txt).
+  Its header names the final clean code commit.
+  Only that log is committed after the run.
+
+```text
+build: EXIT 0; 11 tasks
+check: EXIT 0; 0 errors, 28 warnings
+tests: EXIT 0; 1840 pass, 1 old skip
+writer tool tests: EXIT 0; 92 pass
+validate: EXIT 0; 17 lanes
+prose: EXIT 0; 0 hits
+named app checks: EXIT 0; every task
+registry: EXIT 0; 9 items, 77 files
+new doctor breaks: EXIT 0; 3 of 3 caught
+plain planted breaks: EXIT 0; 11 caught
+```
+
+The two new import tests fail without the fixes.
+They call the check function directly.
+The rules cover module declarations, import-equals,
+and absolute paths into the installed base.
+Doctor 5 and 10 already cover the other removed rules.
+No duplicate doctor check is added.
+
+Jev finds no new model flags or promise gaps.
+The changed check tests have four titles and no flags.
+The full Start scan has 177 titles and no model flags.
+Its old file notes name private imports and large helpers
+in unchanged part tests; they remain outside this step.
+No new judge label or calibration row is needed.
+
+The first test run overlapped validate's Core rebuild.
+It failed while Core's dist files were absent.
+The final gate runs build, check, tests, and prose
+in order after validate finished; each returns 0.
+
+The registry has one owner per file.
+Its runtime item has no files;
+it depends on `@tinker/start@0.6.0`.
+Todos, profile, auth pages, mail, and counter
+are separate copy-in items.
+Shared demo wiring has its own item.
+The aggregate example and starter join those items.
+The base dependency is pinned only by the runtime item.
+App examples can be copied without pinning it again.
+The old frontend action entry still exports the split actions.
+
+The registry proof copies every item into a fresh folder.
+It uses the installed workspace dependencies,
+then builds and checks the whole copied app.
+No registry is published.
+
+The real-service proof still uses the app's Compose file.
+It saves a profile through the split profile page too.
+Run it through the named app check:
+
+```bash
+vp run @tinker-start-scaffold#test:compose
+```
+
+```text
+vp build: EXIT 0
+doctor: all checks pass
+run app migrations: EXIT 0
+curl POST /api/auth/sign-up/email: 200
+curl POST /api/auth/sign-in/email: 200
+tab two received todo through /api/sync
+Postgres saved todo: Step one crosses two tabs
+profile page saved name; Mailpit received SMTP mail
+PROOF PASS: real auth, SMTP, migrations, two-tab sync,
+and profile page
+server stopped: EXIT 0
+relay stopped: EXIT 0
+docker compose down -v: EXIT 0
+```
+
+The sync event is HTTP 200 with no tab reload.
+There are two browser sessions, one live tab each.
+The profile mail has subject `Your profile was updated`.
+Owned processes and Compose volumes are removed.
+
+Not proved here:
+
+- A registry CLI install into an empty folder.
+- Each example running alone without the shared demo.
+- An independent dependency install or base upgrade.
+- Packed base byte hashes: doctor skips the workspace link.
+- Trace or log storage, or mail link clicks.
+- One browser session with two targets.
+- A rebuilt trial image.
+
+The publishing card owns registry install and upgrade proof.
+[Outside users and the trial image follow-up](PROGRESS.md#outside-users)
+name the unchanged consumers and exact next work.
+Core feedback: none.
+
 ## T. The scaffold runs on the base
 
 Card `start/scaffold-on-base`, Step 1.
@@ -60,7 +182,8 @@ tab one: real better-auth browser sign-in succeeded
 tab one added todo: Step one crosses two tabs
 tab two received todo through /api/sync
 Postgres saved todo: Step one crosses two tabs
-PROOF PASS: real auth, SMTP, migrations, two-tab sync
+PROOF PASS: real auth, SMTP, migrations, two-tab sync,
+and profile page
 server stopped: EXIT 0
 relay stopped: EXIT 0
 docker compose down -v: EXIT 0
