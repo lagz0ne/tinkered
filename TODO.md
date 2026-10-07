@@ -51,35 +51,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/base-parts** — port telemetry, auth, and sync from `apps/start-scaffold/src/scaffold` into base parts.
-  Owner: lead (Claude, Start scaffold session); Opus writer. Worktree: `../tinkered-base-parts`.
-  Lands in three steps on main (user: everything in main): telemetry, then auth, then sync.
-  Each part turns on in `tinker()`; tests through scope seams only.
-  Step 1, telemetry, landed on main (base 0.3.0; mutation 87.53, 87.12 on kills):
-  `tinker({ telemetry })`, on by default; `.tinker/parts.ts` and `parts.server.ts`;
-  route `/api/telemetry` only while on; check 7 frees an off part's path;
-  check 9 names a refused part key at its `.env` line.
-  Proof: [PROOF section P](docs/roadmap/start-base/PROOF.md#p-the-telemetry-part-030).
-  Step 2, auth, landed on main (base 0.4.0; mutation 87.97, 87.57 on kills):
-  `tinker({ auth: true })`, off by default; route `/api/auth/$` only while on;
-  check 5 stops the build on a seam without `auth` or `readAccount`;
-  check 9 names an unset or refused `PUBLIC_ORIGIN` or `AUTH_SECRET`.
-  Proof: [PROOF section Q](docs/roadmap/start-base/PROOF.md#q-the-auth-part-040).
-  Step 3 split in two (sync is too big for one clean step):
-  3a, the server side, landed on main (base 0.5.0; mutation 87.10, 86.34 on kills; sync files 80.21):
-  `tinker({ sync: true })`, off by default, turns auth on; `auth: false` with it fails the build;
-  route `/api/sync` (SSE) only while on; `eventHistory` and the sync tables;
-  check 5 stops the build on a server seam without `database`.
-  Proof: [PROOF section R](docs/roadmap/start-base/PROOF.md#r-the-sync-part-server-side-050).
-  3b, the client side, saved on branch `start/base-parts-sync-client` (base 0.6.0), waits for review:
-  `getBootstrap` and `getAccount`, the tab's sync client, stream, and lifetime, the router wiring,
-  `@tinker/start/client`; check 5 names each client seam name, the server seam's `bootstrap`,
-  and missing `Register` bodies; more edge tests for the sync files.
-  Proof: [PROOF section S](docs/roadmap/start-base/PROOF.md#s-the-sync-part-client-side-060);
-  the mutation run of record is `docs/roadmap/start-base/proof/mutation.txt`, on the final HEAD.
-  Next: the lead reviews and lands 3b; the card is then done.
-  Verify: each part's behavior tests pass on the base; doctor names a part's missing env or seam.
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -111,6 +82,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/base-parts** — telemetry, auth, and sync are base parts, each set in `tinker({ ... })` (ADR 0106).
+  Owner: lead (Claude, Start scaffold session); Opus writer. Landed in four steps on main.
+  telemetry (on by default) a7b2d685; auth 3af9018b; sync server 5cc843fb; sync client (this landing).
+  Each part mounts its routes only while on; doctor names a missing seam name or a refused env key.
+  Tests 358; 18 of 18 new breaks caught (full run at 3a: 198 of 198); mutation 87.36 on kills alone.
+  Proof: [PROOF sections P to S](docs/roadmap/start-base/PROOF.md#p-the-telemetry-part-030).
+  Floor for `@tinker/start` is now 75 (user 2026-10-06).
 
 - **start/base-package** — `@tinker/start` in `packages/start`, the smallest app in `apps/start-min` (ADR 0106).
   Owner: lead (Claude, Start scaffold session); Opus writer, Opus review (two fix rounds).

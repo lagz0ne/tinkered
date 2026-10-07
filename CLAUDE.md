@@ -160,6 +160,7 @@ The lead, per ticket:
      It counts when the log names the commit you land, on a clean tree,
      and clears 85 on kills alone (user 2026-10-06).
    - The floor is per package. Do not add a per-file target.
+   - `@tinker/start` breaks at 75; every other package at 85 (user 2026-10-06).
 4. Record Core feedback in `docs/roadmap/core-feedback.md`. A row becomes a
    core ticket at its second asker, or at once if the workaround is dishonest.
 

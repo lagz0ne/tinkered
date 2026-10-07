@@ -866,3 +866,19 @@ preset(database, async () =>
 
 The workaround is honest: the test builds a real value.
 State: open; a core ticket at its second asker.
+
+## Spans show only once ended, 2026-10-07
+
+Asked by `start/base-parts` (step 3b, the sync client). First asker.
+
+`root.spans()` lists only spans that have ended.
+A test cannot see a running stream's span name until the stream stops.
+State: open; a core ticket at its second asker.
+
+## A clean close leaves out teardownErrors, 2026-10-07
+
+Asked by `start/base-parts` (step 3b). First asker.
+
+On success, `close()` leaves `teardownErrors` out instead of giving `[]`.
+Callers must write `end.teardownErrors?.length`.
+State: open; a core ticket at its second asker.
