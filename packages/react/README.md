@@ -208,6 +208,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - A re-render while pending reuses one build: the factory runs once and Suspense still resolves.
 - resolve() hands back one stable promise per owner, while pending and after settle.
 - A query reports its status through one flag at a time.
+- suspense:false renders pending then success without a Suspense boundary.
 - A synchronous build reports success at once with suspense:false.
 - With suspense:false, a synchronous failure stays local and refetch can rebuild it.
 - Reading through a new scope builds in the new scope.
@@ -216,6 +217,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 ### useRun
 
+- Normal calls and omitted callbacks report no host error.
 - runAsync keeps the operation value when onSuccess throws.
 - run reports an onSuccess error through the global error event.
 - Callback errors are reported and still allow onSettled to run.
@@ -229,6 +231,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - Reset from a success clears status, data, and error.
 - Reset from an error clears status, data, and error.
 - A run from before reset never overwrites a newer run that settled after it.
+- Reset during operation startup keeps idle when the old run finishes.
 - Reset during a pending run drops the late result: state stays idle.
 - Switching the operation runs the new one, not the stale one.
 - Switching the operation rebinds runAsync to the new one.

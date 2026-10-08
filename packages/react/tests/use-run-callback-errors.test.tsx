@@ -7,13 +7,16 @@ import { ScopeProvider, useRun } from "../src/index";
 
 const answer = operation({ label: "callback-answer", run: () => 42 });
 const operationError = new Error("operation failed");
+
 const failure = operation({
   label: "callback-failure",
   run: (): number => {
     throw operationError;
   },
 });
+
 const callbackError = new Error("callback failed");
+
 const throwsOnSuccess = {
   onSuccess: () => {
     throw callbackError;

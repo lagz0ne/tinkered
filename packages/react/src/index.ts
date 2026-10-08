@@ -167,36 +167,44 @@ export function useData<T, S>(
   a?: ((value: T) => S) | UseData.Options<T>,
   b?: ((a: S, b: S) => boolean) | UseData.Options<S>,
 ): T | S | UseData.Pair<T, T | S> {
-  const { selector, isEqual, writable } = readDataArgs(a, b);
-  const controller = useScope().controller(cell);
-  const own = useRef<SelectingStore<T, S> | undefined>(undefined);
-  let store: DataStore<T, T | S>;
-  if (selector === undefined && isEqual === undefined) {
-    store = rawStore(controller);
-  } else {
-    const kept = own.current;
-    const selecting =
-      kept !== undefined && kept.controller === controller
-        ? kept
-        : (own.current = createDataStore<T, S>(controller));
-    selecting.select = selector ?? (identity as (value: T) => S);
-    selecting.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
-    store = selecting;
-  }
+  const selector = typeof a === "function" ? a : undefined;
+  const options = typeof a === "function" ? (typeof b === "function" ? undefined : b) : a;
+  const isEqual = typeof b === "function" ? b : options?.isEqual;
+  const writable = options?.writable === true;
+  const store = useDataStore(cell, selector, isEqual);
   const value = useSyncExternalStore(store.subscribe, store.read, store.read);
   return writable ? [value, store.set] : value;
 }
 
-/** What `useSyncExternalStore` needs from a cell, plus the write half of the `writable` pair. */
+function useDataStore<T, S>(
+  cell: Data.Cell<T>,
+  selector: ((value: T) => S) | undefined,
+  isEqual: ((a: T, b: T) => boolean) | ((a: S, b: S) => boolean) | undefined,
+): DataStore<T, T | S> {
+  const controller = useScope().controller(cell);
+  const own = useRef<SelectingStore<T, S> | undefined>(undefined);
+  if (selector === undefined && isEqual === undefined) {
+    return (rawStores.get(controller) as DataStore<T, T> | undefined) ?? createRawStore(controller);
+  }
+  const kept = own.current;
+  const store =
+    kept !== undefined && kept.controller === controller
+      ? kept
+      : (own.current = createDataStore<T, S>(controller));
+  store.select = selector ?? (identity as (value: T) => S);
+  store.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
+  return store;
+}
+
+/** What `useSyncExternalStore` needs from a cell, plus the write half of the writable pair. */
 type DataStore<T, S> = {
   subscribe: (notify: () => void) => () => void;
   read: () => S;
   set: (value: T) => void;
 };
 
-/** A component-owned store: the selector and equality may change per render, and the memoized
- * slice belongs to that one component, so it cannot be shared. `controller` is the identity that
- * tells a scope change apart. */
+/** Raw and selected stores keep the same fields in the same order at the hook's read sites.
+ * A selector's cached slice belongs to its component; raw stores are shared per controller. */
 type SelectingStore<T, S> = DataStore<T, S> & {
   controller: Scope.DataController<T>;
   select: (value: T) => S;
@@ -205,39 +213,19 @@ type SelectingStore<T, S> = DataStore<T, S> & {
 
 const rawStores = new WeakMap<object, DataStore<never, unknown>>();
 
-/** The no-selector store, shared by every component reading the same cell in the same scope: its
- * snapshot is the raw value, so nothing about it is per component. Keyed by the controller because
- * core memoizes one controller per (scope, cell) — a stable identity for as long as the scope lives,
- * and the WeakMap lets it go with the scope. Sharing it costs no hook slot per render, where the
- * component-owned path pays a `useRef` and, before this, a `useMemo` with a fresh deps array. */
-function rawStore<T>(controller: Scope.DataController<T>): DataStore<T, T> {
-  const cached = rawStores.get(controller);
-  if (cached !== undefined) return cached as DataStore<T, T>;
-  const store: DataStore<T, T> = {
+/** Only a cache miss creates these closures. Core keeps each controller stable, and the
+ * WeakMap lets its raw store go when the scope no longer retains that controller. */
+function createRawStore<T>(controller: Scope.DataController<T>): DataStore<T, T> {
+  const store: SelectingStore<T, T> = {
+    controller,
+    select: identity,
+    equal: Object.is,
     subscribe: (notify) => controller.watch(notify),
     read: () => controller.get(),
     set: (value) => controller.set(value),
   };
   rawStores.set(controller, store);
   return store;
-}
-
-function readDataArgs<T, S>(
-  a: ((value: T) => S) | UseData.Options<T> | undefined,
-  b: ((a: S, b: S) => boolean) | UseData.Options<S> | undefined,
-): {
-  selector: ((value: T) => S) | undefined;
-  isEqual: ((a: T | S, b: T | S) => boolean) | undefined;
-  writable: boolean;
-} {
-  const selector = typeof a === "function" ? a : undefined;
-  const options = typeof a === "function" ? (typeof b === "function" ? undefined : b) : a;
-  const isEqual = typeof b === "function" ? b : options?.isEqual;
-  return {
-    selector,
-    isEqual: isEqual as ((a: T | S, b: T | S) => boolean) | undefined,
-    writable: options?.writable === true,
-  };
 }
 
 function createDataStore<T, S>(controller: Scope.DataController<T>): SelectingStore<T, S> {
@@ -256,11 +244,21 @@ function createDataStore<T, S>(controller: Scope.DataController<T>): SelectingSt
         if (Object.is(prev.raw, raw)) return prev.slice;
         const slice = store.select(raw);
         const kept = store.equal(prev.slice, slice) ? prev.slice : slice;
-        memo = { raw, slice: kept, select: store.select, equal: store.equal };
+        prev.raw = raw;
+        prev.slice = kept;
+        prev.select = store.select;
+        prev.equal = store.equal;
         return kept;
       }
       const fresh = store.select(raw);
-      memo = { raw, slice: fresh, select: store.select, equal: store.equal };
+      if (prev === undefined) {
+        memo = { raw, slice: fresh, select: store.select, equal: store.equal };
+      } else {
+        prev.raw = raw;
+        prev.slice = fresh;
+        prev.select = store.select;
+        prev.equal = store.equal;
+      }
       return fresh;
     },
     set: (value: T) => controller.set(value),
@@ -394,12 +392,17 @@ function useSettled<T>(pending: PromiseLike<T> | undefined): Query.State<T> | un
   const [settled, setSettled] = useState<Settled<T> | undefined>(undefined);
   useEffect(() => {
     if (!pending) return;
-    let live = true;
-    settle(() => pending).then((outcome) => {
-      if (live) setSettled({ key: pending, state: settledState(outcome) });
+    const observer: { live: boolean; work: Promise<void> | undefined } = {
+      live: true,
+      work: undefined,
+    };
+    observer.work = settle(() => pending).then((outcome) => {
+      observer.work = undefined;
+      if (observer.live) setSettled({ key: pending, state: settledState(outcome) });
     }, reportCallbackError);
     return () => {
-      live = false;
+      observer.live = false;
+      observer.work = undefined;
     };
   }, [pending]);
   return settled && settled.key === pending ? settled.state : undefined;
@@ -544,7 +547,7 @@ export function useRun<T, I>(
       };
       const settled = controller.settle(...call);
       if (!(settled instanceof Promise)) return finish(settled);
-      if (owner.live)
+      if (owner.live && owner.runId === id)
         setPublished({
           owner,
           state: { status: "pending", data: undefined, error: undefined, variables },

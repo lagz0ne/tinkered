@@ -12,22 +12,22 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 119,
+    "falses": 120,
     "medianTrue": 0.76,
     "medianFalse": 0.5,
     "separation": 0.26,
     "ordered": 0.79,
-    "at": "2026-10-07"
+    "at": "2026-10-08"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 336,
-    "medianTrue": 0.88,
+    "falses": 337,
+    "medianTrue": 0.89,
     "medianFalse": 0.56,
-    "separation": 0.32,
-    "ordered": 0.97,
-    "at": "2026-10-07"
+    "separation": 0.33,
+    "ordered": 0.98,
+    "at": "2026-10-08"
   },
   "configNotTag": {
     "status": "provisional",
@@ -202,11 +202,11 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 5,
+    "falses": 6,
     "medianTrue": 0.77,
-    "medianFalse": 0.3,
-    "separation": 0.47,
-    "ordered": 0.85,
+    "medianFalse": 0.39,
+    "separation": 0.39,
+    "ordered": 0.88,
     "at": "2026-10-08"
   },
   "waitsOnSideWork": {

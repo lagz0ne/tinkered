@@ -122,61 +122,87 @@ test("switching the operation rebinds runAsync to the new one", async () => {
 test("runs an operation imperatively: idle -> pending -> success, with rawInput parsed", async () => {
   const scope = createScope();
   const gate = deferred<void>();
-  const doubleAsync = operation({
-    label: "doubleAsync",
-    input: (raw) => Number(raw),
-    run: (_deps, { input }) => gate.promise.then(() => input * 2),
-  });
+  const errors: unknown[] = [];
+  const receive = (event: ErrorEvent) => {
+    errors.push(event.error);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  window.addEventListener("error", receive, true);
+  try {
+    const doubleAsync = operation({
+      label: "doubleAsync",
+      input: (raw) => Number(raw),
+      run: (_deps, { input }) => gate.promise.then(() => input * 2),
+    });
 
-  const screen = await render(
-    <ScopeProvider scope={scope}>
-      <Runner op={doubleAsync} call={{ rawInput: "21" }} />
-    </ScopeProvider>,
-  );
+    const screen = await render(
+      <ScopeProvider scope={scope}>
+        <Runner op={doubleAsync} call={{ rawInput: "21" }} />
+      </ScopeProvider>,
+    );
 
-  await expect.element(screen.getByText("status:idle")).toBeVisible();
-  await screen.getByRole("button").click();
-  await expect.element(screen.getByText("status:pending")).toBeVisible();
-  gate.resolve();
-  await expect.element(screen.getByText("status:success")).toBeVisible();
-  await expect.element(screen.getByText("data:42")).toBeVisible();
+    await expect.element(screen.getByText("status:idle")).toBeVisible();
+    await screen.getByRole("button").click();
+    await expect.element(screen.getByText("status:pending")).toBeVisible();
+    gate.resolve();
+    await expect.element(screen.getByText("status:success")).toBeVisible();
+    await expect.element(screen.getByText("data:42")).toBeVisible();
 
-  await scope.close();
+    expect(errors).toEqual([]);
+  } finally {
+    gate.resolve();
+    window.removeEventListener("error", receive, true);
+    expect((await scope.close({ graceful: true })).status).toBe("success");
+  }
 });
 
 test("a synchronous operation renders and commits success once without pending", async () => {
   const scope = createScope();
-  const inc = operation({
-    label: "inc",
-    input: (raw) => Number(raw),
-    run: (_deps, { input }) => input + 1,
-  });
-  const renders: string[] = [];
-  const commits: string[] = [];
-  function SyncRunner(): React.ReactElement {
-    const run = useRun(inc);
-    renders.push(run.status);
-    useLayoutEffect(() => {
-      commits.push(run.status);
+  const errors: unknown[] = [];
+  const receive = (event: ErrorEvent) => {
+    errors.push(event.error);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  window.addEventListener("error", receive, true);
+  try {
+    const inc = operation({
+      label: "inc",
+      input: (raw) => Number(raw),
+      run: (_deps, { input }) => input + 1,
     });
-    return (
-      <button type="button" onClick={() => run.run({ rawInput: "5" })}>
-        data:{String(run.data)}
-      </button>
+    const renders: string[] = [];
+    const commits: string[] = [];
+    function SyncRunner(): React.ReactElement {
+      const run = useRun(inc);
+      renders.push(run.status);
+      useLayoutEffect(() => {
+        commits.push(run.status);
+      });
+      return (
+        <button type="button" onClick={() => run.run({ rawInput: "5" })}>
+          data:{String(run.data)}
+        </button>
+      );
+    }
+    const screen = await render(
+      <ScopeProvider scope={scope}>
+        <SyncRunner />
+      </ScopeProvider>,
     );
+    renders.length = 0;
+    commits.length = 0;
+    await screen.getByRole("button").click();
+    await expect.element(screen.getByText("data:6")).toBeVisible();
+    expect(renders).toEqual(["success"]);
+    expect(commits).toEqual(["success"]);
+
+    expect(errors).toEqual([]);
+  } finally {
+    window.removeEventListener("error", receive, true);
+    expect((await scope.close({ graceful: true })).status).toBe("success");
   }
-  const screen = await render(
-    <ScopeProvider scope={scope}>
-      <SyncRunner />
-    </ScopeProvider>,
-  );
-  renders.length = 0;
-  commits.length = 0;
-  await screen.getByRole("button").click();
-  await expect.element(screen.getByText("data:6")).toBeVisible();
-  expect(renders).toEqual(["success"]);
-  expect(commits).toEqual(["success"]);
-  expect((await scope.close({ graceful: true })).status).toBe("success");
 });
 
 test("only the latest run publishes: a stale earlier run that settles later is dropped", async () => {
@@ -310,74 +336,110 @@ function SettledOnly({
 
 test("a run with only onSettled reports success without onSuccess", async () => {
   const scope = createScope();
-  const events: string[] = [];
-  const inc = operation({
-    label: "inc-settled",
-    input: (raw) => Number(raw),
-    run: (_deps, { input }) => Promise.resolve(input + 1),
-  });
+  const errors: unknown[] = [];
+  const receive = (event: ErrorEvent) => {
+    errors.push(event.error);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  window.addEventListener("error", receive, true);
+  try {
+    const events: string[] = [];
+    const inc = operation({
+      label: "inc-settled",
+      input: (raw) => Number(raw),
+      run: (_deps, { input }) => Promise.resolve(input + 1),
+    });
 
-  const screen = await render(
-    <ScopeProvider scope={scope}>
-      <SettledOnly op={inc} call={{ rawInput: "5" }} events={events} />
-    </ScopeProvider>,
-  );
+    const screen = await render(
+      <ScopeProvider scope={scope}>
+        <SettledOnly op={inc} call={{ rawInput: "5" }} events={events} />
+      </ScopeProvider>,
+    );
 
-  await screen.getByRole("button").click();
-  await expect.element(screen.getByText("sflags:10")).toBeVisible();
-  expect(events).toEqual(["settled:6:undefined:5"]);
+    await screen.getByRole("button").click();
+    await expect.element(screen.getByText("sflags:10")).toBeVisible();
+    expect(events).toEqual(["settled:6:undefined:5"]);
 
-  await scope.close();
+    expect(errors).toEqual([]);
+  } finally {
+    window.removeEventListener("error", receive, true);
+    expect((await scope.close({ graceful: true })).status).toBe("success");
+  }
 });
 
 test("a run with only onSettled reports failure without onError", async () => {
   const scope = createScope();
-  const events: string[] = [];
-  const failing = operation({
-    label: "failing-settled",
-    input: (raw) => Number(raw),
-    run: (_deps, { input }) => Promise.reject(new Error(`bad ${input}`)),
-  });
+  const errors: unknown[] = [];
+  const receive = (event: ErrorEvent) => {
+    errors.push(event.error);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  window.addEventListener("error", receive, true);
+  try {
+    const events: string[] = [];
+    const failing = operation({
+      label: "failing-settled",
+      input: (raw) => Number(raw),
+      run: (_deps, { input }) => Promise.reject(new Error(`bad ${input}`)),
+    });
 
-  const screen = await render(
-    <ScopeProvider scope={scope}>
-      <SettledOnly op={failing} call={{ rawInput: "7" }} events={events} />
-    </ScopeProvider>,
-  );
+    const screen = await render(
+      <ScopeProvider scope={scope}>
+        <SettledOnly op={failing} call={{ rawInput: "7" }} events={events} />
+      </ScopeProvider>,
+    );
 
-  await screen.getByRole("button").click();
-  await expect.element(screen.getByText("sflags:01")).toBeVisible();
-  expect(events).toEqual(["settled:undefined:Error: bad 7:7"]);
+    await screen.getByRole("button").click();
+    await expect.element(screen.getByText("sflags:01")).toBeVisible();
+    expect(events).toEqual(["settled:undefined:Error: bad 7:7"]);
 
-  await scope.close();
+    expect(errors).toEqual([]);
+  } finally {
+    window.removeEventListener("error", receive, true);
+    expect((await scope.close({ graceful: true })).status).toBe("success");
+  }
 });
 
 test("a run with empty options resolves runAsync without callbacks", async () => {
   const scope = createScope();
-  const inc = operation({
-    label: "inc-bare",
-    input: (raw) => Number(raw),
-    run: (_deps, { input }) => Promise.resolve(input + 1),
-  });
+  const errors: unknown[] = [];
+  const receive = (event: ErrorEvent) => {
+    errors.push(event.error);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  window.addEventListener("error", receive, true);
+  try {
+    const inc = operation({
+      label: "inc-bare",
+      input: (raw) => Number(raw),
+      run: (_deps, { input }) => Promise.resolve(input + 1),
+    });
 
-  let runAsync: Resolver | undefined;
-  function Bare(): React.ReactElement {
-    const run = useRun(inc, {});
-    runAsync = run.runAsync;
-    return <p>bare:{run.status === "success" ? String(run.data) : run.status}</p>;
+    let runAsync: Resolver | undefined;
+    function Bare(): React.ReactElement {
+      const run = useRun(inc, {});
+      runAsync = run.runAsync;
+      return <p>bare:{run.status === "success" ? String(run.data) : run.status}</p>;
+    }
+
+    const screen = await render(
+      <ScopeProvider scope={scope}>
+        <Bare />
+      </ScopeProvider>,
+    );
+    if (!runAsync) throw new Error("runAsync was not bound");
+
+    await expect(runAsync({ rawInput: "5" })).resolves.toBe(6);
+    await expect.element(screen.getByText("bare:6")).toBeVisible();
+
+    expect(errors).toEqual([]);
+  } finally {
+    window.removeEventListener("error", receive, true);
+    expect((await scope.close({ graceful: true })).status).toBe("success");
   }
-
-  const screen = await render(
-    <ScopeProvider scope={scope}>
-      <Bare />
-    </ScopeProvider>,
-  );
-  if (!runAsync) throw new Error("runAsync was not bound");
-
-  await expect(runAsync({ rawInput: "5" })).resolves.toBe(6);
-  await expect.element(screen.getByText("bare:6")).toBeVisible();
-
-  await scope.close();
 });
 
 test("status flags and variables follow the latest call, and the option callbacks fire with it", async () => {

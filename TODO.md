@@ -51,12 +51,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **react/rules-batch-1** — callback errors, sync runs, and cell reads.
-  Owner: React batch writer (Codex).
-  Next: fix each ticket in order, with one commit each.
-  Verify: red bug tests, all gates, byte probes, queued A/B, and mutation kills at least 85.
-  [Track](docs/roadmap/perf/PROGRESS.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -73,6 +67,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Next: lead review; b is faster; clean-tree mutation proof is linked in the track.
   Verify: all gates returned 0; regressions failed before each fix.
   [Proof](docs/roadmap/perf/PROGRESS.md).
+
+- **react/rules-batch-1** — callback errors, sync runs, and cell reads.
+  Owner: React batch writer (Codex).
+  Next: lead review after the clean mutation proof in the track.
+  Verify: all gates returned 0; five bug tests fail on main.
+  Sync click: two renders and commits became one.
+  Queued A/B: no difference we can see.
+  [Track](docs/roadmap/perf/PROGRESS.md).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
