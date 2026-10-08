@@ -50,6 +50,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Not in it: sync push revocations, which needs an ADR first.
   Verify: each ticket's test or verdict; mutation floors; ratchets only go down.
 
+- **start/sync-lane** — share frames, apply tab frames in place, and share heartbeat timers.
+  Owner: lane writer (Codex).
+  Next: finish each ticket, then save clean-tree mutation proof.
+  Verify: scope tests, queued speed checks, all gates 0, Start kills ≥ 75.
+  [Track](docs/roadmap/perf/PROGRESS.md).
+
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 

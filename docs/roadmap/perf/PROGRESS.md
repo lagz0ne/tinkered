@@ -614,3 +614,24 @@ The lead reviews and lands this ticket; nothing is pushed.
   Full build, check, and 98 React tests pass after this type change.
   All 19 budget lanes pass again.
   The last Jev pass flags only useRun; its existing false label applies.
+## Start sync lane: shared frames
+
+Owner: lane writer (Codex), branch `start/sync-lane`.
+
+- Ticket: `start/sync-frame-share` (S3, S9).
+- Streams at one cursor share the encoded page per wake.
+- Account IDs use length-prefixed keys to stay apart.
+- Each stream copies the saved bytes and cursor values.
+- Account checks before and after the read stay per stream.
+- Existing two-stream proof checks equal frames.
+- Existing private, replay, and failed-read tests pass.
+- Probe: 100 streams, 10 commits, 11 frame encodes total.
+  One is the warm-up; each commit makes one frame.
+- Checks: root `vp check` exit 0, 27 warnings.
+- Sync and type-check tests: 43 pass, exit 0.
+- Full Start test attempt hit five 5 s time limits.
+  The same sync and type-check files pass with 60 s.
+- The queued speed check is pending; no speed claim yet.
+- Assumption: the lane includes its sync tests and proof files.
+  There is no frame or wheel prototype patch in the study.
+- Push revocations stay out of this lane, as the brief says.
