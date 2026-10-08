@@ -1,0 +1,55 @@
+Core batch A: rejected attempts and isolation
+All rows used N=61 per side through bench/queued.sh.
+Paired two-sided sign test; p < 0.05; ties excluded.
+Medians from different comparisons are not additive.
+
+Core batch A: N=61 per-ticket isolation
+Paired two-sided sign test, p < 0.05; ties excluded.
+shape
+op: b is slower; median 55.8 -> 56.9 ns; B slower 40/59; p=0.0086415
+run: no difference we can see; median 69.1 -> 69.9 ns; B slower 35/61; p=0.305677
+budget
+op: b is slower; median 59.5 -> 81.8 ns; B slower 61/61; p=8.67362e-19
+run: b is slower; median 70.1 -> 73.4 ns; B slower 57/61; p=4.85494e-13
+slots
+op: no difference we can see; median 64.4 -> 64.2 ns; B slower 28/61; p=0.608921
+run: no difference we can see; median 75.0 -> 73.7 ns; B slower 23/59; p=0.117477
+
+
+Core batch A: N=61 retained-dispatch candidate
+A: clean origin/main 5d9c0537
+B: clean c674150b
+Engine: see queue log
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+op: b is slower; median 59.0 -> 67.5 ns; B slower 59/60; p=1.05818e-16
+REVIEW: a slower row must be resolved before landing.
+run: b is slower; median 70.1 -> 75.2 ns; B slower 56/61; p=5.64556e-12
+REVIEW: a slower row must be resolved before landing.
+tagged: b is faster; median 177.3 -> 164.4 ns; B slower 3/61; p=3.28574e-14
+session: no difference we can see; median 428.5 -> 428.9 ns; B slower 34/61; p=0.442626
+lifecycle: b is slower; median 753.9 -> 761.3 ns; B slower 39/61; p=0.039617
+REVIEW: a slower row must be resolved before landing.
+
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-a/dispatch-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-a/isolate-timing-full.log
+
+
+Core batch A: N=61 run-budget drop candidate
+A: clean origin/main 5d9c0537
+B: clean 092cea39
+Engine: v24.21.0 / 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+op: no difference we can see; median 56.5 -> 56.0 ns; B slower 26/60; p=0.366294
+run: no difference we can see; median 69.3 -> 69.3 ns; B slower 29/60; p=0.897422
+tagged: no difference we can see; median 177.5 -> 176.9 ns; B slower 24/59; p=0.192526
+session: no difference we can see; median 429.4 -> 424.3 ns; B slower 37/61; p=0.123731
+lifecycle: b is slower; median 750.9 -> 757.2 ns; B slower 40/61; p=0.0204147
+REVIEW: a slower row must be resolved before landing.
+
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-a/no-budget-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-a/isolate-timing-full.log
+

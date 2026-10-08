@@ -1123,125 +1123,123 @@ scripts/scip.sh refs \
 
 - Owner: Core rules writer (Codex), branch `core/rules-lane`.
 - Scope: `core/shape-preinit`, `core/run-budget`, `core/slot-order`.
-- Base: clean origin/main `5d9c0537`.
-- Assumption: these are code-shape changes; public behavior stays the same.
+  The tested run-budget change is dropped; layer defaults are dropped too.
+  Hook and controller fields, and slot order, await the last timing gate.
+- Source base: origin/main `ae452162`; pinned timing base: `5d9c0537`.
+  Main's Core source stayed unchanged between these commits.
+  Kept other lanes' saved proof and the lower React slot ceiling of 21.
+- Assumption: public behavior stays the same.
   Existing public tests cover the same promises; no new bug is claimed.
 - Assumption: the closing probe uses a resource context.
   Operation contexts have no `closing` field in the public API.
 - Batch B waits for the lead to land A.
   Nothing is pushed or published.
 
-### core/shape-preinit
+### core/shape-preinit: keep V10 and V11; drop V9
 
-- Set four layer defaults, three hook-run fields, and two controller fields at birth.
-  Tagged frames still use shared defaults; full frame shape is batch D.
-- The literal alone raised `runHookChain` from 235 to 250 bytecode bytes.
+- Set three hook-run fields and two controller fields at birth.
+  Keep collections and callbacks lazy: only their slots exist at birth.
+  Layer fields and tagged-frame defaults keep their original lazy shapes.
+- The hook-run literal alone raised `runHookChain` from 235 to 250 bytes.
   `createHookRun` keeps the fields together and lowers the root to 222 bytes.
-  Its saved ceiling falls to 222 in this ticket; no ceiling rises.
-- Closing driver: layer reads fall from three shapes to two.
-  Hook access reads fall from two shapes to one.
-  Sites that reach P or N fall from 41 to 16 in the same driver.
-  P means several shapes; N means too many for the small fast path.
-- A session-resource driver reads `ctx.closing` on every request.
-  Layer reads fall from four shapes to two; P or N sites fall from 40 to 16.
-  Both trees complete 70,000 reads and close every scope with success.
+  Its saved ceiling falls to 222; no ceiling rises from main.
 - Removed the one-use `hasCallNs` helper.
-  Its same namespace check now sits at its only call site.
+  Its same namespace check sits at its only call site.
   This pays for `createHookRun` without adding a module slot.
   `runOnce` falls from 502 to 499 bytes; its ceiling follows.
-- Runtime size: 15,805 -> 15,835 B gzip, under 16,384.
-- Allocation probe: the first runs allowed the young space to shrink and saw GC.
-  Repeat with min and max young space both set to 64 MB: 7/7 clean rounds.
-  Shape-only tree: 860 -> 883 B per hooked run; final batch: 925 B.
-  The stable fields add work; no allocation gain is claimed.
-  Promise count stays zero for a synchronous hooked run.
-  Nested operation-dependency runs: 739 -> 757 B, with zero promises.
-  Both sides have 7/7 rounds without GC, which means memory cleanup.
-- Full build, code check, and Core tests: exit 0.
-  Check: 0 errors, 27 warnings, matching the starting tree.
-- Batch-wide ticket, timing, validate, Jev, and mutation proof follow below.
+- Closing driver: hook access reads fall from two shapes to one.
+  Sites with several shapes fall from 41 to 37.
+  Layer reads keep three shapes before and after.
+- The session-resource driver reads `ctx.closing` on every request.
+  Sites with several shapes fall from 40 to 36.
+  Layer reads keep four shapes before and after.
+  Both drivers complete 70,000 reads and close each scope with success.
+- Heap probe: 7/7 rounds without GC, which means memory cleanup.
+  Min and max young space are both 64 MB; 10,000 calls per round.
+  Hooked runs: 860 -> 865 B; nested operation-dependency runs: 739 -> 753 B.
+  Both keep zero promises; no heap saving is claimed.
+- Controller callbacks still belong to their controller.
+  The settle callback and twin are made on first read and kept.
+  The run callback can be passed alone, as before.
 
-### core/run-budget
+### core/run-budget: dropped
 
-- Guard both borrow releases when there is no hold.
-  Call dispatch now lives in `runCall`, outside the body root.
-- The controller still makes one execution closure.
-  Its old `executorFor` helper is removed, so the slot count stays 341.
-- `runOnce`: 499 -> 429 bytecode bytes; its ceiling falls to 429.
-- Six fresh inline traces per case, with default Maglev:
-  - Plain settle: `closeSpan` 0/6 -> 6/6.
-  - Plain settle: `releaseBorrows` 6/6 -> 0/6.
-  - Tagged: `OperationCtx` 0/6 -> 6/6.
-  - Tagged: `closeSpan` 0/6 -> 6/6.
-- Core tests and check: exit 0; 0 errors, 27 warnings.
-- Runtime size: 15,835 -> 15,832 B gzip.
-- Batch timing follows below; no speed gain is claimed from inline traces alone.
+- Tried moving dispatch outside `runOnce` and guarding empty borrow releases.
+  Bytecode fell from 499 to 429 bytes; several inline edges improved.
+- N=61 against the shape-only tree: op was slower, 59.5 -> 81.8 ns.
+  Run was slower too, 70.1 -> 73.4 ns.
+  These are separate paired verdicts; median gaps do not add together.
+- Tried keeping dispatch inside the old execution closure instead.
+  Op was slower, 59.0 -> 67.5 ns; run was slower, 70.1 -> 75.2 ns.
+  Tagged was faster, but lifecycle was slower, 753.9 -> 761.3 ns.
+- Both attempts are dropped; their inline gains are not shipped.
+  `runOnce` keeps its 499-byte root exception.
 
 ### core/slot-order
 
 - Moved the report's 20 cold declarations below the hot block.
   Moved its 20 per-run and per-close names above the block.
 - Replaced two private flag symbols with fields: `borrows` and `mayHook`.
-  This is the report's two-slot merge; brand changes stay in batch B.
+  This is the report's two-slot merge; seven public brands stay for batch B.
   The extra room also fits `settleRun` and `enterHookAccess`.
 - Highest Core context slot: 341 -> 339; its ceiling falls to 339.
   Hot block: last slot 254, with one slot left before wide reads.
-  The slot check now also guards all 22 promoted names by name.
-- Wide context instructions: 19 -> 5 across the 13 exercised functions
-  in the saved driver list; six other listed declarations were not exercised.
-  This is a driver count, not a claim that every Core function has no wide read.
+  The slot check guards all 22 promoted names by name.
+- Wide context instructions: 19 -> 5 across 13 exercised functions.
+  Six other declarations in the driver list were not exercised.
+  This count does not claim that all Core reads fit a small slot.
 - `settleRun`: 59 -> 53 bytes; `stepRunHook`: 205 -> 201 bytes.
   Both bytecode ceilings fall with the code.
-- Runtime size: 15,832 -> 15,906 B gzip, under 16,384.
-- Core check, tests, and parser tests are recorded in the batch gates below.
+- Runtime size: 15,805 -> 15,892 B gzip, under 16,384.
+  Room left: 492 B.
 
-### Batch A checks before timing
+### Rejected timing attempts
 
-- Fetch/rebase, install, and full build: exit 0 after every source commit.
-  Main stayed at `5d9c0537`.
+- Each comparison used N=61 per tree and scenario, through the queue.
+  Samples use mitata batch mode; the paired sign test leaves ties out.
+  A verdict needs p below 0.05; medians alone are not a speed claim.
+- The original full batch was slower for op and run.
+  Op: 56.1 -> 64.1 ns; run: 69.6 -> 74.8 ns.
+  Tagged, session, and lifecycle showed no difference we can see.
+  [First timing summary](core-a-timing-first.log) saves that failed gate.
+- Ticket isolation found the full shape change slower for op.
+  Op: 55.8 -> 56.9 ns; run showed no difference we can see.
+  Slot order after run budget showed no difference for op and run.
+- Dropping run budget removed the op and run regressions.
+  Op, run, tagged, and session showed no difference we can see.
+  Lifecycle was still slower, 750.9 -> 757.2 ns; p was 0.020415.
+- Dropped the four V9 layer defaults from layer and frame construction.
+  The two drivers' layer shape gains from that attempt are not shipped.
+  The next queued run compares all five rows without those defaults.
+  If it is slower, the same queue script tests slot order alone.
+  [Attempt summaries](core-a-timing-attempts.log) keep each verdict.
+
+### Gates on the current source
+
+- Fetch/rebase, install, and full build: exit 0.
+  Main moved through `f360f870` to `ae452162`; Core code stayed the same.
 - Ticket: exit 0 with `--no-mutation --check-only`.
-  It ran the full package tests, Core source tests (871), and dist tests (881).
-  Mutation runs separately under the shared lock, on a final clean tree.
+  Full package tests, Core source tests (871), and dist tests (881) pass.
+  Code check: 0 errors, 27 warnings, matching the starting tree.
 - Validate: exit 0; all 19 lanes pass.
   Bytecode, slots, inlining, closures, and client checks pass.
 - Prose and scaffold check: exit 0.
-- Slot guard: the old tree fails at `settledValue`, slot 298; the new tree passes.
-- Jev preflight: 0 file flags, 109 unit flags, including one noisy flag.
-  All 167 non-noisy judge hits in 108 units have false labels with reasons.
-  Eighteen new cases are saved; the rest matched existing cases.
-  Core implements the lifetime engine and owns its layer, node, run, and close state.
-  Remaining lazy shapes stay assigned to their later batch tickets.
-- Jev review: exit 0, no flags; the file is too large for its one file judge.
-  Preflight still read every one of its 300 units.
-- TSDoc parser: exit 0, no S26 rows.
+- Slot guard: the old tree fails at `settledValue`, slot 298; this tree passes.
+- Fast-code break plants: exit 0.
+  The engine-refusal plant exceeds 460 bytes even with a smaller root.
+  Each planted rise is rejected, then unchanged inputs pass.
+- Jev preflight reads 300 units: 113 flagged units, including one noisy hit.
+  File judges skip the file because it exceeds their one-call size limit.
+  Unit judges still read each unit.
+  All 171 non-noisy hits in 112 units have labels with reasons.
+  Five new cases are saved; seven earlier shape reasons are made precise.
+  Core owns its engine state and must wait for its owned close work.
+  Retained lazy layer writes are explained by the rejected V9 speed gate.
+- Jev review and TSDoc parser: exit 0; no review flags or S26 rows.
 - Changed declarations: strict style census exit 0.
-  Full source keeps main's same four failing IDs: S04, S10, S14, P06.
-  Counts also match main: 2, 1, 1, 1.
+  Full source keeps main's four failing IDs: S04, S10, S14, P06.
+  Their counts match main: 2, 1, 1, 1; no new strict hit is added.
 - Core feedback: none; this batch changes private engine code.
-- No public API changed; no new bug or behavior test is claimed.
-- The engine-refusal plant must exceed 460 bytes now that `runOnce` is smaller.
-  A ten-byte rise only reaches 439 and is valid for an engine change.
-  The plant now crosses the limit; all saved ceilings only fall.
-- Fast-code break plants: exit 0 after the updated over-limit plant.
-  Their first run needed the client maps built by the client check.
-  The final run planted and rejected every rise, then passed the unchanged inputs.
-
-### Batch A first timing: not ready to land
-
-- N=61 per tree and scenario; every sample uses mitata batch mode.
-  A is clean main `5d9c0537`; B is clean `955608b2`.
-  Verdicts use a paired two-sided sign test, with p below 0.05 and ties left out.
-- **op:** b is slower; 56.1 -> 64.1 ns median.
-  B slower 59/61; p is below 0.000001.
-- **run:** b is slower; 69.6 -> 74.8 ns median.
-  B slower 54/61; p is below 0.000001.
-- **tagged:** no difference we can see; 177.2 -> 176.1 ns median.
-- **session:** no difference we can see; 434.7 -> 447.2 ns median.
-- **lifecycle:** no difference we can see; 805.4 -> 812.3 ns median.
-- [First timing summary](core-a-timing-first.log) saves the failed gate.
-  Next: compare each ticket's clean tree for op and run; fix or drop the cause.
-  The inline and shape gains do not make these slower rows pass.
-- Rebased onto main `f360f870`, which changes scaffold code and saved proof.
-  Kept both appended progress sections and both sets of Jev cases.
-  Core source hash stayed the same; install and full build returned 0.
-  The pinned timing base stays at its measured commit.
+  No public API changed; no new bug or behavior test is claimed.
+- Final timing and clean-tree fault-test proof still remain.
+  Fault tests run alone under the shared lock, with an 85% kills-only floor.

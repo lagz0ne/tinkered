@@ -43,9 +43,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/rules-batch-A** — layer fields, run budget, and slot order.
+- **core/rules-batch-A** — hook and controller fields, and slot order.
   Owner: Core rules writer (Codex).
-  Next: isolate the slower op and run rows; fix or drop their cause.
+  Next: check the lifecycle row after dropping layer defaults and run budget.
   Verify: ticket, validate, N=61 queue, and mutation 85 on kills.
   [Proof](docs/roadmap/perf/PROGRESS.md).
 
