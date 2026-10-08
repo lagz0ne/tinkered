@@ -869,3 +869,32 @@ scripts/scip.sh refs \
 - A full queue drops a log without reading its message.
 - Full check: exit 0, no errors and 28 warnings.
 - Queue timing and final whole-lane gates follow below.
+
+- Full Start tests after encoding: exit 0, 434 pass.
+- Count probe, 1,024 spans, queue drained every 32 spans:
+  log encodes 3,072 -> 1,024; trace encodes 2,048 -> 1,024.
+  Fixed-clock console output is byte-equal, `cmp` exit 0.
+- The first queue attempt used absolute sandbox paths.
+  It failed to find the bundle, exit 1; it proves no speed result.
+  The retry uses relative paths from the pinned base.
+
+### start/telemetry-capacity
+
+- A full 64-record or byte-limited batch starts at once.
+  Successful sends keep draining, including the last short batch.
+  One batch sends at a time; a failure waits for a later retry.
+- Keep the 512-record, 1 MiB, and per-send byte limits.
+- Server console output now uses a bounded batch.
+  It holds at most 512 lines and 48,000 UTF-8 bytes.
+  A pipe that needs drain gets no extra write.
+  Storage and console copies each count their own drops.
+- The close result's final data includes drops at close.
+- All three new checks fail on pinned main `5d9c0537`, exit 1.
+  The console tag was copied as an unused test binding only;
+  main's console still writes straight to stdout.
+  The pinned tree was restored after the check.
+- All 39 focused telemetry checks now pass, exit 0.
+  The burst sends 300 records at test-clock time zero, peak one send.
+- Updated old checks that assumed a full batch waits.
+  Their count and byte bounds are unchanged.
+- Focused type, lint, and format check: exit 0, no warning.
