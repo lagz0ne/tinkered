@@ -216,6 +216,11 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 ### useRun
 
+- runAsync keeps the operation value when onSuccess throws.
+- run reports an onSuccess error through the global error event.
+- Callback errors are reported and still allow onSettled to run.
+  runAsync keeps the operation value or failure.
+
 - A failing operation stays in error state and does not throw to an error boundary.
 - A handled operation panic stays in error state and the root closes successfully.
 - Switching providers clears the previous run state.

@@ -114,3 +114,39 @@ flock /tmp/mutation.lock benchctl ab \
 - Final fetch/rebase, install, and build: exit 0.
   No upstream code changed; all earlier gate proof still applies.
 - Refreshed the starter's formatted test copy after the scaffold gate built it.
+
+# React rules batch 1
+
+- Branch: `react/rules-batch-1`.
+- Owner: React batch writer (Codex).
+- Scope: the three React tickets in the supplied brief.
+- Assumption: use the existing React test runner for hook behavior.
+  Tests start no server and patch no global value.
+- Assumption: report each thrown callback error and still call `onSettled`.
+  The operation keeps its own result.
+- Assumption: byte counts describe package code in the common paths.
+  React, Core, mounts, and writable pairs still make objects.
+
+## react/run-callback-errors
+
+- The two required tests failed on the original source, exit 1.
+  `runAsync` rejected with the callback error.
+  `run` produced no global error event.
+- Callback errors now reach the host error reporter.
+  Each callback is guarded; `onSettled` still runs.
+  `runAsync` returns the operation value or failure.
+- Added two outcome cases for a failed final callback.
+- Removed the shared no-op rejection handler.
+  The resource observer also reports unexpected errors.
+  This keeps React at the existing 25-slot ceiling.
+- Build, check, and all package tests returned 0.
+  React: 91 tests pass.
+  Code check: 0 errors and 28 warnings, the same as main.
+- Prose returned 0.
+- Jev: four source flags explained and labeled false.
+  Test and promise judges found no new flag.
+- The strict census also fails on clean main.
+  Its eight config comments and one resource-observer promise
+  are outside these tickets.
+  No new strict hit was added.
+- Next: count sync renders before the next fix.

@@ -276,8 +276,8 @@ export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
 }
 
 type Outcome<T> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: unknown };
+  | { readonly ok: true; readonly value: T; readonly error?: never }
+  | { readonly ok: false; readonly error: unknown; readonly value?: never };
 
 async function settle<T>(run: () => T): Promise<Outcome<Awaited<T>>> {
   try {
@@ -397,7 +397,7 @@ function useSettled<T>(pending: PromiseLike<T> | undefined): Query.State<T> | un
     let live = true;
     settle(() => pending).then((outcome) => {
       if (live) setSettled({ key: pending, state: settledState(outcome) });
-    }, noop);
+    }, reportCallbackError);
     return () => {
       live = false;
     };
@@ -455,8 +455,6 @@ export declare namespace Run {
   };
 }
 
-const noop = (): void => undefined;
-
 const IDLE = { status: "idle", data: undefined, error: undefined, variables: undefined } as const;
 
 function settledState<T>(outcome: Outcome<T>): Query.State<T> {
@@ -477,13 +475,26 @@ function notify<T, I>(
   variables: Run.Variables<I>,
 ): void {
   if (!on) return;
-  if (outcome.ok) on.onSuccess?.(outcome.value, variables);
-  else on.onError?.(outcome.error, variables);
-  on.onSettled?.(
-    outcome.ok ? outcome.value : undefined,
-    outcome.ok ? undefined : outcome.error,
-    variables,
-  );
+  try {
+    if (outcome.ok) on.onSuccess?.(outcome.value, variables);
+    else on.onError?.(outcome.error, variables);
+  } catch (error) {
+    reportCallbackError(error);
+  }
+  try {
+    on.onSettled?.(outcome.value, outcome.error, variables);
+  } catch (error) {
+    reportCallbackError(error);
+  }
+}
+
+/** Callback failures belong to the host's error reporting, not the operation's outcome. */
+function reportCallbackError(error: unknown): void {
+  if (typeof reportError === "function") reportError(error);
+  else
+    queueMicrotask(() => {
+      throw error;
+    });
 }
 
 /** Run an operation imperatively (a mutation): never suspends. Shaped like react-query's
@@ -539,7 +550,7 @@ export function useRun<T, I>(
   );
   const run = useCallback(
     (...call: Scope.CallArgs<I>): void => {
-      invoke(call).catch(noop);
+      invoke(call).catch(reportCallbackError);
     },
     [invoke],
   );

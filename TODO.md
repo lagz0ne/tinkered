@@ -51,6 +51,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **react/rules-batch-1** — callback errors, sync runs, and cell reads.
+  Owner: React batch writer (Codex).
+  Next: fix each ticket in order, with one commit each.
+  Verify: red bug tests, all gates, byte probes, queued A/B, and mutation kills at least 85.
+  [Track](docs/roadmap/perf/PROGRESS.md).
+
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
