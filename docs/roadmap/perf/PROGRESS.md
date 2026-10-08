@@ -310,7 +310,7 @@ flock /tmp/mutation.lock benchctl ab \
   Validate passed all 19 lanes.
   Ticket gate: exit 0, including all package tests and Core dist tests.
   Scaffold check: exit 0 when run alone.
-  Remaining: queued timing and clean-tree mutation.
+  Remaining: the final clean-tree mutation run; proof is linked below.
 
 - Full check: 0 errors, 27 warnings; main has 28 warnings.
   The callback type removes one existing release warning.
@@ -332,3 +332,44 @@ flock /tmp/mutation.lock benchctl ab \
   The full ticket gate runs these in order and passed.
 - Core feedback: none; this card changes Core's handle contract itself.
   Jev calibration stays a lead landing step under the fixed brief.
+
+### Final Core gates after the restart
+
+- The restart stopped the waiting jobs; both source commits stayed clean.
+- Fetch/rebase, install, and full build: exit 0.
+  Main stayed at `8d75634f`; its Core code is unchanged from `e911871f`.
+- Ticket: exit 0, with `--no-mutation --check-only`.
+  Its full package test run passed; Core source 870, dist 880.
+  Mutation runs separately under the shared lock, on the final clean source.
+- Validate: exit 0; all 19 lanes passed again.
+  Runtime: 15,805 B gzip of 16,384; base: 15,724 B.
+- Prose and the scaffold check: exit 0.
+- N=61 queue: exit 0; each row used 61 batch runs on each tree.
+  A: clean origin/main `8d75634f`, in `handle-proto-base`.
+  B: clean `6623c702`; later edits change only docs and proof.
+  Engine: Node v24.21.0, V8 13.6.233.17-node.53.
+- **session:** b is faster; 510.4 -> 432.2 ns median.
+- **lifecycle:** b is faster; 866.2 -> 770.7 ns median.
+- **op:** no difference we can see; 59.1 -> 59.3 ns median.
+- **run:** no difference we can see; 74.0 -> 74.1 ns median.
+- Verdicts use a paired, two-sided sign test at p < 0.05.
+  Ties are left out; counts and p values are in the saved timing log.
+- The separate scope-loop `benchctl ab` used five paired rounds.
+  Verdict: no difference we can see.
+  Median: 301 -> 254 ms; the 95% range crosses zero.
+  No speed claim for that loop; no claim about full app throughput.
+- [Timing proof](handle-proto-timing.log).
+  Raw rows: `/home/paseo/.cache/tinkered-briefs/handle-proto-ab.csv`.
+- Jev review: 0 flags; the file is too big for its file judge.
+  Preflight still read all 300 units and its labels are committed.
+- Core promise check: 41 old README gaps, 69 unsure, across 794 titles.
+  The three new test titles each matched a README promise.
+  Old test promises are outside this handle card.
+  React: 0 gaps, 6 unsure, across 85 titles.
+- SCIP: old `handleFor` refs are empty in Core and React.
+  Release refs still cover Core tests and React's scope source.
+- [Final mutation proof](handle-proto-mutation.log).
+  It records the clean source HEAD, command, exit code, and kills-only score.
+  Only that proof log is committed after its run.
+- The lead still reviews and lands this branch.
+  Nothing is pushed or published.

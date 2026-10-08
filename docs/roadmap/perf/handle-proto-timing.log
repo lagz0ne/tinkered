@@ -1,0 +1,15 @@
+A: clean origin/main 8d75634f
+B: clean core/handle-proto 6623c702
+N: 61 per tree per scenario; every sample used batch mode
+Engine: Node v24.21.0 / V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+
+session: b is faster; median 510.4 -> 432.2 ns; B slower 1/61; p=5.37764e-17
+lifecycle: b is faster; median 866.2 -> 770.7 ns; B slower 3/61; p=3.28574e-14
+op: no difference we can see; median 59.1 -> 59.3 ns; B slower 28/56; p=1
+run: no difference we can see; median 74.0 -> 74.1 ns; B slower 29/61; p=0.798153
+
+Scope-loop benchctl ab: five paired rounds, one run per side
+A median 301 ms   B median 254 ms
+delta -47.1 ms (-15.6%)   95% range [-82.7, 50.9] ms
+verdict: no difference we can see

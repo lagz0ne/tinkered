@@ -4,10 +4,14 @@
 
 A scope handle is passed by reference (ADR 0108).
 Do not copy it with spread or pull out its verbs.
-Scopes, sessions, and `session(body)` share their verbs on one prototype.
+
+Plain scopes and both session forms share their verbs on one prototype,
+the object they inherit from.
 Opening and closing a plain scope makes no own verb functions.
+
 Only `release` may be passed on its own, as in `cells.forEach(scope.release)`.
-Its one bound function is made on first read and kept for later reads.
+Its function is tied to the handle.
+It is made on first read and kept for later reads.
 
 ## Test helpers
 
