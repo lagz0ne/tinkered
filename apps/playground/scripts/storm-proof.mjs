@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { createServer } from "node:http";
 import { promisify } from "node:util";
@@ -37,11 +37,13 @@ const serve = async (directory, port) => {
 const before = process.argv.includes("--serve") ? await serve(beforeInput, 4427) : beforeInput;
 const after = process.argv.includes("--serve") ? await serve(afterInput, 4428) : afterInput;
 mkdirSync(output, { recursive: true });
+const socketDirectory = resolve(mkdtempSync(join(output, "browser-")));
 const execute = promisify(execFile);
 const browser = async (...args) =>
   (
     await execute("agent-browser", ["--engine", "chrome", "--session", "storm", ...args], {
       encoding: "utf8",
+      env: { ...process.env, AGENT_BROWSER_SOCKET_DIR: socketDirectory },
     })
   ).stdout.trim();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
