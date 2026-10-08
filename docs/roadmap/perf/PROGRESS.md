@@ -631,7 +631,9 @@ Owner: lane writer (Codex), branch `start/sync-lane`.
 - Sync and type-check tests: 43 pass, exit 0.
 - Full Start test attempt hit five 5 s time limits.
   The same sync and type-check files pass with 60 s.
-- The queued speed check is pending; no speed claim yet.
+- Queued speed check at 100 streams, 10 commits:
+  `no difference we can see` across five paired rounds.
+  The retained gain is one encode per cursor per commit.
 - Assumption: the lane includes its sync tests and proof files.
   There is no frame or wheel prototype patch in the study.
 - Push revocations stay out of this lane, as the brief says.
@@ -678,3 +680,162 @@ Owner: lane writer (Codex), branch `start/sync-lane`.
 - All other Jev flags have false labels with reasons.
 - Calibration stays with the lead at landing.
   This writer does not land or push.
+
+## Start sync lane: shared heartbeat clock
+
+- Ticket: `start/sync-heartbeat-wheel` (S4-S7).
+- One timer serves ten one-second buckets.
+- It sleeps to the next exact deadline.
+  Staggered heartbeats and leases do not round up.
+- A wake clears held timer slots before resuming requests.
+- A close clears its subscriber and wakes its held wait.
+- The last scheduled close stops the shared sleep.
+- A stream wait makes no AbortController or signal graph.
+- Activity waiters are made on pull, not on every wake.
+- A current account check returns its revision in place.
+- The account checks and 30 s leases stay as shipped.
+- All 41 stream tests pass, including staggered deadlines.
+- New test uses the test clock; no real-time wait.
+- The old wait test now ends through close, not a wait signal.
+
+### Impact block
+
+- `notifications` is exported by the testing entry.
+- Its wait now takes a lease deadline, not a signal.
+- Request close already ends the subscriber's wait.
+- Callers: eventStream, start sync tests, scaffold sse tests.
+- The scaffold caller now waits for a wake without a signal.
+- Review: SCIP refs for notifications in start,
+  plus the scaffold test caller through the testing entry.
+- Tab frame probe: 2,000 calls, all settle in place.
+- Counted promises per frame: 5 before, 3 after.
+  This includes the probe loop's own await.
+- Count-only probe: 1,000 streams and 10 commits, free auth.
+- Held clock sleeps: 1,000 before, 1 after.
+- Sleep calls across the run: 11,001 before, 2 after.
+- Heap per stream: 15,893 B before, 11,664 B after.
+  These are the observed counts, not a speed claim.
+- Event selects stay at 1 per commit.
+  Account reads stay at 1,000 per commit.
+- Queued speed probe: 1,000 streams and 10 commits.
+  Five paired rounds returned `no difference we can see`.
+- B includes the shared frames and the shared clock.
+  This is a work and heap gain, not a proved speed gain.
+
+### Core feedback
+
+Core asks an async resource's caller to return a promise,
+even after that resource is built.
+Our two factories did no waits, so dropping async fixed it.
+This filled-in example fails the type check today:
+
+```ts
+import { operation, resource } from "@tinker/core";
+const dep = resource({
+  label: "async.dep",
+  factory: async () => 1,
+});
+operation({
+  label: "sync.read",
+  depends: { dep },
+  run: ({ dep }) => dep,
+});
+```
+
+The error is number versus number and PromiseLike.
+A warm sync body over an async dependency still needs a
+Core type decision; this lane does not change Core.
+
+### Lane gates before fault testing
+
+- Install, full build, and code check returned 0.
+- Code check keeps 27 warnings, the same as main.
+- Full tests returned 0 with one package at a time.
+  An earlier parallel attempt hit a 5 s supplier limit.
+- A test run overlapped a check that rebuilt Core files.
+  The clean build followed by serial tests returned 0.
+- Prose and scaffold check returned 0.
+- Scaffold check proved real auth, mail, and two-tab sync.
+- Scaffold registry output includes the updated test calls.
+  The two generated JSON files belong with those calls.
+- All 19 release lanes passed; no ratchet changed.
+- Jev: 0 of 191 test entries flagged.
+- Jev: 0 of 189 promise titles lacked a README line.
+  Another 42 titles were below its confidence floor.
+- All source flags have labels with reasons.
+- Style census: OK for the sync source.
+- TSDoc check: 17 files, no S26 rows.
+- Source review found no other caller changes.
+
+```bash
+scripts/scip.sh refs \
+  'receiveMessage|syncClient|notifications' start
+```
+
+- Review also kept clock failures on each stream body.
+  One failed shared sleep rejects all its held stream waits.
+  The root still closes clean, as it did before the wheel.
+- The added scope test proves both body failures.
+- The build, code, full test, and prose checks returned 0
+  again after that clock error fix.
+- The router's last version-only read now skips capture.
+  Its 27 tab tests and package code check returned 0.
+- Probe baseline: clean, pinned `5d9c0537`.
+  The frame prototype was not saved by the study.
+  The count probe uses the study's fan-out driver.
+  Its heap copy drops time fields and counts sleeps too.
+
+### Final source proof
+
+- Caught up to `f360f870`; all three tickets are saved.
+  Both lanes' board cards, notes, and Jev labels were kept.
+  The scaffold registry was rebuilt from merged source.
+- Fetch and rebase returned 0.
+- Install, full build, and root code check returned 0.
+  Code check: 0 errors and the same 27 warnings.
+- Full tests returned 0, with one package at a time.
+  Start has 435 passing tests.
+  React retains its one existing skipped test.
+- Prose, scaffold check, and validate returned 0.
+  All 19 release checks passed; no ratchet changed.
+- A board blank line failed the first post-merge check.
+  Formatting it fixed that check; the full chain passed.
+- All source judge flags have labels with reasons.
+  The last router read also uses the plain version call.
+- The final full Start fault test must use the clean source.
+  Its source SHA, exit, and kills-only floor go in
+  [the mutation summary](start-sync-mutation.log).
+- Raw logs and count probes stay in
+  `/home/paseo/.cache/tinkered-sync-lane/`.
+- No ticket was dropped.
+  Push revocations remain outside this brief.
+  No push or publish was made.
+
+### After the server lane landed
+
+- The lead asked for a fresh run on the new main.
+- Stopped mutation PID `532989` with SIGINT.
+  Its four worker PIDs also exited.
+  The old run ended with 130 and does not count.
+- Rebased onto `0f4152f5`; kept both lanes' changes.
+  Sync calls keep the plain return values.
+  The copied scaffold tests were rebuilt from source.
+- Install, build, code check, and full tests returned 0.
+  Start now has 440 passing tests.
+- Prose, scaffold check, and validate returned 0.
+  All 19 release checks pass; code has 27 warnings.
+- A duplicate build overlapped the first scaffold check.
+  That check could not find the built Core files.
+  A fresh build and the ordered check chain returned 0.
+- Count probes were rebuilt against clean `0f4152f5`.
+  Held sleeps: 1,000 before, 1 after.
+  Sleep calls: 11,001 before, 2 after.
+  Heap per stream: 15,896 B before, 11,665 B after.
+  Event reads: 1 per commit; account reads: 1,000.
+- Tab probe: 2,000 calls; plain returns: 0 before, 2,000 after.
+  Promises per frame stay at 5 before and 3 after.
+- The earlier speed verdicts name the old baseline.
+  They showed no difference we can see.
+  No speed gain is claimed for the new base.
+- The final fault-test log names the new clean source.
+  Only that log's header and summary are saved after it.
