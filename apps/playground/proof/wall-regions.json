@@ -1,7 +1,7 @@
 [
   {
     "heading": -45,
-    "changedPixels": 16806,
+    "changedPixels": 29989,
     "tiles": [
       {
         "tile": 0,
@@ -1500,8 +1500,8 @@
           },
           "w": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 4,
+            "regionPixels": 4,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -2028,8 +2028,8 @@
           },
           "s": {
             "beforePixels": 394,
-            "afterPixels": 394,
-            "regionPixels": 394,
+            "afterPixels": 411,
+            "regionPixels": 411,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -2039,8 +2039,8 @@
           },
           "w": {
             "beforePixels": 771,
-            "afterPixels": 771,
-            "regionPixels": 771,
+            "afterPixels": 804,
+            "regionPixels": 804,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -2077,8 +2077,8 @@
           },
           "s": {
             "beforePixels": 1724,
-            "afterPixels": 1724,
-            "regionPixels": 1724,
+            "afterPixels": 1743,
+            "regionPixels": 1743,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -2126,12 +2126,12 @@
           },
           "s": {
             "beforePixels": 849,
-            "afterPixels": 849,
+            "afterPixels": 848,
             "regionPixels": 849,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
-            "commonPixels": 849,
+            "commonPixels": 848,
             "beforeRgb": [94, 15, 133],
             "afterRgb": [94, 15, 133]
           },
@@ -2578,8 +2578,8 @@
           },
           "w": {
             "beforePixels": 1324,
-            "afterPixels": 1324,
-            "regionPixels": 1324,
+            "afterPixels": 1363,
+            "regionPixels": 1363,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -2616,8 +2616,8 @@
           },
           "s": {
             "beforePixels": 1067,
-            "afterPixels": 1067,
-            "regionPixels": 1067,
+            "afterPixels": 1085,
+            "regionPixels": 1085,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -2665,8 +2665,8 @@
           },
           "s": {
             "beforePixels": 1152,
-            "afterPixels": 1152,
-            "regionPixels": 1152,
+            "afterPixels": 1160,
+            "regionPixels": 1160,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -2714,8 +2714,8 @@
           },
           "s": {
             "beforePixels": 318,
-            "afterPixels": 318,
-            "regionPixels": 318,
+            "afterPixels": 321,
+            "regionPixels": 321,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -2774,8 +2774,8 @@
           },
           "w": {
             "beforePixels": 919,
-            "afterPixels": 919,
-            "regionPixels": 919,
+            "afterPixels": 941,
+            "regionPixels": 941,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -3166,8 +3166,8 @@
           },
           "w": {
             "beforePixels": 560,
-            "afterPixels": 560,
-            "regionPixels": 560,
+            "afterPixels": 599,
+            "regionPixels": 599,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -3204,8 +3204,8 @@
           },
           "s": {
             "beforePixels": 230,
-            "afterPixels": 230,
-            "regionPixels": 230,
+            "afterPixels": 232,
+            "regionPixels": 232,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -3313,8 +3313,8 @@
           },
           "w": {
             "beforePixels": 705,
-            "afterPixels": 705,
-            "regionPixels": 705,
+            "afterPixels": 731,
+            "regionPixels": 731,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -3362,8 +3362,8 @@
           },
           "w": {
             "beforePixels": 2128,
-            "afterPixels": 2128,
-            "regionPixels": 2128,
+            "afterPixels": 2160,
+            "regionPixels": 2160,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -3400,8 +3400,8 @@
           },
           "s": {
             "beforePixels": 17,
-            "afterPixels": 17,
-            "regionPixels": 17,
+            "afterPixels": 19,
+            "regionPixels": 19,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -3754,8 +3754,8 @@
           },
           "w": {
             "beforePixels": 30,
-            "afterPixels": 30,
-            "regionPixels": 30,
+            "afterPixels": 54,
+            "regionPixels": 54,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -3901,8 +3901,8 @@
           },
           "w": {
             "beforePixels": 1144,
-            "afterPixels": 1144,
-            "regionPixels": 1144,
+            "afterPixels": 1208,
+            "regionPixels": 1208,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -3950,8 +3950,8 @@
           },
           "w": {
             "beforePixels": 1701,
-            "afterPixels": 1701,
-            "regionPixels": 1701,
+            "afterPixels": 1720,
+            "regionPixels": 1720,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -4342,8 +4342,8 @@
           },
           "w": {
             "beforePixels": 298,
-            "afterPixels": 298,
-            "regionPixels": 298,
+            "afterPixels": 335,
+            "regionPixels": 335,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -4489,8 +4489,8 @@
           },
           "w": {
             "beforePixels": 1058,
-            "afterPixels": 1058,
-            "regionPixels": 1058,
+            "afterPixels": 1078,
+            "regionPixels": 1078,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -4538,8 +4538,8 @@
           },
           "w": {
             "beforePixels": 352,
-            "afterPixels": 352,
-            "regionPixels": 352,
+            "afterPixels": 370,
+            "regionPixels": 370,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -4919,8 +4919,8 @@
           },
           "s": {
             "beforePixels": 50,
-            "afterPixels": 50,
-            "regionPixels": 50,
+            "afterPixels": 54,
+            "regionPixels": 54,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -5028,8 +5028,8 @@
           },
           "w": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 23,
+            "regionPixels": 23,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -5567,8 +5567,8 @@
           },
           "w": {
             "beforePixels": 49,
-            "afterPixels": 49,
-            "regionPixels": 49,
+            "afterPixels": 52,
+            "regionPixels": 52,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -7063,7 +7063,7 @@
   },
   {
     "heading": 45,
-    "changedPixels": 17736,
+    "changedPixels": 30377,
     "tiles": [
       {
         "tile": 0,
@@ -9090,8 +9090,8 @@
           },
           "s": {
             "beforePixels": 405,
-            "afterPixels": 412,
-            "regionPixels": 412,
+            "afterPixels": 419,
+            "regionPixels": 419,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -9139,8 +9139,8 @@
           },
           "s": {
             "beforePixels": 1844,
-            "afterPixels": 1853,
-            "regionPixels": 1853,
+            "afterPixels": 1859,
+            "regionPixels": 1859,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -9188,8 +9188,8 @@
           },
           "s": {
             "beforePixels": 1324,
-            "afterPixels": 1323,
-            "regionPixels": 1324,
+            "afterPixels": 1332,
+            "regionPixels": 1333,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -9651,8 +9651,8 @@
           },
           "e": {
             "beforePixels": 404,
-            "afterPixels": 404,
-            "regionPixels": 404,
+            "afterPixels": 406,
+            "regionPixels": 406,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -9678,8 +9678,8 @@
           },
           "s": {
             "beforePixels": 1277,
-            "afterPixels": 1280,
-            "regionPixels": 1280,
+            "afterPixels": 1282,
+            "regionPixels": 1282,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -9700,8 +9700,8 @@
           },
           "e": {
             "beforePixels": 1272,
-            "afterPixels": 1272,
-            "regionPixels": 1272,
+            "afterPixels": 1277,
+            "regionPixels": 1277,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -9727,8 +9727,8 @@
           },
           "s": {
             "beforePixels": 1221,
-            "afterPixels": 1221,
-            "regionPixels": 1221,
+            "afterPixels": 1225,
+            "regionPixels": 1225,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -9776,8 +9776,8 @@
           },
           "s": {
             "beforePixels": 236,
-            "afterPixels": 236,
-            "regionPixels": 236,
+            "afterPixels": 239,
+            "regionPixels": 239,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -9825,8 +9825,8 @@
           },
           "s": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 4,
+            "regionPixels": 4,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -10141,8 +10141,8 @@
           },
           "e": {
             "beforePixels": 125,
-            "afterPixels": 125,
-            "regionPixels": 125,
+            "afterPixels": 126,
+            "regionPixels": 126,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -10217,8 +10217,8 @@
           },
           "s": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 5,
+            "regionPixels": 5,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -10266,8 +10266,8 @@
           },
           "s": {
             "beforePixels": 303,
-            "afterPixels": 308,
-            "regionPixels": 308,
+            "afterPixels": 312,
+            "regionPixels": 312,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -10288,8 +10288,8 @@
           },
           "e": {
             "beforePixels": 1269,
-            "afterPixels": 1269,
-            "regionPixels": 1269,
+            "afterPixels": 1270,
+            "regionPixels": 1270,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -10435,8 +10435,8 @@
           },
           "e": {
             "beforePixels": 19,
-            "afterPixels": 19,
-            "regionPixels": 19,
+            "afterPixels": 21,
+            "regionPixels": 21,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -10462,8 +10462,8 @@
           },
           "s": {
             "beforePixels": 45,
-            "afterPixels": 49,
-            "regionPixels": 49,
+            "afterPixels": 59,
+            "regionPixels": 59,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -10827,8 +10827,8 @@
           },
           "e": {
             "beforePixels": 2140,
-            "afterPixels": 2140,
-            "regionPixels": 2140,
+            "afterPixels": 2143,
+            "regionPixels": 2143,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -10876,8 +10876,8 @@
           },
           "e": {
             "beforePixels": 619,
-            "afterPixels": 619,
-            "regionPixels": 619,
+            "afterPixels": 621,
+            "regionPixels": 621,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -11023,8 +11023,8 @@
           },
           "e": {
             "beforePixels": 562,
-            "afterPixels": 562,
-            "regionPixels": 562,
+            "afterPixels": 565,
+            "regionPixels": 565,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -11415,8 +11415,8 @@
           },
           "e": {
             "beforePixels": 1633,
-            "afterPixels": 1633,
-            "regionPixels": 1633,
+            "afterPixels": 1639,
+            "regionPixels": 1639,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -11589,8 +11589,8 @@
           },
           "s": {
             "beforePixels": 55,
-            "afterPixels": 55,
-            "regionPixels": 55,
+            "afterPixels": 59,
+            "regionPixels": 59,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -11611,8 +11611,8 @@
           },
           "e": {
             "beforePixels": 49,
-            "afterPixels": 49,
-            "regionPixels": 49,
+            "afterPixels": 50,
+            "regionPixels": 50,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -12003,8 +12003,8 @@
           },
           "e": {
             "beforePixels": 53,
-            "afterPixels": 53,
-            "regionPixels": 53,
+            "afterPixels": 55,
+            "regionPixels": 55,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -12128,8 +12128,8 @@
           },
           "s": {
             "beforePixels": 9,
-            "afterPixels": 9,
-            "regionPixels": 9,
+            "afterPixels": 13,
+            "regionPixels": 13,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -14125,7 +14125,7 @@
   },
   {
     "heading": 135,
-    "changedPixels": 16638,
+    "changedPixels": 28815,
     "tiles": [
       {
         "tile": 0,
@@ -16141,8 +16141,8 @@
         "faces": {
           "n": {
             "beforePixels": 68,
-            "afterPixels": 68,
-            "regionPixels": 68,
+            "afterPixels": 99,
+            "regionPixels": 99,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -16223,8 +16223,8 @@
           },
           "e": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 1,
+            "regionPixels": 1,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -16680,8 +16680,8 @@
         "faces": {
           "n": {
             "beforePixels": 769,
-            "afterPixels": 769,
-            "regionPixels": 769,
+            "afterPixels": 791,
+            "regionPixels": 791,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -16713,8 +16713,8 @@
           },
           "e": {
             "beforePixels": 386,
-            "afterPixels": 386,
-            "regionPixels": 386,
+            "afterPixels": 387,
+            "regionPixels": 387,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -16762,8 +16762,8 @@
           },
           "e": {
             "beforePixels": 1061,
-            "afterPixels": 1061,
-            "regionPixels": 1061,
+            "afterPixels": 1064,
+            "regionPixels": 1064,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -17219,8 +17219,8 @@
         "faces": {
           "n": {
             "beforePixels": 450,
-            "afterPixels": 450,
-            "regionPixels": 450,
+            "afterPixels": 486,
+            "regionPixels": 486,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -17301,8 +17301,8 @@
           },
           "e": {
             "beforePixels": 1712,
-            "afterPixels": 1712,
-            "regionPixels": 1712,
+            "afterPixels": 1725,
+            "regionPixels": 1725,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -17350,8 +17350,8 @@
           },
           "e": {
             "beforePixels": 1140,
-            "afterPixels": 1140,
-            "regionPixels": 1140,
+            "afterPixels": 1145,
+            "regionPixels": 1145,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -17758,8 +17758,8 @@
         "faces": {
           "n": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 5,
+            "regionPixels": 5,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -17807,8 +17807,8 @@
         "faces": {
           "n": {
             "beforePixels": 53,
-            "afterPixels": 53,
-            "regionPixels": 53,
+            "afterPixels": 75,
+            "regionPixels": 75,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -17889,8 +17889,8 @@
           },
           "e": {
             "beforePixels": 2140,
-            "afterPixels": 2140,
-            "regionPixels": 2140,
+            "afterPixels": 2142,
+            "regionPixels": 2142,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -18003,8 +18003,8 @@
         "faces": {
           "n": {
             "beforePixels": 231,
-            "afterPixels": 231,
-            "regionPixels": 231,
+            "afterPixels": 250,
+            "regionPixels": 250,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -18052,8 +18052,8 @@
         "faces": {
           "n": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 11,
+            "regionPixels": 11,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -18085,8 +18085,8 @@
           },
           "e": {
             "beforePixels": 487,
-            "afterPixels": 487,
-            "regionPixels": 487,
+            "afterPixels": 495,
+            "regionPixels": 495,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -18444,8 +18444,8 @@
         "faces": {
           "n": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 2,
+            "regionPixels": 2,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -18477,8 +18477,8 @@
           },
           "e": {
             "beforePixels": 1821,
-            "afterPixels": 1821,
-            "regionPixels": 1821,
+            "afterPixels": 1828,
+            "regionPixels": 1828,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -18493,8 +18493,8 @@
         "faces": {
           "n": {
             "beforePixels": 306,
-            "afterPixels": 306,
-            "regionPixels": 306,
+            "afterPixels": 333,
+            "regionPixels": 333,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -18542,8 +18542,8 @@
         "faces": {
           "n": {
             "beforePixels": 1146,
-            "afterPixels": 1146,
-            "regionPixels": 1146,
+            "afterPixels": 1171,
+            "regionPixels": 1171,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -18591,8 +18591,8 @@
         "faces": {
           "n": {
             "beforePixels": 1049,
-            "afterPixels": 1049,
-            "regionPixels": 1049,
+            "afterPixels": 1099,
+            "regionPixels": 1099,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -19081,8 +19081,8 @@
         "faces": {
           "n": {
             "beforePixels": 1592,
-            "afterPixels": 1592,
-            "regionPixels": 1592,
+            "afterPixels": 1613,
+            "regionPixels": 1613,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -19130,8 +19130,8 @@
         "faces": {
           "n": {
             "beforePixels": 1724,
-            "afterPixels": 1724,
-            "regionPixels": 1724,
+            "afterPixels": 1744,
+            "regionPixels": 1744,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -19179,8 +19179,8 @@
         "faces": {
           "n": {
             "beforePixels": 348,
-            "afterPixels": 348,
-            "regionPixels": 348,
+            "afterPixels": 368,
+            "regionPixels": 368,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -19669,8 +19669,8 @@
         "faces": {
           "n": {
             "beforePixels": 19,
-            "afterPixels": 19,
-            "regionPixels": 19,
+            "afterPixels": 27,
+            "regionPixels": 27,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -21187,7 +21187,7 @@
   },
   {
     "heading": 225,
-    "changedPixels": 16124,
+    "changedPixels": 27995,
     "tiles": [
       {
         "tile": 0,
@@ -22686,8 +22686,8 @@
           },
           "w": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 14,
+            "regionPixels": 14,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -23203,8 +23203,8 @@
         "faces": {
           "n": {
             "beforePixels": 80,
-            "afterPixels": 80,
-            "regionPixels": 80,
+            "afterPixels": 116,
+            "regionPixels": 116,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -23225,8 +23225,8 @@
           },
           "w": {
             "beforePixels": 921,
-            "afterPixels": 921,
-            "regionPixels": 921,
+            "afterPixels": 947,
+            "regionPixels": 947,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -23742,8 +23742,8 @@
         "faces": {
           "n": {
             "beforePixels": 953,
-            "afterPixels": 953,
-            "regionPixels": 953,
+            "afterPixels": 980,
+            "regionPixels": 980,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -23764,8 +23764,8 @@
           },
           "w": {
             "beforePixels": 1490,
-            "afterPixels": 1490,
-            "regionPixels": 1490,
+            "afterPixels": 1512,
+            "regionPixels": 1512,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -23960,8 +23960,8 @@
           },
           "w": {
             "beforePixels": 1544,
-            "afterPixels": 1544,
-            "regionPixels": 1544,
+            "afterPixels": 1569,
+            "regionPixels": 1569,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -24281,8 +24281,8 @@
         "faces": {
           "n": {
             "beforePixels": 566,
-            "afterPixels": 566,
-            "regionPixels": 566,
+            "afterPixels": 586,
+            "regionPixels": 586,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -24352,8 +24352,8 @@
           },
           "w": {
             "beforePixels": 562,
-            "afterPixels": 562,
-            "regionPixels": 562,
+            "afterPixels": 599,
+            "regionPixels": 599,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -24499,8 +24499,8 @@
           },
           "w": {
             "beforePixels": 615,
-            "afterPixels": 615,
-            "regionPixels": 615,
+            "afterPixels": 643,
+            "regionPixels": 643,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -24548,8 +24548,8 @@
           },
           "w": {
             "beforePixels": 2136,
-            "afterPixels": 2136,
-            "regionPixels": 2136,
+            "afterPixels": 2164,
+            "regionPixels": 2164,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -24820,8 +24820,8 @@
         "faces": {
           "n": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 13,
+            "regionPixels": 13,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -24869,8 +24869,8 @@
         "faces": {
           "n": {
             "beforePixels": 35,
-            "afterPixels": 35,
-            "regionPixels": 35,
+            "afterPixels": 69,
+            "regionPixels": 69,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -24940,8 +24940,8 @@
           },
           "w": {
             "beforePixels": 31,
-            "afterPixels": 31,
-            "regionPixels": 31,
+            "afterPixels": 54,
+            "regionPixels": 54,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25065,8 +25065,8 @@
         "faces": {
           "n": {
             "beforePixels": 300,
-            "afterPixels": 300,
-            "regionPixels": 300,
+            "afterPixels": 327,
+            "regionPixels": 327,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25087,8 +25087,8 @@
           },
           "w": {
             "beforePixels": 1297,
-            "afterPixels": 1297,
-            "regionPixels": 1297,
+            "afterPixels": 1325,
+            "regionPixels": 1325,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25114,8 +25114,8 @@
         "faces": {
           "n": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 7,
+            "regionPixels": 7,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25136,8 +25136,8 @@
           },
           "w": {
             "beforePixels": 1824,
-            "afterPixels": 1824,
-            "regionPixels": 1824,
+            "afterPixels": 1845,
+            "regionPixels": 1845,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25506,8 +25506,8 @@
         "faces": {
           "n": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 11,
+            "regionPixels": 11,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25528,8 +25528,8 @@
           },
           "w": {
             "beforePixels": 267,
-            "afterPixels": 267,
-            "regionPixels": 267,
+            "afterPixels": 303,
+            "regionPixels": 303,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25555,8 +25555,8 @@
         "faces": {
           "n": {
             "beforePixels": 230,
-            "afterPixels": 230,
-            "regionPixels": 230,
+            "afterPixels": 246,
+            "regionPixels": 246,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25604,8 +25604,8 @@
         "faces": {
           "n": {
             "beforePixels": 1214,
-            "afterPixels": 1214,
-            "regionPixels": 1214,
+            "afterPixels": 1242,
+            "regionPixels": 1242,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25653,8 +25653,8 @@
         "faces": {
           "n": {
             "beforePixels": 1291,
-            "afterPixels": 1291,
-            "regionPixels": 1291,
+            "afterPixels": 1335,
+            "regionPixels": 1335,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25675,8 +25675,8 @@
           },
           "w": {
             "beforePixels": 1294,
-            "afterPixels": 1294,
-            "regionPixels": 1294,
+            "afterPixels": 1316,
+            "regionPixels": 1316,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -25724,8 +25724,8 @@
           },
           "w": {
             "beforePixels": 120,
-            "afterPixels": 120,
-            "regionPixels": 120,
+            "afterPixels": 134,
+            "regionPixels": 134,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -26143,8 +26143,8 @@
         "faces": {
           "n": {
             "beforePixels": 1362,
-            "afterPixels": 1362,
-            "regionPixels": 1362,
+            "afterPixels": 1387,
+            "regionPixels": 1387,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -26192,8 +26192,8 @@
         "faces": {
           "n": {
             "beforePixels": 1822,
-            "afterPixels": 1822,
-            "regionPixels": 1822,
+            "afterPixels": 1843,
+            "regionPixels": 1843,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -26214,8 +26214,8 @@
           },
           "w": {
             "beforePixels": 0,
-            "afterPixels": 0,
-            "regionPixels": 0,
+            "afterPixels": 32,
+            "regionPixels": 32,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -26241,8 +26241,8 @@
         "faces": {
           "n": {
             "beforePixels": 120,
-            "afterPixels": 120,
-            "regionPixels": 120,
+            "afterPixels": 133,
+            "regionPixels": 133,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,
@@ -26731,8 +26731,8 @@
         "faces": {
           "n": {
             "beforePixels": 57,
-            "afterPixels": 57,
-            "regionPixels": 57,
+            "afterPixels": 85,
+            "regionPixels": 85,
             "changedPixels": 0,
             "changedOver10": 0,
             "maxChannelChange": 0,

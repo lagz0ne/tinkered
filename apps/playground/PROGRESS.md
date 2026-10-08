@@ -29,8 +29,10 @@ Tests cover those pairs, angle edges, and full turns.
 The picked pair was right in the first pass.
 Moving the top paint into a child changed wall cover.
 It showed dark walls the old tops used to hide.
-The fix keeps the button's old top paint and outline.
-The arrow still sits inside a flat top span.
+The top now has an explicit `translateZ(0)` plane.
+That keeps the old wall cover while the top stays flat.
+Its paint and arrow share one buffer.
+The arrow still sits inside that flat top span.
 Its turn and fade now live on the SVG.
 That removes the extra span from each of 144 tiles.
 `low` still uses 0.4 of water lightness.
@@ -85,8 +87,8 @@ It does not count a new second task per update.
 That pass also had real extra style work.
 `UpdateLayoutTree` took 9.79 ms per update before,
 and 13.42 ms after, in the first pair of traces.
-The fix removes the extra span and restores the old paint.
-The next trace will check the remaining wall rules.
+The fix removes the extra span and restores the old depth order.
+The final traces will check the remaining wall rules.
 It also counts parent attribute changes during the storm.
 
 The trace script is `scripts/storm-proof.mjs`.
@@ -99,6 +101,7 @@ The viewport is 1280 × 900.
 The storm uses height 3, speed 12, and gap 100 ms.
 Both sides now use the same random seed, 7.
 Three ten-second runs per side flip the order each round.
+The runner starts below load 3 to leave room.
 Only samples with load under 4 count.
 I make no FPS gain claim.
 
@@ -142,6 +145,7 @@ benchctl exec --timeout 900 \
 ```
 
 Use `walls --serve` for four wall checks and three pairs.
+Use `--resume` only to keep samples from the same app build.
 It returns 1 if any checked wall pixel differs.
 Use `capture --serve` for shots without the wall check.
 Use `frames --serve` for a fixed-frame command in `ab`.

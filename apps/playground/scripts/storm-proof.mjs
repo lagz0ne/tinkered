@@ -540,6 +540,12 @@ if (mode === "capture" || mode === "walls") {
               .reduce((sum, event) => sum + (event.dur || 0) / 1000, 0) / updates.length,
           ]),
         );
+        const styleEvents = mainEvents.filter((event) => event.name === "UpdateLayoutTree");
+        const styleElements = styleEvents.reduce(
+          (sum, event) => sum + (event.args.elementCount || 0),
+          0,
+        );
+        const styleMicroseconds = styleEvents.reduce((sum, event) => sum + (event.dur || 0), 0);
         const tiltUpdates = await evaluate(`(() => {
         const w = document.querySelector('iframe').contentWindow;
         w.__tiltObserver.disconnect();
@@ -563,6 +569,8 @@ if (mode === "capture" || mode === "walls") {
           tiltUpdates,
           documentState,
           perUpdateMs,
+          styledElementsPerUpdate: styleElements / updates.length,
+          styleMicrosecondsPerElement: styleMicroseconds / styleElements,
           longTaskMeanMs: tasks.reduce((sum, task) => sum + task.dur / 1000, 0) / tasks.length,
           longTaskBlockingMs: tasks.reduce((sum, task) => sum + task.dur / 1000 - 50, 0),
           layers: {
