@@ -32,7 +32,9 @@ The full layer rows and traces stay in the local cache:
 `/home/paseo/.cache/storm-layers-proof/`.
 The script is `scripts/storm-proof.mjs`.
 Every browser command uses Chrome and session `storm`.
-The queue ran one pinned CPU core with software drawing.
+The queue held the job on one CPU core.
+Chrome drew with the CPU.
+The queued runs used Chrome for Testing 151.0.7922.34.
 The viewport was 1280 × 900.
 The storm used height 3, speed 12, and gap 100 ms.
 
@@ -57,8 +59,9 @@ Three ten-second runs per side, with the order flipped:
 - **Time over 50 ms, middle value:**
   1971.58 ms before; 1441.46 ms after.
 
-These are headless software Chrome results.
-Real GPU hardware and other browsers are not proven.
+Chrome ran without a window.
+Real graphics hardware and other browsers are not proven.
+I make no FPS gain claim.
 
 ## Checks
 
@@ -85,4 +88,45 @@ Every required gate returned 0:
 - Strict style census on every changed TypeScript file.
 
 No mutation run was required: `packages/start` did not change.
-The queued fixed-frame comparison is pending.
+
+## Frame comparison
+
+[Queued comparison log](proof/ab.log).
+The commands ran from the clean pinned baseline tree.
+The candidate tree was also clean.
+The same app settings drove 60 frame callbacks per side.
+The command includes browser and app startup.
+It used two rounds with one timed run per side per round.
+
+**No verdict.**
+`benchctl ab` returned 1 when load reached 4.
+Longer 120-frame tries were also rejected for load.
+A shorter comparison still could not hold a quiet window.
+The six ten-second trace samples above all stayed below 4.
+Their frame rates are observations, not a proven speed gain.
+
+Repeated browser close/open also exposed a socket race.
+Each proof run now owns a fresh socket folder.
+Every command still uses session `storm`.
+The later runs passed that step and rejected only the load.
+
+## Run the proof again
+
+Run from the tree root with the built baseline next to it.
+This is the exact queued trace command used here:
+
+```bash
+storm_probe=apps/playground/scripts/storm-proof.mjs
+storm_chrome=../../.cache/ms-playwright/
+storm_chrome+=chromium-1234/chrome-linux64/chrome
+benchctl exec --timeout 900 \
+  --env AGENT_BROWSER_EXECUTABLE_PATH="$storm_chrome" \
+  -- node "$storm_probe" \
+  ../storm-layers-base/apps/playground/dist \
+  apps/playground/dist .bench/storm-proof \
+  measure --serve
+```
+
+Use `frames --serve` for a fixed-frame command in `ab`.
+Use `capture --serve` for the three image pairs.
+No site was published or pushed.

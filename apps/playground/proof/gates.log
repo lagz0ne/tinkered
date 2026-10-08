@@ -1,0 +1,17 @@
+git fetch origin: EXIT 0
+git rebase origin/main: EXIT 0
+vp install: EXIT 0
+vp run -r build: EXIT 0 (12 tasks)
+vp check: EXIT 0 (0 errors, 28 warnings; baseline: 28)
+vp run -r test: EXIT 0 (10 tasks; Playground: 68 passed)
+vp run prose: EXIT 0
+vp run @tinker-start-scaffold#check: EXIT 0
+pnpm validate: EXIT 0 (18 lanes PASS)
+Strict style census: EXIT 0
+Jev pre-flight: 0 flags, 1 info note on existing random port
+Jev new tests: 0/2 flagged
+Jev new promises: 0/2 gaps
+Jev full README scan: 31 old gaps outside this card
+Labels: none needed for changed code or tests
+Mutation: not required; packages/start unchanged
+Core feedback: none

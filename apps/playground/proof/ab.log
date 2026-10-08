@@ -1,0 +1,10 @@
+Baseline: bca0063f (clean origin/main worktree)
+Candidate: 95cc7e9d (clean worktree)
+Work: start the full storm, then 60 frame callbacks
+Command: benchctl ab --rounds 2 --runs-per-round 1
+benchctl: bench: the command failed part way through
+
+Last rejected load sample:
+{"before": "http://127.0.0.1:4427", "frameCallbacks": 60, "loads": [3.95, 3.95, 4.04, 4.04, 4.04, 4.04, 4.04, 4.04], "quiet": false}
+EXIT 1
+No verdict. No FPS gain is claimed.
