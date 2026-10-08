@@ -1162,3 +1162,19 @@ This keeps the owner's old return type and callers.
 - All package tests passed with `vp run -r test`.
   Proof: [package tests](proof/lazy-modules-workspace-tests.txt).
 - All 19 validate lanes passed again on this main.
+
+### Writer mutation and handoff
+
+- Full Start mutation passed under `flock /tmp/mutation.lock`.
+  Tested commit: `07845992d6ec5bccb182ecc136dcda14c576e57d`.
+  The tree was clean before and after the run.
+- Kills alone: 3,883 of 4,553 mutants, or 85.28%; floor 75.
+  All 42 timeouts and the one runtime error stay out of the kill count.
+  All statuses stay in the total, including 101 with no coverage.
+- Proof: [mutation](proof/lazy-modules-mutation.txt).
+  The full output is `lazy-modules-mutation.log` in this worktree.
+  The full JSON report is `packages/start/reports/mutation/mutation.json`.
+- Only this proof and board notes change after the tested commit.
+  The card waits in Review for the lead.
+  The scaffold follows on this branch; no app code changed here.
+  Nothing was pushed.

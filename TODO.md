@@ -53,13 +53,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
+## Review
+
 - **start/lazy-modules** — the base and the checker for ADR 0107 ([brief](docs/roadmap/start-base/LAZY-MODULES-BRIEF.md)).
   Owner: lead (Claude, lazy-modules session); writer Sol, reviewer Opus.
   Writer: `b0b13200` (Sol), worktree `../tinkered-lazy-modules`, branch `start/lazy-modules`.
-  Next: writer builds the checker, then makes `packages/start` pass it.
-  Verify: the checker's `--prove` and `vp run lazy` exit 0; gates 0; start mutation ≥ 75.
-
-## Review
+  Next: lead review; the scaffold follows on this branch.
+  Verify: 40 checker plants, lazy check, gates, all package tests, and 19 validate lanes passed.
+  Clean-tree Start mutation: 85.28% on kills alone at `07845992`; floor 75.
+  [Proof](docs/roadmap/start-base/PROGRESS.md#startlazy-modules).
 
 - **core/rules-batch-A** — hook and controller fields, and slot order.
   Owner: Core rules writer (Codex).

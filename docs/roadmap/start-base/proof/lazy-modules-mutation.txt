@@ -1,0 +1,14 @@
+Commit 07845992d6ec5bccb182ecc136dcda14c576e57d
+$ flock /tmp/mutation.lock vp run @tinker/start#mutate
+Clean tree before: yes
+Clean tree after: yes
+EXIT 0
+Killed: 3883
+NoCoverage: 101
+RuntimeError: 1
+Survived: 526
+Timeout: 42
+Kills alone: 3883/4553 = 85.28%
+Timeouts and errors do not count as kills.
+Floor: 75%
+PASS
