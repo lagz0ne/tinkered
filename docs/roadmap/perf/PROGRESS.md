@@ -24,3 +24,27 @@
   Fixed settings come from the env tag; module loading acquires no IO handle.
 - The promise judge accepts only packages, so it cannot read the scaffold app.
 - Strict style census and TSDoc checks: exit 0.
+
+## start/abort-reasons
+
+- All 17 reasonless source aborts now pass a shared AbortError.
+- Kinds: owner close, account change, finished wait, deadline.
+- Names and code 20 remain native AbortError values.
+- Two scope checks failed before the fix (exit 1).
+- Assumption: test the tab owner through Core, without booting TanStack.
+  The brief bans TanStack inside tests.
+  The page census will cover the router entry too.
+- Page census: 20 identity SSR pages on each built tree.
+  Main: 20 reasonless aborts; fixed tree: 0.
+  Per page: 1 -> 0.
+  Logs: `/home/paseo/.cache/tinkered-briefs/start-b1-census-{a,b}.log`.
+- Green proof: Start 428 tests; check; prose (exit 0).
+  Check warnings match main: 28.
+- Strict style census: exit 0.
+- Jev tests: 0 of 2 flagged.
+  Added the two README promises that its promise check named.
+  The label tool has no promise-gap judge; the README is the resolution.
+- Jev source flags each have a false label and reason in cases.jsonl.
+  Native private state belongs to its resource.
+  Root readiness can await start hooks; shutdown must drain owned work.
+  Existing router shape and request-hop findings remain separate tickets.
