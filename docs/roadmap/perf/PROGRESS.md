@@ -1148,8 +1148,10 @@ scripts/scip.sh refs \
   This pays for `createHookRun` without adding a module slot.
   `runOnce` falls from 502 to 499 bytes; its ceiling follows.
 - Runtime size: 15,805 -> 15,835 B gzip, under 16,384.
-- Allocation probe: zero valid GC-free rounds on either tree.
-  No allocation gain is claimed from that probe.
+- Allocation probe: the first runs allowed the young space to shrink and saw GC.
+  Repeat with min and max young space both set to 64 MB: 7/7 clean rounds.
+  Shape-only tree: 860 -> 883 B per hooked run; final batch: 925 B.
+  The stable fields add work; no allocation gain is claimed.
   Promise count stays zero for a synchronous hooked run.
 - Full build, code check, and Core tests: exit 0.
   Check: 0 errors, 27 warnings, matching the starting tree.
@@ -1188,3 +1190,34 @@ scripts/scip.sh refs \
   Both bytecode ceilings fall with the code.
 - Runtime size: 15,832 -> 15,906 B gzip, under 16,384.
 - Core check, tests, and parser tests are recorded in the batch gates below.
+
+### Batch A checks before timing
+
+- Fetch/rebase, install, and full build: exit 0 after every source commit.
+  Main stayed at `5d9c0537`.
+- Ticket: exit 0 with `--no-mutation --check-only`.
+  It ran the full package tests, Core source tests (871), and dist tests (881).
+  Mutation runs separately under the shared lock, on a final clean tree.
+- Validate: exit 0; all 19 lanes pass.
+  Bytecode, slots, inlining, closures, and client checks pass.
+- Prose and scaffold check: exit 0.
+- Slot guard: the old tree fails at `settledValue`, slot 298; the new tree passes.
+- Jev preflight: 0 file flags, 109 unit flags, including one noisy flag.
+  All 167 non-noisy judge hits in 108 units have false labels with reasons.
+  Eighteen new cases are saved; the rest matched existing cases.
+  Core implements the lifetime engine and owns its layer, node, run, and close state.
+  Remaining lazy shapes stay assigned to their later batch tickets.
+- Jev review: exit 0, no flags; the file is too large for its one file judge.
+  Preflight still read every one of its 300 units.
+- TSDoc parser: exit 0, no S26 rows.
+- Changed declarations: strict style census exit 0.
+  Full source keeps main's same four failing IDs: S04, S10, S14, P06.
+  Counts also match main: 2, 1, 1, 1.
+- Core feedback: none; this batch changes private engine code.
+- No public API changed; no new bug or behavior test is claimed.
+- The engine-refusal plant must exceed 460 bytes now that `runOnce` is smaller.
+  A ten-byte rise only reaches 439 and is valid for an engine change.
+  The plant now crosses the limit; all saved ceilings only fall.
+- Fast-code break plants: exit 0 after the updated over-limit plant.
+  Their first run needed the client maps built by the client check.
+  The final run planted and rejected every rise, then passed the unchanged inputs.
