@@ -384,60 +384,64 @@ if (mode === "capture" || mode === "walls") {
           ["before", before],
           ["after", after],
         ]) {
-      while (load() >= 4) {
-        console.log(JSON.stringify({ waitingForLoadUnder4: load() }));
-        await sleep(10000);
-      }
-      await navigate(url);
-      const settings = await evaluate(setup);
-      await evaluate(
-        "[...document.querySelector('iframe').contentDocument.querySelectorAll('button')].find(button => button.textContent.includes('Start storm')).click()",
-      );
-      await sleep(2500);
-      let layers = [];
-      const layerListener = (message) => {
-        if (
-          message.sessionId === sessionId &&
-          message.method === "LayerTree.layerTreeDidChange" &&
-          message.params.layers
-        )
-          layers = message.params.layers;
-      };
-      listeners.add(layerListener);
-      await page("LayerTree.enable");
-      await sleep(500);
-      const rows = [];
-      for (const layer of layers) {
-        let element;
-        if (layer.backendNodeId) {
-          const { node } = await page("DOM.describeNode", { backendNodeId: layer.backendNodeId });
-          const attributes = node.attributes || [];
-          const classIndex = attributes.indexOf("class");
-          element =
-            node.nodeName.toLowerCase() +
-            (classIndex < 0 ? "" : "." + attributes[classIndex + 1].split(" ").join("."));
+      let quiet = false;
+      let attempt = 0;
+      do {
+        attempt++;
+        while (load() >= 3) {
+          console.log(JSON.stringify({ waitingForLoadUnder3: load() }));
+          await sleep(10000);
         }
-        rows.push({
-          id: layer.layerId,
-          element,
-          width: layer.width,
-          height: layer.height,
-          drawsContent: layer.drawsContent,
+        await navigate(url);
+        const settings = await evaluate(setup);
+        await evaluate(
+          "[...document.querySelector('iframe').contentDocument.querySelectorAll('button')].find(button => button.textContent.includes('Start storm')).click()",
+        );
+        await sleep(2500);
+        let layers = [];
+        const layerListener = (message) => {
+          if (
+            message.sessionId === sessionId &&
+            message.method === "LayerTree.layerTreeDidChange" &&
+            message.params.layers
+          )
+            layers = message.params.layers;
+        };
+        listeners.add(layerListener);
+        await page("LayerTree.enable");
+        await sleep(500);
+        const rows = [];
+        for (const layer of layers) {
+          let element;
+          if (layer.backendNodeId) {
+            const { node } = await page("DOM.describeNode", { backendNodeId: layer.backendNodeId });
+            const attributes = node.attributes || [];
+            const classIndex = attributes.indexOf("class");
+            element =
+              node.nodeName.toLowerCase() +
+              (classIndex < 0 ? "" : "." + attributes[classIndex + 1].split(" ").join("."));
+          }
+          rows.push({
+            id: layer.layerId,
+            element,
+            width: layer.width,
+            height: layer.height,
+            drawsContent: layer.drawsContent,
+          });
+        }
+        await page("LayerTree.disable");
+        listeners.delete(layerListener);
+        const events = [];
+        let complete;
+        const ended = new Promise((resolve) => {
+          complete = resolve;
         });
-      }
-      await page("LayerTree.disable");
-      listeners.delete(layerListener);
-      const events = [];
-      let complete;
-      const ended = new Promise((resolve) => {
-        complete = resolve;
-      });
-      const traceListener = (message) => {
-        if (message.method === "Tracing.dataCollected") events.push(...message.params.value);
-        if (message.method === "Tracing.tracingComplete") complete();
-      };
-      listeners.add(traceListener);
-      const documentState = await evaluate(`(() => {
+        const traceListener = (message) => {
+          if (message.method === "Tracing.dataCollected") events.push(...message.params.value);
+          if (message.method === "Tracing.tracingComplete") complete();
+        };
+        listeners.add(traceListener);
+        const documentState = await evaluate(`(() => {
         const w = document.querySelector('iframe').contentWindow;
         const d = w.document;
         const tilt = d.querySelector('.tilt');
@@ -446,122 +450,131 @@ if (mode === "capture" || mode === "walls") {
         w.__tiltObserver.observe(tilt, {attributes:true});
         return {nodes:d.querySelectorAll('*').length, heading:tilt.style.transform};
       })()`);
-      const loads = [load()];
-      await send("Tracing.start", {
-        transferMode: "ReportEvents",
-        categories:
-          "devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.frame,benchmark,cc,viz,toplevel",
-      });
-      const start = await evaluate('console.timeStamp("storm-start"); performance.now()');
-      for (let second = 0; second < 10; second++) {
-        await sleep(1000);
-        loads.push(load());
-      }
-      const end = await evaluate('console.timeStamp("storm-end"); performance.now()');
-      await send("Tracing.end");
-      await ended;
-      listeners.delete(traceListener);
-      writeFileSync(
-        join(output, `${side}-${run}.trace.json.gz`),
-        gzipSync(JSON.stringify({ traceEvents: events })),
-      );
-      const traceStart = events.find(
-        (event) => event.name === "TimeStamp" && event.args.data?.message === "storm-start",
-      ).ts;
-      const traceEnd = events.find(
-        (event) => event.name === "TimeStamp" && event.args.data?.message === "storm-end",
-      ).ts;
-      const presented = events.filter(
-        (event) =>
-          event.name === "AnimationFrame::Presentation" &&
-          event.ts >= traceStart &&
-          event.ts <= traceEnd,
-      );
-      if (!presented.length) throw new Error("No presentation events; cannot report frames shown");
-      const frameIds = new Set(presented.map((event) => JSON.stringify(event.args.begin_frame_id)));
-      const frameProcesses = new Set(presented.map((event) => event.pid));
-      const frameThreads = events.filter(
-        (event) =>
-          event.name === "thread_name" &&
-          event.args.name === "CrRendererMain" &&
-          frameProcesses.has(event.pid),
-      );
-      const tasks = events.filter(
-        (event) =>
-          event.ph === "X" &&
-          event.name === "RunTask" &&
-          event.dur >= 50000 &&
-          event.ts >= traceStart &&
-          event.ts <= traceEnd &&
-          frameThreads.some((thread) => thread.pid === event.pid && thread.tid === event.tid),
-      );
-      const mainEvents = events.filter(
-        (event) =>
-          event.ph === "X" &&
-          event.ts >= traceStart &&
-          event.ts <= traceEnd &&
-          frameThreads.some((thread) => thread.pid === event.pid && thread.tid === event.tid),
-      );
-      const updates = mainEvents.filter((event) => event.name === "ProxyMain::BeginMainFrame");
-      const renderingLongTasks = tasks.filter((task) =>
-        updates.some(
-          (update) =>
-            update.pid === task.pid &&
-            update.tid === task.tid &&
-            update.ts >= task.ts &&
-            update.ts < task.ts + task.dur,
-        ),
-      ).length;
-      const stages = ["UpdateLayoutTree", "Layout", "Paint", "Layerize", "FireAnimationFrame"];
-      const perUpdateMs = Object.fromEntries(
-        stages.map((name) => [
-          name,
-          mainEvents
-            .filter((event) => event.name === name)
-            .reduce((sum, event) => sum + (event.dur || 0) / 1000, 0) / updates.length,
-        ]),
-      );
-      const tiltUpdates = await evaluate(`(() => {
+        const loads = [load()];
+        await send("Tracing.start", {
+          transferMode: "ReportEvents",
+          categories:
+            "devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.frame,benchmark,cc,viz,toplevel",
+        });
+        const start = await evaluate('console.timeStamp("storm-start"); performance.now()');
+        for (let second = 0; second < 10; second++) {
+          await sleep(1000);
+          loads.push(load());
+        }
+        const end = await evaluate('console.timeStamp("storm-end"); performance.now()');
+        await send("Tracing.end");
+        await ended;
+        listeners.delete(traceListener);
+        writeFileSync(
+          join(output, `${side}-${run}-${attempt}.trace.json.gz`),
+          gzipSync(JSON.stringify({ traceEvents: events })),
+        );
+        const traceStart = events.find(
+          (event) => event.name === "TimeStamp" && event.args.data?.message === "storm-start",
+        ).ts;
+        const traceEnd = events.find(
+          (event) => event.name === "TimeStamp" && event.args.data?.message === "storm-end",
+        ).ts;
+        const presented = events.filter(
+          (event) =>
+            event.name === "AnimationFrame::Presentation" &&
+            event.ts >= traceStart &&
+            event.ts <= traceEnd,
+        );
+        if (!presented.length)
+          throw new Error("No presentation events; cannot report frames shown");
+        const frameIds = new Set(
+          presented.map((event) => JSON.stringify(event.args.begin_frame_id)),
+        );
+        const frameProcesses = new Set(presented.map((event) => event.pid));
+        const frameThreads = events.filter(
+          (event) =>
+            event.name === "thread_name" &&
+            event.args.name === "CrRendererMain" &&
+            frameProcesses.has(event.pid),
+        );
+        const tasks = events.filter(
+          (event) =>
+            event.ph === "X" &&
+            event.name === "RunTask" &&
+            event.dur >= 50000 &&
+            event.ts >= traceStart &&
+            event.ts <= traceEnd &&
+            frameThreads.some((thread) => thread.pid === event.pid && thread.tid === event.tid),
+        );
+        const mainEvents = events.filter(
+          (event) =>
+            event.ph === "X" &&
+            event.ts >= traceStart &&
+            event.ts <= traceEnd &&
+            frameThreads.some((thread) => thread.pid === event.pid && thread.tid === event.tid),
+        );
+        const updates = mainEvents.filter((event) => event.name === "ProxyMain::BeginMainFrame");
+        const renderingLongTasks = tasks.filter((task) =>
+          updates.some(
+            (update) =>
+              update.pid === task.pid &&
+              update.tid === task.tid &&
+              update.ts >= task.ts &&
+              update.ts < task.ts + task.dur,
+          ),
+        ).length;
+        const stages = ["UpdateLayoutTree", "Layout", "Paint", "Layerize", "FireAnimationFrame"];
+        const perUpdateMs = Object.fromEntries(
+          stages.map((name) => [
+            name,
+            mainEvents
+              .filter((event) => event.name === name)
+              .reduce((sum, event) => sum + (event.dur || 0) / 1000, 0) / updates.length,
+          ]),
+        );
+        const tiltUpdates = await evaluate(`(() => {
         const w = document.querySelector('iframe').contentWindow;
         w.__tiltObserver.disconnect();
         return w.__tiltUpdates;
       })()`);
-      const duration = (end - start) / 1000;
-      const result = {
-        side,
-        run: run + 1,
-        settings,
-        durationSeconds: duration,
-        loads,
-        quiet: loads.every((value) => value < 4),
-        presentedFrames: frameIds.size,
-        presentedFps: frameIds.size / duration,
-        longTasks: tasks.length,
-        renderingLongTasks,
-        boardUpdates: updates.length,
-        tiltUpdates,
-        documentState,
-        perUpdateMs,
-        longTaskMeanMs: tasks.reduce((sum, task) => sum + task.dur / 1000, 0) / tasks.length,
-        longTaskBlockingMs: tasks.reduce((sum, task) => sum + task.dur / 1000 - 50, 0),
-        layers: {
-          count: rows.length,
-          arrows: rows.filter((row) => row.element === "span.arrow").length,
-          walls: rows.filter((row) => row.element?.startsWith("span.wall.")).length,
-          backingBytes: rows
-            .filter((row) => row.drawsContent)
-            .reduce((sum, row) => sum + row.width * row.height * 4, 0),
-          rows,
-        },
-      };
-      await evaluate(
-        "[...document.querySelector('iframe').contentDocument.querySelectorAll('button')].find(button => button.textContent.includes('Stop storm')).click()",
-      );
-      results.push(result);
-      console.log(JSON.stringify({ ...result, layers: { ...result.layers, rows: undefined } }));
-      writeFileSync(join(output, "measurements.json"), JSON.stringify(results, null, 2));
-      if (!result.quiet)
-        throw new Error("Load reached 4 during the storm; do not claim fps from this run");
+        const duration = (end - start) / 1000;
+        const result = {
+          side,
+          run: run + 1,
+          attempt,
+          trace: `${side}-${run}-${attempt}.trace.json.gz`,
+          settings,
+          durationSeconds: duration,
+          loads,
+          quiet: loads.every((value) => value < 4),
+          presentedFrames: frameIds.size,
+          presentedFps: frameIds.size / duration,
+          longTasks: tasks.length,
+          renderingLongTasks,
+          boardUpdates: updates.length,
+          tiltUpdates,
+          documentState,
+          perUpdateMs,
+          longTaskMeanMs: tasks.reduce((sum, task) => sum + task.dur / 1000, 0) / tasks.length,
+          longTaskBlockingMs: tasks.reduce((sum, task) => sum + task.dur / 1000 - 50, 0),
+          layers: {
+            count: rows.length,
+            arrows: rows.filter((row) => row.element === "span.arrow").length,
+            walls: rows.filter((row) => row.element?.startsWith("span.wall.")).length,
+            backingBytes: rows
+              .filter((row) => row.drawsContent)
+              .reduce((sum, row) => sum + row.width * row.height * 4, 0),
+            rows,
+          },
+        };
+        await evaluate(
+          "[...document.querySelector('iframe').contentDocument.querySelectorAll('button')].find(button => button.textContent.includes('Stop storm')).click()",
+        );
+        console.log(JSON.stringify({ ...result, layers: { ...result.layers, rows: undefined } }));
+        quiet = result.quiet;
+        if (!quiet) {
+          appendFileSync(join(output, "rejected.jsonl"), JSON.stringify(result) + "\n");
+          continue;
+        }
+        results.push(result);
+        writeFileSync(join(output, "measurements.json"), JSON.stringify(results, null, 2));
+      } while (!quiet);
     }
   }
 }
