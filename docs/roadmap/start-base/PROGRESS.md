@@ -1116,7 +1116,7 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   The first clean-commit gate passed at `7e9ce9e1`: EXIT 0.
   Install, build, check, both test tasks, and all workspace tests passed after the rebase.
   The full clean-commit gates passed at `7ca845e1`, `30322060`, and `127ed2cf`: EXIT 0.
-  The combined server code also passed its gate at `e56e14d4`: EXIT 0.
+  The combined server code passed its gate at `e56e14d4` and `96bf5fc4`: EXIT 0.
 - `vp run lazy`: EXIT 0.
   `node scripts/check-lazy-modules.mjs --prove`: EXIT 0; 90 cases.
 - `vp run -r test`: EXIT 0; all 10 tasks.
@@ -1194,32 +1194,21 @@ No Core change is requested.
 
 ### Mutation
 
-Three full Start mutation runs passed under `flock /tmp/mutation.lock`.
-The latest tested clean commit is `127ed2cf45448a9630dda02926bea96946eb2a08`.
+Four full Start mutation runs passed under `flock /tmp/mutation.lock`.
+The latest tested clean commit is `96bf5fc4d6e3ecdb31c8064cccf844d0acc74e49`.
 The gate and mutation both returned EXIT 0.
-Kills alone: 3878 of 4547, or 85.29%; floor 75.
-There were 525 survivors, 42 timeouts, 101 with no coverage,
+Kills alone: 3917 of 4641, or 84.40%; floor 75.
+There were 546 survivors, 51 timeouts, 126 with no coverage,
 and 1 runtime error.
 Every status stays in the total; only Killed counts as a kill.
 The tree was clean before and after the run.
 [Mutation proof](proof/lazy-modules-mutation.txt).
-The earlier clean run at `7e9ce9e1` had the same counts.
-Main gained seven commits during that run, ending at `81a60ef4`.
-The branch was rebased onto that main, then its board commit `5d9c0537`.
-The one label-file conflict kept both sets of rows.
-`vp install` and every proof check passed again.
-The checker proof still has 90 passing cases; validate still has 19 passing lanes.
-Main then gained scaffold commit `f360f870` during the second mutation run.
-That proof was saved before rebasing onto the consumer change.
-Both label-file conflicts kept all rows from main and this ticket.
-Install, gate, all package tests, 19 validate lanes, and 90 plants passed again.
-Jev, the symbol check, and the strict style check also passed.
-The next clean-commit gate and mutation also passed, at `127ed2cf`.
-Main then gained six Start server commits, ending at `0f4152f5`.
-That proof was saved before merging the server changes.
+The earlier clean runs at `7e9ce9e1`, `7ca845e1`, and `127ed2cf`
+had 3878 kills of 4547, or 85.29%.
+Main gained Core, scaffold, and Start server changes during those runs.
+Each result was saved before rebasing and running all proof checks again.
 The render conflict kept main's request-session cleanup.
 Every label-file conflict kept all rows from main and this ticket.
-Install, gate, all package tests, 19 validate lanes, and 90 plants passed again.
-Jev, the symbol check, and the strict style check also passed.
-A fresh gate and mutation are next on the final clean commit.
+Main then gained React and sync changes, ending at `ae452162`.
+This proof is saved before merging those changes and checking the final code again.
 Nothing was pushed.
