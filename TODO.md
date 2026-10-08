@@ -43,6 +43,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **start/server-lane** — request hops, one body hold, static bytes, server chunks, browser settings.
+  Owner: writer (Codex, server lane).
+  Next: reduce request work, then run each proof and the final gates.
+  Verify: request census at most 45; static hits make no file calls; owned chunks at most 255 slots.
+  Start fault score at least 75 on kills alone.
+  [Proof](docs/roadmap/perf/SERVER-LANE.md).
+
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
