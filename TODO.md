@@ -24,11 +24,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/lazy-modules** — graph code takes outside libraries from lazy modules (ADR 0107).
-  Owner: lead (Claude); Sol writer. Next: impact block and writer brief (ADR accepted 2026-10-08).
-  `@tinker/start/server` exports `drizzleOrm`; history and stream use it; scaffold units drop every `import()`.
-  Verify: a checker fails on a planted body `import()` and a planted outside name;
-  `check-imports.mjs` still passes; `vp check`, `vp run -r test`, mutation 75 for start.
+- **scaffold/lazy-modules** — the scaffold follows ADR 0107; starts on the start/lazy-modules branch.
+  Units drop every `import()` and use `drizzleOrm` and app lazy modules.
+  The `tinker-forms` skill line "Load a native library inside its resource factory" follows the ADR.
+  Verify: `vp run lazy` covers `apps/start-scaffold/src` and exits 0; registry rebuilt; `check-imports.mjs` 0.
 
 - **perf/rules-batch-1** — the case study's six smallest, surest tickets ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   `react/run-callback-errors` (bug), `scaffold/auth-scope`, `start/abort-reasons`,
@@ -55,6 +54,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
+- **start/lazy-modules** — the base and the checker for ADR 0107 ([brief](docs/roadmap/start-base/LAZY-MODULES-BRIEF.md)).
+  Owner: lead (Claude, lazy-modules session); writer Sol, reviewer Opus.
+  Next: writer builds the checker, then makes `packages/start` pass it.
+  Verify: the checker's `--prove` and `vp run lazy` exit 0; gates 0; start mutation ≥ 75.
+
 ## Review
 
 - **start/rules-batch-1** — auth sharing, abort reasons, streamed compression.
@@ -75,6 +79,9 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 ## Blocked
 
 ## Parked
+
+- **starter/lazy-check** — ship the ADR 0107 check to apps made from the starter.
+  Restart when: a starter user writes graph code, or the scaffold ticket lands and the check is stable.
 
 - **core/size-13k** — the rest of the path to 13 KiB, with the same API.
   Parked 2026-10-06 (user: good for now). Measured, not landed:

@@ -1042,3 +1042,14 @@ Real Postgres speed and a shared heartbeat timer are not proven.
 Assumption: keep account reads per session and timers per stream.
 The optional shared heartbeat timer is not part of this card.
 Core feedback: none.
+
+## start/lazy-modules
+
+Graph code takes outside libraries from lazy modules (ADR 0107).
+Ticket 1 of 2: the base and the checker.
+Ticket 2, `scaffold/lazy-modules`, starts on this branch.
+[Brief](LAZY-MODULES-BRIEF.md).
+
+```impact start/lazy-modules
+start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.server.ts src/parts/sync/stream.server.ts
+```
