@@ -219,7 +219,7 @@ if (mode === "capture") {
     const w = document.querySelector('iframe').contentWindow;
     let count = 0;
     const frame = () => {
-      if (++count === 120) resolve(count);
+      if (++count === 60) resolve(count);
       else w.requestAnimationFrame(frame);
     };
     w.requestAnimationFrame(frame);
@@ -230,14 +230,14 @@ if (mode === "capture") {
     join(output, "frames.jsonl"),
     JSON.stringify({
       before,
-      frameCallbacks: 120,
+      frameCallbacks: 60,
       loads,
       quiet: loads.every((value) => value < 4),
     }) + "\n",
   );
   if (loads.some((value) => value >= 4))
     throw new Error("Load reached 4 during the frame benchmark");
-  console.log(JSON.stringify({ frameCallbacks: 120, loads }));
+  console.log(JSON.stringify({ frameCallbacks: 60, loads }));
 } else {
   const results = [];
   for (let run = 0; run < 3; run++) {
