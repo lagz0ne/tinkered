@@ -1,7 +1,7 @@
 [
   {
     "heading": -45,
-    "changedPixels": 29989,
+    "changedPixels": 29245,
     "tiles": [
       {
         "tile": 0,
@@ -7063,7 +7063,7 @@
   },
   {
     "heading": 45,
-    "changedPixels": 30377,
+    "changedPixels": 29584,
     "tiles": [
       {
         "tile": 0,
@@ -14125,7 +14125,7 @@
   },
   {
     "heading": 135,
-    "changedPixels": 28815,
+    "changedPixels": 28040,
     "tiles": [
       {
         "tile": 0,
@@ -21187,7 +21187,7 @@
   },
   {
     "heading": 225,
-    "changedPixels": 27995,
+    "changedPixels": 27262,
     "tiles": [
       {
         "tile": 0,

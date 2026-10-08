@@ -33,7 +33,9 @@ The top now has an explicit `translateZ(0)` plane.
 That keeps the old wall cover while the top stays flat.
 Its paint and arrow share one buffer.
 The arrow still sits inside that flat top span.
-Its turn and fade now live on the SVG.
+Its turn and fade now live on the SVG path.
+The path already changes when its stroke changes.
+The SVG root needs no style update on each wave frame.
 That removes the extra span from each of 144 tiles.
 `low` still uses 0.4 of water lightness.
 `high` still uses 0.52, rounded and kept at least 4.
