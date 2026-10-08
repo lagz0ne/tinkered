@@ -1059,3 +1059,14 @@ Read with the non-throwing form, such as `schema.safeParse`, and check `.success
 So `ZodError` is never thrown or named inside a body.
 Build each schema at top level; the body only calls its methods.
 No lazy module for zod: zod stays a top-level import.
+
+### Writer assumptions
+
+- Each src root uses its nearest TypeScript config.
+- Checks share installed packages with this worktree.
+- The red proof uses a clean, detached checkout of `main`.
+  It sits inside this worktree and is removed after the run.
+- Keep Vite's locked TypeScript 7 peer choice.
+  The checker alone imports the TypeScript 5.9 alias.
+- The impact check is `scripts/scip.sh refs drizzleOrm start`.
+  The brief names no old symbol to remove.

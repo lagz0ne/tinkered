@@ -1,0 +1,14 @@
+Main commit: 8d75634f3b66d8102372f86d7de592d5eda9cbd3
+Clean detached main source; installed packages borrowed from writer.
+Command: node scripts/check-lazy-modules.mjs packages/start/src
+packages/start/src/backend/body.server.ts:64 rule-7: outside name transferResponseBodyOwnership in graph code
+packages/start/src/backend/http.ts:77 rule-7: outside name z in graph code
+packages/start/src/backend/http.ts:78 rule-7: outside name z in graph code
+packages/start/src/backend/http.ts:79 rule-7: outside name z in graph code
+packages/start/src/backend/http.ts:80 rule-7: outside name z in graph code
+packages/start/src/parts/sync/endpoint.server.ts:27 rule-7: outside name ZodError in graph code
+packages/start/src/parts/sync/history.server.ts:14 rule-8: import() in graph code
+packages/start/src/parts/sync/history.server.ts:15 rule-8: import() in graph code
+packages/start/src/parts/sync/stream.server.ts:78 rule-8: import() in graph code
+packages/start/src/parts/sync/stream.server.ts:79 rule-8: import() in graph code
+EXIT 1
