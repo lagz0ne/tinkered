@@ -167,21 +167,28 @@ if (mode === "capture" || mode === "walls") {
       const file = `${side}-${heading}.png`;
       const palette = await evaluate(`(() => {
         const d = document.querySelector('iframe').contentDocument;
-        return [...d.querySelectorAll('.tile')].map(tile =>
-          [...tile.querySelectorAll('.wall')].map(wall => wall.style.background));
+        return [...d.querySelectorAll('.tile')].map(tile => Object.fromEntries(
+          [...tile.querySelectorAll('.wall')].map(wall => [
+            ['n','s','w','e'].find(face => wall.classList.contains(face)), wall.style.background])));
       })()`);
       await browser("screenshot", join(output, file));
       if (mode === "walls") {
         await evaluate(`(() => {
           const d = document.querySelector('iframe').contentDocument;
           [...d.querySelectorAll('.tile')].forEach((tile, k) => {
-            [...tile.querySelectorAll('.wall')].forEach((wall, face) => {
-              const id = k * 4 + face + 1;
-              wall.style.background = 'rgb(255 ' + (id >> 8) + ' ' + (id & 255) + ')';
+            [...tile.querySelectorAll('.wall')].forEach((wall) => {
+              const id = k * 4 + ['n','s','w','e'].findIndex(face => wall.classList.contains(face));
+              wall.style.background = 'rgb(' + [id % 9, Math.floor(id / 9) % 9, Math.floor(id / 81)].map(n => 27 + n * 28).join(' ') + ')';
             });
           });
         })()`);
         await browser("screenshot", join(output, `${side}-${heading}-walls.png`));
+        for (const colour of ["white", "black"]) {
+          await evaluate(
+            `document.querySelector('iframe').contentDocument.querySelectorAll('.wall').forEach(wall => wall.style.background = '${colour}')`,
+          );
+          await browser("screenshot", join(output, `${side}-${heading}-${colour}.png`));
+        }
       }
       captures.push({
         side,
@@ -231,25 +238,39 @@ if (mode === "capture" || mode === "walls") {
         context.drawImage(image, 0, 0);
         return context.getImageData(0, 0, image.width, image.height);
       };
-      const identify = (image, x, y) => {
-        const p = (y * image.width + x) * 4;
-        const id = image.data[p + 1] * 256 + image.data[p + 2];
-        if (image.data[p] !== 255 || id < 1 || id > 576) return 0;
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-          const q = ((y + dy) * image.width + x + dx) * 4;
-          for (let c = 0; c < 3; c++) if (image.data[q + c] !== image.data[p + c]) return 0;
+      const identify = (tag, white, black, x, y) => {
+        const decode = (x, y) => {
+          const p = (y * tag.width + x) * 4;
+          const alpha = (white.data[p] - black.data[p]) / 255;
+          if (alpha < 0.12) return 0;
+          const cube = [0,1,2].map(c => Math.round(((tag.data[p+c] - black.data[p+c]) / alpha - 27) / 28));
+          if (cube.some(n => n < 0 || n > 8)) return 0;
+          const id = cube[0] + cube[1] * 9 + cube[2] * 81 + 1;
+          return id <= 576 ? id : 0;
+        };
+        const id = decode(x,y);
+        if (!id) return 0;
+        let minimum = 255, maximum = 0;
+        for (let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) {
+          if (decode(x+dx,y+dy) !== id) return 0;
+          const p = ((y+dy) * tag.width + x+dx) * 4;
+          const coverage = white.data[p] - black.data[p];
+          minimum = Math.min(minimum,coverage); maximum = Math.max(maximum,coverage);
         }
+        if (maximum - minimum > 24) return 0;
         return id;
       };
       const rows = [];
       for (const heading of [-45, 45, 135, 225]) {
-        const [before, after, beforeMask, afterMask] = await Promise.all([
+        const [before, after, beforeMask, afterMask, beforeWhite, afterWhite, beforeBlack, afterBlack] = await Promise.all([
           read('before-' + heading + '.png'), read('after-' + heading + '.png'),
-          read('before-' + heading + '-walls.png'), read('after-' + heading + '-walls.png')
+          read('before-' + heading + '-walls.png'), read('after-' + heading + '-walls.png'),
+          read('before-' + heading + '-white.png'), read('after-' + heading + '-white.png'),
+          read('before-' + heading + '-black.png'), read('after-' + heading + '-black.png')
         ]);
         const tiles = Array.from({length:144}, (_, tile) => ({tile, faces:
           Object.fromEntries(['n','s','w','e'].map(face => [face, {
-            beforePixels:0, afterPixels:0, regionPixels:0, changedPixels:0,
+            beforePixels:0, afterPixels:0, beforeFadedPixels:0, afterFadedPixels:0, regionPixels:0, changedPixels:0,
             changedOver10:0, maxChannelChange:0, commonPixels:0,
             beforeRgb:[0,0,0], afterRgb:[0,0,0]
           }]))}));
@@ -265,11 +286,13 @@ if (mode === "capture" || mode === "walls") {
           const gray = (before.data[p] + before.data[p+1] + before.data[p+2]) / 6;
           diff.data.set(change ? [255,40,60,255] : [gray,gray,gray,255], p);
           if (!x || !y || x === before.width-1 || y === before.height-1) continue;
-          const a = identify(beforeMask,x,y), b = identify(afterMask,x,y);
+          const a = identify(beforeMask,beforeWhite,beforeBlack,x,y), b = identify(afterMask,afterWhite,afterBlack,x,y);
           for (const id of new Set([a,b])) {
             if (!id) continue;
             const face = tiles[Math.floor((id-1)/4)].faces[['n','s','w','e'][(id-1)%4]];
             face.beforePixels += a === id; face.afterPixels += b === id;
+            face.beforeFadedPixels += a === id && beforeWhite.data[p]-beforeBlack.data[p] < 255;
+            face.afterFadedPixels += b === id && afterWhite.data[p]-afterBlack.data[p] < 255;
             face.regionPixels++;
             face.changedPixels += change > 0; face.changedOver10 += change > 10;
             face.maxChannelChange = Math.max(face.maxChannelChange,change);

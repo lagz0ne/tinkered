@@ -1,119 +1,20 @@
 {
   "baseline": "bca0063f",
+  "phase": "Final quiet trace samples pending",
   "viewport": {
     "width": 1280,
     "height": 900
   },
-  "frameSource": "AnimationFrame::Presentation, unique begin_frame_id",
-  "layerMemory": "DevTools width * height * 4, drawing layers only",
-  "samples": [
-    {
-      "side": "before",
-      "run": 1,
-      "settings": ["3", "12", "100"],
-      "durationSeconds": 10.053199999809266,
-      "loads": [3.61, 3.61, 3.61, 3.61, 3.48, 3.48, 3.48, 3.48, 3.48, 3.36, 3.36],
-      "quiet": true,
-      "presentedFrames": 76,
-      "presentedFps": 7.559781960116371,
-      "longTasks": 78,
-      "longTaskBlockingMs": 1993.3500000000006,
-      "layers": {
-        "count": 873,
-        "arrows": 144,
-        "walls": 576,
-        "backingBytes": 20478172
-      }
-    },
-    {
-      "side": "after",
-      "run": 1,
-      "settings": ["3", "12", "100"],
-      "durationSeconds": 10.032199999809265,
-      "loads": [3.61, 3.61, 3.61, 3.61, 3.8, 3.8, 3.8, 3.8, 3.8, 3.89, 3.89],
-      "quiet": true,
-      "presentedFrames": 84,
-      "presentedFps": 8.37303881517484,
-      "longTasks": 86,
-      "longTaskBlockingMs": 1552.8310000000001,
-      "layers": {
-        "count": 585,
-        "arrows": 0,
-        "walls": 288,
-        "backingBytes": 18506236
-      }
-    },
-    {
-      "side": "after",
-      "run": 2,
-      "settings": ["3", "12", "100"],
-      "durationSeconds": 10.0405,
-      "loads": [3.96, 3.89, 3.89, 3.89, 3.89, 3.89, 3.73, 3.73, 3.73, 3.73, 3.73],
-      "quiet": true,
-      "presentedFrames": 91,
-      "presentedFps": 9.063293660674269,
-      "longTasks": 92,
-      "longTaskBlockingMs": 1061.1860000000004,
-      "layers": {
-        "count": 585,
-        "arrows": 0,
-        "walls": 288,
-        "backingBytes": 19689120
-      }
-    },
-    {
-      "side": "before",
-      "run": 2,
-      "settings": ["3", "12", "100"],
-      "durationSeconds": 10.05289999961853,
-      "loads": [3.95, 3.95, 3.95, 3.95, 3.95, 3.79, 3.79, 3.79, 3.79, 3.79, 3.81],
-      "quiet": true,
-      "presentedFrames": 77,
-      "presentedFps": 7.6594813439825185,
-      "longTasks": 78,
-      "longTaskBlockingMs": 1938.2020000000005,
-      "layers": {
-        "count": 873,
-        "arrows": 144,
-        "walls": 576,
-        "backingBytes": 22232644
-      }
-    },
-    {
-      "side": "before",
-      "run": 3,
-      "settings": ["3", "12", "100"],
-      "durationSeconds": 10.039400000572204,
-      "loads": [3.61, 3.61, 3.61, 3.61, 3.4, 3.4, 3.4, 3.4, 3.4, 3.37, 3.37],
-      "quiet": true,
-      "presentedFrames": 75,
-      "presentedFps": 7.470565969652101,
-      "longTasks": 77,
-      "longTaskBlockingMs": 1971.5810000000004,
-      "layers": {
-        "count": 873,
-        "arrows": 144,
-        "walls": 576,
-        "backingBytes": 20841272
-      }
-    },
-    {
-      "side": "after",
-      "run": 3,
-      "settings": ["3", "12", "100"],
-      "durationSeconds": 10.1135,
-      "loads": [3.9, 3.9, 3.9, 3.9, 3.83, 3.83, 3.83, 3.83, 3.83, 3.92, 3.92],
-      "quiet": true,
-      "presentedFrames": 83,
-      "presentedFps": 8.206852227221042,
-      "longTasks": 85,
-      "longTaskBlockingMs": 1441.460999999999,
-      "layers": {
-        "count": 585,
-        "arrows": 0,
-        "walls": 288,
-        "backingBytes": 18637020
-      }
-    }
-  ]
+  "settings": {
+    "height": 3,
+    "speed": 12,
+    "gapMs": 100,
+    "seed": 7
+  },
+  "wallChanges": {
+    "-45": 0,
+    "45": 0,
+    "135": 0,
+    "225": 0
+  }
 }

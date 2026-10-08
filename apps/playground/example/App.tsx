@@ -27,17 +27,18 @@ function Live(): ReactElement {
   );
 }
 
-/** Only this parent reads each animated heading; the memoized board keeps its identity.
+/** This parent draws each heading; the board changes only when its wall pair changes.
  * Reduced motion uses the destination heading, keeping turns without the travel between them. */
 const Rotor = memo(function Rotor({ children }: { children: ReactElement }): ReactElement {
   const a = useData(angle);
   const destination = useData(targetAngle);
+  const walls = pickVisibleWalls(HEADING + a);
   const style: CSSProperties & { "--still-heading": string } = {
     transform: `rotateX(${TILT}deg) rotateZ(${HEADING + a}deg)`,
     "--still-heading": `rotateX(${TILT}deg) rotateZ(${HEADING + destination}deg)`,
   };
   return (
-    <div className="tilt" style={style} data-walls={pickVisibleWalls(HEADING + a)}>
+    <div className="tilt" style={style} data-walls={walls}>
       {children}
     </div>
   );
@@ -46,10 +47,12 @@ const Rotor = memo(function Rotor({ children }: { children: ReactElement }): Rea
 /** Building the ticker resource starts the engine; its value is the grid size. */
 const Board = memo(function Board(): ReactElement {
   const { cols, rows } = useResource(ticker);
+  /** The pair stays the same between angle edges, so a turn does not redraw every tile per frame. */
+  const walls = useData(angle, (a) => pickVisibleWalls(HEADING + a));
   const tiles: ReactElement[] = [];
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      tiles.push(<Tile key={y * cols + x} x={x} y={y} k={y * cols + x} />);
+      tiles.push(<Tile key={y * cols + x} x={x} y={y} k={y * cols + x} walls={walls} />);
     }
   }
   return (
@@ -294,20 +297,19 @@ const css = `
   .scene:has(.tile:focus-visible) .board { width: min(59cqw, 470px); }
   .scene:has(.tile:focus-visible) .field { mask-image: none; }
   .tile { position: relative; display: block; width: 100%; aspect-ratio: 1; border: 0; padding: 0;
-    border-radius: 0; cursor: pointer; transform-style: preserve-3d; background: none; }
+    border-radius: 0; cursor: pointer; transform-style: preserve-3d; }
   .tile.converge > .top { outline-color: #edfff7bb; }
   .tile:hover > .top { outline-color: var(--lime); }
   .tile:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
-  .wall { position: absolute; display: none; backface-visibility: hidden; pointer-events: none; }
-  .tilt[data-walls~="n"] .wall.n, .tilt[data-walls~="s"] .wall.s,
-  .tilt[data-walls~="w"] .wall.w, .tilt[data-walls~="e"] .wall.e { display: block; }
+  .wall { position: absolute; display: block; backface-visibility: hidden; pointer-events: none; }
   .wall.n { left: 0; width: 100%; top: -1px; height: 1px; transform-origin: 50% 100%; }
   .wall.s { left: 0; width: 100%; top: 100%; height: 1px; transform-origin: 50% 0%; }
   .wall.e { top: 0; height: 100%; left: 100%; width: 1px; transform-origin: 0% 50%; }
   .wall.w { top: 0; height: 100%; left: -1px; width: 1px; transform-origin: 100% 50%; }
   .top { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
-    transform: translateZ(0); outline: 1px solid #bbf4e138; outline-offset: -1px; }
-  .top svg { width: 55%; height: 55%; fill: none; stroke-width: 1.4; stroke-linecap: square; stroke-linejoin: miter; }
+    background: inherit; outline: 1px solid #bbf4e138; outline-offset: -1px; }
+  .arrow { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .arrow svg { width: 55%; height: 55%; fill: none; stroke-width: 1.4; stroke-linecap: square; stroke-linejoin: miter; }
   .scene-caption { position: absolute; bottom: 13px; left: 0; right: 0; text-align: center;
     color: #a6bfb6; font: 10px/1.5 var(--mono); letter-spacing: .02em; pointer-events: none; }
   .press-mark { display: inline-block; width: 24px; height: 24px; margin-right: 8px;
@@ -415,6 +417,6 @@ const css = `
     *, *::before, *::after { transition: none !important; animation: none !important; }
     .tilt { transform: var(--still-heading) !important; }
     .tile { transform: translateZ(10px) !important; }
-    .tilt[data-walls] .tile .wall { display: none; }
+    .wall { display: none; }
   }
 `;

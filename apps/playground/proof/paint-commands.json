@@ -1,0 +1,14 @@
+[
+  {
+    "side": "before",
+    "layers": 873,
+    "tilePictures": 144,
+    "commandCounts": [3]
+  },
+  {
+    "side": "after",
+    "layers": 585,
+    "tilePictures": 144,
+    "commandCounts": [1]
+  }
+]

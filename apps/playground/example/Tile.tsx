@@ -35,10 +35,11 @@ function topOf(water: { calm: boolean; hue: number; sat: number; lit: number }, 
 function arrowOf(
   shade: Shade,
   water: { hue: number; lit: number },
-): { stroke: string; opacity: number } {
-  if (shade.i <= 0.1) return { stroke: "transparent", opacity: 0 };
+): { stroke: string; transform: string; opacity: number } {
+  if (shade.i <= 0.1) return { stroke: "transparent", transform: "none", opacity: 0 };
   return {
     stroke: `hsl(${(water.hue + 180) % 360} 72% ${Math.max(14, Math.min(44, 100 - water.lit))}%)`,
+    transform: `rotate(${shade.a}deg)`,
     opacity: Math.min(1, shade.i * 1.6),
   };
 }
@@ -52,10 +53,12 @@ export const Tile = memo(function Tile({
   x,
   y,
   k,
+  walls,
 }: {
   x: number;
   y: number;
   k: number;
+  walls: string;
 }): ReactElement {
   const shade = useData(board, (b) => b[k] ?? IDLE, sameShade);
   const run = useRun(press);
@@ -63,10 +66,9 @@ export const Tile = memo(function Tile({
   const h = SLAB + shade.z * PER_UNIT;
   const wall = (part: number) =>
     `hsl(${water.hue} ${water.sat}% ${Math.max(4, Math.round(water.lit * part))}%)`;
-  const style = { transform: `translateZ(${h}px)` };
-  /** The top's explicit zero-depth transform keeps the original wall cover.
-   * Its flat children paint the arrow into the same buffer as the top colour. */
-  const top = { background: topOf(water, shade.z) };
+  /** Keep the button's original background: it covers walls in the field's fade.
+   * The flat top inherits that colour and folds the arrow into its own buffer. */
+  const style = { transform: `translateZ(${h}px)`, background: topOf(water, shade.z) };
   const low = wall(0.4);
   const high = wall(0.52);
   const arrow = arrowOf(shade, water);
@@ -78,36 +80,41 @@ export const Tile = memo(function Tile({
       onClick={() => run.run({ input: { x, y } })}
       aria-label={`tile ${x},${y}`}
     >
-      <span
-        className="wall n"
-        style={{ transform: `rotateX(90deg) scaleY(${h})`, background: low }}
-        aria-hidden="true"
-      />
-      <span
-        className="wall s"
-        style={{ transform: `rotateX(-90deg) scaleY(${h})`, background: high }}
-        aria-hidden="true"
-      />
-      <span
-        className="wall w"
-        style={{ transform: `rotateY(-90deg) scaleX(${h})`, background: low }}
-        aria-hidden="true"
-      />
-      <span
-        className="wall e"
-        style={{ transform: `rotateY(90deg) scaleX(${h})`, background: high }}
-        aria-hidden="true"
-      />
-      <span className="top" style={top} aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <path
-            d="M4 12h16m-7-7 7 7-7 7"
-            transform={`rotate(${shade.a} 12 12)`}
-            opacity={arrow.opacity}
-            stroke={arrow.stroke}
-          />
-        </svg>
+      <span className="top" aria-hidden="true">
+        <span className="arrow" style={{ transform: arrow.transform, opacity: arrow.opacity }}>
+          <svg viewBox="0 0 24 24">
+            <path d="M4 12h16m-7-7 7 7-7 7" stroke={arrow.stroke} />
+          </svg>
+        </span>
       </span>
+      {walls.includes("n") && (
+        <span
+          className="wall n"
+          style={{ transform: `rotateX(90deg) scaleY(${h})`, background: low }}
+          aria-hidden="true"
+        />
+      )}
+      {walls.includes("s") && (
+        <span
+          className="wall s"
+          style={{ transform: `rotateX(-90deg) scaleY(${h})`, background: high }}
+          aria-hidden="true"
+        />
+      )}
+      {walls.includes("w") && (
+        <span
+          className="wall w"
+          style={{ transform: `rotateY(-90deg) scaleX(${h})`, background: low }}
+          aria-hidden="true"
+        />
+      )}
+      {walls.includes("e") && (
+        <span
+          className="wall e"
+          style={{ transform: `rotateY(90deg) scaleX(${h})`, background: high }}
+          aria-hidden="true"
+        />
+      )}
     </button>
   );
 });

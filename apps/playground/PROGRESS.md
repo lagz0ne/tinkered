@@ -3,7 +3,7 @@
 ## Lead fix round
 
 Owner: playground/storm-layers writer.
-Doing: repeat the six quiet storm traces.
+Doing: save the final six quiet storm traces.
 Verify: wall pixels, heading tests, trace work, all gates.
 Keep all changes in this app.
 Do not push.
@@ -29,18 +29,22 @@ Tests cover those pairs, angle edges, and full turns.
 The picked pair was right in the first pass.
 Moving the top paint into a child changed wall cover.
 It showed dark walls the old tops used to hide.
-The top now has an explicit `translateZ(0)` plane.
-That keeps the old wall cover while the top stays flat.
-Its paint and arrow share one buffer.
-The arrow still sits inside that flat top span.
-Its turn and fade now live on the SVG path.
-The path already changes when its stroke changes.
-The SVG root needs no style update on each wave frame.
-That removes the extra span from each of 144 tiles.
+The button now keeps its old background.
+The flat top owns the outline.
+The flat top inherits that colour.
+The arrow paints inside that flat top.
+The arrow box turns at full tile size, as the old arrow did.
+Its SVG keeps the old 55% size.
+Turning just the small path changed cover in the fade.
+The top paints before the walls, as the old background did.
+The two hidden wall nodes are gone from each tile.
+That removes 288 nodes while the flat top adds 144.
+The tile has one fewer node than the four-wall version.
+The board passes the pair only when that pair changes.
+Tiles still read their own wave state.
 `low` still uses 0.4 of water lightness.
 `high` still uses 0.52, rounded and kept at least 4.
-Every wall colour string matches the baseline.
-Tiles still read their own wave state.
+Every picked wall colour string matches the baseline.
 Reduced motion keeps the old flat view with no walls.
 
 [Three new before/after views](proof/storm-layers.png).
@@ -51,16 +55,20 @@ Each view has 121 raised tiles with the same heights.
 
 [Wall regions, by tile and face](proof/wall-regions.json).
 [Wall colours, all 144 tiles](proof/wall-colours.json).
-Each wall gets a unique solid RGB tag for a second shot.
-Its ID is tile × 4 + face + 1, in n/s/w/e order.
-The tag is RGB(255, ID >> 8, ID & 255).
-The four tagged baseline shots are saved beside the report.
-A solid 3 × 3 patch selects a wall's inner pixels.
-Both shots' wall regions count, so extra walls count too.
-Masked fade and mixed edge pixels are left out.
+Each wall gets a unique RGB tag for a second shot.
+Its ID is tile × 4 + face, in n/s/w/e order.
+The three tag channels use base 9 digits of that ID.
+Each channel is 27 + digit × 28.
+White and black wall shots give the amount of wall paint.
+That lets the check read the tag through the scene's fade.
+A 3 × 3 patch must name the same wall throughout.
+Its coverage range must stay within 24 of 255 levels.
+That keeps smooth fade and leaves out mixed wall edges.
+Coverage below 12% is too faint to read the tag.
+Both sides' regions count, so extra walls count too.
 This checks each tile, not one whole-image score.
 All four views have zero changed inner wall pixels.
-
+The check includes 25,268 faded wall pixels.
 The same check failed on the reviewed commit, `657d247f`.
 Pixels with a channel change over 10 were:
 3,250 at −45°, 5,948 at 45°, 8,988 at 135°, and 3 at 225°.
@@ -75,7 +83,7 @@ Every changed pixel is red in these whole-view diffs:
 - [225° diff](proof/diff-225.png).
 
 The full images still differ at arrow and edge pixels.
-The wall interiors and their colours match exactly.
+The wall interiors, including smooth fade, match exactly.
 
 ## Long tasks
 
@@ -89,8 +97,10 @@ It does not count a new second task per update.
 That pass also had real extra style work.
 `UpdateLayoutTree` took 9.79 ms per update before,
 and 13.42 ms after, in the first pair of traces.
-The fix removes the extra span and restores the old depth order.
-The final traces will check the remaining wall rules.
+The fix cuts the tile node count and restores the old wall cover.
+There are no wall attribute or class pair rules now.
+Only the picked walls exist in the tile.
+The final traces will check their style work.
 It also counts parent attribute changes during the storm.
 
 The trace script is `scripts/storm-proof.mjs`.
