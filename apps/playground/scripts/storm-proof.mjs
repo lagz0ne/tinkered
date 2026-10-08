@@ -14,6 +14,7 @@ import { gzipSync } from "node:zlib";
 
 const [beforeInput, afterInput, output, mode = "measure"] = process.argv.slice(2);
 const servers = [];
+
 const serve = async (directory, port) => {
   const types = {
     ".html": "text/html",
@@ -41,11 +42,13 @@ const serve = async (directory, port) => {
   servers.push(server);
   return `http://127.0.0.1:${port}`;
 };
+
 const before = process.argv.includes("--serve") ? await serve(beforeInput, 4427) : beforeInput;
 const after = process.argv.includes("--serve") ? await serve(afterInput, 4428) : afterInput;
 mkdirSync(output, { recursive: true });
 const socketDirectory = resolve(mkdtempSync(join(output, "browser-")));
 const execute = promisify(execFile);
+
 const browser = async (...args) =>
   (
     await execute("agent-browser", ["--engine", "chrome", "--session", "storm", ...args], {
@@ -53,18 +56,22 @@ const browser = async (...args) =>
       env: { ...process.env, AGENT_BROWSER_SOCKET_DIR: socketDirectory },
     })
   ).stdout.trim();
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const load = () => Number(readFileSync("/proc/loadavg", "utf8").split(" ")[0]);
 await browser("open", before);
 await browser("set", "viewport", "1280", "900");
 const socket = new WebSocket(await browser("get", "cdp-url"));
+
 await new Promise((resolve, reject) => {
   socket.onopen = resolve;
   socket.onerror = reject;
 });
+
 let next = 0;
 const pending = new Map();
 const listeners = new Set();
+
 socket.onmessage = ({ data }) => {
   const message = JSON.parse(data);
   if (message.id) {
@@ -74,19 +81,24 @@ socket.onmessage = ({ data }) => {
     else promise.resolve(message.result);
   } else for (const listener of listeners) listener(message);
 };
+
 const send = (method, params = {}, sessionId) =>
   new Promise((resolve, reject) => {
     const id = ++next;
     pending.set(id, { resolve, reject });
     socket.send(JSON.stringify({ id, method, params, sessionId }));
   });
+
 const { targetInfos } = await send("Target.getTargets");
 const target = targetInfos.find((item) => item.type === "page" && item.url.startsWith(before));
+
 const { sessionId } = await send("Target.attachToTarget", {
   targetId: target.targetId,
   flatten: true,
 });
+
 const page = (method, params) => send(method, params, sessionId);
+
 const evaluate = async (expression) => {
   const result = await page("Runtime.evaluate", {
     expression,
@@ -96,6 +108,7 @@ const evaluate = async (expression) => {
   if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
   return result.result.value;
 };
+
 await page("Page.enable");
 await page("Runtime.enable");
 
@@ -111,6 +124,7 @@ const setup = `(() => {
   });
   return ranges.map(input => input.value);
 })()`;
+
 const navigate = async (url) => {
   await browser("open", url);
   for (let attempt = 0; attempt < 120; attempt++) {
@@ -621,6 +635,7 @@ if (mode === "capture" || mode === "walls") {
     }
   }
 }
+
 socket.close();
 await browser("close");
 for (const server of servers) await new Promise((resolve) => server.close(resolve));
