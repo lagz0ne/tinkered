@@ -173,7 +173,8 @@ No mutation run is needed: `packages/start` did not change.
 
 Gate logs stay in the local cache:
 `/home/paseo/.cache/storm-layers-proof/`.
-All required gates returned 0 after the rebase to `0ca40d05`.
+The review base is `650bba49`, which includes `0ca40d05`.
+All required gates returned 0 after that rebase.
 The blank-line lint passes.
 [Gate exit codes](proof/gates.log).
 
@@ -207,15 +208,21 @@ Use `capture --serve` for shots without the wall check.
 Use `frames --serve` for a fixed-frame command in `ab`.
 No site was published or pushed.
 
-## Fix-round commits
+## Branch commits
 
-- `637cd052`: playground: restore wall cover and remove extra arrow span.
-- `079e44cd`: playground: retry trace samples that cross the load limit.
-- `8f7bd51d`: playground: save wall regression and gate proof in the app.
-- `614519a6`: playground: resume kept traces after a queue timeout.
-- `5809917d`: playground: give the flat top its own zero-depth plane.
-- `91d1e315`: playground: turn the arrow path without restyling its SVG root.
-- `174844d5`: playground: keep four-wall cover with fewer tile nodes.
-- `76c04886`: playground: avoid inherited top colour style work.
-- `e23e3aaa`: playground: use the requested load limit for trace samples.
-- `7be4c90b`: playground: space proof statements for the new lint rule.
+- `28da1660`: playground: flatten arrows and draw facing walls.
+- `1d687f59`: playground: save frame benchmark load samples.
+- `55075cfd`: playground: keep frame comparison short on the shared box.
+- `854db3b8`: playground: isolate browser sockets for each proof run.
+- `9d75df01`: playground: record layer proof and benchmark limits.
+- `c4e0b2e8`: playground: restore wall cover and remove extra arrow span.
+- `244a4611`: playground: retry trace samples that cross the load limit.
+- `de8e3256`: playground: save wall regression and gate proof in the app.
+- `c3d15ceb`: playground: resume kept traces after a queue timeout.
+- `15b43c35`: playground: give the flat top its own zero-depth plane.
+- `8bc5e0bd`: playground: turn the arrow path without restyling its SVG root.
+- `6b5d7477`: playground: keep four-wall cover with fewer tile nodes.
+- `8d09c55b`: playground: avoid inherited top colour style work.
+- `b42dd9b2`: playground: use the requested load limit for trace samples.
+- `11b660b1`: playground: space proof statements for the new lint rule.
+- `022a1353`: playground: save final wall checks and quiet trace results.

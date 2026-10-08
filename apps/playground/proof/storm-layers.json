@@ -1,8 +1,8 @@
 {
   "baseline": "bca0063f",
   "measuredCandidate": "bc95a783207eb6e5fd3a7f0f7480110442b7e90f",
-  "reviewCandidate": "7be4c90b445a099537212d0d94d1f19c978be2d4",
-  "candidateChangesAfterMeasurement": "App source changes are blank lines only. git diff -w --ignore-blank-lines bc95a783 7be4c90b -- apps/playground/example apps/playground/scripts apps/playground/tests is empty.",
+  "reviewCandidate": "022a1353c733ad7c86bc4e5b8edbf52e67878267",
+  "candidateChangesAfterMeasurement": "App source changes are blank lines only; git diff -w --ignore-blank-lines bc95a783 022a1353c733ad7c86bc4e5b8edbf52e67878267 -- apps/playground/example apps/playground/scripts apps/playground/tests is empty.",
   "job": "b7a17198235b",
   "jobExit": 0,
   "viewport": {
@@ -272,5 +272,6 @@
         "backingBytes": 28074184
       }
     }
-  ]
+  ],
+  "reviewBase": "650bba49ebfec69a75c1d36f27d742290c989610"
 }
