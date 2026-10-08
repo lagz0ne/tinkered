@@ -1,0 +1,16 @@
+HEAD 701022400aa5e01c19ac4c8b987c8ba0a8893332
+git status --porcelain: empty
+Command: flock /tmp/mutation.lock vp run @tinker/react#mutate --timeoutMS 60000
+EXIT 0
+Kills alone: 316/369 = 85.64%
+Floor: 85% PASS
+Timeouts, survivors, uncovered changes, and runtime errors count as misses.
+
+-----------|------------------|----------|-----------|------------|----------|----------|
+           | % Mutation score |          |           |            |          |          |
+File       |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+-----------|--------|---------|----------|-----------|------------|----------|----------|
+All files  |  91.06 |   91.30 |      316 |        20 |         32 |        1 |        0 |
+ errors.ts | 100.00 |  100.00 |        8 |         0 |          0 |        0 |        0 |
+ index.ts  |  90.86 |   91.11 |      308 |        20 |         32 |        1 |        0 |
+-----------|--------|---------|----------|-----------|------------|----------|----------|
