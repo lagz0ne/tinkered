@@ -123,7 +123,8 @@ The copied client has no frame, config tag, or retry.
 - **command meta** — RETIRED by ADR 0056: a command is a plain operation that answers an exit code; the meta tag and `commands(op)` are gone.
 - **loading policy** — Follows the process: a CLI loads only the selected command (usage loads nothing); a server imports every route at mount and warms pools at boot via `scope.resolve`. Frames are cheap to import: driver imports live inside `open`/loaders.
 - **exit codes** — 0 success · 1 failure · 2 usage or the operation's `parse` failure · 130 interrupted (SIGINT/SIGTERM).
-- **lazy module** — A resource whose factory imports: `resource({ factory: () => import("./x").then((m) => m.op) })`. Built once per owner on first `resolve`, cached, presettable, spanned. The lazy unit — no separate primitive (ADR 0042, core-feedback register).
+- **lazy module** — A resource whose whole factory imports one module path: `resource({ label: "module:pg", target: "scope", factory: () => import("pg") })`. One per path in the workspace; graph code reaches an outside library only through one (ADR 0107). Built once, cached, presettable, spanned (ADR 0042).
+- **graph code** — A unit body, plus every own function it calls, followed through each call. A React component or a server function handler is not graph code (ADR 0107).
 
 ## Harness (`@tinker/harness`)
 

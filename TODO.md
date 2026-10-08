@@ -24,6 +24,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **start/lazy-modules** — graph code takes outside libraries from lazy modules (ADR 0107).
+  Owner: lead (Claude); Sol writer. Next: user approves the ADR, then the impact block and brief.
+  `@tinker/start/server` exports `drizzleOrm`; history and stream use it; scaffold units drop every `import()`.
+  Verify: a checker fails on a planted body `import()` and a planted outside name;
+  `check-imports.mjs` still passes; `vp check`, `vp run -r test`, mutation 75 for start.
+
 - **perf/rules-batch-1** — the case study's six smallest, surest tickets ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   `react/run-callback-errors` (bug), `scaffold/auth-scope`, `start/abort-reasons`,
   `react/run-sync-first` (bug), `react/data-zero-alloc`, `start/compress-stream`.
