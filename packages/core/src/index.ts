@@ -2093,8 +2093,8 @@ const RECOVERED: unique symbol = Symbol();
 /** Who receives a subflow's failure: the calling run's ctx, or `settle`. */
 type RunState = OperationCtx<unknown> | typeof RECOVERED;
 
-/** An operation's controller: `run` is an own field callers destructure; `settle` is built on its
- * first read and kept, so a controller made for one run pays nothing for it. */
+/** Callers may destructure the own `run` field. The settle closure and twin controller are
+ * made on the first `settle` read and kept. */
 class OperationControl<T, I> {
   /** `declare`: assigned once in the constructor, so the build emits no field that is written twice. */
   declare readonly run: (call?: Scope.Invocation<I>) => unknown;
@@ -2103,7 +2103,6 @@ class OperationControl<T, I> {
   declare private parent: SpanImpl | undefined;
   declare private chain: readonly Namespace[] | undefined;
   declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
-  /** Set on the first `settle` read only; `declare` keeps them off the constructor's shape. */
   declare private twin: OperationControl<T, I> | undefined;
   declare private settler: ((call?: Scope.Invocation<I>) => unknown) | undefined;
   constructor(
@@ -2120,6 +2119,8 @@ class OperationControl<T, I> {
     this.parent = parent;
     this.chain = chain;
     this.hookTarget = hookTarget;
+    this.twin = undefined;
+    this.settler = undefined;
   }
   get settle(): (call?: Scope.Invocation<I>) => unknown {
     if (this.settler === undefined) {
@@ -2418,12 +2419,6 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   }
 }
 
-/** True when a call carries a namespace (ADR 0059): one optional `ns` read, no chain. A namespaced
- * call resolves through a view layer; anything else takes the untagged body inline below. */
-function hasCallNs(call: Scope.Invocation<unknown> | undefined): boolean {
-  return call?.ns !== undefined;
-}
-
 /** Tags or a signal give the call a child session (ADR 0038, 0090). Empty bindings alone
  * (`undefined`, `null`, `false`, or `[]`) leave the call on its existing owner. */
 function hasCallSession<I>(
@@ -2703,7 +2698,7 @@ function runOnce<T, I>(
 ): unknown {
   if (call !== undefined) {
     if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
-    if (hasCallNs(call))
+    if (call.ns !== undefined)
       return runNsCall(
         layer,
         target,
@@ -5980,15 +5975,7 @@ function runHookChain<T, I>(
   call: Scope.Invocation<I> | undefined,
 ): unknown {
   const span = openSpan(layer.obs, layer, up, target.label, "operation");
-  const run: HookRun = {
-    layer: layer,
-    span,
-    label: target.label,
-    call,
-    held: undefined,
-    live: true,
-    caller,
-  };
+  const run = createHookRun(layer, span, target.label, call, caller);
   const finish = (status: "ok" | "failed", error?: unknown): void => {
     finishHookRun(run, status, error);
   };
@@ -6007,6 +5994,28 @@ function runHookChain<T, I>(
   const ready = Promise.resolve(result);
   track(layer, ready, (error) => failHookRun(run, error), finish);
   return ready;
+}
+
+/** Set the hook record's fields together so reading tools or starting work keeps its shape. */
+function createHookRun(
+  layer: Layer,
+  span: SpanImpl | undefined,
+  label: string,
+  call: Scope.Invocation<unknown> | undefined,
+  caller: RunState | undefined,
+): HookRun {
+  return {
+    layer: layer,
+    span,
+    label,
+    call,
+    held: undefined,
+    live: true,
+    caller,
+    ctx: undefined,
+    work: undefined,
+    failed: undefined,
+  };
 }
 
 /** Hook tools can precede input parsing. Only `next()` admits the input; both contexts share

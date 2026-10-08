@@ -6,12 +6,12 @@
     "react": 21
   },
   "bytecode": {
-    "runOnce": 502,
+    "runOnce": 499,
     "settleRun": 59,
     "OperationCtx": 126,
     "buildHooklessResource": 451,
     "resolveDep": 223,
-    "runHookChain": 235,
+    "runHookChain": 222,
     "invokeRunHooks": 49,
     "stepRunHook": 205
   },

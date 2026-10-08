@@ -1118,3 +1118,39 @@ scripts/scip.sh refs \
   The lane brief requires that test seam; no rule was changed.
 - The complete mutation run must name this rebased clean source.
   After that run, only its header and summary log are committed.
+
+## Core rules: batch A (2026-10-08)
+
+- Owner: Core rules writer (Codex), branch `core/rules-lane`.
+- Scope: `core/shape-preinit`, `core/run-budget`, `core/slot-order`.
+- Base: clean origin/main `5d9c0537`.
+- Assumption: these are code-shape changes; public behavior stays the same.
+  Existing public tests cover the same promises; no new bug is claimed.
+- Assumption: the closing probe uses a resource context.
+  Operation contexts have no `closing` field in the public API.
+- Batch B waits for the lead to land A.
+  Nothing is pushed or published.
+
+### core/shape-preinit
+
+- Set four layer defaults, three hook-run fields, and two controller fields at birth.
+  Tagged frames still use shared defaults; full frame shape is batch D.
+- The literal alone raised `runHookChain` from 235 to 250 bytecode bytes.
+  `createHookRun` keeps the fields together and lowers the root to 222 bytes.
+  Its saved ceiling falls to 222 in this ticket; no ceiling rises.
+- Closing driver: layer reads fall from three shapes to two.
+  Hook access reads fall from two shapes to one.
+  Sites that reach P or N fall from 41 to 16 in the same driver.
+  P means several shapes; N means too many for the small fast path.
+- Size and allocation proof are recorded after the checks below.
+- Removed the one-use `hasCallNs` helper.
+  Its same namespace check now sits at its only call site.
+  This pays for `createHookRun` without adding a module slot.
+  `runOnce` falls from 502 to 499 bytes; its ceiling follows.
+- Runtime size: 15,805 -> 15,835 B gzip, under 16,384.
+- Allocation probe: zero valid GC-free rounds on either tree.
+  No allocation gain is claimed from that probe.
+  Promise count stays zero for a synchronous hooked run.
+- Full build, code check, and Core tests: exit 0.
+  Check: 0 errors, 27 warnings, matching the starting tree.
+- Batch-wide ticket, timing, validate, Jev, and mutation proof follow below.

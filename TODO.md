@@ -43,6 +43,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/rules-batch-A** — layer fields, run budget, and slot order.
+  Owner: Core rules writer (Codex).
+  Next: apply the three report tickets, one commit each.
+  Verify: ticket, validate, N=61 queue, and mutation 85 on kills.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
+
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
