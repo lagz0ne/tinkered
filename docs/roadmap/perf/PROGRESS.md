@@ -272,6 +272,7 @@ flock /tmp/mutation.lock benchctl ab \
   Added the missing README promise for local pending queries.
   The promise judge now has no gap in 88 titles.
 - Next: one full mutation run on this clean code, then lead review.
+
 ## core/handle-proto
 
 - Owner: writer (Codex), branch `core/handle-proto`.
@@ -386,3 +387,13 @@ flock /tmp/mutation.lock benchctl ab \
   This preserves the old handle's behavior; Core source is unchanged.
 - The final mutation run is repeated after saving this test and all proof.
   The final log must clear 85 on kills alone.
+- Rebased onto `9890672b`; kept both writers' progress notes and Jev labels.
+  Upstream changed React and docs; its Core source is unchanged.
+  The queued Core timing proof still covers the same runtime source.
+- Install, full build, ticket, and validate: exit 0 again after the rebase.
+  Core source has 871 tests; dist has 881.
+  The runtime remains 15,805 B gzip; all 19 budget lanes pass.
+- All four handle tests pass; the test judge flags none.
+  The promise judge matches the saved-span test to the README.
+- Prose and scaffold checks: exit 0 after the rebase.
+  The scaffold check stopped only its own proof services.
