@@ -84,6 +84,10 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **playground/storm-layers** — the storm draws only the walls that face the viewer, and the arrow lives in the flat top.
+  Compositor layers 873 -> 585 (arrow layers 144 -> 0); DOM nodes 1,241 -> 1,097; wall pixels unchanged at 4 angles.
+  Median blocking time 2,199 -> 1,032 ms over a 10 s storm at load under 4; more board updates fit in the same time. No fps or memory claim (buffer estimate 20.9 -> 26.4 MiB).
+
 - **repo/fast-code-rules** and **jev/fast-code-judges** — the fast-code rules are house style ([docs/fast-code.md](docs/fast-code.md)).
   Ratchets in `pnpm validate`: Core slots 341, hot bytecode sizes, OperationCtx inlined (Maglev on), closures in hot functions, no zod in the client.
   Jev preflight judges: madeEveryCall (proven), awaitsSyncWork, waitsOnSideWork, recomputesSameValue, shapeGrowsPerCall (provisional).
