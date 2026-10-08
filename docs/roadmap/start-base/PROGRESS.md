@@ -1070,3 +1070,40 @@ No lazy module for zod: zod stays a top-level import.
   The checker alone imports the TypeScript 5.9 alias.
 - The impact check is `scripts/scip.sh refs drizzleOrm start`.
   The brief names no old symbol to remove.
+
+### Writer step 2
+
+- The base uses two lazy modules: Drizzle and Start server.
+- `drizzleOrm` is exported from `@tinker/start/server`.
+- History and streams share that node; tables load at the top.
+- The body owner stays synchronous.
+  Its transfer operation takes the Start server module as a dep.
+- Sync cursor checks use the existing schemas' `safeParse` methods.
+  Bad input still gets 400; other errors still escape.
+- The HTTP error schema is built once at the top.
+- One new test checks the namespace and one load span across sessions.
+- The gate passed: 433 base tests and 26 scaffold tests.
+  Both this branch and the built main checkout have 28 check warnings.
+- Proof: [gate](proof/lazy-modules-gate.txt),
+  [main check](proof/lazy-modules-main-check.txt),
+  and [style census](proof/lazy-modules-census.txt).
+
+Core feedback: an async dep requires an async body (TS2322).
+This sync factory fails, even though Core settles deps before the body:
+
+```ts
+const path = resource({
+  label: "module:node:path",
+  target: "scope",
+  factory: () => import("node:path"),
+});
+const reader = resource({
+  label: "reader",
+  depends: { path },
+  factory: ({ path }) => ({ read: path.resolve }),
+});
+```
+
+The body owner's workaround is a controller dep.
+Its operation has an async body and takes the lazy module.
+This keeps the owner's old return type and callers.
