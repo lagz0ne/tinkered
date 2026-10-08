@@ -882,3 +882,23 @@ Asked by `start/base-parts` (step 3b). First asker.
 On success, `close()` leaves `teardownErrors` out instead of giving `[]`.
 Callers must write `end.teardownErrors?.length`.
 State: open; a core ticket at its second asker.
+
+
+## Async deps force an async body, 2026-10-08
+
+Asked by `scaffold/app-rules`. First asker.
+The app's account read only returns an ID.
+Core rejects this body because principal is an async resource:
+
+```ts
+operation({
+  label: "readAccount",
+  depends: { principal },
+  run: ({ principal }) => principal?.id ?? null,
+});
+```
+
+The compiler returns TS2322: the result needs PromiseLike.
+The current-user factory has the same limit.
+The honest workaround keeps both async keywords.
+State: open; a Core ticket at its second asker.

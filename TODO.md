@@ -61,6 +61,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
+- **scaffold/app-rules** — mail runs after reply; copied apps keep server imports out.
+  Owner: writer (Codex), branch `scaffold/app-rules`.
+  Next: lead review and Jev calibration before landing.
+  Verify: all gates exit 0; three regressions fail before the fix;
+  run imports 26 -> 2; server-file checks 14 -> 0.
+  A1 keeps two async bodies because Core rejects their sync forms.
+  [Track](docs/roadmap/perf/PROGRESS.md).
+
 - **core/handle-proto** — shared scope verbs (ADR 0108).
   Owner: writer (Codex).
   Next: lead review after the clean-tree mutation proof is saved.

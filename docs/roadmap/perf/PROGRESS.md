@@ -397,3 +397,103 @@ flock /tmp/mutation.lock benchctl ab \
   The promise judge matches the saved-span test to the README.
 - Prose and scaffold checks: exit 0 after the rebase.
   The scaffold check stopped only its own proof services.
+
+## scaffold/app-rules, 2026-10-08
+
+Owner: writer (Codex), branch `scaffold/app-rules`.
+The lead reviews and lands this ticket; nothing is pushed.
+
+### Change and proof
+
+- The app's 24 per-call module loads are static imports.
+  The two remaining run-body imports belong to startup migrations.
+  Report probe: 26 -> 2 imports in run bodies.
+- Scaffold backend files use `.server.ts`.
+  Registry targets, copied seams, schema config, and proof paths follow the names.
+  Server functions keep TanStack's `.functions.ts` split.
+  Value imports outside those two file types: 14 -> 0.
+  The report's stricter count falls from 17 to four server-function imports.
+  Built browser chunks have zero server-only markers.
+- Start-min calls `src/transport/greet.functions.ts` from its page.
+  The brief's backend path failed the existing browser import guard.
+  The transport folder follows the scaffold's shipped pattern.
+- SMTP uses one shared pooled transport.
+  Sign-up and reset enqueue root-owned sends and reply without waiting.
+  The owner consumes each send result, logs `mail.failed`, and drains on close.
+- Profile save and retry commit, start owned mail work, then return the ID.
+  Duplicate IDs share one send; completed work leaves the held map.
+  Mail failure still saves a partial result and leaves the saved name usable.
+  A separate work failure logs `profile.notification.failed`.
+- Three regressions fail with the old behavior and pass with the fix.
+  Sign-up and duplicate profile receipts each timed out while mail was held.
+  Retry also timed out with main's profile body and only its import paths changed.
+  No sleeps or mocks were added; final-result checks poll saved events.
+- Auth already has one process owner on the fetched main.
+  Its two-session identity test still passes.
+  Session-target count stays at two; the study's three included the old auth owner.
+
+### A1 limit and assumptions
+
+- A1 is dropped for these two bodies, with compiler proof.
+  Core's AsyncBody type requires a promise for an async resource dependency.
+  Removing async from currentUser and readAccount returns TS2322.
+  The report's React audit accepts this same type constraint.
+  The two async run/factory bodies without await stay at two.
+- Scope is app code and its copied files; no package runtime changes.
+  Changing the Core type rule would cross this lane's boundary.
+  The failing example is recorded in `core-feedback.md`.
+- The broader server-file rename is needed to keep A5's count from rising
+  when A3 adds static Drizzle imports.
+- No timed speed claim is made, so there is no paired timing verdict.
+  The proof is changed call counts and replies that finish while mail is held.
+- Mutation is not run: neither app ships a mutation task, and no package
+  runtime changed; the common Start requirement applies to packages/start edits.
+
+### Proof ownership
+
+- The first real-service proof failed at its immediate Mailpit assertion.
+  It expected sign-up to wait for SMTP, which this ticket removes.
+- The app now owns that proof in `maintain/scaffold-proof.mjs`.
+  It polls Mailpit for delivered verification mail after the reply.
+  The original package script is kept because package files are outside this lane.
+  The remainder of that service proof is unchanged.
+- The writer saved every Jev label.
+  Full calibration belongs to the lead at landing, per the contributor rules.
+  The optional writer run was stopped before it wrote a file.
+
+### Checks
+
+- Setup fetch/rebase, install, and full build: exit 0.
+- Full build: exit 0.
+- `vp check`: exit 0; zero errors, 27 existing warnings.
+- `vp run -r test`: exit 0 on the repeat; all nine tasks passed.
+  Core 871, React 118, Start 432, scaffold 27 tests passed.
+  The first run hit Flight's five-second supplier search limit.
+  Flight then passed all 148 tests without a source change.
+- Prose: exit 0; no hits.
+- `pnpm validate`: exit 0; all 19 budget lanes passed.
+- The standalone real-service proof: exit 0.
+  Real signup, SMTP, profile mail, and two live tabs all passed.
+  Its two browser sessions, server, relays, and own compose project stopped.
+- Style census: exit 0 for changed TypeScript files and app backend.
+- Jev preflight: exit 0; no file flags.
+  Twelve final unit flags have answers with reasons.
+  Earlier account-read and profile-read flags have answers too.
+  Eight labels are new; six matching labels were already in the bank.
+  Settings use the declared env/settings owners.
+  Native idle clients keep the original owned cleanup.
+  Mail work uses Core cancellation and drains at graceful close.
+  The no-op note is noisy and needs no label.
+- Jev tests: exit 0; none of the 12 reviewed tests flagged.
+- Jev promises: exit 0; zero README gaps, three unsure.
+  The unsure titles include existing account-refresh cases.
+- TSDoc parser: exit 0; zero S26 rows.
+- Reviewed callers: auth verification/reset hooks; saveProfile and
+  retryNotification through their transport functions; saveName and retryMail.
+  Frontend actions still wait for saved result events.
+- `vp run @tinker-start-scaffold#check`: exit 0 after the proof fix.
+  All nine named checks passed, including registry build and registry checks.
+  Ten registry items and 91 emitted files match source.
+  Both copied app compositions build and pass doctor.
+- Saved work waits in Review; the lead still reviews and lands it.
+  No push, publish, deployment, or package runtime edit was made.
