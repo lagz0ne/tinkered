@@ -614,6 +614,7 @@ The lead reviews and lands this ticket; nothing is pushed.
   Full build, check, and 98 React tests pass after this type change.
   All 19 budget lanes pass again.
   The last Jev pass flags only useRun; its existing false label applies.
+
 ## Start sync lane: shared frames
 
 Owner: lane writer (Codex), branch `start/sync-lane`.
