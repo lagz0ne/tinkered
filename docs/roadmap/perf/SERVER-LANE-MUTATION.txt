@@ -1,0 +1,19 @@
+Commit: b0b5bebfeb34539b4f1dc7e061ce22d691a5d391
+Command: flock /tmp/mutation.lock vp run @tinker/start#mutate
+git status --porcelain before:
+
+Status | Count
+--- | ---
+Killed | 3909
+Timeout | 44
+Survived | 548
+NoCoverage | 126
+CompileError | 0
+RuntimeError | 1
+Ignored | 0
+
+Kills alone: 3909/4627 = 84.4824%
+Floor: 75% — PASS
+EXIT 0
+git status --porcelain after:
+
