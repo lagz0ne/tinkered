@@ -1,4 +1,4 @@
-Command: vp run -r build && vp check && vp run @tinker/start#test && vp run @tinker-start-scaffold#test
+$ vp run -r build && vp check && vp run @tinker/start#test && vp run @tinker-start-scaffold#test
 ~/apps/website$ tsc ⊘ cache disabled
 ~/packages/core$ vp pack ⊘ cache disabled
 
@@ -19,7 +19,7 @@ dist/assets/hero-CLDdwZDr.png   13.05 kB
 dist/assets/index-CsUDhMuy.css   4.10 kB │ gzip: 1.46 kB
 dist/assets/index-wktXvZw9.js    4.49 kB │ gzip: 2.02 kB
 
-✓ built in 412ms
+✓ built in 703ms
 
 ℹ dist/index.mjs                       46.48 kB │ gzip: 15.55 kB
 ℹ dist/testing.mjs                      1.25 kB │ gzip:  0.77 kB
@@ -31,17 +31,7 @@ dist/assets/index-wktXvZw9.js    4.49 kB │ gzip: 2.02 kB
 ℹ dist/index.d.mts                      0.66 kB │ gzip:  0.33 kB
 ℹ dist/index-D87dWTFA.d.mts            40.36 kB │ gzip: 12.32 kB
 ℹ 9 files, total: 445.58 kB
-[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 6.5s of this 6.7s build (97%).
-The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
-  - plugin core-private-fields generateBundle (70%, 4.7s, 1 call)
-  - plugin rolldown-plugin-dts:generate buildStart (15%, 1.0s, 1 call)
-Additional callback time came from the callbacks below and from callbacks under 1s.
-2 callbacks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
-  - plugin rolldown-plugin-dts:generate load (4 calls)
-  - plugin rolldown-plugin-dts:resolver resolveId (10 calls)
-See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
-
-✔ Build complete in 6825ms
+✔ Build complete in 1393ms
 
 ~/tools/flight-trial$ vp pack ⊘ cache disabled
 ~/packages/react$ vp pack ⊘ cache disabled
@@ -52,36 +42,29 @@ See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more de
 ℹ tsconfig: tsconfig.json
 ℹ Build start
 ℹ Cleaning 5 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
 ℹ entry: main.ts
-ℹ entry: src/index.ts
-ℹ tsconfig: tsconfig.json
-ℹ Build start
 ℹ target: node22.18.0
 ℹ tsconfig: tsconfig.json
-ℹ Cleaning 2 files
 ℹ Build start
-warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
-ℹ Emit types with typescript@7.0.2
 ℹ Cleaning 1 files
-warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
-ℹ Emit types with typescript@7.0.2
 ℹ entry: src/index.ts
 ℹ tsconfig: tsconfig.json
 ℹ Build start
 ℹ dist/main.mjs  2.12 kB │ gzip: 0.96 kB
 ℹ 1 files, total: 2.12 kB
-✔ Build complete in 201ms
+✔ Build complete in 47ms
 ℹ Cleaning 2 files
 
 warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
 ℹ Emit types with typescript@7.0.2
-ℹ dist/index.mjs    14.48 kB │ gzip: 4.93 kB
-ℹ dist/index.d.mts  10.58 kB │ gzip: 3.63 kB
-ℹ 2 files, total: 25.06 kB
-✔ Build complete in 1375ms
-
-~/apps/start-min$ vp build ⊘ cache disabled
-~/examples/react$ vp build ⊘ cache disabled
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 2 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
 ℹ Granting execute permission to dist/main.mjs
 ℹ dist/index.mjs          0.67 kB │ gzip:  0.32 kB
 ℹ dist/main.mjs           0.58 kB │ gzip:  0.40 kB
@@ -89,16 +72,23 @@ warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some op
 ℹ dist/index.d.mts       17.79 kB │ gzip:  5.36 kB
 ℹ dist/main.d.mts         0.01 kB │ gzip:  0.03 kB
 ℹ 5 files, total: 80.47 kB
-✔ Build complete in 1665ms
+✔ Build complete in 544ms
 
+ℹ dist/index.mjs    14.48 kB │ gzip: 4.93 kB
+ℹ dist/index.d.mts  10.58 kB │ gzip: 3.63 kB
+ℹ 2 files, total: 25.06 kB
+✔ Build complete in 485ms
+
+~/apps/start-min$ vp build ⊘ cache disabled
+~/examples/react$ vp build ⊘ cache disabled
 ~/apps/start-scaffold$ vp build ⊘ cache disabled
-transforming...
 ℹ dist/index.mjs    61.15 kB │ gzip: 15.27 kB
 ℹ dist/index.d.mts  11.06 kB │ gzip:  2.79 kB
 ℹ 2 files, total: 72.21 kB
-✔ Build complete in 2397ms
+✔ Build complete in 761ms
 
 ~/apps/playground$ node scripts/build-vendor.mjs ⊘ cache disabled
+transforming...
 ✓ 117 modules transformed.
 rendering chunks...
 computing gzip size...
@@ -106,37 +96,36 @@ dist/index.html                   0.40 kB │ gzip:   0.27 kB
 dist/assets/index-Cm7a3Mje.css    0.64 kB │ gzip:   0.37 kB
 dist/assets/index-NavHmNBB.js   351.59 kB │ gzip: 108.43 kB
 
-✓ built in 742ms
+✓ built in 219ms
 
-9:08:48 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
-`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
-[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
 vendor bundles written to /home/paseo/next/tinkered-lazy-modules/apps/playground/public/vendor (esbuild-wasm 0.28.2)
 
 ~/apps/playground$ vp build ⊘ cache disabled
-9:08:48 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:44:58 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
-9:08:48 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:44:58 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
-9:08:48 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:44:58 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+transforming...
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+9:44:59 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
 tinker: sync turns auth on
-9:08:49 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
-`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
-[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
-transforming...
-9:08:50 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:44:59 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
 ✓ 1741 modules transformed.
-9:08:50 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:44:59 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+rendering chunks...
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+9:44:59 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
-transforming...
-rendering chunks...
 computing gzip size...
 dist/index.html                         0.69 kB │ gzip:   0.41 kB
 dist/assets/App-DdOoN2Rj.css            5.65 kB │ gzip:   1.64 kB
@@ -146,33 +135,26 @@ dist/assets/App-DREaXIO6.js             7.26 kB │ gzip:   2.49 kB
 dist/assets/BenchPage-D13Euklw.js      77.35 kB │ gzip:  25.48 kB
 dist/assets/index-DZihLee3.js       1,334.20 kB │ gzip: 418.94 kB
 
-[plugin builtin:vite-reporter] 
+[plugin builtin:vite-reporter]
 (!) Some chunks are larger than 500 kB after minification. Consider:
 - Using dynamic import() to code-split the application
 - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 2.52s
-✓ 275 modules transformed.
+✓ built in 902ms
+transforming...
 
+✓ 275 modules transformed.
 rendering chunks...
 transforming...
+✓ 354 modules transformed.
 computing gzip size...
+rendering chunks...
 dist/client/assets/style-x1XGuNl0.css    0.00 kB │ gzip:   0.02 kB
 dist/client/assets/routes-D1E1jbDL.js    0.13 kB │ gzip:   0.13 kB
 dist/client/assets/tinker-BOERpgkv.js    0.20 kB │ gzip:   0.17 kB
 dist/client/assets/index-DG5MWgJ9.js   402.78 kB │ gzip: 130.26 kB
 
-✓ built in 5.34s
-[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 4.4s of this 5.3s build (83%).
-The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
-  - plugin tinker:verify buildStart (36%, 1.9s, 1 call)
-  - plugin tinker:client-output writeBundle (33%, 1.7s, 1 call)
-Additional callback time came from the callbacks below and from callbacks under 1s.
-2 callbacks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
-  - plugin tanstack-start-core:import-protection resolveId (671 calls)
-  - plugin tanstack-start-core::server-fn:client transform (19 calls)
-See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
-
+✓ built in 2.29s
 transforming...
 ✓ 296 modules transformed.
 rendering chunks...
@@ -190,10 +172,8 @@ dist/server/assets/start-BT2MLGbE.js                        66.77 kB │ gzip: 1
 dist/server/assets/drizzle-orm-DJY_iHKL.js                  97.70 kB │ gzip: 20.96 kB
 dist/server/server.js                                      338.85 kB │ gzip: 81.51 kB
 
-✓ built in 725ms
+✓ built in 329ms
 
-✓ 354 modules transformed.
-rendering chunks...
 computing gzip size...
 dist/client/assets/style-D78nAbp3.css       21.74 kB │ gzip:   4.91 kB
 dist/client/assets/tinker-BI64sCkN.js        0.20 kB │ gzip:   0.16 kB
@@ -206,11 +186,11 @@ dist/client/assets/react-DZGs3Xq0.js        31.10 kB │ gzip:  11.70 kB
 dist/client/assets/input-DCS6ZreD.js        34.62 kB │ gzip:  11.23 kB
 dist/client/assets/index-i_gKpmmT.js       495.23 kB │ gzip: 156.31 kB
 
-✓ built in 5.92s
-[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 5.5s of this 5.9s build (93%).
+✓ built in 3.33s
+[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 3.1s of this 3.3s build (94%).
 The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
-  - plugin tinker:verify buildStart (53%, 3.1s, 1 call)
-  - plugin tinker:client-output writeBundle (24%, 1.4s, 1 call)
+  - plugin tinker:verify buildStart (40%, 1.3s, 1 call)
+  - plugin tinker:client-output writeBundle (39%, 1.3s, 1 call)
 Additional callback time came from the callbacks below and from callbacks under 1s.
 2 callbacks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
   - plugin tanstack-start-core:import-protection resolveId (856 calls)
@@ -272,13 +252,117 @@ dist/server/assets/sqlite-introspector-DSCAP82F-BmQHY3vk.js           288.51 kB 
 dist/server/assets/server-C19yCT77.js                                 295.60 kB │ gzip:  69.19 kB
 dist/server/assets/dist-B6irHeQW.js                                   931.45 kB │ gzip: 202.01 kB
 
-✓ built in 857ms
+✓ built in 722ms
 
 ---
 vp run: 0/12 cache hit (0%). (Run `vp run --last-details` for full details)
-pass: All 1458 files are correctly formatted (7114ms, 8 threads)
+pass: All 1458 files are correctly formatted (5729ms, 8 threads)
 warn: Lint or type warnings found
-! unicorn(no-thenable): Do not add `then` to an object.
+! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
+   ,-[tools/jev/preflight.mjs:8:22]
+ 7 | import { execFileSync } from "node:child_process";
+ 8 | import { existsSync, readFileSync } from "node:fs";
+   :                      ^^^^^^|^^^^^
+   :                            `-- 'readFileSync' is imported here
+ 9 |
+   `----
+  help: Consider removing this import.
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-frame-boundaries.test.ts:189:11]
+ 188 |     run: () => ({
+ 189 |       get then(): unknown {
+     :           ^^^^
+ 190 |         closing ??= root.close().then(() => order.push("parent-ended"));
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+    ,-[bench/heap.mjs:26:14]
+ 25 | const N = 20000;
+ 26 | const live = new Array(N);
+    :              ^^^^^^^^^^^^
+ 27 | globalThis.gc();
+    `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
+
+  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+    ,-[bench/heap.mjs:41:20]
+ 40 | const zone = tag({ label: "zone", default: "base" });
+ 41 | const liveTagged = new Array(N);
+    :                    ^^^^^^^^^^^^
+ 42 | globalThis.gc();
+    `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
+
+  ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
+    ,-[bench/react-render.mjs:14:7]
+ 13 |
+ 14 | const React = (await import("react")).default;
+    :       ^^|^^
+    :         `-- 'React' is declared here
+ 15 | const { act, createElement: h, Fragment } = await import("react");
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
+    ,-[tools/jev/tests.mjs:83:7]
+ 82 |
+ 83 | const stems = (s) =>
+    :       ^^|^^
+    :         `-- 'stems' is declared here
+ 84 |   new Set(
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'existsSync' is imported but never used.
+   ,-[tools/jev/explain.mjs:6:10]
+ 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
+ 6 | import { existsSync, readFileSync } from "node:fs";
+   :          ^^^^^|^^^^
+   :               `-- 'existsSync' is imported here
+ 7 | import { JUDGES, readCalibration } from "./lib.mjs";
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
+   ,-[tools/jev/explain.mjs:6:22]
+ 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
+ 6 | import { existsSync, readFileSync } from "node:fs";
+   :                      ^^^^^^|^^^^^
+   :                            `-- 'readFileSync' is imported here
+ 7 | import { JUDGES, readCalibration } from "./lib.mjs";
+   `----
+  help: Consider removing this import.
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:34:13]
+ 33 |       return {
+ 34 |         get then(): never {
+    :             ^^^^
+ 35 |           throw cause;
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:49:9]
+ 48 |   const value = await root.session((): unknown => ({
+ 49 |     get then() {
+    :         ^^^^
+ 50 |       const n = ++reads;
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:62:9]
+ 61 |   const value = await root.session((): unknown => ({
+ 62 |     get then() {
+    :         ^^^^
+ 63 |       if (++reads > 1) throw new Error("second-read");
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
      ,-[packages/core/tests/tagged-lifetime.test.ts:190:13]
  189 |       return {
  190 |         get then(): unknown {
@@ -314,36 +398,6 @@ warn: Lint or type warnings found
      `----
   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 
-  ! eslint(no-unused-vars): Identifier 'existsSync' is imported but never used.
-   ,-[tools/jev/explain.mjs:6:10]
- 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
- 6 | import { existsSync, readFileSync } from "node:fs";
-   :          ^^^^^|^^^^
-   :               `-- 'existsSync' is imported here
- 7 | import { JUDGES, readCalibration } from "./lib.mjs";
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
-   ,-[tools/jev/explain.mjs:6:22]
- 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
- 6 | import { existsSync, readFileSync } from "node:fs";
-   :                      ^^^^^^|^^^^^
-   :                            `-- 'readFileSync' is imported here
- 7 | import { JUDGES, readCalibration } from "./lib.mjs";
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
-   ,-[tools/jev/preflight.mjs:8:22]
- 7 | import { execFileSync } from "node:child_process";
- 8 | import { existsSync, readFileSync } from "node:fs";
-   :                      ^^^^^^|^^^^^
-   :                            `-- 'readFileSync' is imported here
- 9 | 
-   `----
-  help: Consider removing this import.
-
   ! unicorn(no-thenable): Do not add `then` to an object.
       ,-[packages/core/tests/index.test.ts:2358:5]
  2357 |   const lazy = {
@@ -360,80 +414,6 @@ warn: Lint or type warnings found
       :             ^^^^
  2381 |           throw new Error("evil-then");
       `----
-  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-
-  ! unicorn(no-thenable): Do not add `then` to an object.
-    ,-[packages/core/tests/session-end.test.ts:34:13]
- 33 |       return {
- 34 |         get then(): never {
-    :             ^^^^
- 35 |           throw cause;
-    `----
-  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-
-  ! unicorn(no-thenable): Do not add `then` to an object.
-    ,-[packages/core/tests/session-end.test.ts:49:9]
- 48 |   const value = await root.session((): unknown => ({
- 49 |     get then() {
-    :         ^^^^
- 50 |       const n = ++reads;
-    `----
-  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-
-  ! unicorn(no-thenable): Do not add `then` to an object.
-    ,-[packages/core/tests/session-end.test.ts:62:9]
- 61 |   const value = await root.session((): unknown => ({
- 62 |     get then() {
-    :         ^^^^
- 63 |       if (++reads > 1) throw new Error("second-read");
-    `----
-  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-
-  ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
-    ,-[tools/jev/tests.mjs:83:7]
- 82 | 
- 83 | const stems = (s) =>
-    :       ^^|^^
-    :         `-- 'stems' is declared here
- 84 |   new Set(
-    `----
-  help: Consider removing this declaration.
-
-  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
-    ,-[bench/heap.mjs:26:14]
- 25 | const N = 20000;
- 26 | const live = new Array(N);
-    :              ^^^^^^^^^^^^
- 27 | globalThis.gc();
-    `----
-  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
-
-  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
-    ,-[bench/heap.mjs:41:20]
- 40 | const zone = tag({ label: "zone", default: "base" });
- 41 | const liveTagged = new Array(N);
-    :                    ^^^^^^^^^^^^
- 42 | globalThis.gc();
-    `----
-  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
-
-  ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
-    ,-[bench/react-render.mjs:14:7]
- 13 | 
- 14 | const React = (await import("react")).default;
-    :       ^^|^^
-    :         `-- 'React' is declared here
- 15 | const { act, createElement: h, Fragment } = await import("react");
-    `----
-  help: Consider removing this declaration.
-
-  ! unicorn(no-thenable): Do not add `then` to an object.
-     ,-[packages/core/tests/tagged-frame-boundaries.test.ts:189:11]
- 188 |     run: () => ({
- 189 |       get then(): unknown {
-     :           ^^^^
- 190 |         closing ??= root.close().then(() => order.push("parent-ended"));
-     `----
   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 
   ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
@@ -543,46 +523,43 @@ warn: Lint or type warnings found
  28 |   if (!Object.keys(bank).length) {
     `----
 
-Found 0 errors and 28 warnings in 656 files (10.2s, 8 threads)
+Found 0 errors and 28 warnings in 656 files (6.1s, 8 threads)
 ~/packages/start$ vp test ⊘ cache disabled
 
  RUN  v5.0.1 /home/paseo/next/tinkered-lazy-modules/packages/start
 
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"b32884e932e6efa89141707342c7e423","spanId":"b53f2f5eb0a10dfe","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"b32884e932e6efa89141707342c7e423","spanId":"b53f2f5eb0a10dfe","msg":"core.span"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"b32884e932e6efa89141707342c7e423","spanId":"9141707342c7e423","msg":"core.span"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"2af9317157622ef11b6bbe9ca31d8ef2","spanId":"1b6bbe9ca31d8ef2","msg":"core.span"}
-{"level":50,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"2af9317157622ef11b6bbe9ca31d8ef2","spanId":"1b6bbe9ca31d8ef2","attributes":{"ms":"0","outcome":"\"failed\""},"msg":"test.telemetry.rejected"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"408c515906dfea1f40062b060f2357ea","spanId":"2d07c9ced4715163","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"408c515906dfea1f40062b060f2357ea","spanId":"2d07c9ced4715163","msg":"core.span"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"408c515906dfea1f40062b060f2357ea","spanId":"40062b060f2357ea","msg":"core.span"}
-{"level":40,"time":1791450560459,"service":"test-start","side":"server","traceId":"a55e0ef0b0d781b6a38d67dbfd29c080","spanId":"a38d67dbfd29c080","attributes":{},"msg":"careful"}
-{"level":50,"time":1791450560459,"service":"test-start","side":"server","traceId":"a55e0ef0b0d781b6a38d67dbfd29c080","spanId":"a38d67dbfd29c080","attributes":{},"msg":"broken"}
-{"level":30,"time":1791450560459,"service":"test-start","side":"server","traceId":"a55e0ef0b0d781b6a38d67dbfd29c080","spanId":"a38d67dbfd29c080","msg":"core.span"}
-{"level":30,"time":1791450560466,"service":"test-start","side":"ssr","traceId":"11111111111111111111111111111111","spanId":"2222222222222222","msg":"core.span"}
-{"level":30,"time":1791450560475,"service":"test-start","side":"ssr","traceId":"a855785ba48386d66cf89e22df667efd","spanId":"6cf89e22df667efd","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1791450560475,"service":"test-start","side":"ssr","traceId":"a855785ba48386d66cf89e22df667efd","spanId":"6cf89e22df667efd","msg":"core.span"}
-{"level":30,"time":1791450560489,"service":"test-start","side":"ssr","traceId":"dcf252ea64ffca94cc5e41a720235f47","spanId":"cc5e41a720235f47","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1791450560490,"service":"test-start","side":"ssr","traceId":"dcf252ea64ffca94cc5e41a720235f47","spanId":"cc5e41a720235f47","msg":"core.span"}
-{"level":30,"time":1791450560493,"service":"test-start","side":"ssr","traceId":"6e083cabf439f094ca54c4cdf0b763a7","spanId":"ca54c4cdf0b763a7","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1791450560497,"service":"test-start","side":"ssr","traceId":"6e083cabf439f094ca54c4cdf0b763a7","spanId":"ca54c4cdf0b763a7","msg":"core.span"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"df75f47ee4f3025488edc0abc30c204a","spanId":"88edc0abc30c204a","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"df75f47ee4f3025488edc0abc30c204a","spanId":"88edc0abc30c204a","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"753d9c03f5166e80b9b68e261da370d5","spanId":"b9b68e261da370d5","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"84e72ae6c2c33694cf095754c92ab3b8","spanId":"cf095754c92ab3b8","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"74270061af8befe72abdbeb5b6967f29","spanId":"2abdbeb5b6967f29","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"0c114b8d8b1888c822658984c7b018f9","spanId":"417b6ea10e6af08e","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"0c114b8d8b1888c822658984c7b018f9","spanId":"417b6ea10e6af08e","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"0c114b8d8b1888c822658984c7b018f9","spanId":"22658984c7b018f9","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"004d716e477dd64edde9b666845ec3d5","spanId":"dde9b666845ec3d5","msg":"core.span"}
+{"level":50,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"004d716e477dd64edde9b666845ec3d5","spanId":"dde9b666845ec3d5","attributes":{"ms":"0","outcome":"\"failed\""},"msg":"test.telemetry.rejected"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"eff3143146956027d65fb415a46d8560","spanId":"d3485f403e318956","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"eff3143146956027d65fb415a46d8560","spanId":"d3485f403e318956","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"eff3143146956027d65fb415a46d8560","spanId":"d65fb415a46d8560","msg":"core.span"}
+{"level":40,"time":1791452728916,"service":"test-start","side":"server","traceId":"15e56d99dd6bacc04c485a72fe811194","spanId":"4c485a72fe811194","attributes":{},"msg":"careful"}
+{"level":50,"time":1791452728916,"service":"test-start","side":"server","traceId":"15e56d99dd6bacc04c485a72fe811194","spanId":"4c485a72fe811194","attributes":{},"msg":"broken"}
+{"level":30,"time":1791452728916,"service":"test-start","side":"server","traceId":"15e56d99dd6bacc04c485a72fe811194","spanId":"4c485a72fe811194","msg":"core.span"}
+{"level":30,"time":1791452728919,"service":"test-start","side":"ssr","traceId":"11111111111111111111111111111111","spanId":"2222222222222222","msg":"core.span"}
+{"level":30,"time":1791452728922,"service":"test-start","side":"ssr","traceId":"c036227840bb9b124e2ec2bdb8d5775d","spanId":"4e2ec2bdb8d5775d","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791452728923,"service":"test-start","side":"ssr","traceId":"c036227840bb9b124e2ec2bdb8d5775d","spanId":"4e2ec2bdb8d5775d","msg":"core.span"}
+{"level":30,"time":1791452728925,"service":"test-start","side":"ssr","traceId":"c981a7dd557ed6f46d7dcdcc7e0130a1","spanId":"6d7dcdcc7e0130a1","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791452728925,"service":"test-start","side":"ssr","traceId":"c981a7dd557ed6f46d7dcdcc7e0130a1","spanId":"6d7dcdcc7e0130a1","msg":"core.span"}
+{"level":30,"time":1791452728928,"service":"test-start","side":"ssr","traceId":"ba7acff31910673e9a80da7ded7375b4","spanId":"9a80da7ded7375b4","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791452728928,"service":"test-start","side":"ssr","traceId":"ba7acff31910673e9a80da7ded7375b4","spanId":"9a80da7ded7375b4","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"811a3abe1ba994348766f60ef1ceed83","spanId":"8766f60ef1ceed83","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"811a3abe1ba994348766f60ef1ceed83","spanId":"8766f60ef1ceed83","msg":"core.span"}
 {"level":40,"time":7,"service":"test-start","side":"server","attributes":{"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk":"\"v\""},"msg":"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"}
-{"level":30,"time":1791450560722,"service":"test-start","side":"server","traceId":"11111111111111111111111111111111","spanId":"2222222222222222","msg":"core.span"}
-{"level":30,"time":1791450560734,"service":"test-start","side":"server","traceId":"870f06a56b73371baed3ff7f79ba295a","spanId":"aed3ff7f79ba295a","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1791450560734,"service":"test-start","side":"server","traceId":"870f06a56b73371baed3ff7f79ba295a","spanId":"aed3ff7f79ba295a","msg":"core.span"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"bd7f9e9f69bc68731bc6aa4bde603295","spanId":"1bc6aa4bde603295","msg":"core.span"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"9faac4a015dfd8d63b65bcd4e44ed5b7","spanId":"3b65bcd4e44ed5b7","msg":"core.span"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"2d08825ac6faf645d06f7152421ee585","spanId":"d06f7152421ee585","msg":"core.span"}
+{"level":30,"time":1791452729074,"service":"test-start","side":"server","traceId":"11111111111111111111111111111111","spanId":"2222222222222222","msg":"core.span"}
+{"level":30,"time":1791452729076,"service":"test-start","side":"server","traceId":"4d5d0d498930a173baccc6575da12f6d","spanId":"baccc6575da12f6d","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791452729076,"service":"test-start","side":"server","traceId":"4d5d0d498930a173baccc6575da12f6d","spanId":"baccc6575da12f6d","msg":"core.span"}
 
  Test Files  41 passed (41)
       Tests  433 passed (433)
-   Start at  09:09:17
-   Duration  37.19s (tests 62%, import 28%, transform 10%)
-
-    Isolate  41 workers spawned · ~501ms startup each (spawn + environment, per file)
-             at least ~2.44s faster with isolate: false — reuses workers across files instead of one per file
+   Start at  09:45:16
+   Duration  25.11s (tests 77%, import 19%, transform 4%)
 
 
 ~/apps/start-scaffold$ vp test ⊘ cache disabled
@@ -592,8 +569,8 @@ Found 0 errors and 28 warnings in 656 files (10.2s, 8 threads)
 
  Test Files  6 passed (6)
       Tests  26 passed (26)
-   Start at  09:09:55
-   Duration  15.78s (tests 76%, import 20%, transform 4%)
+   Start at  09:45:42
+   Duration  12.89s (tests 76%, import 20%, transform 4%)
 
 
 EXIT 0

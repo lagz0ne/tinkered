@@ -107,13 +107,21 @@ function symbols(checker) {
     return initializer ? (target(initializer, seen) ?? symbol) : symbol;
   }
 
+  function functionBody(symbol) {
+    return symbol?.declarations?.find(isFunction) ?? unwrap(symbol?.valueDeclaration?.initializer);
+  }
+
   function ownFunction(node) {
-    const symbol = target(node);
-    const declaration = symbol?.valueDeclaration;
-    if (declaration && isFunction(declaration)) return declaration;
-    if (declaration?.initializer && isFunction(unwrap(declaration.initializer)))
-      return unwrap(declaration.initializer);
-    if (isFunction(unwrap(node))) return unwrap(node);
+    node = unwrap(node);
+    if (!node) return undefined;
+    if (isFunction(node)) return node;
+    const body = functionBody(target(node));
+    if (isFunction(body)) return body;
+    return checker
+      .getTypeAtLocation(node)
+      .getCallSignatures()
+      .map((signature) => signature.declaration)
+      .find(isFunction);
   }
 
   return { target, ownFunction };
@@ -211,10 +219,14 @@ function moduleShape(object, factory, load) {
     ts.isStringLiteral(path) &&
     load.arguments.length === 1 &&
     moduleKeys(object) &&
-    moduleArrow(factory, load) &&
+    moduleFactory(object, factory, load) &&
     stringMember(object, "label", `module:${path.text}`) &&
     stringMember(object, "target", "scope")
   );
+}
+
+function moduleFactory(object, factory, load) {
+  return unwrap(member(object, "factory")?.initializer) === factory && moduleArrow(factory, load);
 }
 
 function checkLazy(object, factory, load, fail, modules) {
@@ -234,6 +246,21 @@ function location(node) {
   return `${relative(process.cwd(), source.fileName)}:${source.getLineAndCharacterOfPosition(node.getStart()).line + 1}`;
 }
 
+function loaderName(name) {
+  return ["require", "createRequire"].includes(name);
+}
+
+function loaderDeclaration(declaration) {
+  if (!declaration) return false;
+  if (loaderName(propertyName(declaration.name))) return true;
+  const owner = declaration.parent;
+  return (
+    ts.isInterfaceDeclaration(owner) &&
+    ["Require", "NodeRequire"].includes(owner.name.text) &&
+    packageName(realPath(declaration.getSourceFile().fileName)) === "@types/node"
+  );
+}
+
 function checkGraph(bodies, checker, target, ownFunction, fail) {
   const visited = new Set();
   function follow(node) {
@@ -244,22 +271,23 @@ function checkGraph(bodies, checker, target, ownFunction, fail) {
 
   function inspect(node) {
     if (isImport(node)) fail(node, 8, "import() in graph code");
-    if (ts.isIdentifier(node) && valueUse(node)) inspectName(node);
-    if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
-      const declaration = checker.getResolvedSignature(node)?.declaration;
-      if (isFunction(declaration)) follow(declaration);
-      follow(ownFunction(node.expression));
-    }
+    if (ts.isIdentifier(node) && !typePosition(node)) inspectName(node);
+    if (ts.isCallExpression(node) || ts.isNewExpression(node)) inspectCall(node);
+  }
+
+  function inspectCall(node) {
+    const declaration = checker.getResolvedSignature(node)?.declaration;
+    if (loaderDeclaration(declaration)) fail(node, 8, "require/createRequire in graph code");
+    if (isFunction(declaration)) follow(declaration);
+    follow(ownFunction(node.expression));
   }
 
   function inspectName(node) {
     const symbol = target(node);
-    if (
-      ["require", "createRequire"].includes(node.text) ||
-      ["require", "createRequire"].includes(symbol?.name)
-    )
+    if (loaderName(node.text) || loaderName(symbol?.name))
       fail(node, 8, `${node.text} in graph code`);
-    else if (importedName(node, checker)) fail(node, 7, `outside name ${node.text} in graph code`);
+    else if (valueUse(node) && importedName(node, checker))
+      fail(node, 7, `outside name ${node.text} in graph code`);
   }
 
   for (const body of bodies) follow(body);
@@ -324,6 +352,53 @@ async function prove() {
   const lazy =
     'resource({label: "module:node:path", target: "scope", factory: () => import("node:path")})';
   const cases = [
+    {
+      name: "namespace-loader",
+      rule: 8,
+      source:
+        'import * as native from "node:module"; operation({run: () => native["createRequire"](import.meta.url)});',
+    },
+    {
+      name: "created-require",
+      rule: 8,
+      source:
+        'import {createRequire} from "node:module"; const load = createRequire(import.meta.url); operation({run: () => load("node:path")});',
+    },
+    {
+      name: "dep-loader",
+      rule: 8,
+      source:
+        'const native = resource({label: "module:node:module", target: "scope", factory: () => import("node:module")}); operation({depends: {native}, run: async ({native}) => native.createRequire(import.meta.url)});',
+    },
+    {
+      name: "overloaded-helper",
+      rule: 7,
+      source: 'import {hidden} from "./helper"; operation({run: () => hidden("x")});',
+      helper:
+        outsideImport +
+        "export function hidden(value: string): string; export function hidden(value: number): string; export function hidden(value: string | number) {return outside(String(value));}",
+    },
+    {
+      name: "factory-alias",
+      rule: 10,
+      source:
+        'const load = () => import("node:path"); resource({label: "module:node:path", target: "scope", factory: load});',
+    },
+    {
+      name: "wrapped-factory",
+      rule: 8,
+      source: 'resource({factory: Object.freeze(() => import("node:path"))});',
+    },
+    {
+      name: "own-overload",
+      source: 'import {hidden} from "./helper"; operation({run: () => hidden("x")});',
+      helper:
+        "export function hidden(value: string): string; export function hidden(value: number): string; export function hidden(value: string | number) {return String(value);}",
+    },
+    {
+      name: "own-wrapped-factory",
+      source: "resource({factory: Object.freeze(() => 1)});",
+    },
     {
       name: "core-namespace",
       rule: 7,

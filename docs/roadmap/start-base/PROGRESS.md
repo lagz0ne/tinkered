@@ -1111,7 +1111,7 @@ This keeps the owner's old return type and callers.
 ### Writer proof before mutation
 
 - `vp run lazy` passed.
-- The checker caught all failures and allowed all valid cases: 32 plants.
+- The checker caught all failures and allowed all valid cases: 40 plants.
 - The backend import check passed; drivers, auth, and mail stayed unloaded.
 - `pnpm validate` passed all 19 lanes.
 - SCIP found the new public symbol and all four files that use it.
@@ -1134,3 +1134,20 @@ This keeps the owner's old return type and callers.
   [validate](proof/lazy-modules-validate.txt),
   [Jev](proof/lazy-modules-jev.txt), and
   [impact](proof/lazy-modules-impact.txt).
+
+### Lead decision and checker review
+
+- User decision, 2026-10-08: no zod error crosses into graph code.
+  No lazy module for zod was added.
+  The endpoint uses its top-level schemas' `safeParse` methods.
+  It catches only the global `SyntaxError` from JSON parsing.
+  The HTTP failure schema stays at the top level.
+  The same 400 replies and `HttpRequestFailed` payloads pass the old tests.
+- Review found missed calls through overloaded helpers and wrapped factories.
+  The checker now follows their function bodies.
+  An aliased lazy factory also fails rule 10.
+- Rule 8 now catches namespace loaders and the require function returned by
+  `createRequire`, including a loader received through deps.
+- The added plants failed before the fixes:
+  [helper and factory red proof](proof/lazy-modules-edge-red.txt) and
+  [loader red proof](proof/lazy-modules-loader-red.txt).

@@ -1,0 +1,17 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: namespace-loader
+    at prove (file:///home/paseo/next/tinkered-lazy-modules/scripts/check-lazy-modules.mjs:558:29)
+    at async file:///home/paseo/next/tinkered-lazy-modules/scripts/check-lazy-modules.mjs:569:39 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '../../../../tmp/lazy-modules-proof-jzS5xL/namespace-loader/probe.ts:2 rule-7: outside name native in graph code\n',
+  expected: /rule-8:/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.21.0
+EXIT 1
