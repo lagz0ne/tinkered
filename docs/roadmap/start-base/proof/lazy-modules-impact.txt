@@ -1,0 +1,10 @@
+indexed start -> .scip/start.scip
+== start
+  definitions
+    drizzleOrm  ->  src/modules.server.ts:3
+  references (count  symbol  file)
+        2  drizzleOrm  src/parts/sync/history.server.ts
+        2  drizzleOrm  src/parts/sync/stream.server.ts
+        1  drizzleOrm  src/server.ts
+        2  drizzleOrm  tests/modules.test.ts
+EXIT 0

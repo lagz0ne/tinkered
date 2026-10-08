@@ -1107,3 +1107,30 @@ const reader = resource({
 The body owner's workaround is a controller dep.
 Its operation has an async body and takes the lazy module.
 This keeps the owner's old return type and callers.
+
+### Writer proof before mutation
+
+- `vp run lazy` passed.
+- The checker caught all failures and allowed all valid cases: 32 plants.
+- The backend import check passed; drivers, auth, and mail stayed unloaded.
+- `pnpm validate` passed all 19 lanes.
+- SCIP found the new public symbol and all four files that use it.
+  The fourth file is the new test.
+- Jev found no file flags and seven unit flags.
+  Each unit flag has a false label and a reason in
+  [the labels](proof/lazy-modules-labels.txt).
+- Jev accepted the new test.
+  Its package test scan also listed old private imports and long helpers.
+  Those files are byte-for-byte the same as `main`:
+  `auth.test.ts`, `error-detail.test.ts`, `server.test.ts`,
+  `sync-client.test.ts`, `sync-tab.test.ts`, `sync.test.ts`,
+  `telemetry-ingest.test.ts`, `telemetry-records.test.ts`, and `telemetry.test.ts`.
+  They are not changed in this ticket.
+- The one README gap, OTLP JSON storage, now has a line in the README.
+- The plain test notes and README gap have no judge in `label.mjs`.
+  Their answers are recorded here; no judge rule was added.
+- The lead runs calibration when landing the labels.
+- Proof: [plants and imports](proof/lazy-modules-proofs.txt),
+  [validate](proof/lazy-modules-validate.txt),
+  [Jev](proof/lazy-modules-jev.txt), and
+  [impact](proof/lazy-modules-impact.txt).
