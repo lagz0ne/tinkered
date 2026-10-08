@@ -232,7 +232,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - Reset during a pending run drops the late result: state stays idle.
 - Switching the operation runs the new one, not the stale one.
 - Switching the operation rebinds runAsync to the new one.
-- A synchronous operation runs to success with its value.
+- A synchronous operation renders and commits success once without pending.
 - runAsync returns the value or rejects with the failure while state tracks both.
 - Only the latest run publishes: a stale earlier run that settles later is dropped.
 - A run with only onSettled reports success without onSuccess.

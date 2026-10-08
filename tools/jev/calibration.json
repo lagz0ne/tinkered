@@ -202,11 +202,11 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 4,
-    "medianTrue": 0.78,
-    "medianFalse": 0.24,
-    "separation": 0.54,
-    "ordered": 1,
+    "falses": 5,
+    "medianTrue": 0.77,
+    "medianFalse": 0.3,
+    "separation": 0.47,
+    "ordered": 0.85,
     "at": "2026-10-08"
   },
   "waitsOnSideWork": {
@@ -232,10 +232,10 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 1,
-    "falses": 1,
-    "medianTrue": 0.53,
-    "medianFalse": 0.23,
-    "separation": 0.3,
+    "falses": 2,
+    "medianTrue": 0.56,
+    "medianFalse": 0.34,
+    "separation": 0.22,
     "ordered": 1,
     "at": "2026-10-08"
   }

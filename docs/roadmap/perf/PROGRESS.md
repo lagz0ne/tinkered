@@ -150,3 +150,17 @@ flock /tmp/mutation.lock benchctl ab \
   are outside these tickets.
   No new strict hit was added.
 - Next: count sync renders before the next fix.
+
+## react/run-sync-first
+
+- Strengthened the sync operation test to count renders and commits.
+  It failed before the fix, exit 1: pending, then success.
+- Core's sync result now publishes success at once.
+  Only a promise enters pending state.
+  The async caller still gets a promise.
+- React: all 91 tests pass, including late results and reset.
+- The focused code check returned 0 with no warning.
+- Production click probe: 2 renders and 2 commits before;
+  1 render and 1 commit after, with no pending status.
+- The async click still renders pending, then success.
+- Next: remove repeated objects from cell reads and writes.

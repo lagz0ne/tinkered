@@ -530,33 +530,40 @@ export function useRun<T, I>(
   const latest = useRef(options);
   latest.current = options;
   const invoke = useCallback(
-    async (call: Scope.CallArgs<I>): Promise<Outcome<Awaited<T>>> => {
+    (call: Scope.CallArgs<I>): Outcome<Awaited<T>> | Promise<Outcome<Awaited<T>>> => {
       const id = (owner.runId += 1);
       const [variables] = call;
+      const finish = (result: RunResult<Awaited<T>>): Outcome<Awaited<T>> => {
+        const outcome = readRunOutcome(result);
+        if (owner.live) {
+          if (owner.runId === id)
+            setPublished({ owner, state: { ...settledState(outcome), variables } });
+          notify(latest.current, outcome, variables);
+        }
+        return outcome;
+      };
+      const settled = controller.settle(...call);
+      if (!(settled instanceof Promise)) return finish(settled);
       if (owner.live)
         setPublished({
           owner,
           state: { status: "pending", data: undefined, error: undefined, variables },
         });
-      const outcome = readRunOutcome(await controller.settle(...call));
-      if (owner.live) {
-        if (owner.runId === id)
-          setPublished({ owner, state: { ...settledState(outcome), variables } });
-        notify(latest.current, outcome, variables);
-      }
-      return outcome;
+      return settled.then(finish);
     },
     [controller, owner],
   );
   const run = useCallback(
     (...call: Scope.CallArgs<I>): void => {
-      invoke(call).catch(reportCallbackError);
+      const outcome = invoke(call);
+      if (outcome instanceof Promise) outcome.catch(reportCallbackError);
     },
     [invoke],
   );
   const runAsync = useCallback(
     async (...call: Scope.CallArgs<I>): Promise<Awaited<T>> => {
-      const outcome = await invoke(call);
+      const running = invoke(call);
+      const outcome = running instanceof Promise ? await running : running;
       if (outcome.ok) return outcome.value;
       throw outcome.error;
     },

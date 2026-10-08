@@ -1,6 +1,6 @@
 import type { Operation, Scope } from "@tinker/core";
 import { createScope, operation } from "@tinker/core";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 import { ScopeProvider, useRun } from "../src/index";
@@ -144,25 +144,39 @@ test("runs an operation imperatively: idle -> pending -> success, with rawInput 
   await scope.close();
 });
 
-test("a synchronous operation runs to success with its value", async () => {
+test("a synchronous operation renders and commits success once without pending", async () => {
   const scope = createScope();
   const inc = operation({
     label: "inc",
     input: (raw) => Number(raw),
     run: (_deps, { input }) => input + 1,
   });
-
+  const renders: string[] = [];
+  const commits: string[] = [];
+  function SyncRunner(): React.ReactElement {
+    const run = useRun(inc);
+    renders.push(run.status);
+    useLayoutEffect(() => {
+      commits.push(run.status);
+    });
+    return (
+      <button type="button" onClick={() => run.run({ rawInput: "5" })}>
+        data:{String(run.data)}
+      </button>
+    );
+  }
   const screen = await render(
     <ScopeProvider scope={scope}>
-      <Runner op={inc} call={{ rawInput: "5" }} />
+      <SyncRunner />
     </ScopeProvider>,
   );
-
-  await expect.element(screen.getByText("status:idle")).toBeVisible();
+  renders.length = 0;
+  commits.length = 0;
   await screen.getByRole("button").click();
   await expect.element(screen.getByText("data:6")).toBeVisible();
-
-  await scope.close();
+  expect(renders).toEqual(["success"]);
+  expect(commits).toEqual(["success"]);
+  expect((await scope.close({ graceful: true })).status).toBe("success");
 });
 
 test("only the latest run publishes: a stale earlier run that settles later is dropped", async () => {
