@@ -27,6 +27,20 @@ No push or publish.
 - Page load A/B: pending in the queue.
 - Check: exit 0, 0 errors, 59 warnings.
 - Start tests: 427 pass; five sync stream tests time out.
-  The pinned main run is checking those five failures.
+  Both main and this branch pass all 39 sync tests alone.
+  Full-run failures were time limits under load.
 - Focused server tests: 14 pass, exit 0.
 - Jev: every request flag has a false label with its reason.
+
+## start/one-body-hold
+
+- The request session now owns the render close through its end hook.
+  A weak map joins the exact Start request to that hook.
+  A response has one held stream, including an empty response.
+- A body hold with a body returns its response without a promise.
+- Census: body promises 25 → 12 per page.
+  Total Start promises are 34.51, below the ceiling of 45.
+- The three end, cancel, and read-error cases wait for both closes.
+- Focused server and request tests: 21 pass, exit 0.
+- App build and check: exit 0; check has 0 errors and 59 warnings.
+- Jev: body flags have false labels with their reasons.
