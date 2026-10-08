@@ -1,37 +1,10 @@
-Main commit: 8d75634f3b66d8102372f86d7de592d5eda9cbd3
-Command: vp check
-pass: All 1455 files are correctly formatted (5444ms, 8 threads)
-! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
-    ,-[bench/heap.mjs:26:14]
- 25 | const N = 20000;
- 26 | const live = new Array(N);
-    :              ^^^^^^^^^^^^
- 27 | globalThis.gc();
-    `----
-  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
-
-  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
-    ,-[bench/heap.mjs:41:20]
- 40 | const zone = tag({ label: "zone", default: "base" });
- 41 | const liveTagged = new Array(N);
-    :                    ^^^^^^^^^^^^
- 42 | globalThis.gc();
-    `----
-  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
-
-  ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
-    ,-[bench/react-render.mjs:14:7]
- 13 | 
- 14 | const React = (await import("react")).default;
-    :       ^^|^^
-    :         `-- 'React' is declared here
- 15 | const { act, createElement: h, Fragment } = await import("react");
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
+Main commit 9890672b
+$ vp check
+pass: All 1457 files are correctly formatted (8698ms, 8 threads)
+warn: Lint or type warnings found
+! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
     ,-[tools/jev/tests.mjs:83:7]
- 82 | 
+ 82 |
  83 | const stems = (s) =>
     :       ^^|^^
     :         `-- 'stems' is declared here
@@ -65,7 +38,7 @@ pass: All 1455 files are correctly formatted (5444ms, 8 threads)
  8 | import { existsSync, readFileSync } from "node:fs";
    :                      ^^^^^^|^^^^^
    :                            `-- 'readFileSync' is imported here
- 9 | 
+ 9 |
    `----
   help: Consider removing this import.
 
@@ -94,6 +67,24 @@ pass: All 1455 files are correctly formatted (5444ms, 8 threads)
     :         ^^^^
  63 |       if (++reads > 1) throw new Error("second-read");
     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+      ,-[packages/core/tests/index.test.ts:2358:5]
+ 2357 |   const lazy = {
+ 2358 |     then: (res: (v: number) => void) => {
+      :     ^^^^
+ 2359 |       thenCalls++;
+      `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+      ,-[packages/core/tests/index.test.ts:2380:13]
+ 2379 |       export: () => ({
+ 2380 |         get then() {
+      :             ^^^^
+ 2381 |           throw new Error("evil-then");
+      `----
   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 
   ! unicorn(no-thenable): Do not add `then` to an object.
@@ -141,23 +132,33 @@ pass: All 1455 files are correctly formatted (5444ms, 8 threads)
      `----
   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 
-  ! unicorn(no-thenable): Do not add `then` to an object.
-      ,-[packages/core/tests/index.test.ts:2358:5]
- 2357 |   const lazy = {
- 2358 |     then: (res: (v: number) => void) => {
-      :     ^^^^
- 2359 |       thenCalls++;
-      `----
-  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+    ,-[bench/heap.mjs:26:14]
+ 25 | const N = 20000;
+ 26 | const live = new Array(N);
+    :              ^^^^^^^^^^^^
+ 27 | globalThis.gc();
+    `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
 
-  ! unicorn(no-thenable): Do not add `then` to an object.
-      ,-[packages/core/tests/index.test.ts:2380:13]
- 2379 |       export: () => ({
- 2380 |         get then() {
-      :             ^^^^
- 2381 |           throw new Error("evil-then");
-      `----
-  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+    ,-[bench/heap.mjs:41:20]
+ 40 | const zone = tag({ label: "zone", default: "base" });
+ 41 | const liveTagged = new Array(N);
+    :                    ^^^^^^^^^^^^
+ 42 | globalThis.gc();
+    `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
+
+  ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
+    ,-[bench/react-render.mjs:14:7]
+ 13 |
+ 14 | const React = (await import("react")).default;
+    :       ^^|^^
+    :         `-- 'React' is declared here
+ 15 | const { act, createElement: h, Fragment } = await import("react");
+    `----
+  help: Consider removing this declaration.
 
   ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
       ,-[packages/core/src/index.ts:3292:16]
@@ -187,6 +188,16 @@ pass: All 1455 files are correctly formatted (5444ms, 8 threads)
       :                                                     |                                 `-- This reference may be unbound and lose `this` context
  4483 |     call?: Scope.Invocation<I>,
       `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+     ,-[packages/core/tests/named-release.test.ts:472:20]
+ 471 |   scope.controller(c2).set(2);
+ 472 |   [c1, c2].forEach(scope.release);
+     :                    ^^^^^^^^^^^^^|
+     :                          |      `-- This reference may be unbound and lose `this` context
+ 473 |   expect([scope.resolve(c1), scope.resolve(c2)]).toEqual([0, 0]);
+     `----
   help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
 
   ! typescript(await-thenable): Unexpected `await` of a non-Promise (non-"Thenable") value.
@@ -219,16 +230,6 @@ pass: All 1455 files are correctly formatted (5444ms, 8 threads)
  4173 |   });
       `----
   help: Remove the default assignment
-
-  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
-     ,-[packages/core/tests/named-release.test.ts:472:20]
- 471 |   scope.controller(c2).set(2);
- 472 |   [c1, c2].forEach(scope.release);
-     :                    ^^^^^^^^^^^^^|
-     :                          |      `-- This reference may be unbound and lose `this` context
- 473 |   expect([scope.resolve(c1), scope.resolve(c2)]).toEqual([0, 0]);
-     `----
-  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
 
   ! typescript(no-base-to-string): 'title' will use Object's default stringification format ('[object Object]') when stringified.
     ,-[tools/jev/explain.mjs:27:29]
@@ -266,6 +267,5 @@ pass: All 1455 files are correctly formatted (5444ms, 8 threads)
  28 |   if (!Object.keys(bank).length) {
     `----
 
-Found 0 errors and 28 warnings in 653 files (6.3s, 8 threads)
-warn: Lint or type warnings found
+Found 0 errors and 28 warnings in 655 files (10.2s, 8 threads)
 EXIT 0

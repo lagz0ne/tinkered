@@ -1154,3 +1154,8 @@ This keeps the owner's old return type and callers.
 - Rebased onto `e6ffa1ad`, which adds the lead's zod decision.
   Both sets of progress notes were kept.
   Install and the full gate passed again after the rebase.
+- Main then added the React fixes in `9890672b`.
+  The queued Start mutation had not begun and was stopped before this rebase.
+  Both sets of Jev labels were kept.
+  Install and the full gate passed again.
+  A fresh checkout of this main also passed build and check: 28 warnings.

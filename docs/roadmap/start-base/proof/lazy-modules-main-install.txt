@@ -1,5 +1,5 @@
-Main commit: 8d75634f3b66d8102372f86d7de592d5eda9cbd3
-Command: vp install --offline --frozen-lockfile
+Main commit 9890672b
+$ vp install --offline --frozen-lockfile
 Scope: all 13 workspace projects
 ✓ Lockfile passes supply-chain policies (verified 1d ago)
 Lockfile is up to date, resolution step is skipped
@@ -13,10 +13,10 @@ apps/start-min postinstall$ tinker prepare
 apps/start-scaffold postinstall$ tinker prepare
 apps/start-scaffold postinstall: `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 apps/start-min postinstall: `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
-apps/start-scaffold postinstall: tinker prepare: wrote .tinker/tsconfig.json, .tinker/base.json, .tinker/parts.ts, .tinker/parts.server.ts, .tinker/routeTree.gen.ts
-apps/start-scaffold postinstall: Done
 apps/start-min postinstall: tinker prepare: wrote .tinker/tsconfig.json, .tinker/base.json, .tinker/parts.ts, .tinker/parts.server.ts, .tinker/routeTree.gen.ts
+apps/start-scaffold postinstall: tinker prepare: wrote .tinker/tsconfig.json, .tinker/base.json, .tinker/parts.ts, .tinker/parts.server.ts, .tinker/routeTree.gen.ts
 apps/start-min postinstall: Done
+apps/start-scaffold postinstall: Done
 
 devDependencies:
 + @happy-dom/global-registrator 20.14.5
@@ -33,5 +33,5 @@ devDependencies:
 + vite-plus 1.0.0
 + zustand 5.0.15
 
-Done in 2.6s using pnpm v12.4.1
+Done in 2.5s using pnpm v12.4.1
 EXIT 0
