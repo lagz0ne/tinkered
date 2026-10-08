@@ -23,25 +23,30 @@ const { createScope, data, operation, resource } = await import("../packages/cor
 // ---------------------------------------------------------------------------
 const cfg = data({ label: "cfg", initial: 21 });
 const doubled = operation({ label: "doubled", depends: { n: cfg }, run: ({ n }) => n * 2 });
+
 const store = resource({
   label: "store",
   depends: { d: doubled },
   factory: ({ d }) => ({ base: d, size: () => 0 }),
 });
+
 const tinkerDi = () => createScope().controller(store).resolve().base;
 
 class Cfg extends Context.Tag("Cfg")() {}
 class Doubled extends Context.Tag("Doubled")() {}
 class Store extends Context.Tag("Store")() {}
 const CfgLive = Layer.succeed(Cfg, { n: 21 });
+
 const DoubledLive = Layer.effect(
   Doubled,
   Effect.map(Cfg, (c) => ({ value: c.n * 2 })),
 );
+
 const StoreLive = Layer.effect(
   Store,
   Effect.map(Doubled, (d) => ({ base: d.value })),
 );
+
 const AppLive = StoreLive.pipe(Layer.provide(DoubledLive), Layer.provide(CfgLive));
 const diProgram = Effect.map(Store, (s) => s.base);
 const effectDi = () => Effect.runSync(Effect.provide(diProgram, AppLive));
@@ -65,6 +70,7 @@ const effectDiWarm = () => warmRuntime.runSync(diProgram);
 const cell = data({ label: "cell", initial: 0 });
 const rwCtl = createScope().controller(cell);
 let ki = 0;
+
 const tinkerRw = () => {
   rwCtl.set(++ki);
   return rwCtl.get();
@@ -72,6 +78,7 @@ const tinkerRw = () => {
 
 const ref = Effect.runSync(Ref.make(0));
 let ke = 0;
+
 const effectRw = () => {
   Effect.runSync(Ref.set(ref, ++ke));
   return Effect.runSync(Ref.get(ref));
@@ -85,6 +92,7 @@ const dScope = createScope();
 const dCfg = dScope.controller(cfg);
 const dDoubled = dScope.controller(doubled);
 let kd = 0;
+
 const tinkerDerive = () => {
   dCfg.set(++kd);
   return dDoubled.run();
@@ -93,6 +101,7 @@ const tinkerDerive = () => {
 const dref = Effect.runSync(Ref.make(0));
 const deriveProgram = Effect.map(Ref.get(dref), (n) => n * 2);
 let kde = 0;
+
 const effectDerive = () => {
   Effect.runSync(Ref.set(dref, ++kde));
   return Effect.runSync(deriveProgram);
@@ -123,9 +132,11 @@ const minOf = (alias) => {
   const stats = b?.runs?.[0]?.stats;
   return stats ? stats.min : Number.NaN;
 };
+
 const fmt = (n) => (Number.isFinite(n) ? n.toFixed(4) : "NaN");
 
 console.log("\n--- metrics (min ns/iter; lower is better) ---");
+
 for (const s of scenarios) {
   const t = minOf(`${s.key}_tinker`);
   const e = minOf(`${s.key}_effect`);

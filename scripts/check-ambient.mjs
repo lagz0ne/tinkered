@@ -61,6 +61,7 @@ function markedSpans(file) {
 }
 
 let hits;
+
 try {
   hits = execSync(
     `git grep --untracked -nE '${FORBIDDEN}' -- ${PATHS.map((p) => `'${p}'`).join(" ")}`,
@@ -75,6 +76,7 @@ try {
 
 // A hit inside a marked declaration is the sanctioned source; drop those.
 const spans = new Map();
+
 const offenders = hits
   .split("\n")
   .filter((line) => line !== "")
@@ -92,8 +94,10 @@ if (offenders.length === 0) {
 
 console.error("check-ambient: read time/randomness off ctx, not a hidden global (ADR 0034, 0062):");
 for (const line of offenders) console.error(`  ${line}`);
+
 console.error(
   "\nUse ctx.clock / ctx.random. Only the systemClock/systemRandom declarations carry the " +
     "`@ambientSource` TSDoc tag; nothing else may.",
 );
+
 process.exit(1);

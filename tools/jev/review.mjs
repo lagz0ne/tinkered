@@ -28,6 +28,7 @@ const range = args.find((a) => !a.startsWith("--")) ?? "HEAD~1..HEAD";
 if (!loadKey()) process.exit(0);
 
 let flags = 0;
+
 const flag = (line) => {
   flags++;
   console.log(`  ⚠ ${line}`);
@@ -38,6 +39,7 @@ console.log(`jev review (advisory) — range ${range}\n`);
 // --- per-file judges (the lead's shape checklist: stub / memo / leaked internal) ---
 const files = changedSources(range);
 if (files.length === 0) console.log("(no source files changed)");
+
 for (const f of files) {
   const code = fileAt(range, f);
   if (!code.trim()) continue;
@@ -62,6 +64,7 @@ for (const f of files) {
 
 // --- route classifier (gated at 0.6; unclear -> human) ---
 const d = diff(range).slice(0, 12_000);
+
 if (d.trim()) {
   const a = await ask({ diff: d }, { route: ROUTE.q });
   const c = a.route.choice,
@@ -72,6 +75,7 @@ if (d.trim()) {
 
 // --- overclaim (commit message vs diff) ---
 const msg = message(range);
+
 if (msg && d.trim()) {
   const a = await ask({ message: msg, diff: d }, { overclaim: OVERCLAIM.q });
   const p = a.overclaim.probability;

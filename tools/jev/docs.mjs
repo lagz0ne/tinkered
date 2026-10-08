@@ -28,10 +28,12 @@ if (specs.length === 0) {
   console.error("usage: node tools/jev/docs.mjs <files or globs…> [--plain]");
   process.exit(0);
 }
+
 const files = listFiles();
 const byFolder = {};
 let plainRows = 0;
 console.log(`jev docs (advisory) — ${files.length} file(s), parser only\n`);
+
 for (const file of files) {
   const rows = tsdocRows(readFileSync(file, "utf8"), file);
   if (rows.length === 0) continue;
@@ -43,7 +45,9 @@ for (const file of files) {
 
 console.log(`\njev docs: ${files.length} file(s), ${plainRows} S26 row(s).`);
 console.log(`S26 by folder: ${JSON.stringify(byFolder)}`);
+
 console.log(
   "Advisory only — an S26 row is a doc to fix. Whether a doc says what code cannot is the reviewer's call (rule 10).",
 );
+
 process.exit(0);

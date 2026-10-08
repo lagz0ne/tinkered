@@ -754,16 +754,22 @@ export declare namespace Scope {
 
 const isData = (n: unknown): n is Data.Cell<unknown> =>
   (n as { [cell]?: true } | null | undefined)?.[cell] === true;
+
 const isOperation = (n: unknown): n is Operation.Handle<unknown, unknown> =>
   (n as { [operationSym]?: true } | null | undefined)?.[operationSym] === true;
+
 const isResource = (n: unknown): n is Resource.Handle<unknown> =>
   (n as { [resourceSym]?: true } | null | undefined)?.[resourceSym] === true;
+
 const isTag = (n: unknown): n is Tag.Handle<unknown> =>
   (n as { [tagSym]?: true } | null | undefined)?.[tagSym] === true;
+
 const isEdge = (n: unknown): n is Edge<string, unknown> =>
   (n as { [edge]?: true } | null | undefined)?.[edge] === true;
+
 const isExtension = (n: unknown): n is Scope.Extension<unknown> =>
   (n as { [extensionSym]?: true } | null | undefined)?.[extensionSym] === true;
+
 const isThenable = (v: unknown): v is PromiseLike<unknown> =>
   !!v &&
   (typeof v === "object" || typeof v === "function") &&
@@ -1147,6 +1153,7 @@ type ExtRoutes = {
   readonly writes: readonly Scope.Extension<unknown>[] | undefined;
   readonly session: readonly Scope.Extension<unknown>[] | undefined;
 };
+
 const NO_EXTS: ExtRoutes = { runs: undefined, writes: undefined, session: undefined };
 /** A layer's node store, child set, owned-work set, defer list, and teardown errors start as these
  * shared empty ones, so an idle layer allocates none (performance rule 4). Never written: the first
@@ -1226,6 +1233,7 @@ type SessionHooks = {
   state: 0 | 1 | 2;
   moved: boolean;
 };
+
 const SESSION_HOOKS = new WeakMap<Layer, SessionHooks>();
 
 /** Settle a wrapped bare session's `next()` with its close `Result`: attach once (the settler is
@@ -2805,6 +2813,7 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
 /** Per-dependency edge bookkeeping run when a dependency is realized (undefined for operations, which
  * form no release edges). */
 type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
+
 type SelectedResource = (
   owner: Layer,
   target: Resource.Handle<unknown>,
@@ -4418,6 +4427,7 @@ function adoptBody<R>(raw: R | PromiseLike<R>): R | Promise<R> {
   if (typeof then !== "function") return raw as R;
   return adoptThenable<R>(raw, then as ThenFn<R>);
 }
+
 /** A namespaced resolve keeps the real layer and passes the storage chain explicitly. */
 function resolveNs(
   layer: Layer,
@@ -4583,7 +4593,9 @@ function handleFor(layer: Layer): Scope.Handle {
 export function createScope(
   options: Scope.RootOptions & { readonly signal: AbortSignal },
 ): Scope.RootHandle;
+
 export function createScope(options?: Scope.RootOptions): Scope.Handle;
+
 export function createScope(options?: Scope.RootOptions): Scope.Handle {
   const layer = makeRootLayer(options);
   const plain = handleFor(layer);
@@ -5876,6 +5888,7 @@ type HookRun = {
   work?: Promise<unknown>[];
   failed?: { error: unknown };
 };
+
 let activeHookOwner: Layer | undefined;
 
 function withHookAccess<T>(run: HookRun, fn: () => T): T {

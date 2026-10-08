@@ -44,10 +44,12 @@ export declare namespace Process {
 
 /** Arguments after the selected route name, bound once per run. */
 export const argv: Tag.Handle<readonly string[]> = tag({ label: "process.argv" });
+
 /** Environment values supplied by the caller; `run` never reads the host environment. */
 export const env: Tag.Handle<Readonly<Record<string, string | undefined>>> = tag({
   label: "process.env",
 });
+
 export const io: Tag.Handle<Process.Io> = tag({ label: "process.io" });
 /** Borrowed request to stop the root gracefully, including EOF during service start. */
 export const stop: Tag.Handle<() => void> = tag({ label: "process.stop" });

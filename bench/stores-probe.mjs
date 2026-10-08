@@ -163,8 +163,10 @@ const mount = async (App) => {
   await act(async () => root.render(h(App)));
   return root;
 };
+
 const [libName, metric] = process.argv.slice(2);
 const lib = libs[libName];
+
 if (metric === "update") {
   await mount(lib.App);
   let k = 1;
@@ -178,8 +180,10 @@ if (metric === "update") {
     await act(async () => r.unmount());
   });
 }
+
 const res = await run({ print: () => {} });
 const st = res.benchmarks[0].runs[0].stats;
+
 console.log(
   `METRIC ${metric}_${libName}_us=${(st.min / 1000).toFixed(1)} avg=${(st.avg / 1000).toFixed(1)}`,
 );

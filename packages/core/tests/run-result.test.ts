@@ -80,6 +80,7 @@ const notManaged: [string, object][] = [
     Object.assign(new Error("odd"), { kind: 7, payload: {} }),
   ],
 ];
+
 for (const [shape, error] of notManaged) {
   test(`settle classifies ${shape} as a panic`, async () => {
     const op = operation({

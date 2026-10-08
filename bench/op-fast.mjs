@@ -3,11 +3,14 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const [dist, scenario = "settle", count] = process.argv.slice(2);
+
 const { createScope, data, operation, resource } = await import(
   pathToFileURL(resolve(dist, "index.mjs")).href
 );
+
 const iterations = Number(count ?? (scenario === "close" ? 100_000 : 2_000_000));
 let sum = 0;
+
 if (scenario === "settle") {
   const cell = data({ label: "cfg", initial: 21 });
   const op = operation({ label: "op", depends: { cell }, run: ({ cell }) => cell + 1 });

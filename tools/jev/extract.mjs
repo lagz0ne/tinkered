@@ -10,6 +10,7 @@ import { parseSync } from "oxc-parser";
 
 const UNIT_KINDS = new Set(["data", "resource", "operation", "tag", "extension", "family"]);
 const STATIC_KINDS = new Set(["data", "resource", "operation", "tag"]);
+
 const FUNCTION_TYPES = new Set([
   "FunctionDeclaration",
   "FunctionExpression",
@@ -418,6 +419,7 @@ export function namedFunction(src, file, name) {
 /** `expect(subject).matcher(arg)` → { subject, matcher, arg, not } or null. */
 /** Strip an `await`; then a `.not` between `expect(…)` and the matcher. */
 const unwrapAwait = (e) => (e?.type === "AwaitExpression" ? e.argument : e);
+
 function expectCallOf(memberObject) {
   const not = memberObject.type === "MemberExpression" && memberObject.property.name === "not";
   const inner = not ? memberObject.object : memberObject;
@@ -451,6 +453,7 @@ function narrowOf(src, stmt) {
 
 /** A statement that produces a subject a later assertion reads: `const x = …call…` or `await …call…`. */
 const calleeText = (src, e) => (e?.type === "CallExpression" ? text(src, e.callee) : null);
+
 function causeOf(src, stmt) {
   if (stmt.type === "VariableDeclaration")
     return calleeText(src, unwrapAwait(stmt.declarations[0]?.init));

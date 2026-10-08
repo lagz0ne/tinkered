@@ -5,6 +5,7 @@ type Props = {
   readonly fallback: (error: unknown, reset: () => void) => ReactNode;
   readonly children: ReactNode;
 };
+
 type State = { readonly error: unknown };
 
 /** A test error boundary: renders `fallback(error, reset)` once a descendant throws; `reset` clears

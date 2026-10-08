@@ -52,6 +52,7 @@ function sources(dir) {
 const failures = [];
 
 const owners = packages().filter((owner) => asked.length === 0 || asked.includes(owner.name));
+
 for (const { name, src, tests } of owners) {
   for (const file of sources(src)) {
     const text = readFileSync(join(ROOT, file), "utf8");
@@ -87,6 +88,7 @@ if (failures.length === 0) {
   console.log(`check-graph: OK (${owners.length} package(s))`);
   process.exit(0);
 }
+
 console.error(`check-graph: ${failures.length} violation(s)\n`);
 for (const failure of failures) console.error(`  ${failure}\n`);
 process.exit(1);

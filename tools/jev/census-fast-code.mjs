@@ -175,8 +175,10 @@ function droppedThen(source) {
 }
 
 const [rule, ...files] = process.argv.slice(2);
+
 const scope =
   rule === "P05" ? /(?:^|\/)apps\/|(?:^|\/)examples\// : /(?:^|\/)packages\/[^/]+\/src\//;
+
 for (const file of files) {
   if (
     !scope.test(resolve(file)) ||

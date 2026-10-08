@@ -201,12 +201,15 @@ const base = z.strictObject({
 
 const dataEntry = z.strictObject({ data: base });
 const tagEntry = z.strictObject({ tag: base });
+
 const operationEntry = z.strictObject({
   operation: base.extend({ work: z.string().optional() }),
 });
+
 const extensionEntry = z.strictObject({
   extension: base.extend({ work: z.string().optional() }),
 });
+
 const resourceEntry = z.strictObject({
   resource: base.extend({
     work: z.string().optional(),

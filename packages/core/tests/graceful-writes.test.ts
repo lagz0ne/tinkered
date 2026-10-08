@@ -21,6 +21,7 @@ function gate() {
 }
 
 const count = data({ initial: 0 });
+
 const lifetime = resource({
   label: "lifetime",
   target: "session",

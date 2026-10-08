@@ -94,6 +94,7 @@ const all = readCases();
 const previous = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
 const result = { ...previous };
 console.log("jev calibrate — median(true) − median(false), pairs ordered; floor 30 points / 90%\n");
+
 for (const [judge, cases] of Object.entries(all)) {
   if (only && judge !== only) continue;
   if (!judgeOf(judge)) {
@@ -110,9 +111,11 @@ for (const [judge, cases] of Object.entries(all)) {
     `  ${mark} ${judge.padEnd(24)} ${r.status.padEnd(11)} true ${String(r.trues).padStart(2)} (med ${pct(r.medianTrue)})  false ${String(r.falses).padStart(2)} (med ${pct(r.medianFalse)})  sep ${pct(r.separation)}  ordered ${pct(r.ordered)}`,
   );
 }
+
 if (!dry) {
   writeFileSync(OUT, JSON.stringify(result, null, 2) + "\n");
   console.log(`\nwrote ${OUT}`);
 }
+
 console.log("Advisory only — a noisy judge prints as a note, never as a flag.");
 process.exit(0);

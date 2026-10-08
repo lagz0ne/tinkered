@@ -4,6 +4,7 @@ import { execSync } from "node:child_process";
 
 const VP = "/home/paseo/.local/vp/bin/vp";
 const strip = "node --experimental-strip-types";
+
 const lanes = [
   ["lint/types/format/complexity", `${VP} check`],
   [
@@ -50,6 +51,7 @@ const lanes = [
 ];
 
 let failed = 0;
+
 for (const [name, cmd, show] of lanes) {
   try {
     const out = execSync(cmd, { stdio: "pipe", cwd: process.cwd() }).toString().trim();
@@ -65,12 +67,16 @@ for (const [name, cmd, show] of lanes) {
     if (out) console.log(out.replace(/^/gm, "        "));
   }
 }
+
 console.log("Mutation lanes: run core and react alone (floor 85).");
+
 console.log(
   `Timing lanes:  run via \`benchctl exec -- ${strip} bench/<lane>.mjs\` from a clean worktree (the queue; never by hand).\n` +
     `               bench/warm-read.mjs: a warm read is O(1) in chain depth (moved out of core#test, tests/busy-host-flake).`,
 );
+
 console.log(
   failed ? `\n${failed} lane(s) FAILED` : `\nAll deterministic budget lanes PASS (${lanes.length})`,
 );
+
 process.exit(failed ? 1 : 0);

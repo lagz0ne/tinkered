@@ -4,6 +4,7 @@ import { slots } from "./check-slots.mjs";
 const jev = createRequire(new URL("../tools/jev/package.json", import.meta.url));
 const { parseSync } = await import(jev.resolve("oxc-parser"));
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
 export const hotFunctions = [
   "runOnce",
   "settleRun",

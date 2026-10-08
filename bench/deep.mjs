@@ -5,10 +5,12 @@
 const { createScope, resource, data } = await import("../packages/core/dist/index.mjs");
 
 let fail = false;
+
 const assert = (label, ok) => {
   console.log(`${ok ? "OK  " : "FAIL"} ${label}`);
   if (!ok) fail = true;
 };
+
 const survives = (fn) => {
   try {
     fn();
@@ -17,6 +19,7 @@ const survives = (fn) => {
     return false;
   }
 };
+
 const survivesAsync = async (fn) => {
   try {
     await fn();
@@ -34,6 +37,7 @@ assert(
     for (let i = 0; i < 10000; i++) s = s.createSession();
   }),
 );
+
 assert(
   "close 10k-deep session tree",
   await survivesAsync(async () => {
@@ -54,10 +58,12 @@ const chainTop = (n) => {
   }
   return p;
 };
+
 assert(
   "resolve a 500-deep sync resource chain",
   survives(() => createScope().controller(chainTop(500)).resolve()),
 );
+
 assert(
   "flush through 1000 nested sessions",
   survives(() => {
@@ -81,6 +87,7 @@ const ceiling = (fn) => {
   }
   return `~${lo}-${hi}`;
 };
+
 console.log(
   `info: sync resource-chain ceiling ${ceiling((n) => createScope().controller(chainTop(n)).resolve())}`,
 );

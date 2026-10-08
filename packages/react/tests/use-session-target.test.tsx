@@ -5,11 +5,13 @@ import { render } from "vitest-browser-react";
 import { ScopeProvider, SessionProvider, useResource } from "../src/index";
 
 let builds = 0;
+
 const perSession = resource({
   label: "perSession",
   target: "session",
   factory: () => ({ id: ++builds }),
 });
+
 const perScope = resource({
   label: "perScope",
   target: "scope",

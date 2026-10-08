@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createServer } from "vite-plus";
 import { chromium } from "playwright";
+
 const results = [];
+
 async function check(name, fn) {
   try {
     const detail = await fn();
@@ -10,6 +12,7 @@ async function check(name, fn) {
     results.push({ name, pass: false, error: e.message });
   }
 }
+
 const vite = await createServer({
   root: "/work",
   configFile: false,
@@ -18,6 +21,7 @@ const vite = await createServer({
   appType: "custom",
   logLevel: "silent",
 });
+
 try {
   const app = await vite.ssrLoadModule("/src/index.ts");
   const { createScope } = await vite.ssrLoadModule("@tinker/core");
@@ -53,6 +57,7 @@ try {
 } finally {
   await vite.close();
 }
+
 const server = await createServer({
   root: "/work",
   configFile: false,
@@ -63,7 +68,9 @@ const server = await createServer({
   server: { host: "127.0.0.1", port: 5173, strictPort: true },
   logLevel: "silent",
 });
+
 let browser;
+
 try {
   await server.listen();
   browser = await chromium.launch({ headless: true });
@@ -120,4 +127,5 @@ try {
   await browser?.close();
   await server.close();
 }
+
 console.log("REVIEW_RESULTS " + JSON.stringify(results));

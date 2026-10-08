@@ -92,6 +92,7 @@ function readRefs(pkg, name) {
 
 const EXPORT_RE =
   /^\+export (?:async )?(?:const|function|class|interface|type|declare namespace) (\w+)/;
+
 const REMOVED_RE =
   /^-export (?:async )?(?:const|function|class|interface|type|declare namespace) (\w+)/;
 

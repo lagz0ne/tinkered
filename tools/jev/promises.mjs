@@ -12,10 +12,12 @@ import { loadKey, ask, pct, resolvePick } from "./lib.mjs";
 
 const args = process.argv.slice(2);
 const pkg = args.find((a) => !a.startsWith("--"));
+
 if (!pkg) {
   console.error("usage: node tools/jev/promises.mjs <pkg> [--json out.json] [--top N]");
   process.exit(1);
 }
+
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const TOP = Number(opt("--top", 6));
 const jsonOut = opt("--json");
@@ -64,6 +66,7 @@ const STOP = new Set(
     " ",
   ),
 );
+
 const words = (s) =>
   new Set(
     s
@@ -150,10 +153,13 @@ function answerTail(answered) {
   const qualifier = answered.unsure ? ", unsure" : "";
   return `  — no README line (${pct(answered.confidence)}${qualifier})`;
 }
+
 console.log(
   `jev promises (advisory) — ${pkg}: ${titles.length} test titles, ${promises.length} README candidates\n`,
 );
+
 const report = [];
+
 for (const { file, title } of titles) {
   const hit = exactLine(title, promises);
   const answered = await answerTitle(title, promises, hit);
@@ -162,10 +168,13 @@ for (const { file, title } of titles) {
   const tail = answerTail(answered);
   console.log(`  ${mark} ${title}${tail}`);
 }
+
 const gaps = report.filter((r) => r.gap);
 const unsure = report.filter((r) => r.unsure);
+
 console.log(
   `\njev promises: ${gaps.length}/${titles.length} titles have no README line (${unsure.length} more unsure, under ${pct(FLOOR)}). Write the gaps, or say why they are not promises.`,
 );
+
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(report, null, 2) + "\n");
 process.exit(0);

@@ -24,6 +24,7 @@ const copies = [
   [join(repoRoot, "packages/core/dist/index.mjs"), "core.mjs"],
   [join(repoRoot, "packages/react/dist/index.mjs"), "tinker-react.mjs"],
 ];
+
 for (const [from, name] of copies) {
   await copyModuleGraph(from, join(outDir, name));
 }
@@ -32,6 +33,7 @@ for (const [from, name] of copies) {
 // These subpaths reassign `module.exports`, so `export *`/`export { default }` can't enumerate the
 // named exports — read the real keys off the loaded module and re-export every one explicitly.
 const isName = (k) => k !== "default" && k !== "__esModule" && /^[A-Za-z_$][\w$]*$/.test(k);
+
 function named(spec) {
   const keys = Object.keys(require(spec)).filter(isName);
   return `import M from "${spec}"; export default M; export const { ${keys.join(", ")} } = M;`;
@@ -52,6 +54,7 @@ const bundles = [
   { name: "react-dom.mjs", entry: named("react-dom"), external: ["react"] },
   { name: "react-dom-client.mjs", entry: named("react-dom/client"), external: ["react"] },
 ];
+
 for (const { name, entry, external } of bundles) {
   await build({
     stdin: { contents: entry, resolveDir: appDir, loader: "js" },
@@ -74,10 +77,12 @@ const wasmDest = join(appDir, "public", "esbuild.wasm");
 copyFileSync(wasmSrc, wasmDest);
 
 const hostVersion = require("esbuild-wasm/package.json").version;
+
 // esbuild versions are always 0.x; the binary embeds its own version as a "0.NN.N" string.
 const embedded = readFileSync(wasmDest)
   .toString("latin1")
   .match(/0\.\d+\.\d+/)?.[0];
+
 if (embedded !== hostVersion) {
   throw new Error(
     `esbuild.wasm version mismatch: host esbuild-wasm is ${hostVersion} but the copied binary embeds ${embedded}. ` +

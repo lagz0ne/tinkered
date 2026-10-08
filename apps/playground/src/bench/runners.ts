@@ -46,6 +46,7 @@ export type Lib = {
 /** Median and interquartile range, in µs, of one metric's samples. */
 export type Stat = { median: number; q1: number; q3: number };
 export type Metrics = { rerenders: number; update: Stat; mount: Stat; fanout: Stat };
+
 export type LibResult = {
   name: string;
   fine: boolean;

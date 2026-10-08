@@ -50,6 +50,7 @@ const compare = (seedRoot) => {
 };
 
 let fail = false;
+
 for (const [label, seedRoot] of [
   ["cached inherited entry", true],
   ["cached absence (initial)", false],
@@ -63,4 +64,5 @@ for (const [label, seedRoot] of [
       `depth ${DEEP} ${deep.toFixed(1)} ns (limit ${limit.toFixed(1)} ns)`,
   );
 }
+
 process.exit(fail ? 1 : 0);

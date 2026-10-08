@@ -81,19 +81,23 @@ const flag = (name) => {
   const i = args.indexOf(name);
   return i === -1 ? undefined : args[i + 1];
 };
+
 const [judge, labelWord, target] = args.filter(
   (a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"),
 );
+
 if (!judge || !["true", "false"].includes(labelWord ?? "") || !target) {
   console.error(
     'usage: node tools/jev/label.mjs <judge> <true|false> <file>[#<unit>|:<line>] [--ref <sha>] [--why "<text>"] [--by <ticket>]',
   );
   process.exit(1);
 }
+
 const isUnitJudge = judge in LINT;
 const isTestJudge = judge in TESTS;
 const isSurvivorJudge = judge in SURVIVORS;
 const isDocJudge = judge in DOCS;
+
 if (!judgeOf(judge)) {
   const known = Object.entries(BANKS)
     .map(([bank, judges]) => `${bank}: ${Object.keys(judges).join(", ")}`)
@@ -101,10 +105,12 @@ if (!judgeOf(judge)) {
   console.error(`label: unknown judge ${judge}; ${known}`);
   process.exit(1);
 }
+
 const atLine = isDocJudge && !target.includes("#") ? target.match(/^(.+):(\d+)$/) : null;
 const [file, unitName] = atLine ? [atLine[1]] : target.split("#");
 const docLine = atLine ? Number(atLine[2]) : undefined;
 const ref = flag("--ref");
+
 const code = ref
   ? execFileSync("git", ["show", `${ref}:${file}`], { encoding: "utf8" })
   : readFileSync(file, "utf8");
@@ -182,15 +188,19 @@ function readSurvivorState() {
 }
 
 const state = readState();
+
 const id = createHash("sha1")
   .update(judge + labelWord + JSON.stringify(state))
   .digest("hex")
   .slice(0, 12);
+
 const existing = existsSync(BANK) ? readFileSync(BANK, "utf8") : "";
+
 if (existing.includes(`"id":"${id}"`)) {
   console.log(`label: already in the bank (${id})`);
   process.exit(0);
 }
+
 const row = {
   id,
   judge,
@@ -201,5 +211,6 @@ const row = {
   by: flag("--by") ?? "",
   at: new Date().toISOString().slice(0, 10),
 };
+
 appendFileSync(BANK, JSON.stringify(row) + "\n");
 console.log(`label: ${judge} ${labelWord} ← ${row.where} (${id})`);

@@ -17,6 +17,7 @@ await mkdir(consumer);
 const servers = [];
 const env = { ...process.env, CI: "true", npm_config_audit: "false", npm_config_fund: "false" };
 console.log(`Proof folder: ${scratch}`);
+
 console.log(
   "Assumption: shared 0.7.0 is the first GitHub set; 0.7.1 is a local version-only upgrade fixture.",
 );
@@ -200,4 +201,5 @@ try {
 } finally {
   for (const child of servers.reverse()) await stop(child);
 }
+
 console.log("PASS: every proof server stopped by PID. Nothing published.");

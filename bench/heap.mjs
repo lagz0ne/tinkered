@@ -3,6 +3,7 @@
 // A "request" = a fresh scope that resolves an op (with a data dep) and builds a resource, kept live.
 const { createScope, data, operation, resource, tag } =
   await import("../packages/core/dist/index.mjs");
+
 if (!globalThis.gc) {
   console.error("run with --expose-gc");
   process.exit(1);
@@ -40,6 +41,7 @@ const zone = tag({ label: "zone", default: "base" });
 const liveTagged = new Array(N);
 globalThis.gc();
 const beforeTagged = process.memoryUsage().heapUsed;
+
 for (let i = 0; i < N; i++) {
   const scope = createScope();
   scope.controller(n).set(1);
@@ -48,6 +50,7 @@ for (let i = 0; i < N; i++) {
     flight: scope.run(doubled, { tags: [zone("us")] }),
   };
 }
+
 globalThis.gc();
 const afterTagged = process.memoryUsage().heapUsed;
 const perReqTagged = (afterTagged - beforeTagged) / N;

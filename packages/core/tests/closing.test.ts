@@ -22,16 +22,19 @@ const rootWait = resource({
   label: "root-wait",
   factory: (_deps, ctx) => waiting(ctx),
 });
+
 const sessionWait = resource({
   label: "session-wait",
   target: "session",
   factory: (_deps, ctx) => waiting(ctx),
 });
+
 const waitAtRoot = operation({
   label: "wait-at-root",
   depends: { owned: rootWait },
   run: ({ owned }) => owned.wait,
 });
+
 const waitAtSession = operation({
   label: "wait-at-session",
   depends: { owned: sessionWait },

@@ -141,6 +141,7 @@ export declare namespace UseData {
 
 /** Reactively read a `data` cell: returns its current value and re-renders when it changes. */
 export function useData<T>(cell: Data.Cell<T>): T;
+
 /** Reactively read a slice of a `data` cell: returns `selector(value)` and re-renders only when the
  * slice changes (`isEqual`, default `Object.is`). Lets a component subscribe to part of a cell. */
 export function useData<T, S>(
@@ -148,16 +149,19 @@ export function useData<T, S>(
   selector: (value: T) => S,
   isEqual?: (a: S, b: S) => boolean,
 ): S;
+
 export function useData<T>(
   cell: Data.Cell<T>,
   options: UseData.Options<T> & { readonly writable: true },
 ): UseData.Pair<T, T>;
+
 /** Read a slice and write the whole cell: `[selector(value), set]`. */
 export function useData<T, S>(
   cell: Data.Cell<T>,
   selector: (value: T) => S,
   options: UseData.Options<S> & { readonly writable: true },
 ): UseData.Pair<T, S>;
+
 export function useData<T, S>(
   cell: Data.Cell<T>,
   a?: ((value: T) => S) | UseData.Options<T>,
@@ -352,10 +356,12 @@ export function useResource<T>(
   handle: Resource.Handle<T>,
   options?: { suspense?: true; ns?: Namespace },
 ): Awaited<T>;
+
 export function useResource<T>(
   handle: Resource.Handle<T>,
   options: { suspense: false; ns?: Namespace },
 ): Query.Handle<Awaited<T>>;
+
 export function useResource<T>(
   handle: Resource.Handle<T>,
   options: Query.Options = QUERY_OPTIONS,

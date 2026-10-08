@@ -10,6 +10,7 @@ import { deferred } from "./support/deferred";
 type Boxed = { x: number };
 
 const region = tag<string>({ label: "region" });
+
 const needsRegion = resource({
   label: "needsRegion",
   depends: { region: region.required },
@@ -25,6 +26,7 @@ function ShowRegion(): React.ReactElement {
 }
 
 let captured: unknown;
+
 function capture(error: unknown): React.ReactElement {
   captured = error;
   return <p>caught</p>;

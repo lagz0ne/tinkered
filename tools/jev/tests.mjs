@@ -15,10 +15,12 @@ import { tests as extractTests, helpers, imports } from "./extract.mjs";
 
 const args = process.argv.slice(2);
 const targets = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
+
 if (targets.length === 0) {
   console.error("usage: node tools/jev/tests.mjs <pkg | file…> [--json out.json] [--pairs N]");
   process.exit(1);
 }
+
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const jsonOut = opt("--json");
 const CALIBRATION = readCalibration();
@@ -52,6 +54,7 @@ function fileNotes(src, file) {
 
 const INTERNAL_SUBJECT =
   /Object\.isFrozen\(|\.prototype\b|\.constructor\b|^(?:e|err|error|thrown|caught|failure)\.message$/;
+
 const INTERNAL_MATCHER = /^toHaveBeenCalled|^toBeInstanceOf$/;
 
 /** Per test, from its extracted assertions and narrowings. */
@@ -76,6 +79,7 @@ const STOP = new Set(
     " ",
   ),
 );
+
 const stems = (s) =>
   new Set(
     s
@@ -106,6 +110,7 @@ async function judgeTest(t) {
 
 if (!loadKey()) process.exit(0);
 const report = [];
+
 for (const file of targets.flatMap(readFiles)) {
   const src = readFileSync(file, "utf8");
   const tests = extractTests(src, file);
@@ -119,9 +124,12 @@ for (const file of targets.flatMap(readFiles)) {
     );
   }
 }
+
 const flagged = report.filter((r) => r.notes.some((n) => !n.startsWith("~"))).length;
+
 console.log(
   `\njev tests: ${flagged}/${report.length} entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.`,
 );
+
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(report, null, 2) + "\n");
 process.exit(0);

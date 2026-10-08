@@ -68,6 +68,7 @@ function run(check, args) {
 }
 
 const proofs = [];
+
 function prove(check, args, expected, plant) {
   const red = run(check, args);
   assert.equal(red.exit, 1, JSON.stringify(red));

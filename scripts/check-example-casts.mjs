@@ -4,9 +4,11 @@ import { createRequire } from "node:module";
 const { parseSync } = createRequire(new URL("../tools/jev/package.json", import.meta.url))(
   "oxc-parser",
 );
+
 const skipped = /(^|\/)(node_modules|dist)(\/|$)|\.d\.ts$/;
 const targets = process.argv.slice(2);
 const folders = targets.length ? targets : ["examples"];
+
 const files = folders.flatMap((folder) =>
   globSync(`${folder}/**/*.{ts,tsx}`, { exclude: (path) => skipped.test(path) }),
 );
@@ -22,6 +24,7 @@ function walk(node, visit) {
 }
 
 let failures = 0;
+
 for (const file of new Set(files)) {
   const source = readFileSync(file, "utf8");
   const { program, errors } = parseSync(file, source, { sourceType: "module" });

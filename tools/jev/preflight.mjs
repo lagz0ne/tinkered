@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 /** Per-judge status from `tools/jev/calibrate.mjs`; a `noisy` judge prints as `~` (a note, not a flag). */
 const CALIBRATION = readCalibration();
+
 import {
   loadKey,
   ask,
@@ -28,6 +29,7 @@ console.log(`jev pre-flight (advisory) — clear or explain these before reporti
 let flags = 0;
 const files = changedSources(range);
 if (files.length === 0) console.log("(no source files changed)");
+
 for (const f of hasKey ? files : []) {
   const code = fileAt(range, f);
   if (!code.trim()) continue;
@@ -53,13 +55,16 @@ for (const f of hasKey ? files : []) {
     console.log(`  ⚠ ${f}: ${hits.join(", ")}`);
   } else console.log(`  ✓ ${f}`);
 }
+
 if (files.length) {
   console.log("");
   execFileSync("node", ["tools/jev/lint.mjs", ...files.filter((f) => existsSync(f))], {
     stdio: "inherit",
   });
 }
+
 console.log(
   `\njev pre-flight: ${flags} file flag(s) plus the lint notes above. An ℹ note is a hint: no fix or label owed. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (tools/jev/label.mjs). Not a gate.`,
 );
+
 process.exit(0);

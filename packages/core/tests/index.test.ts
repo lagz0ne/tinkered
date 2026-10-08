@@ -21,6 +21,7 @@ const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
   return v;
 };
+
 const asText = (v: unknown): string => {
   if (typeof v !== "string") throw new Error("not a string");
   return v;
@@ -360,6 +361,7 @@ test("a write through an object inheriting from deps lands on the child, not on 
   });
   expect(createScope().controller(top).resolve()).toEqual({ child: 5, own: true, deps: 1 });
 });
+
 const region = tag<string>({ label: "region", default: "base" });
 const maybe = tag<string | undefined>({ label: "maybe", default: undefined });
 const secret = tag<string>({ label: "secret" });

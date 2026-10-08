@@ -16,6 +16,7 @@ const shared = data({ label: "shared", initial: "none" });
 const zone = tag<string>({ label: "zone" });
 const db = resource({ label: "db", factory: () => ({ open: true }) });
 const bug = new Error("bug");
+
 const panic = operation({
   label: "panic",
   run: async () => {

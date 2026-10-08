@@ -74,9 +74,11 @@ export const pickerOpenCell = data<boolean>({ label: "pickerOpen", initial: fals
 export const renameCell = data<string | undefined>({ label: "rename", initial: undefined });
 /** True once the user has changed a file (content, add, close, rename); reset clears it. */
 export const dirtyCell = data<boolean>({ label: "dirty", initial: false });
+
 export const statusCell = data<Status>({
   label: "status",
   initial: { kind: "info", text: "starting…" },
 });
+
 /** The last successful bundle: what the preview runs. Undefined until the first compile lands. */
 export const bundleCell = data<string | undefined>({ label: "bundle", initial: undefined });

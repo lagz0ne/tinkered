@@ -35,6 +35,7 @@ const N = 1000;
 const cellN = data({ label: "cellN", initial: { v: 0 } });
 const ctlN = createScope().controller(cellN);
 const storeN = createStore(() => ({ v: 0 }));
+
 for (let i = 0; i < N; i++) {
   ctlN.watch(() => void sink++);
   storeN.subscribe(() => void sink++);
@@ -42,6 +43,7 @@ for (let i = 0; i < N; i++) {
 
 let kw = 0;
 let kn = 0;
+
 const scenarios = [
   // write + notify one subscriber (the reactive core)
   {
@@ -80,9 +82,11 @@ const minOf = (alias) => {
   const b = res.benchmarks.find((x) => x.alias === alias);
   return b?.runs?.[0]?.stats?.min ?? Number.NaN;
 };
+
 const fmt = (n) => (Number.isFinite(n) ? n.toFixed(4) : "NaN");
 
 console.log("\n--- metrics (min ns/iter; lower is better) ---");
+
 for (const s of scenarios) {
   const t = minOf(`${s.key}_tinker`);
   const z = minOf(`${s.key}_zustand`);

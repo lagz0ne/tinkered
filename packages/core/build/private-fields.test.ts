@@ -7,9 +7,11 @@ import { expect, test } from "vite-plus/test";
 import { privateFields } from "./private-fields";
 
 const core = fileURLToPath(new URL("..", import.meta.url));
+
 const listed = JSON.parse(
   readFileSync(new URL("./private-fields.json", import.meta.url), "utf8"),
 ) as string[];
+
 const imports = `import { createScope } from "@tinker/core";\n`;
 /** Each test's own time limit: every test packs Core once. */
 const BUILD_MS = 60_000;

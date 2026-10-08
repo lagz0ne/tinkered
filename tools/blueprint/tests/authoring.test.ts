@@ -13,12 +13,14 @@ import {
 } from "../src/index";
 
 const namespaceSource = 'const client = resource({ label: "client", target: "namespace" });';
+
 const namespaceYaml = `- resource:
     name: client
     target: namespace
     promise: one client per key until root close
     why: each service has its own settings
 `;
+
 const hooks = `{
     async run(event) {
       if (!event.resolve(managed)) return event.next();
@@ -32,11 +34,13 @@ const hooks = `{
       return event.next();
     },
   }`;
+
 const engineSource = `const managed = tag({ label: "managed", default: false });
 const active = data({ label: "active", initial: 0 });
 const client = resource({ label: "client", target: "session", factory: () => ({}) });
 const send = operation({ label: "send", run: () => undefined });
 const engine = extension({ label: "engine", hooks: ${hooks} });`;
+
 const engineYaml = `- tag:
     name: managed
     promise: whether the engine controls this key

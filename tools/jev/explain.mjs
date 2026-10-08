@@ -50,6 +50,7 @@ console.log(
     ? `\n### guide — the unit classifier lint.mjs uses; for words, blueprint suggest\n`
     : `\n== guide — the unit classifier lint.mjs uses; for words, blueprint suggest\n`,
 );
+
 for (const [id, g] of Object.entries(GUIDE)) {
   const q = g.q;
   if (md) {

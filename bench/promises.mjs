@@ -3,6 +3,7 @@
 import { createHook } from "node:async_hooks";
 
 let promises = 0;
+
 const hook = createHook({
   init(_id, type) {
     if (type === "PROMISE") promises++;
@@ -35,6 +36,7 @@ const sync = measure(() => {
 
 // --- ASYNC lane: a representative async toggle (async op writes a cell over one tick) ---
 const asyncToggle = data({ label: "out", initial: "" });
+
 const toggle = operation({
   label: "toggle",
   depends: { out: asyncToggle.controller },
@@ -44,6 +46,7 @@ const toggle = operation({
     out.set("b");
   },
 });
+
 promises = 0;
 hook.enable();
 const scope = createScope();
@@ -71,16 +74,20 @@ console.log(`async-toggle promises: ${asyncCount}   (budget <=10)`);
 console.log(`METRIC promises_tagged=${taggedCount}`);
 
 let fail = false;
+
 if (sync !== 0) {
   console.error(`FAIL: sync lane allocated ${sync} promises, budget is 0`);
   fail = true;
 }
+
 if (asyncCount > 10) {
   console.error(`FAIL: async toggle allocated ${asyncCount} promises, budget is <=10`);
   fail = true;
 }
+
 if (taggedCount !== 2) {
   console.error(`FAIL: tagged run allocated ${taggedCount} promises, budget is exactly 2`);
   fail = true;
 }
+
 process.exit(fail ? 1 : 0);

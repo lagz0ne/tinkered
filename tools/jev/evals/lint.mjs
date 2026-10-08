@@ -17,6 +17,7 @@ const FLOOR = 0.3;
 if (!loadKey()) process.exit(0);
 let pass = 0;
 let total = 0;
+
 const row = (ok, line) => {
   total++;
   if (ok) pass++;
@@ -61,6 +62,7 @@ console.log("\nguide: target (floor 0.6)");
 for (const c of TARGET_CASES) await choiceCase("target", c);
 
 console.log("\nguide: needsDefer");
+
 {
   const q = { needsDefer: GUIDE.needsDefer.q };
   const bad = (await ask(DEFER_CASES.bad, q)).needsDefer.probability;

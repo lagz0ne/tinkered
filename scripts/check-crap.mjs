@@ -7,10 +7,12 @@ import { readFileSync } from "node:fs";
 
 const cfg = readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8");
 const m = cfg.match(/complexity:\s*\[\s*"error"\s*,\s*\{\s*max:\s*(\d+)/);
+
 if (!m) {
   console.error("FAIL: could not read the enforced complexity cap from vite.config.ts");
   process.exit(1);
 }
+
 const cap = Number(m[1]);
 const cov = Number(process.argv[2] ?? 0.6); // default = Stryker break floor
 const ceiling = Number(process.argv[3] ?? 30);
@@ -19,8 +21,10 @@ const crap = cap ** 2 * (1 - cov) ** 3 + cap;
 console.log(`enforced complexity cap : ${cap}   (oxlint hard gate)`);
 console.log(`coverage (mutation score): ${(cov * 100).toFixed(1)}%`);
 console.log(`worst-case CRAP          : ${crap.toFixed(2)}   (ceiling ${ceiling})`);
+
 if (crap > ceiling) {
   console.error(`FAIL: worst-case CRAP ${crap.toFixed(2)} exceeds ceiling ${ceiling}`);
   process.exit(1);
 }
+
 console.log("CRAP: OK");

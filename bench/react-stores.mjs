@@ -165,6 +165,7 @@ const mount = async (App) => {
 
 // (a) re-render count: update ONE slice on a mounted tree, count renders (ideal 1). Then unmount.
 const renders = {};
+
 for (const [name, lib] of Object.entries(libs)) {
   const root = await mount(lib.App);
   lib.reset();
@@ -176,10 +177,12 @@ for (const [name, lib] of Object.entries(libs)) {
 // (b) update latency on live trees (own trees for this group).
 const live = {};
 const counters = {};
+
 for (const [name, lib] of Object.entries(libs)) {
   live[name] = await mount(lib.App);
   counters[name] = 1;
 }
+
 group("update", () => {
   summary(() => {
     for (const [name, lib] of Object.entries(libs)) {
@@ -210,7 +213,9 @@ const minOf = (a) => res.benchmarks.find((b) => b.alias === a)?.runs?.[0]?.stats
 const fmt = (n) => (Number.isFinite(n) ? n.toFixed(1) : "NaN");
 console.log("\n--- metrics (update/mount = min ns/iter; renders = count, ideal 1) ---");
 for (const name of Object.keys(libs)) console.log(`METRIC renders_${name}=${renders[name]}`);
+
 for (const name of Object.keys(libs))
   console.log(`METRIC update_${name}=${fmt(minOf(`update_${name}`))}`);
+
 for (const name of Object.keys(libs))
   console.log(`METRIC mount_${name}=${fmt(minOf(`mount_${name}`))}`);

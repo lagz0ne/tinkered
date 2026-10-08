@@ -115,14 +115,17 @@ export function makeTestRandom(options?: Random.Options): CoreRandom.Handle {
  * untyped (a `Record<string, unknown>`, like the real factory) — narrow at use. A `void`-returning
  * resource is the one shape whose async/sync parity the type cannot enforce; don't preset one async. */
 export function preset<T>(node: Data.Cell<T>, value: T): Scope.Preset;
+
 export function preset<T, I>(
   node: Operation.Handle<T, I>,
   run: (deps: Record<string, unknown>, ctx: Operation.Ctx<I>) => T,
 ): Scope.Preset;
+
 export function preset<T>(
   node: Resource.Handle<T>,
   factory: (deps: Record<string, unknown>, ctx: Resource.Ctx) => T,
 ): Scope.Preset;
+
 export function preset(node: unknown, replacement: unknown): Scope.Preset {
   return { [presetSym]: true, node, replacement } as Scope.Preset;
 }

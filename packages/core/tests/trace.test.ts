@@ -12,11 +12,13 @@ import {
 } from "../src/index";
 
 const readSpan = operation({ label: "readSpan", run: (_deps, ctx) => ctx.obs.span });
+
 const seed: Observe.Trace = {
   traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
   parentSpanId: "00f067aa0ba902b7",
   sampled: false,
 };
+
 const hint = tag<string>({ label: "hint" });
 
 test("importing core draws no random values; the id stream seeds on the first observed span", () => {

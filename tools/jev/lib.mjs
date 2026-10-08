@@ -78,6 +78,7 @@ export async function resolvePick(askFn, state, questions) {
 // ---------- git helpers ----------
 const git = (args) => execSync(`git ${args}`, { encoding: "utf8" });
 export const diff = (range) => git(`diff ${range}`);
+
 export const message = (range) => {
   // last commit in the range; for a worktree range fall back to the staged summary
   try {
@@ -86,6 +87,7 @@ export const message = (range) => {
     return "";
   }
 };
+
 /** Changed source files in a range, excluding tests/config/generated. */
 export function changedSources(range) {
   const untracked = range.includes("..") ? "" : git("ls-files --others --exclude-standard");
@@ -94,6 +96,7 @@ export function changedSources(range) {
     .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$|\.config\.|\/dist\//.test(f))
     .filter(Boolean);
 }
+
 /** A file's content at the new side of the range (working tree if no `..`). */
 export function fileAt(range, path) {
   const rhs = range.includes("..") ? range.split("..").pop() : "";
@@ -181,6 +184,7 @@ export const OVERCLAIM = {
 /** This package's own directory: its bank and calibration live here, whatever the cwd. */
 export const HERE = dirname(fileURLToPath(import.meta.url));
 export const BANK = join(HERE, "cases.jsonl");
+
 /** The per-judge calibration written by `calibrate.mjs`; `{}` until the first run. */
 export function readCalibration() {
   try {
@@ -189,4 +193,5 @@ export function readCalibration() {
     return {};
   }
 }
+
 export const pct = (p) => `${(p * 100).toFixed(0)}%`;

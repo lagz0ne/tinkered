@@ -6,12 +6,15 @@ import { createScope, operation, tag, type Operation } from "../src/index";
  * `arguments`, so a parameter count proves nothing about what a body reads. A sync body on an
  * idle session comes back as a value, tagged or not (ADR 0072). */
 const zone = tag<string>({ label: "zone", default: "base" });
+
 const wrap =
   <A extends unknown[], R>(fn: (...args: A) => R) =>
   (...args: A): R =>
     fn(...args);
+
 /** A real ctx, captured from a probe run, to stand as a parameter default in the tests below. */
 let captured: Operation.Ctx<void> | undefined;
+
 createScope().run(
   operation({
     label: "probe",
@@ -20,6 +23,7 @@ createScope().run(
     },
   }),
 );
+
 const fallback = ((ctx) => {
   if (ctx === undefined) throw new Error("the probe run captured no ctx");
   return ctx;

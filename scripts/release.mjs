@@ -9,10 +9,12 @@ import { releaseUrls } from "../packages/start/lib/release.mjs";
 
 /** Local assets only. There is deliberately no publish mode or GitHub client. */
 const [version, ...flags] = process.argv.slice(2);
+
 assert.ok(
   flags.every((flag) => flag === "--dry"),
   "usage: node scripts/release.mjs <version> [--dry]",
 );
+
 const urls = releaseUrls(version);
 const root = resolve(import.meta.dirname, "..");
 const out = join(root, ".release", `start-v${version}`);
@@ -23,6 +25,7 @@ const packDir = join(scratch, "packs");
 await mkdir(packDir);
 await mkdir(assets, { recursive: true });
 const run = (command, args, cwd = root) => execFileSync(command, args, { cwd, stdio: "inherit" });
+
 try {
   run("vp", ["run", "-r", "build"]);
   const manifest = { version, tag: `start-v${version}`, assets: [] };

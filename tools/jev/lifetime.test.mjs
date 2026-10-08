@@ -8,10 +8,13 @@ import { inspectPlain } from "./plain.mjs";
 import { gateOf } from "../writer-trial/gate.mjs";
 
 const APP = "apps/tracker/src/main.ts";
+
 const fixture = (name) =>
   readFileSync(new URL(`fixtures/lifetime-rules/${name}.txt`, import.meta.url), "utf8");
+
 const lifetimeRows = (source, file = APP, writer = false) =>
   inspectPlain(source, file, { writer }).filter((r) => r.id === "S19" || r.id === "S29");
+
 const ready = fixture("ready");
 const stop = fixture("stop");
 

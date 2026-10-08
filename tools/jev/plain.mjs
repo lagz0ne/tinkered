@@ -83,8 +83,10 @@ const INTERNALS = new Set(["isFrozen", "getPrototypeOf", "getOwnPropertyDescript
 const BARE_ERRORS = new Set(["Error", "TypeError", "RangeError"]);
 const ERROR_MATCHERS = new Set(["toBeInstanceOf", "toThrowErrorMatchingInlineSnapshot"]);
 const SLEEPS = new Set(["setTimeout", "sleep"]);
+
 const PUBLIC_ENTRY =
   /^(?:[a-z-]+\/)?(?:index|testing|sse|pglite|migrations|dev|pages)(\.(ts|tsx|js))?$/;
+
 const PRIVATE_SRC = /^(\.\.\/)+src\/(.+)$/;
 const TS_DIRECTIVE = /^[\s*/]*@ts-(ignore|expect-error)\b/m;
 const LINT_DIRECTIVE = /^[\s*/]*(eslint|oxlint|biome)-disable/m;
@@ -346,8 +348,10 @@ function parseRow(errors, starts) {
 const UNIT_BUILDERS = new Map([
   ["@tinker/core", new Set(["data", "operation", "resource", "tag"])],
 ]);
+
 const HANDLE_TYPE =
   /\b(DataController|Controller|Scope\.Handle|Scope\.RootHandle|Scope\.Session|Session)\b/;
+
 const FN_NODE = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 
 /** Local names the file imports by name from `module` for one of `wanted`. */
@@ -472,20 +476,25 @@ const USERLAND = /(^|\/)(apps|examples)\//;
 const PACKAGE_SRC = /(^|\/)(?:packages\/[^/]+\/src\/|tools\/blueprint\/(?:src|tinker)\/)/;
 const BROWSER_ENTRY = /\.tsx$|(^|\/)client\//;
 const GLOBALS = new Set(["globalThis", "window", "self"]);
+
 const RANDOM = new Map([
   ["Math", new Set(["random"])],
   ["crypto", new Set(["randomUUID", "getRandomValues"])],
 ]);
+
 const RANDOM_IMPORTS = new Set(["randomUUID", "getRandomValues"]);
+
 const CLOCK = new Map([
   ["Date", new Set(["now"])],
   ["performance", new Set(["now"])],
 ]);
+
 const TIMERS = new Set(["setTimeout", "setInterval"]);
 const STATE_HOOKS = new Set(["useState", "useReducer"]);
 const TRANSPORT_PAIR = new Set(["onMessage", "onClose"]);
 const LISTEN = /^on[A-Z]/;
 const HANDLE_MAKERS = new Set(["createScope", "createSession", "useScope"]);
+
 /** The config path to each core builder's body; extension hooks are nested. */
 const UNIT_BODY = new Map([
   ["operation", ["run"]],
@@ -1174,11 +1183,13 @@ function programHits(source, program, file, writer) {
 const CUSTOM_TAGS = ["@ambientSource"];
 
 const TSDOC_CONFIG = new TSDocConfiguration();
+
 TSDOC_CONFIG.addTagDefinitions(
   CUSTOM_TAGS.map(
     (tagName) => new TSDocTagDefinition({ tagName, syntaxKind: TSDocTagSyntaxKind.ModifierTag }),
   ),
 );
+
 const TSDOC = new TSDocParser(TSDOC_CONFIG);
 
 /** The offset of a `@param` block's tag inside its doc. */

@@ -14,6 +14,7 @@ process.stdout.write = () => true;
 let sends = 0;
 let sentBytes = 0;
 const clock = makeTestClock({ now: 1_800_000_000_000 });
+
 const tools = createScope({
   clock,
   extensions: [telemetryExport],
@@ -31,15 +32,18 @@ const tools = createScope({
     }),
   ],
 });
+
 await tools.ready;
 const app = createScope({ clock, observe: tools.resolve(observer) });
 await app.ready;
 const small = operation({ label: "bench.op", run: () => 1 });
 let sum = 0;
+
 for (let index = 0; index < 100_000; index++) {
   sum += app.run(small);
   if ((index + 1) % 500 === 0) await tools.run(flushTelemetry);
 }
+
 if ((await app.close({ graceful: true })).status !== "success") process.exit(1);
 if ((await tools.close({ graceful: true })).status !== "success") process.exit(1);
 process.stderr.write(`${JSON.stringify({ sum, sends, sentBytes })}\n`);

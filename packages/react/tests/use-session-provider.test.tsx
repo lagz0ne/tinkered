@@ -7,6 +7,7 @@ import { ScopeProvider, SessionProvider, useController, useData, useResource } f
 const cell = data({ label: "cell", initial: "root" });
 
 let end: string | undefined;
+
 const conn = resource({
   label: "conn",
   target: "session",

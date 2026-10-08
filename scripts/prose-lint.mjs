@@ -74,8 +74,10 @@ const RULES = [
 ];
 
 const ROOT = resolve(fileURLToPath(import.meta.url), "../..");
+
 const FROZEN =
   /^(docs\/decisions\/|docs\/roadmap\/archive\/|research\/|node_modules\/|.*\/node_modules\/)/;
+
 /** Path as the repo sees it, so the frozen list matches whether the caller passed absolute or relative. */
 const inRepo = (f) => relative(ROOT, resolve(f));
 
@@ -139,16 +141,20 @@ function trackedDocs() {
 }
 
 const args = process.argv.slice(2);
+
 if (args[0] === "--md") {
   console.log("| instead of | say |\n| --- | --- |");
   for (const [re, say] of RULES) console.log(`| \`${re}\` | ${say} |`);
   process.exit(0);
 }
+
 const wideMode = args[0] === "--wide";
 if (wideMode) args.shift();
+
 const files = (args.length ? args.map(inRepo) : trackedDocs()).filter(
   (f) => f.endsWith(".md") && !FROZEN.test(f),
 );
+
 if (wideMode) {
   const lines = files.map(wide).filter(Boolean);
   for (const l of lines) console.log(l);
@@ -157,6 +163,7 @@ if (wideMode) {
   );
   process.exit(0);
 }
+
 const hits = files.flatMap(lint);
 for (const h of hits) console.log(h);
 console.log(`prose-lint: ${hits.length} hit(s) in ${files.length} file(s)`);

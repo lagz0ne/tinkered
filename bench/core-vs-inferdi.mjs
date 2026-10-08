@@ -24,6 +24,7 @@ const { createScope, data, resource } = await import("../packages/core/dist/inde
 // --- tinker definitions (module-level, built once) ---
 const cfg = data({ label: "cfg", initial: 21 });
 const doubled = resource({ label: "doubled", depends: { n: cfg }, factory: ({ n }) => n * 2 });
+
 const store = resource({
   label: "store",
   depends: { d: doubled },
@@ -46,6 +47,7 @@ const warmRoot = new Container()
   .registerValue("cfg", 21)
   .registerFactory("doubled", (r) => r.get("cfg") * 2, ["cfg"])
   .registerFactory("store", (r) => ({ base: r.get("doubled"), size: () => 0 }), ["doubled"]);
+
 warmRoot.get("store"); // prime the singleton cache
 
 // ---------------------------------------------------------------------------
@@ -90,6 +92,7 @@ const fmt = (n) => (Number.isFinite(n) ? n.toFixed(4) : "NaN");
 // Cold-di ns is GC-noise-dominated; allocation bytes/iter (stats.heap.min) is near-deterministic and
 // is the true lever (less allocation -> less GC -> faster). Emit both: `_b` = alloc bytes/iter.
 console.log("\n--- metrics (ns = min ns/iter; _b = alloc bytes/iter; both lower is better) ---");
+
 for (const s of scenarios) {
   const t = statsOf(`${s.key}_tinker`);
   const e = statsOf(`${s.key}_inferdi`);

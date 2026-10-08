@@ -24,6 +24,7 @@ const { values } = parseArgs({
     "client-dir": { type: "string" },
   },
 });
+
 const baseline = JSON.parse(readFileSync(values.baseline, "utf8"));
 const bundle = resolve(values["core-bundle"]);
 const driver = resolve("scripts/fast-code-driver.mjs");
@@ -159,8 +160,10 @@ const checks = {
   closures: closureCheck,
   client: clientCheck,
 };
+
 if (values.only && !checks[values.only]) throw new Error(`Unknown check ${values.only}`);
 let failed = 0;
+
 for (const [name, check] of Object.entries(checks)) {
   if (values["rebaseline-engine"]) continue;
   if (values.only && name !== values.only) continue;
@@ -187,6 +190,7 @@ for (const [name, check] of Object.entries(checks)) {
     );
   }
 }
+
 if (values["rebaseline-engine"]) {
   try {
     rewriteEngineBaseline();
@@ -195,4 +199,5 @@ if (values["rebaseline-engine"]) {
     console.error(`Engine baseline unchanged: ${error.message}`);
   }
 }
+
 process.exitCode = failed ? 1 : 0;

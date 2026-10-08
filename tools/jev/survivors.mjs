@@ -16,12 +16,14 @@ import { SURVIVORS, sliceSurvivors, forSurvivorJev } from "./bank.mjs";
 
 const args = process.argv.slice(2);
 const targets = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
+
 if (targets.length === 0) {
   console.error(
     "usage: node tools/jev/survivors.mjs <pkg> [--report path] [--json out.json] [--limit N] [--top N]",
   );
   process.exit(1);
 }
+
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const reportPath = opt("--report", join("packages", targets[0], "reports/mutation/mutation.json"));
 const jsonOut = opt("--json");
@@ -35,16 +37,19 @@ const ID = "survivorMatters";
 const { threshold, q } = SURVIVORS[ID];
 
 if (!loadKey()) process.exit(0);
+
 if (!existsSync(reportPath)) {
   console.error(
     `jev survivors: no report at ${reportPath}; run stryker with the json reporter first`,
   );
   process.exit(0);
 }
+
 const report = JSON.parse(readFileSync(reportPath, "utf8"));
 const survivors = sliceSurvivors(report, `packages/${targets[0]}`).slice(0, limit);
 
 const rows = [];
+
 for (const s of survivors) {
   const { probability } = (await ask(forSurvivorJev(s), { [ID]: q }))[ID];
   rows.push({ ...s, probability });
@@ -54,10 +59,12 @@ for (const s of survivors) {
 const short = (s) => s.replace(/\s+/g, " ").trim().slice(0, 60);
 
 const byFile = new Map();
+
 for (const r of [...rows].sort((a, b) => b.probability - a.probability).slice(0, top)) {
   if (!byFile.has(r.file)) byFile.set(r.file, []);
   byFile.get(r.file).push(r);
 }
+
 for (const [file, rs] of byFile) {
   console.log(file);
   for (const r of rs) {
@@ -68,10 +75,13 @@ for (const [file, rs] of byFile) {
     );
   }
 }
+
 const matter = rows.filter((r) => r.probability >= threshold && !mark(ID)).length;
 const nocov = rows.filter((r) => r.status === "NoCoverage").length;
+
 console.log(
   `\njev survivors: ${matter}/${rows.length} at or above ${threshold * 100}% (${nocov} never covered). Seam tests top-down; stop when the lane lands. Not a gate.`,
 );
+
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(rows, null, 2) + "\n");
 process.exit(0);

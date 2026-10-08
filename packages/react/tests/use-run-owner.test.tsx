@@ -5,11 +5,13 @@ import { ScopeProvider, useRun, type Run } from "../src/index";
 import { deferred } from "./support/deferred";
 
 const answer = tag<Promise<string>>({ label: "answer" });
+
 const readAnswer = operation({
   label: "readAnswer",
   depends: { answer },
   run: ({ answer }) => answer,
 });
+
 const readOther = operation({
   label: "readOther",
   depends: { answer },

@@ -25,6 +25,7 @@ const DEFAULT = [
   "apps/issue-tracker/src/*.ts",
   "apps/issue-tracker/src/*.tsx",
 ];
+
 const VALUED = new Set(["--limit", "--json"]);
 const args = process.argv.slice(2);
 const valueOf = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -83,6 +84,7 @@ const hasKey = loadKey();
 const files = listFiles(paths.length ? paths : DEFAULT);
 const report = [];
 console.log(`jev lint (advisory) — ${files.length} file(s)\n`);
+
 for (const file of files) {
   if (report.length >= limit) break;
   const source = readFileSync(file, "utf8");
@@ -131,13 +133,17 @@ for (const file of files) {
 const flagged = report.filter((r) => r.flags.length).length;
 const noted = report.filter((r) => r.reads).length;
 const counts = {};
+
 for (const r of report)
   for (const f of r.flags) counts[f.split(" ")[0]] = (counts[f.split(" ")[0]] ?? 0) + 1;
+
 console.log(
   `\njev lint: ${report.length} unit(s), ${flagged} ⚠ flag(s), ${noted} ℹ note(s). By question: ${JSON.stringify(counts)}`,
 );
+
 console.log(
   "Advisory only — model ⚠ hits are fixed or explained, then labeled (a ~ hit: read it, no line owed); unitCouldBeModuleLevel (code) is deterministic and needs no label or calibration. vp check / tests / the lead decide.",
 );
+
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(report, null, 2));
 process.exit(0);

@@ -25,11 +25,13 @@ const N = 50;
 const cells = Array.from({ length: N }, (_, i) => data({ label: `c${i}`, initial: 0 }));
 const scope = createScope();
 let tRenders = 0;
+
 function TCell({ i }) {
   useData(cells[i]);
   tRenders++;
   return null;
 }
+
 const TApp = () =>
   h(ScopeProvider, { scope, children: cells.map((_, i) => h(TCell, { key: i, i })) });
 
@@ -39,12 +41,15 @@ const useZ = create(() => {
   for (let i = 0; i < N; i++) o[`k${i}`] = 0;
   return o;
 });
+
 let zRenders = 0;
+
 function ZCell({ i }) {
   useZ((s) => s[`k${i}`]);
   zRenders++;
   return null;
 }
+
 const ZApp = () =>
   h(
     Fragment,
@@ -80,6 +85,7 @@ const tlive = await mount(TApp);
 const zlive = await mount(ZApp);
 let tk = 1;
 let zk = 1;
+
 group("update", () => {
   summary(() => {
     bench("update_tinker", async () => {

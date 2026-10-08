@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 const { parseSync } = createRequire(new URL("../tools/jev/package.json", import.meta.url))(
   "oxc-parser",
 );
+
 const ending = /\.(?:ts|tsx|mts)$/;
+
 const moduleNodes = new Set([
   "ImportDeclaration",
   "ExportNamedDeclaration",
