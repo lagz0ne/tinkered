@@ -56,6 +56,7 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 - **start/lazy-modules** — the base and the checker for ADR 0107 ([brief](docs/roadmap/start-base/LAZY-MODULES-BRIEF.md)).
   Owner: lead (Claude, lazy-modules session); writer Sol, reviewer Opus.
+  Writer: `b0b13200` (Sol), worktree `../tinkered-lazy-modules`, branch `start/lazy-modules`.
   Next: writer builds the checker, then makes `packages/start` pass it.
   Verify: the checker's `--prove` and `vp run lazy` exit 0; gates 0; start mutation ≥ 75.
 
