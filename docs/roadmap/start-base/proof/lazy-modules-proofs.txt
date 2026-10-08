@@ -1,3 +1,4 @@
+Base main: 9890672b
 $ node scripts/check-lazy-modules.mjs --prove
 PASS namespace-loader: rule-8 EXIT 1
 PASS created-require: rule-8 EXIT 1
