@@ -39,6 +39,10 @@ PASS own: allowed EXIT 0
 PASS lazy: allowed EXIT 0
 PASS framework: allowed EXIT 0
 PASS type-query: allowed EXIT 0
+PASS conditional-unit: rule-7 EXIT 1
+PASS conditional-unit-own: allowed EXIT 0
+PASS factory-value: rule-7 EXIT 1
+PASS factory-value-own: allowed EXIT 0
 PASS star-reexport: rule-7 EXIT 1
 PASS namespace-star-reexport: rule-7 EXIT 1
 PASS own-star-reexport: allowed EXIT 0
@@ -85,5 +89,5 @@ PASS dep-member: allowed EXIT 0
 PASS own-require-method: allowed EXIT 0
 PASS own-require-function: allowed EXIT 0
 PASS own-createRequire: allowed EXIT 0
-Lazy module proof: 86 cases passed
+Lazy module proof: 90 cases passed
 EXIT 0

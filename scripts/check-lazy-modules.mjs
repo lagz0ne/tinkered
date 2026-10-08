@@ -135,10 +135,6 @@ function symbols(checker) {
       .filter(isExecutable);
   }
 
-  function ownFunction(node) {
-    return executables(node).find(isFunction);
-  }
-
   function property(object, name, seen = new Set()) {
     object = unwrap(object);
     if (!object || seen.has(object)) return undefined;
@@ -167,7 +163,7 @@ function symbols(checker) {
     if (coreCall(object, target)) return property(object.arguments[0], name, seen);
   }
 
-  return { target, ownFunction, executables, property };
+  return { target, executables, property };
 }
 
 function propertyDeclaration(checker, object, name) {
@@ -438,7 +434,7 @@ async function check(roots) {
     );
     const program = ts.createProgram([...new Set([...parsed.fileNames, ...files])], parsed.options);
     const checker = program.getTypeChecker();
-    const { target, ownFunction, executables, property } = symbols(checker);
+    const { target, executables, property } = symbols(checker);
     const bodies = [];
     for (const file of files) {
       walk(program.getSourceFile(file), (node) => {
@@ -446,7 +442,7 @@ async function check(roots) {
         if (!kind) return;
         const object = unwrap(node.arguments[0]);
         if (!object) return fail(node, 7, "unit body not found");
-        collectBodies(kind, object, ownFunction, property, checker, fail, modules, bodies);
+        collectBodies(kind, object, executables, property, checker, fail, modules, bodies);
       });
     }
     checkGraph(bodies, checker, target, executables, fail);
@@ -456,10 +452,13 @@ async function check(roots) {
   return hits.size ? 1 : 0;
 }
 
-function collectBodies(kind, object, ownFunction, property, checker, fail, modules, bodies) {
+function collectBodies(kind, object, executables, property, checker, fail, modules, bodies) {
   function collect(value) {
-    const body = value && ownFunction(value);
-    if (!body) return fail(value ?? object, 7, "unit body not found");
+    const found = executables(value).filter(isFunction);
+    if (!found.length) return fail(value ?? object, 7, "unit body not found");
+    for (const body of found) collectBody(body);
+  }
+  function collectBody(body) {
     const load = kind === "resource" ? lazyFactory(body) : undefined;
     if (
       load &&
@@ -704,6 +703,25 @@ async function prove() {
   };
   for (const test of cases) if (test.rule) test.hit = expected[test.name];
   cases.push(
+    {
+      name: "conditional-unit",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'const safe=()=>1, bad=()=>outside("x"); operation({label:"x",run:true?safe:bad});',
+    },
+    {
+      name: "conditional-unit-own",
+      source: 'const a=()=>1, b=()=>2; operation({label:"x",run:true?a:b});',
+    },
+    {
+      name: "factory-value",
+      rule: 7,
+      hit: "probe.ts:3",
+      source: outsideImport + 'const spec={label:"x",factory:()=>outside("x")}; resource(spec);',
+    },
+    { name: "factory-value-own", source: 'const spec={label:"x",factory:()=>1}; resource(spec);' },
     {
       name: "star-reexport",
       rule: 7,
