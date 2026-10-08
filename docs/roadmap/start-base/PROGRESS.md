@@ -1113,8 +1113,7 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 27 tests.
   The first clean-commit gate passed at `7e9ce9e1`: EXIT 0.
   Install, build, check, both test tasks, and all workspace tests passed after the rebase.
-  The full clean-commit gates passed at `7ca845e1` and `30322060`: EXIT 0.
-  The final gate will run again on the clean commit used for mutation.
+  The full clean-commit gates passed at `7ca845e1`, `30322060`, and `127ed2cf`: EXIT 0.
 - `vp run lazy`: EXIT 0.
   `node scripts/check-lazy-modules.mjs --prove`: EXIT 0; 90 cases.
 - `vp run -r test`: EXIT 0; all 10 tasks.
@@ -1193,8 +1192,8 @@ No Core change is requested.
 
 ### Mutation
 
-Two full Start mutation runs passed under `flock /tmp/mutation.lock`.
-The latest tested clean commit is `7ca845e122e3b2b6f8058eb56bd3136993ba759b`.
+Three full Start mutation runs passed under `flock /tmp/mutation.lock`.
+The latest tested clean commit is `127ed2cf45448a9630dda02926bea96946eb2a08`.
 The gate and mutation both returned EXIT 0.
 Kills alone: 3878 of 4547, or 85.29%; floor 75.
 There were 525 survivors, 42 timeouts, 101 with no coverage,
@@ -1213,5 +1212,7 @@ That proof was saved before rebasing onto the consumer change.
 Both label-file conflicts kept all rows from main and this ticket.
 Install, gate, all package tests, 19 validate lanes, and 90 plants passed again.
 Jev, the symbol check, and the strict style check also passed.
-The final clean-commit gate and mutation are next.
+The next clean-commit gate and mutation also passed, at `127ed2cf`.
+Main then gained six Start server commits, ending at `0f4152f5`.
+This proof is saved before merging those changes and running the final checks again.
 Nothing was pushed.
