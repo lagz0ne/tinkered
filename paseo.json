@@ -1,8 +1,14 @@
 {
   "worktree": {
-    "setup": ["\"$HOME/.local/vp/bin/vp\" install", "\"$HOME/.local/vp/bin/vp\" run -r build"]
+    "setup": ["scripts/worktree-setup.sh"]
   },
   "scripts": {
+    "setup": {
+      "command": "scripts/worktree-setup.sh"
+    },
+    "sync": {
+      "command": "scripts/worktree-sync.sh"
+    },
     "check": {
       "command": "\"$HOME/.local/vp/bin/vp\" check"
     },
@@ -11,6 +17,12 @@
     },
     "build": {
       "command": "\"$HOME/.local/vp/bin/vp\" run -r build"
+    },
+    "prose": {
+      "command": "\"$HOME/.local/vp/bin/vp\" run prose"
+    },
+    "review": {
+      "command": "node tools/jev/review.mjs main..HEAD"
     },
     "ready": {
       "command": "\"$HOME/.local/vp/bin/vp\" run ready"

@@ -30,6 +30,9 @@ so the gap never grows big.
   - after each green commit, if main has moved;
   - before review, and again before landing.
 - Then run `vp install` and `vp run -r build`.
+  `scripts/worktree-sync.sh` does all of it in one step.
+- A new worktree sets itself up: a git hook installs and builds it.
+  `TINKER_SETUP=0 git worktree add …` skips that.
 - Commit first. Never `git stash`.
 - Fix a conflict at once, while it is small.
 - A pinned tree (trial runner, bench base) stays on its commit.

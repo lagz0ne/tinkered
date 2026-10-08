@@ -1,0 +1,6 @@
+# A new worktree checks out from the null commit ($1 is all zeros): set it up once.
+# A branch switch in an existing tree does nothing. TINKER_SETUP=0 skips it.
+# The script comes from beside this hook, so a tree at an older commit is set up too.
+case "$1" in *[!0]*) exit 0 ;; esac
+[ "${TINKER_SETUP-}" = "0" ] && exit 0
+"$(dirname "$0")/../scripts/worktree-setup.sh"
