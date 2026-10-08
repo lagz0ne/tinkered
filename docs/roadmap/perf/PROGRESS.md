@@ -570,7 +570,20 @@ The lead reviews and lands this ticket; nothing is pushed.
   Install and fetch/rebase also returned 0.
 - Clean main and this lane each have zero errors and 27 warnings.
   React has 94 passing tests in 23 files.
-- Runtime size: 4,952 to 5,219 B gzip; cap 10,240 B.
+- Runtime size: 4,952 to 5,224 B gzip; cap 10,240 B.
   Exported declaration files match the base byte for byte.
 - Remaining: one queued A/B for both hooks, then the clean final
   React mutation run and its summary log.
+
+- Queued pair A/B: exit 0; verdict: b is faster.
+  A median 3,950 ms; B 3,162 ms; about 20 percent less time.
+  The 95 percent range is -1,124.4 to -366.7 ms.
+  Five paired rounds, one run each; production React, 1,500 frames.
+  Each of 144 tiles reads data, one run hook, and both resource modes.
+  This proves that render scene only, not full-app throughput.
+- A: clean main `5d9c0537`; B: clean source `3fca54be`.
+  Main stayed at the same commit at the final fetch/rebase.
+- [Queued pair timing proof](react-rules-timing.log).
+- The lane is saved in Review for the lead.
+  The final clean-tree mutation proof follows in its own log-only commit.
+  No ticket was dropped; no push or publish.

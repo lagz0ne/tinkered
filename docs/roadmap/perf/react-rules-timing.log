@@ -1,0 +1,10 @@
+A HEAD 5d9c0537612cf0189f16632de52d28dc6b008059
+B HEAD 3fca54be31981328bead6e02647cae1f723e5e11
+Both git status --porcelain: empty
+Command: flock /tmp/mutation.lock benchctl ab --cwd /home/paseo/next/lane-react-rules-lane --rounds 5 --runs-per-round 1 --env NODE_ENV=production --a "node ../../.cache/tinkered-briefs/react-rules-probes/ab-tiles.mjs ../react-rules-base 1500" --b "node ../../.cache/tinkered-briefs/react-rules-probes/ab-tiles.mjs . 1500"
+EXIT 0
+Scene: 144 tiles; data + run + suspense resource + local query; 1500 frames.
+A median 3950 ms   B median 3162 ms
+delta -788.3 ms (-20.0%)   95% range [-1124.4, -366.7] ms
+verdict: b is faster
+(waited 1.1s in the queue)

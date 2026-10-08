@@ -43,13 +43,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **react/rules-lane** — lean run and resource hooks.
-  Owner: React lane writer (Codex).
-  Next: port the study owners and prove stable handles.
-  Verify: gates 0; both regressions fail before the fix;
-  queued A/B and clean-tree React mutation at least 85.
-  [Track](docs/roadmap/perf/PROGRESS.md).
-
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
@@ -81,6 +74,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Verify: all gates exit 0; three regressions fail before the fix;
   run imports 26 -> 2; server-file checks 14 -> 0.
   A1 keeps two async bodies because Core rejects their sync forms.
+  [Track](docs/roadmap/perf/PROGRESS.md).
+
+- **react/rules-lane** — lean run and resource hooks.
+  Owner: React lane writer (Codex).
+  Next: lead review after the clean-tree mutation proof is saved.
+  Verify: all gates 0; both identity regressions fail before the fix;
+  both hooks have three slots; queued pair: b is faster.
   [Track](docs/roadmap/perf/PROGRESS.md).
 
 - **core/handle-proto** — shared scope verbs (ADR 0108).
