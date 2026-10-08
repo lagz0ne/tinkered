@@ -1110,8 +1110,8 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   One public test checks one load span across two sessions.
 - `vp run -r build`: EXIT 0; 12 tasks.
   `vp check`: EXIT 0; 0 errors and 27 warnings after the rebase.
-  The base is `0f4152f5`, with the Core, scaffold, and Start server changes.
-  `vp run @tinker/start#test`: EXIT 0; 41 files, 438 tests.
+  The base is `ae452162`, with the Core, scaffold, React, Start server, and sync changes.
+  `vp run @tinker/start#test`: EXIT 0; 41 files, 441 tests.
   `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 27 tests.
   The first clean-commit gate passed at `7e9ce9e1`: EXIT 0.
   Install, build, check, both test tasks, and all workspace tests passed after the rebase.
@@ -1137,11 +1137,12 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
 ### Jev labels
 
 `node tools/jev/preflight.mjs origin/main..HEAD`: EXIT 0.
-No file flags; five units had nine flags after the server rebase.
-All nine have saved answers below.
+No file flags; four units had seven flags after the sync rebase.
+All seven have saved answers below.
 Earlier entry, endpoint, and body answers stay in the bank.
 The label bank is `tools/jev/cases.jsonl`.
-Four new answers cover the changed body and the stream opener.
+Two new answers cover main's changed stream code.
+The earlier nine answers stay in the bank.
 The lead runs calibration when landing.
 `node tools/jev/tests.mjs start`: EXIT 0.
 The new module test passes.
@@ -1159,17 +1160,12 @@ The plain test notes have no judge in the label tool.
   No await in the factory; pulls check cancelled before delivery.
 - `configNotTag false http.ts#httpRequest`:
   URL and method are validated per-call input; transport is a dep.
-- `shapeGrowsPerCall false http.ts#httpRequest`:
-  Span fields go in a map; failure payloads use fixed keys.
 - `ignoresAbortAfterAwait false history.server.ts#eventHistory`:
   The caller owns the borrowed transaction and its cancellation.
 - `stateOutsideCell false stream.server.ts#eventStream`:
   Private stream records are not values watched by a view.
 - `ignoresAbortAfterAwait false stream.server.ts#eventStream`:
   Wake, replay, and heartbeat check ended after awaits.
-- `awaitsSyncWork false stream.server.ts#openSync`:
-  `stream.open` waits for the subscription and account reads.
-  This operation returns that real promise.
 
 ### Core feedback
 
@@ -1210,5 +1206,9 @@ Each result was saved before rebasing and running all proof checks again.
 The render conflict kept main's request-session cleanup.
 Every label-file conflict kept all rows from main and this ticket.
 Main then gained React and sync changes, ending at `ae452162`.
-This proof is saved before merging those changes and checking the final code again.
+Those changes are merged with both sets of labels kept.
+All workspace tests, 19 validate lanes, 90 plants, and the style check passed again.
+Jev found no missing README promises among 190 titles.
+Assumption: keep the newer stream waits and frames; only its Drizzle dep changes.
+The final clean-commit gate and mutation run follow this saved step.
 Nothing was pushed.
