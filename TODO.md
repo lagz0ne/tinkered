@@ -24,6 +24,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **perf/rules-batch-1** — the case study's six smallest, surest tickets ([plan](docs/roadmap/perf/CASE-STUDY.md)).
+  `react/run-callback-errors` (bug), `scaffold/auth-scope`, `start/abort-reasons`,
+  `react/run-sync-first` (bug), `react/data-zero-alloc`, `start/compress-stream`.
+  Verify: each bug has a test that fails on main; each speed claim has a `benchctl ab` verdict.
+
+- **perf/rules-batch-2** — telemetry serialize-once and capacity, sync frame share, `core/shape-preinit`, `core/run-budget`, `core/slot-order`.
+  Verify: as batch 1; Core cards also `N=61 bench/queued.sh` and mutation 85.
+
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
   and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
@@ -42,13 +50,6 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **repo/fast-code-rules** — the fast-code rules (from the 2026-10-07 perf study) in the house style, with ratchet checks in `pnpm validate`.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Checks: module slot count, hot-function bytecode sizes, OperationCtx inlined with Maglev on, closures in hot functions, no zod in the client.
-  Beside it, a case study (Opus, `/home/paseo/perf/rules-case/`) lists where Core, React, Start, and the apps break the rules, with a plan per case.
-  Next: lead review of the engine recovery fix on `repo/fast-code-rules`.
-  Verify: all gates exit 0; engine-mismatch plants still fail F9, F6, and F13; recovery exits 0; a refused rise leaves the baseline unchanged.
-  Proof: [rules and checks](docs/roadmap/repo-style/PROGRESS.md#repofast-code-rules).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
@@ -76,6 +77,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **repo/fast-code-rules** and **jev/fast-code-judges** — the fast-code rules are house style ([docs/fast-code.md](docs/fast-code.md)).
+  Ratchets in `pnpm validate`: Core slots 341, hot bytecode sizes, OperationCtx inlined (Maglev on), closures in hot functions, no zod in the client.
+  Jev preflight judges: madeEveryCall (proven), awaitsSyncWork, waitsOnSideWork, recomputesSameValue, shapeGrowsPerCall (provisional).
+  Census: P05 (unit made inside a function), P06 (unused `.then`).
+  Case study: [docs/roadmap/perf/CASE-STUDY.md](docs/roadmap/perf/CASE-STUDY.md).
 
 - **start/sync-test-warm** — one warm PGlite per test file; each scope gets and closes its own copy.
   Loaded median test time about 1.5 s to 0.7 s; Stryker's first pass passed 3 times in a row; no timeout raised; mutation 85.42 on kills.
