@@ -598,4 +598,18 @@ The lead reviews and lands this ticket; nothing is pushed.
   A cancelled run must reject with the caller's exact reason.
   A named reset must release a shared scope resource.
   All four pass; React now has 98 tests in 23 files.
-  The hook source stayed unchanged, so the pair timing still applies.
+  The hook behavior stayed unchanged, so the pair timing still applies.
+- Rebased onto `f360f870`; kept both lanes' board and proof notes.
+  Its scaffold changes do not change the React source or timing scene.
+- Jev reviews: zero file flags; all three flagged units labeled false.
+  The resource owner also retains local hook view state; Core owns the value.
+  Tests: zero of 94 entries flagged; promises: zero gaps, three unsure.
+  Existing helper-size notes belong to prior tests and remain unchanged.
+  Strict census and TSDoc checks pass.
+- Full rebased gate: exit 0, including all package tests, prose,
+  scaffold checks, and all 19 budget lanes.
+- Marked class internals private with the TypeScript keyword.
+  Stripped JavaScript matches the measured version apart from spaces.
+  Full build, check, and 98 React tests pass after this type change.
+  All 19 budget lanes pass again.
+  The last Jev pass flags only useRun; its existing false label applies.
