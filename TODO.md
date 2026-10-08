@@ -29,11 +29,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   The `tinker-forms` skill line "Load a native library inside its resource factory" follows the ADR.
   Verify: `vp run lazy` covers `apps/start-scaffold/src` and exits 0; registry rebuilt; `check-imports.mjs` 0.
 
-- **perf/rules-batch-1** — the case study's six smallest, surest tickets ([plan](docs/roadmap/perf/CASE-STUDY.md)).
-  `react/run-callback-errors` (bug), `scaffold/auth-scope`, `start/abort-reasons`,
-  `react/run-sync-first` (bug), `react/data-zero-alloc`, `start/compress-stream`.
-  Verify: each bug has a test that fails on main; each speed claim has a `benchctl ab` verdict.
-
 - **perf/rules-batch-2** — telemetry serialize-once and capacity, sync frame share, `core/shape-preinit`, `core/run-budget`, `core/slot-order`.
   Verify: as batch 1; Core cards also `N=61 bench/queued.sh` and mutation 85.
 
@@ -105,6 +100,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **perf/rules-batch-1** — the case study's six smallest tickets ([plan](docs/roadmap/perf/CASE-STUDY.md)).
+  `react/run-callback-errors` (bug): callback errors are reported; runAsync keeps the operation's value. Tests fail on main.
+  `react/run-sync-first` (bug): a sync click renders once (2 -> 1 renders and commits). Test fails on main.
+  `react/data-zero-alloc`: raw render 89.5 -> 0.3 B, board write 8,222.8 -> 0.3 B; 2 -> 0 varying-shape sites; ab: no difference we can see. React mutation 85.64.
+  `scaffold/auth-scope`: one better-auth per process. `start/abort-reasons`: 17 shared reasons, page aborts 1 -> 0.
+  `start/compress-stream`: compressed HTML streams early; first byte: b is faster. Start mutation 85.36.
 
 - **playground/storm-layers** — the storm draws only the walls that face the viewer, and the arrow lives in the flat top.
   Compositor layers 873 -> 585 (arrow layers 144 -> 0); DOM nodes 1,241 -> 1,097; wall pixels unchanged at 4 angles.
