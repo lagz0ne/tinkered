@@ -46,13 +46,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/handle-proto** — shared scope verbs (ADR 0108).
-  Owner: writer (Codex).
-  Next: apply the prototype, then run Core gates.
-  Verify: regression fails on main; all gates pass;
-  four N=61 rows; kills alone reach 85.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
@@ -63,6 +56,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Verify: the checker's `--prove` and `vp run lazy` exit 0; gates 0; start mutation ≥ 75.
 
 ## Review
+
+- **core/handle-proto** — shared scope verbs (ADR 0108).
+  Owner: writer (Codex).
+  Next: finish queued timing and clean-tree mutation, then lead review.
+  Verify: three regressions fail on main; ticket and 19 release lanes pass;
+  four N=61 rows; kills alone reach 85.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
 
 - **start/rules-batch-1** — auth sharing, abort reasons, streamed compression.
   Owner: writer (Codex).

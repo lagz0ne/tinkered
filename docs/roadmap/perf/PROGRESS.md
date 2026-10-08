@@ -308,4 +308,27 @@ flock /tmp/mutation.lock benchctl ab \
   Only Core source, its docs/tests, and the React counting fixture need edits.
 - Initial build, check, prose, and validate: exit 0.
   Validate passed all 19 lanes.
-  Remaining: full ticket gate, queued timing, Jev labels, clean-tree mutation.
+  Ticket gate: exit 0, including all package tests and Core dist tests.
+  Scaffold check: exit 0 when run alone.
+  Remaining: queued timing and clean-tree mutation.
+
+- Full check: 0 errors, 27 warnings; main has 28 warnings.
+  The callback type removes one existing release warning.
+- Jev preflight: 0 file flags; 114 unit flags, including 3 noisy notes.
+  All 170 non-noisy judge hits have false labels with reasons.
+  106 new cases were appended; the rest matched saved cases.
+  Core owns its private state and must await owned close/hook work.
+  Old lazy fields stay on the separate shape-preinit card.
+  The three cold wrappers set their override fields once at birth.
+- Jev tests: new tests have no plain notes.
+  Core has 7 old test flags plus one old sleep note; React has 0 flags.
+  The old test files are outside this card.
+- Census: the new handle class passes strict checks (exit 0).
+  Full source has the same four failing rule IDs as main.
+  The required prototype tests add T05, allowed by the brief.
+  TSDoc parser: 0 rows, exit 0.
+- Do not build Core during a consumer test run.
+  Its build removes dist files first, so concurrent checks can fail to import Core.
+  The full ticket gate runs these in order and passed.
+- Core feedback: none; this card changes Core's handle contract itself.
+  Jev calibration stays a lead landing step under the fixed brief.
