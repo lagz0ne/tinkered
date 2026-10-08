@@ -1108,12 +1108,13 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   One public test checks one load span across two sessions.
 - `vp run -r build`: EXIT 0; 12 tasks.
   `vp check`: EXIT 0; 0 errors and 27 warnings after the rebase.
-  The base is `5d9c0537`, with the shared Core handle methods.
+  The base is `f360f870`, with the Core and scaffold changes.
   `vp run @tinker/start#test`: EXIT 0; 41 files, 433 tests.
-  `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 26 tests.
+  `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 27 tests.
   The first clean-commit gate passed at `7e9ce9e1`: EXIT 0.
   Install, build, check, both test tasks, and all workspace tests passed after the rebase.
-  The full clean-commit gate also passed at `7ca845e1`: EXIT 0.
+  The full clean-commit gates passed at `7ca845e1` and `30322060`: EXIT 0.
+  The final gate will run again on the clean commit used for mutation.
 - `vp run lazy`: EXIT 0.
   `node scripts/check-lazy-modules.mjs --prove`: EXIT 0; 90 cases.
 - `vp run -r test`: EXIT 0; all 10 tasks.
@@ -1208,6 +1209,9 @@ The one label-file conflict kept both sets of rows.
 `vp install` and every proof check passed again.
 The checker proof still has 90 passing cases; validate still has 19 passing lanes.
 Main then gained scaffold commit `f360f870` during the second mutation run.
-This proof is saved before catching up to that consumer change.
-A fresh clean-commit gate and mutation will follow that rebase.
+That proof was saved before rebasing onto the consumer change.
+Both label-file conflicts kept all rows from main and this ticket.
+Install, gate, all package tests, 19 validate lanes, and 90 plants passed again.
+Jev, the symbol check, and the strict style check also passed.
+The final clean-commit gate and mutation are next.
 Nothing was pushed.
