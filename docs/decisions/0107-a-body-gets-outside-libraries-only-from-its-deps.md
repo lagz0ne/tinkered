@@ -1,6 +1,6 @@
 # 0107 A body gets outside libraries only from its deps
 
-Date: 2026-10-08. Status: proposed.
+Date: 2026-10-08. Status: accepted.
 Refines 0044 and the lazy module of 0042.
 Replaces the start-scaffold rule "load a library inside the unit that uses it".
 
