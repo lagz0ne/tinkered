@@ -263,3 +263,22 @@ test("a parent render keeps the local query handle when its state did not change
   expect(seen.query).toBe(first);
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });
+
+test("an async query with no value leaves pending when it succeeds", async () => {
+  const scope = createScope();
+  const gate = deferred<void>();
+  const empty = resource({ label: "empty-query", factory: () => gate.promise });
+  try {
+    const screen = await render(
+      <ScopeProvider scope={scope}>
+        <Local handle={empty} />
+      </ScopeProvider>,
+    );
+    await expect.element(screen.getByText("status:pending")).toBeVisible();
+    gate.resolve();
+    await expect.element(screen.getByText("status:success")).toBeVisible();
+  } finally {
+    gate.resolve();
+    expect((await scope.close({ graceful: true })).status).toBe("success");
+  }
+});

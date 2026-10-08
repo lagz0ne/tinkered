@@ -210,6 +210,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - A re-render while pending reuses one build: the factory runs once and Suspense still resolves.
 - resolve() hands back one stable promise per owner, while pending and after settle.
 - A query reports its status through one flag at a time.
+- An async query with no value leaves pending when it succeeds.
 - suspense:false renders pending then success without a Suspense boundary.
 - A synchronous build reports success at once with suspense:false.
 - With suspense:false, a synchronous failure stays local and refetch can rebuild it.
@@ -220,6 +221,8 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 ### useRun
 
 - A parent render keeps the run handle when no run changed.
+- StrictMode clears the run from its discarded effect mount.
+- A cancelled run rejects with the caller's exact reason.
 
 - Normal calls and omitted callbacks report no host error.
 - runAsync keeps the operation value when onSuccess throws.
@@ -265,6 +268,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - Changing session options without remounting keeps the live reset key.
 - A chain refetch clears its head and reuses its fallback.
 - A named session can still refetch a shared scope resource.
+- An explicit reset key still releases a shared scope resource.
 - An independent borrowed scope clears an outer session's reset key.
 - An independent owned scope clears an outer session's reset key.
 - A field reset keeps the form owner, other fields, and hook identities.

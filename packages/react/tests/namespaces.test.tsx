@@ -246,6 +246,23 @@ test("a named session can still refetch a shared scope resource", async () => {
   await scope.close();
 });
 
+test("an explicit reset key still releases a shared scope resource", async () => {
+  const scope = createScope();
+  const shared = resource({ label: "shared-reset", target: "scope", factory: () => ({}) });
+  const first = scope.resolve(shared);
+  try {
+    const screen = await render(
+      <ScopeProvider scope={scope}>
+        <Reset node={shared} ns={ocean} />
+      </ScopeProvider>,
+    );
+    await screen.getByRole("button", { name: "reset" }).click();
+    expect(scope.resolve(shared)).not.toBe(first);
+  } finally {
+    expect((await scope.close({ graceful: true })).status).toBe("success");
+  }
+});
+
 test.each(["borrowed", "owned"])(
   "an independent %s scope clears an outer session's reset key",
   async (mode) => {

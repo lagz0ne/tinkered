@@ -587,3 +587,15 @@ The lead reviews and lands this ticket; nothing is pushed.
 - The lane is saved in Review for the lead.
   The final clean-tree mutation proof follows in its own log-only commit.
   No ticket was dropped; no push or publish.
+
+- The first full mutation run used clean source `e0d1a650`.
+  It caught 291 of 352 breaks: 82.67 percent on kills alone.
+  The 25 timeouts and two uncovered breaks count as misses.
+  The tool's 89.77 score includes timeouts; it does not meet our floor.
+- Added four public checks after reading those misses.
+  A query that returns no value must still leave pending.
+  StrictMode must clear the run from its discarded effect mount.
+  A cancelled run must reject with the caller's exact reason.
+  A named reset must release a shared scope resource.
+  All four pass; React now has 98 tests in 23 files.
+  The hook source stayed unchanged, so the pair timing still applies.

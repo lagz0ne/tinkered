@@ -1,4 +1,5 @@
 import { createScope, operation, tag, type Operation } from "@tinker/core";
+import { StrictMode, useLayoutEffect, useRef } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 import { ScopeProvider, useRun, type Run } from "../src/index";
@@ -121,4 +122,53 @@ test("a parent render keeps the run handle when no run changed", async () => {
   );
   expect(seen.run).toBe(first);
   expect((await scope.close({ graceful: true })).status).toBe("success");
+});
+
+const replayed = operation({ label: "replayed-run", run: () => "done" });
+
+function Replay(): React.ReactElement {
+  const run = useRun(replayed);
+  const started = useRef(false);
+  useLayoutEffect(() => {
+    if (!started.current) {
+      started.current = true;
+      run.run();
+    }
+  }, [run]);
+  return <p>replay:{run.status}</p>;
+}
+
+test("StrictMode clears the run from its discarded effect mount", async () => {
+  const scope = createScope();
+  try {
+    const screen = await render(
+      <StrictMode>
+        <ScopeProvider scope={scope}>
+          <Replay />
+        </ScopeProvider>
+      </StrictMode>,
+    );
+    await expect.element(screen.getByText("replay:idle")).toBeVisible();
+  } finally {
+    expect((await scope.close({ graceful: true })).status).toBe("success");
+  }
+});
+
+test("a cancelled run rejects with the caller's exact reason", async () => {
+  const scope = createScope();
+  const seen: Seen = { calls: [] };
+  const stop = new AbortController();
+  const reason = new Error("caller stopped");
+  stop.abort(reason);
+  try {
+    await render(
+      <ScopeProvider scope={scope}>
+        <View op={readAnswer} seen={seen} />
+      </ScopeProvider>,
+    );
+    if (!seen.run) throw new Error("missing run");
+    await expect(seen.run.runAsync({ signal: stop.signal })).rejects.toBe(reason);
+  } finally {
+    expect((await scope.close({ graceful: true })).status).toBe("success");
+  }
 });
