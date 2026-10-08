@@ -1,0 +1,27 @@
+React rules lane: useRun and useResource
+Branch: react/rules-lane
+HEAD 27d37aeaea6680d12c0a44a198488d9148380a07
+Base: f360f8703be376771185c2ce6108c77c5e0cb92a
+git status --porcelain before: empty
+Command: flock /tmp/mutation.lock vp run @tinker/react#mutate --timeoutMS 60000
+Full gate exits: fetch/rebase 0; install 0; build 0; check 0; recursive tests 0; prose 0; scaffold 0; validate 0.
+React tests: 98 passed in 23 files. Check: 0 errors, 27 existing warnings.
+Private-field follow-up: build 0; check 0; React tests 0; validate 0; strict census 0.
+Jev: no file flags; all three flagged units labeled false; last pass flags only useRun.
+Jev tests: 0/94 flagged entries; promises: 0 gaps, 3 unsure. Existing helper notes retained.
+Style census: OK
+Kills alone: 301/352 = 85.51%; floor 85%; PASS.
+Timeouts, errors, and no coverage count as misses.
+The tool score includes timeouts; the kills-alone line is the lane gate.
+
+-----------|------------------|----------|-----------|------------|----------|----------|
+           | % Mutation score |          |           |            |          |          |
+File       |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+-----------|--------|---------|----------|-----------|------------|----------|----------|
+All files  |  92.61 |   92.88 |      301 |        25 |         25 |        1 |        0 |
+ errors.ts | 100.00 |  100.00 |        8 |         0 |          0 |        0 |        0 |
+ index.ts  |  92.44 |   92.71 |      293 |        25 |         25 |        1 |        0 |
+-----------|--------|---------|----------|-----------|------------|----------|----------|
+
+EXIT 0
+git status --porcelain after: empty
