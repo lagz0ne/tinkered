@@ -1053,3 +1053,9 @@ Ticket 2, `scaffold/lazy-modules`, starts on this branch.
 ```impact start/lazy-modules
 start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.server.ts src/parts/sync/stream.server.ts
 ```
+
+A library's error must not cross into graph code (user, 2026-10-08).
+Read with the non-throwing form, such as `schema.safeParse`, and check `.success`.
+So `ZodError` is never thrown or named inside a body.
+Build each schema at top level; the body only calls its methods.
+No lazy module for zod: zod stays a top-level import.
