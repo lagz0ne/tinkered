@@ -43,6 +43,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **start/telemetry-lane** — encode records once, send full batches, and keep ingest sync.
+  Owner: lane writer (Codex).
+  Next: implement the three tickets, one commit each.
+  Verify: wire equality, pre-tick burst, sync settle, all gates, queue A/B, mutation at least 75.
+
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).

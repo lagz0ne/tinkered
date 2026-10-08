@@ -840,3 +840,32 @@ scripts/scip.sh refs \
   No speed gain is claimed for the new base.
 - The final fault-test log names the new clean source.
   Only that log's header and summary are saved after it.
+
+## start/telemetry-lane
+
+- Owner: lane writer (Codex), branch `start/telemetry-lane`.
+- Assumption: the lane owns telemetry source and its tests.
+  I8 changes the shared request body owner outside this lane.
+  Leave I8 to the server lane; its old composite signal stays.
+- No study diff was supplied for these tickets.
+  Use the checked `probes/obs/b.mjs` as the encoding model.
+- The existing tests use private Start glue through a real scope.
+  Keep that seam; no new public export just for a test.
+- The lead reviews and lands; no push or publish.
+
+### start/telemetry-serialize-once
+
+- Keep one JSON string and byte count per retained record.
+  Console lines and send bodies reuse that string.
+- Size into one scratch buffer; no byte array per size read.
+- A trace keeps its side beside its storage JSON.
+  Browser framing restores the side without a second encode.
+- Span events move out of the export body.
+  Attribute primitives skip the bigint replacer.
+  Whole milliseconds use text for nanoseconds, including zero.
+- Publish queue health once per span.
+- Equality tests cover exact UTF-8 log bytes and trace bodies,
+  including a retry; existing wire and byte bound tests pass.
+- A full queue drops a log without reading its message.
+- Full check: exit 0, no errors and 28 warnings.
+- Queue timing and final whole-lane gates follow below.
