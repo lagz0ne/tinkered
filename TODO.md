@@ -109,6 +109,10 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/handle-proto** — scope handles share their verbs from one class (ADR 0108: a handle is passed, not copied).
+  Heap gate 2,924 -> 2,123 B per request; N=61: session and lifecycle b is faster, op and run no difference.
+  Core 15,724 -> 15,805 B gzip; mutation 85.07 on kills alone (valid mutants); 3 of 4 new tests fail on main.
+
 - **perf/rules-batch-1** — the case study's six smallest tickets ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   `react/run-callback-errors` (bug): callback errors are reported; runAsync keeps the operation's value. Tests fail on main.
   `react/run-sync-first` (bug): a sync click renders once (2 -> 1 renders and commits). Test fails on main.
