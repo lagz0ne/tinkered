@@ -1065,7 +1065,9 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
 - The body owner takes `startServer` directly.
   Its factory is async, as ADR 0044 requires.
   The private transfer operation is gone.
-  Both production callers await the resolve.
+  The remaining production caller awaits the resolve.
+  Main moved render cleanup into the request session and removed the other call.
+  Assumption: keep that newer cleanup; do not restore the removed call.
   Assumption: the seven test calls also need awaits.
   Every test title and check stays the same.
 
@@ -1108,12 +1110,13 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   One public test checks one load span across two sessions.
 - `vp run -r build`: EXIT 0; 12 tasks.
   `vp check`: EXIT 0; 0 errors and 27 warnings after the rebase.
-  The base is `f360f870`, with the Core and scaffold changes.
-  `vp run @tinker/start#test`: EXIT 0; 41 files, 433 tests.
+  The base is `0f4152f5`, with the Core, scaffold, and Start server changes.
+  `vp run @tinker/start#test`: EXIT 0; 41 files, 438 tests.
   `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 27 tests.
   The first clean-commit gate passed at `7e9ce9e1`: EXIT 0.
   Install, build, check, both test tasks, and all workspace tests passed after the rebase.
   The full clean-commit gates passed at `7ca845e1`, `30322060`, and `127ed2cf`: EXIT 0.
+  The combined server code also passed its gate at `e56e14d4`: EXIT 0.
 - `vp run lazy`: EXIT 0.
   `node scripts/check-lazy-modules.mjs --prove`: EXIT 0; 90 cases.
 - `vp run -r test`: EXIT 0; all 10 tasks.
@@ -1134,10 +1137,11 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
 ### Jev labels
 
 `node tools/jev/preflight.mjs origin/main..HEAD`: EXIT 0.
-No file flags; seven units had flags after the rebase.
-All ten current flags have saved answers below.
-The earlier HTTP shape answer remains in the bank.
+No file flags; five units had nine flags after the server rebase.
+All nine have saved answers below.
+Earlier entry, endpoint, and body answers stay in the bank.
 The label bank is `tools/jev/cases.jsonl`.
+Four new answers cover the changed body and the stream opener.
 The lead runs calibration when landing.
 `node tools/jev/tests.mjs start`: EXIT 0.
 The new module test passes.
@@ -1146,6 +1150,9 @@ The server test keeps main's six imports; its only changes are awaits.
 `node tools/jev/promises.mjs start`: EXIT 0; no missing-promise flags.
 The plain test notes have no judge in the label tool.
 
+- `stateOutsideCell false body.server.ts#responseBodies`:
+  The reader Set holds private stream cleanup state.
+  No view watches these values.
 - `stopOnlyInDefer false body.server.ts#responseBodies`:
   Host streams are not Core runs; defer cancels retained readers.
 - `ignoresAbortAfterAwait false body.server.ts#responseBodies`:
@@ -1154,20 +1161,15 @@ The plain test notes have no judge in the label tool.
   URL and method are validated per-call input; transport is a dep.
 - `shapeGrowsPerCall false http.ts#httpRequest`:
   Span fields go in a map; failure payloads use fixed keys.
-- `awaitsSyncWork false entry/server.ts#start`:
-  Ready and closed values are promises.
-- `waitsOnSideWork false entry/server.ts#start`:
-  Startup and ordered shutdown own the resources handed to the server.
-- `shapeGrowsPerCall false entry/server.ts#getRenderObserver`:
-  Returns the existing observer from one saved startup promise.
-- `ignoresAbortAfterAwait false endpoint.server.ts#syncEndpoint`:
-  A cancelled result raises before the reply; requestStop owns the signal.
 - `ignoresAbortAfterAwait false history.server.ts#eventHistory`:
   The caller owns the borrowed transaction and its cancellation.
 - `stateOutsideCell false stream.server.ts#eventStream`:
   Private stream records are not values watched by a view.
 - `ignoresAbortAfterAwait false stream.server.ts#eventStream`:
   Wake, replay, and heartbeat check ended after awaits.
+- `awaitsSyncWork false stream.server.ts#openSync`:
+  `stream.open` waits for the subscription and account reads.
+  This operation returns that real promise.
 
 ### Core feedback
 
@@ -1214,5 +1216,10 @@ Install, gate, all package tests, 19 validate lanes, and 90 plants passed again.
 Jev, the symbol check, and the strict style check also passed.
 The next clean-commit gate and mutation also passed, at `127ed2cf`.
 Main then gained six Start server commits, ending at `0f4152f5`.
-This proof is saved before merging those changes and running the final checks again.
+That proof was saved before merging the server changes.
+The render conflict kept main's request-session cleanup.
+Every label-file conflict kept all rows from main and this ticket.
+Install, gate, all package tests, 19 validate lanes, and 90 plants passed again.
+Jev, the symbol check, and the strict style check also passed.
+A fresh gate and mutation are next on the final clean commit.
 Nothing was pushed.
