@@ -1,0 +1,18 @@
+Core batch A: N=61 layer defaults drop candidate
+A: clean origin/main 5d9c0537
+B: clean c36a3dbd
+Engine: v24.21.0 / 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+op: no difference we can see; median 56.2 -> 56.6 ns; B slower 32/59; p=0.602923
+run: no difference we can see; median 74.4 -> 73.9 ns; B slower 32/61; p=0.798153
+tagged: no difference we can see; median 179.7 -> 179.9 ns; B slower 32/59; p=0.602923
+session: no difference we can see; median 418.3 -> 419.2 ns; B slower 32/61; p=0.798153
+lifecycle: no difference we can see; median 752.0 -> 751.4 ns; B slower 32/61; p=0.798153
+
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-a/no-layer-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-a/drop-layer-timing-full.log
+
+Current built runtime matches the clean measured candidate byte for byte.
+SHA256: 66391951ae2c14533e5ec62c8fbb6740297d21dc74451856ffb8014a8b4e3df6

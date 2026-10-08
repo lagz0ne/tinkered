@@ -43,12 +43,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/rules-batch-A** — hook and controller fields, and slot order.
-  Owner: Core rules writer (Codex).
-  Next: check the lifecycle row after dropping layer defaults and run budget.
-  Verify: ticket, validate, N=61 queue, and mutation 85 on kills.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
@@ -66,6 +60,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Verify: the checker's `--prove` and `vp run lazy` exit 0; gates 0; start mutation ≥ 75.
 
 ## Review
+
+- **core/rules-batch-A** — hook and controller fields, and slot order.
+  Owner: Core rules writer (Codex).
+  Next: lead review after the clean fault-test log is saved; Jev calibration before landing.
+  Verify: ticket and 19 release checks pass; all five N=61 rows have no slowdown.
+  Core needs 85 on kills alone; V9 and run budget are dropped.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
 
 - **start/server-lane** — request hops, one body hold, static bytes, server chunks, browser settings.
   Owner: writer (Codex, server lane).

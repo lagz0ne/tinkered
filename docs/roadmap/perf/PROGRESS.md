@@ -1124,8 +1124,8 @@ scripts/scip.sh refs \
 - Owner: Core rules writer (Codex), branch `core/rules-lane`.
 - Scope: `core/shape-preinit`, `core/run-budget`, `core/slot-order`.
   The tested run-budget change is dropped; layer defaults are dropped too.
-  Hook and controller fields, and slot order, await the last timing gate.
-- Source base: origin/main `ae452162`; pinned timing base: `5d9c0537`.
+  Kept V10 and V11 hook and controller fields, and V34 slot order.
+- Source base: origin/main `0ff097b2`; pinned timing base: `5d9c0537`.
   Main's Core source stayed unchanged between these commits.
   Kept other lanes' saved proof and the lower React slot ceiling of 21.
 - Assumption: public behavior stays the same.
@@ -1210,14 +1210,16 @@ scripts/scip.sh refs \
   Lifecycle was still slower, 750.9 -> 757.2 ns; p was 0.020415.
 - Dropped the four V9 layer defaults from layer and frame construction.
   The two drivers' layer shape gains from that attempt are not shipped.
-  The next queued run compares all five rows without those defaults.
-  If it is slower, the same queue script tests slot order alone.
+  The last queued run compares all five rows without those defaults.
+  No retained row is slower; slot order alone did not need a timing run.
   [Attempt summaries](core-a-timing-attempts.log) keep each verdict.
 
 ### Gates on the current source
 
 - Fetch/rebase, install, and full build: exit 0.
-  Main moved through `f360f870` to `ae452162`; Core code stayed the same.
+  Main moved through `f360f870`, `ae452162`, and `0ff097b2`.
+  Core code stayed the same; install and the full gates ran again after the last rebase.
+  Kept the telemetry progress section and both Jev banks at their append conflicts.
 - Ticket: exit 0 with `--no-mutation --check-only`.
   Full package tests, Core source tests (871), and dist tests (881) pass.
   Code check: 0 errors, 27 warnings, matching the starting tree.
@@ -1241,5 +1243,25 @@ scripts/scip.sh refs \
   Their counts match main: 2, 1, 1, 1; no new strict hit is added.
 - Core feedback: none; this batch changes private engine code.
   No public API changed; no new bug or behavior test is claimed.
-- Final timing and clean-tree fault-test proof still remain.
-  Fault tests run alone under the shared lock, with an 85% kills-only floor.
+- Fault tests run alone under the shared lock, with an 85% kills-only floor.
+  [Fault-test summary](core-a-mutation.log) names the final clean source commit.
+  Only that header and summary are saved after the run.
+
+### Final batch A timing
+
+- A: clean main `5d9c0537`; B: clean no-layer tree `c36a3dbd`.
+  The current built runtime matches that measured tree byte for byte.
+  Engine: Node 24.21.0, V8 13.6.233.17-node.53.
+- N=61 per side for each of the five required scenarios.
+  Verdicts use the same paired sign test as the rejected attempts.
+- **op**: no difference we can see; 56.2 -> 56.6 ns median.
+- **run**: no difference we can see; 74.4 -> 73.9 ns median.
+- **tagged**: no difference we can see; 179.7 -> 179.9 ns median.
+- **session**: no difference we can see; 418.3 -> 419.2 ns median.
+- **lifecycle**: no difference we can see; 752.0 -> 751.4 ns median.
+- [Final timing summary](core-a-timing.log) saves p values, pairs, and the runtime hash.
+  Shape and slot gains are limited to the measured drivers; no broad speed gain is claimed.
+- The code commits are `96bd2c72` (V10/V11) and `6b951788` (V34).
+  V9 and both run-budget attempts are dropped with their failed verdicts above.
+- Lead review and Jev calibration come before landing.
+  Batch B waits for A to land; no push or publish was made.
