@@ -467,3 +467,10 @@ New sections are lists, one term per item (vertical layout,
   The app owns them; `shadcn add <item> --diff` shows a newer version.
 - **upgrade** — `tinker upgrade <version>`: swap the base package, rewrite `.tinker/`, run doctor.
   It never merges and never writes `src/`.
+
+## Fast code
+
+- **inline budget** — The bytecode V8 may spend on calls copied into one optimized function.
+- **megamorphic** — One access sees too many object shapes to use a small fast path.
+- **microtask turn** — One spin of a repeating `queueMicrotask` marker while waiting for promise work.
+- **context slot** — V8's numbered place for a module name used by a nested function.

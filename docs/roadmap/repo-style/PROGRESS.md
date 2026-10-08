@@ -64,3 +64,65 @@ No push, publish, or mutation run in this round.
 
 Next: the lead reviews this round.
 No new Core feedback.
+
+## repo/fast-code-rules
+
+Owner: lead (Claude, Start scaffold session); Codex writer.
+Branch: `repo/fast-code-rules`.
+Saved for lead review; no push or publish.
+
+- Added F1–F14 and A1–A6 to the coding skill.
+  Each rule names its evidence report.
+- Added `docs/fast-code.md`: one bad and good example per rule.
+  It lists the study reports and the tools for each check.
+- Added inline budget, megamorphic, microtask turn, and context slot to the glossary.
+  The writer brief points at the rules.
+- Added five checks and seven tiny parser tests to `pnpm validate`.
+  Baselines are in `scripts/fast-code-baseline.json`.
+  Lower values pass; a rise needs a reviewed baseline edit.
+  A missing inline edge always fails.
+- The new lane passed in 7.25 seconds of check work.
+  Its parser tests took 0.13 seconds.
+  Child jobs share a 55-second limit.
+  These are check runtimes, not a code speed claim.
+- Every planted break returned 1; each original returned 0.
+  Temp copies were removed.
+  Slots: 341 → 342; runOnce: 502 → 512 bytes.
+  Constructor growth removed the inline edge.
+  An arrow raised runOnce closures from zero to one.
+  A mapped zod module raised client chunks from zero to one.
+- Existing rule gaps stay as found.
+  Core reaches module slot 341, past 255.
+  runOnce is 502 bytes, past 460; it stays its own root by design.
+  buildHooklessResource has three function literals.
+  runHookChain has two; stepRunHook has one.
+  The case study owns the fix plans.
+
+### Gate proof
+
+- Fetch and rebase, install, build: exit 0.
+- Check: exit 0; zero errors, 28 old warnings.
+- All workspace test tasks: exit 0.
+- Prose and scaffold check: exit 0.
+- Validate: exit 0; all 19 lanes pass.
+- Parser tests: seven pass.
+- Jev: exit 0; no changed TypeScript source to judge.
+- Census: exit 0; no changed TypeScript files to count.
+- No benchmark verdict or mutation run, as the card allows.
+  No Core or Start source changed.
+- Full counts, check times, and breaks are in
+  [the proof](fast-code-rules-proof.json).
+
+### Assumptions and limits
+
+- Node v24.21.0 and V8 13.6.233.17-node.53 pin bytecode.
+  A new engine needs fresh reviewed baselines.
+- Start ships source, so only Core and React have module-slot baselines.
+- Client checks use hidden source maps from a fresh start-min build.
+  Missing chunks or maps fail.
+- Function-literal counts include defaults and constructor fields.
+  They stop at each nested function body.
+  They do not prove zero runtime allocations.
+- No new Core feedback.
+
+Next: the lead reviews the rules and saved baselines.

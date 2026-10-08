@@ -168,10 +168,10 @@ package. The root test run collects it, so it stays honest.
 Learned on `@tinker/core` (see `research/learnings/2026-09-16-core-vs-inferdi.md`). The
 hot path is anything a request pays: create a scope, build a resource, run an op, close.
 
-1. **Measure, then change, then measure.** One scenario per process, pinned to one
-   core, min ns/iter (`taskset -c N node --expose-gc <probe> <scenario>`). Grouped
-   benches and heap minima are GC-noisy; a change is kept only when the standalone
-   probe moves and no other scenario regresses. Record the numbers in the commit.
+1. **Measure, then change, then measure.** Use `benchctl ab` or
+   `N=61 bench/queued.sh`; one scenario per queue job. Never time code by hand.
+   Keep a speed change only when the queue sees a gain and no scenario regresses.
+   Record the verdict in the commit.
 
 2. **No accessor in an object literal.** `{ get x() {} }` is built through slow
    runtime calls on every creation (measured 0.3–2.5 µs). A lazy member is a class
@@ -216,6 +216,37 @@ collection or controller that most callers never use? repeated map lookups on th
 same record? per-instance closures where a shared object would do? failure and
 close paths measured? public spread contract kept? strip-types clean? numbers in
 the commit?
+
+## Fast code
+
+Read [the examples and checks](../../../docs/fast-code.md).
+Evidence numbers name the reports in that doc.
+
+Library code (Core, React, Start base):
+
+- **F1:** Keep hot callees within 460 bytecode bytes and each root within its 920-byte inline budget; move rare paths out. (E1)
+- **F2:** Check inlining with default Maglev on. (E1)
+- **F3:** Set all fields at birth in the same order; keep one shape per object kind at each read site. (E1)
+- **F4:** Use fixed keys or a Map on hot paths. (E1)
+- **F5:** Read one kind field to tell cases apart. (E1)
+- **F6:** Avoid per-call closures, wrappers, arrays, and bound functions; use shared methods or first-use creation. (E2)
+- **F7:** Finish sync work without promise hops. (E3)
+- **F8:** Share one abort reason on hot paths. (E3)
+- **F9:** Keep module context slots few; slots past 255 need wide bytecode operands. (E1)
+- **F10:** Make expensive helpers once. (E4)
+- **F11:** Compute once and keep the result. (E6)
+- **F12:** Move side work off requests and close. (E5)
+- **F13:** Keep server libraries out of client chunks. (E7)
+- **F14:** Do not add .then only to observe work. (E3)
+
+App code:
+
+- **A1:** Keep run sync when it does no I/O. (E3)
+- **A2:** Declare operations, resources, and tags at module scope. (E2)
+- **A3:** Make expensive things once in a resource. (E4)
+- **A4:** Use the same input shape on each call. (E1)
+- **A5:** Import server libraries only from server files. (E7)
+- **A6:** Keep telemetry, mail, and logs off requests. (E5)
 
 ## Check
 

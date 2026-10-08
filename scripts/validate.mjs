@@ -10,6 +10,11 @@ const lanes = [
     "module endings in docs, registry JSON, and templates",
     "node --test scripts/strip-import-extensions.test.mjs scripts/check-import-extensions.test.mjs && node scripts/check-import-extensions.mjs",
   ],
+  [
+    "fast-code ratchets (slots, bytecode, inlining, closures, client)",
+    "node --test scripts/fast-code-parsers.test.mjs && node scripts/check-fast-code.mjs",
+    "show",
+  ],
   ["tests", `${VP} run --no-cache core#test`],
   // core/size-build: the build renames private fields, so the tests also run on what users import.
   ["core tests on the built files", `${VP} run --no-cache core#test:dist`],

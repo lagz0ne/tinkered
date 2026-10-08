@@ -1,0 +1,155 @@
+{
+  "branch": "repo/fast-code-rules",
+  "base": "20f9fa1f08e1a1355475a6311214adebe8c526c8",
+  "gates": {
+    "git fetch origin && git rebase origin/main": 0,
+    "vp install": 0,
+    "vp run -r build": 0,
+    "vp check": 0,
+    "vp run -r test": 0,
+    "vp run prose": 0,
+    "vp run @tinker-start-scaffold#check": 0,
+    "pnpm validate": 0
+  },
+  "vpCheckWarnings": 28,
+  "parserTests": 7,
+  "validateLanes": 19,
+  "checks": [
+    {
+      "check": "slots",
+      "status": "PASS",
+      "actual": {
+        "core": 341,
+        "react": 25
+      },
+      "milliseconds": 92
+    },
+    {
+      "check": "bytecode",
+      "status": "PASS",
+      "actual": {
+        "runOnce": 502,
+        "settleRun": 59,
+        "OperationCtx": 126,
+        "buildHooklessResource": 451,
+        "resolveDep": 223,
+        "runHookChain": 235,
+        "invokeRunHooks": 49,
+        "stepRunHook": 205
+      },
+      "milliseconds": 835
+    },
+    {
+      "check": "inlining",
+      "status": "PASS",
+      "actual": {
+        "OperationCtxIntoRunOnce": true,
+        "maglev": "default on"
+      },
+      "milliseconds": 676
+    },
+    {
+      "check": "closures",
+      "status": "PASS",
+      "actual": {
+        "runOnce": 0,
+        "settleRun": 0,
+        "OperationCtx": 0,
+        "buildHooklessResource": 3,
+        "resolveDep": 0,
+        "runHookChain": 2,
+        "invokeRunHooks": 0,
+        "stepRunHook": 1
+      },
+      "milliseconds": 55
+    },
+    {
+      "check": "client",
+      "status": "PASS",
+      "actual": {
+        "zod": 0,
+        "drizzle": 0,
+        "pglite": 0,
+        "chunks": 3
+      },
+      "milliseconds": 5590
+    }
+  ],
+  "checkMillisecondsTotal": 7248,
+  "parserTestMilliseconds": 131.796194,
+  "breaks": {
+    "proofs": [
+      {
+        "check": "slots",
+        "plant": "One captured module name appended to a temp bundle",
+        "red": {
+          "exit": 1,
+          "output": "{\"check\":\"slots\",\"status\":\"FAIL\",\"error\":\"F9 core: 342 > baseline 341; lower the value or review a baseline edit\",\"milliseconds\":76}",
+          "error": ""
+        },
+        "restoredExit": 0
+      },
+      {
+        "check": "bytecode",
+        "plant": "One global write added to runOnce in a temp bundle",
+        "red": {
+          "exit": 1,
+          "output": "{\"check\":\"bytecode\",\"status\":\"FAIL\",\"error\":\"F1 runOnce: 512 > baseline 502; lower the value or review a baseline edit\",\"milliseconds\":362}",
+          "error": ""
+        },
+        "restoredExit": 0
+      },
+      {
+        "check": "inlining",
+        "plant": "300 writes grow the temp constructor beyond the inline limit",
+        "red": {
+          "exit": 1,
+          "output": "{\"check\":\"inlining\",\"status\":\"FAIL\",\"error\":\"F1/F2 OperationCtx was not inlined into runOnce with default Maglev\",\"milliseconds\":633}",
+          "error": ""
+        },
+        "restoredExit": 0
+      },
+      {
+        "check": "closures",
+        "plant": "An arrow added inside runOnce in a temp source file",
+        "red": {
+          "exit": 1,
+          "output": "{\"check\":\"closures\",\"status\":\"FAIL\",\"error\":\"F6 runOnce: 1 > baseline 0; lower the value or review a baseline edit\",\"milliseconds\":41}",
+          "error": ""
+        },
+        "restoredExit": 0
+      },
+      {
+        "check": "client",
+        "plant": "A mapped zod module added to temp client chunks",
+        "red": {
+          "exit": 1,
+          "output": "{\"check\":\"client\",\"status\":\"FAIL\",\"error\":\"F13 zod chunks: 1 > baseline 0; lower the value or review a baseline edit\",\"milliseconds\":145}",
+          "error": ""
+        },
+        "restoredExit": 0
+      }
+    ],
+    "tempFilesRemoved": true
+  },
+  "jev": {
+    "exit": 0,
+    "flags": 0,
+    "note": "No TypeScript source files changed; mjs tools are outside Jev source selection"
+  },
+  "styleCensus": {
+    "exit": 0,
+    "note": "No TypeScript files changed; the new mjs tools are outside the census"
+  },
+  "assumptions": [
+    "Node and V8 bytecode baselines are pinned to the study engine; an engine change asks for fresh baselines",
+    "Start ships source, not a built base bundle; module slots cover Core and React",
+    "F13 rebuilds start-min with hidden source maps to inspect mapped module paths",
+    "F6 counts literals created in each function, including defaults and instance fields; nested bodies belong to the nested function"
+  ],
+  "notRun": {
+    "benchctl": "The card waives a verdict; no new speed claim",
+    "mutation": "No packages/core or packages/start source changed"
+  },
+  "coreFeedback": "None"
+}

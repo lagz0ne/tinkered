@@ -19,6 +19,8 @@ vp run -r build
 
 ## Rules
 
+Read [the fast-code rules](../fast-code.md) before writing hot paths.
+
 - Work only in your worktree. Never push. Never `--no-verify`.
 - Never use `git stash`: every worktree shares one stash list, so another writer's stash or pop
   can take your work. Compare with main through a separate worktree or `git diff origin/main`.

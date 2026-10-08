@@ -1,0 +1,36 @@
+{
+  "node": "v24.21.0",
+  "v8": "13.6.233.17-node.53",
+  "slots": {
+    "core": 341,
+    "react": 25
+  },
+  "bytecode": {
+    "runOnce": 502,
+    "settleRun": 59,
+    "OperationCtx": 126,
+    "buildHooklessResource": 451,
+    "resolveDep": 223,
+    "runHookChain": 235,
+    "invokeRunHooks": 49,
+    "stepRunHook": 205
+  },
+  "closures": {
+    "runOnce": 0,
+    "settleRun": 0,
+    "OperationCtx": 0,
+    "buildHooklessResource": 3,
+    "resolveDep": 0,
+    "runHookChain": 2,
+    "invokeRunHooks": 0,
+    "stepRunHook": 1
+  },
+  "client": {
+    "zod": 0,
+    "drizzle": 0,
+    "pglite": 0
+  },
+  "inlining": {
+    "OperationCtxIntoRunOnce": true
+  }
+}

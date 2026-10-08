@@ -38,15 +38,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **repo/fast-code-rules** — the fast-code rules (from the 2026-10-07 perf study) in the house style, with ratchet checks in `pnpm validate`.
-  Owner: lead (Claude, Start scaffold session); Sol writer. Checks: module slot count, hot-function bytecode sizes, OperationCtx inlined with Maglev on, closures in hot functions, no zod in the client.
-  Beside it, a case study (Opus, `/home/paseo/perf/rules-case/`) lists where Core, React, Start, and the apps break the rules, with a plan per case.
-  Verify: each check fails on a planted break; the case study's tickets are on this board.
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **repo/fast-code-rules** — the fast-code rules (from the 2026-10-07 perf study) in the house style, with ratchet checks in `pnpm validate`.
+  Owner: lead (Claude, Start scaffold session); Sol writer. Checks: module slot count, hot-function bytecode sizes, OperationCtx inlined with Maglev on, closures in hot functions, no zod in the client.
+  Beside it, a case study (Opus, `/home/paseo/perf/rules-case/`) lists where Core, React, Start, and the apps break the rules, with a plan per case.
+  Next: lead review of branch `repo/fast-code-rules`; the case study owns its fix tickets.
+  Verify: all gates exit 0; all five planted breaks exit 1, then originals exit 0.
+  Proof: [rules and checks](docs/roadmap/repo-style/PROGRESS.md#repofast-code-rules).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
