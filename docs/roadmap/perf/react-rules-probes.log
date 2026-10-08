@@ -1,0 +1,171 @@
+Base: clean origin/main 5d9c0537612cf0189f16632de52d28dc6b008059
+Engine: Node v24.21.0, React 19.3.0, production happy-dom
+Study: /home/paseo/perf/rules-case/react/REPORT.md
+Adapted probes: /home/paseo/.cache/tinkered-briefs/react-rules-probes
+Adaptation: PROBE_REPO selects the worktree; shape probe flushes the pending run.
+Allocation flags: --no-turbo-inlining --no-maglev-inlining
+
+run-render before
+case run-render: 2943 B/op sampled, renders/op 1.00
+  file tinker-react     1190.0 B/op
+  file react-dom        1133.6 B/op
+  file probe             435.3 B/op
+  file react             137.6 B/op
+  file (native)           46.1 B/op
+  file node:inspector      0.6 B/op
+    1189.8 B/op  useRun tinker-react:346:16
+     642.7 B/op  updateWorkInProgressHook react-dom:4749:34
+     321.9 B/op  Parent probe:81:16
+     129.8 B/op  updateReducerImpl react-dom:4852:27
+      88.5 B/op  readContextForConsumer react-dom:3298:32
+      79.8 B/op  dispatchSetStateInternal react-dom:5667:34
+      71.3 B/op  exports.createElement react:453:34
+      64.8 B/op  pushSimpleEffect react-dom:5345:26
+  tinker   1189.8 B/op  useRun tinker-react:346:16
+  tinker      0.2 B/op  useScope tinker-react:107:18
+
+run-render after
+case run-render: 1475 B/op sampled, renders/op 1.00
+  file react-dom         747.9 B/op
+  file probe             434.7 B/op
+  file react             138.8 B/op
+  file tinker-react      106.9 B/op
+  file (native)           45.7 B/op
+  file node:inspector      0.6 B/op
+     321.8 B/op  Parent probe:81:16
+     257.6 B/op  updateWorkInProgressHook react-dom:4749:34
+     128.8 B/op  updateReducerImpl react-dom:4852:27
+     106.7 B/op  useRun tinker-react:442:16
+      88.0 B/op  readContextForConsumer react-dom:3298:32
+      80.0 B/op  dispatchSetStateInternal react-dom:5667:34
+      72.4 B/op  exports.createElement react:453:34
+      65.0 B/op  ReactElement react:80:22
+  tinker    106.7 B/op  useRun tinker-react:442:16
+  tinker      0.3 B/op  handle tinker-react:417:8
+
+res-render before
+case res-render: 2634 B/op sampled, renders/op 1.00
+  file react-dom        1153.3 B/op
+  file tinker-react      857.8 B/op
+  file probe             434.3 B/op
+  file react             138.9 B/op
+  file (native)           48.3 B/op
+  file node:inspector      0.6 B/op
+     458.9 B/op  useResource tinker-react:245:21
+     450.4 B/op  updateWorkInProgressHook react-dom:4749:34
+     321.0 B/op  Parent probe:81:16
+     237.8 B/op  readContextForConsumer react-dom:3298:32
+     211.4 B/op  useSettled tinker-react:269:20
+     193.0 B/op  updateReducerImpl react-dom:4852:27
+     145.6 B/op  useRelease tinker-react:423:20
+      80.4 B/op  dispatchSetStateInternal react-dom:5667:34
+  tinker    458.9 B/op  useResource tinker-react:245:21
+  tinker    211.4 B/op  useSettled tinker-react:269:20
+  tinker    145.6 B/op  useRelease tinker-react:423:20
+  tinker     41.1 B/op  resolveResource tinker-react:204:25
+  tinker      0.6 B/op  useScope tinker-react:107:18
+  tinker      0.2 B/op  isThenable tinker-react:29:20
+  tinker      0.2 B/op  resolve tinker-core:1:22064
+  tinker      0.1 B/op  M tinker-core:1:4025
+  tinker      0.0 B/op  xt tinker-core:1:12134
+
+res-render after
+case res-render: 1547 B/op sampled, renders/op 1.00
+  file react-dom         804.7 B/op
+  file probe             436.0 B/op
+  file react             140.4 B/op
+  file tinker-react      117.9 B/op
+  file (native)           47.6 B/op
+  file node:inspector      0.6 B/op
+     322.2 B/op  Parent probe:81:16
+     230.3 B/op  updateWorkInProgressHook react-dom:4749:34
+     172.6 B/op  readContextForConsumer react-dom:3298:32
+     129.5 B/op  updateReducerImpl react-dom:4852:27
+      79.8 B/op  dispatchSetStateInternal react-dom:5667:34
+      72.0 B/op  exports.createElement react:453:34
+      65.3 B/op  ReactElement react:80:22
+      64.2 B/op  useSettled tinker-react:297:20
+  tinker     64.2 B/op  useSettled tinker-react:297:20
+  tinker     53.1 B/op  useResource tinker-react:268:21
+  tinker      0.6 B/op  useResolvedResource tinker-react:279:29
+
+res-query-render before
+case res-query-render: 2845 B/op sampled, renders/op 1.00
+  file react-dom        1155.1 B/op
+  file tinker-react     1067.7 B/op
+  file probe             436.2 B/op
+  file react             139.2 B/op
+  file (native)           45.9 B/op
+  file node:inspector      0.6 B/op
+     467.4 B/op  useResource tinker-react:245:21
+     450.0 B/op  updateWorkInProgressHook react-dom:4749:34
+     322.5 B/op  Parent probe:81:16
+     238.8 B/op  readContextForConsumer react-dom:3298:32
+     211.5 B/op  useSettled tinker-react:269:20
+     194.0 B/op  updateReducerImpl react-dom:4852:27
+     152.4 B/op  queryHandle tinker-react:223:21
+     146.4 B/op  useRelease tinker-react:423:20
+  tinker    467.4 B/op  useResource tinker-react:245:21
+  tinker    211.5 B/op  useSettled tinker-react:269:20
+  tinker    152.4 B/op  queryHandle tinker-react:223:21
+  tinker    146.4 B/op  useRelease tinker-react:423:20
+  tinker     48.7 B/op  readResourceState tinker-react:232:27
+  tinker     40.8 B/op  resolveResource tinker-react:204:25
+  tinker      0.5 B/op  useScope tinker-react:107:18
+  tinker      0.2 B/op  xt tinker-core:1:12134
+  tinker      0.2 B/op  resolve tinker-core:1:22064
+  tinker      0.0 B/op  M tinker-core:1:4025
+
+res-query-render after
+case res-query-render: 1541 B/op sampled, renders/op 1.00
+  file react-dom         802.4 B/op
+  file probe             435.2 B/op
+  file react             139.6 B/op
+  file tinker-react      117.2 B/op
+  file (native)           46.2 B/op
+  file node:inspector      0.6 B/op
+     321.8 B/op  Parent probe:81:16
+     229.1 B/op  updateWorkInProgressHook react-dom:4749:34
+     172.2 B/op  readContextForConsumer react-dom:3298:32
+     129.9 B/op  updateReducerImpl react-dom:4852:27
+      79.9 B/op  dispatchSetStateInternal react-dom:5667:34
+      72.0 B/op  exports.createElement react:453:34
+      65.1 B/op  ReactElement react:80:22
+      64.9 B/op  useSettled tinker-react:297:20
+  tinker     64.9 B/op  useSettled tinker-react:297:20
+  tinker     51.5 B/op  useResource tinker-react:268:21
+  tinker      0.5 B/op  query tinker-react:247:7
+  tinker      0.3 B/op  useResolvedResource tinker-react:279:29
+  tinker      0.1 B/op  useScope tinker-react:105:18
+
+Hook slots after
+/home/paseo/next/lane-react-rules-lane/packages/react/dist/index.mjs: useData raw: 3 slots; useData selector: 3 slots; useRun: 3 slots; useResource: 3 slots; useResource suspense:false: 3 slots; useRelease: 1 slots
+
+Handle shapes after
+useRun handle statuses: idle=idle pending=pending success=success error=error
+  useRun idle vs pending: sameMap=true
+  useRun idle vs success: sameMap=true
+  useRun idle vs error: sameMap=true
+  useRun pending vs success: sameMap=true
+  useRun pending vs error: sameMap=true
+  useRun success vs error: sameMap=true
+useResource query statuses: pending=pending settledSuccess=success syncSuccess=success error=error
+  query pending vs settledSuccess: sameMap=true
+  query pending vs syncSuccess: sameMap=true
+  query pending vs error: sameMap=true
+  query settledSuccess vs syncSuccess: sameMap=true
+  query settledSuccess vs error: sameMap=true
+  query syncSuccess vs error: sameMap=true
+
+Then lookup before
+# ranges 21, IC sites mapped 31
+isThenable L29:117 LoadIC .then  0->1 ^->P ^->N N->N  maps=6
+
+Then lookup after
+# ranges 19, IC sites mapped 48
+
+Promises before
+useResource(async, {suspense:false}): promises made from mount to settle = 22; renders = 2; t1:pending t2:pending t3:pending t4:pending t5:pending t6:pending t7:pending t8:pending
+
+Promises after
+useResource(async, {suspense:false}): promises made from mount to settle = 20; renders = 2; t1:pending t2:pending t3:pending t4:pending t5:pending t6:pending t7:pending t8:pending

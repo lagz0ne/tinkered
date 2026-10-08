@@ -3,7 +3,7 @@
   "v8": "13.6.233.17-node.53",
   "slots": {
     "core": 341,
-    "react": 25
+    "react": 21
   },
   "bytecode": {
     "runOnce": 502,

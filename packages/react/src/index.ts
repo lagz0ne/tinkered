@@ -8,7 +8,6 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useReducer,
   useRef,
   useState,
@@ -31,12 +30,6 @@ function closeScope(scope: Scope.Handle): void {
 /** The stable no-selector fallback for {@link useData}: a module constant so the selector handed to
  * the store keeps a stable identity across renders (a fresh closure would defeat its memoization). */
 const identity = <V>(value: V): V => value;
-
-/** Does a built resource value need awaiting? An async factory is delivered as a promise. */
-const isThenable = (value: unknown): value is PromiseLike<unknown> =>
-  !!value &&
-  (typeof value === "object" || typeof value === "function") &&
-  typeof (value as { then?: unknown }).then === "function";
 
 /** Props for {@link ScopeProvider}: either an app-owned `scope` (the app closes it), or a `create`
  * factory the provider owns and closes on unmount. Exactly one. */
@@ -277,24 +270,6 @@ type Outcome<T> =
   | { readonly ok: true; readonly value: T; readonly error?: never }
   | { readonly ok: false; readonly error: unknown; readonly value?: never };
 
-async function settle<T>(run: () => T): Promise<Outcome<Awaited<T>>> {
-  try {
-    return { ok: true, value: await run() };
-  } catch (error) {
-    return { ok: false, error };
-  }
-}
-
-function resolveResource<T>(
-  controller: Scope.ResourceController<T>,
-): Outcome<Scope.ResourceValue<T>> {
-  try {
-    return { ok: true, value: controller.resolve() };
-  } catch (error) {
-    return { ok: false, error };
-  }
-}
-
 export declare namespace Query {
   /** `suspense: false` renders local query state. `ns` selects the same named bucket for reads
    * and refetch. Without it, the scope's ambient namespace supplies reads and a React session
@@ -316,28 +291,106 @@ export declare namespace Query {
   };
 }
 
-const QUERY_PENDING = { status: "pending", data: undefined, error: undefined } as const;
 const QUERY_OPTIONS: Query.Options = {};
 
-type Settled<T> = { readonly key: PromiseLike<unknown>; readonly state: Query.State<T> };
+/** Query snapshots belong to one resource owner and stay unchanged until their visible state changes. */
+class ResourceOwner<T> {
+  scope: Scope.Handle;
+  handle: Resource.Handle<T>;
+  ns: Namespace | undefined;
+  private force: () => void;
+  controller: Scope.ResourceController<T>;
+  inherited: Namespace | undefined = undefined;
+  pending: Promise<Awaited<T>> | undefined = undefined;
+  private settledKey: Promise<Awaited<T>> | undefined = undefined;
+  private settled: Query.State<Awaited<T>> | undefined = undefined;
+  private cached: Query.Handle<Awaited<T>> | undefined = undefined;
 
-function queryHandle<T>(state: Query.State<T>, refetch: () => void): Query.Handle<T> {
-  return {
-    ...state,
-    isPending: state.status === "pending",
-    isSuccess: state.status === "success",
-    isError: state.status === "error",
-    refetch,
+  constructor(
+    scope: Scope.Handle,
+    handle: Resource.Handle<T>,
+    ns: Namespace | undefined,
+    force: () => void,
+  ) {
+    this.scope = scope;
+    this.handle = handle;
+    this.ns = ns;
+    this.force = force;
+    this.controller = scope.controller(handle, ns === undefined ? undefined : { ns });
+  }
+
+  private refetch = (): void => {
+    const selected = this.ns ?? this.inherited;
+    if (selected === undefined || this.handle.target === "scope") this.scope.release(this.handle);
+    else this.scope.releaseNs(this.handle, selected);
+    this.force();
   };
-}
 
-function readResourceState<T>(
-  built: Outcome<Scope.ResourceValue<T>>,
-  settled: Query.State<Awaited<T>> | undefined,
-): Query.State<Awaited<T>> {
-  if (!built.ok) return { status: "error", data: undefined, error: built.error };
-  if (isThenable(built.value)) return settled ?? QUERY_PENDING;
-  return { status: "success", data: built.value as Awaited<T>, error: undefined };
+  effect = (): (() => void) | undefined => {
+    const pending = this.pending;
+    if (pending === undefined) return;
+    const observer: { live: boolean; work: Promise<void> | undefined } = {
+      live: true,
+      work: undefined,
+    };
+    observer.work = pending.then(
+      (data) => {
+        observer.work = undefined;
+        if (observer.live) this.publish(pending, { status: "success", data, error: undefined });
+      },
+      (error: unknown) => {
+        observer.work = undefined;
+        if (observer.live) this.publish(pending, { status: "error", data: undefined, error });
+      },
+    );
+    return () => {
+      observer.live = false;
+      observer.work = undefined;
+    };
+  };
+
+  private publish(key: Promise<Awaited<T>>, state: Query.State<Awaited<T>>): void {
+    this.settledKey = key;
+    this.settled = state;
+    this.force();
+  }
+
+  query(
+    failed: boolean,
+    error: unknown,
+    value: Scope.ResourceValue<T> | undefined,
+    pending: Promise<Awaited<T>> | undefined,
+  ): Query.Handle<Awaited<T>> {
+    if (failed) return this.snapshot("error", undefined, error);
+    if (pending === undefined) return this.snapshot("success", value as Awaited<T>, undefined);
+    const done = this.settledKey === pending ? this.settled : undefined;
+    if (done === undefined) return this.snapshot("pending", undefined, undefined);
+    return this.snapshot(done.status, done.data, done.error);
+  }
+
+  private snapshot(
+    status: Query.State<T>["status"],
+    data: Awaited<T> | undefined,
+    err: unknown,
+  ): Query.Handle<Awaited<T>> {
+    const cached = this.cached;
+    if (
+      cached !== undefined &&
+      cached.status === status &&
+      Object.is(cached.data, data) &&
+      Object.is(cached.error, err)
+    )
+      return cached;
+    return (this.cached = {
+      status,
+      data,
+      error: err,
+      isPending: status === "pending",
+      isSuccess: status === "success",
+      isError: status === "error",
+      refetch: this.refetch,
+    } as Query.Handle<Awaited<T>>);
+  }
 }
 
 /** Read a resource's built value from the nearest scope. A synchronously-built resource returns its
@@ -365,47 +418,41 @@ export function useResource<T>(
   options: Query.Options = QUERY_OPTIONS,
 ): Awaited<T> | Query.Handle<Awaited<T>> {
   const scope = useScope();
+  const inherited = useContext(NamespaceContext);
   const ns = options.ns;
-  const release = useRelease(ns);
-  const controller = useMemo(
-    () => scope.controller(handle, ns === undefined ? undefined : { ns }),
-    [scope, handle, ns],
-  );
-  const [, bump] = useReducer((n: number) => n + 1, 0);
-  const built = resolveResource(controller);
-  const pending =
-    built.ok && isThenable(built.value) ? (built.value as PromiseLike<Awaited<T>>) : undefined;
-  const local = options.suspense === false;
-  const settled = useSettled(local ? pending : undefined);
-  const refetch = useCallback(() => {
-    release(handle);
-    bump();
-  }, [release, handle]);
-  if (local) return queryHandle(readResourceState(built, settled), refetch);
-  if (!built.ok) throw built.error;
-  return pending ? (use(pending) as Awaited<T>) : (built.value as Awaited<T>);
+  const [, force] = useReducer(RunOwner.bump, 0);
+  const ref = useRef<ResourceOwner<T> | undefined>(undefined);
+  let owner = ref.current;
+  if (owner === undefined || owner.scope !== scope || owner.handle !== handle || owner.ns !== ns)
+    owner = ref.current = new ResourceOwner(scope, handle, ns, force);
+  owner.inherited = inherited;
+  return useResolvedResource(owner, options.suspense === false);
 }
 
-/** The settled state of `pending`, or undefined while it is in flight (or when there is nothing to
- * wait for). Keyed by promise identity, so a fresh promise after `refetch` reads as pending again. */
-function useSettled<T>(pending: PromiseLike<T> | undefined): Query.State<T> | undefined {
-  const [settled, setSettled] = useState<Settled<T> | undefined>(undefined);
-  useEffect(() => {
-    if (!pending) return;
-    const observer: { live: boolean; work: Promise<void> | undefined } = {
-      live: true,
-      work: undefined,
-    };
-    observer.work = settle(() => pending).then((outcome) => {
-      observer.work = undefined;
-      if (observer.live) setSettled({ key: pending, state: settledState(outcome) });
-    }, reportCallbackError);
-    return () => {
-      observer.live = false;
-      observer.work = undefined;
-    };
-  }, [pending]);
-  return settled && settled.key === pending ? settled.state : undefined;
+function useResolvedResource<T>(
+  owner: ResourceOwner<T>,
+  local: boolean,
+): Awaited<T> | Query.Handle<Awaited<T>> {
+  let value: Scope.ResourceValue<T> | undefined;
+  let error: unknown;
+  let failed = false;
+  try {
+    value = owner.controller.resolve();
+  } catch (caught) {
+    error = caught;
+    failed = true;
+  }
+  const pending = value instanceof Promise ? (value as Promise<Awaited<T>>) : undefined;
+  owner.pending = local ? pending : undefined;
+  useSettled(owner);
+  if (local) return owner.query(failed, error, value, pending);
+  if (failed) throw error;
+  return pending ? use(pending) : (value as Awaited<T>);
+}
+
+/** Detaching a resource owner or changing its promise stops the old observer from publishing. */
+function useSettled<T>(owner: ResourceOwner<T>): void {
+  useEffect(owner.effect, [owner, owner.pending]);
 }
 
 export declare namespace Run {
@@ -500,26 +547,26 @@ function reportCallbackError(error: unknown): void {
 
 /** Each committed hook owns its view; old calls keep their result but lose publication on detach. */
 class RunOwner<T, I> {
-  static idle = {
+  private static idle = {
     status: "idle",
     data: undefined,
     error: undefined,
     variables: undefined,
   } as const;
 
-  static bump(n: number): number {
+  static bump(this: void, n: number): number {
     return n + 1;
   }
 
   scope: Scope.Handle;
   op: Operation.Handle<T, I>;
-  controller: Scope.OperationController<T, I>;
-  force: () => void;
-  live = false;
-  runId = 0;
+  private controller: Scope.OperationController<T, I>;
+  private force: () => void;
+  private live = false;
+  private runId = 0;
   options: Run.Options<Awaited<T>, I> | undefined = undefined;
-  state: Run.State<Awaited<T>, I> = RunOwner.idle;
-  cached: Run.Handle<Awaited<T>, I> | undefined = undefined;
+  private state: Run.State<Awaited<T>, I> = RunOwner.idle;
+  private cached: Run.Handle<Awaited<T>, I> | undefined = undefined;
 
   constructor(scope: Scope.Handle, op: Operation.Handle<T, I>, force: () => void) {
     this.scope = scope;
@@ -536,30 +583,30 @@ class RunOwner<T, I> {
     };
   };
 
-  run = (...call: Scope.CallArgs<I>): void => {
+  private run = (...call: Scope.CallArgs<I>): void => {
     const outcome = this.invoke(call);
     if (outcome instanceof Promise) outcome.catch(reportCallbackError);
   };
 
-  runAsync = async (...call: Scope.CallArgs<I>): Promise<Awaited<T>> => {
+  private runAsync = async (...call: Scope.CallArgs<I>): Promise<Awaited<T>> => {
     const running = this.invoke(call);
     const outcome = running instanceof Promise ? await running : running;
     if (outcome.ok) return outcome.value;
     throw outcome.error;
   };
 
-  reset = (): void => {
+  private reset = (): void => {
     this.runId += 1;
     if (this.live) this.publish(RunOwner.idle);
   };
 
-  publish(state: Run.State<Awaited<T>, I>): void {
+  private publish(state: Run.State<Awaited<T>, I>): void {
     this.state = state;
     this.cached = undefined;
     this.force();
   }
 
-  finish(
+  private finish(
     id: number,
     result: RunResult<Awaited<T>>,
     variables: Run.Variables<I>,
@@ -572,7 +619,7 @@ class RunOwner<T, I> {
     return outcome;
   }
 
-  invoke(call: Scope.CallArgs<I>): Outcome<Awaited<T>> | Promise<Outcome<Awaited<T>>> {
+  private invoke(call: Scope.CallArgs<I>): Outcome<Awaited<T>> | Promise<Outcome<Awaited<T>>> {
     const id = (this.runId += 1);
     const [variables] = call;
     const result = this.controller.settle(...call);

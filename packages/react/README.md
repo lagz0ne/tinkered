@@ -204,6 +204,8 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 ### useResource
 
+- A parent render keeps the local query handle when its state did not change.
+
 - A rejected build is not rebuilt on the Suspense retry: the original error shows, one build.
 - A re-render while pending reuses one build: the factory runs once and Suspense still resolves.
 - resolve() hands back one stable promise per owner, while pending and after settle.

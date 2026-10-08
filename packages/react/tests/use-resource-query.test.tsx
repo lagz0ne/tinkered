@@ -3,7 +3,7 @@ import { createScope, resource } from "@tinker/core";
 import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useResource } from "../src/index";
+import { ScopeProvider, useResource, type Query } from "../src/index";
 import { Catch } from "./support/boundary";
 import { deferred } from "./support/deferred";
 
@@ -239,4 +239,27 @@ test("suspense:false keeps a failed build in error (no boundary) and refetch bui
   expect(builds).toBe(2);
 
   await scope.close();
+});
+
+test("a parent render keeps the local query handle when its state did not change", async () => {
+  const scope = createScope();
+  const answer = resource({ label: "stable-query", factory: () => 42 });
+  const seen: { query?: Query.Handle<number> } = {};
+  function View(): React.ReactElement {
+    seen.query = useResource(answer, { suspense: false });
+    return <p>{seen.query.data}</p>;
+  }
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <View />
+    </ScopeProvider>,
+  );
+  const first = seen.query;
+  await screen.rerender(
+    <ScopeProvider scope={scope}>
+      <View />
+    </ScopeProvider>,
+  );
+  expect(seen.query).toBe(first);
+  expect((await scope.close({ graceful: true })).status).toBe("success");
 });

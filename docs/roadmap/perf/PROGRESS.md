@@ -529,7 +529,48 @@ The lead reviews and lands this ticket; nothing is pushed.
   The study's per-render controller lookup raised Disposed after close.
 - The new parent-render identity test failed before the fix, exit 1.
   React's 93 tests then passed, exit 0.
-- Sampled hook bytes per render: 1,148.8 before, 58.7 after.
-  Same study probe, no Maglev and no TurboFan inlining.
+- Final sampled hook bytes per render: 1,190.0 before, 106.9 after.
+  Same study probe; Maglev stays on, both inline passes stay off.
   The final pair gets one queued A/B, then full gates and mutation.
 - Core feedback: none; Core supplies the stable controller and sync result.
+
+- `react/resource-lean`: keep one owner per scope, resource, and namespace.
+  Its refetch follows the current inherited namespace.
+  Its observer depends on both owner and promise, so an old owner detaches
+  even when the next owner reads the same promise.
+- Cache each query handle until its visible state changes.
+  Use Object.is for data and errors, including NaN and signed zero.
+  Read native Core promises directly; remove the app-value then probe.
+- The query identity regression failed before the fix, exit 1.
+  Both new identity tests pass; React now has 94 tests.
+- Hook slots: run 9 to 3; both resource modes 6 to 3.
+- Sampled bytes per suspense render: 857.8 to 117.9.
+  Local query render: 1,067.7 to 117.2.
+  These are sampled hook bytes, not whole-page memory.
+- Run and query handles each have one V8 shape across their states.
+  Old handles remain saved snapshots; only a changed state gets a new handle.
+- React module slots: 25 to 21; lower the fast-code ceiling to 21.
+  Public exported declarations stay the same.
+- Strict census passes; the TSDoc parser reports zero rows.
+  Jev tests: 0 of 90 entries flagged.
+  Jev promises: zero gaps, six unsure titles.
+- Jev preflight: zero file flags; two unit flags explained and labeled false.
+  The provider owns its React mount effect.
+  The run owner holds local view state, not shared domain state.
+  Calibration stays with the lead's landing step.
+
+- App-value then lookup: one megamorphic site before, zero after.
+  The probe reads six resource value shapes through the same hook.
+- Promise count from mount to local async settle: 22 to 20.
+  The turn probe does not prove a one-turn visible render gain.
+- [Allocation, slots, shapes, and promise proof](react-rules-probes.log).
+
+- Full lane gate returned exit 0: build, check, every package's tests,
+  prose, scaffold check, and all 19 validate lanes.
+  Install and fetch/rebase also returned 0.
+- Clean main and this lane each have zero errors and 27 warnings.
+  React has 94 passing tests in 23 files.
+- Runtime size: 4,952 to 5,219 B gzip; cap 10,240 B.
+  Exported declaration files match the base byte for byte.
+- Remaining: one queued A/B for both hooks, then the clean final
+  React mutation run and its summary log.
