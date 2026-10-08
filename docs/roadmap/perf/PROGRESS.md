@@ -497,3 +497,21 @@ The lead reviews and lands this ticket; nothing is pushed.
   Both copied app compositions build and pass doctor.
 - Saved work waits in Review; the lead still reviews and lands it.
   No push, publish, deployment, or package runtime edit was made.
+
+## Start server lane — 2026-10-08
+
+- Five tickets saved on `start/server-lane`; the lead reviews and lands them.
+  [Full proof](SERVER-LANE.md).
+- Start promises per page: 73.57 → 34.04, below 45.
+  Body promises: 25 → 12, with one held response stream.
+- Warm retained static files: four file resources → zero.
+  Static A/B: **b is faster**; page A/B: **no difference we can see**.
+- Server body chunk: three bindings; `hold` and Core `createScope` have no wide context loads.
+  Client chunks omit the full package settings table and server auth key names.
+- Main joined: `f360f870`; all package tests pass, Start 437 and scaffold 27.
+  Check: exit 0, zero errors and 27 warnings, the same count as main.
+- Build, all tests, prose, scaffold check, and validation: exit 0.
+  Validation passes all 19 budget lanes.
+- [Final fault-test proof](SERVER-LANE-MUTATION.txt) names the clean source commit.
+  Only its header and summary are saved after the run.
+- No push or publish; no Core feedback.
