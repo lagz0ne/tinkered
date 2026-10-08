@@ -47,9 +47,8 @@ function arrowOf(
 /** A tile subscribes to ITS slice of the board — the selector picks it, `sameShade` decides whether
  * the look changed — so a frame that repaints twenty tiles re-renders twenty tiles. Pressing runs
  * the `press` operation through useRun, on `onClick` so keyboard and native pointer share one
- * activation path. The tile renders as a solid block: the button is the top face, lifted by the
- * wave height, and four real walls hang from it down to the sea floor — solid from every board
- * orientation. */
+ * activation path. The button lifts a flat top face by the wave height;
+ * the walls facing the viewer hang down to the sea floor. */
 export const Tile = memo(function Tile({
   x,
   y,
@@ -65,10 +64,9 @@ export const Tile = memo(function Tile({
   const h = SLAB + shade.z * PER_UNIT;
   const wall = (part: number) =>
     `hsl(${water.hue} ${water.sat}% ${Math.max(4, Math.round(water.lit * part))}%)`;
-  const style = {
-    transform: `translateZ(${h}px)`,
-    background: topOf(water, shade.z),
-  };
+  const style = { transform: `translateZ(${h}px)` };
+  /** A flat top lets the arrow paint into its layer. */
+  const top = { background: topOf(water, shade.z) };
   const low = wall(0.4);
   const high = wall(0.52);
   const arrow = arrowOf(shade, water);
@@ -100,14 +98,12 @@ export const Tile = memo(function Tile({
         style={{ transform: `rotateY(90deg) scaleX(${h})`, background: high }}
         aria-hidden="true"
       />
-      <span
-        className="arrow"
-        style={{ transform: arrow.transform, opacity: arrow.opacity }}
-        aria-hidden="true"
-      >
-        <svg viewBox="0 0 24 24">
-          <path d="M4 12h16m-7-7 7 7-7 7" stroke={arrow.stroke} />
-        </svg>
+      <span className="top" style={top} aria-hidden="true">
+        <span className="arrow" style={{ transform: arrow.transform, opacity: arrow.opacity }}>
+          <svg viewBox="0 0 24 24">
+            <path d="M4 12h16m-7-7 7 7-7 7" stroke={arrow.stroke} />
+          </svg>
+        </span>
       </span>
     </button>
   );

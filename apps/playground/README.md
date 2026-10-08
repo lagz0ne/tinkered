@@ -102,6 +102,10 @@ The tests prove these game promises:
 - Storm presses use the chosen time gap, including changes
   made while the storm runs.
 - Turns move toward each new heading, past a full circle.
+- Walls facing the viewer follow turns past a full circle.
+- Walls change at each angle edge.
+  Edge-on walls have no visible area.
+  Direction arrows paint into the top face.
 - Closing the scope cancels the frame loop.
 - Bad action inputs fail through the error registry.
 

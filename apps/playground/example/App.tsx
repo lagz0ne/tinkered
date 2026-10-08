@@ -2,7 +2,7 @@ import { useData, useResource, useRun } from "@tinker/react";
 import { memo } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import { clear, setPhysics, setStorm, ticker, turn } from "./engine";
-import { angle, physics, stormOn, targetAngle, waves } from "./state";
+import { angle, physics, pickVisibleWalls, stormOn, targetAngle, waves } from "./state";
 import { Tile } from "./Tile";
 
 /** The heading belongs to the rotating parent so tiles and wave direction turn together. */
@@ -37,7 +37,7 @@ const Rotor = memo(function Rotor({ children }: { children: ReactElement }): Rea
     "--still-heading": `rotateX(${TILT}deg) rotateZ(${HEADING + destination}deg)`,
   };
   return (
-    <div className="tilt" style={style}>
+    <div className="tilt" style={style} data-walls={pickVisibleWalls(HEADING + a)}>
       {children}
     </div>
   );
@@ -294,12 +294,14 @@ const css = `
   .scene:has(.tile:focus-visible) .board { width: min(59cqw, 470px); }
   .scene:has(.tile:focus-visible) .field { mask-image: none; }
   .tile { position: relative; display: block; width: 100%; aspect-ratio: 1; border: 0; padding: 0;
-    border-radius: 0; cursor: pointer; transform-style: preserve-3d;
-    outline: 1px solid #bbf4e138; outline-offset: -1px; }
-  .tile.converge { outline-color: #edfff7bb; }
-  .tile:hover { outline-color: var(--lime); }
+    border-radius: 0; cursor: pointer; transform-style: preserve-3d; background: none; }
+  .top { position: absolute; inset: 0; outline: 1px solid #bbf4e138; outline-offset: -1px; }
+  .tile.converge > .top { outline-color: #edfff7bb; }
+  .tile:hover > .top { outline-color: var(--lime); }
   .tile:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
-  .wall { position: absolute; display: block; backface-visibility: hidden; pointer-events: none; }
+  .wall { position: absolute; display: none; backface-visibility: hidden; pointer-events: none; }
+  .tilt[data-walls~="n"] .wall.n, .tilt[data-walls~="s"] .wall.s,
+  .tilt[data-walls~="w"] .wall.w, .tilt[data-walls~="e"] .wall.e { display: block; }
   .wall.n { left: 0; width: 100%; top: -1px; height: 1px; transform-origin: 50% 100%; }
   .wall.s { left: 0; width: 100%; top: 100%; height: 1px; transform-origin: 50% 0%; }
   .wall.e { top: 0; height: 100%; left: 100%; width: 1px; transform-origin: 0% 50%; }
@@ -413,6 +415,6 @@ const css = `
     *, *::before, *::after { transition: none !important; animation: none !important; }
     .tilt { transform: var(--still-heading) !important; }
     .tile { transform: translateZ(10px) !important; }
-    .wall { display: none; }
+    .tilt[data-walls] .tile .wall { display: none; }
   }
 `;

@@ -80,3 +80,13 @@ export function sameShade(p: Shade, q: Shade): boolean {
 /** The board: one Shade per tile, row-major. ONE cell, written at most once per frame; every tile
  * reads its own slice through a selector, so only tiles whose look changed re-render. */
 export const board = data({ label: "board", initial: [] as Shade[] });
+
+/** CSS applies rotateZ before the fixed positive rotateX tilt. A wall faces the viewer when
+ * its rotated normal has positive y: south follows cosine, east follows sine.
+ * Edge-on walls have no visible area. Turns can pass through any number of full circles. */
+export function pickVisibleWalls(heading: number): string {
+  const degrees = ((heading % 360) + 360) % 360;
+  const vertical = degrees > 90 && degrees < 270 ? "n" : degrees < 90 || degrees > 270 ? "s" : "";
+  const horizontal = degrees > 0 && degrees < 180 ? "e" : degrees > 180 ? "w" : "";
+  return [vertical, horizontal].filter(Boolean).join(" ");
+}
