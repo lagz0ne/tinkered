@@ -307,7 +307,7 @@ const css = `
   .wall.e { top: 0; height: 100%; left: 100%; width: 1px; transform-origin: 0% 50%; }
   .wall.w { top: 0; height: 100%; left: -1px; width: 1px; transform-origin: 100% 50%; }
   .top { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
-    background: inherit; outline: 1px solid #bbf4e138; outline-offset: -1px; }
+    outline: 1px solid #bbf4e138; outline-offset: -1px; }
   .arrow { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
   .arrow svg { width: 55%; height: 55%; fill: none; stroke-width: 1.4; stroke-linecap: square; stroke-linejoin: miter; }
   .scene-caption { position: absolute; bottom: 13px; left: 0; right: 0; text-align: center;

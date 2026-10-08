@@ -67,7 +67,7 @@ export const Tile = memo(function Tile({
   const wall = (part: number) =>
     `hsl(${water.hue} ${water.sat}% ${Math.max(4, Math.round(water.lit * part))}%)`;
   /** Keep the button's original background: it covers walls in the field's fade.
-   * The flat top inherits that colour and folds the arrow into its own buffer. */
+   * The flat top repeats that colour and folds the arrow into its own buffer. */
   const style = { transform: `translateZ(${h}px)`, background: topOf(water, shade.z) };
   const low = wall(0.4);
   const high = wall(0.52);
@@ -80,7 +80,7 @@ export const Tile = memo(function Tile({
       onClick={() => run.run({ input: { x, y } })}
       aria-label={`tile ${x},${y}`}
     >
-      <span className="top" aria-hidden="true">
+      <span className="top" style={{ background: style.background }} aria-hidden="true">
         <span className="arrow" style={{ transform: arrow.transform, opacity: arrow.opacity }}>
           <svg viewBox="0 0 24 24">
             <path d="M4 12h16m-7-7 7 7-7 7" stroke={arrow.stroke} />

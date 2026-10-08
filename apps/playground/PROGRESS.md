@@ -31,7 +31,7 @@ Moving the top paint into a child changed wall cover.
 It showed dark walls the old tops used to hide.
 The button now keeps its old background.
 The flat top owns the outline.
-The flat top inherits that colour.
+The flat top repeats that colour without CSS inheritance.
 The arrow paints inside that flat top.
 The arrow box turns at full tile size, as the old arrow did.
 Its SVG keeps the old 55% size.
@@ -71,7 +71,7 @@ All four views have zero changed inner wall pixels.
 The check includes 25,268 faded wall pixels.
 The same check failed on the reviewed commit, `657d247f`.
 Pixels with a channel change over 10 were:
-3,250 at −45°, 5,948 at 45°, 8,988 at 135°, and 3 at 225°.
+3,792 at −45°, 9,719 at 45°, 11,807 at 135°, and 3 at 225°.
 The fixed version passes with zero at all four angles.
 The check runs outside the unit tests, as the brief asks.
 
