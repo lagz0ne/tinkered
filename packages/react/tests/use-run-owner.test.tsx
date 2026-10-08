@@ -104,3 +104,21 @@ test("switching operations drops late results and callbacks from the old operati
   expect(seen.calls).toEqual([]);
   await scope.close();
 });
+
+test("a parent render keeps the run handle when no run changed", async () => {
+  const scope = createScope({ tags: [answer(Promise.resolve("answer"))] });
+  const seen: Seen = { calls: [] };
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <View op={readAnswer} seen={seen} />
+    </ScopeProvider>,
+  );
+  const first = seen.run;
+  await screen.rerender(
+    <ScopeProvider scope={scope}>
+      <View op={readAnswer} seen={seen} />
+    </ScopeProvider>,
+  );
+  expect(seen.run).toBe(first);
+  expect((await scope.close({ graceful: true })).status).toBe("success");
+});

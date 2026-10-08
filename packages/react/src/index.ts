@@ -458,8 +458,6 @@ export declare namespace Run {
   };
 }
 
-const IDLE = { status: "idle", data: undefined, error: undefined, variables: undefined } as const;
-
 function settledState<T>(outcome: Outcome<T>): Query.State<T> {
   return outcome.ok
     ? { status: "success", data: outcome.value, error: undefined }
@@ -500,6 +498,108 @@ function reportCallbackError(error: unknown): void {
     });
 }
 
+/** Each committed hook owns its view; old calls keep their result but lose publication on detach. */
+class RunOwner<T, I> {
+  static idle = {
+    status: "idle",
+    data: undefined,
+    error: undefined,
+    variables: undefined,
+  } as const;
+
+  static bump(n: number): number {
+    return n + 1;
+  }
+
+  scope: Scope.Handle;
+  op: Operation.Handle<T, I>;
+  controller: Scope.OperationController<T, I>;
+  force: () => void;
+  live = false;
+  runId = 0;
+  options: Run.Options<Awaited<T>, I> | undefined = undefined;
+  state: Run.State<Awaited<T>, I> = RunOwner.idle;
+  cached: Run.Handle<Awaited<T>, I> | undefined = undefined;
+
+  constructor(scope: Scope.Handle, op: Operation.Handle<T, I>, force: () => void) {
+    this.scope = scope;
+    this.op = op;
+    this.controller = scope.controller(op);
+    this.force = force;
+  }
+
+  attach = (): (() => void) => {
+    this.live = true;
+    if (this.state !== RunOwner.idle) this.publish(RunOwner.idle);
+    return () => {
+      this.live = false;
+    };
+  };
+
+  run = (...call: Scope.CallArgs<I>): void => {
+    const outcome = this.invoke(call);
+    if (outcome instanceof Promise) outcome.catch(reportCallbackError);
+  };
+
+  runAsync = async (...call: Scope.CallArgs<I>): Promise<Awaited<T>> => {
+    const running = this.invoke(call);
+    const outcome = running instanceof Promise ? await running : running;
+    if (outcome.ok) return outcome.value;
+    throw outcome.error;
+  };
+
+  reset = (): void => {
+    this.runId += 1;
+    if (this.live) this.publish(RunOwner.idle);
+  };
+
+  publish(state: Run.State<Awaited<T>, I>): void {
+    this.state = state;
+    this.cached = undefined;
+    this.force();
+  }
+
+  finish(
+    id: number,
+    result: RunResult<Awaited<T>>,
+    variables: Run.Variables<I>,
+  ): Outcome<Awaited<T>> {
+    const outcome = readRunOutcome(result);
+    if (this.live) {
+      if (this.runId === id) this.publish({ ...settledState(outcome), variables });
+      notify(this.options, outcome, variables);
+    }
+    return outcome;
+  }
+
+  invoke(call: Scope.CallArgs<I>): Outcome<Awaited<T>> | Promise<Outcome<Awaited<T>>> {
+    const id = (this.runId += 1);
+    const [variables] = call;
+    const result = this.controller.settle(...call);
+    if (!(result instanceof Promise)) return this.finish(id, result, variables);
+    if (this.live && this.runId === id)
+      this.publish({ status: "pending", data: undefined, error: undefined, variables });
+    return result.then((settled) => this.finish(id, settled, variables));
+  }
+
+  handle(): Run.Handle<Awaited<T>, I> {
+    const state = this.state;
+    return (this.cached ??= {
+      status: state.status,
+      data: state.data,
+      error: state.error,
+      variables: state.variables,
+      isIdle: state.status === "idle",
+      isPending: state.status === "pending",
+      isSuccess: state.status === "success",
+      isError: state.status === "error",
+      run: this.run,
+      runAsync: this.runAsync,
+      reset: this.reset,
+    } as Run.Handle<Awaited<T>, I>);
+  }
+}
+
 /** Run an operation imperatively (a mutation): never suspends. Shaped like react-query's
  * `useMutation`: `run(input)` fires and forgets (the outcome lands in `status`/`data`/`error`
  * with `variables` = the call), `runAsync(input)` also returns the value or rejects, `reset()`
@@ -513,79 +613,14 @@ export function useRun<T, I>(
   options?: Run.Options<Awaited<T>, I>,
 ): Run.Handle<Awaited<T>, I> {
   const scope = useScope();
-  const controller = useMemo(() => scope.controller(op), [scope, op]);
-  const owner = useMemo(() => ({ live: false, runId: 0 }), [controller]);
-  const [published, setPublished] = useState<
-    | {
-        owner: typeof owner;
-        state: Run.State<Awaited<T>, I>;
-      }
-    | undefined
-  >(undefined);
-  useLayoutEffect(() => {
-    owner.live = true;
-    setPublished(undefined);
-    return () => {
-      owner.live = false;
-    };
-  }, [owner]);
-  const state = published?.owner === owner ? published.state : IDLE;
-  const latest = useRef(options);
-  latest.current = options;
-  const invoke = useCallback(
-    (call: Scope.CallArgs<I>): Outcome<Awaited<T>> | Promise<Outcome<Awaited<T>>> => {
-      const id = (owner.runId += 1);
-      const [variables] = call;
-      const finish = (result: RunResult<Awaited<T>>): Outcome<Awaited<T>> => {
-        const outcome = readRunOutcome(result);
-        if (owner.live) {
-          if (owner.runId === id)
-            setPublished({ owner, state: { ...settledState(outcome), variables } });
-          notify(latest.current, outcome, variables);
-        }
-        return outcome;
-      };
-      const settled = controller.settle(...call);
-      if (!(settled instanceof Promise)) return finish(settled);
-      if (owner.live && owner.runId === id)
-        setPublished({
-          owner,
-          state: { status: "pending", data: undefined, error: undefined, variables },
-        });
-      return settled.then(finish);
-    },
-    [controller, owner],
-  );
-  const run = useCallback(
-    (...call: Scope.CallArgs<I>): void => {
-      const outcome = invoke(call);
-      if (outcome instanceof Promise) outcome.catch(reportCallbackError);
-    },
-    [invoke],
-  );
-  const runAsync = useCallback(
-    async (...call: Scope.CallArgs<I>): Promise<Awaited<T>> => {
-      const running = invoke(call);
-      const outcome = running instanceof Promise ? await running : running;
-      if (outcome.ok) return outcome.value;
-      throw outcome.error;
-    },
-    [invoke],
-  );
-  const reset = useCallback((): void => {
-    owner.runId += 1;
-    if (owner.live) setPublished(undefined);
-  }, [owner]);
-  return {
-    ...state,
-    isIdle: state.status === "idle",
-    isPending: state.status === "pending",
-    isSuccess: state.status === "success",
-    isError: state.status === "error",
-    run,
-    runAsync,
-    reset,
-  };
+  const [, force] = useReducer(RunOwner.bump, 0);
+  const ref = useRef<RunOwner<T, I> | undefined>(undefined);
+  let owner = ref.current;
+  if (owner === undefined || owner.scope !== scope || owner.op !== op)
+    owner = ref.current = new RunOwner(scope, op, force);
+  owner.options = options;
+  useLayoutEffect(owner.attach, [owner]);
+  return owner.handle();
 }
 
 /** Reset a node in an explicit namespace, or the nearest React session's saved namespace head.

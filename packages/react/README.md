@@ -217,6 +217,8 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 ### useRun
 
+- A parent render keeps the run handle when no run changed.
+
 - Normal calls and omitted callbacks report no host error.
 - runAsync keeps the operation value when onSuccess throws.
 - run reports an onSuccess error through the global error event.

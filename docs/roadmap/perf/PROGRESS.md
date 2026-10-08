@@ -515,3 +515,21 @@ The lead reviews and lands this ticket; nothing is pushed.
 - [Final fault-test proof](SERVER-LANE-MUTATION.txt) names the clean source commit.
   Only its header and summary are saved after the run.
 - No push or publish; no Core feedback.
+## react/rules-lane
+
+- Owner: React lane writer (Codex), branch `react/rules-lane`.
+- Assumption: this is writer work; the lead reviews and lands it.
+  No push or publish.
+- The specific React brief needs mounted hooks.
+  Its two identity tests use the package's existing browser seam.
+  This overrides the common brief's ban on browser tests here.
+- `react/run-lean`: port the study's owner and cache its handle.
+  Keep sync results sync, callback errors visible, and startup reset safe.
+  Reuse the controller until the scope or operation changes.
+  The study's per-render controller lookup raised Disposed after close.
+- The new parent-render identity test failed before the fix, exit 1.
+  React's 93 tests then passed, exit 0.
+- Sampled hook bytes per render: 1,148.8 before, 58.7 after.
+  Same study probe, no Maglev and no TurboFan inlining.
+  The final pair gets one queued A/B, then full gates and mutation.
+- Core feedback: none; Core supplies the stable controller and sync result.
