@@ -56,3 +56,19 @@ No push or publish.
 - Generated-file test and telemetry tests pass.
   The static, compression, prepare, glue, and telemetry run has 75 passes.
 - Jev: the settings flag has a false label; env already supplies deployment values.
+
+## start/serve-static-memory
+
+- Build a URL table at host startup, including page directory aliases.
+- First use reads built bytes once; warm hits use the retained bytes.
+  Concurrent first reads share their work; failed reads leave no kept promise.
+- Retain at most 64 MiB; larger builds may still read files after the cap.
+- A warm hit returns a response without a promise.
+  The CLI passes a static hit or a miss without an extra await.
+- Cache 128 accepted-encoding headers and share request regular expressions.
+- File resources per warm hit: 4 → 0 (three file calls plus one file handle).
+- Final static A/B: **b is faster**, five paired runs.
+  Raw verdict is in `static-final-ab.log`.
+- Warm-file test fails on main after the files are removed; it passes here.
+- Static and compression tests: 22 pass, exit 0.
+- Check: exit 0, 0 errors, 59 warnings after keeping test aggregators typed.
