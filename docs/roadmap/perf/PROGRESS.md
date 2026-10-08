@@ -1154,3 +1154,37 @@ scripts/scip.sh refs \
 - Full build, code check, and Core tests: exit 0.
   Check: 0 errors, 27 warnings, matching the starting tree.
 - Batch-wide ticket, timing, validate, Jev, and mutation proof follow below.
+
+### core/run-budget
+
+- Guard both borrow releases when there is no hold.
+  Call dispatch now lives in `runCall`, outside the body root.
+- The controller still makes one execution closure.
+  Its old `executorFor` helper is removed, so the slot count stays 341.
+- `runOnce`: 499 -> 429 bytecode bytes; its ceiling falls to 429.
+- Six fresh inline traces per case, with default Maglev:
+  - Plain settle: `closeSpan` 0/6 -> 6/6.
+  - Plain settle: `releaseBorrows` 6/6 -> 0/6.
+  - Tagged: `OperationCtx` 0/6 -> 6/6.
+  - Tagged: `closeSpan` 0/6 -> 6/6.
+- Core tests and check: exit 0; 0 errors, 27 warnings.
+- Runtime size: 15,835 -> 15,832 B gzip.
+- Batch timing follows below; no speed gain is claimed from inline traces alone.
+
+### core/slot-order
+
+- Moved the report's 20 cold declarations below the hot block.
+  Moved its 20 per-run and per-close names above the block.
+- Replaced two private flag symbols with fields: `borrows` and `mayHook`.
+  This is the report's two-slot merge; brand changes stay in batch B.
+  The extra room also fits `settleRun` and `enterHookAccess`.
+- Highest Core context slot: 341 -> 339; its ceiling falls to 339.
+  Hot block: last slot 254, with one slot left before wide reads.
+  The slot check now also guards all 22 promoted names by name.
+- Wide context instructions: 19 -> 5 across the 13 exercised functions
+  in the saved driver list; six other listed declarations were not exercised.
+  This is a driver count, not a claim that every Core function has no wide read.
+- `settleRun`: 59 -> 53 bytes; `stepRunHook`: 205 -> 201 bytes.
+  Both bytecode ceilings fall with the code.
+- Runtime size: 15,832 -> 15,906 B gzip, under 16,384.
+- Core check, tests, and parser tests are recorded in the batch gates below.

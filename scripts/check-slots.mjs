@@ -35,6 +35,32 @@ const FIRST_SLOT = 3;
 const ANCHOR = "invalidateResource";
 const ANCHOR_SOURCE = "../src/index.ts";
 
+/** Per-run and per-close helpers promoted by core/slot-order must keep one-byte operands. */
+const REQUIRED_HOT = [
+  "settledValue",
+  "failedRun",
+  "detachLayer",
+  "beginClosing",
+  "keepData",
+  "materializeActiveFrames",
+  "bestEffort",
+  "clearBindings",
+  "propagateSweptOutcome",
+  "walkEntry",
+  "memoEntry",
+  "freshEntry",
+  "hookCanRead",
+  "activeHookOwner",
+  "createBorrows",
+  "thenDone",
+  "expandFrame",
+  "resolveHeld",
+  "extendHandle",
+  "runHookCall",
+  "settleRun",
+  "enterHookAccess",
+];
+
 // oxc-parser is a dependency of tools/jev, not of the root package: resolve it from there.
 const jev = createRequire(new URL("../tools/jev/package.json", import.meta.url));
 const { parseSync } = await import(jev.resolve("oxc-parser"));
@@ -369,6 +395,22 @@ function sourceName(map, at) {
   return `${m ? m[1] : "?"} (${map.sources[at.source].replace("../", "")}:${at.line})`;
 }
 
+/** Check the promoted helpers even if a later edit changes the block boundary. */
+function checkHotNames(all, source, map) {
+  for (const name of REQUIRED_HOT) {
+    const found = all.find(
+      (s) => s.at?.source === source && sourceName(map, s.at).startsWith(`${name} (`),
+    );
+    if (!found || found.slot > MAX_SLOT) {
+      console.log(
+        `FAIL hot helper ${name}: ${found ? `slot ${found.slot} > ${MAX_SLOT}` : "missing"}`,
+      );
+      return false;
+    }
+  }
+  return true;
+}
+
 function main(file) {
   const code = readFileSync(file, "utf8");
   const map = JSON.parse(readFileSync(`${file}.map`, "utf8"));
@@ -380,6 +422,7 @@ function main(file) {
   const segs = segments(map);
   const all = slots(program).map((s) => ({ ...s, at: sourceAt(segs, s.start) }));
   const anchor = all.findIndex((s) => s.at?.source === source && s.at.line === anchorLine);
+  if (!checkHotNames(all, source, map)) return 1;
   if (anchorLine === 0 || anchor < 0) {
     console.log(
       `FAIL no slot maps to \`function ${ANCHOR}\` in ${ANCHOR_SOURCE}: re-pick the anchor`,

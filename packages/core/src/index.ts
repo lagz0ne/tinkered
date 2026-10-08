@@ -9,11 +9,9 @@ export type { Origin, RunResult };
 
 const cell: unique symbol = Symbol("data");
 const operationSym: unique symbol = Symbol("operation");
-const borrowSym: unique symbol = Symbol("borrow");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
-const mayHookSym: unique symbol = Symbol("mayHook");
 const extensionSym: unique symbol = Symbol("extension");
 const namespaceSym: unique symbol = Symbol("namespace");
 
@@ -945,30 +943,21 @@ export function operation<
     run: config.run as Operation.Handle<R, I>["run"],
   } as Operation.Handle<R, I> & {
     controller: Operation.Handle<R, I>["controller"];
-    [borrowSym]: boolean;
+    borrows: boolean;
   };
   const controller = edgeTo("controller", base);
   const borrows = seesResource(base.depends);
   base.controller = controller;
-  base[borrowSym] = borrows;
+  base.borrows = borrows;
   return base;
 }
 
-type BorrowFlag = { readonly [borrowSym]?: boolean };
+type BorrowFlag = { readonly borrows?: boolean };
 
 /** Read the declaration-time flag: does this operation's `depends` name a resource? Ops without one
  * skip every per-dep resource check on the call path (ADR 0044 keeps `op`/`run` untouched). */
 function seesResourceOf(target: Operation.Handle<unknown, unknown>): boolean {
-  return (target as BorrowFlag)[borrowSym] === true;
-}
-
-/** True when an operation's deps name a resource, directly or behind an edge. */
-function seesResource(depends: Scope.Depends): boolean {
-  for (const key in depends) {
-    const dep = depends[key];
-    if (isResource(dep)) return true;
-  }
-  return false;
+  return (target as BorrowFlag).borrows === true;
 }
 
 /** Declare a reusable resource: built once per owner, cleaned up when its owner closes. */
@@ -984,12 +973,10 @@ export function resource<
   const depends: Scope.Depends = config.depends ?? {};
   const mayHook =
     config.factory.length >= 2 ||
-    Object.values(depends).some(
-      (dep) => isResource(dep) && (dep as HookFlag)[mayHookSym] !== false,
-    );
+    Object.values(depends).some((dep) => isResource(dep) && (dep as HookFlag).mayHook !== false);
   return {
     [resourceSym]: true,
-    [mayHookSym]: mayHook,
+    mayHook: mayHook,
     label: config.label,
     target: config.target ?? "scope",
     depends,
@@ -997,7 +984,7 @@ export function resource<
   } as Resource.Handle<T>;
 }
 
-type HookFlag = { readonly [mayHookSym]?: boolean };
+type HookFlag = { readonly mayHook?: boolean };
 
 type Entry = { value: unknown };
 /** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
@@ -1020,28 +1007,6 @@ type NsWatchers = {
 
 /** The exact data entry a named resource read. */
 type NsDataDependency = { source: NodeState; entry: Entry };
-
-/** One named resource bucket. Default resource state stays directly on {@link NodeState}. */
-class NsResourceState {
-  readonly layer: Layer;
-  readonly target: Resource.Handle<unknown>;
-  readonly key: Namespace;
-  built: Entry | undefined;
-  ready: Promise<unknown> | undefined;
-  failed: { error: unknown; ready: Promise<unknown> } | undefined = undefined;
-  build: Promise<unknown> | undefined;
-  gen = 0;
-  busy = false;
-  reads: Set<NsDataDependency> | undefined;
-  users: Set<NsResourceState> | undefined;
-  needs: Set<NsResourceState> | undefined;
-  owned: ResourceInstance | undefined;
-  constructor(owner: Layer, target: Resource.Handle<unknown>, key: Namespace) {
-    this.layer = owner;
-    this.target = target;
-    this.key = key;
-  }
-}
 
 type ResourceState = NodeState | NsResourceState;
 
@@ -1278,30 +1243,6 @@ function ensureRunning(layer: Layer, caller?: RunState): void {
   ensureAccepting(layer);
 }
 
-/** THE bucket selector (ADR 0059): layers near→far; at each layer the ns chain in order, then
- * that layer's default bucket. ONE walk serves cells AND tags so the two cannot disagree on the
- * order (the spike's bug). CHAIN ORDER, decided: layers-first, namespaces-second within each
- * layer — the layer chain is the shadowing axis (a child's own write must beat anything it
- * inherits from a parent, exactly as an ns-absent write shadows), so a NEAR layer's default
- * write beats a FAR layer's named bucket; the ns chain only orders buckets within one layer.
- * The discriminator is locked by a test that fails under namespaces-first. */
-function selectBucket<B>(
-  layer: Layer,
-  chain: readonly Namespace[],
-  bucket: (layer: Layer, key: Namespace) => B | undefined,
-  fallback: (layer: Layer) => B | undefined,
-): B | undefined {
-  for (let cur: Layer | undefined = layer; cur; cur = cur.up) {
-    for (const key of chain) {
-      const hit = bucket(cur, key);
-      if (hit !== undefined) return hit;
-    }
-    const own = fallback(cur);
-    if (own !== undefined) return own;
-  }
-  return undefined;
-}
-
 /** The nearest cell up the chain. The lookup is memoized where it pays: on a record this layer
  * already has, or on this layer when the cell sits two or more layers up (a deep chain stays
  * O(1) after its first read). A layer with no record whose nearest cell is at its parent reads
@@ -1434,38 +1375,6 @@ function writeCellNs(
   flushInheritedNsWatchers(layer, target, key);
 }
 
-function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, seed: unknown): Entry {
-  const rec = nodeState(layer, target);
-  let bucket = rec.cells?.get(key);
-  if (bucket === undefined) {
-    bucket = { value: seed };
-    (rec.cells ??= new Map()).set(key, bucket);
-  }
-  return bucket;
-}
-
-/** A named change reaches only watchers indexed under its key. Snapshot every affected layer
- * before firing: an earlier callback must not steal a descendant's inherited change. A default
- * cell shadow or an entry for this key blocks the change for its entire subtree; other named
- * shadows are checked per watcher chain. */
-function flushInheritedNsWatchers(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
-  const pending: { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] = [];
-  function collect(cur: Layer): void {
-    const watch = cur.nodes.get(target)?.nsWatch?.keys.get(key);
-    if (watch) pending.push(...(pendingNsWatchers(cur, target, watch) ?? []));
-    for (const child of cur.children) {
-      if (!shadowsNamedChange(child, target, key)) collect(child);
-    }
-  }
-  collect(layer);
-  for (const p of pending) p.fn(p.next, p.prev);
-}
-
-function shadowsNamedChange(layer: Layer, target: Data.Cell<unknown>, key: Namespace): boolean {
-  const rec = layer.nodes.get(target);
-  return !!rec?.cell || !!rec?.cells?.has(key);
-}
-
 /** A named bucket change can affect only chains containing its key at this layer. A default
  * change or a flush inherited by a child re-resolves all chains. */
 function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
@@ -1559,14 +1468,6 @@ function tagAll(
   const out: unknown[] = [];
   for (let cur: Layer | undefined = layer; cur; cur = cur.up) appendLayerTags(out, cur, target);
   return out;
-}
-
-function appendNsTags(
-  out: unknown[],
-  chain: readonly Namespace[],
-  target: Tag.Handle<unknown>,
-): void {
-  for (const key of chain) appendBindings(out, key.tags, target);
 }
 
 /** A namespaced `.all` follows the same layers-first walk as cell selection. */
@@ -1770,11 +1671,6 @@ const OFF_OBS: Observe.Ctx = {
   event: () => undefined,
   child: (_name, fn) => fn(undefined),
 };
-
-function nanosFromMillis(ms: number): bigint {
-  const whole = Math.trunc(ms);
-  return BigInt(whole) * 1_000_000n + BigInt(Math.round((ms - whole) * 1_000_000));
-}
 
 /** The one sanctioned real-clock read (ADR 0034). `scripts/check-ambient.mjs` skips the reads
  * inside a declaration tagged `@ambientSource`, and only there.
@@ -2939,31 +2835,6 @@ function resolveResourceDeps(
   );
 }
 
-/** Only named builds need to link the exact resource bucket selected by a dependency. */
-function resolveNamedResourceDeps(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  span: SpanImpl | undefined,
-  superseded: () => boolean,
-  chain: readonly Namespace[] | undefined,
-  state: ResourceState,
-  selected: SelectedResource | undefined,
-): Record<string, unknown> {
-  return resolveResourceDeps(
-    owner,
-    target,
-    span,
-    superseded,
-    chain,
-    state,
-    (depOwner, depTarget, depState) => {
-      if (!superseded() && state instanceof NsResourceState && depState instanceof NsResourceState)
-        linkNsResourceDependent(depState, state);
-      selected?.(depOwner, depTarget, depState);
-    },
-  );
-}
-
 class ResourceCtx implements Resource.Ctx {
   declare private layer: Layer;
   declare private owned: ResourceInstance;
@@ -3111,7 +2982,7 @@ function hasRetainedInstance(state: ResourceState): boolean {
 function needsHold(owner: Layer, target: Resource.Handle<unknown>, state: ResourceState): boolean {
   if (hasRetainedInstance(state)) return true;
   if (state.built || state.failed) return false;
-  return (target as HookFlag)[mayHookSym] !== false || hasPresetLayers(owner);
+  return (target as HookFlag).mayHook !== false || hasPresetLayers(owner);
 }
 
 function holdDependency(dependent: ResourceInstance, dependency: ResourceInstance): void {
@@ -3312,11 +3183,7 @@ function buildResource<T>(
   resolveDeps: typeof resolveResourceDeps = resolveResourceDeps,
 ): unknown {
   if (rec.busy) raise("CircularResource", { label: target.label });
-  if (
-    (target as HookFlag)[mayHookSym] === false &&
-    rec.owned === undefined &&
-    !hasPresetLayers(owner)
-  )
+  if ((target as HookFlag).mayHook === false && rec.owned === undefined && !hasPresetLayers(owner))
     return buildHooklessResource(owner, caller, target, up, chain, rec, resolveDeps);
   return buildTrackedResource(owner, caller, target, up, chain, rec, resolveDeps);
 }
@@ -3481,24 +3348,6 @@ function selectNsResource(
   );
 }
 
-function occupiedNsResource(state: NsResourceState): boolean {
-  return Boolean(state.built || state.build || state.failed || state.busy);
-}
-
-function ownNsResource(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  key: Namespace,
-): NsResourceState {
-  const rec = nodeState(owner, target);
-  let state = rec.named?.get(key);
-  if (state === undefined) {
-    state = new NsResourceState(owner, target, key);
-    (rec.named ??= new Map()).set(key, state);
-  }
-  return state;
-}
-
 function hasResourceNs(
   target: Resource.Handle<unknown>,
   chain: readonly Namespace[] | undefined,
@@ -3547,21 +3396,6 @@ function namedResourceSlot(
   return readResourceState(owner, caller, target, up, chain, state);
 }
 
-function readResourceState(
-  owner: Layer,
-  caller: Layer,
-  target: Resource.Handle<unknown>,
-  up: SpanImpl | undefined,
-  chain: readonly Namespace[] | undefined,
-  state: ResourceState,
-): unknown {
-  if (state.built) return state.built.value;
-  if (state.failed) return state.failed.ready;
-  if (state.build) return state.build;
-  if (state.busy) raise("CircularResource", { label: target.label });
-  return buildResource(owner, caller, target, up, chain, state, resolveNamedResourceDeps);
-}
-
 function addDependent(
   owner: Layer,
   node: Node,
@@ -3587,41 +3421,6 @@ function addNsDataDependent(
   return true;
 }
 
-function linkNsResourceDependent(selected: NsResourceState, dependent: NsResourceState): void {
-  (selected.users ??= new Set()).add(dependent);
-  (dependent.needs ??= new Set()).add(selected);
-  (dependent.layer.links ??= new Set()).add(dependent);
-}
-
-function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
-  const users = selected.source.readers?.get(selected.entry) ?? new Set<NsResourceState>();
-  if (users.has(dependent)) return;
-  users.add(dependent);
-  (selected.source.readers ??= new Map()).set(selected.entry, users);
-  (dependent.reads ??= new Set()).add(selected);
-  (dependent.layer.links ??= new Set()).add(dependent);
-}
-
-function selectNsDataEntry(
-  owner: Layer,
-  target: Data.Cell<unknown>,
-  chain: readonly Namespace[],
-): NsDataDependency | undefined {
-  const selected = selectBucket<NsDataDependency | typeof DEFAULT_DATA_ENTRY>(
-    owner,
-    chain,
-    (layer, key) => {
-      const source = layer.nodes.get(target);
-      const entry = source?.cells?.get(key);
-      return source && entry ? { source, entry } : undefined;
-    },
-    (layer) => (layer.nodes.get(target)?.cell ? DEFAULT_DATA_ENTRY : undefined),
-  );
-  return selected === DEFAULT_DATA_ENTRY ? undefined : selected;
-}
-
-const DEFAULT_DATA_ENTRY = Symbol();
-
 function detachNsDependencies(state: NsResourceState): void {
   state.layer.links?.delete(state);
   for (const link of state.reads ?? []) link.source.readers?.get(link.entry)?.delete(state);
@@ -3632,13 +3431,6 @@ function detachNsDependencies(state: NsResourceState): void {
 function detachNsLinked(layer: Layer, linked: Set<NsResourceState>): void {
   for (const state of linked) detachNsDependencies(state);
   layer.links = undefined;
-}
-
-function detachNsResourceLinks(state: NsResourceState): void {
-  for (const dependency of state.needs ?? []) dependency.users?.delete(state);
-  for (const dependent of state.users ?? []) dependent.needs?.delete(state);
-  state.needs = undefined;
-  state.users = undefined;
 }
 
 function detachResourceDependencies(
@@ -3678,7 +3470,7 @@ function addBorrow(owned: ResourceInstance, held: HeldBorrows): void {
 }
 
 function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | undefined {
-  if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
+  if ((target as BorrowFlag).borrows !== true) return undefined;
   return createBorrows();
 }
 
@@ -3864,39 +3656,6 @@ const SUCCESS: Scope.Outcome = { status: "success" };
 const READY: Promise<void> = Promise.resolve();
 const RELEASED: Scope.End = { status: "released" };
 
-/** Drain a layer's `defer`s in reverse registration order (LIFO, ADR 0026), awaiting each before the
- * next, passing the settled `end`; teardown failures collect in `layer.errors` in execution order
- * (→ `TeardownFailed`). The teardown guard spans the synchronous call so a callback that synchronously
- * re-enters `close()` is acked (Q3 no-hang). */
-async function finishCloseInstance(entry: DeferEntry): Promise<void> {
-  const owned = entry.owned as ResourceInstance;
-  if (isHeld(owned)) {
-    finishTracked(owned);
-    return;
-  }
-  const finished = finishHook(owned, entry.fn);
-  if (finished) await finished;
-}
-
-async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End): Promise<void> {
-  if (entry.owned) return finishCloseInstance(entry);
-  let pending: void | PromiseLike<void>;
-  tearing.push(layer);
-  try {
-    pending = entry.fn(end);
-  } catch (cause) {
-    addError(layer, cause);
-    return;
-  } finally {
-    tearing.pop();
-  }
-  try {
-    await pending;
-  } catch (cause) {
-    addError(layer, cause);
-  }
-}
-
 /** An empty drain still yields at its caller's await, without allocating an async task. */
 function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
   return entries.length === 0 ? READY : drainEntries(layer, entries, end);
@@ -4078,20 +3837,6 @@ function collectLayerInstances(layer: Layer): ResourceInstance[] {
       }
   }
   return built;
-}
-
-async function closeInstances(
-  layer: Layer,
-  settled: Scope.Outcome,
-  built: ResourceInstance[],
-): Promise<void> {
-  for (const owned of built) unlinkInstance(owned, settled);
-  await drainDefers(layer, [...layer.hooks], settled);
-  for (const owned of built) {
-    const finished = finishInstance(owned);
-    if (finished) ignoreRejection(finished);
-  }
-  while (layer.pending.size) await Promise.all(layer.pending);
 }
 
 /** Run a layer's close (ADR 0028): sweep the subtree, classify the body, close children, join owned
@@ -4665,6 +4410,273 @@ export function createScope(options?: Scope.RootOptions): Scope.Handle {
  * add new hot-path names above this block. `pnpm validate` checks it (`scripts/check-slots.mjs`). */
 type Affected = { node: Node; layer: Layer };
 
+/** `settleRun` once the run returned: a value is `success`; a promise settles to one. */
+function settledValue(
+  layer: Layer,
+  result: unknown,
+  signal?: AbortSignal,
+): RunResult<unknown> | Promise<RunResult<unknown>> {
+  if (!isThenable(result)) return { status: "success", value: result };
+  return Promise.resolve(result).then(
+    (value): RunResult<unknown> => ({ status: "success", value }),
+    (error: unknown) => failedRun(layer, error, signal),
+  );
+}
+
+/** `settle`'s Result for what `run` threw or rejected with: a cancel reason on an aborted layer is
+ * `cancelled`; anything else is `failed`. */
+function failedRun(layer: Layer, error: unknown, signal?: AbortSignal): RunResult<never> {
+  if (isCancel(layer, error) || (signal?.aborted && error === signal.reason))
+    return { status: "cancelled", reason: error };
+  recover(layer, error);
+  closeOrigin(error);
+  const origin = originOf(error);
+  const result: RunResult<never> = { status: "failed", error, kind: failureKind(error) };
+  if (origin) result.origin = origin;
+  return result;
+}
+
+/** Both close paths detach before publishing their outcome to a collecting parent. */
+function detachLayer(layer: Layer): Layer | undefined {
+  if (layer.links) detachNsLinked(layer, layer.links);
+  const up = layer.up;
+  up?.children.delete(layer);
+  return up;
+}
+
+function beginClosing(layer: Layer): void {
+  layer.closeAbort?.abort(CLOSING_REASON);
+}
+
+/** Hand a closed layer's data on (ADR 0069). `withData` moves the store itself into the `Result`
+ * as `data`: no copy, no filter. A session under `session` hooks keeps its store, presets, and tags
+ * until the hooks return ({@link freeAfterHooks}); any other layer frees them now. */
+function keepData(
+  layer: Layer,
+  ended: Scope.Result,
+  hooks: SessionHooks | undefined,
+  withData: boolean,
+): Scope.Result {
+  const kept = withData ? { ...ended, data: finalData(layer.nodes, layer.ns) } : ended;
+  if (hooks?.state === 0) {
+    hooks.state = 1;
+    hooks.moved = withData;
+  } else freeData(layer, withData);
+  return kept;
+}
+
+/** A close can enter through a captured handle while a body is still synchronous. Register
+ * these frames before the existing sweep and abort code sees the tree. */
+function materializeActiveFrames(): void {
+  for (let frame = activeTagged; frame; frame = frame.stack) materialize(frame);
+}
+
+/** A best-effort outcome for a re-entrant close ack before the layer has settled: whatever real state
+ * is already known (a recorded failure, then an interrupted body), else success. */
+function bestEffort(layer: Layer): Scope.Outcome {
+  const failed = failureOf(layer);
+  if (failed) return { status: "failed", error: failed.cause };
+  return layer.cancelled ? { status: "cancelled" } : SUCCESS;
+}
+
+/** Free retained bindings; the empty-preset guard avoids an extra field on a grown frame. */
+function clearBindings(layer: Layer): void {
+  if (layer.presets !== undefined) layer.presets = undefined;
+  layer.tags = undefined;
+}
+
+function propagateSweptOutcome(layer: Layer, up: Layer): void {
+  for (const cause of layer.errors) addError(up, cause);
+  /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
+   * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
+   * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
+  if (layer.failed && layer.caller === undefined) up.childError ??= layer.failed;
+}
+
+/** The slow half of {@link effectiveEntry}: walk the parents for a cell or a memo, then memoize
+ * where it pays (see there). `self` is this layer's record, when it has one. */
+function walkEntry(layer: Layer, self: NodeState | undefined, target: Data.Cell<unknown>): Entry {
+  let hops = 0;
+  let top = layer;
+  for (let cur = layer.up; cur; cur = cur.up) {
+    hops++;
+    top = cur;
+    const rec = cur.nodes.get(target);
+    if (rec === undefined) continue;
+    const found = rec.cell ?? rec.eff;
+    if (found === undefined) continue;
+    return memoEntry(layer, self, target, found, hops);
+  }
+  return freshEntry(layer, self, target, top, hops);
+}
+
+/** Memoize an entry where it pays (see {@link effectiveEntry}): on this layer's record when it
+ * has one, on a fresh record when the entry sits two or more hops up, else nowhere.
+ * The hop and lazy cuts change cache cost only; untouched frames keep reading through. */
+function memoEntry(
+  layer: Layer,
+  self: NodeState | undefined,
+  target: Data.Cell<unknown>,
+  entry: Entry,
+  hops: number,
+): Entry {
+  if (self !== undefined) self.eff = entry;
+  else if (hops >= 2 && !layer.lazy) nodeState(layer, target).eff = entry;
+  return entry;
+}
+
+/** No layer up the chain holds the cell: one entry with its initial value, memoized on the top
+ * layer for everything under it, and on this layer when that pays. */
+function freshEntry(
+  layer: Layer,
+  self: NodeState | undefined,
+  target: Data.Cell<unknown>,
+  top: Layer,
+  hops: number,
+): Entry {
+  const fresh: Entry = { value: target.initial };
+  nodeState(top, target).eff = fresh;
+  return top === layer ? fresh : memoEntry(layer, self, target, fresh, hops);
+}
+
+function hookCanRead(layer: Layer): boolean {
+  for (let owner = activeHookOwner; owner; owner = owner.up) {
+    if (owner === layer) return !layer.aborted;
+  }
+  return false;
+}
+
+let activeHookOwner: Layer | undefined;
+
+function createBorrows(): HeldBorrows {
+  const list: ResourceInstance[] = [];
+  let settle: () => void = noop;
+  const done = new Promise<void>((resolve) => (settle = resolve));
+  return { list, done, settle };
+}
+
+/** Call `done` after a defer drain: now when it stayed synchronous, else after its tail. */
+function thenDone(tail: Promise<void> | undefined, done: () => void): Promise<void> | undefined {
+  if (!tail) {
+    done();
+    return undefined;
+  }
+  const after = tail.then(done, done);
+  ignoreRejection(after);
+  return after;
+}
+
+/** Promotion retains identity and binds ancestors first, before a watcher, build, or pending
+ * body becomes visible. A new child inherits any close already in flight (ADR 0028). */
+function expandFrame(frame: Layer, up: Layer): void {
+  materialize(up);
+  frame.lazy = false;
+  if (up.children === NO_CHILDREN) up.children = new Set();
+  up.children.add(frame);
+  if (up.swept) frame.swept = true;
+  if (up.aborted) {
+    frame.aborted = true;
+    frame.reason = up.reason;
+  }
+}
+
+/** A read on a closed scope (ADR 0069): while a session's data waits for its `session` hooks, a
+ * data cell or a tag reads as it did before the close. Anything else throws `Disposed`. */
+function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
+  if (SESSION_HOOKS.get(layer)?.state !== 1 || isResource(target) || isExtension(target))
+    raise("Disposed", { reason: "scope is closed" });
+  return resolveNs(layer, target, ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns));
+}
+
+/** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
+ * start-value record per installed extension, override `close` with the close chain, add `ready`,
+ * then kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
+function extendHandle(
+  layer: Layer,
+  plain: Scope.Handle,
+  exts: readonly Scope.Extension<unknown>[],
+  signal: AbortSignal | undefined,
+): Scope.Handle {
+  const records = new Map<Scope.Extension<unknown>, ExtRec>();
+  for (const ext of exts) records.set(ext, { settled: false, value: undefined });
+  EXTENSIONS.set(layer, records);
+  const closers = exts.filter((ext) => ext.hooks?.close !== undefined);
+  const resolvers = exts.filter((ext) => ext.hooks?.resolve !== undefined);
+  layer.exts = readExtRoutes(exts);
+  const session = layer.exts.session;
+  let settleReady: () => void = noop;
+  let failReady: (error: unknown) => void = noop;
+  const ready = new Promise<void>((resolveReady, rejectReady) => {
+    settleReady = resolveReady;
+    failReady = rejectReady;
+  });
+  ignoreRejection(ready);
+  const lifetime: RootLifetime = {};
+  const extended: Scope.Handle & { closed?: Promise<Scope.Result> } = Object.create(
+    session === undefined ? plain : withSessionCreate(plain, layer, session),
+  );
+  Object.assign(extended, { ready });
+  if (signal)
+    extended.closed = new Promise<Scope.Result>((resolveClosed) => {
+      lifetime.finish = resolveClosed;
+    });
+  extended.close = watchRootClose(layer, extended, closers, lifetime);
+  if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
+  if (signal) listenForStop(extended, signal, lifetime);
+  runStartChain(layer, extended, exts, lifetime, settleReady, failReady);
+  return extended;
+}
+
+/** Hooked calls select their owner before starting the hook chain. An owned call therefore
+ * passes the same child through session hooks, run hooks, and the body, once each. */
+function runHookCall<T, I>(
+  layer: Layer,
+  target: Operation.Handle<T, I>,
+  up: SpanImpl | undefined,
+  inherited: readonly Namespace[] | undefined,
+  caller: RunState | undefined,
+  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
+  call: Scope.Invocation<I> | undefined,
+): unknown {
+  ensureRunning(layer, caller);
+  const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
+  if (!hasCallSession(call))
+    return runHookChain(layer, target, up, chain, caller, hookTarget, call);
+  const result = runSessionWith(
+    layer,
+    { tags: call.tags, ns: chain },
+    (child) => runHookChain(child, target, up, chain, undefined, hookTarget, call),
+    caller,
+    call.signal,
+  );
+  if (caller) track(layer, result, runFailure(layer, caller));
+  return result;
+}
+
+/** `run` that never throws: what `run` returns or resolves to is `success`, even under a forced
+ * close (a program that catches SIGINT and exits 0 exits 0); what it throws goes to `failedRun`. */
+function settleRun(
+  layer: Layer,
+  run: () => unknown,
+  signal?: AbortSignal,
+): RunResult<unknown> | Promise<RunResult<unknown>> {
+  try {
+    return settledValue(layer, run(), signal);
+  } catch (error) {
+    return failedRun(layer, error, signal);
+  }
+}
+
+/** Enter a hook's access window, as {@link withHookAccess} does, without a thunk. */
+function enterHookAccess(run: HookRun): typeof activeHookOwner {
+  if (!run.live) raise("Disposed", { reason: "run is finished" });
+  if (run.layer.aborted) throw run.layer.reason;
+  const previous = activeHookOwner;
+  activeHookOwner = run.layer;
+  buildDepth++;
+  return previous;
+}
+
 function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
   const s = nodeState(owner, target);
   if (s.owned) {
@@ -4953,23 +4965,6 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
   return dataReleased;
 }
 
-/** Hand a closed layer's data on (ADR 0069). `withData` moves the store itself into the `Result`
- * as `data`: no copy, no filter. A session under `session` hooks keeps its store, presets, and tags
- * until the hooks return ({@link freeAfterHooks}); any other layer frees them now. */
-function keepData(
-  layer: Layer,
-  ended: Scope.Result,
-  hooks: SessionHooks | undefined,
-  withData: boolean,
-): Scope.Result {
-  const kept = withData ? { ...ended, data: finalData(layer.nodes, layer.ns) } : ended;
-  if (hooks?.state === 0) {
-    hooks.state = 1;
-    hooks.moved = withData;
-  } else freeData(layer, withData);
-  return kept;
-}
-
 /** Free a closed layer's data: its store, presets, and tags. The store is detached, not cleared;
  * a store `moved` into a `Result` keeps only what `data.get` reads ({@link keepCellsOnly}). */
 function freeData(layer: Layer, moved: boolean): void {
@@ -5006,14 +5001,6 @@ function keepCellsOnly(s: NodeState): void {
     s.readers =
     s.nsWatch =
       undefined;
-}
-
-/** A read on a closed scope (ADR 0069): while a session's data waits for its `session` hooks, a
- * data cell or a tag reads as it did before the close. Anything else throws `Disposed`. */
-function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
-  if (SESSION_HOOKS.get(layer)?.state !== 1 || isResource(target) || isExtension(target))
-    raise("Disposed", { reason: "scope is closed" });
-  return resolveNs(layer, target, ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns));
 }
 
 /** The store a `withData` close moved into its `Result` (ADR 0069), read through {@link ownEntry}. */
@@ -5079,52 +5066,6 @@ function adoptThenable<R>(raw: unknown, then: ThenFn<R>): Promise<R> {
   });
 }
 
-/** The slow half of {@link effectiveEntry}: walk the parents for a cell or a memo, then memoize
- * where it pays (see there). `self` is this layer's record, when it has one. */
-function walkEntry(layer: Layer, self: NodeState | undefined, target: Data.Cell<unknown>): Entry {
-  let hops = 0;
-  let top = layer;
-  for (let cur = layer.up; cur; cur = cur.up) {
-    hops++;
-    top = cur;
-    const rec = cur.nodes.get(target);
-    if (rec === undefined) continue;
-    const found = rec.cell ?? rec.eff;
-    if (found === undefined) continue;
-    return memoEntry(layer, self, target, found, hops);
-  }
-  return freshEntry(layer, self, target, top, hops);
-}
-
-/** Memoize an entry where it pays (see {@link effectiveEntry}): on this layer's record when it
- * has one, on a fresh record when the entry sits two or more hops up, else nowhere.
- * The hop and lazy cuts change cache cost only; untouched frames keep reading through. */
-function memoEntry(
-  layer: Layer,
-  self: NodeState | undefined,
-  target: Data.Cell<unknown>,
-  entry: Entry,
-  hops: number,
-): Entry {
-  if (self !== undefined) self.eff = entry;
-  else if (hops >= 2 && !layer.lazy) nodeState(layer, target).eff = entry;
-  return entry;
-}
-
-/** No layer up the chain holds the cell: one entry with its initial value, memoized on the top
- * layer for everything under it, and on this layer when that pays. */
-function freshEntry(
-  layer: Layer,
-  self: NodeState | undefined,
-  target: Data.Cell<unknown>,
-  top: Layer,
-  hops: number,
-): Entry {
-  const fresh: Entry = { value: target.initial };
-  nodeState(top, target).eff = fresh;
-  return top === layer ? fresh : memoEntry(layer, self, target, fresh, hops);
-}
-
 /** Every value bound to `target` in a layer's own tags, top first. */
 function appendLayerTags(out: unknown[], cur: Layer, target: Tag.Handle<unknown>): void {
   if (cur.tags !== undefined) appendBindings(out, cur.tags, target);
@@ -5186,46 +5127,6 @@ function sessionThrough(
   return at(0);
 }
 
-/** `settle`'s Result for what `run` threw or rejected with: a cancel reason on an aborted layer is
- * `cancelled`; anything else is `failed`. */
-function failedRun(layer: Layer, error: unknown, signal?: AbortSignal): RunResult<never> {
-  if (isCancel(layer, error) || (signal?.aborted && error === signal.reason))
-    return { status: "cancelled", reason: error };
-  recover(layer, error);
-  closeOrigin(error);
-  const origin = originOf(error);
-  const result: RunResult<never> = { status: "failed", error, kind: failureKind(error) };
-  if (origin) result.origin = origin;
-  return result;
-}
-
-/** `run` that never throws: what `run` returns or resolves to is `success`, even under a forced
- * close (a program that catches SIGINT and exits 0 exits 0); what it throws goes to `failedRun`. */
-function settleRun(
-  layer: Layer,
-  run: () => unknown,
-  signal?: AbortSignal,
-): RunResult<unknown> | Promise<RunResult<unknown>> {
-  try {
-    return settledValue(layer, run(), signal);
-  } catch (error) {
-    return failedRun(layer, error, signal);
-  }
-}
-
-/** `settleRun` once the run returned: a value is `success`; a promise settles to one. */
-function settledValue(
-  layer: Layer,
-  result: unknown,
-  signal?: AbortSignal,
-): RunResult<unknown> | Promise<RunResult<unknown>> {
-  if (!isThenable(result)) return { status: "success", value: result };
-  return Promise.resolve(result).then(
-    (value): RunResult<unknown> => ({ status: "success", value }),
-    (error: unknown) => failedRun(layer, error, signal),
-  );
-}
-
 /** `settle` received `error`: each stuck panic on its cause chain is recovered (Go's `recover`). */
 function recover(layer: Layer, error: unknown): void {
   const panics = layer.panics;
@@ -5245,18 +5146,6 @@ function closingOf(layer: Layer): AbortSignal {
   }
   if (layer.closed || layer.closing || layer.swept) layer.closeAbort!.abort(CLOSING_REASON);
   return (layer.stop = AbortSignal.any(signals));
-}
-
-/** Both close paths detach before publishing their outcome to a collecting parent. */
-function detachLayer(layer: Layer): Layer | undefined {
-  if (layer.links) detachNsLinked(layer, layer.links);
-  const up = layer.up;
-  up?.children.delete(layer);
-  return up;
-}
-
-function beginClosing(layer: Layer): void {
-  layer.closeAbort?.abort(CLOSING_REASON);
 }
 
 /** Run the extensions' `start` onion (ADR 0050): registration order, first is outermost. Each
@@ -5539,45 +5428,6 @@ function wrapSession(
   });
 }
 
-/** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
- * start-value record per installed extension, override `close` with the close chain, add `ready`,
- * then kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
-function extendHandle(
-  layer: Layer,
-  plain: Scope.Handle,
-  exts: readonly Scope.Extension<unknown>[],
-  signal: AbortSignal | undefined,
-): Scope.Handle {
-  const records = new Map<Scope.Extension<unknown>, ExtRec>();
-  for (const ext of exts) records.set(ext, { settled: false, value: undefined });
-  EXTENSIONS.set(layer, records);
-  const closers = exts.filter((ext) => ext.hooks?.close !== undefined);
-  const resolvers = exts.filter((ext) => ext.hooks?.resolve !== undefined);
-  layer.exts = readExtRoutes(exts);
-  const session = layer.exts.session;
-  let settleReady: () => void = noop;
-  let failReady: (error: unknown) => void = noop;
-  const ready = new Promise<void>((resolveReady, rejectReady) => {
-    settleReady = resolveReady;
-    failReady = rejectReady;
-  });
-  ignoreRejection(ready);
-  const lifetime: RootLifetime = {};
-  const extended: Scope.Handle & { closed?: Promise<Scope.Result> } = Object.create(
-    session === undefined ? plain : withSessionCreate(plain, layer, session),
-  );
-  Object.assign(extended, { ready });
-  if (signal)
-    extended.closed = new Promise<Scope.Result>((resolveClosed) => {
-      lifetime.finish = resolveClosed;
-    });
-  extended.close = watchRootClose(layer, extended, closers, lifetime);
-  if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
-  if (signal) listenForStop(extended, signal, lifetime);
-  runStartChain(layer, extended, exts, lifetime, settleReady, failReady);
-  return extended;
-}
-
 function readExtRoutes(exts: readonly Scope.Extension<unknown>[]): ExtRoutes {
   const runs = exts.filter((ext) => ext.hooks?.run !== undefined);
   const writes = exts.filter((ext) => ext.hooks?.write !== undefined);
@@ -5774,17 +5624,6 @@ function applyPresets(
   return presets;
 }
 
-/** Call `done` after a defer drain: now when it stayed synchronous, else after its tail. */
-function thenDone(tail: Promise<void> | undefined, done: () => void): Promise<void> | undefined {
-  if (!tail) {
-    done();
-    return undefined;
-  }
-  const after = tail.then(done, done);
-  ignoreRejection(after);
-  return after;
-}
-
 /** The walk behind {@link closeWouldReenter}, its own function so its loop stays out of the
  * close dispatch's inlined size when no teardown is active. */
 function reentersTeardown(target: Layer): boolean {
@@ -5847,34 +5686,6 @@ const FRAME_STATE = {
 
 Object.assign(TaggedFrame.prototype, FRAME_STATE);
 
-/** Promotion retains identity and binds ancestors first, before a watcher, build, or pending
- * body becomes visible. A new child inherits any close already in flight (ADR 0028). */
-function expandFrame(frame: Layer, up: Layer): void {
-  materialize(up);
-  frame.lazy = false;
-  if (up.children === NO_CHILDREN) up.children = new Set();
-  up.children.add(frame);
-  if (up.swept) frame.swept = true;
-  if (up.aborted) {
-    frame.aborted = true;
-    frame.reason = up.reason;
-  }
-}
-
-/** A close can enter through a captured handle while a body is still synchronous. Register
- * these frames before the existing sweep and abort code sees the tree. */
-function materializeActiveFrames(): void {
-  for (let frame = activeTagged; frame; frame = frame.stack) materialize(frame);
-}
-
-/** A best-effort outcome for a re-entrant close ack before the layer has settled: whatever real state
- * is already known (a recorded failure, then an interrupted body), else success. */
-function bestEffort(layer: Layer): Scope.Outcome {
-  const failed = failureOf(layer);
-  if (failed) return { status: "failed", error: failed.cause };
-  return layer.cancelled ? { status: "cancelled" } : SUCCESS;
-}
-
 /** A failed close `Result`, with the error's origin when it has one. Its own function, so the
  * success path of {@link buildResult} stays as small as before. */
 function failedResult(
@@ -5885,46 +5696,6 @@ function failedResult(
   return origin
     ? { status: "failed", error, origin, teardownErrors }
     : { status: "failed", error, teardownErrors };
-}
-
-function propagateSweptOutcome(layer: Layer, up: Layer): void {
-  for (const cause of layer.errors) addError(up, cause);
-  /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
-   * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
-   * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
-  if (layer.failed && layer.caller === undefined) up.childError ??= layer.failed;
-}
-
-/** Free retained bindings; the empty-preset guard avoids an extra field on a grown frame. */
-function clearBindings(layer: Layer): void {
-  if (layer.presets !== undefined) layer.presets = undefined;
-  layer.tags = undefined;
-}
-
-/** Hooked calls select their owner before starting the hook chain. An owned call therefore
- * passes the same child through session hooks, run hooks, and the body, once each. */
-function runHookCall<T, I>(
-  layer: Layer,
-  target: Operation.Handle<T, I>,
-  up: SpanImpl | undefined,
-  inherited: readonly Namespace[] | undefined,
-  caller: RunState | undefined,
-  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
-  call: Scope.Invocation<I> | undefined,
-): unknown {
-  ensureRunning(layer, caller);
-  const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
-  if (!hasCallSession(call))
-    return runHookChain(layer, target, up, chain, caller, hookTarget, call);
-  const result = runSessionWith(
-    layer,
-    { tags: call.tags, ns: chain },
-    (child) => runHookChain(child, target, up, chain, undefined, hookTarget, call),
-    caller,
-    call.signal,
-  );
-  if (caller) track(layer, result, runFailure(layer, caller));
-  return result;
 }
 
 /** Access belongs to this active run only. Graceful close seals public handles at once but
@@ -5942,8 +5713,6 @@ type HookRun = {
   failed?: { error: unknown };
 };
 
-let activeHookOwner: Layer | undefined;
-
 function withHookAccess<T>(run: HookRun, fn: () => T): T {
   if (!run.live) raise("Disposed", { reason: "run is finished" });
   if (run.layer.aborted) throw run.layer.reason;
@@ -5956,13 +5725,6 @@ function withHookAccess<T>(run: HookRun, fn: () => T): T {
     buildDepth--;
     activeHookOwner = previous;
   }
-}
-
-function hookCanRead(layer: Layer): boolean {
-  for (let owner = activeHookOwner; owner; owner = owner.up) {
-    if (owner === layer) return !layer.aborted;
-  }
-  return false;
 }
 
 function runHookChain<T, I>(
@@ -6037,16 +5799,6 @@ function invokeRunHooks<T, I>(
   chain: readonly Namespace[] | undefined,
 ): unknown {
   return stepRunHook(run, target, hookTarget, call, chain, run.layer.exts.runs ?? [], 0);
-}
-
-/** Enter a hook's access window, as {@link withHookAccess} does, without a thunk. */
-function enterHookAccess(run: HookRun): typeof activeHookOwner {
-  if (!run.live) raise("Disposed", { reason: "run is finished" });
-  if (run.layer.aborted) throw run.layer.reason;
-  const previous = activeHookOwner;
-  activeHookOwner = run.layer;
-  buildDepth++;
-  return previous;
 }
 
 function exitHookAccess(previous: typeof activeHookOwner): void {
@@ -6158,13 +5910,6 @@ function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): 
   );
 }
 
-function createBorrows(): HeldBorrows {
-  const list: ResourceInstance[] = [];
-  let settle: () => void = noop;
-  const done = new Promise<void>((resolve) => (settle = resolve));
-  return { list, done, settle };
-}
-
 function hookEvent<const D extends Scope.ExtensionDetails[keyof Scope.ExtensionDetails]>(
   detail: D,
   owner: Layer,
@@ -6195,4 +5940,251 @@ class RunEvent extends ExtensionCtx {
     this.call = call;
     this.next = next;
   }
+}
+
+/** THE bucket selector (ADR 0059): layers near→far; at each layer the ns chain in order, then
+ * that layer's default bucket. ONE walk serves cells AND tags so the two cannot disagree on the
+ * order (the spike's bug). CHAIN ORDER, decided: layers-first, namespaces-second within each
+ * layer — the layer chain is the shadowing axis (a child's own write must beat anything it
+ * inherits from a parent, exactly as an ns-absent write shadows), so a NEAR layer's default
+ * write beats a FAR layer's named bucket; the ns chain only orders buckets within one layer.
+ * The discriminator is locked by a test that fails under namespaces-first. */
+function selectBucket<B>(
+  layer: Layer,
+  chain: readonly Namespace[],
+  bucket: (layer: Layer, key: Namespace) => B | undefined,
+  fallback: (layer: Layer) => B | undefined,
+): B | undefined {
+  for (let cur: Layer | undefined = layer; cur; cur = cur.up) {
+    for (const key of chain) {
+      const hit = bucket(cur, key);
+      if (hit !== undefined) return hit;
+    }
+    const own = fallback(cur);
+    if (own !== undefined) return own;
+  }
+  return undefined;
+}
+
+function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, seed: unknown): Entry {
+  const rec = nodeState(layer, target);
+  let bucket = rec.cells?.get(key);
+  if (bucket === undefined) {
+    bucket = { value: seed };
+    (rec.cells ??= new Map()).set(key, bucket);
+  }
+  return bucket;
+}
+
+/** A named change reaches only watchers indexed under its key. Snapshot every affected layer
+ * before firing: an earlier callback must not steal a descendant's inherited change. A default
+ * cell shadow or an entry for this key blocks the change for its entire subtree; other named
+ * shadows are checked per watcher chain. */
+function flushInheritedNsWatchers(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
+  const pending: { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] = [];
+  function collect(cur: Layer): void {
+    const watch = cur.nodes.get(target)?.nsWatch?.keys.get(key);
+    if (watch) pending.push(...(pendingNsWatchers(cur, target, watch) ?? []));
+    for (const child of cur.children) {
+      if (!shadowsNamedChange(child, target, key)) collect(child);
+    }
+  }
+  collect(layer);
+  for (const p of pending) p.fn(p.next, p.prev);
+}
+
+function shadowsNamedChange(layer: Layer, target: Data.Cell<unknown>, key: Namespace): boolean {
+  const rec = layer.nodes.get(target);
+  return !!rec?.cell || !!rec?.cells?.has(key);
+}
+
+function appendNsTags(
+  out: unknown[],
+  chain: readonly Namespace[],
+  target: Tag.Handle<unknown>,
+): void {
+  for (const key of chain) appendBindings(out, key.tags, target);
+}
+
+function occupiedNsResource(state: NsResourceState): boolean {
+  return Boolean(state.built || state.build || state.failed || state.busy);
+}
+
+function ownNsResource(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  key: Namespace,
+): NsResourceState {
+  const rec = nodeState(owner, target);
+  let state = rec.named?.get(key);
+  if (state === undefined) {
+    state = new NsResourceState(owner, target, key);
+    (rec.named ??= new Map()).set(key, state);
+  }
+  return state;
+}
+
+function readResourceState(
+  owner: Layer,
+  caller: Layer,
+  target: Resource.Handle<unknown>,
+  up: SpanImpl | undefined,
+  chain: readonly Namespace[] | undefined,
+  state: ResourceState,
+): unknown {
+  if (state.built) return state.built.value;
+  if (state.failed) return state.failed.ready;
+  if (state.build) return state.build;
+  if (state.busy) raise("CircularResource", { label: target.label });
+  return buildResource(owner, caller, target, up, chain, state, resolveNamedResourceDeps);
+}
+
+function linkNsResourceDependent(selected: NsResourceState, dependent: NsResourceState): void {
+  (selected.users ??= new Set()).add(dependent);
+  (dependent.needs ??= new Set()).add(selected);
+  (dependent.layer.links ??= new Set()).add(dependent);
+}
+
+function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
+  const users = selected.source.readers?.get(selected.entry) ?? new Set<NsResourceState>();
+  if (users.has(dependent)) return;
+  users.add(dependent);
+  (selected.source.readers ??= new Map()).set(selected.entry, users);
+  (dependent.reads ??= new Set()).add(selected);
+  (dependent.layer.links ??= new Set()).add(dependent);
+}
+
+function selectNsDataEntry(
+  owner: Layer,
+  target: Data.Cell<unknown>,
+  chain: readonly Namespace[],
+): NsDataDependency | undefined {
+  const selected = selectBucket<NsDataDependency | typeof DEFAULT_DATA_ENTRY>(
+    owner,
+    chain,
+    (layer, key) => {
+      const source = layer.nodes.get(target);
+      const entry = source?.cells?.get(key);
+      return source && entry ? { source, entry } : undefined;
+    },
+    (layer) => (layer.nodes.get(target)?.cell ? DEFAULT_DATA_ENTRY : undefined),
+  );
+  return selected === DEFAULT_DATA_ENTRY ? undefined : selected;
+}
+
+const DEFAULT_DATA_ENTRY = Symbol();
+
+function detachNsResourceLinks(state: NsResourceState): void {
+  for (const dependency of state.needs ?? []) dependency.users?.delete(state);
+  for (const dependent of state.users ?? []) dependent.needs?.delete(state);
+  state.needs = undefined;
+  state.users = undefined;
+}
+
+/** Only named builds need to link the exact resource bucket selected by a dependency. */
+function resolveNamedResourceDeps(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  span: SpanImpl | undefined,
+  superseded: () => boolean,
+  chain: readonly Namespace[] | undefined,
+  state: ResourceState,
+  selected: SelectedResource | undefined,
+): Record<string, unknown> {
+  return resolveResourceDeps(
+    owner,
+    target,
+    span,
+    superseded,
+    chain,
+    state,
+    (depOwner, depTarget, depState) => {
+      if (!superseded() && state instanceof NsResourceState && depState instanceof NsResourceState)
+        linkNsResourceDependent(depState, state);
+      selected?.(depOwner, depTarget, depState);
+    },
+  );
+}
+
+/** One named resource bucket. Default resource state stays directly on {@link NodeState}. */
+class NsResourceState {
+  readonly layer: Layer;
+  readonly target: Resource.Handle<unknown>;
+  readonly key: Namespace;
+  built: Entry | undefined;
+  ready: Promise<unknown> | undefined;
+  failed: { error: unknown; ready: Promise<unknown> } | undefined = undefined;
+  build: Promise<unknown> | undefined;
+  gen = 0;
+  busy = false;
+  reads: Set<NsDataDependency> | undefined;
+  users: Set<NsResourceState> | undefined;
+  needs: Set<NsResourceState> | undefined;
+  owned: ResourceInstance | undefined;
+  constructor(owner: Layer, target: Resource.Handle<unknown>, key: Namespace) {
+    this.layer = owner;
+    this.target = target;
+    this.key = key;
+  }
+}
+
+/** Drain a layer's `defer`s in reverse registration order (LIFO, ADR 0026), awaiting each before the
+ * next, passing the settled `end`; teardown failures collect in `layer.errors` in execution order
+ * (→ `TeardownFailed`). The teardown guard spans the synchronous call so a callback that synchronously
+ * re-enters `close()` is acked (Q3 no-hang). */
+async function finishCloseInstance(entry: DeferEntry): Promise<void> {
+  const owned = entry.owned as ResourceInstance;
+  if (isHeld(owned)) {
+    finishTracked(owned);
+    return;
+  }
+  const finished = finishHook(owned, entry.fn);
+  if (finished) await finished;
+}
+
+async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End): Promise<void> {
+  if (entry.owned) return finishCloseInstance(entry);
+  let pending: void | PromiseLike<void>;
+  tearing.push(layer);
+  try {
+    pending = entry.fn(end);
+  } catch (cause) {
+    addError(layer, cause);
+    return;
+  } finally {
+    tearing.pop();
+  }
+  try {
+    await pending;
+  } catch (cause) {
+    addError(layer, cause);
+  }
+}
+
+async function closeInstances(
+  layer: Layer,
+  settled: Scope.Outcome,
+  built: ResourceInstance[],
+): Promise<void> {
+  for (const owned of built) unlinkInstance(owned, settled);
+  await drainDefers(layer, [...layer.hooks], settled);
+  for (const owned of built) {
+    const finished = finishInstance(owned);
+    if (finished) ignoreRejection(finished);
+  }
+  while (layer.pending.size) await Promise.all(layer.pending);
+}
+
+/** True when an operation's deps name a resource, directly or behind an edge. */
+function seesResource(depends: Scope.Depends): boolean {
+  for (const key in depends) {
+    const dep = depends[key];
+    if (isResource(dep)) return true;
+  }
+  return false;
+}
+
+function nanosFromMillis(ms: number): bigint {
+  const whole = Math.trunc(ms);
+  return BigInt(whole) * 1_000_000n + BigInt(Math.round((ms - whole) * 1_000_000));
 }

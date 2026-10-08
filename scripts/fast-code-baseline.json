@@ -2,18 +2,18 @@
   "node": "v24.21.0",
   "v8": "13.6.233.17-node.53",
   "slots": {
-    "core": 341,
+    "core": 339,
     "react": 21
   },
   "bytecode": {
     "runOnce": 499,
-    "settleRun": 59,
+    "settleRun": 53,
     "OperationCtx": 126,
     "buildHooklessResource": 451,
     "resolveDep": 223,
     "runHookChain": 222,
     "invokeRunHooks": 49,
-    "stepRunHook": 205
+    "stepRunHook": 201
   },
   "closures": {
     "runOnce": 0,

@@ -211,20 +211,25 @@ try {
     recoveryOutput: recovered.output,
     restoredExit: afterRecovery.exit,
   });
+  const oversizedFile = bundleWith(
+    "engine-bytecode",
+    runOnce.body.start + 1,
+    "globalThis.fastCodePlant=1;".repeat(64),
+  );
   const beforeRefusal = read(mismatchFile);
   const refused = run(undefined, [
     "--baseline",
     mismatchFile,
     "--rebaseline-engine",
     "--core-bundle",
-    bytecodeFile,
+    oversizedFile,
   ]);
   assert.equal(refused.exit, 1, JSON.stringify(refused));
   assert.match(refused.error, /cannot raise bytecode above 460/);
   assert.equal(read(mismatchFile), beforeRefusal);
   proofs.push({
     check: "engine rebaseline refusal",
-    plant: "runOnce grows above its saved over-460 ceiling",
+    plant: "runOnce grows above the 460-byte limit",
     red: refused,
     baselineUnchanged: true,
   });
