@@ -1,6 +1,10 @@
 {
   "baseline": "bca0063f",
-  "phase": "Final quiet trace samples pending",
+  "measuredCandidate": "bc95a783207eb6e5fd3a7f0f7480110442b7e90f",
+  "reviewCandidate": "7be4c90b445a099537212d0d94d1f19c978be2d4",
+  "candidateChangesAfterMeasurement": "App source changes are blank lines only. git diff -w --ignore-blank-lines bc95a783 7be4c90b -- apps/playground/example apps/playground/scripts apps/playground/tests is empty.",
+  "job": "b7a17198235b",
+  "jobExit": 0,
   "viewport": {
     "width": 1280,
     "height": 900
@@ -11,10 +15,262 @@
     "gapMs": 100,
     "seed": 7
   },
+  "browser": "Chrome 151 headless, CPU rendering, one queued CPU core",
+  "workload": "Same controls, seed and live ten-second window; births follow requestAnimationFrame, so the exact event stream is not fixed.",
+  "fpsVerdict": "No gain claim; prior ab attempts reached load 4 and gave no verdict.",
+  "backingBytesMeaning": "Estimate: sum width * height * 4 for drawsContent layers. This is not measured graphics memory.",
   "wallChanges": {
     "-45": 0,
     "45": 0,
     "135": 0,
     "225": 0
-  }
+  },
+  "summary": {
+    "before": {
+      "longTasks": [78, 73, 74],
+      "boardUpdates": [78, 73, 74],
+      "loads": [3.44, 3.89],
+      "medianBlockingMs": 2198.9900000000002,
+      "medianLongTaskMeanMs": 80.03136486486488,
+      "medianStyleMsPerUpdate": 9.821849315068492,
+      "medianPaintMsPerUpdate": 30.251465753434356,
+      "medianLayerizeMsPerUpdate": 25.305917808219174,
+      "medianBackingMiBEstimate": 20.856426239013672
+    },
+    "after": {
+      "longTasks": [83, 81, 82],
+      "boardUpdates": [86, 84, 82],
+      "loads": [3.38, 3.9],
+      "medianBlockingMs": 1032.1440000000005,
+      "medianLongTaskMeanMs": 62.74251851851852,
+      "medianStyleMsPerUpdate": 9.954166666666666,
+      "medianPaintMsPerUpdate": 23.023914634152252,
+      "medianLayerizeMsPerUpdate": 18.162107142857145,
+      "medianBackingMiBEstimate": 26.375804901123047
+    }
+  },
+  "runs": [
+    {
+      "side": "before",
+      "run": 1,
+      "attempt": 2,
+      "trace": "/home/paseo/.cache/storm-layers-proof/direct-traces/before-0-2.trace.json.gz",
+      "settings": ["3", "12", "100"],
+      "durationSeconds": 10.048300000190736,
+      "loads": [3.89, 3.89, 3.89, 3.89, 3.89, 3.66, 3.66, 3.66, 3.66, 3.66, 3.53],
+      "quiet": true,
+      "presentedFrames": 76,
+      "presentedFps": 7.563468447255493,
+      "longTasks": 78,
+      "renderingLongTasks": 78,
+      "boardUpdates": 78,
+      "tiltUpdates": 0,
+      "documentState": {
+        "nodes": 1241,
+        "heading": "rotateX(54.7356deg) rotateZ(-45deg)"
+      },
+      "perUpdateMs": {
+        "UpdateLayoutTree": 9.783115384615382,
+        "Layout": 0.09075641025641026,
+        "Paint": 28.132320512829057,
+        "Layerize": 24.049538461538464,
+        "FireAnimationFrame": 13.015935897435892
+      },
+      "styledElementsPerUpdate": 934.4615384615385,
+      "styleMicrosecondsPerElement": 10.469254198221929,
+      "longTaskMeanMs": 75.28632051282054,
+      "longTaskBlockingMs": 1972.3330000000008,
+      "layers": {
+        "count": 873,
+        "arrows": 144,
+        "walls": 576,
+        "backingBytes": 22354168
+      }
+    },
+    {
+      "side": "after",
+      "run": 1,
+      "attempt": 3,
+      "trace": "/home/paseo/.cache/storm-layers-proof/direct-traces/after-0-3.trace.json.gz",
+      "settings": ["3", "12", "100"],
+      "durationSeconds": 10.0405,
+      "loads": [3.88, 3.81, 3.81, 3.81, 3.81, 3.81, 3.9, 3.9, 3.9, 3.9, 3.9],
+      "quiet": true,
+      "presentedFrames": 84,
+      "presentedFps": 8.366117225237787,
+      "longTasks": 83,
+      "renderingLongTasks": 83,
+      "boardUpdates": 86,
+      "tiltUpdates": 0,
+      "documentState": {
+        "nodes": 1097,
+        "heading": "rotateX(54.7356deg) rotateZ(-45deg)"
+      },
+      "perUpdateMs": {
+        "UpdateLayoutTree": 9.314744186046513,
+        "Layout": 0.16747674418604652,
+        "Paint": 22.77261627907696,
+        "Layerize": 17.156197674418603,
+        "FireAnimationFrame": 11.72651162790698
+      },
+      "styledElementsPerUpdate": 784.4186046511628,
+      "styleMicrosecondsPerElement": 11.874710939816188,
+      "longTaskMeanMs": 60.31637349397588,
+      "longTaskBlockingMs": 856.2590000000002,
+      "layers": {
+        "count": 585,
+        "arrows": 0,
+        "walls": 288,
+        "backingBytes": 27517588
+      }
+    },
+    {
+      "side": "after",
+      "run": 2,
+      "attempt": 6,
+      "trace": "/home/paseo/.cache/storm-layers-proof/direct-traces/after-1-6.trace.json.gz",
+      "settings": ["3", "12", "100"],
+      "durationSeconds": 10.035699999809266,
+      "loads": [3.52, 3.8, 3.8, 3.8, 3.8, 3.8, 3.89, 3.89, 3.89, 3.89, 3.89],
+      "quiet": true,
+      "presentedFrames": 82,
+      "presentedFps": 8.170830136568297,
+      "longTasks": 81,
+      "renderingLongTasks": 81,
+      "boardUpdates": 84,
+      "tiltUpdates": 0,
+      "documentState": {
+        "nodes": 1097,
+        "heading": "rotateX(54.7356deg) rotateZ(-45deg)"
+      },
+      "perUpdateMs": {
+        "UpdateLayoutTree": 9.954166666666666,
+        "Layout": 0.20855952380952383,
+        "Paint": 23.502738095244535,
+        "Layerize": 18.162107142857145,
+        "FireAnimationFrame": 12.156095238095237
+      },
+      "styledElementsPerUpdate": 792.5238095238095,
+      "styleMicrosecondsPerElement": 12.560085321156041,
+      "longTaskMeanMs": 62.74251851851852,
+      "longTaskBlockingMs": 1032.1440000000005,
+      "layers": {
+        "count": 585,
+        "arrows": 0,
+        "walls": 288,
+        "backingBytes": 27657036
+      }
+    },
+    {
+      "side": "before",
+      "run": 2,
+      "attempt": 1,
+      "trace": "/home/paseo/.cache/storm-layers-proof/direct-traces/before-1-1.trace.json.gz",
+      "settings": ["3", "12", "100"],
+      "durationSeconds": 10.049900000572205,
+      "loads": [3.59, 3.47, 3.47, 3.47, 3.47, 3.47, 3.51, 3.51, 3.51, 3.51, 3.51],
+      "quiet": true,
+      "presentedFrames": 70,
+      "presentedFps": 6.9652434348614864,
+      "longTasks": 73,
+      "renderingLongTasks": 73,
+      "boardUpdates": 73,
+      "tiltUpdates": 0,
+      "documentState": {
+        "nodes": 1241,
+        "heading": "rotateX(54.7356deg) rotateZ(-45deg)"
+      },
+      "perUpdateMs": {
+        "UpdateLayoutTree": 9.821849315068492,
+        "Layout": 0.13020547945205477,
+        "Paint": 30.251465753434356,
+        "Layerize": 25.305917808219174,
+        "FireAnimationFrame": 14.33680821917808
+      },
+      "styledElementsPerUpdate": 927.4246575342465,
+      "styleMicrosecondsPerElement": 10.590455230273847,
+      "longTaskMeanMs": 80.1231506849315,
+      "longTaskBlockingMs": 2198.9900000000002,
+      "layers": {
+        "count": 873,
+        "arrows": 144,
+        "walls": 576,
+        "backingBytes": 21324904
+      }
+    },
+    {
+      "side": "before",
+      "run": 3,
+      "attempt": 2,
+      "trace": "/home/paseo/.cache/storm-layers-proof/direct-traces/before-2-2.trace.json.gz",
+      "settings": ["3", "12", "100"],
+      "durationSeconds": 10.117800000190735,
+      "loads": [3.62, 3.62, 3.62, 3.62, 3.62, 3.65, 3.65, 3.65, 3.65, 3.65, 3.44],
+      "quiet": true,
+      "presentedFrames": 73,
+      "presentedFps": 7.215007214871202,
+      "longTasks": 74,
+      "renderingLongTasks": 74,
+      "boardUpdates": 74,
+      "tiltUpdates": 0,
+      "documentState": {
+        "nodes": 1241,
+        "heading": "rotateX(54.7356deg) rotateZ(-45deg)"
+      },
+      "perUpdateMs": {
+        "UpdateLayoutTree": 10.269148648648653,
+        "Layout": 0.11312162162162161,
+        "Paint": 30.687662162170472,
+        "Layerize": 25.94339189189189,
+        "FireAnimationFrame": 12.585337837837837
+      },
+      "styledElementsPerUpdate": 920.3513513513514,
+      "styleMicrosecondsPerElement": 11.157856870172965,
+      "longTaskMeanMs": 80.03136486486488,
+      "longTaskBlockingMs": 2222.3210000000004,
+      "layers": {
+        "count": 873,
+        "arrows": 144,
+        "walls": 576,
+        "backingBytes": 21869548
+      }
+    },
+    {
+      "side": "after",
+      "run": 3,
+      "attempt": 1,
+      "trace": "/home/paseo/.cache/storm-layers-proof/direct-traces/after-2-1.trace.json.gz",
+      "settings": ["3", "12", "100"],
+      "durationSeconds": 10.08360000038147,
+      "loads": [3.72, 3.72, 3.72, 3.5, 3.5, 3.5, 3.5, 3.5, 3.38, 3.38, 3.38],
+      "quiet": true,
+      "presentedFrames": 79,
+      "presentedFps": 7.834503550022946,
+      "longTasks": 82,
+      "renderingLongTasks": 82,
+      "boardUpdates": 82,
+      "tiltUpdates": 0,
+      "documentState": {
+        "nodes": 1097,
+        "heading": "rotateX(54.7356deg) rotateZ(-45deg)"
+      },
+      "perUpdateMs": {
+        "UpdateLayoutTree": 10.537365853658537,
+        "Layout": 0.281280487804878,
+        "Paint": 23.023914634152252,
+        "Layerize": 18.373987804878045,
+        "FireAnimationFrame": 12.270256097560974
+      },
+      "styledElementsPerUpdate": 799.6829268292682,
+      "styleMicrosecondsPerElement": 13.176929880745417,
+      "longTaskMeanMs": 64.2999512195122,
+      "longTaskBlockingMs": 1172.5959999999998,
+      "layers": {
+        "count": 585,
+        "arrows": 0,
+        "walls": 288,
+        "backingBytes": 28074184
+      }
+    }
+  ]
 }

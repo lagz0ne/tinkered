@@ -3,7 +3,8 @@
 ## Lead fix round
 
 Owner: playground/storm-layers writer.
-Doing: save the final six quiet storm traces.
+Review: code, images, and six quiet storm traces saved.
+Next: lead reviews the wall proof and the remaining count rise.
 Verify: wall pixels, heading tests, trace work, all gates.
 Keep all changes in this app.
 Do not push.
@@ -87,21 +88,63 @@ The wall interiors, including smooth fade, match exactly.
 
 ## Long tasks
 
-The reviewed trace has 78 long tasks for 78 board updates.
-Its after trace has 86 long tasks for 86 board updates.
-Every long task contains a rendered board update.
-A long task means main-thread work of at least 50 ms.
-The count went up because more updates were drawn.
-It does not count a new second task per update.
+[Six quiet runs and trace paths](proof/storm-layers.json).
+The trace job returned 0: `b7a17198235b`.
+Its measured code is `bc95a783`, before the whitespace rebase.
+Later app source changes contain blank lines only.
 
-That pass also had real extra style work.
-`UpdateLayoutTree` took 9.79 ms per update before,
-and 13.42 ms after, in the first pair of traces.
-The fix cuts the tile node count and restores the old wall cover.
-There are no wall attribute or class pair rules now.
-Only the picked walls exist in the tile.
-The final traces will check their style work.
-It also counts parent attribute changes during the storm.
+Three ten-second runs used the same controls and seed.
+Order: before/after, after/before, before/after.
+Before load: 3.44–3.89.
+After load: 3.38–3.90.
+Every kept load sample is below 4.
+Busy samples were rejected.
+
+- Long tasks before: 78, 73, 74.
+- Long tasks after: 83, 81, 82.
+- Board updates before: 78, 73, 74.
+- Board updates after: 86, 84, 82.
+
+The raw long-task count still rises.
+I do not call that noise or claim the count is fixed.
+Every long task contains a rendered board update.
+The trace shows more board updates in the after windows.
+
+A long task takes at least 50 ms on the main thread.
+Blocking time counts just the time beyond those 50 ms.
+Its median fell from 2199 to 1032 ms per window.
+Mean long-task length, then median across runs: 80.0 to 62.7 ms.
+
+The first pass had extra style work: 9.79 to 13.42 ms per update.
+The final median is 9.82 before and 9.95 ms after.
+There is no clear style gain to claim from these three runs.
+The final paint median is 30.25 to 23.02 ms per update.
+The final layer work median is 25.31 to 18.16 ms per update.
+
+The trace guided two fixes to extra work.
+Only the picked walls exist; there are no wall pair selector rules.
+Node count is 1,241 before and 1,097 after.
+An inherited top background caused 81–89 ms of style work per update.
+The top now takes the same colour value directly.
+
+The storm changed the parent tilt attributes zero times on both sides.
+Rotor is not the source of these storm long tasks.
+For turns, the board now reads just the wall pair.
+That pair stays the same between angle edges.
+Each tile still reads its own wave state.
+
+Layers: 873 before and 585 after in every run.
+Wall layers: 576 to 288.
+Arrow layers: 144 to zero; the flat top paints the arrow.
+The raw buffer estimate rises: 20.86 to 26.38 MiB.
+It sums each drawn layer's width × height × 4.
+It is not measured graphics memory; I claim no memory gain.
+
+The original button background is needed for matching wall cover.
+The flat top repeats it and owns the outline and arrow.
+All 144 button paint records are one rectangle, rather than three commands.
+[Paint records](proof/paint-commands.json) show that change.
+They do not prove how many graphics bytes Chrome keeps.
 
 The trace script is `scripts/storm-proof.mjs`.
 Each browser command uses Chrome and session `storm`.
@@ -109,12 +152,11 @@ Each run owns a fresh browser socket folder.
 The queue holds the job on one CPU core.
 Chrome draws with the CPU, without a window.
 Real graphics hardware and other browsers are not proven.
+
 The viewport is 1280 × 900.
 The storm uses height 3, speed 12, and gap 100 ms.
-Both sides now use the same random seed, 7.
-Three ten-second runs per side flip the order each round.
-The runner waits while load is 4 or more.
-Only samples with load under 4 count.
+Both sides use random seed 7 and a live ten-second clock.
+Births follow frame callbacks, so the exact event stream is not fixed.
 I make no FPS gain claim.
 
 ## Checks
@@ -131,7 +173,9 @@ No mutation run is needed: `packages/start` did not change.
 
 Gate logs stay in the local cache:
 `/home/paseo/.cache/storm-layers-proof/`.
-The final exit codes will go in [the gate log](proof/gates.log).
+All required gates returned 0 after the rebase to `0ca40d05`.
+The blank-line lint passes.
+[Gate exit codes](proof/gates.log).
 
 ## Prior frame comparison
 
@@ -148,11 +192,11 @@ Run from the tree root with the built baseline next to it:
 storm_probe=apps/playground/scripts/storm-proof.mjs
 storm_chrome=../../.cache/ms-playwright/
 storm_chrome+=chromium-1234/chrome-linux64/chrome
-benchctl exec --timeout 900 \
+benchctl exec --json --timeout 1800 \
   --env AGENT_BROWSER_EXECUTABLE_PATH="$storm_chrome" \
   -- node "$storm_probe" \
   ../storm-layers-base/apps/playground/dist \
-  apps/playground/dist .bench/storm-review \
+  apps/playground/dist .bench/storm-direct \
   measure --serve
 ```
 
@@ -162,3 +206,16 @@ It returns 1 if any checked wall pixel differs.
 Use `capture --serve` for shots without the wall check.
 Use `frames --serve` for a fixed-frame command in `ab`.
 No site was published or pushed.
+
+## Fix-round commits
+
+- `637cd052`: playground: restore wall cover and remove extra arrow span.
+- `079e44cd`: playground: retry trace samples that cross the load limit.
+- `8f7bd51d`: playground: save wall regression and gate proof in the app.
+- `614519a6`: playground: resume kept traces after a queue timeout.
+- `5809917d`: playground: give the flat top its own zero-depth plane.
+- `91d1e315`: playground: turn the arrow path without restyling its SVG root.
+- `174844d5`: playground: keep four-wall cover with fewer tile nodes.
+- `76c04886`: playground: avoid inherited top colour style work.
+- `e23e3aaa`: playground: use the requested load limit for trace samples.
+- `7be4c90b`: playground: space proof statements for the new lint rule.

@@ -1,4 +1,8 @@
-Final wall and node fix; trace samples pending
+Source candidate: 7be4c90b445a099537212d0d94d1f19c978be2d4
+Main: 0ca40d05d440de6fa3406a73e7fe0bf9643241a9
+git fetch origin: EXIT 0
+git rebase origin/main: EXIT 0
+vp install: EXIT 0
 vp run -r build: EXIT 0
 vp check: EXIT 0
 vp run -r test: EXIT 0
@@ -6,8 +10,13 @@ vp run prose: EXIT 0
 vp run @tinker-start-scaffold#check: EXIT 0
 pnpm validate: EXIT 0
 bash .agents/skills/coding-convention/scripts/style-census.sh apps/playground/example/App.tsx apps/playground/example/Tile.tsx apps/playground/example/state.ts apps/playground/tests/walls.test.ts --strict: EXIT 0
-node tools/jev/preflight.mjs: EXIT 0
+node tools/jev/preflight.mjs origin/main..HEAD: EXIT 0
+vp lint --fix (changed app code, blank-lines rule): EXIT 0
+Wall regression on reviewed four-wall-cover bug: EXIT 1
+Wall regression on final code, all four headings: EXIT 0
+Queued final trace job b7a17198235b: EXIT 0; six samples, load below 4
 Playground: 68 tests passed
 vp check: 0 errors, 28 existing warnings
 pnpm validate: 19 lanes PASS
+Jev: 0 file flags, 0 unit flags; 1 informational note
 Mutation: not required; packages/start unchanged
