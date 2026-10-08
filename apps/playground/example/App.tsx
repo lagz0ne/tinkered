@@ -294,10 +294,10 @@ const css = `
   .scene:has(.tile:focus-visible) .board { width: min(59cqw, 470px); }
   .scene:has(.tile:focus-visible) .field { mask-image: none; }
   .tile { position: relative; display: block; width: 100%; aspect-ratio: 1; border: 0; padding: 0;
-    border-radius: 0; cursor: pointer; transform-style: preserve-3d; background: none; }
-  .top { position: absolute; inset: 0; outline: 1px solid #bbf4e138; outline-offset: -1px; }
-  .tile.converge > .top { outline-color: #edfff7bb; }
-  .tile:hover > .top { outline-color: var(--lime); }
+    border-radius: 0; cursor: pointer; transform-style: preserve-3d;
+    outline: 1px solid #bbf4e138; outline-offset: -1px; }
+  .tile.converge { outline-color: #edfff7bb; }
+  .tile:hover { outline-color: var(--lime); }
   .tile:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
   .wall { position: absolute; display: none; backface-visibility: hidden; pointer-events: none; }
   .tilt[data-walls~="n"] .wall.n, .tilt[data-walls~="s"] .wall.s,
@@ -306,8 +306,8 @@ const css = `
   .wall.s { left: 0; width: 100%; top: 100%; height: 1px; transform-origin: 50% 0%; }
   .wall.e { top: 0; height: 100%; left: 100%; width: 1px; transform-origin: 0% 50%; }
   .wall.w { top: 0; height: 100%; left: -1px; width: 1px; transform-origin: 100% 50%; }
-  .arrow { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-  .arrow svg { width: 55%; height: 55%; fill: none; stroke-width: 1.4; stroke-linecap: square; stroke-linejoin: miter; }
+  .top { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .top svg { width: 55%; height: 55%; fill: none; stroke-width: 1.4; stroke-linecap: square; stroke-linejoin: miter; }
   .scene-caption { position: absolute; bottom: 13px; left: 0; right: 0; text-align: center;
     color: #a6bfb6; font: 10px/1.5 var(--mono); letter-spacing: .02em; pointer-events: none; }
   .press-mark { display: inline-block; width: 24px; height: 24px; margin-right: 8px;

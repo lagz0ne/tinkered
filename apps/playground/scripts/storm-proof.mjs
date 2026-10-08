@@ -118,7 +118,7 @@ const navigate = async (url) => {
   throw new Error("The game did not render 144 tiles");
 };
 
-if (mode === "capture") {
+if (mode === "capture" || mode === "walls") {
   const { identifier } = await page("Page.addScriptToEvaluateOnNewDocument", {
     source: `if (parent !== window) {
       let time = 1000000, id = 0, seed = 7;
@@ -140,7 +140,7 @@ if (mode === "capture") {
     ["before", before],
     ["after", after],
   ]) {
-    for (let turn = 0; turn < 3; turn++) {
+    for (let turn = 0; turn < 4; turn++) {
       await navigate(url);
       await evaluate(setup);
       for (let step = 0; step < turn; step++) {
@@ -158,11 +158,29 @@ if (mode === "capture") {
       await sleep(100);
       const heading = -45 + turn * 90;
       const file = `${side}-${heading}.png`;
+      const palette = await evaluate(`(() => {
+        const d = document.querySelector('iframe').contentDocument;
+        return [...d.querySelectorAll('.tile')].map(tile =>
+          [...tile.querySelectorAll('.wall')].map(wall => wall.style.background));
+      })()`);
       await browser("screenshot", join(output, file));
+      if (mode === "walls") {
+        await evaluate(`(() => {
+          const d = document.querySelector('iframe').contentDocument;
+          [...d.querySelectorAll('.tile')].forEach((tile, k) => {
+            [...tile.querySelectorAll('.wall')].forEach((wall, face) => {
+              const id = k * 4 + face + 1;
+              wall.style.background = 'rgb(255 ' + (id >> 8) + ' ' + (id & 255) + ')';
+            });
+          });
+        })()`);
+        await browser("screenshot", join(output, `${side}-${heading}-walls.png`));
+      }
       captures.push({
         side,
         heading,
         file,
+        palette,
         state: await evaluate(`(() => {
         const d = document.querySelector('iframe').contentDocument;
         return { transform: d.querySelector('.tilt').style.transform,
@@ -191,6 +209,114 @@ if (mode === "capture") {
     join(output, "index.html"),
     `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Storm walls: before and after</title><style>body{margin:16px;background:#04101f;color:#e6f4f1;font:16px system-ui}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}figure{margin:0}img{width:100%;height:auto}figcaption{padding:8px}@media(max-width:600px){.pair{grid-template-columns:1fr}}</style><h1>Storm walls</h1><p>Same two waves, height, and clock. Real turn controls set each view.</p>${pairs}</html>`,
   );
+  const gallery = await serve(output, 4429);
+  await browser("open", gallery);
+  await browser("screenshot", join(output, "pairs.png"), "--full");
+  if (mode === "walls") {
+    const report = await evaluate(`(async () => {
+      const read = async name => {
+        const image = new Image();
+        image.src = name;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.width; canvas.height = image.height;
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0);
+        return context.getImageData(0, 0, image.width, image.height);
+      };
+      const identify = (image, x, y) => {
+        const p = (y * image.width + x) * 4;
+        const id = image.data[p + 1] * 256 + image.data[p + 2];
+        if (image.data[p] !== 255 || id < 1 || id > 576) return 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const q = ((y + dy) * image.width + x + dx) * 4;
+          for (let c = 0; c < 3; c++) if (image.data[q + c] !== image.data[p + c]) return 0;
+        }
+        return id;
+      };
+      const rows = [];
+      for (const heading of [-45, 45, 135, 225]) {
+        const [before, after, beforeMask, afterMask] = await Promise.all([
+          read('before-' + heading + '.png'), read('after-' + heading + '.png'),
+          read('before-' + heading + '-walls.png'), read('after-' + heading + '-walls.png')
+        ]);
+        const tiles = Array.from({length:144}, (_, tile) => ({tile, faces:
+          Object.fromEntries(['n','s','w','e'].map(face => [face, {
+            beforePixels:0, afterPixels:0, regionPixels:0, changedPixels:0,
+            changedOver10:0, maxChannelChange:0, commonPixels:0,
+            beforeRgb:[0,0,0], afterRgb:[0,0,0]
+          }]))}));
+        const canvas = document.createElement('canvas');
+        canvas.width = before.width; canvas.height = before.height;
+        const context = canvas.getContext('2d');
+        const diff = context.createImageData(before.width, before.height);
+        let changedPixels = 0;
+        for (let y = 0; y < before.height; y++) for (let x = 0; x < before.width; x++) {
+          const p = (y * before.width + x) * 4;
+          const change = Math.max(...[0,1,2].map(c => Math.abs(before.data[p+c] - after.data[p+c])));
+          if (change) changedPixels++;
+          const gray = (before.data[p] + before.data[p+1] + before.data[p+2]) / 6;
+          diff.data.set(change ? [255,40,60,255] : [gray,gray,gray,255], p);
+          if (!x || !y || x === before.width-1 || y === before.height-1) continue;
+          const a = identify(beforeMask,x,y), b = identify(afterMask,x,y);
+          for (const id of new Set([a,b])) {
+            if (!id) continue;
+            const face = tiles[Math.floor((id-1)/4)].faces[['n','s','w','e'][(id-1)%4]];
+            face.beforePixels += a === id; face.afterPixels += b === id;
+            face.regionPixels++;
+            face.changedPixels += change > 0; face.changedOver10 += change > 10;
+            face.maxChannelChange = Math.max(face.maxChannelChange,change);
+            if (a === id && b === id) {
+              face.commonPixels++;
+              for (let c=0;c<3;c++) {
+                face.beforeRgb[c] += before.data[p+c]; face.afterRgb[c] += after.data[p+c];
+              }
+            }
+          }
+        }
+        for (const tile of tiles) for (const face of Object.values(tile.faces)) {
+          if (face.commonPixels) {
+            face.beforeRgb = face.beforeRgb.map(c => c/face.commonPixels);
+            face.afterRgb = face.afterRgb.map(c => c/face.commonPixels);
+          }
+        }
+        context.putImageData(diff,0,0);
+        rows.push({heading,changedPixels,tiles,diff:canvas.toDataURL('image/png')});
+      }
+      return rows;
+    })()`);
+    for (const row of report) {
+      writeFileSync(
+        join(output, `diff-${row.heading}.png`),
+        Buffer.from(row.diff.split(",")[1], "base64"),
+      );
+      delete row.diff;
+    }
+    writeFileSync(join(output, "wall-regions.json"), JSON.stringify(report, null, 2));
+    process.exitCode = report.some((row) =>
+      row.tiles.some((tile) => Object.values(tile.faces).some((face) => face.changedPixels > 0)),
+    )
+      ? 1
+      : 0;
+    console.log(
+      JSON.stringify({
+        walls: report.map((row) => ({
+          heading: row.heading,
+          faces: Object.fromEntries(
+            ["n", "s", "w", "e"].map((face) => [
+              face,
+              row.tiles.reduce((total, tile) => total + tile.faces[face].beforePixels, 0),
+            ]),
+          ),
+          wallChangesOver10: row.tiles.reduce(
+            (sum, tile) =>
+              sum + Object.values(tile.faces).reduce((n, face) => n + face.changedOver10, 0),
+            0,
+          ),
+        })),
+      }),
+    );
+  }
   console.log(
     JSON.stringify({
       captures: captures.map(({ side, heading, file, state }) => ({
@@ -241,6 +367,12 @@ if (mode === "capture") {
     throw new Error("Load reached 4 during the frame benchmark");
   console.log(JSON.stringify({ frameCallbacks: 60, loads }));
 } else {
+  await page("Page.addScriptToEvaluateOnNewDocument", {
+    source: `if (parent !== window) {
+      let seed = 7;
+      Math.random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    }`,
+  });
   const results = [];
   for (let run = 0; run < 3; run++) {
     for (const [side, url] of run % 2
@@ -305,6 +437,15 @@ if (mode === "capture") {
         if (message.method === "Tracing.tracingComplete") complete();
       };
       listeners.add(traceListener);
+      const documentState = await evaluate(`(() => {
+        const w = document.querySelector('iframe').contentWindow;
+        const d = w.document;
+        const tilt = d.querySelector('.tilt');
+        w.__tiltUpdates = 0;
+        w.__tiltObserver = new w.MutationObserver(list => w.__tiltUpdates += list.length);
+        w.__tiltObserver.observe(tilt, {attributes:true});
+        return {nodes:d.querySelectorAll('*').length, heading:tilt.style.transform};
+      })()`);
       const loads = [load()];
       await send("Tracing.start", {
         transferMode: "ReportEvents",
@@ -354,6 +495,37 @@ if (mode === "capture") {
           event.ts <= traceEnd &&
           frameThreads.some((thread) => thread.pid === event.pid && thread.tid === event.tid),
       );
+      const mainEvents = events.filter(
+        (event) =>
+          event.ph === "X" &&
+          event.ts >= traceStart &&
+          event.ts <= traceEnd &&
+          frameThreads.some((thread) => thread.pid === event.pid && thread.tid === event.tid),
+      );
+      const updates = mainEvents.filter((event) => event.name === "ProxyMain::BeginMainFrame");
+      const renderingLongTasks = tasks.filter((task) =>
+        updates.some(
+          (update) =>
+            update.pid === task.pid &&
+            update.tid === task.tid &&
+            update.ts >= task.ts &&
+            update.ts < task.ts + task.dur,
+        ),
+      ).length;
+      const stages = ["UpdateLayoutTree", "Layout", "Paint", "Layerize", "FireAnimationFrame"];
+      const perUpdateMs = Object.fromEntries(
+        stages.map((name) => [
+          name,
+          mainEvents
+            .filter((event) => event.name === name)
+            .reduce((sum, event) => sum + (event.dur || 0) / 1000, 0) / updates.length,
+        ]),
+      );
+      const tiltUpdates = await evaluate(`(() => {
+        const w = document.querySelector('iframe').contentWindow;
+        w.__tiltObserver.disconnect();
+        return w.__tiltUpdates;
+      })()`);
       const duration = (end - start) / 1000;
       const result = {
         side,
@@ -365,6 +537,12 @@ if (mode === "capture") {
         presentedFrames: frameIds.size,
         presentedFps: frameIds.size / duration,
         longTasks: tasks.length,
+        renderingLongTasks,
+        boardUpdates: updates.length,
+        tiltUpdates,
+        documentState,
+        perUpdateMs,
+        longTaskMeanMs: tasks.reduce((sum, task) => sum + task.dur / 1000, 0) / tasks.length,
         longTaskBlockingMs: tasks.reduce((sum, task) => sum + task.dur / 1000 - 50, 0),
         layers: {
           count: rows.length,

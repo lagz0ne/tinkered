@@ -1,119 +1,133 @@
 # Storm layers
 
-## Change
+## Lead fix round
 
-- Baseline: `origin/main` at `bca0063f`.
-- The flat top holds the arrow and the top colour.
-- The parent picks walls from its current heading.
-  Tiles keep their own wave subscriptions.
-- South follows cosine; east follows sine.
-  At the start heading, south and west face the viewer.
-  The study's fixed north/west cut was only a probe.
-- Edge-on walls have no visible area.
-  Tests cover both sides of each edge and full turns.
-- Reduced motion keeps the old flat view with no walls.
+Owner: playground/storm-layers writer.
+Doing: repeat the six quiet storm traces.
+Verify: wall pixels, heading tests, trace work, all gates.
+Keep all changes in this app.
+Do not push.
 
-Assume the app's fixed positive tilt and no perspective.
-The app only turns around the board's vertical axis.
-No new package API or Core change was needed.
+## Look
 
-## Proof
+Baseline: `origin/main` at `bca0063f`.
+The four-wall shots, not the formula, gave these pairs:
 
-[Three before/after views](proof/storm-layers.png).
+- **−45°:** south high, west low; before and after.
+- **45°:** south high, east high; before and after.
+- **135°:** north low, east high; before and after.
+- **225°:** north low, west low; before and after.
+
+CSS applies the rightmost turn first.
+Each wall turns before `rotateZ`, then `rotateX`.
+South and east have front normals +y and +x.
+North and west have −y and −x.
+The positive tilt brings positive turned y toward us.
+This agrees with all four shots.
+Tests cover those pairs, angle edges, and full turns.
+
+The picked pair was right in the first pass.
+Moving the top paint into a child changed wall cover.
+It showed dark walls the old tops used to hide.
+The fix keeps the button's old top paint and outline.
+The arrow still sits inside a flat top span.
+Its turn and fade now live on the SVG.
+That removes the extra span from each of 144 tiles.
+`low` still uses 0.4 of water lightness.
+`high` still uses 0.52, rounded and kept at least 4.
+Every wall colour string matches the baseline.
+Tiles still read their own wave state.
+Reduced motion keeps the old flat view with no walls.
+
+[Three new before/after views](proof/storm-layers.png).
+[The fourth before view](proof/before-225.png).
+[The fourth after view](proof/after-225.png).
 Both sides use the same two waves and hand-run clock.
 Each view has 121 raised tiles with the same heights.
-The headings are −45°, 45°, and 135°.
-I checked the walls, colours, arrows, and layout.
-Some edge pixels differ after the arrow is flattened.
-The views are not pixel-identical.
 
-[Storm samples](proof/storm-layers.json).
-The full layer rows and traces stay in the local cache:
-`/home/paseo/.cache/storm-layers-proof/`.
-The script is `scripts/storm-proof.mjs`.
-Every browser command uses Chrome and session `storm`.
-The queue held the job on one CPU core.
-Chrome drew with the CPU.
-The queued runs used Chrome for Testing 151.0.7922.34.
-The viewport was 1280 × 900.
-The storm used height 3, speed 12, and gap 100 ms.
+[Wall regions, by tile and face](proof/wall-regions.json).
+[Wall colours, all 144 tiles](proof/wall-colours.json).
+Each wall gets a unique solid RGB tag for a second shot.
+Its ID is tile × 4 + face + 1, in n/s/w/e order.
+The tag is RGB(255, ID >> 8, ID & 255).
+The four tagged baseline shots are saved beside the report.
+A solid 3 × 3 patch selects a wall's inner pixels.
+Both shots' wall regions count, so extra walls count too.
+Masked fade and mixed edge pixels are left out.
+This checks each tile, not one whole-image score.
+All four views have zero changed inner wall pixels.
 
-Three ten-second runs per side, with the order flipped:
+The same check failed on the reviewed commit, `657d247f`.
+Pixels with a channel change over 10 were:
+3,250 at −45°, 5,948 at 45°, 8,988 at 135°, and 3 at 225°.
+The fixed version passes with zero at all four angles.
+The check runs outside the unit tests, as the brief asks.
 
-- **Load:** 3.36 to 3.96 during every kept sample.
-  The script waited whenever load reached 4.
-- **Layers:** 873 before; 585 after.
-- **Arrow layers:** 144 before; 0 after.
-- **Wall layers:** 576 before; 288 after.
-- **Layer memory, middle value:** 19.88 MiB before;
-  17.77 MiB after.
-  This is the DevTools estimate: width × height × 4.
-  It counts layers that draw.
-- **Frames shown per second, middle value:**
-  7.56 before; 8.37 after.
-  The trace counts unique presented frame IDs.
-  Submit events can count one frame more than once.
-- **Long tasks:** 78, 78, 77 before;
-  86, 92, 85 after.
-  Each takes at least 50 ms on the game's main thread.
-- **Time over 50 ms, middle value:**
-  1971.58 ms before; 1441.46 ms after.
+Every changed pixel is red in these whole-view diffs:
 
-Chrome ran without a window.
+- [−45° diff](proof/diff--45.png).
+- [45° diff](proof/diff-45.png).
+- [135° diff](proof/diff-135.png).
+- [225° diff](proof/diff-225.png).
+
+The full images still differ at arrow and edge pixels.
+The wall interiors and their colours match exactly.
+
+## Long tasks
+
+The reviewed trace has 78 long tasks for 78 board updates.
+Its after trace has 86 long tasks for 86 board updates.
+Every long task contains a rendered board update.
+A long task means main-thread work of at least 50 ms.
+The count went up because more updates were drawn.
+It does not count a new second task per update.
+
+That pass also had real extra style work.
+`UpdateLayoutTree` took 9.79 ms per update before,
+and 13.42 ms after, in the first pair of traces.
+The fix removes the extra span and restores the old paint.
+The next trace will check the remaining wall rules.
+It also counts parent attribute changes during the storm.
+
+The trace script is `scripts/storm-proof.mjs`.
+Each browser command uses Chrome and session `storm`.
+Each run owns a fresh browser socket folder.
+The queue holds the job on one CPU core.
+Chrome draws with the CPU, without a window.
 Real graphics hardware and other browsers are not proven.
+The viewport is 1280 × 900.
+The storm uses height 3, speed 12, and gap 100 ms.
+Both sides now use the same random seed, 7.
+Three ten-second runs per side flip the order each round.
+Only samples with load under 4 count.
 I make no FPS gain claim.
 
 ## Checks
 
 The new tests are plain tests of the wall picker.
-The brief says they need no failure on main.
-Jev found no flags in the changed code or these two tests.
-Both new test promises have README lines.
-The full README scan found 31 gaps in older tests.
-Those tests and their promises are outside this card.
+The brief says that new helper needs no failure on main.
+The wall screenshot check fails without this fix.
+Jev found no code or test flags.
+Both wall test promises have README lines.
+The older README scan found 31 old gaps outside this card.
 No code flags needed labels.
 Core feedback: none.
+No mutation run is needed: `packages/start` did not change.
 
-Every required gate returned 0:
+Gate logs stay in the local cache:
+`/home/paseo/.cache/storm-layers-proof/`.
+The final exit codes will go in [the gate log](proof/gates.log).
 
-- `git fetch origin` and `git rebase origin/main`.
-- `vp install`.
-- `vp run -r build`.
-- `vp check`: 28 warnings, the same as the clean baseline.
-- `vp run -r test`: 10 tasks; Playground 68 tests passed.
-- `vp run prose`.
-- `vp run @tinker-start-scaffold#check`.
-  Its real browser and Docker checks also passed.
-- `pnpm validate`: all 18 lanes passed.
-- Strict style census on every changed TypeScript file.
-
-No mutation run was required: `packages/start` did not change.
-
-## Frame comparison
+## Prior frame comparison
 
 [Queued comparison log](proof/ab.log).
-The commands ran from the clean pinned baseline tree.
-The candidate tree was also clean.
-The same app settings drove 60 frame callbacks per side.
-The command includes browser and app startup.
-It used two rounds with one timed run per side per round.
-
-**No verdict.**
-`benchctl ab` returned 1 when load reached 4.
-Longer 120-frame tries were also rejected for load.
-A shorter comparison still could not hold a quiet window.
-The six ten-second trace samples above all stayed below 4.
-Their frame rates are observations, not a proven speed gain.
-
-Repeated browser close/open also exposed a socket race.
-Each proof run now owns a fresh socket folder.
-Every command still uses session `storm`.
-The later runs passed that step and rejected only the load.
+The earlier `benchctl ab` tries returned 1 at load 4.
+They gave no verdict.
+This fix round makes no speed claim from those tries.
 
 ## Run the proof again
 
-Run from the tree root with the built baseline next to it.
-This is the exact queued trace command used here:
+Run from the tree root with the built baseline next to it:
 
 ```bash
 storm_probe=apps/playground/scripts/storm-proof.mjs
@@ -123,10 +137,12 @@ benchctl exec --timeout 900 \
   --env AGENT_BROWSER_EXECUTABLE_PATH="$storm_chrome" \
   -- node "$storm_probe" \
   ../storm-layers-base/apps/playground/dist \
-  apps/playground/dist .bench/storm-proof \
+  apps/playground/dist .bench/storm-review \
   measure --serve
 ```
 
+Use `walls --serve` for four wall checks and three pairs.
+It returns 1 if any checked wall pixel differs.
+Use `capture --serve` for shots without the wall check.
 Use `frames --serve` for a fixed-frame command in `ab`.
-Use `capture --serve` for the three image pairs.
 No site was published or pushed.

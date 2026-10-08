@@ -1,6 +1,8 @@
 import { expect, test } from "vite-plus/test";
 import { pickVisibleWalls } from "../example/index";
 
+/** Read from the tagged four-wall screenshots in proof/wall-regions.json,
+ * before checking the CSS normals: south/west, south/east, north/east, north/west. */
 const headings = [
   { heading: -45, walls: "s w" },
   { heading: 45, walls: "s e" },

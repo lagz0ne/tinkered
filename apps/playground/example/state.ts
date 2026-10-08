@@ -81,8 +81,9 @@ export function sameShade(p: Shade, q: Shade): boolean {
  * reads its own slice through a selector, so only tiles whose look changed re-render. */
 export const board = data({ label: "board", initial: [] as Shade[] });
 
-/** CSS applies rotateZ before the fixed positive rotateX tilt. A wall faces the viewer when
- * its rotated normal has positive y: south follows cosine, east follows sine.
+/** The four-wall screenshots confirm the sign: CSS applies rotateZ before rotateX.
+ * The south/east front normals are +y/+x; north/west are -y/-x.
+ * Positive tilt brings positive rotated y toward the viewer, so south follows cosine, east sine.
  * Edge-on walls have no visible area. Turns can pass through any number of full circles. */
 export function pickVisibleWalls(heading: number): string {
   const degrees = ((heading % 360) + 360) % 360;
