@@ -43,14 +43,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **start/sync-test-warm** — warm one database and copy it for each test.
-  Owner: Sol writer; lead reviews and lands.
-  Next: lead review after the linked clean-commit fault proof.
-  Verify: full gates and three fault dry runs returned 0;
-  all counts stay the same; the final fault log must clear 75 on kills alone.
-  Loaded median test times: 1,499–1,509 ms → 711–746 ms.
-  [Track](docs/roadmap/start-base/PROGRESS.md#startsync-test-warm).
-
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
   Next: run the full Core checkpoint before marking Done.
@@ -77,6 +69,9 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/sync-test-warm** — one warm PGlite per test file; each scope gets and closes its own copy.
+  Loaded median test time about 1.5 s to 0.7 s; Stryker's first pass passed 3 times in a row; no timeout raised; mutation 85.42 on kills.
 
 - **perf fixes 2026-10-07** — the study's proven fixes, landed (study: `/home/paseo/perf/index.html`).
   Owner: lead (Claude, Start scaffold session); Sol writers.
