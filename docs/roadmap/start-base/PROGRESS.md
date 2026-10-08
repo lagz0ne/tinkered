@@ -1111,7 +1111,7 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   Main `9890672b` also has 28 warnings.
   `vp run @tinker/start#test`: EXIT 0; 41 files, 433 tests.
   `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 26 tests.
-  The final clean-commit gate is due after this proof commit.
+  The final clean-commit gate passed at `7e9ce9e1f8ede412eb5ef5e73daf03b3c8b0e7f6`: EXIT 0.
 - `vp run lazy`: EXIT 0.
   `node scripts/check-lazy-modules.mjs --prove`: EXIT 0; 90 cases.
 - `vp run -r test`: EXIT 0; all 10 tasks.
@@ -1188,7 +1188,16 @@ No Core change is requested.
 
 ### Mutation
 
-A fresh full Start run is due under `flock /tmp/mutation.lock`.
-The tree must be clean, the log must name its commit, and kills alone must clear 75%.
-[Mutation proof](proof/lazy-modules-mutation.txt) still shows the prior run until then.
+Full Start mutation passed under `flock /tmp/mutation.lock`.
+Tested clean commit: `7e9ce9e1f8ede412eb5ef5e73daf03b3c8b0e7f6`.
+The gate and mutation both returned EXIT 0.
+Kills alone: 3878 of 4547, or 85.29%; floor 75.
+There were 525 survivors, 42 timeouts, 101 with no coverage,
+and 1 runtime error.
+Every status stays in the total; only Killed counts as a kill.
+The tree was clean before and after the run.
+[Mutation proof](proof/lazy-modules-mutation.txt).
+Main gained seven commits during the run, ending at `81a60ef4`.
+The repo's catch-up rule requires a rebase and fresh gate and mutation runs.
+This result is saved before that rebase.
 Nothing was pushed.
