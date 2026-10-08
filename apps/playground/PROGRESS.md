@@ -113,7 +113,7 @@ The viewport is 1280 × 900.
 The storm uses height 3, speed 12, and gap 100 ms.
 Both sides now use the same random seed, 7.
 Three ten-second runs per side flip the order each round.
-The runner starts below load 3 to leave room.
+The runner waits while load is 4 or more.
 Only samples with load under 4 count.
 I make no FPS gain claim.
 

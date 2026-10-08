@@ -423,8 +423,8 @@ if (mode === "capture" || mode === "walls") {
       let attempt = 0;
       do {
         attempt++;
-        while (load() >= 3) {
-          console.log(JSON.stringify({ waitingForLoadUnder3: load() }));
+        while (load() >= 4) {
+          console.log(JSON.stringify({ waitingForLoadUnder4: load() }));
           await sleep(10000);
         }
         await navigate(url);
