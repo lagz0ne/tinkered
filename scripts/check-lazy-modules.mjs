@@ -63,10 +63,6 @@ function realPath(path) {
   return paths.get(path);
 }
 
-function outside(declaration) {
-  return realPath(declaration.getSourceFile().fileName).split(/[\\/]/).includes("node_modules");
-}
-
 const packages = new Map();
 
 function packageName(path) {
@@ -84,16 +80,24 @@ function packageName(path) {
 
 function symbols(checker) {
   function symbolAt(node) {
-    const symbol = ts.isShorthandPropertyAssignment(node.parent)
+    return ts.isShorthandPropertyAssignment(node.parent)
       ? checker.getShorthandAssignmentValueSymbol(node.parent)
       : checker.getSymbolAtLocation(node);
-    return symbol?.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  }
+
+  function alias(symbol) {
+    const seen = new Set();
+    while (symbol?.flags & ts.SymbolFlags.Alias && !seen.has(symbol)) {
+      seen.add(symbol);
+      symbol = checker.getImmediateAliasedSymbol(symbol);
+    }
+    return symbol;
   }
 
   function target(node, seen = new Set()) {
     node = unwrap(node);
     if (!node) return undefined;
-    const symbol = symbolAt(node);
+    const symbol = alias(symbolAt(node));
     if (!symbol || seen.has(symbol)) return symbol;
     seen.add(symbol);
     return declarationTarget(node, symbol, seen);
@@ -107,24 +111,72 @@ function symbols(checker) {
     return initializer ? (target(initializer, seen) ?? symbol) : symbol;
   }
 
-  function functionBody(symbol) {
-    return symbol?.declarations?.find(isFunction) ?? unwrap(symbol?.valueDeclaration?.initializer);
+  function executables(node, seen = new Set()) {
+    node = unwrap(node);
+    if (!node || seen.has(node)) return [];
+    seen.add(node);
+    if (isExecutable(node)) return [node];
+    if (ts.isConditionalExpression(node))
+      return [...executables(node.whenTrue, seen), ...executables(node.whenFalse, seen)];
+    return symbolExecutables(node, seen);
   }
 
-  function ownFunction(node) {
-    node = unwrap(node);
-    if (!node) return undefined;
-    if (isFunction(node)) return node;
-    const body = functionBody(target(node));
-    if (isFunction(body)) return body;
+  function symbolExecutables(node, seen) {
+    const symbol = alias(symbolAt(node));
+    const declarations = symbol?.declarations ?? [];
+    const bodies = declarations.filter(isExecutable);
+    if (bodies.length) return bodies;
+    const found = executables(declarationInitializer(symbol?.valueDeclaration), seen);
+    if (found.length) return found;
     return checker
       .getTypeAtLocation(node)
       .getCallSignatures()
       .map((signature) => signature.declaration)
-      .find(isFunction);
+      .filter(isExecutable);
   }
 
-  return { target, ownFunction };
+  function ownFunction(node) {
+    return executables(node).find(isFunction);
+  }
+
+  function property(object, name, seen = new Set()) {
+    object = unwrap(object);
+    if (!object || seen.has(object)) return undefined;
+    seen.add(object);
+    const declaration = propertyDeclaration(checker, object, name);
+    const value = declarationInitializer(declaration);
+    if (value) return value;
+    if (isFunction(declaration)) return declaration;
+    return (
+      spreadProperty(object, name, seen) ?? initializedProperty(object, name, seen) ?? declaration
+    );
+  }
+
+  function spreadProperty(object, name, seen) {
+    if (!ts.isObjectLiteralExpression(object)) return undefined;
+    for (const entry of [...object.properties].reverse()) {
+      if (!ts.isSpreadAssignment(entry)) continue;
+      const found = property(entry.expression, name, seen);
+      if (found) return found;
+    }
+  }
+
+  function initializedProperty(object, name, seen) {
+    const initializer = declarationInitializer(target(object)?.valueDeclaration);
+    if (initializer) return property(initializer, name, seen);
+    if (coreCall(object, target)) return property(object.arguments[0], name, seen);
+  }
+
+  return { target, ownFunction, executables, property };
+}
+
+function propertyDeclaration(checker, object, name) {
+  const symbol = checker.getTypeAtLocation(object).getProperty(name);
+  return symbol?.valueDeclaration ?? symbol?.declarations?.[0];
+}
+
+function isExecutable(node) {
+  return isFunction(node) || (node && (ts.isClassDeclaration(node) || ts.isClassExpression(node)));
 }
 
 function coreCall(call, target) {
@@ -140,6 +192,11 @@ function coreCall(call, target) {
 
 function typePosition(node) {
   for (let parent = node.parent; parent; parent = parent.parent) {
+    if (ts.isExpressionWithTypeArguments(parent) && ts.isHeritageClause(parent.parent))
+      return (
+        parent.parent.token !== ts.SyntaxKind.ExtendsKeyword ||
+        ts.isInterfaceDeclaration(parent.parent.parent)
+      );
     if (ts.isTypeNode(parent)) return true;
     if (ts.isExpression(parent) || ts.isStatement(parent)) break;
   }
@@ -150,35 +207,107 @@ function valueUse(node) {
   if (typePosition(node)) return false;
   const parent = node.parent;
   if (ts.isPropertyAccessExpression(parent) && parent.name === node) return false;
+  if (bindingKey(node)) return false;
   if (ts.isShorthandPropertyAssignment(parent)) return true;
   return !(parent.name === node || ts.isImportDeclaration(parent) || ts.isExportSpecifier(parent));
 }
 
+function bindingKey(node) {
+  return ts.isBindingElement(node.parent) && node.parent.propertyName === node;
+}
+
 function declarationInitializer(declaration) {
   if (!declaration) return undefined;
-  if (ts.isVariableDeclaration(declaration)) return declaration.initializer;
+  if (ts.isVariableDeclaration(declaration) || ts.isPropertyAssignment(declaration))
+    return declaration.initializer;
+  if (ts.isShorthandPropertyAssignment(declaration)) return declaration.name;
   if (ts.isBindingElement(declaration)) return declaration.parent.parent.initializer;
+}
+
+function moduleReference(declaration) {
+  for (let node = declaration; node; node = node.parent) {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return node.moduleSpecifier;
+    if (ts.isImportEqualsDeclaration(node)) return node.moduleReference.expression;
+  }
+}
+
+function ownPath(path) {
+  return path.startsWith(".") || path.startsWith("#") || path.startsWith("@tinker/");
 }
 
 function importedName(node, checker, seen = new Set()) {
   node = unwrap(node);
-  if (!node) return undefined;
-  if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node))
-    return importedName(node.expression, checker, seen);
+  if (!node) return false;
+  if (namespaceOutside(node, checker, seen)) return true;
+  if (
+    (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) &&
+    importedName(node.expression, checker, seen)
+  )
+    return true;
   const symbol = ts.isShorthandPropertyAssignment(node.parent)
     ? checker.getShorthandAssignmentValueSymbol(node.parent)
     : checker.getSymbolAtLocation(node);
   return importedSymbol(symbol, checker, seen);
 }
 
+function namespaceOutside(node, checker, seen) {
+  if (!ts.isPropertyAccessExpression(node)) return false;
+  const symbol = checker.getSymbolAtLocation(node.expression);
+  return (
+    symbol?.declarations?.some((declaration) => {
+      if (!ts.isNamespaceImport(declaration)) return false;
+      const reference = moduleReference(declaration);
+      return (
+        reference &&
+        moduleOutside(checker.getSymbolAtLocation(reference), node.name.text, checker, seen)
+      );
+    }) ?? false
+  );
+}
+
 function importedSymbol(symbol, checker, seen) {
-  if (!symbol || seen.has(symbol)) return undefined;
+  if (!symbol || seen.has(symbol)) return false;
   seen.add(symbol);
-  if (symbol.flags & ts.SymbolFlags.Alias) {
-    const target = checker.getAliasedSymbol(symbol);
-    return target.declarations?.some(outside) ? target : undefined;
-  }
+  if (
+    symbol.declarations?.some((declaration) => {
+      return importHopOutside(declaration, checker, seen);
+    })
+  )
+    return true;
+  if (symbol.flags & ts.SymbolFlags.Alias)
+    return importedSymbol(checker.getImmediateAliasedSymbol(symbol), checker, seen);
   return importedName(declarationInitializer(symbol.valueDeclaration), checker, seen);
+}
+
+function importHopOutside(declaration, checker, seen) {
+  const reference = moduleReference(declaration);
+  if (!reference) return false;
+  if (!ownPath(reference.text)) return true;
+  const name = propertyName(declaration.propertyName ?? declaration.name);
+  return (
+    name !== undefined && moduleOutside(checker.getSymbolAtLocation(reference), name, checker, seen)
+  );
+}
+
+function moduleOutside(module, name, checker, seen) {
+  if (!module || seen.has(module)) return false;
+  seen.add(module);
+  const exported = checker.getExportsOfModule(module).find((symbol) => symbol.name === name);
+  if (importedSymbol(exported, checker, seen)) return true;
+  return (
+    module.declarations?.some(
+      (declaration) =>
+        ts.isSourceFile(declaration) &&
+        declaration.statements.some((statement) => starOutside(statement, name, checker, seen)),
+    ) ?? false
+  );
+}
+
+function starOutside(statement, name, checker, seen) {
+  if (!ts.isExportDeclaration(statement) || statement.exportClause || !statement.moduleSpecifier)
+    return false;
+  if (!ownPath(statement.moduleSpecifier.text)) return true;
+  return moduleOutside(checker.getSymbolAtLocation(statement.moduleSpecifier), name, checker, seen);
 }
 
 function lazyFactory(factory) {
@@ -235,9 +364,10 @@ function checkLazy(object, factory, load, fail, modules) {
     fail(object, 10, "lazy module must have only label, scope target, and () => import(literal)");
   const path = load.arguments[0];
   if (!path || !ts.isStringLiteral(path)) return false;
-  if (modules.has(path.text))
-    fail(load, 9, `duplicate module ${path.text}; first at ${modules.get(path.text)}`);
-  else modules.set(path.text, location(load));
+  const key = path.text.replace(/^node:/, "");
+  if (modules.has(key))
+    fail(load, 9, `duplicate module ${path.text}; first at ${modules.get(key)}`);
+  else modules.set(key, location(load));
   return shape;
 }
 
@@ -246,48 +376,44 @@ function location(node) {
   return `${relative(process.cwd(), source.fileName)}:${source.getLineAndCharacterOfPosition(node.getStart()).line + 1}`;
 }
 
-function loaderName(name) {
-  return ["require", "createRequire"].includes(name);
-}
-
 function loaderDeclaration(declaration) {
-  if (!declaration) return false;
-  if (loaderName(propertyName(declaration.name))) return true;
+  if (!declaration || packageName(realPath(declaration.getSourceFile().fileName)) !== "@types/node")
+    return false;
+  if (["require", "createRequire", "getBuiltinModule"].includes(propertyName(declaration.name)))
+    return true;
   const owner = declaration.parent;
-  return (
-    ts.isInterfaceDeclaration(owner) &&
-    ["Require", "NodeRequire"].includes(owner.name.text) &&
-    packageName(realPath(declaration.getSourceFile().fileName)) === "@types/node"
-  );
+  return ts.isInterfaceDeclaration(owner) && ["Require", "NodeRequire"].includes(owner.name.text);
 }
 
-function checkGraph(bodies, checker, target, ownFunction, fail) {
+function checkGraph(bodies, checker, target, executables, fail) {
   const visited = new Set();
   function follow(node) {
-    if (!node || visited.has(node) || outside(node)) return;
+    if (!node || visited.has(node) || node.getSourceFile().isDeclarationFile) return;
     visited.add(node);
     walk(node, inspect);
   }
 
   function inspect(node) {
     if (isImport(node)) fail(node, 8, "import() in graph code");
-    if (ts.isIdentifier(node) && !typePosition(node)) inspectName(node);
-    if (ts.isCallExpression(node) || ts.isNewExpression(node)) inspectCall(node);
+    inspectCall(node);
+    if (ts.isIdentifier(node) && valueUse(node)) inspectValue(node);
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      if (!typePosition(node)) inspectValue(node);
+    }
   }
 
   function inspectCall(node) {
+    if (!ts.isCallExpression(node) && !ts.isNewExpression(node)) return;
     const declaration = checker.getResolvedSignature(node)?.declaration;
-    if (loaderDeclaration(declaration)) fail(node, 8, "require/createRequire in graph code");
-    if (isFunction(declaration)) follow(declaration);
-    follow(ownFunction(node.expression));
+    if (loaderDeclaration(declaration)) fail(node, 8, "module loader in graph code");
   }
 
-  function inspectName(node) {
+  function inspectValue(node) {
     const symbol = target(node);
-    if (loaderName(node.text) || loaderName(symbol?.name))
-      fail(node, 8, `${node.text} in graph code`);
-    else if (valueUse(node) && importedName(node, checker))
-      fail(node, 7, `outside name ${node.text} in graph code`);
+    if (symbol?.declarations?.some(loaderDeclaration)) fail(node, 8, "module loader in graph code");
+    else if (importedName(node, checker))
+      fail(node, 7, `outside name ${node.getText()} in graph code`);
+    else for (const body of executables(node)) follow(body);
   }
 
   for (const body of bodies) follow(body);
@@ -310,39 +436,46 @@ async function check(roots) {
       undefined,
       configPath,
     );
-    const program = ts.createProgram(files, parsed.options);
+    const program = ts.createProgram([...new Set([...parsed.fileNames, ...files])], parsed.options);
     const checker = program.getTypeChecker();
-    const { target, ownFunction } = symbols(checker);
+    const { target, ownFunction, executables, property } = symbols(checker);
     const bodies = [];
     for (const file of files) {
       walk(program.getSourceFile(file), (node) => {
         const kind = coreCall(node, target);
         if (!kind) return;
         const object = unwrap(node.arguments[0]);
-        if (!object || !ts.isObjectLiteralExpression(object)) return;
-        collectBodies(kind, object, ownFunction, fail, modules, bodies);
+        if (!object) return fail(node, 7, "unit body not found");
+        collectBodies(kind, object, ownFunction, property, checker, fail, modules, bodies);
       });
     }
-    checkGraph(bodies, checker, target, ownFunction, fail);
+    checkGraph(bodies, checker, target, executables, fail);
   }
   for (const hit of [...hits].sort((a, b) => a.localeCompare(b))) console.error(hit);
   if (!hits.size) console.log("Lazy modules: OK");
   return hits.size ? 1 : 0;
 }
 
-function hookBodies(object, ownFunction, bodies) {
-  const hooks = unwrap(member(object, "hooks")?.initializer);
-  if (hooks && ts.isObjectLiteralExpression(hooks))
-    for (const hook of hooks.properties) bodies.push(ownFunction(hook.initializer ?? hook));
-}
-
-function collectBodies(kind, object, ownFunction, fail, modules, bodies) {
-  if (kind === "extension") return hookBodies(object, ownFunction, bodies);
-  const property = member(object, kind === "resource" ? "factory" : "run");
-  const body = ownFunction(property?.initializer ?? property);
-  const load = kind === "resource" ? lazyFactory(body) : undefined;
-  if (load && checkLazy(object, body, load, fail, modules)) return;
-  bodies.push(body);
+function collectBodies(kind, object, ownFunction, property, checker, fail, modules, bodies) {
+  function collect(value) {
+    const body = value && ownFunction(value);
+    if (!body) return fail(value ?? object, 7, "unit body not found");
+    const load = kind === "resource" ? lazyFactory(body) : undefined;
+    if (
+      load &&
+      ts.isObjectLiteralExpression(object) &&
+      checkLazy(object, body, load, fail, modules)
+    )
+      return;
+    bodies.push(body);
+  }
+  if (kind !== "extension")
+    return collect(property(object, kind === "resource" ? "factory" : "run"));
+  const hooks = property(object, "hooks");
+  if (!hooks) return fail(object, 7, "unit body not found");
+  const members = checker.getTypeAtLocation(hooks).getProperties();
+  if (!members.length) return fail(hooks, 7, "unit body not found");
+  for (const hook of members) collect(property(hooks, hook.name));
 }
 
 async function prove() {
@@ -539,50 +672,388 @@ async function prove() {
         "operation({run: () => {const value: typeof outside | null = null; return value;}});",
     },
   ];
+  const expected = {
+    "namespace-loader": "probe.ts:2",
+    "created-require": "probe.ts:2",
+    "dep-loader": "probe.ts:2",
+    "overloaded-helper": "helper.ts:2",
+    "factory-alias": "probe.ts:2",
+    "wrapped-factory": "probe.ts:2",
+    "core-namespace": "probe.ts:3",
+    "core-destructure": "probe.ts:3",
+    reexport: "probe.ts:2",
+    "helper-method": "helper.ts:2",
+    "method-body": "probe.ts:3",
+    destructure: "probe.ts:2",
+    outside: "probe.ts:3",
+    helper: "helper.ts:2",
+    alias: "probe.ts:3",
+    namespace: "probe.ts:2",
+    nested: "probe.ts:3",
+    hook: "probe.ts:3",
+    "core-alias": "probe.ts:3",
+    import: "probe.ts:2",
+    require: "probe.ts:2",
+    createRequire: "probe.ts:2",
+    label: "probe.ts:2",
+    target: "probe.ts:2",
+    depends: "probe.ts:2",
+    block: "probe.ts:2",
+    literal: "probe.ts:2",
+    duplicate: "duplicate-second/probe.ts:2",
+  };
+  for (const test of cases) if (test.rule) test.hit = expected[test.name];
+  cases.push(
+    {
+      name: "star-reexport",
+      rule: 7,
+      hit: "probe.ts:2",
+      source: 'import {resolve as external} from "./helper"; operation({run:()=>external("x")});',
+      helper: 'export * from "node:path";',
+    },
+    {
+      name: "namespace-star-reexport",
+      rule: 7,
+      hit: "probe.ts:2",
+      source: 'import * as helper from "./helper"; operation({run:()=>helper.resolve("x")});',
+      helper: 'export * from "node:path";',
+    },
+    {
+      name: "own-star-reexport",
+      source: 'import {hidden} from "./helper"; operation({run:()=>hidden()});',
+      helper: 'export * from "./leaf";',
+      leaf: "export function hidden() {return 1;}",
+    },
+    {
+      name: "alias-hop",
+      rule: 7,
+      hit: "probe.ts:2",
+      source: 'import {hidden} from "./helper"; operation({run:()=>hidden("x")});',
+      helper: 'export {hidden} from "./leaf";',
+      leaf: 'export {resolve as hidden} from "node:path";',
+    },
+    {
+      name: "argument-value",
+      rule: 7,
+      hit: "probe.ts:3",
+      source: outsideImport + 'const spec = {label:"x", run: () => outside("x")}; operation(spec);',
+    },
+    {
+      name: "argument-spread",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport + 'const spec = {run: () => outside("x")}; operation({label:"x", ...spec});',
+    },
+    {
+      name: "named-hooks",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport + 'const hooks = {start: () => outside("x")}; extension({label:"x", hooks});',
+    },
+    {
+      name: "parameter-body",
+      rule: 7,
+      hit: "probe.ts:2",
+      source: 'function op(run) {return operation({label:"x", run});} op(() => 1);',
+    },
+    {
+      name: "wrapped-unit-callback",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'function op(run) {return operation({label:"x", run});} op(() => outside("x"));',
+    },
+    { name: "missing-run", rule: 7, hit: "probe.ts:2", source: 'operation({label:"x"});' },
+    {
+      name: "missing-hooks",
+      rule: 7,
+      hit: "probe.ts:2",
+      source: 'extension({label:"x", hooks: unknownHooks});',
+    },
+    {
+      name: "named-callback",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'function own(x) {return outside(x);} operation({run: () => ["a"].map(own)});',
+    },
+    {
+      name: "object-getter",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'const obj = {get v() {return outside("x");}}; operation({run: () => obj.v});',
+    },
+    {
+      name: "class-getter",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'class Box {get v() {return outside("x");}} const obj = new Box(); operation({run: () => obj.v});',
+    },
+    {
+      name: "class-field",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport + 'class Box {value = outside("x");} operation({run: () => new Box()});',
+    },
+    {
+      name: "class-static-field",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'class Box {static value = outside("x");} operation({run: () => new Box()});',
+    },
+    {
+      name: "class-static-block",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport + 'class Box {static {outside("x");}} operation({run: () => new Box()});',
+    },
+    {
+      name: "class-constructor",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'class Box {constructor() {outside("x");}} operation({run: () => new Box()});',
+    },
+    {
+      name: "own-call",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'function own(x) {return outside(x);} operation({run: () => own.call(null, "x")});',
+    },
+    {
+      name: "own-apply",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'function own(x) {return outside(x);} operation({run: () => own.apply(null, ["x"])});',
+    },
+    {
+      name: "tagged-helper",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport + 'function own() {return outside("x");} operation({run: () => own`x`});',
+    },
+    {
+      name: "conditional-function",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'const a = () => 1, b = () => outside("x"); const fn = true ? a : b; operation({run: () => fn()});',
+    },
+    {
+      name: "returned-method",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'function query() {return outside("x");} resource({factory: () => ({query})});',
+    },
+    {
+      name: "untyped-library",
+      rule: 7,
+      hit: "probe.ts:2",
+      source: 'import thing from "no-such-lib"; operation({run: () => thing("x")});',
+    },
+    {
+      name: "ambient-library",
+      rule: 7,
+      hit: "probe.ts:2",
+      source: 'import {thing} from "x"; operation({run: () => thing("x")});',
+      declaration: 'declare module "x" {export function thing(value:string):string;}',
+    },
+    {
+      name: "mapped-library",
+      rule: 7,
+      hit: "probe.ts:2",
+      source: 'import {hidden} from "outside-lib"; operation({run: () => hidden()});',
+      helper: "export function hidden() {return 1;}",
+    },
+    {
+      name: "class-extends",
+      rule: 7,
+      hit: "probe.ts:2",
+      source:
+        'import {EventEmitter} from "node:events"; operation({run: () => {class Mine extends EventEmitter {} return new Mine();}});',
+    },
+    {
+      name: "object-bare-outside",
+      rule: 7,
+      hit: "probe.ts:3",
+      source: outsideImport + 'const tools = {r: outside}; operation({run: () => tools.r("x")});',
+    },
+    {
+      name: "object-shorthand-outside",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport + 'const tools = {outside}; operation({run: () => tools.outside("x")});',
+    },
+    {
+      name: "process-loader",
+      rule: 8,
+      hit: "probe.ts:2",
+      source: 'operation({run: () => process.getBuiltinModule("path")});',
+    },
+    {
+      name: "normalized-duplicate",
+      rule: 9,
+      hit: "normalized-duplicate-second/probe.ts:2",
+      source: lazy + ";",
+      second: 'resource({label:"module:path",target:"scope",factory:()=>import("path")});',
+    },
+    {
+      name: "argument-value-own",
+      source: 'const spec = {label:"x", run: () => 1}; operation(spec);',
+    },
+    {
+      name: "argument-spread-own",
+      source: 'const spec = {run: () => 1}; operation({label:"x", ...spec});',
+    },
+    {
+      name: "named-hooks-own",
+      source: 'const hooks = {start: () => 1}; extension({label:"x", hooks});',
+    },
+    {
+      name: "named-callback-own",
+      source: 'function own(x) {return x;} operation({run: () => ["a"].map(own)});',
+    },
+    {
+      name: "returned-method-own",
+      source: "function query() {return 1;} resource({factory: () => ({query})});",
+    },
+    {
+      name: "own-package-path",
+      source: 'import {hidden} from "@tinker/fixture"; operation({run: () => hidden()});',
+      helper: "export function hidden() {return 1;}",
+    },
+    {
+      name: "own-hash-path",
+      source: 'import {hidden} from "#helper"; operation({run: () => hidden()});',
+      helper: "export function hidden() {return 1;}",
+    },
+    {
+      name: "object-built-value",
+      source:
+        'import {z} from "zod"; const shape = z.object({id:z.string()}); operation({run: () => shape.safeParse({id:"x"})});',
+    },
+    {
+      name: "dep-destructure",
+      source:
+        'const orm = resource({label:"module:drizzle-orm",target:"scope",factory:()=>import("drizzle-orm")}); operation({depends:{orm},run:async({orm})=>{const {eq,sql}=orm; return sql;}});',
+    },
+    {
+      name: "dep-renamed-key",
+      source:
+        'const orm = resource({label:"module:drizzle-orm",target:"scope",factory:()=>import("drizzle-orm")}); operation({depends:{orm},run:async({orm})=>{const {eq:equals}=orm; return equals;}});',
+    },
+    {
+      name: "dep-nested-key",
+      source:
+        'const orm = resource({label:"module:drizzle-orm",target:"scope",factory:()=>import("drizzle-orm")}); operation({depends:{orm},run:async({orm:{eq}})=>eq});',
+    },
+    {
+      name: "dep-member",
+      source:
+        'const orm = resource({label:"module:drizzle-orm",target:"scope",factory:()=>import("drizzle-orm")}); operation({depends:{orm},run:async({orm})=>orm.eq});',
+    },
+    {
+      name: "own-require-method",
+      source: "const deps={require(){return 1;}}; operation({run:()=>deps.require()});",
+    },
+    {
+      name: "own-require-function",
+      source: "function require() {return 1;} operation({run:()=>require()});",
+    },
+    {
+      name: "own-createRequire",
+      source: "function createRequire() {return 1;} operation({run:()=>createRequire()});",
+    },
+  );
   try {
     await symlink(
       join(workspace, "packages/start/node_modules"),
       join(planted, "node_modules"),
       "dir",
     );
-    await writeFile(
-      join(planted, "tsconfig.json"),
-      JSON.stringify({
-        compilerOptions: {
-          module: "esnext",
-          moduleResolution: "bundler",
-          target: "esnext",
-          types: ["node"],
+    const config = JSON.stringify({
+      compilerOptions: {
+        module: "esnext",
+        moduleResolution: "bundler",
+        target: "esnext",
+        types: ["node"],
+        paths: {
+          "outside-lib": ["./helper.ts"],
+          "@tinker/fixture": ["./helper.ts"],
+          "#helper": ["./helper.ts"],
         },
-      }),
-    );
+      },
+    });
     for (const test of cases) {
       const root = join(planted, test.name);
       await mkdir(root);
+      await writeFile(join(root, "tsconfig.json"), config);
       await writeFile(join(root, "probe.ts"), core + test.source);
       if (test.helper) await writeFile(join(root, "helper.ts"), test.helper);
+      if (test.leaf) await writeFile(join(root, "leaf.ts"), test.leaf);
+      if (test.declaration) await writeFile(join(root, "ambient.d.ts"), test.declaration);
       const roots = [root];
       if (test.second) {
         const second = join(planted, `${test.name}-second`);
         await mkdir(second);
+        await writeFile(join(second, "tsconfig.json"), config);
         await writeFile(join(second, "probe.ts"), core + test.second);
         roots.push(second);
       }
-      const result = spawnSync(process.execPath, [script, ...roots], { encoding: "utf8" });
-      assert.equal(
-        result.status,
-        test.rule ? 1 : 0,
-        `${test.name}: ${result.stdout}${result.stderr}`,
-      );
-      if (test.rule) assert.match(result.stderr, new RegExp(`rule-${test.rule}:`), test.name);
-      console.log(
-        `PASS ${test.name}: ${test.rule ? `rule-${test.rule}` : "allowed"} EXIT ${result.status}`,
-      );
+      proveCase(test, roots, planted);
     }
     console.log(`Lazy module proof: ${cases.length} cases passed`);
   } finally {
     await rm(planted, { recursive: true, force: true });
   }
+}
+
+function proveCase(test, roots, planted) {
+  const result = spawnSync(process.execPath, [script, ...roots], {
+    encoding: "utf8",
+    cwd: planted,
+  });
+  assert.equal(result.status, test.rule ? 1 : 0, `${test.name}: ${result.stdout}${result.stderr}`);
+  if (test.rule) proveHit(test, result.stderr);
+  console.log(
+    `PASS ${test.name}: ${test.rule ? `rule-${test.rule}` : "allowed"} EXIT ${result.status}`,
+  );
+}
+
+function proveHit(test, stderr) {
+  assert.ok(test.hit, `${test.name}: exact file and line required`);
+  const file = test.hit.includes("/") ? test.hit : `${test.name}/${test.hit}`;
+  const expectedHit = `${file} rule-${test.rule}:`;
+  assert.ok(
+    stderr.split("\n").some((line) => line.startsWith(expectedHit)),
+    `${test.name}: expected ${expectedHit}\n${stderr}`,
+  );
+  if (
+    ["parameter-body", "wrapped-unit-callback", "missing-run", "missing-hooks"].includes(test.name)
+  )
+    assert.match(stderr, /unit body not found/, test.name);
 }
 
 if (process.argv.includes("--prove")) await prove();

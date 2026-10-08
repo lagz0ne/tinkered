@@ -1,3 +1,12 @@
+$ node scripts/check-lazy-modules.mjs --prove
+PASS namespace-loader: rule-8 EXIT 1
+PASS created-require: rule-8 EXIT 1
+PASS dep-loader: rule-8 EXIT 1
+PASS overloaded-helper: rule-7 EXIT 1
+PASS factory-alias: rule-10 EXIT 1
+PASS wrapped-factory: rule-8 EXIT 1
+PASS own-overload: allowed EXIT 0
+PASS own-wrapped-factory: allowed EXIT 0
 PASS core-namespace: rule-7 EXIT 1
 PASS core-destructure: rule-7 EXIT 1
 PASS reexport: rule-7 EXIT 1
@@ -30,4 +39,51 @@ PASS own: allowed EXIT 0
 PASS lazy: allowed EXIT 0
 PASS framework: allowed EXIT 0
 PASS type-query: allowed EXIT 0
-Lazy module proof: 32 cases passed
+PASS star-reexport: rule-7 EXIT 1
+PASS namespace-star-reexport: rule-7 EXIT 1
+PASS own-star-reexport: allowed EXIT 0
+PASS alias-hop: rule-7 EXIT 1
+PASS argument-value: rule-7 EXIT 1
+PASS argument-spread: rule-7 EXIT 1
+PASS named-hooks: rule-7 EXIT 1
+PASS parameter-body: rule-7 EXIT 1
+PASS wrapped-unit-callback: rule-7 EXIT 1
+PASS missing-run: rule-7 EXIT 1
+PASS missing-hooks: rule-7 EXIT 1
+PASS named-callback: rule-7 EXIT 1
+PASS object-getter: rule-7 EXIT 1
+PASS class-getter: rule-7 EXIT 1
+PASS class-field: rule-7 EXIT 1
+PASS class-static-field: rule-7 EXIT 1
+PASS class-static-block: rule-7 EXIT 1
+PASS class-constructor: rule-7 EXIT 1
+PASS own-call: rule-7 EXIT 1
+PASS own-apply: rule-7 EXIT 1
+PASS tagged-helper: rule-7 EXIT 1
+PASS conditional-function: rule-7 EXIT 1
+PASS returned-method: rule-7 EXIT 1
+PASS untyped-library: rule-7 EXIT 1
+PASS ambient-library: rule-7 EXIT 1
+PASS mapped-library: rule-7 EXIT 1
+PASS class-extends: rule-7 EXIT 1
+PASS object-bare-outside: rule-7 EXIT 1
+PASS object-shorthand-outside: rule-7 EXIT 1
+PASS process-loader: rule-8 EXIT 1
+PASS normalized-duplicate: rule-9 EXIT 1
+PASS argument-value-own: allowed EXIT 0
+PASS argument-spread-own: allowed EXIT 0
+PASS named-hooks-own: allowed EXIT 0
+PASS named-callback-own: allowed EXIT 0
+PASS returned-method-own: allowed EXIT 0
+PASS own-package-path: allowed EXIT 0
+PASS own-hash-path: allowed EXIT 0
+PASS object-built-value: allowed EXIT 0
+PASS dep-destructure: allowed EXIT 0
+PASS dep-renamed-key: allowed EXIT 0
+PASS dep-nested-key: allowed EXIT 0
+PASS dep-member: allowed EXIT 0
+PASS own-require-method: allowed EXIT 0
+PASS own-require-function: allowed EXIT 0
+PASS own-createRequire: allowed EXIT 0
+Lazy module proof: 86 cases passed
+EXIT 0
