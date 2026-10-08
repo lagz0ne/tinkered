@@ -1,16 +1,17 @@
+$ pnpm validate
 $ node scripts/validate.mjs
 PASS  lint/types/format/complexity
 PASS  module endings in docs, registry JSON, and templates
 PASS  fast-code ratchets (slots, bytecode, inlining, closures, client)
-        ✔ module slots count captured names but omit cells and shadowed names (3.931262ms)
-        ✔ hot functions count their closures, defaults, and constructor fields (1.906928ms)
-        ✔ source maps find renamed functions and class expressions across lines (1.51509ms)
-        ✔ bytecode uses the named function and fails closed on missing or mixed lengths (0.49099ms)
-        ✔ inlining requires a completed edge into the named root (0.420387ms)
-        ✔ client maps name all three libraries and omit sources with no mappings (1.060651ms)
-        ✔ ratchets allow a lower value and reject a rise or missing baseline (0.218737ms)
-        ✔ an engine rebaseline changes only engine fields and bytecode numbers (0.313747ms)
-        ✔ an engine rebaseline rejects bytecode growth above 460 and keeps the inline promise (0.56858ms)
+        ✔ module slots count captured names but omit cells and shadowed names (2.736223ms)
+        ✔ hot functions count their closures, defaults, and constructor fields (1.988732ms)
+        ✔ source maps find renamed functions and class expressions across lines (1.222814ms)
+        ✔ bytecode uses the named function and fails closed on missing or mixed lengths (0.412269ms)
+        ✔ inlining requires a completed edge into the named root (0.384023ms)
+        ✔ client maps name all three libraries and omit sources with no mappings (0.863077ms)
+        ✔ ratchets allow a lower value and reject a rise or missing baseline (0.192324ms)
+        ✔ an engine rebaseline changes only engine fields and bytecode numbers (0.222308ms)
+        ✔ an engine rebaseline rejects bytecode growth above 460 and keeps the inline promise (0.474563ms)
         ℹ tests 9
         ℹ suites 0
         ℹ pass 9
@@ -18,12 +19,12 @@ PASS  fast-code ratchets (slots, bytecode, inlining, closures, client)
         ℹ cancelled 0
         ℹ skipped 0
         ℹ todo 0
-        ℹ duration_ms 100.031942
-        {"check":"slots","status":"PASS","actual":{"core":341,"react":25},"milliseconds":54}
-        {"check":"bytecode","status":"PASS","actual":{"runOnce":502,"settleRun":59,"OperationCtx":126,"buildHooklessResource":451,"resolveDep":223,"runHookChain":235,"invokeRunHooks":49,"stepRunHook":205},"milliseconds":730}
-        {"check":"inlining","status":"PASS","actual":{"OperationCtxIntoRunOnce":true,"maglev":"default on"},"milliseconds":479}
-        {"check":"closures","status":"PASS","actual":{"runOnce":0,"settleRun":0,"OperationCtx":0,"buildHooklessResource":3,"resolveDep":0,"runHookChain":2,"invokeRunHooks":0,"stepRunHook":1},"milliseconds":36}
-        {"check":"client","status":"PASS","actual":{"zod":0,"drizzle":0,"pglite":0,"chunks":3},"milliseconds":4528}
+        ℹ duration_ms 103.066275
+        {"check":"slots","status":"PASS","actual":{"core":341,"react":25},"milliseconds":60}
+        {"check":"bytecode","status":"PASS","actual":{"runOnce":502,"settleRun":59,"OperationCtx":126,"buildHooklessResource":451,"resolveDep":223,"runHookChain":235,"invokeRunHooks":49,"stepRunHook":205},"milliseconds":633}
+        {"check":"inlining","status":"PASS","actual":{"OperationCtxIntoRunOnce":true,"maglev":"default on"},"milliseconds":481}
+        {"check":"closures","status":"PASS","actual":{"runOnce":0,"settleRun":0,"OperationCtx":0,"buildHooklessResource":3,"resolveDep":0,"runHookChain":2,"invokeRunHooks":0,"stepRunHook":1},"milliseconds":46}
+        {"check":"client","status":"PASS","actual":{"zod":0,"drizzle":0,"pglite":0,"chunks":3},"milliseconds":3959}
 PASS  tests
 PASS  core tests on the built files
 PASS  core size (<= 16 KiB gzip)
