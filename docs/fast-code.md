@@ -13,7 +13,7 @@ App rules apply those findings; they are not new speed claims.
 An inline budget is the bytecode V8 may spend on copied calls.
 Node 24 limits a candidate to 460 bytes and a root to 920 bytes total.
 Move rare work to a cold function; small size alone does not prove inlining.
-`runOnce` stays a root at 502 bytes by design.
+`runOnce` is 429 bytes after call dispatch moved out of its body.
 
 Evidence: [E1](#evidence).
 
@@ -218,7 +218,7 @@ function stop(controller) {
 
 A context slot is V8's numbered place for a module name used by a nested function.
 Past slot 255, reads need wider bytecode operands.
-The study found slot 329; today's Core bundle reaches 341.
+The study found slot 329; batch A's Core bundle reaches 339.
 Group cold settings only when their access cost is safe.
 
 Evidence: [E1](#evidence).
@@ -584,14 +584,14 @@ pnpm validate
 
 - **F9:** highest context slot in built Core and React.
   The parser follows V8's captured-name rules in `scripts/check-slots.mjs`.
-  Core: 341; React: 25.
+  Core: 339; React: 25.
   Start ships source files, so it has no base bundle to count.
 - **F1:** built bytecode bytes, per named hot function.
   Source maps find current names after minification.
-  `runOnce`: 502; `settleRun`: 59; `OperationCtx`: 126.
+  `runOnce`: 429; `settleRun`: 53; `OperationCtx`: 126.
   `buildHooklessResource`: 451; `resolveDep`: 223.
-  `runHookChain`: 235; `invokeRunHooks`: 49; `stepRunHook`: 205.
-  `runOnce` exceeds 460 on purpose: it remains its own root.
+  `runHookChain`: 222; `invokeRunHooks`: 49; `stepRunHook`: 201.
+  Call dispatch lives outside `runOnce`, leaving room for body helpers.
 - **F1/F2:** completed OperationCtx → runOnce inline edge.
   A 200,000-call warm loop uses only `--trace-turbo-inlining`.
   Maglev stays on by default; no raised budget or native syntax.
@@ -621,7 +621,7 @@ node scripts/check-fast-code.mjs --rebaseline-engine
 It writes only Node, V8, and bytecode fields in the baseline.
 It prints old → new for every hot function.
 A bytecode rise above 460 fails before any write.
-The existing over-460 runOnce root may stay or fall; it cannot rise.
+All eight saved hot functions now fit the 460-byte candidate limit.
 The constructor must still inline with default Maglev.
 The saved inline expectation must stay true.
 Review and commit the baseline with the toolchain change.

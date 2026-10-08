@@ -45,7 +45,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **core/rules-batch-A** — layer fields, run budget, and slot order.
   Owner: Core rules writer (Codex).
-  Next: apply the three report tickets, one commit each.
+  Next: isolate the slower op and run rows; fix or drop their cause.
   Verify: ticket, validate, N=61 queue, and mutation 85 on kills.
   [Proof](docs/roadmap/perf/PROGRESS.md).
 

@@ -1142,7 +1142,9 @@ scripts/scip.sh refs \
   Hook access reads fall from two shapes to one.
   Sites that reach P or N fall from 41 to 16 in the same driver.
   P means several shapes; N means too many for the small fast path.
-- Size and allocation proof are recorded after the checks below.
+- A session-resource driver reads `ctx.closing` on every request.
+  Layer reads fall from four shapes to two; P or N sites fall from 40 to 16.
+  Both trees complete 70,000 reads and close every scope with success.
 - Removed the one-use `hasCallNs` helper.
   Its same namespace check now sits at its only call site.
   This pays for `createHookRun` without adding a module slot.
@@ -1153,6 +1155,8 @@ scripts/scip.sh refs \
   Shape-only tree: 860 -> 883 B per hooked run; final batch: 925 B.
   The stable fields add work; no allocation gain is claimed.
   Promise count stays zero for a synchronous hooked run.
+  Nested operation-dependency runs: 739 -> 757 B, with zero promises.
+  Both sides have 7/7 rounds without GC, which means memory cleanup.
 - Full build, code check, and Core tests: exit 0.
   Check: 0 errors, 27 warnings, matching the starting tree.
 - Batch-wide ticket, timing, validate, Jev, and mutation proof follow below.
@@ -1221,3 +1225,23 @@ scripts/scip.sh refs \
 - Fast-code break plants: exit 0 after the updated over-limit plant.
   Their first run needed the client maps built by the client check.
   The final run planted and rejected every rise, then passed the unchanged inputs.
+
+### Batch A first timing: not ready to land
+
+- N=61 per tree and scenario; every sample uses mitata batch mode.
+  A is clean main `5d9c0537`; B is clean `955608b2`.
+  Verdicts use a paired two-sided sign test, with p below 0.05 and ties left out.
+- **op:** b is slower; 56.1 -> 64.1 ns median.
+  B slower 59/61; p is below 0.000001.
+- **run:** b is slower; 69.6 -> 74.8 ns median.
+  B slower 54/61; p is below 0.000001.
+- **tagged:** no difference we can see; 177.2 -> 176.1 ns median.
+- **session:** no difference we can see; 434.7 -> 447.2 ns median.
+- **lifecycle:** no difference we can see; 805.4 -> 812.3 ns median.
+- [First timing summary](core-a-timing-first.log) saves the failed gate.
+  Next: compare each ticket's clean tree for op and run; fix or drop the cause.
+  The inline and shape gains do not make these slower rows pass.
+- Rebased onto main `f360f870`, which changes scaffold code and saved proof.
+  Kept both appended progress sections and both sets of Jev cases.
+  Core source hash stayed the same; install and full build returned 0.
+  The pinned timing base stays at its measured commit.
