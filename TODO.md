@@ -46,16 +46,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/rules-batch-1** — auth sharing, abort reasons, streamed compression.
-  Owner: writer (Codex).
-  Next: prove and commit each fix in brief order.
-  Verify: red-before tests, full gates, queued speed check, Start mutation 75 on kills.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **start/rules-batch-1** — auth sharing, abort reasons, streamed compression.
+  Owner: writer (Codex).
+  Next: lead review; b is faster; clean-tree mutation proof is linked in the track.
+  Verify: all gates returned 0; regressions failed before each fix.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
 
 - **core/testing-entry** — keep test helpers out of the main entry.
   Owner: lead (Codex, Core package session); Sol writer.
