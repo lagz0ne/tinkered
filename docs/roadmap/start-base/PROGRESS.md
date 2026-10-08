@@ -1107,11 +1107,13 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   History and streams share it; tables stay at the top.
   One public test checks one load span across two sessions.
 - `vp run -r build`: EXIT 0; 12 tasks.
-  `vp check`: EXIT 0; 0 errors and 28 warnings.
-  Main `9890672b` also has 28 warnings.
+  `vp check`: EXIT 0; 0 errors and 27 warnings after the rebase.
+  Main is now `81a60ef4`, with the shared Core handle methods.
   `vp run @tinker/start#test`: EXIT 0; 41 files, 433 tests.
   `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 26 tests.
-  The final clean-commit gate passed at `7e9ce9e1f8ede412eb5ef5e73daf03b3c8b0e7f6`: EXIT 0.
+  The first clean-commit gate passed at `7e9ce9e1`: EXIT 0.
+  Install, build, check, both test tasks, and all workspace tests passed after the rebase.
+  The clean-commit gate is due again after this proof commit.
 - `vp run lazy`: EXIT 0.
   `node scripts/check-lazy-modules.mjs --prove`: EXIT 0; 90 cases.
 - `vp run -r test`: EXIT 0; all 10 tasks.
@@ -1132,7 +1134,9 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
 ### Jev labels
 
 `node tools/jev/preflight.mjs origin/main..HEAD`: EXIT 0.
-No file flags; seven units had flags, with eleven label answers below.
+No file flags; seven units had flags after the rebase.
+All ten current flags have saved answers below.
+The earlier HTTP shape answer remains in the bank.
 The label bank is `tools/jev/cases.jsonl`.
 The lead runs calibration when landing.
 `node tools/jev/tests.mjs start`: EXIT 0.
@@ -1188,7 +1192,7 @@ No Core change is requested.
 
 ### Mutation
 
-Full Start mutation passed under `flock /tmp/mutation.lock`.
+The first full Start mutation passed under `flock /tmp/mutation.lock`.
 Tested clean commit: `7e9ce9e1f8ede412eb5ef5e73daf03b3c8b0e7f6`.
 The gate and mutation both returned EXIT 0.
 Kills alone: 3878 of 4547, or 85.29%; floor 75.
@@ -1198,6 +1202,10 @@ Every status stays in the total; only Killed counts as a kill.
 The tree was clean before and after the run.
 [Mutation proof](proof/lazy-modules-mutation.txt).
 Main gained seven commits during the run, ending at `81a60ef4`.
-The repo's catch-up rule requires a rebase and fresh gate and mutation runs.
-This result is saved before that rebase.
+The branch was rebased onto that main.
+The one label-file conflict kept both sets of rows.
+`vp install` and every proof check passed again.
+The checker proof still has 90 passing cases; validate still has 19 passing lanes.
+A fresh mutation run is due on the new clean commit.
+The linked mutation proof shows the first run until that run finishes.
 Nothing was pushed.

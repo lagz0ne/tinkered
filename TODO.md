@@ -58,9 +58,10 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 - **start/lazy-modules** — the base and the checker for ADR 0107 ([brief](docs/roadmap/start-base/LAZY-MODULES-BRIEF.md)).
   Owner: lead (Claude, lazy-modules session); writer Sol, reviewer Opus.
   Writer: `b0b13200` (Sol), worktree `../tinkered-lazy-modules`, branch `start/lazy-modules`.
-  Next: writer fixes the review round, then runs the full gate and mutation lane.
-  Verify: 40 checker plants, lazy check, gates, all package tests, and 19 validate lanes passed.
-  Clean-tree Start mutation: 85.28% on kills alone at `07845992`; floor 75.
+  Next: final mutation after the rebase; then lead review and landing.
+  Verify: 90 checker plants, lazy check, gates, all package tests, and 19 validate lanes passed.
+  First fix-round mutation: 85.29% on kills alone at `7e9ce9e1`; floor 75.
+  Main moved during that run; the final run follows the rebase onto `81a60ef4`.
   [Proof](docs/roadmap/start-base/PROGRESS.md#startlazy-modules).
 
 - **core/rules-batch-A** — hook and controller fields, and slot order.
