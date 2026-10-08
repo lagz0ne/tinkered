@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { createServer } from "node:http";
 import { promisify } from "node:util";
@@ -201,7 +201,13 @@ if (mode === "capture") {
     }),
   );
 } else if (mode === "frames") {
-  if (load() >= 4) throw new Error("Load must be under 4 for the frame benchmark");
+  if (load() >= 4) {
+    appendFileSync(
+      join(output, "frames.jsonl"),
+      JSON.stringify({ before, initialLoad: load(), quiet: false }) + "\n",
+    );
+    throw new Error("Load must be under 4 for the frame benchmark");
+  }
   await navigate(before);
   await evaluate(setup);
   await evaluate(
@@ -220,6 +226,15 @@ if (mode === "capture") {
   })`);
   clearInterval(sampler);
   loads.push(load());
+  appendFileSync(
+    join(output, "frames.jsonl"),
+    JSON.stringify({
+      before,
+      frameCallbacks: 120,
+      loads,
+      quiet: loads.every((value) => value < 4),
+    }) + "\n",
+  );
   if (loads.some((value) => value >= 4))
     throw new Error("Load reached 4 during the frame benchmark");
   console.log(JSON.stringify({ frameCallbacks: 120, loads }));
