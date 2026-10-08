@@ -1159,3 +1159,6 @@ This keeps the owner's old return type and callers.
   Both sets of Jev labels were kept.
   Install and the full gate passed again.
   A fresh checkout of this main also passed build and check: 28 warnings.
+- All package tests passed with `vp run -r test`.
+  Proof: [package tests](proof/lazy-modules-workspace-tests.txt).
+- All 19 validate lanes passed again on this main.
