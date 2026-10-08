@@ -1,3 +1,6 @@
+After rebase onto e6ffa1adaf5ff48f460a77993713ba0323c8f5f9
+$ vp install --frozen-lockfile
+EXIT 0
 $ vp run -r build && vp check && vp run @tinker/start#test && vp run @tinker-start-scaffold#test
 ~/apps/website$ tsc ⊘ cache disabled
 ~/packages/core$ vp pack ⊘ cache disabled
@@ -19,7 +22,7 @@ dist/assets/hero-CLDdwZDr.png   13.05 kB
 dist/assets/index-CsUDhMuy.css   4.10 kB │ gzip: 1.46 kB
 dist/assets/index-wktXvZw9.js    4.49 kB │ gzip: 2.02 kB
 
-✓ built in 703ms
+✓ built in 193ms
 
 ℹ dist/index.mjs                       46.48 kB │ gzip: 15.55 kB
 ℹ dist/testing.mjs                      1.25 kB │ gzip:  0.77 kB
@@ -31,7 +34,7 @@ dist/assets/index-wktXvZw9.js    4.49 kB │ gzip: 2.02 kB
 ℹ dist/index.d.mts                      0.66 kB │ gzip:  0.33 kB
 ℹ dist/index-D87dWTFA.d.mts            40.36 kB │ gzip: 12.32 kB
 ℹ 9 files, total: 445.58 kB
-✔ Build complete in 1393ms
+✔ Build complete in 1329ms
 
 ~/tools/flight-trial$ vp pack ⊘ cache disabled
 ~/packages/react$ vp pack ⊘ cache disabled
@@ -49,19 +52,19 @@ warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some op
 ℹ tsconfig: tsconfig.json
 ℹ Build start
 ℹ Cleaning 1 files
-ℹ entry: src/index.ts
-ℹ tsconfig: tsconfig.json
-ℹ Build start
 ℹ dist/main.mjs  2.12 kB │ gzip: 0.96 kB
 ℹ 1 files, total: 2.12 kB
-✔ Build complete in 47ms
-ℹ Cleaning 2 files
+✔ Build complete in 37ms
 
-warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
-ℹ Emit types with typescript@7.0.2
 ℹ entry: src/index.ts
 ℹ tsconfig: tsconfig.json
 ℹ Build start
+ℹ Cleaning 2 files
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
 ℹ Cleaning 2 files
 warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
 ℹ Emit types with typescript@7.0.2
@@ -72,12 +75,12 @@ warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some op
 ℹ dist/index.d.mts       17.79 kB │ gzip:  5.36 kB
 ℹ dist/main.d.mts         0.01 kB │ gzip:  0.03 kB
 ℹ 5 files, total: 80.47 kB
-✔ Build complete in 544ms
+✔ Build complete in 471ms
 
 ℹ dist/index.mjs    14.48 kB │ gzip: 4.93 kB
 ℹ dist/index.d.mts  10.58 kB │ gzip: 3.63 kB
 ℹ 2 files, total: 25.06 kB
-✔ Build complete in 485ms
+✔ Build complete in 426ms
 
 ~/apps/start-min$ vp build ⊘ cache disabled
 ~/examples/react$ vp build ⊘ cache disabled
@@ -85,7 +88,7 @@ warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some op
 ℹ dist/index.mjs    61.15 kB │ gzip: 15.27 kB
 ℹ dist/index.d.mts  11.06 kB │ gzip:  2.79 kB
 ℹ 2 files, total: 72.21 kB
-✔ Build complete in 761ms
+✔ Build complete in 702ms
 
 ~/apps/playground$ node scripts/build-vendor.mjs ⊘ cache disabled
 transforming...
@@ -96,37 +99,38 @@ dist/index.html                   0.40 kB │ gzip:   0.27 kB
 dist/assets/index-Cm7a3Mje.css    0.64 kB │ gzip:   0.37 kB
 dist/assets/index-NavHmNBB.js   351.59 kB │ gzip: 108.43 kB
 
-✓ built in 219ms
+✓ built in 218ms
 
 vendor bundles written to /home/paseo/next/tinkered-lazy-modules/apps/playground/public/vendor (esbuild-wasm 0.28.2)
 
 ~/apps/playground$ vp build ⊘ cache disabled
-9:44:58 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:46:50 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:46:50 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
-9:44:58 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
-9:44:58 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:46:50 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
 transforming...
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
-9:44:59 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+tinker: sync turns auth on
+9:46:51 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
-[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
-tinker: sync turns auth on
-9:44:59 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:46:51 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
 ✓ 1741 modules transformed.
-9:44:59 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+9:46:51 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
-rendering chunks...
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
-9:44:59 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+rendering chunks...
+9:46:51 AM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
 `optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
 [vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
 computing gzip size...
+transforming...
 dist/index.html                         0.69 kB │ gzip:   0.41 kB
 dist/assets/App-DdOoN2Rj.css            5.65 kB │ gzip:   1.64 kB
 dist/assets/BenchPage-BipA15mA.css     13.47 kB │ gzip:   3.25 kB
@@ -140,22 +144,21 @@ dist/assets/index-DZihLee3.js       1,334.20 kB │ gzip: 418.94 kB
 - Using dynamic import() to code-split the application
 - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 902ms
-transforming...
+✓ built in 938ms
 
 ✓ 275 modules transformed.
 rendering chunks...
 transforming...
 ✓ 354 modules transformed.
 computing gzip size...
-rendering chunks...
 dist/client/assets/style-x1XGuNl0.css    0.00 kB │ gzip:   0.02 kB
 dist/client/assets/routes-D1E1jbDL.js    0.13 kB │ gzip:   0.13 kB
 dist/client/assets/tinker-BOERpgkv.js    0.20 kB │ gzip:   0.17 kB
 dist/client/assets/index-DG5MWgJ9.js   402.78 kB │ gzip: 130.26 kB
 
-✓ built in 2.29s
+✓ built in 2.33s
 transforming...
+rendering chunks...
 ✓ 296 modules transformed.
 rendering chunks...
 computing gzip size...
@@ -172,7 +175,7 @@ dist/server/assets/start-BT2MLGbE.js                        66.77 kB │ gzip: 1
 dist/server/assets/drizzle-orm-DJY_iHKL.js                  97.70 kB │ gzip: 20.96 kB
 dist/server/server.js                                      338.85 kB │ gzip: 81.51 kB
 
-✓ built in 329ms
+✓ built in 345ms
 
 computing gzip size...
 dist/client/assets/style-D78nAbp3.css       21.74 kB │ gzip:   4.91 kB
@@ -186,11 +189,11 @@ dist/client/assets/react-DZGs3Xq0.js        31.10 kB │ gzip:  11.70 kB
 dist/client/assets/input-DCS6ZreD.js        34.62 kB │ gzip:  11.23 kB
 dist/client/assets/index-i_gKpmmT.js       495.23 kB │ gzip: 156.31 kB
 
-✓ built in 3.33s
-[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 3.1s of this 3.3s build (94%).
+✓ built in 3.35s
+[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 3.1s of this 3.3s build (93%).
 The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
-  - plugin tinker:verify buildStart (40%, 1.3s, 1 call)
-  - plugin tinker:client-output writeBundle (39%, 1.3s, 1 call)
+  - plugin tinker:verify buildStart (39%, 1.3s, 1 call)
+  - plugin tinker:client-output writeBundle (37%, 1.2s, 1 call)
 Additional callback time came from the callbacks below and from callbacks under 1s.
 2 callbacks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
   - plugin tanstack-start-core:import-protection resolveId (856 calls)
@@ -252,32 +255,13 @@ dist/server/assets/sqlite-introspector-DSCAP82F-BmQHY3vk.js           288.51 kB 
 dist/server/assets/server-C19yCT77.js                                 295.60 kB │ gzip:  69.19 kB
 dist/server/assets/dist-B6irHeQW.js                                   931.45 kB │ gzip: 202.01 kB
 
-✓ built in 722ms
+✓ built in 662ms
 
 ---
 vp run: 0/12 cache hit (0%). (Run `vp run --last-details` for full details)
-pass: All 1458 files are correctly formatted (5729ms, 8 threads)
+pass: All 1458 files are correctly formatted (5465ms, 8 threads)
 warn: Lint or type warnings found
-! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
-   ,-[tools/jev/preflight.mjs:8:22]
- 7 | import { execFileSync } from "node:child_process";
- 8 | import { existsSync, readFileSync } from "node:fs";
-   :                      ^^^^^^|^^^^^
-   :                            `-- 'readFileSync' is imported here
- 9 |
-   `----
-  help: Consider removing this import.
-
-  ! unicorn(no-thenable): Do not add `then` to an object.
-     ,-[packages/core/tests/tagged-frame-boundaries.test.ts:189:11]
- 188 |     run: () => ({
- 189 |       get then(): unknown {
-     :           ^^^^
- 190 |         closing ??= root.close().then(() => order.push("parent-ended"));
-     `----
-  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-
-  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
     ,-[bench/heap.mjs:26:14]
  25 | const N = 20000;
  26 | const live = new Array(N);
@@ -294,16 +278,6 @@ warn: Lint or type warnings found
  42 | globalThis.gc();
     `----
   help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
-
-  ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
-    ,-[bench/react-render.mjs:14:7]
- 13 |
- 14 | const React = (await import("react")).default;
-    :       ^^|^^
-    :         `-- 'React' is declared here
- 15 | const { act, createElement: h, Fragment } = await import("react");
-    `----
-  help: Consider removing this declaration.
 
   ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
     ,-[tools/jev/tests.mjs:83:7]
@@ -335,6 +309,16 @@ warn: Lint or type warnings found
    `----
   help: Consider removing this import.
 
+  ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
+   ,-[tools/jev/preflight.mjs:8:22]
+ 7 | import { execFileSync } from "node:child_process";
+ 8 | import { existsSync, readFileSync } from "node:fs";
+   :                      ^^^^^^|^^^^^
+   :                            `-- 'readFileSync' is imported here
+ 9 |
+   `----
+  help: Consider removing this import.
+
   ! unicorn(no-thenable): Do not add `then` to an object.
     ,-[packages/core/tests/session-end.test.ts:34:13]
  33 |       return {
@@ -360,6 +344,24 @@ warn: Lint or type warnings found
     :         ^^^^
  63 |       if (++reads > 1) throw new Error("second-read");
     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+      ,-[packages/core/tests/index.test.ts:2358:5]
+ 2357 |   const lazy = {
+ 2358 |     then: (res: (v: number) => void) => {
+      :     ^^^^
+ 2359 |       thenCalls++;
+      `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+      ,-[packages/core/tests/index.test.ts:2380:13]
+ 2379 |       export: () => ({
+ 2380 |         get then() {
+      :             ^^^^
+ 2381 |           throw new Error("evil-then");
+      `----
   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 
   ! unicorn(no-thenable): Do not add `then` to an object.
@@ -399,22 +401,23 @@ warn: Lint or type warnings found
   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 
   ! unicorn(no-thenable): Do not add `then` to an object.
-      ,-[packages/core/tests/index.test.ts:2358:5]
- 2357 |   const lazy = {
- 2358 |     then: (res: (v: number) => void) => {
-      :     ^^^^
- 2359 |       thenCalls++;
-      `----
+     ,-[packages/core/tests/tagged-frame-boundaries.test.ts:189:11]
+ 188 |     run: () => ({
+ 189 |       get then(): unknown {
+     :           ^^^^
+ 190 |         closing ??= root.close().then(() => order.push("parent-ended"));
+     `----
   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 
-  ! unicorn(no-thenable): Do not add `then` to an object.
-      ,-[packages/core/tests/index.test.ts:2380:13]
- 2379 |       export: () => ({
- 2380 |         get then() {
-      :             ^^^^
- 2381 |           throw new Error("evil-then");
-      `----
-  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+  ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
+    ,-[bench/react-render.mjs:14:7]
+ 13 |
+ 14 | const React = (await import("react")).default;
+    :       ^^|^^
+    :         `-- 'React' is declared here
+ 15 | const { act, createElement: h, Fragment } = await import("react");
+    `----
+  help: Consider removing this declaration.
 
   ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
       ,-[packages/core/src/index.ts:3292:16]
@@ -523,43 +526,43 @@ warn: Lint or type warnings found
  28 |   if (!Object.keys(bank).length) {
     `----
 
-Found 0 errors and 28 warnings in 656 files (6.1s, 8 threads)
+Found 0 errors and 28 warnings in 656 files (6.5s, 8 threads)
 ~/packages/start$ vp test ⊘ cache disabled
 
  RUN  v5.0.1 /home/paseo/next/tinkered-lazy-modules/packages/start
 
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"753d9c03f5166e80b9b68e261da370d5","spanId":"b9b68e261da370d5","msg":"core.span"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"84e72ae6c2c33694cf095754c92ab3b8","spanId":"cf095754c92ab3b8","msg":"core.span"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"74270061af8befe72abdbeb5b6967f29","spanId":"2abdbeb5b6967f29","msg":"core.span"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"0c114b8d8b1888c822658984c7b018f9","spanId":"417b6ea10e6af08e","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"0c114b8d8b1888c822658984c7b018f9","spanId":"417b6ea10e6af08e","msg":"core.span"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"0c114b8d8b1888c822658984c7b018f9","spanId":"22658984c7b018f9","msg":"core.span"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"004d716e477dd64edde9b666845ec3d5","spanId":"dde9b666845ec3d5","msg":"core.span"}
-{"level":50,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"004d716e477dd64edde9b666845ec3d5","spanId":"dde9b666845ec3d5","attributes":{"ms":"0","outcome":"\"failed\""},"msg":"test.telemetry.rejected"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"eff3143146956027d65fb415a46d8560","spanId":"d3485f403e318956","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"eff3143146956027d65fb415a46d8560","spanId":"d3485f403e318956","msg":"core.span"}
-{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"eff3143146956027d65fb415a46d8560","spanId":"d65fb415a46d8560","msg":"core.span"}
-{"level":40,"time":1791452728916,"service":"test-start","side":"server","traceId":"15e56d99dd6bacc04c485a72fe811194","spanId":"4c485a72fe811194","attributes":{},"msg":"careful"}
-{"level":50,"time":1791452728916,"service":"test-start","side":"server","traceId":"15e56d99dd6bacc04c485a72fe811194","spanId":"4c485a72fe811194","attributes":{},"msg":"broken"}
-{"level":30,"time":1791452728916,"service":"test-start","side":"server","traceId":"15e56d99dd6bacc04c485a72fe811194","spanId":"4c485a72fe811194","msg":"core.span"}
-{"level":30,"time":1791452728919,"service":"test-start","side":"ssr","traceId":"11111111111111111111111111111111","spanId":"2222222222222222","msg":"core.span"}
-{"level":30,"time":1791452728922,"service":"test-start","side":"ssr","traceId":"c036227840bb9b124e2ec2bdb8d5775d","spanId":"4e2ec2bdb8d5775d","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1791452728923,"service":"test-start","side":"ssr","traceId":"c036227840bb9b124e2ec2bdb8d5775d","spanId":"4e2ec2bdb8d5775d","msg":"core.span"}
-{"level":30,"time":1791452728925,"service":"test-start","side":"ssr","traceId":"c981a7dd557ed6f46d7dcdcc7e0130a1","spanId":"6d7dcdcc7e0130a1","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1791452728925,"service":"test-start","side":"ssr","traceId":"c981a7dd557ed6f46d7dcdcc7e0130a1","spanId":"6d7dcdcc7e0130a1","msg":"core.span"}
-{"level":30,"time":1791452728928,"service":"test-start","side":"ssr","traceId":"ba7acff31910673e9a80da7ded7375b4","spanId":"9a80da7ded7375b4","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1791452728928,"service":"test-start","side":"ssr","traceId":"ba7acff31910673e9a80da7ded7375b4","spanId":"9a80da7ded7375b4","msg":"core.span"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"811a3abe1ba994348766f60ef1ceed83","spanId":"8766f60ef1ceed83","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"811a3abe1ba994348766f60ef1ceed83","spanId":"8766f60ef1ceed83","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"a5268c1e9f7af6c6b1c1bf9d6d1d30fe","spanId":"b1c1bf9d6d1d30fe","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"fcca073fb44e12a608cf6ee58cd135c2","spanId":"08cf6ee58cd135c2","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"208e2898e491d50d975a373c92207f30","spanId":"975a373c92207f30","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"a6e2e5f9cabe44c72cf5f05efe5bef3d","spanId":"4f2710227787fd7d","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"a6e2e5f9cabe44c72cf5f05efe5bef3d","spanId":"4f2710227787fd7d","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"a6e2e5f9cabe44c72cf5f05efe5bef3d","spanId":"2cf5f05efe5bef3d","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"f47384d3d570bf67a2a103ebea856ed7","spanId":"a2a103ebea856ed7","msg":"core.span"}
+{"level":50,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"f47384d3d570bf67a2a103ebea856ed7","spanId":"a2a103ebea856ed7","attributes":{"ms":"0","outcome":"\"failed\""},"msg":"test.telemetry.rejected"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"82b83a48d26326ff7877d903b945f30c","spanId":"fa6cf41631f3617a","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"82b83a48d26326ff7877d903b945f30c","spanId":"fa6cf41631f3617a","msg":"core.span"}
+{"level":30,"time":1800000000000,"service":"test-start","side":"ssr","traceId":"82b83a48d26326ff7877d903b945f30c","spanId":"7877d903b945f30c","msg":"core.span"}
+{"level":40,"time":1791452839920,"service":"test-start","side":"server","traceId":"f78a198661c149e8fc90cd8256c29bdb","spanId":"fc90cd8256c29bdb","attributes":{},"msg":"careful"}
+{"level":50,"time":1791452839920,"service":"test-start","side":"server","traceId":"f78a198661c149e8fc90cd8256c29bdb","spanId":"fc90cd8256c29bdb","attributes":{},"msg":"broken"}
+{"level":30,"time":1791452839921,"service":"test-start","side":"server","traceId":"f78a198661c149e8fc90cd8256c29bdb","spanId":"fc90cd8256c29bdb","msg":"core.span"}
+{"level":30,"time":1791452839925,"service":"test-start","side":"ssr","traceId":"11111111111111111111111111111111","spanId":"2222222222222222","msg":"core.span"}
+{"level":30,"time":1791452839930,"service":"test-start","side":"ssr","traceId":"f123feac9ac66769e040556ea21e16fe","spanId":"e040556ea21e16fe","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791452839931,"service":"test-start","side":"ssr","traceId":"f123feac9ac66769e040556ea21e16fe","spanId":"e040556ea21e16fe","msg":"core.span"}
+{"level":30,"time":1791452839935,"service":"test-start","side":"ssr","traceId":"4c264a8fe572914d077b43a855800c5f","spanId":"077b43a855800c5f","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791452839936,"service":"test-start","side":"ssr","traceId":"4c264a8fe572914d077b43a855800c5f","spanId":"077b43a855800c5f","msg":"core.span"}
+{"level":30,"time":1791452839941,"service":"test-start","side":"ssr","traceId":"2b8c46525a05429787be2c7cd2092a20","spanId":"87be2c7cd2092a20","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791452839942,"service":"test-start","side":"ssr","traceId":"2b8c46525a05429787be2c7cd2092a20","spanId":"87be2c7cd2092a20","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"9bfe58e5eb9fa0f79d34ac3406f7cd98","spanId":"9d34ac3406f7cd98","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"9bfe58e5eb9fa0f79d34ac3406f7cd98","spanId":"9d34ac3406f7cd98","msg":"core.span"}
 {"level":40,"time":7,"service":"test-start","side":"server","attributes":{"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk":"\"v\""},"msg":"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"}
-{"level":30,"time":1791452729074,"service":"test-start","side":"server","traceId":"11111111111111111111111111111111","spanId":"2222222222222222","msg":"core.span"}
-{"level":30,"time":1791452729076,"service":"test-start","side":"server","traceId":"4d5d0d498930a173baccc6575da12f6d","spanId":"baccc6575da12f6d","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
-{"level":30,"time":1791452729076,"service":"test-start","side":"server","traceId":"4d5d0d498930a173baccc6575da12f6d","spanId":"baccc6575da12f6d","msg":"core.span"}
+{"level":30,"time":1791452840218,"service":"test-start","side":"server","traceId":"11111111111111111111111111111111","spanId":"2222222222222222","msg":"core.span"}
+{"level":30,"time":1791452840224,"service":"test-start","side":"server","traceId":"f8e74dbf47f85475f206d4f28426b7b6","spanId":"f206d4f28426b7b6","attributes":{"count":"1","big":"42","cycle":"[Unserializable]"},"msg":"saved record"}
+{"level":30,"time":1791452840224,"service":"test-start","side":"server","traceId":"f8e74dbf47f85475f206d4f28426b7b6","spanId":"f206d4f28426b7b6","msg":"core.span"}
 
  Test Files  41 passed (41)
       Tests  433 passed (433)
-   Start at  09:45:16
-   Duration  25.11s (tests 77%, import 19%, transform 4%)
+   Start at  09:47:08
+   Duration  24.85s (tests 76%, import 20%, transform 4%)
 
 
 ~/apps/start-scaffold$ vp test ⊘ cache disabled
@@ -569,8 +572,8 @@ Found 0 errors and 28 warnings in 656 files (6.1s, 8 threads)
 
  Test Files  6 passed (6)
       Tests  26 passed (26)
-   Start at  09:45:42
-   Duration  12.89s (tests 76%, import 20%, transform 4%)
+   Start at  09:47:34
+   Duration  12.25s (tests 75%, import 21%, transform 4%)
 
 
 EXIT 0

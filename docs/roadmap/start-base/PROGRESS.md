@@ -1151,3 +1151,6 @@ This keeps the owner's old return type and callers.
 - The added plants failed before the fixes:
   [helper and factory red proof](proof/lazy-modules-edge-red.txt) and
   [loader red proof](proof/lazy-modules-loader-red.txt).
+- Rebased onto `e6ffa1ad`, which adds the lead's zod decision.
+  Both sets of progress notes were kept.
+  Install and the full gate passed again after the rebase.
