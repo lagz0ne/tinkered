@@ -664,7 +664,8 @@ export declare namespace Scope {
         readonly data?: FinalData;
       };
 
-  /** What `createScope()` returns: the one seam tests and callers touch. */
+  /** Pass a handle by reference; do not copy it with spread or destructure its verbs (ADR 0108).
+   * `release` alone may be passed as a callback. */
   export type Handle = {
     /** Give back control: a handle that delays and steers — data `get/set/update/watch`,
      * resource `resolve/get`, operation `run(call)`. */
@@ -730,7 +731,7 @@ export declare namespace Scope {
     /** Reset a node: a data cell reverts to its inherited/initial value and notifies
      * watchers; a resource runs its cleanup, drops its instance, and a re-resolve rebuilds
      * a fresh generation (a late build from the released generation never publishes). */
-    release(target: Data.Cell<unknown> | Resource.Handle<unknown>): void;
+    release(this: void, target: Data.Cell<unknown> | Resource.Handle<unknown>): void;
     /** Unlink only the named bucket of a resource or cell at this layer. */
     releaseNs(target: Data.Cell<unknown> | Resource.Handle<unknown>, ns: Namespace): void;
     /** Register a userland teardown hook, run (LIFO) when this scope closes. */
@@ -4270,7 +4271,7 @@ function settleSession(
 
 /** Run `body` in a child session of `parent`, then close it (ADR 0038): the body receives the
  * child layer directly (no handle→layer registry). The public `session()` passes
- * `(child, handle) => fn(handle ?? handleFor(child))`; a tagged call under `session` hooks passes
+ * `(child, handle) => fn(handle ?? new ScopeHandle(child))`; a tagged call under `session` hooks passes
  * its own runner (without hooks it runs the same life itself, see {@link runTagged}). When the
  * root installed `session` hooks (ADR 0051), the whole life runs inside their onion: `next()`
  * resolves with the close `Result`. No hooks means no wrapper — the life below, inline, after one
@@ -4392,7 +4393,7 @@ function runSession<R>(
   fn: (scope: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
   return Promise.resolve(
-    runSessionWith(up, options, (child, handle) => fn(handle ?? handleFor(child))),
+    runSessionWith(up, options, (child, handle) => fn(handle ?? new ScopeHandle(child))),
   );
 }
 
@@ -4485,18 +4486,21 @@ function runInline<R, I>(
   return dispatch(call);
 }
 
-function handleFor(layer: Layer): Scope.Handle {
-  const settled = async (): Promise<void> => {
-    while (layer.pending.size) await Promise.all(layer.pending);
-  };
-  /** A non-namespace second argument (such as a `forEach` index) is still a plain release. */
-  const release = (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: unknown): void => {
-    if (isNamespace(ns)) releaseNamed(layer, target, ns);
-    else releaseNode(layer, target);
-  };
-  const controllerOf = (
+class ScopeHandle implements Scope.Handle {
+  declare private layer: Layer;
+  declare readonly ready: Promise<void>;
+  declare private releaser:
+    | ((target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: unknown) => void)
+    | undefined;
+  constructor(layer: Layer) {
+    this.layer = layer;
+    this.ready = READY;
+    this.releaser = undefined;
+  }
+  private controllerOf(
     target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
-  ): unknown => {
+  ): unknown {
+    const layer = this.layer;
     const s = nodeState(layer, target);
     if (s.controller) return s.controller;
     const ctl = isData(target)
@@ -4506,87 +4510,143 @@ function handleFor(layer: Layer): Scope.Handle {
         : operationController(layer, target, undefined, layer.ns);
     s.controller = ctl;
     return ctl;
-  };
-  const controller = (<T, I>(
-    target: Data.Cell<T> | Resource.Handle<T> | Operation.Handle<T, I>,
+  }
+  controller<T>(target: Data.Cell<T>, ns?: Scope.NsArg): Scope.DataController<T>;
+  controller<T>(target: Resource.Handle<T>, ns?: Scope.NsArg): Scope.ResourceController<T>;
+  controller<T, I>(
+    target: Operation.Handle<T, I>,
     ns?: Scope.NsArg,
-  ) => {
+  ): Scope.OperationController<T, I>;
+  controller(
+    target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
+    ns?: Scope.NsArg,
+  ): unknown {
+    const layer = this.layer;
     ensureOpen(layer);
     if (ns?.ns !== undefined) return controllerNs(layer, target, nsChainOf(ns.ns));
-    return controllerOf(target);
-  }) as Scope.Handle["controller"];
-  const resolve = (<T>(
+    return this.controllerOf(target);
+  }
+  resolve<T>(cell: Data.Cell<T>, ns?: Scope.NsArg): T;
+  resolve<T>(res: Resource.Handle<T>, ns?: Scope.NsArg): Scope.ResourceValue<T>;
+  resolve<T>(tag: Tag.Handle<T>, ns?: Scope.NsArg): T;
+  /** A tag edge reads exactly what that `depends` slot would deliver (ADR 0020/0036): `.all` →
+   * every binding nearest-first, `.optional` → a presence, `.required` → the value or `MissingTag`.
+   * The way a driver reads a whole routing table off the scope (core/t29). */
+  resolve<T>(edge: Edge<"all", Tag.Handle<T>>, ns?: Scope.NsArg): T[];
+  resolve<T>(edge: Edge<"optional", Tag.Handle<T>>, ns?: Scope.NsArg): Tag.Presence<T>;
+  resolve<T>(edge: Edge<"required", Tag.Handle<T>>, ns?: Scope.NsArg): T;
+  /** Read what an extension's `start` returned (ADR 0050): available once that extension's start
+   * settled (`NotResolved` before, or when the extension is not installed on this scope). */
+  resolve<T>(ext: Scope.Extension<T>): T;
+  resolve(
     target:
-      | Data.Cell<T>
-      | Resource.Handle<T>
-      | Tag.Handle<T>
-      | Edge<string, Tag.Handle<T>>
+      | Data.Cell<unknown>
+      | Resource.Handle<unknown>
+      | Tag.Handle<unknown>
+      | Edge<string, Tag.Handle<unknown>>
       | Scope.Extension<unknown>,
     ns?: Scope.NsArg,
-  ): unknown => {
+  ): unknown {
+    const layer = this.layer;
     if (layer.closed) return resolveHeld(layer, target, ns);
     if (ns?.ns !== undefined) return resolveNs(layer, target, nsChainOf(ns.ns));
     if (isData(target)) return readCell(layer, target);
-    if (isResource(target)) {
-      return (controllerOf(target) as Scope.ResourceController<T>).resolve();
-    }
+    if (isResource(target))
+      return (this.controllerOf(target) as Scope.ResourceController<unknown>).resolve();
     if (isEdge(target)) return resolveEdge(layer, target, undefined);
     if (isExtension(target)) return resolveExtension(layer, target);
     return tagRequired(layer, target as Tag.Handle<unknown>);
-  }) as Scope.Handle["resolve"];
-  const run = (<T, I>(op: unknown, call?: Scope.Invocation<I>): unknown => {
+  }
+  run<T, I>(op: Operation.Handle<T, I>, ...call: Scope.OwnedCall<I>): T | Promise<Awaited<T>>;
+  run<T, I>(op: Operation.Handle<T, I>, ...call: Scope.CallArgs<I>): T;
+  run<const D extends Scope.Depends = Record<string, never>, R = unknown, I = void>(
+    inline: Scope.Inline<D, R, I>,
+    ...call: Scope.OwnedInlineCall<I>
+  ): R | Promise<Awaited<R>>;
+  run<const D extends Scope.Depends = Record<string, never>, R = unknown, I = void>(
+    inline: Scope.Inline<D, R, I>,
+    ...call: Scope.InlineCall<I>
+  ): R;
+  run(op: unknown, call?: Scope.Invocation<unknown>): unknown {
+    const layer = this.layer;
     ensureRunning(layer);
-    if (!isOperation(op)) return runInline(layer, op as Scope.Inline<Scope.Depends, T, I>, call);
-    return (controllerOf(op) as { run(call?: Scope.Invocation<I>): T }).run(call);
-  }) as Scope.Handle["run"];
-  /** `settle` runs through a twin controller whose caller is RECOVERED; `run` stays as it was. */
-  const settle = ((op: unknown, call?: Scope.Invocation<unknown>) => {
+    if (!isOperation(op))
+      return runInline(layer, op as Scope.Inline<Scope.Depends, unknown, unknown>, call);
+    return (this.controllerOf(op) as { run(call?: Scope.Invocation<unknown>): unknown }).run(call);
+  }
+  /** `settle` uses a twin controller whose caller is RECOVERED. */
+  settle<T, I>(
+    op: Operation.Handle<T, I>,
+    ...call: Scope.OwnedCall<I>
+  ): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>;
+  settle<T, I>(op: Operation.Handle<T, I>, ...call: Scope.CallArgs<I>): Scope.Settled<T>;
+  settle<const D extends Scope.Depends = Record<string, never>, R = unknown, I = void>(
+    inline: Scope.Inline<D, R, I>,
+    ...call: Scope.OwnedInlineCall<I>
+  ): RunResult<Awaited<R>> | Promise<RunResult<Awaited<R>>>;
+  settle<const D extends Scope.Depends = Record<string, never>, R = unknown, I = void>(
+    inline: Scope.Inline<D, R, I>,
+    ...call: Scope.InlineCall<I>
+  ): Scope.Settled<R>;
+  settle(op: unknown, call?: Scope.Invocation<unknown>): unknown {
+    const layer = this.layer;
     const signal = call?.signal;
     try {
       ensureRunning(layer);
       return settledValue(
         layer,
         isOperation(op)
-          ? OperationControl.recover(controllerOf(op) as OperationControl<unknown, unknown>).run(
-              call,
-            )
+          ? OperationControl.recover(
+              this.controllerOf(op) as OperationControl<unknown, unknown>,
+            ).run(call)
           : runInline(layer, op as Scope.Inline<Scope.Depends, unknown, unknown>, call, RECOVERED),
         signal,
       );
     } catch (error) {
       return failedRun(layer, error, signal);
     }
-  }) as Scope.Handle["settle"];
-  return {
-    controller,
-    resolve,
-    run,
-    settle,
-    createSession: (options?: Scope.Options) => {
-      ensureAccepting(layer);
-      return handleFor(makeLayer(layer, options));
-    },
-    session: (<R>(
-      a: Scope.Options | ((scope: Scope.Handle) => R | PromiseLike<R>),
-      b?: (scope: Scope.Handle) => R | PromiseLike<R>,
-    ) => {
-      if (typeof a === "function") return runSession(layer, undefined, a);
-      if (!b)
-        raise("InvalidDependency", { label: "session", reason: "session(options, fn) needs fn" });
-      return runSession(layer, a, b);
-    }) as Scope.Handle["session"],
-    release,
-    releaseNs: release as Scope.Handle["releaseNs"],
-    spans: () => layer.obs.history.slice(),
-    onClose: (fn: () => void | PromiseLike<void>) => {
-      ensureOpen(layer);
-      addDefer(layer, { fn: () => fn(), owned: undefined });
-    },
-    settled,
-    close: (opts?: Scope.CloseOptions) =>
-      closeLayer(layer, !opts?.graceful, opts?.withData === true),
-    ready: READY,
-  };
+  }
+  createSession(options?: Scope.Options): Scope.Handle {
+    ensureAccepting(this.layer);
+    return new ScopeHandle(makeLayer(this.layer, options));
+  }
+  session<R>(fn: (scope: Scope.Handle) => R | PromiseLike<R>): Promise<R>;
+  session<R>(options: Scope.Options, fn: (scope: Scope.Handle) => R | PromiseLike<R>): Promise<R>;
+  session<R>(
+    a: Scope.Options | ((scope: Scope.Handle) => R | PromiseLike<R>),
+    b?: (scope: Scope.Handle) => R | PromiseLike<R>,
+  ): Promise<R> {
+    if (typeof a === "function") return runSession(this.layer, undefined, a);
+    if (!b)
+      raise("InvalidDependency", { label: "session", reason: "session(options, fn) needs fn" });
+    return runSession(this.layer, a, b);
+  }
+  /** Safe to pass as `cells.forEach(scope.release)`; made on first read and then retained.
+   * A non-namespace second argument, such as a forEach index, is a plain release. */
+  get release(): (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: unknown) => void {
+    const layer = this.layer;
+    return (this.releaser ??= (target, ns) => {
+      if (isNamespace(ns)) releaseNamed(layer, target, ns);
+      else releaseNode(layer, target);
+    });
+  }
+  get releaseNs(): (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: unknown) => void {
+    return this.release;
+  }
+  spans(): readonly Observe.Span[] {
+    return this.layer.obs.history.slice();
+  }
+  onClose(fn: () => void | PromiseLike<void>): void {
+    ensureOpen(this.layer);
+    addDefer(this.layer, { fn: () => fn(), owned: undefined });
+  }
+  async settled(): Promise<void> {
+    const layer = this.layer;
+    while (layer.pending.size) await Promise.all(layer.pending);
+  }
+  close(opts?: Scope.CloseOptions): Promise<Scope.Result> {
+    return closeLayer(this.layer, !opts?.graceful, opts?.withData === true);
+  }
 }
 
 /** Create a scope: the root of a layer chain that reads, controls, and runs cells, resources, tags, and operations. */
@@ -4598,7 +4658,7 @@ export function createScope(options?: Scope.RootOptions): Scope.Handle;
 
 export function createScope(options?: Scope.RootOptions): Scope.Handle {
   const layer = makeRootLayer(options);
-  const plain = handleFor(layer);
+  const plain = new ScopeHandle(layer);
   const exts = readMany(options?.extensions);
   if (exts.length === 0 && options?.signal === undefined) return plain;
   return extendHandle(layer, plain, exts, options?.signal);
@@ -5446,10 +5506,9 @@ function withSessionCreate(
   layer: Layer,
   session: readonly Scope.Extension<unknown>[],
 ): Scope.Handle {
-  return {
-    ...plain,
-    createSession: (options?: Scope.Options) => wrapSession(layer, options, session),
-  };
+  const h = Object.create(plain) as Scope.Handle;
+  h.createSession = (options?: Scope.Options) => wrapSession(layer, options, session);
+  return h;
 }
 
 /** A bare session wrapped in the `session` chain: the onion starts NOW (before-code runs right after
@@ -5465,7 +5524,7 @@ function wrapSession(
 ): Scope.Handle {
   ensureAccepting(up);
   const child = makeLayer(up, options);
-  const plain = handleFor(child);
+  const plain = new ScopeHandle(child);
   let settleNext: (ended: Scope.Result) => void = noop as (ended: Scope.Result) => void;
   const nextPromise = new Promise<Scope.Result>((resolveNext) => {
     settleNext = resolveNext;
@@ -5477,13 +5536,12 @@ function wrapSession(
     nextPromise.then((ended) => ({ result: undefined, ended })),
   ).finally(() => freeAfterHooks(child, hooks));
   ignoreRejection(outcome);
-  return {
-    ...base,
+  return Object.assign(Object.create(base) as Scope.Handle, {
     close: (opts?: Scope.CloseOptions) =>
       closeLayer(child, !opts?.graceful, opts?.withData === true).then(() =>
         outcome.then(({ ended: chained }) => chained),
       ),
-  };
+  });
 }
 
 /** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
@@ -5510,10 +5568,10 @@ function extendHandle(
   });
   ignoreRejection(ready);
   const lifetime: RootLifetime = {};
-  const extended: Scope.Handle & { closed?: Promise<Scope.Result> } = {
-    ...(session === undefined ? plain : withSessionCreate(plain, layer, session)),
-    ready,
-  };
+  const extended: Scope.Handle & { closed?: Promise<Scope.Result> } = Object.create(
+    session === undefined ? plain : withSessionCreate(plain, layer, session),
+  );
+  Object.assign(extended, { ready });
   if (signal)
     extended.closed = new Promise<Scope.Result>((resolveClosed) => {
       lifetime.finish = resolveClosed;
@@ -5670,7 +5728,7 @@ async function runSessionWrapped<R>(
 ): Promise<R> {
   const hooks: SessionHooks = { settle: undefined, state: 0, moved: false };
   SESSION_HOOKS.set(child, hooks);
-  const handle = withSessionCreate(handleFor(child), child, session);
+  const handle = withSessionCreate(new ScopeHandle(child), child, session);
   let wrapped: { result: unknown; ended: Scope.Result };
   try {
     wrapped = await sessionThrough(session, handle, child, async () => {

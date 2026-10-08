@@ -19,8 +19,7 @@ function countingScope(
   real: Scope.Handle,
   counts: { creates: number; closes: number },
 ): Scope.Handle {
-  return {
-    ...real,
+  return Object.assign(Object.create(real) as Scope.Handle, {
     createSession(options?: Scope.Options): Scope.Handle {
       counts.creates += 1;
       const session = real.createSession(options);
@@ -29,7 +28,7 @@ function countingScope(
       });
       return session;
     },
-  };
+  });
 }
 
 test("under StrictMode, SessionProvider opens a fresh session per live mount and closes the discarded one", async () => {

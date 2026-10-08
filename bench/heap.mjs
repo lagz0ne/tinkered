@@ -32,7 +32,7 @@ const after = process.memoryUsage().heapUsed;
 const perReq = (after - before) / N;
 if (live[0] === undefined) throw new Error("unreachable"); // keep `live` retained
 
-const BUDGET = 4096; // a few KB
+const BUDGET = 2304; // ADR 0108: shared handle methods
 console.log(`live heap per request: ${perReq.toFixed(0)} B   (budget <= ${BUDGET} B)`);
 
 // Second figure (informative only, no gate yet): a request that also does one tagged

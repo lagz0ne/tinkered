@@ -1,5 +1,14 @@
 # @tinker/core
 
+## Scope handles
+
+A scope handle is passed by reference (ADR 0108).
+Do not copy it with spread or pull out its verbs.
+Scopes, sessions, and `session(body)` share their verbs on one prototype.
+Opening and closing a plain scope makes no own verb functions.
+Only `release` may be passed on its own, as in `cells.forEach(scope.release)`.
+Its one bound function is made on first read and kept for later reads.
+
 ## Test helpers
 
 The main entry exports no test helpers.

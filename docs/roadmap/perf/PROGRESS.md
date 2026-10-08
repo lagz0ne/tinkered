@@ -272,3 +272,40 @@ flock /tmp/mutation.lock benchctl ab \
   Added the missing README promise for local pending queries.
   The promise judge now has no gap in 88 titles.
 - Next: one full mutation run on this clean code, then lead review.
+## core/handle-proto
+
+- Owner: writer (Codex), branch `core/handle-proto`.
+- Assumption: this is writer work; the lead reviews and lands it.
+  No push or publish.
+- Start from the study's prototype, with typed overloads.
+  No `any` or cast through `unknown` from that probe remains.
+- One class builds plain scopes, child sessions, and `session(body)` handles.
+  Their verbs live on its shared prototype.
+- `release` keeps one function, made on first read.
+  Most handles never release a node, so they pay for no bound function.
+  The class accessor keeps callback use and ignores a forEach index.
+- The three internal handle spreads now keep the handle as their prototype.
+  The root lifetime test now passes the handle itself.
+- The study missed a second handle spread in React's StrictMode test.
+  Its counting fixture now keeps the real handle as its prototype.
+  No React source or test behavior changed.
+- The brief asks for prototype and own-function checks.
+  That overrides the census's T05 ban for these three tests.
+  Existing Core S04, S10, S14, and P06 hits stay outside this card.
+- Three new checks fail on clean main `e911871f` (exit 1).
+  They cover shared verbs, a passed release callback, and no own verb functions.
+  All three pass here; Core has 870 tests.
+- Live request heap: 2,924 -> 2,123 B.
+  ADR 0016 ceiling: 4,096 -> 2,304 B.
+  This leaves 181 B for run-to-run noise and rejects the old handle.
+- Built runtime: 15,724 -> 15,805 B gzip, +81 B.
+  Cap: 16,384 B; 579 B remains.
+- Fast-code ratchets: slots, hot bytecode, and watched closures are unchanged.
+  Their baselines stay unchanged; no lower ceiling was measured there.
+- Impact: `Scope.Handle.release` now says `this: void`.
+  This states its existing callback contract and removes an unbound-method warning.
+  SCIP refs cover Core tests and `packages/react/src/index.ts`.
+  Only Core source, its docs/tests, and the React counting fixture need edits.
+- Initial build, check, prose, and validate: exit 0.
+  Validate passed all 19 lanes.
+  Remaining: full ticket gate, queued timing, Jev labels, clean-tree mutation.

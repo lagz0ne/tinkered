@@ -519,6 +519,6 @@ test("only a root given a signal has closed and sessions take no signal", async 
   );
   expect(plain).not.toHaveProperty("closed");
   expect(extended).not.toHaveProperty("closed");
-  expect({ ...root }.closed).toBe(root.closed);
+  expect(root).toHaveProperty("closed", root.closed);
   await Promise.all([plain.close(), extended.close(), root.close()]);
 });
