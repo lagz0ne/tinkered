@@ -373,3 +373,16 @@ flock /tmp/mutation.lock benchctl ab \
   Only that proof log is committed after its run.
 - The lead still reviews and lands this branch.
   Nothing is pushed or published.
+
+### Mutation follow-up
+
+- The first final run tested clean source `8eed57a2` and returned exit 0.
+  Its built-in score counts timeouts; kills alone were 84.9845%, below 85.
+  Counts: 3,011 killed, 29 timeout, 468 survived, 35 no coverage.
+  Three runtime errors leave 3,543 valid changes in the denominator.
+- A surviving change removed the copy returned by `spans()`.
+  A saved list then changed when a later run replaced bounded history.
+  The new public test fails with that change and passes with the copy.
+  This preserves the old handle's behavior; Core source is unchanged.
+- The final mutation run is repeated after saving this test and all proof.
+  The final log must clear 85 on kills alone.

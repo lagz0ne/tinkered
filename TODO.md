@@ -59,7 +59,7 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 - **core/handle-proto** — shared scope verbs (ADR 0108).
   Owner: writer (Codex).
-  Next: lead review after the clean-tree mutation proof is saved.
+  Next: prove saved span lists stay fixed, then rerun clean-tree mutation.
   Verify: three regressions fail on main; ticket and 19 release lanes pass;
   N=61: session and lifecycle faster; op and run show no difference.
   Mutation needs 85 on kills; its log names the clean source commit.

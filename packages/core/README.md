@@ -535,6 +535,7 @@ rows are themselves arrays (sync's `[cell, key]` pairs) it passes the row discri
 ## Observation
 
 Enable `observe.history` to retain a bounded list of completed spans for `scope.spans()`.
+Each call returns a list that keeps its entries when later runs replace the history.
 Each resource build emits a `resource` span, so tests can count builds without a test-only
 hook. If you keep the scope handle, its retained history is still readable after close.
 

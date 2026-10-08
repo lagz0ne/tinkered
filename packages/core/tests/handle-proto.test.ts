@@ -59,3 +59,12 @@ test("opening and closing scopes makes no own verb functions", async () => {
   expect(Object.values(root).filter((value) => typeof value === "function")).toHaveLength(0);
   expect(Object.values(child).filter((value) => typeof value === "function")).toHaveLength(0);
 });
+
+test("a saved spans list keeps its entries when later runs replace the history", async () => {
+  const root = createScope({ observe: { history: 1 } });
+  root.run({ label: "first", run: () => 1 });
+  const spans = root.spans();
+  root.run({ label: "second", run: () => 2 });
+  expect(spans.map((span) => span.name)).toEqual(["first"]);
+  expect((await root.close({ graceful: true })).status).toBe("success");
+});
