@@ -1076,8 +1076,10 @@ No lazy module for zod: zod stays a top-level import.
 - The base uses two lazy modules: Drizzle and Start server.
 - `drizzleOrm` is exported from `@tinker/start/server`.
 - History and streams share that node; tables load at the top.
-- The body owner stays synchronous.
-  Its transfer operation takes the Start server module as a dep.
+- The body owner takes the Start server module as a direct dep.
+  Its factory is async, as the lead asked (ADR 0044).
+  Both production callers await it.
+  Assumption: tests keep their titles and checks; seven calls need awaits.
 - Sync cursor checks use the existing schemas' `safeParse` methods.
   Bad input still gets 400; other errors still escape.
 - The HTTP error schema is built once at the top.
@@ -1104,9 +1106,11 @@ const reader = resource({
 });
 ```
 
-The body owner's workaround is a controller dep.
-Its operation has an async body and takes the lazy module.
-This keeps the owner's old return type and callers.
+The lead chose the async cost in ADR 0044.
+The body owner now takes the module directly.
+The private transfer operation is gone.
+All nine resolves await the async factory.
+The seven test calls changed only to await the resolve.
 
 ### Writer proof before mutation
 
@@ -1163,7 +1167,7 @@ This keeps the owner's old return type and callers.
   Proof: [package tests](proof/lazy-modules-workspace-tests.txt).
 - All 19 validate lanes passed again on this main.
 
-### Writer mutation and handoff
+### Writer mutation before the fix round
 
 - Full Start mutation passed under `flock /tmp/mutation.lock`.
   Tested commit: `07845992d6ec5bccb182ecc136dcda14c576e57d`.
