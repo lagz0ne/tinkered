@@ -8,6 +8,8 @@ import {
   inlinedInto,
   clientLibraries,
   ratchet,
+  hotFunctions,
+  rebaselineEngine,
 } from "./fast-code-parsers.mjs";
 
 const header = (name, size) =>
@@ -73,4 +75,48 @@ await test("ratchets allow a lower value and reject a rise or missing baseline",
   ratchet("hot", 451, 451);
   assert.throws(() => ratchet("hot", 452, 451), /452 > baseline 451/);
   assert.throws(() => ratchet("hot", 1, undefined), /baseline undefined/);
+});
+
+const oldEngineBaseline = {
+  node: "v0.fixture",
+  v8: "fixture-v8",
+  bytecode: Object.fromEntries(hotFunctions.map((name) => [name, name === "runOnce" ? 502 : 100])),
+  slots: { core: 341, react: 25 },
+  closures: { runOnce: 0 },
+  client: { zod: 0, drizzle: 0, pglite: 0 },
+  inlining: { OperationCtxIntoRunOnce: true },
+};
+const newEngine = { node: "v24.fixture", v8: "new-fixture-v8" };
+
+await test("an engine rebaseline changes only engine fields and bytecode numbers", () => {
+  const bytecode = { ...oldEngineBaseline.bytecode, settleRun: 120, OperationCtx: 90 };
+  const next = rebaselineEngine(oldEngineBaseline, newEngine, bytecode, true);
+  assert.deepEqual(next, { ...oldEngineBaseline, ...newEngine, bytecode });
+  assert.equal(oldEngineBaseline.node, "v0.fixture");
+});
+
+await test("an engine rebaseline rejects bytecode growth above 460 and keeps the inline promise", () => {
+  const bytecode = oldEngineBaseline.bytecode;
+  assert.throws(
+    () => rebaselineEngine(oldEngineBaseline, newEngine, { ...bytecode, settleRun: 461 }, true),
+    /cannot raise bytecode above 460/,
+  );
+  assert.throws(
+    () => rebaselineEngine(oldEngineBaseline, newEngine, { ...bytecode, runOnce: 503 }, true),
+    /cannot raise bytecode above 460/,
+  );
+  assert.throws(
+    () => rebaselineEngine(oldEngineBaseline, newEngine, bytecode, false),
+    /must remain inlined/,
+  );
+  assert.throws(
+    () =>
+      rebaselineEngine(
+        { ...oldEngineBaseline, inlining: { OperationCtxIntoRunOnce: false } },
+        newEngine,
+        bytecode,
+        true,
+      ),
+    /must remain inlined/,
+  );
 });

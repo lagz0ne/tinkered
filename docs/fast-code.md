@@ -610,7 +610,21 @@ pnpm validate
 
 Baselines live in `scripts/fast-code-baseline.json`.
 Node v24.21.0 and V8 13.6.233.17-node.53 pin the bytecode checks.
-An engine change fails with a request to review fresh baselines.
+Only bytecode and inlining checks need an engine match.
+Slots, function literals, and client checks still run on a new engine.
+The two engine checks print this recovery command:
+
+```bash
+node scripts/check-fast-code.mjs --rebaseline-engine
+```
+
+It writes only Node, V8, and bytecode fields in the baseline.
+It prints old → new for every hot function.
+A bytecode rise above 460 fails before any write.
+The existing over-460 runOnce root may stay or fall; it cannot rise.
+The constructor must still inline with default Maglev.
+The saved inline expectation must stay true.
+Review and commit the baseline with the toolchain change.
 The runner gives child jobs a shared 55-second limit.
 Parser tests and all five checks run in `pnpm validate`.
 The break script plants each rise in temp copies, sees exit 1, then sees the original pass.

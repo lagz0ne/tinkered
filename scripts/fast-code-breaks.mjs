@@ -58,7 +58,7 @@ function bundleWith(name, at, plant) {
 function run(check, args) {
   const result = spawnSync(
     process.execPath,
-    ["scripts/check-fast-code.mjs", "--only", check, ...args],
+    ["scripts/check-fast-code.mjs", ...(check ? ["--only", check] : []), ...args],
     {
       encoding: "utf8",
       timeout: 55_000,
@@ -149,6 +149,84 @@ try {
     /F13 zod chunks: 1 > baseline 0/,
     "A mapped zod module added to temp client chunks",
   );
+  const mismatch = {
+    ...JSON.parse(read("scripts/fast-code-baseline.json")),
+    node: "v0.fixture",
+    v8: "fixture-v8",
+  };
+  const mismatchFile = join(root, "mismatch.json");
+  writeFileSync(mismatchFile, JSON.stringify(mismatch));
+  const engineRed = run(undefined, [
+    "--baseline",
+    mismatchFile,
+    "--core-bundle",
+    slotFile,
+    "--core-source",
+    sourceFile,
+    "--client-dir",
+    clientDir,
+  ]);
+  assert.equal(engineRed.exit, 1, JSON.stringify(engineRed));
+  const rows = engineRed.output.split("\n").map((line) => JSON.parse(line));
+  assert.deepEqual(
+    rows.map((row) => [row.check, row.status]),
+    [
+      ["slots", "FAIL"],
+      ["bytecode", "FAIL"],
+      ["inlining", "FAIL"],
+      ["closures", "FAIL"],
+      ["client", "FAIL"],
+    ],
+  );
+  for (const check of ["bytecode", "inlining"])
+    assert.match(
+      rows.find((row) => row.check === check).error,
+      /run: node scripts\/check-fast-code.mjs --rebaseline-engine$/,
+    );
+  for (const [check, expected] of [
+    ["slots", /F9 core/],
+    ["closures", /F6 runOnce/],
+    ["client", /F13 zod/],
+  ])
+    assert.match(rows.find((row) => row.check === check).error, expected);
+  const recovered = run(undefined, ["--baseline", mismatchFile, "--rebaseline-engine"]);
+  assert.equal(recovered.exit, 0, JSON.stringify(recovered));
+  const updated = JSON.parse(read(mismatchFile));
+  assert.deepEqual(updated, { ...mismatch, node: process.version, v8: process.versions.v8 });
+  for (const [name, size] of Object.entries(mismatch.bytecode))
+    assert.ok(recovered.output.includes(`${name}: ${size} → ${size}`));
+  const afterRecovery = run(undefined, [
+    "--baseline",
+    mismatchFile,
+    "--client-dir",
+    resolve("apps/start-min/dist/client"),
+  ]);
+  assert.equal(afterRecovery.exit, 0, JSON.stringify(afterRecovery));
+  proofs.push({
+    check: "engine mismatch",
+    plant: "Fixture engine differs while F9, F6, and F13 each have a planted rise",
+    red: engineRed,
+    recoveryExit: recovered.exit,
+    recoveryOutput: recovered.output,
+    restoredExit: afterRecovery.exit,
+  });
+  const beforeRefusal = read(mismatchFile);
+  const refused = run(undefined, [
+    "--baseline",
+    mismatchFile,
+    "--rebaseline-engine",
+    "--core-bundle",
+    bytecodeFile,
+  ]);
+  assert.equal(refused.exit, 1, JSON.stringify(refused));
+  assert.match(refused.error, /cannot raise bytecode above 460/);
+  assert.equal(read(mismatchFile), beforeRefusal);
+  proofs.push({
+    check: "engine rebaseline refusal",
+    plant: "runOnce grows above its saved over-460 ceiling",
+    red: refused,
+    baselineUnchanged: true,
+  });
   console.log(JSON.stringify({ proofs, tempFilesRemoved: true }, null, 2));
 } finally {
   rmSync(root, { recursive: true, force: true });

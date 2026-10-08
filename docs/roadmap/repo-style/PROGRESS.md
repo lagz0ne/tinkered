@@ -126,3 +126,40 @@ Saved for lead review; no push or publish.
 - No new Core feedback.
 
 Next: the lead reviews the rules and saved baselines.
+
+### Engine review round
+
+- Only F1 bytecode and F1/F2 inlining need a matching engine.
+  F9 slots, F6 function literals, and F13 client chunks still run.
+- The engine mismatch now names one recovery command:
+
+  ```bash
+  node scripts/check-fast-code.mjs --rebaseline-engine
+  ```
+
+- Recovery writes only Node, V8, and F1 bytecode fields.
+  Each hot function prints old → new.
+  A rise above 460 fails before the baseline file is written.
+  The existing 502-byte runOnce root may stay or fall; it cannot rise.
+  The constructor must still inline with default Maglev.
+  The saved inline expectation stays true.
+- Two new fixture tests pass; nine parser tests pass in all.
+  The fixture changes an engine and raises and lowers bytecode counts.
+  Other saved fields stay the same.
+  Above-limit growth and a lost inline promise fail.
+- The engine-mismatch break plants rises in F9, F6, and F13 together.
+  All three fail on their own rule, not on the engine check.
+  Both engine checks fail and print the recovery command.
+  Recovery returns 0; the restored full check returns 0.
+- A refused runOnce rise returns 1 and leaves the file unchanged.
+  The old runner rejects the recovery option with exit 1.
+  All five earlier break proofs still pass.
+  Temp copies were removed; the real baseline did not change.
+- Every ordered gate returns 0; all 19 validate lanes pass.
+  Check still reports zero errors and 28 old warnings.
+  Prose, Jev, and census return 0.
+  No Core or Start source changed; no mutation or speed claim.
+- The new message and proof are saved under `engineReviewRound` in
+  [the proof](fast-code-rules-proof.json).
+
+Next: lead review of the engine recovery fix.

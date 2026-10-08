@@ -151,5 +151,118 @@
     "benchctl": "The card waives a verdict; no new speed claim",
     "mutation": "No packages/core or packages/start source changed"
   },
-  "coreFeedback": "None"
+  "coreFeedback": "None",
+  "engineReviewRound": {
+    "gates": {
+      "git fetch origin && git rebase origin/main": 0,
+      "vp install": 0,
+      "vp run -r build": 0,
+      "vp check": 0,
+      "vp run -r test": 0,
+      "vp run prose": 0,
+      "vp run @tinker-start-scaffold#check": 0,
+      "pnpm validate": 0
+    },
+    "parserTests": 9,
+    "newParserTests": 2,
+    "validateLanes": 19,
+    "checks": [
+      {
+        "check": "slots",
+        "status": "PASS",
+        "actual": {
+          "core": 341,
+          "react": 25
+        },
+        "milliseconds": 63
+      },
+      {
+        "check": "bytecode",
+        "status": "PASS",
+        "actual": {
+          "runOnce": 502,
+          "settleRun": 59,
+          "OperationCtx": 126,
+          "buildHooklessResource": 451,
+          "resolveDep": 223,
+          "runHookChain": 235,
+          "invokeRunHooks": 49,
+          "stepRunHook": 205
+        },
+        "milliseconds": 777
+      },
+      {
+        "check": "inlining",
+        "status": "PASS",
+        "actual": {
+          "OperationCtxIntoRunOnce": true,
+          "maglev": "default on"
+        },
+        "milliseconds": 659
+      },
+      {
+        "check": "closures",
+        "status": "PASS",
+        "actual": {
+          "runOnce": 0,
+          "settleRun": 0,
+          "OperationCtx": 0,
+          "buildHooklessResource": 3,
+          "resolveDep": 0,
+          "runHookChain": 2,
+          "invokeRunHooks": 0,
+          "stepRunHook": 1
+        },
+        "milliseconds": 54
+      },
+      {
+        "check": "client",
+        "status": "PASS",
+        "actual": {
+          "zod": 0,
+          "drizzle": 0,
+          "pglite": 0,
+          "chunks": 3
+        },
+        "milliseconds": 5166
+      }
+    ],
+    "engineMessage": "Engine changed: v24.21.0 / 13.6.233.17-node.53; run: node scripts/check-fast-code.mjs --rebaseline-engine",
+    "breaks": [
+      {
+        "check": "engine mismatch",
+        "plant": "Fixture engine differs while F9, F6, and F13 each have a planted rise",
+        "red": {
+          "exit": 1,
+          "output": "{\"check\":\"slots\",\"status\":\"FAIL\",\"error\":\"F9 core: 342 > baseline 341; lower the value or review a baseline edit\",\"milliseconds\":71}\n{\"check\":\"bytecode\",\"status\":\"FAIL\",\"error\":\"Engine changed: v24.21.0 / 13.6.233.17-node.53; run: node scripts/check-fast-code.mjs --rebaseline-engine\",\"milliseconds\":0}\n{\"check\":\"inlining\",\"status\":\"FAIL\",\"error\":\"Engine changed: v24.21.0 / 13.6.233.17-node.53; run: node scripts/check-fast-code.mjs --rebaseline-engine\",\"milliseconds\":0}\n{\"check\":\"closures\",\"status\":\"FAIL\",\"error\":\"F6 runOnce: 1 > baseline 0; lower the value or review a baseline edit\",\"milliseconds\":48}\n{\"check\":\"client\",\"status\":\"FAIL\",\"error\":\"F13 zod chunks: 1 > baseline 0; lower the value or review a baseline edit\",\"milliseconds\":99}",
+          "error": ""
+        },
+        "recoveryExit": 0,
+        "recoveryOutput": "Node: v0.fixture \u2192 v24.21.0\nV8: fixture-v8 \u2192 13.6.233.17-node.53\nrunOnce: 502 \u2192 502\nsettleRun: 59 \u2192 59\nOperationCtx: 126 \u2192 126\nbuildHooklessResource: 451 \u2192 451\nresolveDep: 223 \u2192 223\nrunHookChain: 235 \u2192 235\ninvokeRunHooks: 49 \u2192 49\nstepRunHook: 205 \u2192 205\nOperationCtxIntoRunOnce: true \u2192 true",
+        "restoredExit": 0
+      },
+      {
+        "check": "engine rebaseline refusal",
+        "plant": "runOnce grows above its saved over-460 ceiling",
+        "red": {
+          "exit": 1,
+          "output": "",
+          "error": "Engine baseline unchanged: F1 runOnce: 502 \u2192 512; cannot raise bytecode above 460"
+        },
+        "baselineUnchanged": true
+      }
+    ],
+    "existingBreaksPassed": 5,
+    "beforeFix": {
+      "beforeFixExit": 1,
+      "beforeFixError": "Unknown option '--rebaseline-engine'",
+      "temporaryFilesRemoved": true
+    },
+    "productionBaselineChanged": false,
+    "assumption": "Existing over-460 runOnce root may stay or fall, but cannot rise during engine recovery",
+    "jevExit": 0,
+    "jevFlags": 0,
+    "censusExit": 0,
+    "temporaryFilesRemoved": true
+  }
 }

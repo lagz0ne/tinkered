@@ -185,3 +185,18 @@ export function ratchet(label, actual, limit) {
       `${label}: ${actual} > baseline ${limit}; lower the value or review a baseline edit`,
     );
 }
+
+/** Keep existing over-limit roots, but never raise their saved ceiling. */
+export function rebaselineEngine(baseline, engine, bytecode, inlining) {
+  if (!inlining || baseline.inlining.OperationCtxIntoRunOnce !== true)
+    throw new Error("F1/F2 OperationCtx must remain inlined into runOnce with default Maglev");
+  for (const name of hotFunctions) {
+    const next = bytecode[name];
+    const previous = baseline.bytecode[name];
+    if (!Number.isInteger(next) || !Number.isInteger(previous))
+      throw new Error(`F1 missing bytecode for ${name}`);
+    if (next > 460 && next > previous)
+      throw new Error(`F1 ${name}: ${previous} → ${next}; cannot raise bytecode above 460`);
+  }
+  return { ...baseline, node: engine.node, v8: engine.v8, bytecode };
+}
