@@ -635,3 +635,46 @@ Owner: lane writer (Codex), branch `start/sync-lane`.
 - Assumption: the lane includes its sync tests and proof files.
   There is no frame or wheel prototype patch in the study.
 - Push revocations stay out of this lane, as the brief says.
+
+## Start sync lane: tab frames
+
+- Ticket: `start/sync-client-frame` (C1-C3, C5, C7).
+- Only the network message is parsed.
+  The tab passes `{ version, message }` as typed input.
+- Frame apply, bootstrap, batch apply, and leave run in place.
+- Version reads no longer make an account token.
+- Snapshot waits skip an absent account change.
+- The two factories with no waits now run in place too.
+  Core requires this before their callers can drop async.
+- The ready waiter test awaits its own result now.
+  It no longer relies on a fixed number of promise turns.
+- Regression: settle returns a plain success value.
+  It failed before the fix with a Promise instead.
+- Tab and client tests: 52 pass, exit 0.
+- Frame speed probe at 100 streams:
+  `no difference we can see`, including isolated byte copies.
+  This is a work-count gain, not a proved speed gain.
+
+### Impact block
+
+- `receiveMessage` is exported from the testing entry.
+- Old call: `rawInput: { version: 1, data }`.
+- New call: `input: { version: 1, message }`.
+- Network door: `streamMessage.parse(JSON.parse(data))`.
+- In-package callers: consumeConnection and sync-tab tests.
+- App callers: scaffold sse and waste tests.
+- Sync client methods are now sync; its source shape changes.
+- Scaffold sync-client tests await only calls with a signal.
+- Scope grows to those three consumer test files.
+  They call the changed testing seam and must stay green.
+- Review: `scripts/scip.sh refs` for receiveMessage,
+  syncClient, and notifications in start.
+
+- Consumer sync tests: 12 pass, exit 0.
+- Root code check: exit 0, 27 warnings, as before.
+- Jev test review: 0 of 189 entries flagged.
+- Jev promise review flagged the new sync-settle title.
+  The README now states the promised behavior.
+- All other Jev flags have false labels with reasons.
+- Calibration stays with the lead at landing.
+  This writer does not land or push.
