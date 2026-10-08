@@ -1,5 +1,12 @@
 import { execFile } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { createServer } from "node:http";
 import { promisify } from "node:util";
@@ -373,7 +380,11 @@ if (mode === "capture" || mode === "walls") {
       Math.random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     }`,
   });
-  const results = [];
+  const saved = join(output, "measurements.json");
+  const results =
+    process.argv.includes("--resume") && existsSync(saved)
+      ? JSON.parse(readFileSync(saved, "utf8"))
+      : [];
   for (let run = 0; run < 3; run++) {
     for (const [side, url] of run % 2
       ? [
@@ -384,6 +395,7 @@ if (mode === "capture" || mode === "walls") {
           ["before", before],
           ["after", after],
         ]) {
+      if (results.some((result) => result.side === side && result.run === run + 1)) continue;
       let quiet = false;
       let attempt = 0;
       do {
