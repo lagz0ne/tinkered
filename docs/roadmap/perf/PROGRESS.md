@@ -898,3 +898,223 @@ scripts/scip.sh refs \
 - Updated old checks that assumed a full batch waits.
   Their count and byte bounds are unchanged.
 - Focused type, lint, and format check: exit 0, no warning.
+
+- Queue A/B for encoding: exit 0, **b is faster**.
+  Five paired rounds, one run per side, ten timed runs total.
+  100,000 real observer spans, with a send every 32 spans.
+  A: pinned clean main `5d9c0537`; B: clean `d1d7ef2e`.
+  Bundles were made from those trees before the capacity edit.
+  Median A 3,180 ms, B 1,821 ms; range stays below zero.
+  This measures that driver, not full app throughput.
+  Raw log: `/home/paseo/.cache/tinkered-briefs/telemetry-ab-relative.log`.
+
+### start/ingest-sync
+
+- Browser ingest and receive now finish with plain values.
+  No async wrapper or wait around the queue's sync run.
+- Transferred log records take the server service in place.
+  The route owns its parsed records; raw input still gets a copy
+  from the existing schema, so caller data stays unchanged.
+- Endpoint helpers live at module scope.
+  Each request keeps one class with shared methods.
+- Header checks use plain branches.
+  The preview rule, id rule, and decoder are shared.
+- Join byte chunks in memory; one chunk needs no copy.
+  No Blob read around bytes already held by the request.
+- The sync-settle check failed before the fix, exit 1.
+  It checks a plain result without awaiting it.
+- I8 stays outside this lane, as noted above.
+  No speed or whole-request promise count claim for ingest.
+
+- All 15 ingest and record checks pass, exit 0.
+  The real server ingest also returns a plain settled result.
+  A split UTF-8 character and nonzero byte-view offsets read correctly.
+- Trusted `input` transfers ownership; `rawInput` is copied by parsing.
+  The service check now uses `rawInput`, as the route's door does.
+
+### Whole-lane review
+
+- Both sync result checks fail on pinned main, exit 1.
+  One binds a sync ingest function; one uses the real server part.
+- Observer export bytecode: 511 -> 144 bytes, default engine.
+  This is a size count, not an inlining or speed claim.
+- Fast-code ceilings are unchanged: no watched Core or React
+  function, slot, closure, or client dependency ceiling changed.
+- Jev preflight: zero file flags; seven unit flags labeled false.
+  Delivery performs HTTP work, not settings declaration.
+  Ingest updates an existing required service field.
+  Endpoint waits on its signalled call, not a storage send.
+  Queue state belongs to its buffer owner; close is bounded,
+  and every send loop checks its stop signal.
+- Test judge: zero test flags.
+  Private imports stay: the brief requires scope tests of Start glue.
+- Strict census: one new array-index hit fixed with `at(0)`.
+  Remaining S06 is the three old browser console calls.
+  Their output is a shipped promise and part of this brief.
+  Remaining T04 is the required private glue-test seam.
+  No rule or public API was changed to hide either exception.
+- TSDoc parser: no error.
+- Promise judge: added the exact cached-record promise.
+  The old sync reconnect README gap stays outside this lane.
+- Initial full test run: exit 1, a flight supplier check timed out
+  after five seconds during concurrent package runs.
+  Retry with one package task at a time; no timeout setting changed.
+- Core feedback: none; sync settle and final close data already exist.
+- Final mutation proof will name the clean source commit in
+  [telemetry-lane-mutation.log](telemetry-lane-mutation.log).
+  Only that header and summary are committed after the run.
+
+### Final close guard
+
+- A forced close without the telemetry extension exposed a bug
+  in the new final health write: Core had sealed its data owner.
+- The new check failed on the first version of this change, exit 1.
+  It now passes with no teardown error.
+- The extension's close hook publishes final health while data is live.
+  A forced defer only releases its buffers after that owner is sealed.
+  No late write or caught Disposed error hides the close state.
+- All 40 focused checks pass after this guard, exit 0.
+- Main gained the scaffold lane while this work ran.
+  Rebased onto `f360f870`; kept both progress sections and both label banks.
+  Core, React, and Start source on the pinned base did not change upstream.
+- A later full-driver timing check lacked the shared mutation lock.
+  Its result is discarded; the last check waits on that lock.
+  The first encoding verdict above remains the valid ticket proof.
+- The complete gate is repeated after the close guard and rebase.
+  The merged progress file needed one blank line for the formatter.
+
+### Final source gates
+
+- Fetch, rebase, install, build, check, package tests, prose,
+  scaffold check, and validate all exit 0.
+- Check prints zero errors and 28 warnings.
+  Start has 439 passing checks; all 19 release lanes pass.
+- Package tasks ran one at a time to avoid the first timeout.
+  No test timeout, mutation floor, or fast-code ceiling changed.
+- Scaffold checks used real services and stopped their own processes.
+  Nothing was published or pushed.
+- The board now waits in Review.
+  The final clean source commit will be named in the mutation log.
+  Only that proof log changes after the mutation run.
+
+### Locked final timing proof
+
+- The final export driver ran alone under the shared mutation lock.
+  It used the pinned clean base and a bundle of the final source.
+- `benchctl ab` exits 0: **b is faster**.
+  Five rounds, one run per side in each round.
+  A median 2,285 ms; B median 1,076 ms; change -52.9%.
+  The 95% range for the change is -1,876.5 to -701.2 ms.
+- This times observer export and its queue, with fake HTTP replies.
+  It makes no claim about live storage or HTTP ingest speed.
+- The B bundle was built from clean `9b4e0f08`.
+  Its record encoding and ingest source matches the rebased lane.
+  A later fix changes the send cleanup; main adds the settings table.
+  This timing proof predates both changes.
+  The encoding-only verdict remains the serialization ticket proof.
+- The full locked mutation run remains queued.
+  Its wrapper reads the clean HEAD only after it gets the lock.
+
+### Server-lane rebase before the run of record
+
+- The lead asked for the new main before the mutation run.
+  Main gained six commits, ending at `0f4152f5`.
+  They change Start source, including telemetry settings.
+- Cancelled this lane's own queued PID `447036` before rebasing.
+  It had not acquired the lock; its log was empty.
+  It exited 143 and supplies no mutation proof.
+- Fetch and rebase exit 0.
+  Kept both lanes' board cards, progress notes, and Jev labels.
+  There were no TypeScript conflicts.
+- The encode, queue, send, and ingest source is unchanged.
+  The rebased lane includes main's new settings table and server work.
+- Gates run again on this base before one clean mutation run.
+  Its log will name the rebased source commit, not the old source commit.
+
+- All nine gates on the rebased lane exit 0: fetch, rebase, install,
+  build, check, all package tests, prose, scaffold check, and validate.
+- Check has zero errors and 28 warnings; Start has 444 passing checks.
+  All 19 release lanes pass.
+- Scaffold proof passes and stops its own browser, server, relay,
+  and Compose processes; nothing is published.
+- The source commit is saved before the new mutation job is queued.
+  After its run, only the mutation header and summary log are committed.
+
+### A full batch when a send ends
+
+- A check of the send boundary found a second full batch left waiting.
+  Storage had 64 records; health said 64 pending; the clock stayed at zero.
+- The async send returned before its promise's `finally` cleared `pending`.
+  A new full batch could join that finishing promise and miss its send.
+- Cleanup now runs inside the async send, in the same step as its return.
+  A later producer sees the free sender and starts a new batch at once.
+- The new scope check failed before this fix, exit 1.
+  It now checks 14 arrival points with real response-body cancellation.
+  It sends 128 records, leaves zero pending, and keeps the clock at zero.
+- All 38 focused checks pass, exit 0.
+  The extra test-body lint warning is fixed; check has 27 warnings,
+  matching main, and zero errors.
+- Stopped only this lane's active mutation tree, rooted at PID `570755`.
+  That partial run exits 143 and is discarded; it is not the run of record.
+- Main gained the React lane, ending at `ba808cc5`.
+  Rebased again; kept both progress sections and both label banks.
+- The fix and test stay in the capacity ticket's commit.
+  Gates are repeated before the one complete mutation run on the fixed HEAD.
+- The old encoding A/B verdict still proves the serialization ticket.
+  No fresh timing claim is made for the send cleanup fix.
+
+### Fixed source gates
+
+- The final source joins main `ba808cc5`, including server and React work.
+- All nine gate exits are 0: fetch, rebase, install, build, check,
+  all package tests, prose, scaffold check, and validate.
+- Start has 445 passing checks; React has 98.
+  Check has zero errors and 27 warnings, matching main.
+  All 19 release lanes pass; scaffold proof stops its own services.
+- One rebase gate first found unsaved proof notes.
+  Saved them and repeated the clean gate; no source check was skipped.
+- Jev preflight has zero file flags and four flagged units.
+  All seven source questions have false labels with scope reasons.
+  The queue's labels now name its fixed source.
+- Test judge: zero of 196 entries flagged.
+  The new send-boundary promise is explicit in the README.
+- Promise judge: one of 194 titles has no README line.
+  It is the old sync check that injects a frame from a closed source.
+  That private sync rule is outside this telemetry lane.
+  Its existing README gap stays with the sync lane.
+- Strict census still exits 1 for S06 and T04 only:
+  three required browser console calls and 32 private glue imports.
+  These are the same brief-required exceptions; no rule was changed.
+- Only the complete mutation run on the clean fixed HEAD will count.
+  After that run, commit only its header and summary log.
+
+### Sync-lane rebase before the run of record
+
+- The lead asked for main `ae452162`, which adds Start sync work.
+- Stopped only this lane's queued PID `674290`.
+  It had not acquired the lock and its log was empty.
+  Its exit is 143; it supplies no mutation proof.
+- Fetch and rebase return 0.
+  Kept both progress sections and both Jev label banks.
+  Formatted the merged Markdown; there were no source conflicts.
+- Telemetry source and tests match the fixed source before this rebase.
+- All nine gates return 0: fetch, rebase, install, build, check,
+  all package tests, prose, scaffold check, and validate.
+- Start has 448 passing tests; React has 98.
+  Check has zero errors and the same 27 warnings.
+  All 19 release checks pass; no ratchet changed.
+- Scaffold proof passes real auth, mail, and two-tab sync.
+  Its browser, server, relay, and Compose processes stop cleanly.
+- Jev preflight has zero file flags and four flagged units.
+  All six flagged questions have false labels with scope reasons.
+  The source and its labels remain the same after this rebase.
+- Test judge has zero of 199 entries flagged.
+- Promise judge returns 0 with one of 197 titles lacking a README line.
+  It is the old sync test for frames from a closed connection.
+  That private sync rule stays outside this telemetry lane.
+- TSDoc parser checks all 13 telemetry files with zero S26 rows.
+- Strict census exits 1 for S06 and T04 only:
+  three required console calls and 32 private glue imports.
+  The lane brief requires that test seam; no rule was changed.
+- The complete mutation run must name this rebased clean source.
+  After that run, only its header and summary log are committed.

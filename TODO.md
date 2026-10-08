@@ -43,11 +43,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/telemetry-lane** — encode records once, send full batches, and keep ingest sync.
-  Owner: lane writer (Codex).
-  Next: implement the three tickets, one commit each.
-  Verify: wire equality, pre-tick burst, sync settle, all gates, queue A/B, mutation at least 75.
-
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
@@ -72,6 +67,15 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Verify: request census at most 45; static hits make no file calls; owned chunks at most 255 slots.
   Start fault score at least 75 on kills alone.
   [Proof](docs/roadmap/perf/SERVER-LANE.md).
+
+- **start/telemetry-lane** — encode records once, send full batches, and keep ingest sync.
+  Owner: lane writer (Codex), branch `start/telemetry-lane`.
+  Next: lead review after the clean-tree mutation proof is saved.
+  Verify: all gates exit 0; Start has 448 passing checks;
+  wire equality, pre-tick burst, and sync settle pass.
+  Queue A/B says `b is faster`; mutation needs 75 on kills alone.
+  I8 belongs to the server lane, outside this lane's source boundary.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
 
 - **scaffold/app-rules** — mail runs after reply; copied apps keep server imports out.
   Owner: writer (Codex), branch `scaffold/app-rules`.
