@@ -1054,44 +1054,120 @@ Ticket 2, `scaffold/lazy-modules`, starts on this branch.
 start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.server.ts src/parts/sync/stream.server.ts
 ```
 
-A library's error must not cross into graph code (user, 2026-10-08).
-Read with the non-throwing form, such as `schema.safeParse`, and check `.success`.
-So `ZodError` is never thrown or named inside a body.
-Build each schema at top level; the body only calls its methods.
-No lazy module for zod: zod stays a top-level import.
+### Lead decisions
 
-### Writer assumptions
+- User, 2026-10-08: no zod error crosses into graph code.
+  No lazy module for zod was added.
+  The endpoint uses top-level schemas and checks `safeParse().success`.
+  JSON parsing catches only the global `SyntaxError`.
+  The HTTP failure schema stays at the top level.
+  The same 400 replies and `HttpRequestFailed` payloads pass the old checks.
+- The body owner takes `startServer` directly.
+  Its factory is async, as ADR 0044 requires.
+  The private transfer operation is gone.
+  Both production callers await the resolve.
+  Assumption: the seven test calls also need awaits.
+  Every test title and check stays the same.
 
-- Each src root uses its nearest TypeScript config.
-- Checks share installed packages with this worktree.
-- The red proof uses a clean, detached checkout of `main`.
-  It sits inside this worktree and is removed after the run.
-- Keep Vite's locked TypeScript 7 peer choice.
-  The checker alone imports the TypeScript 5.9 alias.
-- The impact check is `scripts/scip.sh refs drizzleOrm start`.
-  The brief names no old symbol to remove.
+### Checker fix round
 
-### Writer step 2
+- Unit bodies are found through property types and their declarations.
+  This covers named configs, spreads, and named hooks.
+  Assumption: an unknown body fails rule 7 with `unit body not found`.
+  This also rejects a callback parameter whose body cannot be found.
+- Every own function, method, getter, and class value is followed.
+  Class fields, static blocks, and constructors are checked too.
+  Named callbacks, tagged calls, conditional aliases, and returned methods count.
+  A unit with two possible bodies checks both; the old checker missed the second.
+  Its failing plant returned EXIT 0 before this fix.
+- Each import or export hop uses its written path.
+  Relative paths, `#...`, and `@tinker/*` are own.
+  All other paths are outside, even with missing or local types.
+  This lead rule replaces the brief's check of the file's real path.
+  The program keeps the config's file list, including `.d.ts` files.
+- A class's `extends` clause is a value use.
+  Bare outside values in own objects fail when read in graph code.
+  Values built by top-level calls, such as schemas, still pass rule 6.
+- Keys in destructuring are not value reads.
+  The four named Drizzle dep patterns pass.
+- Loaders are found by their symbols.
+  Own `require` methods pass; `process.getBuiltinModule` fails rule 8.
+  `node:path` and `path` count as one module for rule 9.
+- Each failing plant checks the exact file, line, and rule text.
+  The proof covers 90 cases: all pass.
+  [Checker proof](proof/lazy-modules-checker-prove.txt).
 
-- The base uses two lazy modules: Drizzle and Start server.
-- `drizzleOrm` is exported from `@tinker/start/server`.
-- History and streams share that node; tables load at the top.
-- The body owner takes the Start server module as a direct dep.
-  Its factory is async, as the lead asked (ADR 0044).
-  Both production callers await it.
-  Assumption: tests keep their titles and checks; seven calls need awaits.
-- Sync cursor checks use the existing schemas' `safeParse` methods.
-  Bad input still gets 400; other errors still escape.
-- The HTTP error schema is built once at the top.
-- One new test checks the namespace and one load span across sessions.
-- The gate passed: 433 base tests and 26 scaffold tests.
-  Both this branch and the built main checkout have 28 check warnings.
-- Proof: [gate](proof/lazy-modules-gate.txt),
-  [main check](proof/lazy-modules-main-check.txt),
-  and [style census](proof/lazy-modules-census.txt).
+### Proof summary
 
-Core feedback: an async dep requires an async body (TS2322).
-This sync factory fails, even though Core settles deps before the body:
+- The first checker run used clean main source at `8d75634f`.
+  It found ten hits and exited 1.
+  [Main red proof](proof/lazy-modules-main-red.txt).
+- The base uses two modules: Drizzle and Start server.
+  `drizzleOrm` is exported from `@tinker/start/server`.
+  History and streams share it; tables stay at the top.
+  One public test checks one load span across two sessions.
+- `vp run -r build`: EXIT 0; 12 tasks.
+  `vp check`: EXIT 0; 0 errors and 28 warnings.
+  Main `9890672b` also has 28 warnings.
+  `vp run @tinker/start#test`: EXIT 0; 41 files, 433 tests.
+  `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 26 tests.
+  The final clean-commit gate is due after this proof commit.
+- `vp run lazy`: EXIT 0.
+  `node scripts/check-lazy-modules.mjs --prove`: EXIT 0; 90 cases.
+- `vp run -r test`: EXIT 0; all 10 tasks.
+  An earlier run exited 1: validate rebuilt Core during scaffold test imports.
+  A full build and test run after validate finished passed.
+- `pnpm validate`: EXIT 0; all 19 lanes.
+  `pnpm-workspace.yaml` was restored and is not part of this ticket.
+- `node apps/start-scaffold/maintain/check-imports.mjs`: EXIT 0.
+  Backend import leaves drivers, auth, and mail unloaded.
+- `scripts/scip.sh index start`: EXIT 0.
+  `scripts/scip.sh refs drizzleOrm start`: EXIT 0.
+  One definition and four files that use it, including the new test.
+- Strict style check of the changed source and new module test: EXIT 0.
+  The old server test has six private imports, unchanged from main.
+  Its titles and checks stay unchanged; only awaits were added.
+  No new style hit was added.
+
+### Jev labels
+
+`node tools/jev/preflight.mjs origin/main..HEAD`: EXIT 0.
+No file flags; seven units had flags, with eleven label answers below.
+The label bank is `tools/jev/cases.jsonl`.
+The lead runs calibration when landing.
+`node tools/jev/tests.mjs start`: EXIT 0.
+The new module test passes.
+Old private imports and long helpers have no new hits from this ticket.
+The server test keeps main's six imports; its only changes are awaits.
+`node tools/jev/promises.mjs start`: EXIT 0; no missing-promise flags.
+The plain test notes have no judge in the label tool.
+
+- `stopOnlyInDefer false body.server.ts#responseBodies`:
+  Host streams are not Core runs; defer cancels retained readers.
+- `ignoresAbortAfterAwait false body.server.ts#responseBodies`:
+  No await in the factory; pulls check cancelled before delivery.
+- `configNotTag false http.ts#httpRequest`:
+  URL and method are validated per-call input; transport is a dep.
+- `shapeGrowsPerCall false http.ts#httpRequest`:
+  Span fields go in a map; failure payloads use fixed keys.
+- `awaitsSyncWork false entry/server.ts#start`:
+  Ready and closed values are promises.
+- `waitsOnSideWork false entry/server.ts#start`:
+  Startup and ordered shutdown own the resources handed to the server.
+- `shapeGrowsPerCall false entry/server.ts#getRenderObserver`:
+  Returns the existing observer from one saved startup promise.
+- `ignoresAbortAfterAwait false endpoint.server.ts#syncEndpoint`:
+  A cancelled result raises before the reply; requestStop owns the signal.
+- `ignoresAbortAfterAwait false history.server.ts#eventHistory`:
+  The caller owns the borrowed transaction and its cancellation.
+- `stateOutsideCell false stream.server.ts#eventStream`:
+  Private stream records are not values watched by a view.
+- `ignoresAbortAfterAwait false stream.server.ts#eventStream`:
+  Wake, replay, and heartbeat check ended after awaits.
+
+### Core feedback
+
+An async dep requires an async factory (TS2322):
 
 ```ts
 const path = resource({
@@ -1099,86 +1175,20 @@ const path = resource({
   target: "scope",
   factory: () => import("node:path"),
 });
-const reader = resource({
+resource({
   label: "reader",
   depends: { path },
   factory: ({ path }) => ({ read: path.resolve }),
 });
 ```
 
-The lead chose the async cost in ADR 0044.
-The body owner now takes the module directly.
-The private transfer operation is gone.
-All nine resolves await the async factory.
-The seven test calls changed only to await the resolve.
+The lead accepted this cost (ADR 0044).
+The body owner now follows it directly.
+No Core change is requested.
 
-### Writer proof before mutation
+### Mutation
 
-- `vp run lazy` passed.
-- The checker caught all failures and allowed all valid cases: 40 plants.
-- The backend import check passed; drivers, auth, and mail stayed unloaded.
-- `pnpm validate` passed all 19 lanes.
-- SCIP found the new public symbol and all four files that use it.
-  The fourth file is the new test.
-- Jev found no file flags and seven unit flags.
-  Each unit flag has a false label and a reason in
-  [the labels](proof/lazy-modules-labels.txt).
-- Jev accepted the new test.
-  Its package test scan also listed old private imports and long helpers.
-  Those files are byte-for-byte the same as `main`:
-  `auth.test.ts`, `error-detail.test.ts`, `server.test.ts`,
-  `sync-client.test.ts`, `sync-tab.test.ts`, `sync.test.ts`,
-  `telemetry-ingest.test.ts`, `telemetry-records.test.ts`, and `telemetry.test.ts`.
-  They are not changed in this ticket.
-- The one README gap, OTLP JSON storage, now has a line in the README.
-- The plain test notes and README gap have no judge in `label.mjs`.
-  Their answers are recorded here; no judge rule was added.
-- The lead runs calibration when landing the labels.
-- Proof: [plants and imports](proof/lazy-modules-proofs.txt),
-  [validate](proof/lazy-modules-validate.txt),
-  [Jev](proof/lazy-modules-jev.txt), and
-  [impact](proof/lazy-modules-impact.txt).
-
-### Lead decision and checker review
-
-- User decision, 2026-10-08: no zod error crosses into graph code.
-  No lazy module for zod was added.
-  The endpoint uses its top-level schemas' `safeParse` methods.
-  It catches only the global `SyntaxError` from JSON parsing.
-  The HTTP failure schema stays at the top level.
-  The same 400 replies and `HttpRequestFailed` payloads pass the old tests.
-- Review found missed calls through overloaded helpers and wrapped factories.
-  The checker now follows their function bodies.
-  An aliased lazy factory also fails rule 10.
-- Rule 8 now catches namespace loaders and the require function returned by
-  `createRequire`, including a loader received through deps.
-- The added plants failed before the fixes:
-  [helper and factory red proof](proof/lazy-modules-edge-red.txt) and
-  [loader red proof](proof/lazy-modules-loader-red.txt).
-- Rebased onto `e6ffa1ad`, which adds the lead's zod decision.
-  Both sets of progress notes were kept.
-  Install and the full gate passed again after the rebase.
-- Main then added the React fixes in `9890672b`.
-  The queued Start mutation had not begun and was stopped before this rebase.
-  Both sets of Jev labels were kept.
-  Install and the full gate passed again.
-  A fresh checkout of this main also passed build and check: 28 warnings.
-- All package tests passed with `vp run -r test`.
-  Proof: [package tests](proof/lazy-modules-workspace-tests.txt).
-- All 19 validate lanes passed again on this main.
-
-### Writer mutation before the fix round
-
-- Full Start mutation passed under `flock /tmp/mutation.lock`.
-  Tested commit: `07845992d6ec5bccb182ecc136dcda14c576e57d`.
-  The tree was clean before and after the run.
-- Kills alone: 3,883 of 4,553 mutants, or 85.28%; floor 75.
-  All 42 timeouts and the one runtime error stay out of the kill count.
-  All statuses stay in the total, including 101 with no coverage.
-- Proof: [mutation](proof/lazy-modules-mutation.txt).
-  The full output is `lazy-modules-mutation.log` in this worktree.
-  The full JSON report is `packages/start/reports/mutation/mutation.json`.
-- Only this proof and board notes change after the tested commit.
-  The card waits in Review for the lead.
-  The scaffold follows on this branch; no app code changed here.
-  Nothing was pushed.
+A fresh full Start run is due under `flock /tmp/mutation.lock`.
+The tree must be clean, the log must name its commit, and kills alone must clear 75%.
+[Mutation proof](proof/lazy-modules-mutation.txt) still shows the prior run until then.
+Nothing was pushed.
