@@ -1108,12 +1108,12 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   One public test checks one load span across two sessions.
 - `vp run -r build`: EXIT 0; 12 tasks.
   `vp check`: EXIT 0; 0 errors and 27 warnings after the rebase.
-  Main is now `81a60ef4`, with the shared Core handle methods.
+  The base is `5d9c0537`, with the shared Core handle methods.
   `vp run @tinker/start#test`: EXIT 0; 41 files, 433 tests.
   `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 26 tests.
   The first clean-commit gate passed at `7e9ce9e1`: EXIT 0.
   Install, build, check, both test tasks, and all workspace tests passed after the rebase.
-  The clean-commit gate is due again after this proof commit.
+  The full clean-commit gate also passed at `7ca845e1`: EXIT 0.
 - `vp run lazy`: EXIT 0.
   `node scripts/check-lazy-modules.mjs --prove`: EXIT 0; 90 cases.
 - `vp run -r test`: EXIT 0; all 10 tasks.
@@ -1192,8 +1192,8 @@ No Core change is requested.
 
 ### Mutation
 
-The first full Start mutation passed under `flock /tmp/mutation.lock`.
-Tested clean commit: `7e9ce9e1f8ede412eb5ef5e73daf03b3c8b0e7f6`.
+Two full Start mutation runs passed under `flock /tmp/mutation.lock`.
+The latest tested clean commit is `7ca845e122e3b2b6f8058eb56bd3136993ba759b`.
 The gate and mutation both returned EXIT 0.
 Kills alone: 3878 of 4547, or 85.29%; floor 75.
 There were 525 survivors, 42 timeouts, 101 with no coverage,
@@ -1201,11 +1201,13 @@ and 1 runtime error.
 Every status stays in the total; only Killed counts as a kill.
 The tree was clean before and after the run.
 [Mutation proof](proof/lazy-modules-mutation.txt).
-Main gained seven commits during the run, ending at `81a60ef4`.
-The branch was rebased onto that main.
+The earlier clean run at `7e9ce9e1` had the same counts.
+Main gained seven commits during that run, ending at `81a60ef4`.
+The branch was rebased onto that main, then its board commit `5d9c0537`.
 The one label-file conflict kept both sets of rows.
 `vp install` and every proof check passed again.
 The checker proof still has 90 passing cases; validate still has 19 passing lanes.
-A fresh mutation run is due on the new clean commit.
-The linked mutation proof shows the first run until that run finishes.
+Main then gained scaffold commit `f360f870` during the second mutation run.
+This proof is saved before catching up to that consumer change.
+A fresh clean-commit gate and mutation will follow that rebase.
 Nothing was pushed.
