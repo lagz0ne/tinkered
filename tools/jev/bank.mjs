@@ -11,11 +11,21 @@
 // On a real parser since 2026-09-21 (`extract.mjs`, oxc-parser); these keep the old names.
 import { docs as extractDocs, units as extractUnits, tests as extractTests } from "./extract.mjs";
 import { JUDGES } from "./lib.mjs";
+import { parseSync } from "oxc-parser";
 
-/** Every declared unit and top-level function. New builder/arrow records are marked
- *  wrapperOnly so existing function judges and the kind guide keep their old scope. */
+/** Classes go only to fast-code judges; builder/arrow records keep their existing wrapper scope. */
 export function slice(src, file = "a.ts") {
-  return extractUnits(src, file);
+  const classes = parseSync(file, src)
+    .program.body.map((node) => node.declaration ?? node)
+    .filter((node) => node.type === "ClassDeclaration" && !node.declare)
+    .map((node) => ({
+      kind: "function",
+      name: node.id?.name ?? "default",
+      source: src.slice(node.start, node.end),
+      line: src.slice(0, node.start).split("\n").length,
+      fastCodeOnly: true,
+    }));
+  return [...extractUnits(src, file), ...classes].sort((a, b) => a.line - b.line);
 }
 
 /** The fields the decision depends on — nothing else rides into the state. */
@@ -274,6 +284,94 @@ Object.assign(LINT, {
 });
 
 // ---------- guide: which unit should this be? (the one-law table as criteria) ----------
+Object.assign(LINT, {
+  madeEveryCall: {
+    applies: ["operation", "resource", "function", "hook", "component"],
+    unitBuilders: true,
+    fastCode: true,
+    threshold: 0.5,
+    fix: "Keep the helper in a module constant or a resource; make call-owned values only when used.",
+    q: {
+      type: "boolean",
+      instructions:
+        "Look at setup paid on each library or app operation, request, render, message, or flush. Does it repeatedly make a TextEncoder, client, regex, schema, copy of process.env, parsed settings, telemetry scope, or helper function that could be shared or made only when first read? Count a fresh TextEncoder per record, a telemetry root and env copy per server render, handle methods recreated as closures instead of shared prototype methods, and a context's eagerly created defer callback that many runs never read. A shared resource factory, a module constant, a callback kept after its first read, and a value computed from this call's input are false.",
+      criteria: {
+        true: "a repeated call creates the same reusable helper or eagerly creates a helper that could be made on first use",
+        false:
+          "the helper is kept across calls or made on first use, or each new value belongs to this call's input, result, or isolated state",
+      },
+    },
+  },
+  awaitsSyncWork: {
+    applies: ["operation", "resource", "function", "hook"],
+    unitBuilders: true,
+    fastCode: true,
+    threshold: 0.5,
+    fix: "Finish plain values in this call; await or chain only the branch that returns a promise.",
+    q: {
+      type: "boolean",
+      instructions:
+        "In this library or app run body, factory, or close path, follow the case where the work returns a plain value or undefined. Does that case still execute await or enter a .then reaction? Count await pending when pending is void | PromiseLike<void> and the void case is not checked first. Count an async close loop awaiting each synchronous defer and an empty close awaiting async helpers that have no pending work. A branch that returns synchronously for plain values and awaits only an actual promise is false. Real I/O or a required scheduling boundary is false.",
+      criteria: {
+        true: "a synchronous path awaits a plain value or schedules a promise reaction just to do synchronous work",
+        false:
+          "every wait needs a promise or a required scheduling boundary, and plain values finish synchronously",
+      },
+    },
+  },
+  waitsOnSideWork: {
+    applies: ["operation", "resource", "function", "hook", "component"],
+    unitBuilders: true,
+    fastCode: true,
+    threshold: 0.5,
+    fix: "Give telemetry, logs, mail, or queue delivery to a process-wide resource so the answer can finish first.",
+    q: {
+      type: "boolean",
+      instructions:
+        "In this library or app request handler, render, or request-owned close, does await hold up the answer for telemetry, logs, mail, or queue delivery? A tools scope made with telemetry.extensions per render is telemetry side work: aborting its stop signal and awaiting its closed promise on each request counts. The answer does not use the send result. A server that keeps the telemetry scope shared and skips that tools close is false. Process shutdown, an operation requested to send mail or logs, and cleanup of the request's own transaction or connection are false.",
+      criteria: {
+        true: "the request or render cannot finish until side work finishes, even though its answer does not need the side work's result",
+        false:
+          "side work has a process-wide owner, or the wait is the requested work or required request cleanup",
+      },
+    },
+  },
+  recomputesSameValue: {
+    applies: ["operation", "resource", "function", "hook", "component"],
+    unitBuilders: true,
+    fastCode: true,
+    threshold: 0.5,
+    fix: "Keep the first JSON string, byte size, hash, snapshot, or read and share it for that unchanged input.",
+    q: {
+      type: "boolean",
+      instructions:
+        "In this library or app code, is a JSON string, byte size, hash, snapshot, or database read recomputed for the same unchanged input? Count serializing a retained telemetry record at ingest and again at flush or queue accounting, serializing one log separately for stdout and the queue, rebuilding a snapshot for unchanged account and cursors, and subscribers at the same cursor repeating the same read at one wake. Reading saved record.bytes, passing the first JSON string to the queue, caching a snapshot by revision, and sharing one read per cursor per wake are false. Changed input or a read that must see fresh state is false.",
+      criteria: {
+        true: "the same unchanged input is serialized, sized, hashed, snapshotted, or read more than once and the first result is discarded",
+        false:
+          "the first result is kept and shared, or each computation has changed input or must read fresh state",
+      },
+    },
+  },
+  shapeGrowsPerCall: {
+    applies: ["operation", "resource", "function", "hook", "component"],
+    unitBuilders: true,
+    fastCode: true,
+    threshold: 0.5,
+    fix: "Set every field when the object is created, in the same order; store varying keys in a Map.",
+    q: {
+      type: "boolean",
+      instructions:
+        "In library or app code used per call, is a field first created on an object after its constructor or object literal finishes, or are varying keys written with obj[key] = value? A TypeScript declare field creates no property: check the constructor assignments. For a frame closed after a run, closed, aborted, and closing must already be initialized in its constructor; setting them for the first time at close counts. Updating fields already initialized in the constructor or literal is false. Map.set is false.",
+      criteria: {
+        true: "a repeated path adds a previously absent field or writes varying keys onto an object",
+        false:
+          "all fields exist at creation in a fixed order, later writes only update those fields, or varying keys are stored in a Map",
+      },
+    },
+  },
+});
+
 export const GUIDE = {
   unit: {
     minConfidence: 0.6,
@@ -460,4 +558,27 @@ export const BANKS = { JUDGES, LINT, TESTS, SURVIVORS, DOCS };
 export function judgeOf(id) {
   for (const bank of Object.values(BANKS)) if (id in bank) return bank[id];
   return undefined;
+}
+
+/** Keep existing app judges on their old units; fast-code judges also read small helpers and roots. */
+function inOldScope(unit, all) {
+  if (unit.fastCodeOnly) return false;
+  const helper = ["function", "hook", "component"].includes(unit.kind);
+  const root = helper && unit.source.includes("createScope(");
+  const small = unit.kind === "function" && unit.source.length < 150;
+  return all || !(root || small || ["data", "tag"].includes(unit.kind));
+}
+
+function judgeApplies(judge, unit, oldScope) {
+  if (!oldScope && !judge.fastCode) return false;
+  if (!judge.applies.includes(unit.kind)) return false;
+  return !unit.wrapperOnly || judge.unitBuilders;
+}
+
+export function lintQuestions(unit, all = false) {
+  const oldScope = inOldScope(unit, all);
+  const questions = oldScope && !unit.wrapperOnly ? { unit: GUIDE.unit.q } : {};
+  for (const [id, judge] of Object.entries(LINT))
+    if (judgeApplies(judge, unit, oldScope)) questions[id] = judge.q;
+  return questions;
 }

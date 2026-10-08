@@ -57,6 +57,8 @@ T07|test|instanceof or message assert around an error|\.(toBeInstanceOf|toThrowE
 P01|src|accessor in an object literal (class + prototype accessor)|^[[:space:]]{4,}(get|set) [A-Za-z_]+\(
 P02|src|constructor parameter property (strip-types rejects)|constructor\((private|protected|public|readonly) |^[[:space:]]+(private|protected|public|readonly) [A-Za-z_]+\??: [^;]*[,)][[:space:]]*$
 P04|src|Set/Map seeded from an array literal (use add/set)|new (Set|Map)\(\[
+P05|src|unit built inside an app function or class (A2)|(parser)
+P06|src|unused .then promise in package source (F14)|(parser)
 W10|src|Proxy creation (share one trap object)|new Proxy\(
 W12|src|Object.defineProperty (never on a hot path)|Object\.define(Property|Properties)\(
 W11|src|bind(this) (arrow field instead)|\.bind\(this\)
@@ -111,6 +113,8 @@ hits() {
   local id=$1 regex=$2 files=$3
   if [[ "$id" == S17 ]]; then
     printf '%s\n' "$files" | xargs -r node "$(dirname "${BASH_SOURCE[0]}")/import-extensions.mjs"
+  elif [[ "$id" == P05 || "$id" == P06 ]]; then
+    printf '%s\n' "$files" | xargs -r node "$(dirname "${BASH_SOURCE[0]}")/../../../../tools/jev/census-fast-code.mjs" "$id"
   elif [[ "$doc_blind" == *" $id "* ]]; then
     printf '%s\n' "$files" | xargs -r perl -e "$doc_blind_grep" -- "$regex" 2>/dev/null || true
   else

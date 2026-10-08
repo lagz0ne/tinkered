@@ -29,9 +29,15 @@ calibration found noisy: read it, no line owed. An `ℹ` mark is a note from the
 
 - **`lint.mjs <files>`**
   You run it: any time
-  It extracts: each declared unit (`data`/`resource`/`operation`/`tag`) and each top-level function
+  It extracts: each declared unit (`data`/`resource`/`operation`/`tag`), top-level function, and class
   It asks Jev: the unit judges; and "which unit should this be?"
   A hit means: that unit likely breaks a best-practices rule
+
+The five fast-code judges also read small helpers and functions that call `createScope`.
+They read top-level classes too, including their constructors and methods.
+The older app judges keep their existing scope.
+Each fast-code question names its library or app path and the shared or call-owned values it checks.
+Process shutdown and request cleanup needed for the answer are allowed by `waitsOnSideWork`.
 
 - **`tests.mjs <pkg>`**
   You run it: when you touched tests
@@ -97,6 +103,26 @@ It prints `skipped: too big for one call`, still judges that file's units, and e
 Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`) and S18 (a `data`, `operation`, `resource`, or `tag` call from `@tinker/core`, or a `family` call from `@tinker/sync`, inside a function; a driver's `extension` is left out, ADR 0051) run in writer mode only: the gate asks for them; the repo's own lint does not.
 S19 (a helper whose parameter type holds a controller, scope, or session) also has a repo lane, below. Arrow and function-expression consts are units in every file, like `function` declarations. A helper function's unit also carries `uses`: the lines of its own file that call it, so a judge sees what happens to the value it returns.
 `lint.mjs` lists its rows; the writer-trial gate blocks on each one (ADR 0068).
+
+### Fast-code census rules (P05–P06)
+
+These run in the style census through `census-fast-code.mjs` and the source parser.
+They need no model key or labels.
+The census reports counts; `--strict` fails on a hit.
+They skip tests, comments, and strings.
+
+- **P05 (A2)** — a call to `operation`, `resource`, `tag`, or `data` inside a function or class in `apps/` or `examples/`.
+  Named imports, aliases, and namespace imports from `@tinker/core` count.
+  Local names that hide those imports do not count.
+  Library source is left out.
+  Fix: `const save = operation({ label: "save", run: () => 1 });` at module top level.
+- **P06 (F14)** — a discarded promise from `.then` in `packages/*/src`.
+  Bare statements, `void`, discarded sequence entries, and discarded branch results count.
+  Awaited, returned, assigned, or passed promises and a chain followed by `.catch` do not count.
+  Fix: `return pending.then(done);`, or await that promise where its owner joins the work.
+
+P05 follows direct imports in the same file; it does not follow re-exports or assigned aliases.
+P06 reads how the expression is used; it does not trace a saved promise's later owner or prove that a method named `then` returns a promise.
 
 ### Hand-rolled rules (S20–S25)
 
@@ -305,7 +331,7 @@ Every file, both lanes.
 
 ## How to read a probability
 
-Jev returns a probability per yes/no. A judge's `threshold` (0.5 everywhere today) turns it into a hit.
+Jev returns a probability per yes/no. A judge's `threshold` turns it into a hit.
 Probabilities are **not comparable across judges**: 60% on one question is not "weaker" than 80% on another.
 Calibration gives a threshold its meaning: it re-asks each judge about cases a human already labeled true or
 false. `proven` means the judge puts true cases above false ones by 30 points or more, 90% of the time,
@@ -326,7 +352,8 @@ The `unitCouldBeModuleLevel (code)` check is plain code, not a model judge.
 
 ## The judges
 
-Generated from the code by `node tools/jev/explain.mjs --md` — regenerate after editing `bank.mjs` or `lib.mjs`.
+Generated from the code by `node tools/jev/explain.mjs --md`.
+Regenerate after editing `bank.mjs` or `lib.mjs`.
 
 ### file judges — review.mjs / preflight.mjs, one call per changed source file
 
@@ -348,7 +375,7 @@ Generated from the code by `node tools/jev/explain.mjs --md` — regenerate afte
   `true` means: a public export exposes an internal-looking symbol
   `false` means: only intentionally-public symbols cross the public surface
 
-### unit judges — lint.mjs / preflight.mjs, one call per declared unit or top-level function
+### unit judges — lint.mjs / preflight.mjs, one call per declared unit, top-level function, or class
 
 - **`wrapsCallersStep`**
   Status: noisy
@@ -435,10 +462,40 @@ Generated from the code by `node tools/jev/explain.mjs --md` — regenerate afte
   `false` means: every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings, or `uses` shows the made-up value only goes into a thrown error's payload and no work continues with it, or the default applies only when the field is absent from the input (the key is missing) while a present bad value still raises
 
 - **`noOpRejected`**
-  Status: proven
+  Status: noisy
   The question Jev is asked: Can this code reject a request that would change nothing — the record is already in the requested state (the link already exists, the item is already done, the value is already set) — because a guard such as a status, lock, or limit check runs BEFORE the check for 'already so'? Code that only creates a new record, or only removes one, has no 'already so' state, so its guards cannot reject a no-op.
   `true` means: a guard that throws or fails comes before the already-so check, so repeating an already-applied request fails
   `false` means: the already-so check runs first and returns without change, or no repeat-of-current-state path exists, or the code only creates a new record or only removes one
+
+- **`madeEveryCall`**
+  Status: proven
+  The question Jev is asked: Look at setup paid on each library or app operation, request, render, message, or flush. Does it repeatedly make a TextEncoder, client, regex, schema, copy of process.env, parsed settings, telemetry scope, or helper function that could be shared or made only when first read? Count a fresh TextEncoder per record, a telemetry root and env copy per server render, handle methods recreated as closures instead of shared prototype methods, and a context's eagerly created defer callback that many runs never read. A shared resource factory, a module constant, a callback kept after its first read, and a value computed from this call's input are false.
+  `true` means: a repeated call creates the same reusable helper or eagerly creates a helper that could be made on first use
+  `false` means: the helper is kept across calls or made on first use, or each new value belongs to this call's input, result, or isolated state
+
+- **`awaitsSyncWork`**
+  Status: provisional
+  The question Jev is asked: In this library or app run body, factory, or close path, follow the case where the work returns a plain value or undefined. Does that case still execute await or enter a .then reaction? Count await pending when pending is void | PromiseLike<void> and the void case is not checked first. Count an async close loop awaiting each synchronous defer and an empty close awaiting async helpers that have no pending work. A branch that returns synchronously for plain values and awaits only an actual promise is false. Real I/O or a required scheduling boundary is false.
+  `true` means: a synchronous path awaits a plain value or schedules a promise reaction just to do synchronous work
+  `false` means: every wait needs a promise or a required scheduling boundary, and plain values finish synchronously
+
+- **`waitsOnSideWork`**
+  Status: provisional
+  The question Jev is asked: In this library or app request handler, render, or request-owned close, does await hold up the answer for telemetry, logs, mail, or queue delivery? A tools scope made with telemetry.extensions per render is telemetry side work: aborting its stop signal and awaiting its closed promise on each request counts. The answer does not use the send result. A server that keeps the telemetry scope shared and skips that tools close is false. Process shutdown, an operation requested to send mail or logs, and cleanup of the request's own transaction or connection are false.
+  `true` means: the request or render cannot finish until side work finishes, even though its answer does not need the side work's result
+  `false` means: side work has a process-wide owner, or the wait is the requested work or required request cleanup
+
+- **`recomputesSameValue`**
+  Status: provisional
+  The question Jev is asked: In this library or app code, is a JSON string, byte size, hash, snapshot, or database read recomputed for the same unchanged input? Count serializing a retained telemetry record at ingest and again at flush or queue accounting, serializing one log separately for stdout and the queue, rebuilding a snapshot for unchanged account and cursors, and subscribers at the same cursor repeating the same read at one wake. Reading saved record.bytes, passing the first JSON string to the queue, caching a snapshot by revision, and sharing one read per cursor per wake are false. Changed input or a read that must see fresh state is false.
+  `true` means: the same unchanged input is serialized, sized, hashed, snapshotted, or read more than once and the first result is discarded
+  `false` means: the first result is kept and shared, or each computation has changed input or must read fresh state
+
+- **`shapeGrowsPerCall`**
+  Status: provisional
+  The question Jev is asked: In library or app code used per call, is a field first created on an object after its constructor or object literal finishes, or are varying keys written with obj[key] = value? A TypeScript declare field creates no property: check the constructor assignments. For a frame closed after a run, closed, aborted, and closing must already be initialized in its constructor; setting them for the first time at close counts. Updating fields already initialized in the constructor or literal is false. Map.set is false.
+  `true` means: a repeated path adds a previously absent field or writes varying keys onto an object
+  `false` means: all fields exist at creation in a fixed order, later writes only update those fields, or varying keys are stored in a Map
 
 ### test judges — tests.mjs, one call per test
 
@@ -447,7 +504,7 @@ No live judge. Retired judges keep their cases in cases.jsonl.
 ### survivor judge — survivors.mjs, one call per surviving mutant
 
 - **`survivorMatters`**
-  Status: proven
+  Status: noisy
   The question Jev is asked: This mutant survived every test: inside the unit shown, the code `before` became `after` and no test failed. Would a user of this package observe a wrong result, a missed error, a wrong count, or a leak if this change shipped?
   `true` means: the change alters a value, a branch, an error code, an ordering, or a cleanup a caller can observe — a boundary, a returned field, a thrown code, a defer, a limit
   `false` means: the change touches only a message or label string, a log line, an expression with the same result, unreachable or dead code, or a speed-only path with the same outcome
@@ -455,18 +512,6 @@ No live judge. Retired judges keep their cases in cases.jsonl.
 ### doc judge — docs.mjs, one call per TSDoc block
 
 No live judge. Retired judges keep their cases in cases.jsonl.
-
-`docRestatesCode` retired 2026-09-28 (ADR 0054 rule 1).
-Its question: does this doc only restate the declaration, or claim something the code contradicts?
-On 392 labels it was noisy: true med 75%, false med 68%, sep 7%, ordered 65%.
-One reword, restatement only, tried three ways on the same labels:
-
-- "Could a reader who sees only the declaration write every sentence of this doc?" — noisy: true med 40%, false med 27%, sep 13%, ordered 68%.
-- "Is every fact the doc states visible in the name, types, or body?" — noisy: true med 48%, false med 35%, sep 13%, ordered 63%.
-- "If this doc were deleted, would a reader of the declaration lose nothing?" — noisy: true med 45%, false med 37%, sep 8%, ordered 67%.
-
-Each misses most restating docs: at 65%, the best flags 65 of 334 (and 1 of 58 others).
-A doc that contradicts its code is a separate question; no judge asks it yet.
 
 ### guide — the unit classifier lint.mjs uses; for words, blueprint suggest
 
@@ -488,3 +533,17 @@ A doc that contradicts its code is a separate question; no judge asks it yet.
 
 - `true`: a connection, timer, listener, transaction, or buffer must be released at close
 - `false`: it computes or reads values only; nothing to release
+
+### Retired doc judge
+
+`docRestatesCode` retired 2026-09-28 (ADR 0054 rule 1).
+Its question: does this doc only restate the declaration, or claim something the code contradicts?
+On 392 labels it was noisy: true med 75%, false med 68%, sep 7%, ordered 65%.
+One reword, restatement only, tried three ways on the same labels:
+
+- "Could a reader who sees only the declaration write every sentence of this doc?" — noisy: true med 40%, false med 27%, sep 13%, ordered 68%.
+- "Is every fact the doc states visible in the name, types, or body?" — noisy: true med 48%, false med 35%, sep 13%, ordered 63%.
+- "If this doc were deleted, would a reader of the declaration lose nothing?" — noisy: true med 45%, false med 37%, sep 8%, ordered 67%.
+
+Each misses most restating docs: at 65%, the best flags 65 of 334 (and 1 of 58 others).
+A doc that contradicts its code is a separate question; no judge asks it yet.

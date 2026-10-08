@@ -122,6 +122,88 @@ TS
 check "keeps extensionless modules, assets, queries, and plain strings" S17 0 "$(id_count S17 "$tmp/imports.test.ts")"
 check "allows the extensionless public test entry" T04 0 "$(id_count T04 "$tmp/imports.test.ts")"
 
+mkdir -p "$tmp/apps/demo/src" "$tmp/examples" "$tmp/packages/demo/src"
+cat >"$tmp/apps/demo/src/units.tsx" <<'TS'
+import { operation, resource, tag, data, operation as op } from "@tinker/core";
+import * as core from "@tinker/core";
+const top = operation({ run: () => 1 });
+function build() {
+  operation({ run: () => 1 });
+  resource({ factory: () => 1 });
+  tag({ label: "x" });
+  data({ initial: 0 });
+  op({ run: () => 1 });
+  core.operation({ run: () => 1 });
+}
+const View = () => { data({ initial: 1 }); return <div />; };
+class App {
+  field = resource({ factory: () => 1 });
+  static field = tag({ label: "y" });
+  static { core["data"]({ initial: 2 }); }
+}
+TS
+check "flags app functions, aliases, views, and class bodies" P05 10 "$(id_count P05 "$tmp/apps/demo/src/units.tsx")"
+cp "$tmp/apps/demo/src/units.tsx" "$tmp/examples/units.tsx"
+check "checks examples" P05 10 "$(id_count P05 "$tmp/examples/units.tsx")"
+cp "$tmp/apps/demo/src/units.tsx" "$tmp/packages/demo/src/units.tsx"
+check "keeps app builder rule off library source" P05 0 "$(id_count P05 "$tmp/packages/demo/src/units.tsx")"
+cp "$tmp/apps/demo/src/units.tsx" "$tmp/apps/demo/src/units.test.tsx"
+check "skips builder calls in tests" P05 0 "$(id_count P05 "$tmp/apps/demo/src/units.test.tsx")"
+cat >"$tmp/apps/demo/src/clean.ts" <<'TS'
+import { operation, resource as res } from "@tinker/core";
+import * as core from "@tinker/core";
+import { data } from "elsewhere";
+export const top = res({ factory: () => 1 });
+/** operation({}) */
+const text = "resource({})";
+function foreign() { data({}); }
+function shadow(operation, core) { operation({}); core.data({}); }
+function local() { const res = () => 1; res({}); }
+TS
+check "ignores top-level units, foreign names, shadows, docs, and strings" P05 0 "$(id_count P05 "$tmp/apps/demo/src/clean.ts")"
+cat >"$tmp/apps/demo/src/blocks.ts" <<'TS'
+import { operation } from "@tinker/core";
+function blocks() {
+  { const operation = () => 1; operation({}); }
+  operation({ run: () => 1 });
+}
+function hoisted() {
+  operation({});
+  if (true) { var operation = () => 1; }
+}
+TS
+check "keeps a block shadow local and a var shadow in its function" P05 1 "$(id_count P05 "$tmp/apps/demo/src/blocks.ts")"
+cat >"$tmp/packages/demo/src/promises.ts" <<'TS'
+function dropped(p, yes) {
+  p.then(done);
+  void p.then(done);
+  p?.then(done);
+  yes ? p.then(done) : p.then(fail);
+  yes && p.then(done);
+  (p.then(done), 1);
+}
+async function kept(p) {
+  const next = p.then(done);
+  await p.then(done);
+  consume(p.then(done));
+  p.then(done).catch(fail);
+  /** p.then(done) */
+  const text = "p.then(done)";
+  return p.then(done);
+}
+TS
+check "flags only discarded then promises, including void and branches" P06 7 "$(id_count P06 "$tmp/packages/demo/src/promises.ts")"
+cp "$tmp/packages/demo/src/promises.ts" "$tmp/apps/demo/src/promises.ts"
+check "keeps library then rule off app source" P06 0 "$(id_count P06 "$tmp/apps/demo/src/promises.ts")"
+cp "$tmp/packages/demo/src/promises.ts" "$tmp/packages/demo/src/promises.test.ts"
+check "skips then promises in tests" P06 0 "$(id_count P06 "$tmp/packages/demo/src/promises.test.ts")"
+for fixture in "$tmp/apps/demo/src/units.tsx" "$tmp/packages/demo/src/promises.ts"; do
+  if bash "$census" "$fixture" --strict >"$tmp/fast-strict.log" 2>&1; then
+    echo "FAIL fast-code rule passed strict mode: $fixture"
+    fail=1
+  fi
+done
+
 if (( fail )); then
   echo "style-census selftest: FAIL"
   exit 1

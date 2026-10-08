@@ -188,5 +188,55 @@
     "separation": 0.46,
     "ordered": 0.85,
     "at": "2026-10-07"
+  },
+  "madeEveryCall": {
+    "status": "proven",
+    "trues": 5,
+    "falses": 5,
+    "medianTrue": 0.52,
+    "medianFalse": 0.2,
+    "separation": 0.32,
+    "ordered": 0.96,
+    "at": "2026-10-08"
+  },
+  "awaitsSyncWork": {
+    "status": "provisional",
+    "trues": 4,
+    "falses": 4,
+    "medianTrue": 0.78,
+    "medianFalse": 0.24,
+    "separation": 0.54,
+    "ordered": 1,
+    "at": "2026-10-08"
+  },
+  "waitsOnSideWork": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.7,
+    "medianFalse": 0.61,
+    "separation": 0.09,
+    "ordered": 1,
+    "at": "2026-10-08"
+  },
+  "recomputesSameValue": {
+    "status": "provisional",
+    "trues": 4,
+    "falses": 4,
+    "medianTrue": 0.6,
+    "medianFalse": 0.25,
+    "separation": 0.35,
+    "ordered": 0.75,
+    "at": "2026-10-08"
+  },
+  "shapeGrowsPerCall": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.53,
+    "medianFalse": 0.23,
+    "separation": 0.3,
+    "ordered": 1,
+    "at": "2026-10-08"
   }
 }

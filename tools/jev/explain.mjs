@@ -2,7 +2,7 @@
 // asked, what a `true` means, what a `false` means, and its calibration status. The README
 // explains the tools; this prints the questions so the two cannot drift apart. Exit 0.
 //
-//   node tools/jev/explain.mjs [--md]      (--md: a markdown table for the README)
+//   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
 import { existsSync, readFileSync } from "node:fs";
 import { JUDGES, readCalibration } from "./lib.mjs";
 import { LINT, GUIDE, TESTS, SURVIVORS, DOCS } from "./bank.mjs";
@@ -13,7 +13,7 @@ const status = readCalibration();
 const GROUPS = [
   ["file judges — review.mjs / preflight.mjs, one call per changed source file", JUDGES],
   [
-    "unit judges — lint.mjs / preflight.mjs, one call per declared unit or top-level function",
+    "unit judges — lint.mjs / preflight.mjs, one call per declared unit, top-level function, or class",
     LINT,
   ],
   ["test judges — tests.mjs, one call per test", TESTS],
@@ -29,15 +29,11 @@ for (const [title, bank] of GROUPS) {
     console.log("No live judge. Retired judges keep their cases in cases.jsonl.");
     continue;
   }
-  if (md)
-    console.log(
-      "| judge | status | the question Jev is asked | `true` means | `false` means |\n| --- | --- | --- | --- | --- |",
-    );
   for (const [id, j] of Object.entries(bank)) {
     const q = j.q;
     if (md) {
       console.log(
-        `| \`${id}\` | ${where(id)} | ${q.instructions} | ${q.criteria.true} | ${q.criteria.false} |`,
+        `- **\`${id}\`**\n  Status: ${where(id)}\n  The question Jev is asked: ${q.instructions}\n  \`true\` means: ${q.criteria.true}\n  \`false\` means: ${q.criteria.false}\n`,
       );
       continue;
     }

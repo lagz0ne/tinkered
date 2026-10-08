@@ -5,11 +5,11 @@
 //   node tools/jev/lint.mjs [paths…] [--all] [--limit N] [--json out.json]
 //   default paths: examples/ and apps/issue-tracker/src (git-tracked .ts/.tsx; tests get only S29)
 //   --all also judges data/tag declarations, functions under 150 chars, and composition roots
-//   (functions that call createScope) — all skipped by default
+//   (functions that call createScope) — only fast-code judges read those helpers by default
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct, readCalibration, isTieError } from "./lib.mjs";
-import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
+import { slice, forJev, LINT, GUIDE, lintQuestions } from "./bank.mjs";
 import { unitCouldBeModuleLevel } from "./extract.mjs";
 import { inspectShape } from "./shape.mjs";
 
@@ -43,13 +43,6 @@ function listFiles(specs) {
   return [...direct, ...listed.split("\n")].filter(
     (f) => /\.tsx?$/.test(f) && !f.endsWith(".d.ts"),
   );
-}
-
-function questionsFor(u) {
-  const qs = u.wrapperOnly ? {} : { unit: GUIDE.unit.q };
-  for (const [id, j] of Object.entries(LINT))
-    if (j.applies.includes(u.kind) && (!u.wrapperOnly || j.unitBuilders)) qs[id] = j.q;
-  return qs;
 }
 
 /** Hits above threshold: a calibrated-noisy judge prints as `~note`, a proven or provisional one as a flag. */
@@ -86,14 +79,6 @@ function shapeOf(src, file) {
   return inspectShape(src, file);
 }
 
-// Skipped by default: data/tag one-liners and tiny functions (type guards, predicates).
-const MIN_FUNCTION = 150;
-// A function that calls createScope is a composition root (rule 1), not a primitive candidate.
-const isRoot = (u) => u.kind in EXPECTED && u.source.includes("createScope(");
-const smallFunction = (u) => u.kind === "function" && u.source.length < MIN_FUNCTION;
-const oneLiner = (u) => u.kind === "data" || u.kind === "tag";
-const wanted = (u) => all || !(isRoot(u) || smallFunction(u) || oneLiner(u));
-
 const hasKey = loadKey();
 const files = listFiles(paths.length ? paths : DEFAULT);
 const report = [];
@@ -103,7 +88,10 @@ for (const file of files) {
   const source = readFileSync(file, "utf8");
   const isTest = TEST_PATH.test(file);
   const codeHits = isTest ? [] : unitCouldBeModuleLevel(source, file);
-  const units = hasKey && !isTest ? slice(source, file).filter(wanted) : [];
+  const units =
+    hasKey && !isTest
+      ? slice(source, file).filter((u) => Object.keys(lintQuestions(u, all)).length)
+      : [];
   const shape = shapeOf(source, file).filter((row) => !isTest || row.id === "S29");
   if (units.length === 0 && codeHits.length === 0 && shape.length === 0) continue;
   console.log(file);
@@ -126,11 +114,11 @@ for (const file of files) {
     if (report.length >= limit) break;
     let answers;
     try {
-      answers = await ask(forJev(u), questionsFor(u));
+      answers = await ask(forJev(u), lintQuestions(u, all));
     } catch (error) {
       if (!isTieError(error)) throw error;
       // The optional kind pick tied. Retry the boolean judges; a hint cannot block flags.
-      const { unit: _unit, ...questions } = questionsFor(u);
+      const { unit: _unit, ...questions } = lintQuestions(u, all);
       answers = Object.keys(questions).length ? await ask(forJev(u), questions) : {};
     }
     const flags = flagsOf(answers);
