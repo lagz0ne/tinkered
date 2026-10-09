@@ -1681,3 +1681,38 @@ Core has 875 source tests and 885 built-file tests.
 No runtime code changed; the measured build's hash still matches.
 The final clean fault run follows after these test and proof notes.
 Only its short proof log is committed afterward.
+
+## Bench box setup (2026-10-09)
+
+- The sandbox runs only on CPUs 0-2 and 4-6.
+- CPUs 3 and 7 (one core) are kept for `benchd`.
+- `benchd` runs each job on CPU 7, with turbo off.
+- CPU 7 holds 3.5 GHz while a job runs.
+
+### A/A check
+
+- Tree: `196b43c` on both sides.
+- N=61, CPU 7, turbo off.
+- Gap B vs A: 0.0% to 0.5% in all 4 scenarios.
+- Scenarios: op, run, warm, session.
+- Every gap is inside the noise.
+
+### MAD on the A side
+
+Before is the median of 7 core-c and core-d runs.
+
+- op: 2.10% → 1.26%.
+- run: 1.79% → 1.26%.
+- session: 3.73% → 3.38%.
+- The old session range went up to 13.27%.
+- warm has no old rows.
+
+### Medians
+
+- Medians rose with turbo off.
+- op: about 57 ns → 63.4 ns.
+- Raw ns from before this date are not comparable.
+
+### Known gap
+
+- `benchd`'s exec line has no `load_before`.

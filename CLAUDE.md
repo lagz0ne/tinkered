@@ -98,9 +98,9 @@ Ticket detail and proof go in the track's `docs/roadmap/<track>/PROGRESS.md`.
 
 ## Timing: send it to the queue
 
-This box shares 8 cores with about 46 other containers. Two
-benchmarks at once ruin both. `benchd` is the queue that
-stops that: one job runs at a time, the rest wait.
+This box runs about 65 containers. Two benchmarks at once
+ruin both. `benchd` is the queue that stops that: one job
+runs at a time, the rest wait.
 
 Never time code by hand, and never run `bench/ab.sh`
 straight. Use the wrapper.
@@ -138,11 +138,35 @@ each round, then says one of:
 
 Put that verdict on the card, not a raw millisecond count.
 
+### The bench core
+
+- The box is one Xeon: 4 cores, 8 threads.
+- CPUs 3 and 7 share one core.
+- About 65 containers run on the box.
+- Since 2026-10-09 the sandbox runs only on CPUs 0-2 and 4-6.
+- CPUs 3 and 7 are kept for `benchd`.
+- `benchd` runs each job on CPU 7, on the host.
+- CPU 3 stays mostly idle.
+- `bench/ab.sh` keeps its probes on the job's CPU,
+  unless `CORE` is set.
+- While a job runs, turbo is off.
+- CPU 7 then holds 3.5 GHz.
+- The job log shows `no_turbo`, `mhz_before`,
+  and `mhz_after`.
+- Raw ns from before 2026-10-09 ran with turbo on.
+- Do not compare them with newer rows.
+- Compare only A and B from the same run.
+
 ### What the queue cannot do
 
-It keeps our benchmarks off each other. It cannot quiet the
-other containers, and no core can be reserved on this box.
-So read the median, and believe a gap only when `ab` does.
+Some load still lands on CPUs 3 and 7:
+
+- host agent sessions;
+- `dockerd`;
+- other containers.
+
+So read the median, and believe a gap only when the
+verdict does.
 
 ## Helper writers
 
