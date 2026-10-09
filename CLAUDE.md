@@ -171,22 +171,18 @@ verdict does.
 ## Helper writers
 
 Roles per card (user 2026-10-09: "Instead of using sol as writer, use haiku,
-opus drives and review"):
+opus drives and review"; 16:32 UTC: "As replacement to current writer"):
 
-- **Driver:** Claude Opus 5.5 (`claude/claude-opus-5-5`, thinking high,
-  mode auto). One per card, in `../tinkered-<task>`. It reads the card and
-  the ADRs, plans small steps, and gives each step to the writer. It checks
-  each result, runs the gates, and commits. It never pushes.
-- **Writer:** Claude Haiku 5.5 (`claude-haiku-5-5`, thinking high), a
-  subagent of the driver. It makes the code edits for one step. It does not
-  plan the card.
-- **Reviewer:** a separate Claude Opus 5.5 agent (high) that did not drive
-  the card. Verdict: READY or NOT READY. One fix round, by the driver with
-  the writer.
-- **Lead:** writes the brief and lands.
-- Codex Sol (`codex/gpt-6.1-sol`) is no longer the writer.
+- **Lead:** Claude Opus 5.5 (high). It drives: it writes the card and the
+  brief, starts the writer, follows it, sends the one fix round, and lands.
+- **Writer:** Claude Haiku 5.5 (`claude/claude-haiku-5-5`, thinking high,
+  mode auto). Its own Paseo agent, in `../tinkered-<task>`. It writes the
+  code, runs the gates, and commits. It never pushes.
+- **Reviewer:** a separate Claude Opus 5.5 agent (high). Verdict: READY or
+  NOT READY. One fix round, done by the same writer.
+- Haiku replaces Codex Sol (`codex/gpt-6.1-sol`) one for one.
 
-One package per driver. The driver's fixed rules:
+One package per writer. The writer's fixed rules:
 `docs/roadmap/contributor-brief.md`.
 
 The lead, per ticket:
@@ -195,12 +191,12 @@ The lead, per ticket:
    when there is one).
 2. Review: the reviewer agent reads the diff first;
    `node tools/jev/review.mjs main..HEAD` shows where to read.
-   Ask the driver for one fix round.
+   Send the writer one fix round.
 3. Land: re-run every gate by exit code. Fast-forward `main`. Run the
    package's mutation lane alone (floor 85, every package). Push.
    Run `node tools/jev/calibrate.mjs` when labels changed.
    Remove the worktree and branch.
-   - Skip the mutation re-run when the driver's run counts.
+   - Skip the mutation re-run when the writer's run counts.
      It counts when the log names the commit you land, on a clean tree,
      and clears 85 on kills alone (user 2026-10-06).
    - The floor is per package. Do not add a per-file target.

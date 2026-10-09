@@ -7,12 +7,12 @@ block, when there is one). You finish all checks before the lead reads.
 
 ## Roles (user 2026-10-09)
 
-- You are the driver: Claude Opus 5.5. You plan the card in small steps.
-- Give each step to a Claude Haiku 5.5 subagent
-  (`claude-haiku-5-5`, thinking high). It makes the edits.
-- Check each result yourself. Run the gates. Commit.
+- You are the writer: Claude Haiku 5.5
+  (`claude/claude-haiku-5-5`, thinking high, mode auto).
+- You write the code, run the gates, and commit. Never push.
+- The lead (Claude Opus 5.5) wrote this brief and follows you.
 - A separate Opus 5.5 reviewer reads your branch.
-  One fix round, done by you with Haiku.
+  One fix round, done by you.
 
 ## Setup
 
