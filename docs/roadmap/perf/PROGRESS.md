@@ -1318,3 +1318,74 @@ Sync hooked promises remain zero.
 Default Maglev trace still inlines OperationCtx into runHookBody.
 It does not inline runHookBody into stepRunHook; no such gain is claimed.
 N=61 timing is pending on a clean pinned source commit.
+
+### B3 — core/brand-kind: rejected candidate and impact block
+
+The shared-key candidate is dropped after two slower N=61 rows.
+Its code and lower slot and resolveDep ceilings return to the retained hook source.
+The following impact block and measurements record the rejected candidate.
+No private handle type change remains in batch B.
+
+The factories keep their public call shapes and returned handle types.
+Their private brand members change from seven true-valued keys to one key with seven numbers.
+Types: Data.Cell, Operation.Handle, Tag.Handle, Resource.Handle, Scope.Extension, Namespace, Edge.
+Core, React, Start, and Blueprint use these opaque handles through the public factories.
+Other callers include the Core and React examples, playground, and Start apps.
+Each kind keeps its handle and controller behavior.
+The scaffold type check reads the private symbol name; keep its accepted name.
+Type checks and each package's tests must pass after a full build.
+SCIP review: index Core, React, Start, and Blueprint.
+Run refs for Data/Cell, Operation/Handle, Tag/Handle, Resource/Handle, Scope/Extension, Namespace, Edge.
+Check old brand names at review; only the shared `operationSym` name may remain.
+The shared key reduces kind reads; distinct handle shapes can still make a read see many shapes.
+No claim that every brand read sees just one shape.
+
+Brand dispatch now reads one number and switches on it.
+The boundary reader keeps malformed dependency values on the managed error path.
+Two unused kind guards are removed.
+Slots: 339 -> 332; resolveDep bytecode: 223 -> 212 bytes.
+Both ceilings fall in this ticket; all other hot ceilings stay fixed.
+The old mixed probe has six kind guard sites with many shapes.
+The new shared key still has sites with many shapes; this is fewer reads, not one shared shape.
+The mixed probe covers cells, resources, tags, edges, extensions, operations, and namespaces.
+N=61 timing is pending against the preceding hook source.
+The hook lint marker amendment changes no runtime bytes in either entry.
+Its queued snapshot `9263c714` has the same runtime as `16ac0802`.
+
+The full build and brand ticket gate exit 0.
+Core source tests: 872; built-file tests: 882; every consumer package passes.
+Lint has the same 27 warnings as main and zero errors.
+Core gzip after B: 15,898 bytes, cap 16,384; batch base was 15,892.
+Hook ticket gzip was 15,881; the brand key adds 17 bytes after that.
+Changed declarations have zero strict style hits; the Q2 test file does too.
+TSDoc has zero S26 rows.
+The mixed shape probe returns the same 1,280,000 total on both builds.
+The boundary reader still sees five shapes; the resource guard sees six.
+Keep that fact visible: V15 reduces repeated blind reads, not all many-shape sites.
+
+The real scaffold check exposed a caller missed by the TypeScript refs search.
+Its `unitType` reads private symbol names from the TypeScript API.
+With a new `brand` name, it reports 36 false module-handle rows and exits 1.
+Keep the existing `operationSym` declaration name for the single shared key.
+Every kind uses that same real runtime symbol and its numeric type member.
+No phantom type members or extra runtime symbols are added.
+The key's description stays `kind`; this keeps Core's dispatch model.
+Assumption: keep the legacy private name to stay inside the Core lane.
+A later scaffold ticket can find units without private names.
+
+The compatibility name restores the full scaffold check: EXIT 0.
+Its plain check sees 42 files and 10 plain functions, cap 17.
+Both runtime entries are byte-identical to the queued brand snapshot `ca384aa3`.
+Record this coupling in `docs/roadmap/core-feedback.md`; no app files change.
+
+### B3 rejection
+
+N=61 full cleanup: `b is slower`, 755.4 -> 769.1 ns.
+B is slower in 50/61 pairs; p = 0.000000458883.
+N=61 resource call: `b is slower`, 253.0 -> 257.0 ns.
+B is slower in 53/61 pairs; p = 0.00000000298644.
+The hooked row is faster, but either slower row rejects the whole ticket.
+[Brand timing proof](core-b-brand-timing.log) saves all seven rows.
+Keep main's seven private keys and the hook source's 339-slot ceiling.
+ResolveDep keeps its main 223-byte ceiling; no brand shape or slot gain is retained.
+The checker-name workaround belongs to the rejected trial; no app files change.

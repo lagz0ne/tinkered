@@ -1,0 +1,20 @@
+Core batch B: N=61 brand
+A: 5756888ef1a26038093edbbc0c00ba68d8f89e1a
+B: 6d54e64a28dfdca39739d55b6c372de91b53b171
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+op: no difference we can see; median 58.1 -> 58.3 ns; B slower 34/60; p=0.366294
+run: no difference we can see; median 70.6 -> 70.3 ns; B slower 28/59; p=0.794844
+tagged: no difference we can see; median 175.3 -> 176.4 ns; B slower 35/61; p=0.305677
+session: no difference we can see; median 427.0 -> 430.9 ns; B slower 36/61; p=0.200031
+lifecycle: b is slower; median 755.4 -> 769.1 ns; B slower 50/61; p=4.58883e-07
+opres: b is slower; median 253.0 -> 257.0 ns; B slower 53/61; p=2.98644e-09
+hooked: b is faster; median 181.3 -> 180.3 ns; B slower 15/58; p=0.000306947
+
+Decision: DROP; slower rows: lifecycle, opres
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-b/brand-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-b/brand-timing-full.log

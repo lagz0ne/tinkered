@@ -902,3 +902,28 @@ The compiler returns TS2322: the result needs PromiseLike.
 The current-user factory has the same limit.
 The honest workaround keeps both async keywords.
 State: open; a Core ticket at its second asker.
+
+
+## Private brand names in the scaffold check — 2026-10-09
+
+Asked by `core/rules-batch-B`.
+State: first caller; the shared-key trial is dropped after slower timing rows.
+The trial workaround used one actual runtime symbol with seven kind numbers.
+Main's private keys remain unchanged in the kept code.
+No fake type member is added.
+The scaffold's `unitType` finds graph units by their private TypeScript property names.
+Renaming the shared key to `brand` makes a valid module unit fail:
+
+```ts
+import { operation } from "@tinker/core";
+export const read = operation({
+  label: "read",
+  run: () => 1,
+});
+```
+
+The real scaffold check reported 36 false `module-handle` rows and exited 1.
+Keeping the old symbol name restored the trial check.
+The runtime bytes are identical before and after that name change.
+A future scaffold check should find Core units without private field names.
+Proof: `/home/paseo/.cache/tinkered-briefs/core-b/brand-compat-scaffold.log`.
