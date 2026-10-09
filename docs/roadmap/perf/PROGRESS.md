@@ -1773,3 +1773,115 @@ The other five rows say `no difference we can see`.
 [Timing proof](core-d-frame-timing.log) has all seven paired rows.
 The trial is dropped; the shared prototype defaults stay as they were on main.
 No runtime or test change from this ticket is saved on the lane branch.
+
+### core/track-async-stack: dropped
+
+The stack target uses the study's depth-32 operation probe with default V8 flags.
+An await-only side handler still gave one frame.
+A version that delayed the side handler restored 10 frames with one added promise.
+It failed seven existing tests: origin, span end, and borrow cleanup reached callers late.
+That version was dropped before timing.
+
+The measured native wrapper finishes those callbacks before handing the result to its caller.
+The pinned trial is `14c0162f`.
+Frames rise from 1 to 10 at the normal limit, and from 1 to 67 at limit 100.
+The new depth-32 seam test passes on the trial and fails on the clean main source.
+The promise count misses the limit of one added promise per async op.
+Plain async run: 5 → 7 promises; plain async settle: 6 → 8.
+Tagged async run and a session with an async op: 8 → 10 each.
+One run hook: 10 → 14.
+These counts use the same caller fixture on both builds.
+[Stack and promise proof](core-d-async-probes.log) records the probes.
+No heap-byte gain is claimed; several probe rounds had GC.
+
+The native wrapper also fails the existing returned-promise identity test.
+Source tests have 875 passes and one failure; exit 1.
+Lint, types, and format exit 0 with the same 27 warnings.
+`runOnce` grows from 499 to 504 bytecode bytes, above its saved limit.
+Slots stay at 339; size rises from 15,932 to 16,006 B gzip.
+Those test and code-limit failures are recorded, not waived.
+
+Seven of eight N=61 async rows say `b is slower`.
+Async run: 333.6 → 513.6 ns.
+Async settle: 443.0 → 596.4 ns.
+Nested async run: 672.1 → 985.4 ns.
+Tagged async run: 1,016.0 → 1,220.7 ns.
+Async run with one hook: 1,358.7 → 1,638.0 ns.
+Session with an async op: 1,136.8 → 1,333.4 ns.
+Async run and close: 701.0 → 863.0 ns.
+The async resource build-and-close row says `no difference we can see`.
+All five required plain rows also say `no difference we can see`.
+[Timing proof](core-d-async-timing.log) records every median and paired verdict.
+The whole trial, its benchmark additions, and its stack test are dropped.
+
+### Final batch D checks
+
+All three tickets are dropped; no runtime, test, benchmark, or saved-limit change remains.
+The 26 N=61 rows finish on clean pinned trees, with 61 pairs in each row.
+The source and tests match main `5d8925aa`.
+The final build also matches that base byte for byte.
+Core size stays at 15,932 B gzip, below the 16,384 B cap.
+
+Fetch, rebase, install, build, ticket, all 19 release checks, and prose exit 0.
+The ticket runs `vp check`, all package tests, and Core's built-file tests.
+Core has 875 source tests and 885 built-file tests.
+The scaffold middleware check is the only gate skipped, as the user asked.
+[Gate proof](core-d-gates.log) records commands, exits, and the unchanged code limits.
+Jev preflight has zero flags because no source change remains.
+No new test or README promise check is due; all trial tests are removed.
+The strict changed-code style census has zero hits.
+No Jev labels are added, so no new calibration is due.
+Core feedback: none; no public API change remains.
+
+Saved proof waits in Review.
+The final Core fault run follows on this batch's clean source commit, alone under the shared lock.
+It must clear 85% on kills alone.
+[Fault-test proof](core-d-mutation.log) will name that commit and the empty tree.
+Only its header and summary are committed after the run.
+No push or publish is done.
+This is the last Core rules batch; the writer stops here after the fault run.
+
+### Main catch-up before the run of record
+
+Main moved to `196b43c2` while the first fault run was under way.
+It added docs only; Core source, tests, and code limits did not change.
+The first clean run tested `0778b7d4` and killed 3,024 of 3,551 valid faults: 85.159110%.
+It clears 85%, but its commit came before the rebase, so it is not the final run of record.
+Rebase and install exit 0, with no conflict.
+Build, ticket, all 19 release checks, and prose exit 0 again.
+The runtime still matches the timed base byte for byte.
+Jev still has no changed source to judge; the strict census has zero hits.
+The scaffold middleware gate remains skipped as the user asked.
+The final clean fault run follows again after this note.
+Only its short proof log is committed afterward.
+
+### Main catch-up after the second fault run
+
+Main moved again, to `6d4a5866`, while the second fault run was under way.
+It changed Start and scaffold files, but no Core source, tests, or code limits.
+The second clean run tested `452043c0` and again killed 3,024 of 3,551 valid faults: 85.159110%.
+It clears 85%, but the rebase changed the final commit, so that run is not the record.
+Rebase and install exit 0, with no conflict.
+Build, ticket, all 19 release checks, and prose exit 0 again.
+The Core runtime still matches the timed base byte for byte.
+The scaffold middleware gate remains skipped as the user asked.
+The final clean fault run follows again after this note.
+Only its short proof log is committed afterward.
+
+### Main catch-up after the third fault run
+
+Main moved again, to `44350a91`, while the third fault run was under way.
+It changed the bench queue's CPU checks; no Core source, tests, or code limits changed.
+The third clean full run tested `00740cb9` and killed 3,026 of 3,551 valid faults: 85.215432%.
+Rebase and install exit 0, with no conflict.
+Build, ticket, all 19 release checks, and prose exit 0 again.
+The Core runtime still matches the timed base byte for byte.
+Jev has zero flags; the strict census has zero hits.
+The scaffold middleware gate remains skipped as the user asked.
+
+Assumption: Stryker's cache can carry unchanged Core results across this bench-only rebase.
+The final clean run uses its full Core scope with `--incremental`.
+It runs fresh tests and lets Stryker compare each fault and test with the full-run report.
+The short proof names the full-run commit, the final commit, and the reused count.
+Cached kills are reported as reused results, not as fresh kills on the new commit.
+Only the short proof log is committed after that run.

@@ -61,14 +61,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/rules-batch-D** — deps plans, tagged frame fields, and async stacks.
-  Owner: Core rules writer (Codex), branch `core/rules-lane`.
-  Next: finish async timing and the final Core fault run; deps and frame trials were slower.
-  Verify: every kept N=61 row avoids slowdown; gates pass; Core fault kills clear 85%.
-  Async stacks need at least 10 frames at depth 32 and at most one added promise per op.
-  The scaffold middleware check stays skipped by the user's request.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
@@ -80,6 +72,14 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **core/rules-batch-D** — all three trials dropped; no runtime change.
+  Owner: Core rules writer (Codex), branch `core/rules-lane`.
+  Next: lead review the three drops and the final Core fault-test proof.
+  Verify: 26 N=61 rows finish; final gates pass; Core fault kills clear 85% on a clean commit.
+  Deps and frame rows were slower; async rows were slower and missed the promise limit.
+  Only the known scaffold middleware gate stays skipped by the user's request.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
 
 - **core/rules-batch-C** — cell controller memo and the cold write hook split.
   Owner: Core rules writer (Codex).

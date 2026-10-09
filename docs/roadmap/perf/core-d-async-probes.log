@@ -1,0 +1,39 @@
+Core batch D: async stack and promise probes
+A: 5d8925aad6c222abd736dfd8515c2443b09f660a
+B: 14c0162f1297565a2601bd6a1d84479de505f62c
+Node v24.21.0, V8 13.6.233.17-node.53, default async stack traces.
+Stack probe: /home/paseo/perf/rules-case/core/probes/stack-depth.mjs
+Depth: 32 nested operations.
+A stack:
+limit 10: 1 frames, 0 async
+limit 100: 1 frames, 0 async
+    at Object.run (file:///home/paseo/perf/rules-case/core/probes/stack-depth.mjs:4:78)
+B stack:
+limit 10: 10 frames, 9 async
+limit 100: 67 frames, 66 async
+    at Object.run (file:///home/paseo/perf/rules-case/core/probes/stack-depth.mjs:4:78)
+    at async file:///home/paseo/next/core-rules-d-async/packages/core/dist/index.mjs:1:15390
+    at async Object.run (file:///home/paseo/perf/rules-case/core/probes/stack-depth.mjs:5:127)
+    at async file:///home/paseo/next/core-rules-d-async/packages/core/dist/index.mjs:1:15390
+
+Promise probe: /home/paseo/.cache/tinkered-briefs/core-d/async-alloc-probe.mjs
+Census: async_hooks PROMISE, same caller fixture on both builds, 100 calls per case.
+No heap-byte claim: several allocation rounds had GC.
+Case | A promises/op | B promises/op | added
+plain async run | 5 | 7 | 2
+plain async settle | 6 | 8 | 2
+tagged async run | 8 | 10 | 2
+session with async op | 8 | 10 | 2
+one run hook | 10 | 14 | 4
+
+Both stack and census commands: EXIT 0
+Required added promises: at most 1 per async op; FAIL.
+New depth-32 seam test: PASS on B, expected FAIL on A (1 frame).
+B source tests: 875 pass, 1 fail; EXIT 1.
+Existing failure: tests/index.test.ts:2256 requires the returned promise identity.
+B lint/types/format: EXIT 0; unchanged 27 warnings.
+B bytecode check: FAIL, runOnce 504 > saved 499 bytes.
+B slots: 339, unchanged.
+B size: 16,006 B gzip, against 15,932 B on A; cap 16,384 B.
+B is rejected; these probes make no correctness or shipping claim.
+Full failed gate and census output remain in /home/paseo/.cache/tinkered-briefs/core-d.

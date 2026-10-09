@@ -1,0 +1,34 @@
+Core batch D: final gate proof
+Timed base: 5d8925aad6c222abd736dfd8515c2443b09f660a
+Latest main: 44350a910dfba6ddaa208bd73433ec19bf4e0eb0
+Latest main changed bench CPU checks; Core code and tests did not change.
+All listed gates passed again after the rebase.
+Core runtime, tests, benchmark probe, and saved fast-code limits match the timed base.
+The lane keeps only board notes, progress notes, and short proof logs.
+git fetch origin && git rebase origin/main: EXIT 0
+vp install: EXIT 0
+vp run -r build: EXIT 0
+vp check: EXIT 0 (through ticket.sh; unchanged 27 warnings)
+vp run -r test: EXIT 0 (through ticket.sh)
+scripts/ticket.sh --no-mutation --check-only rules-batch-D "Core batch D": EXIT 0
+Core source tests: 875 pass
+Core built-file tests: 885 pass
+pnpm validate: EXIT 0, all 19 deterministic budget lanes pass
+vp run prose: EXIT 0
+vp run @tinker-start-scaffold#check: SKIPPED by user
+User-reported clean-main failure: check-middleware.mjs:117, HTTP 500 InvalidDependency.
+Jev preflight origin/main..HEAD: EXIT 0, no source changes, zero flags.
+No test change remains, so no new test or README promise judge run is due.
+Changed-declaration strict style census: EXIT 0, zero strict hits.
+core runtime size: 15932 B gzip (cap 16384 B; all runtime files)
+core entries: main loads no testing; all three testing helpers work across entries
+{"check":"slots","status":"PASS","actual":{"core":339,"react":21},"milliseconds":72}
+{"check":"bytecode","status":"PASS","actual":{"runOnce":499,"settleRun":53,"OperationCtx":126,"buildHooklessResource":451,"resolveDep":223,"runHookChain":187,"runHookBody":298,"invokeRunHooks":49,"stepRunHook":201},"milliseconds":700}
+Runtime build SHA256: c8f09cc3919905a9f00fc2588ded0cbd7bae9a2fe94d7695bcb4f13cb8308656
+Same runtime hash as the pinned 5d8925aa baseline.
+Full logs: /home/paseo/.cache/tinkered-briefs/core-d
+First mutation: 3024/3551 kills (85.159110%) on 0778b7d4; before rebase, not the final run of record.
+Second mutation: 3024/3551 kills (85.159110%) on 452043c0; before the latest rebase, not the final record.
+Third full mutation: 3026/3551 kills (85.215432%) on 00740cb9; before the bench-only rebase.
+Final clean mutation uses the full scope with Stryker incremental mode.
+Its proof names both commits and states how many results were reused.

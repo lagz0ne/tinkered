@@ -1,0 +1,26 @@
+Core batch D: N=61 async
+A: 5d8925aad6c222abd736dfd8515c2443b09f660a
+B: 14c0162f1297565a2601bd6a1d84479de505f62c
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+asyncop: b is slower; median 333.6 -> 513.6 ns; B slower 61/61; p=8.67362e-19
+asyncsettle: b is slower; median 443.0 -> 596.4 ns; B slower 61/61; p=8.67362e-19
+asyncsub: b is slower; median 672.1 -> 985.4 ns; B slower 61/61; p=8.67362e-19
+asynctagged: b is slower; median 1016.0 -> 1220.7 ns; B slower 61/61; p=8.67362e-19
+asynchooked: b is slower; median 1358.7 -> 1638.0 ns; B slower 61/61; p=8.67362e-19
+asyncsession: b is slower; median 1136.8 -> 1333.4 ns; B slower 61/61; p=8.67362e-19
+asynccold: no difference we can see; median 772.9 -> 775.8 ns; B slower 33/61; p=0.608921
+asynclifecycle: b is slower; median 701.0 -> 863.0 ns; B slower 61/61; p=8.67362e-19
+op: no difference we can see; median 57.2 -> 56.7 ns; B slower 26/60; p=0.366294
+run: no difference we can see; median 72.9 -> 73.0 ns; B slower 27/59; p=0.602923
+tagged: no difference we can see; median 176.1 -> 176.4 ns; B slower 28/61; p=0.608921
+session: no difference we can see; median 423.9 -> 435.7 ns; B slower 35/61; p=0.305677
+lifecycle: no difference we can see; median 766.1 -> 760.5 ns; B slower 28/61; p=0.608921
+
+Decision: DROP; slower rows: asyncop, asyncsettle, asyncsub, asynctagged, asynchooked, asyncsession, asynclifecycle
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-d/async-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-d/async-timing-full.log
