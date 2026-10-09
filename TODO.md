@@ -24,17 +24,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **scaffold/lazy-modules** — the scaffold follows ADR 0107; cut from main.
-  Units drop every `import()` and use `drizzleOrm` and app lazy modules.
-  The `tinker-forms` skill line "Load a native library inside its resource factory" follows the ADR.
-  Verify: `vp run lazy` covers `apps/start-scaffold/src` and exits 0; registry rebuilt; `check-imports.mjs` 0.
-  Also: the old raw `{ cursor }` call to `openSync` becomes typed `input`, so its input reads one raw shape.
-  Also in the checker: inline `scope.run({ run })` bodies count as unit bodies; a React component passed as a value is not followed;
-  "unit body not found" gets its own tag instead of rule-7.
-
 - **start/sync-400** — the sync endpoint answers 400 only for `openSync`'s own input failure.
   Today any `DataValidationFailed` inside the open run maps to 400 (`endpoint.server.ts:26`); match the error's `label` too.
   Verify: a test where a dep's parse fails gets a thrown failure, not 400; it fails on main.
+  Also: the old raw `{ cursor }` call to `openSync` in the tests becomes typed `input`, so its input reads one raw shape.
 
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
@@ -59,6 +52,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
+
+- **scaffold/lazy-modules** — the scaffold follows ADR 0107 ([brief](docs/roadmap/start-scaffold/LAZY-MODULES-BRIEF.md)).
+  Owner: lead (Claude, lazy-modules session); writer Sol, reviewer Opus.
+  Next: writer saves the red run on the app, then adds the checker extras, then makes the app pass.
+  Verify: `vp run lazy` covers the base and the app; `--prove` 0; app tests, plain check, registry, import check 0.
 
 ## Review
 

@@ -3233,3 +3233,10 @@ Jev tests has zero flags in 23 entries.
 Jev promises has zero gaps in 69 titles; three old titles are unsure.
 The earlier extra checks stay marked as earlier results in the JSON.
 The card waits in Review; no new Core issue or label was added.
+
+## scaffold/lazy-modules
+
+The scaffold follows ADR 0107.
+Ticket 2 of 2; ticket 1 is `start/lazy-modules` in the start-base track.
+[Brief](LAZY-MODULES-BRIEF.md).
+No impact block: no public symbol crosses a package.
