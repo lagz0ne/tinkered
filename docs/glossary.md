@@ -36,7 +36,7 @@
 - **resource target** — `scope`: one root build shared by all; `namespace`: one root build per namespace; `session`: one build per session per namespace (ADR 0064). Dependencies bind at the owner. `scope` is today's one declared way to keep a node outside the resolve namespace.
 - **target** — A resource's `target`; see resource target.
 - **release** — Reset a node and cascade to its downstream dependents so they rebuild; mainly a frontend feature (server uses `close`).
-- **preset** — A test-only replacement of a node's realization; only downstream consumers see it. Never a production seed.
+- **preset** — A test-only replacement of a node's realization; only downstream consumers see it. It replaces the whole node: the node's own deps are not built (ADR 0109). Never a production seed.
 - **meta** — RETIRED by drivers/t08 (2026-09-26; ADR 0023 superseded): units carry no static bindings; `tag.read(unit)` is gone. A driver takes rows (ADR 0051 §3).
 - **bindings (authored)** — `Tag.Bindings`: the shape every `tags` input takes — one binding, nothing (`null`/`undefined`/`false`), or a list of those to any depth (the `clsx` / ESLint flat-config precedent). Flattened once, in order, where it lands; a call whose tags flatten to nothing is untagged (ADR 0022, 0023 amended 2026-09-21).
 - **onClose** — Userland teardown hook registered from outside on a scope/session handle; it is a `defer`, interleaved in the same reverse-registration LIFO as resource-internal defers.

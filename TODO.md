@@ -24,6 +24,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
+  Starts after core/rules-batch-A and B land: one Core ticket at a time.
+  Resource and operation presets get empty deps and the usual ctx; the call's input is still parsed.
+  Then the scaffold tests drop the `env` values only preset nodes read.
+  Verify: a test that fails on main (a preset's dep is built); the flipped deps test; Core mutation 85;
+  `pnpm validate`; `N=61 bench/queued.sh` shows no slower row.
+
 - **start/sync-400** — the sync endpoint answers 400 only for `openSync`'s own input failure.
   Today any `DataValidationFailed` inside the open run maps to 400 (`endpoint.server.ts:26`); match the error's `label` too.
   Verify: a test where a dep's parse fails gets a thrown failure, not 400; it fails on main.

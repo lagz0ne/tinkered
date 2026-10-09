@@ -90,4 +90,5 @@ by a new decision that names the old one.
 - [0105](0105-a-shared-stack-is-a-resource-a-slot-is-a-tag.md): a shared stack is a resource; a slot is a tag.
 - [0106](0106-the-start-base-is-a-package-glued-by-one-plugin.md): the Start base is a package, glued by one plugin.
 - [0108](0108-a-scope-handle-is-not-a-plain-object.md): a scope handle is not a plain object; no spread, no destructured verbs.
+- [0109](0109-a-preset-replaces-the-whole-node.md): a preset replaces the whole node; its deps are not built.
 - [0107](0107-a-body-gets-outside-libraries-only-from-its-deps.md): a body gets outside libraries only from its deps.
