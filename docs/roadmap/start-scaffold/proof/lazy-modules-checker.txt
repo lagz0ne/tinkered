@@ -1,0 +1,10 @@
+scaffold/lazy-modules: checker extras
+Base: dc78e0823a9804d75d0900c91c104cf18dba502a
+Command: node scripts/check-lazy-modules.mjs --prove
+Result: EXIT 0; 115 cases passed, including 25 new cases.
+Failures match the exact file, line, and rule or unit-body tag.
+Inline run and settle: plain, tags, signal, named, alias, spread, borrowed scope.
+React values pass; a direct component call and a capital helper fail.
+Old checker: the parameter-body plant failed the new unit-body tag match.
+Build: EXIT 0; 12 tasks. Code check: EXIT 0; 0 errors, 27 warnings.
+An overlapping build broke an earlier plant run; that run does not count.

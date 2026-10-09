@@ -186,6 +186,49 @@ function coreCall(call, target) {
     : undefined;
 }
 
+function inlineCall(call, checker) {
+  if (!ts.isCallExpression(call)) return false;
+  const declaration = checker.getResolvedSignature(call)?.declaration;
+  if (!declaration || propertyName(declaration.parameters[0]?.name) !== "inline") return false;
+  return packageName(realPath(declaration.getSourceFile().fileName)) === "@tinker/core";
+}
+
+function isComponent(node) {
+  const name = node.name ?? node.parent.name;
+  if (
+    !isFunction(node) ||
+    !node.getSourceFile().fileName.endsWith(".tsx") ||
+    !/^[A-Z]/.test(propertyName(name) ?? "") ||
+    node.parameters.length > 1
+  )
+    return false;
+  let jsx = false;
+  function inspect(child) {
+    if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child) || ts.isJsxFragment(child))
+      jsx = true;
+    if (!isFunction(child)) ts.forEachChild(child, inspect);
+  }
+  inspect(node.body);
+  return jsx;
+}
+
+function calledValue(node) {
+  let value = node;
+  while (value.parent && unwrap(value.parent) === value) value = value.parent;
+  const parent = value.parent;
+  if (callTarget(parent, value)) return true;
+  return (
+    ts.isPropertyAccessExpression(parent) &&
+    ["call", "apply"].includes(parent.name.text) &&
+    calledValue(parent)
+  );
+}
+
+function callTarget(parent, value) {
+  if (ts.isCallExpression(parent) || ts.isNewExpression(parent)) return parent.expression === value;
+  return ts.isTaggedTemplateExpression(parent) && parent.tag === value;
+}
+
 function typePosition(node) {
   for (let parent = node.parent; parent; parent = parent.parent) {
     if (ts.isExpressionWithTypeArguments(parent) && ts.isHeritageClause(parent.parent))
@@ -409,7 +452,10 @@ function checkGraph(bodies, checker, target, executables, fail) {
     if (symbol?.declarations?.some(loaderDeclaration)) fail(node, 8, "module loader in graph code");
     else if (importedName(node, checker))
       fail(node, 7, `outside name ${node.getText()} in graph code`);
-    else for (const body of executables(node)) follow(body);
+    else
+      for (const body of executables(node)) {
+        if (!isComponent(body) || calledValue(node)) follow(body);
+      }
   }
 
   for (const body of bodies) follow(body);
@@ -418,7 +464,8 @@ function checkGraph(bodies, checker, target, executables, fail) {
 async function check(roots) {
   const hits = new Set();
   const modules = new Map();
-  const fail = (node, rule, text) => hits.add(`${location(node)} rule-${rule}: ${text}`);
+  const fail = (node, rule, text) =>
+    hits.add(`${location(node)} ${typeof rule === "number" ? `rule-${rule}` : rule}: ${text}`);
   for (const root of roots) {
     const files = await sourceFiles(root);
     const configPath = ts.findConfigFile(root, (path) => ts.sys.fileExists(path));
@@ -438,10 +485,11 @@ async function check(roots) {
     const bodies = [];
     for (const file of files) {
       walk(program.getSourceFile(file), (node) => {
-        const kind = coreCall(node, target);
+        const kind =
+          coreCall(node, target) ?? (inlineCall(node, checker) ? "operation" : undefined);
         if (!kind) return;
         const object = unwrap(node.arguments[0]);
-        if (!object) return fail(node, 7, "unit body not found");
+        if (!object) return fail(node, "unit-body", "unit body not found");
         collectBodies(kind, object, executables, property, checker, fail, modules, bodies);
       });
     }
@@ -455,7 +503,7 @@ async function check(roots) {
 function collectBodies(kind, object, executables, property, checker, fail, modules, bodies) {
   function collect(value) {
     const found = executables(value).filter(isFunction);
-    if (!found.length) return fail(value ?? object, 7, "unit body not found");
+    if (!found.length) return fail(value ?? object, "unit-body", "unit body not found");
     for (const body of found) collectBody(body);
   }
   function collectBody(body) {
@@ -471,15 +519,118 @@ function collectBodies(kind, object, executables, property, checker, fail, modul
   if (kind !== "extension")
     return collect(property(object, kind === "resource" ? "factory" : "run"));
   const hooks = property(object, "hooks");
-  if (!hooks) return fail(object, 7, "unit body not found");
+  if (!hooks) return fail(object, "unit-body", "unit body not found");
   const members = checker.getTypeAtLocation(hooks).getProperties();
-  if (!members.length) return fail(hooks, 7, "unit body not found");
+  if (!members.length) return fail(hooks, "unit-body", "unit body not found");
   for (const hook of members) collect(property(hooks, hook.name));
+}
+
+function extraCases(outsideImport) {
+  const cases = [];
+  for (const method of ["run", "settle"]) {
+    for (const call of ["", ", {tags: []}", ", {signal: new AbortController().signal}"]) {
+      const suffix = call.includes("tags") ? "tags" : call.includes("signal") ? "signal" : "plain";
+      cases.push({
+        name: `inline-${method}-${suffix}`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); scope.${method}({run:()=>outside("x")}${call});`,
+      });
+    }
+    cases.push(
+      {
+        name: `inline-${method}-named`,
+        rule: 8,
+        hit: "probe.ts:2",
+        source: `const scope=createScope(); const spec={run:()=>import("node:path")}; scope.${method}(spec);`,
+      },
+      {
+        name: `inline-${method}-alias`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); const {${method}: invoke}=scope; invoke({run:()=>outside("x")});`,
+      },
+      {
+        name: `inline-${method}-spread`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); const spec={run:()=>outside("x")}; scope.${method}({...spec});`,
+      },
+      {
+        name: `inline-${method}-borrowed`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `function use(scope:Scope.Handle) {scope.${method}({run:()=>outside("x")});}`,
+      },
+      {
+        name: `inline-${method}-own`,
+        source: `const scope=createScope(); scope.${method}({run:()=>1});`,
+      },
+      {
+        name: `inline-${method}-declared`,
+        source: `const scope=createScope(); const op=operation({label:"x",run:()=>1}); scope.${method}(op);`,
+      },
+      {
+        name: `other-${method}`,
+        source:
+          outsideImport +
+          `const other={${method}(value) {return value;}}; other.${method}({run:()=>outside("x")});`,
+      },
+    );
+  }
+  cases.push(
+    {
+      name: "inline-hook",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'extension({label:"x",hooks:{start({scope}) {scope.run({run:()=>outside("x")});}}});',
+    },
+    {
+      name: "component-value",
+      tsx: true,
+      source:
+        'import {useState} from "react"; function Page() {const [n]=useState(0); return <div>{n}</div>;} resource({factory:()=>({Page})});',
+    },
+    {
+      name: "component-imported-value",
+      source: 'import {Page} from "./helper"; resource({factory:()=>({Page})});',
+      helperTsx: true,
+      helper:
+        'import {useState} from "react"; export function Page() {const [n]=useState(0); return <div>{n}</div>;}',
+    },
+    {
+      name: "component-called",
+      tsx: true,
+      rule: 7,
+      hit: "probe.tsx:2",
+      source:
+        'import {useState} from "react"; function Page() {const [n]=useState(0); return <div>{n}</div>;} resource({factory:()=>Page()});',
+    },
+    {
+      name: "capital-helper",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport + 'function Page() {return outside("x");} resource({factory:()=>({Page})});',
+    },
+  );
+  return cases;
 }
 
 async function prove() {
   const planted = await mkdtemp(join(tmpdir(), "lazy-modules-proof-"));
-  const core = 'import { operation, resource, extension } from "@tinker/core";\n';
+  const core =
+    'import { operation, resource, extension, createScope, type Scope } from "@tinker/core";\n';
   const outsideImport = 'import { resolve as outside } from "node:path";\n';
   const lazy =
     'resource({label: "module:node:path", target: "scope", factory: () => import("node:path")})';
@@ -772,22 +923,22 @@ async function prove() {
     },
     {
       name: "parameter-body",
-      rule: 7,
+      tag: "unit-body",
       hit: "probe.ts:2",
       source: 'function op(run) {return operation({label:"x", run});} op(() => 1);',
     },
     {
       name: "wrapped-unit-callback",
-      rule: 7,
+      tag: "unit-body",
       hit: "probe.ts:3",
       source:
         outsideImport +
         'function op(run) {return operation({label:"x", run});} op(() => outside("x"));',
     },
-    { name: "missing-run", rule: 7, hit: "probe.ts:2", source: 'operation({label:"x"});' },
+    { name: "missing-run", tag: "unit-body", hit: "probe.ts:2", source: 'operation({label:"x"});' },
     {
       name: "missing-hooks",
-      rule: 7,
+      tag: "unit-body",
       hit: "probe.ts:2",
       source: 'extension({label:"x", hooks: unknownHooks});',
     },
@@ -1005,6 +1156,7 @@ async function prove() {
       source: "function createRequire() {return 1;} operation({run:()=>createRequire()});",
     },
   );
+  cases.push(...extraCases(outsideImport));
   try {
     await symlink(
       join(workspace, "packages/start/node_modules"),
@@ -1016,6 +1168,7 @@ async function prove() {
         module: "esnext",
         moduleResolution: "bundler",
         target: "esnext",
+        jsx: "react-jsx",
         types: ["node"],
         paths: {
           "outside-lib": ["./helper.ts"],
@@ -1028,10 +1181,7 @@ async function prove() {
       const root = join(planted, test.name);
       await mkdir(root);
       await writeFile(join(root, "tsconfig.json"), config);
-      await writeFile(join(root, "probe.ts"), core + test.source);
-      if (test.helper) await writeFile(join(root, "helper.ts"), test.helper);
-      if (test.leaf) await writeFile(join(root, "leaf.ts"), test.leaf);
-      if (test.declaration) await writeFile(join(root, "ambient.d.ts"), test.declaration);
+      await plantSource(root, test, core);
       const roots = [root];
       if (test.second) {
         const second = join(planted, `${test.name}-second`);
@@ -1048,22 +1198,34 @@ async function prove() {
   }
 }
 
+async function plantSource(root, test, core) {
+  await writeFile(join(root, test.tsx ? "probe.tsx" : "probe.ts"), core + test.source);
+  if (test.helper)
+    await writeFile(join(root, test.helperTsx ? "helper.tsx" : "helper.ts"), test.helper);
+  if (test.leaf) await writeFile(join(root, "leaf.ts"), test.leaf);
+  if (test.declaration) await writeFile(join(root, "ambient.d.ts"), test.declaration);
+}
+
 function proveCase(test, roots, planted) {
   const result = spawnSync(process.execPath, [script, ...roots], {
     encoding: "utf8",
     cwd: planted,
   });
-  assert.equal(result.status, test.rule ? 1 : 0, `${test.name}: ${result.stdout}${result.stderr}`);
-  if (test.rule) proveHit(test, result.stderr);
+  assert.equal(
+    result.status,
+    test.rule || test.tag ? 1 : 0,
+    `${test.name}: ${result.stdout}${result.stderr}`,
+  );
+  if (test.rule || test.tag) proveHit(test, result.stderr);
   console.log(
-    `PASS ${test.name}: ${test.rule ? `rule-${test.rule}` : "allowed"} EXIT ${result.status}`,
+    `PASS ${test.name}: ${test.tag ?? (test.rule ? `rule-${test.rule}` : "allowed")} EXIT ${result.status}`,
   );
 }
 
 function proveHit(test, stderr) {
   assert.ok(test.hit, `${test.name}: exact file and line required`);
   const file = test.hit.includes("/") ? test.hit : `${test.name}/${test.hit}`;
-  const expectedHit = `${file} rule-${test.rule}:`;
+  const expectedHit = `${file} ${test.tag ?? `rule-${test.rule}`}:`;
   assert.ok(
     stderr.split("\n").some((line) => line.startsWith(expectedHit)),
     `${test.name}: expected ${expectedHit}\n${stderr}`,
