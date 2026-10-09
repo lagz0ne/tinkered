@@ -43,13 +43,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/rules-batch-B** — count borrows, trim run hooks, and use one brand key.
-  Owner: Core rules writer (Codex).
-  Next: make each ticket, then run the queue and the final fault check.
-  Verify: ADR 0026 Q2 holds; runHookBody is below 460 bytes; no N=61 row is slower.
-  Core needs 85 on kills alone; all release checks must pass.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
@@ -67,6 +60,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Verify: `vp run lazy` covers the base and the app; `--prove` 0; app tests, plain check, registry, import check 0.
 
 ## Review
+
+- **core/rules-batch-B** — lean run hooks and the release Q2 test.
+  Owner: Core rules writer (Codex).
+  Next: lead review and Jev calibration after the clean fault-test log is saved.
+  Verify: all gates pass; runHookBody is 298 bytes; all seven kept N=61 rows avoid slowdown.
+  Borrow counts and the shared brand key are dropped on slower rows.
+  Core needs 85 on kills alone; the final clean-source fault log is saved after the run.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
 
 - **core/rules-batch-A** — hook and controller fields, and slot order.
   Owner: Core rules writer (Codex).

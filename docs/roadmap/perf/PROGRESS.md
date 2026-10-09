@@ -1454,3 +1454,63 @@ Changed declarations and the Q2 file have zero strict style hits; TSDoc has zero
 The full source keeps the same four old strict IDs; S04 falls from two to one.
 No test-style or README gap is added by the Q2 test.
 Timing and the final clean-source fault run are pending under the shared lock.
+
+### Final batch B source and timing
+
+Keep `5756888e`, core/hook-run-lean, plus Q2 test `00745343`.
+Drop the borrow count runtime and the shared-key runtime.
+Brand rejection and its timing proof are saved in `a6caebea`.
+No public symbol or private handle type change remains.
+Main keeps its Set borrow model and seven private brand keys.
+The final runtime matches the measured hook build byte for byte.
+[Kept timing](core-b-hook-timing.log) saves all seven N=61 rows.
+A is clean main `eeb4beef`; B is clean hook source `5756888e`.
+Engine: Node 24.21.0, V8 13.6.233.17-node.53.
+Verdicts use the paired two-sided sign test, p below 0.05, with ties excluded.
+Each queue sample uses mitata batch mode.
+
+- **op**: no difference we can see; 56.9 -> 56.8 ns.
+- **run**: b is faster; 72.5 -> 71.3 ns.
+- **tagged**: no difference we can see; 177.1 -> 176.9 ns.
+- **session**: no difference we can see; 432.7 -> 433.6 ns.
+- **lifecycle**: no difference we can see; 752.2 -> 753.3 ns.
+- **opres**: no difference we can see; 272.7 -> 266.2 ns.
+- **hooked**: b is faster; 190.1 -> 182.9 ns.
+
+No kept row is slower.
+Borrow is dropped on full cleanup: 750.5 -> 762.7 ns.
+Brand is dropped on full cleanup: 755.4 -> 769.1 ns, and resource calls: 253.0 -> 257.0 ns.
+The full rejection summaries retain every row, pair count, and p value.
+No stopped run supplies a keep verdict; no unchanged candidate is retried for a better result.
+
+[Final source checks](core-b-checks.log) save every gate exit and runtime hash.
+Install, full build, ticket, 19 release checks, prose, and scaffold all exit 0.
+The ticket covers root check, all package test configs, built-file Core tests, and size.
+Core has 872 source tests and 882 built-file tests.
+Lint keeps main's 27 warnings and zero errors.
+Core gzip: 15,892 -> 15,893 bytes; cap 16,384.
+Slots stay at 339; resolveDep stays at 223 bytes.
+RunHookBody: 498 -> 298 bytes; runHookChain: 222 -> 187 bytes.
+Both keep zero callback literals; the ceilings only fall or add a new lower check.
+The heap probe gives 897 -> 672 bytes per hooked call, 7/7 rounds without GC on both builds.
+Sync hooked promises remain zero.
+OperationCtx still inlines into the body under default Maglev.
+The body still does not inline into stepRunHook; no such gain is claimed.
+Changed declarations and the Q2 file have no strict style hit; TSDoc has no S26 row.
+Whole Core keeps four old strict IDs; S04 drops from two to one.
+The final diff has been read after both rejected implementations were removed.
+
+The final Jev scan covers 300 units and flags 107.
+All 165 non-noisy hits in 106 units have a false label and a reason.
+[Final label commands](core-b-jev-labels.log) retain every answer and the old plain test notes.
+Jev's whole-file review skips the large source; its zero flags are not a model review of that file.
+The writer read the final diff instead.
+The lead runs calibration before landing.
+The private-name checker feedback is saved as a finding from the dropped brand trial.
+No app code changes and no public API workaround remains.
+
+The final Core fault run follows on the clean source commit after these notes.
+It runs alone under the shared lock, with an 85% floor on kills alone.
+[Fault-test summary](core-b-mutation.log) will name that source commit and the empty tree.
+Only its header and summary are committed after the run.
+Saved source waits in Review; no push, publish, or batch C work is done.

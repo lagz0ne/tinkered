@@ -1,0 +1,20 @@
+Core batch B: N=61 hook
+A: eeb4beefab8934b2772b151a6658f67c44573577
+B: 5756888ef1a26038093edbbc0c00ba68d8f89e1a
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+op: no difference we can see; median 56.9 -> 56.8 ns; B slower 31/60; p=0.897422
+run: b is faster; median 72.5 -> 71.3 ns; B slower 17/61; p=0.000729905
+tagged: no difference we can see; median 177.1 -> 176.9 ns; B slower 27/61; p=0.442626
+session: no difference we can see; median 432.7 -> 433.6 ns; B slower 36/61; p=0.200031
+lifecycle: no difference we can see; median 752.2 -> 753.3 ns; B slower 30/61; p=1
+opres: no difference we can see; median 272.7 -> 266.2 ns; B slower 28/61; p=0.608921
+hooked: b is faster; median 190.1 -> 182.9 ns; B slower 7/61; p=4.32211e-10
+
+Decision: KEEP; no slower row.
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-b/hook-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-b/hook-timing-full.log

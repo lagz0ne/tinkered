@@ -1,30 +1,42 @@
-Core batch B: retained source checks at 6d54e64a
-Runtime index SHA256: e3d2021c2eb1fd5a09a64800dd5e4e5e459592af8846a0def1729ae3b9bc428e
-Root runtime bytes match the new brand timing snapshot.
+Core batch B: final hook-only source checks
+Runtime source matches measured 5756888e byte for byte.
+Index SHA256: 77eb36c7c6df1472d67734ce399ab7764f30e52d4799819635176cd65eaed320
+Testing SHA256: c501bb800c08290b35346bd85c3b7b6ea9182c991d71fc4880b38efb3ed04352
 Node 24.21.0; V8 13.6.233.17-node.53
+git fetch origin and git rebase origin/main: EXIT 0
 vp install: EXIT 0
 full-build: EXIT 0
 ticket: EXIT 0
 validate: EXIT 0
 prose: EXIT 0
 scaffold: EXIT 0
+Full-build = vp run -r build.
+Ticket = scripts/ticket.sh --no-mutation --check-only rules-batch-B.
+Ticket covers vp check, vp run -r test, built-file Core tests, size, and slot order.
+Validate = pnpm validate: all 19 lanes PASS.
+Prose = vp run prose.
+Scaffold = vp run @tinker-start-scaffold#check.
 Core: 872 source tests; 882 built-file tests.
-Every package test config passed; lint: 0 errors, 27 warnings (same as main).
-pnpm validate: all 19 lanes PASS.
-Scaffold check: 42 files; 10 plain functions; cap 17.
-Changed declarations and Q2 test: strict style EXIT 0.
-Full Core strict style: inherited S04 2->1; S10 1->1; S14 1->1; P06 1->1.
+Every package config passed; lint: 0 errors, 27 warnings (same as main).
+Scaffold: 42 files; 10 plain functions; cap 17.
+Changed declarations and whole Q2 file: strict style EXIT 0.
+Full Core strict style: old hits remain; S04 2->1; S10 1->1; S14 1->1; P06 1->1.
 TSDoc: EXIT 0; no S26 rows.
-Jev review: EXIT 0; no flags; large source skipped, diff read by writer.
-SCIP: Core, React, Start, Blueprint indexed; seven public handle refs checked.
-Six retired brand symbol names: no refs.
-One actual operationSym shared by seven numeric handle kinds.
-Gzip: base 15892; retained hook 15893; retained brand 15915; cap 16384.
-Slots: main 339; hook 339; brand 332.
-Bytecode: runHookBody 498->298; runHookChain 222->187; resolveDep 223->212.
-Hot-body and chain callback literals: zero.
-Kept hook heap probe: 897->672 B/op; promises 0->0; 7/7 GC-free rounds.
-Probe flags: min and max semi-space 64 MB; N=10000; ROUNDS=7.
-Heap allocation numbers are driver-specific; timing remains separate.
-Borrow count code is dropped; its 1034->457 B/op and 1->0 promise gain is not retained.
-The Q2 test remains, proving immediate replacement and retention through all run defers.
+Jev review: EXIT 0; no flags; large source skipped, final diff read by writer.
+Final preflight: EXIT 0; 165 non-noisy hits labeled; 4 new states appended.
+Public symbols and private handle types are unchanged in the kept code.
+Discarded brand impact review indexed Core, React, Start, Blueprint and checked seven handle refs.
+Main seven private brand keys and Set borrow model remain.
+Gzip: main 15892; final hook runtime 15893; cap 16384.
+Slots: main and final 339.
+Bytecode: runHookBody 498->298; runHookChain 222->187; resolveDep remains 223.
+Hook body and chain callback literals: zero.
+Heap probe: 897->672 B/op; promises 0->0; 7/7 GC-free rounds.
+Heap probe: min/max semi-space 64 MB; N=10000; ROUNDS=7.
+Heap numbers are driver-specific; speed proven separately by N=61.
+Default Maglev: OperationCtx inlines into runHookBody; body does not inline into stepRunHook.
+Kept N=61: run and hooked faster; other five rows no difference we can see; none slower.
+Borrow: DROP, lifecycle 750.5->762.7 ns, 44/61 slower pairs.
+Brand: DROP, lifecycle 755.4->769.1 ns, 50/61 slower; opres 253.0->257.0 ns, 53/61 slower.
+The Q2 test proves immediate replacement and retention through all run defers.
+No bug-fix claim or test failing on main is claimed for these performance changes.
