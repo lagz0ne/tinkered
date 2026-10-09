@@ -1190,17 +1190,18 @@ No Core change is requested.
 
 ### Mutation
 
-Four full Start mutation runs passed under `flock /tmp/mutation.lock`.
-The latest tested clean commit is `96bf5fc4d6e3ecdb31c8064cccf844d0acc74e49`.
+Five full Start mutation runs passed under `flock /tmp/mutation.lock`.
+The latest tested clean commit is `25411f4fcd8ffa77ae1fee897cef12498c6a665d`.
 The gate and mutation both returned EXIT 0.
-Kills alone: 3917 of 4641, or 84.40%; floor 75.
-There were 546 survivors, 51 timeouts, 126 with no coverage,
+Kills alone: 3967 of 4719, or 84.06%; floor 75.
+There were 562 survivors, 60 timeouts, 129 with no coverage,
 and 1 runtime error.
 Every status stays in the total; only Killed counts as a kill.
 The tree was clean before and after the run.
 [Mutation proof](proof/lazy-modules-mutation.txt).
 The earlier clean runs at `7e9ce9e1`, `7ca845e1`, and `127ed2cf`
 had 3878 kills of 4547, or 85.29%.
+The fourth clean run at `96bf5fc4` had 3917 kills of 4641, or 84.40%.
 Main gained Core, scaffold, and Start server changes during those runs.
 Each result was saved before rebasing and running all proof checks again.
 The render conflict kept main's request-session cleanup.
@@ -1210,5 +1211,7 @@ Those changes are merged with both sets of labels kept.
 All workspace tests, 19 validate lanes, 90 plants, and the style check passed again.
 Jev found no missing README promises among 190 titles.
 Assumption: keep the newer stream waits and frames; only its Drizzle dep changes.
-The final clean-commit gate and mutation run follow this saved step.
+The combined sync code passed its clean-commit gate at `25411f4f`: EXIT 0.
+Main then gained Core and telemetry code, ending at `eeb4beef`.
+This proof is saved before merging those changes and checking the code again.
 Nothing was pushed.

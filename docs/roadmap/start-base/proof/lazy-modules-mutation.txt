@@ -1,14 +1,14 @@
-Commit 96bf5fc4d6e3ecdb31c8064cccf844d0acc74e49
-$ flock /tmp/mutation.lock vp run @tinker/start#mutate
+Commit 25411f4fcd8ffa77ae1fee897cef12498c6a665d
+Command: flock /tmp/mutation.lock vp run @tinker/start#mutate
 Clean tree before: yes
-Clean tree after: yes
-EXIT 0
-Killed: 3917
-NoCoverage: 126
+Full package lane: 4719 changes in 83 source files
+Killed: 3967
+Survived: 562
+Timeout: 60
+NoCoverage: 129
 RuntimeError: 1
-Survived: 546
-Timeout: 51
-Kills alone: 3917/4641 = 84.40%
-Timeouts and errors do not count as kills.
-Floor: 75%
-PASS
+Total: 4719
+Kills alone: 84.06% (Killed / all statuses)
+Floor: 75 — PASS
+EXIT 0
+Clean tree after: yes
