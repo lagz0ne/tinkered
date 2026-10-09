@@ -3240,3 +3240,79 @@ The scaffold follows ADR 0107.
 Ticket 2 of 2; ticket 1 is `start/lazy-modules` in the start-base track.
 [Brief](LAZY-MODULES-BRIEF.md).
 No impact block: no public symbol crosses a package.
+
+Owner: Sol writer, branch `scaffold/lazy-modules`.
+Next: lead review; run Jev calibration when landing the labels.
+Verify: the linked gate, 115 plants, and 19 release checks return 0.
+
+The root lazy check covers Start and the scaffold together.
+Inline run and settle bodies count, including tags and signals.
+A React component passed as a value stays outside graph code.
+Missing bodies use the separate unit-body tag.
+All failing plants match the exact file, line, and tag.
+
+Backend and frontend module files own the lazy loads.
+Drizzle uses the existing Start node.
+Tables and schemas stay at the top.
+Stored events and results pass through rawInput into Core readers.
+The two bad-row tests failed with ZodError before that fix.
+The entry exports and returned types stay the same.
+
+Assumption: record mode means the existing mail preset.
+Core builds a replaced factory's normal deps too.
+Operations that load modules leave the unused library graph unbuilt.
+Native clients stay owned by the public resource factory.
+The first split failed both release tests; the final factory passes them.
+The fresh-process proof sends recorded mail without loading SMTP.
+
+Assumption: the event reader is app code, not an entry export.
+Its two callers now share an array schema and a Core reader.
+The plain list drops that old helper and keeps nine functions.
+The mail registry item owns a file with only the SMTP module.
+The full demo owns the remaining backend and frontend module files.
+This keeps mail-only copies free of auth and database library needs.
+All 94 emitted files match; all three copied app builds pass.
+The copied guides use ADR 0107.
+Nothing is pushed or published; no mutation lane is part of this card.
+
+### Proof
+
+The final source commit is `a5cbd7d2`.
+Its clean gate passed build, check, 31 app tests, 449 Start tests,
+and every workspace test task.
+Check has zero errors and the same 27 warnings.
+Lazy, plain, registry, import, and all 19 release checks pass.
+The final 115 plants pass on the committed checker.
+Style census and TSDoc checks pass.
+Doctor and schema checks pass with the shipped sample settings.
+No live Postgres or SMTP service proof is claimed.
+The final fetch still had main at `dc78e082`.
+Only these proof and board notes follow the tested source.
+
+- [Main red run](proof/lazy-modules-main-red.txt).
+- [Checker plants](proof/lazy-modules-checker.txt).
+- [Stored input reads](proof/lazy-modules-input.txt).
+- [Native owner release](proof/lazy-modules-release.txt).
+- [Final gates and judges](proof/lazy-modules-gates.txt).
+
+Jev found no file flag, test flag, or README gap.
+The 14 source answers are false, with reasons in the label bank.
+The noisy notifyProfile note needs no label.
+The lead runs calibration at landing.
+
+### Core feedback
+
+A resource has no controller dep (TS2339).
+An operation that loads the module is the workaround.
+From the app root, this fails:
+
+```ts
+import { resource } from "@tinker/core";
+import { smtp } from "./src/backend/modules";
+
+resource({
+  label: "owner",
+  depends: { smtp: smtp.controller },
+  factory: ({ smtp }) => smtp,
+});
+```

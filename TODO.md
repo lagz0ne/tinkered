@@ -60,12 +60,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
-- **scaffold/lazy-modules** — the scaffold follows ADR 0107 ([brief](docs/roadmap/start-scaffold/LAZY-MODULES-BRIEF.md)).
-  Owner: lead (Claude, lazy-modules session); writer Sol, reviewer Opus.
-  Writer: `45f6a90c` (Sol), worktree `../tinkered-scaffold-lazy`, branch `scaffold/lazy-modules`.
-  Next: writer saves the red run on the app, then adds the checker extras, then makes the app pass.
-  Verify: `vp run lazy` covers the base and the app; `--prove` 0; app tests, plain check, registry, import check 0.
-
 ## Review
 
 - **core/rules-batch-B** — lean run hooks and the release Q2 test.
@@ -75,6 +69,14 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Borrow counts and the shared brand key are dropped on slower rows.
   Core needs 85 on kills alone; the final clean-source fault log is saved after the run.
   [Proof](docs/roadmap/perf/PROGRESS.md).
+
+- **scaffold/lazy-modules** — the scaffold follows ADR 0107.
+  Owner: lead (Claude, lazy-modules session); writer Sol.
+  Next: review the saved branch; run Jev calibration at landing.
+  Verify: gate EXIT 0; 31 app tests, 449 Start tests, all workspace tasks;
+  lazy and 115 plants pass; 94 registry files match; all 19 release checks pass.
+  Recorded mail loads no SMTP; native owners rebuild after release.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
 
 - **core/rules-batch-A** — hook and controller fields, and slot order.
   Owner: Core rules writer (Codex).
