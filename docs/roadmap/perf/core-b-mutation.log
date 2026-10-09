@@ -1,0 +1,29 @@
+Core batch B: final mutation proof
+Finished: 2026-10-09 05:03:52 UTC
+git rev-parse HEAD
+3ca94f94e4c5973258a92ab4bd414758983b3c45
+git status --porcelain
+Command: flock /tmp/mutation.lock vp run core#mutate --concurrency 2 --timeoutMS 60000
+Clean tree before: yes
+Clean tree after: yes
+Exit: 0
+Kills-only score: 3012/3542 = 85.036702% (floor 85%; PASS)
+Valid denominator: killed + timeout + survived + no coverage.
+RuntimeError and CompileError changes are invalid and excluded.
+Timeouts receive no kill credit.
+Counts: {"Killed": 3012, "NoCoverage": 35, "RuntimeError": 3, "Survived": 467, "Timeout": 28}
+All planted changes: 3545.
+If invalid changes stay in the denominator: 84.964739%.
+The table score includes timeouts; the kills-only score above does not.
+Only this header and summary are committed after the clean run.
+
+-----------------|------------------|----------|-----------|------------|----------|----------|
+                 | % Mutation score |          |           |            |          |          |
+File             |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+-----------------|--------|---------|----------|-----------|------------|----------|----------|
+All files        |  85.83 |   86.68 |     3012 |        28 |        467 |       35 |        3 |
+ errors.ts       |  90.82 |   90.82 |       87 |         2 |          9 |        0 |        0 |
+ index.ts        |  85.63 |   86.54 |     2836 |        24 |        445 |       35 |        3 |
+ testing.ts      |  87.38 |   87.38 |       88 |         2 |         13 |        0 |        0 |
+ trace-random.ts | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
+-----------------|--------|---------|----------|-----------|------------|----------|----------|
