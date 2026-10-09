@@ -3316,3 +3316,22 @@ resource({
   factory: ({ smtp }) => smtp,
 });
 ```
+
+### Review fix round, 2026-10-09
+
+User decision: database and mail take module resources as direct deps.
+The private operations that load modules are removed.
+A preset can load pg or nodemailer as modules today, without a connection.
+The brief drops the no-SMTP rule for record mode.
+A separate Core ticket will make a preset replace the whole node.
+Then Core will build none of the replaced node's deps.
+The earlier no-module proof for presets is withdrawn.
+
+Assumption: a bad stored event uses the existing BadInput error.
+A bad stored retry result uses RetryNotAvailable.
+Only fetched raw rows use safeParse and a success check here.
+Operation inputs still go through Core.
+The caller gets no ZodError.
+
+The rebase kept both board cards and both sides of the label bank.
+Install and all 12 build tasks passed after the rebase.

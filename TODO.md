@@ -50,6 +50,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **scaffold/lazy-modules** — one review fix round.
+  Owner: scaffold writer (Sol).
+  Next: direct module deps, stored row reads, checker plants, and shipped words.
+  Verify: full gate, checker proof, registry, imports, Jev, and all release checks pass.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
+
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
@@ -69,14 +75,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Borrow counts and the shared brand key are dropped on slower rows.
   Core needs 85 on kills alone; the final clean-source fault log is saved after the run.
   [Proof](docs/roadmap/perf/PROGRESS.md).
-
-- **scaffold/lazy-modules** — the scaffold follows ADR 0107.
-  Owner: lead (Claude, lazy-modules session); writer Sol.
-  Next: review the saved branch; run Jev calibration at landing.
-  Verify: gate EXIT 0; 31 app tests, 449 Start tests, all workspace tasks;
-  lazy and 115 plants pass; 94 registry files match; all 19 release checks pass.
-  Recorded mail loads no SMTP; native owners rebuild after release.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
 
 - **core/rules-batch-A** — hook and controller fields, and slot order.
   Owner: Core rules writer (Codex).

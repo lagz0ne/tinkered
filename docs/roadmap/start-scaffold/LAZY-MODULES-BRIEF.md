@@ -37,7 +37,6 @@ Do not change `packages/`, Core, React, or other apps.
   This covers `counter.ts`, `todos.ts`, `profile.ts`, `sync.ts`, `database.ts`,
   `auth.ts`, `mail.ts`, and `frontend/auth-actions.ts`.
 - Modules that exclude each other stay apart (rule 12).
-  Record mode must still load no SMTP library.
 - No body re-validates data an operation reads.
   Pass raw values as `rawInput`; Core checks them with the operation's `input`.
 - Public types and behavior stay the same.
