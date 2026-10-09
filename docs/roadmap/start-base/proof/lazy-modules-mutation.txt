@@ -1,14 +1,14 @@
-Commit 25411f4fcd8ffa77ae1fee897cef12498c6a665d
+Commit c8d51075566c666105b662f16396db745c173a59
 Command: flock /tmp/mutation.lock vp run @tinker/start#mutate
 Clean tree before: yes
-Full package lane: 4719 changes in 83 source files
-Killed: 3967
-Survived: 562
-Timeout: 60
-NoCoverage: 129
+Full package lane: 4842 changes in 84 source files
+Killed: 4039
+Survived: 601
+Timeout: 67
+NoCoverage: 134
 RuntimeError: 1
-Total: 4719
-Kills alone: 84.06% (Killed / all statuses)
+Total: 4842
+Kills alone: 83.42% (Killed / all statuses)
 Floor: 75 — PASS
 EXIT 0
 Clean tree after: yes

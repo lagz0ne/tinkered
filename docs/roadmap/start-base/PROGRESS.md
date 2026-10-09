@@ -1205,11 +1205,11 @@ No Core change is requested.
 
 ### Mutation
 
-Five full Start mutation runs passed under `flock /tmp/mutation.lock`.
-The latest tested clean commit is `25411f4fcd8ffa77ae1fee897cef12498c6a665d`.
+Six full Start mutation runs passed under `flock /tmp/mutation.lock`.
+The latest tested clean commit is `c8d51075566c666105b662f16396db745c173a59`.
 The gate and mutation both returned EXIT 0.
-Kills alone: 3967 of 4719, or 84.06%; floor 75.
-There were 562 survivors, 60 timeouts, 129 with no coverage,
+Kills alone: 4039 of 4842, or 83.42%; floor 75.
+There were 601 survivors, 67 timeouts, 134 with no coverage,
 and 1 runtime error.
 Every status stays in the total; only Killed counts as a kill.
 The tree was clean before and after the run.
@@ -1217,6 +1217,7 @@ The tree was clean before and after the run.
 The earlier clean runs at `7e9ce9e1`, `7ca845e1`, and `127ed2cf`
 had 3878 kills of 4547, or 85.29%.
 The fourth clean run at `96bf5fc4` had 3917 kills of 4641, or 84.40%.
+The fifth at `25411f4f` had 3967 kills of 4719, or 84.06%.
 Main gained Core, scaffold, and Start server changes during those runs.
 Each result was saved before rebasing and running all proof checks again.
 The render conflict kept main's request-session cleanup.
@@ -1231,7 +1232,7 @@ Main then gained Core and telemetry code, ending at `eeb4beef`.
 Those changes are merged with both label banks kept.
 Assumption: keep main's Core and telemetry code; no extra source change is needed.
 All workspace tests, 19 validate lanes, 90 plants, impact refs, and style passed again.
-The final clean-commit gate and mutation follow this saved step.
+The final gate and mutation passed after the input decision below.
 Nothing was pushed.
 
 The in-flight mutation at `2b8b2c37` was stopped for the new input decision.
@@ -1239,4 +1240,9 @@ Its partial result is not proof; the changed code needs a fresh full run.
 C1 and C2 were saved at `0f5a2ad3` after build, check, 449 Start tests, and lazy passed.
 All 90 plants, Jev steps, impact refs, style, 19 validate lanes,
 and all ten workspace test tasks then passed again.
-The final clean-commit gate and full mutation follow this saved step.
+The final gate and full mutation passed on clean `c8d51075`: EXIT 0.
+The log names its full commit; it was clean before and after.
+Main was still `eeb4beef` at the final fetch.
+Only the proof receipt and board notes change after that tested commit.
+Assumption: the receipt saves evidence; it does not change the tested source.
+Ready for lead review and landing; nothing was pushed.
