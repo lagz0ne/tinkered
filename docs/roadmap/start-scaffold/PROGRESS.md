@@ -3339,3 +3339,8 @@ Install and all 12 build tasks passed after the rebase.
 The direct-dep step passes all 31 app tests and the import check.
 The two changed bad-row tests fail before the row-read fix.
 After the fix, all 31 app tests pass, with the same valid-row replies.
+
+Both shipped guides name helpers, one module resource per import path,
+and the shared drizzleOrm dep.
+The plain list adds replayPublic as a caller of raise.
+The registry has 94 matching files; all three copied app builds pass.
