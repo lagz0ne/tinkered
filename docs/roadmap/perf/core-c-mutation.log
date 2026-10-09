@@ -1,19 +1,19 @@
 Core batch C: final mutation proof
-Finished: 2026-10-09 08:00:42 UTC
+Finished: 2026-10-09 09:54:14 UTC
 git rev-parse HEAD
-7b6a331734074961d51713fe01bb15cddebb49bd
+325e89acb89761d20b6e5d412522ce98a7869787
 git status --porcelain
 Command: flock /tmp/mutation.lock vp run core#mutate --concurrency 2 --timeoutMS 60000
 Clean tree before: yes
 Clean tree after: yes
 Exit: 0
-Kills-only score: 3019/3551 = 85.018305% (floor 85%; PASS)
+Kills-only score: 3025/3551 = 85.187271% (floor 85%; PASS)
 Valid denominator: killed + timeout + survived + no coverage.
 RuntimeError and CompileError changes are invalid and excluded.
 Timeouts receive no kill credit.
-Counts: {"Killed": 3019, "NoCoverage": 35, "RuntimeError": 3, "Survived": 468, "Timeout": 29}
+Counts: {"Killed": 3025, "NoCoverage": 35, "RuntimeError": 3, "Survived": 465, "Timeout": 26}
 All planted changes: 3554.
-If invalid changes stay in the denominator: 84.946539%.
+If invalid changes stay in the denominator: 85.115363%.
 The table score includes timeouts; the kills-only score above does not.
 Only this header and summary are committed after the clean run.
 
@@ -21,9 +21,9 @@ Only this header and summary are committed after the clean run.
                  | % Mutation score |          |           |            |          |          |
 File             |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
 -----------------|--------|---------|----------|-----------|------------|----------|----------|
-All files        |  85.83 |   86.69 |     3019 |        29 |        468 |       35 |        3 |
+All files        |  85.92 |   86.77 |     3025 |        26 |        465 |       35 |        3 |
  errors.ts       |  90.82 |   90.82 |       87 |         2 |          9 |        0 |        0 |
- index.ts        |  85.64 |   86.54 |     2843 |        25 |        446 |       35 |        3 |
+ index.ts        |  85.73 |   86.63 |     2849 |        22 |        443 |       35 |        3 |
  testing.ts      |  87.38 |   87.38 |       88 |         2 |         13 |        0 |        0 |
  trace-random.ts | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
 -----------------|--------|---------|----------|-----------|------------|----------|----------|
