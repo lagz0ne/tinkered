@@ -1,10 +1,9 @@
-scaffold/lazy-modules: checker extras
-Base: dc78e0823a9804d75d0900c91c104cf18dba502a
+scaffold/lazy-modules: checker review proof
+Old checker: 948c9e75; all 10 review plants fail their expected check.
 Command: node scripts/check-lazy-modules.mjs --prove
-Result: EXIT 0; 115 cases passed, including 25 new cases.
-Failures match the exact file, line, and rule or unit-body tag.
-Inline run and settle: plain, tags, signal, named, alias, spread, borrowed scope.
-React values pass; a direct component call and a capital helper fail.
-Old checker: the parameter-body plant failed the new unit-body tag match.
-Build: EXIT 0; 12 tasks. Code check: EXIT 0; 0 errors, 27 warnings.
-An overlapping build broke an earlier plant run; that run does not count.
+Fixed checker: 125 cases pass, EXIT 0.
+Each failure plant matches the exact file, line, and tag.
+Missing bodies in d.ts and d.mts point at probe.ts calls.
+Scope.Inline is found by its Core type, with call and bind covered.
+Components used as call or new arguments count as graph code.
+Both source roots together: EXIT 0; code check: 0 errors, 27 warnings.

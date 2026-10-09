@@ -186,11 +186,50 @@ function coreCall(call, target) {
     : undefined;
 }
 
+function coreType(type, name, owner) {
+  const symbol = type.aliasSymbol;
+  if (symbol?.name !== name) return false;
+  return symbol.declarations?.some(
+    (declaration) =>
+      propertyName(declaration.parent.parent?.name) === owner &&
+      packageName(realPath(declaration.getSourceFile().fileName)) === "@tinker/core",
+  );
+}
+
+function inlineParameter(signature, checker) {
+  const parameter = signature?.declaration?.parameters[0];
+  return parameter && coreType(checker.getTypeAtLocation(parameter), "Inline", "Scope");
+}
+
+function indirectInvocation(call) {
+  const expression = unwrap(call.expression);
+  if (ts.isPropertyAccessExpression(expression) && expression.name.text === "call")
+    return { expression: expression.expression, object: call.arguments[1] };
+  if (!ts.isCallExpression(expression)) return undefined;
+  const bound = unwrap(expression.expression);
+  if (ts.isPropertyAccessExpression(bound) && bound.name.text === "bind")
+    return {
+      expression: bound.expression,
+      object: expression.arguments[1] ?? call.arguments[0],
+    };
+}
+
 function inlineCall(call, checker) {
-  if (!ts.isCallExpression(call)) return false;
-  const declaration = checker.getResolvedSignature(call)?.declaration;
-  if (!declaration || propertyName(declaration.parameters[0]?.name) !== "inline") return false;
-  return packageName(realPath(declaration.getSourceFile().fileName)) === "@tinker/core";
+  if (!ts.isCallExpression(call)) return undefined;
+  const indirect = indirectInvocation(call);
+  if (!indirect)
+    return inlineParameter(checker.getResolvedSignature(call), checker)
+      ? { object: call.arguments[0] }
+      : undefined;
+  const { expression, object } = indirect;
+  if (!object || coreType(checker.getTypeAtLocation(object), "Handle", "Operation"))
+    return undefined;
+  return checker
+    .getTypeAtLocation(expression)
+    .getCallSignatures()
+    .some((signature) => inlineParameter(signature, checker))
+    ? indirect
+    : undefined;
 }
 
 function isComponent(node) {
@@ -225,7 +264,8 @@ function calledValue(node) {
 }
 
 function callTarget(parent, value) {
-  if (ts.isCallExpression(parent) || ts.isNewExpression(parent)) return parent.expression === value;
+  if (ts.isCallExpression(parent) || ts.isNewExpression(parent))
+    return parent.expression === value || (parent.arguments?.includes(value) ?? false);
   return ts.isTaggedTemplateExpression(parent) && parent.tag === value;
 }
 
@@ -485,12 +525,13 @@ async function check(roots) {
     const bodies = [];
     for (const file of files) {
       walk(program.getSourceFile(file), (node) => {
-        const kind =
-          coreCall(node, target) ?? (inlineCall(node, checker) ? "operation" : undefined);
+        const declared = coreCall(node, target);
+        const inline = inlineCall(node, checker);
+        const kind = declared ?? (inline ? "operation" : undefined);
         if (!kind) return;
-        const object = unwrap(node.arguments[0]);
+        const object = unwrap(inline ? inline.object : node.arguments[0]);
         if (!object) return fail(node, "unit-body", "unit body not found");
-        collectBodies(kind, object, executables, property, checker, fail, modules, bodies);
+        collectBodies(kind, object, executables, property, checker, fail, modules, bodies, node);
       });
     }
     checkGraph(bodies, checker, target, executables, fail);
@@ -500,10 +541,10 @@ async function check(roots) {
   return hits.size ? 1 : 0;
 }
 
-function collectBodies(kind, object, executables, property, checker, fail, modules, bodies) {
+function collectBodies(kind, object, executables, property, checker, fail, modules, bodies, call) {
   function collect(value) {
     const found = executables(value).filter(isFunction);
-    if (!found.length) return fail(value ?? object, "unit-body", "unit body not found");
+    if (!found.length) return fail(call, "unit-body", "unit body not found");
     for (const body of found) collectBody(body);
   }
   function collectBody(body) {
@@ -519,9 +560,9 @@ function collectBodies(kind, object, executables, property, checker, fail, modul
   if (kind !== "extension")
     return collect(property(object, kind === "resource" ? "factory" : "run"));
   const hooks = property(object, "hooks");
-  if (!hooks) return fail(object, "unit-body", "unit body not found");
+  if (!hooks) return fail(call, "unit-body", "unit body not found");
   const members = checker.getTypeAtLocation(hooks).getProperties();
-  if (!members.length) return fail(hooks, "unit-body", "unit body not found");
+  if (!members.length) return fail(call, "unit-body", "unit body not found");
   for (const hook of members) collect(property(hooks, hook.name));
 }
 
@@ -586,6 +627,60 @@ function extraCases(outsideImport) {
       },
     );
   }
+  for (const method of ["run", "settle"]) {
+    for (const invoke of ["call(scope,", "bind(scope)("]) {
+      cases.push({
+        name: `inline-${method}-${invoke.startsWith("call") ? "call" : "bind"}`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); scope.${method}.${invoke}{run:()=>outside("x")});`,
+      });
+    }
+  }
+  cases.push(
+    {
+      name: "inline-renamed-parameter",
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        'const invoke: (task: Scope.Inline<{},string,void>) => string = createScope().run; invoke({run:()=>outside("x")});',
+    },
+    {
+      name: "component-map",
+      tsx: true,
+      rule: 7,
+      hit: "probe.tsx:2",
+      source:
+        'import {useState} from "react"; function Row() {const [n]=useState(0); return <div>{n}</div>;} operation({run:()=>["a"].map(Row)});',
+    },
+    {
+      name: "component-via-helper",
+      tsx: true,
+      rule: 7,
+      hit: "probe.tsx:2",
+      source:
+        'import {useState} from "react"; function Page() {const [n]=useState(0); return <div>{n}</div>;} function render(view) {return view();} operation({run:()=>render(Page)});',
+    },
+    {
+      name: "component-new-argument",
+      tsx: true,
+      rule: 7,
+      hit: "probe.tsx:2",
+      source:
+        'import {useState} from "react"; function Page() {const [n]=useState(0); return <div>{n}</div>;} class View {constructor(view) {view();}} operation({run:()=>new View(Page)});',
+    },
+    ...["d.ts", "d.mts"].map((suffix) => ({
+      name: `declared-unit-${suffix}`,
+      tag: "unit-body",
+      hit: "probe.ts:2",
+      source: `import {spec} from "./helper.${suffix === "d.ts" ? "js" : "mjs"}"; operation(spec);`,
+      helperName: `helper.${suffix}`,
+      helper: "export declare const spec: {label:string; run:()=>number};",
+    })),
+  );
   cases.push(
     {
       name: "inline-hook",
@@ -1156,7 +1251,7 @@ async function prove() {
       source: "function createRequire() {return 1;} operation({run:()=>createRequire()});",
     },
   );
-  cases.push(...extraCases(outsideImport));
+  cases.unshift(...extraCases(outsideImport));
   try {
     await symlink(
       join(workspace, "packages/start/node_modules"),
@@ -1201,7 +1296,10 @@ async function prove() {
 async function plantSource(root, test, core) {
   await writeFile(join(root, test.tsx ? "probe.tsx" : "probe.ts"), core + test.source);
   if (test.helper)
-    await writeFile(join(root, test.helperTsx ? "helper.tsx" : "helper.ts"), test.helper);
+    await writeFile(
+      join(root, test.helperName ?? (test.helperTsx ? "helper.tsx" : "helper.ts")),
+      test.helper,
+    );
   if (test.leaf) await writeFile(join(root, "leaf.ts"), test.leaf);
   if (test.declaration) await writeFile(join(root, "ambient.d.ts"), test.declaration);
 }

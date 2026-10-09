@@ -3344,3 +3344,10 @@ Both shipped guides name helpers, one module resource per import path,
 and the shared drizzleOrm dep.
 The plain list adds replayPublic as a caller of raise.
 The registry has 94 matching files; all three copied app builds pass.
+
+The 10 new review plants fail against the old checker.
+The fixed checker passes all 125 plants and both source roots.
+Missing-body errors point at user calls, including d.ts and d.mts cases.
+The check reads the Core Scope.Inline type, including call and bind.
+Components passed to calls and constructors count as graph code.
+The root lazy command runs the proof before checking both roots.
