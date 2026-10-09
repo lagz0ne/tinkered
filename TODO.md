@@ -78,12 +78,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
   Next: lead review.
   Verify: scaffold check exits 0; the new test fails on main;
   writer gate and all release lanes pass; owned chunks stay at most 255 slots.
+  [Proof](packages/start/BUILD-CHUNK-CYCLE.md).
 
 - **scaffold/proof-app-imports** — drop unused imports in the proof copy.
   Owner: writer (Codex).
   Next: lead review.
   Verify: main's three `TS6133` errors are gone; the writer gate exits 0.
-  The full app check still fails: built `responseBodies` reads an unset `startServer` dep.
+  The full app check exits 0 with `start/build-chunk-cycle`.
   [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldproof-app-imports).
 
 - **core/rules-batch-C** — cell controller memo and the cold write hook split.
