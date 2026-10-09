@@ -1,0 +1,21 @@
+Core batch C: N=61 skip
+A: 44cdfc22a746ceb0f09f96b6e93b44563bc92afb
+B: 44d94a1a0ecde00a2f9d3c6aeff5671af67f27dd
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+writeunwatched: b is faster; median 3195.7 -> 58.6 ns; B slower 0/61; p=8.67362e-19
+watchclose: b is slower; median 468.5 -> 692.1 ns; B slower 61/61; p=8.67362e-19
+write: b is faster; median 63.1 -> 59.9 ns; B slower 1/61; p=5.37764e-17
+lifecycle: no difference we can see; median 751.8 -> 753.9 ns; B slower 35/60; p=0.245061
+op: no difference we can see; median 58.1 -> 57.8 ns; B slower 31/59; p=0.794844
+run: no difference we can see; median 71.7 -> 71.7 ns; B slower 30/61; p=1
+tagged: no difference we can see; median 176.1 -> 175.7 ns; B slower 23/58; p=0.148006
+session: no difference we can see; median 477.7 -> 462.2 ns; B slower 24/61; p=0.123731
+
+Decision: DROP; slower rows: watchclose
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-c/skip-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-c/skip-timing-full.log

@@ -1,0 +1,22 @@
+Core batch C retained-source checks; source before proof commit: 929b1bae74c612a3cae3f03affa0b952cebc6d9b
+origin/main: 9c826567; fetch/rebase EXIT 0.
+Install EXIT 0.
+build: EXIT 0
+ticket: EXIT 0
+validate: EXIT 0
+prose: EXIT 0
+Scaffold check: SKIPPED by user; check-middleware.mjs:117, HTTP 500 InvalidDependency on clean main.
+Core source 873 tests; built-file 883 tests; all consumer test configs pass.
+Lint: zero errors, 27 existing warnings.
+Core runtime: 15,893 -> 15,932 B gzip; cap 16,384; 452 B free.
+Runtime index SHA256: c8f09cc3919905a9f00fc2588ded0cbd7bae9a2fe94d7695bcb4f13cb8308656
+Runtime matches the clean pinned N=61 hook-split build byte for byte.
+Slots: Core 339, React 21; every existing hot bytecode and closure ceiling unchanged.
+Changed declarations and the new dependency-controller test: strict style EXIT 0.
+TSDoc shape: EXIT 0.
+Source diff against origin/main read after both rejected parts were removed.
+Jev final: 300 units; 109 flagged units; 167 non-noisy hits in 108 units labelled false with reasons.
+Whole-file model review skips the large Core file; its zero file flags do not cover that file.
+The lead runs calibration before landing.
+Mutation runs next on the final clean source commit; only its header and summary follow.
+No push; no batch D work.

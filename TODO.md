@@ -55,13 +55,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/rules-batch-C** — memoize cell deps, cut write costs, skip unwatched branches.
-  Owner: Core rules writer (Codex).
-  Next: measure each ticket alone; drop any slower N=61 row.
-  Verify: ticket, release checks, 85% kills alone, and all kept rows avoid slowdown.
-  Skip the scaffold middleware gate as the user asked.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
@@ -73,6 +66,14 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **core/rules-batch-C** — cell controller memo and the cold write hook split.
+  Owner: Core rules writer (Codex).
+  Next: lead review and Jev calibration after the clean fault-test proof.
+  Verify: all kept N=61 rows avoid slowdown; gates pass; Core clears 85% on kills alone.
+  Shared write callbacks and the watcher index are dropped on slower rows.
+  The scaffold middleware gate is skipped at the user's request.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
 
 - **core/rules-batch-B** — lean run hooks and the release Q2 test.
   Owner: Core rules writer (Codex).

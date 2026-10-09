@@ -1599,6 +1599,44 @@ N=61 unwatched write: 3,195.7 -> 58.6 ns, b is faster in every pair.
 N=61 watch setup and graceful child close: 468.5 -> 692.1 ns, b is slower in every pair.
 Each row has p = 8.67362e-19.
 The slower row rejects the whole index; its write gain does not buy slower setup and close.
-The remaining rows are still being collected on the clean pinned trial.
-The lane source returns to the two kept tickets.
+[Rejected index timing](core-c-skip-timing.log) saves every row from the clean pinned trial.
+Plain write is faster too; op, run, tagged, session, and lifecycle show no difference we can see.
+Rejection: `929b1bae`; the lane source returns to the two kept tickets.
 No unchanged candidate is retried for a better verdict.
+
+### Final C proof and handoff
+
+Assumption: retain the shipped Set iteration and close rules.
+All attempts used clean pinned A and B trees with the same probe on both sides.
+Each row has 61 mitata batch samples per tree.
+Verdicts use the paired two-sided sign test, p below 0.05, excluding ties.
+The first setup attempt failed before any timing row because its dependency link used a host-invisible path.
+Its corrected links are relative; no failed run supplies a keep verdict.
+The unrecorded watcher prototypes were not timed and supply no speed claim.
+[Retained checks](core-c-checks.log) record every gate exit and the runtime hash.
+The final build is byte-for-byte the kept hook-split build.
+Install, build, ticket, all 19 release checks, and prose exit 0.
+The ticket covers check, every package test config, Core built-file tests, and size.
+Core has 873 source tests and 883 built-file tests.
+Only the scaffold middleware check is skipped, as the user asked.
+Core gzip: 15,893 -> 15,932 bytes, under 16,384.
+Slots stay 339; every saved hot bytecode and closure ceiling stays unchanged.
+Changed declarations and the new test have zero strict style hits.
+TSDoc shape exits 0.
+The final diff has been read after both rejected parts were removed.
+
+Final Jev: 300 units, 109 flagged units, and zero file flags.
+All 167 non-noisy hits in 108 units have a false label and a reason.
+[Label commands](core-c-jev-labels.log) include exact source refs for kept and rejected trials.
+The file review skips Core because it is too large; the source diff was read by the writer.
+The new dependency-controller test adds no test flag or README gap.
+The nested-write and deep-watch tests are removed with their rejected code.
+Old plain test flags and README gaps stay outside this batch.
+The lead runs calibration before landing.
+Core feedback: none; both kept changes use the existing public API.
+
+Saved work waits in Review.
+The final Core fault run follows on the clean source commit, alone under the shared lock.
+It must clear 85% on kills alone; only its header and summary are committed after the run.
+[Fault-test proof](core-c-mutation.log) will name that commit and the empty tree.
+No push, publish, or batch D work is done.
