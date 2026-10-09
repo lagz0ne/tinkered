@@ -1,0 +1,21 @@
+Core batch C: N=61 split
+A: 4c986e5c57343f23ab8010673bcb57f0b1c108c6
+B: 44cdfc22a746ceb0f09f96b6e93b44563bc92afb
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+write: b is faster; median 62.8 -> 61.9 ns; B slower 16/61; p=0.000264279
+writehook: b is faster; median 337.8 -> 337.3 ns; B slower 20/61; p=0.00985345
+lifecycle: no difference we can see; median 787.3 -> 786.3 ns; B slower 31/61; p=1
+op: no difference we can see; median 57.2 -> 56.5 ns; B slower 27/61; p=0.442626
+run: no difference we can see; median 76.4 -> 75.5 ns; B slower 25/60; p=0.245061
+tagged: no difference we can see; median 178.1 -> 177.9 ns; B slower 30/57; p=0.791366
+session: no difference we can see; median 430.1 -> 437.5 ns; B slower 31/61; p=1
+depctl: no difference we can see; median 63.9 -> 64.2 ns; B slower 30/58; p=0.895683
+
+Decision: KEEP; no slower row.
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-c/split-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-c/split-timing-full.log

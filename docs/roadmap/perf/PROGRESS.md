@@ -1549,7 +1549,8 @@ No row is slower.
 Commit `d9928520` moved write hook closures to a cold function.
 Shared Set callbacks also replaced the child and watcher iterators.
 This kept live registration order and restored state after nested writes.
-The nested-write seam test passes.
+The nested-write seam test passed on the trial.
+That test is removed with the callback code.
 The callbacks removed iterator work without changing the child collection.
 This differs from the report's arrays, which change iteration during callbacks.
 The two one-use helpers moved into their callers to keep slots at 339.
@@ -1558,4 +1559,46 @@ Runtime size: 16,016 bytes gzip, below 16,384.
 N=61 write: 63.9 -> 83.2 ns, b is slower in all 61 pairs.
 The callback part is rejected despite its allocation saving.
 The next attempt keeps only the hook split and uses the old Set loops.
-Its rows and the unwatched-branch trial are pending.
+[Rejected callback timing](core-c-write-callback-timing.log) saves every row.
+The hooked write is slower too: 356.4 -> 369.7 ns.
+
+### core/write-hook-cold: keep V23; drop V27
+
+Kept source: `44cdfc22`.
+Only a hooked write enters `runWriteHooks` and makes its onion context.
+Unhooked writes retain the old child and watcher Set loops.
+The first-use comparison moves into `addWatcher` to pay for the helper's slot.
+Slots remain 339; no saved bytecode or closure ceiling rises.
+Maglev allocation: 314.4 -> 201.6 bytes per write.
+The iterator cost remains; only the write hook context is removed from plain writes.
+Runtime size after the two kept tickets: 15,932 bytes gzip.
+Batch base: 15,893; cap: 16,384.
+The difference is 39 bytes, leaving 452 bytes free.
+[Kept split timing](core-c-write-split-timing.log) saves all eight N=61 rows.
+Write: 62.8 -> 61.9 ns, b is faster.
+Hooked write: 337.8 -> 337.3 ns, b is faster.
+Op, run, tagged, session, lifecycle, and cell controller calls: no difference we can see.
+No kept row is slower.
+Build, ticket, all 19 release checks, and prose exit 0 on the candidate.
+
+### core/write-skip-unwatched: dropped
+
+Trial source: `44d94a1a`.
+Each cell's watch record counted registrations and indexed its watched child branches.
+Default and named watchers contributed to every ancestor.
+Stopping a watch or closing a child removed that contribution.
+The old empty own-watch marker still kept the same session close path.
+No field was added to Layer; child close read its node records to detach counts.
+The deep-watch test passed through unsubscribe, repeated stop, close, and a sibling watch.
+The test is removed with the rejected index.
+The warmed report probe read 305 -> 4 Map entries per write with 100 open sessions.
+At 1,000 sessions it read 3,005 -> 4; the first shadow still clears inherited caches.
+Runtime size: 16,191 bytes gzip, below 16,384.
+Slots stayed 339; the saved hot bytecode ceilings stayed the same.
+N=61 unwatched write: 3,195.7 -> 58.6 ns, b is faster in every pair.
+N=61 watch setup and graceful child close: 468.5 -> 692.1 ns, b is slower in every pair.
+Each row has p = 8.67362e-19.
+The slower row rejects the whole index; its write gain does not buy slower setup and close.
+The remaining rows are still being collected on the clean pinned trial.
+The lane source returns to the two kept tickets.
+No unchanged candidate is retried for a better verdict.
