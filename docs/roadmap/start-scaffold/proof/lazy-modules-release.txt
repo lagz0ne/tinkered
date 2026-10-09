@@ -1,0 +1,7 @@
+scaffold/lazy-modules: native owner release
+Before fix: a3f02aff; two release tests fail, EXIT 1.
+The split kept the same native sender and database handle after public release.
+After fix: all 31 scaffold tests pass, EXIT 0.
+Public resources own their native clients; only SDK selection runs through an operation dep.
+Recorded mail still loads no SMTP library; fresh-process import proof: EXIT 0.
+Build, code check, and lazy: EXIT 0; 0 errors and 27 warnings.
