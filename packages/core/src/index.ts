@@ -2248,9 +2248,12 @@ function runParked<T, I>(
   deps: Record<string, unknown>,
   ctx: Operation.Ctx<I>,
   pending: PendingSlot[],
+  hook?: HookRun,
 ): T {
   return settleDeps(deps, pending).then(() =>
-    override ? override(deps, ctx) : target.run(deps, ctx),
+    hook === undefined
+      ? runBody(override, target, deps, ctx, undefined)
+      : withHookAccess(hook, () => runBody(override, target, deps, ctx, undefined)),
   ) as T;
 }
 
@@ -2504,7 +2507,10 @@ function stripNs<I>(call: Scope.Invocation<I>): Scope.Invocation<I> | undefined 
  * (ADR 0026 Q2). */
 function releaseBorrows(held: HeldBorrows | undefined): void {
   if (!held) return;
-  for (const owned of held.list) removeBorrow(owned, held.done);
+  for (const owned of held.list) {
+    owned.pending?.delete(held.done);
+    finishTracked(owned);
+  }
   held.settle();
 }
 
@@ -3472,11 +3478,6 @@ function addBorrow(owned: ResourceInstance, held: HeldBorrows): void {
 function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | undefined {
   if ((target as BorrowFlag).borrows !== true) return undefined;
   return createBorrows();
-}
-
-function removeBorrow(owned: ResourceInstance, work: Promise<unknown>): void {
-  owned.pending?.delete(work);
-  finishTracked(owned);
 }
 
 /** Seed a layer's tag list from the authored bindings: nothing (or only nothing, however
@@ -5213,8 +5214,17 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   get random(): Random.Handle {
     return this.layer.random;
   }
+  /** Hook tools can precede input parsing. Only `next()` admits the input; both contexts share
+   * the same span and ordered cleanup list once a body starts. */
   private get ctx(): OperationCtx<unknown> | undefined {
-    return this.flight === undefined ? undefined : hookCtx(this.flight);
+    const run = this.flight;
+    if (run === undefined) return undefined;
+    return (run.ctx ??= new OperationCtx(
+      run.layer,
+      { label: run.label, input: undefined },
+      run.call,
+      run.span,
+    ));
   }
   private use<T>(fn: () => T): T {
     return this.flight === undefined ? fn() : withHookAccess(this.flight, fn);
@@ -5738,24 +5748,19 @@ function runHookChain<T, I>(
 ): unknown {
   const span = openSpan(layer.obs, layer, up, target.label, "operation");
   const run = createHookRun(layer, span, target.label, call, caller);
-  const finish = (status: "ok" | "failed", error?: unknown): void => {
-    finishHookRun(run, status, error);
-  };
   let result: unknown;
   try {
     result = invokeRunHooks(run, target, hookTarget, call, chain);
   } catch (error) {
     failHookRun(run, error);
-    finish("failed", error);
+    finishHookRun(run, "failed", error);
     throw error;
   }
   if (!isThenable(result)) {
-    finish("ok");
+    finishHookRun(run, "ok");
     return result;
   }
-  const ready = Promise.resolve(result);
-  track(layer, ready, (error) => failHookRun(run, error), finish);
-  return ready;
+  return trackHookRun(run, result, true);
 }
 
 /** Set the hook record's fields together so reading tools or starting work keeps its shape. */
@@ -5778,17 +5783,6 @@ function createHookRun(
     work: undefined,
     failed: undefined,
   };
-}
-
-/** Hook tools can precede input parsing. Only `next()` admits the input; both contexts share
- * the same span and ordered cleanup list once a body starts. */
-function hookCtx(run: HookRun): OperationCtx<unknown> {
-  return (run.ctx ??= new OperationCtx(
-    run.layer,
-    { label: run.label, input: undefined },
-    run.call,
-    run.span,
-  ));
 }
 
 function invokeRunHooks<T, I>(
@@ -5856,17 +5850,9 @@ function runHookBody<T, I>(
         exitHookAccess(previous);
       }
     } else {
-      result = settleDeps(deps, pending).then(() =>
-        withHookAccess(run, () => runBody(override, target, deps, ctx, undefined)),
-      );
+      result = runParked(override, target, deps, ctx, pending, run);
     }
-    if (isThenable(result)) {
-      const ready = Promise.resolve(result);
-      (run.work ??= []).push(ready);
-      track(run.layer, ready, (error) => failHookRun(run, error));
-      return ready;
-    }
-    return result;
+    return isThenable(result) ? trackHookRun(run, result) : result;
   } catch (error) {
     failHookRun(run, error);
     throw error;
@@ -5899,15 +5885,33 @@ function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): 
   }
   closeSpan(run.layer.obs, run.span, status, error);
   const fns = run.ctx?.hooks;
-  const done = (): void => {
-    run.live = false;
-    if (run.ctx) run.ctx.live = false;
-    releaseBorrows(run.held);
-  };
-  void thenDone(
-    fns === undefined ? undefined : runDefers(run.layer, fns, endFor(run.layer, status, error)),
-    done,
+  const tail =
+    fns === undefined ? undefined : runDefers(run.layer, fns, endFor(run.layer, status, error));
+  if (tail === undefined) finishHookDone(run);
+  else void thenDone(tail, () => finishHookDone(run));
+}
+
+/** Only asynchronous hook work needs completion callbacks and a retained body promise. */
+function trackHookRun(
+  run: HookRun,
+  result: PromiseLike<unknown>,
+  finish = false,
+): Promise<unknown> {
+  const ready = Promise.resolve(result);
+  if (!finish) (run.work ??= []).push(ready);
+  track(
+    run.layer,
+    ready,
+    (error) => failHookRun(run, error),
+    finish ? (status, error) => finishHookRun(run, status, error) : undefined,
   );
+  return ready;
+}
+
+function finishHookDone(run: HookRun): void {
+  run.live = false;
+  if (run.ctx) run.ctx.live = false;
+  releaseBorrows(run.held);
 }
 
 function hookEvent<const D extends Scope.ExtensionDetails[keyof Scope.ExtensionDetails]>(

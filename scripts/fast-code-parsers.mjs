@@ -12,6 +12,7 @@ export const hotFunctions = [
   "buildHooklessResource",
   "resolveDep",
   "runHookChain",
+  "runHookBody",
   "invokeRunHooks",
   "stepRunHook",
 ];

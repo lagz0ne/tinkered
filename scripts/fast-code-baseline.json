@@ -11,7 +11,8 @@
     "OperationCtx": 126,
     "buildHooklessResource": 451,
     "resolveDep": 223,
-    "runHookChain": 222,
+    "runHookChain": 187,
+    "runHookBody": 298,
     "invokeRunHooks": 49,
     "stepRunHook": 201
   },
@@ -21,7 +22,8 @@
     "OperationCtx": 0,
     "buildHooklessResource": 3,
     "resolveDep": 0,
-    "runHookChain": 2,
+    "runHookChain": 0,
+    "runHookBody": 0,
     "invokeRunHooks": 0,
     "stepRunHook": 1
   },

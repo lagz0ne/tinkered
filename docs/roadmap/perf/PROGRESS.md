@@ -1301,3 +1301,20 @@ The other rows: op and run faster; tagged and session no difference; opres faste
 Opres falls from 256.6 -> 112.2 ns, but a slower row rejects the whole change.
 [Borrow timing proof](core-b-borrow-timing.log) saves all six rows.
 Hook and brand timing must use the retained Set model as their base.
+
+### B2 — core/hook-run-lean (V4, V18)
+
+The hook body uses the shared parked tail; async tracking stays outside it.
+Finish and final cleanup call module functions; sync runs make no callbacks for them.
+One-use context and borrow helpers move into their sole caller to keep the slot ceiling.
+Borrow release still deletes the main model's pending promise and settles after the loop.
+The hook context still shares parsing, tools, and ordered cleanup with the body.
+The queue probe adds `hooked`; the same probe measures both builds.
+Bytecode: runHookBody 498 -> 298 bytes; runHookChain 222 -> 187 bytes.
+Both functions now contain zero callback literals; slots stay at 339.
+The new body ceiling is 298; the chain ceiling falls to 187.
+Hooked allocation: 964 -> 708 bytes per call, 7/7 clean rounds on both builds.
+Sync hooked promises remain zero.
+Default Maglev trace still inlines OperationCtx into runHookBody.
+It does not inline runHookBody into stepRunHook; no such gain is claimed.
+N=61 timing is pending on a clean pinned source commit.
