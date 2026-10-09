@@ -1056,12 +1056,23 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
 
 ### Lead decisions
 
-- User, 2026-10-08: no zod error crosses into graph code.
+- User, 2026-10-09: `openSync` reads raw request fields in its input callback.
+  This replaces the earlier endpoint `safeParse` decision.
+  Header, query, JSON, and cursor checks run before the operation body.
+  Core turns a thrown input read into managed `DataValidationFailed`.
+  The endpoint passes raw fields and maps that failure to 400.
+  `StreamDenied` maps to 403; other failures keep their own error.
+  The endpoint has no parser, catch, or zod error.
   No lazy module for zod was added.
-  The endpoint uses top-level schemas and checks `safeParse().success`.
-  JSON parsing catches only the global `SyntaxError`.
-  The HTTP failure schema stays at the top level.
-  The same 400 replies and `HttpRequestFailed` payloads pass the old checks.
+  Typed `{ cursor }` input stays checked and skips the input callback.
+  Assumption: keep raw `{ cursor }` too; an existing test uses it.
+  The input schema accepts that old form beside HTTP fields.
+  All 449 old Start tests pass unchanged, including every named reply case.
+  No new test is needed for those covered cases.
+- The HTTP failure schema stays at the top level.
+  Its `safeParse` reads a caught native error, not operation input.
+  A one-line TSDoc states that narrow case.
+  The `HttpRequestFailed` payloads pass the old checks unchanged.
 - The body owner takes `startServer` directly.
   Its factory is async, as ADR 0044 requires.
   The private transfer operation is gone.
@@ -1220,3 +1231,7 @@ Assumption: keep main's Core and telemetry code; no extra source change is neede
 All workspace tests, 19 validate lanes, 90 plants, impact refs, and style passed again.
 The final clean-commit gate and mutation follow this saved step.
 Nothing was pushed.
+
+The in-flight mutation at `2b8b2c37` was stopped for the new input decision.
+Its partial result is not proof; the changed code needs a fresh full run.
+Build, check, 449 Start tests, and lazy passed before saving C1 and C2.
