@@ -3254,7 +3254,7 @@ All failing plants match the exact file, line, and tag.
 Backend and frontend module files own the lazy loads.
 Drizzle uses the existing Start node.
 Tables and schemas stay at the top.
-Stored events and results pass through rawInput into Core readers.
+The review checks fetched events and results with safeParse.
 The two bad-row tests failed with ZodError before that fix.
 The entry exports and returned types stay the same.
 
@@ -3266,7 +3266,7 @@ The first split failed both release tests; the final factory passes them.
 The backend import proof remains; preset mail may load SMTP.
 
 Assumption: the event reader is app code, not an entry export.
-Its two callers now share an array schema and a Core reader.
+Its two callers now share an array schema.
 The plain list drops that old helper and keeps nine functions.
 The mail registry item owns a file with only the SMTP module.
 The full demo owns the remaining backend and frontend module files.
@@ -3335,3 +3335,7 @@ The caller gets no ZodError.
 
 The rebase kept both board cards and both sides of the label bank.
 Install and all 12 build tasks passed after the rebase.
+
+The direct-dep step passes all 31 app tests and the import check.
+The two changed bad-row tests fail before the row-read fix.
+After the fix, all 31 app tests pass, with the same valid-row replies.
