@@ -1,0 +1,21 @@
+Core batch C: N=61 write
+A: 4c986e5c57343f23ab8010673bcb57f0b1c108c6
+B: d9928520bffbdee4670461af48be0ea90858f63f
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+write: b is slower; median 63.9 -> 83.2 ns; B slower 61/61; p=8.67362e-19
+writehook: b is slower; median 356.4 -> 369.7 ns; B slower 44/61; p=0.000729905
+lifecycle: no difference we can see; median 1014.2 -> 1004.6 ns; B slower 33/61; p=0.608921
+op: no difference we can see; median 57.6 -> 57.6 ns; B slower 31/61; p=1
+run: no difference we can see; median 72.5 -> 72.5 ns; B slower 29/60; p=0.897422
+tagged: no difference we can see; median 188.9 -> 189.4 ns; B slower 29/61; p=0.798153
+session: no difference we can see; median 423.1 -> 431.5 ns; B slower 32/61; p=0.798153
+depctl: b is faster; median 64.4 -> 64.1 ns; B slower 22/61; p=0.039617
+
+Decision: DROP; slower rows: write, writehook
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-c/write-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-c/write-timing-full.log

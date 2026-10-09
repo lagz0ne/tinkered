@@ -989,8 +989,15 @@ type HookFlag = { readonly mayHook?: boolean };
 type Entry = { value: unknown };
 /** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
 type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
+
 /** One default-bucket subscription: a wrapper so the same listener subscribed twice keeps two
  * identities. The single per-layer compare lives on the node record (`prev`). */
+type CellWatchers = {
+  count: number;
+  own: Set<Watcher> | undefined;
+  children: Set<Layer> | undefined;
+};
+
 type Watcher = { fn: (next: unknown, prev: unknown) => void };
 
 /** One namespaced subscription. Its complete chain and comparison value belong to this watcher:
@@ -1062,8 +1069,9 @@ class NodeState {
   /** Memoized controller: the public `controller` path always passes an undefined observation
    * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
   controller: unknown;
-  /** Watchers of this cell registered at this layer (a write visits only the changed cell's). */
-  watch: Set<Watcher> | undefined;
+  /** Registration and detach keep this cell's counts and child branches in sync,
+   * so a write visits only subtrees with live watchers. */
+  watch: CellWatchers | undefined;
   /** Value the watchers at this layer were last called with; refreshed at registration so a new
    * watcher never inherits a stale comparison. */
   prev: unknown;
@@ -1313,9 +1321,11 @@ function ownCell(
  * shadows the cell, and everything under it, still sees its own value). One equality check against
  * the layer's last notified value, then every watcher runs in registration order. */
 function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
-  flushOne(layer, target);
-  flushNsWatchers(layer, target, key);
-  for (const child of layer.children) {
+  const rec = layer.nodes.get(target);
+  if (!rec?.watch?.count) return;
+  flushOne(layer, target, rec);
+  flushNsWatchers(layer, target, key, rec);
+  for (const child of CellWatchTree.readChildren(rec)) {
     if (!child.nodes.get(target)?.cell) flushCell(child, target);
   }
 }
@@ -1324,13 +1334,12 @@ function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): v
  * handing each the value before the write beside the next one. The previous value travels
  * positionally — no pair allocated per notification — and costs a one-argument listener
  * nothing: an extra argument passed is an extra argument ignored. */
-function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
-  const rec = layer.nodes.get(target);
-  const ws = rec?.watch;
-  if (!ws?.size || !rec) return;
+function flushOne(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): void {
+  const ws = rec.watch?.own;
+  if (!ws?.size) return;
   const next = readCell(layer, target);
   const prev = rec.prev;
-  if (!cellEq(target, prev, next)) notifyLayer(rec, ws, next, prev);
+  if (!target.eq(prev, next)) notifyLayer(rec, ws, next, prev);
 }
 
 /** Run one layer's watchers in registration order against the value already read for the layer. */
@@ -1339,20 +1348,69 @@ function notifyLayer(rec: NodeState, ws: Set<Watcher>, next: unknown, prev: unkn
   for (const w of ws) w.fn(next, prev);
 }
 
-function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
-  return target.eq(a, b);
+class CellWatchTree {
+  /** Each registration contributes once to every ancestor's cell count.
+   * Only children with a live contribution belong to the notification walk. */
+  static changeCounts(
+    layer: Layer,
+    target: Data.Cell<unknown>,
+    delta: number,
+    child?: Layer,
+  ): CellWatchers {
+    const result = CellWatchTree.changeLayer(layer, target, delta, child, 0);
+    let below = result.count;
+    child = layer;
+    for (let cur = layer.up; cur; cur = cur.up) {
+      const watch = CellWatchTree.changeLayer(cur, target, delta, child, below);
+      child = cur;
+      below = watch.count;
+    }
+    return result;
+  }
+  static changeLayer(
+    layer: Layer,
+    target: Data.Cell<unknown>,
+    delta: number,
+    child: Layer | undefined,
+    below: number,
+  ): CellWatchers {
+    const rec = nodeState(layer, target);
+    const watch = (rec.watch ??= { count: 0, own: undefined, children: undefined });
+    watch.count += delta;
+    CellWatchTree.changeChildren(watch, child, below);
+    if (watch.count === 0) {
+      rec.watch = watch.own === undefined ? undefined : watch;
+    }
+    return watch;
+  }
+  static changeChildren(watch: CellWatchers, child: Layer | undefined, below: number): void {
+    if (!child) return;
+    if (below === 0) watch.children?.delete(child);
+    else (watch.children ??= new Set()).add(child);
+  }
+  static readChildren(rec: NodeState | undefined): Set<Layer> {
+    return rec?.watch?.children ?? NO_CHILDREN;
+  }
+  /** Only cell records can hold watches. Detach their remaining registrations
+   * before a child layer's node store moves or clears. */
+  static detach(layer: Layer, up: Layer): void {
+    for (const [target, rec] of layer.nodes) {
+      const count = rec.watch?.count;
+      if (count) CellWatchTree.changeCounts(up, target as Data.Cell<unknown>, -count, layer);
+    }
+  }
 }
 
-function writeCell<T>(
+function writeCell(
   layer: Layer,
-  target: Data.Cell<T>,
+  target: Data.Cell<unknown>,
   next: unknown,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): void {
   if (chain !== undefined && chain.length !== 0) return writeCellNs(layer, target, chain, next);
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
-  if (cellEq(target, readCell(layer, target, chain), value)) return;
+  if (target.eq(readCell(layer, target, chain), value)) return;
   ownCell(layer, target, chain).value = value;
   flushCell(layer, target);
 }
@@ -1369,7 +1427,7 @@ function writeCellNs(
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
   const current = readCell(layer, target, chain);
-  if (cellEq(target, current, value)) return;
+  if (target.eq(current, value)) return;
   const [key] = chain;
   ownNsCell(layer, target, key, current).value = value;
   flushInheritedNsWatchers(layer, target, key);
@@ -1377,8 +1435,13 @@ function writeCellNs(
 
 /** A named bucket change can affect only chains containing its key at this layer. A default
  * change or a flush inherited by a child re-resolves all chains. */
-function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
-  const nsWatch = layer.nodes.get(target)?.nsWatch;
+function flushNsWatchers(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  key: Namespace | undefined,
+  rec: NodeState,
+): void {
+  const nsWatch = rec.nsWatch;
   if (!nsWatch) return;
   const watch = key === undefined ? nsWatch.all : nsWatch.keys.get(key);
   if (!watch?.size) return;
@@ -1397,7 +1460,7 @@ function pendingNsWatchers(
   for (const watcher of watch) {
     const next = readCell(layer, target, watcher.ns);
     const prev = watcher.prev;
-    if (cellEq(target, prev, next)) continue;
+    if (target.eq(prev, next)) continue;
     watcher.prev = next;
     (pending ??= []).push({ fn: watcher.fn, next, prev });
   }
@@ -1509,13 +1572,17 @@ function addWatcher(
   fn: (next: unknown, prev: unknown) => void,
 ): () => void {
   ensureOpen(layer);
-  if (!rec.watch?.size) {
+  if (!rec.watch?.own?.size) {
     const next = readCell(layer, target);
-    if (!cellEq(target, rec.prev, next)) rec.prev = next;
+    if (!target.eq(rec.prev, next)) rec.prev = next;
   }
+  const watch = CellWatchTree.changeCounts(layer, target, 1);
+  const ws = (watch.own ??= new Set());
   const w: Watcher = { fn };
-  (rec.watch ??= new Set()).add(w);
-  return () => void rec.watch?.delete(w);
+  ws.add(w);
+  return () => {
+    if (ws.delete(w) && !layer.closed) CellWatchTree.changeCounts(layer, target, -1);
+  };
 }
 
 function writeWithHooks<T>(
@@ -1568,6 +1635,7 @@ function addWatcherNs(
   const watcher: NsWatcher = { fn, ns: chain, prev: readCell(layer, target, chain) };
   const nsWatch = (rec.nsWatch ??= { all: new Set(), keys: new Map() });
   nsWatch.all.add(watcher);
+  CellWatchTree.changeCounts(layer, target, 1);
   const keys = nsWatch.keys;
   for (const key of chain) {
     let watch = keys.get(key);
@@ -1578,7 +1646,8 @@ function addWatcherNs(
     watch.add(watcher);
   }
   return () => {
-    nsWatch.all.delete(watcher);
+    if (!nsWatch.all.delete(watcher)) return;
+    if (!layer.closed) CellWatchTree.changeCounts(layer, target, -1);
     for (const key of chain) {
       const watch = keys.get(key);
       watch?.delete(watcher);
@@ -4432,6 +4501,7 @@ function failedRun(layer: Layer, error: unknown, signal?: AbortSignal): RunResul
 function detachLayer(layer: Layer): Layer | undefined {
   if (layer.links) detachNsLinked(layer, layer.links);
   const up = layer.up;
+  if (up && layer.nodes.size !== 0) CellWatchTree.detach(layer, up);
   up?.children.delete(layer);
   return up;
 }
@@ -5980,7 +6050,7 @@ function flushInheritedNsWatchers(layer: Layer, target: Data.Cell<unknown>, key:
   function collect(cur: Layer): void {
     const watch = cur.nodes.get(target)?.nsWatch?.keys.get(key);
     if (watch) pending.push(...(pendingNsWatchers(cur, target, watch) ?? []));
-    for (const child of cur.children) {
+    for (const child of CellWatchTree.readChildren(cur.nodes.get(target))) {
       if (!shadowsNamedChange(child, target, key)) collect(child);
     }
   }
