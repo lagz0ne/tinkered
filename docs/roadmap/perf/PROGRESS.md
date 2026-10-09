@@ -1389,3 +1389,38 @@ The hooked row is faster, but either slower row rejects the whole ticket.
 Keep main's seven private keys and the hook source's 339-slot ceiling.
 ResolveDep keeps its main 223-byte ceiling; no brand shape or slot gain is retained.
 The checker-name workaround belongs to the rejected trial; no app files change.
+
+### B checks before timing
+
+[Source checks](core-b-checks.log) name source commit `3c5e9b87`.
+Install, full build, ticket, 19 release checks, prose, and scaffold all exit 0.
+Core has 872 source tests and 882 built-file tests.
+All package test configs pass; lint keeps main's 27 warnings and zero errors.
+SCIP indexed Core, React, Start, and Blueprint and checked all seven handle refs.
+The six removed private brand names have no refs; `operationSym` is the shared key.
+Strict style: changed declarations and the full Q2 test file exit 0.
+The full Core scan keeps old strict hits: S04 2 -> 1; S10, S14, P06 stay at 1 each.
+No new strict hit is added; TSDoc has zero S26 rows.
+Jev review exits 0 with no flags.
+
+Jev pre-flight reads 299 units and flags 107.
+Its 163 non-noisy judge hits get a false label with a reason.
+[Label commands and old test notes](core-b-jev-labels.log) save every answer.
+The labels explain Core's owned engine state and required lifetime waits.
+Shape reasons name born fields or honestly retain existing lazy writes.
+The old span and failure shape paths are outside B; no gain is claimed there.
+Noisy and note-only hits need no label under the tool's rule.
+The lead runs calibration before landing.
+
+The new Q2 test has no test-style flag and maps to the release promise.
+The package test scan has seven old test-style flags and one old timer-file flag.
+The old guard tests put `isError` in assertions; old identity tests repeat deep equality.
+Those are existing test-style debt; B does not widen its cleanup test into a test rewrite.
+The timer case checks a host callback after its caller ends; B adds no timed wait.
+The test checker has no registered label judge, so those plain flags get this explanation.
+The promise scan has 42 old titles with no README match and 75 unsure matches.
+They cover existing async typing, ownership, release, close, namespace, tag, and error cases.
+They are details of shipped contracts, not new B features.
+The short README does not list every case; decisions and tests keep those details.
+B adds the ADR 0026 Q2 check; its title has a README match.
+No new promise gap is added and no per-ticket Jev rule is written.
