@@ -1110,8 +1110,8 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
   One public test checks one load span across two sessions.
 - `vp run -r build`: EXIT 0; 12 tasks.
   `vp check`: EXIT 0; 0 errors and 27 warnings after the rebase.
-  The base is `ae452162`, with the Core, scaffold, React, Start server, and sync changes.
-  `vp run @tinker/start#test`: EXIT 0; 41 files, 441 tests.
+  The base is `eeb4beef`, with the Core, scaffold, React, Start server, sync, and telemetry changes.
+  `vp run @tinker/start#test`: EXIT 0; 43 files, 449 tests.
   `vp run @tinker-start-scaffold#test`: EXIT 0; 6 files, 27 tests.
   The first clean-commit gate passed at `7e9ce9e1`: EXIT 0.
   Install, build, check, both test tasks, and all workspace tests passed after the rebase.
@@ -1137,29 +1137,31 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
 ### Jev labels
 
 `node tools/jev/preflight.mjs origin/main..HEAD`: EXIT 0.
-No file flags; four units had seven flags after the sync rebase.
+No file flags; five units had seven flags after the telemetry rebase.
 All seven have saved answers below.
 Earlier entry, endpoint, and body answers stay in the bank.
 The label bank is `tools/jev/cases.jsonl`.
-Two new answers cover main's changed stream code.
-The earlier nine answers stay in the bank.
+All seven answers already exist in the bank.
+Earlier body, stream, and opener answers stay there too.
 The lead runs calibration when landing.
 `node tools/jev/tests.mjs start`: EXIT 0.
 The new module test passes.
 Old private imports and long helpers have no new hits from this ticket.
 The server test keeps main's six imports; its only changes are awaits.
-`node tools/jev/promises.mjs start`: EXIT 0; no missing-promise flags.
+`node tools/jev/promises.mjs start`: EXIT 0; no gaps among 198 titles.
+One flag named old connection frames after reconnect.
+The test already proves it; the README now states that exact promise.
 The plain test notes have no judge in the label tool.
 
-- `stateOutsideCell false body.server.ts#responseBodies`:
-  The reader Set holds private stream cleanup state.
-  No view watches these values.
 - `stopOnlyInDefer false body.server.ts#responseBodies`:
   Host streams are not Core runs; defer cancels retained readers.
 - `ignoresAbortAfterAwait false body.server.ts#responseBodies`:
   No await in the factory; pulls check cancelled before delivery.
 - `configNotTag false http.ts#httpRequest`:
   URL and method are validated per-call input; transport is a dep.
+- `ignoresAbortAfterAwait false endpoint.server.ts#syncEndpoint`:
+  `open.settle` returns cancellation; `readResult` raises it before replying.
+  `requestStop` owns the request signal.
 - `ignoresAbortAfterAwait false history.server.ts#eventHistory`:
   The caller owns the borrowed transaction and its cancellation.
 - `stateOutsideCell false stream.server.ts#eventStream`:
@@ -1213,5 +1215,8 @@ Jev found no missing README promises among 190 titles.
 Assumption: keep the newer stream waits and frames; only its Drizzle dep changes.
 The combined sync code passed its clean-commit gate at `25411f4f`: EXIT 0.
 Main then gained Core and telemetry code, ending at `eeb4beef`.
-This proof is saved before merging those changes and checking the code again.
+Those changes are merged with both label banks kept.
+Assumption: keep main's Core and telemetry code; no extra source change is needed.
+All workspace tests, 19 validate lanes, 90 plants, impact refs, and style passed again.
+The final clean-commit gate and mutation follow this saved step.
 Nothing was pushed.
