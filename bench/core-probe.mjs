@@ -134,6 +134,13 @@ await hookedWriteScope.ready;
 const hookedWriteC = hookedWriteScope.controller(cfg);
 hookedWriteC.watch(() => undefined);
 let hookedWriteValue = 0;
+const unwatchedScope = createScope();
+const unwatchedC = unwatchedScope.controller(cfg);
+unwatchedC.watch(() => undefined);
+const otherCell = data({ label: "other", initial: 0 });
+for (let i = 0; i < 100; i++) unwatchedScope.createSession().controller(otherCell);
+let unwatchedValue = 0;
+const watchCloseScope = createScope();
 
 const fns = {
   s1_getctl: () => createScope().controller(store),
@@ -149,6 +156,12 @@ const fns = {
   hooked: () => hookedScope.run(op),
   write: () => writeC.set(++writeValue),
   writehook: () => hookedWriteC.set(++hookedWriteValue),
+  writeunwatched: () => unwatchedC.set(++unwatchedValue),
+  watchclose: () => {
+    const child = watchCloseScope.createSession();
+    child.controller(cfg).watch(() => undefined);
+    return child.close({ graceful: true });
+  },
   asyncsub: () => asyncSubC.run(),
   run: () => opScope.run(op),
   inline: () => inlineScope.run(inlineCfg),

@@ -1514,3 +1514,48 @@ It runs alone under the shared lock, with an 85% floor on kills alone.
 [Fault-test summary](core-b-mutation.log) will name that source commit and the empty tree.
 Only its header and summary are committed after the run.
 Saved source waits in Review; no push, publish, or batch C work is done.
+
+## Core rules: batch C (2026-10-09)
+
+Owner: Core rules writer (Codex), branch `core/rules-lane`.
+Base: `9c826567`, with batches A and B already landed.
+Scope: cell controller deps, write hooks, and unwatched branches.
+Each ticket gets its own paired N=61 rows; a slower row rejects it.
+The scaffold middleware gate is skipped at the user's request.
+Its clean-main failure is HTTP 500 InvalidDependency at check-middleware.mjs:117.
+No scaffold or Start source is changed here.
+
+### core/dep-ctl-memo: kept
+
+Commit: `4c986e5c`.
+A full layer reuses its cell controller for its own namespace chain.
+An explicit other chain or a lazy frame still gets a fresh controller.
+The same node record serves the public controller path and the dependency edge.
+The new seam test covers writes, watching, and stopping across repeated runs.
+This is a speed change; the test preserves behavior already shipped.
+No public type, error, or lifetime rule changes.
+Allocation: 656 -> 273 bytes per call, 7/7 rounds without GC on both builds.
+Promises remain zero; the probe keeps a 64 MB young space.
+Slots stay at 339; every watched bytecode ceiling stays the same.
+Build, ticket, all 19 release checks, and prose exit 0.
+Lint has zero errors and the same 27 warnings as main.
+[Timing proof](core-c-dep-timing.log) saves all six N=61 rows.
+Cell controller calls: 81.6 -> 63.8 ns, b is faster.
+Op, run, tagged, session, and lifecycle: no difference we can see.
+No row is slower.
+
+### core/write-hook-cold: first attempt rejected
+
+Commit `d9928520` moved write hook closures to a cold function.
+Shared Set callbacks also replaced the child and watcher iterators.
+This kept live registration order and restored state after nested writes.
+The nested-write seam test passes.
+The callbacks removed iterator work without changing the child collection.
+This differs from the report's arrays, which change iteration during callbacks.
+The two one-use helpers moved into their callers to keep slots at 339.
+Maglev write allocation: 314.4 -> 0.1 bytes.
+Runtime size: 16,016 bytes gzip, below 16,384.
+N=61 write: 63.9 -> 83.2 ns, b is slower in all 61 pairs.
+The callback part is rejected despite its allocation saving.
+The next attempt keeps only the hook split and uses the old Set loops.
+Its rows and the unwatched-branch trial are pending.
