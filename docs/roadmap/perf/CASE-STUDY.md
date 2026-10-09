@@ -88,25 +88,50 @@ Fixed since the study: `OperationCtx` inlines into
 
 ## Tickets, best gain for the effort first
 
-1. `react/run-callback-errors` (XS, bug).
+Outcome, 2026-10-09: each ticket says landed or dropped.
+A dropped ticket was slower in N=61 or broke a limit.
+
+1. `react/run-callback-errors` (XS, bug): landed.
 2. `scaffold/auth-scope` (XS): one better-auth per process.
+   Landed.
 3. `start/abort-reasons` (XS): no reasonless abort.
+   Landed.
 4. `react/run-sync-first` (S, bug): one render per sync click.
-5. `react/data-zero-alloc` (S).
+   Landed.
+5. `react/data-zero-alloc` (S): landed.
 6. `start/compress-stream` (S): first bytes at 2–8 ms.
+   Landed.
 7. `start/telemetry-serialize-once` (M) and
    `start/telemetry-capacity` (S, needs a choice).
-8. `start/sync-frame-share` (S).
+   Both landed.
+8. `start/sync-frame-share` (S): landed.
 9. `core/shape-preinit` (S) and `core/run-budget` (S).
-10. `core/slot-order` (S, mechanical).
+   Shape landed; run budget dropped.
+10. `core/slot-order` (S, mechanical): landed.
 11. `react/run-lean` (M) and `react/resource-lean` (M).
+    Both landed.
 12. `core/handle-proto` (M): after the spread question.
+    Landed.
 13. `core/borrow-lazy`, `core/hook-run-lean`,
     `core/brand-kind` (M each).
+    Hook-run-lean landed; the other two dropped.
 14. `start/request-hops` (S–M): about 25–30 promises
     fewer per page.
+    Landed.
 15. `start/sync-heartbeat-wheel` (M–L) and
     `start/sync-push-revocations` (L, needs an ADR).
+    Wheel landed; revocations wait as a Ready card.
+16. `core/dep-ctl-memo`, `core/write-hook-cold`,
+    `core/write-skip-unwatched` (batch C).
+    Memo and the hook split landed.
+    Shared Set callbacks and skip-unwatched dropped.
+17. `core/deps-plan`, `core/tagged-frame-shape`,
+    `core/track-async-stack` (batch D).
+    All three dropped.
+
+Rule found: tweaks that only reshape objects
+were mostly no faster, or slower.
+The wins came from removing work.
 
 Core cards follow the Core lane: `scripts/ticket.sh`,
 `N=61 bench/queued.sh`, mutation floor 85.

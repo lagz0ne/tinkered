@@ -61,41 +61,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
-  Owner: lead (Claude, Start scaffold session).
-  Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
-  React (useRun, useResource lean); telemetry (serialize once, capacity, ingest); sync (frame share, client frame, heartbeat wheel); server (request hops, body hold, static memory, chunks); scaffold (app rules).
-  Not in it: sync push revocations, which needs an ADR first.
-  Verify: each ticket's test or verdict; mutation floors; ratchets only go down.
-
 Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **core/rules-batch-D** — all three trials dropped; no runtime change.
-  Owner: Core rules writer (Codex), branch `core/rules-lane`.
-  Next: lead review the three drops and the final Core fault-test proof.
-  Verify: 26 N=61 rows finish; final gates pass; Core fault kills clear 85% on a clean commit.
-  Deps and frame rows were slower; async rows were slower and missed the promise limit.
-  Only the known scaffold middleware gate stays skipped by the user's request.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
-- **core/rules-batch-C** — cell controller memo and the cold write hook split.
-  Owner: Core rules writer (Codex).
-  Next: lead review and Jev calibration after the clean fault-test proof.
-  Verify: all kept N=61 rows avoid slowdown; gates pass; Core clears 85% on kills alone.
-  Shared write callbacks and the watcher index are dropped on slower rows.
-  The scaffold middleware gate is skipped at the user's request.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
-- **core/rules-batch-B** — lean run hooks and the release Q2 test.
-  Owner: Core rules writer (Codex).
-  Next: lead review and Jev calibration after the clean fault-test log is saved.
-  Verify: all gates pass; runHookBody is 298 bytes; all seven kept N=61 rows avoid slowdown.
-  Borrow counts and the shared brand key are dropped on slower rows.
-  Core needs 85 on kills alone; the final clean-source fault log is saved after the run.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
 
 - **core/rules-batch-A** — hook and controller fields, and slot order.
   Owner: Core rules writer (Codex).
@@ -190,6 +159,15 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **perf/rules-lanes** — every case-study ticket ran; closed 2026-10-09 ([plan](docs/roadmap/perf/CASE-STUDY.md)).
+  Core B (`9c826567`): kept hook-run-lean 190.1 -> 182.9 ns; dropped borrow-lazy, brand-kind (slower); mutation 85.06.
+  Core C (`5d8925aa`): kept dep-ctl-memo 81.6 -> 63.8 ns, write-hook split 62.8 -> 61.9 ns.
+  Core C dropped shared Set callbacks and write-skip-unwatched (slower); mutation 85.19.
+  Core D: deps-plan, tagged-frame-shape, track-async-stack all dropped (slower in N=61); mutation 85.22.
+  Core D also broke the promise limit, promise identity, and a bytecode limit (track-async-stack); no code change kept.
+  The five lanes and Core A landed earlier (see below). Push revocations stay a Ready card.
+  [Proof](docs/roadmap/perf/PROGRESS.md#core-rules-batch-d-2026-10-09).
 
 - **bench/probe-core** — probes keep the CPU the queue gives them; landed 2026-10-09 as `feb5e5f8`.
   No `CORE`: `ab.sh` uses the job's one CPU, or the last CPU of a longer list; an explicit `CORE` wins.
