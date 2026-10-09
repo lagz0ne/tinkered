@@ -63,7 +63,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **core/rules-batch-D** — deps plans, tagged frame fields, and async stacks.
   Owner: Core rules writer (Codex), branch `core/rules-lane`.
-  Next: finish the tagged frame and async stack trials; the dep plan was slower.
+  Next: finish async timing and the final Core fault run; deps and frame trials were slower.
   Verify: every kept N=61 row avoids slowdown; gates pass; Core fault kills clear 85%.
   Async stacks need at least 10 frames at depth 32 and at most one added promise per op.
   The scaffold middleware check stays skipped by the user's request.

@@ -1753,3 +1753,23 @@ The raw rows and full queue log stay in the named local cache.
 The plan, its test, and its limit edits are dropped together.
 No runtime change from this ticket is saved on the lane branch.
 The tagged frame trial follows against the same clean main base.
+
+### core/tagged-frame-shape: dropped
+
+The trial set all 19 frame defaults in the constructor.
+Empty collections stayed shared until the owner needed its own storage.
+A live frame and a finished frame went from four unequal maps to four equal maps.
+Own keys after the run rose from 14 to 30.
+[Shape proof](core-d-frame-shape.log) records the before and after probe.
+The frame class and the full layer still had separate maps.
+Build, ticket, all 19 release checks, and prose exit 0.
+Size rises from 15,932 to 15,961 B gzip; module slots stay at 339.
+The pinned trial is `5ab47247`.
+
+Two N=61 rows say `b is slower`.
+Tagged runs: 176.3 → 184.3 ns.
+Tagged runs with a defer: 236.8 → 249.1 ns.
+The other five rows say `no difference we can see`.
+[Timing proof](core-d-frame-timing.log) has all seven paired rows.
+The trial is dropped; the shared prototype defaults stay as they were on main.
+No runtime or test change from this ticket is saved on the lane branch.

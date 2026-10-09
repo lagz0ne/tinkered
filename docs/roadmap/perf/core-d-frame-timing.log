@@ -1,0 +1,20 @@
+Core batch D: N=61 frame
+A: 5d8925aad6c222abd736dfd8515c2443b09f660a
+B: 5ab47247bddb7163dbcf99c28f085f6ee619df10
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+tagged: b is slower; median 176.3 -> 184.3 ns; B slower 58/61; p=3.28574e-14
+taggeddefer: b is slower; median 236.8 -> 249.1 ns; B slower 57/61; p=4.85494e-13
+taggedres: no difference we can see; median 2453.7 -> 2504.6 ns; B slower 31/61; p=1
+op: no difference we can see; median 56.5 -> 57.1 ns; B slower 33/61; p=0.608921
+run: no difference we can see; median 71.9 -> 71.7 ns; B slower 31/60; p=0.897422
+session: no difference we can see; median 446.7 -> 461.1 ns; B slower 34/61; p=0.442626
+lifecycle: no difference we can see; median 782.3 -> 777.5 ns; B slower 27/61; p=0.442626
+
+Decision: DROP; slower rows: tagged, taggeddefer
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-d/frame-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-d/frame-timing-full.log

@@ -1,0 +1,9 @@
+Core batch D: tagged frame shape probe
+A: 5d8925aad6c222abd736dfd8515c2443b09f660a
+B: 5ab47247bddb7163dbcf99c28f085f6ee619df10
+Command: CORE_DIST=<tree>/packages/core/dist/index.mjs node --allow-natives-syntax /home/paseo/.cache/tinkered-briefs/core-d/frame-shape.mjs
+The report probe locates the frame among ctx values; build-time field names may differ.
+A: live frame shares the finished frame's map: false,false,false,false | own keys after: 14
+B: live frame shares the finished frame's map: true,true,true,true | own keys after: 30
+Both probe exits: 0
+This checks shape only; N=61 timing is recorded separately.
