@@ -73,14 +73,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **bench/probe-core** — probes keep the CPU the queue gives them.
-  Owner: writer (Codex).
-  Next: lead review.
-  Verify: shell checks for the assigned CPU, explicit `CORE`, and the last CPU;
-  parse checks cover CPU lists with gaps; failed checks print their stderr;
-  `vp check` and `vp run prose` pass. Lead runs queue proof.
-  [Proof](docs/roadmap/bench/PROGRESS.md).
-
 - **core/rules-batch-C** — cell controller memo and the cold write hook split.
   Owner: Core rules writer (Codex).
   Next: lead review and Jev calibration after the clean fault-test proof.
@@ -190,6 +182,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **bench/probe-core** — probes keep the CPU the queue gives them; landed 2026-10-09 as `feb5e5f8`.
+  No `CORE`: `ab.sh` uses the job's one CPU, or the last CPU of a longer list; an explicit `CORE` wins.
+  `queued.sh` passes `CORE` only when the caller set it.
+  `bash bench/affinity.test.sh` exit 0 on CPUs `0-2,4-6`; exit 1 with main's `ab.sh`.
+  Gates exit 0: build, check, prose, tests (1,793 passed, 1 skipped). No mutation or timing run.
+  [Proof](docs/roadmap/bench/PROGRESS.md#benchprobe-core).
 
 - **start/build-chunk-cycle** — keep body deps in the forced server chunk; landed 2026-10-09 as `a9c8deb6`.
   `includeDependenciesRecursively: true`: the body and Start chunks no longer import each other.
