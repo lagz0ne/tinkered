@@ -9,7 +9,16 @@ set -u
 A=${A:-../tinkered-base}            # baseline worktree under /home/paseo (benchd cannot see /tmp): git worktree add ../tinkered-base <sha>; build packages/core
 B=${B:-$(git rev-parse --show-toplevel)}   # the tree under test; its probe measures both trees
 N=${N:-31}
-CORE=${CORE:-6}
+if [ -z "${CORE:-}" ]; then
+  cpus=$(LC_ALL=C taskset -pc $$) || exit 1
+  cpus=${cpus##*: }
+  if [[ "$cpus" =~ ^[0-9]+$ ]]; then
+    CORE=$cpus
+  else
+    CORE=6
+    echo "ab.sh: CPU list $cpus has more than one CPU; picked CPU $CORE" >&2
+  fi
+fi
 OUT=${OUT:-/tmp/ab.csv}          # set OUT when /tmp is not shared, e.g. under benchd
 SCEN=${SCEN:-op run opres inline session tagged create cold warm lifecycle}
 absolute() { (cd "$2" 2>/dev/null && pwd) || { echo "ab.sh: tree $1 ($2) is missing" >&2; return 1; }; }
@@ -21,7 +30,7 @@ for s in $SCEN; do
   for i in $(seq 1 $N); do
     for t in A B; do
       dir=${!t}
-      line=$(cd "$B" && CORE_DIST="$dir/packages/core/dist/index.mjs" taskset -c $CORE node --expose-gc bench/core-probe.mjs $s 2>/dev/null | grep METRIC)
+      line=$(cd "$B" && CORE_DIST="$dir/packages/core/dist/index.mjs" taskset -c "$CORE" node --expose-gc bench/core-probe.mjs $s 2>/dev/null | grep METRIC)
       if [ -z "$line" ]; then echo "ab.sh: no METRIC line from tree $t ($dir), scenario $s" >&2; exit 1; fi
       ns=$(echo "$line" | sed -E 's/.*_ns=([0-9.]+).*/\1/'); b=$(echo "$line" | sed -E 's/.*_b=([^ ]+).*/\1/')
       case "$line" in

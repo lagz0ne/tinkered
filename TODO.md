@@ -73,6 +73,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
+- **bench/probe-core** — probes keep the CPU the queue gives them.
+  Owner: writer (Codex).
+  Next: lead review.
+  Verify: shell checks for CPU 7, `CORE=5`, and the host default;
+  `vp check` and `vp run prose` pass. Lead runs queue proof.
+  [Proof](docs/roadmap/bench/PROGRESS.md).
+
 - **core/rules-batch-C** — cell controller memo and the cold write hook split.
   Owner: Core rules writer (Codex).
   Next: lead review and Jev calibration after the clean fault-test proof.
