@@ -1315,8 +1315,12 @@ function ownCell(
 function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
   flushOne(layer, target);
   flushNsWatchers(layer, target, key);
-  for (const child of layer.children) {
-    if (!child.nodes.get(target)?.cell) flushCell(child, target);
+  const previous = CellNotifications.target;
+  CellNotifications.target = target;
+  try {
+    layer.children.forEach(CellNotifications.child);
+  } finally {
+    CellNotifications.target = previous;
   }
 }
 
@@ -1330,29 +1334,49 @@ function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
   if (!ws?.size || !rec) return;
   const next = readCell(layer, target);
   const prev = rec.prev;
-  if (!cellEq(target, prev, next)) notifyLayer(rec, ws, next, prev);
+  if (!target.eq(prev, next)) notifyLayer(rec, ws, next, prev);
 }
 
 /** Run one layer's watchers in registration order against the value already read for the layer. */
 function notifyLayer(rec: NodeState, ws: Set<Watcher>, next: unknown, prev: unknown): void {
   rec.prev = next;
-  for (const w of ws) w.fn(next, prev);
+  const previousNext = CellNotifications.next;
+  const previousPrev = CellNotifications.prev;
+  CellNotifications.next = next;
+  CellNotifications.prev = prev;
+  try {
+    ws.forEach(CellNotifications.watcher);
+  } finally {
+    CellNotifications.next = previousNext;
+    CellNotifications.prev = previousPrev;
+  }
 }
 
-function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
-  return target.eq(a, b);
+/** Shared callbacks avoid Set iterators while keeping live registration order.
+ * Saving each write's values in its caller keeps nested notifications separate. */
+class CellNotifications {
+  static target: Data.Cell<unknown>;
+  static next: unknown;
+  static prev: unknown;
+  static child(this: void, child: Layer): void {
+    const target = CellNotifications.target;
+    if (!child.nodes.get(target)?.cell) flushCell(child, target);
+  }
+  static watcher(this: void, watcher: Watcher): void {
+    watcher.fn(CellNotifications.next, CellNotifications.prev);
+  }
 }
 
-function writeCell<T>(
+function writeCell(
   layer: Layer,
-  target: Data.Cell<T>,
+  target: Data.Cell<unknown>,
   next: unknown,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): void {
   if (chain !== undefined && chain.length !== 0) return writeCellNs(layer, target, chain, next);
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
-  if (cellEq(target, readCell(layer, target, chain), value)) return;
+  if (target.eq(readCell(layer, target, chain), value)) return;
   ownCell(layer, target, chain).value = value;
   flushCell(layer, target);
 }
@@ -1369,7 +1393,7 @@ function writeCellNs(
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
   const current = readCell(layer, target, chain);
-  if (cellEq(target, current, value)) return;
+  if (target.eq(current, value)) return;
   const [key] = chain;
   ownNsCell(layer, target, key, current).value = value;
   flushInheritedNsWatchers(layer, target, key);
@@ -1397,7 +1421,7 @@ function pendingNsWatchers(
   for (const watcher of watch) {
     const next = readCell(layer, target, watcher.ns);
     const prev = watcher.prev;
-    if (cellEq(target, prev, next)) continue;
+    if (target.eq(prev, next)) continue;
     watcher.prev = next;
     (pending ??= []).push({ fn: watcher.fn, next, prev });
   }
@@ -1509,17 +1533,13 @@ function addWatcher(
   fn: (next: unknown, prev: unknown) => void,
 ): () => void {
   ensureOpen(layer);
-  refreshNotified(layer, target, rec);
+  if (!rec.watch?.size) {
+    const next = readCell(layer, target);
+    if (!target.eq(rec.prev, next)) rec.prev = next;
+  }
   const w: Watcher = { fn };
   (rec.watch ??= new Set()).add(w);
   return () => void rec.watch?.delete(w);
-}
-
-/** Recompute this layer's last notified value when it went stale before a new watcher registers. */
-function refreshNotified(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): void {
-  if (rec.watch?.size) return;
-  const next = readCell(layer, target);
-  if (!cellEq(target, rec.prev, next)) rec.prev = next;
 }
 
 function writeWithHooks<T>(
@@ -1530,16 +1550,7 @@ function writeWithHooks<T>(
 ): void {
   const writes = layer.exts.writes;
   if (writes === undefined) return writeCell(layer, target, value, chain);
-  ensureOpen(layer);
-  const at = (index: number): void => {
-    if (index === writes.length) return writeCell(layer, target, value, chain);
-    const ext = writes[index];
-    const next = (): void => at(index + 1);
-    ext.hooks!.write!(
-      hookEvent({ kind: "write", cell: target, value, next }, layer, ext.label, chain),
-    );
-  };
-  at(0);
+  runWriteHooks(layer, target, value, chain, writes);
 }
 
 /** One controller body keeps lazy reads and explicit namespace chains on the same write and
@@ -6195,4 +6206,24 @@ function seesResource(depends: Scope.Depends): boolean {
 function nanosFromMillis(ms: number): bigint {
   const whole = Math.trunc(ms);
   return BigInt(whole) * 1_000_000n + BigInt(Math.round((ms - whole) * 1_000_000));
+}
+
+/** Only writes with extension hooks need the onion's closures. */
+function runWriteHooks<T>(
+  layer: Layer,
+  target: Data.Cell<T>,
+  value: T,
+  chain: readonly Namespace[] | undefined,
+  writes: readonly Scope.Extension<unknown>[],
+): void {
+  ensureOpen(layer);
+  const at = (index: number): void => {
+    if (index === writes.length) return writeCell(layer, target, value, chain);
+    const ext = writes[index];
+    const next = (): void => at(index + 1);
+    ext.hooks!.write!(
+      hookEvent({ kind: "write", cell: target, value, next }, layer, ext.label, chain),
+    );
+  };
+  at(0);
 }

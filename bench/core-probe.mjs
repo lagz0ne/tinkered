@@ -119,6 +119,21 @@ const taggedResOp = operation({
 });
 
 const sessionScope = createScope();
+const writeScope = createScope();
+const writeC = writeScope.controller(cfg);
+writeC.watch(() => undefined);
+let writeValue = 0;
+
+const writeHook = extension({
+  label: "probe write hook",
+  hooks: { write: (event) => event.next() },
+});
+
+const hookedWriteScope = createScope({ extensions: [writeHook] });
+await hookedWriteScope.ready;
+const hookedWriteC = hookedWriteScope.controller(cfg);
+hookedWriteC.watch(() => undefined);
+let hookedWriteValue = 0;
 
 const fns = {
   s1_getctl: () => createScope().controller(store),
@@ -132,6 +147,8 @@ const fns = {
   opres: () => opResC.run(),
   depctl: () => depCtlC.run(),
   hooked: () => hookedScope.run(op),
+  write: () => writeC.set(++writeValue),
+  writehook: () => hookedWriteC.set(++hookedWriteValue),
   asyncsub: () => asyncSubC.run(),
   run: () => opScope.run(op),
   inline: () => inlineScope.run(inlineCfg),
