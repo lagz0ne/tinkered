@@ -155,6 +155,14 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **perf/rules-lanes, five lanes and Core batch A** — landed 2026-10-08/09.
+  Scaffold: sign-up, reset, and profile save answer before mail sends (3 tests fail on main).
+  Server: Start promises per page 73.6 -> 34.0; static hits read no file (b is faster); page no difference; mutation 84.48.
+  React: useRun 9 -> 3 and useResource 6 -> 3 hook slots; about 1,190 -> 107 B per render; render bench b is faster (about -20%); mutation 85.51.
+  Sync: one frame encode per cursor; tab frames plain (5 -> 3 promises); one shared clock (heap per stream 15.9 -> 11.7 KB); mutation 84.15.
+  Telemetry: encode once (b is faster, -42.8%); full batches sent at once; mutation 83.53.
+  Core A: hook fields set at birth, slot order (wide reads 19 -> 5); V9 and run-budget dropped (slower); N=61 all no difference; mutation 85.06.
+
 - **core/handle-proto** — scope handles share their verbs from one class (ADR 0108: a handle is passed, not copied).
   Heap gate 2,924 -> 2,123 B per request; N=61: session and lifecycle b is faster, op and run no difference.
   Core 15,724 -> 15,805 B gzip; mutation 85.07 on kills alone (valid mutants); 3 of 4 new tests fail on main.
