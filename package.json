@@ -11,7 +11,7 @@
     "example:export": "node scripts/export-example.mjs",
     "example:check": "node scripts/check-examples.mjs",
     "dev": "vp run website#dev",
-    "lazy": "node scripts/check-lazy-modules.mjs packages/start/src"
+    "lazy": "node scripts/check-lazy-modules.mjs packages/start/src apps/start-scaffold/src"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "catalog:",
