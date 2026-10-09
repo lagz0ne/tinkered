@@ -9,8 +9,45 @@ import {
   resource,
   tag,
   type Observe,
+  type Operation,
   type Resource,
 } from "../src/index";
+
+type BorrowWork = {
+  body: Promise<void>;
+  cleanup: Promise<void>;
+  draining: () => void;
+  ended: string[];
+};
+
+const q2Value = resource({
+  label: "borrowed value",
+  factory: (_deps, ctx) => {
+    const value = { closed: false };
+    ctx.defer(() => {
+      value.closed = true;
+    });
+    return value;
+  },
+});
+
+const q2Hold = operation({
+  label: "borrow value",
+  depends: { value: q2Value },
+  run: async ({ value }, ctx: Operation.Ctx<BorrowWork>) => {
+    const { input } = ctx;
+    ctx.defer(() => void input.ended.push(`first defer ${value.closed ? "closed" : "open"}`));
+    ctx.defer(async () => {
+      input.ended.push(`last defer starts ${value.closed ? "closed" : "open"}`);
+      input.draining();
+      await input.cleanup;
+      input.ended.push(`last defer ends ${value.closed ? "closed" : "open"}`);
+    });
+    await input.body;
+    input.ended.push(`body ${value.closed ? "closed" : "open"}`);
+    return value;
+  },
+});
 
 test("a late default dependency stays open through its dependent's async cleanup", async () => {
   let finishBuild!: () => void;
@@ -798,4 +835,33 @@ test("a late build gives its waiting run a value and ends its hook once as relea
   expect(ends).toEqual(["released"]);
   await scope.close();
   expect(ends).toEqual(["released"]);
+});
+
+test("release waits for the borrowed run body and all its defers", async () => {
+  const body = Promise.withResolvers<void>();
+  const cleanup = Promise.withResolvers<void>();
+  const draining = Promise.withResolvers<void>();
+  const ended: string[] = [];
+  const scope = createScope();
+  const original = scope.resolve(q2Value);
+  const running = scope.run(q2Hold, {
+    input: { body: body.promise, cleanup: cleanup.promise, draining: draining.resolve, ended },
+  });
+  scope.release(q2Value);
+  expect(scope.resolve(q2Value)).not.toBe(original);
+  expect(ended).toEqual([]);
+  body.resolve();
+  expect(await running).toBe(original);
+  await draining.promise;
+  expect(ended).toEqual(["body open", "last defer starts open"]);
+  cleanup.resolve();
+  await scope.settled();
+  expect(ended).toEqual([
+    "body open",
+    "last defer starts open",
+    "last defer ends open",
+    "first defer open",
+  ]);
+  expect(original.closed).toBe(true);
+  expect((await scope.close({ graceful: true })).status).toBe("success");
 });

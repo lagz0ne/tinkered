@@ -1265,3 +1265,39 @@ scripts/scip.sh refs \
   V9 and both run-budget attempts are dropped with their failed verdicts above.
 - Lead review and Jev calibration come before landing.
   Batch B waits for A to land; no push or publish was made.
+
+## Core rules batch B — started 2026-10-09
+
+Owner: Core rules writer (Codex), branch `core/rules-lane`.
+Base: `eeb4beef`, after batch A landed as `21ff6d17`.
+The lead asked for B only, with one source commit per ticket.
+Assumption: the report names goals; B has no saved prototype patch.
+Use resource counts and make a wait promise only during release.
+Keep old resource values alive through the run body and all run defers.
+Trim the hook body and keep every hook tool and `next()` call.
+Use one shared brand key while keeping handle kinds distinct.
+Drop a ticket if any required N=61 row is slower.
+Run the final Core fault check on a clean source commit.
+
+### B1 — core/borrow-lazy (V17, V30), dropped code
+
+The measured candidate counted runs instead of storing their wait promises in a Set.
+It is dropped because the full cleanup row is slower.
+The Q2 test stays; the runtime and slot check return to main.
+A run retains one list; no eager wait promise, resolver, or selection callback.
+Release makes a wait promise only for an instance with an active borrow.
+The new Q2 test checks fresh cache reads, the body, both run defers, and old cleanup.
+It proves ADR 0026 Q2 through `createScope`; this is a speed change, not a new bug fix.
+The report probe gives 1,034 -> 457 bytes per resource run, with 7/7 clean rounds.
+Promises per sync resource run: 1 -> 0.
+The report's near-250-byte goal is not reached; the retained list still costs bytes.
+Core gzip: 15,892 -> 15,880 bytes, cap 16,384.
+Slots stay at 339; existing hot bytecode limits stay the same.
+The slot check now names `selectResource` in place of the removed `createBorrows`.
+Changed declarations have zero strict style hits; TSDoc check exits 0.
+N=61: full cleanup says `b is slower`, 750.5 -> 762.7 ns.
+B is slower in 44/61 pairs; p = 0.000729905.
+The other rows: op and run faster; tagged and session no difference; opres faster.
+Opres falls from 256.6 -> 112.2 ns, but a slower row rejects the whole change.
+[Borrow timing proof](core-b-borrow-timing.log) saves all six rows.
+Hook and brand timing must use the retained Set model as their base.

@@ -1,0 +1,19 @@
+Core batch B: N=61 borrow
+A: eeb4beefab8934b2772b151a6658f67c44573577
+B: 3132a3a36baaa49a14ab55497129f69646053903
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+op: b is faster; median 56.9 -> 54.8 ns; B slower 13/60; p=1.21467e-05
+run: b is faster; median 70.0 -> 66.6 ns; B slower 0/61; p=8.67362e-19
+tagged: no difference we can see; median 177.4 -> 178.4 ns; B slower 36/60; p=0.155002
+session: no difference we can see; median 426.1 -> 412.6 ns; B slower 24/61; p=0.123731
+lifecycle: b is slower; median 750.5 -> 762.7 ns; B slower 44/61; p=0.000729905
+opres: b is faster; median 256.6 -> 112.2 ns; B slower 0/61; p=8.67362e-19
+
+Decision: DROP; slower rows: lifecycle
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-b/borrow-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-b/borrow-timing-full.log
