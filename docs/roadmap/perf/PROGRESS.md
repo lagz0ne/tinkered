@@ -1640,3 +1640,16 @@ The final Core fault run follows on the clean source commit, alone under the sha
 It must clear 85% on kills alone; only its header and summary are committed after the run.
 [Fault-test proof](core-c-mutation.log) will name that commit and the empty tree.
 No push, publish, or batch D work is done.
+
+### Main catch-up after the first fault run
+
+Main moved to `7b7195b1` during the fault run.
+It added only docs; Core source and tests did not change.
+Rebase and install exit 0, with no conflict.
+Build, ticket, all 19 release checks, and prose exit 0 again.
+The runtime still matches the pinned hook-split build byte for byte.
+The scaffold middleware gate remains skipped as the user asked.
+The first clean run killed 3,019 of 3,551 valid faults: 85.018305%.
+It tested `7b6a3317` before the rebase, so it is not the final run of record.
+The fault run follows again on the final clean commit after this note.
+Only its short proof log is committed after that run.

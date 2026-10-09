@@ -20,3 +20,18 @@ Whole-file model review skips the large Core file; its zero file flags do not co
 The lead runs calibration before landing.
 Mutation runs next on the final clean source commit; only its header and summary follow.
 No push; no batch D work.
+
+Latest-main catch-up after first mutation run
+origin/main: 7b7195b1bec5410d2c2f5edadb5961dd2b49e4d2
+Main changed only docs; Core source and tests are unchanged.
+Fetch/rebase: EXIT 0; no conflict.
+vp install: EXIT 0.
+Post-rebase build: EXIT 0.
+Post-rebase ticket: EXIT 0.
+Post-rebase pnpm validate: EXIT 0; all 19 lanes.
+Post-rebase prose: EXIT 0.
+Scaffold middleware check: still SKIPPED by user.
+Runtime hash unchanged: c8f09cc3919905a9f00fc2588ded0cbd7bae9a2fe94d7695bcb4f13cb8308656
+cmp against pinned hook-split N=61 build: EXIT 0.
+Earlier clean mutation: 3019/3551 = 85.018305%; tested 7b6a3317 before rebase.
+A fresh final-HEAD mutation proof follows; only that short log is committed afterward.
