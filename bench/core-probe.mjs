@@ -72,6 +72,15 @@ await hookedScope.ready;
 const opRes = operation({ label: "opRes", depends: { store }, run: ({ store }) => store.base });
 const opResC = opScope.controller(opRes);
 opResC.run();
+
+const depCtlOp = operation({
+  label: "depCtl",
+  depends: { count: cfg.controller },
+  run: ({ count }) => count.get(),
+});
+
+const depCtlC = opScope.controller(depCtlOp);
+depCtlC.run();
 const asyncSub = operation({ label: "asyncSub", run: async () => 1 });
 
 const asyncOuter = operation({
@@ -121,6 +130,7 @@ const fns = {
   oplog: () => loggingC.run(),
   opobs: () => observedC.run(),
   opres: () => opResC.run(),
+  depctl: () => depCtlC.run(),
   hooked: () => hookedScope.run(op),
   asyncsub: () => asyncSubC.run(),
   run: () => opScope.run(op),

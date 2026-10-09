@@ -1607,7 +1607,11 @@ function resolveControllerEdge(
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
-  if (isData(target)) return dataController(layer, target, chain);
+  if (isData(target)) {
+    if (chain !== layer.ns || layer.lazy) return dataController(layer, target, chain);
+    const rec = nodeState(layer, target);
+    return (rec.controller ??= dataController(layer, target, chain));
+  }
   if (isOperation(target)) return operationController(layer, target, up, chain, caller);
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }

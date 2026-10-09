@@ -55,6 +55,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/rules-batch-C** — memoize cell deps, cut write costs, skip unwatched branches.
+  Owner: Core rules writer (Codex).
+  Next: measure each ticket alone; drop any slower N=61 row.
+  Verify: ticket, release checks, 85% kills alone, and all kept rows avoid slowdown.
+  Skip the scaffold middleware gate as the user asked.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
+
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
