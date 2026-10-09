@@ -55,6 +55,7 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 - **scaffold/lazy-modules** — the scaffold follows ADR 0107 ([brief](docs/roadmap/start-scaffold/LAZY-MODULES-BRIEF.md)).
   Owner: lead (Claude, lazy-modules session); writer Sol, reviewer Opus.
+  Writer: `45f6a90c` (Sol), worktree `../tinkered-scaffold-lazy`, branch `scaffold/lazy-modules`.
   Next: writer saves the red run on the app, then adds the checker extras, then makes the app pass.
   Verify: `vp run lazy` covers the base and the app; `--prove` 0; app tests, plain check, registry, import check 0.
 
