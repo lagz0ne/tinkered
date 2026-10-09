@@ -5,6 +5,15 @@ Omit `.ts`, `.tsx`, and `.mts` endings in imports and exports.
 Every ticket brief is this file plus the ticket's target (and its impact
 block, when there is one). You finish all checks before the lead reads.
 
+## Roles (user 2026-10-09)
+
+- You are the driver: Claude Opus 5.5. You plan the card in small steps.
+- Give each step to a Claude Haiku 5.5 subagent
+  (`claude-haiku-5-5`, thinking high). It makes the edits.
+- Check each result yourself. Run the gates. Commit.
+- A separate Opus 5.5 reviewer reads your branch.
+  One fix round, done by you with Haiku.
+
 ## Setup
 
 ```bash

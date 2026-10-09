@@ -61,8 +61,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5 (high)
-reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
+Roles since 2026-10-09 (user: "Instead of using sol as writer, use haiku, opus drives and review"):
+an Opus 5.5 driver (`claude/claude-opus-5-5`, high, auto) per card; Haiku 5.5 (`claude-haiku-5-5`,
+high) writes each step as its subagent; a separate Opus 5.5 (high) reviewer; no Fable.
+Sol (`codex/gpt-6.1-sol`) no longer writes. The lead lands, one branch at a time. See `CLAUDE.md`.
 
 ## Review
 
