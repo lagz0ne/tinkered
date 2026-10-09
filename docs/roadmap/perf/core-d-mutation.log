@@ -1,0 +1,34 @@
+Core batch D: final mutation proof
+Finished: 2026-10-09 13:48:24 UTC
+git rev-parse HEAD
+278b15f80c4ce2420b9fcd87ed425fb247fa15ff
+git status --porcelain
+Command: flock /tmp/mutation.lock vp run core#mutate --incremental --incrementalFile reports/mutation/core-d-incremental.json --concurrency 2 --timeoutMS 60000
+Cache: full Core run on clean 00740cb95126b8fae7835f8fe0cc87323e8a5568; 3026/3551 kills; EXIT 0.
+Incremental mode retains the full Core mutant scope; unchanged results are reused.
+Result:		3554 of 3554 mutant result(s) are reused.
+DryRunExecutor Initial test run succeeded. Ran 875 tests in 16 seconds (net 9225.768585999993 ms, overhead 7600.231414000007 ms).
+The kills below include reused results; they are not all fresh kills on this HEAD.
+Clean tree before: yes
+Clean tree after: yes
+Exit: 0
+Kills-only score: 3026/3551 = 85.215432% (floor 85%; PASS)
+Valid denominator: killed + timeout + survived + no coverage.
+RuntimeError and CompileError changes are invalid and excluded.
+Timeouts receive no kill credit.
+Counts: {"Killed": 3026, "NoCoverage": 35, "RuntimeError": 3, "Survived": 464, "Timeout": 26}
+All planted changes: 3554.
+If invalid changes stay in the denominator: 85.143500%.
+The table score includes timeouts; the kills-only score above does not.
+Only this header and summary are committed after the clean run.
+
+-----------------|------------------|----------|-----------|------------|----------|----------|
+                 | % Mutation score |          |           |            |          |          |
+File             |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+-----------------|--------|---------|----------|-----------|------------|----------|----------|
+All files        |  85.95 |   86.80 |     3026 |        26 |        464 |       35 |        3 |
+ errors.ts       |  90.82 |   90.82 |       87 |         2 |          9 |        0 |        0 |
+ index.ts        |  85.76 |   86.66 |     2850 |        22 |        442 |       35 |        3 |
+ testing.ts      |  87.38 |   87.38 |       88 |         2 |         13 |        0 |        0 |
+ trace-random.ts | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
+-----------------|--------|---------|----------|-----------|------------|----------|----------|
