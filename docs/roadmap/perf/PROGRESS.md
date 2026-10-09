@@ -1390,7 +1390,7 @@ Keep main's seven private keys and the hook source's 339-slot ceiling.
 ResolveDep keeps its main 223-byte ceiling; no brand shape or slot gain is retained.
 The checker-name workaround belongs to the rejected trial; no app files change.
 
-### B checks before timing
+### B candidate checks before the borrow rejection
 
 [Source checks](core-b-checks.log) name source commit `3c5e9b87`.
 Install, full build, ticket, 19 release checks, prose, and scaffold all exit 0.
@@ -1424,3 +1424,33 @@ They are details of shipped contracts, not new B features.
 The short README does not list every case; decisions and tests keep those details.
 B adds the ADR 0026 Q2 check; its title has a README match.
 No new promise gap is added and no per-ticket Jev rule is written.
+
+### B retained source after the borrow rejection
+
+Borrow counts are dropped; its near-250-byte goal and promise gain are not claimed.
+The Q2 test remains in `00745343` and passes on the main lifetime model.
+Hook source is `5756888e`; brand source is `6d54e64a`.
+The hook release loop retains main's Set deletion and promise settle order.
+All build, ticket, release, prose, and scaffold gates exit 0 again.
+[Retained source checks](core-b-checks.log) save the numbers and runtime hash.
+Gzip: main 15,892 -> hook 15,893 -> brand 15,915 bytes; cap 16,384.
+The fresh hook heap probe gives 897 -> 672 bytes per call and zero promises on both sides.
+Each side has 7/7 rounds with no GC, N=10,000, and a 64 MB young heap per half.
+Those numbers belong to that driver; no general speed claim follows from them.
+The new pinned hook and brand builds use the retained main borrow model.
+The old hook queue is stopped after one complete row and part of the next.
+It has no complete seven-row verdict and is not used to keep a change.
+The old brand queue is stopped before starting.
+Both discarded queues used the rejected count model; the new pair tests each kept source.
+
+The retained Jev scan has 299 units, 110 flagged units, and 166 non-noisy hits in 109 units.
+Every non-noisy hit has a false label with a reason; new states are saved in the bank.
+[Current label commands](core-b-jev-labels.log) name the retained model honestly.
+The large source exceeds the whole-file review limit; the writer read the full diff.
+Jev review exits 0; its whole-file skip does not count as a model review of that source.
+SCIP again indexes Core, React, Start, and Blueprint and checks all seven handle refs.
+The six removed brand names still have no refs.
+Changed declarations and the Q2 file have zero strict style hits; TSDoc has zero S26 rows.
+The full source keeps the same four old strict IDs; S04 falls from two to one.
+No test-style or README gap is added by the Q2 test.
+Timing and the final clean-source fault run are pending under the shared lock.
