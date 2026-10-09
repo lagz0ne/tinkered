@@ -1,0 +1,6 @@
+scaffold/lazy-modules: main red run
+Main: dc78e0823a9804d75d0900c91c104cf18dba502a
+Tree: scaffold/lazy-modules, identical to origin/main before edits
+Command: node scripts/check-lazy-modules.mjs apps/start-scaffold/src
+Result: EXIT 1; 32 hits (22 rule-7, 10 rule-8).
+Summary: Drizzle names in graph code and body imports fail ADR 0107.
