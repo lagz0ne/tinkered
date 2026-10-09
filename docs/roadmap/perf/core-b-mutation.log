@@ -1,19 +1,26 @@
 Core batch B: final mutation proof
-Finished: 2026-10-09 05:03:52 UTC
+Latest main: dc78e082; rebase and install EXIT 0.
+Post-rebase gates: build 0, ticket 0, validate 0, prose 0, scaffold 1.
+Scaffold failure reproduced on clean dc78e082 main: check-middleware.mjs:117, HTTP 500 != 200, InvalidDependency.
+No scaffold or Start source is changed by this Core lane.
+Latest main changes no Core source; final runtime still matches the N=61 hook build.
+Runtime index SHA256: 77eb36c7c6df1472d67734ce399ab7764f30e52d4799819635176cd65eaed320
+The earlier clean Core run scored 3012/3542 = 85.036702%; this is the post-rebase run of record.
+Finished: 2026-10-09 05:57:39 UTC
 git rev-parse HEAD
-3ca94f94e4c5973258a92ab4bd414758983b3c45
+97a8a4cc7e52187723fa30d6a9e3059dde3b4c34
 git status --porcelain
 Command: flock /tmp/mutation.lock vp run core#mutate --concurrency 2 --timeoutMS 60000
 Clean tree before: yes
 Clean tree after: yes
 Exit: 0
-Kills-only score: 3012/3542 = 85.036702% (floor 85%; PASS)
+Kills-only score: 3013/3542 = 85.064935% (floor 85%; PASS)
 Valid denominator: killed + timeout + survived + no coverage.
 RuntimeError and CompileError changes are invalid and excluded.
 Timeouts receive no kill credit.
-Counts: {"Killed": 3012, "NoCoverage": 35, "RuntimeError": 3, "Survived": 467, "Timeout": 28}
+Counts: {"Killed": 3013, "NoCoverage": 35, "RuntimeError": 3, "Survived": 467, "Timeout": 27}
 All planted changes: 3545.
-If invalid changes stay in the denominator: 84.964739%.
+If invalid changes stay in the denominator: 84.992948%.
 The table score includes timeouts; the kills-only score above does not.
 Only this header and summary are committed after the clean run.
 
@@ -21,9 +28,9 @@ Only this header and summary are committed after the clean run.
                  | % Mutation score |          |           |            |          |          |
 File             |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
 -----------------|--------|---------|----------|-----------|------------|----------|----------|
-All files        |  85.83 |   86.68 |     3012 |        28 |        467 |       35 |        3 |
+All files        |  85.83 |   86.68 |     3013 |        27 |        467 |       35 |        3 |
  errors.ts       |  90.82 |   90.82 |       87 |         2 |          9 |        0 |        0 |
- index.ts        |  85.63 |   86.54 |     2836 |        24 |        445 |       35 |        3 |
+ index.ts        |  85.63 |   86.54 |     2837 |        23 |        445 |       35 |        3 |
  testing.ts      |  87.38 |   87.38 |       88 |         2 |         13 |        0 |        0 |
  trace-random.ts | 100.00 |  100.00 |        1 |         0 |          0 |        0 |        0 |
 -----------------|--------|---------|----------|-----------|------------|----------|----------|
