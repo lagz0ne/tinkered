@@ -73,6 +73,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
+- **start/build-chunk-cycle** — keep built body deps set before use.
+  Owner: writer (Codex).
+  Next: lead review.
+  Verify: scaffold check exits 0; the new test fails on main;
+  writer gate and all release lanes pass; owned chunks stay at most 255 slots.
+
 - **scaffold/proof-app-imports** — drop unused imports in the proof copy.
   Owner: writer (Codex).
   Next: lead review.
