@@ -1,96 +1,5 @@
 # Start scaffold
 
-## scaffold/proof-app-imports
-
-Branch: `scaffold/proof-app-imports`.
-Owner: writer (Codex).
-Status: Review; the import fix passes, but the full app check still fails.
-Next: lead review and a separate Start build fix.
-
-Plain choice: replace the two known import lines in the proof copy.
-Keep `drizzlePgCore` and `drizzleMigrator` for migrations.
-Remove `postgres`, `drizzlePostgres`, and `smtp`.
-Only `maintain/proof-app.mjs` changes code.
-The app's source, packages, checker rules, and tsc settings stay the same.
-
-Before the fix, the clean worktree was on `origin/main` at `5d8925aa`.
-`vp run @tinker-start-scaffold#check` exited 1.
-It reported:
-
-```text
-database.server.ts:8:10 TS6133 'postgres'
-database.server.ts:8:20 TS6133 'drizzlePostgres'
-mail.server.ts:4:10 TS6133 'smtp'
-check-middleware.mjs:105:12
-test:middleware: EXIT 1
-EXIT 1
-```
-
-After the fix, the proof build passes with no `TS6133` errors.
-The full app check still exits 1 at `check-middleware.mjs:117`.
-The request returns 500 with `InvalidDependency`.
-`test:serve` also exits 1 at `check-serve.mjs:75` with a 500 reply.
-
-The built files have a cycle.
-The Start chunk imports the body chunk.
-The body chunk reads `startServer` from the Start chunk before it is set.
-This failing shape is in the built output:
-
-```js
-// Start chunk
-import { responseBodies } from "./body.js";
-var startServer = resource({/* ... */});
-
-// Body chunk
-import { startServer } from "./start.js";
-var responseBodies = resource({
-  depends: { startServer },
-  /* ... */
-});
-```
-
-Importing the built server first, then resolving `responseBodies`, prints:
-
-```text
-InvalidDependency
-{"label":"unknown","reason":"unknown dependency"}
-```
-
-The separate fix belongs in `packages/start/lib/build-output.mjs`.
-This ticket forbids package changes.
-No proof-only build setting or import-order workaround was added.
-The full check is still required before landing.
-
-Writer gate:
-
-```bash
-vp run -r build && vp check \
-  && vp run @tinker-start-scaffold#test
-echo EXIT $?
-```
-
-```text
-vp run -r build: EXIT 0
-Found 0 errors and 27 warnings in 671 files
-Test Files 6 passed (6)
-Tests 31 passed (31)
-EXIT 0
-```
-
-The clean base also had 27 `vp check` warnings.
-`pnpm validate` passed all 19 lanes, exit 0.
-No mutation lane or timing run was started, as requested.
-`vp run prose` passes with 0 hits.
-
-Jev uses `origin/main..HEAD`: local `main` is on a different commit.
-It reports no source files changed and 0 flags.
-Jev only reads TypeScript source; this code change is JavaScript.
-No tests changed, so the test and promise judges do not run.
-Label lines: none.
-
-Core feedback: none.
-The failing snippet above is Start build feedback.
-
 Owner: lead (Codex, Start scaffold session).
 Status: runnable native proof complete; full inspection remains open.
 
@@ -3484,3 +3393,95 @@ Their TSDoc check has zero S26 rows.
 Jev tests and promises pass; two README matches remain unsure.
 The final labels and these notes add no source change after the gate.
 The card is back in Review; nothing is pushed or published.
+
+## scaffold/proof-app-imports
+
+Branch: `scaffold/proof-app-imports`.
+Owner: writer (Codex).
+Status: Done; landed as `e84ee76c`.
+The full app check passes with `start/build-chunk-cycle` (`a9c8deb6`).
+That fix and its proof: `docs/roadmap/start-base/PROGRESS.md`.
+
+Plain choice: replace the two known import lines in the proof copy.
+Keep `drizzlePgCore` and `drizzleMigrator` for migrations.
+Remove `postgres`, `drizzlePostgres`, and `smtp`.
+Only `maintain/proof-app.mjs` changes code.
+The app's source, packages, checker rules, and tsc settings stay the same.
+
+Before the fix, the clean worktree was on `origin/main` at `5d8925aa`.
+`vp run @tinker-start-scaffold#check` exited 1.
+It reported:
+
+```text
+database.server.ts:8:10 TS6133 'postgres'
+database.server.ts:8:20 TS6133 'drizzlePostgres'
+mail.server.ts:4:10 TS6133 'smtp'
+check-middleware.mjs:105:12
+test:middleware: EXIT 1
+EXIT 1
+```
+
+After the fix, the proof build passes with no `TS6133` errors.
+The full app check still exits 1 at `check-middleware.mjs:117`.
+The request returns 500 with `InvalidDependency`.
+`test:serve` also exits 1 at `check-serve.mjs:75` with a 500 reply.
+
+The built files have a cycle.
+The Start chunk imports the body chunk.
+The body chunk reads `startServer` from the Start chunk before it is set.
+This failing shape is in the built output:
+
+```js
+// Start chunk
+import { responseBodies } from "./body.js";
+var startServer = resource({/* ... */});
+
+// Body chunk
+import { startServer } from "./start.js";
+var responseBodies = resource({
+  depends: { startServer },
+  /* ... */
+});
+```
+
+Importing the built server first, then resolving `responseBodies`, prints:
+
+```text
+InvalidDependency
+{"label":"unknown","reason":"unknown dependency"}
+```
+
+The separate fix belongs in `packages/start/lib/build-output.mjs`.
+This ticket forbids package changes.
+No proof-only build setting or import-order workaround was added.
+The full check is still required before landing.
+
+Writer gate:
+
+```bash
+vp run -r build && vp check \
+  && vp run @tinker-start-scaffold#test
+echo EXIT $?
+```
+
+```text
+vp run -r build: EXIT 0
+Found 0 errors and 27 warnings in 671 files
+Test Files 6 passed (6)
+Tests 31 passed (31)
+EXIT 0
+```
+
+The clean base also had 27 `vp check` warnings.
+`pnpm validate` passed all 19 lanes, exit 0.
+No mutation lane or timing run was started, as requested.
+`vp run prose` passes with 0 hits.
+
+Jev uses `origin/main..HEAD`: local `main` is on a different commit.
+It reports no source files changed and 0 flags.
+Jev only reads TypeScript source; this code change is JavaScript.
+No tests changed, so the test and promise judges do not run.
+Label lines: none.
+
+Core feedback: none.
+The failing snippet above is Start build feedback.

@@ -73,20 +73,6 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
-- **start/build-chunk-cycle** — keep built body deps set before use.
-  Owner: writer (Codex).
-  Next: lead review.
-  Verify: scaffold check exits 0; the new test fails on main;
-  writer gate and all release lanes pass; owned chunks stay at most 255 slots.
-  [Proof](packages/start/BUILD-CHUNK-CYCLE.md).
-
-- **scaffold/proof-app-imports** — drop unused imports in the proof copy.
-  Owner: writer (Codex).
-  Next: lead review.
-  Verify: main's three `TS6133` errors are gone; the writer gate exits 0.
-  The full app check exits 0 with `start/build-chunk-cycle`.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldproof-app-imports).
-
 - **core/rules-batch-C** — cell controller memo and the cold write hook split.
   Owner: Core rules writer (Codex).
   Next: lead review and Jev calibration after the clean fault-test proof.
@@ -196,6 +182,16 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/build-chunk-cycle** — keep body deps in the forced server chunk; landed 2026-10-09 as `a9c8deb6`.
+  `includeDependenciesRecursively: true`: the body and Start chunks no longer import each other.
+  `vp run @tinker-start-scaffold#check` exits 0 on main again; the new test fails on the old setting.
+  Owned chunks stay at most 255 slots; `pnpm validate` exit 0, but it does not check Start chunks.
+  [Proof](docs/roadmap/start-base/PROGRESS.md#startbuild-chunk-cycle).
+
+- **scaffold/proof-app-imports** — drop unused imports in the proof copy; landed 2026-10-09 as `e84ee76c`.
+  Main's three `TS6133` errors are gone; the full app check exits 0 with `start/build-chunk-cycle`.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldproof-app-imports).
 
 - **scaffold/lazy-modules** — the scaffold follows ADR 0107; landed 2026-10-09.
   Units drop every `import()`; 8 backend lazy modules and 1 frontend; Drizzle helpers from `drizzleOrm`.
