@@ -1,0 +1,7 @@
+scaffold/lazy-modules: stored input reads
+Before fix: c697d710; both new scope tests fail with ZodError, EXIT 1.
+After fix: all 29 scaffold tests pass, EXIT 0.
+Bad stored events: DataValidationFailed at sync.readReplayEvents.
+Bad stored results: DataValidationFailed at profile.readNotificationResult.
+Rows and results go as rawInput; Core reads each schema once.
+Build, code check, lazy, and plain: EXIT 0; 27 warnings, 9 plain functions.
