@@ -117,6 +117,4 @@ Core cards follow the Core lane: `scripts/ticket.sh`,
   `const { run } = scope` supported?
 - `track()` and async stacks: keep the extra `.then`,
   or drop it and lose nothing else.
-- Sync revocations: push a sign-out notice
-  instead of checking each account on every wake.
-  This needs an ADR.
+- Sync revocations: decided in ADR 0110 (push a notice; the lease stays).

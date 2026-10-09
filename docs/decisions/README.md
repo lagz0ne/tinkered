@@ -92,3 +92,4 @@ by a new decision that names the old one.
 - [0108](0108-a-scope-handle-is-not-a-plain-object.md): a scope handle is not a plain object; no spread, no destructured verbs.
 - [0109](0109-a-preset-replaces-the-whole-node.md): a preset replaces the whole node; its deps are not built.
 - [0107](0107-a-body-gets-outside-libraries-only-from-its-deps.md): a body gets outside libraries only from its deps.
+- [0110](0110-sign-out-reaches-open-streams-as-a-notice.md): sign-out reaches open streams as a notice; a wake no longer re-reads the account.

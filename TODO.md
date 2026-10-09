@@ -53,6 +53,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
+- **start/sync-push-revocations** — sign-out reaches open streams as a notice (ADR 0110).
+  A wake no longer re-reads the account. A notice on the sync channel names the account; only its streams re-read.
+  Notice paths: sign-out, session revoked or deleted, user deleted or banned, role change. The 30 s lease stays.
+  Verify: per path, an open stream of that account closes; a save makes no account read (fails on main);
+  another device's stream stays open; `N=61 bench/queued.sh` sync row with 1,000 streams is not slower; Start kills ≥ 75.
+
 ## Doing
 
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
