@@ -8,7 +8,7 @@ Lazy: EXIT 0; base and app checked together.
 Checker --prove: EXIT 0; 115 cases; exact file, line, and tag on failures.
 Plain: EXIT 0; 44 source files; 9 plain functions, cap 17.
 Registry: EXIT 0; 10 items, 94 files; small, mail-only, and starter copies build.
-Import: EXIT 0; backend import and recorded mail leave drivers, auth, and SMTP unloaded.
+Import: the record-mode no-module assertion is removed in the review fix.
 Validate: EXIT 0; all 19 lanes; workspace config restored.
 Prose: EXIT 0 before this receipt; final notes checked at commit.
 Doctor and schema: EXIT 0; shipped sample settings, no live service claims.

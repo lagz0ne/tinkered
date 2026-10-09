@@ -3260,10 +3260,10 @@ The entry exports and returned types stay the same.
 
 Assumption: record mode means the existing mail preset.
 Core builds a replaced factory's normal deps too.
-Operations that load modules leave the unused library graph unbuilt.
+The review drops the operations that load modules.
 Native clients stay owned by the public resource factory.
 The first split failed both release tests; the final factory passes them.
-The fresh-process proof sends recorded mail without loading SMTP.
+The backend import proof remains; preset mail may load SMTP.
 
 Assumption: the event reader is app code, not an entry export.
 Its two callers now share an array schema and a Core reader.
