@@ -61,6 +61,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/rules-batch-D** — deps plans, tagged frame fields, and async stacks.
+  Owner: Core rules writer (Codex), branch `core/rules-lane`.
+  Next: finish the tagged frame and async stack trials; the dep plan was slower.
+  Verify: every kept N=61 row avoids slowdown; gates pass; Core fault kills clear 85%.
+  Async stacks need at least 10 frames at depth 32 and at most one added promise per op.
+  The scaffold middleware check stays skipped by the user's request.
+  [Proof](docs/roadmap/perf/PROGRESS.md).
+
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).

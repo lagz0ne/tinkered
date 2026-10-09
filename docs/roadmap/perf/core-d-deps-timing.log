@@ -1,0 +1,19 @@
+Core batch D: N=61 deps
+A: 5d8925aad6c222abd736dfd8515c2443b09f660a
+B: 282bdfcd8e94cf8e9c54197644c7f9f44c787ec9
+Clean A: yes
+Clean B: yes
+v24.21.0 V8 13.6.233.17-node.53
+Verdicts: paired two-sided sign test, p < 0.05; ties excluded
+Each sample used mitata batch mode; no one-call samples.
+
+cold: b is slower; median 603.4 -> 720.5 ns; B slower 60/61; p=5.37764e-17
+op: b is slower; median 56.9 -> 83.1 ns; B slower 61/61; p=8.67362e-19
+run: b is slower; median 72.7 -> 100.8 ns; B slower 61/61; p=8.67362e-19
+tagged: b is slower; median 192.0 -> 221.5 ns; B slower 56/61; p=5.64556e-12
+session: no difference we can see; median 433.3 -> 431.4 ns; B slower 24/60; p=0.155002
+lifecycle: b is slower; median 758.3 -> 880.4 ns; B slower 59/61; p=1.64105e-15
+
+Decision: DROP; slower rows: cold, op, run, tagged, lifecycle
+Raw rows: /home/paseo/.cache/tinkered-briefs/core-d/deps-ab.csv
+Full queue log: /home/paseo/.cache/tinkered-briefs/core-d/deps-timing-full.log

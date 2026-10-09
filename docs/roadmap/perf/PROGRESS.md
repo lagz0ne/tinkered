@@ -1716,3 +1716,40 @@ Before is the median of 7 core-c and core-d runs.
 ### Known gap
 
 - `benchd`'s exec line has no `load_before`.
+
+## Core rules: batch D (2026-10-09)
+
+Owner: Core rules writer (Codex), branch `core/rules-lane`.
+Base: `5d8925aa`, with batches A, B, and C on main.
+Scope: deps plans, tagged frame fields, and async stacks.
+A slower paired N=61 row rejects its ticket.
+The plan checks key changes and reads current dependencies at delivery time.
+The circular-resource test showed that declarations can fill their deps after creation.
+Hooks, cancellation, failure ownership, and namespace selection keep their shipped rules.
+The scaffold middleware check stays skipped as the user asked.
+No public symbol changes are planned.
+
+### core/deps-plan: dropped
+
+The trial prepared keys and kinds once, then filled a copy on each delivery.
+It kept live dep values and rebuilt a plan when keys changed.
+The new live-dep test and the circular-resource test pass.
+Build, ticket, all 19 release checks, and prose exit 0.
+The dep resolver falls from 223 to 189 bytecode bytes.
+Module slots fall from 339 to 338.
+The trial lowers both limits in its own pinned commit, `282bdfcd`.
+Size rises from 15,932 to 16,186 B gzip, below the 16,384 B cap.
+
+N=61 rejects the trial: five of six rows say `b is slower`.
+Cold builds: 603.4 → 720.5 ns.
+Controller runs: 56.9 → 83.1 ns.
+Scope runs: 72.7 → 100.8 ns.
+Tagged runs: 192.0 → 221.5 ns.
+Build and close: 758.3 → 880.4 ns.
+The session row says `no difference we can see`.
+[Timing proof](core-d-deps-timing.log) has every median and paired verdict.
+The raw rows and full queue log stay in the named local cache.
+
+The plan, its test, and its limit edits are dropped together.
+No runtime change from this ticket is saved on the lane branch.
+The tagged frame trial follows against the same clean main base.
