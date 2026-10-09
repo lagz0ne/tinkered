@@ -48,6 +48,7 @@ scratch/
 # declaration artifacts a package build emits beside an example its tests import
 examples/**/*.d.ts
 .bench/
+.bench-affinity.*
 .vitest/
 
 # local GitHub release assets

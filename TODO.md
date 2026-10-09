@@ -76,7 +76,8 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 - **bench/probe-core** — probes keep the CPU the queue gives them.
   Owner: writer (Codex).
   Next: lead review.
-  Verify: shell checks for CPU 7, `CORE=5`, and the host default;
+  Verify: shell checks for the assigned CPU, explicit `CORE`, and the last CPU;
+  parse checks cover CPU lists with gaps; failed checks print their stderr;
   `vp check` and `vp run prose` pass. Lead runs queue proof.
   [Proof](docs/roadmap/bench/PROGRESS.md).
 

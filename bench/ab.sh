@@ -9,14 +9,15 @@ set -u
 A=${A:-../tinkered-base}            # baseline worktree under /home/paseo (benchd cannot see /tmp): git worktree add ../tinkered-base <sha>; build packages/core
 B=${B:-$(git rev-parse --show-toplevel)}   # the tree under test; its probe measures both trees
 N=${N:-31}
+source "$(dirname "${BASH_SOURCE[0]}")/cpu-list.sh"
 if [ -z "${CORE:-}" ]; then
   cpus=$(LC_ALL=C taskset -pc $$) || exit 1
   cpus=${cpus##*: }
   if [[ "$cpus" =~ ^[0-9]+$ ]]; then
     CORE=$cpus
   else
-    CORE=6
-    echo "ab.sh: CPU list $cpus has more than one CPU; picked CPU $CORE" >&2
+    CORE=$(last_cpu "$cpus")
+    echo "ab.sh: CPU list $cpus; picked last CPU $CORE" >&2
   fi
 fi
 OUT=${OUT:-/tmp/ab.csv}          # set OUT when /tmp is not shared, e.g. under benchd

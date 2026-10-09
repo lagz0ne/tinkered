@@ -1,11 +1,40 @@
 #!/usr/bin/env bash
 # Check CPU pins with a fake probe. No code is timed or sent to benchd.
-set -euo pipefail
+set -Eeuo pipefail
+check_name=setup
+scratch=
+trap 'status=$?; echo "FAIL $check_name (exit $status)" >&2;
+  if [ -n "$scratch" ] && [ -f "$scratch/stderr" ]; then
+    cat "$scratch/stderr" >&2
+  fi
+  exit "$status"' ERR
 cd "$(git rev-parse --show-toplevel)"
+source bench/cpu-list.sh
 harness=${1:-bench/ab.sh}
 scratch=$(mktemp -d "$PWD/.bench-affinity.XXXXXX")
 trap 'rm -rf "$scratch"' EXIT
 mkdir -p "$scratch/probe" "$scratch/queue"
+
+runner_cpus=$(LC_ALL=C taskset -pc $$)
+runner_cpus=${runner_cpus##*: }
+export JOB_CPU=${runner_cpus%%[-,]*}
+override_cpu=${runner_cpus##*[-,]}
+if [ "$JOB_CPU" = "$override_cpu" ]; then
+  echo 'affinity.test.sh: the runner needs at least two CPUs' >&2
+  false
+fi
+
+check_parse() {
+  local cpus=$1 expected=$2
+  check_name="parse CPU list $cpus"
+  test "$(last_cpu "$cpus")" = "$expected"
+  echo "PASS parse=$cpus: last CPU $expected"
+}
+
+check_parse 7 7
+check_parse 0-7 7
+check_parse 0-2,4-6 6
+check_parse 3,7 7
 
 cat > "$scratch/probe/node" <<'SH'
 #!/usr/bin/env bash
@@ -29,7 +58,7 @@ while [ "$#" -gt 0 ]; do
     *) exit 1 ;;
   esac
 done
-exec env -u CORE "${envs[@]}" taskset -c 7 "$@"
+exec env -u CORE "${envs[@]}" taskset -c "$JOB_CPU" "$@"
 SH
 chmod +x "$scratch/probe/node" "$scratch/queue/benchctl"
 export PROBE_CPUS="$scratch/cpus" QUEUE_ENVS="$scratch/envs"
@@ -38,38 +67,44 @@ probe_path="$scratch/probe:/usr/bin:/bin"
 
 check_ab() {
   local affinity=$1 core=$2 expected=$3
+  check_name="ab affinity=$affinity CORE=$core"
   : > "$PROBE_CPUS"
+  : > "$scratch/stderr"
   local setting=(-u CORE)
   if [ "$core" != unset ]; then setting=(CORE="$core"); fi
   env "${setting[@]}" PATH="$probe_path" taskset -c "$affinity" \
     bash "$harness" > "$scratch/stdout" 2> "$scratch/stderr"
   diff -u <(printf '%s\n%s\n' "$expected" "$expected") "$PROBE_CPUS"
-  if [ "$core" = unset ] && [ "$expected" = 6 ]; then
-    grep -Fx "ab.sh: CPU list $affinity has more than one CPU; picked CPU 6" "$scratch/stderr"
+  if [ "$core" = unset ] && [[ ! "$affinity" =~ ^[0-9]+$ ]]; then
+    grep -Fx "ab.sh: CPU list $affinity; picked last CPU $expected" "$scratch/stderr"
   else
     test ! -s "$scratch/stderr"
   fi
   echo "PASS affinity=$affinity CORE=$core: both probes CPU $expected"
 }
 
-check_ab 7 unset 7
-check_ab 7 5 5
-check_ab 0-7 unset 6
-check_ab 0,7 unset 6
+check_ab "$JOB_CPU" unset "$JOB_CPU"
+check_ab "$JOB_CPU" "$override_cpu" "$override_cpu"
+check_ab "$runner_cpus" unset "$override_cpu"
 
 check_queue() {
   local mode=$1 core=$2 expected=$3
+  check_name="$mode CORE=$core"
   local path=$probe_path setting=(-u CORE)
   if [ "$mode" = queue ]; then path="$scratch/queue:$path"; fi
   if [ "$core" != unset ]; then setting=(CORE="$core"); fi
   : > "$PROBE_CPUS"
   : > "$QUEUE_ENVS"
-  env "${setting[@]}" PATH="$path" taskset -c 7 \
+  : > "$scratch/stderr"
+  env "${setting[@]}" PATH="$path" taskset -c "$JOB_CPU" \
     bash bench/queued.sh > "$scratch/stdout" 2> "$scratch/stderr"
   diff -u <(printf '%s\n%s\n' "$expected" "$expected") "$PROBE_CPUS"
   if [ "$mode" = queue ]; then
     if [ "$core" = unset ]; then
-      if grep -q '^CORE=' "$QUEUE_ENVS"; then exit 1; fi
+      if grep -q '^CORE=' "$QUEUE_ENVS"; then
+        echo 'queued.sh passed CORE when the caller left it unset' >&2
+        false
+      fi
     else
       grep -Fxq "CORE=$core" "$QUEUE_ENVS"
     fi
@@ -79,7 +114,7 @@ check_queue() {
   echo "PASS $mode CORE=$core: both probes CPU $expected"
 }
 
-check_queue queue unset 7
-check_queue queue 5 5
-check_queue host unset 7
-check_queue host 5 5
+check_queue queue unset "$JOB_CPU"
+check_queue queue "$override_cpu" "$override_cpu"
+check_queue host unset "$JOB_CPU"
+check_queue host "$override_cpu" "$override_cpu"
