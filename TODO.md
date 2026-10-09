@@ -24,6 +24,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **scaffold/stored-data-error** — a corrupt stored event raises its own managed error, not `BadInput`.
+  `sync.server.ts:84` and `:104` raise `BadInput`, which `readReceipt` shows the user as their own mistake.
+  A new error that no transport maps stays a server failure. Also: the checker catches `s.run.apply(s, [{ run }])`.
+  Verify: the corrupt-event test expects the new error; an `apply` plant fails on main's checker.
+
 - **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
   Starts after core/rules-batch-A and B land: one Core ticket at a time.
   Resource and operation presets get empty deps and the usual ctx; the call's input is still parsed.
@@ -61,15 +66,6 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **scaffold/lazy-modules** — the review fix round is saved.
-  Owner: lead (Claude, lazy-modules session); writer Sol.
-  Next: review the fixes and calibrate Jev at landing.
-  Verify: gate EXIT 0; 31 app tests, 449 Start tests, all 10 workspace tasks;
-  lazy proves 125 plants before checking both roots; 94 registry files match;
-  all 19 release checks pass; native owners rebuild after release.
-  Presets may load native modules until the separate Core fix lands.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
 
 - **core/rules-batch-B** — lean run hooks and the release Q2 test.
   Owner: Core rules writer (Codex).
@@ -172,6 +168,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **scaffold/lazy-modules** — the scaffold follows ADR 0107; landed 2026-10-09.
+  Units drop every `import()`; 8 backend lazy modules and 1 frontend; Drizzle helpers from `drizzleOrm`.
+  `vp run lazy` proves 125 plants, then checks the base and the app; stored rows use `safeParse` and managed errors.
+  Reviewer READY at `93fc5e90` (Opus `b1891d6c`); no app mutation lane.
+  Until core/preset-whole-node lands, tests that preset `database` or `mail` load `pg` and nodemailer as modules.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
 
 - **start/lazy-modules** — the base and the checker for ADR 0107; landed 2026-10-09.
   `scripts/check-lazy-modules.mjs` checks rules 7–10; `--prove` 90 cases; `vp run lazy` covers `packages/start/src`.
