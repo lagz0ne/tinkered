@@ -1054,6 +1054,10 @@ Ticket 2, `scaffold/lazy-modules`, starts on this branch.
 start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.server.ts src/parts/sync/stream.server.ts
 ```
 
+Landing note: `@tinker/start/testing` re-exports `responseBodies`.
+Its factory is now async, so `scope.resolve(responseBodies)` returns a promise.
+No app uses it; the base's own callers await it.
+
 ### Lead decisions
 
 - User, 2026-10-09: `openSync` reads raw request fields in its input callback.

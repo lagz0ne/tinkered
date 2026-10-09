@@ -24,10 +24,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **scaffold/lazy-modules** — the scaffold follows ADR 0107; starts on the start/lazy-modules branch.
+- **scaffold/lazy-modules** — the scaffold follows ADR 0107; cut from main.
   Units drop every `import()` and use `drizzleOrm` and app lazy modules.
   The `tinker-forms` skill line "Load a native library inside its resource factory" follows the ADR.
   Verify: `vp run lazy` covers `apps/start-scaffold/src` and exits 0; registry rebuilt; `check-imports.mjs` 0.
+  Also: the old raw `{ cursor }` call to `openSync` becomes typed `input`, so its input reads one raw shape.
+  Also in the checker: inline `scope.run({ run })` bodies count as unit bodies; a React component passed as a value is not followed;
+  "unit body not found" gets its own tag instead of rule-7.
+
+- **start/sync-400** — the sync endpoint answers 400 only for `openSync`'s own input failure.
+  Today any `DataValidationFailed` inside the open run maps to 400 (`endpoint.server.ts:26`); match the error's `label` too.
+  Verify: a test where a dep's parse fails gets a thrown failure, not 400; it fails on main.
 
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
@@ -54,15 +61,6 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
-
-- **start/lazy-modules** — the base and the checker for ADR 0107 ([brief](docs/roadmap/start-base/LAZY-MODULES-BRIEF.md)).
-  Owner: lead (Claude, lazy-modules session); writer Sol, reviewer Opus.
-  Writer: `c8d51075` (Sol), worktree `../tinkered-lazy-modules`, branch `start/lazy-modules`.
-  Next: lead review and landing.
-  Verify: 90 checker plants, lazy check, gates, all package tests, and 19 validate lanes passed.
-  Latest fix-round mutation: 83.42% on kills alone at `c8d51075`; floor 75.
-  C1 and C2 pass all proofs; final gate and full mutation passed on clean `c8d51075`.
-  [Proof](docs/roadmap/start-base/PROGRESS.md#startlazy-modules).
 
 - **core/rules-batch-A** — hook and controller fields, and slot order.
   Owner: Core rules writer (Codex).
@@ -157,6 +155,12 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/lazy-modules** — the base and the checker for ADR 0107; landed 2026-10-09.
+  `scripts/check-lazy-modules.mjs` checks rules 7–10; `--prove` 90 cases; `vp run lazy` covers `packages/start/src`.
+  The base takes Drizzle and TanStack from lazy modules; `drizzleOrm` is public; the sync endpoint passes `rawInput`.
+  Reviewer READY at `cbbd2834` (Opus `8b68d523`); start mutation 83.42% at `c8d51075` (floor 75).
+  [Proof](docs/roadmap/start-base/PROGRESS.md#startlazy-modules).
 
 - **perf/rules-lanes, five lanes and Core batch A** — landed 2026-10-08/09.
   Scaffold: sign-up, reset, and profile save answer before mail sends (3 tests fail on main).
