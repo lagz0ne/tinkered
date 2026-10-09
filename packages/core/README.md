@@ -939,7 +939,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A child session reads its parent's cells and tags until it writes its own; the write stays local.
 - A nearer shadow wins for descendants below it, and the parent keeps its own value.
 - A watcher on the parent still sees the parent's later writes after a child shadows.
-- A closed scope's held controller reads the initial value back; late writes fail with `Disposed`.
+- A closed scope's held controller reads the initial value back.
+- Late writes fail with `Disposed` before write hooks or update functions run.
 - Close runs children first, then `onClose` hooks and cleanups latest-first — a later `onClose` before
   an earlier resource cleanup; a dependent's cleanup before its dependency's.
 - With no body, child, or pending work, close runs synchronous cleanup in its first promise job.

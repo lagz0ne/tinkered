@@ -1617,7 +1617,7 @@ The unrecorded watcher prototypes were not timed and supply no speed claim.
 The final build is byte-for-byte the kept hook-split build.
 Install, build, ticket, all 19 release checks, and prose exit 0.
 The ticket covers check, every package test config, Core built-file tests, and size.
-Core has 873 source tests and 883 built-file tests.
+Core has 875 source tests and 885 built-file tests after the close tests below.
 Only the scaffold middleware check is skipped, as the user asked.
 Core gzip: 15,893 -> 15,932 bytes, under 16,384.
 Slots stay 339; every saved hot bytecode and closure ceiling stays unchanged.
@@ -1653,3 +1653,31 @@ The first clean run killed 3,019 of 3,551 valid faults: 85.018305%.
 It tested `7b6a3317` before the rebase, so it is not the final run of record.
 The fault run follows again on the final clean commit after this note.
 Only its short proof log is committed after that run.
+
+### Close tests after the second fault run
+
+Main moved again, to `062c7dcc`, while that run was under way.
+It changed scaffold code and shared docs, but no Core source or tests.
+Rebase keeps both sets of Jev answers in the one append conflict.
+Install and build exit 0.
+The second run killed 3,018 of 3,551 valid faults: 84.990144%.
+That misses 85% by one kill; its timeout-inclusive score is not a pass here.
+No unchanged run is retried for a better score.
+
+Two new seam tests check late use of the paths kept in C.
+A retained cell controller refuses an update before the user's function runs.
+A closed scope refuses a set before a write hook that stops the write runs.
+Each passes on the retained code and fails when its close check is removed.
+The tests preserve shipped behavior; neither claims a bug fixed in main.
+The first equal-write test did not catch a fault and was removed.
+The README now states when late writes fail.
+The new tests have zero strict style hits, test flags, or README gaps.
+The renewed source review has 300 units, 112 flagged units, and zero file flags.
+All 170 non-noisy hits in 111 units have a false label with a reason.
+The full test scan still has seven old flags outside this batch.
+Its old README scan ran before the new line; the focused current check has no new gap.
+Build, ticket, all 19 release checks, and prose exit 0 again.
+Core has 875 source tests and 885 built-file tests.
+No runtime code changed; the measured build's hash still matches.
+The final clean fault run follows after these test and proof notes.
+Only its short proof log is committed afterward.

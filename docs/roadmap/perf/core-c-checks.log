@@ -35,3 +35,26 @@ Runtime hash unchanged: c8f09cc3919905a9f00fc2588ded0cbd7bae9a2fe94d7695bcb4f13c
 cmp against pinned hook-split N=61 build: EXIT 0.
 Earlier clean mutation: 3019/3551 = 85.018305%; tested 7b6a3317 before rebase.
 A fresh final-HEAD mutation proof follows; only that short log is committed afterward.
+
+Second main catch-up and late-write tests
+origin/main: 062c7dccef7ee55464b3578dfb3697034e19d1ca
+Main changed scaffold code and docs, no Core source or tests.
+Rebase EXIT 0; kept both sets of answers in the Jev append conflict.
+vp install EXIT 0; build EXIT 0.
+Second clean mutation: 3018/3551 = 84.990144%; below the kills-only floor by one kill.
+Added public tests for closed writes before a stopping hook and a retained controller's update function.
+Each test is green and fails when its matching close check is removed (EXIT 1).
+No bug-fix claim: the tests pass on shipped behavior.
+The equal-write prototype caught no fault and was removed.
+Final gate after both real tests: build 0, ticket 0, validate 0, prose 0.
+Core source tests: 875. Core built-file tests: 885.
+Changed tests: strict style 0, TSDoc shape 0, Jev test flags 0/3, README gaps 0/3.
+Core runtime and N=61 proof hash unchanged: c8f09cc3919905a9f00fc2588ded0cbd7bae9a2fe94d7695bcb4f13cb8308656
+The scaffold middleware gate stays skipped by user instruction.
+Final clean mutation proof follows, with no unchanged-source retry for a higher score.
+Renewed source review: 300 units, 112 flagged units, zero file flags.
+All 170 non-noisy hits in 111 units labeled false with reasons; EXIT 0.
+Old full-package test flags stay outside C; the new promise flag is fixed by the README line.
+Planted fault commands: vp test tests/write-hook-cold.test.ts and vp test tests/dep-controller.test.ts (from packages/core).
+Removing runWriteHooks' ensureOpen makes the first fail; removing dataController.update's ensureOpen makes the second fail.
+Both source checks were restored before the green gate; each planted check EXIT 1.
