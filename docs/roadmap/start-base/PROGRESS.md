@@ -1148,12 +1148,12 @@ start  drizzleOrm  src/modules.server.ts src/server.ts src/parts/sync/history.se
 ### Jev labels
 
 `node tools/jev/preflight.mjs origin/main..HEAD`: EXIT 0.
-No file flags; five units had seven flags after the telemetry rebase.
-All seven have saved answers below.
+No file flags; five units had eight flags after C1 and C2.
+All eight have saved answers below.
 Earlier entry, endpoint, and body answers stay in the bank.
 The label bank is `tools/jev/cases.jsonl`.
-All seven answers already exist in the bank.
-Earlier body, stream, and opener answers stay there too.
+The changed endpoint has one new answer.
+Earlier body, stream, and opener answers stay in the bank.
 The lead runs calibration when landing.
 `node tools/jev/tests.mjs start`: EXIT 0.
 The new module test passes.
@@ -1170,6 +1170,8 @@ The plain test notes have no judge in the label tool.
   No await in the factory; pulls check cancelled before delivery.
 - `configNotTag false http.ts#httpRequest`:
   URL and method are validated per-call input; transport is a dep.
+- `shapeGrowsPerCall false http.ts#httpRequest`:
+  Span fields go in a map; failure payloads use fixed keys.
 - `ignoresAbortAfterAwait false endpoint.server.ts#syncEndpoint`:
   `open.settle` returns cancellation; `readResult` raises it before replying.
   `requestStop` owns the request signal.
@@ -1234,4 +1236,7 @@ Nothing was pushed.
 
 The in-flight mutation at `2b8b2c37` was stopped for the new input decision.
 Its partial result is not proof; the changed code needs a fresh full run.
-Build, check, 449 Start tests, and lazy passed before saving C1 and C2.
+C1 and C2 were saved at `0f5a2ad3` after build, check, 449 Start tests, and lazy passed.
+All 90 plants, Jev steps, impact refs, style, 19 validate lanes,
+and all ten workspace test tasks then passed again.
+The final clean-commit gate and full mutation follow this saved step.
