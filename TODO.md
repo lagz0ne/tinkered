@@ -73,6 +73,13 @@ reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09
 
 ## Review
 
+- **scaffold/proof-app-imports** — drop unused imports in the proof copy.
+  Owner: writer (Codex).
+  Next: lead review.
+  Verify: main's three `TS6133` errors are gone; the writer gate exits 0.
+  The full app check still fails: built `responseBodies` reads an unset `startServer` dep.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldproof-app-imports).
+
 - **core/rules-batch-C** — cell controller memo and the cold write hook split.
   Owner: Core rules writer (Codex).
   Next: lead review and Jev calibration after the clean fault-test proof.
