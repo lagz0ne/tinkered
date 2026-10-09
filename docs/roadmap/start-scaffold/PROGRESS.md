@@ -3243,7 +3243,7 @@ No impact block: no public symbol crosses a package.
 
 Owner: Sol writer, branch `scaffold/lazy-modules`.
 Next: lead review; run Jev calibration when landing the labels.
-Verify: the linked gate, 115 plants, and 19 release checks return 0.
+Verify: the linked gate, 125 plants, and 19 release checks return 0.
 
 The root lazy check covers Start and the scaffold together.
 Inline run and settle bodies count, including tags and signals.
@@ -3275,19 +3275,18 @@ All 94 emitted files match; all three copied app builds pass.
 The copied guides use ADR 0107.
 Nothing is pushed or published; no mutation lane is part of this card.
 
-### Proof
+### First-round proof
 
-The final source commit is `a5cbd7d2`.
+The first-round source commit was `a5cbd7d2`.
 Its clean gate passed build, check, 31 app tests, 449 Start tests,
 and every workspace test task.
 Check has zero errors and the same 27 warnings.
 Lazy, plain, registry, import, and all 19 release checks pass.
-The final 115 plants pass on the committed checker.
+That round passed 115 plants; the review adds 10 more.
 Style census and TSDoc checks pass.
 Doctor and schema checks pass with the shipped sample settings.
 No live Postgres or SMTP service proof is claimed.
-The final fetch still had main at `dc78e082`.
-Only these proof and board notes follow the tested source.
+That round used main at `dc78e082`.
 
 - [Main red run](proof/lazy-modules-main-red.txt).
 - [Checker plants](proof/lazy-modules-checker.txt).
@@ -3299,23 +3298,6 @@ Jev found no file flag, test flag, or README gap.
 The 14 source answers are false, with reasons in the label bank.
 The noisy notifyProfile note needs no label.
 The lead runs calibration at landing.
-
-### Core feedback
-
-A resource has no controller dep (TS2339).
-An operation that loads the module is the workaround.
-From the app root, this fails:
-
-```ts
-import { resource } from "@tinker/core";
-import { smtp } from "./src/backend/modules";
-
-resource({
-  label: "owner",
-  depends: { smtp: smtp.controller },
-  factory: ({ smtp }) => smtp,
-});
-```
 
 ### Review fix round, 2026-10-09
 
@@ -3351,3 +3333,63 @@ Missing-body errors point at user calls, including d.ts and d.mts cases.
 The check reads the Core Scope.Inline type, including call and bind.
 Components passed to calls and constructors count as graph code.
 The root lazy command runs the proof before checking both roots.
+
+The review adds the missing private-route promise to the README.
+Jev now finds no file flag, test flag, or README gap.
+The final source run has 12 false answers and one noisy note.
+The reasons are saved in the label bank; the lead calibrates at landing.
+
+### Core feedback for the review
+
+ADR 0109 and the core/preset-whole-node card are now on main.
+Today a preset still builds the replaced node's deps.
+This check fails with builds equal to 1, where the planned rule expects 0.
+Direct module deps are kept; this Core change is a separate ticket.
+
+```ts
+import assert from "node:assert/strict";
+import { createScope, resource } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
+
+let builds = 0;
+const dep = resource({
+  label: "dep",
+  factory: () => ++builds,
+});
+const owner = resource({
+  label: "owner",
+  depends: { dep },
+  factory: ({ dep }) => dep,
+});
+const root = createScope({
+  presets: [preset(owner, () => 42)],
+});
+await root.ready;
+try {
+  assert.equal(await root.resolve(owner), 42);
+} finally {
+  await root.close({ graceful: true });
+}
+assert.equal(builds, 0);
+```
+
+### Final review proof
+
+The tested source is `50e96817`, clean before the gate.
+Main is `7b7195b1`; the final fetch found no newer commit.
+Install and build passed after both rebases.
+The fresh full gate returns 0: 12 builds, 31 app tests, 449 Start tests,
+and all 10 workspace test tasks.
+Check has zero errors and the same 27 warnings.
+An overlapping run lost Core's built entry during a Start import.
+It is discarded; the reported gate ran after release checks finished.
+All 19 release checks pass; the workspace config is restored.
+The root lazy command returns 0: 125 plants, then both source roots.
+The separate proof command also passes those 125 plants.
+Plain, imports, and registry checks return 0.
+All 94 emitted files match; all three copied apps build.
+All 13 changed source and test files pass the strict style census.
+Their TSDoc check has zero S26 rows.
+Jev tests and promises pass; two README matches remain unsure.
+The final labels and these notes add no source change after the gate.
+The card is back in Review; nothing is pushed or published.

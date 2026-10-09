@@ -50,12 +50,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **scaffold/lazy-modules** — one review fix round.
-  Owner: scaffold writer (Sol).
-  Next: direct module deps, stored row reads, checker plants, and shipped words.
-  Verify: full gate, checker proof, registry, imports, Jev, and all release checks pass.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
-
 - **perf/rules-lanes** — every remaining case-study ticket (user, 2026-10-08: "Go all"), six lanes, one Sol writer each ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Owner: lead (Claude, Start scaffold session).
   Core in four batches (A shapes, inline budget, slot order; B borrow, hooks, brands; C dep memo, write hooks, unwatched writes; D deps plan, tagged frames, async stacks).
@@ -67,6 +61,15 @@ Pairs since 2026-09-30: a Sol writer (`codex/gpt-6.1-sol`, high) and an Opus 5.5
 reviewer per card (no Fable); the lead lands, one branch at a time (user 2026-09-30).
 
 ## Review
+
+- **scaffold/lazy-modules** — the review fix round is saved.
+  Owner: lead (Claude, lazy-modules session); writer Sol.
+  Next: review the fixes and calibrate Jev at landing.
+  Verify: gate EXIT 0; 31 app tests, 449 Start tests, all 10 workspace tasks;
+  lazy proves 125 plants before checking both roots; 94 registry files match;
+  all 19 release checks pass; native owners rebuild after release.
+  Presets may load native modules until the separate Core fix lands.
+  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
 
 - **core/rules-batch-B** — lean run hooks and the release Q2 test.
   Owner: Core rules writer (Codex).

@@ -1,20 +1,22 @@
-scaffold/lazy-modules: final proof
-Source: a5cbd7d29192e68ceb9a571c0c5310e03baf5e26; clean before the gate.
-Base: dc78e0823a9804d75d0900c91c104cf18dba502a; unchanged at final fetch.
+scaffold/lazy-modules: final review proof
+Source: 50e96817225d6df78758a9f0d4cc5b5cdb3644db; clean before the gate.
+Base: 7b7195b1bec5410d2c2f5edadb5961dd2b49e4d2; unchanged at final fetch.
 Gate: vp run -r build && vp check && vp run @tinker-start-scaffold#test && vp run @tinker/start#test && vp run -r test
 Result: EXIT 0; 12 build tasks; 31 scaffold tests; 449 Start tests; all 10 test tasks.
-Check: 0 errors, 27 warnings; same count before app edits.
-Lazy: EXIT 0; base and app checked together.
-Checker --prove: EXIT 0; 115 cases; exact file, line, and tag on failures.
+Check: 0 errors, 27 warnings; same count before review edits.
+An overlapping gate was discarded after validate rebuilt Core during a Start import.
+The reported gate is the fresh run after validate finished.
+Lazy: EXIT 0; 125 proof cases first, then both source roots in one run.
+Standalone --prove: EXIT 0; the same 125 cases; exact file, line, and tag.
+Old checker: all 10 added review plants fail their expected check.
 Plain: EXIT 0; 44 source files; 9 plain functions, cap 17.
-Registry: EXIT 0; 10 items, 94 files; small, mail-only, and starter copies build.
-Import: the record-mode no-module assertion is removed in the review fix.
+Registry: EXIT 0; 10 items, 94 files; all three copied compositions build.
+Import: EXIT 0; backend import loads no service modules; preset mail records its message.
 Validate: EXIT 0; all 19 lanes; workspace config restored.
-Prose: EXIT 0 before this receipt; final notes checked at commit.
-Doctor and schema: EXIT 0; shipped sample settings, no live service claims.
-Style census: EXIT 0; changed source and both changed tests.
-TSDoc: EXIT 0; 6 files, 0 S26 rows.
-Jev: EXIT 0; 0 file flags; 0/31 tests flagged; 0/31 README gaps, 3 unsure.
-Jev source: 14 false answers saved; one noisy note owes no label.
-Core feedback: TS2339 for a resource controller dep, confirmed with TypeScript.
-No mutation lane, push, or publish.
+Style census: EXIT 0; all 13 changed source and test files.
+TSDoc: EXIT 0; 13 files, 0 S26 rows.
+Jev: EXIT 0; 0 file flags; 0/31 test flags; 0/31 README gaps, 2 unsure.
+Jev source: 38 units; 12 false answers saved; the noisy note needs no label.
+Prose: EXIT 0; final proof and board notes also checked at commit.
+Core feedback: a preset still builds its old dep; planned zero-build assertion fails with 1.
+No mutation lane, live service claim, push, or publish.
