@@ -466,7 +466,7 @@ function castVariables(program: ESTree.Program): Set<string> {
 /**
  * The names one Core-importing file may read in ways types do not check:
  *
- * - any string or plain template literal used as a computed key or passed to reflection;
+ * - any string or plain template literal, including computed keys and reflection calls;
  * - in a script, every member read and destructured key;
  * - in a typed file, a member read or destructured key on a value that came from a cast or an
  *   `any`, directly or through variables ({@link castVariables});

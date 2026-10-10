@@ -1881,7 +1881,8 @@ No row is b slower.
 ## core/size-build-guard — Sol takeover
 
 Branch: `core/size-build-guard-sol`.
-Base: `origin/main` at `4edd71c7`.
+First base: `origin/main` at `4edd71c7`.
+Rebased on `d30e8fe3`; its Core files are unchanged.
 The local archive tag keeps the first writer's head at `159da393`.
 The first writer's worktree and branch are unchanged.
 The lead owns the board and landing.
@@ -1893,7 +1894,7 @@ A suppressed read is checked at the member or destructured key's own position.
 Both `@ts-expect-error` and `@ts-ignore` count the following line.
 A file with `@ts-nocheck` counts every read.
 Only parsed comments count as these directives.
-The optional constructor and object-method rules are left for a later card.
+The optional constructor and object-method rules are not added.
 
 ### Revert proof
 
@@ -1910,6 +1911,21 @@ and `/tmp/size-build-guard-sol-haiku-red.log`.
 The green log is `/tmp/size-build-guard-sol-guard-green.log`.
 
 ### Final checks
+
+All nine built files match the base byte for byte.
+The code check has zero errors and the base's 27 warnings.
+The source lane passes all 880 Core tests.
+The first parallel run hit a five-second Flight Trial timeout.
+Its 148 tests pass when workspace packages run one at a time.
+No timeout limit changes.
+
+Changed code passes the strict style census.
+The whole-file scan sees old code hits and the required invalid plant strings.
+The TSDoc parser finds no bad doc row.
+Jev finds no flag in the guard tests.
+The old test findings and 47 old README picks stay outside this build change.
+All four code flags have false labels under `core/size-build-guard`.
+The maps and sets hold private build notes, not app state or work on a request.
 
 The handoff records the full gate chain by exit code.
 It also gives the clean head, the full Core fault count, and the labels.
