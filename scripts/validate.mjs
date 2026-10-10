@@ -16,7 +16,7 @@ const lanes = [
     "node --test scripts/fast-code-parsers.test.mjs && node scripts/check-fast-code.mjs",
     "show",
   ],
-  ["ticket.sh exit codes (red mutation fails the gate)", "node --test scripts/ticket.test.mjs"],
+  ["ticket.sh exit codes", "node --test scripts/ticket.test.mjs"],
   ["tests", `${VP} run --no-cache core#test`],
   // core/size-build: the build renames private fields, so the tests also run on what users import.
   ["core tests on the built files", `${VP} run --no-cache core#test:dist`],
