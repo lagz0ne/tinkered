@@ -954,12 +954,6 @@ export function operation<
 
 type BorrowFlag = { readonly borrows?: boolean };
 
-/** Read the declaration-time flag: does this operation's `depends` name a resource? Ops without one
- * skip every per-dep resource check on the call path (ADR 0044 keeps `op`/`run` untouched). */
-function seesResourceOf(target: Operation.Handle<unknown, unknown>): boolean {
-  return (target as BorrowFlag).borrows === true;
-}
-
 /** Declare a reusable resource: built once per owner, cleaned up when its owner closes. */
 export function resource<
   const D extends Scope.Depends = Record<string, never>,
@@ -2582,17 +2576,16 @@ function executorFor<T, I>(
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
 ): (call?: Scope.Invocation<I>) => unknown {
-  const sees = seesResourceOf(target);
   return (call?: Scope.Invocation<I>): unknown =>
-    runOnce(layer, target, up, chain, caller, false, sees, call);
+    runOnce(layer, target, up, chain, caller, false, call);
 }
 
 /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
  * `tags` or `signal` opens a child session for the run (ADR 0038, 0090; a value or a promise, ADR 0072); a call
  * carrying `ns` runs on a view of the layer (ADR 0059); anything else runs the body below. A plain
  * function: a controller's `run` is a one-line closure over it, and a replay on a fresh child layer
- * calls it directly, with no closure or context of its own. `sees` is the target's
- * declaration-time flag, read once per controller. The public overloads type the fork (rule 9). */
+ * calls it directly, with no closure or context of its own. The public overloads type the fork
+ * (rule 9). The existing resource borrow tells the body which deps loop it needs. */
 function runOnce<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
@@ -2600,7 +2593,6 @@ function runOnce<T, I>(
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
   replay: Replay,
-  sees: boolean,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
   if (call !== undefined) {
@@ -2633,7 +2625,7 @@ function runOnce<T, I>(
     result = runBody(
       override,
       target,
-      sees
+      held
         ? readOpDeps(layer, target, span, held, chain, ctx, override)
         : buildPlainDeps(layer, target.depends, span, chain, ctx, override),
       ctx,
@@ -2699,16 +2691,7 @@ function runUntagged<T, I>(
   caller?: RunState,
   nested = false,
 ): T {
-  return runOnce(
-    layer,
-    target,
-    up,
-    chain,
-    caller,
-    nested ? "nested" : "root",
-    seesResourceOf(target),
-    call,
-  ) as T;
+  return runOnce(layer, target, up, chain, caller, nested ? "nested" : "root", call) as T;
 }
 
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
@@ -2799,7 +2782,7 @@ function buildPlainDeps(
 }
 
 /** An operation's deps: the parking loop when its `depends` name a resource (the declaration-time
- * flag, read once per controller), else the plain loop. Either way {@link parked} is set for the
+ * flag, already read by {@link takeBorrows}), else the plain loop. Either way {@link parked} is set for the
  * caller to hand to {@link runBody}. A preset (`override`) builds no dep (ADR 0109). */
 function readOpDeps(
   layer: Layer,
@@ -2810,7 +2793,7 @@ function readOpDeps(
   caller?: RunState,
   override?: unknown,
 ): Record<string, unknown> {
-  if (override !== undefined || !seesResourceOf(target))
+  if (override !== undefined || held === undefined)
     return buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, caller);
   return buildDeps(
     layer,
