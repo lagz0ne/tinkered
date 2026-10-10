@@ -24,10 +24,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **scaffold/stored-data-error** — a corrupt stored event raises its own managed error, not `BadInput`.
-  `sync.server.ts:84` and `:104` raise `BadInput`, which `readReceipt` shows the user as their own mistake.
-  A new error that no transport maps stays a server failure. Also: the checker catches `s.run.apply(s, [{ run }])`.
-  Verify: the corrupt-event test expects the new error; an `apply` plant fails on main's checker.
+- **scaffold/checker-reflect-bind** — the lazy-modules checker misses two more call shapes.
+  `Reflect.apply(scope.run, scope, [{ run: () => outside("x") }])` exits 0 today.
+  `const invoke = scope.run.bind(scope); invoke({ run: () => outside("x") })` exits 0 today.
+  Verify: a plant for each fails on main's checker and passes `--prove` after.
+  Verify: no false hit on real source.
 
 - **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
   Starts after core/rules-batch-A and B land: one Core ticket at a time.
@@ -51,7 +52,23 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README
   Verify: `--wide` prints 0 files; `vp run prose` clean
 
-- **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
+- **perf/warm-ctl-trade** — win back the `warm` and `s4_warm_ctl` loss from the tagged-close stack.
+  Goal: neither row slower, and the tagged-close wins kept.
+  Baseline 2026-10-10 (N=61, CPU 7, no turbo, one probe = `8d02ea8f` `bench/`).
+  `warm` 16.8 → 17.7 ns (+5.4%, B slower), all from the stack `b451fbb1..105d82b`.
+  `s4_warm_ctl` 10.2 → 10.7 ns from that stack.
+  Next: bisect inside `b451fbb1..105d82b` (29 commits), then a V8 inlining check.
+  Core ticket: one Core ticket at a time.
+  Verify: neither row "B slower" vs `b451fbb1`.
+  [Baseline](docs/roadmap/perf/PROGRESS.md#warm-ctl-baseline-2026-10-10).
+
+- **perf/handle-verbs-ctl** — win back the `s4_warm_ctl` loss at `610925dd`.
+  `610925dd` is "core: share scope handle verbs per ADR 0108"; alone it adds 0.7 ns.
+  Main 11.2 ns vs tip `105d82b` 10.7 ns: B slower.
+  Keep ADR 0108's session and lifecycle wins. V8 first.
+  Core ticket: one Core ticket at a time.
+  Verify: `s4_warm_ctl` not B slower vs `0ca40d05`; session and lifecycle stay faster.
+  [Baseline](docs/roadmap/perf/PROGRESS.md#warm-ctl-baseline-2026-10-10).
 
 - **start/sync-push-revocations** — sign-out reaches open streams as a notice (ADR 0110).
   A wake no longer re-reads the account. A notice on the sync channel names the account; only its streams re-read.
@@ -88,6 +105,11 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **scaffold/stored-data-error** — a corrupt stored event raises `StoredDataInvalid`, not `BadInput`.
+  `0f75d8b8`..`23933f7b`. The checker also catches `scope.run.apply` with an inline unit.
+  Proof: both new tests fail on main; the `apply` plant passes main's checker and fails the new one.
+  Gates exit 0; `pnpm validate` 19 lanes PASS. No package code changed: no mutation lane.
 
 - **board/review-truth** — the Review lane held ten cards already landed on main; checked 2026-10-10.
   `core/rules-batch-A`: `96bd2c72`..`21ff6d17`; N=61 no difference, mutation 85.06 ([proof](docs/roadmap/perf/PROGRESS.md#core-rules-batch-a-2026-10-08)).

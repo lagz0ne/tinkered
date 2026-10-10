@@ -1885,3 +1885,57 @@ It runs fresh tests and lets Stryker compare each fault and test with the full-r
 The short proof names the full-run commit, the final commit, and the reused count.
 Cached kills are reported as reused results, not as fresh kills on the new commit.
 Only the short proof log is committed after that run.
+
+## warm-ctl baseline (2026-10-10)
+
+Question: where did `warm` and `s4_warm_ctl` get slower?
+Setup: N=61 (bisect N=31), CPU 7, no turbo.
+One probe for every tree: `bench/` from `8d02ea8f`.
+Trees:
+
+- pre: `b451fbb1`, before the tagged-close stack;
+- tip: `105d82b`, the stack's last commit;
+- main: main at the run.
+
+Pre vs main (N=61):
+
+- `warm` 16.8 → 17.7 ns (+5.4%), B slower 61/61.
+- `s4_warm_ctl` 10.2 → 11.2 ns, B slower 60/61.
+
+Pre vs tip (N=61):
+
+- `warm` 16.8 → 17.7 ns, B slower 56/61.
+- `s4_warm_ctl` 10.2 → 10.7 ns, B slower 53/61.
+
+Tip vs main (N=61):
+
+- `warm` 17.8 → 17.7 ns, slower 26/61: no change.
+- `s4_warm_ctl` 10.7 → 11.2 ns, B slower 58/61.
+
+So the whole `warm` loss is in `b451fbb1..105d82b`.
+`s4_warm_ctl` lost 0.5 ns there and 0.5 ns after.
+
+Bisect after the tip. A = tip `105d82b`, N=31.
+
+- `696f3564`: `s4_warm_ctl` 10.7, no difference.
+- `9a100bcf`: 10.7, no difference.
+- `0ca40d05`: 10.7, no difference.
+- `393f2759`: 11.2, B slower 26/31.
+- `96bd2c72`: 11.4, B slower 28/31.
+- `610925dd`: 11.4, B slower 30/31.
+
+First bad commit: `610925dd`.
+It is "core: share scope handle verbs per ADR 0108".
+It adds about 0.7 ns to `s4_warm_ctl` alone.
+`warm` held at 17.5 to 17.7 ns in every bisect step.
+
+Raw data on this box:
+
+- `/home/paseo/next/wct-ab-n61.csv`, `wct-n61.log`
+- `/home/paseo/next/wct-ab-n31.csv`, `wct-n31.log`
+- `/home/paseo/next/wct-pre-tip.csv`, `.log`
+- `/home/paseo/next/wct-tip-main.csv`, `.log`
+- `/home/paseo/next/wct-bisect.log`
+- `/home/paseo/next/wct-bisect<k>-<sha>.csv`, `.log`
+
+Follow-ups: perf/warm-ctl-trade, perf/handle-verbs-ctl.
