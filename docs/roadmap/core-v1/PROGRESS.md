@@ -1746,6 +1746,9 @@ A resource or operation preset builds none of the replaced node's deps.
 Its body gets empty deps and the usual context.
 Input parsing still runs.
 The scaffold tests drop SMTP settings read only by the preset mail node.
+The new revocation tests also drop those settings.
+Backend sender-release tests keep SMTP settings for their real mail node.
+Database URLs stay: the migration operation reads database settings itself.
 
 The writer copied the behavior change from `0584dc41`.
 Both prior heads have local archive tags.
