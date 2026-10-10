@@ -24,14 +24,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/mutation-lane-fix** — Start mutation lane broken on main since `a9c8deb6`.
-  `tests/build-output.test.mjs` fails Stryker's dry run with 'expected 1 to be greater than 1'.
-  Verify: `npx stryker run` from `packages/start` passes the dry run with no `--testFiles` filter.
-
 - **start/mutation-floor** — Start mutation is ~73% on main, below the 75 floor.
   Add tests for the survivors in `packages/start/src/parts/sync/stream.server.ts` and `notifications.server.ts`.
   Include `notifications.server.ts:128` (unschedule removed) and `:129` (resolveWait flag true).
-  After start/mutation-lane-fix.
+  The full lane now runs with no `--testFiles` filter (start/mutation-lane-fix).
   Verify: full Start lane >= 75 on kills alone.
 
 - **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
@@ -103,6 +99,11 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/mutation-lane-fix** — the Start mutation lane runs again with no `--testFiles` filter.
+  `2ac7a388`, landed 2026-10-10. Reviewer: READY. The split rule finds the body chunk by its own full path.
+  Mutation: `lib/build-output.mjs` 81.48%; changed lines 5 of 5 killed. Nit: `join()` path, no Windows match.
+  [Proof](docs/roadmap/start-base/PROGRESS.md#startmutation-lane-fix).
 
 - **start/sync-push-revocations** — sign-out reaches open streams as a notice (ADR 0110).
   `84cd02ea`..`2d00fcb8`, landed 2026-10-10. Review round 2: one fix (registry ships the drop_session_wake migration).

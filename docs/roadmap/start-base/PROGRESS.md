@@ -1438,3 +1438,37 @@ Landing (lead):
   - The floor gap is card start/mutation-floor.
 
 Core feedback: none.
+
+## start/mutation-lane-fix
+
+Owner: Haiku 5.5 writer; lead reviews and lands.
+Status: landed 2026-10-10 (`2ac7a388` plus this note). Reviewer: READY.
+Verify: `npx stryker run` from `packages/start` passes the dry run
+with no `--testFiles` filter.
+
+The server split rule matched `packages/start` or
+`node_modules/@tinker/start` in the module path. Stryker's sandbox
+runs under `packages/start/.stryker-tmp`, so the rule never matched.
+The body chunk stayed in the entry, and
+`tests/build-output.test.mjs` failed the dry run
+('expected 1 to be greater than 1'). Broken since `a9c8deb6`.
+The rule now matches the full path of this base's own
+`src/backend/body.server.ts`, found from `import.meta.url`.
+
+Proof:
+
+- Gates on `2ac7a388`, by exit code: `vp run -r build` 0;
+  `vp check` 0 (0 errors, 27 warnings); Start tests 0 (452/452);
+  `pnpm validate` 0 (19 of 19 lanes PASS); `vp run prose` 0.
+- Dry run: `flock /tmp/mutation.lock npx stryker run --dryRunOnly`
+  from `packages/start`, no filter, exit 0. Ran 452 tests in 59 s.
+- Mutation, not the full lane. The reviewer ran
+  `stryker run --mutate lib/build-output.mjs` on `2ac7a388`.
+  - File: 66 of 81 = 81.48%.
+  - This card's changed lines: 5 of 5 killed.
+  - The 15 survivors are on older lines 23-61.
+- Reviewer nit: `lib/build-output.mjs:15` builds the path with
+  `join()`. On Windows the split rule would not match Vite's `/`
+  paths. Start makes no Windows promise today.
+
+Core feedback: none.
