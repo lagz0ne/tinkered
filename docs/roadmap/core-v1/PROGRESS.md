@@ -1894,7 +1894,9 @@ A suppressed read is checked at the member or destructured key's own position.
 Both `@ts-expect-error` and `@ts-ignore` count the following line.
 A file with `@ts-nocheck` counts every read.
 Only parsed comments count as these directives.
-The optional constructor and object-method rules are not added.
+Some paths are left out: `any` through aliases, fields, rest and `catch`,
+a directive on a declaration, and attributes through `new`, `.call`, `.apply`, or `.bind`.
+They wait on the Ready card `core/size-guard-bypasses`.
 
 ### Revert proof
 
@@ -1932,6 +1934,10 @@ It also gives the clean head, the full Core fault count, and the labels.
 The Core ticket runs check-only, with its mutation step off.
 The full Core mutation lane runs alone under `/tmp/mutation.lock`.
 The guard tests run in the built-file lane; `build/` is not mutated.
+Full Core lane on clean `9cd321c3`: killed 3037, timeout 28, survived 462, no coverage 35.
+Kills alone: 3037 / 3534 = 85.94%.
+Timeouts counted as not killed: 85.26%.
+The revert test is the guard's proof: 13 new tests fail on `4edd71c7`.
 The red tests above prove the guard changes.
 No runtime code, name list, ratchet, or ceiling changes.
 No timing run is needed.

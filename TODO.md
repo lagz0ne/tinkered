@@ -24,10 +24,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-build-guard** — close the 4 guard gaps the second review found.
-  Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
-  and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
-  Verify: each plant from the review fails the build; Core tests on source and dist pass.
+- **core/size-guard-bypasses** — close the open size-guard bypasses the reviewer confirmed.
+  `any` reads: a `@ts-expect-error` on the declaration, not the read
+  (`const s: { layer: number } = createScope(); s.layer`); `type A = any`;
+  rest `...xs: any[]`; `catch (e: any)`; a field typed `any` (`o.v.layer`).
+  Also aliases, inline callbacks, default values, return values,
+  imported functions that return `any`, and an object-literal method that returns `any`.
+  Attributes passed through `new F(...)`, `.call`, `.apply`, `.bind`,
+  a rest parameter, or a destructured parameter.
+  Known model: typescript-eslint `no-unsafe-member-access` uses real types and catches the `any` group.
+  Verify: a planted test per bypass fails the build; dist stays byte-identical.
 
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
@@ -81,6 +87,12 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-build-guard** — the size guard closes the 4 gaps the second review found.
+  Landed 2026-10-10. Reviewer: READY. Haiku first pass NOT READY; Sol took over.
+  23 guard tests; 13 new ones fail on `4edd71c7`. Dist byte-identical.
+  Core mutation 85.94% on kills alone. Open bypasses: `core/size-guard-bypasses`.
+  [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-build-guard--sol-takeover).
 
 - **start/mutation-floor** — Start mutation is above the 75 floor; 12 tests pin the sync wheel's survivors.
   Landed 2026-10-10. Reviewer: READY. Full Start lane 4094/4801 = 85.27% kills alone.
