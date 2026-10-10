@@ -2636,7 +2636,7 @@ function runOnce<T, I>(
     ctx = new OperationCtx<I>(layer, target, call, span);
     const deps = sees
       ? readOpDeps(layer, target, span, held, chain, ctx, override)
-      : buildPlainDeps(layer, target.depends, span, chain, ctx, override);
+      : buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, ctx);
     result = runBody(override, target, deps, ctx, parked);
   } catch (error) {
     return OperationCtx.fail(layer, error, target.label, span, ctx, caller, replay, held);
@@ -2777,18 +2777,16 @@ function buildDeps(
 }
 
 /** The `deps` object of a body whose `depends` name no resource: the plain eager loop, nothing
- * parked. A preset (`override`) replaces the whole node (ADR 0109), so it builds no dep. */
+ * parked. A preset supplies no declared deps (ADR 0109). */
 function buildPlainDeps(
   layer: Layer,
   depends: Scope.Depends,
   span: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
-  override?: unknown,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
-  if (override === undefined)
-    for (const key in depends) deps[key] = resolveDep(layer, depends[key], span, chain, caller);
+  for (const key in depends) deps[key] = resolveDep(layer, depends[key], span, chain, caller);
   parked = undefined;
   return deps;
 }
@@ -2805,7 +2803,8 @@ function readOpDeps(
   caller?: RunState,
   override?: unknown,
 ): Record<string, unknown> {
-  if (override !== undefined) return buildPlainDeps(layer, {}, span, chain, caller);
+  if (override !== undefined || !seesResourceOf(target))
+    return buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, caller);
   return buildDeps(
     layer,
     target.depends,
