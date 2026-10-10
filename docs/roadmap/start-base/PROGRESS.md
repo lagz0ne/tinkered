@@ -1372,37 +1372,54 @@ Verify: per path an open stream closes; a save reads no account; another device'
 ADR 0110. A wake reads no account. A session delete sends one notice
 `account:<id>` on `start_sync`. The listener routes it to that account's
 streams only; each re-reads and closes only if its own session ended.
-The 30 s lease stays. Heartbeats read no account.
+The 30 s lease stays. Heartbeats read no account. The
+`sync_session_changed` trigger is dropped (`20261010090000_drop_session_wake`).
 
 Proof:
 
 - Fails on `origin/main`: `a save makes no account read on an open stream`
   (reads 3, want 1); `a notice re-reads only its account's streams`
   (grace reads 3, want 1).
+- Pins `stream.server.ts:169` (`await checkWake()` after the rows read):
+  `only the check after the rows read can stop rows of an account that signed out during it`.
+  Removing that line makes it fail: the rows frame arrives first.
 - Passes on `origin/main` and on the branch: the four scaffold path tests
   in `apps/start-scaffold/tests/revocation.test.ts` (sign-out, revoke another
   device, server-deleted session, user deleted). Real better-auth, PGlite.
 - Gate: `vp run -r build && vp check && vp run @tinker/start#test &&
 vp run @tinker-start-scaffold#test` gives EXIT 0. check: 0 errors, 27 warnings
-  (main at 8d02ea8f also 27). Start 451/451. Scaffold 36/36.
+  (main also has 27 at its earlier head). Start 452/452. Scaffold 36/36.
 - `pnpm validate`: 19 of 19 deterministic lanes PASS.
-- Mutation, full Start lane, on `ef7d8cc6` (src unchanged since, clean tree):
-  killed 2780, survived 1352, no cov 672, timeout 52 (counted apart),
-  error 1. Kills over valid (killed + survived + no cov) = 2780 / 4804 = 57.9%.
-  Stryker's own score, timeouts counted as detected: 58.32 (below 75).
-  Run excluded `tests/build-output.test.mjs`: it fails Stryker's dry run on
-  `origin/main` too ("server body chunks do not import each other").
-- Mutation, `notice.ts` alone (new code): killed 3, survived 3, 50%.
-  Survivors: `notice.ts:2:23` prefix to `""`; `notice.ts:8:30` `accountNotice`
-  body to `undefined`; `notice.ts:14:32` `accountOfNotice` body to `undefined`.
+- Mutation, full Start lane, `f=$(find tests -name '*.test.ts' -o -name '*.test.mjs' | grep -v build-output | paste -sd, -)`,
+  run on `234a068d` (src identical to the final head; later commits touch docs only).
+  Log note: `tests/build-output.test.mjs` left out. It fails Stryker's dry run
+  on main since a9c8deb6 (its chunk count under Stryker's sandbox). Separate card.
+  - Killed 3486, survived 1127, no coverage 188, timeout 55 (counted apart), error 1.
+  - Kills over valid (killed + survived + no coverage) = 3486 / 4801 = 72.6%.
+  - Stryker's own score, timeouts counted as detected: 72.92. Below the floor of 75.
+- Mutation, `src/parts/sync/notice.ts`: killed 5, survived 1.
+  The survivor is `notice.ts:2:37`, `accountNotice("")` changed to
+  `accountNotice("Stryker was here!")`. It is a module-load constant, so the
+  per-test mutant switch never reaches it.
 - Timing, `N=61 SCEN=sync1k bench/queued.sh`, 1,000 open streams, 10 saves
-  per process, mean ns per save (median of 61; MAD):
+  per process, mean ns per save (median of 61 runs; MAD). Measured on
+  `5956b7ef`. The later commits change the notice prefix and drop a trigger the
+  probe does not create.
   - A `origin/main` 60f3bbeb: 379.3 ms, MAD 5.6 ms, range 369.3 to 470.1.
   - B this branch 5956b7ef: 15.5 ms, MAD 1.0 ms, range 13.7 to 24.4.
   - Bytes per save equal: 206,600.
-  - Read: b is faster; the ranges do not overlap.
-  - The run's log is in `.bench/ab.csv` (not committed).
+  - Read: b is faster; the ranges do not overlap. Run from a salvaged
+    `.part.csv`, after the first job died with a Paseo restart.
   - Overlap: `pnpm validate` ran during another writer's timing lane.
-    That lane's noise is not mine, but it may have been affected.
+
+Fix round (lead review, NOT READY):
+
+- Restored the rows-read test, drove it with a notice from the `sync_event` select,
+  and made the second account read a real query so the test pins line 169.
+- Notice helpers are function declarations; the prefix is built once.
+- Tests use `accountNotice`.
+- Dropped the session wake trigger; the sse sign-out test no longer needs it.
+- Amended ADR 0110 for the notice paths, ban, role, heartbeats, and sign-in.
+- Regenerated the registry from source.
 
 Core feedback: none.
