@@ -19,13 +19,16 @@ dependency, size cap 10 kB gzip, no core change.
 export const request: Tag.Handle<Request>;
 export function tinker(
   scope: Scope.Handle,
-  options?: { tags?: (c: Context) => readonly Tag.Binding<unknown>[] },
+  options?: {
+    tags?: (c: Context) => readonly Tag.Binding<unknown>[];
+  },
 ): MiddlewareHandler;
 export function handle<T, I>(
   op: Operation.Handle<T, I>,
   route?: {
     input?: (c: Context) => unknown;
-    respond?: (value: Awaited<T>, c: Context) => Response | Promise<Response>;
+    respond?: (value: Awaited<T>, c: Context) =>
+      Response | Promise<Response>;
   },
 ): Handler;
 // errors.ts: NoSession { label }

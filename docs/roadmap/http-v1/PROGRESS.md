@@ -25,7 +25,9 @@ export function httpClient(config: {
   filterStatus?: (status: number) => boolean;
   meta?;
 }): HttpClient.Frame;
-export function mergeConfig(bindings: readonly HttpClient.Config[]): HttpClient.Config;
+export function mergeConfig(
+  bindings: readonly HttpClient.Config[],
+): HttpClient.Config;
 export function applyConfig(
   request: HttpRequest.Record,
   config: HttpClient.Config,

@@ -5959,7 +5959,10 @@ The app instead declares the narrow auth enqueue operation.
 With the auth README's sendAuthJob, this fails:
 
 ```ts
-const post = mail({ ...authTemplates, welcome: Welcome }, { env, from: "team@example.com" });
+const post = mail(
+  { ...authTemplates, welcome: Welcome },
+  { env, from: "team@example.com" },
+);
 const sendMail = post.sendMail(sendAuthJob);
 auth(database, schema, { sendMail });
 ```

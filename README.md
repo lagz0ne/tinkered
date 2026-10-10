@@ -60,7 +60,8 @@ scope.run(stamp); // 1500
 // so a forced close cancels it.
 const nap = operation({
   label: "nap",
-  run: (_deps, { clock, signal }) => clock.sleep(1_000, signal),
+  run: (_deps, { clock, signal }) =>
+    clock.sleep(1_000, signal),
 });
 const woke = scope.run(nap);
 clock.advance(1_000); // resolves `woke`
