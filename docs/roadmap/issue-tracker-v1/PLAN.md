@@ -30,17 +30,25 @@ One documented command starts the app; one documented command checks its behavio
 
 ## Where the value should be visible
 
-| Library | Real job in the app                                                             | What the example should make easy to see                               |
-| ------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| core    | Issue actions, cells, resources, lifetimes, context tags, clock, cleanup, spans | Business behavior is declared once and tested without a web server     |
-| drizzle | PGlite database and short transaction sessions                                  | The same operations use a real isolated database in tests              |
-| hono    | HTTP actions and the live transport                                             | `app.request` tests the actual routes without opening a port           |
-| http    | Browser and CLI command client                                                  | Typed request parsing, errors, cancellation, and configurable backend  |
-| sync    | Committed issue snapshots and selected issue details                            | React consumes ordinary cells; transport is a small app-owned piece    |
-| react   | Board, issue detail, drafts, pending/error states                               | UI hooks use the same core handles, without another state store        |
-| cli     | Start/seed the app and send remote commands                                     | CLI mutations reach the running server, preserving one source of truth |
-| mcp     | Expose the server's issue actions as tools                                      | HTTP and tool calls share domain behavior, not copied handlers         |
-| harness | Optional issue summary/triage draft                                             | SDK activity becomes data that can be watched, tested, and cancelled   |
+- **core** — Issue actions, cells, resources, lifetimes, context tags, clock, cleanup, spans
+  What the example should make easy to see: Business behavior is declared once and tested without a web server
+- **drizzle** — PGlite database and short transaction sessions
+  What the example should make easy to see: The same operations use a real isolated database in tests
+- **hono** — HTTP actions and the live transport
+  What the example should make easy to see: `app.request` tests the actual routes without opening a port
+- **http** — Browser and CLI command client
+  What the example should make easy to see: Typed request parsing, errors, cancellation, and configurable backend
+- **sync** — Committed issue snapshots and selected issue details
+  What the example should make easy to see: React consumes ordinary cells
+  transport is a small app-owned piece
+- **react** — Board, issue detail, drafts, pending/error states
+  What the example should make easy to see: UI hooks use the same core handles, without another state store
+- **cli** — Start/seed the app and send remote commands
+  What the example should make easy to see: CLI mutations reach the running server, preserving one source of truth
+- **mcp** — Expose the server's issue actions as tools
+  What the example should make easy to see: HTTP and tool calls share domain behavior, not copied handlers
+- **harness** — Optional issue summary/triage draft
+  What the example should make easy to see: SDK activity becomes data that can be watched, tested, and cancelled
 
 `packages/utils` is still a starter, not a domain primitive to force into the app.
 Use extensions for the real boot/sync/close work. Other hook APIs need an actual use before

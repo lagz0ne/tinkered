@@ -19,27 +19,76 @@ The optional off-host timing comparison is parked by user choice and does not bl
 
 ## Order & status
 
-| tag      | ticket                                                                                                  | blockers | status |
-| -------- | ------------------------------------------------------------------------------------------------------- | -------- | ------ |
-| sync/t01 | Package: `synced` meta, `family`, `sync` binding tag, `Sync.Message`/`Sync.Transport`, `memoryPair()`   | —        | [x]    |
-| sync/t02 | `syncServer(scope).connect(transport)`: session per transport, snapshots, `sync set <key>`, fan-out     | t01      | [x]    |
-| sync/t03 | `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject              | t02      | [x]    |
-| sync/t04 | Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive        | t03      | [x]    |
-| sync/t05 | One way, registration by identity: `source` + `subscribe` replace `syncServer`/`syncClient` (amendment) | t04      | [x]    |
-| sync/t06 | Source/subscribe installed as extensions; ready is the initial data set (ADR 0050)                      | core/t32 | [x]    |
-| sync/t07 | Public seam coverage after t06; isolated mutation ≥ 70                                                  | t06      | [x]    |
+- **sync/t01** — Package: `synced` meta, `family`, `sync` binding tag, `Sync.Message`/`Sync.Transport`, `memoryPair()`
+  Blockers: —
+  Status: [x]
+- **sync/t02** — `syncServer(scope).connect(transport)`: session per transport, snapshots, `sync set <key>`, fan-out
+  Blockers: t01
+  Status: [x]
+- **sync/t03** — `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject
+  Blockers: t02
+  Status: [x]
+- **sync/t04** — Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive
+  Blockers: t03
+  Status: [x]
+- **sync/t05** — One way, registration by identity: `source` + `subscribe` replace `syncServer`/`syncClient` (amendment)
+  Blockers: t04
+  Status: [x]
+- **sync/t06** — Source/subscribe installed as extensions; ready is the initial data set (ADR 0050)
+  Blockers: core/t32
+  Status: [x]
+- **sync/t07** — Public seam coverage after t06; isolated mutation ≥ 70
+  Blockers: t06
+  Status: [x]
 
 ### Landed
 
-| tag      | sha     | tests | size (B gzip) | mutation | notes                                                                                                                                                                                                               |
-| -------- | ------- | ----- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sync/t01 | 7f25563 | 8     | 1429          | 80.60    | writer-built, no fix round; `family` from `data()` + a Map, nothing from core; impact chain: plan under-declared 3 symbols (corrected below).                                                                       |
-| sync/t02 | b6bd197 | 17    | 2839          | 77.89    | writer-built (one death, one fix round); the truth is written through the scope handle (a session shadows writes); one watcher per key bumps the version and fans out.                                              |
-| sync/t03 | 2a96f01 | 27    | 3697          | 68.18    | writer-built, one fix round (shared `readPublished` registry); `applying` flag = write origin; impact chain: neither.                                                                                               |
-| sync/t04 | e290944 | 34    | 3697          | 78.32    | validation milestone: four lanes (37), `examples/hono.ts` SSE+POST recipe with a seam test through `app.request`, six client edge tests, README pass. Writer-built, no fix round.                                   |
-| sync/t05 | cf01bbb | 20    | 3324          | 73.53    | one way: `source` + `subscribe`, `register { keys }`, a key set per subscriber, `sync register` op; the write path deleted; stryker `inPlace` so the recipe test (root examples) loads. Writer-built, no fix round. |
-| sync/t06 | 6409128 | 21    | 4066          | 62.34    | both engines are core extensions (ADR 0050); tracked in `docs/roadmap/extensions-v1/PROGRESS.md`.                                                                                                                   |
-| sync/t07 | 3a6ae72 | 28    | 4066          | 78.06    | Tests only; one lead fix round; full gate and isolated mutation green. Review and old/new SCIP tables in extensions-v1/PROGRESS.md.                                                                                 |
+- **sync/t01** — 7f25563
+  Tests: 8
+  Size (B gzip): 1429
+  Mutation: 80.60
+  Notes: writer-built, no fix round
+  `family` from `data()` + a Map, nothing from core
+  impact chain: plan under-declared 3 symbols (corrected below).
+- **sync/t02** — b6bd197
+  Tests: 17
+  Size (B gzip): 2839
+  Mutation: 77.89
+  Notes: writer-built (one death, one fix round)
+  the truth is written through the scope handle (a session shadows writes)
+  one watcher per key bumps the version and fans out.
+- **sync/t03** — 2a96f01
+  Tests: 27
+  Size (B gzip): 3697
+  Mutation: 68.18
+  Notes: writer-built, one fix round (shared `readPublished` registry)
+  `applying` flag = write origin
+  impact chain: neither.
+- **sync/t04** — e290944
+  Tests: 34
+  Size (B gzip): 3697
+  Mutation: 78.32
+  Notes: validation milestone: four lanes (37), `examples/hono.ts` SSE+POST recipe with a seam test through `app.request`, six client edge tests, README pass. Writer-built, no fix round.
+- **sync/t05** — cf01bbb
+  Tests: 20
+  Size (B gzip): 3324
+  Mutation: 73.53
+  Notes: one way: `source` + `subscribe`, `register { keys }`, a key set per subscriber, `sync register` op
+  the write path deleted
+  stryker `inPlace` so the recipe test (root examples) loads. Writer-built, no fix round.
+- **sync/t06** — 6409128
+  Tests: 21
+  Size (B gzip): 4066
+  Mutation: 62.34
+  Notes: both engines are core extensions (ADR 0050)
+  tracked in `docs/roadmap/extensions-v1/PROGRESS.md`.
+- **sync/t07** — 3a6ae72
+  Tests: 28
+  Size (B gzip): 4066
+  Mutation: 78.06
+  Notes: Tests only
+  one lead fix round
+  full gate and isolated mutation green. Review and old/new SCIP tables in extensions-v1/PROGRESS.md.
 
 ### Completion check — 2026-09-19
 
@@ -56,37 +105,37 @@ was fixed and the full run then passed. Logs: `/tmp/sync-closeout-{build,test,va
 Examples live at `examples/<pkg>/` (outside the package's SCIP index) since 2026-09-19, so blocks list `src/` and `tests/` files only.
 
 ```impact sync/t01
-sync  synced      src/index.ts tests/sync.test.ts examples/basic.ts
-sync  sync        src/index.ts tests/sync.test.ts examples/basic.ts
-sync  family      src/index.ts tests/sync.test.ts examples/basic.ts
-sync  readSynced  src/index.ts tests/sync.test.ts examples/basic.ts
-sync  isFamily    src/index.ts tests/sync.test.ts
-sync  memoryPair  src/index.ts tests/sync.test.ts examples/basic.ts
-sync  Sync        src/index.ts tests/sync.test.ts
-sync  raise       src/errors.ts src/index.ts
-sync  isError     src/errors.ts src/index.ts tests/sync.test.ts
-sync  Errors      src/errors.ts src/index.ts
+sync synced src/index.ts tests/sync.test.ts examples/basic.ts
+sync sync src/index.ts tests/sync.test.ts examples/basic.ts
+sync family src/index.ts tests/sync.test.ts examples/basic.ts
+sync readSynced src/index.ts tests/sync.test.ts examples/basic.ts
+sync isFamily src/index.ts tests/sync.test.ts
+sync memoryPair src/index.ts tests/sync.test.ts examples/basic.ts
+sync Sync src/index.ts tests/sync.test.ts
+sync raise src/errors.ts src/index.ts
+sync isError src/errors.ts src/index.ts tests/sync.test.ts
+sync Errors src/errors.ts src/index.ts
 ```
 
 ```impact sync/t02
-sync  syncServer  src/index.ts tests/sync.test.ts examples/basic.ts
-sync  onMember    src/index.ts tests/sync.test.ts
+sync syncServer src/index.ts tests/sync.test.ts examples/basic.ts
+sync onMember src/index.ts tests/sync.test.ts
 ```
 
 ```impact sync/t03
-sync  syncClient  src/index.ts tests/sync.test.ts examples/basic.ts
+sync syncClient src/index.ts tests/sync.test.ts examples/basic.ts
 ```
 
 ```impact sync/t05
-sync  source      src/index.ts tests/sync.test.ts
-sync  subscribe   src/index.ts tests/sync.test.ts
-sync  syncServer  (none)
-sync  syncClient  (none)
+sync source src/index.ts tests/sync.test.ts
+sync subscribe src/index.ts tests/sync.test.ts
+sync syncServer (none)
+sync syncClient (none)
 ```
 
 ```impact sync/t04
-sync  syncServer  src/index.ts tests/sync.test.ts examples/basic.ts examples/hono.ts
-sync  syncClient  src/index.ts tests/sync.test.ts examples/basic.ts
+sync syncServer src/index.ts tests/sync.test.ts examples/basic.ts examples/hono.ts
+sync syncClient src/index.ts tests/sync.test.ts examples/basic.ts
 ```
 
 ## Review loop
