@@ -13,11 +13,16 @@ Tools live under the persistent user home (never `/usr`/apt); artifacts under `/
 ```bash
 export PNPM_HOME=/home/paseo/.local/share/pnpm
 export PATH="$PNPM_HOME/bin:/home/paseo/.local/bin:$PATH"
-# one-time installs (already done): pnpm add -g @sourcegraph/scip-typescript ; scip CLI built from source → ~/.local/bin/scip
-scip-typescript index --cwd packages/core --output /tmp/scip-core/index.scip --no-progress-bar
+# one-time installs (already done):
+#   pnpm add -g @sourcegraph/scip-typescript
+#   scip CLI built from source → ~/.local/bin/scip
+scip-typescript index --cwd packages/core \
+  --output /tmp/scip-core/index.scip --no-progress-bar
 scip stats    --from /tmp/scip-core/index.scip
-scip snapshot --from /tmp/scip-core/index.scip --to /tmp/scip-core/snapshots --strict=false
-scip print --json /tmp/scip-core/index.scip > /tmp/scip-core/index.json
+scip snapshot --from /tmp/scip-core/index.scip \
+  --to /tmp/scip-core/snapshots --strict=false
+scip print --json /tmp/scip-core/index.scip \
+  > /tmp/scip-core/index.json
 ```
 
 Index: 6 documents, **2948 definitions / 13425 occurrences** (`src/index.ts` = 996 symbols / 4525
@@ -53,20 +58,36 @@ that tests only touch the public seam.
 ### 1. Operation resolve — `getController(op).resolve(input)`
 
 ```
-commandController(layer,op,parent) :990        [1 obj {resolve,get}]
+commandController(layer,op,parent) :990
+  [1 obj {resolve,get}]
 resolve(call) :995
-├─ ensureOpen; openSpan (→ undefined when obs OFF, 0 alloc); presetFor (parent-chain Map walk)
-├─ readCall(op,call) :1021                      [1 obj]
-├─ collectBorrows(op.depends) :1024             [1 array]; empty if no resource deps
-├─ if borrowed.length: new Promise + settleBorrow   [1 Promise +1 closure]  ← only with resource deps
-├─ buildDeps(op.depends,…) :1098                [1 deps obj]   ◄── HOT LOOP `for key in depends`
-│    ├─ resource dep → defineLazyDep :1069      [getter closure]; build DEFERRED to first read
-│    └─ else → resolveDep :695 → readCell / commandController (subflow) / resourceController (eager build)
-├─ ctx {label,input,signal,defer,obs,log} :1030 [1 obj + defer closure; obs/log shared OFF consts when idle]
+├─ ensureOpen; openSpan; presetFor (parent-chain Map walk)
+│  (→ undefined when obs OFF, 0 alloc)
+├─ readCall(op,call) :1021
+│  [1 obj]
+├─ collectBorrows(op.depends) :1024
+│  [1 array]; empty if no resource deps
+├─ if borrowed.length: new Promise + settleBorrow
+│  [1 Promise +1 closure]  ← only with resource deps
+├─ buildDeps(op.depends,…) :1098
+│  [1 deps obj]
+│  ◄── HOT LOOP `for key in depends`
+│    ├─ resource dep → defineLazyDep :1069
+│    │  [getter closure]; build DEFERRED to first read
+│    └─ else → resolveDep :695
+│         → readCell / commandController (subflow)
+│         / resourceController (eager build)
+├─ ctx {label,input,signal,defer,obs,log} :1030
+│  [1 obj + defer closure]
+│  obs/log shared OFF consts when idle
 ├─ result = op.run(deps,ctx) :1039
-└─ track(result, asPrimary, onSettle) :1045     [~4 closures]
-     ├─ SYNC (not thenable) → onSettle("ok") now        ← NO PROMISE :854
-     └─ ASYNC → Promise.resolve(result).then(…); pending.add :858   [1 tracked Promise]
+└─ track(result, asPrimary, onSettle) :1045
+   [~4 closures]
+   ├─ SYNC (not thenable) → onSettle("ok") now
+   │  ← NO PROMISE :854
+   └─ ASYNC → Promise.resolve(result).then(…)
+      pending.add :858
+      [1 tracked Promise]
 ```
 
 Sync no-dep resolve ≈ 6 small objects + ~4 closures, **zero promises**.
@@ -74,17 +95,24 @@ Sync no-dep resolve ≈ 6 small objects + ~4 closures, **zero promises**.
 ### 2. Resource resolve + build
 
 ```
-resourceController(layer,res,parent) :1228      [1 obj — allocated EVEN on cache hit]
+resourceController(layer,res,parent) :1228
+  [1 obj — allocated EVEN on cache hit]
 resolve() :1235
-├─ resources.get(res) HIT → return value :1239  ◄ fast path (Map get, no build)
-├─ builds.get(res) → inflight Promise :1241      async de-dup
+├─ resources.get(res) HIT → return value :1239
+│  ◄ fast path (Map get, no build)
+├─ builds.get(res) → inflight Promise :1241
+│  async de-dup
 ├─ building.has(res) → CircularResource :1243
 └─ buildResource :1133
-   ├─ resolveResourceDeps → buildDeps(…,registerEdge) → addDependent on first lazy read  ◄ HOT LOOP
+   ├─ resolveResourceDeps → buildDeps(…,registerEdge)
+   │  → addDependent on first lazy read  ◄ HOT LOOP
    ├─ ctx {…,defer} :1147
    ├─ result = res.factory(deps,ctx) :1164
-   ├─ SYNC: resources.set(res,{value}); return :1165   ← NO PROMISE
-   └─ ASYNC: finishAsyncBuild → Promise.resolve().then(publish,fail) :1205   [1 Promise]
+   ├─ SYNC: resources.set(res,{value}); return :1165
+   │  ← NO PROMISE
+   └─ ASYNC: finishAsyncBuild
+      → Promise.resolve().then(publish,fail) :1205
+      [1 Promise]
 ```
 
 A deep **sync** resource dependency chain recurses on the native JS stack (depth = chain length);
@@ -93,13 +121,21 @@ async chains move to the heap (safe).
 ### 3. Data read / write / watch
 
 ```
-read  → readCell → effectiveEntry :548     effCache HIT = O(1) Map get; MISS walks parent chain then caches
+read  → readCell → effectiveEntry :548
+  effCache HIT = O(1) Map get
+  MISS walks parent chain then caches
 write → writeCell :596
         ├─ admit(parse) :352
-        ├─ eqOf(target)(…) :599            [1 closure PER WRITE]; equal ⇒ no notify
-        ├─ ownCell (COW) :574              MISS: [1 Entry] + invalidateEff (RECURSES children)
-        └─ flushTree :585                  RECURSES session-tree depth; per watcher read()+eq+fn   ◄ HOT LOOP
-watch → addWatcher :645                    [1 Watcher + 1 unsubscribe closure]
+        ├─ eqOf(target)(…) :599
+        │    [1 closure PER WRITE]; equal ⇒ no notify
+        ├─ ownCell (COW) :574
+        │    MISS: [1 Entry]
+        │    + invalidateEff (RECURSES children)
+        └─ flushTree :585
+             RECURSES session-tree depth
+             per watcher read()+eq+fn   ◄ HOT LOOP
+watch → addWatcher :645
+  [1 Watcher + 1 unsubscribe closure]
 ```
 
 ### 4. Close / teardown — `close(opts)` → `closeLayer` → `startClose`
@@ -107,18 +143,25 @@ watch → addWatcher :645                    [1 Watcher + 1 unsubscribe closure]
 ```
 closeLayer(layer, !graceful) :1693
 ├─ layer.closing = startClose(layer,force) :1695
-├─ closeWouldReenter? → best-effort Result now :1705   (re-entrant teardown ack, no self-wait)
+├─ closeWouldReenter? → best-effort Result now :1705
+│  (re-entrant teardown ack, no self-wait)
 └─ startClose :1742
-   ├─ markSwept(layer) :1594                 SYNC at call time, ITERATIVE (deep trees safe)
+   ├─ markSwept(layer) :1594
+   │  SYNC at call time, ITERATIVE (deep trees safe)
    └─ Promise.resolve().then(run):
-      ├─ if forced: abortSubtree :1607        ITERATIVE
+      ├─ if forced: abortSubtree :1607
+      │  ITERATIVE
       ├─ body = await classifyBody :1648
-      ├─ await closeChildren(rollback) :1687  RECURSES per child, sequential await
+      ├─ await closeChildren(rollback) :1687
+      │  RECURSES per child, sequential await
       ├─ while(pending.size) await Promise.all :1754
       ├─ settleOutcome :1658
-      ├─ await drainDefers :1625              ◄ INNER LOOP i=n-1..0 LIFO, await each
-      ├─ settleOutcome again :1760            (monotonic re-settle)
-      └─ finishLayer :1772                    detach; push swept errors up; ~13 map/set .clear()
+      ├─ await drainDefers :1625
+      │  ◄ INNER LOOP i=n-1..0 LIFO, await each
+      ├─ settleOutcome again :1760
+      │  (monotonic re-settle)
+      └─ finishLayer :1772
+         detach; push swept errors up; ~13 map/set .clear()
 ```
 
 Iterative (safe at depth): `markSwept`, `abortSubtree`, `collectAffected`, parent-chain reads
