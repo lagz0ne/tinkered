@@ -1525,6 +1525,16 @@ The 73% figure on the card came from the older lane run
 with a test-file list (`234a068d`). The lane has no list
 since `2ac7a388`. On the full lane the tree scores 85.27%.
 
+Landing (lead):
+
+- Main was already at 85.00% or more before this card.
+- The 72.6% and ~73.1% figures (`f3482dc4`) ran on `234a068d`.
+- That run left out `tests/build-output.test.mjs`.
+- It ran before the lane fix `14d69ad1`.
+- Only 13 kills in the final run name a new test.
+- The mutation log has no sha.
+- The report's sources (122 files) match HEAD byte for byte.
+
 Proof:
 
 - Full lane, `flock /tmp/mutation.lock npx stryker run` in

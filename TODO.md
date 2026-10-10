@@ -24,12 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **start/mutation-floor** — Start mutation is ~73% on main, below the 75 floor.
-  Add tests for the survivors in `packages/start/src/parts/sync/stream.server.ts` and `notifications.server.ts`.
-  Include `notifications.server.ts:128` (unschedule removed) and `:129` (resolveWait flag true).
-  The full lane now runs with no `--testFiles` filter (start/mutation-lane-fix).
-  Verify: full Start lane >= 75 on kills alone.
-
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
   and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
@@ -88,6 +82,11 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **start/mutation-floor** — Start mutation is above the 75 floor; 12 tests pin the sync wheel's survivors.
+  Landed 2026-10-10. Reviewer: READY. Full Start lane 4094/4801 = 85.27% kills alone.
+  The ~73% figure ran with `build-output.test.mjs` left out; main was already at 85% or more.
+  [Proof](docs/roadmap/start-base/PROGRESS.md#startmutation-floor).
+
 - **tools/ticket-pkg-name** — `ticket.sh` now fails on an unknown package name
   (`vp run --fail-if-no-match -F <pkg>`) and on a non-number NN.
   `f85bfb60`, landed 2026-10-10. Reviewer: READY. Proof: `scripts/ticket.test.mjs`.
@@ -113,7 +112,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **start/sync-push-revocations** — sign-out reaches open streams as a notice (ADR 0110).
   `84cd02ea`..`2d00fcb8`, landed 2026-10-10. Review round 2: one fix (registry ships the drop_session_wake migration).
   A save makes no account read (fails on main); sync1k 379.3 → 15.5 ms per save, b is faster.
-  Start mutation 72.6% (main ~73.1%, already below 75); changed lines 93.9%. Floor gap: start/mutation-floor.
+  Start mutation 72.6% on a filtered lane; changed lines 93.9%. Full lane 85.27%: see start/mutation-floor.
   [Proof](docs/roadmap/start-base/PROGRESS.md#startsync-push-revocations).
 
 - **scaffold/checker-reflect-bind** — the lazy-modules checker catches `Reflect.apply` and bound `scope.run` names.
