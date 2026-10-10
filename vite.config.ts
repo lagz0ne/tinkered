@@ -5,7 +5,8 @@ export default defineConfig({
     "*": "vp check --fix",
     "*.md": "node scripts/prose-lint.mjs",
   },
-  fmt: {},
+  // Markdown fences keep the line breaks we wrote (docs/writing-style.md, 60-char rule).
+  fmt: { embeddedLanguageFormatting: "off" },
   lint: {
     jsPlugins: [
       { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
