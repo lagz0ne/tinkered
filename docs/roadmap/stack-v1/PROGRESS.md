@@ -1719,7 +1719,8 @@ No rebase or random-draw change is part of this round.
   ✓ Observe/Span#typeLiteral148:traceId: as planned
   ✓ Observe/Span#typeLiteral148:spanId: as planned
   ✓ Observe/Span#typeLiteral148:sampled: as planned
-impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
+impact stack/t04: as planned (0 discrepancies).
+Advisory — never a gate.
 ```
 
 ### Reviewer gate proof
@@ -1833,7 +1834,8 @@ PROSE_EXIT=0
   ✓ Observe/Span#typeLiteral148:traceId: as planned
   ✓ Observe/Span#typeLiteral148:spanId: as planned
   ✓ Observe/Span#typeLiteral148:sampled: as planned
-impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
+impact stack/t04: as planned (0 discrepancies).
+Advisory — never a gate.
 ```
 
 ### Final gate before mutation
