@@ -30,10 +30,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   The full lane now runs with no `--testFiles` filter (start/mutation-lane-fix).
   Verify: full Start lane >= 75 on kills alone.
 
-- **tools/ticket-mutation-exit** — `scripts/ticket.sh` hides mutation failures.
-  Its step runs `vp run -r mutate || echo …`: any failure prints "skipped" and exits 0.
-  It also runs every package's lane, not only the named one.
-  Verify: a lane below its floor makes `ticket.sh` exit non-zero; only the named package's lane runs.
+- **tools/ticket-pkg-name** — `ticket.sh` passes when the package name matches no package.
+  `vp run <name>#mutate` and `<name>#size` exit 0 with no output for a typo or a folder name (`start-scaffold`).
+  So the gate passes with no checks run.
+  Fix: fail when the filter matches no package (`vp run --fail-if-no-match -F <name> ...` exits 1).
+  Also reject a ticket NN that is not a number.
+  Verify: a test shows `ticket.sh` exits non-zero for an unknown package name and for a non-number NN.
 
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
@@ -92,6 +94,9 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **tools/ticket-mutation-exit** — `ticket.sh` now runs only `<pkg>#mutate` and stops on failure.
+  `addf88e5`, landed 2026-10-10. Reviewer: READY. Proof: `scripts/ticket.test.mjs`.
 
 - **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
   Landed 2026-10-10. Reviewer: READY. Five preset tests fail on the old Core and pass now.
