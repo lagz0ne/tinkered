@@ -68,79 +68,6 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 
 ## Review
 
-- **core/rules-batch-A** — hook and controller fields, and slot order.
-  Owner: Core rules writer (Codex).
-  Next: lead review after the clean fault-test log is saved; Jev calibration before landing.
-  Verify: ticket and 19 release checks pass; all five N=61 rows have no slowdown.
-  Core needs 85 on kills alone; V9 and run budget are dropped.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
-- **start/server-lane** — request hops, one body hold, static bytes, server chunks, browser settings.
-  Owner: writer (Codex, server lane).
-  Next: lead reviews the five commits and the clean fault-test proof.
-  Verify: request census at most 45; static hits make no file calls; owned chunks at most 255 slots.
-  Start fault score at least 75 on kills alone.
-  [Proof](docs/roadmap/perf/SERVER-LANE.md).
-
-- **start/telemetry-lane** — encode records once, send full batches, and keep ingest sync.
-  Owner: lane writer (Codex), branch `start/telemetry-lane`.
-  Next: lead review after the clean-tree mutation proof is saved.
-  Verify: all gates exit 0; Start has 448 passing checks;
-  wire equality, pre-tick burst, and sync settle pass.
-  Queue A/B says `b is faster`; mutation needs 75 on kills alone.
-  I8 belongs to the server lane, outside this lane's source boundary.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
-- **scaffold/app-rules** — mail runs after reply; copied apps keep server imports out.
-  Owner: writer (Codex), branch `scaffold/app-rules`.
-  Next: lead review and Jev calibration before landing.
-  Verify: all gates exit 0; three regressions fail before the fix;
-  run imports 26 -> 2; server-file checks 14 -> 0.
-  A1 keeps two async bodies because Core rejects their sync forms.
-  [Track](docs/roadmap/perf/PROGRESS.md).
-
-- **react/rules-lane** — lean run and resource hooks.
-  Owner: React lane writer (Codex).
-  Next: lead review after the clean-tree mutation proof is saved.
-  Verify: all gates 0; both identity regressions fail before the fix;
-  both hooks have three slots; queued pair: b is faster.
-- **start/sync-lane** — share frames, apply tab frames in place, and share heartbeat timers.
-  Owner: lane writer (Codex).
-  Next: lead review after the clean-tree mutation proof is saved.
-  Verify: scope tests, queued speed checks, all gates 0, Start kills ≥ 75.
-  [Track](docs/roadmap/perf/PROGRESS.md).
-
-- **core/handle-proto** — shared scope verbs (ADR 0108).
-  Owner: writer (Codex).
-  Next: lead review after the clean-tree mutation proof is saved.
-  Verify: three regressions fail on main; ticket and 19 release lanes pass;
-  N=61: session and lifecycle faster; op and run show no difference.
-  Mutation needs 85 on kills; its log names the clean source commit.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
-- **start/rules-batch-1** — auth sharing, abort reasons, streamed compression.
-  Owner: writer (Codex).
-  Next: lead review; b is faster; clean-tree mutation proof is linked in the track.
-  Verify: all gates returned 0; regressions failed before each fix.
-  [Proof](docs/roadmap/perf/PROGRESS.md).
-
-- **react/rules-batch-1** — callback errors, sync runs, and cell reads.
-  Owner: React batch writer (Codex).
-  Next: lead review after the clean mutation proof in the track.
-  Verify: all gates returned 0; five bug tests fail on main.
-  Sync click: two renders and commits became one.
-  Queued A/B: no difference we can see.
-  [Track](docs/roadmap/perf/PROGRESS.md).
-
-- **core/testing-entry** — keep test helpers out of the main entry.
-  Owner: lead (Codex, Core package session); Sol writer.
-  Next: run the full Core checkpoint before marking Done.
-  Proof: main loads no test helpers; packed imports and types pass.
-  Build, check, all 32 test tasks, and all 56 release checks returned 0.
-  Clean commit: 24 build tasks; 31 test tasks; Core mutation 85.62.
-  Testing keeps virtual time, presets, and seeded IDs.
-  [Track](docs/roadmap/core-v1/PROGRESS.md#coretesting-entry).
-
 ## Blocked
 
 ## Parked
@@ -161,6 +88,19 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **board/review-truth** — the Review lane held ten cards already landed on main; checked 2026-10-10.
+  `core/rules-batch-A`: `96bd2c72`..`21ff6d17`; N=61 no difference, mutation 85.06 ([proof](docs/roadmap/perf/PROGRESS.md#core-rules-batch-a-2026-10-08)).
+  `start/server-lane`: `7bf2e80d`..`0f4152f5`; mutation 84.48 ([proof](docs/roadmap/perf/PROGRESS.md#start-server-lane--2026-10-08)).
+  `start/telemetry-lane`: `d6f8a263`..`0ff097b2`; b is faster, mutation 83.53 ([proof](docs/roadmap/perf/PROGRESS.md#starttelemetry-lane)).
+  `scaffold/app-rules`: `f360f870`; 3 tests fail on main ([proof](docs/roadmap/perf/PROGRESS.md#scaffoldapp-rules-2026-10-08)).
+  `react/rules-lane`: `c75e9f28`..`418c4329`; b is faster, mutation 85.51 ([proof](docs/roadmap/perf/PROGRESS.md#reactrules-lane)).
+  `start/sync-lane`: `e64843da`..`9c4ac4d8`; mutation 84.15 ([proof](docs/roadmap/perf/PROGRESS.md#start-sync-lane-shared-frames)).
+  `core/handle-proto`: `610925dd`..`557e9482`; ticket gate 0, mutation 85.07 ([proof](docs/roadmap/perf/PROGRESS.md#corehandle-proto)).
+  `start/rules-batch-1`: `3e961174`..`20674426`; Start mutation 85.36 ([proof](docs/roadmap/perf/PROGRESS.md#start-batch-1)).
+  `react/rules-batch-1`: `dce9029e`..`d30fd4ee`; React mutation 85.64 ([proof](docs/roadmap/perf/PROGRESS.md#react-rules-batch-1)).
+  `core/testing-entry`: `5b6bc0f3`; 56 release checks, mutation 85.62; handle-proto's ticket gate ran on top ([proof](docs/roadmap/core-v1/PROGRESS.md#coretesting-entry)).
+  Their full cards are below: perf/rules-lanes, core/handle-proto, perf/rules-batch-1.
 
 - **perf/rules-lanes** — every case-study ticket ran; closed 2026-10-09 ([plan](docs/roadmap/perf/CASE-STUDY.md)).
   Core B (`9c826567`): kept hook-run-lean 190.1 -> 182.9 ns; dropped borrow-lazy, brand-kind (slower); mutation 85.06.

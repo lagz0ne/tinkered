@@ -457,8 +457,7 @@ Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.
 ## core/testing-entry
 
 - **Owner:** lead (Codex, Core package session); Sol writer.
-- **State:** Review.
-- **Next:** run the full Core checkpoint before marking Done.
+- **State:** Done. Landed as `5b6bc0f3`; later Core tickets ran `scripts/ticket.sh` on top.
 - **Verify:** main imports no test helpers; testing keeps virtual time and seeded IDs.
   Build, check, workspace tests, package file list, and release checks must pass.
 - **Precedent:** Jobs, Mail, and NATS already ship a separate testing entry.
