@@ -204,29 +204,72 @@ function inlineParameter(signature, checker) {
 function indirectInvocation(call) {
   const expression = unwrap(call.expression);
   if (ts.isPropertyAccessExpression(expression)) return reflectedInvocation(expression, call);
-  if (!ts.isCallExpression(expression)) return undefined;
-  const bound = unwrap(expression.expression);
+  if (ts.isCallExpression(expression)) return bindInvocation(expression, call);
+}
+
+function bindInvocation(bindCall, call) {
+  const bound = unwrap(bindCall.expression);
   if (ts.isPropertyAccessExpression(bound) && bound.name.text === "bind")
     return {
       expression: bound.expression,
-      object: expression.arguments[1] ?? call.arguments[0],
+      object: bindCall.arguments[1] ?? call.arguments[0],
     };
+}
+
+function aliasedSymbol(node, checker) {
+  node = unwrap(node);
+  if (!node || !ts.isIdentifier(node)) return undefined;
+  const symbol = checker.getSymbolAtLocation(node);
+  return symbol?.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+}
+
+function bindTarget(bindCall) {
+  const bound = unwrap(bindCall.expression);
+  if (ts.isPropertyAccessExpression(bound) && bound.name.text === "bind")
+    return { expression: bound.expression, partial: bindCall.arguments[1] };
+}
+
+function boundTarget(node, checker, seen = new Set()) {
+  const symbol = aliasedSymbol(node, checker);
+  if (!symbol || seen.has(symbol)) return undefined;
+  seen.add(symbol);
+  const initializer = unwrap(declarationInitializer(symbol.valueDeclaration));
+  if (initializer && ts.isCallExpression(initializer)) return bindTarget(initializer);
+  return boundTarget(initializer, checker, seen);
+}
+
+function boundInvocation(call, checker) {
+  const bound = boundTarget(call.expression, checker);
+  return bound && { expression: bound.expression, object: bound.partial ?? call.arguments[0] };
+}
+
+function unbound(indirect, checker) {
+  const bound = indirect && boundTarget(indirect.expression, checker);
+  return bound
+    ? { expression: bound.expression, object: bound.partial ?? indirect.object }
+    : indirect;
 }
 
 function reflectedInvocation(method, call) {
   if (method.name.text === "call")
     return { expression: method.expression, object: call.arguments[1] };
   if (method.name.text !== "apply") return undefined;
-  const args = unwrap(call.arguments[1]);
+  if (ts.isIdentifier(method.expression) && method.expression.text === "Reflect")
+    return appliedInvocation(call.arguments[0], call.arguments[2]);
+  return appliedInvocation(method.expression, call.arguments[1]);
+}
+
+function appliedInvocation(expression, list) {
+  const args = unwrap(list);
   return {
-    expression: method.expression,
+    expression,
     object: args && ts.isArrayLiteralExpression(args) ? args.elements[0] : args,
   };
 }
 
 function inlineCall(call, checker) {
   if (!ts.isCallExpression(call)) return undefined;
-  const indirect = indirectInvocation(call);
+  const indirect = unbound(indirectInvocation(call), checker) ?? boundInvocation(call, checker);
   if (!indirect)
     return inlineParameter(checker.getResolvedSignature(call), checker)
       ? { object: call.arguments[0] }
@@ -664,6 +707,65 @@ function extraCases(outsideImport) {
         source:
           outsideImport +
           `const scope=createScope(); const specs=[{run:()=>outside("x")}]; scope.${method}.apply(scope, specs);`,
+      },
+      {
+        name: `inline-${method}-reflect-apply`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); Reflect.apply(scope.${method}, scope, [{run:()=>outside("x")}]);`,
+      },
+      {
+        name: `inline-${method}-reflect-apply-variable`,
+        tag: "unit-body",
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); const specs=[{run:()=>outside("x")}]; Reflect.apply(scope.${method}, scope, specs);`,
+      },
+      {
+        name: `inline-${method}-bind-variable`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); const invoke=scope.${method}.bind(scope); invoke({run:()=>outside("x")});`,
+      },
+      {
+        name: `inline-${method}-bind-variable-partial`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); const invoke=scope.${method}.bind(scope, {run:()=>outside("x")}); invoke();`,
+      },
+      {
+        name: `inline-${method}-bind-copy`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); const invoke=scope.${method}.bind(scope); const later=invoke; later({run:()=>outside("x")});`,
+      },
+      {
+        name: `inline-${method}-bind-imported`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source: outsideImport + 'import {invoke} from "./helper"; invoke({run:()=>outside("x")});',
+        helper: `import {createScope} from "@tinker/core"; const scope=createScope(); export const invoke=scope.${method}.bind(scope);`,
+      },
+      {
+        name: `inline-${method}-reflect-bind-variable`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); const invoke=scope.${method}.bind(scope); Reflect.apply(invoke, null, [{run:()=>outside("x")}]);`,
+      },
+      {
+        name: `inline-${method}-bind-variable-own`,
+        source: `const scope=createScope(); const invoke=scope.${method}.bind(scope); invoke({run:()=>1});`,
       },
     );
   }
