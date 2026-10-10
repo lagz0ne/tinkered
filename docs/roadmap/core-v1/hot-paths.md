@@ -61,8 +61,9 @@ that tests only touch the public seam.
 commandController(layer,op,parent) :990
   [1 obj {resolve,get}]
 resolve(call) :995
-├─ ensureOpen; openSpan; presetFor (parent-chain Map walk)
-│  (→ undefined when obs OFF, 0 alloc)
+├─ ensureOpen
+├─ openSpan (→ undefined when obs OFF, 0 alloc)
+├─ presetFor (parent-chain Map walk)
 ├─ readCall(op,call) :1021
 │  [1 obj]
 ├─ collectBorrows(op.depends) :1024
