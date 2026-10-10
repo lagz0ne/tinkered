@@ -38,16 +38,27 @@ Rails Action Cable does the same with `remote_connections.where(...).disconnect`
     One device's sign-out must not close another device's streams.
 - The 30 s lease stays. A stream closes at its lease.
   The client opens it again, and the open reads the account.
+- Heartbeats read no account. A stream reads its account at open,
+  and again only after a notice for that account.
+- A sign-in sends no notice. An anonymous stream learns its
+  account at its lease.
 
 What sends a notice:
 
 - sign-out;
 - a session revoked or deleted;
-- a user deleted or banned;
-- a role change.
+- a user deleted;
+- a user banned: no path yet, the scaffold has no ban field;
+- a role change: no path yet, the scaffold has no role field.
 
-The auth piece in `@tinker/start` owns these paths.
-Each one gets a test that an open stream of that account closes.
+The scaffold's auth sends the notice.
+Its better-auth config has one hook, `session.delete.after`.
+better-auth deletes sessions through that hook for sign-out,
+a revoked or deleted session, and a deleted user.
+`apps/start-scaffold/tests/revocation.test.ts` closes an open stream
+for each of those paths.
+A path that adds a ban or a role sends `accountNotice(id)`,
+and gets its own test.
 
 ## Consequences
 
@@ -59,7 +70,14 @@ Each one gets a test that an open stream of that account closes.
 - The lease costs what it costs today: 1,000 streams ÷ 30 s,
   about 33 opens a second, spread out and not tied to saves.
 - A new auth path that ends a session must send the notice.
-  The ticket adds the list above to the Start README.
+  The list above, with the paths that have none, is in the Start README.
+- A role change keeps the account ID, so the ID check alone would not
+  close a stream on a role change. A role path needs its own rule for
+  what closes the stream, before it sends its notice.
+- The `sync_session_changed` trigger is dropped
+  (migration `20261010090000_drop_session_wake`).
+  A session change used to wake streams only so they re-read the account.
+  The notice does that now.
 
 ## Options considered
 
