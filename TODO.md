@@ -30,13 +30,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   The full lane now runs with no `--testFiles` filter (start/mutation-lane-fix).
   Verify: full Start lane >= 75 on kills alone.
 
-- **tools/ticket-pkg-name** — `ticket.sh` passes when the package name matches no package.
-  `vp run <name>#mutate` and `<name>#size` exit 0 with no output for a typo or a folder name (`start-scaffold`).
-  So the gate passes with no checks run.
-  Fix: fail when the filter matches no package (`vp run --fail-if-no-match -F <name> ...` exits 1).
-  Also reject a ticket NN that is not a number.
-  Verify: a test shows `ticket.sh` exits non-zero for an unknown package name and for a non-number NN.
-
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
   and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
@@ -94,6 +87,10 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **tools/ticket-pkg-name** — `ticket.sh` now fails on an unknown package name
+  (`vp run --fail-if-no-match -F <pkg>`) and on a non-number NN.
+  `f85bfb60`, landed 2026-10-10. Reviewer: READY. Proof: `scripts/ticket.test.mjs`.
 
 - **tools/ticket-mutation-exit** — `ticket.sh` now runs only `<pkg>#mutate` and stops on failure.
   `addf88e5`, landed 2026-10-10. Reviewer: READY. Proof: `scripts/ticket.test.mjs`.
