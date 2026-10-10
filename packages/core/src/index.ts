@@ -1494,12 +1494,14 @@ function tagRequired(
   return found.value;
 }
 
+/** Select the stored replacement, or the authored node when no preset exists. Operation copies
+ * are prepared at scope seed, so a run uses one handle for both its deps and body (ADR 0109). */
 function presetFor(layer: Layer, node: unknown): unknown {
   for (let cur: Layer | undefined = layer; cur; cur = cur.up) {
     const p = cur.presets;
     if (p?.has(node)) return p.get(node);
   }
-  return undefined;
+  return node;
 }
 
 function addWatcher(
@@ -2222,19 +2224,17 @@ function parseInput<I>(
 /** Call the body now when every declared dep delivered, else after the parked builds settle
  * (ADR 0044) — the call is then a promise, which the body's type already promised. */
 function runBody<T, I>(
-  override: Operation.Handle<T, I>["run"] | undefined,
   target: Operation.Handle<T, I>,
   deps: Record<string, unknown>,
   ctx: Operation.Ctx<I>,
   pending: PendingSlot[] | undefined,
 ): T {
-  if (pending === undefined) return override ? override(deps, ctx) : target.run(deps, ctx);
-  return runParked(override, target, deps, ctx, pending);
+  if (pending === undefined) return target.run(deps, ctx);
+  return runParked(target, deps, ctx, pending);
 }
 
 /** The parked tail of {@link runBody}, out of line so its closure stays out of the hot inline budget. */
 function runParked<T, I>(
-  override: Operation.Handle<T, I>["run"] | undefined,
   target: Operation.Handle<T, I>,
   deps: Record<string, unknown>,
   ctx: Operation.Ctx<I>,
@@ -2243,8 +2243,8 @@ function runParked<T, I>(
 ): T {
   return settleDeps(deps, pending).then(() =>
     hook === undefined
-      ? runBody(override, target, deps, ctx, undefined)
-      : withHookAccess(hook, () => runBody(override, target, deps, ctx, undefined)),
+      ? runBody(target, deps, ctx, undefined)
+      : withHookAccess(hook, () => runBody(target, deps, ctx, undefined)),
   ) as T;
 }
 
@@ -2621,7 +2621,7 @@ function runOnce<T, I>(
   ensureRunning(layer, caller);
   const obs = layer.obs;
   const span = openSpan(obs, layer, up, target.label, "operation");
-  const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
+  target = presetFor(layer, target) as Operation.Handle<T, I>;
   /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
    * drain — so a release waits for the op's cleanup (which may still touch the resource) before
    * tearing it down (ADR 0026 Q2). Taken before deps resolve (a dep's factory may release another
@@ -2635,9 +2635,9 @@ function runOnce<T, I>(
   try {
     ctx = new OperationCtx<I>(layer, target, call, span);
     const deps = sees
-      ? readOpDeps(layer, target, span, held, chain, ctx, override)
-      : buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, ctx);
-    result = runBody(override, target, deps, ctx, parked);
+      ? readOpDeps(layer, target, span, held, chain, ctx)
+      : buildPlainDeps(layer, target.depends, span, chain, ctx);
+    result = runBody(target, deps, ctx, parked);
   } catch (error) {
     return OperationCtx.fail(layer, error, target.label, span, ctx, caller, replay, held);
   } finally {
@@ -2793,7 +2793,7 @@ function buildPlainDeps(
 
 /** An operation's deps: the parking loop when its `depends` name a resource (the declaration-time
  * flag, read once per controller), else the plain loop. Either way {@link parked} is set for the
- * caller to hand to {@link runBody}. A preset (`override`) builds no dep (ADR 0109). */
+ * caller to hand to {@link runBody}. A preset handle declares no deps (ADR 0109). */
 function readOpDeps(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
@@ -2801,10 +2801,8 @@ function readOpDeps(
   held: HeldBorrows | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
-  override?: unknown,
 ): Record<string, unknown> {
-  if (override !== undefined || !seesResourceOf(target))
-    return buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, caller);
+  if (!seesResourceOf(target)) return buildPlainDeps(layer, target.depends, span, chain, caller);
   return buildDeps(
     layer,
     target.depends,
@@ -3221,7 +3219,8 @@ function buildTrackedResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
+    const selected = presetFor(owner, target);
+    const override = selected === target ? undefined : (selected as Resource.Handle<T>["factory"]);
     const fn = override ?? target.factory;
     owned = startBuildInstance(owner, target, rec, fn.length >= 2);
     const deps =
@@ -5648,6 +5647,15 @@ function applyPresets(
       const s = new NodeState();
       s.cell = { value: admit(node.label, node.parse, p.replacement) };
       nodes.set(node, s);
+    } else if (isOperation(node)) {
+      /** A copied handle belongs to this preset layer. It retains the authored input parser and
+       * label, but declares no deps or borrows and runs the replacement (ADR 0109). */
+      (presets ??= new Map()).set(node, {
+        ...node,
+        depends: {},
+        run: p.replacement,
+        borrows: false,
+      });
     } else (presets ??= new Map()).set(node, p.replacement);
   }
   return presets;
@@ -5848,6 +5856,7 @@ function runHookBody<T, I>(
   chain: readonly Namespace[] | undefined,
 ): unknown {
   try {
+    target = presetFor(run.layer, target) as Operation.Handle<T, I>;
     const ctx = new OperationCtx(
       run.layer,
       target,
@@ -5857,18 +5866,17 @@ function runHookBody<T, I>(
     if (run.ctx) OperationCtx.share(run.ctx, ctx);
     run.ctx = ctx;
     run.held ??= takeBorrows(target);
-    const override = presetFor(run.layer, target) as Operation.Handle<T, I>["run"] | undefined;
-    const deps = readOpDeps(run.layer, target, ctx.span, run.held, chain, ctx, override);
+    const deps = readOpDeps(run.layer, target, ctx.span, run.held, chain, ctx);
     let result: unknown;
     if (parked === undefined) {
       const previous = enterHookAccess(run);
       try {
-        result = runBody(override, target, deps, ctx, undefined);
+        result = runBody(target, deps, ctx, undefined);
       } finally {
         exitHookAccess(previous);
       }
     } else {
-      result = runParked(override, target, deps, ctx, parked, run);
+      result = runParked(target, deps, ctx, parked, run);
     }
     return isThenable(result) ? trackHookRun(run, result) : result;
   } catch (error) {
