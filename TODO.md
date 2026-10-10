@@ -49,7 +49,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
-  Next: `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README
+  Next: round 1 landed (5ec4ec54); left: `TODO.md`, package and app READMEs, `apps/start-scaffold/.agents/skills/tinker-testing/SKILL.md`, `apps/start-scaffold/README.md`, `docs/roadmap/core-v1/PROGRESS.md`; to be done after the code writers land
   Verify: `--wide` prints 0 files; `vp run prose` clean
 
 - **perf/warm-ctl-trade** — win back the `warm` and `s4_warm_ctl` loss from the tagged-close stack.
