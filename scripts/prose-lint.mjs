@@ -120,15 +120,29 @@ function lint(file) {
 const isWideRow = (line) =>
   /^\s*\|/.test(line) && !/^\s*\|[\s|:-]*$/.test(line) && line.length > 100;
 
+/** The info word of a fence line ("" for a bare fence), or null when the line is not a fence. */
+const fenceInfo = (line) => {
+  const open = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(line);
+  return open ? open[2].trim().split(/\s+/)[0] : null;
+};
+
 /** Wide table rows and wide fenced lines: the two things a phone cannot wrap. */
 function wide(file) {
-  let fence = false;
+  let inFence = false;
+  let machine = false;
   let rows = 0;
   let code = 0;
   for (const line of readFileSync(resolve(ROOT, file), "utf8").split("\n")) {
-    if (/^[ \t]*(`{3,}|~{3,})/.test(line)) fence = !fence;
-    else if (fence) code += Number(line.length > 60);
-    else rows += Number(isWideRow(line));
+    const info = fenceInfo(line);
+    if (info === null) {
+      if (inFence) code += Number(!machine && line.length > 60);
+      else rows += Number(isWideRow(line));
+    } else if (inFence) inFence = false;
+    else {
+      // impact fences are machine-read, one row per symbol (tools/jev/impact.mjs): they cannot wrap.
+      inFence = true;
+      machine = info === "impact";
+    }
   }
   return rows || code ? `${file}: ${rows} wide table row(s), ${code} wide fenced line(s)` : null;
 }
