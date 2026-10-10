@@ -19,7 +19,8 @@ const draft = scope.run(openEdit, {
   input: { id: saved.id },
 });
 scope.run(saveEdit, {
-  input: { id: saved.id, title: "New name", room: "Cedar", start: 540, end: 600 },
+  input: { id: saved.id, title: "New name",
+    room: "Cedar", start: 540, end: 600 },
 });
 scope.run(discardEdit, { input: { id: saved.id } });
 ```
@@ -85,9 +86,11 @@ export type EditInput = {
   readonly end: number;
 };
 export const editDraft: Data.Cell<Booking | undefined>;
-export const openEdit: Operation.Handle<Booking, { id: string }>;
+export const openEdit:
+  Operation.Handle<Booking, { id: string }>;
 export const saveEdit: Operation.Handle<Booking, EditInput>;
-export const discardEdit: Operation.Handle<void, { id: string }>;
+export const discardEdit:
+  Operation.Handle<void, { id: string }>;
 ```
 
 Notes on the shape above:

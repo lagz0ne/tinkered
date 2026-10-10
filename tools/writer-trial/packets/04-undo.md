@@ -17,7 +17,8 @@ In addition to the earlier calls, tests call:
 
 ```ts
 scope.run(bookBooking, {
-  input: { title: "Standup", room: "Cedar", date: "2026-10-01", start: 540, end: 600 },
+  input: { title: "Standup", room: "Cedar",
+    date: "2026-10-01", start: 540, end: 600 },
 });
 scope.run(undoChange, {});
 const list = scope.resolve(bookings);

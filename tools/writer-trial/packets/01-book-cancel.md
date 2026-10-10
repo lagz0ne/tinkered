@@ -36,7 +36,8 @@ Tests call your code through a scope:
 ```ts
 const scope = createScope();
 const saved = scope.run(bookBooking, {
-  input: { title: "Standup", room: "Cedar", start: 540, end: 600 },
+  input: { title: "Standup", room: "Cedar",
+    start: 540, end: 600 },
 });
 const list = scope.resolve(bookings);
 scope.run(cancelBooking, { input: { id: saved.id } });
@@ -109,8 +110,10 @@ export type BookInput = {
   readonly end: number;
 };
 export const bookings: Data.Cell<readonly Booking[]>;
-export const bookBooking: Operation.Handle<Booking, BookInput>;
-export const cancelBooking: Operation.Handle<void, { id: string }>;
+export const bookBooking:
+  Operation.Handle<Booking, BookInput>;
+export const cancelBooking:
+  Operation.Handle<void, { id: string }>;
 export function BookingApp(): ReactElement;
 export { isError } from "./errors";
 export type { Errors } from "./errors";

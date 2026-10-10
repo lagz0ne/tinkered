@@ -33,7 +33,8 @@ Booking input now accepts an added date:
 
 ```ts
 const saved = scope.run(bookBooking, {
-  input: { title: "Standup", room: "Cedar", date: "2026-10-02", start: 540, end: 600 },
+  input: { title: "Standup", room: "Cedar",
+    date: "2026-10-02", start: 540, end: 600 },
 });
 const one = scope.run(cancelBooking, {
   input: { id: saved.id },
@@ -44,7 +45,9 @@ Series booking and series cancel:
 
 ```ts
 const made = scope.run(bookSeries, {
-  input: { title: "Standup", room: "Cedar", date: "2026-10-06", start: 540, end: 600, weeks: 3 },
+  input: { title: "Standup", room: "Cedar",
+    date: "2026-10-06", start: 540, end: 600,
+    weeks: 3 },
 });
 scope.run(cancelSeries, {
   input: { seriesId: made[0].seriesId },
@@ -125,8 +128,10 @@ export type SeriesInput = {
   readonly end: number;
   readonly weeks: number;
 };
-export const bookSeries: Operation.Handle<readonly Booking[], SeriesInput>;
-export const cancelSeries: Operation.Handle<void, { seriesId: string }>;
+export const bookSeries:
+  Operation.Handle<readonly Booking[], SeriesInput>;
+export const cancelSeries:
+  Operation.Handle<void, { seriesId: string }>;
 ```
 
 `EditInput` gains an added optional `date` field too
