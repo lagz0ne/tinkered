@@ -1755,8 +1755,9 @@ Both prior heads have local archive tags.
 Their worktree is unchanged.
 The saved bytecode ceiling increase was not copied.
 
-The throwing run path now lives in `failRun`.
-It replaces `endsFlight`, so no module slot is added.
+The throwing run path now lives in `OperationCtx.fail`.
+That shared static method adds no module slot.
+The original `endsFlight` predicate stays shared across all failure paths.
 A successful call never calls this helper.
 The hook body reads the parked builds before any body can run.
 It needs no local copy of that value.
@@ -1780,11 +1781,11 @@ All 19 `pnpm validate` lanes pass.
 The ceilings are unchanged.
 The observed sizes are:
 
-- `runOnce`: 440 bytes; ceiling 499.
+- `runOnce`: 446 bytes; ceiling 499.
 - `runHookBody`: 297 bytes; ceiling 298.
 - Core's last module slot: 339; ceiling 339.
 - Complexity cap: 8; check passes.
-- Runtime size: 15,960 B gzip; cap 16,384 B.
+- Runtime size stays below the unchanged 16,384 B gzip cap.
 
 Changed Core code and tests pass the strict style census.
 The four old whole-file hits also occur on main.
@@ -1794,7 +1795,7 @@ and tests that check both fresh values and distinct identities.
 They are outside the preset change.
 
 Jev preflight, tests, and promises each return 0.
-All 166 code answers have labels; 12 exact states were added.
+The final code answers have labels in the writer's handoff.
 The four noisy answers need no label.
 Every new or changed preset title matches a README promise.
 The 47 old promise picks repeat broader scope, release, cleanup,
@@ -1811,3 +1812,10 @@ It runs the ten default scenarios, the run-hook case,
 and the two-argument resource case.
 Both long jobs hold `/tmp/mutation.lock` and finish in the same turn.
 Core feedback: none.
+
+The first full mutation run killed 3,036 of 3,576 valid mutants.
+Its 84.899% on kills alone was below 85.
+Duplicating the flight predicate across three failure paths added uncovered cases.
+The final form keeps that predicate shared and moves only sync failure cleanup.
+No test or source file was removed to meet the floor.
+The final full lane is run again on a clean head.

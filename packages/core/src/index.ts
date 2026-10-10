@@ -2304,6 +2304,24 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   static share(from: OperationCtx<unknown>, to: OperationCtx<unknown>): void {
     to.hooks = from.hooks ??= [];
   }
+  /** Keep failure cleanup outside the successful run's inline budget without adding a module
+   * context slot. The shared flight predicate still serves sync, async, and hooked failures. */
+  static fail(
+    layer: Layer,
+    error: unknown,
+    label: string,
+    span: SpanImpl | undefined,
+    ctx: OperationCtx<unknown> | undefined,
+    caller: RunState | undefined,
+    replay: Replay,
+    held: HeldBorrows | undefined,
+  ): never {
+    stampOrigin(error, label, span, ctx, endsFlight(caller, replay));
+    if (caller !== RECOVERED) stick(layer, error);
+    closeSpan(layer.obs, span, "failed", error);
+    finishRun(layer, ctx, held, "failed", error);
+    throw error;
+  }
   get signal(): AbortSignal {
     return signalOf(this.layer);
   }
@@ -2531,29 +2549,10 @@ function finishRun(
  * caller's run (a tagged subflow runs on its child session without its caller). */
 type Replay = false | "root" | "nested";
 
-/** Keep the throwing path out of the successful run's inline budget. A nested replay stays
- * inside its caller's flight; a settle or a run without a caller ends the flight. */
-function failRun(
-  layer: Layer,
-  error: unknown,
-  label: string,
-  span: SpanImpl | undefined,
-  ctx: OperationCtx<unknown> | undefined,
-  caller: RunState | undefined,
-  replay: Replay,
-  held: HeldBorrows | undefined,
-): never {
-  stampOrigin(
-    error,
-    label,
-    span,
-    ctx,
-    caller === RECOVERED || (caller === undefined && replay !== "nested"),
-  );
-  if (caller !== RECOVERED) stick(layer, error);
-  closeSpan(layer.obs, span, "failed", error);
-  finishRun(layer, ctx, held, "failed", error);
-  throw error;
+/** A run whose failure leaves core: a `settle`, or a run with no caller around it. A nested replay
+ * is inside its caller's run, so the caller's run ends the flight. */
+function endsFlight(caller: RunState | undefined, replay: Replay): boolean {
+  return caller === RECOVERED || (caller === undefined && replay !== "nested");
 }
 
 function finishAsyncRun<T>(
@@ -2568,14 +2567,7 @@ function finishAsyncRun<T>(
   held: HeldBorrows | undefined,
 ): unknown {
   const onSettle = (status: "ok" | "failed", error?: unknown): void => {
-    if (status === "failed")
-      stampOrigin(
-        error,
-        label,
-        span,
-        ctx,
-        caller === RECOVERED || (caller === undefined && replay !== "nested"),
-      );
+    if (status === "failed") stampOrigin(error, label, span, ctx, endsFlight(caller, replay));
     if (span) closeSpan(obs, span, status, error);
     finishRun(layer, ctx, held, status, error);
   };
@@ -2647,7 +2639,7 @@ function runOnce<T, I>(
       : buildPlainDeps(layer, target.depends, span, chain, ctx, override);
     result = runBody(override, target, deps, ctx, parked);
   } catch (error) {
-    return failRun(layer, error, target.label, span, ctx, caller, replay, held);
+    return OperationCtx.fail(layer, error, target.label, span, ctx, caller, replay, held);
   } finally {
     buildDepth--;
   }
@@ -5889,13 +5881,7 @@ function runHookBody<T, I>(
 function failHookRun(run: HookRun, error: unknown): void {
   if (run.failed !== undefined && run.failed.error === error) return;
   run.failed = { error };
-  stampOrigin(
-    error,
-    run.label,
-    run.span,
-    run.ctx,
-    run.caller === RECOVERED || run.caller === undefined,
-  );
+  stampOrigin(error, run.label, run.span, run.ctx, endsFlight(run.caller, false));
   if (run.caller !== RECOVERED) stick(run.layer, error);
 }
 
