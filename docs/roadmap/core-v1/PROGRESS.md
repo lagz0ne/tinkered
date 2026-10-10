@@ -1924,7 +1924,7 @@ The whole-file scan sees old code hits and the required invalid plant strings.
 The TSDoc parser finds no bad doc row.
 Jev finds no flag in the guard tests.
 The old test findings and 47 old README picks stay outside this build change.
-All four code flags have false labels under `core/size-build-guard`.
+The code flags have false labels under `core/size-build-guard`.
 The maps and sets hold private build notes, not app state or work on a request.
 
 The handoff records the full gate chain by exit code.
