@@ -16,7 +16,8 @@ size cap 10 kB gzip, no core change.
 ## Surface (v1)
 
 ```ts
-export const backend: Tag.Handle<HttpClient.Backend>; // default fetchBackend
+export const backend: Tag.Handle<HttpClient.Backend>;
+// default fetchBackend
 export const fetchBackend: HttpClient.Backend;
 export function httpClient(config: {
   label: string;
@@ -29,12 +30,19 @@ export function applyConfig(
   request: HttpRequest.Record,
   config: HttpClient.Config,
 ): HttpRequest.Record;
-// HttpClient.Frame = { label, config: Tag.Handle<Config>, client: Resource.Handle<Handle>, operation(endpoint) }
-// HttpClient.Handle = { label, execute(request, ctx): Promise<HttpResponse.Handle> }   // ctx = caller's
-// HttpRequest.get/post/put/patch/del/head/options(url, options?) · bodyJson/Text/Bytes/FormData/UrlParams · modify
-// HttpResponse.fromWeb / make · status, headers, request, source · text/json(parse?)/arrayBuffer/formData/stream
+// HttpClient.Frame = { label, config: Tag.Handle<Config>,
+//   client: Resource.Handle<Handle>, operation(endpoint) }
+// HttpClient.Handle = { label, execute(request, ctx):
+//   Promise<HttpResponse.Handle> }   // ctx = caller's
+// HttpRequest.get/post/put/patch/del/head/options(url,
+//   options?) · bodyJson/Text/Bytes/FormData/UrlParams
+//   · modify
+// HttpResponse.fromWeb / make · status, headers, request,
+//   source · text/json(parse?)/arrayBuffer/formData/stream
 // HttpResponse.filterStatus / filterStatusOk / matchStatus
-// errors.ts: RequestFailed { Transport | Encode | InvalidUrl } · ResponseFailed { StatusCode | Decode | EmptyBody }
+// errors.ts: RequestFailed { Transport | Encode |
+//   InvalidUrl } · ResponseFailed { StatusCode |
+//   Decode | EmptyBody }
 ```
 
 Anchors in core: `Operation.Ctx` / `Resource.Ctx` (`index.ts:142` / `:170`) — the ctx shape
@@ -47,13 +55,21 @@ Linear; each ticket is one green checkpoint with decisive, deterministic seam te
 network, no wall-clock sleeps — ADR 0003: a closure backend and `makeTestClock`). Mark `x` when
 its tag exists.
 
-| tag      | ticket                                                                                        | blockers | status |
-| -------- | --------------------------------------------------------------------------------------------- | -------- | ------ |
-| http/t01 | Package + frame + `execute`: scaffold, errors, tags, `fetchBackend`, request/response records | —        | [x]    |
-| http/t02 | Endpoint operations + `preset` seam + cancel; status filters                                  | 01       | [x]    |
-| http/t03 | Observation + logging: child span per request, failure log line, zero cost when off           | 01       | [x]    |
-| http/t04 | Retry: frame slot, transient policy, `ctx.clock.sleep` backoff under a TestClock              | 02       | [x]    |
-| http/t05 | Validation milestone: size, mutation, README + cast-free example, universal bundle; SHIP      | 03, 04   | [x]    |
+- **http/t01** — Package + frame + `execute`: scaffold, errors, tags, `fetchBackend`, request/response records
+  blockers: —
+  status: [x]
+- **http/t02** — Endpoint operations + `preset` seam + cancel; status filters
+  blockers: 01
+  status: [x]
+- **http/t03** — Observation + logging: child span per request, failure log line, zero cost when off
+  blockers: 01
+  status: [x]
+- **http/t04** — Retry: frame slot, transient policy, `ctx.clock.sleep` backoff under a TestClock
+  blockers: 02
+  status: [x]
+- **http/t05** — Validation milestone: size, mutation, README + cast-free example, universal bundle; SHIP
+  blockers: 03, 04
+  status: [x]
 
 ### Verify (the observable proof for each)
 

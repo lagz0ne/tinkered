@@ -17,8 +17,10 @@ export type Clock = {
   currentTimeNanos(): bigint;
   sleep(ms: number, signal?: AbortSignal): Promise<void>;
 };
-// systemClock (default) · makeTestClock({ now }) -> Clock & { advance(ms), setTime(ms) }
-// Scope.Options.clock?: Clock   ·   ctx.clock on Operation.Ctx + Resource.Ctx
+// systemClock (default) · makeTestClock({ now }) ->
+//   Clock & { advance(ms), setTime(ms) }
+// Scope.Options.clock?: Clock   ·   ctx.clock
+//   on Operation.Ctx + Resource.Ctx
 ```
 
 Anchors: `ctx` types `index.ts:113` (op) / `:140` (resource); `EMPTY_CTX` `:813`; options
@@ -30,12 +32,18 @@ clock `Obs.clock` `:794` (kept separate in v1 — see ADR 0034 Consequences).
 Linear; each ticket is one green checkpoint with a decisive, deterministic seam test
 (no wall-clock sleeps — ADR 0003). Mark `x` when its tag exists.
 
-| tag      | ticket                                                                                           | blockers | status |
-| -------- | ------------------------------------------------------------------------------------------------ | -------- | ------ |
-| core/t20 | Ambient clock wiring + `currentTimeMillis`/`Nanos` + `makeTestClock` (now/advance/setTime)       | —        | [x]    |
-| core/t21 | `sleep` on TestClock — virtual time + `advance` resolves + signal aborts a pending sleep         | 20       | [x]    |
-| core/t22 | `sleep` on systemClock — real `setTimeout`, signal clears + rejects, forced close → `cancelled`  | 20       | [x]    |
-| core/t23 | Validation milestone — `pnpm validate` green, cast-free README + example, universal bundle; SHIP | 21, 22   | [x]    |
+- **core/t20** — Ambient clock wiring + `currentTimeMillis`/`Nanos` + `makeTestClock` (now/advance/setTime)
+  blockers: —
+  status: [x]
+- **core/t21** — `sleep` on TestClock — virtual time + `advance` resolves + signal aborts a pending sleep
+  blockers: 20
+  status: [x]
+- **core/t22** — `sleep` on systemClock — real `setTimeout`, signal clears + rejects, forced close → `cancelled`
+  blockers: 20
+  status: [x]
+- **core/t23** — Validation milestone — `pnpm validate` green, cast-free README + example, universal bundle; SHIP
+  blockers: 21, 22
+  status: [x]
 
 ### Verify (the observable proof for each)
 
@@ -70,10 +78,13 @@ After a tag lands, send its diff to the standing reviewer and drive to `SHIP` be
 ticket (serial — a fix often re-touches the same file):
 
 ```
-paseo agent: codex/gpt-6-astra, thinking=xhigh, mode=full-access (read-only reviewer)
-prompt: "review tag core/t<NN>; git show core/t<NN>; ADR 0034; ask for a full case checklist
-         + all findings at once (blocker/should-fix/nit) and a SHIP/FIX verdict; do not edit,
-         do not ask questions"
+paseo agent: codex/gpt-6-astra, thinking=xhigh,
+  mode=full-access (read-only reviewer)
+prompt: "review tag core/t<NN>; git show core/t<NN>;
+  ADR 0034; ask for a full case checklist
+  + all findings at once (blocker/should-fix/nit)
+  and a SHIP/FIX verdict; do not edit,
+  do not ask questions"
 ```
 
 Use neutral wording in review prompts (the cyber-filter drops attack/reentrancy/deadlock/escape).
@@ -85,7 +96,8 @@ Lean on SCIP for symbol nav before edits (per CLAUDE.md): regenerate the core in
 use of a ctx field before threading `clock` through the build sites.
 
 ```bash
-cd packages/core && scip-typescript index --output ../../.scip/core.scip
+cd packages/core && \
+  scip-typescript index --output ../../.scip/core.scip
 scip print --json ../../.scip/core.scip | head
 ```
 

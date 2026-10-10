@@ -33,12 +33,18 @@ export function handle<T, I>(
 
 ## Order & status
 
-| tag      | ticket                                                                                             | blockers | status |
-| -------- | -------------------------------------------------------------------------------------------------- | -------- | ------ |
-| hono/t01 | Package + `tinker` + `handle` (request = inline op: span + log) + `request` tag; abort → cancelled | —        | [x]    |
-| hono/t02 | Error mapping inside the request + `onError` slot (400 / 499 / 500 / rethrow)                      | 01       | [x]    |
-| hono/t03 | `stream(c, write)`: streaming Response keeps the request session open until the body ends          | 01       | [x]    |
-| hono/t04 | Validation milestone: size, mutation, README + cast-free example, validate lanes; SHIP             | 02, 03   | [x]    |
+- **hono/t01** — Package + `tinker` + `handle` (request = inline op: span + log) + `request` tag; abort → cancelled
+  blockers: —
+  status: [x]
+- **hono/t02** — Error mapping inside the request + `onError` slot (400 / 499 / 500 / rethrow)
+  blockers: 01
+  status: [x]
+- **hono/t03** — `stream(c, write)`: streaming Response keeps the request session open until the body ends
+  blockers: 01
+  status: [x]
+- **hono/t04** — Validation milestone: size, mutation, README + cast-free example, validate lanes; SHIP
+  blockers: 02, 03
+  status: [x]
 
 ### Verify
 

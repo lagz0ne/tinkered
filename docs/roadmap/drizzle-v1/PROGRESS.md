@@ -12,10 +12,12 @@ runtime), PGlite as the real test database, size cap 10 kB gzip, no core change.
 
 ## Order & status
 
-| tag         | ticket                                                                                                                     | blockers | status |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
-| drizzle/t01 | Package + frame: `config` tag, scope `db` (open/close by defer), session `tx` (commit/rollback by outcome), query log line | —        | [x]    |
-| drizzle/t02 | Validation milestone: size, mutation ≥ 60 alone, README + cast-free example, validate lanes; SHIP                          | 01       | [x]    |
+- **drizzle/t01** — Package + frame: `config` tag, scope `db` (open/close by defer), session `tx` (commit/rollback by outcome), query log line
+  blockers: —
+  status: [x]
+- **drizzle/t02** — Validation milestone: size, mutation ≥ 60 alone, README + cast-free example, validate lanes; SHIP
+  blockers: 01
+  status: [x]
 
 ### Verify
 

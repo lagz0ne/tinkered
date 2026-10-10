@@ -20,25 +20,72 @@ extension's `ctx`: `defer` lands in `owner.defers`, `signal` is the layer's); `S
 
 ## Order & status
 
-| tag      | ticket                                                                                                        | blockers | status |
-| -------- | ------------------------------------------------------------------------------------------------------------- | -------- | ------ |
-| core/t32 | `Scope.Extension`, `extensions` option, `start`/`close` chains, `scope.ready`, `resolve(ext)`, `NotSupported` | —        | [x]    |
-| core/t33 | the `resolve` chain (cells, resources, tags) — probes flat when unhooked                                      | t32      | [x]    |
-| core/t34 | the `run` chain (operation calls) — `op` probe flat when unhooked; short-circuit                              | t32      | [x]    |
-| core/t35 | the `write` chain (cell sets) — probe flat when unhooked; a refused write leaves the cell                     | t32      | [x]    |
-| sync/t06 | `source()` + `subscribe(transport)` as extensions; readiness = the initial data set; recipe + README          | t32      | [x]    |
-| sync/t07 | Restore public seam coverage after t06; isolated mutation ≥ 70                                                | t06      | [x]    |
+- **core/t32** — `Scope.Extension`, `extensions` option, `start`/`close` chains, `scope.ready`, `resolve(ext)`, `NotSupported`
+  blockers: —
+  status: [x]
+- **core/t33** — the `resolve` chain (cells, resources, tags) — probes flat when unhooked
+  blockers: t32
+  status: [x]
+- **core/t34** — the `run` chain (operation calls) — `op` probe flat when unhooked; short-circuit
+  blockers: t32
+  status: [x]
+- **core/t35** — the `write` chain (cell sets) — probe flat when unhooked; a refused write leaves the cell
+  blockers: t32
+  status: [x]
+- **sync/t06** — `source()` + `subscribe(transport)` as extensions; readiness = the initial data set; recipe + README
+  blockers: t32
+  status: [x]
+- **sync/t07** — Restore public seam coverage after t06; isolated mutation ≥ 70
+  blockers: t06
+  status: [x]
 
 ### Landed
 
-| tag      | sha     | tests | size (B gzip) | mutation | probes (before → after)                                                                                                            | notes                                                                                                                                                              |
-| -------- | ------- | ----- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| core/t32 | 66bcea7 | 239   | 22128         | 78.47    | create 176→169, warm 29.2→29.2, op 100.9→101.1, opres 330→327, cold 695→711, session 1617→1633 (pinned, min of 3, A/B alternating) | writer-built, one fix round (handle literal restored; cold-path `extendHandle`). Follow-up in t33: `exts` off the Layer record; extract only the resolve dispatch. |
-| sync/t06 | 6409128 | 21    | 4066          | 62.34    | — (no core change)                                                                                                                 | `source()`/`subscribe(transport)` as extensions; ready = the initial data set; `SyncNotReady`; `fail()` in the registry. Writer-built, one fix round.              |
-| core/t33 | 1810c85 | 246   | 22394         | 78.62    | t32 → t33 (pinned, min of 3): create 168.6→169.3, cold 716.7→707.0, session 1623→1587, op 101.9→100.9                              | `resolveThrough` onion on the root handle; records in a WeakMap off the Layer; the dispatch extraction measured and reverted. Writer-built, no fix round.          |
-| core/t34 | 761f4a5 | 253   | 22635         | 78.72    | t33 → t34 (pinned, min of 3): op 101.1→100.9, run 112.4→112.3, opres 328.5→328.7, create 168.5→168.9                               | `runThrough` onion on the root handle; innermost `next` = the plain `run`; `handleFor` untouched. Writer-built, no fix round.                                      |
-| core/t35 | d9f333f | 260   | 22851         | 78.56    | t34 → t35 (CPU7, min of 3): write 27.1→27.1, create 168.5→168.7, op 100.9→101.7, cold 709.2→706.3, session 1619→1609               | Writer-built, one fix round: closed cached-controller access guarded. Root set/update onion; sessions/dependency writes bypass; old guard/error retired.           |
-| sync/t07 | 3a6ae72 | 28    | 4066          | 78.06    | — (tests only; source unchanged)                                                                                                   | One lead fix round: exact missing keys and queued-message cleanup. Whole initial set staged across a turn.                                                         |
+- **core/t32** — sha: 66bcea7
+  tests: 239
+  size (B gzip): 22128
+  mutation: 78.47
+  probes (before → after): create 176→169, warm 29.2→29.2, op 100.9→101.1, opres 330→327, cold 695→711, session 1617→1633 (pinned, min of 3, A/B alternating)
+  notes: writer-built, one fix round (handle literal restored; cold-path `extendHandle`)
+  Follow-up in t33: `exts` off the Layer record
+  extract only the resolve dispatch.
+- **sync/t06** — sha: 6409128
+  tests: 21
+  size (B gzip): 4066
+  mutation: 62.34
+  probes: — (no core change)
+  notes: `source()`/`subscribe(transport)` as extensions
+  ready = the initial data set; `SyncNotReady`; `fail()` in the registry
+  Writer-built, one fix round.
+- **core/t33** — sha: 1810c85
+  tests: 246
+  size (B gzip): 22394
+  mutation: 78.62
+  probes: t32 → t33 (pinned, min of 3): create 168.6→169.3, cold 716.7→707.0, session 1623→1587, op 101.9→100.9
+  notes: `resolveThrough` onion on the root handle
+  records in a WeakMap off the Layer
+  the dispatch extraction measured and reverted. Writer-built, no fix round.
+- **core/t34** — sha: 761f4a5
+  tests: 253
+  size (B gzip): 22635
+  mutation: 78.72
+  probes: t33 → t34 (pinned, min of 3): op 101.1→100.9, run 112.4→112.3, opres 328.5→328.7, create 168.5→168.9
+  notes: `runThrough` onion on the root handle
+  innermost `next` = the plain `run`; `handleFor` untouched. Writer-built, no fix round.
+- **core/t35** — sha: d9f333f
+  tests: 260
+  size (B gzip): 22851
+  mutation: 78.56
+  probes: t34 → t35 (CPU7, min of 3): write 27.1→27.1, create 168.5→168.7, op 100.9→101.7, cold 709.2→706.3, session 1619→1609
+  notes: Writer-built, one fix round: closed cached-controller access guarded
+  root set/update onion; sessions/dependency writes bypass; old guard/error retired.
+- **sync/t07** — sha: 3a6ae72
+  tests: 28
+  size (B gzip): 4066
+  mutation: 78.06
+  probes: — (tests only; source unchanged)
+  notes: One lead fix round: exact missing keys and queued-message cleanup
+  Whole initial set staged across a turn.
 
 ### Impact blocks (ADR 0047)
 
