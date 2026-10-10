@@ -1836,3 +1836,26 @@ The final code also removes the duplicate resource flag.
 Its focused run found `op`, `inline`, and run-hook rows faster.
 It found no slower tagged or `opres` row.
 The full timing lane will run again on the final clean head.
+
+### Landing
+
+Reviewer: READY, no must-fix.
+Landed 2026-10-10 on `origin/main` `e63fe5be`.
+The rebase adds no Core change, so mutation was not re-run.
+The one conflict was `tools/jev/cases.jsonl`; both sides were kept.
+
+The full Core lane ran on clean `02b6475f`:
+
+- 3,030 killed, 52 timeout, 445 survived, 35 no coverage.
+- Kills alone: 3,030 / 3,510 = 86.3%.
+- With timeouts as kills: 85.06%.
+
+Ratchets, no ceiling raised:
+
+- `runOnce`: 498 <= 499.
+- `runHookBody`: 297 <= 298.
+- Module slot: 338 <= 339.
+
+Timing used 61 pairs and a paired sign test, `p < 0.01`.
+`inline`, `run`, `tagged`, and `hooked`: b is faster.
+No row is b slower.

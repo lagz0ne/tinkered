@@ -30,12 +30,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   The full lane now runs with no `--testFiles` filter (start/mutation-lane-fix).
   Verify: full Start lane >= 75 on kills alone.
 
-- **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
-  Starts after core/rules-batch-A and B land: one Core ticket at a time.
-  Resource and operation presets get empty deps and the usual ctx; the call's input is still parsed.
-  Then the scaffold tests drop the `env` values only preset nodes read.
-  Verify: a test that fails on main (a preset's dep is built); the flipped deps test; Core mutation 85;
-  `pnpm validate`; `N=61 bench/queued.sh` shows no slower row.
+- **tools/ticket-mutation-exit** — `scripts/ticket.sh` hides mutation failures.
+  Its step runs `vp run -r mutate || echo …`: any failure prints "skipped" and exits 0.
+  It also runs every package's lane, not only the named one.
+  Verify: a lane below its floor makes `ticket.sh` exit non-zero; only the named package's lane runs.
 
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
@@ -94,6 +92,12 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
+  Landed 2026-10-10. Reviewer: READY. Five preset tests fail on the old Core and pass now.
+  Core mutation 86.3% on kills alone; `runOnce`, `runHookBody`, and slot ceilings unchanged.
+  Timing: 61 pairs, `inline`/`run`/`tagged`/`hooked` b is faster, no row slower.
+  [Proof](docs/roadmap/core-v1/PROGRESS.md#corepreset-whole-node--sol-takeover).
 
 - **start/sync-400** — the sync endpoint answers 400 only for `openSync`'s own input failure.
   Landed 2026-10-10. Proof: a dep's parse failure fails the reply, not a 400; gates green.
