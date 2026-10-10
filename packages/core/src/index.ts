@@ -1494,14 +1494,12 @@ function tagRequired(
   return found.value;
 }
 
-/** Select the stored replacement, or the authored node when no preset exists. Operation copies
- * are prepared at scope seed, so a run uses one handle for both its deps and body (ADR 0109). */
 function presetFor(layer: Layer, node: unknown): unknown {
   for (let cur: Layer | undefined = layer; cur; cur = cur.up) {
     const p = cur.presets;
     if (p?.has(node)) return p.get(node);
   }
-  return node;
+  return undefined;
 }
 
 function addWatcher(
@@ -2224,13 +2222,21 @@ function parseInput<I>(
 /** Call the body now when every declared dep delivered, else after the parked builds settle
  * (ADR 0044) — the call is then a promise, which the body's type already promised. */
 function runBody<T, I>(
+  override: Operation.Handle<T, I>["run"] | undefined,
   target: Operation.Handle<T, I>,
-  deps: Record<string, unknown>,
-  ctx: Operation.Ctx<I>,
-  pending: PendingSlot[] | undefined,
+  layer: Layer,
+  span: SpanImpl | undefined,
+  held: HeldBorrows | undefined,
+  chain: readonly Namespace[] | undefined,
+  ctx: OperationCtx<I>,
+  sees: boolean,
 ): T {
-  if (pending === undefined) return target.run(deps, ctx);
-  return runParked(target, deps, ctx, pending);
+  if (override !== undefined) return override({}, ctx);
+  const deps = sees
+    ? readOpDeps(layer, target, span, held, chain, ctx)
+    : buildPlainDeps(layer, target.depends, span, chain, ctx);
+  if (parked === undefined) return target.run(deps, ctx);
+  return runParked(target, deps, ctx, parked);
 }
 
 /** The parked tail of {@link runBody}, out of line so its closure stays out of the hot inline budget. */
@@ -2242,9 +2248,7 @@ function runParked<T, I>(
   hook?: HookRun,
 ): T {
   return settleDeps(deps, pending).then(() =>
-    hook === undefined
-      ? runBody(target, deps, ctx, undefined)
-      : withHookAccess(hook, () => runBody(target, deps, ctx, undefined)),
+    hook === undefined ? target.run(deps, ctx) : withHookAccess(hook, () => target.run(deps, ctx)),
   ) as T;
 }
 
@@ -2303,24 +2307,6 @@ class OperationCtx<I> implements Operation.Ctx<I> {
    * context before the body's input was parsed. Plain runs never call this. */
   static share(from: OperationCtx<unknown>, to: OperationCtx<unknown>): void {
     to.hooks = from.hooks ??= [];
-  }
-  /** Keep failure cleanup outside the successful run's inline budget without adding a module
-   * context slot. The shared flight predicate still serves sync, async, and hooked failures. */
-  static fail(
-    layer: Layer,
-    error: unknown,
-    label: string,
-    span: SpanImpl | undefined,
-    ctx: OperationCtx<unknown> | undefined,
-    caller: RunState | undefined,
-    replay: Replay,
-    held: HeldBorrows | undefined,
-  ): never {
-    stampOrigin(error, label, span, ctx, endsFlight(caller, replay));
-    if (caller !== RECOVERED) stick(layer, error);
-    closeSpan(layer.obs, span, "failed", error);
-    finishRun(layer, ctx, held, "failed", error);
-    throw error;
   }
   get signal(): AbortSignal {
     return signalOf(this.layer);
@@ -2621,7 +2607,7 @@ function runOnce<T, I>(
   ensureRunning(layer, caller);
   const obs = layer.obs;
   const span = openSpan(obs, layer, up, target.label, "operation");
-  target = presetFor(layer, target) as Operation.Handle<T, I>;
+  const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
   /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
    * drain — so a release waits for the op's cleanup (which may still touch the resource) before
    * tearing it down (ADR 0026 Q2). Taken before deps resolve (a dep's factory may release another
@@ -2634,12 +2620,13 @@ function runOnce<T, I>(
   buildDepth++;
   try {
     ctx = new OperationCtx<I>(layer, target, call, span);
-    const deps = sees
-      ? readOpDeps(layer, target, span, held, chain, ctx)
-      : buildPlainDeps(layer, target.depends, span, chain, ctx);
-    result = runBody(target, deps, ctx, parked);
+    result = runBody(override, target, layer, span, held, chain, ctx, sees);
   } catch (error) {
-    return OperationCtx.fail(layer, error, target.label, span, ctx, caller, replay, held);
+    stampOrigin(error, target.label, span, ctx, endsFlight(caller, replay));
+    if (caller !== RECOVERED) stick(layer, error);
+    closeSpan(obs, span, "failed", error);
+    finishRun(layer, ctx, held, "failed", error);
+    throw error;
   } finally {
     buildDepth--;
   }
@@ -2793,7 +2780,7 @@ function buildPlainDeps(
 
 /** An operation's deps: the parking loop when its `depends` name a resource (the declaration-time
  * flag, read once per controller), else the plain loop. Either way {@link parked} is set for the
- * caller to hand to {@link runBody}. A preset handle declares no deps (ADR 0109). */
+ * caller to run the body. A preset (`override`) builds no dep (ADR 0109). */
 function readOpDeps(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
@@ -2801,8 +2788,10 @@ function readOpDeps(
   held: HeldBorrows | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
+  override?: unknown,
 ): Record<string, unknown> {
-  if (!seesResourceOf(target)) return buildPlainDeps(layer, target.depends, span, chain, caller);
+  if (override !== undefined || !seesResourceOf(target))
+    return buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, caller);
   return buildDeps(
     layer,
     target.depends,
@@ -3219,8 +3208,7 @@ function buildTrackedResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const selected = presetFor(owner, target);
-    const override = selected === target ? undefined : (selected as Resource.Handle<T>["factory"]);
+    const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
     owned = startBuildInstance(owner, target, rec, fn.length >= 2);
     const deps =
@@ -5647,15 +5635,6 @@ function applyPresets(
       const s = new NodeState();
       s.cell = { value: admit(node.label, node.parse, p.replacement) };
       nodes.set(node, s);
-    } else if (isOperation(node)) {
-      /** A copied handle belongs to this preset layer. It retains the authored input parser and
-       * label, but declares no deps or borrows and runs the replacement (ADR 0109). */
-      (presets ??= new Map()).set(node, {
-        ...node,
-        depends: {},
-        run: p.replacement,
-        borrows: false,
-      });
     } else (presets ??= new Map()).set(node, p.replacement);
   }
   return presets;
@@ -5856,7 +5835,6 @@ function runHookBody<T, I>(
   chain: readonly Namespace[] | undefined,
 ): unknown {
   try {
-    target = presetFor(run.layer, target) as Operation.Handle<T, I>;
     const ctx = new OperationCtx(
       run.layer,
       target,
@@ -5866,12 +5844,13 @@ function runHookBody<T, I>(
     if (run.ctx) OperationCtx.share(run.ctx, ctx);
     run.ctx = ctx;
     run.held ??= takeBorrows(target);
-    const deps = readOpDeps(run.layer, target, ctx.span, run.held, chain, ctx);
+    const override = presetFor(run.layer, target) as Operation.Handle<T, I>["run"] | undefined;
+    const deps = readOpDeps(run.layer, target, ctx.span, run.held, chain, ctx, override);
     let result: unknown;
     if (parked === undefined) {
       const previous = enterHookAccess(run);
       try {
-        result = runBody(target, deps, ctx, undefined);
+        result = override ? override(deps, ctx) : target.run(deps, ctx);
       } finally {
         exitHookAccess(previous);
       }
