@@ -765,8 +765,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A build superseded in flight leaves the rebuilt instance alive: its late cleanup never drops it.
 - A release nested inside a release cleanup never hangs close, nor does a session cleanup closing the
   root; closing another scope from a cleanup still awaits its real teardown.
-- A resource preset replaces the built instance, builds once per owner, sees the resolved deps, resolves
-  async factories, and runs its own cleanup at owner close; the real factory never runs.
+- A resource preset replaces the built instance, builds once per owner, resolves async factories, and
+  runs its own cleanup at owner close; the real factory never runs.
+- A resource preset does not build the deps of the node it replaces.
+- A resource preset gets empty deps: the real node's deps are never read.
 - A child session reads its parent's cell value.
 - Releasing a resource drops its dependents so they rebuild.
 - A throwing operation defer is aggregated as `TeardownFailed`.
@@ -855,6 +857,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A caller two subflows deep can catch a managed error without failing the session.
 - `settled` stays pending until owned work finishes.
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
+- An operation preset gets empty deps: the real node's deps are not built.
+- An operation preset does not read an unbound tag.
+- An operation preset gets empty deps under a run hook too.
+- An operation preset still parses the call's input and rejects a bad one.
 - An inline run resolves deps, delivers the full context, and shares nothing between runs; with no call,
   `ctx.input` is void. A tagged inline run sees the call's tags; a preset arrives through its deps.
 - A tagged call binds the whole flow: run, subflow, and nested subflow all read the call's tags; a

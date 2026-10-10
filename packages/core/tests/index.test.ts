@@ -2602,13 +2602,80 @@ test("an async resource preset resolves to its awaited value", async () => {
   expect(value.id).toBe("fake");
 });
 
-test("a resource preset receives the resolved deps, delivered untyped (narrow at use)", () => {
+test("a resource preset does not build the deps of the node it replaces", () => {
+  let built = 0;
+  const count = resource({
+    label: "count",
+    factory: () => {
+      built++;
+      return 41;
+    },
+  });
+  const conn = resource({ label: "conn", depends: { count }, factory: ({ count }) => count + 1 });
+  const scope = createScope({ presets: [preset(conn, () => 7)] });
+  expect(scope.resolve(conn)).toBe(7);
+  expect(built).toBe(0);
+});
+
+test("a resource preset gets empty deps: the real node's deps are never read", () => {
   const count = data({ initial: 41, parse: asNumber });
   const conn = resource({ label: "conn", depends: { count }, factory: ({ count }) => count + 1 });
   const scope = createScope({
-    presets: [preset(conn, (deps) => asNumber(deps.count) + 100)],
+    presets: [preset(conn, (deps) => Object.keys(deps).length)],
   });
-  expect(scope.resolve(conn)).toBe(141);
+  expect(scope.resolve(conn)).toBe(0);
+});
+
+test("an operation preset gets empty deps: the real node's deps are not built", () => {
+  let built = 0;
+  const count = resource({
+    label: "count",
+    factory: () => {
+      built++;
+      return 41;
+    },
+  });
+  const greet = operation({ label: "greet", depends: { count }, run: ({ count }) => count + 1 });
+  const scope = createScope({ presets: [preset(greet, (deps) => Object.keys(deps).length)] });
+  expect(scope.run(greet)).toBe(0);
+  expect(built).toBe(0);
+});
+
+test("an operation preset does not read an unbound tag", () => {
+  const name = tag<string>({ label: "name" });
+  const greet = operation({ label: "greet", depends: { name }, run: ({ name }) => name });
+  const scope = createScope({ presets: [preset(greet, (deps) => Object.keys(deps).join(","))] });
+  expect(scope.run(greet)).toBe("");
+});
+
+test("an operation preset gets empty deps under a run hook too", () => {
+  let built = 0;
+  const count = resource({
+    label: "count",
+    factory: () => {
+      built++;
+      return 41;
+    },
+  });
+  const greet = operation({ label: "greet", depends: { count }, run: ({ count }) => count + 1 });
+  const scope = createScope({
+    presets: [preset(greet, (deps) => Object.keys(deps).length)],
+    extensions: [extension({ label: "run hook", hooks: { run: (event) => event.next() } })],
+  });
+  expect(scope.run(greet)).toBe(0);
+  expect(built).toBe(0);
+});
+
+test("an operation preset still parses the call's input and rejects a bad one", () => {
+  const greet = operation({ label: "greet", input: asText, run: (_deps, { input }) => input });
+  const scope = createScope({ presets: [preset(greet, (_deps, { input }) => `hi ${input}`)] });
+  try {
+    scope.run(greet, { rawInput: 7 });
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "DataValidationFailed")) throw error;
+    expect(error.payload.label).toBe("greet");
+  }
 });
 
 test("a unit takes no meta: the option is a type error and the handle has no field", () => {

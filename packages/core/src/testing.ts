@@ -111,8 +111,8 @@ export function makeTestRandom(options?: Random.Options): CoreRandom.Handle {
 /** Test-only: substitute a node's realization for downstream consumers of a scope (ADR 0015).
  * A `data` value is validated through `parse`; an operation takes a replacement `run`; a resource
  * takes a replacement `factory` (built and torn down like the real one). Seed via
- * `createScope({ presets: [preset(node, ...)] })`. The replacement's `deps` are delivered
- * untyped (a `Record<string, unknown>`, like the real factory) — narrow at use. A `void`-returning
+ * `createScope({ presets: [preset(node, ...)] })`. A preset replaces the whole node, so its `deps`
+ * is an empty `Record<string, unknown>`: the node's own deps are never built (ADR 0109). A `void`-returning
  * resource is the one shape whose async/sync parity the type cannot enforce; don't preset one async. */
 export function preset<T>(node: Data.Cell<T>, value: T): Scope.Preset;
 
