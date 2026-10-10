@@ -6,13 +6,21 @@ The [public preview](https://p-363cfc8f40e8.preview.tini.works) passed real two-
 it is temporary (normally eight hours). All five tickets are Done. Tag/push and writer cleanup
 are verified in the [completion record](#t05-complete--2026-09-19).
 
-| Ticket      | Delivers                                                            | Blocked by | State |
-| ----------- | ------------------------------------------------------------------- | ---------- | ----- |
-| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done  |
-| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done  |
-| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done  |
-| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Done  |
-| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Done  |
+- **tracker/t01** — [Create an issue and see it live](issues/01-create-and-see-live.md)
+  Blocked by: —
+  State: Done
+- **tracker/t02** — [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)
+  Blocked by: t01
+  State: Done
+- **tracker/t03** — [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md)
+  Blocked by: t02
+  State: Done
+- **tracker/t04** — [Draft a summary with the harness](issues/04-triage-draft.md)
+  Blocked by: t03
+  State: Done
+- **tracker/t05** — [Finish the demo and its test guide](issues/05-finish-and-show.md)
+  Blocked by: t04
+  State: Done
 
 Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
 worktrees but stay in Paseo workspace `wks_85042cce8c480929`. One writer per ticket; no writer
@@ -30,12 +38,23 @@ thinking max. The lead reviews in its private landing tree; the shared checkout 
 Baseline `2f31491`; all packages indexed 2026-09-19. These are function-symbol definitions from
 `scripts/scip.sh refs '(name1|name2)\(\)\.$' <package>`, not guessed source locations.
 
-| Package | Definitions in `src/index.ts`                                                                    |
-| ------- | ------------------------------------------------------------------------------------------------ |
-| core    | `data`:553; `tag`:573; `operation`:604; `resource`:647; `makeTestClock`:1053; `createScope`:2883 |
-| sync    | `family`:66; `source`:187; `subscribe`:288; `memoryPair`:445                                     |
-| drizzle | `drizzleStore`:48                                                                                |
-| hono    | `tinker`:66; `stream`:113; `honoApp`:207; `handle`:232                                           |
+Definitions in `src/index.ts`:
+
+- **core** — `data`:553
+  `tag`:573
+  `operation`:604
+  `resource`:647
+  `makeTestClock`:1053
+  `createScope`:2883
+- **sync** — `family`:66
+  `source`:187
+  `subscribe`:288
+  `memoryPair`:445
+- **drizzle** — `drizzleStore`:48
+- **hono** — `tinker`:66
+  `stream`:113
+  `honoApp`:207
+  `handle`:232
 
 Raw baseline tables: `/tmp/issue-tracker-{core,sync,drizzle,hono}-refs.txt`.
 The baseline changes no public library symbols, so it needs no removal/rename impact block.
@@ -656,8 +675,13 @@ One private Muse contributor will implement t04 after this caller map is committ
 owns final review, gates, notes, and landing. No library source changes are planned.
 
 ```text
-Saved issue + discussion → read tools → owned harness session → draft stream
-Person clicks Post → existing comment action → saved discussion
+Saved issue + discussion →
+  read tools →
+  owned harness session →
+  draft stream
+Person clicks Post →
+  existing comment action →
+  saved discussion
 ```
 
 The optional run owns a session and bridges progress to its requesting view. No database
@@ -1163,33 +1187,33 @@ New-name table:
     /runDraft().  ->  src/server/draft.ts:56
     /triage.  ->  src/server/draft.ts:13
   references (count  symbol  file)
-        5  /Booted/Draft#  src/server/bridge.ts
-        3  /Draft/Event#  src/client/DraftView.tsx
-        1  /Draft/Event#  src/server/draft.ts
-        6  /Draft/Event#  src/shared/draft.ts
-        6  /Draft/Outcome#  src/client/DraftView.tsx
-        4  /Draft/Outcome#  src/server/draft.ts
-        2  /Draft/Outcome#  src/shared/draft.ts
-        2  /DraftView().  src/client/App.tsx
-        1  /DraftView().  src/client/DraftView.tsx
-        2  /RunDraft/Done#  src/server/app.ts
-        1  /RunDraft/Done#  src/server/draft.ts
-        1  /draftGuardrails.  src/index.ts
-        1  /draftGuardrails.  src/server/draft.ts
-        1  /draftTurn.  src/index.ts
-        1  /draftTurn.  src/server/draft.ts
-        2  /parseDraftCapability().  src/client/DraftView.tsx
-        2  /parseDraftEvent().  src/client/DraftView.tsx
-        1  /parseDraftId().  src/index.ts
-        1  /parseDraftId().  src/shared/draft.ts
-        1  /parseDraftInput().  src/index.ts
-        2  /parseDraftInput().  src/server/app.ts
-        2  /parseDraftInput().  src/server/draft.ts
-        1  /runDraft().  src/index.ts
-        2  /runDraft().  src/server/app.ts
-        2  /runDraft().  tests/draft.test.ts
-        1  /triage.  src/index.ts
-        3  /triage.  src/server/draft.ts
+        5  /Booted/Draft# src/server/bridge.ts
+        3  /Draft/Event# src/client/DraftView.tsx
+        1  /Draft/Event# src/server/draft.ts
+        6  /Draft/Event# src/shared/draft.ts
+        6  /Draft/Outcome# src/client/DraftView.tsx
+        4  /Draft/Outcome# src/server/draft.ts
+        2  /Draft/Outcome# src/shared/draft.ts
+        2  /DraftView(). src/client/App.tsx
+        1  /DraftView(). src/client/DraftView.tsx
+        2  /RunDraft/Done# src/server/app.ts
+        1  /RunDraft/Done# src/server/draft.ts
+        1  /draftGuardrails. src/index.ts
+        1  /draftGuardrails. src/server/draft.ts
+        1  /draftTurn. src/index.ts
+        1  /draftTurn. src/server/draft.ts
+        2  /parseDraftCapability(). src/client/DraftView.tsx
+        2  /parseDraftEvent(). src/client/DraftView.tsx
+        1  /parseDraftId(). src/index.ts
+        1  /parseDraftId(). src/shared/draft.ts
+        1  /parseDraftInput(). src/index.ts
+        2  /parseDraftInput(). src/server/app.ts
+        2  /parseDraftInput(). src/server/draft.ts
+        1  /runDraft(). src/index.ts
+        2  /runDraft(). src/server/app.ts
+        2  /runDraft(). tests/draft.test.ts
+        1  /triage. src/index.ts
+        3  /triage. src/server/draft.ts
 ```
 
 `env -u AI_GATEWAY_API_KEY JEV_TOKEN_FILE=/dev/null node tools/jev/impact.mjs tracker/t04 4b0c609..HEAD`
@@ -1437,16 +1461,22 @@ No library source changed; no mutation or wall-clock performance claim was made.
 
 Independent lead gates on the final staged app:
 
-| Check                                                         | Observed result                                                                     | Evidence                              |
-| ------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------- |
-| `vp install`                                                  | Exit 1 solely for the known ignored `esbuild@0.28.2` build policy; policy unchanged | `/tmp/tracker-t05-final-install.log`  |
-| `vp run --no-cache --filter '@tinker-issue-tracker...' build` | Exit 0, all 10 tasks, no cache hits                                                 | `/tmp/tracker-t05-final-build.log`    |
-| App `./node_modules/.bin/tsc --noEmit`                        | Exit 0, full app check                                                              | `/tmp/tracker-t05-final-tsc.log`      |
-| `vp run --no-cache @tinker-issue-tracker#test`                | Exit 0, 25/25 tests                                                                 | `/tmp/tracker-t05-final-tests.log`    |
-| `vp run --no-cache @tinker-issue-tracker#test:browser`        | Exit 0, real process/UI/CLI/restart proof, then 7/7 helper cases                    | `/tmp/tracker-t05-final-browser.log`  |
-| `vp check`                                                    | Exit 0, 0 errors and 13 existing warnings                                           | `/tmp/tracker-t05-final-check.log`    |
-| Strict app style census                                       | Exit 0, OK                                                                          | `/tmp/tracker-t05-final-census.log`   |
-| `node scripts/validate.mjs`                                   | Exit 0, all 37 deterministic lanes                                                  | `/tmp/tracker-t05-final-validate.log` |
+- **`vp install`** — Exit 1 solely for the known ignored `esbuild@0.28.2` build policy; policy unchanged
+  Evidence: `/tmp/tracker-t05-final-install.log`
+- **`vp run --no-cache --filter '@tinker-issue-tracker...' build`** — Exit 0, all 10 tasks, no cache hits
+  Evidence: `/tmp/tracker-t05-final-build.log`
+- **App `./node_modules/.bin/tsc --noEmit`** — Exit 0, full app check
+  Evidence: `/tmp/tracker-t05-final-tsc.log`
+- **`vp run --no-cache @tinker-issue-tracker#test`** — Exit 0, 25/25 tests
+  Evidence: `/tmp/tracker-t05-final-tests.log`
+- **`vp run --no-cache @tinker-issue-tracker#test:browser`** — Exit 0, real process/UI/CLI/restart proof, then 7/7 helper cases
+  Evidence: `/tmp/tracker-t05-final-browser.log`
+- **`vp check`** — Exit 0, 0 errors and 13 existing warnings
+  Evidence: `/tmp/tracker-t05-final-check.log`
+- **Strict app style census** — Exit 0, OK
+  Evidence: `/tmp/tracker-t05-final-census.log`
+- **`node scripts/validate.mjs`** — Exit 0, all 37 deterministic lanes
+  Evidence: `/tmp/tracker-t05-final-validate.log`
 
 The first final check only caught formatting in the lead's TODO edit; targeted
 formatting and the repeated check passed. That earlier result is preserved at
@@ -1478,7 +1508,9 @@ its main entry caller; reconnect adds App's connectTab callers and the Connected
 close field. Final retained-symbol query:
 
 ```text
-scripts/scip.sh refs '(/(App|connectTab)\(\)\.|/TabSync/Connected#)$' issue-tracker
+scripts/scip.sh refs \
+  '(/(App|connectTab)\(\)\.|/TabSync/Connected#)$' \
+  issue-tracker
 == issue-tracker
   definitions
     /App().  ->  src/client/App.tsx:449
@@ -1495,12 +1527,15 @@ scripts/scip.sh refs '(/(App|connectTab)\(\)\.|/TabSync/Connected#)$' issue-trac
 New close-field query:
 
 ```text
-scripts/scip.sh refs '/TabSync/Connected#.*:close\.$' issue-tracker
+scripts/scip.sh refs \
+  '/TabSync/Connected#.*:close\.$' issue-tracker
 == issue-tracker
   definitions
-    /TabSync/Connected#typeLiteral0:close.  ->  src/client/sync.ts:13
+    /TabSync/Connected#typeLiteral0:close.
+      ->  src/client/sync.ts:13
   references (count  symbol  file)
-        1  /TabSync/Connected#typeLiteral0:close.  src/client/App.tsx
+        1  /TabSync/Connected#typeLiteral0:close.
+           src/client/App.tsx
 ```
 
 The Jev impact advisory ran with `AI_GATEWAY_API_KEY` unset and
@@ -1548,7 +1583,8 @@ atomically pushed private `HEAD:main` and annotated tag `tracker/t05`.
 ```text
 main at acceptance: ab4b0f829711258cf25e479e2bb911fb52b85a76
 tracker/t05 commit: ab4b0f829711258cf25e479e2bb911fb52b85a76
-tracker/t05 tag object: b9f3212cf294124e94558ffd79a776b638f8e771
+tracker/t05 tag object:
+  b9f3212cf294124e94558ffd79a776b638f8e771
 ```
 
 Evidence: `/tmp/tracker-t05-acceptance-remote.txt`. The final Done notes follow
@@ -1624,13 +1660,27 @@ Fast-forwarded `main` to `07359a7` (ten commits, contributor `muse-spark-1.3-con
 round). Lead re-ran every gate in the worktree before landing:
 
 ```text
-vp check                          0 errors, 13 warnings (same 13 as main)
-vp run @tinker-issue-tracker#test 27 passed (3 files)      + seam test (no Hono) + concurrent-edit race (200/409)
-vp run hono#test                  32 passed (4 files)      + async input 400 + mount slot
-pnpm validate                     37/37 PASS (needs `allowBuilds.esbuild: true`; main's placeholder value
-                                  "set this to true or false" fails the install step on a clean checkout — repo quirk, not this slice)
-grep bootScope|buildApp|Booted|createSerial|saveNow|publishList  → (none) in apps, examples, packages
-grep Scope.Handle apps/issue-tracker/src/server            → app.ts:63 (root return type), draft.ts ×5 (slice streams)
+vp check
+  0 errors, 13 warnings (same 13 as main)
+vp run @tinker-issue-tracker#test
+  27 passed (3 files)
+  + seam test (no Hono)
+  + concurrent-edit race (200/409)
+vp run hono#test
+  32 passed (4 files)
+  + async input 400
+  + mount slot
+pnpm validate
+  37/37 PASS (needs `allowBuilds.esbuild: true`;
+  main's placeholder value "set this to true or false"
+  fails the install step on a clean checkout
+  — repo quirk, not this slice)
+grep \
+  bootScope|buildApp|Booted|createSerial|saveNow|publishList
+  → (none) in apps, examples, packages
+grep Scope.Handle apps/issue-tracker/src/server
+  → app.ts:63 (root return type)
+  → draft.ts ×5 (slice streams)
 ```
 
 Line counts (main `75ae11a` → `07359a7`): server 992 → 927; `app.ts` 403 → 198; `bridge.ts` 97 → deleted;
@@ -1676,12 +1726,24 @@ drops `sseTransport`; stale TSDoc; one hono README line closing feedback F3). Ga
 the worktree AND on `main` after `vp run -r build`:
 
 ```text
-vp check                          0 errors, 13 warnings
-vp run @tinker-issue-tracker#test 29 passed   (+ registerViewer 410/400, + startDraft seam test without Hono)
-vp run hono#test                  32 passed   (emit is synchronous; five `await emit` dropped)
-pnpm validate                     37/37 PASS  (with allowBuilds.esbuild: true, reverted)
-grep runDraft|draftStream|RunDraft|readWaiter|readRunState|owned(   → (none)
-grep Scope.Handle apps/issue-tracker/src/server                     → app.ts:26 (root return type) only
+vp check
+  0 errors, 13 warnings
+vp run @tinker-issue-tracker#test
+  29 passed
+  (+ registerViewer 410/400,
+  + startDraft seam test without Hono)
+vp run hono#test
+  32 passed
+  (emit is synchronous; five `await emit` dropped)
+pnpm validate
+  37/37 PASS
+  (with allowBuilds.esbuild: true, reverted)
+grep \
+  runDraft|draftStream|RunDraft|
+  readWaiter|readRunState|owned(
+  → (none)
+grep Scope.Handle apps/issue-tracker/src/server
+  → app.ts:26 (root return type) only
 ```
 
 Line counts: server 927 → **802** (`app.ts` 198 → 82, `draft.ts` 281 → 119, `routes.ts` 59 → 87, `sync.ts` new 125);
@@ -1725,11 +1787,22 @@ Fast-forwarded `main` to `63fd727` (eleven contributor commits, one fix round). 
 mutation lane. Lead gates, exit-code gated, in the worktree and again on `main` after `vp run -r build`:
 
 ```text
-vp check                                       0 errors, 13 warnings
-vp run @tinker-issue-tracker#test              34 passed (4 files; + tests/client.test.ts: 5 headless client tests over a fake http backend)
-vp run @tinker-issue-tracker#build && vp run --no-cache @tinker-issue-tracker#test:browser   proof + 7 passed
-pnpm validate                                  37/37 PASS
-grep useState|useEffect|useRef src/client (excl. DraftView.tsx)   → 0      grep connectTab|TabSync → (none)
+vp check
+  0 errors, 13 warnings
+vp run @tinker-issue-tracker#test
+  34 passed (4 files;
+  + tests/client.test.ts: 5 headless client tests
+  over a fake http backend)
+vp run @tinker-issue-tracker#build && \
+  vp run --no-cache @tinker-issue-tracker#test:browser
+  proof + 7 passed
+pnpm validate
+  37/37 PASS
+grep useState|useEffect|useRef \
+  src/client (excl. DraftView.tsx)
+  → 0
+grep connectTab|TabSync
+  → (none)
 ```
 
 Line counts, client excluding `DraftView.tsx` and `api.ts`: **732 → 1330**. `App.tsx` 518 → 382; `sync.ts` 155 →
@@ -1776,25 +1849,47 @@ lint error as "old, in core"; the lead's check on clean `main` showed 0 errors, 
 file — corrected in the fix round. Lead gates, exit-code gated, in the worktree and on `main` after `vp run -r build`:
 
 ```text
-vp check                                       0 errors, 13 warnings
-vp run @tinker-issue-tracker#test              40 passed (4 files; tests/client.test.ts now 11 headless client tests incl. 6 for the draft flow)
-vp run @tinker-issue-tracker#build && vp run --no-cache @tinker-issue-tracker#test:browser   proof + 7 passed
-pnpm validate                                  37/37 PASS
-grep useState|useEffect|useRef apps/issue-tracker/src   → 0
-grep Scope.Handle apps/issue-tracker/src                → server/app.ts:25 (createApp return), client/App.tsx:375 (ScopedApp prop, root wrapper), tools/issues.ts:237 (serveIssues, driver entry — accepted)
-grep fetch( apps/issue-tracker/src/client               → connection.ts only (the sync POST)
+vp check
+  0 errors, 13 warnings
+vp run @tinker-issue-tracker#test
+  40 passed (4 files;
+  tests/client.test.ts now 11 headless client tests
+  incl. 6 for the draft flow)
+vp run @tinker-issue-tracker#build && \
+  vp run --no-cache @tinker-issue-tracker#test:browser
+  proof + 7 passed
+pnpm validate
+  37/37 PASS
+grep useState|useEffect|useRef apps/issue-tracker/src
+  → 0
+grep Scope.Handle apps/issue-tracker/src
+  → server/app.ts:25 (createApp return)
+  → client/App.tsx:375 (ScopedApp prop, root wrapper)
+  → tools/issues.ts:237 (serveIssues)
+  → driver entry — accepted
+grep fetch( apps/issue-tracker/src/client
+  → connection.ts only (the sync POST)
 ```
 
 **Whole reshape, `f92444b` → `a098dc3` (41 commits, four slices, four contributors, four fix rounds):**
 
-| Area                            | Before | After | Note                                                                                 |
-| ------------------------------- | ------ | ----- | ------------------------------------------------------------------------------------ |
-| `src/server`                    | 992    | 802   | bridge, wrappers, queue, waiter, `owned` gone; routes are tags; publish after commit |
-| `src/client`                    | 1169   | 1941  | 15 cells, 19 operations, 4 resources, one reconnecting transport; zero React state   |
-| `src/shared`+errors+index+tools | 768    | 865   | SSE line helpers moved to shared; three registry errors added                        |
-| `src` total                     | 2929   | 3608  |                                                                                      |
-| `tests`                         | 2162   | 2806  | + seam tests: ops without Hono, concurrent-edit race, 11 headless client tests       |
-| hono `src/index.ts`             | 333    | 370   | async `input` → 400 `InputRejected`; `mount` slot; synchronous `emit`                |
+- **`src/server`** — Before: 992
+  After: 802
+  Note: bridge, wrappers, queue, waiter, `owned` gone; routes are tags; publish after commit
+- **`src/client`** — Before: 1169
+  After: 1941
+  Note: 15 cells, 19 operations, 4 resources, one reconnecting transport; zero React state
+- **`src/shared`+errors+index+tools** — Before: 768
+  After: 865
+  Note: SSE line helpers moved to shared; three registry errors added
+- **`src` total** — Before: 2929
+  After: 3608
+- **`tests`** — Before: 2162
+  After: 2806
+  Note: + seam tests: ops without Hono, concurrent-edit race, 11 headless client tests
+- **hono `src/index.ts`** — Before: 333
+  After: 370
+  Note: async `input` → 400 `InputRejected`; `mount` slot; synchronous `emit`
 
 The card's verify condition holds. The "fewer lines" goal held on the server and failed on the client, and
 `docs/best-practices.md` says so; the goals that held everywhere are one writer per state and a seam test for every
@@ -1826,13 +1921,29 @@ main.ts entry/serve                   no importers
 The lead wrote this one directly (six server files, three test files). Gates, by exit code, on `main`:
 
 ```text
-vp check                                          0 errors
-vp run @tinker-issue-tracker#test                 47 passed (5 files; +5: publish failure after commit, draft failed line, observe.test.ts ×4)
-vp run @tinker-issue-tracker#build && vp run --no-cache @tinker-issue-tracker#test:browser   proof + 7 passed
-publish test on the old publish.ts                × expected 500 to be 201 (fails without the fix)
-real boot (PORT=4399)                             listening line; POST 201 + `http request` line; GET missing → failed `readDetail` span + 404 line; second boot on the same port → `boot failed` EADDRINUSE, exit 1
-jev preflight                                     `leakedInternal` on index.ts labeled false (the seam exports); draft.ts/main.ts hits pre-date the change
-jev tests observe.test.ts                         helperAlone + manyCauses ×2 labeled false
+vp check
+  0 errors
+vp run @tinker-issue-tracker#test
+  47 passed (5 files;
+  +5: publish failure after commit,
+  draft failed line, observe.test.ts ×4)
+vp run @tinker-issue-tracker#build && \
+  vp run --no-cache @tinker-issue-tracker#test:browser
+  proof + 7 passed
+publish test on the old publish.ts
+  × expected 500 to be 201 (fails without the fix)
+real boot (PORT=4399)
+  listening line
+  POST 201 + `http request` line
+  GET missing → failed `readDetail` span + 404 line
+  second boot on the same port →
+    `boot failed` EADDRINUSE, exit 1
+jev preflight
+  `leakedInternal` on index.ts labeled false
+  (the seam exports)
+  draft.ts/main.ts hits pre-date the change
+jev tests observe.test.ts
+  helperAlone + manyCauses ×2 labeled false
 ```
 
 What swaps: `createApp({ observe })` takes any `Observe.Config` (core's `log` + `export`). `jsonLines` is the
@@ -1868,12 +1979,22 @@ readFake / readRoutes  tests/client.test.ts:56,72     ×16 / ×8 → (none)
 The lead wrote this one directly (four `src` files, one test file, one doc). Gates, by exit code:
 
 ```text
-vp check                                          0 errors
-vp run @tinker-issue-tracker#test                 46 passed (5 files; −1: the "presettable" test, now every test)
-vp run --no-cache @tinker-issue-tracker#test:browser   proof + 7 passed (the real 409 → "Reload their change" path)
-tools.test.ts on the old api.ts                   × 2 (stderr `ResponseFailed: StatusCode (status 409)`, expected `IssueConflict`) — fails without the fix
-grep 'backend(' apps/issue-tracker/tests          0
-jev preflight                                     gateway 503 at 06:57 UTC, not run (advisory)
+vp check
+  0 errors
+vp run @tinker-issue-tracker#test
+  46 passed (5 files;
+  −1: the "presettable" test, now every test)
+vp run --no-cache @tinker-issue-tracker#test:browser
+  proof + 7 passed
+  (the real 409 → "Reload their change" path)
+tools.test.ts on the old api.ts
+  × 2 (stderr `ResponseFailed: StatusCode (status 409)`,
+  expected `IssueConflict`)
+  fails without the fix
+grep 'backend(' apps/issue-tracker/tests
+  0
+jev preflight
+  gateway 503 at 06:57 UTC, not run (advisory)
 ```
 
 SCIP after (`.scip/issue-tracker.scip`): `readStoredConflict`, `readConflictBody`, `readConflicted`,
