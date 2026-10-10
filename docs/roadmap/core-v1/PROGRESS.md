@@ -1756,8 +1756,8 @@ Their worktree is unchanged.
 The saved bytecode ceiling increase was not copied.
 
 The throwing run path now lives in `OperationCtx.fail`.
-That shared static method adds no module slot.
-The original `endsFlight` predicate stays shared across all failure paths.
+That shared method adds no module slot.
+The original `endsFlight` check stays shared across all failure paths.
 A successful call never calls this helper.
 The hook body reads the parked builds before any body can run.
 It needs no local copy of that value.
@@ -1796,7 +1796,7 @@ They are outside the preset change.
 
 Jev preflight, tests, and promises each return 0.
 The final code answers have labels in the writer's handoff.
-The four noisy answers need no label.
+The two noisy answers need no label.
 Every new or changed preset title matches a README promise.
 The 47 old promise picks repeat broader scope, release, cleanup,
 input-type, inherited-setting, and tagged-call contracts.
@@ -1815,7 +1815,7 @@ Core feedback: none.
 
 The first full mutation run killed 3,036 of 3,576 valid mutants.
 Its 84.899% on kills alone was below 85.
-Duplicating the flight predicate across three failure paths added uncovered cases.
-The final form keeps that predicate shared and moves only sync failure cleanup.
+The duplicated check had surviving changes in each failure path.
+The final form keeps that check shared and moves only sync failure cleanup.
 No test or source file was removed to meet the floor.
 The final full lane is run again on a clean head.
