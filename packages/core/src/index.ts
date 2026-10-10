@@ -2224,23 +2224,17 @@ function parseInput<I>(
 function runBody<T, I>(
   override: Operation.Handle<T, I>["run"] | undefined,
   target: Operation.Handle<T, I>,
-  layer: Layer,
-  span: SpanImpl | undefined,
-  held: HeldBorrows | undefined,
-  chain: readonly Namespace[] | undefined,
-  ctx: OperationCtx<I>,
-  sees: boolean,
+  deps: Record<string, unknown>,
+  ctx: Operation.Ctx<I>,
+  pending: PendingSlot[] | undefined,
 ): T {
-  if (override !== undefined) return override({}, ctx);
-  const deps = sees
-    ? readOpDeps(layer, target, span, held, chain, ctx)
-    : buildPlainDeps(layer, target.depends, span, chain, ctx);
-  if (parked === undefined) return target.run(deps, ctx);
-  return runParked(target, deps, ctx, parked);
+  if (pending === undefined) return override ? override(deps, ctx) : target.run(deps, ctx);
+  return runParked(override, target, deps, ctx, pending);
 }
 
 /** The parked tail of {@link runBody}, out of line so its closure stays out of the hot inline budget. */
 function runParked<T, I>(
+  override: Operation.Handle<T, I>["run"] | undefined,
   target: Operation.Handle<T, I>,
   deps: Record<string, unknown>,
   ctx: Operation.Ctx<I>,
@@ -2248,7 +2242,9 @@ function runParked<T, I>(
   hook?: HookRun,
 ): T {
   return settleDeps(deps, pending).then(() =>
-    hook === undefined ? target.run(deps, ctx) : withHookAccess(hook, () => target.run(deps, ctx)),
+    hook === undefined
+      ? runBody(override, target, deps, ctx, undefined)
+      : withHookAccess(hook, () => runBody(override, target, deps, ctx, undefined)),
   ) as T;
 }
 
@@ -2535,10 +2531,24 @@ function finishRun(
  * caller's run (a tagged subflow runs on its child session without its caller). */
 type Replay = false | "root" | "nested";
 
-/** A run whose failure leaves core: a `settle`, or a run with no caller around it. A nested replay
- * is inside its caller's run, so the caller's run ends the flight. */
-function endsFlight(caller: RunState | undefined, replay: Replay): boolean {
-  return caller === RECOVERED || (caller === undefined && replay !== "nested");
+/** Stamp the run's failure, ending its flight only when it leaves Core: a `settle`, or a run
+ * with no caller. A nested replay stays inside its caller's flight. All failure paths use the
+ * same check; keeping the stamping call here also keeps the successful run within its budget. */
+function stampRunOrigin(
+  error: unknown,
+  label: string,
+  span: SpanImpl | undefined,
+  ctx: OperationCtx<unknown> | undefined,
+  caller: RunState | undefined,
+  replay: Replay,
+): void {
+  stampOrigin(
+    error,
+    label,
+    span,
+    ctx,
+    caller === RECOVERED || (caller === undefined && replay !== "nested"),
+  );
 }
 
 function finishAsyncRun<T>(
@@ -2553,7 +2563,7 @@ function finishAsyncRun<T>(
   held: HeldBorrows | undefined,
 ): unknown {
   const onSettle = (status: "ok" | "failed", error?: unknown): void => {
-    if (status === "failed") stampOrigin(error, label, span, ctx, endsFlight(caller, replay));
+    if (status === "failed") stampRunOrigin(error, label, span, ctx, caller, replay);
     if (span) closeSpan(obs, span, status, error);
     finishRun(layer, ctx, held, status, error);
   };
@@ -2620,9 +2630,17 @@ function runOnce<T, I>(
   buildDepth++;
   try {
     ctx = new OperationCtx<I>(layer, target, call, span);
-    result = runBody(override, target, layer, span, held, chain, ctx, sees);
+    result = runBody(
+      override,
+      target,
+      sees
+        ? readOpDeps(layer, target, span, held, chain, ctx, override)
+        : buildPlainDeps(layer, target.depends, span, chain, ctx, override),
+      ctx,
+      parked,
+    );
   } catch (error) {
-    stampOrigin(error, target.label, span, ctx, endsFlight(caller, replay));
+    stampRunOrigin(error, target.label, span, ctx, caller, replay);
     if (caller !== RECOVERED) stick(layer, error);
     closeSpan(obs, span, "failed", error);
     finishRun(layer, ctx, held, "failed", error);
@@ -2764,23 +2782,25 @@ function buildDeps(
 }
 
 /** The `deps` object of a body whose `depends` name no resource: the plain eager loop, nothing
- * parked. A preset supplies no declared deps (ADR 0109). */
+ * parked. A preset (`override`) replaces the whole node (ADR 0109), so it builds no dep. */
 function buildPlainDeps(
   layer: Layer,
   depends: Scope.Depends,
   span: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
+  override?: unknown,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
-  for (const key in depends) deps[key] = resolveDep(layer, depends[key], span, chain, caller);
+  if (override === undefined)
+    for (const key in depends) deps[key] = resolveDep(layer, depends[key], span, chain, caller);
   parked = undefined;
   return deps;
 }
 
 /** An operation's deps: the parking loop when its `depends` name a resource (the declaration-time
  * flag, read once per controller), else the plain loop. Either way {@link parked} is set for the
- * caller to run the body. A preset (`override`) builds no dep (ADR 0109). */
+ * caller to hand to {@link runBody}. A preset (`override`) builds no dep (ADR 0109). */
 function readOpDeps(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
@@ -5850,12 +5870,12 @@ function runHookBody<T, I>(
     if (parked === undefined) {
       const previous = enterHookAccess(run);
       try {
-        result = override ? override(deps, ctx) : target.run(deps, ctx);
+        result = runBody(override, target, deps, ctx, undefined);
       } finally {
         exitHookAccess(previous);
       }
     } else {
-      result = runParked(target, deps, ctx, parked, run);
+      result = runParked(override, target, deps, ctx, parked, run);
     }
     return isThenable(result) ? trackHookRun(run, result) : result;
   } catch (error) {
@@ -5867,7 +5887,7 @@ function runHookBody<T, I>(
 function failHookRun(run: HookRun, error: unknown): void {
   if (run.failed !== undefined && run.failed.error === error) return;
   run.failed = { error };
-  stampOrigin(error, run.label, run.span, run.ctx, endsFlight(run.caller, false));
+  stampRunOrigin(error, run.label, run.span, run.ctx, run.caller, false);
   if (run.caller !== RECOVERED) stick(run.layer, error);
 }
 
