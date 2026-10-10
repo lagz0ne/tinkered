@@ -1361,3 +1361,48 @@ Core feedback: none.
 - `pnpm validate` does not check Start's built chunks.
   Its slot lane reads Core only. That gap is older than this ticket.
 - No `src` change, so no mutation run.
+
+## start/sync-push-revocations
+
+Owner: Haiku 5.5 writer; lead reviews and lands.
+Next: lead review. Start mutation score is below the 75 floor (see Proof).
+Verify: per path an open stream closes; a save reads no account; another device's stream stays open;
+`N=61` sync1k row not slower; Start kills at least 75.
+
+ADR 0110. A wake reads no account. A session delete sends one notice
+`account:<id>` on `start_sync`. The listener routes it to that account's
+streams only; each re-reads and closes only if its own session ended.
+The 30 s lease stays. Heartbeats read no account.
+
+Proof:
+
+- Fails on `origin/main`: `a save makes no account read on an open stream`
+  (reads 3, want 1); `a notice re-reads only its account's streams`
+  (grace reads 3, want 1).
+- Passes on `origin/main` and on the branch: the four scaffold path tests
+  in `apps/start-scaffold/tests/revocation.test.ts` (sign-out, revoke another
+  device, server-deleted session, user deleted). Real better-auth, PGlite.
+- Gate: `vp run -r build && vp check && vp run @tinker/start#test &&
+vp run @tinker-start-scaffold#test` gives EXIT 0. check: 0 errors, 27 warnings
+  (main at 8d02ea8f also 27). Start 451/451. Scaffold 36/36.
+- `pnpm validate`: 19 of 19 deterministic lanes PASS.
+- Mutation, full Start lane, on `ef7d8cc6` (src unchanged since, clean tree):
+  killed 2780, survived 1352, no cov 672, timeout 52 (counted apart),
+  error 1. Kills over valid (killed + survived + no cov) = 2780 / 4804 = 57.9%.
+  Stryker's own score, timeouts counted as detected: 58.32 (below 75).
+  Run excluded `tests/build-output.test.mjs`: it fails Stryker's dry run on
+  `origin/main` too ("server body chunks do not import each other").
+- Mutation, `notice.ts` alone (new code): killed 3, survived 3, 50%.
+  Survivors: `notice.ts:2:23` prefix to `""`; `notice.ts:8:30` `accountNotice`
+  body to `undefined`; `notice.ts:14:32` `accountOfNotice` body to `undefined`.
+- Timing, `N=61 SCEN=sync1k bench/queued.sh`, 1,000 open streams, 10 saves
+  per process, mean ns per save (median of 61; MAD):
+  - A `origin/main` 60f3bbeb: 379.3 ms, MAD 5.6 ms, range 369.3 to 470.1.
+  - B this branch 5956b7ef: 15.5 ms, MAD 1.0 ms, range 13.7 to 24.4.
+  - Bytes per save equal: 206,600.
+  - Read: b is faster; the ranges do not overlap.
+  - The run's log is in `.bench/ab.csv` (not committed).
+  - Overlap: `pnpm validate` ran during another writer's timing lane.
+    That lane's noise is not mine, but it may have been affected.
+
+Core feedback: none.
