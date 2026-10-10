@@ -220,7 +220,7 @@ function reflectedInvocation(method, call) {
   const args = unwrap(call.arguments[1]);
   return {
     expression: method.expression,
-    object: args && ts.isArrayLiteralExpression(args) ? args.elements[0] : undefined,
+    object: args && ts.isArrayLiteralExpression(args) ? args.elements[0] : args,
   };
 }
 
@@ -648,14 +648,24 @@ function extraCases(outsideImport) {
           `const scope=createScope(); scope.${method}.${invoke}{run:()=>outside("x")});`,
       });
     }
-    cases.push({
-      name: `inline-${method}-apply`,
-      rule: 7,
-      hit: "probe.ts:3",
-      source:
-        outsideImport +
-        `const scope=createScope(); scope.${method}.apply(scope, [{run:()=>outside("x")}]);`,
-    });
+    cases.push(
+      {
+        name: `inline-${method}-apply`,
+        rule: 7,
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); scope.${method}.apply(scope, [{run:()=>outside("x")}]);`,
+      },
+      {
+        name: `inline-${method}-apply-variable`,
+        tag: "unit-body",
+        hit: "probe.ts:3",
+        source:
+          outsideImport +
+          `const scope=createScope(); const specs=[{run:()=>outside("x")}]; scope.${method}.apply(scope, specs);`,
+      },
+    );
   }
   cases.push(
     {
