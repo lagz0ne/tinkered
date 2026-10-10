@@ -1732,3 +1732,79 @@ Scaffold and all 18 release lanes pass.
 One concurrent gate attempt hit two five-second Start sync timeouts.
 The standalone full ticket rerun passes without changing any timeout.
 [Gate output](op-fast/gates.log).
+
+## core/preset-whole-node — Sol takeover
+
+Branch: `core/preset-whole-node-sol`.
+First base: `origin/main` at `60281254`.
+Rebased on `9b84bcf4`; Core source and build settings are unchanged.
+Both timing sides use the final branch's one probe.
+The lead owns the board and landing.
+The writer never pushes.
+
+A resource or operation preset builds none of the replaced node's deps.
+Its body gets empty deps and the usual context.
+Input parsing still runs.
+The scaffold tests drop SMTP settings read only by the preset mail node.
+
+The writer copied the behavior change from `0584dc41`.
+Both prior heads have local archive tags.
+Their worktree is unchanged.
+The saved bytecode ceiling increase was not copied.
+
+The throwing run path now lives in `failRun`.
+It replaces `endsFlight`, so no module slot is added.
+A successful call never calls this helper.
+The hook body reads the parked builds before any body can run.
+It needs no local copy of that value.
+
+### Proof before the final long runs
+
+Five preset tests fail on unchanged Core at `60281254`.
+Four receive a built dep where they expect none.
+The plain operation case raises `MissingTag`.
+The flipped resource deps test is one of these failures.
+The same tests pass with the fix.
+
+The build, check, and all ten workspace test tasks return 0.
+Core has 880 passing tests.
+The Core ticket script also returns 0.
+It runs in check-only mode with its shared mutation step off.
+That step hides mutation failures and runs other packages.
+The writer runs Core alone under the lock, by exit code.
+
+All 19 `pnpm validate` lanes pass.
+The ceilings are unchanged.
+The observed sizes are:
+
+- `runOnce`: 440 bytes; ceiling 499.
+- `runHookBody`: 297 bytes; ceiling 298.
+- Core's last module slot: 339; ceiling 339.
+- Complexity cap: 8; check passes.
+- Runtime size: 15,960 B gzip; cap 16,384 B.
+
+Changed Core code and tests pass the strict style census.
+The four old whole-file hits also occur on main.
+The TSDoc parser finds no bad doc row.
+The old test flags concern old error guards, a host rejection wait,
+and tests that check both fresh values and distinct identities.
+They are outside the preset change.
+
+Jev preflight, tests, and promises each return 0.
+All 166 code answers have labels; 12 exact states were added.
+The four noisy answers need no label.
+Every new or changed preset title matches a README promise.
+The 47 old promise picks repeat broader scope, release, cleanup,
+input-type, inherited-setting, and tagged-call contracts.
+The earlier promise-pick notes in this file cover those contracts.
+Hostile changing thenables remain outside ADR 0029's promises.
+No new README gap comes from this ticket.
+
+Local logs live in `.bench/preset-whole-node-sol/` in this writer tree.
+The final timing and mutation logs name the head and empty tree status.
+The writer's handoff gives the kills-only score and paired verdicts.
+Timing uses 61 pairs, drops ties, and uses `p < 0.01`.
+It runs the ten default scenarios, the run-hook case,
+and the two-argument resource case.
+Both long jobs hold `/tmp/mutation.lock` and finish in the same turn.
+Core feedback: none.
