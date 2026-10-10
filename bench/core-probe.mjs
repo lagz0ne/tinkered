@@ -16,6 +16,12 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { getHeapStatistics } from "node:v8";
 
+// `sync1k` times the Start sync stream, not Core: bench/sync-probe.mjs loads the tree's own source.
+if (process.argv[2] === "sync1k") {
+  await import("./sync-probe.mjs");
+  process.exit(0);
+}
+
 const WARM_CALLS = 10_000;
 const coreDist = process.env.CORE_DIST;
 
