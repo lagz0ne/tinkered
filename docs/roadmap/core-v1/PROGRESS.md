@@ -1751,15 +1751,18 @@ The new revocation tests also drop those settings.
 Backend sender-release tests keep SMTP settings for their real mail node.
 Database URLs stay: the migration operation reads database settings itself.
 
-The writer copied the behavior change from `0584dc41`.
+The writer started from the behavior change in `0584dc41`.
 Both prior heads have local archive tags.
 Their worktree is unchanged.
 The saved bytecode ceiling increase was not copied.
 
-The throwing run path now lives in `OperationCtx.fail`.
-That shared method adds no module slot.
-The original `endsFlight` check stays shared across all failure paths.
+`stampRunOrigin` joins two calls that already ran on every failure path.
+The shared flight check stays shared.
 A successful call never calls this helper.
+The borrow already taken tells Core which deps loop to use.
+The controller no longer saves a second copy of that same fact.
+This also removes one module slot.
+A run hook uses the plain loop when no dep is a resource.
 The hook body reads the parked builds before any body can run.
 It needs no local copy of that value.
 
@@ -1782,9 +1785,9 @@ All 19 `pnpm validate` lanes pass.
 The ceilings are unchanged.
 The observed sizes are:
 
-- `runOnce`: 450 bytes; ceiling 499.
+- `runOnce`: 498 bytes; ceiling 499.
 - `runHookBody`: 297 bytes; ceiling 298.
-- Core's last module slot: 339; ceiling 339.
+- Core's last module slot: 338; ceiling 339.
 - Complexity cap: 8; check passes.
 - Runtime size stays below the unchanged 16,384 B gzip cap.
 
@@ -1797,7 +1800,6 @@ They are outside the preset change.
 
 Jev preflight, tests, and promises each return 0.
 The final code answers have labels in the writer's handoff.
-The two noisy answers need no label.
 Every new or changed preset title matches a README promise.
 The 47 old promise picks repeat broader scope, release, cleanup,
 input-type, inherited-setting, and tagged-call contracts.
@@ -1814,20 +1816,23 @@ and the two-argument resource case.
 Both long jobs hold `/tmp/mutation.lock` and finish in the same turn.
 Core feedback: none.
 
+### Earlier runs
+
 The first full mutation run killed 3,036 of 3,576 valid mutants.
 Its 84.899% on kills alone was below 85.
-The duplicated check had surviving changes in each failure path.
-The final form keeps that check shared and moves only sync failure cleanup.
+That form repeated the flight check in each failure path.
+Keeping the check shared cleared 85 on the next two clean heads:
+3,033 / 3,561, then 3,037 / 3,567.
 No test or source file was removed to meet the floor.
 The final full lane is run again on a clean head.
 
-The next clean head killed 3,033 of 3,561 valid mutants.
-Its 85.173% on kills alone cleared 85.
-Its first timing run still found slower `op` and run-hook rows.
-The final code leaves the plain deps loop unchanged.
-The caller selects empty declared deps for a preset.
-The run-hook path uses that plain loop when no dep is a resource.
-It keeps the parking loop for resource deps.
-A focused 61-pair rerun found the run-hook row faster.
-It found no slower `op`, `inline`, or `opres` row.
-The full long lanes will rerun on the final clean head.
+The first timing run found slower `op` and run-hook rows.
+Using the plain loop for a hook's plain deps fixed the run-hook row.
+A later head still had a slower tagged row.
+A seeded handle copy had a slower `op` row.
+Moving the deps build into the body helper had a slower tagged row.
+Sharing origin stamping met the bytecode limit but still slowed inline calls.
+The final code also removes the duplicate resource flag.
+Its focused run found `op`, `inline`, and run-hook rows faster.
+It found no slower tagged or `opres` row.
+The full timing lane will run again on the final clean head.
