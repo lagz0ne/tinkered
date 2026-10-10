@@ -1737,7 +1737,8 @@ The standalone full ticket rerun passes without changing any timeout.
 
 Branch: `core/preset-whole-node-sol`.
 First base: `origin/main` at `60281254`.
-Rebased on `9b84bcf4`; Core source and build settings are unchanged.
+Rebased on `14d69ad1`; Core source and build settings are unchanged.
+Timing base stays pinned at `9b84bcf4`; its Core files match `14d69ad1`.
 Both timing sides use the final branch's one probe.
 The lead owns the board and landing.
 The writer never pushes.
@@ -1781,7 +1782,7 @@ All 19 `pnpm validate` lanes pass.
 The ceilings are unchanged.
 The observed sizes are:
 
-- `runOnce`: 446 bytes; ceiling 499.
+- `runOnce`: 450 bytes; ceiling 499.
 - `runHookBody`: 297 bytes; ceiling 298.
 - Core's last module slot: 339; ceiling 339.
 - Complexity cap: 8; check passes.
@@ -1819,3 +1820,14 @@ The duplicated check had surviving changes in each failure path.
 The final form keeps that check shared and moves only sync failure cleanup.
 No test or source file was removed to meet the floor.
 The final full lane is run again on a clean head.
+
+The next clean head killed 3,033 of 3,561 valid mutants.
+Its 85.173% on kills alone cleared 85.
+Its first timing run still found slower `op` and run-hook rows.
+The final code leaves the plain deps loop unchanged.
+The caller selects empty declared deps for a preset.
+The run-hook path uses that plain loop when no dep is a resource.
+It keeps the parking loop for resource deps.
+A focused 61-pair rerun found the run-hook row faster.
+It found no slower `op`, `inline`, or `opres` row.
+The full long lanes will rerun on the final clean head.
