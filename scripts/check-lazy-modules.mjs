@@ -203,8 +203,7 @@ function inlineParameter(signature, checker) {
 
 function indirectInvocation(call) {
   const expression = unwrap(call.expression);
-  if (ts.isPropertyAccessExpression(expression) && expression.name.text === "call")
-    return { expression: expression.expression, object: call.arguments[1] };
+  if (ts.isPropertyAccessExpression(expression)) return reflectedInvocation(expression, call);
   if (!ts.isCallExpression(expression)) return undefined;
   const bound = unwrap(expression.expression);
   if (ts.isPropertyAccessExpression(bound) && bound.name.text === "bind")
@@ -212,6 +211,17 @@ function indirectInvocation(call) {
       expression: bound.expression,
       object: expression.arguments[1] ?? call.arguments[0],
     };
+}
+
+function reflectedInvocation(method, call) {
+  if (method.name.text === "call")
+    return { expression: method.expression, object: call.arguments[1] };
+  if (method.name.text !== "apply") return undefined;
+  const args = unwrap(call.arguments[1]);
+  return {
+    expression: method.expression,
+    object: args && ts.isArrayLiteralExpression(args) ? args.elements[0] : undefined,
+  };
 }
 
 function inlineCall(call, checker) {
@@ -638,6 +648,14 @@ function extraCases(outsideImport) {
           `const scope=createScope(); scope.${method}.${invoke}{run:()=>outside("x")});`,
       });
     }
+    cases.push({
+      name: `inline-${method}-apply`,
+      rule: 7,
+      hit: "probe.ts:3",
+      source:
+        outsideImport +
+        `const scope=createScope(); scope.${method}.apply(scope, [{run:()=>outside("x")}]);`,
+    });
   }
   cases.push(
     {
