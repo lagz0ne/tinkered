@@ -347,18 +347,36 @@ A = `origin/main` `31613e7`; B = `fb35497` (core) with this `bench/`. N=31.
 
 ## All lanes at t19 (green together)
 
-| lane                | budget                                       | t19 measurement                          | how                                           |
-| ------------------- | -------------------------------------------- | ---------------------------------------- | --------------------------------------------- |
-| bundle size (gzip)  | ≤15 kB (10 kB preferred, dropped 2026-09-30) | **8,056 B** (2026-09-21, minified)       | `vp run core#size` → `scripts/check-size.mjs` |
-| promises — sync     | **0**                                        | **0**                                    | `bench/promises.mjs` (async_hooks census)     |
-| promises — async    | ≤10 (representative toggle)                  | **5**                                    | `bench/promises.mjs`                          |
-| live heap / request | a few KB (~hand-wired DI)                    | **3,871 B**                              | `bench/heap.mjs` (`--expose-gc`)              |
-| mutation score      | Stryker break ≥ 60                           | **77.45%**                               | `vp run core#mutate`                          |
-| complexity          | ≤ 8 (cyclomatic)                             | **8** (hard cap)                         | oxlint `complexity` (`vite.config.ts`)        |
-| CRAP                | ≤ 30                                         | **8.73** (12.1 at the 60% floor)         | `scripts/check-crap.mjs` (cap² ·(1−cov)³+cap) |
-| both entries        | pure universal ESM                           | **pure** (no node imports/globals)       | dist purity grep + node import smoke          |
-| cast-free examples  | 0 casts, typecheck clean                     | **0 casts**                              | `packages/core/examples/*.ts` + `vp check`    |
-| deep chains         | teardown iterative, no overflow              | **10k+ safe**; build ceilings documented | `bench/deep.mjs` (see below)                  |
+- **bundle size (gzip)** — budget: ≤15 kB (10 kB preferred, dropped 2026-09-30)
+  t19 measurement: **8,056 B** (2026-09-21, minified)
+  how: `vp run core#size` → `scripts/check-size.mjs`
+- **promises — sync** — budget: **0**
+  t19 measurement: **0**
+  how: `bench/promises.mjs` (async_hooks census)
+- **promises — async** — budget: ≤10 (representative toggle)
+  t19 measurement: **5**
+  how: `bench/promises.mjs`
+- **live heap / request** — budget: a few KB (~hand-wired DI)
+  t19 measurement: **3,871 B**
+  how: `bench/heap.mjs` (`--expose-gc`)
+- **mutation score** — budget: Stryker break ≥ 60
+  t19 measurement: **77.45%**
+  how: `vp run core#mutate`
+- **complexity** — budget: ≤ 8 (cyclomatic)
+  t19 measurement: **8** (hard cap)
+  how: oxlint `complexity` (`vite.config.ts`)
+- **CRAP** — budget: ≤ 30
+  t19 measurement: **8.73** (12.1 at the 60% floor)
+  how: `scripts/check-crap.mjs` (cap² ·(1−cov)³+cap)
+- **both entries** — budget: pure universal ESM
+  t19 measurement: **pure** (no node imports/globals)
+  how: dist purity grep + node import smoke
+- **cast-free examples** — budget: 0 casts, typecheck clean
+  t19 measurement: **0 casts**
+  how: `packages/core/examples/*.ts` + `vp check`
+- **deep chains** — budget: teardown iterative, no overflow
+  t19 measurement: **10k+ safe**; build ceilings documented
+  how: `bench/deep.mjs` (see below)
 
 ## Call paths (t27)
 
@@ -368,18 +386,36 @@ references — the sandbox `bench` is unavailable in this container today — an
 census rows are gates (`pnpm validate` runs `bench/promises.mjs` and `bench/heap.mjs`).
 Kept as history: the sandbox re-check is "Call paths through benchd (2026-09-28)" below.
 
-| scenario              | t27 reference (min of 5) | main at t24 (same A/B) | rule                                                                                       |
-| --------------------- | ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------ |
-| `op`                  | 78.3 ns                  | 78.3 ns                | must not exceed main's t24 number + 2 ns in alternating A/B                                |
-| `run`                 | 88.5 ns                  | 88.5 ns                | must not exceed main's t24 number + 2 ns in alternating A/B                                |
-| `inline`              | 180.7 ns                 | 180.3 ns               | ≤ run + one handle+controller allocation (~90 ns)                                          |
-| `session`             | 1600.0 ns                | — (new probe)          | reference only                                                                             |
-| `op` (t31, ADR 0044)  | 99.2 ns (med 101.7)      | 89.0 (med 106.4)       | in-container A/B min of 7: +10 min (one main outlier) / −4.7 med; sandbox re-check pending |
-| `run` (t31)           | 110.6 ns (med 113.6)     | 116.4 (med 117.7)      | −5.8 min / −4.1 med                                                                        |
-| `opres` (t31, new)    | 320.5 ns (med 328.6)     | 415.1 (med 424.4)      | op over a built sync resource: −95 ns (no lazy Proxy per call)                             |
-| `tagged`              | 1939.0 ns                | — (new probe)          | ≤ 2000 ns here (= session + op + ~16%; the 16% is the sandbox question)                    |
-| `promises_tagged`     | **17** (exact)           | — (new census)         | exact: a change that adds one fails                                                        |
-| `heap_tagged_per_req` | 4901 B                   | — (new figure)         | informative (no gate yet)                                                                  |
+- **`op`** — t27 reference (min of 5): 78.3 ns
+  main at t24 (same A/B): 78.3 ns
+  rule: must not exceed main's t24 number + 2 ns in alternating A/B
+- **`run`** — t27 reference (min of 5): 88.5 ns
+  main at t24 (same A/B): 88.5 ns
+  rule: must not exceed main's t24 number + 2 ns in alternating A/B
+- **`inline`** — t27 reference (min of 5): 180.7 ns
+  main at t24 (same A/B): 180.3 ns
+  rule: ≤ run + one handle+controller allocation (~90 ns)
+- **`session`** — t27 reference (min of 5): 1600.0 ns
+  main at t24 (same A/B): — (new probe)
+  rule: reference only
+- **`op` (t31, ADR 0044)** — t27 reference (min of 5): 99.2 ns (med 101.7)
+  main at t24 (same A/B): 89.0 (med 106.4)
+  rule: in-container A/B min of 7: +10 min (one main outlier) / −4.7 med; sandbox re-check pending
+- **`run` (t31)** — t27 reference (min of 5): 110.6 ns (med 113.6)
+  main at t24 (same A/B): 116.4 (med 117.7)
+  rule: −5.8 min / −4.1 med
+- **`opres` (t31, new)** — t27 reference (min of 5): 320.5 ns (med 328.6)
+  main at t24 (same A/B): 415.1 (med 424.4)
+  rule: op over a built sync resource: −95 ns (no lazy Proxy per call)
+- **`tagged`** — t27 reference (min of 5): 1939.0 ns
+  main at t24 (same A/B): — (new probe)
+  rule: ≤ 2000 ns here (= session + op + ~16%; the 16% is the sandbox question)
+- **`promises_tagged`** — t27 reference (min of 5): **17** (exact)
+  main at t24 (same A/B): — (new census)
+  rule: exact: a change that adds one fails
+- **`heap_tagged_per_req`** — t27 reference (min of 5): 4901 B
+  main at t24 (same A/B): — (new figure)
+  rule: informative (no gate yet)
 
 - **Part 1 residual:** no parity gap was measurable on this box. Main and the
   worktree share the same `packages/core/src/index.ts` at t26/bc60d80, yet both

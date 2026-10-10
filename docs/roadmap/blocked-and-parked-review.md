@@ -30,34 +30,55 @@ seven cards are Parked. This accepts the missing measurement, not a claim that t
 
 ## Every blocked or parked card
 
-| Card                | State and evidence                                                                                                                                                                                                    | What makes it ready                                                                                                                                                     |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `perf/op-parity`    | **Parked by user choice after review.** No dedicated runner is required now. The off-host comparison remains unverified; local timing rows remain historical references.                                              | User revisits timing work and a suitable runner is available. Pin both SHAs and use the [budget recipe](core-v1/budgets.md) on the same host.                           |
-| `jev/calibrate`     | **Parked by user choice.** `plan-check.mjs` still calls itself uncalibrated (0.5 threshold); review routing uses 0.6. The repo has impact fixtures, not the planned plan-check/route corpus.                          | User resumes it. Label three positive and three negative cases per question, report separation, then choose thresholds. Existing impact evals do not replace this work. |
-| `ai/v1`             | **Parked by user choice.** No `packages/ai` or recorded product consumer of `@tinker/ai` was found. The root `ai` dev dependency serves tooling; it does not establish a driver need.                                 | A real driver needs a shared AI layer. Record that use case and its acceptance checks before making tickets.                                                            |
-| `authoring/next`    | **Parked for a use case.** CLI `runMain` handles process entry/signals; `run` owns the scope lifetime. Hono already shows graceful SIGTERM cleanup. A terminal UI remains an idea.                                    | Pick a user-facing need that those paths do not cover, then scope the integration.                                                                                      |
-| `core/ideas`        | **Parked.** The candidates and tooling notes below have no new qualifying caller or proven dishonest workaround. One false-premise candidate is closed.                                                               | A second integration asks, an existing workaround misrepresents behavior, or a measured tooling problem warrants a scoped change.                                       |
-| `react/mutation`    | **Parked, restored to the board.** The [React track](react-v1/PROGRESS.md#v1-complete) explicitly defers Stryker with browser tests. The package has a `mutate` script but no Stryker config or recorded React score. | Schedule the browser/Stryker integration. Prove mutants execute through real browser tests and record an isolated run; no score is claimed today.                       |
-| `react/observation` | **Parked, restored to the board.** [r16](react-v1/issues/16-react-span-emission.md) was reverted because its markers added no useful React facts. Pending work and component lifecycle need a fresh design.           | A concrete UI/debugging need asks for these facts. Define events, ownership, and behavior tests before choosing a mechanism.                                            |
+- **`perf/op-parity`**
+  State and evidence: **Parked by user choice after review.** No dedicated runner is required now. The off-host comparison remains unverified; local timing rows remain historical references.
+  What makes it ready: User revisits timing work and a suitable runner is available. Pin both SHAs and use the [budget recipe](core-v1/budgets.md) on the same host.
+- **`jev/calibrate`**
+  State and evidence: **Parked by user choice.** `plan-check.mjs` still calls itself uncalibrated (0.5 threshold); review routing uses 0.6. The repo has impact fixtures, not the planned plan-check/route corpus.
+  What makes it ready: User resumes it. Label three positive and three negative cases per question, report separation, then choose thresholds. Existing impact evals do not replace this work.
+- **`ai/v1`**
+  State and evidence: **Parked by user choice.** No `packages/ai` or recorded product consumer of `@tinker/ai` was found. The root `ai` dev dependency serves tooling; it does not establish a driver need.
+  What makes it ready: A real driver needs a shared AI layer. Record that use case and its acceptance checks before making tickets.
+- **`authoring/next`**
+  State and evidence: **Parked for a use case.** CLI `runMain` handles process entry/signals; `run` owns the scope lifetime. Hono already shows graceful SIGTERM cleanup. A terminal UI remains an idea.
+  What makes it ready: Pick a user-facing need that those paths do not cover, then scope the integration.
+- **`core/ideas`**
+  State and evidence: **Parked.** The candidates and tooling notes below have no new qualifying caller or proven dishonest workaround. One false-premise candidate is closed.
+  What makes it ready: A second integration asks, an existing workaround misrepresents behavior, or a measured tooling problem warrants a scoped change.
+- **`react/mutation`**
+  State and evidence: **Parked, restored to the board.** The [React track](react-v1/PROGRESS.md#v1-complete) explicitly defers Stryker with browser tests. The package has a `mutate` script but no Stryker config or recorded React score.
+  What makes it ready: Schedule the browser/Stryker integration. Prove mutants execute through real browser tests and record an isolated run; no score is claimed today.
+- **`react/observation`**
+  State and evidence: **Parked, restored to the board.** [r16](react-v1/issues/16-react-span-emission.md) was reverted because its markers added no useful React facts. Pending work and component lifecycle need a fresh design.
+  What makes it ready: A concrete UI/debugging need asks for these facts. Define events, ownership, and behavior tests before choosing a mechanism.
 
 ## Core ideas, one by one
 
 These are requests to retain, not an approved implementation queue. The two onMount notes
 describe one request from sync, not two independent integrations.
 
-| Candidate                                        | Review and next step                                                                                                                                                                                               |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Reuse a parent session's built resource          | Still first asker: Drizzle savepoints. `ownerOf` selects the current session for session-target resources. Wait for a second caller or a concrete savepoint requirement that cannot be represented honestly.       |
-| One resource publishes a record of cells         | Harness uses explicit controller dependencies for its cells. This works; the request is about convenience. Wait for another integration with the same need.                                                        |
-| Run a tag-selected operation as a nested subflow | Harness still builds approval/tool dependencies when constructing the frame. Its dynamic-tag limitation remains; no second request is recorded.                                                                    |
-| Public resource/operation type guards            | `isResource` and `isOperation` are private. CLI already uses the row's `kind` field to distinguish its union. Revisit when a real caller cannot express the distinction cleanly.                                   |
-| Per-tool session cost                            | MCP still creates a session per call. No new bottleneck was measured. Use the off-host runner before proposing an optimization; keep the session's ownership rules.                                                |
-| Core cell family                                 | Sync implements a family with a Map and ordinary data cells. React can consume the returned cell without a core family primitive. No second core requirement is recorded.                                          |
-| First/last watcher hook and unregister           | Requested identities already register, including late family members through `family.onMember`. Last-watcher unregister is still absent. Correct the old whole-family claim; keep this single sync request parked. |
-| Skip a failing extension's close hook            | **Closed: false premise.** Automatic failed-start cleanup already bypasses that hook chain. See the probe below.                                                                                                   |
-| Session-aware run/resolve hooks                  | `extendHandle` wraps the root; sessions use the plain handle path. This is the documented v1 boundary. Wait for a driver that needs per-request hooks.                                                             |
-| Dependency/session write hooks                   | `writeThrough` wraps root controller writes. Operation dependency and session writes still use the plain path. Wait for a driver that needs those writes intercepted.                                              |
-| Complexity-lint exceptions                       | The adapter mapping note and the `handleFor` note are tooling tradeoffs. Do not split the hot handle body or relax global lint just to remove warnings. Require a concrete change and measurements.                |
+- **Reuse a parent session's built resource**
+  Review and next step: Still first asker: Drizzle savepoints. `ownerOf` selects the current session for session-target resources. Wait for a second caller or a concrete savepoint requirement that cannot be represented honestly.
+- **One resource publishes a record of cells**
+  Review and next step: Harness uses explicit controller dependencies for its cells. This works; the request is about convenience. Wait for another integration with the same need.
+- **Run a tag-selected operation as a nested subflow**
+  Review and next step: Harness still builds approval/tool dependencies when constructing the frame. Its dynamic-tag limitation remains; no second request is recorded.
+- **Public resource/operation type guards**
+  Review and next step: `isResource` and `isOperation` are private. CLI already uses the row's `kind` field to distinguish its union. Revisit when a real caller cannot express the distinction cleanly.
+- **Per-tool session cost**
+  Review and next step: MCP still creates a session per call. No new bottleneck was measured. Use the off-host runner before proposing an optimization; keep the session's ownership rules.
+- **Core cell family**
+  Review and next step: Sync implements a family with a Map and ordinary data cells. React can consume the returned cell without a core family primitive. No second core requirement is recorded.
+- **First/last watcher hook and unregister**
+  Review and next step: Requested identities already register, including late family members through `family.onMember`. Last-watcher unregister is still absent. Correct the old whole-family claim; keep this single sync request parked.
+- **Skip a failing extension's close hook**
+  Review and next step: **Closed: false premise.** Automatic failed-start cleanup already bypasses that hook chain. See the probe below.
+- **Session-aware run/resolve hooks**
+  Review and next step: `extendHandle` wraps the root; sessions use the plain handle path. This is the documented v1 boundary. Wait for a driver that needs per-request hooks.
+- **Dependency/session write hooks**
+  Review and next step: `writeThrough` wraps root controller writes. Operation dependency and session writes still use the plain path. Wait for a driver that needs those writes intercepted.
+- **Complexity-lint exceptions**
+  Review and next step: The adapter mapping note and the `handleFor` note are tooling tradeoffs. Do not split the hot handle body or relax global lint just to remove warnings. Require a concrete change and measurements.
 
 ## Other retained notes
 
@@ -85,21 +106,35 @@ the cleanup turn to finish, then explicitly call `scope.close()`. Both source an
 produced the same result:
 
 ```json
-{ "automatic": ["defer"], "afterExplicitClose": ["defer", "close-hook"], "status": "failed" }
+{
+  "automatic": ["defer"],
+  "afterExplicitClose": ["defer", "close-hook"],
+  "status": "failed"
+}
 ```
 
 Fresh SCIP indexes covered all ten packages. No public symbols changed; old/new symbol removal
 checks and an impact block are not applicable to these doc edits. Definition anchors below came
 from `scripts/scip.sh refs`, not guessed source lines. Reference counts are per file.
 
-| Package | Definitions in `src/index.ts`                                                                                                 | References                                             |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| core    | `isOperation`:480; `isResource`:482; `addWatcher`:926; `ownerOf`:1547                                                         | 3, 14, 7, 7 respectively, all in `src/index.ts`        |
-| core    | `writeThrough`:1721; `closeThrough`:1770; `runStartChain`:1792; `extendHandle`:2694; `resolveThrough`:2727; `runThrough`:2759 | 9, 5, 10, 17, 9, 5 respectively, all in `src/index.ts` |
-| cli     | `isRow`:230; `readRun`:278; `wireSignal`:348; `runMain`:535                                                                   | 3, 8, 7, 1 respectively, all in `src/index.ts`         |
-| harness | `readTurnOperation`:350                                                                                                       | 31 in `src/index.ts`                                   |
-| mcp     | `readCall`:64                                                                                                                 | 7 in `src/index.ts`                                    |
-| sync    | `family`:70; `source`:187; `subscribe`:288                                                                                    | source refs 19/1/8; `tests/sync.test.ts` refs 39/14/16 |
+- **core**
+  Definitions in `src/index.ts`: `isOperation`:480; `isResource`:482; `addWatcher`:926; `ownerOf`:1547
+  References: 3, 14, 7, 7 respectively, all in `src/index.ts`
+- **core**
+  Definitions in `src/index.ts`: `writeThrough`:1721; `closeThrough`:1770; `runStartChain`:1792; `extendHandle`:2694; `resolveThrough`:2727; `runThrough`:2759
+  References: 9, 5, 10, 17, 9, 5 respectively, all in `src/index.ts`
+- **cli**
+  Definitions in `src/index.ts`: `isRow`:230; `readRun`:278; `wireSignal`:348; `runMain`:535
+  References: 3, 8, 7, 1 respectively, all in `src/index.ts`
+- **harness**
+  Definitions in `src/index.ts`: `readTurnOperation`:350
+  References: 31 in `src/index.ts`
+- **mcp**
+  Definitions in `src/index.ts`: `readCall`:64
+  References: 7 in `src/index.ts`
+- **sync**
+  Definitions in `src/index.ts`: `family`:70; `source`:187; `subscribe`:288
+  References: source refs 19/1/8; `tests/sync.test.ts` refs 39/14/16
 
 Observed checks: core 260, CLI 25, sync 28 tests passed (313 total); strict source style census
 passed for core, CLI, harness, MCP, sync, and Drizzle. `vp check` passed with 0 errors and 13

@@ -32,12 +32,18 @@ Proven on labeled cases (2026-09-18, `pilot/side-projects/jev-probe/eval.mjs`):
 
 ## Where it hooks (advisory scripts in `tools/jev/`)
 
-| Phase          | Script                        | What it does                                                                                   | Truth still owned by            |
-| -------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------- |
-| Implementation | `preflight.mjs [range]`       | contributor self-check: file judges + per-unit lint on the diff                                | `vp check` / tests / `validate` |
-| Verification   | `review.mjs [range]`          | judge set per file + gated route + overclaim                                                   | `scripts/ticket.sh` + lead      |
-| Writing        | `blueprint suggest "<logic>"` | which unit should this be (data / resource / operation / tag / glue), target, needs defer      | the author + the one law        |
-| Review / lint  | `lint.mjs [paths]`            | per declared unit or outermost function: seven defect judges + the unit classifier (see below) | `vp check` / tests / the lead   |
+- **Implementation** — `preflight.mjs [range]`
+  What it does: contributor self-check: file judges + per-unit lint on the diff
+  Truth still owned by: `vp check` / tests / `validate`
+- **Verification** — `review.mjs [range]`
+  What it does: judge set per file + gated route + overclaim
+  Truth still owned by: `scripts/ticket.sh` + lead
+- **Writing** — `blueprint suggest "<logic>"`
+  What it does: which unit should this be (data / resource / operation / tag / glue), target, needs defer
+  Truth still owned by: the author + the one law
+- **Review / lint** — `lint.mjs [paths]`
+  What it does: per declared unit or outermost function: seven defect judges + the unit classifier (see below)
+  Truth still owned by: `vp check` / tests / the lead
 
 Pre-flight proof (2026-09-20): an untracked `examples/core/jev-proof-tmp.ts` holding a `setInterval`
 with no `defer` — the file judges passed it (✓), the per-unit lint caught it (`effectWithoutDefer 95%`).
@@ -146,13 +152,18 @@ capitalised function (or `const Name = (…) => {`) in a `.tsx` file as `compone
 Grep keeps rule 9's smells (`useState` / `useRef` / `useEffect`) and rule 2's
 `Scope.Handle` props; Jev gets the five things grep cannot see:
 
-| rule                   | asks (kind: component)                                                                  | from                          |
-| ---------------------- | --------------------------------------------------------------------------------------- | ----------------------------- |
-| readsMoreThanRendered  | reads a whole list from a cell and picks one item by id / key / index, with no selector | rule 10                       |
-| subscribesToWriteOnly  | subscribes with `useData` to a cell whose value never renders (setter only)             | README: `useController`       |
-| runDuringRender        | calls `run` / `set` / `update` in the render body, outside any handler                  | README: operations imperative |
-| domainLogicInRender    | decides a conflict / merge / validity itself instead of rendering a notice cell         | derivation pattern            |
-| effectOwnedByComponent | starts a fetch, timer, listener, socket, or stream itself                               | rule 8                        |
+Each rule asks (kind: component):
+
+- **readsMoreThanRendered** — reads a whole list from a cell and picks one item by id / key / index, with no selector
+  from: rule 10
+- **subscribesToWriteOnly** — subscribes with `useData` to a cell whose value never renders (setter only)
+  from: README: `useController`
+- **runDuringRender** — calls `run` / `set` / `update` in the render body, outside any handler
+  from: README: operations imperative
+- **domainLogicInRender** — decides a conflict / merge / validity itself instead of rendering a notice cell
+  from: derivation pattern
+- **effectOwnedByComponent** — starts a fetch, timer, listener, socket, or stream itself
+  from: rule 8
 
 The guide gained `view` ("a component: reads cells with `useData`, runs operations with
 `useRun`, renders"); the lint expects a component to read like a `view` — which removed the
@@ -177,10 +188,12 @@ worst one sets the separation).
 
 Run over `apps/issue-tracker/src/client/*.tsx` + `examples/react/*.tsx` (at `419be02`):
 
-| wording                     | judged | with notes | of which components                                                                           |
-| --------------------------- | ------ | ---------- | --------------------------------------------------------------------------------------------- |
-| first ("one item or field") | 28     | 8          | 6 × readsMoreThanRendered, mostly forms                                                       |
-| narrowed (landed)           | 28     | 3          | `DraftView` subscribesToWriteOnly 51% (at threshold; it reads four cells and hands them down) |
+- **first ("one item or field")** — judged: 28
+  with notes: 8
+  of which components: 6 × readsMoreThanRendered, mostly forms
+- **narrowed (landed)** — judged: 28
+  with notes: 3
+  of which components: `DraftView` subscribesToWriteOnly 51% (at threshold; it reads four cells and hands them down)
 
 The other two notes are `main.tsx` `boot` / `renderDead` (plain functions in the client's
 entry file, seen in the first run too).
@@ -205,11 +218,15 @@ proven on labeled cases (2026-09-18):
 ## Loop shape
 
 ```
-PLAN (lead) → write the defect questions for this ticket (once per ticket)
-  → DELEGATE to contributor (runs preflight before reporting)
-  → review.mjs on the diff (advisory)  +  REAL GATE (ticket.sh) — the only judge
+PLAN (lead) → write the defect questions
+  for this ticket (once per ticket)
+  → DELEGATE to contributor
+    (runs preflight before reporting)
+  → review.mjs on the diff (advisory)
+    +  REAL GATE (ticket.sh) — the only judge
       green → land, next ticket
-      red   → feedback → contributor (cap ~3, then escalate to human)
+      red   → feedback → contributor
+              (cap ~3, then escalate to human)
 ```
 
 ## Trial on the drivers/t03 landing (2026-09-20, lead)
@@ -305,17 +322,33 @@ Three tools over every package and the tracker, in-container, with the seeded ca
 
 **`tests.mjs`** — 566 tests scanned, 74 flagged:
 
-| pkg          | tests | flagged | classes                                                                           |
-| ------------ | ----- | ------- | --------------------------------------------------------------------------------- |
-| http         | 48    | 22      | manyCauses 17, helperAlone 6, expectThenNarrow 6, typeGuarantee 4                 |
-| core         | 272   | 31      | manyCauses 18, typeGuarantee 4, helperAlone 4, negativeTwin 4, pair 3, isFrozen 1 |
-| tracker      | 42    | 8       | manyCauses 8                                                                      |
-| hono         | 34    | 6       | manyCauses 5, helperAlone 1                                                       |
-| harness      | 48    | 2       | negativeTwin 1, pair 1                                                            |
-| react        | 48    | 2       | manyCauses 1, negativeTwin 1                                                      |
-| sync         | 27    | 2       | manyCauses 2, helperAlone 1                                                       |
-| cli          | 30    | 1       | manyCauses 1                                                                      |
-| drizzle, mcp | 17    | 0       |                                                                                   |
+- **http** — tests: 48
+  flagged: 22
+  classes: manyCauses 17, helperAlone 6, expectThenNarrow 6, typeGuarantee 4
+- **core** — tests: 272
+  flagged: 31
+  classes: manyCauses 18, typeGuarantee 4, helperAlone 4, negativeTwin 4, pair 3, isFrozen 1
+- **tracker** — tests: 42
+  flagged: 8
+  classes: manyCauses 8
+- **hono** — tests: 34
+  flagged: 6
+  classes: manyCauses 5, helperAlone 1
+- **harness** — tests: 48
+  flagged: 2
+  classes: negativeTwin 1, pair 1
+- **react** — tests: 48
+  flagged: 2
+  classes: manyCauses 1, negativeTwin 1
+- **sync** — tests: 27
+  flagged: 2
+  classes: manyCauses 2, helperAlone 1
+- **cli** — tests: 30
+  flagged: 1
+  classes: manyCauses 1
+- **drizzle, mcp** — tests: 17
+  flagged: 0
+  classes: none
 
 Deterministic hits (trust these): `Object.isFrozen` in core `index.test.ts:2511` (the convention names it);
 six `expect(x).toBe("…"); if (x !== "…") throw` re-narrowings in http; helper counts over 3 in seven test
@@ -378,10 +411,12 @@ convention and the floor did not collide on http.
 
 ## Two core cards (2026-09-21), and what they said about the tools
 
-| card                   | launch→report | fix rounds | result                                                                                |
-| ---------------------- | ------------- | ---------- | ------------------------------------------------------------------------------------- |
-| docs/core-promises     | ~60 min       | 0          | `## Promises` appendix, 105 lines, 8 groups; confident gaps 148 → 6                   |
-| tests/core-many-causes | ~65 min       | 0          | 273 → 287 tests, one cause each; flags 28 → 15 explained; core lane 78.27 (was 78.21) |
+- **docs/core-promises** — launch→report: ~60 min
+  fix rounds: 0
+  result: `## Promises` appendix, 105 lines, 8 groups; confident gaps 148 → 6
+- **tests/core-many-causes** — launch→report: ~65 min
+  fix rounds: 0
+  result: 273 → 287 tests, one cause each; flags 28 → 15 explained; core lane 78.27 (was 78.21)
 
 Five tooled cards in a day, zero fix rounds. Findings the writers handed back (all recorded as labels or below):
 

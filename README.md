@@ -56,7 +56,8 @@ scope.run(stamp); // 1000
 clock.advance(500);
 scope.run(stamp); // 1500
 
-// `sleep` waits on the same clock; pass `ctx.signal` so a forced close cancels it.
+// `sleep` waits on the same clock; pass `ctx.signal`
+// so a forced close cancels it.
 const nap = operation({
   label: "nap",
   run: (_deps, { clock, signal }) => clock.sleep(1_000, signal),
@@ -66,7 +67,10 @@ clock.advance(1_000); // resolves `woke`
 await woke;
 const count = data({ label: "count", initial: 21 });
 const doubled = scope.run(
-  { depends: { count }, run: ({ count }, { input }) => count + input },
+  {
+    depends: { count },
+    run: ({ count }, { input }) => count + input,
+  },
   { input: 21 },
 ); // inline: same call object, one span
 await scope.close();
