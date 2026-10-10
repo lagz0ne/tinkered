@@ -3485,3 +3485,7 @@ Label lines: none.
 
 Core feedback: none.
 The failing snippet above is Start build feedback.
+
+## scaffold/checker-reflect-bind
+
+Bind tracking only matters when strict mode is off; `Reflect.apply` is the real new catch.

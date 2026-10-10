@@ -24,11 +24,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **scaffold/checker-reflect-bind** — the lazy-modules checker misses two more call shapes.
-  `Reflect.apply(scope.run, scope, [{ run: () => outside("x") }])` exits 0 today.
-  `const invoke = scope.run.bind(scope); invoke({ run: () => outside("x") })` exits 0 today.
-  Verify: a plant for each fails on main's checker and passes `--prove` after.
-  Verify: no false hit on real source.
+- **start/mutation-lane-fix** — Start mutation lane broken on main since `a9c8deb6`.
+  `tests/build-output.test.mjs` fails Stryker's dry run with 'expected 1 to be greater than 1'.
+  Verify: `npx stryker run` from `packages/start` passes the dry run with no `--testFiles` filter.
 
 - **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
   Starts after core/rules-batch-A and B land: one Core ticket at a time.
@@ -105,6 +103,10 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **scaffold/checker-reflect-bind** — the lazy-modules checker catches `Reflect.apply` and bound `scope.run` names.
+  `c2423e12`, landed 2026-10-10. Reviewer: READY.
+  Bind tracking only matters when strict mode is off; `Reflect.apply` is the real new catch.
 
 - **scaffold/stored-data-error** — a corrupt stored event raises `StoredDataInvalid`, not `BadInput`.
   `0f75d8b8`..`23933f7b`. The checker also catches `scope.run.apply` with an inline unit.
