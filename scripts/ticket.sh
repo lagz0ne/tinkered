@@ -2,7 +2,7 @@
 # Gate + checkpoint one ticket, in core or a named package.
 #   scripts/ticket.sh <NN> "<short title>"              (core: tag core/t<NN>)
 #   scripts/ticket.sh <pkg> <NN> "<short title>"        (package: tag pkg/t<NN>)
-# Runs the green gate (check + tests, plus mutate/size where wired). Commits and
+# Runs the green gate (check + tests + size + the named package's mutate lane). Commits and
 # tags only if the gate passes; a red gate makes no checkpoint.
 set -euo pipefail
 
@@ -57,8 +57,8 @@ vp run "${PKG}#size"
 if (( no_mutation )); then
   echo "== gate ${TAG}: mutation skipped by request =="
 else
-  echo "== gate ${TAG}: mutation (best-effort until thresholds finalized) =="
-  vp run -r mutate || echo "  (mutate not wired yet — skipped)"
+  echo "== gate ${TAG}: mutation (${PKG} only) =="
+  vp run "${PKG}#mutate"
 fi
 
 if (( check_only )); then
