@@ -4,7 +4,7 @@
 //
 //   node scripts/prose-lint.mjs [file…]   lint the files (default: every tracked .md that is not
 //                                          frozen: docs/decisions, docs/roadmap/archive, research)
-//   node scripts/prose-lint.mjs --md      print the rule table for docs/writing-style.md
+//   node scripts/prose-lint.mjs --md      print the rule list for docs/writing-style.md
 //   node scripts/prose-lint.mjs --wide    per file: table rows over 100 chars, fenced lines over
 //                                          60 (phones never scroll sideways); reports, never fails
 //
@@ -143,8 +143,7 @@ function trackedDocs() {
 const args = process.argv.slice(2);
 
 if (args[0] === "--md") {
-  console.log("| instead of | say |\n| --- | --- |");
-  for (const [re, say] of RULES) console.log(`| \`${re}\` | ${say} |`);
+  for (const [re, say] of RULES) console.log(`- \`${re}\` — ${say}`);
   process.exit(0);
 }
 
