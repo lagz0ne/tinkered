@@ -32,6 +32,10 @@ else
   echo 'usage: scripts/ticket.sh [<pkg>] <NN> "<title>"' >&2
   exit 1
 fi
+if [[ ! "$NN" =~ ^[0-9]+$ ]]; then
+  echo "ticket NN must be a number, got: '${NN}'" >&2
+  exit 1
+fi
 TAG="${PKG}/t${NN}"
 
 # Advisory pre-read (ADR: docs/roadmap/jev-loop/PLAN.md): Jev flags anti-goals and routes
@@ -52,13 +56,15 @@ if [ "$PKG" = "core" ]; then
   echo "== gate ${TAG}: core tests on the built files =="
   vp run core#test:dist
 fi
+# `vp run <pkg>#<task>` exits 0 and runs nothing when no package has that name.
+# `--fail-if-no-match -F <pkg>` exits 1 instead, so a typo cannot pass the gate.
 echo "== gate ${TAG}: size budget =="
-vp run "${PKG}#size"
+vp run --fail-if-no-match -F "${PKG}" size
 if (( no_mutation )); then
   echo "== gate ${TAG}: mutation skipped by request =="
 else
   echo "== gate ${TAG}: mutation (${PKG} only) =="
-  vp run "${PKG}#mutate"
+  vp run --fail-if-no-match -F "${PKG}" mutate
 fi
 
 if (( check_only )); then
