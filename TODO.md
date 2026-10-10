@@ -37,11 +37,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: a test that fails on main (a preset's dep is built); the flipped deps test; Core mutation 85;
   `pnpm validate`; `N=61 bench/queued.sh` shows no slower row.
 
-- **start/sync-400** — the sync endpoint answers 400 only for `openSync`'s own input failure.
-  Today any `DataValidationFailed` inside the open run maps to 400 (`endpoint.server.ts:26`); match the error's `label` too.
-  Verify: a test where a dep's parse fails gets a thrown failure, not 400; it fails on main.
-  Also: the old raw `{ cursor }` call to `openSync` in the tests becomes typed `input`, so its input reads one raw shape.
-
 - **core/size-build-guard** — close the 4 guard gaps the second review found.
   Attributes passed through a function parameter; reads through `any` (a parameter, a call result,
   and a `@ts-expect-error` line). Nothing uses them today; the dist test run would catch a break.
@@ -99,6 +94,10 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/sync-400** — the sync endpoint answers 400 only for `openSync`'s own input failure.
+  Landed 2026-10-10. Proof: a dep's parse failure fails the reply, not a 400; gates green.
+  [Proof](docs/roadmap/start-base/PROGRESS.md#startsync-400).
 
 - **start/mutation-lane-fix** — the Start mutation lane runs again with no `--testFiles` filter.
   `2ac7a388`, landed 2026-10-10. Reviewer: READY. The split rule finds the body chunk by its own full path.

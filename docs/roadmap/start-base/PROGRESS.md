@@ -1472,3 +1472,45 @@ Proof:
   paths. Start makes no Windows promise today.
 
 Core feedback: none.
+
+## start/sync-400
+
+Owner: Haiku 5.5 writer; lead reviews and lands.
+Status: landed 2026-10-10. Reviewer: READY.
+Verify: a dep's parse failure fails the reply, not a 400;
+the test fails on main.
+
+The endpoint mapped every `DataValidationFailed` in the
+open run to `400`. Now it also matches the error's `label`
+to `openSync.label` (`endpoint.server.ts:26`).
+`openSync` reads one raw shape: the HTTP request.
+The tests' raw `{ cursor }` call is typed `input` now.
+
+Proof:
+
+- Gates, by exit code, on main `14d69ad1` (no rebase):
+  `vp run -r build` 0; `vp check` 0 (0 errors,
+  27 warnings); Start tests 0 (453/453);
+  start-scaffold tests 0 (36/36); `pnpm validate` 0
+  (19 of 19 lanes PASS); `vp run prose` 0.
+- Test: "a dep whose parse fails fails the reply,
+  not as a 400" in `tests/sync.test.ts`.
+- Mutation, not the full lane. Scoped run on `ac95a16b`,
+  kills alone:
+  - `endpoint.server.ts`: 29 of 31 = 93.5%.
+  - `stream.server.ts`: 149 of 180 = 82.8%.
+  - No survivors on this card's changed lines.
+  - Package floor work is the start/mutation-floor card.
+
+Jev: one label, `ignoresAbortAfterAwait` on
+`syncEndpoint`, false. Why: `eventStream` listens on
+`requestStop` and closes the body; `open` re-checks the
+signal after its await. Calibrated at landing.
+
+Core note (reviewer): per ADR 0067 line 59, a failed build
+(a resource factory) fails its layer, whatever the error
+kind. So a registry error in a factory makes close
+"failed", by design. That is why the bad parse in the
+test sits inside `open`, not in a factory.
+
+Core feedback: none.
