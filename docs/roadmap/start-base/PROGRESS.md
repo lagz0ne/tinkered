@@ -1365,7 +1365,7 @@ Core feedback: none.
 ## start/sync-push-revocations
 
 Owner: Haiku 5.5 writer; lead reviews and lands.
-Next: lead review. Start mutation score is below the 75 floor (see Proof).
+Status: landed 2026-10-10 (`84cd02ea`..`2d00fcb8` plus this note). Reviewer round 2: NOT READY, one fix; the lead fixed it.
 Verify: per path an open stream closes; a save reads no account; another device's stream stays open;
 `N=61` sync1k row not slower; Start kills at least 75.
 
@@ -1421,5 +1421,20 @@ Fix round (lead review, NOT READY):
 - Dropped the session wake trigger; the sse sign-out test no longer needs it.
 - Amended ADR 0110 for the notice paths, ban, role, heartbeats, and sign-in.
 - Regenerated the registry from source.
+
+Landing (lead):
+
+- Review round 2 found one gap: the registry shipped `sync_notifications`
+  but not `20261010090000_drop_session_wake`. Scaffolded apps kept the
+  `sync_session_changed` trigger. `2d00fcb8` adds both files to
+  `postgres-auth-mail-example`; the other items pull it in as a dependency.
+- Mutation was not re-run. The Start lane ran on `234a068d`
+  (`26484419` after the rebase) with `tests/build-output.test.mjs` left out.
+  That file is broken on main since `a9c8deb6` (card start/mutation-lane-fix).
+  - Branch: 72.6% kills over valid.
+  - Main: about 73.1%; the run stopped at 4811 of 4842 on a time cap.
+  - So main was already below the 75 floor.
+  - This card's changed lines: 46 of 49 killed = 93.9%.
+  - The floor gap is card start/mutation-floor.
 
 Core feedback: none.

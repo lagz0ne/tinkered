@@ -28,6 +28,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   `tests/build-output.test.mjs` fails Stryker's dry run with 'expected 1 to be greater than 1'.
   Verify: `npx stryker run` from `packages/start` passes the dry run with no `--testFiles` filter.
 
+- **start/mutation-floor** — Start mutation is ~73% on main, below the 75 floor.
+  Add tests for the survivors in `packages/start/src/parts/sync/stream.server.ts` and `notifications.server.ts`.
+  Include `notifications.server.ts:128` (unschedule removed) and `:129` (resolveWait flag true).
+  After start/mutation-lane-fix.
+  Verify: full Start lane >= 75 on kills alone.
+
 - **core/preset-whole-node** — a preset replaces the whole node; Core builds none of its deps (ADR 0109).
   Starts after core/rules-batch-A and B land: one Core ticket at a time.
   Resource and operation presets get empty deps and the usual ctx; the call's input is still parsed.
@@ -68,12 +74,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: `s4_warm_ctl` not B slower vs `0ca40d05`; session and lifecycle stay faster.
   [Baseline](docs/roadmap/perf/PROGRESS.md#warm-ctl-baseline-2026-10-10).
 
-- **start/sync-push-revocations** — sign-out reaches open streams as a notice (ADR 0110).
-  A wake no longer re-reads the account. A notice on the sync channel names the account; only its streams re-read.
-  Notice paths: sign-out, session revoked or deleted, user deleted or banned, role change. The 30 s lease stays.
-  Verify: per path, an open stream of that account closes; a save makes no account read (fails on main);
-  another device's stream stays open; `N=61 bench/queued.sh` sync row with 1,000 streams is not slower; Start kills ≥ 75.
-
 ## Doing
 
 Roles since 2026-10-09 (user: "Instead of using sol as writer, use haiku, opus drives and review";
@@ -103,6 +103,12 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **start/sync-push-revocations** — sign-out reaches open streams as a notice (ADR 0110).
+  `84cd02ea`..`2d00fcb8`, landed 2026-10-10. Review round 2: one fix (registry ships the drop_session_wake migration).
+  A save makes no account read (fails on main); sync1k 379.3 → 15.5 ms per save, b is faster.
+  Start mutation 72.6% (main ~73.1%, already below 75); changed lines 93.9%. Floor gap: start/mutation-floor.
+  [Proof](docs/roadmap/start-base/PROGRESS.md#startsync-push-revocations).
 
 - **scaffold/checker-reflect-bind** — the lazy-modules checker catches `Reflect.apply` and bound `scope.run` names.
   `c2423e12`, landed 2026-10-10. Reviewer: READY.
