@@ -44,7 +44,13 @@ async function guard(plants: Record<string, string>, extra: string[], dts = fals
 test(
   "the shipped list builds when nothing outside Core reads it",
   async () => {
-    expect(await guard({}, [])).toBe("");
+    const plant = `${imports}const view: { layer: number } = { layer: 1 };
+export const read = view.layer;
+export const text = "@ts-nocheck";
+// @ts-expect-error
+export const unrelated = 1;
+export const { layer } = view;\n`;
+    expect(await guard({ "packages/react/src/control.ts": plant }, ["layer"])).toBe("");
   },
   BUILD_MS,
 );
@@ -128,6 +134,162 @@ test(
     const plant = `${imports}export const read: unknown = Reflect.get(createScope(), "built");\n`;
     expect(await guard({ "packages/react/src/plant.ts": plant }, ["built"])).toContain(
       "built: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G7: attributes passed through a function parameter fail the build",
+  async () => {
+    const plant = `export function plant(fields: Record<string, number>): object {
+  return { attributes: fields };
+}
+export const out = plant({ layer: 1, nodes: 2 });\n`;
+    const error = await guard({ "plant.ts": plant }, ["layer", "nodes"]);
+    expect(error).toContain("layer: a user-visible attribute key");
+    expect(error).toContain("nodes: a user-visible attribute key");
+  },
+  BUILD_MS,
+);
+
+test(
+  "G8: a read through an any parameter fails the build",
+  async () => {
+    const plant = `${imports}export const read = (value: any) => value.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G9: a read through an any variable fails the build",
+  async () => {
+    const plant = `${imports}const loose: any = createScope();\nexport const read = loose.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G10: a read on a call result typed any fails the build",
+  async () => {
+    const plant = `${imports}declare function loose(): any;\nexport const read = loose().layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G11: a read on a @ts-expect-error line fails the build",
+  async () => {
+    const plant = `${imports}// @ts-expect-error\nexport const read = createScope().layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G12: a member below @ts-expect-error fails the build",
+  async () => {
+    const plant = `${imports}export const read = createScope()
+  // @ts-expect-error
+  .layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G13: a destructured key below @ts-expect-error fails the build",
+  async () => {
+    const plant = `${imports}export const {
+  // @ts-expect-error
+  layer,
+} = createScope();\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G14: destructuring an any parameter fails the build",
+  async () => {
+    const plant = `${imports}export const read = ({ layer }: any) => layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G15: destructuring an any variable fails the build",
+  async () => {
+    const plant = `${imports}export const { layer }: any = createScope();\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G16: a read below @ts-ignore fails the build",
+  async () => {
+    const plant = `${imports}export const read = createScope()
+  // @ts-ignore
+  .layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G17: a destructured key below @ts-ignore fails the build",
+  async () => {
+    const plant = `${imports}export const {
+  // @ts-ignore
+  layer,
+} = createScope();\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G18: a member read in a @ts-nocheck file fails the build",
+  async () => {
+    const plant = `// @ts-nocheck\n${imports}export const read = createScope().layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G19: destructuring in a @ts-nocheck file fails the build",
+  async () => {
+    const plant = `// @ts-nocheck\n${imports}export const { layer } = createScope();\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
     );
   },
   BUILD_MS,

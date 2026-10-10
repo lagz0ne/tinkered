@@ -1307,8 +1307,10 @@ A file outside Core's source reads a name without type checks when it:
 - loads Core: an import of `@tinker/core`, of Core's files, or an `import()` of a computed path;
 - and has a string or plain template literal equal to the name;
 - or, in a script, reads it as a member or a destructured key;
-- or, in a typed file, reads it on a value that came from a cast.
-  That value may pass through variables, members, calls, and destructuring.
+- or, in a typed file, reads it on a value that came from a cast or `any`.
+  That value may pass through variables, members, calls, and destructuring;
+- or reads it below `@ts-expect-error` or `@ts-ignore`;
+- or reads it in a file with `@ts-nocheck`.
 
 ### The list after `core/size-safe`
 
@@ -1339,6 +1341,22 @@ Each plant sits in a scratch repo that the outside-read rule scans.
 - G6, `Reflect.get(x, "built")`: fails.
 - `zzGone`, no longer in the runtime: fails.
 - `label`, in the public types: fails.
+- G7, attributes passed through a function parameter: fails.
+- G8, a member read through an `any` parameter: fails.
+- G9, a member read through an `any` variable: fails.
+- G10, a member read on a call result typed `any`: fails.
+- G11, a member read below `@ts-expect-error`: fails.
+- G12, a multiline member read below `@ts-expect-error`: fails.
+- G13, a destructured key below `@ts-expect-error`: fails.
+- G14, destructuring an `any` parameter: fails.
+- G15, destructuring an `any` variable: fails.
+- G16, a multiline member read below `@ts-ignore`: fails.
+- G17, a destructured key below `@ts-ignore`: fails.
+- G18, a member read in a file with `@ts-nocheck`: fails.
+- G19, destructuring in a file with `@ts-nocheck`: fails.
+
+There are now 23 guard tests, including the clean control.
+Suppression is checked at each member or destructured key, not its source value.
 
 Each fix was switched off once; its test then failed:
 
@@ -1372,7 +1390,7 @@ The review asked for every string, so the build counts every string.
 ### Tests on the built files
 
 - `vp run core#test:dist` builds, then runs two sets on `dist`:
-  Core's 856 tests, and the 10 guard tests.
+  Core's source tests, and the 23 guard tests.
 - `pnpm validate` runs it as its own lane.
 - `scripts/ticket.sh` runs it for Core.
 - The source lane (`core#test`) skips `build/`, so Stryker skips it too.
@@ -1405,7 +1423,7 @@ Base: `35404adc` from `origin/main`, built in its own worktree.
 - `vp check`: exit 0; 28 warnings, the same as main.
 - `vp run core#test`: exit 0; 856 tests.
 - `vp run core#test:dist`: exit 0; 866 tests.
-- Guard tests alone: exit 0; 10 tests.
+- Guard tests alone: now 23 tests; current proof is below.
 - `vp run -r test`: exit 0; 9 of 9 tasks.
 - `pnpm validate`: exit 0; all 17 lanes pass.
 - `vp run prose`: exit 0.
@@ -1859,3 +1877,46 @@ Ratchets, no ceiling raised:
 Timing used 61 pairs and a paired sign test, `p < 0.01`.
 `inline`, `run`, `tagged`, and `hooked`: b is faster.
 No row is b slower.
+
+## core/size-build-guard — Sol takeover
+
+Branch: `core/size-build-guard-sol`.
+Base: `origin/main` at `4edd71c7`.
+The local archive tag keeps the first writer's head at `159da393`.
+The first writer's worktree and branch are unchanged.
+The lead owns the board and landing.
+
+The guard follows attributes through named function parameters.
+It counts reads through direct `any` bindings and calls typed to return `any`.
+Destructured `any` bindings count their keys and retain their bound names.
+A suppressed read is checked at the member or destructured key's own position.
+Both `@ts-expect-error` and `@ts-ignore` count the following line.
+A file with `@ts-nocheck` counts every read.
+Only parsed comments count as these directives.
+The optional constructor and object-method rules are left for a later card.
+
+### Revert proof
+
+All 13 new tests, G7 through G19, fail on unchanged Core at `4edd71c7`.
+Each gets an empty build error where it expects the named guard error.
+The ten old tests pass there.
+All eight takeover tests, G12 through G19, also fail with the first writer's guard.
+Its fifteen tests pass.
+All 23 guard tests pass with the fixes.
+The clean control keeps checked reads and a directive-looking string accepted.
+
+The red logs are `/tmp/size-build-guard-sol-main-red.log`
+and `/tmp/size-build-guard-sol-haiku-red.log`.
+The green log is `/tmp/size-build-guard-sol-guard-green.log`.
+
+### Final checks
+
+The handoff records the full gate chain by exit code.
+It also gives the clean head, the full Core fault count, and the labels.
+The Core ticket runs check-only, with its mutation step off.
+The full Core mutation lane runs alone under `/tmp/mutation.lock`.
+The guard tests run in the built-file lane; `build/` is not mutated.
+The red tests above prove the guard changes.
+No runtime code, name list, ratchet, or ceiling changes.
+No timing run is needed.
+Core feedback: none.
