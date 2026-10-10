@@ -1514,3 +1514,50 @@ kind. So a registry error in a factory makes close
 test sits inside `open`, not in a factory.
 
 Core feedback: none.
+
+## start/mutation-floor
+
+Owner: Haiku 5.5 writer; lead reviews and lands.
+Status: tests on branch `start/mutation-floor` (`60805feb`, `1bbf3444`, `f2560f87`, then this note). Review.
+Verify: full Start lane at or above 75 on kills alone.
+
+The 73% figure on the card came from the older lane run
+with a test-file list (`234a068d`). The lane has no list
+since `2ac7a388`. On the full lane the tree scores 85.27%.
+
+Proof:
+
+- Full lane, `flock /tmp/mutation.lock npx stryker run` in
+  `packages/start`, on a clean `dc5f8d07`: exit 0.
+  `f2560f87` is the same `packages/` tree after a trailer-only rewrite.
+  Killed 4094; survived 596; no coverage 111; timeout 57.
+  Kills over valid (killed + survived + no coverage): 4094 / 4801 = 85.27%.
+- `stream.server.ts`: 154 of 180 = 85.6%.
+- `notifications.server.ts`: 158 of 171 = 92.4%.
+- Per-line kill check on 12 named lines, 22 mutants:
+  before (base test file) 8 killed, 14 survived;
+  after (`dc5f8d07`) 19 killed, 1 timeout, 2 survived.
+- Named mutants now killed: `notifications.server.ts:128` (unschedule removed),
+  `:129` (resolveWait flag true), and the other named lines
+  `:63`, `:82`, `:96`, `:119`, `:209`, `:215`;
+  `stream.server.ts:101`, `:177`, `:179`, `:190`.
+- Two survivors on those lines are equivalent:
+  `stream.server.ts:101:17` (`output?.enqueue`: `output` is set
+  before any recheck runs) and `stream.server.ts:177:15`
+  (`&&` to `||`: both cursors are null or both are set).
+
+Gates on `dc5f8d07`, by exit code:
+
+- `vp run -r build` 0; `vp check` 0 (0 errors, 27 warnings).
+- `vp run @tinker/start#test` 0 (465/465).
+- `vp run @tinker-start-scaffold#test` 0 (36/36).
+- `vp run prose` 0; `pnpm validate` 0 (20 of 20 lanes PASS).
+
+Jev: preflight on `origin/main...HEAD` found no source file.
+`tests.mjs start`: no judge flag on the new tests (plain notes only).
+`promises.mjs start`: three flags on this card's tests.
+One was fixed with a README line (`packages/start/README.md`).
+Two test internal wheel and buffer details, so they are not promises.
+One flag is an older title in `sync-notice.test.ts`, not changed here.
+
+Core feedback: none.
