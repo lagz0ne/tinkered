@@ -2124,7 +2124,7 @@ Its log names `258e9d24`; its runtime hash matches the timing runtime.
 Question: is `warm` or `s4_warm_ctl` still slower than `b451fbb1`?
 Answer: no. The memo from `e1476f06` (handle-verbs-ctl) fixed it on main.
 This branch changes no source.
-Head: `63e48732`, the same commit as origin/main.
+Source head: `63e48732`, the same commit as origin/main.
 
 Timing:
 
@@ -2159,7 +2159,11 @@ Both are B faster 61/61.
 Verify line: neither row is B slower vs `b451fbb1`. Met on main.
 
 Failing-on-main proof: none, because origin/main passes against `b451fbb1`.
-The failing run is the older one above: base `0ca40d05`, `s4_warm_ctl` 10.80 → 11.40 ns.
+The failing run is the baseline in [warm-ctl baseline](#warm-ctl-baseline-2026-10-10).
+There, pre `b451fbb1` vs main: `warm` 16.8 → 17.7 ns, B slower 61/61.
+
+The base worktree was removed before its SHA was recorded.
+The A medians match the `b451fbb1` baseline.
 
 Gates on `63e48732`, clean tree:
 
