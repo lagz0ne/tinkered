@@ -34,12 +34,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: round 1 landed (5ec4ec54); left: `TODO.md`, package and app READMEs, `apps/start-scaffold/.agents/skills/tinker-testing/SKILL.md`, `apps/start-scaffold/README.md`, `docs/roadmap/core-v1/PROGRESS.md`; to be done after the code writers land
   Verify: `--wide` prints 0 files; `vp run prose` clean
 
-- **core/held-controller-pins-value** — a held controller keeps its last write alive after close, on both close paths.
-  Free the controller's cell and effect without slowing `lifecycle`, or document why it stays.
-  Verify: a GC probe shows the last write freed; `lifecycle` not B slower vs main (N=61).
-
 - **docs/closed-read-contract** — the docs disagree about a read after close.
-  Change `packages/core/README.md:951` to "the initial value, or the nearest open ancestor's".
+  Change `packages/core/README.md:953` and `:492` to "the initial value, or the nearest open ancestor's".
   Add an "As built" line to ADR 0069.
   Verify: README and ADR 0069 agree with the tests; `vp run prose` clean.
 
@@ -69,6 +65,11 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
   shorter error text 184 B, one tagged-call fast path 356 B (speed risk).
   Restart when Core nears its 16 KiB cap again. Patches and reports: `~/.cache/size-research/`.
 
+- **core/held-controller-free-slow-close** — clear `cell` and `prev` in `finishLayer`'s loop (`index.ts` near :4027)
+  and in `freeData`'s not-moved branch.
+  Restart when: a fast-close free keeps `lifecycle` level, so every path frees at once.
+  Verify: a GC probe shows freed on every path; `lifecycle`, `session` and `taggedres` not B slower (N=61).
+
 - **core/traceparent** — one W3C `traceparent` helper for every package.
   Parked 2026-10-05: no package parses `traceparent` today (hono, http, and nats are gone).
   Restart when a package needs to read or write the header.
@@ -76,6 +77,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/held-controller-pins-value** — a held data controller keeps its last write alive after close, on every close path; its reads still return the initial value. Documented in the README and ADR 0069. Landed 2026-10-11. Reviewer: NOT READY (test missed the slow close; path reasons; README/ADR), READY after one fix round. Pinned by `held-controller-retention.test.ts`: fast, watcher, slow, swept-session and hooked-session closes, plus a no-held control. A fast-close walk freed it but made `lifecycle` B slower (+8.8%, 53/61, N=61 vs `807c388b`), so it was not built. No src change; mutation 86.2% on kills alone. Jev promises 402. [Proof](docs/roadmap/core-v1/PROGRESS.md#coreheld-controller-pins-value).
 
 - **perf/s4-probe-depth** — s4_warm_ctl now uses its read (never-equal sentinel); the old body skipped the lastController load (V8 opt code). Landed 2026-10-11. Reviewer: READY. Main 1.4 ns vs empty loop 0.1. Memo base 16ed271b 12.2 → 1.4 ns, 61/61, sign p 8.7e-19. Gates exit 0; mutation not run (src unchanged); Jev preflight 402. [Proof](docs/roadmap/perf/PROGRESS.md#s4-probe-depth-2026-10-11).
 
