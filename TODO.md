@@ -35,15 +35,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: round 1 landed (5ec4ec54); left: `TODO.md`, package and app READMEs, `apps/start-scaffold/.agents/skills/tinker-testing/SKILL.md`, `apps/start-scaffold/README.md`, `docs/roadmap/core-v1/PROGRESS.md`; to be done after the code writers land
   Verify: `--wide` prints 0 files; `vp run prose` clean
 
-- **core/fastclose-free-data** — a fast-closed child keeps its data.
-  When a parent closes a child with no hooks and no `withData`, `fastClose` skips the node free.
-  So a held child keeps its value. Pre-existing on main.
-  The GC script in `docs/roadmap/perf/` prints "parent close without child hook ... ALIVE".
-  Fix: free nodes in `fastClose`, as `finishLayer` does (ADR 0069).
-  Test first: hold a data controller from a session; close its parent; read it.
-  Today the read returns its last write (5).
-  ADR 0069 line 8 says a read after close throws `Disposed`; decide and test.
-  Verify: the GC line turns "freed"; `session` and `lifecycle` not B slower vs main (paired sign test, N=61).
+- **core/held-controller-pins-value** — a held controller keeps its last write alive after close, on both close paths.
+  Free the controller's cell and effect without slowing `lifecycle`, or document why it stays.
+  Verify: a GC probe shows the last write freed; `lifecycle` not B slower vs main (N=61).
+
+- **docs/closed-read-contract** — the docs disagree about a read after close.
+  Change `packages/core/README.md:951` to "the initial value, or the nearest open ancestor's".
+  Add an "As built" line to ADR 0069.
+  Verify: README and ADR 0069 agree with the tests; `vp run prose` clean.
+
+- **jev/recalibrate-after-key** — run `node tools/jev/calibrate.mjs` when the gateway key budget is back.
+  It covers the labels added since 2026-10-10.
+  Verify: calibrate exits 0; `calibration.json` committed.
 
 - **perf/s4-probe-depth** — at 0.7 ns (2 to 3 cycles) the `s4_warm_ctl` probe may time almost no work after the memo.
   Make the probe do real work, or document why 0.7 ns is real.
@@ -78,6 +81,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/fastclose-free-data** — a fast close frees its store; a held controller reads the initial value, as the slow close does. Landed 2026-10-11. Reviewer: READY. GC probe: parent close without child hook ALIVE → freed. 4 tests fail on `19921aba`. No row B slower (N=61; closest `inline` p 0.0135). Core 16006 B after rebase. Core mutation 85.85% on kills alone. [Proof](docs/roadmap/core-v1/PROGRESS.md#corefastclose-free-data).
 
 - **core/private-fields-regen** — write mode rewrote the list: 48 → 55 names (7 added, none removed). Core 16026 → 15988 B gzip. Proof: new dist test fails on main, passes on head; test:dist 978; React 98; validate 20/20; vp check 0 errors, 27 warnings. src unchanged, so no mutation run. Jev tests/promises not run (key budget). [Proof](docs/roadmap/core-v1/PROGRESS.md#coreprivate-fields-regen).
 
