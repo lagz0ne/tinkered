@@ -24,10 +24,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-guard-iterable-edges** — catch an `any`-typed `[Symbol.iterator]()` or `next()`; join every overload of `next()`;
-  handle `PromiseLike` under `for await`; match `Symbol.iterator` by the global symbol, not by a name pattern;
-  stop flagging `{ done: true; value: any }` results with no `IteratorResult` name.
-  Verify: a plant for each fails the build on main, and the `for (const …)` form agrees on every probe.
+- **core/size-guard-overload-intersection** — match TypeScript's iteration types.
+  Join `[Symbol.iterator]` and async `next()` overloads with `&`, not as a list.
+  Treat a result as done when `false` cannot be assigned to its `done` type (`done?: true`).
+  Handle a typed promise deeper than 8 layers and `then(cb: () => void)`. Today each is a false flag.
+  Verify: the `for (const …)` form agrees on every probe.
+
+- **core/size-guard-forof-cost** — `checkForOf` (`private-fields.ts` near :1060) walks the element type of every for-of,
+  even `for (const x of y)` where nothing reads it.
+  `settled` has no dedupe: n thenables that each settle to a union of all n walk n^8 paths; 4 thenables take 5.5–6.3 s.
+  Verify: skip the walk unless the target is an object or array literal; dedupe each layer; the 4-thenable probe drops under 1 s.
 
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
@@ -77,6 +83,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-iterable-edges** — the guard reads every iterator, `next()` overload and promise layer; a nested target reads each possible source type, deduped by type id. Landed 2026-10-11. Haiku first pass NOT READY (logic bugs); Sol took over; NOT READY once more (type list grew without limit), READY after the dedupe. 118 guard tests; G78–G85, G87 fail on `807c388b`; G85–G87 fail on the Haiku head (G86 is a regression test); G88–G89 time out without the dedupe. Dist byte-identical; 55 names. Mutation skipped (src unchanged). Jev preflight 402. Open: `core/size-guard-overload-intersection`, `core/size-guard-forof-cost`. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-iterable-edges).
 
 - **core/held-controller-pins-value** — a held data controller keeps its last write alive after close, on every close path; its reads still return the initial value. Documented in the README and ADR 0069. Landed 2026-10-11. Reviewer: NOT READY (test missed the slow close; path reasons; README/ADR), READY after one fix round. Pinned by `held-controller-retention.test.ts`: fast, watcher, slow, swept-session and hooked-session closes, plus a no-held control. A fast-close walk freed it but made `lifecycle` B slower (+8.8%, 53/61, N=61 vs `807c388b`), so it was not built. No src change; mutation 86.2% on kills alone. Jev promises 402. [Proof](docs/roadmap/core-v1/PROGRESS.md#coreheld-controller-pins-value).
 

@@ -2984,3 +2984,20 @@ The steps below are the first handoff's record.
 ### Core feedback
 
 None from the takeover.
+
+### Lander check
+
+The lander reran these on `8fc7fe97` in a scratch worktree.
+
+- `sourcePart`, `typeParts`, and the iterator lists keep each `type.id` once.
+- `checkAssignment` takes its list from the deduped `typeParts`.
+- The guard file: 118 passed; G88 0.8 s, G89 0.7 s.
+- 5 shapes, both forms, agree: G85, G86, and G87 are flagged.
+- The two recursive shapes are unflagged in both forms.
+- 400 members through three properties: 3.1 s for the assignment form.
+- 20 members through four properties: 0.6 s.
+- These are single wall-clock runs, not benchmarks.
+
+At landing the branch was rebased onto `b8efe5d3`.
+That main change touched no Core source or build file.
+Every gate was rerun on the rebased head.
