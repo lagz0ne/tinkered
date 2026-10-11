@@ -3489,3 +3489,75 @@ The failing snippet above is Start build feedback.
 ## scaffold/checker-reflect-bind
 
 Bind tracking only matters when strict mode is off; `Reflect.apply` is the real new catch.
+
+## scaffold/registry-drift
+
+Branch `scaffold/registry-drift`, from origin/main `aae70504`.
+
+Failing on origin/main first (`/tmp/main-check-registry-drift`):
+
+```text
+cd apps/start-scaffold
+node maintain/check-registry.mjs
+AssertionError: registry index must match source too
+EXIT 1
+```
+
+Cause: six copies in the `starter` item were stale.
+Each source changed after the last registry build, and no gate ran the check:
+
+- `.agents/skills/tinker-testing/SKILL.md`, from `2750f383`.
+- `README.md`, from `2750f383`.
+- `tests/sse.test.ts`, `tests/sync.test.ts`, `tests/todos.test.ts`, `tests/waste.test.ts`, from `a450ea18`.
+
+The card named only SKILL.md. The other five moved for the same reason.
+
+Regenerate: `pnpm run registry:build` in `apps/start-scaffold`.
+
+- Two files moved: `public/r/registry.json` and `public/r/starter.json`.
+- Each file has 12 changed lines: the six `content` strings.
+- No version, timestamp, or ordering moved.
+- `app.package.json` and `starter.package.json` did not change.
+- Commit `ca8d5b16` holds the regenerated files.
+
+Gate: `scripts/validate.mjs` has a new lane, 21 lanes in all.
+
+- Name: `scaffold registry index matches source`.
+- Runs: `pnpm --dir apps/start-scaffold run test:registry`.
+- The commit hook is unchanged; it runs `vp staged` only.
+- Commit `4aa17aa1` holds the lane.
+
+Planted drift: one line appended to the SKILL.md source in the ticket worktree.
+
+- Lane with drift: EXIT 1, `registry index must match source too`, 0.19 s.
+- `git checkout --` restored the file.
+- Lane after restore: EXIT 0, 19.1 s.
+- The check reads its own app folder by path, so a scratch copy needs the whole repo; the plant was reverted in place.
+
+Gate chain, all on commit `4aa17aa1`:
+
+```text
+vp run -r build && vp check && vp run -r test
+pnpm validate
+vp run prose
+```
+
+```text
+vp run -r build: EXIT 0
+vp check: Found 0 errors and 27 warnings in 680 files
+vp run -r test: EXIT 0
+pnpm validate: All deterministic budget lanes PASS (21)
+vp run prose: 0 hit(s) in 229 file(s)
+```
+
+Mutation lane and timing run: not run.
+No `packages/core` change, so the card does not ask for them.
+
+Jev:
+
+- `node tools/jev/preflight.mjs origin/main..HEAD` failed.
+- Message: `API key budget exceeded` (limit $10.00).
+- It was not retried, as the card asks.
+- `tests.mjs` and `promises.mjs` did not run: no package test changed.
+- Labels: none.
+- `calibrate.mjs` did not run: the card says the budget is used up.
