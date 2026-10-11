@@ -1131,10 +1131,6 @@ type Layer = {
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
    * borrows, dependents, and cached controllers all live in one {@link NodeState} per node. */
   nodes: Map<object, NodeState>;
-  /** True once a data controller holds a node of `nodes` ({@link dataController}). Only then can a
-   * held controller read a node's cached entry after close, so only then does a close walk `nodes`
-   * to clear it (ADR 0069). */
-  dataNodes: boolean;
   /** Named states linked to an ancestor's bucket, detached when this layer closes. */
   links?: Set<NsResourceState>;
   /** Lazily allocated: empty unless the scope was seeded with presets/tags. */
@@ -1541,12 +1537,11 @@ function dataController<T>(
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.DataController<T> {
   const rec = chain === undefined && !layer.lazy ? nodeState(layer, target) : undefined;
-  /** Only a held controller reads a node's cached entry after close, so only its layer walks its
-   * nodes on close (see {@link fastClose}). */
-  if (rec !== undefined) layer.dataNodes = true;
+  /** A closed layer's cached entry is stale; its close drops the store without walking it, so a
+   * closed layer takes the slow read (ADR 0069). */
   const get = (): T => {
     const entry = rec?.eff;
-    if (entry === undefined) return readCell(layer, target, chain) as T;
+    if (entry === undefined || layer.closed) return readCell(layer, target, chain) as T;
     return entry.value as T;
   };
   return {
@@ -2389,7 +2384,6 @@ class TaggedFrame {
   declare lazy: boolean;
   declare children: Set<Layer>;
   declare nodes: Map<object, NodeState>;
-  declare dataNodes: boolean;
   declare presets: Map<unknown, unknown> | undefined;
   declare pending: Set<Promise<unknown>>;
   declare hooks: DeferEntry[];
@@ -3601,7 +3595,6 @@ function layerRecord(
     up,
     children: NO_CHILDREN,
     nodes: seeded.nodes,
-    dataNodes: false,
     presets: seeded.presets,
     tags,
     pending: NO_CHILDREN,
@@ -3760,9 +3753,8 @@ function fastClose(
   layer.lastController = undefined;
   if (hooks || withData) layer.closing = Promise.resolve(keepData(layer, ended, hooks, withData));
   else {
-    /** Inline, not through {@link freeData}: a call on this path costs the lifecycle row. The walk
-     * is out of line, so a close with no data controller stays small. */
-    if (layer.dataNodes) clearEntries(layer.nodes);
+    /** Inline, not through {@link freeData}: a call on this path costs the lifecycle row. The store
+     * drops without a walk; a held controller reads a closed layer through the slow read. */
     layer.nodes = NO_NODES;
     layer.presets = undefined;
     layer.tags = undefined;
@@ -3770,12 +3762,6 @@ function fastClose(
   }
   beginClosing(layer);
   return layer.closing;
-}
-
-/** Clear each node's cached entry, so a held data controller takes the slow read after close (ADR
- * 0069). Out of line: only a layer with a data controller pays for the walk. */
-function clearEntries(nodes: Map<object, NodeState>): void {
-  for (const s of nodes.values()) s.eff = undefined;
 }
 
 /** Whether a session whose body just ended clean can end in place — {@link canFastClose}'s idle
@@ -5020,7 +5006,6 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
  * unmoved store drops to the shared empty store, so a free allocates nothing. */
 function freeData(layer: Layer, moved: boolean): void {
   if (moved) for (const s of layer.nodes.values()) keepCellsOnly(s);
-  else if (layer.dataNodes) clearEntries(layer.nodes);
   layer.nodes = moved ? new Map() : NO_NODES;
   layer.lastTarget = undefined;
   layer.lastController = undefined;
@@ -5725,7 +5710,6 @@ async function closeEach(layer: Layer, force: boolean): Promise<void> {
 const FRAME_STATE = {
   children: NO_CHILDREN,
   nodes: NO_NODES,
-  dataNodes: false,
   presets: undefined,
   pending: NO_CHILDREN,
   hooks: NO_DEFERS,
