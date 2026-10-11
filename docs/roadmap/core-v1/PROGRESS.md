@@ -2042,3 +2042,82 @@ The lander re-ran every gate on `d5d7fbb1`; each exits 0.
 All nine dist files match `origin/main` byte for byte.
 G45–G51 fail on `d52feb99` and pass on `d5d7fbb1`.
 `[{ layer: 1 }] as const` stays unflagged on both.
+
+## core/size-guard-real-types
+
+Branch: `core/size-guard-real-types`.
+Base: `origin/main` at `63e48732`.
+The lead owns the board and landing.
+
+### Rules
+
+The outside-read rule asks TypeScript 7's checker whether a read is `any`.
+This is the question typescript-eslint's `no-unsafe-member-access` asks.
+A member read or a destructured key counts when one of these holds:
+
+- The checker says the object is `any`: through an alias, an import, `await`, a call, or a union.
+- No property has the name, and a string index signature typed `any` answers it.
+
+The checker reads `@tinker/core` from Core's source through `paths`.
+The build does not read Core's built output for this.
+Each call makes a folder under `packages/core/node_modules` and removes it after.
+
+Syntax still covers casts, getters, inline functions, `super(...)`, and `.call`, `.apply`, `.bind`.
+A directive counts at the value's own position: the name, the returned or passed expression, or the initializer.
+The syntax `any` tracking is gone. The checker answers it.
+No runtime source, saved name list, ratchet, or ceiling changes.
+
+### Plants
+
+Plants G52 to G71 are new: twenty tests.
+On `origin/main` all twenty fail. Each expects an error and gets an empty build.
+Three controls stay unflagged on both heads.
+Run: `vp test --config vite.dist.config.ts build/private-fields.test.ts`.
+
+- `origin/main`: 20 failed, 64 passed (84).
+- This head: 84 passed (84).
+
+The 61 old guard tests stay green.
+
+### Build proof
+
+- All nine dist files match `origin/main` byte for byte.
+- The real-repo scan finds 6107 names on both heads, and the same set.
+- The card said 6103. Both heads agree on 6107 today.
+- `private-fields.json` is unchanged by this change.
+- The committed list is stale on both heads. It lacks seven names.
+- The seven: `borrows`, `controllerOf`, `deferFn`, `lastController`, `lastTarget`, `mayHook`, `releaser`.
+- That fix belongs to `core/private-fields-regen`, not this card.
+- The scan gives the same list with `packages/react/dist` removed.
+
+### Build time
+
+`vp run --no-cache core#build`, through `benchctl run --runs 5 --warmup 1`:
+
+- `origin/main`: median 4439.5 ms, MAD 305 ms.
+- This head: median 6247.6 ms, MAD 17 ms.
+- The build is 41% slower. That is under 2x.
+- These are two `run` jobs, not an `ab` verdict.
+
+### Gates
+
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings. `origin/main` has 27.
+- `vp run -r test`: exit 0. Core source lane: 883 tests.
+- `vp run core#test:dist`: 967 tests pass. The guard tests are in it.
+- `scripts/ticket.sh --check-only --no-mutation core 40 "..."`: exit 0.
+- `pnpm validate`: exit 0. All 20 lanes pass.
+
+### Jev
+
+- Preflight on `origin/main..HEAD` flags seven functions in `private-fields.ts`.
+- New labels, by `core/size-guard-real-types`, all `false`: `declared`, `assigned`, `returnFlows`.
+- Five more hits already had labels for the same code: `noteAssignment`, `followVariable`, `readTypes`, and two on `privateFields`.
+- The bank refuses a second label for the same code, so those keep their older `by`.
+- `tests.mjs` and `promises.mjs` do not read `build/`. Their flags are in untouched Core tests.
+- Calibrate ran in full: 24 judges, no status change.
+
+### Core feedback
+
+- TypeScript 7's `IndexInfo` has `valueType`, not `type`. `info.type` is `undefined`.
+- Closing the sync API makes the native child print `context canceled`. That shows in test logs only.
