@@ -29,28 +29,66 @@ in order, tag each, reset to any tag if a slice goes wrong.
 
 Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its tag exists.
 
-| tag      | ticket                                                                                                             | blockers   | status                                               |
-| -------- | ------------------------------------------------------------------------------------------------------------------ | ---------- | ---------------------------------------------------- |
-| core/t01 | Packaged scope + data read                                                                                         | —          | [x]                                                  |
-| core/t02 | data write + watch                                                                                                 | 01         | [x]                                                  |
-| core/t03 | Sync commands (incl. effects)                                                                                      | 02         | [x]                                                  |
-| core/t04 | Scope tags, all modes                                                                                              | 03         | [x]                                                  |
-| core/t05 | Async commands + work ownership                                                                                    | 03         | [x]                                                  |
-| core/t06 | Sessions + inheritance + copy-on-write                                                                             | 04         | [x]                                                  |
-| core/t07 | Structured close + onClose                                                                                         | 05, 06     | [x]                                                  |
-| core/t08 | Sync scope resources + cleanup                                                                                     | 07         | [x]                                                  |
-| core/t09 | Async resource builds + close                                                                                      | 08         | [x]                                                  |
-| core/t10 | Resource targets + owner-context                                                                                   | 08         | [x]                                                  |
-| core/t11 | Outcome hooks + session(fn)                                                                                        | 09, 10     | [x]                                                  |
-| core/t12 | Single-node release                                                                                                | 09, 10     | [x]                                                  |
-| core/t13 | Release cascade within owner                                                                                       | 12         | [x]                                                  |
-| core/t14 | Release cascade across owners                                                                                      | 13         | [x]                                                  |
-| core/t15 | Command / manual observation                                                                                       | 07         | [x]                                                  |
-| core/t16 | Resource observation                                                                                               | 09, 10, 15 | [x]                                                  |
-| core/t17 | Data/command presets                                                                                               | 05         | [x]                                                  |
-| core/t18 | Resource presets                                                                                                   | 09, 10, 17 | [x]                                                  |
-| core/t19 | v1 validation milestone                                                                                            | 01–18      | [x]                                                  |
-| core/t31 | A resource dep is its value; deps build before the body; async typed through the graph; lazy Proxy gone (ADR 0044) | —          | [x] fa7282f, 227 tests, mutation 78.51, opres −95 ns |
+- **core/t01** — Packaged scope + data read
+  blockers: —
+  status: [x]
+- **core/t02** — data write + watch
+  blockers: 01
+  status: [x]
+- **core/t03** — Sync commands (incl. effects)
+  blockers: 02
+  status: [x]
+- **core/t04** — Scope tags, all modes
+  blockers: 03
+  status: [x]
+- **core/t05** — Async commands + work ownership
+  blockers: 03
+  status: [x]
+- **core/t06** — Sessions + inheritance + copy-on-write
+  blockers: 04
+  status: [x]
+- **core/t07** — Structured close + onClose
+  blockers: 05, 06
+  status: [x]
+- **core/t08** — Sync scope resources + cleanup
+  blockers: 07
+  status: [x]
+- **core/t09** — Async resource builds + close
+  blockers: 08
+  status: [x]
+- **core/t10** — Resource targets + owner-context
+  blockers: 08
+  status: [x]
+- **core/t11** — Outcome hooks + session(fn)
+  blockers: 09, 10
+  status: [x]
+- **core/t12** — Single-node release
+  blockers: 09, 10
+  status: [x]
+- **core/t13** — Release cascade within owner
+  blockers: 12
+  status: [x]
+- **core/t14** — Release cascade across owners
+  blockers: 13
+  status: [x]
+- **core/t15** — Command / manual observation
+  blockers: 07
+  status: [x]
+- **core/t16** — Resource observation
+  blockers: 09, 10, 15
+  status: [x]
+- **core/t17** — Data/command presets
+  blockers: 05
+  status: [x]
+- **core/t18** — Resource presets
+  blockers: 09, 10, 17
+  status: [x]
+- **core/t19** — v1 validation milestone
+  blockers: 01–18
+  status: [x]
+- **core/t31** — A resource dep is its value; deps build before the body; async typed through the graph; lazy Proxy gone (ADR 0044)
+  blockers: —
+  status: [x] fa7282f, 227 tests, mutation 78.51, opres −95 ns
 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.
 Family (keyed collections) is out of v1 (needs its own ADR for the rules).
@@ -132,12 +170,18 @@ LIFO** (ADR 0026 — not a dependency scheduler). Replaces `cleanup` + `onOutcom
 ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/requirements ledger
 `teardown-redesign.md`. Each ticket lands astra-clean via the gate; sits before core/t19.
 
-| tag      | ticket                                                               | blockers | status |
-| -------- | -------------------------------------------------------------------- | -------- | ------ |
-| core/lt1 | Converged ctx + reverse-registration close                           | t14, t16 | [x]    |
-| core/lt2 | Release + cross-owner via the same drain                             | lt1      | [x]    |
-| core/lt3 | Cancellation hardening + `close()` shutdown-mode redesign (ADR 0028) | lt2      | [x]    |
-| core/lt4 | Prove the contract + remove old paths + budgets + accepted limits    | lt3      | [x]    |
+- **core/lt1** — Converged ctx + reverse-registration close
+  blockers: t14, t16
+  status: [x]
+- **core/lt2** — Release + cross-owner via the same drain
+  blockers: lt1
+  status: [x]
+- **core/lt3** — Cancellation hardening + `close()` shutdown-mode redesign (ADR 0028)
+  blockers: lt2
+  status: [x]
+- **core/lt4** — Prove the contract + remove old paths + budgets + accepted limits
+  blockers: lt3
+  status: [x]
 
 - **lt1** — `ctx.defer(end)` (end = success|failed|cancelled|released) + `ctx.signal` on operation and
   resource ctx; `Scope.Outcome += cancelled`. Close drains the layer's one defer list (onClose is a
