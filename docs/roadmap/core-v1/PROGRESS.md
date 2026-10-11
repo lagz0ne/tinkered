@@ -2045,6 +2045,9 @@ G45–G51 fail on `d52feb99` and pass on `d5d7fbb1`.
 
 ## core/size-guard-real-types
 
+The first pass below is kept as its own proof.
+The Sol takeover proof follows it.
+
 Branch: `core/size-guard-real-types`.
 Base: `origin/main` at `63e48732`.
 The lead owns the board and landing.
@@ -2132,3 +2135,95 @@ Full Core lane on clean `5f7891ce`, alone under `/tmp/mutation.lock`: exit 0.
 
 - TypeScript 7's `IndexInfo` has `valueType`, not `type`. `info.type` is `undefined`.
 - Closing the sync API makes the native child print `context canceled`. That shows in test logs only.
+
+### Sol takeover
+
+Branch: `core/size-guard-real-types-sol`.
+Base: `origin/main` at `19921aba`.
+The local archive tag keeps the first head at `50cb30d1`.
+The first writer's tree stays unchanged.
+The lead owns the board and landing.
+
+The first pass lost two assignment reads that main catches.
+R1 takes an object key through an array assignment from `any[]`.
+R2 takes an object key through a nested object assignment from `any`.
+The guard now walks each nested object and array target.
+It asks the checker for the source type at the assignment.
+Each step uses the type of the source property or array element it reads.
+The type of the variable being written does not decide the source read.
+Direct object assignment from `any` stays caught.
+
+R3 adds an assignment target in a `for-of` loop over `any[]`.
+R4 and R5 read nested source parts typed `any` into variables typed `number`.
+R6 reads a tuple whose second element is `any` through `for-of`.
+The loop checks the type of every possible element, rather than the first one.
+A checked nested source stays accepted even with an unrelated `any` sibling.
+
+The config write and checker constructor now sit inside the cleanup block.
+The folder is removed even when either step fails or closing the checker throws.
+A real copied TypeScript install with its native binary missing proves constructor cleanup.
+The test changes no shared install and uses no mock.
+
+#### Plants and lost-case proof
+
+All 93 guard tests pass.
+The 61 old tests and all twenty plants G52 to G71 pass.
+Every plant gets the named build error.
+The three first-pass controls still pass.
+
+On unchanged main in `/tmp/main-check-size-guard-real-types-sol`:
+
+- All twenty G52 to G71 tests fail because the build accepts their plants.
+- R1 and R2 pass: main already catches these reads.
+- The direct object assignment test passes too.
+- R3 to R6 fail because main accepts their plants.
+- The full copied suite has 25 failed and 68 passed tests, exit 1.
+- The separate R1, R2, and direct assignment run has three passed tests, exit 0.
+
+With the first pass's guard from `50cb30d1`, R1 to R5 fail.
+That run has five failed and 86 passed tests, exit 1.
+Before the last fixes, R6 and the missing-binary cleanup test both fail.
+The cleanup test sees a folder left behind after the constructor throws.
+With the final code, all 93 pass, exit 0.
+Logs use `/tmp/size-guard-real-types-sol-` in this writer's box.
+
+#### Build and checks
+
+All nine dist files match main byte for byte.
+Both real-repo scans find the same 6107 names.
+No name is added or dropped.
+The saved `private-fields.json`, Core source, and all ratchets are unchanged.
+No ceiling is raised.
+
+The first-pass build timing remains the accepted cost of adding the checker:
+4439.5 ms to 6247.6 ms, from its two queue jobs.
+These are build measurements, not a paired timing verdict.
+This takeover makes no new speed claim and needs no runtime timing run.
+
+The handoff names the clean final head and gives each gate's exit.
+The full chain includes build, check, all workspace tests, the Core ticket,
+all 20 validate lanes, and prose.
+The Core ticket uses check-only mode, ticket 40, with its mutation step off.
+The full Core mutation lane runs alone under `/tmp/mutation.lock`.
+Its detached log records the head and empty tree status before the run.
+The handoff gives killed / (killed + survived + no coverage) and the exit.
+The plants prove the guard; the mutation lane changes only `src/`.
+
+#### Jev and style
+
+The final code preflight reads `origin/main..HEAD`.
+All guard labels name `core/size-guard-real-types` in `by`.
+Existing ids are kept once, rather than copied into duplicate rows.
+The maps and sets record one build scan, not app state.
+The new `argumentCasts` label is false for that same reason.
+Calibration is run again after changing the label bank.
+
+The guard-test scan finds zero flags in all 93 tests.
+The Core package scan still finds seven old test flags and one old timer note.
+The promise scan reads unchanged package tests rather than `build/`.
+Those old package findings remain outside this ticket's allowed files.
+Changed assignment code and tests pass the strict style census.
+The full-file scan still reports the prior build-tool code and invalid plant strings.
+The TSDoc parser finds zero bad doc rows.
+
+Core feedback from the takeover: none.
