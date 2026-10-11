@@ -675,6 +675,258 @@ export const read = box[0].layer;\n`;
 );
 
 test(
+  "G52: an imported type alias of any fails the build",
+  async () => {
+    const plants = {
+      "packages/react/src/types.ts": `export type Loose = any;\n`,
+      "packages/react/src/plant.ts": `${imports}import type { Loose } from "./types";\nconst view: Loose = createScope();\nexport const read = view.layer;\n`,
+    };
+    expect(await guard(plants, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G53: an imported function returning an imported alias of any fails the build",
+  async () => {
+    const plants = {
+      "packages/react/src/types.ts": `export type Loose = any;\n`,
+      "packages/react/src/loose.ts": `import type { Loose } from "./types";\nexport function loose(): Loose {\n  return 1;\n}\n`,
+      "packages/react/src/plant.ts": `${imports}import { loose } from "./loose";\nexport const read = loose().layer;\n`,
+    };
+    expect(await guard(plants, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G54: an imported value typed any fails the build",
+  async () => {
+    const plants = {
+      "packages/react/src/loose.ts": `export const loose: any = 1;\n`,
+      "packages/react/src/plant.ts": `${imports}import { loose } from "./loose";\nexport const read = loose.layer;\n`,
+    };
+    expect(await guard(plants, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G55: a namespace import of a function returning any fails the build",
+  async () => {
+    const plants = {
+      "packages/react/src/loose.ts": `export function loose(): any {\n  return 1;\n}\n`,
+      "packages/react/src/plant.ts": `${imports}import * as m from "./loose";\nexport const read = m.loose().layer;\n`,
+    };
+    expect(await guard(plants, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G56: a default import typed any fails the build",
+  async () => {
+    const plants = {
+      "packages/react/src/loose.ts": `const loose: any = 1;\nexport default loose;\n`,
+      "packages/react/src/plant.ts": `${imports}import loose from "./loose";\nexport const read = loose.layer;\n`,
+    };
+    expect(await guard(plants, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G57: a directive on an argument line hides the parameter's type fails the build",
+  async () => {
+    const plant = `${imports}export function take(view: { layer: number }) {\n  return view.layer;\n}\nexport const out = take(\n  // @ts-expect-error\n  createScope(),\n);\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G58: a directive on a return line hides the return type fails the build",
+  async () => {
+    const plant = `${imports}export function make(): { layer: number } {\n  // @ts-expect-error\n  return createScope();\n}\nexport const read = make().layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G59: a read on an awaited Promise of any fails the build",
+  async () => {
+    const plant = `${imports}declare function loose(): Promise<any>;\nexport async function read() {\n  return (await loose()).layer;\n}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G60: a read through an index signature typed any fails the build",
+  async () => {
+    const plant = `${imports}declare const bag: { [k: string]: any };\nexport const read = bag.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G61: a read through any | undefined fails the build",
+  async () => {
+    const plant = `${imports}declare const maybe: any | undefined;\nexport const read = maybe.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G62: a call on a value typed Function fails the build",
+  async () => {
+    const plant = `${imports}declare const run: Function;\nexport const read = run().layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G63: attributes passed through super(g) fail the build",
+  async () => {
+    const plant = `export class Base {\n  out: object;\n  constructor(fields: Record<string, number>) {\n    this.out = { attributes: fields };\n  }\n}\nexport class Sub extends Base {\n  constructor(g: Record<string, number>) {\n    super(g);\n  }\n}\nexport const made = new Sub({ layer: 1 });\n`;
+    expect(await guard({ "plant.ts": plant }, ["layer"])).toContain(
+      "layer: a user-visible attribute key",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G64: attributes passed through o.plant.call(...) fail the build",
+  async () => {
+    const plant = `export const o = {\n  plant(fields: Record<string, number>): object {\n    return { attributes: fields };\n  },\n};\nexport const made = o.plant.call(null, { layer: 1 });\n`;
+    expect(await guard({ "plant.ts": plant }, ["layer"])).toContain(
+      "layer: a user-visible attribute key",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G65: a variable from a conditional cast to any fails the build",
+  async () => {
+    const plant = `${imports}declare const c: boolean;\ndeclare const s: unknown;\nconst x = c ? (s as any) : 1;\nexport const read = x.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G66: an array holding a conditional cast to any, with no as const, fails the build",
+  async () => {
+    const plant = `${imports}declare const c: boolean;\ndeclare const s: unknown;\nconst box = [c ? (s as any) : 1];\nexport const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G67: an array holding an IIFE that returns a cast fails the build",
+  async () => {
+    const plant = `${imports}const box = [(() => createScope() as unknown as { layer: 1 })()];\nexport const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G68: a getter that returns a cast fails the build",
+  async () => {
+    const plant = `${imports}export class Box {\n  get layer() {\n    return createScope() as unknown as { pending: 1 };\n  }\n}\nexport const read = new Box().layer.pending;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["pending"])).toContain(
+      "pending: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G69: a getter typed any fails the build",
+  async () => {
+    const plant = `${imports}export class Box {\n  get layer(): any {\n    return createScope();\n  }\n}\nexport const read = new Box().layer.pending;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["pending"])).toContain(
+      "pending: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G70: destructuring a key of an index signature typed any fails the build",
+  async () => {
+    const plant = `${imports}declare const bag: { [k: string]: any };\nexport const { layer } = bag;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a typed index signature stays unflagged",
+  async () => {
+    const plant = `${imports}declare const dict: { [k: string]: string };\nexport const read = dict.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "an argument with no directive and a checked value stays unflagged",
+  async () => {
+    const plant = `${imports}export function take(view: { layer: number }) {\n  return view.layer;\n}\nexport const out = take({ layer: 1 });\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a return with no directive and a checked value stays unflagged",
+  async () => {
+    const plant = `${imports}export function make(): { layer: number } {\n  return { layer: 1 };\n}\nexport const read = make().layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
   "an as-const array with a checked object stays unflagged",
   async () => {
     const plant = `${imports}const box = [{ layer: 1 }] as const;
