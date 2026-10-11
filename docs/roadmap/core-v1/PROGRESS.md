@@ -3189,3 +3189,162 @@ None.
   The cause is not traced.
 - The 5 s deadline on G90 and G91 is wall-clock.
   A very slow box could still hit it; raise it if that happens.
+
+## core/closed-read-stale
+
+Branch: `core/closed-read-stale`.
+Cut from `origin/main` `aae70504`, then rebased onto `origin/main` `eff48797`.
+Commits, in order:
+
+- Fix and tests: `4de3d199`.
+- README and ADR 0069: `849ca0c6`.
+- Timing CSV: `e693f132`.
+- This section, and one README line about the hook's `resolve`: the last commit.
+
+The lead owns the board and landing.
+
+### Bug and contract
+
+A closed layer leaves its parent's child list first.
+So a later write on an ancestor never reaches the layer's memo.
+A memo is a saved copy of an ancestor's value on a layer's record.
+
+The contract, as built: always look the value up again.
+
+- A closed layer reads the cells at and above it.
+- It never reads a memo.
+- Once no layer above it holds a write, it reads the initial value.
+
+Why this one:
+
+- `held.get()` stays non-throwing, as the README says.
+- Close adds no walk.
+- An open layer's warm read is unchanged.
+
+Not chosen: throw `Disposed` on `get`.
+That would change the README and the held-controller tests.
+
+Cost: a closed read walks its parents on each call.
+Closed reads are not on the warm path.
+
+### Change
+
+- `dataController` `get`: a closed layer reads through `effectiveEntryNs`.
+  The memo is not read or written.
+- `effectiveEntryNs` takes an optional chain.
+  With no chain it walks only the cells.
+- `resolveHeld`: a data cell reads through `effectiveEntryNs`.
+  So `resolve` in a `session` hook reads live too.
+
+Choices made on the way:
+
+- A first version added a helper, `readClosed`.
+  It made the Core slot count 339, above `origin/main`'s 338.
+  The helper was dropped.
+- `resolveHeld` reached complexity 9 (cap 8) with a `??` in it.
+  The `??` moved into `effectiveEntryNs`, and the count is 8.
+
+### Failing first
+
+On `origin/main` `eff48797` (`/tmp/main-check-closed-read-stale`, removed after).
+Four new tests in `packages/core/tests/with-data.test.ts` fail there:
+
+- `a closed leaf reads the open middle's write made after the leaf's own read`: expected 5 to be 7.
+- `a closed leaf reads the open root's write made after the leaf's own read`: expected 0 to be 8.
+- `a closed leaf reads the initial value once every layer above it has closed`: expected 5 to be 0.
+- `a session hook reads an ancestor's write made after the session closed`: expected [0, 0] to deeply equal [8, 8].
+
+Passing on `origin/main`: `a session hook reads its own held write after next`.
+It is the keep case, and the other 11 tests in the file.
+
+### Claims and the tests behind them
+
+- README: "They return the nearest ancestor's current write, or the initial value when no ancestor holds one."
+  Tests: the three closed-leaf tests above.
+- README: "A closed scope's held controller reads the nearest ancestor's current write, or the initial value."
+  Tests: the same three.
+- README: "That `resolve` also reads an ancestor's current write, or the initial value."
+  Test: `a session hook reads an ancestor's write made after the session closed`.
+- README: "Once the hooks return, its reads no longer see that write."
+  Tests: `a held controller reads the initial value once the root closes` (`with-data.test.ts`),
+  and `a closed scope's held controller still reads the initial value` (`index.test.ts`).
+- ADR 0069: "In the hook window `resolve` and a held data controller read."
+  Tests: `a session hook reads its own held write after next`,
+  and `a session hook reads the session's cells and tags after next`.
+- `held-controller-retention.test.ts`: unchanged, and it passes.
+
+### Timing
+
+- N=61.
+- A = `origin/main` `eff48797` (`/home/paseo/next/tinkered-closed-read-base`, removed after).
+- B = `849ca0c6`. Its Core source is the same as `4de3d199`.
+- Run under `flock /tmp/mutation.lock`: `N=61 A=... bench/queued.sh`, one job per row, 16 rows.
+- Verdict: paired sign test, two-sided, exact, ties left out.
+  A row is "B slower" only when p < 0.01 and most rounds are slower.
+- Raw rows: [CSV](closed-read-stale-vs-eff48797.csv).
+
+| Row           | A → B (ns)        | Change | Slower | p      | Verdict                    |
+| ------------- | ----------------- | ------ | ------ | ------ | -------------------------- |
+| `op`          | 62.70 → 63.40     | +1.1%  | 32/58  | 0.5118 | no difference we can see   |
+| `run`         | 78.10 → 78.50     | +0.5%  | 31/60  | 0.8974 | no difference we can see   |
+| `opres`       | 278.60 → 278.70   | +0.0%  | 32/60  | 0.6989 | no difference we can see   |
+| `inline`      | 102.10 → 101.50   | −0.6%  | 33/61  | 0.6089 | no difference we can see   |
+| `session`     | 469.20 → 464.80   | −0.9%  | 23/61  | 0.0722 | no difference we can see   |
+| `tagged`      | 191.30 → 190.90   | −0.2%  | 26/60  | 0.3663 | no difference we can see   |
+| `taggeddefer` | 259.40 → 260.20   | +0.3%  | 32/61  | 0.7982 | no difference we can see   |
+| `taggedres`   | 2541.50 → 2565.00 | +0.9%  | 40/61  | 0.0204 | no difference (above 0.01) |
+| `create`      | 26.40 → 26.40     | +0.0%  | 19/42  | 0.6440 | no difference we can see   |
+| `cold`        | 667.80 → 671.20   | +0.5%  | 35/60  | 0.2451 | no difference we can see   |
+| `warm`        | 9.20 → 9.20       | +0.0%  | 7/21   | 0.1892 | no difference we can see   |
+| `lifecycle`   | 833.70 → 836.10   | +0.3%  | 35/61  | 0.3057 | no difference we can see   |
+| `s1_getctl`   | 123.90 → 123.70   | −0.2%  | 36/60  | 0.1550 | no difference we can see   |
+| `s2_data`     | 183.90 → 183.80   | −0.1%  | 33/61  | 0.6089 | no difference we can see   |
+| `s3_doubled`  | 447.30 → 451.90   | +1.0%  | 28/60  | 0.6989 | no difference we can see   |
+| `s4_warm_ctl` | 1.40 → 1.40       | +0.0%  | 0/0    | 1.0000 | all 61 pairs tie at 1.4 ns |
+
+No row is B slower.
+`taggedres` is the closest: 40 of 61 rounds slower, p 0.02, above the bar.
+`lifecycle` is +0.3%, p 0.31.
+`s1_getctl` is −0.2%, p 0.16.
+
+### Mutation
+
+Run: `flock /tmp/mutation.lock scripts/ticket.sh --check-only core 48`.
+Commit: `e693f132`, on a clean tree.
+The gate chain exited 0: `vp check`, `vp run -r test`, core on built files, size, mutate.
+
+- Killed 3027.
+- Timed out 86.
+- Survived 425.
+- No coverage 35.
+- Errors 3.
+- Kills alone: 3027 / (3027 + 425 + 35) = 86.8%. Floor 85.
+- With timeouts counted: 87.13%.
+
+### Gates
+
+On `4de3d199`, and the docs commits after it:
+
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings. Same count as `origin/main`.
+- `vp run -r test`: exit 0. Core: 44 files, 899 tests.
+- `vp run core#test:dist`: exit 0. 45 files, 1019 tests.
+- Size: 16006 B gzip before, 16030 B after (+24 B). Cap 16384 B.
+- `pnpm validate`: exit 0. "All deterministic budget lanes PASS (20)".
+- `vp run prose`: 0 hits in 229 files.
+- `node scripts/check-fast-code.mjs`: all five checks PASS.
+- Core slots: 338 on `origin/main` and on this branch. The saved ceiling stays 339.
+- `runOnce`: 498 bytes, as before.
+- No private field was added or renamed. The private-fields write mode was not run.
+
+### Jev
+
+- `node tools/jev/preflight.mjs origin/main..HEAD`: HTTP 402, "API key budget exceeded".
+  Not retried.
+- `node tools/jev/tests.mjs core`: exit 0, no 402 in the log.
+  All the `with-data.test.ts` tests this ticket touches show ✓.
+  It flagged 7 of 851 entries, none in `with-data.test.ts`.
+  The flags are in other test files, and they are not this ticket's.
+- `node tools/jev/promises.mjs core`: HTTP 402. Not run.
+  The README lines above were checked by hand against the test titles.
+- No Jev labels were added. `calibrate.mjs` was not run, as the lead asked.
