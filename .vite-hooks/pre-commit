@@ -9,3 +9,5 @@ if [ -n "$partly" ]; then
   exit 1
 fi
 vp staged --no-stash
+c=apps/start-scaffold/maintain/check-registry-staged.mjs
+[ ! -f "$c" ] || node "$c"

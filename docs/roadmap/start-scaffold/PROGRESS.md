@@ -3562,152 +3562,105 @@ Jev:
 - Labels: none.
 - `calibrate.mjs` did not run: the card says the budget is used up.
 
-## scaffold/registry-hook: staged-copy fix
+## scaffold/registry-hook
 
-Branch: `scaffold/registry-hook-sol`, from `origin/main` at `b282cc68`.
-Owner: second writer (Codex).
-Next: lead review; no push.
-The first attempt is saved in local tag `archive/registry-hook-haiku-20f5e789`.
+Branch: `scaffold/registry-hook-sol`, started at `b282cc68`.
+Owner: registry-hook-sol writer (Codex).
+Rebased onto `origin/main` at `d7dbee23` before the fix round.
+The first writer's work is saved in local tag `archive/registry-hook-haiku-20f5e789`.
 Its worktree and branch were left alone.
 
-The fast read-only part of `check-registry.mjs` is now shared.
-The full check keeps its protected-target proof and three composition builds.
-Its clean output still ends with 10 items and 96 emitted files.
+The fast read-only part of `check-registry.mjs` is shared.
+The full lane keeps its protected-target proof and three composition builds.
+Its clean output ends with 10 items and 96 emitted files.
 The commit hook does no composition build.
 
-The hook reads the files staged for the commit.
-It uses `git ls-files -z` and `git checkout-index` to copy them to a temp folder.
-It also uses Git's temporary index when committing by path.
+### Final hook
+
+The hook runs `vp staged --no-stash` first.
+Then it runs the staged registry check, after formatter edits are staged.
+The file guard keeps branches without the checker working.
+The input list lives only in `check-registry-staged.mjs`.
+A cached Git diff checks both apps, all package manifests, the release helper,
+and the workspace catalog, including deleted files.
+No matching change returns 0 with no output or temp copy.
+
+The checker uses `git ls-files -z` and `git checkout-index` to copy staged files.
+It also reads Git's temporary index for a commit by path.
+All workspace package manifests are copied, as `registry-source.mjs` reads them.
+The fast check reads that copy, not the files on disk.
 The temp folder is removed in `finally`, on success or failure.
-No stash is used.
+No stash or shared Git config change is used.
 
-One hook glob covers both apps, all package manifests, the release helper,
-and the workspace catalog.
-`registry-source.mjs` opens the workspace package manifests even without local packs.
-They must all be copied, or the fast check fails with `ENOENT`.
-The app item's paths also read `apps/start-min`.
-Release links use the Start version and `packages/start/lib/release.mjs`.
-Dependency versions use `pnpm-workspace.yaml`.
+On this box, `/home/paseo/next/tinkered` is stale and its hook runs for every worktree, so the new pre-commit line takes effect here only once that checkout is updated; fresh clones get it at once.
 
-### Failing first, on main
+### Failing first
 
-The failing test was written before the fix.
-It ran in `/tmp/main-check-registry-hook-sol` on `origin/main` at `b282cc68`.
-The hook wrongly accepted both commits:
+The original failing tests ran on `origin/main` at `b282cc68`.
+Both bad commits passed the hook with exit 0:
 
-- Stale staged index: scratch commit `400c3496`, hook exit 0.
-- README edit, rebuilt disk index, only README staged: `c8eda1d6`, hook exit 0.
+- Stale staged index: scratch commit `400c3496`.
+- README edit, disk index rebuilt, only README staged: `c8eda1d6`.
 
-Both test assertions failed because they expected the hook to refuse the commit.
-Log: `/tmp/registry-hook-sol-red.log`, exit 1.
-The scratch worktree was removed.
+The tests expected refusal and failed with exit 1.
+Log: `/tmp/registry-hook-sol-red.log`.
 
-### Hook proof
+The fix-round tests ran on `d333d23f`, before either hook fix.
+They use a temp hooks folder copied from that branch's `.vite-hooks`.
+A small dispatch script runs its pre-commit file with `sh -e`.
+Scratch commits use `git -c core.hooksPath=...`; no shared config changes.
 
-The proof uses real scratch commits under `/tmp`.
-Each commit passes the main checkout's hooks path with `git -c core.hooksPath=...`.
-No shared Git config is changed.
+- Format race: hook exit 0; the committed tree's index check exits 1.
+- Delete-only input: hook exit 0.
+- Both new tests fail; the other 11 test entries pass.
+- Log: `/tmp/registry-hook-sol-fix-red.log`, exit 1.
+
+### Final proof
+
+`test:registry-hook` is now a package script.
+It runs real scratch commits with the branch's hook, not the stale main hook.
+The scratch folder gets both apps' installed packages and prepared type files.
+This lets the format step finish before the registry check in every case.
 
 - a. Stale staged index: hook exit 1, with the repair line.
-- b. Rebuilt disk index, only README staged: hook exit 1.
-  The disk rebuild no longer hides the stale staged copy.
+- b. Disk index rebuilt, only README staged: hook exit 1.
 - c. Unstaged README edit, another scaffold file committed: hook exit 0.
-- d. Root README commit: hook exit 0; the registry command is absent.
+- d. Root README commit: hook exit 0; no registry PASS line.
 - e. README and rebuilt copies staged together: hook exit 0.
-  The registry command starts once for the three changed files.
+  The registry check prints its PASS line once.
 - f. `test:registry`: planted drift exits 1; clean source exits 0.
-  The same protected-target and composition PASS lines remain.
-
-Extra plants cover a minimal-app source, the Start version, the release helper,
-and a catalog version.
-Each alone triggers the hook and fails with drift.
-A missing staged index has the repair line first, then the missing-file error.
-It fails the hook when another matching file also changes.
+  The protected-target and three composition PASS lines stay the same.
+- Format race: formatter changes the source, then the hook exits 1.
+- Delete-only source commit: hook exits 1, even with no lint-staged task.
+- Missing staged index: the repair line is first; the hook exits 1.
+- Minimal-app source, Start version, release helper, and catalog plants each fail.
 
 The first error line names the fix:
 
 `Registry index check failed. Fix: pnpm --dir apps/start-scaffold run registry:build`.
 
-### Remaining gaps
+The format race and delete-only gaps are closed.
+The hook proves index matches; the full lane owns composition builds.
+The new test script is removed from copied package specs by the existing builder.
+The saved registry files still match source without a rebuild.
 
-`lint-staged` skips deleted files by default.
-A commit with only removed inputs can skip this hook.
-The direct check and `test:registry` still fail on missing files.
-The hook checks the staged copy before `lint-staged` stages formatter edits.
-A copied source changed by the formatter may need another index check.
-That order is not covered by the a-f proof.
-The hook proves index matches only; the full lane still owns composition builds.
+### Time and judges
 
+The read-only index check took a median 136.2 ms over 10 queued runs.
+That earlier run used clean source commit `d333d23f`.
+MAD was 5.3 ms; spread was 36.9%.
+Log: `/tmp/registry-hook-sol-index-time.log`, exit 0.
+This is the index check time, not the full hook time.
+The index-check code is unchanged in the fix round.
+
+The hook test stays outside `pnpm validate`.
+It builds three copied apps and runs real commits; it is not a fast lane.
 Mutation and Core timing lanes are not needed: no Core change.
-There is no mutation score or timing verdict row.
-Core feedback: none.
+There is no mutation score or Core timing verdict.
 
-### Check time and judges
-
-The branch was rebased onto `origin/main` at `d7dbee23`.
-The source commit is `d333d23f`; its tree was clean for the queue run.
-The `bench` skill's ten-run command ran under `/tmp/mutation.lock`.
-It measured the read-only index check, without Git copy or hook startup:
-
-```bash
-flock /tmp/mutation.lock \
-  benchctl run --runs 10 -- \
-  node apps/start-scaffold/maintain/\
-check-registry-index.mjs
-```
-
-- Median: 136.2 ms over 10 measured runs.
-- MAD: 5.3 ms; this is the median gap from the median.
-- Min: 119.6 ms; max: 163.6 ms; spread: 36.9%.
-- Queue log: `/tmp/registry-hook-sol-index-time.log`, exit 0.
-
-The first queue probe tried the staged checker.
-The host could not resolve the worktree's Git path; that probe exited 1.
-No full-hook time is claimed.
-The Core scenario wrapper has no registry scenario.
-The ten-run queue command answers the card's check-time request instead.
-No Core comparison or timing verdict is claimed.
-
-The first Jev range used moving `origin/main..HEAD` before the rebase.
-Another writer had advanced main, so it picked an unrelated Core diff.
-That attempt stopped at HTTP 402, `API key budget exceeded`.
-It was a range mistake; no Core file was edited here.
-After rebase, the correct range reports no source files and zero flags.
-The preflight skips `.mjs` and config files.
-That empty run proves nothing about the key budget.
-No package TypeScript test changed, so test and promise judges did not run.
+Jev preflight sees no TypeScript source changes.
+It skips JavaScript and config files; that proves nothing about the key budget.
+No package TypeScript test changed, so test and promise judges do not run.
 Label lines: none.
-`calibrate.mjs` was not run, as this ticket asks.
-
-### Final gates
-
-All builds and gates ran from the ticket worktree.
-The final chain ran after the rebase, on source commit `d333d23f`.
-No timeout or OOM retry was needed.
-Log: `/tmp/registry-hook-sol-finalgate.log`.
-
-```text
-vp install: EXIT 0
-vp run -r build: EXIT 0, 12 tasks
-vp check: 0 errors, 27 warnings, 683 files
-Node hook proof: 12 passed, 0 failed
-vp run -r test: EXIT 0
-pnpm validate: 21 lanes PASS
-vp run prose: 0 hits in 229 files
-EXIT 0
-```
-
-Run the saved hook proof after installing and building:
-
-```bash
-cd apps/start-scaffold/maintain
-node --test test-registry-staged.mjs
-```
-
-The final proof removes its scratch worktree in `finally`.
-`/tmp/main-check-registry-hook-sol` is gone.
-No base worktree was made.
-The ticket worktree and branch remain for review.
-Only hook config, scaffold maintain files, and this proof changed.
-`TODO.md` and `packages/core` were not edited.
-No push was made.
+`calibrate.mjs` is not run, as this ticket asks.
+Core feedback: none.
