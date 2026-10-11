@@ -2118,3 +2118,69 @@ No source, test, or saved limit changed.
 
 The full Core mutation run above used the clean head with these labels.
 Its log names `258e9d24`; its runtime hash matches the timing runtime.
+
+## warm-ctl-trade (2026-10-11)
+
+Question: is `warm` or `s4_warm_ctl` still slower than `b451fbb1`?
+Answer: no. The memo from `e1476f06` (handle-verbs-ctl) fixed it on main.
+This branch changes no source.
+Head: `63e48732`, the same commit as origin/main.
+
+Timing:
+
+- N=61. A = `b451fbb1`, B = `63e48732`.
+- Through `bench/queued.sh`, one scenario per job, under `flock /tmp/mutation.lock`.
+- Verdict: paired sign test, two-sided, p < 0.01, ties left out.
+- Full run, 16 rows: [raw rows](warm-ctl-trade-full-vs-b451fbb1.csv).
+- Rerun of the two target rows: [raw rows](warm-ctl-trade-target-vs-b451fbb1.csv).
+
+Medians in ns per call, A → B, then the sign count:
+
+- `op`: 100.3 → 64.3; B faster 61/61.
+- `run`: 111.4 → 79.6; B faster 61/61.
+- `opres`: 362.3 → 278.6; B faster 60/61 (1 slower).
+- `inline`: 195.3 → 102.9; B faster 61/61.
+- `session`: 1934.6 → 478.1; B faster 61/61.
+- `tagged`: 2591.6 → 193.2; B faster 61/61.
+- `taggeddefer`: 2750.1 → 261.6; B faster 61/61.
+- `taggedres`: 3530.9 → 2957.7; B faster 57/61 (4 slower).
+- `create`: 230.6 → 29.1; B faster 61/61.
+- `cold`: 873.3 → 698.0; B faster 61/61.
+- `warm`: 16.8 → 9.2; B faster 61/61.
+- `lifecycle`: 1487.5 → 1200.4; B faster 56/61 (5 slower).
+- `s1_getctl`: 368.8 → 165.0; B faster 61/61.
+- `s2_data`: 349.3 → 188.4; B faster 61/61.
+- `s3_doubled`: 627.8 → 462.2; B faster 61/61.
+- `s4_warm_ctl`: 10.3 → 0.7; B faster 61/61.
+
+The rerun of `warm` and `s4_warm_ctl` gives the same medians: 16.8 → 9.2 and 10.3 → 0.7.
+Both are B faster 61/61.
+
+Verify line: neither row is B slower vs `b451fbb1`. Met on main.
+
+Failing-on-main proof: none, because origin/main passes against `b451fbb1`.
+The failing run is the older one above: base `0ca40d05`, `s4_warm_ctl` 10.80 → 11.40 ns.
+
+Gates on `63e48732`, clean tree:
+
+- `vp run -r build`, then `scripts/ticket.sh --check-only --no-mutation core 39`: EXIT 0.
+- `vp check`: 0 errors, 27 warnings (main's count).
+- Core tests: 883 source, 944 built files.
+- Core size: 16026 B gzip (cap 16384 B).
+- `node scripts/check-fast-code.mjs`: PASS for slots, bytecode, inlining, closures, client.
+- `runOnce`: 498 bytes (ceiling 499). `runHookBody`: 297 bytes (ceiling 298).
+- Core slots: 338 (ceiling 339). React slots: 21 (ceiling 21).
+- Inlining: `OperationCtx` into `runOnce`, default Maglev on.
+- Complexity cap stays 8. No baseline file changed.
+- `pnpm validate`: 20 of 20 lanes PASS, EXIT 0.
+
+Mutation (Core full lane, clean `63e48732`, alone under the lock):
+
+- Killed 3036; survived 436; no coverage 35; timeout 62; runtime errors 3.
+- Card score: 3036 / (3036 + 436 + 35) = 86.57%. Floor 85.
+- Stryker prints 86.80, because it counts timeouts as kills.
+- Log: `.bench/warm-ctl-trade-mutation.log` (git-ignored).
+
+Jev: `origin/main..HEAD` is empty. No source file changed. No flags, no labels, no calibrate.
+
+Core feedback: none.
