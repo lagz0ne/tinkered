@@ -1082,7 +1082,6 @@ function nodeState(layer: Layer, key: object): NodeState {
     state = new NodeState();
     if (layer.nodes === NO_NODES) layer.nodes = new Map();
     layer.nodes.set(key, state);
-    if (isData(key)) layer.dataNodes = true;
   }
   return state;
 }
@@ -1132,9 +1131,9 @@ type Layer = {
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
    * borrows, dependents, and cached controllers all live in one {@link NodeState} per node. */
   nodes: Map<object, NodeState>;
-  /** True once a data cell's node is in `nodes` ({@link nodeState}, a seeded preset). Only then can
-   * a held data controller read a node's cached entry after close, so only then does a close walk
-   * `nodes` to clear it (ADR 0069). */
+  /** True once a data controller holds a node of `nodes` ({@link dataController}). Only then can a
+   * held controller read a node's cached entry after close, so only then does a close walk `nodes`
+   * to clear it (ADR 0069). */
   dataNodes: boolean;
   /** Named states linked to an ancestor's bucket, detached when this layer closes. */
   links?: Set<NsResourceState>;
@@ -1542,6 +1541,9 @@ function dataController<T>(
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.DataController<T> {
   const rec = chain === undefined && !layer.lazy ? nodeState(layer, target) : undefined;
+  /** Only a held controller reads a node's cached entry after close, so only its layer walks its
+   * nodes on close (see {@link fastClose}). */
+  if (rec !== undefined) layer.dataNodes = true;
   const get = (): T => {
     const entry = rec?.eff;
     if (entry === undefined) return readCell(layer, target, chain) as T;
@@ -3599,7 +3601,7 @@ function layerRecord(
     up,
     children: NO_CHILDREN,
     nodes: seeded.nodes,
-    dataNodes: seeded.nodes !== NO_NODES,
+    dataNodes: false,
     presets: seeded.presets,
     tags,
     pending: NO_CHILDREN,
