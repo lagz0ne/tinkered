@@ -49,6 +49,8 @@ const lanes = [
     "two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)",
     "scripts/two-hands.sh",
   ],
+  // The scaffold's registry index matches its source copies (no publish): a stale copy fails here.
+  ["scaffold registry index matches source", "pnpm --dir apps/start-scaffold run test:registry"],
 ];
 
 let failed = 0;
