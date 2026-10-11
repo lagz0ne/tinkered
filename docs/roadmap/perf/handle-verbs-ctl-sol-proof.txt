@@ -55,3 +55,38 @@ label: stateOutsideCell false packages/core/src/index.ts#fastClose (7db519b49265
 label: stateOutsideCell false packages/core/src/index.ts#layerRecord (563cfef57699) by perf/handle-verbs-ctl
 label: stateOutsideCell false packages/core/src/index.ts#freeData (4b06539c743a) by perf/handle-verbs-ctl
 Calibration EXIT 0
+
+Final timing on clean d9b0891f
+.bench/handle-verbs-ctl-sol-head-vs-base.csv
+op: 62.50 -> 64.40 ns; faster 22/61; slower 39/61; p=0.0396170149; no difference we can see
+run: 78.90 -> 79.30 ns; faster 24/61; slower 37/61; p=0.123731443; no difference we can see
+opres: 281.10 -> 277.60 ns; faster 45/61; slower 16/61; p=0.000264278662; B faster
+inline: 104.00 -> 101.90 ns; faster 47/61; slower 14/61; p=2.71918768e-05; B faster
+session: 559.40 -> 459.00 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+tagged: 191.90 -> 191.70 ns; faster 35/61; slower 25/61; p=0.245060833; no difference we can see
+create: 134.50 -> 26.60 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+cold: 770.40 -> 681.80 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+warm: 17.40 -> 9.10 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+lifecycle: 918.30 -> 836.70 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+s1_getctl: 234.60 -> 127.90 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+s2_data: 261.00 -> 169.40 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+s3_doubled: 484.80 -> 408.10 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+s4_warm_ctl: 10.70 -> 0.70 ns; faster 61/61; slower 0/61; p=8.67361738e-19; B faster
+TIMING_EXIT 0
+
+Failing on main
+docs/roadmap/perf/handle-verbs-ctl-sol-main-vs-base.csv
+s4_warm_ctl: 10.80 -> 11.40 ns; faster 3/61; slower 55/61; p=2.25985897e-13; B slower
+MAIN_TIMING_EXIT 0
+
+Full Core mutation
+HEAD d9b0891f6698a0f35b285960f021930af72f189f
+TREE clean
+Command: flock /tmp/mutation.lock vp run core#mutate
+Killed 3037; Survived 465; NoCoverage 35; Timeout 32; RuntimeError 3
+3037 / (3037 + 465 + 35) = 85.86372632%
+Stryker score (with timeouts): 85.99
+MUTATION_EXIT 0
+Memo guard survivors: 2280 if(false); 2284 closing check true; 2285 closing !== undefined
+All three preserve public behavior; they change memo use only.
+freeData block mutant 2811 removes the clearing assignments too.

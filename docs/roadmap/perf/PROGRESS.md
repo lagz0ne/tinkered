@@ -2043,3 +2043,60 @@ All main bank rows are kept in their original order.
 Full detached Jev calibration returned EXIT 0.
 Its updated `calibration.json` is saved with this proof.
 All main label rows remain; no duplicate id was added.
+
+### Final timing and mutation
+
+Both jobs ran on clean `d9b0891f`, under the shared lock.
+No source, test, or limit changed during either job.
+Only saved proof changes after that measured head.
+The runtime hash still matches the gate proof.
+Both wrappers returned EXIT 0.
+N=61; every row used batch mode on both trees.
+The paired two-sided sign test uses p below 0.01 and leaves ties out.
+[Head raw rows](handle-verbs-ctl-sol-head-vs-base.csv).
+[Counts, p values, and mutation proof](handle-verbs-ctl-sol-proof.txt).
+
+Medians in ns per call, base `0ca40d05` -> head:
+
+- `op`: 62.50 -> 64.40; no difference we can see.
+- `run`: 78.90 -> 79.30; no difference we can see.
+- `opres`: 281.10 -> 277.60; B faster.
+- `inline`: 104.00 -> 101.90; B faster.
+- `session`: 559.40 -> 459.00; B faster.
+- `tagged`: 191.90 -> 191.70; no difference we can see.
+- `create`: 134.50 -> 26.60; B faster.
+- `cold`: 770.40 -> 681.80; B faster.
+- `warm`: 17.40 -> 9.10; B faster.
+- `lifecycle`: 918.30 -> 836.70; B faster.
+- `s1_getctl`: 234.60 -> 127.90; B faster.
+- `s2_data`: 261.00 -> 169.40; B faster.
+- `s3_doubled`: 484.80 -> 408.10; B faster.
+- `s4_warm_ctl`: 10.70 -> 0.70; B faster.
+
+No row is B slower, so no row needs a replicate.
+Session and lifecycle keep their wins against the base.
+The memo only speeds up repeat target reads on the same handle.
+New-scope gains, including `s1_getctl` and `create`, come from main.
+The reviewed two-field create cost against main remains accepted.
+The old 847.7 ns lifecycle row is not a head result and is not used here.
+
+Full Core mutation, without reuse of old results:
+
+- Killed: 3037; survived: 465; no coverage: 35.
+- Card score: 3037 / (3037 + 465 + 35) = 85.86372632%.
+- Timeouts: 32; runtime errors: 3.
+- Stryker prints 85.99 with timeouts; the card score clears 85 on kills.
+- Commit: `d9b0891f6698a0f35b285960f021930af72f189f`.
+- Tree: clean before the run and after it; command returned 0.
+- Memo survivors: 2284 makes the closing check true.
+- Memo survivor: 2285 changes the closing check to `!== undefined`.
+- Memo survivor: 2280 makes the whole guard `if (false)`.
+- All three are equivalent for public behavior; only memo use changes.
+- The existing node memo still returns the exact same controller.
+- `freeData` block mutant 2811 removes the clearing assignments too.
+- The GC check covers retained values; Vitest does not force GC.
+
+Core feedback: none.
+The lead reviews and lands this saved branch.
+The ticket worktree and branch stay; the two base/check trees are removed.
+No push or tag update beyond the requested local archive is made.
