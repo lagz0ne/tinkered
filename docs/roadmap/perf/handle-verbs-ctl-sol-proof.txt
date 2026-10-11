@@ -90,3 +90,10 @@ MUTATION_EXIT 0
 Memo guard survivors: 2280 if(false); 2284 closing check true; 2285 closing !== undefined
 All three preserve public behavior; they change memo use only.
 freeData block mutant 2811 removes the clearing assignments too.
+
+Last Jev preflight
+origin/main..HEAD: EXIT 0; zero file flags; 299 units; 113 unit flags.
+label: waitsOnSideWork false packages/core/src/index.ts#addWork (08b09e21eea1) by perf/handle-verbs-ctl
+label: stateOutsideCell false packages/core/src/index.ts#resolveHeld (3aac37444ff8) by perf/handle-verbs-ctl
+Final bank: eight new ids, main rows kept, no duplicate ids.
+Full calibration after all eight labels: EXIT 0.

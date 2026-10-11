@@ -2037,7 +2037,7 @@ The repeat-read and closed-read titles match README lines.
 The session title stays unsure; none of the three new titles is flagged.
 The 48 old README gaps describe existing details outside this card.
 No new app feature, lifetime rule, or public API is added here.
-The six new label ids are unique and use `by = perf/handle-verbs-ctl`.
+The eight new label ids are unique and use `by = perf/handle-verbs-ctl`.
 All main bank rows are kept in their original order.
 [Gate, GC, and runtime hash proof](handle-verbs-ctl-sol-proof.txt).
 Full detached Jev calibration returned EXIT 0.
@@ -2099,3 +2099,18 @@ Core feedback: none.
 The lead reviews and lands this saved branch.
 The ticket worktree and branch stay; the two base/check trees are removed.
 No push or tag update beyond the requested local archive is made.
+
+### Last Jev pass
+
+The repeated preflight returned EXIT 0 with zero file flags.
+It read 299 units and flagged 113.
+Two new hits name unchanged helpers: `addWork` and `resolveHeld`.
+Both have false labels with owner and read-path reasons.
+All eight new ids use `by = perf/handle-verbs-ctl`.
+No main row is changed or duplicated.
+Full detached calibration returned EXIT 0 again after those labels.
+No source, test, or saved limit changed.
+
+The next full Core run uses the clean head with these final labels.
+Its log names that head, records the clean tree, and gives the counts.
+The final report names that run; the saved timing runtime still matches it.
