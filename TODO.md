@@ -47,10 +47,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   It covers the labels added since 2026-10-10.
   Verify: calibrate exits 0; `calibration.json` committed.
 
-- **perf/s4-probe-depth** — at 0.7 ns (2 to 3 cycles) the `s4_warm_ctl` probe may time almost no work after the memo.
-  Make the probe do real work, or document why 0.7 ns is real.
-  Verify: the new probe shows a real cost on main, and the memo still wins by the sign test.
-
 ## Doing
 
 Roles since 2026-10-09 (user: "Instead of using sol as writer, use haiku, opus drives and review";
@@ -80,6 +76,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **perf/s4-probe-depth** — s4_warm_ctl now uses its read (never-equal sentinel); the old body skipped the lastController load (V8 opt code). Landed 2026-10-11. Reviewer: READY. Main 1.4 ns vs empty loop 0.1. Memo base 16ed271b 12.2 → 1.4 ns, 61/61, sign p 8.7e-19. Gates exit 0; mutation not run (src unchanged); Jev preflight 402. [Proof](docs/roadmap/perf/PROGRESS.md#s4-probe-depth-2026-10-11).
 
 - **core/size-guard-iterable-assign** — a for-of assignment over a non-array iterable now reads its element through the iterator; `for await` awaits promise elements. Landed 2026-10-11. Reviewer: READY first pass. 105 guard tests; G72–G77 fail on `85f7f55d`. Dist byte-identical; 55 names. Mutation skipped (src unchanged). Jev preflight 402. Open: `core/size-guard-iterable-edges`. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-iterable-assign).
 

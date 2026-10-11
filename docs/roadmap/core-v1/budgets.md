@@ -283,6 +283,7 @@ N=61 A=../tinkered-tagged-land-base \
 - `bench/ab.sh` runs B's probe against A's build and B's build (`CORE_DIST`), so a probe change can
   never pose as a core change.
 - Each `ab.sh` "done" line counts the batch-mode runs per tree.
+- s4_warm_ctl rows after perf/s4-probe-depth read about 1.4 ns, not 0.7, because the probe now times the full read. Do not compare them with older rows.
 
 ### The mode check
 
