@@ -2530,3 +2530,150 @@ Not run. This change makes no speed claim.
 checker.getPropertyOfType(apparent, "__@iterator");
 // undefined: the key is "__@iterator@2" in this program
 ```
+
+## core/held-controller-pins-value
+
+Branch: `core/held-controller-pins-value`.
+Base: `origin/main` at `807c388b`.
+Commit: `fb3813d1` (probe test, README bullets, timing CSV).
+The lead owns the board and landing.
+
+### Decision
+
+A held data controller keeps its last write alive after close.
+This holds on every close path.
+The contract is documented. Freeing it is not built.
+
+Why not freed:
+
+- A held controller reads its cell through a record it captured at creation.
+  That record holds the written value.
+- Only a walk over the layer's nodes can clear the record on fast close.
+- The fast-close walk costs the `lifecycle` row: +8.8%, B slower (see Timing).
+- Clearing on slow close needs no new walk.
+  Fast close would still keep the value, so that half fix is not built.
+
+The contract, kept as is:
+
+- A held controller keeps its last write until the controller is dropped.
+- A held controller still reads the initial value after close (fastclose-free-data).
+
+### GC probe
+
+Test: `packages/core/tests/held-controller-retention.test.ts`.
+It writes a 200,000-item array through a held controller, closes, forces `gc`, and checks a `WeakRef`.
+Each held controller stays referenced until the check.
+
+The probe needs `--expose-gc`.
+It sets that flag at runtime and reads `gc` from a new `vm` context.
+
+Failing first, on `origin/main` `807c388b`
+(`/tmp/main-check-held-controller-pins-value`).
+The first version expected a freed write:
+
+- Closed root, no watcher: ALIVE. Fails.
+- Root closed with a watcher: ALIVE. Fails.
+- Fast-closed session: ALIVE. Fails.
+- Session closed under a session hook: ALIVE. Fails.
+- Closed root with no held controller: freed. Passes (control).
+
+The first version waited between `gc` passes with a 20 ms timer.
+The committed version waits with `setImmediate`, as best-practices asks.
+The committed version asserts retention.
+On `origin/main` `807c388b` it passes 5 of 5.
+It passed 5 of 5 on every run after the change.
+
+### Walk candidate, timed and reverted
+
+The candidate cleared `cell` and `eff` on each node in `fastClose`.
+It was not committed. The source is back to `origin/main`.
+
+Probe result with the candidate:
+
+- Closed root, no watcher: freed.
+- Fast-closed session: freed.
+- Root closed with a watcher: still ALIVE. The slow path was not changed.
+- Session closed under a session hook: still ALIVE.
+
+Timing: N=61, A = `origin/main` `807c388b`, B = the candidate.
+
+- Run: `flock /tmp/mutation.lock`, then `N=61 A=<base> bench/queued.sh`, one job per row.
+- Base worktree: `/home/paseo/next/tinkered-held-base` at `807c388b`.
+- Verdict: paired sign test, two-sided, ties left out.
+- Box load reached 17.6 on 8 cores during the run.
+- Raw rows: [CSV](held-controller-pins-value-walk-vs-807c388b.csv).
+
+Rows, A → B (ns), slower rounds, p, verdict:
+
+- `op`: 63.50 → 64.10, 29/61, p 0.90, no difference we can see.
+- `run`: 78.40 → 78.10, 28/61, p 0.70, no difference we can see.
+- `opres`: 276.20 → 275.70, 26/61, p 0.37, no difference we can see.
+- `inline`: 99.40 → 100.10, 33/61, p 0.36, no difference we can see.
+- `session`: 463.70 → 463.80, 27/61, p 0.44, no difference we can see.
+- `tagged`: 190.00 → 190.80, 32/61, p 0.70, no difference we can see.
+- `taggeddefer`: 252.70 → 252.40, 26/61, p 0.31, no difference we can see.
+- `taggedres`: 2585.20 → 2597.90, 26/61, p 0.31, no difference we can see.
+- `create`: 28.40 → 29.20, 27/61, p 1.00, no difference we can see.
+- `cold`: 687.50 → 690.60, 33/61, p 0.52, no difference we can see.
+- `warm`: 9.20 → 9.20, 10/61, p 0.83, no difference we can see.
+- `lifecycle`: 1126.20 → 1224.80, 53/61, p < 0.0001, B slower (+8.8%).
+- `s1_getctl`: 130.90 → 131.40, 29/61, p 0.80, no difference we can see.
+- `s2_data`: 166.60 → 167.10, 34/61, p 0.44, no difference we can see.
+- `s3_doubled`: 403.70 → 402.80, 33/61, p 0.61, no difference we can see.
+- `s4_warm_ctl`: 0.70 → 0.70, 0/61, p 1.00, no difference we can see.
+
+Verdict: the walk fails the bar, because `lifecycle` is B slower.
+The candidate was reverted before the commit.
+
+### Shipped change
+
+- No `src/` change. The source matches `origin/main`.
+- So no timing row applies to the shipped state.
+- Commit `fb3813d1` adds the test, the README bullets, and the CSV.
+- No field changed, so private-fields was not written.
+
+### Size
+
+- Core runtime: 16006 B gzip, cap 16384 B.
+- Before and after: the same. The source did not change.
+
+### Checks
+
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings. `origin/main` has 27.
+- `vp run -r test`: exit 0. Core source: 892 tests pass, 5 of them new.
+- `scripts/ticket.sh --check-only core 46`: exit 0, under `flock /tmp/mutation.lock`.
+- `vp run core#test:dist`: exit 0. 997 tests pass.
+- `vp run prose`: exit 0. 0 hits.
+- `pnpm validate`: exit 0. All 20 deterministic lanes pass.
+
+### Mutation
+
+- Lane: `vp run core#mutate`, run inside `scripts/ticket.sh`, on `fb3813d1`.
+- The tree was clean, under `flock /tmp/mutation.lock`.
+- Killed 3046, timed out 38, survived 452, no coverage 35, errors 3.
+- Kills alone: 3046 / (3046 + 452 + 35) = 86.2%. Floor 85.
+- With timeouts counted: 86.36%.
+
+### Jev
+
+- `preflight.mjs origin/main..HEAD`: exit 0. No source file changed, so no judge ran.
+- No flags, so no labels.
+- `tests.mjs core`: ran. 7 of 844 entries flagged. None in the new test file.
+- `promises.mjs core`: failed at the gateway. The message was
+  "API key budget exceeded. Current spend: $10.00, limit: $10.00". Not retried.
+  So Jev did not check the new README bullets against the test titles.
+- `calibrate.mjs`: not run, as the brief says.
+
+### Core feedback
+
+A held controller pins its last write after close.
+The controller reads through a record it captured, so a free needs a walk.
+
+```ts
+const root = createScope();
+const held = root.controller(cell);
+held.set(Array.from({ length: 200_000 }, () => 1));
+await root.close();
+// gc(): the array is still reachable through `held`
+```
