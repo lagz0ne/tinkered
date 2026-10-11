@@ -245,6 +245,33 @@ test("a session hook reads the session's cells and tags after next", async () =>
   await root.close();
 });
 
+test("a session hook reads the cell in the namespace its resolve names after next", async () => {
+  const alice = namespace();
+  const bob = namespace();
+  const seen: unknown[] = [];
+  const reader = extension({
+    label: "reader",
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        seen.push(
+          event.handle.resolve(draft, { ns: alice }),
+          event.handle.resolve(draft, { ns: bob }),
+          event.handle.resolve(draft),
+        );
+        return ended;
+      },
+    },
+  });
+  const root = createScope({ extensions: [reader] });
+  const session = root.createSession();
+  session.controller(draft, { ns: alice }).set(3);
+  session.controller(draft).set(4);
+  await session.close();
+  expect(seen).toEqual([3, 4, 4]);
+  await root.close();
+});
+
 test("a session hook cannot write a cell or read a resource after next", async () => {
   const errors: unknown[] = [];
   const reader = extension({
