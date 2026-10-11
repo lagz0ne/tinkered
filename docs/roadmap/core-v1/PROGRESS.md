@@ -1942,3 +1942,80 @@ The red tests above prove the guard changes.
 No runtime code, name list, ratchet, or ceiling changes.
 No timing run is needed.
 Core feedback: none.
+
+## core/size-guard-bypasses — Sol takeover
+
+Branch: `core/size-guard-bypasses-sol`.
+Base: `origin/main` at `9ba9515c`.
+The local tag `archive/size-guard-bypasses-haiku-451baf37` keeps the first head.
+The first writer's worktree and branch are unchanged.
+The lead owns the board and landing.
+
+### Rules
+
+The guard keeps the first writer's fixes for every bypass on the card.
+It follows attributes through `new`, `.call`, `.apply`, and `.bind`.
+It follows attributes through rest and destructured parameters.
+It counts reads through local aliases of `any`, fields, rest, and catch bindings.
+It follows cast defaults and function returns.
+It follows inline functions, callbacks, object methods, and named imports returning `any`.
+A directive on a declaration or assignment marks its bound names.
+A return belongs to the innermost function, including a callback or class method.
+
+`as const` keeps a literal's type checks.
+It cannot hide casts inside that literal.
+Plain object and array literals also retain casts in their contents and spreads.
+The whole literal counts when a contained value came from a cast or `any`.
+Checked literals stay accepted.
+The imported-function text check now accepts local aliases of `any` too.
+The property visitor records functions only.
+
+The rules still match names rather than real types across files.
+Cross-file type aliases and the other follow-up cases stay outside this ticket.
+No runtime source, saved name list, ratchet, or ceiling changes.
+No timing run is needed.
+
+### Revert proof
+
+All 53 guard tests pass on this branch.
+The old 23 tests pass on `origin/main` too.
+Plants G20–G24 and G26–G38 fail on `origin/main` because its build accepts them.
+Plant G25 was already caught on `origin/main`.
+Plants G40–G44 also fail on `origin/main`.
+Plant G39 was caught on `origin/main`, but fails on the first writer's final head.
+Plants G40–G43 also fail with the first writer's final guard.
+The callback-return control fails with `aa5466d7` and passes with its return fix.
+The checked `as const` control stays accepted.
+The new checked object and array control stays accepted.
+
+The logs use the prefix `/tmp/size-guard-bypasses-sol-`.
+The red logs end in `main-red.log`, `haiku-red.log`, and `callback-red.log`.
+The green log ends in `guard-green.log`.
+
+### Build proof
+
+All nine dist files match `origin/main` byte for byte.
+Both repo scans find 6103 names, with no name added or dropped.
+The wider literal rule moves the first read file for seven existing names.
+The saved `private-fields.json` is unchanged.
+The code check has zero errors and the base's 27 warnings.
+The final handoff names the clean head and reports the full gate chain by exit code.
+It also reports all 20 validate lanes and the locked full Core mutation lane.
+Only `src/` is mutated; the planted build tests prove the guard changes.
+
+### Jev and style
+
+Preflight finds five flags in build code.
+All five have false labels under `core/size-guard-bypasses`.
+The maps and sets hold private build notes rather than app state.
+The build changes no runtime object shape.
+Four cases already existed; their labels are kept and their `by` names this card.
+The guard-test scan finds zero flags in all 53 tests.
+The package-test scan still finds seven old test flags and one old timer note.
+Those files are outside this build ticket.
+The promise scan reads the package tests, not the guard tests in `build/`.
+The strict style scan finds old code and the required invalid plant strings.
+Changed code has no other strict hit.
+The TSDoc parser finds zero bad doc rows.
+
+Core feedback: none.
