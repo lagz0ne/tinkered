@@ -2534,8 +2534,12 @@ checker.getPropertyOfType(apparent, "__@iterator");
 ## core/held-controller-pins-value
 
 Branch: `core/held-controller-pins-value`.
-Base: `origin/main` at `807c388b`.
-Commit: `fb3813d1` (probe test, README bullets, timing CSV).
+Base: `origin/main` at `807c388b`, for all timing and gates below.
+Commits: the probe test, README bullets, and timing CSV; then this section.
+Rebased onto `origin/main` `3e2a2346`.
+The rebase changed no `packages/core` file, so the Core gates still hold.
+Main moved `bench/core-probe.mjs` at `7661d113`, after the timing run.
+The `s4_warm_ctl` row used the probe before that commit.
 The lead owns the board and landing.
 
 ### Decision
