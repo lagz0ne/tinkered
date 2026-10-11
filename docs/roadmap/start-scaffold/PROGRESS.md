@@ -3624,14 +3624,9 @@ Each alone triggers the hook and fails with drift.
 A missing staged index has the repair line first, then the missing-file error.
 It fails the hook when another matching file also changes.
 
-The first error line is:
+The first error line names the fix:
 
-```text
-Registry index check failed. Fix:
-pnpm --dir apps/start-scaffold run registry:build
-```
-
-The tool prints that repair step on one line.
+`Registry index check failed. Fix: pnpm --dir apps/start-scaffold run registry:build`.
 
 ### Remaining gaps
 
@@ -3646,3 +3641,73 @@ The hook proves index matches only; the full lane still owns composition builds.
 Mutation and Core timing lanes are not needed: no Core change.
 There is no mutation score or timing verdict row.
 Core feedback: none.
+
+### Check time and judges
+
+The branch was rebased onto `origin/main` at `d7dbee23`.
+The source commit is `d333d23f`; its tree was clean for the queue run.
+The `bench` skill's ten-run command ran under `/tmp/mutation.lock`.
+It measured the read-only index check, without Git copy or hook startup:
+
+```bash
+flock /tmp/mutation.lock \
+  benchctl run --runs 10 -- \
+  node apps/start-scaffold/maintain/\
+check-registry-index.mjs
+```
+
+- Median: 136.2 ms over 10 measured runs.
+- MAD: 5.3 ms; this is the median gap from the median.
+- Min: 119.6 ms; max: 163.6 ms; spread: 36.9%.
+- Queue log: `/tmp/registry-hook-sol-index-time.log`, exit 0.
+
+The first queue probe tried the staged checker.
+The host could not resolve the worktree's Git path; that probe exited 1.
+No full-hook time is claimed.
+The Core scenario wrapper has no registry scenario.
+The ten-run queue command answers the card's check-time request instead.
+No Core comparison or timing verdict is claimed.
+
+The first Jev range used moving `origin/main..HEAD` before the rebase.
+Another writer had advanced main, so it picked an unrelated Core diff.
+That attempt stopped at HTTP 402, `API key budget exceeded`.
+It was a range mistake; no Core file was edited here.
+After rebase, the correct range reports no source files and zero flags.
+The preflight skips `.mjs` and config files.
+That empty run proves nothing about the key budget.
+No package TypeScript test changed, so test and promise judges did not run.
+Label lines: none.
+`calibrate.mjs` was not run, as this ticket asks.
+
+### Final gates
+
+All builds and gates ran from the ticket worktree.
+The final chain ran after the rebase, on source commit `d333d23f`.
+No timeout or OOM retry was needed.
+Log: `/tmp/registry-hook-sol-finalgate.log`.
+
+```text
+vp install: EXIT 0
+vp run -r build: EXIT 0, 12 tasks
+vp check: 0 errors, 27 warnings, 683 files
+Node hook proof: 12 passed, 0 failed
+vp run -r test: EXIT 0
+pnpm validate: 21 lanes PASS
+vp run prose: 0 hits in 229 files
+EXIT 0
+```
+
+Run the saved hook proof after installing and building:
+
+```bash
+cd apps/start-scaffold/maintain
+node --test test-registry-staged.mjs
+```
+
+The final proof removes its scratch worktree in `finally`.
+`/tmp/main-check-registry-hook-sol` is gone.
+No base worktree was made.
+The ticket worktree and branch remain for review.
+Only hook config, scaffold maintain files, and this proof changed.
+`TODO.md` and `packages/core` were not edited.
+No push was made.
