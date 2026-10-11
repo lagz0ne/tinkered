@@ -491,7 +491,7 @@ A closed scope frees its data. `close({ withData: true })` hands it over instead
 
 A held data controller keeps its last write alive until you drop it.
 Once the hooks return, its reads no longer see that write.
-They return the initial value or an ancestor's value, which can be out of date.
+They return the nearest ancestor's current write, or the initial value when no ancestor holds one.
 
 ## Sessions and cell writes
 
@@ -953,6 +953,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A nearer shadow wins for descendants below it, and the parent keeps its own value.
 - A watcher on the parent still sees the parent's later writes after a child shadows.
 - Once close resolves, a held controller no longer reads the scope's own writes.
+- A closed scope's held controller reads the nearest ancestor's current write, or the initial value.
 - Late writes fail with `Disposed` before write hooks or update functions run.
 - Close runs children first, then `onClose` hooks and cleanups latest-first — a later `onClose` before
   an earlier resource cleanup; a dependent's cleanup before its dependency's.

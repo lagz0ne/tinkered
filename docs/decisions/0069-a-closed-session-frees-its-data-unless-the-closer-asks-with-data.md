@@ -43,9 +43,10 @@ before it is freed.
 - `data.get(cell, { ns })` picks the bucket a controller on that scope picks: the ns chain in
   order, then the default bucket. Without `ns`, the scope's own `ns` applies.
 - `withData` is read from the first close call, like `graceful`; a later call joins that close.
-- In the hook window only `resolve` reads; `controller(cell)` still throws `Disposed`.
+- In the hook window `resolve` and a held data controller read; `controller(cell)` still throws `Disposed`.
 - core/held-controller-pins-value (2026-10-11): a held data controller keeps its last write alive after close, on every close path. Freeing it on fast close cost lifecycle +8.8%.
-- core/fastclose-free-data (2026-10-11): once close resolves, a held data controller no longer reads the layer's own writes. It reads the initial value or an ancestor's value, which can be out of date. `session.resolve` still throws `Disposed`.
+- core/fastclose-free-data (2026-10-11): once close resolves, a held data controller no longer reads the layer's own writes. It reads the initial value or an ancestor's value. `session.resolve` still throws `Disposed`.
+- core/closed-read-stale (2026-10-11): a held data controller, and `resolve` in a session hook, read the cells at and above the closed layer, never a memo. An ancestor's later write shows at once. Pinned by `with-data.test.ts`: the three stale cases and the two hook-window reads.
 
 ## Consequences
 
