@@ -3142,6 +3142,9 @@ Logs: `/tmp/size-guard-forof-cost-parity2-main.log` and
 - `pnpm validate`: exit 0; all 20 lanes pass.
 - Complexity: oxlint caps it at 8; both changed files pass.
 - Ratchets: `scripts/fast-code-baseline.json` is unchanged.
+- Fix round: the guard file (120), `vp check` (27 warnings), `vp run -r test`,
+  the ticket check-only gate, `core#test:dist` (1014), `pnpm validate` (20 lanes),
+  and `vp run prose` (0 hits) all passed again on `d3e384cb`.
 
 ### Build time, benchd queue
 
