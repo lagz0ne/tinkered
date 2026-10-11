@@ -423,6 +423,8 @@ type Anys = {
   fields: Set<string>;
   /** Names of variables and functions whose value came from a cast or an `any`. */
   casts: Set<string>;
+  /** `as const` assertions with another kind of cast anywhere in their subtree. */
+  constCasts: Set<ESTree.TSAsExpression>;
 };
 
 /**
@@ -566,13 +568,42 @@ function unwrapped(node: ESTree.Node): ESTree.Node {
   return at;
 }
 
-/** `as const` keeps a literal's type checks; its contents still need checking for casts. */
+/** True for `x as const`. */
 function isConstAssertion(node: ESTree.TSAsExpression): boolean {
   const type = node.typeAnnotation;
   return (
     type.type === "TSTypeReference" &&
     type.typeName.type === "Identifier" &&
     type.typeName.name === "const"
+  );
+}
+
+/**
+ * Every enclosing `as const` counts when the visitor meets a different cast, including inside
+ * branches and function bodies. Checked literals and nested `as const` alone stay accepted.
+ */
+function constAssertionsHoldingCasts(program: ESTree.Program): Set<ESTree.TSAsExpression> {
+  const found = new Set<ESTree.TSAsExpression>();
+  const enclosing: ESTree.TSAsExpression[] = [];
+  const mark = () => enclosing.forEach((node) => found.add(node));
+  new Visitor({
+    TSAsExpression: (node) => {
+      if (isConstAssertion(node)) enclosing.push(node);
+      else mark();
+    },
+    "TSAsExpression:exit": (node) => {
+      if (isConstAssertion(node)) enclosing.pop();
+    },
+    TSTypeAssertion: mark,
+  }).visit(program);
+  return found;
+}
+
+/** A cast assertion, including `as const` only when another cast sits anywhere inside it. */
+function isAssertionCast(node: ESTree.Node, constCasts: Set<ESTree.TSAsExpression>): boolean {
+  return (
+    node.type === "TSTypeAssertion" ||
+    (node.type === "TSAsExpression" && (!isConstAssertion(node) || constCasts.has(node)))
   );
 }
 
@@ -611,8 +642,7 @@ function literalHoldsCast(
 
 /** One step of {@link isFromCast}: `at` is a cast, a field typed `any`, or a call to one of those. */
 function isCastStep(at: ESTree.Node, anys: Anys): boolean {
-  if (at.type === "TSTypeAssertion") return true;
-  if (at.type === "TSAsExpression") return !isConstAssertion(at);
+  if (isAssertionCast(at, anys.constCasts)) return true;
   if (at.type === "MemberExpression") {
     const field = keyName(at.property, at.computed);
     return field !== undefined && anys.fields.has(field);
@@ -728,7 +758,7 @@ function typedAnys(
     const name = owner === undefined ? undefined : names.get(owner);
     if (name !== undefined) flows.push({ value: ret.value, names: [name] });
   }
-  const anys: Anys = { aliases, fields, casts };
+  const anys: Anys = { aliases, fields, casts, constCasts: constAssertionsHoldingCasts(program) };
   for (let size = -1; size !== casts.size;) {
     size = casts.size;
     for (const flow of flows) {
@@ -804,7 +834,7 @@ function untypedReads(
 ): void {
   const script = isScript(file);
   const anys: Anys = script
-    ? { aliases: new Set(), fields: new Set(), casts: new Set() }
+    ? { aliases: new Set(), fields: new Set(), casts: new Set(), constCasts: new Set() }
     : typedAnys(program, suppressed, importedAnys(file, program, returners));
   const untyped = (value: ESTree.Node) => script || isFromCast(value, anys);
   const destructure = (pattern: ESTree.Node, value: ESTree.Node | null) => {

@@ -587,6 +587,104 @@ test(
 );
 
 test(
+  "G45: as const cannot hide a conditional cast in an array",
+  async () => {
+    const plant = `${imports}declare const c: boolean;
+const box = [c ? (createScope() as any) : 1] as const;
+export const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G46: as const cannot hide a conditional cast in an object",
+  async () => {
+    const plant = `${imports}declare const c: boolean;
+const box = { s: c ? (createScope() as any) : 1 } as const;
+export const read = box.s.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G47: as const cannot hide a cast behind nullish coalescing",
+  async () => {
+    const plant = `${imports}const box = [(createScope() as any) ?? 1] as const;
+export const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G48: as const cannot hide a cast behind logical AND",
+  async () => {
+    const plant = `${imports}declare const c: boolean;
+const box = [c && (createScope() as any)] as const;
+export const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G49: as const cannot hide a cast behind logical OR",
+  async () => {
+    const plant = `${imports}declare const c: boolean;
+const box = [c || (createScope() as any)] as const;
+export const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G50: as const cannot hide a cast behind the comma operator",
+  async () => {
+    const plant = `${imports}const box = [(0, createScope() as any)] as const;
+export const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G51: as const cannot hide a cast in a called inline function",
+  async () => {
+    const plant = `${imports}const box = [(() => createScope() as any)()] as const;
+export const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "an as-const array with a checked object stays unflagged",
+  async () => {
+    const plant = `${imports}const box = [{ layer: 1 }] as const;
+export const read = box[0].layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
   "plain object and array literals with checked values stay unflagged",
   async () => {
     const plant = `${imports}const box = { ...{ rows: [, ...[{ layer: 1 }]] } };
