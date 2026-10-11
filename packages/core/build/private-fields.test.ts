@@ -53,6 +53,17 @@ const childBuild = `
   } catch (error) { process.stdout.write(String(error)); }
 `;
 
+/** A typed Promise nested `depth` layers around `inner`. */
+const promiseLayers = (inner: string, depth: number) =>
+  `${"Promise<".repeat(depth)}${inner}${">".repeat(depth)}`;
+
+/** Thenables W1 to W`depth`: each settles to the one before, and W1 settles to `inner`. */
+const thenableChain = (inner: string, depth: number) =>
+  Array.from({ length: depth }, (_, index) => {
+    const value = index === 0 ? inner : `W${index}`;
+    return `interface W${index + 1} { then(cb: (value: ${value}) => void): void }`;
+  }).join("\n");
+
 /** A child deadline can stop a synchronous checker walk that blocks the test worker's timer. */
 function guardInChild(plant: string, deadline = 10_000): string {
   const root = mkdtempSync(join(tmpdir(), "core-recursive-guard-"));
@@ -1495,6 +1506,114 @@ test(
 );
 
 test(
+  "G92: a for-of assignment from a next() result that cannot yield fails the build",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](): { next(): { done?: true; value: any } };
+};
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G93: an optional argument does not stop a no-argument call from picking an any iterator",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](x?: number): { next(): { done: false; value: any } };
+  [Symbol.iterator](): { next(): { done: false; value: { layer: number } } };
+};
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G94: a for-await assignment whose every next() overload yields any fails the build",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.asyncIterator](): {
+    next(): Promise<{ done: false; value: any }>;
+    next(x: number): Promise<{ done: false; value: any }>;
+  };
+};
+let layer;
+for await ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G95: a for-await assignment settles a Promise of any nine layers deep and fails the build",
+  async () => {
+    const plant = `${imports}declare const ps: ${promiseLayers("any", 9)}[];
+let layer;
+for await ({ layer } of ps) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G96: a for-await assignment settles a thenable chain of any nine layers deep and fails the build",
+  async () => {
+    const plant = `${imports}${thenableChain("any", 9)}
+declare const ws: W9[];
+let layer;
+for await ({ layer } of ws) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G97: a for-await assignment from a thenable that settles to itself or to any fails the build",
+  async () => {
+    const plant = `${imports}interface S { then(cb: (value: S | any) => void): void }
+declare const ss: S[];
+let layer;
+for await ({ layer } of ss) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G98: a for-of assignment whose done: true next() overload is any fails the build",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](): {
+    next(): { done: false; value: { layer: number } };
+    next(x: number): { done: true; value: any };
+  };
+};
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
   "a for-of assignment from a typed Set stays unflagged",
   async () => {
     const plant = `${imports}declare const s: Set<{ layer: number }>;
@@ -1545,6 +1664,251 @@ test(
   [Symbol.iterator](): {
     next(): { done: false; value: { layer: number } } | { done: true; value: any };
   };
+};
+let layer: number;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment reads the [Symbol.iterator]() overload a call with no arguments picks, so a later any overload stays unflagged",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](): { next(): { done: false; value: { layer: number } } };
+  [Symbol.iterator](x: number): { next(): { done: false; value: any } };
+};
+let layer: number;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment skips a [Symbol.iterator]() overload that needs an argument, as the declaration form does",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](x: number): { next(): { done: false; value: any } };
+  [Symbol.iterator](): { next(): { done: false; value: { layer: number } } };
+};
+let layer: number;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "Z4: async result overloads keep a known false flag rather than dropping any",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.asyncIterator](): {
+    next(): Promise<{ done: false; value: { layer: number } }>;
+    next(x: number): Promise<{ done: boolean; value: any }>;
+  };
+};
+let layer: number;
+for await ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "Z18: nested async result overloads keep a known false flag rather than dropping any",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.asyncIterator](): {
+    next(): Promise<{ done: false; value: { a: any } }>;
+    next(x: number): Promise<{ done: false; value: { a: { layer: number } } }>;
+  };
+};
+let layer: number;
+for await ({ a: { layer } } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment ignores the any value of a done?: true result, as the declaration form does",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](): {
+    next(): { done: false; value: { layer: number } } | { done?: true; value: any };
+  };
+};
+let layer: number;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-await assignment settles a typed Promise nine layers deep and stays unflagged",
+  async () => {
+    const plant = `${imports}declare const ps: ${promiseLayers("{ layer: number }", 9)}[];
+let layer: number;
+for await ({ layer } of ps) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-await assignment settles a thenable chain nine layers deep and stays unflagged",
+  async () => {
+    const plant = `${imports}${thenableChain("{ layer: number }", 9)}
+declare const ws: W9[];
+let layer: number;
+for await ({ layer } of ws) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-await assignment from a thenable that settles to itself or to a typed value stays unflagged",
+  async () => {
+    const plant = `${imports}interface S { then(cb: (value: S | { layer: number }) => void): void }
+declare const ss: S[];
+let layer: number;
+for await ({ layer } of ss) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-await assignment from a thenable whose then takes no argument stays unflagged",
+  async () => {
+    const plant = `${imports}interface Z { then(cb: () => void): void }
+declare const zs: Z[];
+let layer: number;
+for await ({ layer } of zs) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+const typedIterator = "{ next(): { done: false; value: { layer: number } } }";
+const anyIterator = "{ next(): { done: false; value: any } }";
+
+const overloadPlants = [
+  [
+    "S1: every zero-argument iterator overload counts",
+    `declare const s: {
+    [Symbol.iterator](): ${typedIterator};
+    [Symbol.iterator](): ${anyIterator};
+  };`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "S1 optional: a later optional iterator overload counts",
+    `declare const s: {
+    [Symbol.iterator](): ${typedIterator};
+    [Symbol.iterator](x?: number): ${anyIterator};
+  };`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "S1 third: a third iterator overload counts",
+    `declare const s: {
+    [Symbol.iterator](): ${typedIterator};
+    [Symbol.iterator](): ${typedIterator};
+    [Symbol.iterator](): ${anyIterator};
+  };`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "void: an iterator parameter typed void may be left out",
+    `declare const s: {
+    [Symbol.iterator](x: void): ${anyIterator};
+    [Symbol.iterator](): ${typedIterator};
+  };`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "void union: an iterator parameter that includes void may be left out",
+    `declare const s: {
+    [Symbol.iterator](x: number | void): ${anyIterator};
+    [Symbol.iterator](): ${typedIterator};
+  };`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "async subtype: a typed next result must not hide a nested any",
+    `declare const s: {
+    [Symbol.asyncIterator](): {
+      next(): Promise<{ done: false; value: { a: any; b: number } }>;
+      next(x?: number): Promise<{ done: false; value: { a: { layer: number } } }>;
+    };
+  };`,
+    true,
+    "{ a: { layer } }",
+  ],
+  [
+    "callback overloads: a missing first parameter must not hide a later any",
+    `interface Z {
+    then(cb: { (): void; (v: any): void }): void;
+  }
+  declare const s: Z[];`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "then overloads: a missing callback must not hide a later any",
+    `interface Z {
+    then(): void;
+    then(cb: (v: any) => void): void;
+  }
+  declare const s: Z[];`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "then overloads: a typed callback must not hide a later any",
+    `interface Z {
+    then(cb: (v: { layer: number }) => void): void;
+    then(cb: (v: any) => void, x: number): void;
+  }
+  declare const s: Z[];`,
+    true,
+    "{ layer }",
+  ],
+] as const;
+
+test.each(overloadPlants)(
+  "%s fails the build",
+  async (_name, declaration, isAwait, target) => {
+    const plant = `${imports}${declaration}
+let layer: unknown;
+for ${isAwait ? "await " : ""}(${target} of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "tuple rest: an iterator overload with a required tuple element is skipped",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](...a: [number]): ${anyIterator};
+  [Symbol.iterator](): ${typedIterator};
 };
 let layer: number;
 for ({ layer } of s) {}\n`;

@@ -22,6 +22,7 @@ import { SyntaxKind, type Node as TsNode } from "typescript/unstable/ast";
 import {
   API,
   type Checker,
+  type Signature,
   SignatureKind,
   SymbolFlags,
   type Type,
@@ -1110,13 +1111,11 @@ function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Typ
     : undefined;
   const method = asyncMethod ?? memberType(checker, source, wellKnownKey(checker, "iterator"), at);
   const results = uniqueTypes(
-    returnsOf(checker, method).flatMap((iterator) =>
+    zeroArgumentReturns(checker, method).flatMap((iterator) =>
       returnsOf(checker, memberType(checker, iterator, "next", at)),
     ),
   );
-  const yielded =
-    asyncMethod === undefined ? results : results.flatMap((result) => settled(checker, result, at));
-  return uniqueTypes(yielded.flatMap((result) => yieldedType(checker, result, at)));
+  return iterationTypes(checker, results, asyncMethod !== undefined, at);
 }
 
 /**
@@ -1149,11 +1148,65 @@ function returnsOf(checker: Checker, type: Type | undefined): Type[] {
   return uniqueTypes(returns.filter((returned): returned is Type => returned !== undefined));
 }
 
-/** The type of parameter `index` of a function type's first call signature, if it has one. */
-function parameterOf(checker: Checker, type: Type | undefined, index: number): Type | undefined {
-  const [signature] =
-    type === undefined ? [] : checker.getSignaturesOfType(type, SignatureKind.Call);
-  return signature === undefined ? undefined : checker.getParameterType(signature, index);
+/**
+ * Join every overload a zero-argument call might use. Only a parameter that surely needs an
+ * argument excludes its overload; an unknown parameter type stays on the safe side.
+ */
+function zeroArgumentReturns(checker: Checker, type: Type | undefined): Type[] {
+  if (type === undefined) return [];
+  if (isAny(type)) return [type];
+  const signatures = checker.getSignaturesOfType(type, SignatureKind.Call);
+  const returns = signatures
+    .filter((signature) => acceptsZeroArguments(checker, signature))
+    .map((signature) => checker.getReturnTypeOfSignature(signature));
+  return uniqueTypes(returns.filter((returned): returned is Type => returned !== undefined));
+}
+
+/** Parameter types include `undefined` for optional and defaulted parameters, even after mapping. */
+function acceptsZeroArguments(checker: Checker, signature: Signature): boolean {
+  const parameters = signature.getParameters();
+  const fixedCount = parameters.length - (signature.hasRestParameter ? 1 : 0);
+  for (let index = 0; index < fixedCount; index++) {
+    if (!canOmitParameter(checker, checker.getParameterType(signature, index))) return false;
+  }
+  if (!signature.hasRestParameter) return true;
+  const rest = parameters.at(-1);
+  return rest === undefined || acceptsEmptyRest(checker, checker.getTypeOfSymbol(rest));
+}
+
+/** A required `void` parameter may be left out; uncertain types also keep the overload. */
+function canOmitParameter(checker: Checker, type: Type | undefined): boolean {
+  return (
+    type === undefined ||
+    typeParts(type).some((part) => (part.flags & TypeFlags.Void) !== 0) ||
+    checker.isTypeAssignableTo(checker.getUndefinedType(), type)
+  );
+}
+
+/** An array rest accepts no arguments; a tuple rest may have required entries. */
+function acceptsEmptyRest(checker: Checker, type: Type | undefined): boolean {
+  if (type === undefined || !checker.isTupleType(type)) return true;
+  return checker.getPropertiesOfType(type).every((property) => {
+    if (!/^\d+$/.test(property.name) || (property.flags & SymbolFlags.Optional) !== 0) return true;
+    return canOmitParameter(checker, checker.getTypeOfSymbol(property));
+  });
+}
+
+/**
+ * Join parameter `index` from every callback signature. A missing callback argument is `never`,
+ * rather than the sync API's `any`; a rest parameter supplies its element type.
+ */
+function parametersOf(checker: Checker, type: Type | undefined, index: number): Type[] {
+  if (type === undefined) return [];
+  if (isAny(type)) return [type];
+  return uniqueTypes(
+    checker.getSignaturesOfType(type, SignatureKind.Call).flatMap((signature) => {
+      if (index >= signature.getParameters().length && !signature.hasRestParameter) {
+        return [checker.getNeverType()];
+      }
+      return typeParts(checker.getParameterType(signature, index));
+    }),
+  );
 }
 
 /** Keep each type once: repeating a recursive union member does not change a source read. */
@@ -1168,64 +1221,89 @@ function typeParts(type: Type | undefined): Type[] {
 }
 
 /**
- * The type an iterator result yields: `T` of `IteratorResult<T, R>`. Otherwise the `value` of each
- * result that is not `done: true`, since a `done: true` result ends the loop and yields nothing.
+ * Sync and async `next()` results stay in one list. Subtype removal against `any` is unsafe in
+ * the sync checker API, so an `any` in any overload flags, even when TypeScript drops that result.
+ * An overload with no yielding result makes the element `any`, as TypeScript does.
  */
-function yieldedType(checker: Checker, result: Type, at: TsNode): Type[] {
-  if (isAny(result)) return [result];
-  if (result.getAliasSymbol()?.name === "IteratorResult") {
-    return typeParts(result.getAliasTypeArguments()[0]);
+function iterationTypes(checker: Checker, results: Type[], isAsync: boolean, at: TsNode): Type[] {
+  const falseLiteral = falseType(checker);
+  const values: Type[] = [];
+  for (const result of results) {
+    const leaves = isAsync ? settled(checker, result, at) : typeParts(result);
+    const yielding = leaves.filter((leaf) => canYield(checker, falseLiteral, leaf, at));
+    if (yielding.length === 0) return [checker.getAnyType()];
+    values.push(...yielding.flatMap((leaf) => typeParts(memberType(checker, leaf, "value", at))));
   }
-  const members: readonly Type[] = result.isUnionType() ? result.getTypes() : [result];
-  return uniqueTypes(
-    members
-      .filter((member) => !endsIteration(checker, member, at))
-      .flatMap((member) => typeParts(memberType(checker, member, "value", at))),
+  return uniqueTypes(values);
+}
+
+/** A result ends iteration only when its `done` cannot accept `false`. */
+function canYield(
+  checker: Checker,
+  falseLiteral: Type | undefined,
+  result: Type,
+  at: TsNode,
+): boolean {
+  const done = memberType(checker, result, "done", at);
+  return (
+    done === undefined ||
+    falseLiteral === undefined ||
+    checker.isTypeAssignableTo(falseLiteral, done)
   );
 }
 
-/** True for a `done: true` result: its `done` member is the literal `true`. */
-function endsIteration(checker: Checker, result: Type, at: TsNode): boolean {
-  const done = memberType(checker, result, "done", at);
-  return done !== undefined && done.isBooleanLiteralType() && done.value;
+/** The sync checker has no getter for the literal `false`, so read it from `boolean`. */
+function falseType(checker: Checker): Type | undefined {
+  const boolean = checker.getBooleanType();
+  const members: readonly Type[] = boolean.isUnionType() ? boolean.getTypes() : [];
+  return members.find((member) => member.isBooleanLiteralType() && member.value === false);
 }
 
-/** How many promise layers {@link settled} unwraps: a type can name itself as its own value. */
-const PROMISE_LAYERS = 8;
+/**
+ * The most distinct types one {@link settled} call opens. A generic that names a new type at every
+ * layer stops here; the await is then `any`, as a circular one is.
+ */
+const SETTLE_TYPES = 1024;
 
 /**
- * The type a promise settles to, unwrapping each layer as `await` does; a union settles member by
- * member. Each layer keeps each type id once, so a union whose members settle to the whole union
- * costs one step per member and layer, not one per path. A thenable that still settles to a
- * thenable after the layer limit is `any`, as TypeScript gives a circular await. Any other type
- * stands for itself.
+ * The non-promise types a promise or a thenable settles to, unwrapping each layer as `await` does.
+ * A union settles member by member. Each type is opened once, however many paths reach it, so the
+ * depth has no fixed limit. A type reached again is a circular await: it adds no value, as
+ * TypeScript drops it. When no value is left, the await is circular and the result is `any`.
  */
 function settled(checker: Checker, type: Type, at: TsNode): Type[] {
-  const found: Type[] = [];
+  const leaves = new Map<number, Type>();
+  const opened = new Set<number>();
   let open = typeParts(type);
-  for (let layer = 0; layer < PROMISE_LAYERS && open.length > 0; layer++) {
+  while (open.length > 0) {
     const next: Type[] = [];
     for (const current of open) {
-      const value = promisedValue(checker, current, at);
-      if (value === undefined) found.push(current);
-      else next.push(...typeParts(value));
+      if (opened.has(current.id)) continue;
+      if (opened.size >= SETTLE_TYPES) return [...leaves.values(), checker.getAnyType()];
+      opened.add(current.id);
+      const values = promisedValues(checker, current, at);
+      if (values === undefined) leaves.set(current.id, current);
+      else next.push(...values);
     }
-    open = uniqueTypes(next);
+    open = next;
   }
-  return open.length === 0 ? found : [...found, checker.getAnyType()];
+  return leaves.size > 0 ? [...leaves.values()] : [checker.getAnyType()];
 }
 
 /**
- * The value a promise or a thenable settles to: `T` of `Promise<T>`, else the parameter its `then`
- * passes to the callback. `undefined` for a type that is not a promise.
+ * Promise values, or the values passed to all callable `then` callbacks. The list joins all
+ * overloads of both `then` and its callback. A non-callable `then` is not a promise.
  */
-function promisedValue(checker: Checker, type: Type | undefined, at: TsNode): Type | undefined {
-  if (type?.getSymbol()?.name === "Promise") {
-    return checker.getTypeArguments(type as TypeReference)[0];
+function promisedValues(checker: Checker, type: Type, at: TsNode): Type[] | undefined {
+  if (type.getSymbol()?.name === "Promise") {
+    return typeParts(checker.getTypeArguments(type as TypeReference)[0]);
   }
-  const onFulfilled = parameterOf(checker, memberType(checker, type, "then", at), 0);
-  const callback = onFulfilled === undefined ? undefined : checker.getNonNullableType(onFulfilled);
-  return parameterOf(checker, callback, 0);
+  const then = memberType(checker, type, "then", at);
+  if (then === undefined || isAny(then)) return undefined;
+  const values = parametersOf(checker, then, 0).flatMap((onFulfilled) =>
+    parametersOf(checker, checker.getNonNullableType(onFulfilled), 0),
+  );
+  return values.length === 0 ? undefined : uniqueTypes(values);
 }
 
 /**
