@@ -31,14 +31,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   The assignment walk's 8-layer limit also flags a thenable that settles to itself or to a value (for example `{ layer: number }`), where the `const` form stays clean.
   Verify: the `for (const …)` form agrees on every probe.
 
-- **core/closed-read-stale** — a closed layer keeps an old ancestor value it saved.
-  `packages/core/src/index.ts:4560` memo; `:4479` close detaches the layer first, so `invalidateEff` `:1292` never reaches it.
-  Next: write tests for the stale cases; they fail first.
-  - Closed leaf read once; the open middle then writes 7; the leaf still reads 5.
-  - Closed leaf read once; the open root writes 8; the leaf still reads 0.
-  - Leaf read once, then every layer closed; the leaf reads the root's old write.
-    Then pick one contract: always look the value up again, or throw `Disposed` on `get`.
-    Verify: the new tests pass; `lifecycle` and `s1_getctl` timed (N=61, sign test).
+- **core/held-resolve-ns-test** — pin `resolve(cell, { ns })` in a session hook window.
+  Survivor at index.ts:4627 (ns ignored).
+  Verify: a new test fails with the mutant.
 
 - **scaffold/registry-hook** — run the fast index-match part of `check-registry.mjs` on commits that touch `apps/start-scaffold/**`, because docs cards skip validate.
   Verify: a commit with a stale index fails the hook; a commit outside `apps/start-scaffold/**` skips it.
@@ -81,6 +76,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/closed-read-stale** — a closed layer reads the cells at and above it, never a memo; hook-window `resolve` too. 4 tests fail on `eff48797`; each half of the fix pinned. Mutation 86.8% (kills alone). Timing N=61: no row B slower (taggedres p 0.02). Size 16006 → 16030 B. Slots 338. Jev preflight 402. [Proof](docs/roadmap/core-v1/PROGRESS.md#coreclosed-read-stale).
 
 - **scaffold/registry-drift** — regenerated `registry.json` and `starter.json`, fixing 6 stale copies (`SKILL.md` and `README.md` from `2750f383`, 4 tests from `a450ea18`). `pnpm validate` now runs `test:registry` as lane 21. Proof: [docs/roadmap/start-scaffold/PROGRESS.md](docs/roadmap/start-scaffold/PROGRESS.md).
 
