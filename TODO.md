@@ -35,15 +35,19 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   `settled` has no dedupe: n thenables that each settle to a union of all n walk n^8 paths; 4 thenables take 5.5–6.3 s.
   Verify: skip the walk unless the target is an object or array literal; dedupe each layer; the 4-thenable probe drops under 1 s.
 
-- **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
-  Owner: lead (Claude)
-  Next: round 1 landed (5ec4ec54); left: `TODO.md`, package and app READMEs, `apps/start-scaffold/.agents/skills/tinker-testing/SKILL.md`, `apps/start-scaffold/README.md`, `docs/roadmap/core-v1/PROGRESS.md`; to be done after the code writers land
-  Verify: `--wide` prints 0 files; `vp run prose` clean
+- **core/closed-read-stale** — a closed layer keeps an old ancestor value it saved.
+  `packages/core/src/index.ts:4560` memo; `:4479` close detaches the layer first, so `invalidateEff` `:1292` never reaches it.
+  Next: write tests for the stale cases; they fail first.
+  - Closed leaf read once; the open middle then writes 7; the leaf still reads 5.
+  - Closed leaf read once; the open root writes 8; the leaf still reads 0.
+  - Leaf read once, then every layer closed; the leaf reads the root's old write.
+    Then pick one contract: always look the value up again, or throw `Disposed` on `get`.
+    Verify: the new tests pass; `lifecycle` and `s1_getctl` timed (N=61, sign test).
 
-- **docs/closed-read-contract** — the docs disagree about a read after close.
-  Change `packages/core/README.md:953` and `:492` to "the initial value, or the nearest open ancestor's".
-  Add an "As built" line to ADR 0069.
-  Verify: README and ADR 0069 agree with the tests; `vp run prose` clean.
+- **scaffold/registry-drift** — `node maintain/check-registry.mjs` (in `apps/start-scaffold`) fails on main ("registry index must match source too").
+  The tinker-testing `SKILL.md` copy in `apps/start-scaffold/public/r/registry.json` and `starter.json` is stale.
+  Next: run `registry:build`, then add `test:registry` to a gate.
+  Verify: `node maintain/check-registry.mjs` exits 0; the gate runs `test:registry`.
 
 - **jev/recalibrate-after-key** — run `node tools/jev/calibrate.mjs` when the gateway key budget is back.
   It covers the labels added since 2026-10-10.
@@ -83,6 +87,10 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **docs/vertical** — round 2 landed 2026-10-11 (this commit). core-v1 PROGRESS order tables are lists (24 rows, every cell kept). 3 long start-scaffold fences broken; TS tokens unchanged; the URL is the same argument. `--wide` 0 of 229 files (was 3); `vp run prose` 0 hits. Reviewer READY.
+
+- **docs/closed-read-contract** — landed 2026-10-11 (this commit). README :490, :492, :955 and ADR 0069: after close a held controller no longer reads its own write; it reads the initial value or an ancestor's, which can be out of date (probe; card core/closed-read-stale). Reviewer NOT READY once (the ancestor rule was false), READY after the fix round.
 
 - **core/size-guard-iterable-edges** — the guard reads every iterator, `next()` overload and promise layer; a nested target reads each possible source type, deduped by type id. Landed 2026-10-11. Haiku first pass NOT READY (logic bugs); Sol took over; NOT READY once more (type list grew without limit), READY after the dedupe. 118 guard tests; G78–G85, G87 fail on `807c388b`; G85–G87 fail on the Haiku head (G86 is a regression test); G88–G89 time out without the dedupe. Dist byte-identical; 55 names. Mutation skipped (src unchanged). Jev preflight 402. Open: `core/size-guard-overload-intersection`, `core/size-guard-forof-cost`. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-iterable-edges).
 
@@ -203,7 +211,6 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Units drop every `import()`; 8 backend lazy modules and 1 frontend; Drizzle helpers from `drizzleOrm`.
   `vp run lazy` proves 125 plants, then checks the base and the app; stored rows use `safeParse` and managed errors.
   Reviewer READY at `93fc5e90` (Opus `b1891d6c`); no app mutation lane.
-  Until core/preset-whole-node lands, tests that preset `database` or `mail` load `pg` and nodemailer as modules.
   [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
 
 - **start/lazy-modules** — the base and the checker for ADR 0107; landed 2026-10-09.
