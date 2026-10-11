@@ -1205,6 +1205,7 @@ test(
         entry: { index: "src/index.ts", testing: "src/testing.ts" },
         outDir: join(root, "dist"),
         dts: false,
+        minify: true,
         logLevel: "silent",
         plugins: [privateFields()],
       });
