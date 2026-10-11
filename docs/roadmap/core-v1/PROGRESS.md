@@ -2447,7 +2447,7 @@ A for-of assignment reads one element of its source.
 The guard took that element from a numeric index only.
 So arrays and tuples worked. Other iterables did not.
 
-The guard now finds the element the way TypeScript does:
+The guard now finds the element nearly the way TypeScript does:
 
 - Arrays and tuples: the numeric index, as before.
 - Other iterables: the `[Symbol.iterator]()` method, then its `next()`.
@@ -2459,6 +2459,8 @@ The yield type is not the whole `value` union. That union adds `R`.
 So `Generator<{ layer: number }, any>` would wrongly read as `any`.
 
 The sync API has no iterated-type call. So the guard repeats the protocol.
+
+- Known gaps (follow-up core/size-guard-iterable-edges): an `any`-typed `[Symbol.iterator]()` or `next()`, a `next()` with several overloads, `PromiseLike` under `for await`, and a user symbol named `iterator`; one false flag on a hand-written `{ done: true; value: any }` result.
 
 ### Plants
 
