@@ -2318,3 +2318,118 @@ Run: `vp test --config vite.dist.config.ts build/private-fields.test.ts`.
 - Timing: not run. The card does not ask for it.
 - Jev review and preflight: 0 flags, so no label is owed.
 - Jev tests.mjs and promises.mjs: not run; the gateway key hit its $10.00 budget (HTTP 402, quota_for_entity_exceeded).
+
+## core/fastclose-free-data
+
+Code head: `8ced8d56`. Proof head: `8a49ee99` (the two later commits change Jev labels only).
+Base for timing and for the failing tests: `origin/main` `19921aba`.
+
+A fast close now drops its store.
+The store used to stay until GC, so a held data controller read the last write.
+
+Decision: a held controller reads the initial value, or the parent's value.
+This is the README promise (`A closed scope's held controller reads the initial value back`) and `index.test.ts`.
+ADR 0069's "a read after close throws `Disposed`" is about `session.resolve`, which still throws.
+Not chosen: `Disposed` on the controller.
+It would change the README and that test, and it needs a check on every `get`.
+
+How it works:
+
+- The no-hook, no-`withData` close sets `layer.nodes` to the shared empty store.
+  It makes no walk over the nodes.
+- A held controller's cached read checks `layer.closed` and takes the slow read.
+- Close paths with hooks or `withData` keep the store, as before.
+
+Failing first: four tests in `packages/core/tests/with-data.test.ts` fail on `19921aba`.
+Each fails with `expected 5 to be +0` or `expected 7 to be +0`.
+They pass on this head: 11 of 11 in that file.
+
+GC probe (`docs/roadmap/perf/handle-verbs-ctl-sol-gc.mjs`, `node --expose-gc`):
+
+- `19921aba`: root freed; parent close without child hook ALIVE; parent close with child hook freed.
+- `8a49ee99`: all three lines say `freed`.
+
+Read probe, held controller after close:
+
+- `19921aba` (pre-fix build, same source): fast child 5, slow child 5, child closed alone 5, root 5, hooked child 0.
+- `8a49ee99`: all 0 (the initial value).
+- `session.resolve` after close still throws `Disposed`.
+
+Timing, N=61, A = `19921aba`, B = `8a49ee99`:
+
+- Run through `bench/queued.sh` under `flock /tmp/mutation.lock`, one scenario per job.
+- Verdict: paired sign test, two-sided, p < 0.01, ties left out.
+- Raw rows: [final CSV](fastclose-free-data-final-vs-19921aba.csv).
+- `git -C <base> rev-parse HEAD`: `19921aba58a4a15498ca2d04403736bd0689191a`.
+
+| Row           | A → B (ns)        | Slower | p      | Verdict                    |
+| ------------- | ----------------- | ------ | ------ | -------------------------- |
+| `op`          | 63.10 → 63.80     | 31/61  | 0.80   | no difference              |
+| `run`         | 78.70 → 78.30     | 25/61  | 0.25   | no difference              |
+| `opres`       | 275.60 → 276.40   | 34/61  | 0.44   | no difference              |
+| `inline`      | 99.50 → 100.00    | 40/61  | 0.0135 | no difference (above 0.01) |
+| `session`     | 460.10 → 455.70   | 29/61  | 0.80   | no difference              |
+| `tagged`      | 189.70 → 190.00   | 34/61  | 0.44   | no difference              |
+| `taggeddefer` | 253.30 → 252.30   | 29/61  | 0.90   | no difference              |
+| `taggedres`   | 2666.90 → 2581.70 | 24/61  | 0.12   | no difference              |
+| `create`      | 26.40 → 26.40     | 21/61  | 0.88   | no difference              |
+| `cold`        | 662.00 → 664.90   | 33/61  | 0.52   | no difference              |
+| `warm`        | 9.10 → 9.10       | 2/61   | 1.00   | no difference              |
+| `lifecycle`   | 823.10 → 825.20   | 33/61  | 0.61   | no difference              |
+| `s1_getctl`   | 123.90 → 123.60   | 29/61  | 0.80   | no difference              |
+| `s2_data`     | 159.10 → 158.90   | 31/61  | 1.00   | no difference              |
+| `s3_doubled`  | 397.90 → 400.10   | 35/61  | 0.31   | no difference              |
+| `s4_warm_ctl` | 0.70 → 0.70       | 0/61   | 1.00   | no difference              |
+
+No row is B slower.
+`inline` is the closest: 40 of 61 slower, +0.5%, p = 0.0135.
+
+Extra row, `get1` (the data `get` path, not in the 16): 0.4 → 0.4 ns, 61 ties.
+[CSV](fastclose-free-data-get1-vs-19921aba.csv).
+
+Rejected timing attempts, all on `lifecycle` or on the rows above:
+
+- Free with a new `Map` per close: lifecycle +11.2%.
+- Free with `NO_NODES`, walk per node: lifecycle +8.5%.
+- Flag set on every node, checked with `isData`: lifecycle +13.6%.
+- Flag set in `dataController`, walk in `fastClose` with `for...of`: lifecycle +5.1%.
+- Walk moved out of line: lifecycle −0.6% (p 0.80), but a new `Layer` field
+  then slowed `create` +5.3%, `op` +6.2%, and `s2_data` +1.9%.
+- The shipped design drops the field and the walk, so those rows are back to parity.
+
+Size: 16043 B gzip, cap 16384 B (`vp run size`).
+
+Fast-code ratchets (`node scripts/check-fast-code.mjs`):
+
+- `runOnce` 498, ceiling 499.
+- `runHookBody` 297, ceiling 298.
+- Core slots 338, ceiling 339.
+- Complexity cap 8: unchanged.
+
+Mutation, Core lane alone under the lock, on `8a49ee99`:
+
+- Log: [mutation log](fastclose-free-data-mutation.txt).
+- Killed 3040, timed out 30, survived 466, no coverage 35, errors 3.
+- Kills alone: 3040 / (3040 + 466 + 35) = 85.85%. Floor 85.
+- With timeouts counted: 85.97%.
+
+Gates:
+
+- `scripts/ticket.sh --check-only --no-mutation core 41`: EXIT 0 on `8a49ee99`.
+- `vp check`: 0 errors, 27 warnings (main's count).
+- Core tests: 887 on source, 948 on built files.
+- `pnpm validate`: 20 lanes PASS, exit 0.
+
+Jev (`by core/fastclose-free-data`):
+
+- `fastClose`, `stateOutsideCell`, false: the layer fields are private bookkeeping.
+- `fastClose`, `waitsOnSideWork`, false: no `await`.
+- `keepData`, `stateOutsideCell`, false: writes the private `SessionHooks` record.
+- `keepData`, `awaitsSyncWork`, false: no `await`.
+- Jev calibrate: not run; the gateway key hit its $10.00 budget (HTTP 402). Card jev/recalibrate-after-key owns it.
+
+Core feedback: no failing snippet.
+The docs disagree about reads after close.
+`docs/decisions/0069` says a read after close throws `Disposed`.
+The README line about a held controller says it reads the initial value.
+The fix follows the README and the test.
