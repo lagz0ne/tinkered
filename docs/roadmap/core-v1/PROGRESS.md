@@ -3417,3 +3417,263 @@ On `bfa7d922`:
   The README does not say that yet.
 - `promises.mjs` could not check the title.
   The lead decides: add a README line, or accept the title as is.
+## core/size-guard-overload-intersection
+
+Branch: `core/size-guard-overload-intersection-sol`.
+Base: `origin/main` at `d7dbee23`.
+Code and tests: `18fdb011`.
+The first writer stays on its own branch and worktree.
+Its work is saved by the local tag `archive/overload-intersection-haiku-ca70df33`.
+Nothing was pushed.
+The lead owns `TODO.md` and landing.
+
+### Rules as built
+
+The precedent is TypeScript's iteration checker.
+The declaration form is `for (const { layer } of s)`.
+The guard must flag every private-field read whose declaration form gives `any`.
+It may flag more.
+
+- Join every iterator method overload that might take zero arguments.
+- Skip an overload only when a parameter surely needs an argument.
+- Read optional and defaulted parameters through signature parameter types.
+- A parameter containing `void` may be left out.
+- An array rest takes zero arguments.
+- Required tuple rest entries can exclude an overload.
+- No optional-parameter check casts a node to read `questionToken`.
+- Join all sync and async `next()` results in one source list.
+- Keep a nested `any`, even when another result has a typed property.
+- Do not call `isTypeAssignableTo` to drop async `any` results.
+- A result whose `done` cannot take `false` does not yield its value.
+- An overload with no yielding result makes the element `any`.
+  G98 pins this case.
+- Name the false literal `falseLiteral`.
+- Read parameter zero from every callable `then` overload.
+- Read parameter zero from every callback signature.
+- A missing callback parameter contributes `never`.
+- A later callback parameter typed `any` still flags.
+- The `then` overload follow-up is handled here too.
+- Typed promises and thenables can settle beyond eight layers.
+- Open each distinct `type.id` once per settle walk.
+- A repeated type adds no new path.
+- A cycle with no leaf answers `any`.
+- A cycle with a typed leaf keeps that leaf.
+- After 1024 opened types, add `any` to the leaves already found.
+  Overflow can never turn an unchecked read into a clean one.
+
+Earlier safety work stays in place:
+
+- Find the real iterator symbol through `resolveName("Symbol")` and its unique id.
+- Keep each type id once in the source lists.
+- Skip `checkForOf` unless the target is an object or array literal.
+- Keep each function at complexity 8 or less.
+
+### Failing tests first
+
+The 26 added tests were written before the guard change.
+They ran on `origin/main` at `d7dbee23` in `/tmp/main-check-overload-intersection-sol`.
+
+- Main: 11 failed, 135 passed, exit 1.
+- Head: all 146 guard tests pass, exit 0.
+- Main missed G98 and MY32's later `then` overload.
+- Main accepted MY32b; the new test pins its known false flag.
+- Main gave false flags for the required iterator overload controls and tuple rest control.
+- Main gave false flags for optional `done: true`, deep typed promises, deep typed thenables, a cycle with a typed leaf, and the callback with no parameter.
+- Main already flagged S1, the optional and third iterator overloads, both void parameter plants, the async subtype plant, and the overloaded callback plant.
+  These pin the false negatives in the first writer's head.
+- Z4 and Z18 expect a flag now.
+  They are known false flags, kept on the safe side.
+
+Red log: `/tmp/overload-intersection-sol-red-tests.log`.
+Green log: `/tmp/overload-intersection-sol-green2.log`.
+The budget probe uses 1025 thenables with an early typed leaf.
+It flags on the head, exit 0.
+Log: `/tmp/overload-intersection-sol-budget.log`.
+
+### Probe table
+
+The supplied `run.mjs` was used with both probe files joined.
+The proof run removes its diagnostic timers; it measures no speed.
+The original runner also runs under the timing lock.
+
+- TS means the `IsAny` result for `layer` in the declaration form.
+- Main means the assignment form on `d7dbee23`.
+- Head means the assignment form with this guard.
+- A cell in the last column gives main first, then head.
+- Probe ids are the prefixes of the supplied names.
+- 54 rows ran; all 35 TS-any rows flag on the head.
+- No row where TS gives `any` is clean on the head.
+- The head keeps 15 known false flags.
+- Some supplied rows also have TS2490, TS2547, or TS2763 call errors.
+  The table keeps the runner's `IsAny` result.
+- The S1, optional, third, void, tuple rest, MY19b async subtype, and overloaded callback plants compile clean.
+
+| Probe | TS    | Main / head  |
+| ----- | ----- | ------------ |
+| S1    | flag  | flag / flag  |
+| S2    | flag  | flag / flag  |
+| Y4    | clean | flag / clean |
+| Y5a   | flag  | flag / flag  |
+| Y5b   | clean | flag / clean |
+| G98   | flag  | clean / flag |
+| S6    | flag  | flag / flag  |
+| Z4    | clean | flag / flag  |
+| Z4r   | clean | flag / flag  |
+| Z5    | flag  | flag / flag  |
+| Z2    | flag  | flag / flag  |
+| Z18   | clean | flag / flag  |
+| MY1   | clean | flag / flag  |
+| MY1r  | clean | flag / flag  |
+| MY1b  | flag  | flag / flag  |
+| MY1c  | flag  | flag / flag  |
+| MY1d  | clean | flag / flag  |
+| MY1e  | flag  | flag / flag  |
+| MY5   | clean | flag / flag  |
+| MY5r  | clean | flag / flag  |
+| MY6   | clean | flag / flag  |
+| MY7   | flag  | flag / flag  |
+| MY9   | flag  | flag / flag  |
+| MY10  | flag  | flag / flag  |
+| MY10b | clean | flag / flag  |
+| MY11  | flag  | flag / flag  |
+| MY12  | flag  | flag / flag  |
+| MY12b | flag  | flag / flag  |
+| MY13  | flag  | flag / flag  |
+| MY13b | flag  | flag / flag  |
+| MY14  | flag  | flag / flag  |
+| MY14b | flag  | flag / flag  |
+| MY15  | flag  | flag / flag  |
+| MY15b | flag  | flag / flag  |
+| MY16  | flag  | flag / flag  |
+| MY17  | flag  | flag / flag  |
+| MY19  | clean | flag / flag  |
+| MY22  | clean | flag / flag  |
+| MY25  | flag  | flag / flag  |
+| MY26  | clean | flag / flag  |
+| N10   | clean | flag / clean |
+| P7    | flag  | flag / flag  |
+| MY30  | flag  | flag / flag  |
+| MY31  | flag  | flag / flag  |
+| MY31b | flag  | flag / flag  |
+| MY32  | flag  | clean / flag |
+| MY32b | clean | clean / flag |
+| MY33  | flag  | flag / flag  |
+| MY34  | flag  | flag / flag  |
+| MY10c | flag  | flag / flag  |
+| MY10d | clean | flag / flag  |
+| MY13c | clean | flag / clean |
+| MY19b | flag  | flag / flag  |
+| MY35  | flag  | flag / flag  |
+
+Full names and call errors: `/tmp/overload-intersection-sol-combined.log`.
+
+### Known false flags
+
+- Z4, Z4r, Z18, MY1, MY1r, MY1d, MY6, MY19, MY22, and MY26 retain async `any` results that TypeScript drops.
+- MY5 and MY5r retain a plain `Promise<any>` beside a typed result.
+  The optional pruning rule was not used.
+- MY10b and MY10d retain required parameters whose types accept `undefined`.
+  The signature API does not mark these differently from optional parameters.
+- MY32b joins a later `then` overload that TypeScript drops.
+- The 1024-type budget may flag a very deep typed chain.
+
+These choices flag more, never less, on the probes.
+No wide-union memo was added.
+The wide-union follow-up stays separate.
+
+### Build proof and gates
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0, zero errors and the same 27 warnings as main.
+- `vp run -r test`: exit 0; Core has 899 passing source tests.
+- `vp run core#test:dist`: exit 0; 1045 tests pass, including all 146 guard tests.
+- `scripts/ticket.sh --check-only --no-mutation 49 "Join iterator and thenable overloads safely"`: exit 0.
+- `pnpm validate`: exit 0; all 21 lanes pass.
+- `vp run prose`: exit 0; zero hits in 229 files.
+- Chain result: `EXIT 0`.
+- No timeout or OOM retry was needed.
+- Write mode found 55 names and left `private-fields.json` unchanged.
+- Core's nine dist files match the separate `origin/main` build byte for byte.
+- All 158 dist files also match in one worktree, with paths held fixed.
+  The guard from `origin/main` and the restored head each build byte-identical output.
+- The two apps have different server paths across worktrees.
+  The all-file proof holds the worktree path fixed.
+- Dist proof: `/tmp/overload-intersection-sol-dist-proof.log`, exit 0.
+- Core source, the saved field list, and the fast-code ratchets are unchanged.
+
+Gate log: `/tmp/overload-intersection-sol-gates.log`.
+Code proof head: `18fdb011`.
+
+### Build time and wide union
+
+Both A/B runs used `benchctl ab` under `flock /tmp/mutation.lock`.
+Each used 10 rounds and one run per side per round.
+The trees were clean when the timing started.
+A is `d7dbee23`; B is the guard in `18fdb011`.
+
+The real Core build runs `vp pack`, including declarations and the guard.
+The two worktrees share one writable parent for this run.
+
+- A median: 6297 ms.
+- B median: 6092 ms.
+- 95% range for B minus A: -662.0 to 455.7 ms.
+- Verdict: `no difference we can see`.
+- Log: `/tmp/overload-intersection-sol-build-ab.log`.
+
+The wide probe is a union of 100 thenables.
+Each callback takes the whole union, with no plain leaf.
+Both guards flag the read.
+The probe calls the real checker walk.
+No settle memo was added.
+
+- A median: 47850 ms.
+- B median: 8008 ms.
+- 95% range for B minus A: -42108.7 to -38838.6 ms.
+- Verdict: `b is faster`.
+- Exit 0.
+- Log: `/tmp/overload-intersection-sol-wide-ab3.log`.
+
+The first build launcher passed `cd` as a program and failed before timing.
+It was replaced with a Bash wrapper.
+The wide probe first hit Node's ban on stripping types under `node_modules`.
+It then hit a missing package from the root folder.
+Both failed before timing.
+The final probe uses stripped JavaScript under Core's own `node_modules`.
+
+### Jev and style
+
+- Preflight ran once on `origin/main..HEAD`: exit 1, HTTP 402, budget exceeded.
+- It was not retried.
+- No file or unit judge completed.
+- `tests.mjs core` ran without a gateway call: exit 0.
+  It printed 7 notes among 851 entries, all in unchanged source tests.
+  The build guard tests are outside that tool's test folder.
+- `promises.mjs core` did not run because the gateway budget is spent.
+- `calibrate.mjs` did not run, as requested.
+- The ticket gate left the key unavailable to its advisory review.
+  No gateway retry ran there.
+- No labels were added; `tools/jev/cases.jsonl` is unchanged.
+- Changed functions and tests pass the strict style census.
+- Full-file strict counts match `origin/main`.
+  Prior build-tool and plant-string hits were not changed.
+- TSDoc: zero S26 rows in both changed files.
+
+### Scope and choices
+
+The ticket's safety rule replaces the old card's demand for exact agreement.
+Async result pruning was dropped so a typed result cannot hide an `any`.
+Required parameters accepting `undefined` stay when the signature data is uncertain.
+The optional plain `Promise<any>` pruning was left out.
+Joining all `then` overloads was cheap, so that follow-up is handled here.
+
+Your setup uses `origin/main`, not the stale local `main`.
+The worktree hook installed and built the tree during creation.
+All later long jobs ran detached and were watched in this turn.
+The writer did not edit `TODO.md` or `pnpm-workspace.yaml`.
+No mutation lane ran: `build/` is not mutated and `src/` is unchanged.
+The temporary main-check and base worktrees are removed at handoff.
+The ticket worktree and branch stay for review.
+
+### Core feedback
+
+None.
