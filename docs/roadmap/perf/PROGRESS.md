@@ -2003,7 +2003,7 @@ The ticket's commit-message flag is explained:
 the source diff adds the memo and leaves node freeing as on main.
 No speed number is claimed in that commit message.
 The closed-read test title now names the exact README promise.
-Full calibration, final timing, and the clean Core mutation proof follow.
+Full calibration, timing, and clean Core mutation proof are saved below.
 
 The timing base is `0ca40d05`.
 Use the same 14 rows as the Haiku full run, N=61 through the queue.
@@ -2078,7 +2078,6 @@ Session and lifecycle keep their wins against the base.
 The memo only speeds up repeat target reads on the same handle.
 New-scope gains, including `s1_getctl` and `create`, come from main.
 The reviewed two-field create cost against main remains accepted.
-The old 847.7 ns lifecycle row is not a head result and is not used here.
 
 Full Core mutation, without reuse of old results:
 
