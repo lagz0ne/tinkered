@@ -489,6 +489,8 @@ A closed scope frees its data. `close({ withData: true })` hands it over instead
 - Writes and resource reads there still throw `Disposed`.
 - Once the hooks return, every read throws `Disposed`.
 
+A held data controller keeps its last write alive until you drop it; its reads still return the initial value.
+
 ## Sessions and cell writes
 
 A child session inherits its parent's cells until it writes its own value. That write stays
@@ -962,8 +964,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close
   returns the same result.
 - A failed start rejects `ready` with its cause and fails the scope.
-- A held controller keeps its last write alive after its root closes, with or without a watcher.
-- A held controller keeps its last write alive after its session closes, fast or under a session hook.
+- A held controller keeps its last write alive after its root closes, with or without a watcher or an `onClose` hook.
+- A held controller keeps its last write alive after its session closes, fast, under a session hook, or swept by its root.
 - Without a held controller, a closed root frees its last write.
 - A scope with no extensions is ready at once on one shared promise; a session after ready is ready.
 - `scope.resolve` reads a cell's current value with no subscription, builds a resource once, and reads a

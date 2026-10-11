@@ -44,6 +44,7 @@ before it is freed.
   order, then the default bucket. Without `ns`, the scope's own `ns` applies.
 - `withData` is read from the first close call, like `graceful`; a later call joins that close.
 - In the hook window only `resolve` reads; `controller(cell)` still throws `Disposed`.
+- core/held-controller-pins-value (2026-10-11): a held data controller keeps its last write alive after close, on every close path. Freeing it on fast close cost lifecycle +8.8%.
 
 ## Consequences
 

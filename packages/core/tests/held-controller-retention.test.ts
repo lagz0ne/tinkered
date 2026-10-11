@@ -25,8 +25,9 @@ async function collect(): Promise<void> {
 }
 
 /** Documented retention (core/held-controller-pins-value): a held controller pins its last write
- * after close, on every close path. Freeing it needs a walk over the layer's nodes on fast close,
- * which costs the lifecycle row. The closed read still returns the initial value. */
+ * after close, on every close path. The write sits in the node's `cell`, and in its `prev` when a
+ * watcher was added. Freeing it on fast close needs a walk over the nodes, which costs the
+ * lifecycle row. The closed read still returns the initial value. */
 test("a closed root keeps the last write of a controller that is still held", async () => {
   const root = createScope();
   const held = root.controller(cell);
@@ -37,10 +38,37 @@ test("a closed root keeps the last write of a controller that is still held", as
   expect(held.get()).toBe(initial);
 });
 
-test("a root closed with a watcher keeps the last write of a controller that is still held", async () => {
+test("a root closed fast with a watcher keeps the last write of a controller that is still held", async () => {
   const root = createScope();
   const held = root.controller(cell);
   held.watch(() => undefined);
+  const written = writeLarge(held);
+  await root.close();
+  await collect();
+  expect(written.deref() !== undefined).toBe(true);
+  expect(held.get()).toBe(initial);
+});
+
+/** Slow close: an `onClose` hook makes the root take `startClose` and `finishLayer`, not `fastClose`. */
+test("a root closed slowly with an onClose hook keeps the last write of a controller that is still held", async () => {
+  const root = createScope();
+  const held = root.controller(cell);
+  root.onClose(() => undefined);
+  const written = writeLarge(held);
+  await root.close();
+  await collect();
+  expect(written.deref() !== undefined).toBe(true);
+  expect(held.get()).toBe(initial);
+});
+
+/** Swept session: the parent's `onClose` makes the parent close slowly and sweep the child. An idle
+ * child would still fast-close, so the child keeps an `onClose` hook too: it takes `finishLayer`. */
+test("a session swept by a root closed slowly keeps the last write of a controller that is still held", async () => {
+  const root = createScope();
+  const session = root.createSession();
+  const held = session.controller(cell);
+  session.onClose(() => undefined);
+  root.onClose(() => undefined);
   const written = writeLarge(held);
   await root.close();
   await collect();
