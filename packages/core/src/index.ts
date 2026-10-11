@@ -3727,9 +3727,10 @@ function isIdle(layer: Layer): boolean {
 }
 
 /** O(1) close for an idle scope: mark closed, settle by mode (forced rolls back to `cancelled`, which
- * with nothing to roll back is just the status), detach from the parent, and let GC drop the layer —
- * skipping the async teardown protocol, the abort event dispatch, and `nodes.clear()`. A close that
- * asked `withData`, or a session under `session` hooks, hands the store on through {@link keepData}. */
+ * with nothing to roll back is just the status), detach from the parent, and free the store (ADR
+ * 0069) — skipping the async teardown protocol and the abort event dispatch. A close that asked
+ * `withData`, or a session under `session` hooks, hands the store on through {@link keepData}; any
+ * other close with a store frees it there, so a held controller falls back to the slow read. */
 function fastClose(
   layer: Layer,
   force: boolean,
@@ -3749,7 +3750,7 @@ function fastClose(
   layer.lastTarget = undefined;
   layer.lastController = undefined;
   layer.closing = Promise.resolve(
-    hooks || withData ? keepData(layer, ended, hooks, withData) : ended,
+    hooks || withData || layer.nodes !== NO_NODES ? keepData(layer, ended, hooks, withData) : ended,
   );
   beginClosing(layer);
   return layer.closing;
