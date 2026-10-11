@@ -1,4 +1,5 @@
 import { expect, test } from "vite-plus/test";
+import { preset } from "../src/testing";
 import {
   createScope,
   data,
@@ -67,6 +68,14 @@ test("a held controller reads the initial value once the root closes", async () 
   const root = createScope();
   const held = root.controller(draft);
   held.set(5);
+  await root.close();
+  expect(held.get()).toBe(0);
+});
+
+test("a held controller on a preset data cell reads the initial value once the root closes", async () => {
+  const root = createScope({ presets: [preset(draft, 7)] });
+  const held = root.controller(draft);
+  expect(held.get()).toBe(7);
   await root.close();
   expect(held.get()).toBe(0);
 });
