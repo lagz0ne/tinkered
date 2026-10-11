@@ -3775,12 +3775,7 @@ function fastClose(
 /** Clear each node's cached entry, so a held data controller takes the slow read after close (ADR
  * 0069). Out of line: only a layer with a data controller pays for the walk. */
 function clearEntries(nodes: Map<object, NodeState>): void {
-  nodes.forEach(clearEff);
-}
-
-/** A module function, not a closure, so the walk allocates nothing per node. */
-function clearEff(s: NodeState): void {
-  s.eff = undefined;
+  for (const s of nodes.values()) s.eff = undefined;
 }
 
 /** Whether a session whose body just ended clean can end in place — {@link canFastClose}'s idle
