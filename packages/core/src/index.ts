@@ -4994,13 +4994,14 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
 }
 
 /** Free a closed layer's data: its store, presets, and tags. The store is detached, not cleared;
- * a store `moved` into a `Result` keeps only what `data.get` reads ({@link keepCellsOnly}). */
+ * a store `moved` into a `Result` keeps only what `data.get` reads ({@link keepCellsOnly}). An
+ * unmoved store drops to the shared empty store, so a free allocates nothing. */
 function freeData(layer: Layer, moved: boolean): void {
   for (const s of layer.nodes.values()) {
     if (moved) keepCellsOnly(s);
     else s.eff = undefined;
   }
-  layer.nodes = new Map();
+  layer.nodes = moved ? new Map() : NO_NODES;
   layer.lastTarget = undefined;
   layer.lastController = undefined;
   clearBindings(layer);
