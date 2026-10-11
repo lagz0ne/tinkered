@@ -2728,7 +2728,9 @@ await root.close();
 Branch: `core/size-guard-iterable-edges-sol`.
 Started from `origin/main` at `807c388b`.
 Rebased onto `3e2a2346` after the green code step.
-Code commit: `7630f17a`.
+First code commit: `7630f17a`.
+Review fix commit: `2f7958b9`.
+The review fix removes duplicate types by their `type.id`.
 The lead owns the board and landing.
 
 The first pass stays at `5d0d132e` in its own worktree.
@@ -2742,6 +2744,9 @@ The takeover keeps its code and plants, with the fixes below.
 - The assignment walk carries that whole list through each nested target.
 - A name is flagged when any source type in the list flags its read.
 - Union members stay in the list; none stands for all the others.
+- Source, union, iterator, and yielded-type lists keep each `type.id` once.
+- A recursive property can point to the whole union without multiplying the list at each target level.
+- `settled` itself stays unchanged in the review fix.
 - The global `Symbol.iterator` is found through `resolveName("Symbol")` and its unique symbol id.
 - A user symbol named `iterator` has a different id and cannot take its place.
 - `for await` settles each union it finds, including a union inside a promise value.
@@ -2792,10 +2797,34 @@ Kept plants:
 - G83: `(PromiseLike<any> | number)[]` under `for await`.
 - G84: a circular thenable under `for await`.
 
-All 116 guard tests pass.
+All 118 guard tests pass.
 Every plant G72 to G87 fails the build with the named guard error.
 All controls pass, including the `done: true` control.
 The 105 tests from main and the first pass's eight tests stay green.
+
+### Review fix: recursive union lists
+
+The review found repeated types in `sourcePart`.
+Each recursive member could add the whole union again at every nested property.
+The fix keeps each type id once in `sourcePart` and the other source list builders.
+The plain assignment entry also uses the deduped `typeParts` list.
+No limit drops a distinct source type.
+
+G88 and G89 were written before the dedupe.
+Their final fixture ran against `2a1e8232` in `/tmp/main-check-size-guard-iterable-edges-sol`.
+Both failed with `ETIMEDOUT` at their ten-second child deadline: exit 1.
+
+- G88: a 20-member recursive union, with four `a` properties in a for-of assignment target.
+- G89: the same union and target in a plain destructuring assignment.
+- Both expect the build to pass with an empty error string.
+- Both pass with the dedupe, alongside all 116 earlier guard tests.
+
+The checker walk runs synchronously and can block a test worker's timer.
+These tests run the real build in a child with a ten-second deadline and `SIGKILL`.
+The child packs both Core entries, as the existing guard fixture does.
+The deadline is a hang check, not a benchmark.
+
+Red proof: `/tmp/size-guard-iterable-edges-sol-round1-red3.log`.
 
 ### Parity probes
 
@@ -2804,7 +2833,8 @@ One pack used `for ({ ... } of s)`.
 The other used `for (const { ... } of s)`.
 The async rows used `for await` in both forms.
 It also checked each expected flagged or unflagged result.
-All 44 probes agree, including the two extra first-pass shapes and the new plants.
+All 44 earlier probes agree, including the two extra first-pass shapes and the new plants.
+The review fix reran them and added G88: all 45 probes agree.
 
 Flagged in both forms:
 
@@ -2855,6 +2885,7 @@ Unflagged in both forms:
 - 38: a typed PromiseLike.
 - 39: a typed array.
 - 40: a union of typed iterables.
+- 45: G88, a 20-member recursive union through four properties.
 
 The scratch script and logs use `/tmp/size-guard-iterable-edges-sol-`.
 No scratch test was committed.
@@ -2870,6 +2901,10 @@ The next card owns these limits:
 - Async `next()` and iterator method overloads can give false flags because TypeScript combines their types with `&`.
 - A typed promise deeper than eight layers can give a false flag.
 - `then(cb: () => void)` is not handled here.
+- `{ done?: true; value: any }` can give a false flag.
+- `checkForOf` still visits every for-of loop.
+- `settled` does not remove repeated paths inside its recursion.
+- A union of n thenables can still make n^8 paths within `settled`.
 
 ### Build proof and gates
 
@@ -2889,13 +2924,17 @@ Every command runs from the ticket worktree.
 - `vp run -r test`: exit 0; Core source has 887 passed tests.
 - `scripts/ticket.sh --check-only --no-mutation core 45` with the title below: exit 0.
 - Title: `Guard all iterable source types`.
-- `vp run core#test:dist`: exit 0; 1003 tests pass, including all 116 guard tests.
+- `vp run core#test:dist`: exit 0; 1005 tests pass, including all 118 guard tests.
 - `pnpm validate`: exit 0; all 20 lanes pass.
 - `vp run prose`: exit 0; zero hits in 229 files.
 - Chain result: `EXIT 0`.
 - No timeout or OOM retry was needed.
 
-Logs: `/tmp/size-guard-iterable-edges-sol-gate1.log` and `/tmp/size-guard-iterable-edges-sol-gate2.log`.
+The first handoff logs keep the prefix `/tmp/size-guard-iterable-edges-sol-gate`.
+The review fix logs keep the prefix `/tmp/size-guard-iterable-edges-sol-round1-`.
+Its first full green chain is `/tmp/size-guard-iterable-edges-sol-round1-gate2.log`.
+Its clean-head chain is `/tmp/size-guard-iterable-edges-sol-round1-gate3.log`.
+The repeated parity log is `/tmp/size-guard-iterable-edges-sol-round1-parity.log`.
 The clean gate log prints the commit and checks for a clean tree before and after the chain.
 The separate main-check worktree was removed.
 The ticket worktree and branch stay for review.
@@ -2908,10 +2947,27 @@ Mutation was not run.
 `build/` is not mutated; the failing plants prove this fix.
 There is no mutation score or clean mutation commit for this ticket.
 
-Timing was not run.
-This change makes no speed claim.
+No timing queue job was run.
+The following are the reviewer's single-run wall-clock checks.
+They are diagnostics, not benchmarks or paired timing verdicts.
+
+- 400 members through two properties: main 0.1 s; `2a1e8232` 9 s.
+- 20 members through three properties: `2a1e8232` 10 s.
+- 20 members through four properties: no answer from `2a1e8232` within 90 s.
+- 400 members through three properties: no answer from `2a1e8232` within 90 s.
+- Reviewer scratch dedupe, 20 members through four properties: 0.1 s.
+- Reviewer scratch dedupe, 400 members through three properties: 1.3 s.
+
+The committed tests prove completion before a deadline.
+They do not claim a speed ratio.
 
 ### Jev and style
+
+The review fix made no gateway calls, as requested.
+Preflight, test judges, promise judges, labels, and calibration were not run again.
+The ticket gate has no key and runs no judge.
+The gateway budget is spent.
+The steps below are the first handoff's record.
 
 - Preflight ran once on `origin/main..HEAD`: exit 1, HTTP 402, budget exceeded.
 - It failed at its first judge and gave no flags.
