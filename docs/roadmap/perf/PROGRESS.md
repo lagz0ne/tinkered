@@ -2046,9 +2046,10 @@ All main label rows remain; no duplicate id was added.
 
 ### Final timing and mutation
 
-Both jobs ran on clean `d9b0891f`, under the shared lock.
-No source, test, or limit changed during either job.
-Only saved proof changes after that measured head.
+Timing ran on clean `d9b0891f`.
+Mutation ran on clean `258e9d24`, the landed head.
+No source, test, or limit changed after `d9b0891f`.
+Only saved proof and Jev labels change after it.
 The runtime hash still matches the gate proof.
 Both wrappers returned EXIT 0.
 N=61; every row used batch mode on both trees.
@@ -2074,19 +2075,23 @@ Medians in ns per call, base `0ca40d05` -> head:
 - `s4_warm_ctl`: 10.70 -> 0.70; B faster.
 
 No row is B slower, so no row needs a replicate.
+`op` went 62.5 -> 64.4 ns, slower 39/61, p = 0.04.
+That is no difference at p < 0.01.
+Watch `op` in later perf cards.
 Session and lifecycle keep their wins against the base.
 The memo only speeds up repeat target reads on the same handle.
 New-scope gains, including `s1_getctl` and `create`, come from main.
 The reviewed two-field create cost against main remains accepted.
 
-Full Core mutation, without reuse of old results:
+Full Core mutation on the final head, without reuse of old results:
 
-- Killed: 3037; survived: 465; no coverage: 35.
-- Card score: 3037 / (3037 + 465 + 35) = 85.86372632%.
-- Timeouts: 32; runtime errors: 3.
-- Stryker prints 85.99 with timeouts; the card score clears 85 on kills.
-- Commit: `d9b0891f6698a0f35b285960f021930af72f189f`.
-- Tree: clean before the run and after it; command returned 0.
+- Killed: 3031; survived: 453; no coverage: 35.
+- Card score: 3031 / 3519 = 86.13%.
+- Timeouts: 50; runtime errors: 3.
+- Stryker prints 86.33 with timeouts; the card score clears 85 on kills.
+- Commit: `258e9d249c0839156f607209e433f810f786dfc3`.
+- Tree: clean before the run; command returned 0.
+- Log: `.bench/handle-verbs-ctl-sol-final-mutation.log`.
 - Memo survivors: 2284 makes the closing check true.
 - Memo survivor: 2285 changes the closing check to `!== undefined`.
 - Memo survivor: 2280 makes the whole guard `if (false)`.
@@ -2111,6 +2116,5 @@ No main row is changed or duplicated.
 Full detached calibration returned EXIT 0 again after those labels.
 No source, test, or saved limit changed.
 
-The next full Core run uses the clean head with these final labels.
-Its log names that head, records the clean tree, and gives the counts.
-The final report names that run; the saved timing runtime still matches it.
+The full Core mutation run above used the clean head with these labels.
+Its log names `258e9d24`; its runtime hash matches the timing runtime.

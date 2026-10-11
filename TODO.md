@@ -64,13 +64,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: neither row "B slower" vs `b451fbb1`.
   [Baseline](docs/roadmap/perf/PROGRESS.md#warm-ctl-baseline-2026-10-10).
 
-- **perf/handle-verbs-ctl** — win back the `s4_warm_ctl` loss at `610925dd`.
-  `610925dd` is "core: share scope handle verbs per ADR 0108"; alone it adds 0.7 ns.
-  Main 11.2 ns vs tip `105d82b` 10.7 ns: B slower.
-  Keep ADR 0108's session and lifecycle wins. V8 first.
-  Core ticket: one Core ticket at a time.
-  Verify: `s4_warm_ctl` not B slower vs `0ca40d05`; session and lifecycle stay faster.
-  [Baseline](docs/roadmap/perf/PROGRESS.md#warm-ctl-baseline-2026-10-10).
+- **core/fastclose-free-data** — a fast-closed child keeps its data.
+  When a parent closes a child with no hooks and no `withData`, `fastClose` skips the node free.
+  So a held child keeps its value. Pre-existing on main.
+  The GC script in `docs/roadmap/perf/` prints "parent close without child hook ... ALIVE".
+  Fix: free nodes in `fastClose`, as `finishLayer` does (ADR 0069).
+  Test first: hold a data controller from a session; close its parent; read it.
+  Today the read returns its last write (5).
+  ADR 0069 line 8 says a read after close throws `Disposed`; decide and test.
+  Verify: the GC line turns "freed"; `session` and `lifecycle` not B slower vs main (paired sign test, N=61).
 
 ## Doing
 
@@ -101,6 +103,12 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **perf/handle-verbs-ctl** — a repeat controller read on the same handle hits a memo.
+  Landed 2026-10-11. Haiku two rounds (second NOT READY); Sol took over. Reviewer: READY.
+  `s4_warm_ctl` 10.70 → 0.70 ns vs `0ca40d05`. `session` and `lifecycle` B faster; no row B slower.
+  Core 16026 B. Core mutation 86.13% on kills alone. Follow-up: `core/fastclose-free-data`.
+  [Proof](docs/roadmap/perf/PROGRESS.md#handle-verbs-ctl-sol-takeover-2026-10-11).
 
 - **core/size-guard-bypasses** — the size guard closes the bypasses the reviewer confirmed.
   Landed 2026-10-11. Haiku first pass NOT READY; Sol took over, with one fix round.

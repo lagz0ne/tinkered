@@ -79,13 +79,14 @@ docs/roadmap/perf/handle-verbs-ctl-sol-main-vs-base.csv
 s4_warm_ctl: 10.80 -> 11.40 ns; faster 3/61; slower 55/61; p=2.25985897e-13; B slower
 MAIN_TIMING_EXIT 0
 
-Full Core mutation
-HEAD d9b0891f6698a0f35b285960f021930af72f189f
+Full Core mutation (final head)
+HEAD 258e9d249c0839156f607209e433f810f786dfc3
 TREE clean
 Command: flock /tmp/mutation.lock vp run core#mutate
-Killed 3037; Survived 465; NoCoverage 35; Timeout 32; RuntimeError 3
-3037 / (3037 + 465 + 35) = 85.86372632%
-Stryker score (with timeouts): 85.99
+Killed 3031; Survived 453; NoCoverage 35; Timeout 50; RuntimeError 3
+3031 / (3031 + 453 + 35) = 3031 / 3519 = 86.13242398%
+Stryker score (with timeouts): 86.33
+Log: .bench/handle-verbs-ctl-sol-final-mutation.log
 MUTATION_EXIT 0
 Memo guard survivors: 2280 if(false); 2284 closing check true; 2285 closing !== undefined
 All three preserve public behavior; they change memo use only.
