@@ -2144,9 +2144,12 @@ The local archive tag keeps the first head at `50cb30d1`.
 The first writer's tree stays unchanged.
 The lead owns the board and landing.
 
-The first pass lost two assignment reads that main catches.
+The first pass lost three assignment reads that main catches.
 R1 takes an object key through an array assignment from `any[]`.
 R2 takes an object key through a nested object assignment from `any`.
+R7 takes an object key through a spread array assignment from `any`.
+The spread target now passes its source type to the nested target.
+The assignment walk has complexity 5, below the limit of 8.
 The guard now walks each nested object and array target.
 It asks the checker for the source type at the assignment.
 Each step uses the type of the source property or array element it reads.
@@ -2166,7 +2169,7 @@ The test changes no shared install and uses no mock.
 
 #### Plants and lost-case proof
 
-All 93 guard tests pass.
+All 94 guard tests pass.
 The 61 old tests and all twenty plants G52 to G71 pass.
 Every plant gets the named build error.
 The three first-pass controls still pass.
@@ -2174,17 +2177,25 @@ The three first-pass controls still pass.
 On unchanged main in `/tmp/main-check-size-guard-real-types-sol`:
 
 - All twenty G52 to G71 tests fail because the build accepts their plants.
-- R1 and R2 pass: main already catches these reads.
+- R1, R2, and R7 pass: main already catches these reads.
 - The direct object assignment test passes too.
 - R3 to R6 fail because main accepts their plants.
-- The full copied suite has 25 failed and 68 passed tests, exit 1.
-- The separate R1, R2, and direct assignment run has three passed tests, exit 0.
+- The full copied suite has 25 failed and 69 passed tests, exit 1.
+- The separate R1, R2, R7, and direct assignment run has four passed tests, exit 0.
 
-With the first pass's guard from `50cb30d1`, R1 to R5 fail.
-That run has five failed and 86 passed tests, exit 1.
+With the first pass's guard from `50cb30d1`, R1 to R7 fail.
+The missing-binary cleanup test also fails.
+The final copied suite has eight failed and 86 passed tests, exit 1.
 Before the last fixes, R6 and the missing-binary cleanup test both fail.
 The cleanup test sees a folder left behind after the constructor throws.
-With the final code, all 93 pass, exit 0.
+R7 also fails on the unchanged guard at `d17c1559`: its build accepts the read.
+With the final code, all 94 pass, exit 0.
+
+A separate spread `for-of` probe fails on main and on both prior guards.
+The fixed guard catches it; this check adds no committed plant.
+The proposed nested object rest is invalid JavaScript.
+TypeScript 7 also rejects it with TS2339, so it adds no plant.
+`for-of` over Set or Map stays for `core/size-guard-iterable-assign`.
 Logs use `/tmp/size-guard-real-types-sol-` in this writer's box.
 
 #### Build and checks
@@ -2200,25 +2211,44 @@ The first-pass build timing remains the accepted cost of adding the checker:
 These are build measurements, not a paired timing verdict.
 This takeover makes no new speed claim and needs no runtime timing run.
 
-The handoff names the clean final head and gives each gate's exit.
-The full chain includes build, check, all workspace tests, the Core ticket,
-all 20 validate lanes, and prose.
-The Core ticket uses check-only mode, ticket 40, with its mutation step off.
-The full Core mutation lane runs alone under `/tmp/mutation.lock`.
-Its detached log records the head and empty tree status before the run.
-The handoff gives killed / (killed + survived + no coverage) and the exit.
+Final code head: `efceca51`.
+Final head: `HEAD` on `core/size-guard-real-types-sol`.
+The proof commit after the code head changes only this section.
+The full gate chain passes on the clean code head.
+It is rerun on the clean proof head before handoff.
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0, zero errors and the same 27 warnings.
+- `vp run -r test`: exit 0; Core source has 883 passed tests.
+- `scripts/ticket.sh --check-only --no-mutation core 40` with the title below: exit 0.
+- Title: `Guard array spread assignment reads`.
+- The ticket's built-file suite has 977 passed tests, including all 94 guard tests.
+- `pnpm validate`: exit 0; all 20 lanes pass.
+- `vp run prose`: exit 0.
+
+Mutation: 3037 / 3540 = 85.79%, on d17c1559; src unchanged since.
+That run has 3037 killed, 468 survived, and 35 with no coverage.
+The floor is 85 on kills alone; timeout cases do not add kills.
+The full Core lane ran detached under `/tmp/mutation.lock`, exit 0.
+Its log names `d17c1559` and shows a clean tree before and after the run.
+The user asked to keep that score and skip a fresh run for this fix round.
 The plants prove the guard; the mutation lane changes only `src/`.
 
 #### Jev and style
 
 The final code preflight reads `origin/main..HEAD`.
-All labels used for the final guard code name `core/size-guard-real-types` in `by`.
+Five new labels name `core/size-guard-real-types` in `by`.
+They label `declared`, `assigned`, `returnFlows`, `argumentCasts`, and `settle` false.
+The six older rows keep their original `by` and `at` from main.
+One names `core/size-build-guard`; five name `core/size-guard-bypasses`.
+All six keep the date `2026-10-10`.
 Existing ids are kept once, rather than copied into duplicate rows.
 The maps and sets record one build scan, not app state.
 The new `argumentCasts` and `settle` labels are false for that same reason.
-Calibration is run again after changing the label bank.
+No label value changed in this fix round, so calibration is unchanged.
+The code preflight has zero file flags and six function flags, all labelled.
 
-The guard-test scan finds zero flags in all 93 tests.
+The guard-test scan finds zero flags in all 94 tests.
 The Core package scan still finds seven old test flags and one old timer note.
 The promise scan reads unchanged package tests rather than `build/`.
 Those old package findings remain outside this ticket's allowed files.
