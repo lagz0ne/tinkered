@@ -26,6 +26,44 @@ const imports = `import { createScope } from "@tinker/core";\n`;
 /** Each test's own time limit: every test packs Core once. */
 const BUILD_MS = 60_000;
 
+const recursiveUnion = Array.from(
+  { length: 20 },
+  (_, index) => `{ member: ${index}; a: U; layer: number }`,
+).join(" | ");
+
+const recursiveSource = `${imports}type U = ${recursiveUnion};
+declare const u: U;
+declare const s: U[];
+let layer: number;\n`;
+
+const childBuild = `
+  import { build } from ${JSON.stringify(import.meta.resolve("vite-plus/pack"))};
+  import { privateFields } from ${JSON.stringify(pathToFileURL(join(core, "build/private-fields.ts")).href)};
+  const root = process.argv[1];
+  try {
+    await build({ config: false, cwd: ${JSON.stringify(core)}, entry: { index: "src/index.ts", testing: "src/testing.ts" },
+      outDir: root + "/dist", dts: false, logLevel: "silent",
+      plugins: [privateFields(${JSON.stringify([...listed, "layer"])}, root)] });
+  } catch (error) { process.stdout.write(String(error)); }
+`;
+
+/** A child deadline can stop a synchronous checker walk that blocks the test worker's timer. */
+function guardInChild(plant: string): string {
+  const root = mkdtempSync(join(tmpdir(), "core-recursive-guard-"));
+  const file = join(root, "packages/react/src/plant.ts");
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, plant);
+  try {
+    return execFileSync(process.execPath, ["--input-type=module", "--eval", childBuild, root], {
+      encoding: "utf8",
+      timeout: 10_000,
+      killSignal: "SIGKILL",
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 /**
  * Pack Core with `extra` names added to the list, and the outside-read rule scanning a scratch
  * repo of `plants` (path → code). A plant named `plant.ts` at the top is one more Core entry.
@@ -1408,6 +1446,24 @@ for await ({ layer } of ps) {}\n`;
     expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
       "layer: read without type checks in packages/react/src/plant.ts",
     );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G88: a for-of assignment through four recursive union properties builds within the deadline",
+  () => {
+    const plant = `${recursiveSource}for ({ a: { a: { a: { a: { layer } } } } } of s) {}\n`;
+    expect(guardInChild(plant)).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "G89: an assignment through four recursive union properties builds within the deadline",
+  () => {
+    const plant = `${recursiveSource}({ a: { a: { a: { a: { layer } } } } } = u);\n`;
+    expect(guardInChild(plant)).toBe("");
   },
   BUILD_MS,
 );

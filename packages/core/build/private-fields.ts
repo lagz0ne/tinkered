@@ -1084,11 +1084,13 @@ function wellKnownKey(checker: Checker, name: string): string | undefined {
  */
 function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type[] {
   if (source.isUnionType()) {
-    return source.getTypes().flatMap((member) => elementType(member, isAwait, read));
+    return uniqueTypes(source.getTypes().flatMap((member) => elementType(member, isAwait, read)));
   }
   const indexed = sourcePart([source], undefined, true, read);
   const element = indexed.length === 0 ? iteratedType(source, isAwait, read) : indexed;
-  return isAwait ? element.flatMap((type) => settled(read.checker, type, read.source)) : element;
+  return isAwait
+    ? uniqueTypes(element.flatMap((type) => settled(read.checker, type, read.source)))
+    : element;
 }
 
 /**
@@ -1103,12 +1105,14 @@ function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Typ
     ? memberType(checker, source, wellKnownKey(checker, "asyncIterator"), at)
     : undefined;
   const method = asyncMethod ?? memberType(checker, source, wellKnownKey(checker, "iterator"), at);
-  const results = returnsOf(checker, method).flatMap((iterator) =>
-    returnsOf(checker, memberType(checker, iterator, "next", at)),
+  const results = uniqueTypes(
+    returnsOf(checker, method).flatMap((iterator) =>
+      returnsOf(checker, memberType(checker, iterator, "next", at)),
+    ),
   );
   const yielded =
     asyncMethod === undefined ? results : results.flatMap((result) => settled(checker, result, at));
-  return yielded.flatMap((result) => yieldedType(checker, result, at));
+  return uniqueTypes(yielded.flatMap((result) => yieldedType(checker, result, at)));
 }
 
 /**
@@ -1138,7 +1142,7 @@ function returnsOf(checker: Checker, type: Type | undefined): Type[] {
   const returns = checker
     .getSignaturesOfType(type, SignatureKind.Call)
     .map((signature) => checker.getReturnTypeOfSignature(signature));
-  return returns.filter((returned): returned is Type => returned !== undefined);
+  return uniqueTypes(returns.filter((returned): returned is Type => returned !== undefined));
 }
 
 /** The type of parameter `index` of a function type's first call signature, if it has one. */
@@ -1148,10 +1152,15 @@ function parameterOf(checker: Checker, type: Type | undefined, index: number): T
   return signature === undefined ? undefined : checker.getParameterType(signature, index);
 }
 
-/** The sync API has no union builder, so every possible source type stays in a list. */
+/** Keep each type once: repeating a recursive union member does not change a source read. */
+function uniqueTypes(types: Type[]): Type[] {
+  return [...new Map(types.map((type) => [type.id, type])).values()];
+}
+
+/** The sync API has no union builder, so each distinct source type stays in a list. */
 function typeParts(type: Type | undefined): Type[] {
   if (type === undefined) return [];
-  return type.isUnionType() ? type.getTypes().flatMap(typeParts) : [type];
+  return type.isUnionType() ? uniqueTypes(type.getTypes().flatMap(typeParts)) : [type];
 }
 
 /**
@@ -1164,9 +1173,11 @@ function yieldedType(checker: Checker, result: Type, at: TsNode): Type[] {
     return typeParts(result.getAliasTypeArguments()[0]);
   }
   const members: readonly Type[] = result.isUnionType() ? result.getTypes() : [result];
-  return members
-    .filter((member) => !endsIteration(checker, member, at))
-    .flatMap((member) => typeParts(memberType(checker, member, "value", at)));
+  return uniqueTypes(
+    members
+      .filter((member) => !endsIteration(checker, member, at))
+      .flatMap((member) => typeParts(memberType(checker, member, "value", at))),
+  );
 }
 
 /** True for a `done: true` result: its `done` member is the literal `true`. */
@@ -1257,7 +1268,9 @@ function sourcePart(
   numeric: boolean,
   read: AssignmentRead,
 ): Type[] {
-  return source.flatMap((type) => typeParts(sourceProperty(type, name, numeric, read)));
+  return uniqueTypes(
+    source.flatMap((type) => typeParts(sourceProperty(type, name, numeric, read))),
+  );
 }
 
 /** One source's property or index type; an unchecked source keeps answering `any`. */
