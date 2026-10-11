@@ -2273,18 +2273,24 @@ Other checks:
 - That worktree has the same source as origin/main.
 - The base worktree `tinkered-base-s4` was removed after the run.
 - The timed body is the committed body, with the variable named `_neverSeen`.
+- `origin/main` moved to `807c388b` during the work.
+  - Four commits change the Core build's for-of type guard.
+  - They do not change `packages/core/src`.
+  - I rebased onto them and re-ran the gates above.
+  - I did not re-time on `807c388b`. The timings are from `bf2d3206`.
 
-Gates on the committed probe:
+Gates on the rebased head (`807c388b` plus this branch):
 
+- `vp install`: exit 0.
 - `vp run -r build`: exit 0.
 - `vp check`: 0 errors, 27 warnings (main has 27).
   - The first run had 28: `neverSeen` was unused. Renamed to `_neverSeen`.
 - `vp run -r test`: exit 0. All nine test runs pass.
   - One test is skipped, in one package. This change does not touch it.
 - `scripts/ticket.sh --check-only --no-mutation core 44`: exit 0.
-  - Core tests on the built files: 982 pass.
+  - Core tests on the built files: 992 pass.
   - Core runtime: 16006 B gzip (cap 16384 B).
-- `vp run core#test:dist`: exit 0. 982 tests pass.
+- `vp run core#test:dist`: exit 0. 992 tests pass.
 - `pnpm validate`: exit 0. All 20 deterministic budget lanes PASS.
 - `vp run prose`: exit 0. 0 hits in 229 files.
 
