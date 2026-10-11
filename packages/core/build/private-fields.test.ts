@@ -900,6 +900,17 @@ test(
 );
 
 test(
+  "G71: a directive on a declaration's value line hides the declared type and fails the build",
+  async () => {
+    const plant = `${imports}export const view: { layer: number } =\n  // @ts-expect-error\n  createScope();\nexport const read = view.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
   "a typed index signature stays unflagged",
   async () => {
     const plant = `${imports}declare const dict: { [k: string]: string };\nexport const read = dict.layer;\n`;

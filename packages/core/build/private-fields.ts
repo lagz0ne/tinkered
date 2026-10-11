@@ -15,9 +15,11 @@
  * tree-shake the same without them (proof: `docs/roadmap/core-v1/PROGRESS.md#coresize-build`).
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SyntaxKind, type Node as TsNode } from "typescript/unstable/ast";
+import { API, type Checker, type Type, TypeFlags } from "typescript/unstable/sync";
 import { minifySync, parseSync, Visitor } from "vite-plus";
 import type { ESTree, Rolldown } from "vite-plus";
 
@@ -28,6 +30,26 @@ const CORE = join(ROOT, "packages/core");
 const OUTSIDE = ["apps", "packages", "tools", "scripts", "bench", "examples"];
 /** Generated or third-party code, and Core's own source, which the rename covers. */
 const SKIPPED = new Set(["node_modules", "dist", "vendor", join(CORE, "src"), join(CORE, "build")]);
+
+/**
+ * The checker's options: the repo's strict, bundler-resolved settings. `@tinker/core` resolves to
+ * Core's source, so the check never waits on Core's own built output.
+ */
+const CHECK_OPTIONS = {
+  target: "esnext",
+  module: "esnext",
+  moduleResolution: "bundler",
+  strict: true,
+  noEmit: true,
+  skipLibCheck: true,
+  jsx: "preserve",
+  types: ["node"],
+  typeRoots: [join(CORE, "node_modules/@types")],
+  paths: {
+    "@tinker/core": [join(CORE, "src/index.ts")],
+    "@tinker/core/testing": [join(CORE, "src/testing.ts")],
+  },
+};
 
 /**
  * Keys the language or the host gives a plain object, so no built-in prototype owns them:
@@ -194,29 +216,46 @@ function bindingsOf(param: ESTree.Node, at: number): Binding[] {
   });
 }
 
+/** The name of a function or an object: `f` in `f` or `o.f`, `m` in `o.m`; `undefined` otherwise. */
+function nameOf(node: ESTree.Node): string | undefined {
+  if (node.type === "Identifier") return node.name;
+  if (node.type !== "MemberExpression") return undefined;
+  return keyName(node.property, node.computed);
+}
+
 /** The name a call reaches: `f` in `f()`, `m` in `o.m()`, `F` in `new F()`; `undefined` otherwise. */
 function calleeName(call: ESTree.CallExpression | ESTree.NewExpression): string | undefined {
-  if (call.callee.type === "Identifier") return call.callee.name;
-  if (call.callee.type !== "MemberExpression") return undefined;
-  return keyName(call.callee.property, call.callee.computed);
+  return nameOf(call.callee);
 }
+
+/** A call's target: the name of the function it reaches, and the arguments it passes that function. */
+type Target = { name: string; args: ESTree.Node[] };
 
 /**
  * The function a call reaches, and the arguments it passes it: `f(x)`, `o.m(x)`, and `new F(x)`.
- * `f.call(t, x)` and `f.bind(t, x)` reach `f` with `x`; `f.apply(t, [x])` reaches `f` with the items
- * of the list.
+ * `super(x)` reaches the superclass `superName` names. `f.call(t, x)` and `f.bind(t, x)` reach `f`
+ * with `x`; `f.apply(t, [x])` reaches `f` with the items of the list.
  */
 function invoked(
   call: ESTree.CallExpression | ESTree.NewExpression,
-): { name: string; args: ESTree.Node[] } | undefined {
+  superName: string | undefined,
+): Target | undefined {
+  const args = call.arguments.map((arg) => (arg.type === "SpreadElement" ? arg.argument : arg));
+  if (call.type === "CallExpression" && call.callee.type === "Super") {
+    return superName === undefined ? undefined : { name: superName, args };
+  }
   const name = calleeName(call);
   if (name === undefined) return undefined;
-  const args = call.arguments.map((arg) => (arg.type === "SpreadElement" ? arg.argument : arg));
   const { callee } = call;
-  if (callee.type !== "MemberExpression" || callee.object.type !== "Identifier") {
-    return { name, args };
-  }
-  const target = callee.object.name;
+  const target = callee.type === "MemberExpression" ? nameOf(callee.object) : undefined;
+  return target === undefined ? { name, args } : forwarded(name, target, args);
+}
+
+/**
+ * The target of `name` called on `target`: `apply`, `call`, and `bind` reach `target` itself, with
+ * the arguments they pass on; any other call reaches `name`.
+ */
+function forwarded(name: string, target: string, args: ESTree.Node[]): Target {
   if (name === "apply") return { name: target, args: listItems(args) };
   if (name === "call" || name === "bind") return { name: target, args: args.slice(1) };
   return { name, args };
@@ -231,37 +270,19 @@ function listItems(args: ESTree.Node[]): ESTree.Node[] {
   );
 }
 
-/** The value a `{ ... }` literal gives `key`, or `undefined` when it does not give one. */
-function propertyValue(node: ESTree.Node, key: string): ESTree.Node | undefined {
-  if (node.type !== "ObjectExpression") return undefined;
-  for (const entry of node.properties) {
-    if (entry.type === "Property" && keyName(entry.key, entry.computed) === key) return entry.value;
-  }
-  return undefined;
-}
-
-/** Feed the arguments one parameter gets into {@link attributeKeys}: the whole value, or one key. */
-function bindArgs(binding: Binding, args: ESTree.Node[], flow: Flow): void {
-  const got = binding.rest ? args.slice(binding.at) : args.slice(binding.at, binding.at + 1);
-  for (const arg of got) {
-    const value = binding.key === undefined ? arg : propertyValue(arg, binding.key);
-    if (value !== undefined) push(flow.values, binding.name, value);
-  }
-}
-
 /**
- * Add to `keys` the keys of every object a chunk passes as `attributes`: span, event, and log
- * attributes are untyped records users read by name. It follows a literal, a variable (by name,
- * wider than scopes), `v.key =` writes, spreads, both sides of `?:`, `??`, and `||`, and the
- * argument a call passes to a parameter that flows on: `f(x)` feeds `x` to the parameter `f` names
- * in that position (by the callee's name, wider than scopes). A call is `f(x)`, `o.m(x)`,
- * `new F(x)`, `f.call`, `f.apply`, or `f.bind` ({@link invoked}). A parameter is a name, a rest
- * name, or one key of a `{ ... }` pattern ({@link bindingsOf}).
+ * The functions a program declares by name, with the parameters each takes, and every call in it
+ * resolved to its target. A class takes its constructor's parameters, and `super(...)` reaches the
+ * class's superclass by its name.
  */
-function attributeKeys(program: ESTree.Program, keys: Set<string>): void {
-  const flow: Flow = { values: new Map(), writes: new Map(), roots: [], seen: new Set(), keys };
+function callTargets(program: ESTree.Program): {
+  signatures: Map<string, Binding[][]>;
+  targets: Target[];
+} {
   const signatures = new Map<string, Binding[][]>();
-  const calls: (ESTree.CallExpression | ESTree.NewExpression)[] = [];
+  const calls: { call: ESTree.CallExpression | ESTree.NewExpression; superName?: string }[] = [];
+  /** The superclass name of each class around the visit, innermost last. */
+  const supers: (string | undefined)[] = [];
   const signature = (name: string | undefined, params: ESTree.Node[]) => {
     if (name !== undefined) push(signatures, name, params.flatMap(bindingsOf));
   };
@@ -278,28 +299,77 @@ function attributeKeys(program: ESTree.Program, keys: Set<string>): void {
       signature(name, init.params);
     if (init.type === "ClassExpression") classSignature(name, init);
   };
+  const superOf = (node: ESTree.Class) => (node.superClass ? nameOf(node.superClass) : undefined);
   new Visitor({
     FunctionDeclaration: (node) => signature(node.id?.name, node.params),
-    ClassDeclaration: (node) => classSignature(node.id?.name, node),
-    VariableDeclarator: (node) => {
-      if (node.init === null) return;
-      noteAssignment(node.id, node.init, flow);
-      initSignature(node.id.type === "Identifier" ? node.id.name : undefined, node.init);
+    ClassDeclaration: (node) => {
+      classSignature(node.id?.name, node);
+      supers.push(superOf(node));
     },
-    AssignmentExpression: (node) => noteAssignment(node.left, node.right, flow),
+    "ClassDeclaration:exit": () => supers.pop(),
+    ClassExpression: (node) => supers.push(superOf(node)),
+    "ClassExpression:exit": () => supers.pop(),
+    VariableDeclarator: (node) => {
+      if (node.init !== null)
+        initSignature(node.id.type === "Identifier" ? node.id.name : undefined, node.init);
+    },
     Property: (node) => {
       const key = keyName(node.key, node.computed);
-      if (key === "attributes") flow.roots.push(node.value);
       if (node.value.type === "FunctionExpression" || node.value.type === "ArrowFunctionExpression")
         signature(key, node.value.params);
     },
     MethodDefinition: (node) => signature(keyName(node.key, node.computed), node.value.params),
-    CallExpression: (node) => calls.push(node),
-    NewExpression: (node) => calls.push(node),
+    CallExpression: (node) => calls.push({ call: node, superName: supers.at(-1) }),
+    NewExpression: (node) => calls.push({ call: node }),
   }).visit(program);
-  for (const call of calls) {
-    const target = invoked(call);
-    if (target === undefined) continue;
+  const targets: Target[] = [];
+  for (const { call, superName } of calls) {
+    const target = invoked(call, superName);
+    if (target !== undefined) targets.push(target);
+  }
+  return { signatures, targets };
+}
+
+/** Feed the arguments one parameter gets into {@link attributeKeys}: the whole value, or one key. */
+function bindArgs(binding: Binding, args: ESTree.Node[], flow: Flow): void {
+  const got = binding.rest ? args.slice(binding.at) : args.slice(binding.at, binding.at + 1);
+  for (const arg of got) {
+    const value = binding.key === undefined ? arg : propertyValue(arg, binding.key);
+    if (value !== undefined) push(flow.values, binding.name, value);
+  }
+}
+
+/** The value a `{ ... }` literal gives `key`, or `undefined` when it does not give one. */
+function propertyValue(node: ESTree.Node, key: string): ESTree.Node | undefined {
+  if (node.type !== "ObjectExpression") return undefined;
+  for (const entry of node.properties) {
+    if (entry.type === "Property" && keyName(entry.key, entry.computed) === key) return entry.value;
+  }
+  return undefined;
+}
+
+/**
+ * Add to `keys` the keys of every object a chunk passes as `attributes`: span, event, and log
+ * attributes are untyped records users read by name. It follows a literal, a variable (by name,
+ * wider than scopes), `v.key =` writes, spreads, both sides of `?:`, `??`, and `||`, and the
+ * argument a call passes to a parameter that flows on: `f(x)` feeds `x` to the parameter `f` names
+ * in that position (by the callee's name, wider than scopes). A call is `f(x)`, `o.m(x)`,
+ * `new F(x)`, `super(x)`, `f.call`, `f.apply`, or `f.bind` ({@link invoked}). A parameter is a name,
+ * a rest name, or one key of a `{ ... }` pattern ({@link bindingsOf}).
+ */
+function attributeKeys(program: ESTree.Program, keys: Set<string>): void {
+  const flow: Flow = { values: new Map(), writes: new Map(), roots: [], seen: new Set(), keys };
+  new Visitor({
+    VariableDeclarator: (node) => {
+      if (node.init !== null) noteAssignment(node.id, node.init, flow);
+    },
+    AssignmentExpression: (node) => noteAssignment(node.left, node.right, flow),
+    Property: (node) => {
+      if (keyName(node.key, node.computed) === "attributes") flow.roots.push(node.value);
+    },
+  }).visit(program);
+  const { signatures, targets } = callTargets(program);
+  for (const target of targets) {
     for (const bindings of signatures.get(target.name) ?? []) {
       for (const binding of bindings) bindArgs(binding, target.args, flow);
     }
@@ -415,101 +485,17 @@ function inner(node: ESTree.Node): ESTree.Node | undefined {
   }
 }
 
-/** The names a file's types make `any`, and the variables and functions its casts reach. */
-type Anys = {
-  /** Type aliases that are `any`, or hold it (`type Loose = any`). */
-  aliases: Set<string>;
-  /** Field names typed `any` (`{ v: any }`): `x.v` is `any`. */
-  fields: Set<string>;
-  /** Names of variables and functions whose value came from a cast or an `any`. */
-  casts: Set<string>;
+/** What a typed file's casts reach: the names whose value came from a cast, and what they keep. */
+type Casts = {
+  /** Names of variables and functions whose value came from a cast or from a directive. */
+  names: Set<string>;
   /** `as const` assertions with another kind of cast anywhere in their subtree. */
   constCasts: Set<ESTree.TSAsExpression>;
+  /** Names of getters: `x.name` is a cast when the getter's name is in `names`. */
+  getters: Set<string>;
+  /** The values each function returns, so a call to an inline function reaches them. */
+  returns: Map<ESTree.Node, ESTree.Node[]>;
 };
-
-/**
- * True for `any`, for a type alias of it, for an array or a generic type with it inside
- * (`any[]`, `Record<string, any>`), and for a function type that returns it.
- */
-function isAnyType(type: ESTree.Node, aliases: Set<string>): boolean {
-  switch (type.type) {
-    case "TSAnyKeyword":
-      return true;
-    case "TSArrayType":
-      return isAnyType(type.elementType, aliases);
-    case "TSFunctionType":
-      return type.returnType !== null && isAnyType(type.returnType.typeAnnotation, aliases);
-    case "TSTypeReference":
-      return isAnyReference(type, aliases);
-    default:
-      return false;
-  }
-}
-
-/** {@link isAnyType} for a named type: an alias of `any`, or a type with `any` as an argument. */
-function isAnyReference(type: ESTree.TSTypeReference, aliases: Set<string>): boolean {
-  const alias = type.typeName.type === "Identifier" && aliases.has(type.typeName.name);
-  const args = type.typeArguments?.params ?? [];
-  return alias || args.some((arg) => isAnyType(arg, aliases));
-}
-
-/** True for a binding typed `any` (see {@link isAnyType}), a rest element included. */
-function isAnyBinding(binding: ESTree.Node, aliases: Set<string>): boolean {
-  const bound = binding.type === "AssignmentPattern" ? binding.left : binding;
-  if (
-    bound.type !== "Identifier" &&
-    bound.type !== "ObjectPattern" &&
-    bound.type !== "ArrayPattern" &&
-    bound.type !== "RestElement"
-  )
-    return false;
-  const type = bound.typeAnnotation?.typeAnnotation;
-  return type !== undefined && isAnyType(type, aliases);
-}
-
-/** True when `fn` is typed to return `any`. */
-function returnsAny(fn: ESTree.Node, aliases: Set<string>): boolean {
-  return (
-    "returnType" in fn && fn.returnType != null && isAnyType(fn.returnType.typeAnnotation, aliases)
-  );
-}
-
-/**
- * The `any` names a typed file declares: type aliases, then the fields typed with them. An alias
- * may name another alias, so the aliases settle first.
- */
-function anyDeclarations(program: ESTree.Program): { aliases: Set<string>; fields: Set<string> } {
-  const aliasTypes: { name: string; type: ESTree.Node }[] = [];
-  const members: { key: string; type: ESTree.Node }[] = [];
-  const aliases = new Set<string>();
-  const fields = new Set<string>();
-  const member = (node: {
-    key: ESTree.Node;
-    computed: boolean;
-    typeAnnotation?: ESTree.TSTypeAnnotation | null;
-  }) => {
-    const key = keyName(node.key, node.computed);
-    if (key !== undefined && node.typeAnnotation) {
-      members.push({ key, type: node.typeAnnotation.typeAnnotation });
-    }
-  };
-  new Visitor({
-    TSTypeAliasDeclaration: (node) =>
-      aliasTypes.push({ name: node.id.name, type: node.typeAnnotation }),
-    TSPropertySignature: member,
-    PropertyDefinition: member,
-  }).visit(program);
-  for (let size = -1; size !== aliases.size;) {
-    size = aliases.size;
-    for (const { name, type } of aliasTypes) {
-      if (isAnyType(type, aliases)) aliases.add(name);
-    }
-  }
-  for (const { key, type } of members) {
-    if (isAnyType(type, aliases)) fields.add(key);
-  }
-  return { aliases, fields };
-}
 
 /** The keys a destructuring pattern reads (`{ a, b: [c] }` reads `a` and `b`), and its bindings. */
 function readPattern(
@@ -608,18 +594,18 @@ function isAssertionCast(node: ESTree.Node, constCasts: Set<ESTree.TSAsExpressio
 }
 
 /**
- * True when `node`'s value came from a cast or an `any`: `(x as T).a.b()`, a variable in `anys`,
- * a field typed `any`, or a call to a name in `anys` (a function that returns `any`), or to an
- * inline function typed to return `any`. Object and array literals retain casts in their
- * contents, including under `as const`.
+ * True when `node`'s value came from a cast: `(x as T).a.b()`, a variable in `casts.names`, a
+ * getter whose return is a cast, a call to a name in `casts.names`, or a call to an inline function
+ * whose return gives a cast. Object and array literals retain casts in their contents, including
+ * under `as const`.
  */
-function isFromCast(node: ESTree.Node, anys: Anys): boolean {
+function isFromCast(node: ESTree.Node, casts: Casts): boolean {
   let at: ESTree.Node | undefined = node;
   while (at !== undefined) {
-    if (at.type === "Identifier") return anys.casts.has(at.name);
+    if (at.type === "Identifier") return casts.names.has(at.name);
     if (at.type === "ObjectExpression" || at.type === "ArrayExpression")
-      return literalHoldsCast(at, anys);
-    if (isCastStep(at, anys)) return true;
+      return literalHoldsCast(at, casts);
+    if (isCastStep(at, casts)) return true;
     at = inner(at);
   }
   return false;
@@ -628,30 +614,43 @@ function isFromCast(node: ESTree.Node, anys: Anys): boolean {
 /** A literal keeps casts in its values and spreads, even when nested inside another literal. */
 function literalHoldsCast(
   node: ESTree.ObjectExpression | ESTree.ArrayExpression,
-  anys: Anys,
+  casts: Casts,
 ): boolean {
   if (node.type === "ArrayExpression")
     return node.elements.some(
       (item) =>
-        item !== null && isFromCast(item.type === "SpreadElement" ? item.argument : item, anys),
+        item !== null && isFromCast(item.type === "SpreadElement" ? item.argument : item, casts),
     );
   return node.properties.some((entry) =>
-    isFromCast(entry.type === "SpreadElement" ? entry.argument : entry.value, anys),
+    isFromCast(entry.type === "SpreadElement" ? entry.argument : entry.value, casts),
   );
 }
 
-/** One step of {@link isFromCast}: `at` is a cast, a field typed `any`, or a call to one of those. */
-function isCastStep(at: ESTree.Node, anys: Anys): boolean {
-  if (isAssertionCast(at, anys.constCasts)) return true;
-  if (at.type === "MemberExpression") {
-    const field = keyName(at.property, at.computed);
-    return field !== undefined && anys.fields.has(field);
-  }
-  if (at.type !== "CallExpression") return false;
-  const name = calleeName(at);
-  return (
-    (name !== undefined && anys.casts.has(name)) || returnsAny(unwrapped(at.callee), anys.aliases)
-  );
+/** One step of {@link isFromCast}: `at` is a cast, a getter that returns one, or a call to one of those. */
+function isCastStep(at: ESTree.Node, casts: Casts): boolean {
+  if (isAssertionCast(at, casts.constCasts)) return true;
+  if (at.type === "MemberExpression") return isCastGetter(at, casts);
+  return at.type === "CallExpression" && isCastCall(at, casts);
+}
+
+/** True for `o.name` when `name` is a getter whose return is a cast. */
+function isCastGetter(at: ESTree.MemberExpression, casts: Casts): boolean {
+  const name = keyName(at.property, at.computed);
+  return name !== undefined && casts.getters.has(name) && casts.names.has(name);
+}
+
+/** True for a call to a cast name, or to an inline function whose return is a cast. */
+function isCastCall(call: ESTree.CallExpression, casts: Casts): boolean {
+  const name = calleeName(call);
+  if (name !== undefined && casts.names.has(name)) return true;
+  const callee = unwrapped(call.callee);
+  if (!isFunctionNode(callee)) return false;
+  return (casts.returns.get(callee) ?? []).some((value) => isFromCast(value, casts));
+}
+
+/** True for a function expression or an arrow: the nodes that can hold a function's returns. */
+function isFunctionNode(node: ESTree.Node): boolean {
+  return node.type === "ArrowFunctionExpression" || node.type === "FunctionExpression";
 }
 
 /** The innermost of `fns` that holds offset `at`: a `return` belongs to the function around it. */
@@ -666,154 +665,190 @@ function innermost(fns: ESTree.Node[], at: number): ESTree.Node | undefined {
 }
 
 /**
- * The variables and functions in a typed file whose value came from a cast or an `any`:
+ * The variables and functions in a typed file whose value came from a cast:
  *
  * - `const raw = x as T`, then anything taken from `raw` (`const y = raw.list`, `const { z } = raw`),
  *   however long the chain, and a default value that is a cast;
- * - a binding typed `any` (a parameter, a variable, a catch parameter, a rest parameter);
- * - a function or method typed to return `any`, or one whose `return` gives a cast;
- * - a function parameter typed to return `any` (`cb: () => any`), and a call to it;
- * - a name the file imports from a function that some file types to return `any`;
- * - a variable declared or assigned on a line below `@ts-expect-error` or `@ts-ignore`: its type
- *   is the one the directive hides.
+ * - a function or method whose `return` gives a cast, and a call to it (`make()`, `api.get()`);
+ * - an inline function whose return gives a cast, when it is called (`(() => x as T)()`);
+ * - a getter whose return gives a cast, when it is read (`o.name`);
+ * - a variable whose name or value sits on a line below `@ts-expect-error` or `@ts-ignore`: its
+ *   type is the one the directive hides;
+ * - a return or an expression body on such a line: the function's value is the one it hides;
+ * - a parameter that receives an argument on such a line: the parameter's type is the one it hides.
  *
+ * Each directive is matched at the value's own position: the returned or passed expression, not
+ * the statement or the call around it. `any` is not here: the checker answers it ({@link typedReads}).
  * One name stands for every variable so named in the file: wider than scopes, never narrower.
  */
-function typedAnys(
-  program: ESTree.Program,
-  suppressed: (offset: number) => boolean,
-  imported: string[],
-): Anys {
-  const { aliases, fields } = anyDeclarations(program);
-  const casts = new Set<string>(imported);
-  const flows: { value: ESTree.Node; names: string[] }[] = [];
-  const addAny = (binding: ESTree.Node) => {
-    if (isAnyBinding(binding, aliases)) for (const name of patternNames(binding)) casts.add(name);
+function typedCasts(program: ESTree.Program, suppressed: (offset: number) => boolean): Casts {
+  const gathered = gatherCasts(program, suppressed);
+  const returnsOf = returnsByFunction(gathered);
+  returnFlows(gathered, returnsOf, suppressed);
+  argumentCasts(program, suppressed, gathered.names);
+  const casts: Casts = {
+    names: gathered.names,
+    constCasts: constAssertionsHoldingCasts(program),
+    getters: gathered.getters,
+    returns: returnsOf,
   };
-  const addReturnsAny = (name: string | undefined, fn: ESTree.Node) => {
-    if (name !== undefined && returnsAny(fn, aliases)) casts.add(name);
+  settle(casts, gathered.flows);
+  return casts;
+}
+
+/** What one walk of a typed file gathers for {@link typedCasts}. */
+type Gathered = {
+  /** Names a directive hides at once: a declaration, an assignment, or a parameter's argument. */
+  names: Set<string>;
+  /** Each value and the names it is bound to, so a cast in the value makes the names casts. */
+  flows: { value: ESTree.Node; names: string[] }[];
+  /** Every function, so a `return` finds the one around it. */
+  functions: ESTree.Node[];
+  /** The name each named function or method has. */
+  fnNames: Map<ESTree.Node, string>;
+  /** Each `return` and the offset it starts at. */
+  returned: { value: ESTree.Node; start: number }[];
+  /** Names of getters: a read of one is a cast when the getter returns one. */
+  getters: Set<string>;
+};
+
+/** Walk a typed file once: its bindings, functions, returns, getters, and directive lines. */
+function gatherCasts(program: ESTree.Program, suppressed: (offset: number) => boolean): Gathered {
+  const gathered: Gathered = {
+    names: new Set(),
+    flows: [],
+    functions: [],
+    fnNames: new Map(),
+    returned: [],
+    getters: new Set(),
   };
-  /** Every function with a block body, named or not: a `return` belongs to the innermost one. */
-  const functions: ESTree.Node[] = [];
-  const names = new Map<ESTree.Node, string>();
-  const returns: { value: ESTree.Node; start: number }[] = [];
-  /**
-   * A named function: `any` when typed so. Its returned values flow to its name, so a call to the
-   * name is a cast when one of them is; an arrow's expression body is its one return.
-   */
-  const addFunction = (name: string | undefined, fn: ESTree.Node) => {
-    if (name === undefined) return;
-    addReturnsAny(name, fn);
-    if (fn.type === "ArrowFunctionExpression" && fn.expression) {
-      flows.push({ value: fn.body, names: [name] });
-    } else names.set(fn, name);
-  };
-  const addParams = (node: { params: ESTree.ParamPattern[] }) => node.params.forEach(addAny);
   new Visitor({
-    VariableDeclarator: (node) => {
-      if (node.init !== null) flows.push({ value: node.init, names: patternNames(node.id) });
-      if (suppressed(node.id.start)) for (const name of patternNames(node.id)) casts.add(name);
-      addAny(node.id);
-      if (node.init !== null) {
-        addFunction(node.id.type === "Identifier" ? node.id.name : undefined, node.init);
-      }
-    },
+    VariableDeclarator: (node) => declared(node, gathered, suppressed),
     ReturnStatement: (node) => {
-      if (node.argument) returns.push({ value: node.argument, start: node.start });
+      if (node.argument) gathered.returned.push({ value: node.argument, start: node.start });
     },
-    AssignmentExpression: (node) => {
-      flows.push({ value: node.right, names: patternNames(node.left) });
-      if (suppressed(node.left.start)) for (const name of patternNames(node.left)) casts.add(name);
-    },
-    AssignmentPattern: (node) => flows.push({ value: node.right, names: patternNames(node.left) }),
-    CatchClause: (node) => {
-      if (node.param !== null) addAny(node.param);
-    },
+    AssignmentExpression: (node) => assigned(node, gathered, suppressed),
+    AssignmentPattern: (node) =>
+      gathered.flows.push({ value: node.right, names: patternNames(node.left) }),
     FunctionDeclaration: (node) => {
-      addParams(node);
-      functions.push(node);
-      addFunction(node.id?.name, node);
+      gathered.functions.push(node);
+      nameFn(gathered, node.id?.name, node);
     },
-    TSDeclareFunction: (node) => {
-      addParams(node);
-      addReturnsAny(node.id?.name, node);
+    FunctionExpression: (node) => gathered.functions.push(node),
+    ArrowFunctionExpression: (node) => gathered.functions.push(node),
+    MethodDefinition: (node) => {
+      const name = keyName(node.key, node.computed);
+      if (node.kind === "get" && name !== undefined) gathered.getters.add(name);
+      nameFn(gathered, name, node.value);
     },
-    FunctionExpression: (node) => {
-      addParams(node);
-      functions.push(node);
-    },
-    ArrowFunctionExpression: (node) => {
-      addParams(node);
-      if (!node.expression) functions.push(node);
-    },
-    MethodDefinition: (node) => addFunction(keyName(node.key, node.computed), node.value),
     Property: (node) => {
-      if (node.value.type === "FunctionExpression" || node.value.type === "ArrowFunctionExpression")
-        addFunction(keyName(node.key, node.computed), node.value);
+      if (isFunctionNode(node.value))
+        nameFn(gathered, keyName(node.key, node.computed), node.value);
     },
-    TSMethodSignature: (node) => addReturnsAny(keyName(node.key, node.computed), node),
   }).visit(program);
-  for (const ret of returns) {
-    const owner = innermost(functions, ret.start);
-    const name = owner === undefined ? undefined : names.get(owner);
-    if (name !== undefined) flows.push({ value: ret.value, names: [name] });
+  return gathered;
+}
+
+/** Record `fn` under `name`, so a call to the name reaches the function's returns. */
+function nameFn(gathered: Gathered, name: string | undefined, fn: ESTree.Node): void {
+  if (name !== undefined) gathered.fnNames.set(fn, name);
+}
+
+/**
+ * A declaration's value flows to its names. A directive above the name or the value hides the
+ * type of those names, so they count as casts.
+ */
+function declared(
+  node: ESTree.VariableDeclarator,
+  gathered: Gathered,
+  suppressed: (offset: number) => boolean,
+): void {
+  const bound = patternNames(node.id);
+  const value = node.init;
+  if (value !== null) {
+    gathered.flows.push({ value, names: bound });
+    if (isFunctionNode(value))
+      nameFn(gathered, node.id.type === "Identifier" ? node.id.name : undefined, value);
   }
-  const anys: Anys = { aliases, fields, casts, constCasts: constAssertionsHoldingCasts(program) };
-  for (let size = -1; size !== casts.size;) {
-    size = casts.size;
-    for (const flow of flows) {
-      if (isFromCast(flow.value, anys)) for (const name of flow.names) casts.add(name);
+  if (suppressed(node.id.start) || (value !== null && suppressed(value.start))) {
+    for (const name of bound) gathered.names.add(name);
+  }
+}
+
+/** {@link declared} for `x = y`: the value flows to the names, and a directive hides them. */
+function assigned(
+  node: ESTree.AssignmentExpression,
+  gathered: Gathered,
+  suppressed: (offset: number) => boolean,
+): void {
+  const bound = patternNames(node.left);
+  gathered.flows.push({ value: node.right, names: bound });
+  if (suppressed(node.left.start) || suppressed(node.right.start)) {
+    for (const name of bound) gathered.names.add(name);
+  }
+}
+
+/** The values each function returns: an arrow's expression body, and each `return` in a block. */
+function returnsByFunction(gathered: Gathered): Map<ESTree.Node, ESTree.Node[]> {
+  const returnsOf = new Map<ESTree.Node, ESTree.Node[]>();
+  for (const fn of gathered.functions) {
+    if (fn.type === "ArrowFunctionExpression" && fn.expression) returnsOf.set(fn, [fn.body]);
+  }
+  for (const ret of gathered.returned) {
+    const owner = innermost(gathered.functions, ret.start);
+    if (owner !== undefined) returnsOf.set(owner, [...(returnsOf.get(owner) ?? []), ret.value]);
+  }
+  return returnsOf;
+}
+
+/**
+ * A function's returned values flow to its name. A `return` on a directive's line hides the type of
+ * the function's value, so the name is a cast.
+ */
+function returnFlows(
+  gathered: Gathered,
+  returnsOf: Map<ESTree.Node, ESTree.Node[]>,
+  suppressed: (offset: number) => boolean,
+): void {
+  for (const [fn, values] of returnsOf) {
+    const name = gathered.fnNames.get(fn);
+    if (name === undefined) continue;
+    for (const value of values) {
+      gathered.flows.push({ value, names: [name] });
+      if (suppressed(value.start)) gathered.names.add(name);
     }
   }
-  return anys;
 }
 
 /**
- * The names a file's `import` statements bring in from functions that some file types to return
- * `any` ({@link anyReturners}). Core's own imports are typed, so they are left out.
+ * A parameter that receives an argument on a directive's line takes the type the directive hides.
+ * The argument's own position counts, and a rest parameter takes every argument from its place on.
  */
-function importedAnys(file: string, program: ESTree.Program, returners: Set<string>): string[] {
-  const names: string[] = [];
-  for (const node of program.body) {
-    if (node.type !== "ImportDeclaration") continue;
-    const source = specifierOf(node.source);
-    if (source === undefined || isCore(source, file)) continue;
-    names.push(...node.specifiers.flatMap((spec) => returnerLocal(spec, returners)));
+function argumentCasts(
+  program: ESTree.Program,
+  suppressed: (offset: number) => boolean,
+  names: Set<string>,
+): void {
+  const { signatures, targets } = callTargets(program);
+  for (const target of targets) {
+    const bindings = (signatures.get(target.name) ?? []).flat();
+    target.args.forEach((arg, at) => {
+      if (!suppressed(arg.start)) return;
+      for (const binding of bindings) {
+        if (binding.rest ? at >= binding.at : at === binding.at) names.add(binding.name);
+      }
+    });
   }
-  return names;
 }
 
-/** The local name of a named import of a function that some file types to return `any`, or none. */
-function returnerLocal(spec: ESTree.ImportDeclarationSpecifier, returners: Set<string>): string[] {
-  if (spec.type !== "ImportSpecifier" || spec.imported.type !== "Identifier") return [];
-  return returners.has(spec.imported.name) ? [spec.local.name] : [];
-}
-
-/**
- * The names of the functions that a TypeScript file under the scanned folders types to return
- * `any`, by name, from declarations and `const f = () => ...`. A file that imports one by name
- * gets its local name as an `any` ({@link importedAnys}). The name is wider than the scope.
- */
-function anyReturners(root: string): Set<string> {
-  const names = new Set<string>();
-  for (const file of OUTSIDE.flatMap((dir) => sourceFiles(join(root, dir)))) {
-    if (isScript(file)) continue;
-    const code = readFileSync(file, "utf8");
-    if (!/\bany\b/.test(code)) continue;
-    const { program } = parseSync(file, code);
-    const { aliases } = anyDeclarations(program);
-    const add = (name: string | undefined, fn: ESTree.Node) => {
-      if (name !== undefined && returnsAny(fn, aliases)) names.add(name);
-    };
-    new Visitor({
-      FunctionDeclaration: (node) => add(node.id?.name, node),
-      TSDeclareFunction: (node) => add(node.id?.name, node),
-      VariableDeclarator: (node) => {
-        if (node.id.type === "Identifier" && node.init !== null) add(node.id.name, node.init);
-      },
-    }).visit(program);
+/** Add to `casts.names` every name a flow gives a cast, until a pass adds none. */
+function settle(casts: Casts, flows: { value: ESTree.Node; names: string[] }[]): void {
+  for (let size = -1; size !== casts.names.size;) {
+    size = casts.names.size;
+    for (const flow of flows) {
+      if (isFromCast(flow.value, casts)) for (const name of flow.names) casts.names.add(name);
+    }
   }
-  return names;
 }
 
 /**
@@ -821,25 +856,23 @@ function anyReturners(root: string): Set<string> {
  *
  * - any string or plain template literal, including computed keys and reflection calls;
  * - in a script, every member read and destructured key;
- * - in a typed file, a member read or destructured key on a value that came from a cast or an
- *   `any`, directly or through variables ({@link typedAnys});
+ * - in a typed file, a member read or destructured key on a value that came from a cast
+ *   ({@link typedCasts}); the reads the checker answers `any` are {@link typedReads};
  * - a read below `@ts-expect-error` or `@ts-ignore`, or in a `@ts-nocheck` file.
  */
 function untypedReads(
   file: string,
   program: ESTree.Program,
   suppressed: (offset: number) => boolean,
-  returners: Set<string>,
   add: (name: string) => void,
 ): void {
   const script = isScript(file);
-  const anys: Anys = script
-    ? { aliases: new Set(), fields: new Set(), casts: new Set(), constCasts: new Set() }
-    : typedAnys(program, suppressed, importedAnys(file, program, returners));
-  const untyped = (value: ESTree.Node) => script || isFromCast(value, anys);
+  const casts: Casts = script
+    ? { names: new Set(), constCasts: new Set(), getters: new Set(), returns: new Map() }
+    : typedCasts(program, suppressed);
+  const untyped = (value: ESTree.Node) => script || isFromCast(value, casts);
   const destructure = (pattern: ESTree.Node, value: ESTree.Node | null) => {
-    const unchecked =
-      script || isAnyBinding(pattern, anys.aliases) || (value !== null && untyped(value));
+    const unchecked = script || (value !== null && untyped(value));
     for (const key of patternKeys(pattern)) {
       if (unchecked || suppressed(key.start)) add(key.name);
     }
@@ -926,26 +959,178 @@ function suppressedLines(
   return (offset) => lines.some(([from, to]) => offset >= from && offset <= to);
 }
 
+/** True when the checker answers `any` for a read of `name` on `type`: see {@link anyRead}. */
+function isAny(type: Type): boolean {
+  return (type.flags & TypeFlags.Any) !== 0;
+}
+
+/**
+ * True when a read of `name` on `type` is `any` on the checker: the type is `any`, or no property
+ * `name` exists and an index signature typed `any` answers the key. A key that no declaration and
+ * no index signature gives is an error the checker reports itself; this rule does not count it.
+ */
+function anyRead(checker: Checker, type: Type | undefined, name: string): boolean {
+  if (type === undefined) return false;
+  if (isAny(type)) return true;
+  const apparent = checker.getApparentType(type);
+  if (apparent === undefined || checker.getPropertyOfType(apparent, name) !== undefined) {
+    return false;
+  }
+  return checker
+    .getIndexInfosOfType(apparent)
+    .some((info) => (info.keyType.flags & TypeFlags.String) !== 0 && isAny(info.valueType));
+}
+
+/**
+ * Add the name a read answers `any` for to `hits`: a member read, or a key of a destructuring
+ * pattern or of a destructuring assignment. Only the names in `wanted` count.
+ */
+function checkRead(node: TsNode, checker: Checker, wanted: Set<string>, hits: string[]): void {
+  if (node.kind === SyntaxKind.PropertyAccessExpression) {
+    checkMember(node as MemberNode, checker, wanted, hits);
+  } else if (
+    node.kind === SyntaxKind.BindingElement &&
+    node.parent.kind === SyntaxKind.ObjectBindingPattern
+  ) {
+    checkKey(node as ElementNode, checker, wanted, hits);
+  } else if (isObjectAssignment(node)) {
+    checkAssignment(node as AssignNode, checker, wanted, hits);
+  }
+}
+
+/** The parts of a TypeScript 7 node that {@link checkRead} reads. */
+type MemberNode = TsNode & { expression: TsNode; name: TsNode };
+type ElementNode = TsNode & { propertyName?: TsNode; name: TsNode };
+type AssignNode = TsNode & { left: TsNode & { properties: TsNode[] }; right: TsNode };
+
+/** The text of a name or a string key, or `undefined` for a computed one. */
+function keyText(key: TsNode): string | undefined {
+  return (key as { text?: string }).text;
+}
+
+/** A member read `o.name`, when the checker answers `any` for it on `o`'s type. */
+function checkMember(
+  node: MemberNode,
+  checker: Checker,
+  wanted: Set<string>,
+  hits: string[],
+): void {
+  const name = keyText(node.name);
+  if (name === undefined || !wanted.has(name)) return;
+  if (anyRead(checker, checker.getTypeAtLocation(node.expression), name)) hits.push(name);
+}
+
+/** A key of a destructuring pattern, `{ name }` or `{ name: x }`, read from the pattern's source. */
+function checkKey(node: ElementNode, checker: Checker, wanted: Set<string>, hits: string[]): void {
+  const name = keyText(node.propertyName ?? node.name);
+  if (name === undefined || !wanted.has(name)) return;
+  if (anyRead(checker, checker.getTypeAtLocation(node.parent), name)) hits.push(name);
+}
+
+/** A key of a destructuring assignment, `({ name } = source)`, read from the source's type. */
+function checkAssignment(
+  node: AssignNode,
+  checker: Checker,
+  wanted: Set<string>,
+  hits: string[],
+): void {
+  const source = checker.getTypeAtLocation(node.right);
+  for (const property of node.left.properties) {
+    const name = assignedKey(property);
+    if (name !== undefined && wanted.has(name) && anyRead(checker, source, name)) hits.push(name);
+  }
+}
+
+/** The name a property of an object literal gives, when it is `name` or `name: x`. */
+function assignedKey(property: TsNode): string | undefined {
+  const named =
+    property.kind === SyntaxKind.PropertyAssignment ||
+    property.kind === SyntaxKind.ShorthandPropertyAssignment;
+  return named ? keyText((property as TsNode & { name: TsNode }).name) : undefined;
+}
+
+/** True for `{ ... } = value`: an object literal on the left of `=`, a destructuring assignment. */
+function isObjectAssignment(node: TsNode): boolean {
+  if (node.kind !== SyntaxKind.BinaryExpression) return false;
+  const assign = node as AssignNode & { operatorToken: TsNode };
+  return (
+    assign.operatorToken.kind === SyntaxKind.EqualsToken &&
+    assign.left.kind === SyntaxKind.ObjectLiteralExpression
+  );
+}
+
+/**
+ * The names each typed file reads with the checker's `any`: a member read or destructured key
+ * whose object is `any`, or that only an index signature typed `any` answers ({@link anyRead}).
+ * That is the question typescript-eslint's `no-unsafe-member-access` asks its checker, through the
+ * same TypeScript 7 API `tsgo` builds the declarations with. The files form one project in a folder
+ * under Core's `node_modules`, made for this call and removed after it; each name counts once per file.
+ */
+function typedReads(files: string[], names: string[]): Map<string, string[]> {
+  const found = new Map<string, string[]>();
+  if (files.length === 0) return found;
+  const wanted = new Set(names);
+  const dir = mkdtempSync(join(CORE, "node_modules", "core-guard-"));
+  const config = join(dir, "tsconfig.json");
+  writeFileSync(config, JSON.stringify({ compilerOptions: CHECK_OPTIONS, files }));
+  const api = new API({ cwd: dir });
+  try {
+    const project = api.updateSnapshot({ openProjects: [config] }).getProjects()[0];
+    if (project === undefined) throw new Error(`the checker opened no project for ${config}`);
+    for (const file of files) {
+      const source = project.program.getSourceFile(file);
+      if (source === undefined) throw new Error(`the checker did not load ${file}`);
+      const hits: string[] = [];
+      const visit = (node: TsNode): void => {
+        checkRead(node, project.checker, wanted, hits);
+        node.forEachChild(visit);
+      };
+      source.forEachChild(visit);
+      found.set(file, hits);
+    }
+  } finally {
+    api.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+  return found;
+}
+
 /**
  * Each of `names` that a file under `root`, outside Core's source, may read from Core without
- * type checks ({@link untypedReads}), with the file. A quick text test parses only the files
- * that may load Core and use one of `names` as a word.
+ * type checks, with the file. A quick text test parses only the files that may load Core and use
+ * one of `names` as a word. {@link untypedReads} reads each parsed file, and {@link typedReads}
+ * then asks the checker about the typed ones. A file's syntactic reads come before its checked ones.
  */
 function outsideReads(names: string[], root: string): Map<string, string> {
-  const loads = /@tinker\/core|\/(src|dist)\/|import\s*\(/;
   const uses = new RegExp(`(?<![\\w$])(?:${names.map(escapeName).join("|")})(?![\\w$])`);
-  const returners = anyReturners(root);
+  const scanned = OUTSIDE.flatMap((dir) => sourceFiles(join(root, dir))).flatMap((file) =>
+    scanFile(file, uses),
+  );
+  const typed = typedReads(
+    scanned.map((entry) => entry.file).filter((file) => !isScript(file)),
+    names,
+  );
   const reads = new Map<string, string>();
-  for (const file of OUTSIDE.flatMap((dir) => sourceFiles(join(root, dir)))) {
-    const code = readFileSync(file, "utf8");
-    if (!loads.test(code) || !uses.test(code)) continue;
-    const { program, comments } = parseSync(file, code);
-    if (!importsCore(file, program)) continue;
-    untypedReads(file, program, suppressedLines(code, comments), returners, (read) => {
+  for (const { file, syntactic } of scanned) {
+    for (const read of [...syntactic, ...(typed.get(file) ?? [])]) {
       if (!reads.has(read)) reads.set(read, relative(root, file));
-    });
+    }
   }
   return reads;
+}
+
+/**
+ * The syntactic reads of one file that may load Core and uses one of the names: one entry, or none
+ * for any other file. A quick text test runs before the parse.
+ */
+function scanFile(file: string, uses: RegExp): { file: string; syntactic: string[] }[] {
+  const code = readFileSync(file, "utf8");
+  if (!/@tinker\/core|\/(src|dist)\/|import\s*\(/.test(code) || !uses.test(code)) return [];
+  const { program, comments } = parseSync(file, code);
+  if (!importsCore(file, program)) return [];
+  const syntactic: string[] = [];
+  untypedReads(file, program, suppressedLines(code, comments), (read) => syntactic.push(read));
+  return [{ file, syntactic }];
 }
 
 /**
@@ -955,7 +1140,7 @@ function outsideReads(names: string[], root: string): Map<string, string> {
  * - A string in the runtime: a computed key or an `in` check the rename would miss.
  * - A user-visible attribute key ({@link attributeKeys}).
  * - A built-in or host name: the object may not be Core's.
- * - Read outside Core's source without type checks ({@link untypedReads}).
+ * - Read outside Core's source without type checks ({@link untypedReads}, {@link typedReads}).
  */
 function findUnsafeNames(names: string[], census: Census, root: string): Map<string, string> {
   const builtins = builtinNames();
