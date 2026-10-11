@@ -4,6 +4,8 @@ export default defineConfig({
   staged: {
     "*": "vp check --fix",
     "*.md": "node scripts/prose-lint.mjs",
+    "{apps/start-scaffold/**,apps/start-min/**,packages/*/package.json,packages/start/lib/release.mjs,pnpm-workspace.yaml}":
+      "node apps/start-scaffold/maintain/check-registry-staged.mjs",
   },
   // Markdown fences keep the line breaks we wrote (docs/writing-style.md, 60-char rule).
   fmt: { embeddedLanguageFormatting: "off" },

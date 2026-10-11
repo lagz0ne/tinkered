@@ -3561,3 +3561,88 @@ Jev:
 - `tests.mjs` and `promises.mjs` did not run: no package test changed.
 - Labels: none.
 - `calibrate.mjs` did not run: the card says the budget is used up.
+
+## scaffold/registry-hook: staged-copy fix
+
+Branch: `scaffold/registry-hook-sol`, from `origin/main` at `b282cc68`.
+Owner: second writer (Codex).
+Next: lead review; no push.
+The first attempt is saved in local tag `archive/registry-hook-haiku-20f5e789`.
+Its worktree and branch were left alone.
+
+The fast read-only part of `check-registry.mjs` is now shared.
+The full check keeps its protected-target proof and three composition builds.
+Its clean output still ends with 10 items and 96 emitted files.
+The commit hook does no composition build.
+
+The hook reads the files staged for the commit.
+It uses `git ls-files -z` and `git checkout-index` to copy them to a temp folder.
+It also uses Git's temporary index when committing by path.
+The temp folder is removed in `finally`, on success or failure.
+No stash is used.
+
+One hook glob covers both apps, all package manifests, the release helper,
+and the workspace catalog.
+`registry-source.mjs` opens the workspace package manifests even without local packs.
+They must all be copied, or the fast check fails with `ENOENT`.
+The app item's paths also read `apps/start-min`.
+Release links use the Start version and `packages/start/lib/release.mjs`.
+Dependency versions use `pnpm-workspace.yaml`.
+
+### Failing first, on main
+
+The failing test was written before the fix.
+It ran in `/tmp/main-check-registry-hook-sol` on `origin/main` at `b282cc68`.
+The hook wrongly accepted both commits:
+
+- Stale staged index: scratch commit `400c3496`, hook exit 0.
+- README edit, rebuilt disk index, only README staged: `c8eda1d6`, hook exit 0.
+
+Both test assertions failed because they expected the hook to refuse the commit.
+Log: `/tmp/registry-hook-sol-red.log`, exit 1.
+The scratch worktree was removed.
+
+### Hook proof
+
+The proof uses real scratch commits under `/tmp`.
+Each commit passes the main checkout's hooks path with `git -c core.hooksPath=...`.
+No shared Git config is changed.
+
+- a. Stale staged index: hook exit 1, with the repair line.
+- b. Rebuilt disk index, only README staged: hook exit 1.
+  The disk rebuild no longer hides the stale staged copy.
+- c. Unstaged README edit, another scaffold file committed: hook exit 0.
+- d. Root README commit: hook exit 0; the registry command is absent.
+- e. README and rebuilt copies staged together: hook exit 0.
+  The registry command starts once for the three changed files.
+- f. `test:registry`: planted drift exits 1; clean source exits 0.
+  The same protected-target and composition PASS lines remain.
+
+Extra plants cover a minimal-app source, the Start version, the release helper,
+and a catalog version.
+Each alone triggers the hook and fails with drift.
+A missing staged index has the repair line first, then the missing-file error.
+It fails the hook when another matching file also changes.
+
+The first error line is:
+
+```text
+Registry index check failed. Fix:
+pnpm --dir apps/start-scaffold run registry:build
+```
+
+The tool prints that repair step on one line.
+
+### Remaining gaps
+
+`lint-staged` skips deleted files by default.
+A commit with only removed inputs can skip this hook.
+The direct check and `test:registry` still fail on missing files.
+The hook checks the staged copy before `lint-staged` stages formatter edits.
+A copied source changed by the formatter may need another index check.
+That order is not covered by the a-f proof.
+The hook proves index matches only; the full lane still owns composition builds.
+
+Mutation and Core timing lanes are not needed: no Core change.
+There is no mutation score or timing verdict row.
+Core feedback: none.
