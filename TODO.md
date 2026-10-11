@@ -24,28 +24,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-guard-real-types** — move the outside-read rule to real types.
-  Why: each syntax rule leaves a gap one step away.
-  Known model: typescript-eslint `no-unsafe-member-access`.
-  Plants to carry:
-  - an imported `type Loose = any`;
-  - an imported function whose return type is an alias of `any`;
-  - an imported value typed `any`;
-  - `import * as m`; a default import;
-  - `@ts-expect-error` on an argument line or a return line;
-  - `(await loose()).layer` with `Promise<any>`;
-  - `{ [k: string]: any }`; `any | undefined`;
-  - a value typed `Function`;
-  - attributes through `super(g)`; `o.plant.call(...)`;
-  - `const x = c ? (s as any) : 1; x.layer`;
-  - `[c ? (s as any) : 1]` with no `as const`;
-  - an IIFE that returns a cast, with no `as const`;
-  - a getter that returns a cast.
-    Verify: a plant per gap fails the build; dist stays byte-identical.
+- **core/size-guard-iterable-assign** — a for-of assignment target over a non-array iterable reads `any` unflagged.
+  Cases: `for ({ layer } of s)` with `Set<any>`; `for ([, { layer }] of m)` with `Map<string, any>`;
+  a generator; `for await`.
+  Main misses it too. `for (const { layer } of s)` is caught.
+  Verify: a plant for each fails the build; old guard tests pass; dist byte-identical.
 
 - **core/private-fields-regen** — write the committed name list again.
   Run `CORE_PRIVATE_FIELDS=write vp pack`.
-  It adds `borrows`, `controllerOf`, `deferFn`, `mayHook`, `releaser`.
+  It adds `borrows`, `controllerOf`, `deferFn`, `lastController`, `lastTarget`, `mayHook`, `releaser`.
+  The write-mode scan on main gives 55 names; 48 are committed.
   This changes dist bytes.
   Verify: `pnpm validate`, `core#test:dist`, Core size reported.
 
@@ -97,6 +85,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-real-types** — the outside-read rule asks the TypeScript 7 checker if a read is `any` (the typescript-eslint no-unsafe-member-access method). Landed 2026-10-11. Haiku first pass NOT READY (lost nested destructuring assignments); Sol took over; READY after one fix round (spread target R7). 94 guard tests; G52–G71 fail on main, R1–R7 fail on the Haiku head. Dist byte-identical. Build 4.4 s → 6.2 s. Core mutation 85.79% (src unchanged). Open: `core/size-guard-iterable-assign`. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-real-types).
 
 - **perf/warm-ctl-trade** — no source change: the controller memo from perf/handle-verbs-ctl (`e1476f06`, landed in `63e48732`) won back the loss. benchd N=61 vs `b451fbb1`: `warm` 16.8 → 9.2 ns (61/61), `s4_warm_ctl` 10.3 → 0.7 (61/61); all 16 rows B faster (p < 0.01), tagged-close wins kept (`tagged` 2591.6 → 193.2, `session` −75%). Core mutation 86.57; validate 20/20; size 16026 B. [Proof](docs/roadmap/perf/PROGRESS.md#warm-ctl-trade-2026-10-11).
 
