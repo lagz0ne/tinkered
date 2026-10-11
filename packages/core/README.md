@@ -501,6 +501,7 @@ a session operation's `depends` writes to that session.
 
 On an open scope, a repeat `controller(target)` read returns the same controller.
 A read with `ns` returns a new one.
+A controller read after close throws `Disposed`.
 
 ## Tags
 

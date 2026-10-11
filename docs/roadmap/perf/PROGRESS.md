@@ -1939,3 +1939,76 @@ Raw data on this box:
 - `/home/paseo/next/wct-bisect<k>-<sha>.csv`, `.log`
 
 Follow-ups: perf/warm-ctl-trade, perf/handle-verbs-ctl.
+
+## handle-verbs-ctl Sol takeover (2026-10-11)
+
+Branch: `perf/handle-verbs-ctl-sol`, from `origin/main` at `16ed271b`.
+The Haiku head stays at `5723f118`, with a local archive tag.
+No push or board edit is made.
+
+- Keep one controller memo on each layer.
+- It helps only a repeat read of the same target on the same handle.
+- Namespace reads still skip the memo.
+- Each session has its own layer and memo.
+- The node controller stays stable while its layer is open.
+- `finishLayer`, `freeData`, and both `fastClose` branches clear the memo.
+- Tagged frames inherit the two defaults through `FRAME_STATE`.
+- No node free is added to `fastClose`.
+- A held child data controller still returns 5 after its parent closes.
+- The separate fast-close data issue stays outside this card.
+
+The saved GC script forces a child through full close with `onClose`.
+It holds the handles until every check has finished.
+Head and `origin/main` print the same lines:
+
+```text
+root close (success): resource value freed after close
+parent close without child hook (success):
+  session resource value ALIVE after close
+parent close with child hook (success):
+  session resource value freed after close
+```
+
+The lines above wrap for a phone; the script prints one line per case.
+The child without hooks remains ALIVE, as on main.
+A temporary build with the memo clears removed prints ALIVE in all three cases.
+That build shows why the memo clears must stay.
+The temporary GC worktree is removed.
+[Saved GC script](handle-verbs-ctl-sol-gc.mjs).
+
+Initial gates on this source:
+
+- Build, check, all package tests, Core ticket 38, and prose: EXIT 0.
+- Check: zero errors and 27 warnings, the given main count.
+- Core: 883 source tests and 893 built-file tests pass.
+- `pnpm validate`: all 20 lanes PASS, EXIT 0.
+- Core size: 16026 B gzip, cap 16384 B.
+- `runOnce`: 498 bytes, ceiling 499.
+- `runHookBody`: 297 bytes, ceiling 298.
+- Core slots: 338, ceiling 339; React slots: 21, ceiling 21.
+- Complexity cap stays at 8; no saved ceiling rises.
+- Changed units and the three new tests pass strict style checks.
+- Full Core keeps main's S04, S10, S14, T05, and P06 hits.
+- TSDoc parser: zero S26 rows.
+- The normal build refreshes the ignored playground vendor files.
+
+Jev reads `origin/main..HEAD` and skips the large file judge.
+All non-noisy unit flags have false labels with reasons.
+Only new ids are added; every main row stays in place.
+The three new tests have no test-style flag.
+Seven old test flags and the old sleep note stay outside this card.
+The README now states the repeat-read and closed-read promises.
+The session title is unsure, which owes no new line.
+The ticket's commit-message flag is explained:
+the source diff adds the memo and leaves node freeing as on main.
+No speed number is claimed in that commit message.
+Full calibration, final timing, and the clean Core mutation proof follow.
+
+The timing base is `0ca40d05`.
+Use the same 14 rows as the Haiku full run, N=61 through the queue.
+Use a paired two-sided sign test at p below 0.01, with ties left out.
+The `s1_getctl` and `create` gains against this base come from main changes.
+The memo misses on those new-scope calls.
+The prior reviewed create comparison adds about 1.4 ns for two layer fields.
+That cost is accepted; this card must keep the session and lifecycle wins.
+Core feedback: none.
