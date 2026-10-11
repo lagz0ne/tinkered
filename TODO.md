@@ -28,12 +28,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Join `[Symbol.iterator]` and async `next()` overloads with `&`, not as a list.
   Treat a result as done when `false` cannot be assigned to its `done` type (`done?: true`).
   Handle a typed promise deeper than 8 layers and `then(cb: () => void)`. Today each is a false flag.
+  The assignment walk's 8-layer limit also flags a thenable that settles to itself or to a value (for example `{ layer: number }`), where the `const` form stays clean.
   Verify: the `for (const …)` form agrees on every probe.
-
-- **core/size-guard-forof-cost** — `checkForOf` (`private-fields.ts` near :1060) walks the element type of every for-of,
-  even `for (const x of y)` where nothing reads it.
-  `settled` has no dedupe: n thenables that each settle to a union of all n walk n^8 paths; 4 thenables take 5.5–6.3 s.
-  Verify: skip the walk unless the target is an object or array literal; dedupe each layer; the 4-thenable probe drops under 1 s.
 
 - **core/closed-read-stale** — a closed layer keeps an old ancestor value it saved.
   `packages/core/src/index.ts:4560` memo; `:4479` close detaches the layer first, so `invalidateEff` `:1292` never reaches it.
@@ -87,6 +83,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-forof-cost** — `checkForOf` skips the walk unless the target is an object or array literal; `settled` walks one layer at a time, each type id once. Landed 2026-10-11. Haiku writer; Opus review NOT READY once (1 s deadline, PROGRESS overclaim), READY after. 120 guard tests; G90–G91 time out on `6251a860` (main about 22 s); G91 pins the dedupe; the skip changes no answer (parity G72–G91 in both forms). Dist byte-identical; 55 names. Mutation skipped (src unchanged). Jev preflight 402. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-forof-cost).
 
 - **docs/vertical** — round 2 landed 2026-10-11 (this commit). core-v1 PROGRESS order tables are lists (24 rows, every cell kept). 3 long start-scaffold fences broken; TS tokens unchanged; the URL is the same argument. `--wide` 0 of 229 files (was 3); `vp run prose` 0 hits. Reviewer READY.
 
