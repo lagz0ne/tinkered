@@ -962,6 +962,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close
   returns the same result.
 - A failed start rejects `ready` with its cause and fails the scope.
+- A held controller keeps its last write alive after its root closes, with or without a watcher.
+- A held controller keeps its last write alive after its session closes, fast or under a session hook.
+- Without a held controller, a closed root frees its last write.
 - A scope with no extensions is ready at once on one shared promise; a session after ready is ready.
 - `scope.resolve` reads a cell's current value with no subscription, builds a resource once, and reads a
   tag's nearest binding, default, or throws `MissingTag`.
