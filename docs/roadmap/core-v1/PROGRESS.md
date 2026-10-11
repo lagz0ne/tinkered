@@ -2722,3 +2722,209 @@ held.set(Array.from({ length: 200_000 }, () => 1));
 await root.close();
 // gc(): the array is still reachable through `held`
 ```
+
+## core/size-guard-iterable-edges
+
+Branch: `core/size-guard-iterable-edges-sol`.
+Started from `origin/main` at `807c388b`.
+Rebased onto `3e2a2346` after the green code step.
+Code commit: `7630f17a`.
+The lead owns the board and landing.
+
+The first pass stays at `5d0d132e` in its own worktree.
+Its local archive tag is `archive/size-guard-iterable-edges-haiku-5d0d132e`.
+The takeover keeps its code and plants, with the fixes below.
+
+### Change
+
+- An `any` `[Symbol.iterator]()` or `next()` keeps answering `any`.
+- Every `next()` overload contributes its yielded types to a list.
+- The assignment walk carries that whole list through each nested target.
+- A name is flagged when any source type in the list flags its read.
+- Union members stay in the list; none stands for all the others.
+- The global `Symbol.iterator` is found through `resolveName("Symbol")` and its unique symbol id.
+- A user symbol named `iterator` has a different id and cannot take its place.
+- `for await` settles each union it finds, including a union inside a promise value.
+- A union split keeps the depth already spent on outer promise layers.
+- The loop still stops after eight promise layers.
+- A circular thenable reaches the cap and counts as `any`.
+- A `done: true` result ends the loop, so its value does not count.
+
+The sync API has no `getAwaitedType` and no `getUnionType`.
+The guard reads promise values from `then` callback parameters.
+It carries a `Type[]` through `assignmentTarget` and `sourcePart` instead of building a union.
+The first overload no longer stands for the rest.
+
+### Failing tests first
+
+The tests were written before the takeover's code.
+The copied tests ran against `origin/main` at `807c388b` in `/tmp/main-check-size-guard-iterable-edges-sol`.
+
+- Filter: G78 to G87 and the `done: true` control.
+- Result: ten failed, one passed, exit 1.
+- G78 to G85 and G87 passed the build when they should fail it.
+- The `done: true` control failed the build when it should pass.
+- G86 passed its test: main already catches this result union.
+
+The three new tests then ran in the ticket worktree with the first pass's guard from `6c5a45d8`.
+All three failed because the build accepted the read: exit 1.
+G86 proves a lost case from the first pass, rather than a new bug on main.
+
+New plants:
+
+- G85: a nested target reads `{ a: any }` from the second `next()` overload, after the typed overload.
+- G86: the same nested target reads a result union with a typed `done: false` branch first and an unchecked `done: boolean` branch second.
+- G87: `for await` reads `Promise<{ layer: number } | PromiseLike<any>>[]`.
+
+Kept plants:
+
+- G72: `Set<any>`.
+- G73: `Map<string, any>`.
+- G74: a function returning `Iterable<any>`.
+- G75: `AsyncIterable<any>`.
+- G76: `Set<Promise<any>>` under `for await`.
+- G77: a hand-written iterator with an unchecked value.
+- G78: `[Symbol.iterator]()` returns `any`.
+- G79: `next()` returns `any`.
+- G80: `PromiseLike<any>[]` under `for await`.
+- G81: a later `next()` overload yields `any`.
+- G82: a user symbol named `iterator` comes before the real symbol.
+- G83: `(PromiseLike<any> | number)[]` under `for await`.
+- G84: a circular thenable under `for await`.
+
+All 116 guard tests pass.
+Every plant G72 to G87 fails the build with the named guard error.
+All controls pass, including the `done: true` control.
+The 105 tests from main and the first pass's eight tests stay green.
+
+### Parity probes
+
+A scratch script packed each shape twice with the guard.
+One pack used `for ({ ... } of s)`.
+The other used `for (const { ... } of s)`.
+The async rows used `for await` in both forms.
+It also checked each expected flagged or unflagged result.
+All 44 probes agree, including the two extra first-pass shapes and the new plants.
+
+Flagged in both forms:
+
+- 1: G72, `Set<any>`.
+- 2: G73, `Map<string, any>` with an array target.
+- 3: G74, a call returning `Iterable<any>`.
+- 4: G75, `AsyncIterable<any>`.
+- 5: G76, `Set<Promise<any>>`.
+- 6: G77, a hand-written iterator.
+- 7: G78, an iterator method returning `any`.
+- 8: G79, `next()` returning `any`.
+- 9: G80, `PromiseLike<any>[]`.
+- 10: G81, a later `any` overload.
+- 11: G82, a user iterator symbol first.
+- 12: G83, a union of `PromiseLike<any>` and `number`.
+- 13: G84, a circular thenable.
+- 21: an array whose element union contains `any`.
+- 22: `AsyncIterable<PromiseLike<any>>`.
+- 23: `Promise<PromiseLike<any>>[]`.
+- 24: a custom thenable that gives `any` to its callback.
+- 25: an unchecked value with `done?: false`.
+- 26: `[Symbol.iterator]: any`.
+- 27: nested unions of iterables, including `Set<any>`.
+- 28: a typed array or `Set<any>`.
+- 30: an iterator returning `Iterator<any, void>`.
+- 31: `PromiseLike<PromiseLike<any>>[]`.
+- 33: a class with its user iterator symbol first.
+- 34: the same class with its real iterator symbol first.
+- 36: two thenables that point back to each other.
+- 37: `Promise<any>[]`.
+- 41: G85, a nested target with the typed overload first.
+- 42: G85 with the overload order swapped.
+- 43: G86, a nested target over a result union.
+- 44: G87, a union inside a promise value.
+
+Unflagged in both forms:
+
+- 14: a `done: true` branch whose value is `any`.
+- 15: a typed Set.
+- 16: a Map with an `any` key and a typed value.
+- 17: a typed Generator with an `any` return.
+- 18: a typed AsyncIterable.
+- 19: a typed `IteratorResult<T, any>`.
+- 20: a typed result with `done: boolean`.
+- 29: generic `next<T>()`.
+- 32: a value with `then: any`.
+- 35: `Iterable<unknown>`.
+- 38: a typed PromiseLike.
+- 39: a typed array.
+- 40: a union of typed iterables.
+
+The scratch script and logs use `/tmp/size-guard-iterable-edges-sol-`.
+No scratch test was committed.
+
+### Scope and limits
+
+Core source, the saved field list, and all ratchets are unchanged.
+No complexity ceiling was raised.
+The cap stays at 8.
+
+The next card owns these limits:
+
+- Async `next()` and iterator method overloads can give false flags because TypeScript combines their types with `&`.
+- A typed promise deeper than eight layers can give a false flag.
+- `then(cb: () => void)` is not handled here.
+
+### Build proof and gates
+
+- All nine dist files match the saved `origin/main` build byte for byte.
+- The rebase added no Core source or build change from main.
+- Write mode found the committed 55 names.
+- `private-fields.json` stayed byte for byte unchanged.
+- Core source and `scripts/fast-code-baseline.json` have no diff from `origin/main`.
+- `scripts/check-fast-code.mjs` passed in the validate lane with the saved ratchets.
+- Core slots: 338; `runOnce`: 498 bytes; `runHookBody`: 297 bytes.
+
+The full chain passes and is rerun on the clean proof head before handoff.
+Every command runs from the ticket worktree.
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0, zero errors and the same 27 warnings as main.
+- `vp run -r test`: exit 0; Core source has 887 passed tests.
+- `scripts/ticket.sh --check-only --no-mutation core 45` with the title below: exit 0.
+- Title: `Guard all iterable source types`.
+- `vp run core#test:dist`: exit 0; 1003 tests pass, including all 116 guard tests.
+- `pnpm validate`: exit 0; all 20 lanes pass.
+- `vp run prose`: exit 0; zero hits in 229 files.
+- Chain result: `EXIT 0`.
+- No timeout or OOM retry was needed.
+
+Logs: `/tmp/size-guard-iterable-edges-sol-gate1.log` and `/tmp/size-guard-iterable-edges-sol-gate2.log`.
+The clean gate log prints the commit and checks for a clean tree before and after the chain.
+The separate main-check worktree was removed.
+The ticket worktree and branch stay for review.
+Nothing was pushed.
+
+### Mutation and timing
+
+Mutation was not run.
+`src/` is unchanged, and the lane only mutates `src/`.
+`build/` is not mutated; the failing plants prove this fix.
+There is no mutation score or clean mutation commit for this ticket.
+
+Timing was not run.
+This change makes no speed claim.
+
+### Jev and style
+
+- Preflight ran once on `origin/main..HEAD`: exit 1, HTTP 402, budget exceeded.
+- It failed at its first judge and gave no flags.
+- It was not retried.
+- The first ticket gate's `review.mjs` also hit HTTP 402.
+- The clean gate leaves the key unavailable to that advisory step so it makes no retry.
+- `tests.mjs core` and `promises.mjs core` did not run: both need the spent gateway budget.
+- Calibrate did not run, as requested.
+- No Jev labels were written; `tools/jev/cases.jsonl` is unchanged.
+- Changed functions and new tests pass the strict style census.
+- The full-file census has the same prior build-tool and plant-string hits as main.
+- The TSDoc parser reports zero S26 rows.
+
+### Core feedback
+
+None from the takeover.
