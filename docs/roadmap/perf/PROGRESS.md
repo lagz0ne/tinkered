@@ -2272,3 +2272,28 @@ Other checks:
 - The queue cannot see `/tmp`, so B ran in the branch worktree.
 - That worktree has the same source as origin/main.
 - The base worktree `tinkered-base-s4` was removed after the run.
+- The timed body is the committed body, with the variable named `_neverSeen`.
+
+Gates on the committed probe:
+
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings (main has 27).
+  - The first run had 28: `neverSeen` was unused. Renamed to `_neverSeen`.
+- `vp run -r test`: exit 0. All nine test runs pass.
+  - One test is skipped, in one package. This change does not touch it.
+- `scripts/ticket.sh --check-only --no-mutation core 44`: exit 0.
+  - Core tests on the built files: 982 pass.
+  - Core runtime: 16006 B gzip (cap 16384 B).
+- `vp run core#test:dist`: exit 0. 982 tests pass.
+- `pnpm validate`: exit 0. All 20 deterministic budget lanes PASS.
+- `vp run prose`: exit 0. 0 hits in 229 files.
+
+Jev:
+
+- `node tools/jev/preflight.mjs origin/main..HEAD`: did not run.
+  - The gateway answered HTTP 402: "API key budget exceeded".
+  - Not retried, per the brief. No flags, so no labels.
+- Advisory `review.mjs` in `ticket.sh`: same 402. Its `|| true` let the gate go on.
+- `tests.mjs` and `promises.mjs`: not run. No test file changed.
+- `calibrate.mjs`: skipped. The key is out of budget.
+- `tools/jev/cases.jsonl`: unchanged.
