@@ -993,15 +993,18 @@ function checkRead(node: TsNode, checker: Checker, wanted: Set<string>, hits: st
     node.parent.kind === SyntaxKind.ObjectBindingPattern
   ) {
     checkKey(node as ElementNode, checker, wanted, hits);
-  } else if (isObjectAssignment(node)) {
+  } else if (isDestructuringAssignment(node)) {
     checkAssignment(node as AssignNode, checker, wanted, hits);
+  } else if (node.kind === SyntaxKind.ForOfStatement) {
+    checkForOf(node as ForOfNode, checker, wanted, hits);
   }
 }
 
 /** The parts of a TypeScript 7 node that {@link checkRead} reads. */
 type MemberNode = TsNode & { expression: TsNode; name: TsNode };
 type ElementNode = TsNode & { propertyName?: TsNode; name: TsNode };
-type AssignNode = TsNode & { left: TsNode & { properties: TsNode[] }; right: TsNode };
+type AssignNode = TsNode & { left: TsNode; right: TsNode };
+type ForOfNode = TsNode & { initializer: TsNode; expression: TsNode };
 
 /** The text of a name or a string key, or `undefined` for a computed one. */
 function keyText(key: TsNode): string | undefined {
@@ -1027,18 +1030,84 @@ function checkKey(node: ElementNode, checker: Checker, wanted: Set<string>, hits
   if (anyRead(checker, checker.getTypeAtLocation(node.parent), name)) hits.push(name);
 }
 
-/** A key of a destructuring assignment, `({ name } = source)`, read from the source's type. */
+/** The source read and the names one assignment walk records. */
+type AssignmentRead = { checker: Checker; source: TsNode; wanted: Set<string>; hits: string[] };
+
+/** Walk every assignment target against the part of the source it reads. */
 function checkAssignment(
   node: AssignNode,
   checker: Checker,
   wanted: Set<string>,
   hits: string[],
 ): void {
-  const source = checker.getTypeAtLocation(node.right);
-  for (const property of node.left.properties) {
-    const name = assignedKey(property);
-    if (name !== undefined && wanted.has(name) && anyRead(checker, source, name)) hits.push(name);
+  assignmentTarget(node.left, checker.getTypeAtLocation(node.right), {
+    checker,
+    source: node.right,
+    wanted,
+    hits,
+  });
+}
+
+/** A for-of assignment reads one element of the iterable, rather than the iterable itself. */
+function checkForOf(node: ForOfNode, checker: Checker, wanted: Set<string>, hits: string[]): void {
+  const read = { checker, source: node.expression, wanted, hits };
+  const source = checker.getTypeAtLocation(node.expression);
+  assignmentTarget(node.initializer, sourcePart(source, undefined, true, read), read);
+}
+
+/**
+ * Descend object and array targets with their own source types. An assignment's target type
+ * describes the variables being written, so it cannot answer whether the source read is `any`.
+ */
+function assignmentTarget(target: TsNode, source: Type | undefined, read: AssignmentRead): void {
+  if (target.kind === SyntaxKind.ObjectLiteralExpression) {
+    assignmentObject(target as TsNode & { properties: TsNode[] }, source, read);
+  } else if (target.kind === SyntaxKind.ArrayLiteralExpression) {
+    const array = target as TsNode & { elements: TsNode[] };
+    array.elements.forEach((element, index) => {
+      assignmentTarget(element, sourcePart(source, String(index), true, read), read);
+    });
+  } else if (isEquals(target)) {
+    assignmentTarget((target as AssignNode).left, source, read);
   }
+}
+
+/** Object keys read from the enclosing source; nested targets read from that key's value. */
+function assignmentObject(
+  target: TsNode & { properties: TsNode[] },
+  source: Type | undefined,
+  read: AssignmentRead,
+): void {
+  for (const property of target.properties) {
+    const name = assignedKey(property);
+    if (name === undefined) continue;
+    if (read.wanted.has(name) && anyRead(read.checker, source, name)) read.hits.push(name);
+    if (property.kind === SyntaxKind.PropertyAssignment) {
+      assignmentTarget(
+        (property as TsNode & { initializer: TsNode }).initializer,
+        sourcePart(source, name, false, read),
+        read,
+      );
+    }
+  }
+}
+
+/** The checked type of one source property or array element; `any` keeps flowing through it. */
+function sourcePart(
+  source: Type | undefined,
+  name: string | undefined,
+  numeric: boolean,
+  read: AssignmentRead,
+): Type | undefined {
+  if (source === undefined || isAny(source)) return source;
+  const apparent = read.checker.getApparentType(source);
+  if (apparent === undefined) return undefined;
+  const property = name === undefined ? undefined : read.checker.getPropertyOfType(apparent, name);
+  if (property !== undefined) return read.checker.getTypeOfSymbolAtLocation(property, read.source);
+  const keyFlags = numeric ? TypeFlags.Number : TypeFlags.String;
+  return read.checker
+    .getIndexInfosOfType(apparent)
+    .find((info) => (info.keyType.flags & keyFlags) !== 0)?.valueType;
 }
 
 /** The name a property of an object literal gives, when it is `name` or `name: x`. */
@@ -1049,13 +1118,21 @@ function assignedKey(property: TsNode): string | undefined {
   return named ? keyText((property as TsNode & { name: TsNode }).name) : undefined;
 }
 
-/** True for `{ ... } = value`: an object literal on the left of `=`, a destructuring assignment. */
-function isObjectAssignment(node: TsNode): boolean {
-  if (node.kind !== SyntaxKind.BinaryExpression) return false;
-  const assign = node as AssignNode & { operatorToken: TsNode };
+/** True for a plain assignment; compound assignments do not destructure their source. */
+function isEquals(node: TsNode): boolean {
   return (
-    assign.operatorToken.kind === SyntaxKind.EqualsToken &&
-    assign.left.kind === SyntaxKind.ObjectLiteralExpression
+    node.kind === SyntaxKind.BinaryExpression &&
+    (node as AssignNode & { operatorToken: TsNode }).operatorToken.kind === SyntaxKind.EqualsToken
+  );
+}
+
+/** True for an object or array literal on the left of `=`, a destructuring assignment. */
+function isDestructuringAssignment(node: TsNode): boolean {
+  if (!isEquals(node)) return false;
+  const { left } = node as AssignNode;
+  return (
+    left.kind === SyntaxKind.ObjectLiteralExpression ||
+    left.kind === SyntaxKind.ArrayLiteralExpression
   );
 }
 
@@ -1072,9 +1149,10 @@ function typedReads(files: string[], names: string[]): Map<string, string[]> {
   const wanted = new Set(names);
   const dir = mkdtempSync(join(CORE, "node_modules", "core-guard-"));
   const config = join(dir, "tsconfig.json");
-  writeFileSync(config, JSON.stringify({ compilerOptions: CHECK_OPTIONS, files }));
-  const api = new API({ cwd: dir });
+  let api: API | undefined;
   try {
+    writeFileSync(config, JSON.stringify({ compilerOptions: CHECK_OPTIONS, files }));
+    api = new API({ cwd: dir });
     const project = api.updateSnapshot({ openProjects: [config] }).getProjects()[0];
     if (project === undefined) throw new Error(`the checker opened no project for ${config}`);
     for (const file of files) {
@@ -1089,8 +1167,11 @@ function typedReads(files: string[], names: string[]): Map<string, string[]> {
       found.set(file, hits);
     }
   } finally {
-    api.close();
-    rmSync(dir, { recursive: true, force: true });
+    try {
+      api?.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   }
   return found;
 }

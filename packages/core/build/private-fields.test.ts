@@ -1,7 +1,17 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "vite-plus/pack";
 import { expect, test } from "vite-plus/test";
 import { privateFields } from "./private-fields";
@@ -1005,6 +1015,156 @@ test(
   "a listed name in the public types fails the build",
   async () => {
     expect(await guard({}, ["label"], true)).toContain("label: in the public types");
+  },
+  BUILD_MS,
+);
+
+test(
+  "R1: nested array assignment from any fails the build",
+  async () => {
+    const plant = `${imports}declare const o: any[];
+let layer;
+[{ layer }] = o;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "R2: nested object assignment from any fails the build",
+  async () => {
+    const plant = `${imports}declare const o: any;
+let layer;
+({ a: { layer } } = o);\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "R3: a for-of assignment from any fails the build",
+  async () => {
+    const plant = `${imports}declare const anys: any[];
+let layer;
+for ({ layer } of anys) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a direct object assignment from any still fails the build",
+  async () => {
+    const plant = `${imports}declare const o: any;
+let layer;
+({ layer } = o);\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "R4: a nested assignment reads the source property type",
+  async () => {
+    const plant = `${imports}declare const o: { a: any };
+let layer: number;
+({ a: { layer } } = o);\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "R5: an array assignment reads each source element type",
+  async () => {
+    const plant = `${imports}declare const o: [any];
+let layer: number;
+[{ layer }] = o;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a checked nested assignment stays unflagged despite an any sibling",
+  async () => {
+    const plant = `${imports}declare const o: { a: { layer: number }; loose: any };
+let layer;
+({ a: { layer } } = o);\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "R6: a for-of assignment reads every possible tuple element",
+  async () => {
+    const plant = `${imports}declare const anys: [{ layer: number }, any];
+let layer: number;
+for ({ layer } of anys) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a missing checker binary leaves no scratch folder after the build fails",
+  () => {
+    const root = mkdtempSync(join(tmpdir(), "core-guard-"));
+    const fixtureCore = join(root, "packages/core");
+    const modules = join(fixtureCore, "node_modules");
+    mkdirSync(modules, { recursive: true });
+    mkdirSync(join(fixtureCore, "build"));
+    mkdirSync(join(root, "apps"));
+    try {
+      cpSync(join(core, "build/private-fields.ts"), join(fixtureCore, "build/private-fields.ts"));
+      cpSync(
+        join(core, "build/private-fields.json"),
+        join(fixtureCore, "build/private-fields.json"),
+      );
+      cpSync(join(core, "node_modules/typescript"), join(modules, "typescript"), {
+        recursive: true,
+        dereference: true,
+      });
+      symlinkSync(
+        dirname(fileURLToPath(import.meta.resolve("vite-plus/package.json"))),
+        join(modules, "vite-plus"),
+      );
+      writeFileSync(
+        join(root, "apps/plant.ts"),
+        `${imports}declare const o: any; export const read = o.layer;`,
+      );
+      const script = `
+        import { build } from ${JSON.stringify(import.meta.resolve("vite-plus/pack"))};
+        import { privateFields } from ${JSON.stringify(pathToFileURL(join(fixtureCore, "build/private-fields.ts")).href)};
+        try {
+          await build({ config: false, cwd: ${JSON.stringify(core)}, entry: "src/index.ts",
+            outDir: ${JSON.stringify(join(root, "dist"))}, dts: false, logLevel: "silent",
+            plugins: [privateFields(${JSON.stringify([...listed, "layer"])}, ${JSON.stringify(root)})] });
+          throw new Error("the build accepted a missing checker");
+        } catch (error) {
+          if (!String(error).includes("Unable to resolve @typescript/")) throw error;
+        }
+      `;
+      execFileSync(process.execPath, ["--input-type=module", "--eval", script], { stdio: "pipe" });
+      expect(readdirSync(modules).filter((name) => name.startsWith("core-guard-"))).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   },
   BUILD_MS,
 );
