@@ -36,6 +36,12 @@ declare const u: U;
 declare const s: U[];
 let layer: number;\n`;
 
+/** Four thenables that each settle to a union of all four: the settle walk's worst case at this size. */
+const thenableSource = `${imports}type U = T0 | T1 | T2 | T3;
+${[0, 1, 2, 3].map((index) => `interface T${index} { then(cb: (value: U) => void): void }`).join("\n")}
+declare const ps: U[];
+let layer: number;\n`;
+
 const childBuild = `
   import { build } from ${JSON.stringify(import.meta.resolve("vite-plus/pack"))};
   import { privateFields } from ${JSON.stringify(pathToFileURL(join(core, "build/private-fields.ts")).href)};
@@ -48,7 +54,7 @@ const childBuild = `
 `;
 
 /** A child deadline can stop a synchronous checker walk that blocks the test worker's timer. */
-function guardInChild(plant: string): string {
+function guardInChild(plant: string, deadline = 10_000): string {
   const root = mkdtempSync(join(tmpdir(), "core-recursive-guard-"));
   const file = join(root, "packages/react/src/plant.ts");
   mkdirSync(dirname(file), { recursive: true });
@@ -56,7 +62,7 @@ function guardInChild(plant: string): string {
   try {
     return execFileSync(process.execPath, ["--input-type=module", "--eval", childBuild, root], {
       encoding: "utf8",
-      timeout: 10_000,
+      timeout: deadline,
       killSignal: "SIGKILL",
     });
   } finally {
@@ -1464,6 +1470,26 @@ test(
   () => {
     const plant = `${recursiveSource}({ a: { a: { a: { a: { layer } } } } } = u);\n`;
     expect(guardInChild(plant)).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "G90: a for-await loop over four thenables that settle to each other builds within one second",
+  () => {
+    const plant = `${thenableSource}for await (const x of ps) {}\n`;
+    expect(guardInChild(plant, 1_000)).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "G91: a for-await assignment over four thenables that settle to each other fails within one second",
+  () => {
+    const plant = `${thenableSource}for await ({ layer } of ps) {}\n`;
+    expect(guardInChild(plant, 1_000)).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
   },
   BUILD_MS,
 );

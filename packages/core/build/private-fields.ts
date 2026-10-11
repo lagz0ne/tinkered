@@ -1056,8 +1056,12 @@ function checkAssignment(
   });
 }
 
-/** A for-of assignment reads one element of the iterable, rather than the iterable itself. */
+/**
+ * A for-of assignment reads one element of the iterable, rather than the iterable itself. Only an
+ * object or array target reads parts of that element, so any other target skips the walk.
+ */
 function checkForOf(node: ForOfNode, checker: Checker, wanted: Set<string>, hits: string[]): void {
+  if (!isLiteralTarget(node.initializer)) return;
   const read = { checker, source: node.expression, wanted, hits };
   const source = checker.getTypeAtLocation(node.expression);
   const isAwait = node.awaitModifier !== undefined;
@@ -1191,20 +1195,24 @@ const PROMISE_LAYERS = 8;
 
 /**
  * The type a promise settles to, unwrapping each layer as `await` does; a union settles member by
- * member. A thenable that still settles to a thenable after the layer limit is `any`, as TypeScript
- * gives a circular await. Any other type stands for itself.
+ * member. Each layer keeps each type id once, so a union whose members settle to the whole union
+ * costs one step per member and layer, not one per path. A thenable that still settles to a
+ * thenable after the layer limit is `any`, as TypeScript gives a circular await. Any other type
+ * stands for itself.
  */
-function settled(checker: Checker, type: Type, at: TsNode, depth = 0): Type[] {
-  let current = type;
-  for (let layer = depth; layer < PROMISE_LAYERS; layer++) {
-    if (current.isUnionType()) {
-      return current.getTypes().flatMap((member) => settled(checker, member, at, layer));
+function settled(checker: Checker, type: Type, at: TsNode): Type[] {
+  const found: Type[] = [];
+  let open = typeParts(type);
+  for (let layer = 0; layer < PROMISE_LAYERS && open.length > 0; layer++) {
+    const next: Type[] = [];
+    for (const current of open) {
+      const value = promisedValue(checker, current, at);
+      if (value === undefined) found.push(current);
+      else next.push(...typeParts(value));
     }
-    const value = promisedValue(checker, current, at);
-    if (value === undefined) return [current];
-    current = value;
+    open = uniqueTypes(next);
   }
-  return [checker.getAnyType()];
+  return open.length === 0 ? found : [...found, checker.getAnyType()];
 }
 
 /**
@@ -1307,14 +1315,17 @@ function isEquals(node: TsNode): boolean {
   );
 }
 
+/** True for an object or array literal: a destructuring target, which reads parts of its source. */
+function isLiteralTarget(node: TsNode): boolean {
+  return (
+    node.kind === SyntaxKind.ObjectLiteralExpression ||
+    node.kind === SyntaxKind.ArrayLiteralExpression
+  );
+}
+
 /** True for an object or array literal on the left of `=`, a destructuring assignment. */
 function isDestructuringAssignment(node: TsNode): boolean {
-  if (!isEquals(node)) return false;
-  const { left } = node as AssignNode;
-  return (
-    left.kind === SyntaxKind.ObjectLiteralExpression ||
-    left.kind === SyntaxKind.ArrayLiteralExpression
-  );
+  return isEquals(node) && isLiteralTarget((node as AssignNode).left);
 }
 
 /**
