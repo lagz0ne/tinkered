@@ -2215,7 +2215,7 @@ The final code preflight reads `origin/main..HEAD`.
 All labels used for the final guard code name `core/size-guard-real-types` in `by`.
 Existing ids are kept once, rather than copied into duplicate rows.
 The maps and sets record one build scan, not app state.
-The new `argumentCasts` label is false for that same reason.
+The new `argumentCasts` and `settle` labels are false for that same reason.
 Calibration is run again after changing the label bank.
 
 The guard-test scan finds zero flags in all 93 tests.
