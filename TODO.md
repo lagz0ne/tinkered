@@ -54,16 +54,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: round 1 landed (5ec4ec54); left: `TODO.md`, package and app READMEs, `apps/start-scaffold/.agents/skills/tinker-testing/SKILL.md`, `apps/start-scaffold/README.md`, `docs/roadmap/core-v1/PROGRESS.md`; to be done after the code writers land
   Verify: `--wide` prints 0 files; `vp run prose` clean
 
-- **perf/warm-ctl-trade** — win back the `warm` and `s4_warm_ctl` loss from the tagged-close stack.
-  Goal: neither row slower, and the tagged-close wins kept.
-  Baseline 2026-10-10 (N=61, CPU 7, no turbo, one probe = `8d02ea8f` `bench/`).
-  `warm` 16.8 → 17.7 ns (+5.4%, B slower), all from the stack `b451fbb1..105d82b`.
-  `s4_warm_ctl` 10.2 → 10.7 ns from that stack.
-  Next: bisect inside `b451fbb1..105d82b` (29 commits), then a V8 inlining check.
-  Core ticket: one Core ticket at a time.
-  Verify: neither row "B slower" vs `b451fbb1`.
-  [Baseline](docs/roadmap/perf/PROGRESS.md#warm-ctl-baseline-2026-10-10).
-
 - **core/fastclose-free-data** — a fast-closed child keeps its data.
   When a parent closes a child with no hooks and no `withData`, `fastClose` skips the node free.
   So a held child keeps its value. Pre-existing on main.
@@ -73,6 +63,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Today the read returns its last write (5).
   ADR 0069 line 8 says a read after close throws `Disposed`; decide and test.
   Verify: the GC line turns "freed"; `session` and `lifecycle` not B slower vs main (paired sign test, N=61).
+
+- **perf/s4-probe-depth** — at 0.7 ns (2 to 3 cycles) the `s4_warm_ctl` probe may time almost no work after the memo.
+  Make the probe do real work, or document why 0.7 ns is real.
+  Verify: the new probe shows a real cost on main, and the memo still wins by the sign test.
 
 ## Doing
 
@@ -103,6 +97,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **perf/warm-ctl-trade** — no source change: the controller memo from perf/handle-verbs-ctl (`e1476f06`, landed in `63e48732`) won back the loss. benchd N=61 vs `b451fbb1`: `warm` 16.8 → 9.2 ns (61/61), `s4_warm_ctl` 10.3 → 0.7 (61/61); all 16 rows B faster (p < 0.01), tagged-close wins kept (`tagged` 2591.6 → 193.2, `session` −75%). Core mutation 86.57; validate 20/20; size 16026 B. [Proof](docs/roadmap/perf/PROGRESS.md#warm-ctl-trade-2026-10-11).
 
 - **perf/handle-verbs-ctl** — a repeat controller read on the same handle hits a memo.
   Landed 2026-10-11. Haiku two rounds (second NOT READY); Sol took over. Reviewer: READY.
