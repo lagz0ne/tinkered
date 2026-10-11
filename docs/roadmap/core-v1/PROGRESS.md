@@ -2433,3 +2433,98 @@ The docs disagree about reads after close.
 `docs/decisions/0069` says a read after close throws `Disposed`.
 The README line about a held controller says it reads the initial value.
 The fix follows the README and the test.
+
+## core/size-guard-iterable-assign
+
+Branch: `core/size-guard-iterable-assign`.
+Base: `origin/main` at `85f7f55d`.
+Commit: `6081ecda`.
+The lead owns the board and landing.
+
+### Change
+
+A for-of assignment reads one element of its source.
+The guard took that element from a numeric index only.
+So arrays and tuples worked. Other iterables did not.
+
+The guard now finds the element the way TypeScript does:
+
+- Arrays and tuples: the numeric index, as before.
+- Other iterables: the `[Symbol.iterator]()` method, then its `next()`.
+- `for await`: the `[Symbol.asyncIterator]()` method, then `next()`.
+- `for await` settles a promised element.
+- The yield type is `T` of `IteratorResult<T, R>`.
+
+The yield type is not the whole `value` union. That union adds `R`.
+So `Generator<{ layer: number }, any>` would wrongly read as `any`.
+
+The sync API has no iterated-type call. So the guard repeats the protocol.
+
+### Plants
+
+G72 to G77 are new: six tests. Each fails on `origin/main`.
+
+- G72: `for ({ layer } of s)` with `Set<any>`.
+- G73: `for ([, { layer }] of m)` with `Map<string, any>`.
+- G74: `for ({ layer } of gen())` with `Iterable<any>`.
+- G75: `for await ({ layer } of it)` with `AsyncIterable<any>`.
+- G76: `for await` over `Set<Promise<any>>`.
+- G77: a hand-written iterator with no `IteratorResult` alias.
+
+Controls, unflagged on both heads:
+
+- a typed Set;
+- a Map with an `any` key and a typed entry;
+- a `Generator<T, any>` with typed `T`;
+- a typed AsyncIterable under `for await`.
+
+Run: `vp test --config vite.dist.config.ts build/private-fields.test.ts`.
+
+- `origin/main` with the new tests, filtered: 6 failed, 6 passed.
+  The 6 passed are the four controls, R3, and R6.
+- This head: all 105 tests in the file pass.
+- Before this change the file had 95 tests.
+
+### Build proof
+
+- All nine dist files match `origin/main` byte for byte (`diff -r`).
+- Write mode (`CORE_PRIVATE_FIELDS=write vp pack`) finds 55 names.
+- `build/private-fields.json` is unchanged.
+
+### Checks
+
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings. `origin/main` has 27.
+- `vp run -r test`: exit 0. Core source: 883 tests pass.
+- `vp run core#test:dist`: exit 0. 988 tests pass.
+- `scripts/ticket.sh --check-only --no-mutation core 43`: exit 0.
+- `pnpm validate`: exit 0. All 20 lanes pass.
+- Core runtime: 15988 B gzip, cap 16384 B.
+
+### Mutation
+
+Not run. `src/` is unchanged and `build/` is not mutated.
+The plants are the proof.
+
+### Timing
+
+Not run. This change makes no speed claim.
+
+### Jev
+
+- `preflight.mjs origin/main..HEAD`: HTTP 402, budget exceeded. Not retried.
+  It failed on its first judge, so it gave no flags.
+- `promises.mjs core`: not run. It uses the same gateway.
+- `tests.mjs core`: ran. 7 flags, none in `build/`.
+- No labels written. Calibrate: skipped, because no label was written.
+- `tools/jev/cases.jsonl` is unchanged.
+
+### Core feedback
+
+- The TS 7 sync API has no iterated-type call.
+- Well-known symbol keys carry a program id, so a plain name misses.
+
+```ts
+checker.getPropertyOfType(apparent, "__@iterator");
+// undefined: the key is "__@iterator@2" in this program
+```
