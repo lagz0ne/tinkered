@@ -499,6 +499,9 @@ A driver whose shared state belongs to the source scope must read and write thro
 scope's handle, such as `scope.controller(cell).set(value)`. A cell controller supplied in
 a session operation's `depends` writes to that session.
 
+On an open scope, a repeat `controller(target)` read returns the same controller.
+A read with `ns` returns a new one.
+
 ## Tags
 
 `scope.resolve(tag.all)` returns bindings nearest layer first, and last binding first

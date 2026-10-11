@@ -1,8 +1,45 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data } from "../src/index";
+import { createScope, data, isError } from "../src/index";
 
 const first = data({ label: "first", initial: 1 });
 const second = data({ label: "second", initial: 2 });
+
+test("a repeat controller read gives back the same controller, even after another target", async () => {
+  const root = createScope();
+  const one = root.controller(first);
+  const two = root.controller(second);
+  expect(one).not.toBe(two);
+  expect(root.controller(first)).toBe(one);
+  expect(root.controller(first)).toBe(one);
+  expect(root.controller(second)).toBe(two);
+  one.set(10);
+  expect(root.controller(first).get()).toBe(10);
+  expect((await root.close({ graceful: true })).status).toBe("success");
+});
+
+test("a session's repeat controller read stays apart from its root's", async () => {
+  const root = createScope();
+  const child = root.createSession();
+  const up = root.controller(first);
+  const down = child.controller(first);
+  expect(down).not.toBe(up);
+  expect(child.controller(first)).toBe(down);
+  expect(root.controller(first)).toBe(up);
+  expect((await child.close({ graceful: true })).status).toBe("success");
+  expect((await root.close({ graceful: true })).status).toBe("success");
+});
+
+test("a repeat controller read on a closed scope still refuses", async () => {
+  const root = createScope();
+  expect(root.controller(first)).toBe(root.controller(first));
+  expect((await root.close({ graceful: true })).status).toBe("success");
+  try {
+    root.controller(first);
+    expect.unreachable("a closed scope must refuse a controller read");
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
+});
 
 test("scope and both session forms share their verbs on one prototype", async () => {
   const root = createScope();

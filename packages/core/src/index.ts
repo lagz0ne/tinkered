@@ -1165,6 +1165,11 @@ type Layer = {
   closeAbort?: AbortController;
   stop?: AbortSignal;
   closing: Promise<Scope.Result> | undefined;
+  /** The last node a handle's `controller` read on this layer, and its controller: a repeat read
+   * skips the node lookup while the layer is open. Every close path clears this memo so it
+   * retains no built value after close (ADR 0069). */
+  lastTarget: object | undefined;
+  lastController: unknown;
   obs: Obs;
   trace: Observe.Trace | undefined;
   clock: Clock.Handle;
@@ -2393,6 +2398,8 @@ class TaggedFrame {
   declare body: Promise<unknown> | undefined;
   declare closed: boolean;
   declare closing: Promise<Scope.Result> | undefined;
+  declare lastTarget: object | undefined;
+  declare lastController: unknown;
   declare ctx: Resource.Ctx | undefined;
   constructor(
     up: Layer,
@@ -3604,6 +3611,8 @@ function layerRecord(
     body: undefined,
     closed: false,
     closing: undefined,
+    lastTarget: undefined,
+    lastController: undefined,
     obs,
     trace: obs.on ? traceFor(up, options?.trace) : undefined,
     clock,
@@ -3737,6 +3746,8 @@ function fastClose(
   }
   detachLayer(layer);
   const ended = buildResult(settled, layer, undefined);
+  layer.lastTarget = undefined;
+  layer.lastController = undefined;
   layer.closing = Promise.resolve(
     hooks || withData ? keepData(layer, ended, hooks, withData) : ended,
   );
@@ -4000,6 +4011,8 @@ function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
   layer.children.clear();
   layer.hooks.length = 0;
   layer.errors.length = 0;
+  layer.lastTarget = undefined;
+  layer.lastController = undefined;
   if (keeps) return teardownErrors;
   if (layer.nodes.size !== 0) {
     for (const s of layer.nodes.values()) s.eff = undefined;
@@ -4274,7 +4287,11 @@ class ScopeHandle implements Scope.Handle {
     const layer = this.layer;
     ensureOpen(layer);
     if (ns?.ns !== undefined) return controllerNs(layer, target, nsChainOf(ns.ns));
-    return this.controllerOf(target);
+    if (target === layer.lastTarget && layer.closing === undefined) return layer.lastController;
+    const ctl = this.controllerOf(target);
+    layer.lastTarget = target;
+    layer.lastController = ctl;
+    return ctl;
   }
   resolve<T>(cell: Data.Cell<T>, ns?: Scope.NsArg): T;
   resolve<T>(res: Resource.Handle<T>, ns?: Scope.NsArg): Scope.ResourceValue<T>;
@@ -4983,6 +5000,8 @@ function freeData(layer: Layer, moved: boolean): void {
     else s.eff = undefined;
   }
   layer.nodes = new Map();
+  layer.lastTarget = undefined;
+  layer.lastController = undefined;
   clearBindings(layer);
 }
 
@@ -5700,6 +5719,8 @@ const FRAME_STATE = {
   body: undefined,
   closed: false,
   closing: undefined,
+  lastTarget: undefined,
+  lastController: undefined,
   ctx: undefined,
 };
 
