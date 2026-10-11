@@ -19,7 +19,14 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SyntaxKind, type Node as TsNode } from "typescript/unstable/ast";
-import { API, type Checker, type Type, TypeFlags } from "typescript/unstable/sync";
+import {
+  API,
+  type Checker,
+  SignatureKind,
+  type Type,
+  type TypeReference,
+  TypeFlags,
+} from "typescript/unstable/sync";
 import { minifySync, parseSync, Visitor } from "vite-plus";
 import type { ESTree, Rolldown } from "vite-plus";
 
@@ -1004,7 +1011,7 @@ function checkRead(node: TsNode, checker: Checker, wanted: Set<string>, hits: st
 type MemberNode = TsNode & { expression: TsNode; name: TsNode };
 type ElementNode = TsNode & { propertyName?: TsNode; name: TsNode };
 type AssignNode = TsNode & { left: TsNode; right: TsNode };
-type ForOfNode = TsNode & { initializer: TsNode; expression: TsNode };
+type ForOfNode = TsNode & { initializer: TsNode; expression: TsNode; awaitModifier?: TsNode };
 
 /** The text of a name or a string key, or `undefined` for a computed one. */
 function keyText(key: TsNode): string | undefined {
@@ -1052,7 +1059,75 @@ function checkAssignment(
 function checkForOf(node: ForOfNode, checker: Checker, wanted: Set<string>, hits: string[]): void {
   const read = { checker, source: node.expression, wanted, hits };
   const source = checker.getTypeAtLocation(node.expression);
-  assignmentTarget(node.initializer, sourcePart(source, undefined, true, read), read);
+  const isAwait = node.awaitModifier !== undefined;
+  const element = source === undefined ? undefined : elementType(source, isAwait, read);
+  assignmentTarget(node.initializer, element, read);
+}
+
+/** The keys TypeScript gives `[Symbol.iterator]` and `[Symbol.asyncIterator]`; the id varies. */
+const SYNC_ITERATOR = /^__@iterator@/;
+const ASYNC_ITERATOR = /^__@asyncIterator@/;
+
+/**
+ * The type one for-of step reads: an array's or tuple's element by index, else the iterable's
+ * element. Under `for await` a promised element is settled, as TypeScript awaits it.
+ */
+function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type | undefined {
+  const element = sourcePart(source, undefined, true, read) ?? iteratedType(source, isAwait, read);
+  return isAwait ? settled(read.checker, element) : element;
+}
+
+/**
+ * The element of an iterable with no index: the value its iterator yields. The sync API has no
+ * iterated-type call, so this repeats the protocol: the iterator, then its `next()` result.
+ * Under `for await` the iterator is `[Symbol.asyncIterator]()`, and its `next()` gives a promise.
+ */
+function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Type | undefined {
+  const { checker } = read;
+  const at = read.source;
+  const asyncIterator = isAwait ? memberType(checker, source, ASYNC_ITERATOR, at) : undefined;
+  const method = asyncIterator ?? memberType(checker, source, SYNC_ITERATOR, at);
+  const result = returnOf(checker, memberType(checker, returnOf(checker, method), "next", at));
+  const yielded = asyncIterator === undefined ? result : settled(checker, result);
+  return yieldedType(checker, yielded, at);
+}
+
+/** The type of member `key` of `type`, read at `at`. A RegExp matches the first member name. */
+function memberType(
+  checker: Checker,
+  type: Type | undefined,
+  key: string | RegExp,
+  at: TsNode,
+): Type | undefined {
+  const apparent = type === undefined ? undefined : checker.getApparentType(type);
+  if (apparent === undefined) return undefined;
+  const member =
+    typeof key === "string"
+      ? checker.getPropertyOfType(apparent, key)
+      : checker.getPropertiesOfType(apparent).find((symbol) => key.test(symbol.escapedName));
+  return member === undefined ? undefined : checker.getTypeOfSymbolAtLocation(member, at);
+}
+
+/** The return type of a function type's first call signature, or `undefined` if none. */
+function returnOf(checker: Checker, type: Type | undefined): Type | undefined {
+  const signatures =
+    type === undefined ? [] : checker.getSignaturesOfType(type, SignatureKind.Call);
+  const [signature] = signatures;
+  return signature === undefined ? undefined : checker.getReturnTypeOfSignature(signature);
+}
+
+/** The type an iterator result yields: `T` of `IteratorResult<T, R>`, else its `value`. */
+function yieldedType(checker: Checker, result: Type | undefined, at: TsNode): Type | undefined {
+  if (result?.getAliasSymbol()?.name === "IteratorResult") {
+    return result.getAliasTypeArguments()[0];
+  }
+  return memberType(checker, result, "value", at);
+}
+
+/** The settled type of a promise: `T` of `Promise<T>`. Any other type stands for itself. */
+function settled(checker: Checker, type: Type | undefined): Type | undefined {
+  if (type?.getSymbol()?.name !== "Promise") return type;
+  return checker.getTypeArguments(type as TypeReference)[0];
 }
 
 /**

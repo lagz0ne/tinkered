@@ -1182,6 +1182,130 @@ let layer;
   BUILD_MS,
 );
 
+test(
+  "G72: a for-of assignment from a Set of any fails the build",
+  async () => {
+    const plant = `${imports}declare const s: Set<any>;
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G73: a for-of assignment reading a Map entry of any fails the build",
+  async () => {
+    const plant = `${imports}declare const m: Map<string, any>;
+let layer;
+for ([, { layer }] of m) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G74: a for-of assignment from a function returning Iterable of any fails the build",
+  async () => {
+    const plant = `${imports}declare function gen(): Iterable<any>;
+let layer;
+for ({ layer } of gen()) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G75: a for-await assignment from an AsyncIterable of any fails the build",
+  async () => {
+    const plant = `${imports}declare const it: AsyncIterable<any>;
+let layer;
+for await ({ layer } of it) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G76: a for-await assignment settles a Promise element of any and fails the build",
+  async () => {
+    const plant = `${imports}declare const ps: Set<Promise<any>>;
+let layer;
+for await ({ layer } of ps) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G77: a for-of assignment through a hand-written iterator of any fails the build",
+  async () => {
+    const plant = `${imports}declare const ui: {
+  [Symbol.iterator](): { next(): { done: boolean; value: any } };
+};
+let layer;
+for ({ layer } of ui) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment from a typed Set stays unflagged",
+  async () => {
+    const plant = `${imports}declare const s: Set<{ layer: number }>;
+let layer: number;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment reading a typed Map entry stays unflagged despite an any key",
+  async () => {
+    const plant = `${imports}declare const m: Map<any, { layer: number }>;
+let layer: number;
+for ([, { layer }] of m) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment from a typed generator stays unflagged despite an any return",
+  async () => {
+    const plant = `${imports}declare function gen(): Generator<{ layer: number }, any>;
+let layer: number;
+for ({ layer } of gen()) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-await assignment from a typed AsyncIterable stays unflagged",
+  async () => {
+    const plant = `${imports}declare const it: AsyncIterable<{ layer: number }>;
+let layer: number;
+for await ({ layer } of it) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
 /** Runtime fields that the shipped list lacked: each must be renamed in every built file. */
 const unlisted = [
   "borrows",
