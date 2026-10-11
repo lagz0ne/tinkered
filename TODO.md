@@ -40,10 +40,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
     Then pick one contract: always look the value up again, or throw `Disposed` on `get`.
     Verify: the new tests pass; `lifecycle` and `s1_getctl` timed (N=61, sign test).
 
-- **scaffold/registry-drift** — `node maintain/check-registry.mjs` (in `apps/start-scaffold`) fails on main ("registry index must match source too").
-  The tinker-testing `SKILL.md` copy in `apps/start-scaffold/public/r/registry.json` and `starter.json` is stale.
-  Next: run `registry:build`, then add `test:registry` to a gate.
-  Verify: `node maintain/check-registry.mjs` exits 0; the gate runs `test:registry`.
+- **scaffold/registry-hook** — run the fast index-match part of `check-registry.mjs` on commits that touch `apps/start-scaffold/**`, because docs cards skip validate.
+  Verify: a commit with a stale index fails the hook; a commit outside `apps/start-scaffold/**` skips it.
 
 - **jev/recalibrate-after-key** — run `node tools/jev/calibrate.mjs` when the gateway key budget is back.
   It covers the labels added since 2026-10-10.
@@ -83,6 +81,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **scaffold/registry-drift** — regenerated `registry.json` and `starter.json`, fixing 6 stale copies (`SKILL.md` and `README.md` from `2750f383`, 4 tests from `a450ea18`). `pnpm validate` now runs `test:registry` as lane 21. Proof: [docs/roadmap/start-scaffold/PROGRESS.md](docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **core/size-guard-forof-cost** — `checkForOf` skips the walk unless the target is an object or array literal; `settled` walks one layer at a time, each type id once. Landed 2026-10-11. Haiku writer; Opus review NOT READY once (1 s deadline, PROGRESS overclaim), READY after. 120 guard tests; G90–G91 time out on `6251a860` (main about 22 s); G91 pins the dedupe; the skip changes no answer (parity G72–G91 in both forms). Dist byte-identical; 55 names. Mutation skipped (src unchanged). Jev preflight 402. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-forof-cost).
 
