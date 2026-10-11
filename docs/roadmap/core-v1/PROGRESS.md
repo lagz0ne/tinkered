@@ -2556,7 +2556,7 @@ Where the write sits, and why each path keeps it:
   Clearing `cell` needs a walk over the nodes on fast close.
   That walk costs the `lifecycle` row: +8.8%, B slower (see Timing).
 - Fast close with a watcher: the write is also in `prev`, the value the watcher last saw.
-  `prev` is set when a watcher is added (`index.ts:1337`, `:1513`).
+  `prev` is set when a watcher is added (`index.ts:1513`) and on each notify (`:1337`).
   A walk must clear `prev` too.
 - Slow close (`startClose` to `finishLayer`, `index.ts:4027`): the loop already walks the nodes.
   Adding `cell` and `prev` to that loop costs no new walk. This was not timed.
