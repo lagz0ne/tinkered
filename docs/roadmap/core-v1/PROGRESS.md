@@ -3309,7 +3309,7 @@ No row is B slower.
 
 ### Mutation
 
-Run: `flock /tmp/mutation.lock scripts/ticket.sh --check-only core 48`.
+Run: `flock /tmp/mutation.lock scripts/ticket.sh --check-only 48 "closed-read-stale"`.
 Commit: `e693f132`, on a clean tree.
 The gate chain exited 0: `vp check`, `vp run -r test`, core on built files, size, mutate.
 
@@ -3400,7 +3400,7 @@ On `bfa7d922`:
 - `vp run -r build`: exit 0.
 - `vp check`: 0 errors, 27 warnings. Same as baseline.
 - `vp run -r test`: exit 0. Core: 44 files, 900 tests.
-- `scripts/ticket.sh --check-only 50`: exit 0. It ran core tests on built files, size, and mutate.
+- `scripts/ticket.sh --check-only 50 "held-resolve-ns-test"`: exit 0. It ran core tests on built files, size, and mutate.
 - `pnpm validate`: exit 0. All 21 lanes pass.
   `pnpm-workspace.yaml` was not edited.
 

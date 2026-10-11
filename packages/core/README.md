@@ -487,6 +487,7 @@ A closed scope frees its data. `close({ withData: true })` hands it over instead
 - Like `graceful`, `withData` is read from the first close call.
 - A `session` hook still reads the session's cells and tags after `next()`, through `resolve`.
 - That `resolve` also reads an ancestor's current write, or the initial value.
+- That `resolve` takes `{ ns }` too, as `controller(cell, { ns })` does.
 - Writes and resource reads there still throw `Disposed`.
 - Once the hooks return, `resolve` and `controller(cell)` throw `Disposed`.
 
