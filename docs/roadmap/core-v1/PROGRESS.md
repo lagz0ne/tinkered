@@ -3348,3 +3348,72 @@ On `4de3d199`, and the docs commits after it:
 - `node tools/jev/promises.mjs core`: HTTP 402. Not run.
   The README lines above were checked by hand against the test titles.
 - No Jev labels were added. `calibrate.mjs` was not run, as the lead asked.
+
+## core/held-resolve-ns-test
+
+Branch: `core/held-resolve-ns-test`, from `origin/main` `d7dbee23`.
+Commit: `bfa7d922`, `test(core): pin resolve ns in a session hook window`.
+Test only. No `packages/core/src` change, so no timing run.
+
+### Survivor and equivalence
+
+- Survivor: `packages/core/src/index.ts:4627`, in `resolveHeld`.
+  The line is `const chain = ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns);`.
+- Ignoring `ns` is not equivalent.
+  A named read that misses falls back to the session's default bucket.
+  A value in `alice` and a value in the default bucket show the difference.
+
+### Test
+
+- File: `packages/core/tests/with-data.test.ts`.
+- Name: `a session hook reads the cell in the namespace its resolve names after next`.
+- It writes 3 in `alice`, then 4 in the default bucket, then closes.
+- The hook reads `{ ns: alice }`, then `{ ns: bob }`, then no `ns`.
+- It expects `[3, 4, 4]`.
+
+### Mutant proof
+
+On `origin/main` `d7dbee23`, in a scratch worktree (removed after):
+
+- Without the mutant: the file passes, 17 of 17.
+- With `const chain = layer.ns;` at line 4627: the new test fails.
+  `expected [ 4, 4, 4 ] to deeply equal [ 3, 4, 4 ]`.
+
+Per-line kill check, `npx stryker run --mutate "src/index.ts:4627-4627"`, on `bfa7d922`:
+
+- 4 mutants, 4 killed, 0 survived.
+- The new test kills one of them.
+
+### Mutation score
+
+Run under `flock /tmp/mutation.lock`, on `bfa7d922`, clean tree.
+Gate exit 0.
+
+- Killed 3035. Timeout 78. Survived 425. No coverage 35. Errors 3.
+- Kills alone: 3035 / (3035 + 425 + 35) = 86.8%. Floor 85.
+- Stryker total, timeouts counted: 87.13%.
+
+### Gates
+
+On `bfa7d922`:
+
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings. Same as baseline.
+- `vp run -r test`: exit 0. Core: 44 files, 900 tests.
+- `scripts/ticket.sh --check-only 50`: exit 0. It ran core tests on built files, size, and mutate.
+- `pnpm validate`: exit 0. All 21 lanes pass.
+  `pnpm-workspace.yaml` was not edited.
+
+### Jev
+
+- Preflight on `origin/main..HEAD`: exit 0. No flags.
+- `tests.mjs core`: exit 0. 7 of 852 entries flagged, none in `with-data.test.ts`.
+- `promises.mjs core`: "API key budget exceeded". Not retried. Not run.
+- No labels were added. `calibrate.mjs` was not run, as the card asked.
+
+### Open
+
+- The new test title names `ns` on a hook's `resolve`.
+  The README does not say that yet.
+- `promises.mjs` could not check the title.
+  The lead decides: add a README line, or accept the title as is.
