@@ -3045,3 +3045,122 @@ The lander reran these on `8fc7fe97` in a scratch worktree.
 At landing the branch was rebased onto `b8efe5d3`.
 That main change touched no Core source or build file.
 Every gate was rerun on the rebased head.
+
+## core/size-guard-forof-cost
+
+Branch: `core/size-guard-forof-cost`.
+Started from `origin/main` at `6251a860`.
+Code commit: `99eb1e6e`.
+The lead owns the board and landing.
+
+### Change
+
+- `checkForOf` skips the element walk unless the target is an object or array literal.
+- Other targets read nothing from the element, so the walk never changed an answer.
+- `settled` walks one promise layer at a time.
+- Each layer keeps each `type.id` once.
+- A union that settles to the whole union costs one step per member and layer.
+- The 8-layer limit and its `any` answer stay the same.
+- `isLiteralTarget` is shared with `isDestructuringAssignment`.
+
+Two limits from `core/size-guard-iterable-edges` are now closed:
+
+- `checkForOf` visited every for-of loop.
+- `settled` walked repeated paths, so n thenables made n^8 paths.
+
+### Failing tests first
+
+- G90: four thenables read by `for await (const x of ps)` build within 1 s.
+- G91: the same thenables read by `for await ({ layer } of ps)` fail with the `layer` error within 1 s.
+- A probe reaches the walk only when its file names a listed field.
+  Both probes declare `let layer`.
+- Red proof: `/tmp/main-check-size-guard-forof-cost` at `6251a860`.
+  Both time out at 1 s with `ETIMEDOUT`.
+  Log: `/tmp/size-guard-forof-cost-red-main.log`.
+- Green: both pass in the ticket worktree.
+
+### Probe timing, single runs
+
+origin/main, four thenables, `layer` named:
+
+- Declaration form: 22.2 s.
+- Assignment form: 22.4 s.
+
+This branch, same probe, five runs per form:
+
+- Declaration form: 0.66 to 0.76 s.
+- Assignment form: 0.71 to 0.79 s.
+
+Each time includes Node start and a Core pack.
+The 1 s deadline leaves 0.2 to 0.3 s on this shared box.
+
+### Parity: assignment form vs `for (const …)` form
+
+A scratch script ran G72 to G89 in both forms on both trees.
+It is not committed.
+Each plant reads `flag` when the guard fails the build.
+
+- G72 to G87: flag in both forms (16 plants).
+- G88: pass in both forms.
+- G89: pass; it is not a for-of, so it has no declaration form.
+
+All 35 runs give the same verdict on `origin/main` and this branch.
+Logs: `/tmp/size-guard-forof-cost-parity-main.log` and
+`/tmp/size-guard-forof-cost-parity-fixed.log`.
+
+### Build proof and gates
+
+- The nine dist files match the `origin/main` build byte for byte.
+- Write mode gives the committed 55 names.
+- `private-fields.json` has no diff.
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings, the same as main.
+- `vp run -r test`: exit 0.
+- `scripts/ticket.sh --check-only --no-mutation core 47`: exit 0.
+- `vp run core#test:dist`: exit 0; 1014 tests pass, 120 of them guard tests.
+- `pnpm validate`: exit 0; all 20 lanes pass.
+- Complexity: oxlint caps it at 8; both changed files pass.
+- Ratchets: `scripts/fast-code-baseline.json` is unchanged.
+
+### Build time, benchd queue
+
+Three runs each, median:
+
+- Before, `origin/main`: 6625 ms (min 6149, max 6743).
+- After, this branch: 4861 ms (min 4802, max 4871).
+
+`benchctl ab` was not run.
+It sees one folder, and each side here needs its own.
+Read the gap as two single series, not a verdict.
+
+### Mutation
+
+Mutation was not run.
+`packages/core/src` is unchanged.
+`build/` is not mutated; the G90 and G91 plants prove this fix.
+
+### Jev and style
+
+- Preflight ran once on `origin/main..HEAD`.
+  It exited 1 with HTTP 402: "API key budget exceeded".
+  It was not retried.
+- `tests.mjs core` ran.
+  It flagged 7 of 846 entries, none in `build/private-fields.test.ts`.
+- `promises.mjs core` did not run.
+  It hit the same 402 budget error.
+- No labels were written.
+- `calibrate.mjs` did not run.
+- `tools/jev/cases.jsonl` is unchanged.
+
+### Core feedback
+
+None.
+
+### Open
+
+- The guard log prints `context canceled` lines from the checker.
+  Full runs print 6 on `origin/main` and 13 on this branch.
+  No test fails from them.
+  The cause is not traced.
+- The 1 s deadline on G90 and G91 is wall-clock.
+  It has 0.2 to 0.3 s of room on this box.
