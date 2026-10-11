@@ -2101,6 +2101,8 @@ The 61 old guard tests stay green.
 
 ### Gates
 
+Run on `4964551e`, the last code change. Later commits change only Jev data and this file.
+
 - `vp run -r build`: exit 0.
 - `vp check`: 0 errors, 27 warnings. `origin/main` has 27.
 - `vp run -r test`: exit 0. Core source lane: 883 tests.
@@ -2116,6 +2118,15 @@ The 61 old guard tests stay green.
 - The bank refuses a second label for the same code, so those keep their older `by`.
 - `tests.mjs` and `promises.mjs` do not read `build/`. Their flags are in untouched Core tests.
 - Calibrate ran in full: 24 judges, no status change.
+
+### Mutation
+
+Full Core lane on clean `5f7891ce`, alone under `/tmp/mutation.lock`: exit 0.
+
+- Killed 3023, timeout 113, survived 398, no coverage 35, errors 3.
+- Kills alone: 3023 / 3456 = 87.47%. Floor 85.
+- Timeouts counted as not killed: 84.70%.
+- `src/` is unchanged. `build/` is not mutated, so the plants are the proof.
 
 ### Core feedback
 
