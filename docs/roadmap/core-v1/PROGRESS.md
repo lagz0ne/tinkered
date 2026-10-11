@@ -1275,7 +1275,7 @@ Public types and exports stay the same.
 
 - `packages/core/build/private-fields.ts` is a Rolldown plugin.
 - It renames the fields in `build/private-fields.json` to short names.
-- The list holds 55 names, such as `layer`, `nodes`, and `bodyEnd`.
+- The list holds 48 names, such as `layer`, `nodes`, and `bodyEnd`.
 - One name map serves all three runtime files.
 - The map is fixed before any file renders.
   So two builds give the same bytes.
@@ -2317,3 +2317,4 @@ Run: `vp test --config vite.dist.config.ts build/private-fields.test.ts`.
 - Mutation: not run. `src/` is unchanged and `build/` is not mutated.
 - Timing: not run. The card does not ask for it.
 - Jev review and preflight: 0 flags, so no label is owed.
+- Jev tests.mjs and promises.mjs: not run; the gateway key hit its $10.00 budget (HTTP 402, quota_for_entity_exceeded).
