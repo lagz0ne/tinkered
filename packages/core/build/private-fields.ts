@@ -23,6 +23,7 @@ import {
   API,
   type Checker,
   SignatureKind,
+  SymbolFlags,
   type Type,
   type TypeReference,
   TypeFlags,
@@ -1047,7 +1048,7 @@ function checkAssignment(
   wanted: Set<string>,
   hits: string[],
 ): void {
-  assignmentTarget(node.left, checker.getTypeAtLocation(node.right), {
+  assignmentTarget(node.left, typeParts(checker.getTypeAtLocation(node.right)), {
     checker,
     source: node.right,
     wanted,
@@ -1060,81 +1061,159 @@ function checkForOf(node: ForOfNode, checker: Checker, wanted: Set<string>, hits
   const read = { checker, source: node.expression, wanted, hits };
   const source = checker.getTypeAtLocation(node.expression);
   const isAwait = node.awaitModifier !== undefined;
-  const element = source === undefined ? undefined : elementType(source, isAwait, read);
+  const element = source === undefined ? [] : elementType(source, isAwait, read);
   assignmentTarget(node.initializer, element, read);
 }
 
-/** The keys TypeScript gives `[Symbol.iterator]` and `[Symbol.asyncIterator]`; the id varies. */
-const SYNC_ITERATOR = /^__@iterator@/;
-const ASYNC_ITERATOR = /^__@asyncIterator@/;
+/**
+ * The member key TypeScript gives a well-known symbol: `__@<name>@<id>`. The id is the one the
+ * global `Symbol.<name>` has in this program. A user `unique symbol` has its own id.
+ */
+function wellKnownKey(checker: Checker, name: string): string | undefined {
+  const global = checker.resolveName("Symbol", SymbolFlags.Value);
+  const ctor = global === undefined ? undefined : checker.getTypeOfSymbol(global);
+  const well = ctor === undefined ? undefined : checker.getPropertyOfType(ctor, name);
+  const unique = well === undefined ? undefined : checker.getTypeOfSymbol(well);
+  const id = unique?.getSymbol()?.id;
+  return id === undefined ? undefined : `__@${name}@${id}`;
+}
 
 /**
  * The type one for-of step reads: an array's or tuple's element by index, else the iterable's
  * element. Under `for await` a promised element is settled, as TypeScript awaits it.
  */
-function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type | undefined {
-  const element = sourcePart(source, undefined, true, read) ?? iteratedType(source, isAwait, read);
-  return isAwait ? settled(read.checker, element) : element;
+function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type[] {
+  if (source.isUnionType()) {
+    return source.getTypes().flatMap((member) => elementType(member, isAwait, read));
+  }
+  const indexed = sourcePart([source], undefined, true, read);
+  const element = indexed.length === 0 ? iteratedType(source, isAwait, read) : indexed;
+  return isAwait ? element.flatMap((type) => settled(read.checker, type, read.source)) : element;
 }
 
 /**
- * The element of an iterable with no index: the value its iterator yields. The sync API has no
- * iterated-type call, so this repeats the protocol: the iterator, then its `next()` result.
+ * The element of an iterable with no index: the values its iterators yield. The sync API has no
+ * iterated-type call, so this repeats the protocol: each iterator, then each `next()` overload.
  * Under `for await` the iterator is `[Symbol.asyncIterator]()`, and its `next()` gives a promise.
  */
-function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Type | undefined {
+function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Type[] {
   const { checker } = read;
   const at = read.source;
-  const asyncIterator = isAwait ? memberType(checker, source, ASYNC_ITERATOR, at) : undefined;
-  const method = asyncIterator ?? memberType(checker, source, SYNC_ITERATOR, at);
-  const result = returnOf(checker, memberType(checker, returnOf(checker, method), "next", at));
-  const yielded = asyncIterator === undefined ? result : settled(checker, result);
-  return yieldedType(checker, yielded, at);
+  const asyncMethod = isAwait
+    ? memberType(checker, source, wellKnownKey(checker, "asyncIterator"), at)
+    : undefined;
+  const method = asyncMethod ?? memberType(checker, source, wellKnownKey(checker, "iterator"), at);
+  const results = returnsOf(checker, method).flatMap((iterator) =>
+    returnsOf(checker, memberType(checker, iterator, "next", at)),
+  );
+  const yielded =
+    asyncMethod === undefined ? results : results.flatMap((result) => settled(checker, result, at));
+  return yielded.flatMap((result) => yieldedType(checker, result, at));
 }
 
-/** The type of member `key` of `type`, read at `at`. A RegExp matches the first member name. */
+/**
+ * The type of member `key` of `type`, read at `at`. Any stands for itself: a member of `any` is
+ * `any`, so an unchecked iterator keeps flowing through the steps after it.
+ */
 function memberType(
   checker: Checker,
   type: Type | undefined,
-  key: string | RegExp,
+  key: string | undefined,
   at: TsNode,
 ): Type | undefined {
-  const apparent = type === undefined ? undefined : checker.getApparentType(type);
-  if (apparent === undefined) return undefined;
+  if (type !== undefined && isAny(type)) return type;
+  if (type === undefined || key === undefined) return undefined;
+  const apparent = checker.getApparentType(type);
   const member =
-    typeof key === "string"
-      ? checker.getPropertyOfType(apparent, key)
-      : checker.getPropertiesOfType(apparent).find((symbol) => key.test(symbol.escapedName));
+    apparent === undefined
+      ? undefined
+      : checker.getPropertiesOfType(apparent).find((symbol) => symbol.escapedName === key);
   return member === undefined ? undefined : checker.getTypeOfSymbolAtLocation(member, at);
 }
 
-/** The return type of a function type's first call signature, or `undefined` if none. */
-function returnOf(checker: Checker, type: Type | undefined): Type | undefined {
-  const signatures =
+/** The return type of each call signature of a function type: one per overload. */
+function returnsOf(checker: Checker, type: Type | undefined): Type[] {
+  if (type === undefined) return [];
+  if (isAny(type)) return [type];
+  const returns = checker
+    .getSignaturesOfType(type, SignatureKind.Call)
+    .map((signature) => checker.getReturnTypeOfSignature(signature));
+  return returns.filter((returned): returned is Type => returned !== undefined);
+}
+
+/** The type of parameter `index` of a function type's first call signature, if it has one. */
+function parameterOf(checker: Checker, type: Type | undefined, index: number): Type | undefined {
+  const [signature] =
     type === undefined ? [] : checker.getSignaturesOfType(type, SignatureKind.Call);
-  const [signature] = signatures;
-  return signature === undefined ? undefined : checker.getReturnTypeOfSignature(signature);
+  return signature === undefined ? undefined : checker.getParameterType(signature, index);
 }
 
-/** The type an iterator result yields: `T` of `IteratorResult<T, R>`, else its `value`. */
-function yieldedType(checker: Checker, result: Type | undefined, at: TsNode): Type | undefined {
-  if (result?.getAliasSymbol()?.name === "IteratorResult") {
-    return result.getAliasTypeArguments()[0];
+/** The sync API has no union builder, so every possible source type stays in a list. */
+function typeParts(type: Type | undefined): Type[] {
+  if (type === undefined) return [];
+  return type.isUnionType() ? type.getTypes().flatMap(typeParts) : [type];
+}
+
+/**
+ * The type an iterator result yields: `T` of `IteratorResult<T, R>`. Otherwise the `value` of each
+ * result that is not `done: true`, since a `done: true` result ends the loop and yields nothing.
+ */
+function yieldedType(checker: Checker, result: Type, at: TsNode): Type[] {
+  if (isAny(result)) return [result];
+  if (result.getAliasSymbol()?.name === "IteratorResult") {
+    return typeParts(result.getAliasTypeArguments()[0]);
   }
-  return memberType(checker, result, "value", at);
+  const members: readonly Type[] = result.isUnionType() ? result.getTypes() : [result];
+  return members
+    .filter((member) => !endsIteration(checker, member, at))
+    .flatMap((member) => typeParts(memberType(checker, member, "value", at)));
 }
 
-/** The settled type of a promise: `T` of `Promise<T>`. Any other type stands for itself. */
-function settled(checker: Checker, type: Type | undefined): Type | undefined {
-  if (type?.getSymbol()?.name !== "Promise") return type;
-  return checker.getTypeArguments(type as TypeReference)[0];
+/** True for a `done: true` result: its `done` member is the literal `true`. */
+function endsIteration(checker: Checker, result: Type, at: TsNode): boolean {
+  const done = memberType(checker, result, "done", at);
+  return done !== undefined && done.isBooleanLiteralType() && done.value;
+}
+
+/** How many promise layers {@link settled} unwraps: a type can name itself as its own value. */
+const PROMISE_LAYERS = 8;
+
+/**
+ * The type a promise settles to, unwrapping each layer as `await` does; a union settles member by
+ * member. A thenable that still settles to a thenable after the layer limit is `any`, as TypeScript
+ * gives a circular await. Any other type stands for itself.
+ */
+function settled(checker: Checker, type: Type, at: TsNode, depth = 0): Type[] {
+  let current = type;
+  for (let layer = depth; layer < PROMISE_LAYERS; layer++) {
+    if (current.isUnionType()) {
+      return current.getTypes().flatMap((member) => settled(checker, member, at, layer));
+    }
+    const value = promisedValue(checker, current, at);
+    if (value === undefined) return [current];
+    current = value;
+  }
+  return [checker.getAnyType()];
+}
+
+/**
+ * The value a promise or a thenable settles to: `T` of `Promise<T>`, else the parameter its `then`
+ * passes to the callback. `undefined` for a type that is not a promise.
+ */
+function promisedValue(checker: Checker, type: Type | undefined, at: TsNode): Type | undefined {
+  if (type?.getSymbol()?.name === "Promise") {
+    return checker.getTypeArguments(type as TypeReference)[0];
+  }
+  const onFulfilled = parameterOf(checker, memberType(checker, type, "then", at), 0);
+  const callback = onFulfilled === undefined ? undefined : checker.getNonNullableType(onFulfilled);
+  return parameterOf(checker, callback, 0);
 }
 
 /**
  * Descend object and array targets with their own source types. An assignment's target type
  * describes the variables being written, so it cannot answer whether the source read is `any`.
  */
-function assignmentTarget(target: TsNode, source: Type | undefined, read: AssignmentRead): void {
+function assignmentTarget(target: TsNode, source: Type[], read: AssignmentRead): void {
   if (target.kind === SyntaxKind.ObjectLiteralExpression) {
     assignmentObject(target as TsNode & { properties: TsNode[] }, source, read);
   } else if (target.kind === SyntaxKind.ArrayLiteralExpression) {
@@ -1152,13 +1231,15 @@ function assignmentTarget(target: TsNode, source: Type | undefined, read: Assign
 /** Object keys read from the enclosing source; nested targets read from that key's value. */
 function assignmentObject(
   target: TsNode & { properties: TsNode[] },
-  source: Type | undefined,
+  source: Type[],
   read: AssignmentRead,
 ): void {
   for (const property of target.properties) {
     const name = assignedKey(property);
     if (name === undefined) continue;
-    if (read.wanted.has(name) && anyRead(read.checker, source, name)) read.hits.push(name);
+    if (read.wanted.has(name) && source.some((type) => anyRead(read.checker, type, name))) {
+      read.hits.push(name);
+    }
     if (property.kind === SyntaxKind.PropertyAssignment) {
       assignmentTarget(
         (property as TsNode & { initializer: TsNode }).initializer,
@@ -1169,14 +1250,24 @@ function assignmentObject(
   }
 }
 
-/** The checked type of one source property or array element; `any` keeps flowing through it. */
+/** Every possible property or array element type; `any` keeps flowing through nested targets. */
 function sourcePart(
-  source: Type | undefined,
+  source: Type[],
+  name: string | undefined,
+  numeric: boolean,
+  read: AssignmentRead,
+): Type[] {
+  return source.flatMap((type) => typeParts(sourceProperty(type, name, numeric, read)));
+}
+
+/** One source's property or index type; an unchecked source keeps answering `any`. */
+function sourceProperty(
+  source: Type,
   name: string | undefined,
   numeric: boolean,
   read: AssignmentRead,
 ): Type | undefined {
-  if (source === undefined || isAny(source)) return source;
+  if (isAny(source)) return source;
   const apparent = read.checker.getApparentType(source);
   if (apparent === undefined) return undefined;
   const property = name === undefined ? undefined : read.checker.getPropertyOfType(apparent, name);

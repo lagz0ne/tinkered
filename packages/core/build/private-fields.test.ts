@@ -1263,6 +1263,156 @@ for ({ layer } of ui) {}\n`;
 );
 
 test(
+  "G78: a for-of assignment from an iterable whose [Symbol.iterator]() is any fails the build",
+  async () => {
+    const plant = `${imports}declare const s: { [Symbol.iterator](): any };
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G79: a for-of assignment from an iterator whose next() is any fails the build",
+  async () => {
+    const plant = `${imports}declare const s: { [Symbol.iterator](): { next(): any } };
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G80: a for-await assignment settles a PromiseLike element of any and fails the build",
+  async () => {
+    const plant = `${imports}declare const ps: PromiseLike<any>[];
+let layer;
+for await ({ layer } of ps) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G81: a for-of assignment reads every next() overload, so an any overload fails the build",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](): {
+    next(): { done: false; value: { layer: number } };
+    next(x: number): { done: boolean; value: any };
+  };
+};
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G82: a for-of assignment reads the global Symbol.iterator, not a user symbol named iterator",
+  async () => {
+    const plant = `${imports}declare const iterator: unique symbol;
+declare const s: {
+  [iterator](): { next(): { done: false; value: { layer: number } } };
+  [Symbol.iterator](): { next(): { done: false; value: any } };
+};
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G83: a for-await assignment settles each member of a union, so a PromiseLike of any fails the build",
+  async () => {
+    const plant = `${imports}declare const ps: (PromiseLike<any> | number)[];
+let layer;
+for await ({ layer } of ps) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G84: a for-await assignment from a circular thenable that never settles fails the build",
+  async () => {
+    const plant = `${imports}interface Self { then(cb: (value: Self) => void): void }
+declare const ss: Self[];
+let layer;
+for await ({ layer } of ss) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G85: a nested for-of assignment reads a later next overload's any property",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](): {
+    next(): { value: { a: { layer: number } } };
+    next(x: number): { value: { a: any } };
+  };
+};
+let layer: number;
+for ({ a: { layer } } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G86: a nested for-of assignment reads every yielded member's any property",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](): {
+    next(): { done: false; value: { a: { layer: number } } }
+      | { done: boolean; value: { a: any } };
+  };
+};
+let layer: number;
+for ({ a: { layer } } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G87: a for-await assignment settles a union inside a promise value",
+  async () => {
+    const plant = `${imports}declare const ps: Promise<{ layer: number } | PromiseLike<any>>[];
+let layer: number;
+for await ({ layer } of ps) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
   "a for-of assignment from a typed Set stays unflagged",
   async () => {
     const plant = `${imports}declare const s: Set<{ layer: number }>;
@@ -1301,6 +1451,21 @@ test(
     const plant = `${imports}declare const it: AsyncIterable<{ layer: number }>;
 let layer: number;
 for await ({ layer } of it) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment ignores the any value of a done: true result, as the declaration form does",
+  async () => {
+    const plant = `${imports}declare const s: {
+  [Symbol.iterator](): {
+    next(): { done: false; value: { layer: number } } | { done: true; value: any };
+  };
+};
+let layer: number;
+for ({ layer } of s) {}\n`;
     expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
   },
   BUILD_MS,
