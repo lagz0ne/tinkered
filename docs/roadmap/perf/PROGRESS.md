@@ -2227,10 +2227,15 @@ The branch never runs, so the probe writes nothing.
 Reading the numbers:
 
 - The old body is not flat. Its work grows with reads (0.7, then 3.3).
+- The 2-read rows hit V8's inline limit.
+  - mitata unrolls 4 calls; V8 inlines only 2 of them.
+  - So 0.7 → 3.3 is lost inlining, not dropped work.
 - Its result is unused. The gap to the sentinel body is the part it may drop.
 - The sentinel body costs +0.7 at one read and +1.4 at two reads.
 - The compare costs some time too: on the slow base it adds 0.5 (run 3).
-- So the true read sits between 0.7 and 1.4 ns.
+- V8's optimized code shows the old body skipped the `lastController` load.
+- The sentinel body does the full read in each of the 4 calls.
+- So 1.4 ns is the full read. The compare is one branch, never taken.
 - The 0.7 in the warm-ctl-trade section used the old body.
 
 Why the target stays fixed:
@@ -2249,6 +2254,10 @@ Memo still wins (final run, N=61):
 - A `16ed271b`, before the memo: 12.2 ns median.
 - B origin/main: 1.4 ns median.
 - B faster 61 of 61. Two-sided sign test p = 8.7e-19.
+- A→B also holds 7 close-path Core commits after the memo.
+  - They run from `e46aa74e` to `5b935847`.
+  - So read it as "main beats the code before the memo".
+  - At 12.2 vs 1.4 ns and 61/61, the verdict cannot flip.
 
 Raw rows, in `docs/roadmap/perf/`:
 
