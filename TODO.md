@@ -24,11 +24,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-guard-iterable-assign** — a for-of assignment target over a non-array iterable reads `any` unflagged.
-  Cases: `for ({ layer } of s)` with `Set<any>`; `for ([, { layer }] of m)` with `Map<string, any>`;
-  a generator; `for await`.
-  Main misses it too. `for (const { layer } of s)` is caught.
-  Verify: a plant for each fails the build; old guard tests pass; dist byte-identical.
+- **core/size-guard-iterable-edges** — catch an `any`-typed `[Symbol.iterator]()` or `next()`; join every overload of `next()`;
+  handle `PromiseLike` under `for await`; match `Symbol.iterator` by the global symbol, not by a name pattern;
+  stop flagging `{ done: true; value: any }` results with no `IteratorResult` name.
+  Verify: a plant for each fails the build on main, and the `for (const …)` form agrees on every probe.
 
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
@@ -81,6 +80,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-iterable-assign** — a for-of assignment over a non-array iterable now reads its element through the iterator; `for await` awaits promise elements. Landed 2026-10-11. Reviewer: READY first pass. 105 guard tests; G72–G77 fail on `85f7f55d`. Dist byte-identical; 55 names. Mutation skipped (src unchanged). Jev preflight 402. Open: `core/size-guard-iterable-edges`. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-iterable-assign).
 
 - **core/fastclose-free-data** — a fast close frees its store; a held controller reads the initial value, as the slow close does. Landed 2026-10-11. Reviewer: READY. GC probe: parent close without child hook ALIVE → freed. 4 tests fail on `19921aba`. No row B slower (N=61; closest `inline` p 0.0135). Core 16006 B after rebase. Core mutation 85.85% on kills alone. [Proof](docs/roadmap/core-v1/PROGRESS.md#corefastclose-free-data).
 
