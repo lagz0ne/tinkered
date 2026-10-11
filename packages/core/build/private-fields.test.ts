@@ -1168,3 +1168,16 @@ test(
   },
   BUILD_MS,
 );
+
+test(
+  "R7: a spread array assignment from any fails the build",
+  async () => {
+    const plant = `${imports}declare const o: any;
+let layer;
+[...[{ layer }]] = o;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);

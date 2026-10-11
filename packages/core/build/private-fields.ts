@@ -1069,6 +1069,8 @@ function assignmentTarget(target: TsNode, source: Type | undefined, read: Assign
     });
   } else if (isEquals(target)) {
     assignmentTarget((target as AssignNode).left, source, read);
+  } else if (target.kind === SyntaxKind.SpreadElement) {
+    assignmentTarget((target as TsNode & { expression: TsNode }).expression, source, read);
   }
 }
 
