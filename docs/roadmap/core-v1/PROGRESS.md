@@ -2012,6 +2012,7 @@ The code check has zero errors and the base's 27 warnings.
 The final handoff names the clean head and reports the full gate chain by exit code.
 It also reports all 20 validate lanes and the locked full Core mutation lane.
 Only `src/` is mutated; the planted build tests prove the guard changes.
+Full Core mutation lane on clean `d5d7fbb1`: 3036/3532 = 85.96% on kills alone.
 
 ### Jev and style
 
@@ -2031,3 +2032,13 @@ Changed code has no other strict hit.
 The TSDoc parser finds zero bad doc rows.
 
 Core feedback: none.
+
+### Landing
+
+The lander re-ran every gate on `d5d7fbb1`; each exits 0.
+`vp check`: 0 errors, 27 warnings (the base count).
+`vp run -r test`, `core#test:dist`, and `ticket.sh` pass.
+`pnpm validate`: all 20 lanes pass.
+All nine dist files match `origin/main` byte for byte.
+G45–G51 fail on `d52feb99` and pass on `d5d7fbb1`.
+`[{ layer: 1 }] as const` stays unflagged on both.

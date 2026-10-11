@@ -24,16 +24,30 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-guard-bypasses** — close the open size-guard bypasses the reviewer confirmed.
-  `any` reads: a `@ts-expect-error` on the declaration, not the read
-  (`const s: { layer: number } = createScope(); s.layer`); `type A = any`;
-  rest `...xs: any[]`; `catch (e: any)`; a field typed `any` (`o.v.layer`).
-  Also aliases, inline callbacks, default values, return values,
-  imported functions that return `any`, and an object-literal method that returns `any`.
-  Attributes passed through `new F(...)`, `.call`, `.apply`, `.bind`,
-  a rest parameter, or a destructured parameter.
-  Known model: typescript-eslint `no-unsafe-member-access` uses real types and catches the `any` group.
-  Verify: a planted test per bypass fails the build; dist stays byte-identical.
+- **core/size-guard-real-types** — move the outside-read rule to real types.
+  Why: each syntax rule leaves a gap one step away.
+  Known model: typescript-eslint `no-unsafe-member-access`.
+  Plants to carry:
+  - an imported `type Loose = any`;
+  - an imported function whose return type is an alias of `any`;
+  - an imported value typed `any`;
+  - `import * as m`; a default import;
+  - `@ts-expect-error` on an argument line or a return line;
+  - `(await loose()).layer` with `Promise<any>`;
+  - `{ [k: string]: any }`; `any | undefined`;
+  - a value typed `Function`;
+  - attributes through `super(g)`; `o.plant.call(...)`;
+  - `const x = c ? (s as any) : 1; x.layer`;
+  - `[c ? (s as any) : 1]` with no `as const`;
+  - an IIFE that returns a cast, with no `as const`;
+  - a getter that returns a cast.
+    Verify: a plant per gap fails the build; dist stays byte-identical.
+
+- **core/private-fields-regen** — write the committed name list again.
+  Run `CORE_PRIVATE_FIELDS=write vp pack`.
+  It adds `borrows`, `controllerOf`, `deferFn`, `mayHook`, `releaser`.
+  This changes dist bytes.
+  Verify: `pnpm validate`, `core#test:dist`, Core size reported.
 
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
@@ -87,6 +101,12 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-bypasses** — the size guard closes the bypasses the reviewer confirmed.
+  Landed 2026-10-11. Haiku first pass NOT READY; Sol took over, with one fix round.
+  61 guard tests; G45–G51 fail on `d52feb99`. Dist byte-identical.
+  Core mutation 85.96% on kills alone. Open gaps: `core/size-guard-real-types`.
+  [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-bypasses--sol-takeover).
 
 - **core/size-build-guard** — the size guard closes the 4 gaps the second review found.
   Landed 2026-10-10. Reviewer: READY. Haiku first pass NOT READY; Sol took over.
