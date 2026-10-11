@@ -2188,3 +2188,87 @@ Mutation (Core full lane, clean `63e48732`, alone under the lock):
 Jev: `origin/main..HEAD` is empty. No source file changed. No flags, no labels, no calibrate.
 
 Core feedback: none.
+
+## s4-probe-depth (2026-10-11)
+
+Question: does `s4_warm_ctl` time the warm read, or less?
+Answer: it timed the read, but never used its result.
+So the probe now uses the result. Core source is unchanged.
+
+Setup:
+
+- Base A: `16ed271b`, the commit before the memo.
+- The memo: `e1476f06` (handle-verbs-ctl).
+- B: origin/main `bf2d3206`. This branch changes no source.
+- N=61, through `bench/queued.sh`, one scenario per job.
+- Every job ran under `flock /tmp/mutation.lock`.
+- Verdict: paired sign test, two-sided, ties left out.
+- Batch: 61 of 61 rounds on both trees, every run.
+
+Why the old probe was short:
+
+- mitata's batch loop calls `fn()` and drops its return value.
+- The old body was `() => warmScope.controller(store)`.
+- Nothing used the controller, so the engine may skip part of the read.
+- A **sink** is a use of the value that the engine cannot drop.
+
+What the runs showed (ns per call, B = origin/main):
+
+- Empty `() => 0`: 0.1 (run 1).
+- Old body, one read: 0.7 (runs 2 and 3).
+- Old body, two reads on two scopes: 3.3 (run 3).
+- One read stored into a variable: 2.3 (run 1).
+- Sentinel body, one read: 1.4 (runs 2, 3, final).
+- Sentinel body, two reads: 4.7 (runs 2 and 3).
+
+The sentinel body compares the read to an object that is never stored.
+The branch never runs, so the probe writes nothing.
+
+Reading the numbers:
+
+- The old body is not flat. Its work grows with reads (0.7, then 3.3).
+- Its result is unused. The gap to the sentinel body is the part it may drop.
+- The sentinel body costs +0.7 at one read and +1.4 at two reads.
+- The compare costs some time too: on the slow base it adds 0.5 (run 3).
+- So the true read sits between 0.7 and 1.4 ns.
+- The 0.7 in the warm-ctl-trade section used the old body.
+
+Why the target stays fixed:
+
+- A new target each round misses the memo.
+- That times the 12 ns lookup, not the warm read.
+
+Decision:
+
+- Change only `s4_warm_ctl` in `bench/core-probe.mjs`.
+- Keep its name. Add two comment lines above it.
+- The read now feeds a compare the engine cannot fold.
+
+Memo still wins (final run, N=61):
+
+- A `16ed271b`, before the memo: 12.2 ns median.
+- B origin/main: 1.4 ns median.
+- B faster 61 of 61. Two-sided sign test p = 8.7e-19.
+
+Raw rows, in `docs/roadmap/perf/`:
+
+- `s4-probe-depth-n61.csv`: the final probe.
+- `s4-probe-depth-controls-1.csv`: sink and empty controls.
+- `s4-probe-depth-controls-2.csv`: sentinel and old controls.
+- `s4-probe-depth-controls-3.csv`: old and new, one and two reads.
+
+Control bodies (scratch copies, not in the tree):
+
+- sink: `sinkCtl = warmScope.controller(store);`
+- sink2: that line, twice.
+- empty: `() => 0`.
+- cond: `if (read === sentinel) sinkCtl = sentinel;`.
+- cond2: cond, with a read from a second scope.
+- old2: the old body, reads on two scopes.
+
+Other checks:
+
+- Mutation lane: not run. Core source is unchanged (card rule).
+- The queue cannot see `/tmp`, so B ran in the branch worktree.
+- That worktree has the same source as origin/main.
+- The base worktree `tinkered-base-s4` was removed after the run.

@@ -147,12 +147,18 @@ const otherCell = data({ label: "other", initial: 0 });
 for (let i = 0; i < 100; i++) unwatchedScope.createSession().controller(otherCell);
 let unwatchedValue = 0;
 const watchCloseScope = createScope();
+// mitata drops each fn() result, so a bare read may be dropped in part. s4 branches on the read
+// with a never-equal sentinel: the read and its compare stay, and the branch never stores.
+const neverCtl = {};
+let _neverSeen;
 
 const fns = {
   s1_getctl: () => createScope().controller(store),
   s2_data: () => createScope().controller(cfg).get(),
   s3_doubled: () => createScope().controller(doubled).resolve(),
-  s4_warm_ctl: () => warmScope.controller(store),
+  s4_warm_ctl: () => {
+    if (warmScope.controller(store) === neverCtl) _neverSeen = neverCtl;
+  },
   op: () => opC.run(),
   opsink: () => sinkC.run(),
   oplog: () => loggingC.run(),
