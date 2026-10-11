@@ -3760,11 +3760,10 @@ function fastClose(
   layer.lastController = undefined;
   if (hooks || withData) layer.closing = Promise.resolve(keepData(layer, ended, hooks, withData));
   else {
-    /** Inline, not through {@link freeData}: two extra calls on this path cost more than the free. */
-    if (layer.nodes !== NO_NODES) {
-      if (layer.dataNodes) layer.nodes.forEach(clearEff);
-      layer.nodes = NO_NODES;
-    }
+    /** Inline, not through {@link freeData}: a call on this path costs the lifecycle row. The walk
+     * is out of line, so a close with no data controller stays small. */
+    if (layer.dataNodes) clearEntries(layer.nodes);
+    layer.nodes = NO_NODES;
     layer.presets = undefined;
     layer.tags = undefined;
     layer.closing = Promise.resolve(ended);
@@ -3773,8 +3772,13 @@ function fastClose(
   return layer.closing;
 }
 
-/** Drop one node's cached entry, so a held data controller takes the slow read after close. A
- * module function, not a closure, so the fast close allocates nothing for it. */
+/** Clear each node's cached entry, so a held data controller takes the slow read after close (ADR
+ * 0069). Out of line: only a layer with a data controller pays for the walk. */
+function clearEntries(nodes: Map<object, NodeState>): void {
+  nodes.forEach(clearEff);
+}
+
+/** A module function, not a closure, so the walk allocates nothing per node. */
 function clearEff(s: NodeState): void {
   s.eff = undefined;
 }
@@ -5021,7 +5025,7 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
  * unmoved store drops to the shared empty store, so a free allocates nothing. */
 function freeData(layer: Layer, moved: boolean): void {
   if (moved) for (const s of layer.nodes.values()) keepCellsOnly(s);
-  else if (layer.dataNodes) layer.nodes.forEach(clearEff);
+  else if (layer.dataNodes) clearEntries(layer.nodes);
   layer.nodes = moved ? new Map() : NO_NODES;
   layer.lastTarget = undefined;
   layer.lastController = undefined;
