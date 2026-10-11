@@ -1,0 +1,57 @@
+Final source gate chain
+HEAD 155b11a833b52bc737a0e71fa332bb400a46833c
+COMMAND vp run -r build
+GATE_EXIT 0
+COMMAND vp check
+Found 0 errors and 27 warnings in 679 files (7.3s, 8 threads)
+GATE_EXIT 0
+COMMAND vp run -r test
+GATE_EXIT 0
+COMMAND scripts/ticket.sh --check-only --no-mutation core 38 memo repeat handle controller reads
+Found 0 errors and 27 warnings in 679 files (6.5s, 8 threads)
+core runtime size: 16026 B gzip (cap 16384 B; all runtime files)
+GATE_EXIT 0
+COMMAND bash /tmp/handle-verbs-ctl-sol-validate.sh
+All deterministic budget lanes PASS (20)
+GATE_EXIT 0
+COMMAND vp run prose
+prose-lint: 0 hit(s) in 229 file(s)
+GATE_EXIT 0
+EXIT 0
+
+Core runtime SHA256
+45334fc22e0e6008d14ae2fd2295d68689bddd9f6d35f8fcf152d3a77119d2f3
+
+GC origin/main 16ed271b
+root close (success): resource value freed after close
+parent close without child hook (success): session resource value ALIVE after close
+parent close with child hook (success): session resource value freed after close
+handles held: function function function
+
+GC head runtime (source e1476f06)
+root close (success): resource value freed after close
+parent close without child hook (success): session resource value ALIVE after close
+parent close with child hook (success): session resource value freed after close
+handles held: function function function
+
+GC memo with its clears removed (temporary GC check tree)
+root close (success): resource value ALIVE after close
+parent close without child hook (success): session resource value ALIVE after close
+parent close with child hook (success): session resource value ALIVE after close
+handles held: function function function
+
+Fast-code checks
+{"check":"slots","status":"PASS","actual":{"core":338,"react":21},"milliseconds":171}
+{"check":"bytecode","status":"PASS","actual":{"runOnce":498,"settleRun":53,"OperationCtx":126,"buildHooklessResource":451,"resolveDep":223,"runHookChain":187,"runHookBody":297,"invokeRunHooks":49,"stepRunHook":201},"milliseconds":2235}
+{"check":"inlining","status":"PASS","actual":{"OperationCtxIntoRunOnce":true,"maglev":"default on"},"milliseconds":1157}
+{"check":"closures","status":"PASS","actual":{"runOnce":0,"settleRun":0,"OperationCtx":0,"buildHooklessResource":3,"resolveDep":0,"runHookChain":0,"runHookBody":0,"invokeRunHooks":0,"stepRunHook":1},"milliseconds":88}
+{"check":"client","status":"PASS","actual":{"zod":0,"drizzle":0,"pglite":0,"chunks":3},"milliseconds":5888}
+
+Jev labels
+label: waitsOnSideWork false packages/core/src/index.ts#ScopeHandle (c9deff49451a) by perf/handle-verbs-ctl
+label: waitsOnSideWork false packages/core/src/index.ts#TaggedFrame (132da2feb11c) by perf/handle-verbs-ctl
+label: waitsOnSideWork false packages/core/src/index.ts#fastClose (2b7a0de78e1e) by perf/handle-verbs-ctl
+label: stateOutsideCell false packages/core/src/index.ts#fastClose (7db519b49265) by perf/handle-verbs-ctl
+label: stateOutsideCell false packages/core/src/index.ts#layerRecord (563cfef57699) by perf/handle-verbs-ctl
+label: stateOutsideCell false packages/core/src/index.ts#freeData (4b06539c743a) by perf/handle-verbs-ctl
+Calibration EXIT 0

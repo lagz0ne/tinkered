@@ -2025,3 +2025,21 @@ The wrapper returned 0.
 The first head timing attempt overlapped a Core build and got no METRIC line.
 It stopped before a complete row, returned 1, and supplies no speed proof.
 The final timing run starts after all builds have ended.
+
+### Final source gates and Jev
+
+The full chain after the closed-read title change returned EXIT 0.
+Build, check, all package tests, Core ticket 38, validate, and prose passed.
+Check kept zero errors and 27 warnings.
+Core kept 883 source tests and 944 built-file tests.
+All 20 validate lanes passed.
+The repeat-read and closed-read titles match README lines.
+The session title stays unsure; none of the three new titles is flagged.
+The 48 old README gaps describe existing details outside this card.
+No new app feature, lifetime rule, or public API is added here.
+The six new label ids are unique and use `by = perf/handle-verbs-ctl`.
+All main bank rows are kept in their original order.
+[Gate, GC, and runtime hash proof](handle-verbs-ctl-sol-proof.txt).
+Full detached Jev calibration returned EXIT 0.
+Its updated `calibration.json` is saved with this proof.
+All main label rows remain; no duplicate id was added.
