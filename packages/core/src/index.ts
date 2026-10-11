@@ -1264,16 +1264,17 @@ function effectiveEntry(
   return walkEntry(layer, self, target);
 }
 
-/** A namespaced cell read through the one selector; never touches the default `eff` cache. */
+/** A namespaced cell read through the one selector; never touches the default `eff` cache. With no
+ * chain it walks only the cells, which is how a closed layer reads (see {@link dataController}). */
 function effectiveEntryNs(
   layer: Layer,
   target: Data.Cell<unknown>,
-  chain: readonly Namespace[],
+  chain: readonly Namespace[] | undefined,
 ): Entry {
   return (
     selectBucket(
       layer,
-      chain,
+      chain ?? [],
       (cur, key) => cur.nodes.get(target)?.cells?.get(key),
       (cur) => cur.nodes.get(target)?.cell,
     ) ?? { value: target.initial }
@@ -1537,11 +1538,10 @@ function dataController<T>(
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.DataController<T> {
   const rec = chain === undefined && !layer.lazy ? nodeState(layer, target) : undefined;
-  /** A closed layer's cached entry is stale; its close drops the store without walking it, so a
-   * closed layer takes the slow read (ADR 0069). */
   const get = (): T => {
+    if (layer.closed) return effectiveEntryNs(layer, target, chain).value as T;
     const entry = rec?.eff;
-    if (entry === undefined || layer.closed) return readCell(layer, target, chain) as T;
+    if (entry === undefined) return readCell(layer, target, chain) as T;
     return entry.value as T;
   };
   return {
@@ -4617,11 +4617,15 @@ function expandFrame(frame: Layer, up: Layer): void {
 }
 
 /** A read on a closed scope (ADR 0069): while a session's data waits for its `session` hooks, a
- * data cell or a tag reads as it did before the close. Anything else throws `Disposed`. */
+ * data cell or a tag reads as it did before the close. A data cell reads the cells above it, never
+ * a memo (see {@link dataController}). Anything else throws `Disposed`. */
 function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
   if (SESSION_HOOKS.get(layer)?.state !== 1 || isResource(target) || isExtension(target))
     raise("Disposed", { reason: "scope is closed" });
-  return resolveNs(layer, target, ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns));
+  const chain = ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns);
+  return isData(target)
+    ? effectiveEntryNs(layer, target, chain).value
+    : resolveNs(layer, target, chain);
 }
 
 /** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one

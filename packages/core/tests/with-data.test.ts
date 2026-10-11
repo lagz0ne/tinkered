@@ -80,6 +80,89 @@ test("a held controller on a preset data cell reads the initial value once the r
   expect(held.get()).toBe(0);
 });
 
+test("a closed leaf reads the open middle's write made after the leaf's own read", async () => {
+  const root = createScope();
+  root.controller(draft).set(5);
+  const middle = root.createSession();
+  const leaf = middle.createSession();
+  const held = leaf.controller(draft);
+  await leaf.close();
+  expect(held.get()).toBe(5);
+  middle.controller(draft).set(7);
+  expect(held.get()).toBe(7);
+  await middle.close();
+  await root.close();
+});
+
+test("a closed leaf reads the open root's write made after the leaf's own read", async () => {
+  const root = createScope();
+  const middle = root.createSession();
+  const leaf = middle.createSession();
+  const held = leaf.controller(draft);
+  await leaf.close();
+  expect(held.get()).toBe(0);
+  root.controller(draft).set(8);
+  expect(held.get()).toBe(8);
+  await middle.close();
+  await root.close();
+});
+
+test("a closed leaf reads the initial value once every layer above it has closed", async () => {
+  const root = createScope();
+  root.controller(draft).set(5);
+  const middle = root.createSession();
+  const leaf = middle.createSession();
+  const held = leaf.controller(draft);
+  await leaf.close();
+  expect(held.get()).toBe(5);
+  await middle.close();
+  await root.close();
+  expect(held.get()).toBe(0);
+});
+
+test("a session hook reads its own held write after next", async () => {
+  const seen: unknown[] = [];
+  const reader = extension({
+    label: "reader",
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        seen.push(held.get());
+        return ended;
+      },
+    },
+  });
+  const root = createScope({ extensions: [reader] });
+  const session = root.createSession();
+  const held = session.controller(draft);
+  held.set(4);
+  await session.close();
+  expect(seen).toEqual([4]);
+  await root.close();
+});
+
+test("a session hook reads an ancestor's write made after the session closed", async () => {
+  const seen: unknown[] = [];
+  const reader = extension({
+    label: "reader",
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        root.controller(draft).set(8);
+        seen.push(held.get(), event.handle.resolve(draft));
+        return ended;
+      },
+    },
+  });
+  const root = createScope({ extensions: [reader] });
+  const session = root.createSession();
+  const held = session.controller(draft);
+  expect(held.get()).toBe(0);
+  await session.close();
+  expect(seen).toEqual([8, 8]);
+  await root.close();
+});
+
 test("a withData close hands over what the session wrote, never what it inherited", async () => {
   const root = createScope();
   root.controller(shared).set("parent");
