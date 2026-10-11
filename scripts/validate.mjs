@@ -50,7 +50,10 @@ const lanes = [
     "scripts/two-hands.sh",
   ],
   // The scaffold's registry index matches its source copies (no publish): a stale copy fails here.
-  ["scaffold registry index matches source", "pnpm --dir apps/start-scaffold run test:registry"],
+  [
+    "scaffold registry index matches source (fix: registry:build)",
+    "pnpm --dir apps/start-scaffold run test:registry",
+  ],
 ];
 
 let failed = 0;
