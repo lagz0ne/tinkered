@@ -1539,6 +1539,8 @@ function dataController<T>(
 ): Scope.DataController<T> {
   const rec = chain === undefined && !layer.lazy ? nodeState(layer, target) : undefined;
   const get = (): T => {
+    // A closed layer has left its parent's child list, so no write clears its memo:
+    // read the cells (ADR 0069).
     if (layer.closed) return effectiveEntryNs(layer, target, chain).value as T;
     const entry = rec?.eff;
     if (entry === undefined) return readCell(layer, target, chain) as T;
