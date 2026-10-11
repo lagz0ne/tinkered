@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { preset } from "../src/testing";
+import { preset } from "@tinker/core/testing";
 import {
   createScope,
   data,
