@@ -1181,3 +1181,39 @@ let layer;
   },
   BUILD_MS,
 );
+
+/** Runtime fields that the shipped list lacked: each must be renamed in every built file. */
+const unlisted = [
+  "borrows",
+  "controllerOf",
+  "deferFn",
+  "lastController",
+  "lastTarget",
+  "mayHook",
+  "releaser",
+];
+
+test(
+  "the shipped list renames each runtime field it lacked in every built file",
+  async () => {
+    expect(listed).toEqual(expect.arrayContaining(unlisted));
+    const root = mkdtempSync(join(tmpdir(), "core-dist-"));
+    try {
+      await build({
+        config: false,
+        cwd: core,
+        entry: { index: "src/index.ts", testing: "src/testing.ts" },
+        outDir: join(root, "dist"),
+        dts: false,
+        logLevel: "silent",
+        plugins: [privateFields()],
+      });
+      const files = readdirSync(join(root, "dist")).filter((file) => !file.endsWith(".map"));
+      const built = files.map((file) => readFileSync(join(root, "dist", file), "utf8")).join("\n");
+      for (const name of unlisted) expect(built).not.toMatch(new RegExp(`\\b${name}\\b`));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+  BUILD_MS,
+);
