@@ -1275,7 +1275,7 @@ Public types and exports stay the same.
 
 - `packages/core/build/private-fields.ts` is a Rolldown plugin.
 - It renames the fields in `build/private-fields.json` to short names.
-- The list holds 48 names, such as `layer`, `nodes`, and `bodyEnd`.
+- The list holds 55 names, such as `layer`, `nodes`, and `bodyEnd`.
 - One name map serves all three runtime files.
 - The map is fixed before any file renders.
   So two builds give the same bytes.
@@ -2257,3 +2257,63 @@ The full-file scan still reports the prior build-tool code and invalid plant str
 The TSDoc parser finds zero bad doc rows.
 
 Core feedback from the takeover: none.
+
+## core/private-fields-regen
+
+Branch: `core/private-fields-regen`.
+Base: `origin/main` at `772adf6f`.
+The lead owns the board and landing.
+
+### Change
+
+The committed list held 48 names. The write mode finds 55.
+Ran the repo's write mode: `vp run core#fields`.
+Only `build/private-fields.json` changed: seven names added, none removed.
+
+- `borrows`
+- `controllerOf`
+- `deferFn`
+- `lastController`
+- `lastTarget`
+- `mayHook`
+- `releaser`
+
+No added name is in a public type file.
+No added name is read outside Core without a type check.
+`mayHook` is set on each resource handle at run time.
+No public type names it, and no repo code reads it.
+
+### Test first
+
+New test: "the shipped list renames each runtime field it lacked in every built file".
+On `origin/main` the list check fails: the list has 48 names.
+With the list check removed, the build check still fails: `borrows` is in code.
+The build uses `minify: true`, as the real build does.
+Run: `vp test --config vite.dist.config.ts build/private-fields.test.ts`.
+
+### Dist diff
+
+- The `.d.mts` type files do not change.
+- `index.mjs` and `testing.mjs` change.
+- A syntax-tree diff finds the same tree shape.
+- Every changed identifier is a property name.
+- `index.mjs` changes 41 names: the seven new names, and 34 short names.
+- Short names follow use counts, so the seven new names move the others.
+
+### Size
+
+- Before: 16026 B gzip.
+- After: 15988 B gzip.
+- Cap: 16384 B gzip.
+
+### Checks
+
+- `vp run -r build`: exit 0.
+- `scripts/ticket.sh --check-only --no-mutation core 42`: exit 0.
+- `vp check`: 0 errors, 27 warnings. `origin/main` has 27.
+- `vp run -r test`: all packages pass.
+- `core#test:dist`: 978 tests pass.
+- `pnpm validate`: all 20 lanes pass.
+- Mutation: not run. `src/` is unchanged and `build/` is not mutated.
+- Timing: not run. The card does not ask for it.
+- Jev review and preflight: 0 flags, so no label is owed.
