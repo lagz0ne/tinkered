@@ -2212,7 +2212,7 @@ The plants prove the guard; the mutation lane changes only `src/`.
 #### Jev and style
 
 The final code preflight reads `origin/main..HEAD`.
-All guard labels name `core/size-guard-real-types` in `by`.
+All labels used for the final guard code name `core/size-guard-real-types` in `by`.
 Existing ids are kept once, rather than copied into duplicate rows.
 The maps and sets record one build scan, not app state.
 The new `argumentCasts` label is false for that same reason.
