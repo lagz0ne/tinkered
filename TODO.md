@@ -30,13 +30,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Main misses it too. `for (const { layer } of s)` is caught.
   Verify: a plant for each fails the build; old guard tests pass; dist byte-identical.
 
-- **core/private-fields-regen** — write the committed name list again.
-  Run `CORE_PRIVATE_FIELDS=write vp pack`.
-  It adds `borrows`, `controllerOf`, `deferFn`, `lastController`, `lastTarget`, `mayHook`, `releaser`.
-  The write-mode scan on main gives 55 names; 48 are committed.
-  This changes dist bytes.
-  Verify: `pnpm validate`, `core#test:dist`, Core size reported.
-
 - **docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)**
   Owner: lead (Claude)
   Next: round 1 landed (5ec4ec54); left: `TODO.md`, package and app READMEs, `apps/start-scaffold/.agents/skills/tinker-testing/SKILL.md`, `apps/start-scaffold/README.md`, `docs/roadmap/core-v1/PROGRESS.md`; to be done after the code writers land
@@ -85,6 +78,8 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/private-fields-regen** — write mode rewrote the list: 48 → 55 names (7 added, none removed). Core 16026 → 15988 B gzip. Proof: new dist test fails on main, passes on head; test:dist 978; React 98; validate 20/20; vp check 0 errors, 27 warnings. src unchanged, so no mutation run. Jev tests/promises not run (key budget). [Proof](docs/roadmap/core-v1/PROGRESS.md#coreprivate-fields-regen).
 
 - **core/size-guard-real-types** — the outside-read rule asks the TypeScript 7 checker if a read is `any` (the typescript-eslint no-unsafe-member-access method). Landed 2026-10-11. Haiku first pass NOT READY (lost nested destructuring assignments); Sol took over; READY after one fix round (spread target R7). 94 guard tests; G52–G71 fail on main, R1–R7 fail on the Haiku head. Dist byte-identical. Build 4.4 s → 6.2 s. Core mutation 85.79% (src unchanged). Open: `core/size-guard-iterable-assign`. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-real-types).
 
