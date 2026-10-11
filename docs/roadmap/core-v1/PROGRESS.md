@@ -3070,14 +3070,30 @@ Two limits from `core/size-guard-iterable-edges` are now closed:
 
 ### Failing tests first
 
-- G90: four thenables read by `for await (const x of ps)` build within 1 s.
-- G91: the same thenables read by `for await ({ layer } of ps)` fail with the `layer` error within 1 s.
+- G90: four thenables read by `for await (const x of ps)` build within 5 s.
+- G91: the same thenables read by `for await ({ layer } of ps)` fail with the `layer` error within 5 s.
 - A probe reaches the walk only when its file names a listed field.
   Both probes declare `let layer`.
 - Red proof: `/tmp/main-check-size-guard-forof-cost` at `6251a860`.
-  Both time out at 1 s with `ETIMEDOUT`.
+  At the first 1 s deadline, both time out with `ETIMEDOUT`.
   Log: `/tmp/size-guard-forof-cost-red-main.log`.
+  At 5 s, origin/main still fails both: its runs take about 22 s.
 - Green: both pass in the ticket worktree.
+
+### Which test pins which change
+
+Three full guard runs, same test file, 5 s deadline.
+These are pass or fail checks, not timing.
+
+- origin/main, with the new tests: G90 and G91 fail; the other 118 pass.
+- Skip only, dedupe reverted: G91 fails; the other 119 pass.
+- Dedupe only, skip reverted: all 120 pass.
+
+So:
+
+- G91 fails without the dedupe. It pins the dedupe.
+- No test fails without the skip. G90 fails only when both changes are gone.
+- The skip changes no answer. The parity runs below show it.
 
 ### Probe timing, single runs
 
@@ -3092,21 +3108,26 @@ This branch, same probe, five runs per form:
 - Assignment form: 0.71 to 0.79 s.
 
 Each time includes Node start and a Core pack.
-The 1 s deadline leaves 0.2 to 0.3 s on this shared box.
+A reviewer saw one plain probe build take 4.8 s on this box.
+So the deadline is 5 s, not 1 s.
+It is a hang check, not a benchmark.
 
 ### Parity: assignment form vs `for (const …)` form
 
-A scratch script ran G72 to G89 in both forms on both trees.
+A scratch script ran G72 to G91 in both forms on both trees.
 It is not committed.
 Each plant reads `flag` when the guard fails the build.
 
 - G72 to G87: flag in both forms (16 plants).
 - G88: pass in both forms.
 - G89: pass; it is not a for-of, so it has no declaration form.
+- G90: pass as a declaration; it has no assignment head.
+- G91: flag in both forms.
 
-All 35 runs give the same verdict on `origin/main` and this branch.
-Logs: `/tmp/size-guard-forof-cost-parity-main.log` and
-`/tmp/size-guard-forof-cost-parity-fixed.log`.
+All 20 rows give the same verdict on `origin/main` and this branch.
+That is 38 runs per tree.
+Logs: `/tmp/size-guard-forof-cost-parity2-main.log` and
+`/tmp/size-guard-forof-cost-parity2-fixed.log`.
 
 ### Build proof and gates
 
@@ -3124,7 +3145,7 @@ Logs: `/tmp/size-guard-forof-cost-parity-main.log` and
 
 ### Build time, benchd queue
 
-Three runs each, median:
+Single series, three runs each, median:
 
 - Before, `origin/main`: 6625 ms (min 6149, max 6743).
 - After, this branch: 4861 ms (min 4802, max 4871).
@@ -3137,7 +3158,8 @@ Read the gap as two single series, not a verdict.
 
 Mutation was not run.
 `packages/core/src` is unchanged.
-`build/` is not mutated; the G90 and G91 plants prove this fix.
+`build/` is not mutated.
+The pins are listed under "Which test pins which change".
 
 ### Jev and style
 
@@ -3162,5 +3184,5 @@ None.
   Full runs print 6 on `origin/main` and 13 on this branch.
   No test fails from them.
   The cause is not traced.
-- The 1 s deadline on G90 and G91 is wall-clock.
-  It has 0.2 to 0.3 s of room on this box.
+- The 5 s deadline on G90 and G91 is wall-clock.
+  A very slow box could still hit it; raise it if that happens.

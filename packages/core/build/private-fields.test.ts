@@ -1475,19 +1475,19 @@ test(
 );
 
 test(
-  "G90: a for-await loop over four thenables that settle to each other builds within one second",
+  "G90: a for-await loop over four thenables that settle to each other builds within five seconds",
   () => {
     const plant = `${thenableSource}for await (const x of ps) {}\n`;
-    expect(guardInChild(plant, 1_000)).toBe("");
+    expect(guardInChild(plant, 5_000)).toBe("");
   },
   BUILD_MS,
 );
 
 test(
-  "G91: a for-await assignment over four thenables that settle to each other fails within one second",
+  "G91: a for-await assignment over four thenables that settle to each other fails within five seconds",
   () => {
     const plant = `${thenableSource}for await ({ layer } of ps) {}\n`;
-    expect(guardInChild(plant, 1_000)).toContain(
+    expect(guardInChild(plant, 5_000)).toContain(
       "layer: read without type checks in packages/react/src/plant.ts",
     );
   },
