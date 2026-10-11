@@ -2005,11 +2005,11 @@ Only `src/` is mutated; the planted build tests prove the guard changes.
 
 ### Jev and style
 
-Preflight finds five flags in build code.
-All five have false labels under `core/size-guard-bypasses`.
+Two preflight runs flag six build functions.
+All seven judge cases have false labels under `core/size-guard-bypasses`.
 The maps and sets hold private build notes rather than app state.
 The build changes no runtime object shape.
-Four cases already existed; their labels are kept and their `by` names this card.
+Six cases already existed; their labels are kept and their `by` names this card.
 The guard-test scan finds zero flags in all 53 tests.
 The package-test scan still finds seven old test flags and one old timer note.
 Those files are outside this build ticket.
