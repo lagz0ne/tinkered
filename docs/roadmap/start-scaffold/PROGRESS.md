@@ -3571,9 +3571,9 @@ The first writer's work is saved in local tag `archive/registry-hook-haiku-20f5e
 Its worktree and branch were left alone.
 
 The fast read-only part of `check-registry.mjs` is shared.
-The full lane keeps its protected-target proof and three composition builds.
+The full lane still checks protected targets and builds three copied apps.
 Its clean output ends with 10 items and 96 emitted files.
-The commit hook does no composition build.
+The commit hook does not build an app.
 
 ### Final hook
 
@@ -3581,7 +3581,7 @@ The hook runs `vp staged --no-stash` first.
 Then it runs the staged registry check, after formatter edits are staged.
 The file guard keeps branches without the checker working.
 The input list lives only in `check-registry-staged.mjs`.
-A cached Git diff checks both apps, all package manifests, the release helper,
+A Git diff of staged files checks both apps, all package manifests, the release helper,
 and the workspace catalog, including deleted files.
 No matching change returns 0 with no output or temp copy.
 
@@ -3607,7 +3607,7 @@ Log: `/tmp/registry-hook-sol-red.log`.
 
 The fix-round tests ran on `d333d23f`, before either hook fix.
 They use a temp hooks folder copied from that branch's `.vite-hooks`.
-A small dispatch script runs its pre-commit file with `sh -e`.
+A small script runs its pre-commit file with `sh -e`.
 Scratch commits use `git -c core.hooksPath=...`; no shared config changes.
 
 - Format race: hook exit 0; the committed tree's index check exits 1.
@@ -3629,7 +3629,7 @@ This lets the format step finish before the registry check in every case.
 - e. README and rebuilt copies staged together: hook exit 0.
   The registry check prints its PASS line once.
 - f. `test:registry`: planted drift exits 1; clean source exits 0.
-  The protected-target and three composition PASS lines stay the same.
+  The PASS lines for protected targets and three app builds stay the same.
 - Format race: formatter changes the source, then the hook exits 1.
 - Delete-only source commit: hook exits 1, even with no lint-staged task.
 - Missing staged index: the repair line is first; the hook exits 1.
@@ -3640,7 +3640,7 @@ The first error line names the fix:
 `Registry index check failed. Fix: pnpm --dir apps/start-scaffold run registry:build`.
 
 The format race and delete-only gaps are closed.
-The hook proves index matches; the full lane owns composition builds.
+The hook proves index matches; the full lane owns the copied app builds.
 The new test script is removed from copied package specs by the existing builder.
 The saved registry files still match source without a rebuild.
 
@@ -3655,6 +3655,13 @@ The index-check code is unchanged in the fix round.
 
 The hook test stays outside `pnpm validate`.
 It builds three copied apps and runs real commits; it is not a fast lane.
+The queued test suite took 98.1 seconds; the whole queue job took 98.5 seconds.
+This is one run on CPU 7, with turbo off; no speed comparison is claimed.
+It passed all 14 test entries on clean source commit `e2fdd48b`.
+A clean standalone test copy used the already installed packages and prepared type files.
+Its Vite cache folders were writable in the queue.
+That copy was removed after the run.
+Log: `/tmp/registry-hook-sol-fix-time4.log`, exit 0.
 Mutation and Core timing lanes are not needed: no Core change.
 There is no mutation score or Core timing verdict.
 
@@ -3664,3 +3671,34 @@ No package TypeScript test changed, so test and promise judges do not run.
 Label lines: none.
 `calibrate.mjs` is not run, as this ticket asks.
 Core feedback: none.
+
+### Fix-round gates
+
+Every workspace build and gate ran from the ticket worktree.
+The full chain used source commit `e2fdd48b`, after the rebase onto `d7dbee23`.
+No timeout or OOM retry was needed.
+Log: `/tmp/registry-hook-sol-fix-gate.log`.
+
+```text
+vp install: EXIT 0
+vp run -r build: EXIT 0, 12 tasks
+vp check: 0 errors, 27 warnings, 683 files
+vp run -r test: EXIT 0
+pnpm validate: 21 lanes PASS
+vp run prose: 0 hits in 229 files
+new hook test: 14 passed, 0 failed
+EXIT 0
+```
+
+Run the new package test from the repo root:
+
+```bash
+vp run @tinker-start-scaffold#test:registry-hook
+```
+
+The proof removes its scratch worktree and hook folder in `finally`.
+`/tmp/main-check-registry-hook-sol` is gone.
+No benchmark copy or base worktree remains.
+The ticket worktree and branch remain.
+`TODO.md` and `packages/core` were not edited.
+No push was made.
