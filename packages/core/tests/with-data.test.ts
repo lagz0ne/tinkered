@@ -44,6 +44,33 @@ test("a default close frees a session's data and returns none", async () => {
   await root.close();
 });
 
+test("a held controller reads the initial value once a parent's close frees its fast-closed child", async () => {
+  const root = createScope();
+  const session = root.createSession();
+  const held = session.controller(draft);
+  held.set(5);
+  await root.close();
+  expect(held.get()).toBe(0);
+});
+
+test("a held controller reads the initial value once its fast-closed session closes", async () => {
+  const root = createScope();
+  const session = root.createSession();
+  const held = session.controller(draft);
+  held.set(5);
+  await session.close();
+  expect(held.get()).toBe(0);
+  await root.close();
+});
+
+test("a held controller reads the initial value once the root closes", async () => {
+  const root = createScope();
+  const held = root.controller(draft);
+  held.set(5);
+  await root.close();
+  expect(held.get()).toBe(0);
+});
+
 test("a withData close hands over what the session wrote, never what it inherited", async () => {
   const root = createScope();
   root.controller(shared).set("parent");
