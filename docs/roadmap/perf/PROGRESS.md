@@ -2002,6 +2002,7 @@ The session title is unsure, which owes no new line.
 The ticket's commit-message flag is explained:
 the source diff adds the memo and leaves node freeing as on main.
 No speed number is claimed in that commit message.
+The closed-read test title now names the exact README promise.
 Full calibration, final timing, and the clean Core mutation proof follow.
 
 The timing base is `0ca40d05`.

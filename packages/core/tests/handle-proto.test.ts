@@ -29,7 +29,7 @@ test("a session's repeat controller read stays apart from its root's", async () 
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
-test("a repeat controller read on a closed scope still refuses", async () => {
+test("a controller read after close throws Disposed", async () => {
   const root = createScope();
   expect(root.controller(first)).toBe(root.controller(first));
   expect((await root.close({ graceful: true })).status).toBe("success");
