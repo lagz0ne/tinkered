@@ -1980,7 +1980,7 @@ Initial gates on this source:
 
 - Build, check, all package tests, Core ticket 38, and prose: EXIT 0.
 - Check: zero errors and 27 warnings, the given main count.
-- Core: 883 source tests and 893 built-file tests pass.
+- Core: 883 source tests and 944 built-file tests pass.
 - `pnpm validate`: all 20 lanes PASS, EXIT 0.
 - Core size: 16026 B gzip, cap 16384 B.
 - `runOnce`: 498 bytes, ceiling 499.
@@ -2012,3 +2012,15 @@ The memo misses on those new-scope calls.
 The prior reviewed create comparison adds about 1.4 ns for two layer fields.
 That cost is accepted; this card must keep the session and lifecycle wins.
 Core feedback: none.
+
+### Main failing proof
+
+Clean `origin/main` at `16ed271b` against `0ca40d05`, N=61.
+`s4_warm_ctl`: 10.80 -> 11.40 ns; B slower.
+Faster 3/61, slower 55/61; paired sign-test p = 2.25985897e-13.
+Both trees used batch mode in all 61 rounds.
+[Main raw rows](handle-verbs-ctl-sol-main-vs-base.csv).
+The wrapper returned 0.
+The first head timing attempt overlapped a Core build and got no METRIC line.
+It stopped before a complete row, returned 1, and supplies no speed proof.
+The final timing run starts after all builds have ended.
