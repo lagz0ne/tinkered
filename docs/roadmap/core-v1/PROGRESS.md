@@ -1962,8 +1962,9 @@ It follows inline functions, callbacks, object methods, and named imports return
 A directive on a declaration or assignment marks its bound names.
 A return belongs to the innermost function, including a callback or class method.
 
-`as const` keeps a literal's type checks.
-It cannot hide casts inside that literal.
+`as const` counts as a cast when any cast other than `as const` sits anywhere in its subtree.
+The scan includes branches, operators, and function bodies.
+Checked literals and nested `as const` alone stay accepted.
 Plain object and array literals also retain casts in their contents and spreads.
 The whole literal counts when a contained value came from a cast or `any`.
 Checked literals stay accepted.
@@ -1977,7 +1978,7 @@ No timing run is needed.
 
 ### Revert proof
 
-All 53 guard tests pass on this branch.
+All 61 guard tests pass on this branch.
 The old 23 tests pass on `origin/main` too.
 Plants G20–G24 and G26–G38 fail on `origin/main` because its build accepts them.
 Plant G25 was already caught on `origin/main`.
@@ -1987,10 +1988,19 @@ Plants G40–G43 also fail with the first writer's final guard.
 The callback-return control fails with `aa5466d7` and passes with its return fix.
 The checked `as const` control stays accepted.
 The new checked object and array control stays accepted.
+The checked array `[{ layer: 1 }] as const` stays accepted too.
+
+Plants G45–G51 fail with `d52feb99` because its build accepts them.
+They cover conditional arrays and objects, `??`, `&&`, `||`, commas, and called inline functions.
+Each plant now fails the build with the expected outside-read error.
+The new checked array control passes before and after this fix.
 
 The logs use the prefix `/tmp/size-guard-bypasses-sol-`.
 The red logs end in `main-red.log`, `haiku-red.log`, and `callback-red.log`.
 The green log ends in `guard-green.log`.
+The fix-round red log ends in `fix-red.log` and records `d52feb99`.
+Its seven plant failures end with `EXIT 1`; the checked array control passes.
+The fix-round green log ends in `fix-guard-green.log` and records all 61 tests passing.
 
 ### Build proof
 
@@ -2005,12 +2015,14 @@ Only `src/` is mutated; the planted build tests prove the guard changes.
 
 ### Jev and style
 
-Two preflight runs flag six build functions.
+The first-pass preflight runs flag six build functions.
 All seven judge cases have false labels under `core/size-guard-bypasses`.
 The maps and sets hold private build notes rather than app state.
 The build changes no runtime object shape.
 Six cases already existed; their labels are kept and their `by` names this card.
-The guard-test scan finds zero flags in all 53 tests.
+The fix-round preflight flags three of those functions and no new code.
+Their existing labels still match the code and name this card.
+The guard-test scan finds zero flags in all 61 tests.
 The package-test scan still finds seven old test flags and one old timer note.
 Those files are outside this build ticket.
 The promise scan reads the package tests, not the guard tests in `build/`.
