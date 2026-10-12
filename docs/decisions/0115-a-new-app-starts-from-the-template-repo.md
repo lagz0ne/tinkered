@@ -70,9 +70,10 @@ The variations already exist in this repo.
 
 - The small app starts in 4 commands.
 - The demo starts in 4 commands with Docker.
-- Each release needs one `template-sync --push`.
-  CI cannot push yet: the job's `GITHUB_TOKEN`
-  reaches only this repo.
+- The release job runs `template-sync --push`.
+  The job's `GITHUB_TOKEN` reaches only this repo,
+  so it uses the `TINKER_APP_TOKEN` secret.
+  Without the secret, the step warns and skips.
 - The tags never move.
   A fix goes out as a new release.
 - Fetch time is not the cost.

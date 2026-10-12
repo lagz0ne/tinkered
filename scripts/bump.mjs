@@ -39,4 +39,4 @@ if (!releaseNotes(upgrade, version)) {
 }
 
 console.log(`Bumped to ${version}. Land it on main; green CI publishes start-v${version}.`);
-console.log("After it publishes: node scripts/template-sync.mjs <out> --push <tinker-app remote>.");
+console.log("The release job then refreshes tinker-app (needs the TINKER_APP_TOKEN secret).");
