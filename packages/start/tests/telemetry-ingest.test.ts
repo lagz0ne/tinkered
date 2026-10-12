@@ -12,7 +12,7 @@ import {
 import { flushTelemetry } from "../src/parts/telemetry/observer";
 import { telemetry as serverPart } from "../src/parts/telemetry/on.server";
 import type { Telemetry } from "../src/parts/telemetry/records";
-import { readTelemetryConfig } from "../src/parts/telemetry/settings";
+import { logsUrl, telemetryService } from "../src/parts/telemetry/settings";
 
 const empty: Telemetry.Batch = { traces: [], logs: [] };
 
@@ -321,10 +321,8 @@ test("on the server, a tab's batch joins the telemetry root under the server's s
     extensions: serverPart.extensions,
     tags: [
       serverPart.tags,
-      readTelemetryConfig({
-        OTEL_SERVICE_NAME: "shop",
-        VICTORIA_LOGS_URL: "http://storage.test/logs",
-      }),
+      telemetryService("shop"),
+      logsUrl(new URL("http://storage.test/logs")),
       httpBackend(async (_input, init) => {
         sent.push(typeof init?.body === "string" ? init.body : "");
         return new Response(null);

@@ -5,7 +5,7 @@ import { httpBackend } from "../src/backend/http-backend";
 import { exportHealth } from "../src/parts/telemetry/health";
 import { flushTelemetry, ingestTelemetry, telemetryExport } from "../src/parts/telemetry/observer";
 import type { Telemetry } from "../src/parts/telemetry/records";
-import { telemetrySide, readTelemetryConfig } from "../src/parts/telemetry/settings";
+import { telemetryService, telemetrySide } from "../src/parts/telemetry/settings";
 
 const log: Telemetry.Log = {
   time: 1,
@@ -36,7 +36,7 @@ test("cached records keep exact log bytes and trace fields through a retry", asy
   const root = createScope({
     extensions: [telemetryExport],
     tags: [
-      readTelemetryConfig({ OTEL_SERVICE_NAME: "s" }),
+      telemetryService("s"),
       telemetrySide("ssr"),
       httpBackend(async (_input, init) => {
         bodies.push(typeof init?.body === "string" ? init.body : "");

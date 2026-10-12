@@ -14,17 +14,19 @@ import { telemetry as off } from "../src/parts/telemetry/off";
 import { telemetry as routerPart } from "../src/parts/telemetry/on";
 import type { Telemetry } from "../src/parts/telemetry/records";
 import {
-  telemetrySettings,
-  telemetrySide,
+  logsUrl,
   readTelemetryConfig,
+  telemetryService,
+  telemetrySide,
+  tracesUrl,
 } from "../src/parts/telemetry/settings";
 
-/** Storage keys for a test: each send lands in the fake bound as httpBackend. */
-const storageEnv = readTelemetryConfig({
-  VICTORIA_TRACES_URL: "http://storage.test/traces",
-  VICTORIA_LOGS_URL: "http://storage.test/logs",
-  OTEL_SERVICE_NAME: "test-start",
-});
+/** Storage tags for a test: each send lands in the fake bound as httpBackend. */
+const storageTags = [
+  telemetryService("test-start"),
+  tracesUrl(new URL("http://storage.test/traces")),
+  logsUrl(new URL("http://storage.test/logs")),
+];
 
 /**
  * A storage fake bound as httpBackend: it keeps each request and answers with the next status.
@@ -101,7 +103,7 @@ test("finished spans reach storage as OTLP JSON", async () => {
   const tools = createScope({
     clock,
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const app = createScope({ clock, observe: tools.resolve(observer) });
@@ -173,7 +175,7 @@ test("log lines reach storage as JSON lines, one per span too", async () => {
   const tools = createScope({
     clock,
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const app = createScope({ clock, observe: tools.resolve(observer) });
@@ -222,7 +224,7 @@ test("lines below info are dropped; warn and error keep their level", async () =
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("server"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("server"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const app = createScope({ observe: tools.resolve(observer) });
@@ -247,7 +249,7 @@ test("a span that never ended is sent with its start as its end; long names are 
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const { export: send } = tools.resolve(observer);
@@ -310,7 +312,7 @@ test("a storage failure keeps the business result and retries the retained recor
   const sent = storage([503, 503]);
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const app = createScope({ observe: tools.resolve(observer) });
@@ -336,7 +338,7 @@ test("only the kind storage refused is kept: accepted traces leave, refused logs
   const sent = storage([200, 503]);
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const app = createScope({ observe: tools.resolve(observer) });
@@ -352,7 +354,7 @@ test("a storage that cannot be reached counts as a refusal", async () => {
   const tools = createScope({
     extensions: [telemetryExport],
     tags: [
-      storageEnv,
+      storageTags,
       telemetrySide("ssr"),
       httpBackend(async () => {
         throw new TypeError("fetch failed");
@@ -371,7 +373,7 @@ test("closing the telemetry root sends the finished records", async () => {
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const app = createScope({ observe: tools.resolve(observer) });
@@ -390,7 +392,7 @@ test("a server root sends on its own once a second has passed", async () => {
     clock,
     extensions: [telemetryExport],
     tags: [
-      storageEnv,
+      storageTags,
       telemetrySide("server"),
       httpBackend(async (input) => {
         arrived.resolve(typeof input === "string" ? input : "not a string");
@@ -414,7 +416,7 @@ test("a stuck storage request is aborted by the owned clock during close", async
     clock,
     extensions: [telemetryExport],
     tags: [
-      storageEnv,
+      storageTags,
       telemetrySide("ssr"),
       httpBackend(
         (_input, init) =>
@@ -442,7 +444,7 @@ test("a full queue drops records past 512 and reports them; each send stays with
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const batch = { traces: [], logs: Array.from({ length: 64 }, () => record("queued")) };
@@ -460,7 +462,7 @@ test("a record over 48 KB is dropped; one send takes at most 64 records", async 
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const big = {
@@ -489,7 +491,7 @@ test("sent records free the byte budget for later records", async () => {
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   for (let round = 0; round < 40; round += 1) {
@@ -514,7 +516,7 @@ test("telemetry sends through httpBackend without tracing its own requests", asy
   const tools = createScope({
     extensions: [telemetryExport],
     observe: { history: 30 },
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   tools.run(ingestTelemetry, { input: { traces: [], logs: [record("bound backend")] } });
@@ -590,28 +592,26 @@ test("a tab whose send throws keeps its records for the next send", async () => 
   expect((await tools.close({ graceful: true })).status).toBe("success");
 });
 
-test("the part fills its config from three keys: defaults, set values, and the browser's none", async () => {
-  const server = createScope({ tags: [telemetrySide("server")] });
-  expect(server.resolve(telemetrySettings)).toEqual({
-    side: "server",
-    service: "tinker-app",
-    traces: "http://127.0.0.1:10428/insert/opentelemetry/v1/traces",
-    logs: "http://127.0.0.1:9428/insert/jsonline",
-  });
-  expect((await server.close({ graceful: true })).status).toBe("success");
+test("the part turns its three keys into typed tags, with no telemetry unit running", () => {
+  const read = (env: Record<string, string>) =>
+    readTelemetryConfig(env).map(({ tag, value }) => [tag.label, String(value)]);
 
-  const set = createScope({ tags: [storageEnv, telemetrySide("ssr")] });
-  expect(set.resolve(telemetrySettings)).toEqual({
-    side: "ssr",
-    service: "test-start",
-    traces: "http://storage.test/traces",
-    logs: "http://storage.test/logs",
-  });
-  expect((await set.close({ graceful: true })).status).toBe("success");
-
-  const tab = createScope({ tags: [storageEnv, telemetrySide("browser")] });
-  expect(tab.resolve(telemetrySettings)).toEqual({ side: "browser", service: "test-start" });
-  expect((await tab.close({ graceful: true })).status).toBe("success");
+  expect(read({})).toEqual([
+    ["telemetry.service", "tinker-app"],
+    ["telemetry.tracesUrl", "http://127.0.0.1:10428/insert/opentelemetry/v1/traces"],
+    ["telemetry.logsUrl", "http://127.0.0.1:9428/insert/jsonline"],
+  ]);
+  expect(
+    read({
+      OTEL_SERVICE_NAME: "test-start",
+      VICTORIA_TRACES_URL: "http://storage.test/traces",
+      VICTORIA_LOGS_URL: "http://storage.test/logs",
+    }),
+  ).toEqual([
+    ["telemetry.service", "test-start"],
+    ["telemetry.tracesUrl", "http://storage.test/traces"],
+    ["telemetry.logsUrl", "http://storage.test/logs"],
+  ]);
 });
 
 test("a bad storage URL stops the server entry before the telemetry root, naming each bad key", () => {
@@ -631,7 +631,7 @@ test("the router's part records a server render as ssr", async () => {
     tags: [routerPart.tags],
   });
   await tools.ready;
-  expect(tools.resolve(telemetrySettings).side).toBe("ssr");
+  expect(tools.resolve(telemetrySide)).toBe("ssr");
   expect(tools.resolve(routerPart.observe)).toMatchObject({ history: 80, level: 30 });
   expect((await tools.close({ graceful: true })).status).toBe("success");
 });
@@ -647,7 +647,7 @@ test("the off part leaves the telemetry root empty and the app root unobserved",
 test("a record of exactly 48,000 bytes is kept; one byte more is dropped", async () => {
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(storage().backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(storage().backend)],
   });
   await tools.ready;
   tools.run(ingestTelemetry, { input: { traces: [], logs: [sized(48_000)] } });
@@ -660,7 +660,7 @@ test("a record of exactly 48,000 bytes is kept; one byte more is dropped", async
 test("the queue holds 1 MiB to the byte, and counts what it holds after a refused send", async () => {
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(storage([503]).backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(storage([503]).backend)],
   });
   await tools.ready;
   const full = [...Array.from({ length: 22 }, () => sized(47_000)), sized(14_576)];
@@ -680,7 +680,7 @@ test("one send carries at most 48,000 bytes: the fifth record goes in the next b
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const logs = Array.from({ length: 5 }, () => sized(12_000));
@@ -698,7 +698,7 @@ test("while a send runs, the health says sending, and new records wait for the n
   const tools = createScope({
     extensions: [telemetryExport],
     tags: [
-      storageEnv,
+      storageTags,
       telemetrySide("ssr"),
       httpBackend(() => {
         arrived.resolve();
@@ -725,7 +725,7 @@ test("while a send runs, the health says sending, and new records wait for the n
 test("after a refused send, new records keep the failed health", async () => {
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(storage([503]).backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(storage([503]).backend)],
   });
   await tools.ready;
   tools.run(ingestTelemetry, { input: { traces: [], logs: [record("refused")] } });
@@ -744,7 +744,7 @@ test("after a refused send, new records keep the failed health", async () => {
 test("a queue on a root with no telemetry extension still sends what it holds at close", async () => {
   const sent = storage();
   const root = createScope({
-    tags: [storageEnv, telemetrySide("ssr"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   root.run(ingestTelemetry, { input: { traces: [], logs: [record("held")] } });
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -759,7 +759,7 @@ test("closing gives up on storage after 1.5 s; what is left is dropped", async (
     clock,
     extensions: [telemetryExport],
     tags: [
-      storageEnv,
+      storageTags,
       telemetrySide("ssr"),
       httpBackend(() => {
         const call = Promise.withResolvers<Response>();
@@ -794,7 +794,7 @@ test("a log line outside any span, and long keys, messages, and errors, are cut"
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("server"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("server"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const { log, export: send } = tools.resolve(observer);
@@ -845,7 +845,7 @@ test("a server groups the spans it sends by side: server, browser, then ssr", as
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("server"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("server"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const span = (side: Telemetry.Side, name: string): Telemetry.Span => ({
@@ -892,7 +892,7 @@ test("a trace send that throws keeps the traces; the logs sent beside them leave
   const tools = createScope({
     extensions: [telemetryExport],
     tags: [
-      storageEnv,
+      storageTags,
       telemetrySide("server"),
       httpBackend(async (input) => {
         if (input === "http://storage.test/traces") throw new TypeError("fetch failed");
@@ -914,7 +914,7 @@ test("closing a tab never sends a batch over 32,000 UTF-8 bytes", async () => {
   const sent = storage();
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [storageEnv, telemetrySide("browser"), httpBackend(sent.backend)],
+    tags: [storageTags, telemetrySide("browser"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const log = { ...record("é".repeat(1000)), side: "browser" as const };

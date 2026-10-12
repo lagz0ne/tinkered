@@ -4,7 +4,7 @@ import type { Observe } from "@tinker/core";
 import { queue } from "./queue";
 import { encodeValue } from "./records";
 import type { Telemetry } from "./records";
-import { telemetrySettings } from "./settings";
+import { telemetryService, telemetrySide } from "./settings";
 
 /**
  * Transfers trusted records to the telemetry root; callers must not edit them afterward.
@@ -90,9 +90,8 @@ function readSpan(span: Observe.Span): Telemetry.SpanBody {
  */
 export const observer = resource({
   label: "telemetry.observer",
-  depends: { queue, settings: telemetrySettings },
-  factory: ({ queue, settings }, ctx): Observe.Config => {
-    const { service, side } = settings;
+  depends: { queue, service: telemetryService, side: telemetrySide },
+  factory: ({ queue, service, side }, ctx): Observe.Config => {
     const write = (record: Telemetry.Log) => {
       const encoded = queue.add("log", side, record);
       if (side !== "browser") queue.writeConsole(encoded, record);

@@ -13,12 +13,6 @@ export declare namespace Telemetry {
     | { kind: "idle" | "queued" | "sending" }
     | { kind: "failed"; failure: string }
   );
-  /** What the server entry fills from env (ADR 0113). */
-  type Config = { service: string; traces: string; logs: string };
-  type Settings = { side: Side; service: string } & (
-    | { side: "server" | "ssr"; traces: string; logs: string }
-    | { side: "browser" }
-  );
   type SpanBody = Omit<Span, "side">;
   /** Retained JSON is owned by the queue until storage accepts it. */
   type Record = { kind: "trace" | "log"; side: Side; json: string; bytes: number };
@@ -36,7 +30,7 @@ export declare namespace Telemetry {
   /** What the telemetry part gives the server entry: also the app root's tags. */
   type ServerPart = Part & {
     readonly appTags: Resource.Handle<Tag.Bindings>;
-    /** How the server entry fills the telemetry root's config from env (ADR 0113). */
+    /** How the server entry fills the telemetry root's tags from env (ADR 0113). */
     readonly settings: Env.Read;
   };
 }

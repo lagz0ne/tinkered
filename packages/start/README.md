@@ -387,7 +387,11 @@ The package's `exports` refuses every other path.
     Then closing gives up on storage,
     and what is left is dropped.
   - The telemetry part's `settings(env)` fills
-    the `telemetryConfig` tag (ADR 0113).
+    `telemetryService`, `tracesUrl`, and `logsUrl`
+    (ADR 0113). Each unit needs only its own tags:
+    the queue needs the side;
+    the observer, the side and service;
+    delivery, the side, service, and both URLs.
     A bad storage URL stops start
     with `BadSettings`, naming each key.
 - With auth on, `/api/auth/$` hands the whole

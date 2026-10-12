@@ -6,8 +6,11 @@ Date: 2026-10-12. Status: accepted.
   need to have those tags required, and that's it."
 - User: "Yes, pattern applies for all."
 - User: "This is the official authoring pattern."
-  Replaces the "App settings become resources over `env`" part of ADR 0106.
-  Uses: 0006, 0099, 0105, 0106.
+- User: "this is also the pattern meant to be applied to
+  the core backend of logger and otel span."
+
+Replaces the "App settings become resources over `env`" part of ADR 0106.
+Uses: 0006, 0099, 0105, 0106.
 
 ## Context
 
@@ -40,7 +43,10 @@ So `mailSettings` and `databaseSettings` each depended on every key.
   Mail: `smtpUrl` (a `URL`) and `mailFrom`.
   Database: `databaseUrl` (a `URL`).
   Auth: `authSettings` (origin and secret).
-  Telemetry: `telemetryConfig` (service and URLs).
+  Telemetry: `telemetryService`, `tracesUrl`, `logsUrl`
+  (both `URL`), and `telemetrySide`.
+  The logger and span backend (observer, queue,
+  delivery) each need only the tags they use.
 - The value's type is the provider's choice.
 - A provider never reads `env` and never parses text.
 - Whoever makes the scope fills the tags:
