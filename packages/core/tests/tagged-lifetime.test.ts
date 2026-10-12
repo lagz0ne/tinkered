@@ -32,6 +32,7 @@ test("catching a subflow panic still fails its tagged session", async () => {
       return 7;
     },
   });
+
   const root = createScope();
   await expect(root.run(outer, { tags })).rejects.toBe(cause);
   await root.close();
@@ -67,7 +68,9 @@ test("a data controller from an idle tagged call refuses a late write", async ()
     run: ({ cell }) => cell,
   });
   const root = createScope();
+
   const held = await root.run(op, { tags });
+
   try {
     held.set(1);
     expect.unreachable();
@@ -94,7 +97,9 @@ test("a nested tagged watcher sees a root write before the nested body returns",
     depends: { inner },
     run: ({ inner }) => inner.run({ tags }),
   });
+
   await root.run(outer, { tags });
+
   expect(seen).toEqual([1]);
   await root.close();
 });
@@ -113,11 +118,14 @@ test("a later tagged sibling does not detach a live watcher", async () => {
     },
   });
   const touch = operation({ label: "touch", run: (_deps, ctx) => ctx.signal.aborted });
+
   const first = root.run(watch, { tags });
   const second = root.run(touch, { tags });
   root.controller(cell).set(1);
   gate.resolve();
+
   await Promise.all([first, second]);
+
   expect(seen).toEqual([1]);
   await root.close();
 });
@@ -148,9 +156,11 @@ test("a tagged call started by its parent's abort sees cancelled cleanup", async
       );
     },
   });
+
   parent.run(listen);
   await root.close();
   await late;
+
   expect(seen).toEqual(["cancelled"]);
 });
 
@@ -171,10 +181,12 @@ test("an ancestor collects a late tagged failure after that child has detached",
       throw cause;
     },
   });
+
   const closing = root.close({ graceful: true });
   await entered.promise;
   await Promise.resolve(parent.run(child, { tags })).catch((error) => error);
   gate.resolve();
+
   expect(await closing).toMatchObject({ status: "failed", error: cause });
 });
 
@@ -218,9 +230,11 @@ test("a forced parent close reaches a body adopted after its run returned", asyn
       };
     },
   });
+
   const flight = root.settle(op, { tags });
   const closing = root.close();
   gate.resolve();
+
   expect((await flight).status).toBe("cancelled");
   await closing;
 });

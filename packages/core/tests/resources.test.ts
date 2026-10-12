@@ -30,6 +30,7 @@ test("releasing a resource drops its dependents so they rebuild", () => {
     factory: ({ base }) => ({ v: base.v + builds++ }),
   });
   const scope = createScope();
+
   expect(scope.resolve(top)).toEqual({ v: 1 });
   scope.release(base);
   expect(scope.resolve(top)).toEqual({ v: 2 });
@@ -50,8 +51,10 @@ test("a throwing operation defer is aggregated as TeardownFailed", async () => {
   });
   const scope = createScope();
   scope.run(op);
+
   scope.onClose(() => undefined);
   const result = await scope.close();
+
   expect(seen).toEqual(["kept"]);
   expect(result.teardownErrors).toEqual([boom]);
 });
@@ -65,6 +68,7 @@ test("releasing a cell cascades into a resource behind its controller edge", () 
     factory: ({ c }) => ({ v: c.get() + builds++ }),
   });
   const scope = createScope();
+
   expect(scope.resolve(view)).toEqual({ v: 1 });
   scope.release(count);
   expect(scope.resolve(view)).toEqual({ v: 2 });
@@ -77,6 +81,7 @@ test("a released resource rebuilds with a fresh generation", () => {
     factory: () => ({ n: ++builds }),
   });
   const scope = createScope();
+
   expect(scope.resolve(conn)).toEqual({ n: 1 });
   scope.release(conn);
   expect(scope.resolve(conn)).toEqual({ n: 2 });
@@ -88,7 +93,9 @@ test("releasing a data cell resets it and releases only its dependents", () => {
   const scope = createScope();
   scope.controller(count).set(30);
   scope.controller(other).set(90);
+
   scope.release(count);
+
   expect(scope.controller(count).get()).toBe(3);
   expect(scope.controller(other).get()).toBe(90);
 });
@@ -125,6 +132,7 @@ test("a factory that declares no ctx still reads its abort signal", async () => 
     },
   });
   const scope = createScope();
+
   expect(scope.resolve(quiet)).toBe(3);
   await scope.close();
   expect(aborted).toBe(true);
@@ -162,7 +170,9 @@ test("releasing one resource leaves another resource's cleanup in place", async 
   const scope = createScope();
   scope.resolve(first);
   scope.resolve(second);
+
   scope.release(first);
+
   expect(order).toEqual(["first-clean"]);
   await scope.close();
   expect(order).toEqual(["first-clean", "second-clean"]);
@@ -195,7 +205,9 @@ test("releasing a mid-chain resource tears down each dependent once in order", (
   });
   const scope = createScope();
   scope.resolve(top);
+
   scope.release(mid);
+
   expect(cleaned).toEqual(["top", "mid"]);
   expect(scope.resolve(top).v).toBe(1);
 });
@@ -213,7 +225,9 @@ test("a resource cleanup that rejects asynchronously lands in teardown errors", 
   });
   const scope = createScope();
   scope.resolve(r);
+
   const result = await scope.close();
+
   expect(seen).toEqual(["kept"]);
   expect(result.teardownErrors).toEqual([boom]);
 });
@@ -232,6 +246,7 @@ test("a child update builds on its parent's latest write", () => {
   scope.controller(count).set(5);
   const child = scope.createSession();
   child.controller(count).update((n) => n + 1);
+
   expect(child.controller(count).get()).toBe(6);
   expect(scope.controller(count).get()).toBe(5);
 });
@@ -255,8 +270,10 @@ test("releasing a dependency after its dependent never tears down twice", () => 
   });
   const scope = createScope();
   scope.resolve(top);
+
   scope.release(top);
   scope.release(base);
+
   expect(cleaned).toEqual(["top", "base"]);
 });
 
@@ -274,6 +291,7 @@ test("a release inside a run drains unrelated cleanups at once", () => {
   });
   const scope = createScope();
   scope.resolve(resB);
+
   const probe = operation({
     label: "probe",
     depends: { count, c: count.controller, resA },
@@ -282,6 +300,7 @@ test("a release inside a run drains unrelated cleanups at once", () => {
       return `${n}:${cleaned.length}`;
     },
   });
+
   expect(scope.run(probe)).toBe("1:1");
   expect(cleaned).toEqual(["resB:1"]);
 });
@@ -308,11 +327,14 @@ test("a build superseded twice never publishes its value", async () => {
   const scope = createScope();
   const first = scope.controller(slow).resolve() as Promise<unknown>;
   scope.release(slow);
+
   const second = scope.controller(slow).resolve() as Promise<unknown>;
   scope.release(slow);
   g2("go");
+
   expect(await first).toBe("stale");
   expect(await second).toBe("stale");
+
   const third = scope.controller(slow).resolve() as Promise<unknown>;
   g3("go");
   expect(await third).toBe("fresh");
@@ -344,6 +366,7 @@ test("a finished borrow is forgotten before the next release", async () => {
   const scope = createScope();
   const running = scope.run(op) as Promise<unknown>;
   release();
+
   expect(await running).toBe(1);
   scope.release(res);
   expect(order).toEqual(["op:1", "res-clean"]);
@@ -368,6 +391,7 @@ test("a defer from a superseded build never joins the live rebuild's drain", asy
   const scope = createScope();
   const first = scope.controller(slow).resolve() as Promise<unknown>;
   scope.release(slow);
+
   release(7);
   expect(await first).toBe(7);
   for (let i = 0; i < 10; i++) await Promise.resolve();
@@ -389,9 +413,11 @@ test("a failing start fails the scope with its cause", async () => {
     () => undefined,
     (error: unknown) => error,
   );
+
   expect(thrown).toBe(cause);
   const result = await scope.close();
   expect(result.status).toBe("failed");
+
   if (result.status !== "failed") expect.unreachable();
   expect(result.error).toBe(cause);
   await scope.close();
@@ -417,7 +443,9 @@ test("a forced close aborts a nested grandchild session", async () => {
     },
   });
   grand.resolve(probe);
+
   await scope.close();
+
   expect(aborted).toBe(true);
 });
 
@@ -442,8 +470,10 @@ test("a rejection from a superseded build never goes sticky", async () => {
   const scope = createScope();
   const first = scope.controller(flaky).resolve() as Promise<unknown>;
   scope.release(flaky);
+
   release(10);
   await expect(first).rejects.toBe(boom);
+
   expect(await scope.resolve(flaky)).toBe(20);
   await scope.close();
 });
@@ -459,6 +489,7 @@ test("get on a rejected build returns its rejection", async () => {
     () => undefined,
     () => undefined,
   );
+
   await expect(scope.controller(bad).get()).rejects.toBe(cause);
   await scope.close();
 });
@@ -484,11 +515,14 @@ test("concurrent resolves share one tracked build", async () => {
   const scope = createScope();
   const first = scope.controller(slow).resolve() as Promise<unknown>;
   scope.release(slow);
+
   const second = scope.controller(slow).resolve() as Promise<unknown>;
   g1("v");
+
   expect(await first).toBe("v-1");
   const third = scope.controller(slow).resolve() as Promise<unknown>;
   g2("v");
+
   expect(await second).toBe("v-2");
   expect(await third).toBe("v-2");
   await scope.close();
@@ -512,8 +546,10 @@ test("releasing a diamond leg then the root still tears down the other leg", () 
   });
   const scope = createScope();
   scope.resolve(top);
+
   scope.release(l);
   expect(cleaned).toEqual(["top", "l"]);
+
   scope.release(d);
   expect(cleaned).toEqual(["top", "l", "r", "d"]);
 });
@@ -542,10 +578,12 @@ test("a build that releases itself still rebuilds on the next resolve", async ()
       return gate.then(() => `b${n}:${t}`);
     },
   });
+
   scope = createScope();
   const first = scope.controller(linked).resolve() as Promise<unknown>;
   const second = scope.controller(linked).resolve() as Promise<unknown>;
   release("go");
+
   expect(await first).toBe("b1:1");
   expect(await second).toBe("b2:1");
   await scope.close();
@@ -581,9 +619,11 @@ test("a release waits for every borrower, not just the first done", async () => 
   const first = scope.run(borrower("one", gate1)) as Promise<unknown>;
   const second = scope.run(borrower("two", gate2)) as Promise<unknown>;
   release1();
+
   expect(await first).toBe("one:1");
   scope.release(res);
   expect(cleaned).toEqual([]);
+
   release2();
   expect(await second).toBe("two:1");
   await scope.close();

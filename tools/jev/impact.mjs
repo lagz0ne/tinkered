@@ -87,6 +87,7 @@ function readRefs(pkg, name) {
     else if (section === "defs") addDef(line, found, name);
     else if (section === "refs") addRef(line, found, name);
   }
+
   return found;
 }
 
@@ -176,6 +177,7 @@ function parseArgs(args) {
     if (skip) i += skip - 1;
     else if (!args[i].startsWith("--")) positional.push(args[i]);
   }
+
   const tag = positional[0] ?? "";
   const rangeArg = positional[1] ?? "";
   return { tag, rangeArg, blockFile: out.block };
@@ -244,6 +246,7 @@ function main() {
     console.log(`no impact block for ${tag}`);
     process.exit(0);
   }
+
   const discs = collect(run.lines, run.range);
   if (discs.length === 0) {
     reportClean(tag, run.lines);

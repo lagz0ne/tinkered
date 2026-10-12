@@ -9,9 +9,11 @@ if (import.meta.main) {
     tags: [region("eu")],
     clock: makeTestClock({ now: 0 }),
   });
+
   const shutdown = (): void => stop.abort();
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
+
   let total: number;
   let end: Scope.Result;
   try {
@@ -42,10 +44,12 @@ if (import.meta.main) {
     process.removeListener("SIGINT", shutdown);
     process.removeListener("SIGTERM", shutdown);
   }
+
   if (end.status === "failed") throw end.error;
   if (end.teardownErrors?.length) {
     const [error] = end.teardownErrors;
     throw error;
   }
+
   process.stdout.write(`Core example: ${total}\n`);
 }

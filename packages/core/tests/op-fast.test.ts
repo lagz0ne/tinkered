@@ -21,6 +21,7 @@ for (const graceful of [true, false]) {
         return 1;
       },
     });
+
     const root = createScope();
     const draft = data({ label: "sync-close-discarded", initial: 0 });
     root.controller(draft).set(7);
@@ -28,20 +29,24 @@ for (const graceful of [true, false]) {
     root.onClose(() => {
       calls.push("scope");
     });
+
     let result: Scope.Result | undefined;
     const closing = root.close({ graceful }).then((end) => {
       result = end;
       return end;
     });
+
     expect(calls).toEqual([]);
     await Promise.resolve();
     await Promise.resolve();
     expect(calls).toEqual(["scope", "resource"]);
+
     expect(result).toEqual(
       graceful
         ? { status: "success", teardownErrors: undefined }
         : { status: "cancelled", reason: expect.anything(), teardownErrors: undefined },
     );
+
     expect(await root.close({ graceful: !graceful })).toBe(await closing);
   });
 }
@@ -52,6 +57,7 @@ test("close waits for async cleanup before running earlier cleanup", async () =>
   const wait = new Promise<void>((resolve) => {
     release = resolve;
   });
+
   const owned = resource({
     label: "async-close",
     factory: (_deps, { defer }) => {
@@ -68,9 +74,11 @@ test("close waits for async cleanup before running earlier cleanup", async () =>
   });
   const root = createScope();
   root.resolve(owned);
+
   const closing = root.close({ graceful: true });
   await expect.poll(() => calls).toEqual(["waiting"]);
   release();
+
   expect((await closing).status).toBe("success");
   expect(calls).toEqual(["waiting", "finished", "earlier"]);
 });
@@ -90,8 +98,10 @@ test("a destructured operation defer keeps its run's cleanup", async () => {
       return 7;
     },
   });
+
   const root = createScope();
   expect(root.settle(op)).toEqual({ status: "success", value: 7 });
+
   expect(calls).toEqual(["second", "first"]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -124,13 +134,16 @@ test("a saved run next refuses to start a body after its run has finished", asyn
   });
   const op = operation({ label: "late-body", run: () => 9 });
   const root = createScope({ extensions: [around] });
+
   expect(root.settle(op)).toEqual({ status: "success", value: 7 });
+
   let error: unknown;
   try {
     next();
   } catch (cause) {
     error = cause;
   }
+
   if (!isError(error, "Disposed")) throw error;
   expect(error.payload.reason).toBe("run is finished");
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -165,9 +178,11 @@ test("a hooked run waits for its async resource before calling its body", async 
       },
     },
   });
+
   const root = createScope({ extensions: [around] });
   const running = root.settle(op);
   expect(calls).toEqual(["before"]);
+
   release(7);
   expect(await running).toEqual({ status: "success", value: 8 });
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -179,7 +194,9 @@ test("a sync cleanup close keeps written data when withData is set", async () =>
   const root = createScope();
   root.controller(draft).set(7);
   root.onClose(() => undefined);
+
   const ended = await root.close({ graceful: true, withData: true });
+
   expect(ended.status).toBe("success");
   expect(ended.data?.get(draft)).toEqual({ present: true, value: 7 });
 });
@@ -208,7 +225,9 @@ for (const controller of [false, true]) {
         throw cause;
       },
     });
+
     const result = controller ? root.controller(op).settle(call) : root.settle(op, call);
+
     if (result.status !== "failed") throw result;
     expect(result.error).toBe(cause);
     expect((await root.close({ graceful: true })).status).toBe("success");

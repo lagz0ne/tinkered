@@ -47,6 +47,7 @@ function Draft({ project }: { project: Project }): ReactElement {
   const setNotes = useRun(editNotes);
   const release = useRelease();
   const signal = useResource(draftSignal);
+
   return (
     <>
       <Brief project={project} />

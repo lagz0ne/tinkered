@@ -134,6 +134,7 @@ function Tabs(): ReactElement {
   const active = useData(activeCell);
   const shown = useData(navigationCell, (nav) => nav.place?.file ?? first, Object.is);
   const renaming = useData(renameCell);
+
   const select = useRun(selectFile);
   const open = useRun(openSource);
   const add = useRun(addFile);
@@ -141,6 +142,7 @@ function Tabs(): ReactElement {
   const rename = useRun(renameFile);
   const markRename = useRun(openRename);
   const clearRename = useRun(closeRename);
+
   return (
     <FileTabs
       files={names}
@@ -288,15 +290,18 @@ function CodeOverlay(): ReactElement {
   const nav = useData(navigationCell);
   const shown = nav.place?.file ?? ENTRY;
   const editable = names.includes(shown);
+
   const record = useRun(trackCursor);
   const hop = useRun(followDefinition);
   const back = useRun(goBack);
   const forward = useRun(goForward);
+
   const follow = () => {
     const place = nav.place ?? { file: shown, offset: 0 };
     record.run({ input: place });
     hop.run({ input: place });
   };
+
   return (
     <div className="code-overlay absolute inset-0 z-10 flex flex-col bg-background">
       <div className="source-bar flex items-center gap-2 border-b px-3 py-2">

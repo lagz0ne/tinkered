@@ -38,6 +38,7 @@ for (const file of files) {
   const rows = tsdocRows(readFileSync(file, "utf8"), file);
   if (rows.length === 0) continue;
   console.log(file);
+
   for (const r of rows) console.log(`  ▪ L${r.line} ${r.id}: ${r.message}`);
   plainRows += rows.length;
   byFolder[folderOf(file)] = (byFolder[folderOf(file)] ?? 0) + rows.length;

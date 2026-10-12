@@ -18,14 +18,17 @@ const libs = {};
 {
   const { ScopeProvider, useData } = await import("../packages/react/dist/index.mjs");
   const { createScope, data } = await import("../packages/core/dist/index.mjs");
+
   const cells = Array.from({ length: N }, (_, i) => data({ label: `c${i}`, initial: 0 }));
   const scope = createScope();
   let renders = 0;
+
   const Cell = ({ i }) => {
     useData(cells[i]);
     renders++;
     return null;
   };
+
   libs.tinker = {
     App: () => h(ScopeProvider, { scope, children: cells.map((_, i) => h(Cell, { key: i, i })) }),
     update: (i, v) => scope.controller(cells[i]).set(v),
@@ -37,13 +40,16 @@ const libs = {};
 // --- zustand ---
 {
   const { create } = await import("zustand");
+
   const useZ = create(() => Object.fromEntries(Array.from({ length: N }, (_, i) => [`k${i}`, 0])));
   let renders = 0;
+
   const Cell = ({ i }) => {
     useZ((s) => s[`k${i}`]);
     renders++;
     return null;
   };
+
   libs.zustand = {
     App: () =>
       h(
@@ -61,14 +67,17 @@ const libs = {};
 {
   const { atom, getDefaultStore } = await import("jotai/vanilla");
   const { useAtomValue } = await import("jotai/react");
+
   const atoms = Array.from({ length: N }, () => atom(0));
   const store = getDefaultStore();
   let renders = 0;
+
   const Cell = ({ i }) => {
     useAtomValue(atoms[i]);
     renders++;
     return null;
   };
+
   libs.jotai = {
     App: () =>
       h(
@@ -86,13 +95,16 @@ const libs = {};
 {
   const { observable } = await import("legend2");
   const { useSelector } = await import("legend2/react");
+
   const state = observable(Object.fromEntries(Array.from({ length: N }, (_, i) => [`k${i}`, 0])));
   let renders = 0;
+
   const Cell = ({ i }) => {
     useSelector(state[`k${i}`]);
     renders++;
     return null;
   };
+
   libs.legend2 = {
     App: () =>
       h(
@@ -110,13 +122,16 @@ const libs = {};
 {
   const { observable } = await import("legend3");
   const { use$ } = await import("legend3/react");
+
   const state = observable(Object.fromEntries(Array.from({ length: N }, (_, i) => [`k${i}`, 0])));
   let renders = 0;
+
   const Cell = ({ i }) => {
     use$(state[`k${i}`]);
     renders++;
     return null;
   };
+
   libs.legend3 = {
     App: () =>
       h(
@@ -134,14 +149,17 @@ const libs = {};
 {
   const { signal } = await import("@preact/signals-react");
   const { useSignals } = await import("@preact/signals-react/runtime");
+
   const sigs = Array.from({ length: N }, () => signal(0));
   let renders = 0;
+
   const Cell = ({ i }) => {
     useSignals();
     if (isNaN(sigs[i].value)) renders--;
     renders++;
     return null;
   };
+
   libs.signals = {
     App: () =>
       h(
@@ -214,8 +232,10 @@ const fmt = (n) => (Number.isFinite(n) ? n.toFixed(1) : "NaN");
 console.log("\n--- metrics (update/mount = min ns/iter; renders = count, ideal 1) ---");
 for (const name of Object.keys(libs)) console.log(`METRIC renders_${name}=${renders[name]}`);
 
-for (const name of Object.keys(libs))
+for (const name of Object.keys(libs)) {
   console.log(`METRIC update_${name}=${fmt(minOf(`update_${name}`))}`);
+}
 
-for (const name of Object.keys(libs))
+for (const name of Object.keys(libs)) {
   console.log(`METRIC mount_${name}=${fmt(minOf(`mount_${name}`))}`);
+}

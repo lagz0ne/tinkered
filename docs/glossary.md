@@ -12,6 +12,7 @@
 - **handle** — An object a caller holds to use a thing. Its config sits on it as plain fields.
 - **owner** — Who may mutate and release a value at a handoff: borrow, transfer, or retain.
 - **census** — `style-census.sh`: grep counts of forbidden (S*, T*) and watched (W*) patterns.
+- **step** — A few lines in a body that do one job. A blank line separates steps (ADR 0111).
 - **strict** — Census mode where any S* or T* hit fails. Ends with `Style census: OK` or `FAIL`.
 - **TSDoc** — A `/** */` comment on an exported interface or function. The only allowed comment.
 - **YAGNI** — Build only what current behavior needs; no options or hooks for a future caller.

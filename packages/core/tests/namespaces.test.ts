@@ -39,12 +39,14 @@ test("two namespaces split one cell; the default is untouched", () => {
   const count = data({ label: "count", initial: 0, parse: asNumber });
   const { bump, read } = cellOps(count);
   const scope = createScope();
+
   expect(scope.run(bump, { input: 1, ns: a })).toBe(1);
   expect(scope.run(bump, { input: 2, ns: b })).toBe(2);
   expect(scope.run(read, { ns: a })).toBe(1);
   expect(scope.run(read, { ns: b })).toBe(2);
   expect(scope.run(read, { ns: [a, b] })).toBe(1);
   expect(scope.run(read)).toBe(0);
+
   expect(scope.resolve(count)).toBe(0);
   expect(scope.controller(count, { ns: b }).get()).toBe(2);
   return scope.close();
@@ -59,16 +61,19 @@ test("a tag chain [a, muse] finds the binding bound in muse", () => {
     depends: { model },
     run: ({ model }) => model,
   });
+
   const scope = createScope();
   expect(scope.run(getModel, { ns: [a, muse] })).toBe("claude");
   expect(scope.resolve(model.required, { ns: [a, muse] })).toBe("claude");
   expect(scope.resolve(model.optional, { ns: [a] })).toEqual({ present: false });
+
   let error: unknown;
   try {
     scope.run(getModel, { ns: [a] });
   } catch (cause) {
     error = cause;
   }
+
   expect(isError(error, "MissingTag")).toBe(true);
   return scope.close();
 });
@@ -80,9 +85,11 @@ test("ambient createSession({ ns }) resolves in that ns; a per-call ns wins for 
   const { bump, read } = cellOps(count);
   const scope = createScope();
   const session = scope.createSession({ ns: a });
+
   expect(session.run(bump, { input: 5 })).toBe(5);
   expect(session.run(read)).toBe(5);
   expect(scope.resolve(count)).toBe(0);
+
   expect(session.run(read, { ns: b })).toBe(0);
   expect(session.run(read)).toBe(5);
   return scope.close();
@@ -94,9 +101,11 @@ test("a child's own default write shadows a parent's namespaced write (layers-fi
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope();
   const parent = scope.createSession();
+
   parent.controller(cell, { ns: b }).set(99);
   const child = parent.createSession();
   child.controller(cell).set(7);
+
   expect(child.controller(cell, { ns: [a, b] }).get()).toBe(7);
   expect(parent.controller(cell, { ns: [a, b] }).get()).toBe(99);
   return scope.close();
@@ -107,9 +116,11 @@ test("tags and cells both use layers-first chain order", () => {
   const far = namespace({ tags: [value(99)] });
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope();
+
   scope.controller(cell, { ns: far }).set(99);
   const child = scope.createSession({ tags: [value(7)] });
   child.controller(cell).set(7);
+
   expect(child.resolve(cell, { ns: far })).toBe(7);
   expect(child.resolve(value, { ns: far })).toBe(7);
   expect(child.resolve(value.all, { ns: far })).toEqual([7, 99]);
@@ -125,12 +136,15 @@ test("a child session inherits the parent's ambient ns; its own ns replaces it",
     depends: { model },
     run: ({ model }) => model,
   });
+
   const scope = createScope();
   const outer = scope.createSession({ ns: muse });
   const inner = outer.createSession();
+
   expect(inner.run(getModel)).toBe("claude");
   const own = outer.createSession({ ns: other });
   expect(own.run(getModel)).toBe("gpt");
+
   expect(inner.run(getModel)).toBe("claude");
   return scope.close();
 });
@@ -141,14 +155,17 @@ test("a named write lands at (layer, first key) and never notifies a default wat
   const scope = createScope();
   const defaultSeen: number[] = [];
   scope.controller(cell).watch((next) => defaultSeen.push(next));
+
   const ctl = scope.controller(cell, { ns: a });
   ctl.set(3);
   expect(scope.resolve(cell, { ns: a })).toBe(3);
   expect(scope.resolve(cell)).toBe(0);
   expect(defaultSeen).toEqual([]);
+
   const namedSeen: number[] = [];
   scope.controller(cell, { ns: a }).watch((next) => namedSeen.push(next));
   ctl.set(4);
+
   expect(namedSeen).toEqual([4]);
   expect(defaultSeen).toEqual([]);
   return scope.close();
@@ -180,10 +197,12 @@ test("a subflow .run({ input, ns }) writes its own bucket; without ns it inherit
       bump.run({ input: 8 });
     },
   });
+
   const scope = createScope();
   scope.run(override, { ns: a });
   expect(scope.resolve(count, { ns: b })).toBe(9);
   expect(scope.resolve(count, { ns: a })).toBe(0);
+
   scope.run(inherit, { ns: a });
   expect(scope.resolve(count, { ns: a })).toBe(8);
   expect(scope.resolve(count)).toBe(0);
@@ -208,8 +227,10 @@ test("a tagged subflow inherits its named caller's namespace", async () => {
     depends: { child },
     run: ({ child }) => child.run({ tags: [marker(true)] }),
   });
+
   const scope = createScope();
   scope.controller(cell, { ns: named }).set(3);
+
   expect(await scope.run(parent, { ns: named })).toBe(5);
   expect(scope.resolve(cell, { ns: named })).toBe(3);
   expect(scope.resolve(cell)).toBe(0);
@@ -237,11 +258,14 @@ test("named calls keep the real layer lifecycle and extension registry", async (
         ctx.signal.addEventListener("abort", () => resolve(ctx.signal.aborted), { once: true });
       }),
   });
+
   const scope = createScope({ extensions: [readyValue] });
   await scope.ready;
+
   expect(scope.run(readExtension, { ns: named })).toBe(42);
   const waiting = scope.run(waitForAbort, { ns: named });
   const closing = scope.close();
+
   expect(await waiting).toBe(true);
   await closing;
   expect(() => scope.controller(cell, { ns: named }).set(1)).toThrow("Disposed");
@@ -265,6 +289,7 @@ test("a tagged subflow in a named run uses session hooks", async () => {
     depends: { child },
     run: ({ child }) => child.run({ tags: [marker(1)] }),
   });
+
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
   expect(await scope.run(parent, { ns: namespace() })).toBe(1);
@@ -280,13 +305,16 @@ test("pass-through extensions preserve namespaces for writes and resolves", asyn
       write: (event) => event.next(),
     },
   });
+
   const named = namespace();
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope({ extensions: [pass] });
   await scope.ready;
+
   const defaultSeen: number[] = [];
   scope.controller(cell).watch((next) => defaultSeen.push(next));
   scope.controller(cell, { ns: named }).set(4);
+
   expect(scope.resolve(cell, { ns: named })).toBe(4);
   expect(scope.resolve(cell)).toBe(0);
   expect(defaultSeen).toEqual([]);
@@ -302,10 +330,12 @@ test("a session-target resource builds once in each namespace and reuses its war
     target: "session",
     factory: () => ({ build: ++builds }),
   });
+
   const scope = createScope();
   const firstA = scope.resolve(client, { ns: a });
   const secondA = scope.resolve(client, { ns: a });
   const firstB = scope.resolve(client, { ns: b });
+
   expect(secondA).toBe(firstA);
   expect(firstB).not.toBe(firstA);
   expect(builds).toBe(2);
@@ -321,12 +351,15 @@ test("a resource chain reuses its fallback then switches to a nearer warm bucket
     target: "session",
     factory: () => ({ build: ++builds }),
   });
+
   const scope = createScope();
   const fromB = scope.resolve(client, { ns: b });
   const chained = scope.controller(client, { ns: [a, b] });
+
   expect(chained.resolve()).toBe(fromB);
   const fromA = scope.resolve(client, { ns: a });
   expect(chained.resolve()).toBe(fromA);
+
   expect(chained.get()).toBe(fromA);
   expect(builds).toBe(2);
   return scope.close();
@@ -349,8 +382,10 @@ test("a sync-failed named bucket is not filled by a sibling chain", () => {
       return tenant;
     },
   });
+
   const scope = createScope();
   expect(() => scope.resolve(client, { ns: b })).toThrow();
+
   expect(scope.resolve(client, { ns: [a, b] })).toBe("A");
   expect(scope.resolve(client, { ns: b })).toBe("B");
 });
@@ -366,21 +401,26 @@ test("a named resource dependency reads a nearer default before a farther named 
     depends: { config },
     factory: ({ config }) => ({ build: ++builds, config }),
   });
+
   const scope = createScope();
   scope.controller(config, { ns: b }).set(99);
   const child = scope.createSession();
   child.controller(config).set(7);
+
   const near = child.resolve(client, { ns: [a, b] });
   expect(near.config).toBe(7);
   const inherited = scope.createSession();
   const far = inherited.resolve(client, { ns: [a, b] });
   expect(far.config).toBe(99);
+
   inherited.release(config);
   expect(inherited.resolve(client, { ns: [a, b] })).toBe(far);
+
   child.release(config);
   const rebuiltNear = child.resolve(client, { ns: [a, b] });
   expect(rebuiltNear).not.toBe(near);
   expect(rebuiltNear.config).toBe(99);
+
   scope.release(config);
   expect(child.resolve(client, { ns: [a, b] })).not.toBe(rebuiltNear);
   expect(inherited.resolve(client, { ns: [a, b] })).not.toBe(far);
@@ -404,9 +444,11 @@ test("namespace clients share one scope-target pool", () => {
     depends: { pool },
     factory: ({ pool }) => ({ build: ++clientBuilds, pool }),
   });
+
   const scope = createScope();
   const clientA = scope.resolve(client, { ns: a });
   const clientB = scope.resolve(client, { ns: b });
+
   expect(clientA.pool).toBe(clientB.pool);
   expect(poolBuilds).toBe(1);
   expect(clientBuilds).toBe(2);
@@ -422,10 +464,12 @@ test("namespace resources share a root bucket across request sessions", async ()
     target: "namespace",
     factory: () => ({ id: ++builds }),
   });
+
   const scope = createScope();
   const first = scope.createSession({ ns: a });
   const second = scope.createSession({ ns: a });
   const other = scope.createSession({ ns: b });
+
   expect(second.resolve(db)).toBe(first.resolve(db));
   expect(other.resolve(db)).not.toBe(first.resolve(db));
   expect(builds).toBe(2);
@@ -439,9 +483,11 @@ test("sessions without a namespace share one root default resource", async () =>
     target: "namespace",
     factory: () => ({ id: ++builds }),
   });
+
   const scope = createScope();
   const first = scope.createSession();
   const second = scope.createSession();
+
   expect(first.resolve(db)).toBe(second.resolve(db));
   expect(second.resolve(db)).toBe(scope.resolve(db));
   expect(builds).toBe(1);
@@ -458,13 +504,16 @@ test("namespace resource dependencies see tenant and root tags but not request t
     depends: { tenant, region },
     factory: ({ tenant, region }) => ({ tenant, region }),
   });
+
   const scope = createScope({ tags: [region("root"), tenant("root")] });
   const request = scope.createSession({ ns: a, tags: [tenant("session"), region("session")] });
   const readDb = operation({ label: "read-db", depends: { db }, run: ({ db }) => db });
+
   expect(await request.run(readDb, { tags: [tenant("call"), region("call")] })).toEqual({
     tenant: "tenant-a",
     region: "root",
   });
+
   expect(scope.resolve(db)).toEqual({ tenant: "root", region: "root" });
   await scope.close();
 });
@@ -484,15 +533,18 @@ test("request transactions share their tenant database but not each other", asyn
     depends: { db },
     factory: ({ db }) => ({ id: ++transactions, db }),
   });
+
   const scope = createScope();
   const first = scope.createSession({ ns: a });
   const second = scope.createSession({ ns: a });
   const firstTx = first.resolve(tx);
   const secondTx = second.resolve(tx);
+
   expect(firstTx).not.toBe(secondTx);
   expect(firstTx.db).toBe(secondTx.db);
   expect(databases).toBe(1);
   expect(transactions).toBe(2);
+
   first.release(db);
   expect(first.resolve(tx)).not.toBe(firstTx);
   expect(second.resolve(tx)).not.toBe(secondTx);
@@ -528,17 +580,21 @@ test("release waits for a request borrowing a namespace resource and clears all 
       return db.closed;
     },
   });
+
   const scope = createScope();
   const first = scope.createSession({ ns: a });
   const second = scope.createSession({ ns: b });
   const aDb = first.resolve(db);
   const bDb = second.resolve(db);
+
   const running = first.run(hold);
   second.release(db);
   expect(aDb.closed).toBe(false);
   expect(ended).toEqual([]);
+
   finish();
   expect(await running).toBe(false);
+
   await scope.close({ graceful: true });
   expect(aDb.closed).toBe(true);
   expect(bDb.closed).toBe(true);
@@ -570,13 +626,16 @@ test("closing the root waits for a request and cleans each namespace bucket once
       await gate;
     },
   });
+
   const scope = createScope();
   const first = scope.createSession({ ns: a });
   const second = scope.createSession({ ns: b });
+
   const running = first.run(hold);
   second.resolve(db);
   const closing = scope.close({ graceful: true });
   expect(ended).toEqual([]);
+
   finish();
   await running;
   await closing;
@@ -614,15 +673,19 @@ test("close waits for a named resource borrow and tears every bucket down once",
       await gate;
     },
   });
+
   const scope = createScope();
   scope.resolve(client, { ns: b });
+
   const running = scope.run(hold, { ns: a });
   const closing = scope.close({ graceful: true });
   expect(held.closed).toBe(false);
   expect(ended).toEqual([]);
+
   finish();
   await running;
   const result = await closing;
+
   expect(result.status).toBe("success");
   expect(held.closed).toBe(true);
   expect(ended).toEqual(["A:success", "B:success"]);
@@ -637,6 +700,7 @@ test("a scope-target resource is namespace-blind and keeps default storage clean
     depends: { tenant },
     factory: ({ tenant }) => tenant,
   });
+
   const scope = createScope({ tags: [tenant("default")] });
   expect(scope.resolve(shared, { ns: named })).toBe("default");
   expect(scope.resolve(shared)).toBe("default");
@@ -652,6 +716,7 @@ test("an ambient namespace cannot enter a scope-target resource build", () => {
     depends: { tenant },
     factory: ({ tenant }) => tenant,
   });
+
   const scope = createScope({ ns: named, tags: [tenant("default")] });
   expect(scope.resolve(shared)).toBe("default");
   expect(scope.resolve(shared)).toBe("default");
@@ -673,6 +738,7 @@ test("namespace-blind scope builds keep tagged operation dependencies blind", as
     depends: { readTenant },
     factory: ({ readTenant }) => readTenant.run({ tags: [marker(true)] }),
   });
+
   const scope = createScope({ ns: named, tags: [tenant("default")] });
   expect(await scope.resolve(shared)).toBe("default");
   await scope.close();
@@ -687,8 +753,10 @@ test("invalid input rejects before dependencies build", () => {
     depends: { dep },
     run: ({ dep }) => dep,
   });
+
   const scope = createScope();
   expect(() => scope.run(op, { rawInput: "bad" })).toThrow("DataValidationFailed");
+
   expect(builds).toBe(0);
   return scope.close();
 });
@@ -698,12 +766,15 @@ test("a re-registered named watcher refreshes its comparison value", () => {
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope();
   const ctl = scope.controller(cell, { ns: named });
+
   const stop = ctl.watch(() => undefined);
   stop();
   ctl.set(2);
+
   const seen: [number, number][] = [];
   ctl.watch((next, prev) => seen.push([next, prev]));
   ctl.set(0);
+
   expect(seen).toEqual([[0, 2]]);
   return scope.close();
 });
@@ -723,8 +794,10 @@ test("a namespace-blind watcher observes default storage, never ambient tenant s
       return cell.get();
     },
   });
+
   const scope = createScope({ ns: tenant });
   scope.controller(cell).set(9);
+
   expect(scope.resolve(observer)).toBe(0);
   expect(seen).toEqual([[1, 0]]);
   expect(scope.resolve(cell)).toBe(9);
@@ -740,12 +813,14 @@ test.each(["head-first", "chain-first"] as const)(
     const cell = data({ label: "cell", initial: 0, parse: asNumber });
     const scope = createScope();
     scope.controller(cell, { ns: b }).set(2);
+
     const head = scope.controller(cell, { ns: a });
     const chain = scope.controller(cell, { ns: [a, b] });
     const headSeen: [number, number][] = [];
     const chainSeen: [number, number][] = [];
     const watchHead = () => head.watch((next, prev) => headSeen.push([next, prev]));
     const watchChain = () => chain.watch((next, prev) => chainSeen.push([next, prev]));
+
     if (order === "head-first") {
       watchHead();
       watchChain();
@@ -753,6 +828,7 @@ test.each(["head-first", "chain-first"] as const)(
       watchChain();
       watchHead();
     }
+
     head.set(1);
     expect(headSeen).toEqual([[1, 0]]);
     expect(chainSeen).toEqual([[1, 2]]);
@@ -777,8 +853,10 @@ test("a named write compares only its namespace watcher among a thousand", async
     ctl.watch(() => seen.push(index));
     return ctl;
   });
+
   comparisons = 0;
   controllers[513].set(1);
+
   expect(comparisons).toBe(2);
   expect(seen).toEqual([513]);
   await scope.close();
@@ -797,12 +875,15 @@ test("a chain watcher sees its fallback key but not an unrelated key", async () 
       return left === right;
     },
   });
+
   const scope = createScope();
   const seen: number[] = [];
   scope.controller(cell, { ns: [a, b] }).watch((next) => seen.push(next));
   scope.controller(cell, { ns: b }).set(1);
+
   comparisons = 0;
   scope.controller(cell, { ns: c }).set(2);
+
   expect(comparisons).toBe(1);
   expect(seen).toEqual([1]);
   await scope.close();
@@ -815,9 +896,11 @@ test("unsubscribing a chain watcher removes it from every named key", async () =
   const scope = createScope();
   const seen: number[] = [];
   const stop = scope.controller(cell, { ns: [a, b] }).watch((next) => seen.push(next));
+
   stop();
   scope.controller(cell, { ns: a }).set(1);
   scope.controller(cell, { ns: b }).set(2);
+
   expect(seen).toEqual([]);
   await scope.close();
 });
@@ -828,10 +911,12 @@ test("a chained watcher compares against the full resolved namespace chain", () 
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope();
   scope.controller(cell, { ns: b }).set(2);
+
   const ctl = scope.controller(cell, { ns: [a, b] });
   const seen: [number, number][] = [];
   ctl.watch((next, prev) => seen.push([next, prev]));
   ctl.set(0);
+
   expect(seen).toEqual([[0, 2]]);
   return scope.close();
 });
@@ -847,12 +932,14 @@ test("an empty namespace chain is rejected", () => {
 test("a non-namespace ns value is a loud error, not a silent key", () => {
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope();
+
   let error: unknown;
   try {
     scope.resolve(cell, { ns: "tenant" as unknown as Ns });
   } catch (cause) {
     error = cause;
   }
+
   expect(isError(error, "InvalidDependency")).toBe(true);
   return scope.close();
 });
@@ -862,6 +949,7 @@ test("a watcher that writes during notify does not rob a later watcher of its ch
   const cell = data<number>({ label: "reentrant", initial: 0 });
   const scope = createScope();
   scope.controller(cell, { ns: a }).set(1);
+
   /** The second of two watchers on one bucket; the first re-writes on seeing 2. The nested
    * round's `[2, 0]` lands first, then the outer `[1, 2]`: not missed, not seen as `[1, 0]`. */
   const seen2: [number, number][] = [];
@@ -869,7 +957,9 @@ test("a watcher that writes during notify does not rob a later watcher of its ch
     if (next === 2) scope.controller(cell, { ns: a }).set(0);
   });
   scope.controller(cell, { ns: a }).watch((next, prev) => seen2.push([prev, next]));
+
   scope.controller(cell, { ns: a }).set(2);
+
   expect(seen2).toEqual([
     [2, 0],
     [1, 2],
@@ -886,14 +976,17 @@ test("named and chained cell watches notify only when their resolved value chang
   const chain: [number, number][] = [];
   scope.controller(cell, { ns: a }).watch((next, prev) => named.push([prev, next]));
   scope.controller(cell, { ns: [a, b] }).watch((next, prev) => chain.push([prev, next]));
+
   scope.controller(cell, { ns: b }).set(1);
   expect(named).toEqual([]);
   expect(chain).toEqual([[0, 1]]);
+
   scope.controller(cell, { ns: b }).set(2);
   expect(chain).toEqual([
     [0, 1],
     [1, 2],
   ]);
+
   scope.controller(cell, { ns: a }).set(3);
   expect(named).toEqual([[0, 3]]);
   expect(chain).toEqual([
@@ -901,6 +994,7 @@ test("named and chained cell watches notify only when their resolved value chang
     [1, 2],
     [2, 3],
   ]);
+
   scope.controller(cell).set(9);
   expect(named).toEqual([[0, 3]]);
   expect(chain).toEqual([
@@ -927,9 +1021,11 @@ test("a failed named resource retries without leaking to a sibling chain", async
       return tenant;
     },
   });
+
   const scope = createScope();
   expect(() => scope.resolve(client, { ns: a })).toThrow("not ready");
   expect(scope.resolve(client, { ns: [b, a] })).toBe("B");
+
   fail = false;
   expect(scope.resolve(client, { ns: a })).toBe("A");
   expect(scope.resolve(client, { ns: [b, a] })).toBe("B");
@@ -942,6 +1038,7 @@ test("named tag all keeps repeated bindings through a chain", async () => {
   const a = namespace({ tags: [value(1), value(1)] });
   const b = namespace({ tags: [value(2)] });
   const scope = createScope();
+
   expect(scope.resolve(value.all, { ns: a })).toEqual([1, 1]);
   expect(scope.resolve(value.all, { ns: [a, b] })).toEqual([1, 1, 2]);
   await scope.close();
@@ -969,16 +1066,19 @@ test("ambient namespace survives child, tagged subflow, inline run, and imperati
     depends: { leaf },
     run: ({ leaf }) => leaf.run({ tags: [marker(true)] }),
   });
+
   const scope = createScope();
   scope.controller(cell, { ns: a }).set(1);
   scope.controller(cell, { ns: b }).set(2);
   const session = scope.createSession({ ns: a });
   const child = session.createSession();
+
   expect(child.resolve(tenant)).toBe("A");
   expect(await child.run(parent)).toEqual({ tenant: "A", marker: true, cell: 1 });
   expect(
     child.run({ depends: { tenant, cell }, run: ({ tenant, cell }) => [tenant, cell] }),
   ).toEqual(["A", 1]);
+
   expect(child.controller(cell).get()).toBe(1);
   expect(child.controller(client).resolve()).toBe("A");
   expect(child.resolve(client)).toBe("A");
@@ -986,6 +1086,7 @@ test("ambient namespace survives child, tagged subflow, inline run, and imperati
   expect(child.controller(cell, { ns: b }).get()).toBe(2);
   expect(child.resolve(client)).toBe("A");
   expect(child.controller(cell).get()).toBe(1);
+
   expect(await child.run(parent)).toEqual({ tenant: "A", marker: true, cell: 1 });
   await scope.close();
 });
@@ -1003,6 +1104,7 @@ test("tag.all skips other tags bound on the same namespace", () => {
   const other = tag<string>({ label: "other" });
   const far = namespace({ tags: [zone("a"), other("b"), zone("c")] });
   const scope = createScope();
+
   expect(scope.resolve(zone.all, { ns: far })).toEqual(["c", "a"]);
   return scope.close();
 });

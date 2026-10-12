@@ -62,12 +62,14 @@ test("switching providers drops late results and callbacks while the caller stil
   const second = createScope({ tags: [answer(Promise.resolve("second"))] });
   const before: Seen = { calls: [] };
   const after: Seen = { calls: [] };
+
   const screen = await render(
     <ScopeProvider scope={first}>
       <View op={readAnswer} seen={before} />
     </ScopeProvider>,
   );
   if (!before.run) throw new Error("missing run");
+
   const running = before.run.runAsync();
   await screen.rerender(
     <ScopeProvider scope={second}>
@@ -75,10 +77,12 @@ test("switching providers drops late results and callbacks while the caller stil
     </ScopeProvider>,
   );
   gate.resolve("first");
+
   expect(await running).toBe("first");
   await expect.element(screen.getByText("value:idle")).toBeVisible();
   expect(after.calls).toEqual([]);
   expect(before.calls).toEqual([]);
+
   await first.close();
   await second.close();
 });
@@ -87,12 +91,14 @@ test("switching operations drops late results and callbacks from the old operati
   const gate = deferred<string>();
   const scope = createScope({ tags: [answer(gate.promise)] });
   const seen: Seen = { calls: [] };
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <View op={readAnswer} seen={seen} />
     </ScopeProvider>,
   );
   if (!seen.run) throw new Error("missing run");
+
   const running = seen.run.runAsync();
   await screen.rerender(
     <ScopeProvider scope={scope}>
@@ -100,26 +106,31 @@ test("switching operations drops late results and callbacks from the old operati
     </ScopeProvider>,
   );
   gate.resolve("old");
+
   await running;
   await expect.element(screen.getByText("value:idle")).toBeVisible();
   expect(seen.calls).toEqual([]);
+
   await scope.close();
 });
 
 test("a parent render keeps the run handle when no run changed", async () => {
   const scope = createScope({ tags: [answer(Promise.resolve("answer"))] });
   const seen: Seen = { calls: [] };
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <View op={readAnswer} seen={seen} />
     </ScopeProvider>,
   );
   const first = seen.run;
+
   await screen.rerender(
     <ScopeProvider scope={scope}>
       <View op={readAnswer} seen={seen} />
     </ScopeProvider>,
   );
+
   expect(seen.run).toBe(first);
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });
@@ -160,12 +171,14 @@ test("a cancelled run rejects with the caller's exact reason", async () => {
   const stop = new AbortController();
   const reason = new Error("caller stopped");
   stop.abort(reason);
+
   try {
     await render(
       <ScopeProvider scope={scope}>
         <View op={readAnswer} seen={seen} />
       </ScopeProvider>,
     );
+
     if (!seen.run) throw new Error("missing run");
     await expect(seen.run.runAsync({ signal: stop.signal })).rejects.toBe(reason);
   } finally {

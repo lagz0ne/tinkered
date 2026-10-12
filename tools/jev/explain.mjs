@@ -37,6 +37,7 @@ for (const [title, bank] of GROUPS) {
       );
       continue;
     }
+
     console.log(`${id}  [${where(id)}, threshold ${j.threshold}]`);
     console.log(`  question: ${q.instructions}`);
     if (j.fix) console.log(`  fix: ${j.fix}`);
@@ -55,13 +56,15 @@ for (const [id, g] of Object.entries(GUIDE)) {
   const q = g.q;
   if (md) {
     console.log(`**\`${id}\`** — ${q.instructions}\n`);
-    for (const [opt, meaning] of Object.entries(q.criteria))
+    for (const [opt, meaning] of Object.entries(q.criteria)) {
       console.log(`- \`${opt}\`: ${meaning}`);
+    }
     console.log("");
     continue;
   }
   console.log(`${id}: ${q.instructions}`);
-  for (const [opt, meaning] of Object.entries(q.criteria))
+  for (const [opt, meaning] of Object.entries(q.criteria)) {
     console.log(`  ${opt.padEnd(10)} ${meaning}`);
+  }
   console.log("");
 }

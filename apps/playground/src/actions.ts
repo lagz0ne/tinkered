@@ -34,8 +34,9 @@ const untitled = (names: readonly string[]): string => {
 export const editFile = operation({
   label: "editFile",
   input: (raw) => {
-    if (isRecord(raw) && typeof raw.name === "string" && typeof raw.content === "string")
+    if (isRecord(raw) && typeof raw.name === "string" && typeof raw.content === "string") {
       return { name: raw.name, content: raw.content };
+    }
     raise("InvalidInput", { operation: "editFile", reason: "expected { name, content }" });
   },
   depends: { files: filesCell.controller, dirty: dirtyCell.controller },
@@ -62,12 +63,14 @@ export const addFile = operation({
     dirty.set(true);
     files.update((prev) => [...prev, { name, content: "" }]);
     active.set(name);
+
     const prev = nav.get();
     nav.set({
       place: { file: name, offset: 0 },
       back: prev.place ? [...prev.back, prev.place] : prev.back,
       forward: [],
     });
+
     return name;
   },
 });
@@ -87,17 +90,20 @@ export const closeFile = operation({
     const names = files.get().map((f) => f.name);
     const idx = names.indexOf(name);
     if (idx < 0 || names.length < 2) return false;
+
     const next = names.filter((n) => n !== name);
     dirty.set(true);
     files.update((prev) => prev.filter((f) => f.name !== name));
     const [first] = next;
     if (active.get() === name) active.set(next[idx] ?? next[idx - 1] ?? first);
+
     const prev = nav.get();
     nav.set({
       place: prev.place?.file === name ? { file: active.get(), offset: 0 } : prev.place,
       back: prev.back.filter((p) => p.file !== name),
       forward: prev.forward.filter((p) => p.file !== name),
     });
+
     return true;
   },
 });
@@ -107,8 +113,9 @@ export const closeFile = operation({
 export const renameFile = operation({
   label: "renameFile",
   input: (raw) => {
-    if (isRecord(raw) && typeof raw.from === "string" && typeof raw.to === "string")
+    if (isRecord(raw) && typeof raw.from === "string" && typeof raw.to === "string") {
       return { from: raw.from, to: raw.to };
+    }
     raise("InvalidInput", { operation: "renameFile", reason: "expected { from, to }" });
   },
   depends: {
@@ -119,9 +126,11 @@ export const renameFile = operation({
   },
   run: ({ files, active, dirty, nav }, { input: { from, to } }) => {
     if (files.get().some((f) => f.name === to)) return false;
+
     dirty.set(true);
     files.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
     if (active.get() === from) active.set(to);
+
     const retitle = (places: readonly Place[]): readonly Place[] =>
       places.map((p) => (p.file === from ? { file: to, offset: p.offset } : p));
     const prev = nav.get();
@@ -130,6 +139,7 @@ export const renameFile = operation({
       back: retitle(prev.back),
       forward: retitle(prev.forward),
     });
+
     return true;
   },
 });

@@ -25,11 +25,14 @@ const sync = measure(() => {
   const scope = createScope();
   const n = data({ label: "n", initial: 0 });
   const c = scope.controller(n);
+
   c.set(1);
   c.get();
+
   const seen = [];
   c.watch((v) => seen.push(v));
   c.set(2); // write + flush to a watcher
+
   const sq = operation({ label: "sq", depends: { n }, run: ({ n }) => n * n });
   scope.controller(sq).run(); // sync run, no awaits
 });

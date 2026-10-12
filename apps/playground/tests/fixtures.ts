@@ -27,10 +27,12 @@ function reachable(entry: string, files: readonly PlaygroundFile[]): PlaygroundF
     const base = path.replace(/^\.\//, "");
     return [base, `${base}.tsx`, `${base}.ts`].map((n) => byName.get(n)).find((f) => f);
   };
+
   const out: PlaygroundFile[] = [];
   const visit = (file: PlaygroundFile | undefined, path: string) => {
-    if (!file)
+    if (!file) {
       raise("CompileFailed", { message: `[plugin: virtual-fs] Cannot find file "${path}"` });
+    }
     if (out.includes(file)) return;
     out.push(file);
     for (const [, from, bare] of file.content.matchAll(RELATIVE)) {

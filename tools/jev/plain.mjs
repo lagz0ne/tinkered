@@ -126,8 +126,9 @@ function propOf(node) {
 /** The identifier at the root of a member or call chain (`test` in `test.describe.only`). */
 function rootName(node) {
   let at = node;
-  while (at?.type === "MemberExpression" || at?.type === "CallExpression")
+  while (at?.type === "MemberExpression" || at?.type === "CallExpression") {
     at = at.type === "MemberExpression" ? at.object : at.callee;
+  }
   return at?.type === "Identifier" ? at.name : null;
 }
 
@@ -141,8 +142,9 @@ function memberCall(callee) {
 /** Parens and `!` removed: the expression they wrap. */
 function unwrap(node) {
   let at = node;
-  while (at?.type === "ParenthesizedExpression" || at?.type === "UnaryExpression")
+  while (at?.type === "ParenthesizedExpression" || at?.type === "UnaryExpression") {
     at = at.type === "UnaryExpression" ? at.argument : at.expression;
+  }
   return at;
 }
 
@@ -286,11 +288,13 @@ function modulePath(node) {
 /** Every rule id one test-file node breaks. */
 function testIds(node) {
   const ids = [];
-  if (node.type === "CallExpression")
+  if (node.type === "CallExpression") {
     for (const [id, hit] of TEST_CALLS) if (hit(node)) ids.push(id);
+  }
   if (isFocus(node)) ids.push("T03");
   if (isPrivateSrc(modulePath(node))) ids.push("T04");
   if (isDoubleCast(node)) ids.push("T06");
+
   return ids;
 }
 
@@ -302,6 +306,7 @@ function srcIds(node, writer) {
   if (writer && isHidingCast(node)) ids.push("S17");
   if (node.type === "ThrowStatement" && isBareThrow(node)) ids.push("S05");
   if (node.type === "CallExpression" && isConsole(node)) ids.push("S06");
+
   return ids;
 }
 
@@ -417,8 +422,9 @@ function handleAliases(source, program) {
     if (
       n?.type === "TSTypeAliasDeclaration" &&
       HANDLE_TYPE.test(source.slice(n.typeAnnotation.start, n.typeAnnotation.end))
-    )
+    ) {
       names.push(n.id.name);
+    }
   }
   return names;
 }
@@ -442,11 +448,12 @@ function handleParams(source, program) {
   const aliases = handleAliases(source, program);
   const holds = (t) => HANDLE_TYPE.test(t) || aliases.some((a) => new RegExp(`\\b${a}\\b`).test(t));
   const hits = [];
-  for (const fn of topFunctions(program))
+  for (const fn of topFunctions(program)) {
     for (const p of fn.params ?? []) {
       const ann = p.typeAnnotation ?? p.left?.typeAnnotation;
       if (ann && holds(source.slice(ann.start, ann.end))) hits.push(["S19", p.start]);
     }
+  }
   return hits;
 }
 
@@ -529,8 +536,9 @@ function isRawRandom(node, cryptoNames) {
 /** S21: a call of `Date.now`, `performance.now`, `setTimeout`, or `setInterval`, or a bare
  *  `new Date()`. `new Date(ms)` formats a saved time and reads no clock. */
 function isRawClock(node) {
-  if (node.type === "NewExpression")
+  if (node.type === "NewExpression") {
     return globalName(node.callee) === "Date" && node.arguments.length === 0;
+  }
   if (node.type !== "CallExpression") return false;
   return isGlobalMember(node.callee, CLOCK) || TIMERS.has(globalName(node.callee));
 }
@@ -621,8 +629,9 @@ function fileHandles(source, program) {
   walk(program, (n) => {
     const ann = n.type === "Identifier" ? n.typeAnnotation : null;
     if (ann && HANDLE_TYPE.test(source.slice(ann.start, ann.end))) names.add(n.name);
-    if (n.type === "VariableDeclarator" && n.id.type === "Identifier" && makesHandle(n.init))
+    if (n.type === "VariableDeclarator" && n.id.type === "Identifier" && makesHandle(n.init)) {
       names.add(n.id.name);
+    }
   });
   return names;
 }
@@ -737,8 +746,9 @@ function bodiesOf(node, local) {
 /** Only imported core builders define the bodies S21 checks. */
 function unitBodies(program) {
   const local = new Map();
-  for (const [name, path] of UNIT_BODY)
+  for (const [name, path] of UNIT_BODY) {
     for (const as of importedNames(program, "@tinker/core", new Set([name]))) local.set(as, path);
+  }
   const fns = [];
   walk(program, (n) => fns.push(...bodiesOf(n, local)));
   return fns;
@@ -772,8 +782,10 @@ function hasUnguardedAwait(node) {
   if (Array.isArray(node)) return node.some(hasUnguardedAwait);
   if (FN_NODE.has(node.type)) return false;
   if (isAwait(node)) return true;
-  if (node.type === "IfStatement" && isMainGuard(node.test))
+
+  if (node.type === "IfStatement" && isMainGuard(node.test)) {
     return hasUnguardedAwait(node.alternate);
+  }
   return childrenOf(node).some(hasUnguardedAwait);
 }
 
@@ -788,8 +800,9 @@ function returnedValue(node) {
     ["TSAsExpression", "TSTypeAssertion", "TSSatisfiesExpression", "TSNonNullExpression"].includes(
       at?.type,
     )
-  )
+  ) {
     at = unwrapParens(at.expression);
+  }
   return at;
 }
 
@@ -809,17 +822,21 @@ const ROOT_BLOCKS = new Set([
 
 function bindRootDeclaration(node, frame, root) {
   const target = node.kind === "var" ? root : frame;
-  for (const decl of node.declarations)
-    for (const name of boundNames(decl.id))
+  for (const decl of node.declarations) {
+    for (const name of boundNames(decl.id)) {
       target.names.set(name, decl.id.type === "Identifier" && makesRoot(decl.init));
+    }
+  }
 }
 
 function bindRootNames(node, frame, root) {
   if (node.type === "VariableDeclaration") bindRootDeclaration(node, frame, root);
-  if (node.type === "CatchClause")
+  if (node.type === "CatchClause") {
     for (const name of boundNames(node.param)) frame.names.set(name, false);
-  if (node.type === "FunctionDeclaration" || node.type === "ClassDeclaration")
+  }
+  if (node.type === "FunctionDeclaration" || node.type === "ClassDeclaration") {
     if (node.id) frame.names.set(node.id.name, false);
+  }
 }
 
 /** Keep each return with its block so a nearer binding can hide a scope with the same name. */
@@ -829,6 +846,7 @@ function rootReturns(fn) {
   const visit = (node, outer) => {
     if (!node) return;
     if (Array.isArray(node)) return node.forEach((n) => visit(n, outer));
+
     const frame = ROOT_BLOCKS.has(node.type) ? { names: new Map(), parent: outer } : outer;
     bindRootNames(node, frame, root);
     if (FN_NODE.has(node.type)) return;
@@ -837,12 +855,14 @@ function rootReturns(fn) {
   };
   visit(fn.body, root);
   if (fn.body.type !== "BlockStatement") returns.push({ value: fn.body, frame: root });
+
   return returns;
 }
 
 function isRootName(name, frame) {
-  for (let at = frame; at !== null; at = at.parent)
+  for (let at = frame; at !== null; at = at.parent) {
     if (at.names.has(name)) return at.names.get(name);
+  }
   return false;
 }
 
@@ -857,8 +877,9 @@ function returnsRoot(value, frame) {
 
 function ownerInputs(node) {
   if (node.type === "CallExpression" || node.type === "NewExpression") return node.arguments;
-  if (node.type === "JSXAttribute" && node.value?.type === "JSXExpressionContainer")
+  if (node.type === "JSXAttribute" && node.value?.type === "JSXExpressionContainer") {
     return [node.value.expression];
+  }
   return [];
 }
 
@@ -894,13 +915,14 @@ function bindLifetime(pattern, init, kind, frame, source) {
   const simple = id?.type === "Identifier";
   const ann = simple ? id.typeAnnotation : null;
   const typed = ann && SCOPE_TYPE.test(source.slice(ann.start, ann.end));
-  for (const name of boundNames(pattern))
+  for (const name of boundNames(pattern)) {
     frame.names.set(name, {
       init: simple ? init : null,
       kind,
       typed,
       fn: frame.fn,
     });
+  }
 }
 
 function lifetimeVariables(node, frame, source) {
@@ -912,10 +934,12 @@ function lifetimeVariables(node, frame, source) {
 function lifetimeDeclarations(node, frame, source) {
   if (node.type === "VariableDeclaration") lifetimeVariables(node, frame, source);
   if (node.type === "CatchClause") bindLifetime(node.param, null, "catch", frame, source);
-  if (node.type === "FunctionDeclaration" || node.type === "ClassDeclaration")
+  if (node.type === "FunctionDeclaration" || node.type === "ClassDeclaration") {
     bindLifetime(node.id, node, "declaration", frame, source);
-  if (node.type === "ImportDeclaration")
+  }
+  if (node.type === "ImportDeclaration") {
     for (const spec of node.specifiers) bindLifetime(spec.local, null, "import", frame, source);
+  }
 }
 
 function lifetimeFrame(node, outer, source) {
@@ -938,6 +962,7 @@ function lifetimeFacts(source, program) {
     if (!node) return;
     if (Array.isArray(node)) return node.forEach((n) => visit(n, outer));
     if (node.type === "FunctionDeclaration") lifetimeDeclarations(node, outer, source);
+
     const frame = lifetimeFrame(node, outer, source);
     frames.set(node, frame);
     nodes.push(node);
@@ -951,8 +976,9 @@ function lifetimeFacts(source, program) {
 function lifetimeBinding(node, facts) {
   const at = returnedValue(node);
   if (at?.type !== "Identifier") return null;
-  for (let frame = facts.frames.get(at); frame; frame = frame.parent)
+  for (let frame = facts.frames.get(at); frame; frame = frame.parent) {
     if (frame.names.has(at.name)) return frame.names.get(at.name);
+  }
   return null;
 }
 
@@ -1021,6 +1047,7 @@ function readyTryHits(node, facts) {
 function readyCatchHits(node, facts) {
   if (node.type === "TryStatement") return readyTryHits(node, facts);
   if (node.type !== "CallExpression") return [];
+
   const method = propOf(node.callee);
   if (method !== "catch" && method !== "then") return [];
   const root = readyRoot(node.callee.object, facts);
@@ -1036,8 +1063,9 @@ const abortListener = (node) =>
 function abortWait(node, facts) {
   let at = returnedValue(node.argument);
   if (at?.type === "Identifier") at = returnedValue(lifetimeBinding(at, facts)?.init);
-  if (at?.type === "CallExpression")
+  if (at?.type === "CallExpression") {
     return calleeName(at.callee) === "once" && at.arguments[1]?.value === "abort";
+  }
   return abortPromise(at, facts);
 }
 
@@ -1094,8 +1122,10 @@ function stopWaitHits(node, waits, facts) {
 /** Ready still owns cleanup in a test; stop checks keep the non-test lane. */
 function lifetimeHits(source, program, file, writer) {
   if (CORE_PATH.test(file)) return [];
-  if (!writer && !USERLAND.test(file) && !PACKAGE_SRC.test(file) && kindOf(file) !== "test")
+  if (!writer && !USERLAND.test(file) && !PACKAGE_SRC.test(file) && kindOf(file) !== "test") {
     return [];
+  }
+
   const facts = lifetimeFacts(source, program);
   const waits = facts.nodes.filter((n) => n.type === "AwaitExpression" && abortWait(n, facts));
   const hits = facts.nodes.flatMap((node) => [
@@ -1156,9 +1186,11 @@ function handRolledHits(source, program, file, writer) {
   };
   const hits = on.S27 ? unguardedEntries(program) : [];
   walk(program, (n) => {
-    for (const [id, check, key = id] of checks)
+    for (const [id, check, key = id] of checks) {
       for (const at of check(n, facts)) hits.push([id, at, key]);
+    }
   });
+
   return hits;
 }
 
@@ -1241,9 +1273,12 @@ export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   walk(program, (node) => {
     for (const id of rules(node, writer)) rows.push(row(id, lineAt(starts, node.start)));
   });
-  for (const [id, at, key] of programHits(source, program, file, writer))
+
+  for (const [id, at, key] of programHits(source, program, file, writer)) {
     rows.push(row(id, lineAt(starts, at), key));
+  }
   rows.push(...tsdocRows(source, file));
   rows.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
+
   return rows;
 }

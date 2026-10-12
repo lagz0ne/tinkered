@@ -38,6 +38,7 @@ export const persistence = resource({
         dirty.set(true);
       }
     }
+
     const save = () =>
       storage.save({
         files: files.get(),
@@ -49,6 +50,7 @@ export const persistence = resource({
     defer(active.watch(save));
     defer(theme.watch(save));
     defer(dirty.watch(save));
+
     return { restored: saved?.dirty === true };
   },
 });
@@ -74,6 +76,7 @@ export const bundler = resource({
   factory: ({ files, bundle, status, compile, debounce }, { defer, clock, signal }) => {
     let generation = 0;
     let pending: AbortController | undefined;
+
     const build = () => {
       const mine = ++generation;
       const started = clock.currentTimeMillis();
@@ -110,9 +113,11 @@ export const bundler = resource({
         },
       );
     };
+
     build();
     defer(files.watch(schedule));
     defer(() => pending?.abort(superseded));
+
     return { schedule };
   },
 });
@@ -124,8 +129,9 @@ function readSignal(raw: unknown): Signal | undefined {
   if (typeof raw !== "object" || raw === null) return undefined;
   const { __pg, text } = raw as { __pg?: unknown; text?: unknown };
   if (__pg === "ok") return { kind: "ok" };
-  if (__pg === "error")
+  if (__pg === "error") {
     return { kind: "error", text: typeof text === "string" ? text : "runtime error" };
+  }
   return undefined;
 }
 

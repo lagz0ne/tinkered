@@ -35,8 +35,9 @@ function readCases() {
     ...SURVIVOR_CASES,
   })) {
     add(judge, true, pair.bad, "fixture:bad");
-    for (const k of Object.keys(pair).filter((k) => k.startsWith("clean")))
+    for (const k of Object.keys(pair).filter((k) => k.startsWith("clean"))) {
       add(judge, false, pair[k], `fixture:${k}`);
+    }
   }
   if (existsSync(BANK)) {
     for (const line of readFileSync(BANK, "utf8").split("\n").filter(Boolean)) {
@@ -97,6 +98,7 @@ console.log("jev calibrate — median(true) − median(false), pairs ordered; fl
 
 for (const [judge, cases] of Object.entries(all)) {
   if (only && judge !== only) continue;
+
   if (!judgeOf(judge)) {
     console.log(
       `  · ${judge.padEnd(24)} retired     ${cases.length} labeled cases kept in the bank`,

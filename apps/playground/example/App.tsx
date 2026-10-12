@@ -89,6 +89,7 @@ function Controls(): ReactElement {
   const flipStorm = useRun(setStorm);
   const spin = useRun(turn);
   const wipe = useRun(clear);
+
   return (
     <section className="panel" aria-label="Storm controls">
       <div className="control-group turn-controls">

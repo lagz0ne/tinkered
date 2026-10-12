@@ -61,8 +61,9 @@ for (const { name, src, tests } of owners) {
       if (
         file === "packages/start/src/backend/http.ts" &&
         line.includes("obs.child(`http ${method} ${path}`")
-      )
+      ) {
         return;
+      }
       if (line.includes("obs.child(")) {
         failures.push(
           `${file}:${at + 1}  hand-rolled span — make the step an operation (ADR 0058)\n` +

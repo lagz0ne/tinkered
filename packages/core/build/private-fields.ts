@@ -133,6 +133,7 @@ function readRuntime(fileName: string, code: string, census: Census): void {
   const counts = new Map<string, number>();
   countProps(program, counts);
   for (const name of counts.keys()) census.props.add(name);
+
   new Visitor({
     Literal: (node) => {
       if (typeof node.value === "string") census.strings.add(node.value);
@@ -141,6 +142,7 @@ function readRuntime(fileName: string, code: string, census: Census): void {
       for (const quasi of node.quasis) census.strings.add(quasi.value.cooked ?? quasi.value.raw);
     },
   }).visit(program);
+
   attributeKeys(program, census.attributes);
 }
 
@@ -166,8 +168,9 @@ function noteAssignment(left: ESTree.Node, right: ESTree.Node, flow: Flow): void
   if (left.type !== "MemberExpression") return;
   const key = keyName(left.property, left.computed);
   if (key === "attributes") flow.roots.push(right);
-  if (key !== undefined && left.object.type === "Identifier")
+  if (key !== undefined && left.object.type === "Identifier") {
     push(flow.writes, left.object.name, key);
+  }
 }
 
 /** Add the keys of every object `node` can be to `flow.keys`. */
@@ -212,8 +215,9 @@ type Binding = { name: string; at: number; rest: boolean; key?: string };
 function bindingsOf(param: ESTree.Node, at: number): Binding[] {
   if (param.type === "AssignmentPattern") return bindingsOf(param.left, at);
   if (param.type === "Identifier") return [{ name: param.name, at, rest: false }];
-  if (param.type === "RestElement" && param.argument.type === "Identifier")
+  if (param.type === "RestElement" && param.argument.type === "Identifier") {
     return [{ name: param.argument.name, at, rest: true }];
+  }
   if (param.type !== "ObjectPattern") return [];
   return param.properties.flatMap((entry) => {
     if (entry.type !== "Property") return [];
@@ -253,8 +257,10 @@ function invoked(
   if (call.type === "CallExpression" && call.callee.type === "Super") {
     return superName === undefined ? undefined : { name: superName, args };
   }
+
   const name = calleeName(call);
   if (name === undefined) return undefined;
+
   const { callee } = call;
   const target = callee.type === "MemberExpression" ? nameOf(callee.object) : undefined;
   return target === undefined ? { name, args } : forwarded(name, target, args);
@@ -292,9 +298,11 @@ function callTargets(program: ESTree.Program): {
   const calls: { call: ESTree.CallExpression | ESTree.NewExpression; superName?: string }[] = [];
   /** The superclass name of each class around the visit, innermost last. */
   const supers: (string | undefined)[] = [];
+
   const signature = (name: string | undefined, params: ESTree.Node[]) => {
     if (name !== undefined) push(signatures, name, params.flatMap(bindingsOf));
   };
+
   /** A class takes the arguments of its constructor: `new F(x)` reaches it (`class` or `var F = class`). */
   const classSignature = (name: string | undefined, node: ESTree.Class) => {
     const ctor = node.body.body.find(
@@ -302,13 +310,17 @@ function callTargets(program: ESTree.Program): {
     );
     if (ctor?.type === "MethodDefinition") signature(name, ctor.value.params);
   };
+
   /** A variable given a function or a class: calls to its name reach that function or constructor. */
   const initSignature = (name: string | undefined, init: ESTree.Expression) => {
-    if (init.type === "ArrowFunctionExpression" || init.type === "FunctionExpression")
+    if (init.type === "ArrowFunctionExpression" || init.type === "FunctionExpression") {
       signature(name, init.params);
+    }
     if (init.type === "ClassExpression") classSignature(name, init);
   };
+
   const superOf = (node: ESTree.Class) => (node.superClass ? nameOf(node.superClass) : undefined);
+
   new Visitor({
     FunctionDeclaration: (node) => signature(node.id?.name, node.params),
     ClassDeclaration: (node) => {
@@ -319,23 +331,30 @@ function callTargets(program: ESTree.Program): {
     ClassExpression: (node) => supers.push(superOf(node)),
     "ClassExpression:exit": () => supers.pop(),
     VariableDeclarator: (node) => {
-      if (node.init !== null)
+      if (node.init !== null) {
         initSignature(node.id.type === "Identifier" ? node.id.name : undefined, node.init);
+      }
     },
     Property: (node) => {
       const key = keyName(node.key, node.computed);
-      if (node.value.type === "FunctionExpression" || node.value.type === "ArrowFunctionExpression")
+      if (
+        node.value.type === "FunctionExpression" ||
+        node.value.type === "ArrowFunctionExpression"
+      ) {
         signature(key, node.value.params);
+      }
     },
     MethodDefinition: (node) => signature(keyName(node.key, node.computed), node.value.params),
     CallExpression: (node) => calls.push({ call: node, superName: supers.at(-1) }),
     NewExpression: (node) => calls.push({ call: node }),
   }).visit(program);
+
   const targets: Target[] = [];
   for (const { call, superName } of calls) {
     const target = invoked(call, superName);
     if (target !== undefined) targets.push(target);
   }
+
   return { signatures, targets };
 }
 
@@ -558,8 +577,9 @@ function unwrapped(node: ESTree.Node): ESTree.Node {
     at.type === "ParenthesizedExpression" ||
     at.type === "TSNonNullExpression" ||
     at.type === "TSSatisfiesExpression"
-  )
+  ) {
     at = at.expression;
+  }
   return at;
 }
 
@@ -612,8 +632,9 @@ function isFromCast(node: ESTree.Node, casts: Casts): boolean {
   let at: ESTree.Node | undefined = node;
   while (at !== undefined) {
     if (at.type === "Identifier") return casts.names.has(at.name);
-    if (at.type === "ObjectExpression" || at.type === "ArrayExpression")
+    if (at.type === "ObjectExpression" || at.type === "ArrayExpression") {
       return literalHoldsCast(at, casts);
+    }
     if (isCastStep(at, casts)) return true;
     at = inner(at);
   }
@@ -625,11 +646,12 @@ function literalHoldsCast(
   node: ESTree.ObjectExpression | ESTree.ArrayExpression,
   casts: Casts,
 ): boolean {
-  if (node.type === "ArrayExpression")
+  if (node.type === "ArrayExpression") {
     return node.elements.some(
       (item) =>
         item !== null && isFromCast(item.type === "SpreadElement" ? item.argument : item, casts),
     );
+  }
   return node.properties.some((entry) =>
     isFromCast(entry.type === "SpreadElement" ? entry.argument : entry.value, casts),
   );
@@ -695,6 +717,7 @@ function typedCasts(program: ESTree.Program, suppressed: (offset: number) => boo
   const returnsOf = returnsByFunction(gathered);
   returnFlows(gathered, returnsOf, suppressed);
   argumentCasts(program, suppressed, gathered.names);
+
   const casts: Casts = {
     names: gathered.names,
     constCasts: constAssertionsHoldingCasts(program),
@@ -702,6 +725,7 @@ function typedCasts(program: ESTree.Program, suppressed: (offset: number) => boo
     returns: returnsOf,
   };
   settle(casts, gathered.flows);
+
   return casts;
 }
 
@@ -751,8 +775,9 @@ function gatherCasts(program: ESTree.Program, suppressed: (offset: number) => bo
       nameFn(gathered, name, node.value);
     },
     Property: (node) => {
-      if (isFunctionNode(node.value))
+      if (isFunctionNode(node.value)) {
         nameFn(gathered, keyName(node.key, node.computed), node.value);
+      }
     },
   }).visit(program);
   return gathered;
@@ -776,8 +801,9 @@ function declared(
   const value = node.init;
   if (value !== null) {
     gathered.flows.push({ value, names: bound });
-    if (isFunctionNode(value))
+    if (isFunctionNode(value)) {
       nameFn(gathered, node.id.type === "Identifier" ? node.id.name : undefined, value);
+    }
   }
   if (suppressed(node.id.start) || (value !== null && suppressed(value.start))) {
     for (const name of bound) gathered.names.add(name);
@@ -880,30 +906,35 @@ function untypedReads(
     ? { names: new Set(), constCasts: new Set(), getters: new Set(), returns: new Map() }
     : typedCasts(program, suppressed);
   const untyped = (value: ESTree.Node) => script || isFromCast(value, casts);
+
   const destructure = (pattern: ESTree.Node, value: ESTree.Node | null) => {
     const unchecked = script || (value !== null && untyped(value));
     for (const key of patternKeys(pattern)) {
       if (unchecked || suppressed(key.start)) add(key.name);
     }
   };
+
   const params = (node: { params: ESTree.ParamPattern[] }) => {
     for (const param of node.params) {
       if (param.type === "AssignmentPattern") destructure(param.left, param.right);
       else destructure(param, null);
     }
   };
+
   new Visitor({
     Literal: (node) => {
       if (typeof node.value === "string") add(node.value);
     },
     TemplateLiteral: (node) => {
       const [only] = node.quasis;
-      if (node.expressions.length === 0 && only !== undefined)
+      if (node.expressions.length === 0 && only !== undefined) {
         add(only.value.cooked ?? only.value.raw);
+      }
     },
     MemberExpression: (node) => {
-      if (!node.computed && (untyped(node.object) || suppressed(node.property.start)))
+      if (!node.computed && (untyped(node.object) || suppressed(node.property.start))) {
         add(node.property.name);
+      }
     },
     VariableDeclarator: (node) => destructure(node.id, node.init),
     AssignmentExpression: (node) => destructure(node.left, node.right),
@@ -1064,9 +1095,11 @@ function checkAssignment(
 function checkForOf(node: ForOfNode, checker: Checker, wanted: Set<string>, hits: string[]): void {
   if (!isLiteralTarget(node.initializer)) return;
   const read = { checker, source: node.expression, wanted, hits };
+
   const source = checker.getTypeAtLocation(node.expression);
   const isAwait = node.awaitModifier !== undefined;
   const element = source === undefined ? [] : elementType(source, isAwait, read);
+
   assignmentTarget(node.initializer, element, read);
 }
 
@@ -1079,6 +1112,7 @@ function wellKnownKey(checker: Checker, name: string): string | undefined {
   const ctor = global === undefined ? undefined : checker.getTypeOfSymbol(global);
   const well = ctor === undefined ? undefined : checker.getPropertyOfType(ctor, name);
   const unique = well === undefined ? undefined : checker.getTypeOfSymbol(well);
+
   const id = unique?.getSymbol()?.id;
   return id === undefined ? undefined : `__@${name}@${id}`;
 }
@@ -1106,15 +1140,18 @@ function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type
 function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Type[] {
   const { checker } = read;
   const at = read.source;
+
   const asyncMethod = isAwait
     ? memberType(checker, source, wellKnownKey(checker, "asyncIterator"), at)
     : undefined;
   const method = asyncMethod ?? memberType(checker, source, wellKnownKey(checker, "iterator"), at);
+
   const results = uniqueTypes(
     zeroArgumentReturns(checker, method).flatMap((iterator) =>
       returnsOf(checker, memberType(checker, iterator, "next", at)),
     ),
   );
+
   return iterationTypes(checker, results, asyncMethod !== undefined, at);
 }
 
@@ -1169,10 +1206,13 @@ function zeroArgumentReturns(checker: Checker, type: Type | undefined): Type[] {
 function acceptsZeroArguments(checker: Checker, signature: Signature): boolean {
   const parameters = signature.getParameters();
   const fixedCount = parameters.length - (signature.hasRestParameter ? 1 : 0);
+
   for (let index = 0; index < fixedCount; index++) {
     if (!canOmitParameter(checker, checker.getParameterType(signature, index))) return false;
   }
+
   if (!signature.hasRestParameter) return true;
+
   const rest = parameters.at(-1);
   return rest === undefined || acceptsEmptyRest(checker, checker.getTypeOfSymbol(rest));
 }
@@ -1372,8 +1412,10 @@ function sourceProperty(
   if (isAny(source)) return source;
   const apparent = read.checker.getApparentType(source);
   if (apparent === undefined) return undefined;
+
   const property = name === undefined ? undefined : read.checker.getPropertyOfType(apparent, name);
   if (property !== undefined) return read.checker.getTypeOfSymbolAtLocation(property, read.source);
+
   const keyFlags = numeric ? TypeFlags.Number : TypeFlags.String;
   return read.checker
     .getIndexInfosOfType(apparent)
@@ -1420,9 +1462,11 @@ function typedReads(files: string[], names: string[]): Map<string, string[]> {
   const found = new Map<string, string[]>();
   if (files.length === 0) return found;
   const wanted = new Set(names);
+
   const dir = mkdtempSync(join(CORE, "node_modules", "core-guard-"));
   const config = join(dir, "tsconfig.json");
   let api: API | undefined;
+
   try {
     writeFileSync(config, JSON.stringify({ compilerOptions: CHECK_OPTIONS, files }));
     api = new API({ cwd: dir });
@@ -1431,6 +1475,7 @@ function typedReads(files: string[], names: string[]): Map<string, string[]> {
     for (const file of files) {
       const source = project.program.getSourceFile(file);
       if (source === undefined) throw new Error(`the checker did not load ${file}`);
+
       const hits: string[] = [];
       const visit = (node: TsNode): void => {
         checkRead(node, project.checker, wanted, hits);
@@ -1446,6 +1491,7 @@ function typedReads(files: string[], names: string[]): Map<string, string[]> {
       rmSync(dir, { recursive: true, force: true });
     }
   }
+
   return found;
 }
 
@@ -1460,16 +1506,19 @@ function outsideReads(names: string[], root: string): Map<string, string> {
   const scanned = OUTSIDE.flatMap((dir) => sourceFiles(join(root, dir))).flatMap((file) =>
     scanFile(file, uses),
   );
+
   const typed = typedReads(
     scanned.map((entry) => entry.file).filter((file) => !isScript(file)),
     names,
   );
+
   const reads = new Map<string, string>();
   for (const { file, syntactic } of scanned) {
     for (const read of [...syntactic, ...(typed.get(file) ?? [])]) {
       if (!reads.has(read)) reads.set(read, relative(root, file));
     }
   }
+
   return reads;
 }
 
@@ -1480,8 +1529,10 @@ function outsideReads(names: string[], root: string): Map<string, string> {
 function scanFile(file: string, uses: RegExp): { file: string; syntactic: string[] }[] {
   const code = readFileSync(file, "utf8");
   if (!/@tinker\/core|\/(src|dist)\/|import\s*\(/.test(code) || !uses.test(code)) return [];
+
   const { program, comments } = parseSync(file, code);
   if (!importsCore(file, program)) return [];
+
   const syntactic: string[] = [];
   untypedReads(file, program, suppressedLines(code, comments), (read) => syntactic.push(read));
   return [{ file, syntactic }];
@@ -1499,6 +1550,7 @@ function scanFile(file: string, uses: RegExp): { file: string; syntactic: string
 function findUnsafeNames(names: string[], census: Census, root: string): Map<string, string> {
   const builtins = builtinNames();
   const outside = outsideReads(names, root);
+
   const reasons = [
     (name: string) => (census.typed.has(name) ? "in the public types" : undefined),
     (name: string) => (census.strings.has(name) ? "a string in the runtime" : undefined),
@@ -1509,11 +1561,13 @@ function findUnsafeNames(names: string[], census: Census, root: string): Map<str
       return file === undefined ? undefined : `read without type checks in ${file}`;
     },
   ];
+
   const unsafe = new Map<string, string>();
   for (const name of names) {
     const reason = reasons.map((why) => why(name)).find((why) => why !== undefined);
     if (reason !== undefined) unsafe.set(name, reason);
   }
+
   return unsafe;
 }
 
@@ -1530,17 +1584,20 @@ function seedNames(listed: string[], sources: string[]): Record<string, string> 
   for (const [index, code] of sources.entries()) {
     countProps(parseSync(`source-${index}.ts`, code).program, counts);
   }
+
   const order = listed.toSorted(
     (a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || (a < b ? -1 : 1),
   );
   const uses = order.map((name) => `o.${name};`.repeat((counts.get(name) ?? 0) + 1));
   const reserved = [...counts.keys()].filter((name) => !listed.includes(name));
+
   const { mangleCache = {} } = minifySync("seed.js", `let o;${uses.join("")}`, {
     module: true,
     compress: false,
     mangle: false,
     mangleProps: { include: matcher(listed), reserved },
   });
+
   return Object.fromEntries(
     Object.entries(mangleCache).filter((entry): entry is [string, string] => entry[1] !== false),
   );
@@ -1608,8 +1665,10 @@ export function privateFields(
         readTypes(chunk.fileName, code, census);
         return null;
       }
+
       readRuntime(chunk.fileName, code, census);
       if (write) return null;
+
       const result = minifySync(chunk.fileName, code, {
         module: true,
         compress: false,

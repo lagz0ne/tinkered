@@ -284,6 +284,7 @@ function duplicateNames(nodes: readonly Blueprint.Node[]): readonly Blueprint.Fi
       blocking: true,
     });
   }
+
   return found;
 }
 
@@ -398,6 +399,7 @@ function dependsMismatches(
     const declared = new Set(node.depends);
     const coded = new Set(unit.depends);
     if (sameSet(declared, coded)) return [];
+
     return [
       {
         source: "plain" as const,
@@ -487,8 +489,9 @@ export function parseVerifyInput(raw: unknown): {
   const call = verifyCall.safeParse(raw);
   if (!call.success) raise("InvalidBlueprint", { text: "", issues: call.error.issues });
   const graph = parseGraph(call.data.text);
-  if (call.data.units.length === 0)
+  if (call.data.units.length === 0) {
     raise("NoSource", { dir: call.data.dir }, `blueprint: no *.ts file under ${call.data.dir}`);
+  }
   return { graph, units: call.data.units, json: call.data.json };
 }
 
@@ -500,8 +503,9 @@ const suggestCall = z.object({ words: z.string() });
  * failure, which the cli maps to exit 2. */
 export function parseSuggestInput(raw: unknown): { readonly words: string } {
   const call = suggestCall.safeParse(raw);
-  if (!call.success || call.data.words.trim() === "")
+  if (!call.success || call.data.words.trim() === "") {
     raise("NoWords", {}, "blueprint: suggest needs words");
+  }
   return { words: call.data.words };
 }
 
@@ -560,12 +564,13 @@ const templateFile = z
     if (template.kind !== "choice" || template.shapes === undefined) return;
     const choiceKeys = Object.keys(template.choices).sort();
     const shapeKeys = Object.keys(template.shapes).sort();
-    if (choiceKeys.join(",") !== shapeKeys.join(","))
+    if (choiceKeys.join(",") !== shapeKeys.join(",")) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["shapes"],
         message: "shapes keys must equal choices keys",
       });
+    }
   });
 
 /** Read one template file (yaml text) into a template. A yaml or schema failure
@@ -733,8 +738,9 @@ function pairsOf(
   nodes: readonly Blueprint.Node[],
 ): readonly (readonly [Blueprint.Node, Blueprint.Node])[] {
   const pairs: (readonly [Blueprint.Node, Blueprint.Node])[] = [];
-  for (let i = 0; i < nodes.length; i++)
+  for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) pairs.push([nodes[i], nodes[j]]);
+  }
   return pairs;
 }
 
@@ -837,19 +843,21 @@ export async function runCheck(
 
 function findTarget(evalCase: Blueprint.Eval, index: number): Blueprint.Node {
   const called = evalCase.target[index];
-  if (called === undefined)
+  if (called === undefined) {
     raise(
       "InvalidEval",
       { file: evalCase.file, issues: [`target: needs a name at index ${index}`] },
       `${evalCase.file}: target: needs a name at index ${index}`,
     );
+  }
   const node = evalCase.graph.nodes.find((candidate) => candidate.name === called);
-  if (node === undefined)
+  if (node === undefined) {
     raise(
       "InvalidEval",
       { file: evalCase.file, issues: [`target "${called}": no such node`] },
       `${evalCase.file}: target "${called}": no such node`,
     );
+  }
   return node;
 }
 
@@ -863,12 +871,13 @@ function evalBodyOf(evalCase: Blueprint.Eval, name: string): string | undefined 
   const unit = readUnits(evalCase.source, evalCase.file).find(
     (candidate) => candidate.label === name,
   );
-  if (unit === undefined)
+  if (unit === undefined) {
     raise(
       "InvalidEval",
       { file: evalCase.file, issues: [`source: no unit labeled "${name}"`] },
       `${evalCase.file}: source: no unit labeled "${name}"`,
     );
+  }
   return unit.body;
 }
 
@@ -879,11 +888,12 @@ function evalStateOf(
   template: Blueprint.Template,
   evalCase: Blueprint.Eval,
 ): Blueprint.NodeState | Blueprint.PairState {
-  if (template.scope === "pair")
+  if (template.scope === "pair") {
     return {
       a: nodeStateOf(evalCase.graph, findTarget(evalCase, 0)),
       b: nodeStateOf(evalCase.graph, findTarget(evalCase, 1)),
     };
+  }
   const node = findTarget(evalCase, 0);
   return nodeStateOf(evalCase.graph, node, evalBodyOf(evalCase, node.name));
 }
@@ -917,6 +927,7 @@ async function scoreEval(
   const state = evalStateOf(template, evalCase);
   const answers = await judge.ask(state, { [template.id]: question }, signal);
   const answer = answers[template.id];
+
   const declared = "a" in state ? undefined : compareValueOf(template, state);
   const node = evalNodeOf(state);
   return {
@@ -956,6 +967,7 @@ function gradeFrom(
   const sep = median(bad) - median(clean);
   const ordered = orderedShare(bad, clean);
   const passesBar = sep >= 0.3 && ordered >= 0.9;
+
   const status =
     goldenHits.length > 0 ? "noisy" : !enough ? "provisional" : passesBar ? "proven" : "noisy";
   return { id, status, bad, clean, sep, ordered, goldenHits, goldenTotal };
@@ -977,17 +989,20 @@ export async function gradeTemplate(
 ): Promise<Blueprint.Grade> {
   const question = templateQuestion(template);
   const bad: number[] = [];
-  for (const evalCase of evals.bad)
+  for (const evalCase of evals.bad) {
     bad.push((await scoreEval(template, question, evalCase, judge, signal)).p);
+  }
   const clean: number[] = [];
-  for (const evalCase of evals.clean)
+  for (const evalCase of evals.clean) {
     clean.push((await scoreEval(template, question, evalCase, judge, signal)).p);
+  }
   const goldenHits: string[] = [];
   for (const evalCase of evals.golden) {
     const scored = await scoreEval(template, question, evalCase, judge, signal);
     clean.push(scored.p);
     if (scored.hit) goldenHits.push(scored.node);
   }
+
   return gradeFrom(template.id, bad, clean, goldenHits, evals.golden.length);
 }
 
@@ -1005,14 +1020,16 @@ export function goldenCasesOf(
   const matching = golden.nodes.filter((node) => template.applies.includes(node.kind));
   if (template.scope === "pair") {
     const pairs: Blueprint.Eval[] = [];
-    for (let i = 0; i < matching.length; i++)
-      for (let j = i + 1; j < matching.length; j++)
+    for (let i = 0; i < matching.length; i++) {
+      for (let j = i + 1; j < matching.length; j++) {
         pairs.push({
           file,
           target: [matching[i].name, matching[j].name],
           expect: false,
           graph: golden,
         });
+      }
+    }
     return pairs;
   }
   return matching.map((node) => ({

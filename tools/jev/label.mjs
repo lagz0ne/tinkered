@@ -31,6 +31,7 @@ function unionRows(text) {
   let skipped = 0;
   for (const line of text.split("\n")) {
     if (!line.trim() || isMarker(line)) continue;
+
     let row;
     try {
       row = JSON.parse(line);

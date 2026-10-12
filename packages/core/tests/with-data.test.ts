@@ -38,9 +38,11 @@ test("a default close frees a session's data and returns none", async () => {
   const root = createScope();
   const session = root.createSession();
   session.controller(draft).set(1);
+
   const ended = await session.close();
   const error = thrown(() => session.resolve(draft));
   if (!isError(error, "Disposed")) throw error;
+
   expect(ended.data).toBeUndefined();
   await root.close();
 });
@@ -51,6 +53,7 @@ test("a held controller reads the initial value once a parent's close frees its 
   const held = session.controller(draft);
   held.set(5);
   await root.close();
+
   expect(held.get()).toBe(0);
 });
 
@@ -60,6 +63,7 @@ test("a held controller reads the initial value once its fast-closed session clo
   const held = session.controller(draft);
   held.set(5);
   await session.close();
+
   expect(held.get()).toBe(0);
   await root.close();
 });
@@ -83,10 +87,12 @@ test("a held controller on a preset data cell reads the initial value once the r
 test("a closed leaf reads the open middle's write made after the leaf's own read", async () => {
   const root = createScope();
   root.controller(draft).set(5);
+
   const middle = root.createSession();
   const leaf = middle.createSession();
   const held = leaf.controller(draft);
   await leaf.close();
+
   expect(held.get()).toBe(5);
   middle.controller(draft).set(7);
   expect(held.get()).toBe(7);
@@ -100,6 +106,7 @@ test("a closed leaf reads the open root's write made after the leaf's own read",
   const leaf = middle.createSession();
   const held = leaf.controller(draft);
   await leaf.close();
+
   expect(held.get()).toBe(0);
   root.controller(draft).set(8);
   expect(held.get()).toBe(8);
@@ -110,10 +117,12 @@ test("a closed leaf reads the open root's write made after the leaf's own read",
 test("a closed leaf reads the initial value once every layer above it has closed", async () => {
   const root = createScope();
   root.controller(draft).set(5);
+
   const middle = root.createSession();
   const leaf = middle.createSession();
   const held = leaf.controller(draft);
   await leaf.close();
+
   expect(held.get()).toBe(5);
   await middle.close();
   await root.close();
@@ -136,7 +145,9 @@ test("a session hook reads its own held write after next", async () => {
   const session = root.createSession();
   const held = session.controller(draft);
   held.set(4);
+
   await session.close();
+
   expect(seen).toEqual([4]);
   await root.close();
 });
@@ -157,6 +168,7 @@ test("a session hook reads an ancestor's write made after the session closed", a
   const root = createScope({ extensions: [reader] });
   const session = root.createSession();
   const held = session.controller(draft);
+
   expect(held.get()).toBe(0);
   await session.close();
   expect(seen).toEqual([8, 8]);
@@ -170,12 +182,14 @@ test("a withData close hands over what the session wrote, never what it inherite
   for (const end of ["success", "cancelled", "failed"]) {
     const session = root.createSession();
     session.controller(draft).set(7);
-    if (end === "failed")
+    if (end === "failed") {
       await session.run(panic).then(undefined, (error: unknown) => {
         if (error !== bug) throw error;
       });
+    }
     ends.push(await session.close({ graceful: end === "success", withData: true }));
   }
+
   expect(ends.map((ended) => ended.status)).toEqual(["success", "cancelled", "failed"]);
   for (const ended of ends) {
     expect(ended.data?.get(draft)).toEqual({ present: true, value: 7 });
@@ -192,8 +206,10 @@ test("a family member and a namespaced session's cell read back from data", asyn
   member.controller(draft, { ns: alice }).set(3);
   const named = root.createSession({ ns: bob });
   named.controller(draft).set(4);
+
   const fromMember = (await member.close({ withData: true })).data;
   const fromNamed = (await named.close({ withData: true })).data;
+
   expect(fromMember?.get(draft, { ns: alice })).toEqual({ present: true, value: 3 });
   expect(fromMember?.get(draft, { ns: bob })).toEqual({ present: false });
   expect(fromNamed?.get(draft)).toEqual({ present: true, value: 4 });
@@ -213,6 +229,7 @@ test("a graceful withData close keeps what in-flight work wrote before it settle
       await gate;
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   const running = session.run(save);
@@ -220,6 +237,7 @@ test("a graceful withData close keeps what in-flight work wrote before it settle
   release();
   await running;
   const ended = await closing;
+
   expect(ended.status).toBe("success");
   expect(ended.data?.get(draft)).toEqual({ present: true, value: 9 });
   await root.close();
@@ -241,6 +259,7 @@ test("a session hook reads the session's cells and tags after next", async () =>
   await root.session({ tags: [zone("eu")] }, (scope) => {
     scope.controller(draft).set(5);
   });
+
   expect(seen).toEqual([5, "eu"]);
   await root.close();
 });
@@ -267,7 +286,9 @@ test("a session hook reads the cell in the namespace its resolve names after nex
   const session = root.createSession();
   session.controller(draft, { ns: alice }).set(3);
   session.controller(draft).set(4);
+
   await session.close();
+
   expect(seen).toEqual([3, 4, 4]);
   await root.close();
 });
@@ -289,6 +310,7 @@ test("a session hook cannot write a cell or read a resource after next", async (
   });
   const root = createScope({ extensions: [reader] });
   await root.session((scope) => scope.resolve(db));
+
   for (const error of errors) if (!isError(error, "Disposed")) throw error;
   expect(errors).toHaveLength(2);
   await root.close();
@@ -304,6 +326,7 @@ test("a hooked session's reads throw once its hooks return", async () => {
   const root = createScope({ extensions: [reader] });
   const session = root.createSession();
   session.controller(draft).set(2);
+
   await session.close();
   const error = thrown(() => session.resolve(draft));
   if (!isError(error, "Disposed")) throw error;

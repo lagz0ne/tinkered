@@ -23,7 +23,9 @@ void test("fast-code judges read library helpers and unit builders while existin
   const source =
     'import { operation } from "@tinker/core"; export function make(input) { return operation({ run: () => input }); }';
   const unit = slice(source, "packages/demo/src/run.ts").find((u) => u.name === "make");
+
   const questions = lintQuestions(unit);
+
   for (const id of fast) assert.ok(id in questions);
   assert.ok(!("domainLogicInRender" in questions));
   assert.ok(!("effectWithoutDefer" in questions));
@@ -34,6 +36,7 @@ void test("class constructors and methods reach fast-code judges without app jud
   const units = slice(source, "packages/demo/src/frame.ts");
   const frame = units.find((unit) => unit.name === "Frame");
   assert.equal(frame.source, source.slice("export ".length));
-  for (const all of [false, true])
+  for (const all of [false, true]) {
     assert.deepEqual(Object.keys(lintQuestions(frame, all)).sort(), [...fast].sort());
+  }
 });

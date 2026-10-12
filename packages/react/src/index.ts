@@ -47,6 +47,7 @@ function OwnedScopeProvider(props: {
 }): ReactNode {
   const createRef = useRef(props.create);
   createRef.current = props.create;
+
   const [scope, setScope] = useState<Scope.Handle | undefined>(undefined);
   useEffect(() => {
     const owned = createRef.current();
@@ -56,6 +57,7 @@ function OwnedScopeProvider(props: {
       closeScope(owned);
     };
   }, []);
+
   if (scope === undefined) return null;
   return createElement(ScopeContext.Provider, { value: scope, children: props.children });
 }
@@ -90,20 +92,24 @@ export function SessionProvider(props: {
   const inherited = useContext(NamespaceContext);
   const optionsRef = useRef(props.options);
   optionsRef.current = props.options;
+
   const [owned, setOwned] = useState<
     { parent: Scope.Handle; session: Scope.Handle; ns?: Namespace } | undefined
   >(undefined);
+
   useEffect(() => {
     const options = optionsRef.current;
     const session = parent.createSession(options);
     const ns = options?.ns;
     const [head] = ns === undefined ? [inherited] : "tags" in ns ? [ns] : ns;
     setOwned({ parent, session, ns: head });
+
     return () => {
       setOwned(undefined);
       closeScope(session);
     };
   }, [parent, inherited]);
+
   if (owned === undefined || owned.parent !== parent) return null;
   return createElement(NamespaceContext.Provider, {
     value: owned.ns,
@@ -164,8 +170,10 @@ export function useData<T, S>(
   const options = typeof a === "function" ? (typeof b === "function" ? undefined : b) : a;
   const isEqual = typeof b === "function" ? b : options?.isEqual;
   const writable = options?.writable === true;
+
   const store = useDataStore(cell, selector, isEqual);
   const value = useSyncExternalStore(store.subscribe, store.read, store.read);
+
   return writable ? [value, store.set] : value;
 }
 
@@ -176,14 +184,17 @@ function useDataStore<T, S>(
 ): DataStore<T, T | S> {
   const controller = useScope().controller(cell);
   const own = useRef<SelectingStore<T, S> | undefined>(undefined);
+
   if (selector === undefined && isEqual === undefined) {
     return (rawStores.get(controller) as DataStore<T, T> | undefined) ?? createRawStore(controller);
   }
+
   const kept = own.current;
   const store =
     kept !== undefined && kept.controller === controller
       ? kept
       : (own.current = createDataStore<T, S>(controller));
+
   store.select = selector ?? (identity as (value: T) => S);
   store.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
   return store;
@@ -235,14 +246,18 @@ function createDataStore<T, S>(controller: Scope.DataController<T>): SelectingSt
       const prev = memo;
       if (prev !== undefined && prev.select === store.select && prev.equal === store.equal) {
         if (Object.is(prev.raw, raw)) return prev.slice;
+
         const slice = store.select(raw);
         const kept = store.equal(prev.slice, slice) ? prev.slice : slice;
+
         prev.raw = raw;
         prev.slice = kept;
         prev.select = store.select;
         prev.equal = store.equal;
+
         return kept;
       }
+
       const fresh = store.select(raw);
       if (prev === undefined) {
         memo = { raw, slice: fresh, select: store.select, equal: store.equal };
@@ -252,6 +267,7 @@ function createDataStore<T, S>(controller: Scope.DataController<T>): SelectingSt
         prev.select = store.select;
         prev.equal = store.equal;
       }
+
       return fresh;
     },
     set: (value: T) => controller.set(value),
@@ -379,8 +395,9 @@ class ResourceOwner<T> {
       cached.status === status &&
       Object.is(cached.data, data) &&
       Object.is(cached.error, err)
-    )
+    ) {
       return cached;
+    }
     return (this.cached = {
       status,
       data,
@@ -422,10 +439,14 @@ export function useResource<T>(
   const ns = options.ns;
   const [, force] = useReducer(RunOwner.bump, 0);
   const ref = useRef<ResourceOwner<T> | undefined>(undefined);
+
   let owner = ref.current;
-  if (owner === undefined || owner.scope !== scope || owner.handle !== handle || owner.ns !== ns)
+  if (owner === undefined || owner.scope !== scope || owner.handle !== handle || owner.ns !== ns) {
     owner = ref.current = new ResourceOwner(scope, handle, ns, force);
+  }
+
   owner.inherited = inherited;
+
   return useResolvedResource(owner, options.suspense === false);
 }
 
@@ -436,15 +457,18 @@ function useResolvedResource<T>(
   let value: Scope.ResourceValue<T> | undefined;
   let error: unknown;
   let failed = false;
+
   try {
     value = owner.controller.resolve();
   } catch (caught) {
     error = caught;
     failed = true;
   }
+
   const pending = value instanceof Promise ? (value as Promise<Awaited<T>>) : undefined;
   owner.pending = local ? pending : undefined;
   useSettled(owner);
+
   if (local) return owner.query(failed, error, value, pending);
   if (failed) throw error;
   return pending ? use(pending) : (value as Awaited<T>);
@@ -539,10 +563,11 @@ function notify<T, I>(
 /** Callback failures belong to the host's error reporting, not the operation's outcome. */
 function reportCallbackError(error: unknown): void {
   if (typeof reportError === "function") reportError(error);
-  else
+  else {
     queueMicrotask(() => {
       throw error;
     });
+  }
 }
 
 /** Each committed hook owns its view; old calls keep their result but lose publication on detach. */
@@ -623,9 +648,13 @@ class RunOwner<T, I> {
     const id = (this.runId += 1);
     const [variables] = call;
     const result = this.controller.settle(...call);
+
     if (!(result instanceof Promise)) return this.finish(id, result, variables);
-    if (this.live && this.runId === id)
+
+    if (this.live && this.runId === id) {
       this.publish({ status: "pending", data: undefined, error: undefined, variables });
+    }
+
     return result.then((settled) => this.finish(id, settled, variables));
   }
 
@@ -662,11 +691,15 @@ export function useRun<T, I>(
   const scope = useScope();
   const [, force] = useReducer(RunOwner.bump, 0);
   const ref = useRef<RunOwner<T, I> | undefined>(undefined);
+
   let owner = ref.current;
-  if (owner === undefined || owner.scope !== scope || owner.op !== op)
+  if (owner === undefined || owner.scope !== scope || owner.op !== op) {
     owner = ref.current = new RunOwner(scope, op, force);
+  }
+
   owner.options = options;
   useLayoutEffect(owner.attach, [owner]);
+
   return owner.handle();
 }
 

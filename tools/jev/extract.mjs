@@ -43,6 +43,7 @@ const isUnitCall = (node) =>
 function unitOf(src, declarator, exported) {
   const init = declarator.init;
   if (!isUnitCall(init) || declarator.id.type !== "Identifier") return null;
+
   const config = init.arguments[0];
   const label = prop(config, "label");
   const depends = prop(config, "depends");
@@ -104,6 +105,7 @@ function rendersOutside(root) {
 function returnsJsx(body) {
   if (!body) return false;
   if (body.type !== "BlockStatement") return rendersOutside(body);
+
   const hidden = innerBodies(body);
   let found = false;
   walk(body, (n) => {
@@ -144,8 +146,9 @@ function constFns(decl) {
 
 /** The named `function` or bare arrow one declaration holds, or null. */
 function singleFn(decl, node) {
-  if (decl?.type === "FunctionDeclaration" && decl.body)
+  if (decl?.type === "FunctionDeclaration" && decl.body) {
     return { name: decl.id?.name ?? "default", body: decl.body, span: node };
+  }
   if (isFnInit(decl)) return { name: "default", body: decl.body, span: node };
   return null;
 }
@@ -168,8 +171,9 @@ function fnRecord(src, exported, tsx, found) {
 /** One record for a found function: a `wrapperOnly` function when it declares units (a
  *  wrapper or builder, judged only by `unitBuilders` judges), else a component or helper. */
 function recordOf(src, exported, tsx, found) {
-  if (declaresUnit(found.body))
+  if (declaresUnit(found.body)) {
     return functionRecord(src, found.span, found.name, exported, "function", true);
+  }
   return fnRecord(src, exported, tsx, found);
 }
 
@@ -233,6 +237,7 @@ function withUses(src, program, records) {
     if (helper === undefined || insideOf(helper, line)) return;
     found.set(helper.name, (found.get(helper.name) ?? new Set()).add(line));
   });
+
   return records.map((r) => {
     const at = found.get(r.name);
     if (r.kind !== "function" || at === undefined) return r;
@@ -245,11 +250,14 @@ function withUses(src, program, records) {
 function bindings(pattern) {
   if (!pattern) return [];
   if (pattern.type === "Identifier") return [pattern.name];
-  if (pattern.type === "RestElement" || pattern.type === "AssignmentPattern")
+
+  if (pattern.type === "RestElement" || pattern.type === "AssignmentPattern") {
     return bindings(pattern.argument ?? pattern.left);
+  }
   if (pattern.type === "ArrayPattern") return pattern.elements.flatMap(bindings);
-  if (pattern.type === "ObjectPattern")
+  if (pattern.type === "ObjectPattern") {
     return pattern.properties.flatMap((p) => bindings(p.value ?? p.argument));
+  }
   return [];
 }
 
@@ -261,6 +269,7 @@ function references(node, shadow = new Set()) {
   function visit(n, hidden) {
     if (!n || typeof n !== "object") return;
     if (Array.isArray(n)) return n.forEach((v) => visit(v, hidden));
+
     if (n.type === "Identifier") {
       if (!hidden.has(n.name)) out.add(n.name);
       return;
@@ -270,6 +279,7 @@ function references(node, shadow = new Set()) {
       return;
     }
     if (n.type?.startsWith("TS") || n.type === "TSTypeAnnotation") return;
+
     if (FUNCTION_TYPES.has(n.type)) {
       const scoped = new Set([...hidden, ...(n.params ?? []).flatMap(bindings)]);
       if (n.id?.name) scoped.add(n.id.name);
@@ -278,8 +288,9 @@ function references(node, shadow = new Set()) {
     }
     if (n.type === "VariableDeclarator") return visit(n.init, hidden);
     // Writing a counter or cache has no effect on the value built from this initializer.
-    if (n.type === "AssignmentExpression" && n.left.type === "MemberExpression")
+    if (n.type === "AssignmentExpression" && n.left.type === "MemberExpression") {
       return visit(n.right, hidden);
+    }
     if (n.type === "Property") {
       if (n.computed) visit(n.key, hidden);
       visit(n.value, hidden);
@@ -290,9 +301,13 @@ function references(node, shadow = new Set()) {
       if (n.computed) visit(n.property, hidden);
       return;
     }
-    for (const [key, value] of Object.entries(n))
-      if (!["id", "typeAnnotation", "returnType", "typeParameters", "typeArguments"].includes(key))
+    for (const [key, value] of Object.entries(n)) {
+      if (
+        !["id", "typeAnnotation", "returnType", "typeParameters", "typeArguments"].includes(key)
+      ) {
         visit(value, hidden);
+      }
+    }
   }
   visit(node, shadow);
   return out;
@@ -306,6 +321,7 @@ function derivedNames(functions, before) {
   function collect(n) {
     if (!n || typeof n !== "object" || n.start >= before) return;
     if (Array.isArray(n)) return n.forEach(collect);
+
     if (n.type === "FunctionDeclaration") {
       if (n.id) edges.push({ names: bindings(n.id), value: n });
       return;
@@ -316,8 +332,9 @@ function derivedNames(functions, before) {
       const left = n.left.type === "VariableDeclaration" ? n.left.declarations[0]?.id : n.left;
       edges.push({ names: bindings(left), value: n.right });
     }
-    if (n.type === "AssignmentExpression" && n.left.type === "Identifier")
+    if (n.type === "AssignmentExpression" && n.left.type === "Identifier") {
       edges.push({ names: bindings(n.left), value: n.right });
+    }
     for (const value of Object.values(n)) if (value && typeof value === "object") collect(value);
   }
   for (const { node: fn } of functions) collect(fn.body);
@@ -326,13 +343,15 @@ function derivedNames(functions, before) {
     changed = false;
     for (const edge of edges) {
       if (![...references(edge.value)].some((name) => names.has(name))) continue;
-      for (const name of edge.names)
+      for (const name of edge.names) {
         if (!names.has(name)) {
           names.add(name);
           changed = true;
         }
+      }
     }
   } while (changed);
+
   return names;
 }
 
@@ -340,22 +359,30 @@ function derivedNames(functions, before) {
 // oxlint-disable-next-line complexity -- import and function guards are separate AST cases
 export function unitCouldBeModuleLevel(src, file = "a.ts") {
   if (/\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:test|tests|__tests__)\//.test(file)) return [];
+
   const program = parse(file, src);
   const coreNames = new Set();
-  for (const n of program.body)
-    if (n.type === "ImportDeclaration" && n.source.value === "@tinker/core")
-      for (const s of n.specifiers)
-        if (s.type === "ImportSpecifier" && STATIC_KINDS.has(s.imported.name))
+  for (const n of program.body) {
+    if (n.type === "ImportDeclaration" && n.source.value === "@tinker/core") {
+      for (const s of n.specifiers) {
+        if (s.type === "ImportSpecifier" && STATIC_KINDS.has(s.imported.name)) {
           coreNames.add(s.local.name);
+        }
+      }
+    }
+  }
   const out = [];
   // oxlint-disable-next-line complexity -- nested function and call syntax needs separate guards
   function visit(node, functions = [], name, locals = []) {
     if (!node || typeof node !== "object") return;
     if (Array.isArray(node)) return node.forEach((n) => visit(n, functions, name, locals));
-    if (node.type === "ExportNamedDeclaration")
+
+    if (node.type === "ExportNamedDeclaration") {
       return visit(node.declaration, functions, name, locals);
-    if (node.type === "CatchClause")
+    }
+    if (node.type === "CatchClause") {
       return visit(node.body, functions, name, [...locals, ...bindings(node.param)]);
+    }
     if (
       node.type === "FunctionDeclaration" ||
       node.type === "FunctionExpression" ||
@@ -379,15 +406,17 @@ export function unitCouldBeModuleLevel(src, file = "a.ts") {
       const names = derivedNames(functions, node.start);
       for (const local of locals) names.add(local);
       const refs = references(config);
-      if (!refs.has("this") && ![...refs].some((ref) => names.has(ref)))
+      if (!refs.has("this") && ![...refs].some((ref) => names.has(ref))) {
         out.push({
           kind: node.callee.name,
           line: lineOf(src, node.start),
           functionName: functions.at(-1).name,
         });
+      }
     }
-    for (const value of Object.values(node))
+    for (const value of Object.values(node)) {
       if (value && typeof value === "object") visit(value, functions, name, locals);
+    }
   }
   visit(program);
   return out;
@@ -400,14 +429,16 @@ export function namedFunction(src, file, name) {
   function visit(node) {
     if (!node || typeof node !== "object" || match) return;
     if (Array.isArray(node)) return node.forEach(visit);
-    if (node.type === "FunctionDeclaration" && node.id?.name === name)
+    if (node.type === "FunctionDeclaration" && node.id?.name === name) {
       match = functionRecord(src, node, name, false);
+    }
     if (
       node.type === "VariableDeclarator" &&
       node.id?.name === name &&
       FUNCTION_TYPES.has(node.init?.type)
-    )
+    ) {
       match = functionRecord(src, node.init, name, false);
+    }
     for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
   }
   visit(parse(file, src));
@@ -430,6 +461,7 @@ function expectCallOf(memberObject) {
 function assertOf(src, expr) {
   const call = unwrapAwait(expr);
   if (call?.type !== "CallExpression" || call.callee.type !== "MemberExpression") return null;
+
   const found = expectCallOf(call.callee.object);
   if (!found) return null;
   const { inner, not } = found;
@@ -455,8 +487,9 @@ function narrowOf(src, stmt) {
 const calleeText = (src, e) => (e?.type === "CallExpression" ? text(src, e.callee) : null);
 
 function causeOf(src, stmt) {
-  if (stmt.type === "VariableDeclaration")
+  if (stmt.type === "VariableDeclaration") {
     return calleeText(src, unwrapAwait(stmt.declarations[0]?.init));
+  }
   if (stmt.type !== "ExpressionStatement") return null;
   const e = unwrapAwait(stmt.expression);
   const isAssert = assertOf(src, e) !== null || e?.callee?.name === "expect";
@@ -475,6 +508,7 @@ function factsOf(src, block) {
     if (n) narrows.push(n);
     const c = causeOf(src, stmt);
     if (c) causes.push(c);
+
     if (stmt.type === "TryStatement") {
       const inner = factsOf(src, stmt.block);
       asserts.push(...inner.asserts);
@@ -517,6 +551,7 @@ export function tests(src, file = "a.test.ts") {
     const title = titleOf(call.arguments[0]);
     const fn = call.arguments[1];
     if (title === null) return [];
+
     const block = fn.body.type === "BlockStatement" ? fn.body : { body: [] };
     const record = { title, line: lineOf(src, call.start), body: text(src, fn.body) };
     return [{ ...record, ...factsOf(src, block) }];
@@ -558,8 +593,9 @@ function docWords(raw) {
 function nodesByStart(program) {
   const byStart = new Map();
   walk(program, (n) => {
-    if (typeof n.type === "string" && n.type !== "Program" && !byStart.has(n.start))
+    if (typeof n.type === "string" && n.type !== "Program" && !byStart.has(n.start)) {
       byStart.set(n.start, n);
+    }
   });
   return byStart;
 }
@@ -653,9 +689,9 @@ export function imports(src, file = "a.ts") {
 function exportedNames(n) {
   const names = n.specifiers.map((s) => s.exported.name ?? s.exported.value);
   const d = n.declaration;
-  if (d?.type === "VariableDeclaration")
+  if (d?.type === "VariableDeclaration") {
     names.push(...d.declarations.map((v) => v.id.name).filter(Boolean));
-  else if (d?.id?.name) names.push(d.id.name);
+  } else if (d?.id?.name) names.push(d.id.name);
   return names;
 }
 

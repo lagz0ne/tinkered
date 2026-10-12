@@ -204,8 +204,9 @@ export const judge: Resource.Handle<Blueprint.Judge> = resource({
   label: "judge",
   depends: { engine: engine.optional },
   factory: ({ engine: bound }) => {
-    if (!bound.present)
+    if (!bound.present) {
       raise("NoKey", {}, "blueprint: no key (set AI_GATEWAY_API_KEY or --key-file <path>)");
+    }
     return judgeFrom(bound.value);
   },
 });
@@ -300,12 +301,13 @@ export const check: Operation.Handle<
   depends: { corpus, judge },
   run: async ({ corpus, judge }, ctx) => {
     const report = await runCheck(ctx.input.graph, corpus, judge, ctx.signal);
-    if (report.findings.some((finding) => finding.blocking))
+    if (report.findings.some((finding) => finding.blocking)) {
       raise(
         "BlueprintRejected",
         { findings: report.findings.map(findingLine) },
         report.findings.map(findingLine).join("\n"),
       );
+    }
     return { json: ctx.input.json, report };
   },
 });
@@ -352,12 +354,14 @@ export const verify: Operation.Handle<
       units: ctx.input.units.length,
       findings,
     };
-    if (findings.some((finding) => finding.blocking))
+    if (findings.some((finding) => finding.blocking)) {
       raise(
         "BlueprintRejected",
         { findings: findings.map(findingLine) },
         findings.map(findingLine).join("\n"),
       );
+    }
+
     return { json: ctx.input.json, report, bodySkipped: bodyJudge === undefined };
   },
 });
@@ -384,8 +388,9 @@ function tsFilesUnder(dir: string, base: string = dir): readonly string[] {
       !entry.name.endsWith(".ts") ||
       entry.name.endsWith(".test.ts") ||
       entry.name.endsWith(".d.ts")
-    )
+    ) {
       return [];
+    }
     return [relative(base, full)];
   });
 }
@@ -448,8 +453,9 @@ function choiceTemplateById(
   id: string,
 ): Blueprint.Template & { readonly kind: "choice" } {
   const found = corpus.templates.find((template) => template.id === id);
-  if (found === undefined || found.kind !== "choice")
+  if (found === undefined || found.kind !== "choice") {
     raise("NoTemplate", { id }, `blueprint: suggest needs the "${id}" template`);
+  }
   return found;
 }
 
@@ -485,8 +491,10 @@ export const suggest: Operation.Handle<
     const unit = unitAnswers.unitFits;
     const confident = confidenceOf(unit) >= unitFits.minConfidence;
     const shape = confident && unit.type === "choice" ? unitFits.shapes?.[unit.choice] : undefined;
-    if (!confident || unit.type !== "choice" || unit.choice !== "resource")
+    if (!confident || unit.type !== "choice" || unit.choice !== "resource") {
       return { unit, unitMinConfidence: unitFits.minConfidence, shape };
+    }
+
     const target = choiceTemplateById(corpus, "target");
     const targetAnswers = await judge.ask(state, { target: templateQuestion(target) }, ctx.signal);
     return {
@@ -538,8 +546,9 @@ function suggestLines(result: {
 }): string {
   const lines = [labeled("unit", unitPickText(result.unit, result.unitMinConfidence))];
   if (result.shape !== undefined) lines.push(labeled("shape", result.shape));
-  if (result.target !== undefined && result.targetMinConfidence !== undefined)
+  if (result.target !== undefined && result.targetMinConfidence !== undefined) {
     lines.push(labeled("target", targetPickText(result.target, result.targetMinConfidence)));
+  }
   lines.push(labeled("all", distribution(result.unit)));
   return `${lines.join("\n")}\n`;
 }

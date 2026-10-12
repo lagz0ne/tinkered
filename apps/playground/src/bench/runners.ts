@@ -63,6 +63,7 @@ function tinkerLib(): Lib {
   const scope = createScope();
   const controllers = cells.map((c) => scope.controller(c));
   const sharedController = scope.controller(shared);
+
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
     sink = useData(cells[i]);
@@ -71,6 +72,7 @@ function tinkerLib(): Lib {
     return null;
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "@tinker/react",
     fine: true,
@@ -103,6 +105,7 @@ function zustandLib(): Lib {
     return (s: State) => s[k];
   });
   const sharedSelector = (s: State) => s[SHARED_KEY];
+
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
     sink = useZ(selectors[i]);
@@ -111,6 +114,7 @@ function zustandLib(): Lib {
     return null;
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Zustand",
     fine: true,
@@ -132,6 +136,7 @@ function jotaiLib(): Lib {
   const sharedAtom = atom(0);
   const store = createStore();
   const opts = { store };
+
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
     sink = useAtomValueRaw(atoms[i], opts);
@@ -140,6 +145,7 @@ function jotaiLib(): Lib {
     return null;
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Jotai",
     fine: true,
@@ -165,6 +171,7 @@ function jotaiLib(): Lib {
 function legendV2Lib(): Lib {
   const slices = keyed(() => observable2(0));
   const shared2 = observable2(0);
+
   let renders = 0;
   const Cell = observer2(({ i }: { i: number }) => {
     sink = slices[i].get();
@@ -173,6 +180,7 @@ function legendV2Lib(): Lib {
     return null;
   });
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Legend v2",
     fine: true,
@@ -195,6 +203,7 @@ function legendV2Lib(): Lib {
 function legendV3Lib(): Lib {
   const slices = keyed(() => observable3(0));
   const shared3 = observable3(0);
+
   let renders = 0;
   const Cell = observer3(({ i }: { i: number }) => {
     sink = use$(slices[i]);
@@ -203,6 +212,7 @@ function legendV3Lib(): Lib {
     return null;
   });
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Legend v3",
     fine: true,
@@ -224,6 +234,7 @@ function legendV3Lib(): Lib {
 function preactLib(): Lib {
   const sigs = keyed(() => signal(0));
   const sharedSig = signal(0);
+
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
     const store = useSignals(1);
@@ -237,6 +248,7 @@ function preactLib(): Lib {
     }
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Preact Signals",
     fine: true,
@@ -265,10 +277,12 @@ function controlLib(): Lib {
   const setters: Array<(v: number) => void> = [];
   const SharedCtx = createContext(0);
   let setShared: ((v: number) => void) | null = null;
+
   const Cell = ({ i }: { i: number }) => {
     const [v, set] = useState(0);
     setters[i] = set;
     const shared = useContext(SharedCtx);
+
     sink = v;
     sink = shared;
     renders++;
@@ -280,6 +294,7 @@ function controlLib(): Lib {
     setShared = set;
     return h(SharedCtx.Provider, { value: shared }, children);
   };
+
   return {
     name: "React useState (control)",
     fine: true,
@@ -306,6 +321,7 @@ function contextLib(): Lib {
   let renders = 0;
   let current: number[] = keyed(() => 0);
   let setArr: ((next: number[]) => void) | null = null;
+
   const Cell = ({ i }: { i: number }) => {
     sink = useContext(Ctx)[i];
     renders++;
@@ -323,6 +339,7 @@ function contextLib(): Lib {
     current = next;
     setArr?.(next);
   };
+
   return {
     name: "React Context",
     fine: false,
@@ -404,12 +421,15 @@ export function prepare(lib: Lib): Sampler {
   flushSync(() => lib.update(0, -1));
   const rerenders = lib.renders();
   r0.unmount();
-  if (rerenders < 1)
+
+  if (rerenders < 1) {
     raise("HarnessInvariant", {
       library: lib.name,
       reason: "an update did not render inside flushSync",
     });
+  }
   for (let w = 0; w < MOUNT_BATCH; w++) mount(lib.App).unmount();
+
   const s: Sampler = {
     lib,
     rerenders,
@@ -420,6 +440,7 @@ export function prepare(lib: Lib): Sampler {
     mounts: [],
   };
   for (let w = 0; w < UPDATE_BATCH; w++) flushSync(() => lib.update(++s.k % N, s.k));
+
   return s;
 }
 
@@ -430,11 +451,14 @@ export function sampleUpdate(s: Sampler): number {
     const t0 = performance.now();
     for (let i = 0; i < count; i++) flushSync(() => lib.update(++s.k % N, s.k));
     const elapsed = performance.now() - t0;
-    if (lib.renders() < count)
+
+    if (lib.renders() < count) {
       raise("HarnessInvariant", {
         library: lib.name,
         reason: `${lib.renders()} renders for ${count} updates — not synchronous under flushSync`,
       });
+    }
+
     return elapsed;
   });
 }
@@ -446,12 +470,15 @@ export function sampleFanout(s: Sampler): number {
     const t0 = performance.now();
     for (let i = 0; i < count; i++) flushSync(() => lib.updateShared(++s.k));
     const elapsed = performance.now() - t0;
+
     const want = count * N;
-    if (lib.renders() < want)
+    if (lib.renders() < want) {
       raise("HarnessInvariant", {
         library: lib.name,
         reason: `${lib.renders()} renders for ${count} fan-out writes — expected ${want}`,
       });
+    }
+
     return elapsed;
   });
 }

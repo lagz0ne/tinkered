@@ -25,13 +25,17 @@ await test("the gate rejects saved module endings, then accepts the rerunnable c
   const paths = Object.keys(files).map((file) => join(root, file));
   try {
     for (const [file, text] of Object.entries(files)) writeFileSync(join(root, file), text);
+
     const red = spawnSync(process.execPath, ["scripts/check-import-extensions.mjs", ...paths], {
       encoding: "utf8",
     });
     assert.equal(red.status, 1);
     assert.match(red.stdout, /5 hit\(s\)/);
-    for (const [file, text] of Object.entries(files))
+
+    for (const [file, text] of Object.entries(files)) {
       writeFileSync(join(root, file), stripDocument(text).text);
+    }
+
     const green = spawnSync(process.execPath, ["scripts/check-import-extensions.mjs", ...paths], {
       encoding: "utf8",
     });

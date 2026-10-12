@@ -30,9 +30,11 @@ function shiftedMap(at, length) {
         shift += 5;
       } while (digit & 32);
       const delta = value / 2;
+
       column += delta;
       if (shifted || column < at) return segment;
       shifted = true;
+
       let encoded = "";
       value = (delta + length) * 2;
       do {
@@ -40,6 +42,7 @@ function shiftedMap(at, length) {
         value = Math.floor(value / 32);
         encoded += alphabet[digit | (value ? 32 : 0)];
       } while (value);
+
       return encoded + segment.slice(end);
     })
     .join(",");
@@ -49,9 +52,11 @@ function shiftedMap(at, length) {
 function bundleWith(name, at, plant) {
   const dir = join(root, name);
   cpSync("packages/core/dist", dir, { recursive: true });
+
   const file = join(dir, "index.mjs");
   writeFileSync(file, original.slice(0, at) + plant + original.slice(at));
   writeFileSync(`${file}.map`, JSON.stringify(shiftedMap(at, plant.length)));
+
   return file;
 }
 
@@ -73,11 +78,13 @@ function prove(check, args, expected, plant) {
   const red = run(check, args);
   assert.equal(red.exit, 1, JSON.stringify(red));
   assert.match(red.output, expected);
+
   const green = run(
     check,
     check === "client" ? ["--client-dir", resolve("apps/start-min/dist/client")] : [],
   );
   assert.equal(green.exit, 0, JSON.stringify(green));
+
   proofs.push({ check, plant, red, restoredExit: green.exit });
 }
 
@@ -93,6 +100,7 @@ try {
     /F9 core: \d+ > baseline/,
     "One captured module name appended to a temp bundle",
   );
+
   const program = parseProgram("bundle.mjs", original);
   const runOnce = program.body.find((node) => node.id?.name === names.runOnce);
   const bytecodeFile = bundleWith(
@@ -106,6 +114,7 @@ try {
     /F1 runOnce: \d+ > baseline/,
     "One global write added to runOnce in a temp bundle",
   );
+
   const klass = program.body
     .flatMap((node) => node.declarations ?? [])
     .find((node) => node.id.name === names.OperationCtx);
@@ -121,6 +130,7 @@ try {
     /was not inlined/,
     "300 writes grow the temp constructor beyond the inline limit",
   );
+
   const source = read("packages/core/src/index.ts");
   const fn = parseProgram("source.ts", source).body.find((node) => node.id?.name === "runOnce");
   const sourceFile = join(root, "source.ts");
@@ -136,6 +146,7 @@ try {
     /F6 runOnce: 1 > baseline 0/,
     "An arrow added inside runOnce in a temp source file",
   );
+
   const clientDir = join(root, "client");
   cpSync("apps/start-min/dist/client", clientDir, { recursive: true });
   const chunk = join(clientDir, "planted.js");
@@ -150,6 +161,7 @@ try {
     /F13 zod chunks: 1 > baseline 0/,
     "A mapped zod module added to temp client chunks",
   );
+
   const mismatch = {
     ...JSON.parse(read("scripts/fast-code-baseline.json")),
     node: "v0.fixture",
@@ -167,6 +179,7 @@ try {
     "--client-dir",
     clientDir,
   ]);
+
   assert.equal(engineRed.exit, 1, JSON.stringify(engineRed));
   const rows = engineRed.output.split("\n").map((line) => JSON.parse(line));
   assert.deepEqual(
@@ -179,23 +192,30 @@ try {
       ["client", "FAIL"],
     ],
   );
-  for (const check of ["bytecode", "inlining"])
+
+  for (const check of ["bytecode", "inlining"]) {
     assert.match(
       rows.find((row) => row.check === check).error,
       /run: node scripts\/check-fast-code.mjs --rebaseline-engine$/,
     );
+  }
+
   for (const [check, expected] of [
     ["slots", /F9 core/],
     ["closures", /F6 runOnce/],
     ["client", /F13 zod/],
-  ])
+  ]) {
     assert.match(rows.find((row) => row.check === check).error, expected);
+  }
+
   const recovered = run(undefined, ["--baseline", mismatchFile, "--rebaseline-engine"]);
   assert.equal(recovered.exit, 0, JSON.stringify(recovered));
   const updated = JSON.parse(read(mismatchFile));
   assert.deepEqual(updated, { ...mismatch, node: process.version, v8: process.versions.v8 });
-  for (const [name, size] of Object.entries(mismatch.bytecode))
+  for (const [name, size] of Object.entries(mismatch.bytecode)) {
     assert.ok(recovered.output.includes(`${name}: ${size} → ${size}`));
+  }
+
   const afterRecovery = run(undefined, [
     "--baseline",
     mismatchFile,
@@ -203,6 +223,7 @@ try {
     resolve("apps/start-min/dist/client"),
   ]);
   assert.equal(afterRecovery.exit, 0, JSON.stringify(afterRecovery));
+
   proofs.push({
     check: "engine mismatch",
     plant: "Fixture engine differs while F9, F6, and F13 each have a planted rise",
@@ -211,6 +232,7 @@ try {
     recoveryOutput: recovered.output,
     restoredExit: afterRecovery.exit,
   });
+
   const oversizedFile = bundleWith(
     "engine-bytecode",
     runOnce.body.start + 1,
@@ -227,12 +249,14 @@ try {
   assert.equal(refused.exit, 1, JSON.stringify(refused));
   assert.match(refused.error, /cannot raise bytecode above 460/);
   assert.equal(read(mismatchFile), beforeRefusal);
+
   proofs.push({
     check: "engine rebaseline refusal",
     plant: "runOnce grows above the 460-byte limit",
     red: refused,
     baselineUnchanged: true,
   });
+
   console.log(JSON.stringify({ proofs, tempFilesRemoved: true }, null, 2));
 } finally {
   rmSync(root, { recursive: true, force: true });

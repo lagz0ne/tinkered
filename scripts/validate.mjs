@@ -66,6 +66,7 @@ for (const [name, cmd, show] of lanes) {
   } catch (e) {
     failed++;
     console.log(`FAIL  ${name}`);
+
     const lines = `${e.stdout ?? ""}${e.stderr ?? ""}`.toString().trim().split("\n");
     // Name each failed test (vitest's ` FAIL ` rows), then the tail: a tail alone can hide the name.
     const named = lines.filter((line) => /^\s*FAIL\s/.test(line));

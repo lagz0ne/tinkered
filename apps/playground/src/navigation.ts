@@ -26,8 +26,9 @@ const placeInput =
       typeof raw.offset === "number" &&
       Number.isInteger(raw.offset) &&
       raw.offset >= 0
-    )
+    ) {
       return { file: raw.file, offset: raw.offset };
+    }
     raise("InvalidInput", { operation, reason: "expected { file, offset }" });
   };
 
@@ -67,6 +68,7 @@ export const followDefinition = operation({
     const target = resolveDefinition(sources, from, input.offset);
     if (!target) return undefined;
     nav.set(landed(nav.get(), target));
+
     return target;
   },
 });

@@ -23,6 +23,7 @@ test("an already aborted call starts no body and leaves its caller alive", async
   const stop = new AbortController();
   const reason = new Error("steer");
   stop.abort(reason);
+
   const events: string[] = [];
   const value = resource({ label: "value", factory: () => events.push("resource") });
   const work = operation({
@@ -47,6 +48,7 @@ test("an already aborted call starts no body and leaves its caller alive", async
       }),
     ],
   });
+
   expect(await scope.settle(work, { rawInput: "start", signal: stop.signal })).toEqual({
     status: "cancelled",
     reason,
@@ -73,8 +75,10 @@ test("a call signal stops a nested wait before the retry clock advances", async 
     run: ({ request }) => request.run(),
   });
   const scope = createScope({ clock });
+
   const running = scope.controller(step).settle({ signal: stop.signal });
   stop.abort(reason);
+
   expect(events).toEqual([]);
   expect(await running).toEqual({ status: "cancelled", reason });
   clock.advance(100);
@@ -102,6 +106,7 @@ test("a cancelled call waits for its cleanup before it settles", async () => {
     },
   });
   const scope = createScope();
+
   const running = Promise.resolve(scope.settle(work, { signal: stop.signal })).then((end) => {
     events.push(end.status);
     return end;
@@ -109,6 +114,7 @@ test("a cancelled call waits for its cleanup before it settles", async () => {
   stop.abort(reason);
   body.resolve();
   await cleaning.promise;
+
   expect(events).toEqual([]);
   release.resolve();
   expect(await running).toEqual({ status: "cancelled", reason });
@@ -128,9 +134,11 @@ test("a distinct error after call cancellation remains a handled failure", async
     },
   });
   const scope = createScope();
+
   const running = scope.settle(work, { signal: stop.signal });
   stop.abort(new Error("steer"));
   body.resolve();
+
   expect(await running).toMatchObject({ status: "failed", error });
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "success" });
 });
@@ -151,6 +159,7 @@ test("a call signal gives sync inline work its own data and session resource lif
   });
   const scope = createScope();
   const parentValue = scope.resolve(local);
+
   const running = scope.settle(
     {
       depends: { count: count.controller, local },
@@ -162,11 +171,14 @@ test("a call signal gives sync inline work its own data and session resource lif
     { signal: stop.signal },
   );
   expectTypeOf(running).toEqualTypeOf<RunResult<{}> | Promise<RunResult<{}>>>();
+
   const result = await running;
   if (result.status !== "success") throw result;
+
   expect(result.value).not.toBe(parentValue);
   expect(scope.resolve(count)).toBe(1);
   expect(events).toEqual(["closed"]);
+
   stop.abort();
   expect(scope.run({ run: () => scope.resolve(local) })).toBe(parentValue);
   await scope.close();
@@ -184,6 +196,7 @@ test("a signalled call keeps input parsing, tags, and its namespace", async () =
     run: ({ service, token }, { input }) => `${service}/${token}/${input}`,
   });
   const scope = createScope();
+
   const result = scope.controller(work).run({
     rawInput: "zones",
     signal: stop.signal,
@@ -191,6 +204,7 @@ test("a signalled call keeps input parsing, tags, and its namespace", async () =
     tags: [token("secret")],
   });
   expectTypeOf(result).toEqualTypeOf<string | Promise<string>>();
+
   expect(await result).toBe("cloudflare/secret/ZONES");
   expect(
     await scope.run(work, {
@@ -215,6 +229,7 @@ test("a synchronous body sees call cancellation with the exact reason", async ()
   });
   const scope = createScope();
   await expect(scope.controller(work).run({ signal: stop.signal })).rejects.toBe(reason);
+
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "success" });
 });
 
@@ -230,6 +245,7 @@ test("abort during tag-list setup cannot slip past call cancellation", async () 
   });
   const events: string[] = [];
   const scope = createScope();
+
   const result = await scope.settle(
     { run: () => events.push("body") },
     {
@@ -237,6 +253,7 @@ test("abort during tag-list setup cannot slip past call cancellation", async () 
       signal: stop.signal,
     },
   );
+
   expect(result).toEqual({ status: "cancelled", reason });
   expect(events).toEqual([]);
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "success" });
@@ -251,9 +268,11 @@ test("graceful owner close still permits cancellation of an active call", async 
     label: "work",
     run: (_deps, ctx) => ctx.clock.sleep(100, ctx.signal),
   });
+
   const running = scope.settle(work, { signal: stop.signal });
   const closing = scope.close({ graceful: true });
   stop.abort(reason);
+
   expect(await running).toEqual({ status: "cancelled", reason });
   expect(await closing).toMatchObject({ status: "success" });
 });
@@ -265,12 +284,15 @@ test("forced owner close cancels a call even when its supplied signal stays live
     label: "work",
     run: (_deps, ctx) => ctx.clock.sleep(100, ctx.signal),
   });
+
   const running = scope.settle(work, { signal: stop.signal });
   const closing = scope.close();
   const result = await running;
   if (result.status !== "cancelled") throw result;
+
   const ended = await closing;
   if (ended.status !== "cancelled") throw ended;
+
   expect(result.reason).toBe(ended.reason);
   expect(stop.signal.aborted).toBe(false);
 });

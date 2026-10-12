@@ -99,6 +99,7 @@ test.each([answer, failure])(
     const root = createScope();
     const settledError = new Error("settled failed");
     const errors: unknown[] = [];
+
     const receive = (event: ErrorEvent) => {
       if (event.error !== callbackError && event.error !== settledError) return;
       errors.push(event.error);
@@ -106,6 +107,7 @@ test.each([answer, failure])(
       event.stopImmediatePropagation();
     };
     window.addEventListener("error", receive, true);
+
     let captured: Run.Handle<number, void> | undefined;
     try {
       await render(

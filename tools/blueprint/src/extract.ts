@@ -37,8 +37,9 @@ function isEventAccess(node: MemberExpression, receiver: string): boolean {
 }
 
 function accessTarget(node: CallExpression, receiver: string): string | undefined {
-  if (node.callee.type !== "MemberExpression" || !isEventAccess(node.callee, receiver))
+  if (node.callee.type !== "MemberExpression" || !isEventAccess(node.callee, receiver)) {
     return undefined;
+  }
   const [target] = node.arguments;
   return target?.type === "Identifier" ? target.name : undefined;
 }
@@ -66,6 +67,7 @@ function readFunctionAccess(program: Program): ReadonlyMap<Callable, readonly st
       if (owner === undefined) return;
       const [parameter] = owner.params;
       if (parameter?.type !== "Identifier") return;
+
       const target = accessTarget(node, parameter.name);
       if (target === undefined) return;
       const found = access.get(owner);
@@ -73,6 +75,7 @@ function readFunctionAccess(program: Program): ReadonlyMap<Callable, readonly st
       else found.push(target);
     },
   }).visit(program);
+
   return access;
 }
 
@@ -125,8 +128,9 @@ function dependsRoot(src: string, value: Expression): string {
     !value.computed &&
     value.property.type === "Identifier" &&
     value.property.name === "optional"
-  )
+  ) {
     return dependsRoot(src, value.object);
+  }
   return sliceOf(src, value);
 }
 
@@ -154,8 +158,9 @@ function labelOf(config: Expression): string | undefined {
 function targetOf(config: Expression, kind: Blueprint.Node["kind"]): Blueprint.Unit["target"] {
   if (kind !== "resource") return undefined;
   const node = prop(config, "target");
-  if (node?.type === "Literal" && (node.value === "session" || node.value === "namespace"))
+  if (node?.type === "Literal" && (node.value === "session" || node.value === "namespace")) {
     return node.value;
+  }
   return "scope";
 }
 
@@ -187,6 +192,7 @@ function unitOf(
   if (arg === undefined || arg.type === "SpreadElement") return undefined;
   const label = labelOf(arg);
   if (label === undefined) return undefined;
+
   return {
     kind: kindName,
     label,

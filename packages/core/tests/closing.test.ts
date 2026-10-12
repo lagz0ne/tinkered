@@ -62,8 +62,10 @@ test("an idle session close aborts its resource and session hook closing signals
   await scope.ready;
   const session = scope.createSession();
   const closing = session.resolve(sessionClosing);
+
   expect(closing.aborted).toBe(false);
   expect(hookClosing?.aborted).toBe(false);
+
   await session.close({ graceful: true });
   expect(closing.aborted).toBe(true);
   expect(hookClosing?.aborted).toBe(true);
@@ -83,7 +85,9 @@ test("a close hook's first closing read is already aborted", async () => {
   });
   const scope = createScope({ extensions: [piece] });
   await scope.ready;
+
   const ended = scope.close({ graceful: true });
+
   expect(aborted).toBe(true);
   await ended;
 });
@@ -103,12 +107,15 @@ test("closed settles when a session cleanup makes the first root close", async (
   await root.ready;
   const session = root.createSession();
   session.onClose(() => root.close({ graceful: true }).then(() => undefined));
+
   await session.close();
+
   let result: Scope.Result | undefined;
   const closed = root.closed.then((ended) => {
     result = ended;
     return ended;
   });
+
   await expect.poll(() => result?.status).toBe("success");
   expect((await closed).status).toBe("success");
   expect(calls).toEqual([]);
@@ -120,7 +127,9 @@ test("a root without a stop signal closes from a session cleanup", async () => {
   await root.ready;
   const session = root.createSession();
   session.onClose(() => root.close({ graceful: true }).then(() => undefined));
+
   await session.close();
+
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -128,11 +137,13 @@ test("a graceful root close ends a resource-owned wait before draining work", as
   const scope = createScope();
   const owned = scope.resolve(rootWait);
   const running = scope.run(waitAtRoot);
+
   let ended = false;
   const closing = scope.close({ graceful: true }).then((result) => {
     ended = true;
     return result;
   });
+
   try {
     await expect.poll(() => ended).toBe(true);
     expect((await closing).status).toBe("success");
@@ -148,11 +159,13 @@ test("a graceful session close ends a resource-owned wait before draining work",
   const session = scope.createSession();
   const owned = session.resolve(sessionWait);
   const running = session.run(waitAtSession);
+
   let ended = false;
   const closing = session.close({ graceful: true }).then((result) => {
     ended = true;
     return result;
   });
+
   try {
     await expect.poll(() => ended).toBe(true);
     expect((await closing).status).toBe("success");
@@ -198,11 +211,15 @@ test("graceful closing fires now while work and resource cleanup still wait", as
   const session = scope.createSession();
   const owned = session.resolve(layerSignals);
   const running = session.run(finishingWork);
+
   const closing = session.close({ graceful: true });
+
   expect(owned.closing.aborted).toBe(true);
   expect(owned.signal.aborted).toBe(false);
   expect(owned.cleaned).toBe(false);
+
   owned.work.release();
+
   expect(await running).toBe(false);
   expect((await closing).status).toBe("success");
   expect(owned.cleaned).toBe(true);
@@ -224,6 +241,7 @@ test("a parent's closing fires in its child before a close hook waits", async ()
         expect(event.scope).toBe(scope);
         expect(event.closing).toBe(rootClosing);
         expect(event.closing.aborted).toBe(true);
+
         before.release();
         await resume.promise;
         return event.next();
@@ -234,11 +252,14 @@ test("a parent's closing fires in its child before a close hook waits", async ()
   await scope.ready;
   const child = scope.createSession();
   const owned = child.resolve(layerSignals);
+
   const closing = scope.close({ graceful: true });
   await before.promise;
+
   expect(owned.closing.aborted).toBe(true);
   expect(owned.signal.aborted).toBe(false);
   expect(owned.ctx.closing).toBe(owned.closing);
+
   resume.release();
   expect((await closing).status).toBe("success");
 });
@@ -260,10 +281,13 @@ test("the first closing read after a parent starts closing is already aborted", 
       },
     },
   });
+
   const scope = createScope({ extensions: [piece] });
   await scope.ready;
+
   scope.createSession();
   const closing = scope.close({ graceful: true });
+
   resume.release();
   expect((await closing).teardownErrors).toBeUndefined();
 });
@@ -275,11 +299,15 @@ test("closing one session leaves its parent and sibling closing signals live", a
   const second = scope.createSession();
   const firstSignals = first.resolve(layerSignals);
   const secondSignals = second.resolve(layerSignals);
+
   await first.close({ graceful: true });
+
   expect(firstSignals.closing.aborted).toBe(true);
   expect(secondSignals.closing.aborted).toBe(false);
   expect(await Promise.race([parent.wait, Promise.resolve("live")])).toBe("live");
+
   await scope.close({ graceful: true });
+
   expect(secondSignals.closing.aborted).toBe(true);
   await parent.wait;
 });
@@ -295,7 +323,9 @@ test("forced close still stops work through the work signal and rolls back", asy
         ctx.signal.addEventListener("abort", () => reject(ctx.signal.reason), { once: true });
       }),
   });
+
   const closing = session.close();
+
   expect(owned.closing.aborted).toBe(true);
   expect((await running).status).toBe("cancelled");
   expect((await closing).status).toBe("cancelled");
@@ -313,8 +343,10 @@ test("a closing signal first read after close is aborted", async () => {
       return 1;
     },
   });
+
   scope.resolve(capture);
   await scope.close({ graceful: true });
+
   expect(ctx?.closing.aborted).toBe(true);
 });
 
@@ -327,8 +359,10 @@ test("a graceful parent close ends a wait inside a running session body", async 
     await value;
     return 7;
   });
+
   await entered.promise;
   const closing = scope.close({ graceful: true });
+
   expect(await running).toBe(7);
   expect((await closing).status).toBe("success");
 });
@@ -357,16 +391,20 @@ test("run, resolve, and write hooks read their owner's closing signal", async ()
       },
     },
   });
+
   const scope = createScope({ extensions: [piece] });
   await scope.ready;
   scope.resolve(counts);
   scope.controller(counts).set(1);
   scope.run({ label: "hook-read", run: () => 1 });
+
   expect(signals).toHaveLength(4);
   for (const signal of signals) {
     expect(signal).toBe(signals.at(0));
     expect(signal.aborted).toBe(false);
   }
+
   await scope.close({ graceful: true });
+
   for (const signal of signals) expect(signal.aborted).toBe(true);
 });

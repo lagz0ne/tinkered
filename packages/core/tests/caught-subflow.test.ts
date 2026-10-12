@@ -28,9 +28,11 @@ for (const kind of ["scope", "session"] as const) {
           return "caught";
         },
       });
+
       const root = createScope();
       const scope = kind === "scope" ? root : root.createSession();
       expect(await scope.run(outer, tagged ? { tags: [zone("x")] } : undefined)).toBe("caught");
+
       expect((await scope.close({ graceful: true })).status).toBe("success");
       if (kind === "session") await root.close({ graceful: true });
     });
@@ -68,12 +70,15 @@ test("a graceful parent close keeps success when a running tagged subflow's mana
       return "caught";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   const running = session.run(outer);
+
   await ready;
   const closing = session.close({ graceful: true });
   release();
+
   expect(await running).toBe("caught");
   expect((await closing).status).toBe("success");
   await root.close({ graceful: true });
@@ -92,9 +97,11 @@ test("a subflow failure that escapes its caller fails the session", async () => 
     depends: { sub: inner },
     run: async ({ sub }) => sub.run(),
   });
+
   const root = createScope();
   const session = root.createSession();
   await expect(session.run(outer)).rejects.toBe(cause);
+
   expect(await session.close({ graceful: true })).toEqual({
     status: "failed",
     error: cause,
@@ -119,11 +126,14 @@ test("an unreceived subflow that fails after its caller returns fails the sessio
       return "returned";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(session.run(outer)).toBe("returned");
+
   const closing = session.close({ graceful: true });
   fail(cause);
+
   expect(await closing).toEqual({
     status: "failed",
     error: cause,
@@ -154,16 +164,20 @@ for (const kind of ["panic", "error"] as const) {
         return "done";
       },
     });
+
     const spans: Observe.Span[] = [];
     const root = createScope({ observe: { export: (span) => void spans.push(span) } });
     const session = root.createSession();
+
     const running = session.run(outer);
     const closing = session.close({ graceful: true });
     fail(cause);
     while (!spans.some((span) => span.name === "inner")) await Promise.resolve();
     finish();
+
     expect(await running).toBe("done");
     expect((await closing).status).toBe(kind === "panic" ? "failed" : "success");
+
     expect(spans.find((span) => span.name === "inner")).toMatchObject({
       status: "failed",
       error: cause,
@@ -190,9 +204,11 @@ test("an awaited catch of a managed subflow error leaves the session successful"
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("done");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -218,9 +234,11 @@ test("catch after finally receives the managed subflow error", async () => {
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("done");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -246,9 +264,11 @@ test("a then rejection handler receives the managed subflow error", async () => 
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("done");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -274,9 +294,11 @@ test("an awaited catch after fulfillment-only then receives the managed subflow 
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("done");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -303,9 +325,11 @@ test("a managed subflow error caught in an operation defer does not fail the ses
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(session.run(outer)).toBe("done");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -331,9 +355,11 @@ test("a returned managed subflow error received by an outer caller does not fail
       return "caught";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("caught");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -364,9 +390,11 @@ test("Promise.all receives both managed subflow errors when its caller catches t
       return "caught";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("caught");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -387,9 +415,11 @@ test("a handler attached by a later timer cannot undo an unreceived failure", as
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(session.run(outer)).toBe("done");
+
   const closing = session.close({ graceful: true });
   fail(cause);
   await Promise.resolve();
@@ -399,6 +429,7 @@ test("a handler attached by a later timer cannot undo an unreceived failure", as
       resolve();
     }, 0),
   );
+
   expect((await closing).status).toBe("failed");
   await later;
   await root.close({ graceful: true });
@@ -424,9 +455,11 @@ test("a caught subflow closes its own span failed and its caller span ok", async
       return "caught";
     },
   });
+
   const spans: Observe.Span[] = [];
   const scope = createScope({ observe: { export: (span) => void spans.push(span) } });
   expect(await scope.run(outer)).toBe("caught");
+
   expect(spans.map((span) => [span.name, span.status])).toEqual([
     ["inner", "failed"],
     ["outer", "ok"],
@@ -462,15 +495,18 @@ test("a forced close after a caught managed subflow error cancels the session", 
       });
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   const running = session.run(outer);
   await ready;
+
   const interrupted = running.then(
     () => false,
     () => true,
   );
   const closing = session.close();
+
   expect(await interrupted).toBe(true);
   expect((await closing).status).toBe("cancelled");
   await root.close();
@@ -496,9 +532,11 @@ test("a controller subflow's managed error caught by its caller leaves the sessi
       return "caught";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("caught");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -519,9 +557,11 @@ test("an unreceived controller subflow fails its session", async () => {
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(session.run(outer)).toBe("done");
+
   expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
   await root.close({ graceful: true });
 });
@@ -543,9 +583,11 @@ test("an unreceived tagged subflow fails its parent session", async () => {
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(session.run(outer)).toBe("done");
+
   expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
   await root.close({ graceful: true });
 });
@@ -570,11 +612,14 @@ test("a catch after its caller returns does not undo an orphan failure", async (
       return "done";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   expect(session.run(outer)).toBe("done");
+
   const closing = session.close({ graceful: true });
   fail(cause);
+
   expect(await closing).toMatchObject({ status: "failed", error: cause });
   await root.close({ graceful: true });
 });
@@ -596,9 +641,11 @@ test("an orphan reports the original failure once", async () => {
       return "done";
     },
   });
+
   const root = createScope({ observe: { export: (span) => void spans.push(span) } });
   const session = root.createSession();
   expect(session.run(outer)).toBe("done");
+
   expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
   expect(spans.filter((span) => span.status === "failed").map((span) => span.error)).toEqual([
     cause,
@@ -613,9 +660,11 @@ test("an async subflow that succeeds exports an ok span", async () => {
     depends: { sub: inner },
     run: async ({ sub }) => sub.run(),
   });
+
   const spans: Observe.Span[] = [];
   const root = createScope({ observe: { export: (span) => void spans.push(span) } });
   expect(await root.run(outer)).toBe("inner value");
+
   expect(spans.find((span) => span.name === "inner")?.status).toBe("ok");
   await root.close({ graceful: true });
 });
@@ -641,9 +690,11 @@ test("a caught managed error two subflows deep does not fail the session", async
     },
   });
   const outer = operation({ label: "outer", depends: { mid }, run: async ({ mid }) => mid.run() });
+
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("caught");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });

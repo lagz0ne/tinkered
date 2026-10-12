@@ -27,7 +27,9 @@ test("wait: a defer registered by a session resource of the run", async () => {
     },
   });
   const op = operation({ label: "use", depends: { flow }, run: ({ flow }) => flow });
+
   const out = createScope().run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   expect(await out).toBe("f");
   expect(seen).toEqual(["success"]);
@@ -38,7 +40,9 @@ test("wait: a session resource built for the run, even with no cleanup", async (
   const flow = resource({ label: "flow", target: "session", factory: () => `f${++builds}` });
   const op = operation({ label: "use", depends: { flow }, run: ({ flow }) => flow });
   const scope = createScope();
+
   const out = scope.run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   expect(await out).toBe("f1");
   expect(await scope.run(op, { tags })).toBe("f2");
@@ -47,12 +51,14 @@ test("wait: a session resource built for the run, even with no cleanup", async (
 test("wait: a child session opened by the body", async () => {
   const scope = createScope();
   let grand: ReturnType<typeof scope.createSession> | undefined;
+
   const out = scope.session((s) => {
     grand = s.createSession();
     return 1;
   });
   expect(isNative(out)).toBe(true);
   expect(await out).toBe(1);
+
   try {
     grand!.run({ run: () => 1 });
     expect.unreachable();
@@ -78,7 +84,9 @@ test("wait: pending work the body did not await", async () => {
       return 1;
     },
   });
+
   const out = createScope().run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   expect(await out).toBe(1);
   expect(settled).toBe(true);
@@ -93,7 +101,9 @@ test("wait: a signal handed out, aborted once the run ended", async () => {
       return 1;
     },
   });
+
   const out = createScope().run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   expect(await out).toBe(1);
   expect(signal!.aborted).toBe(true);
@@ -129,7 +139,9 @@ test("wait: a session hook wraps the tagged call once", async () => {
   });
   await scope.ready;
   const op = operation({ label: "one", run: () => 1 });
+
   const out = scope.run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   expect(await out).toBe(1);
   expect(seen).toBe(1);

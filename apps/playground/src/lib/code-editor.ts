@@ -63,8 +63,9 @@ export const codeEditor = resource({
 
     const onTracked = (u: { docChanged: boolean; selectionSet: boolean; state: EditorState }) => {
       if (u.docChanged) edit.run({ input: { name: current, content: u.state.doc.toString() } });
-      if (u.selectionSet)
+      if (u.selectionSet) {
         track.run({ input: { file: current, offset: u.state.selection.main.head } });
+      }
     };
 
     const extensions = (): readonly Extension[] => [
@@ -124,17 +125,20 @@ export const codeEditor = resource({
      * so undo never pastes one file into another; the outgoing state is cached first. */
     const swapTo = (source: Source, offset: number): void => {
       if (current !== source.name) cache.set(current, view.state);
+
       const cached = cache.get(source.name);
       const reuse = cached?.doc.toString() === source.content ? cached : undefined;
       current = source.name;
       editable = source.editable;
       view.setState(reuse ?? EditorState.create({ doc: source.content, extensions: extensions() }));
       cache.set(source.name, view.state);
+
       view.dispatch({
         selection: { anchor: Math.min(offset, view.state.doc.length) },
         scrollIntoView: true,
         annotations: external.of(true),
       });
+
       view.dispatch({
         effects: [
           compartments.access.reconfigure([
@@ -154,14 +158,16 @@ export const codeEditor = resource({
       if (!place) return;
       if (place.file === current) {
         const anchor = Math.min(place.offset, view.state.doc.length);
-        if (anchor !== view.state.selection.main.head)
+        if (anchor !== view.state.selection.main.head) {
           view.dispatch({
             selection: { anchor },
             scrollIntoView: true,
             annotations: external.of(true),
           });
+        }
         return;
       }
+
       const source = sources().find((s) => s.name === place.file);
       if (source === undefined) return;
       swapTo(source, place.offset);

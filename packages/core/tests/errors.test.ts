@@ -9,6 +9,7 @@ test("isError rejects a real error of the wrong kind", async () => {
   const cell = data({ initial: 0 });
   const scope = createScope();
   const held = scope.controller(cell);
+
   await scope.close();
   let thrown: unknown;
   try {
@@ -16,6 +17,7 @@ test("isError rejects a real error of the wrong kind", async () => {
   } catch (error) {
     thrown = error;
   }
+
   if (!isError(thrown, "Disposed")) throw thrown;
   expect(isError(thrown, "NotResolved")).toBe(false);
 });

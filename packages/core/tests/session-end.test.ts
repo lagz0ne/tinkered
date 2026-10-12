@@ -14,6 +14,7 @@ for (const tagged of [false, true]) {
       const read = await (tagged
         ? root.run(op, { tags: [zone("x")] })
         : root.session((s) => s.run(op)));
+
       expect(read().aborted).toBe(true);
       await root.close();
     });
@@ -25,6 +26,7 @@ test("a throwing then getter rejects the session and closes it", async () => {
   const cause = new Error("getter-failure");
   let flight: Promise<unknown> | undefined;
   let cleaned = false;
+
   expect(() => {
     flight = root.session((s) => {
       s.onClose(() => {
@@ -79,8 +81,10 @@ for (const named of [false, true]) {
         seen.push([v, p]);
       });
     });
+
     root.controller(cell, options).set(1);
     await flight;
+
     expect(seen).toEqual([[1, 0]]);
     await root.close();
   });
@@ -105,6 +109,7 @@ test("a leaked handle is disposed once the body returned: onClose raises Dispose
   const flight = root.session((s) => {
     child = s;
   });
+
   expect(
     disposed(() =>
       child!.onClose(() => {
@@ -125,6 +130,7 @@ test("a leaked handle is disposed once the body returned: resolve raises Dispose
     child = s;
     s.controller(cell).set(9);
   });
+
   expect(disposed(() => child!.resolve(cell))).toBe(true);
   await flight;
   await root.close();
@@ -139,8 +145,10 @@ test("close({ withData: true }) keeps the data inside the body, and gets none af
     s.controller(cell).set(9);
     return s.close({ graceful: true, withData: true });
   });
+
   expect(inside.status).toBe("success");
   expect(inside.data?.get(cell)).toEqual({ present: true, value: 9 });
+
   let child: ReturnType<typeof root.createSession> | undefined;
   const flight = root.session((s) => {
     child = s;
@@ -148,6 +156,7 @@ test("close({ withData: true }) keeps the data inside the body, and gets none af
   });
   const after = await child!.close({ withData: true });
   await flight;
+
   expect(after.status).toBe("success");
   expect(after.data).toBeUndefined();
   await root.close();
@@ -174,11 +183,14 @@ test("a late close of a session that ended in place gets a Result of its own", a
   await root.session((s) => {
     second = s;
   });
+
   const a = await first!.close();
   const b = await second!.close();
+
   expect(a).toEqual({ status: "success", teardownErrors: undefined });
   expect(b).toEqual(a);
   expect(b).not.toBe(a);
+
   (a as { status: string }).status = "changed";
   expect((await second!.close()).status).toBe("success");
   await root.close();

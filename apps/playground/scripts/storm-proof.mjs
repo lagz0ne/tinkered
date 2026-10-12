@@ -132,8 +132,9 @@ const navigate = async (url) => {
       await evaluate(
         "document.querySelector('iframe')?.contentDocument?.querySelectorAll('.tile').length === 144",
       )
-    )
+    ) {
       return;
+    }
     await sleep(100);
   }
   throw new Error("The game did not render 144 tiles");
@@ -175,10 +176,12 @@ if (mode === "capture" || mode === "walls") {
         d.querySelectorAll('.tile')[65].click();
         d.querySelectorAll('.tile')[79].click();
       })()`);
+
       await evaluate("document.querySelector('iframe').contentWindow.__stormStep(300)");
       await sleep(100);
       const heading = -45 + turn * 90;
       const file = `${side}-${heading}.png`;
+
       const palette = await evaluate(`(() => {
         const d = document.querySelector('iframe').contentDocument;
         return [...d.querySelectorAll('.tile')].map(tile => Object.fromEntries(
@@ -220,6 +223,7 @@ if (mode === "capture" || mode === "walls") {
   }
   await page("Page.removeScriptToEvaluateOnNewDocument", { identifier });
   writeFileSync(join(output, "captures.json"), JSON.stringify(captures, null, 2));
+
   const pairs = [-45, 45, 135]
     .map(
       (heading) =>
@@ -237,6 +241,7 @@ if (mode === "capture" || mode === "walls") {
     join(output, "index.html"),
     `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Storm walls: before and after</title><style>body{margin:16px;background:#04101f;color:#e6f4f1;font:16px system-ui}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}figure{margin:0}img{width:100%;height:auto}figcaption{padding:8px}@media(max-width:600px){.pair{grid-template-columns:1fr}}</style><h1>Storm walls</h1><p>Same two waves, height, and clock. Real turn controls set each view.</p>${pairs}</html>`,
   );
+
   const gallery = await serve(output, 4429);
   await browser("open", gallery);
   await browser("screenshot", join(output, "pairs.png"), "--full");
@@ -385,8 +390,10 @@ if (mode === "capture" || mode === "walls") {
   await evaluate(
     "[...document.querySelector('iframe').contentDocument.querySelectorAll('button')].find(button => button.textContent.includes('Start storm')).click()",
   );
+
   const loads = [load()];
   const sampler = setInterval(() => loads.push(load()), 1000);
+
   await evaluate(`new Promise(resolve => {
     const w = document.querySelector('iframe').contentWindow;
     let count = 0;
@@ -407,8 +414,9 @@ if (mode === "capture" || mode === "walls") {
       quiet: loads.every((value) => value < 4),
     }) + "\n",
   );
-  if (loads.some((value) => value >= 4))
+  if (loads.some((value) => value >= 4)) {
     throw new Error("Load reached 4 during the frame benchmark");
+  }
   console.log(JSON.stringify({ frameCallbacks: 60, loads }));
 } else {
   await page("Page.addScriptToEvaluateOnNewDocument", {
@@ -441,20 +449,23 @@ if (mode === "capture" || mode === "walls") {
           console.log(JSON.stringify({ waitingForLoadUnder4: load() }));
           await sleep(10000);
         }
+
         await navigate(url);
         const settings = await evaluate(setup);
         await evaluate(
           "[...document.querySelector('iframe').contentDocument.querySelectorAll('button')].find(button => button.textContent.includes('Start storm')).click()",
         );
         await sleep(2500);
+
         let layers = [];
         const layerListener = (message) => {
           if (
             message.sessionId === sessionId &&
             message.method === "LayerTree.layerTreeDidChange" &&
             message.params.layers
-          )
+          ) {
             layers = message.params.layers;
+          }
         };
         listeners.add(layerListener);
         await page("LayerTree.enable");
@@ -480,6 +491,7 @@ if (mode === "capture" || mode === "walls") {
         }
         await page("LayerTree.disable");
         listeners.delete(layerListener);
+
         const events = [];
         let complete;
         const ended = new Promise((resolve) => {
@@ -490,6 +502,7 @@ if (mode === "capture" || mode === "walls") {
           if (message.method === "Tracing.tracingComplete") complete();
         };
         listeners.add(traceListener);
+
         const documentState = await evaluate(`(() => {
         const w = document.querySelector('iframe').contentWindow;
         const d = w.document;
@@ -499,17 +512,20 @@ if (mode === "capture" || mode === "walls") {
         w.__tiltObserver.observe(tilt, {attributes:true});
         return {nodes:d.querySelectorAll('*').length, heading:tilt.style.transform};
       })()`);
+
         const loads = [load()];
         await send("Tracing.start", {
           transferMode: "ReportEvents",
           categories:
             "devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.frame,benchmark,cc,viz,toplevel",
         });
+
         const start = await evaluate('console.timeStamp("storm-start"); performance.now()');
         for (let second = 0; second < 10; second++) {
           await sleep(1000);
           loads.push(load());
         }
+
         const end = await evaluate('console.timeStamp("storm-end"); performance.now()');
         await send("Tracing.end");
         await ended;
@@ -518,6 +534,7 @@ if (mode === "capture" || mode === "walls") {
           join(output, `${side}-${run}-${attempt}.trace.json.gz`),
           gzipSync(JSON.stringify({ traceEvents: events })),
         );
+
         const traceStart = events.find(
           (event) => event.name === "TimeStamp" && event.args.data?.message === "storm-start",
         ).ts;
@@ -530,8 +547,10 @@ if (mode === "capture" || mode === "walls") {
             event.ts >= traceStart &&
             event.ts <= traceEnd,
         );
-        if (!presented.length)
+        if (!presented.length) {
           throw new Error("No presentation events; cannot report frames shown");
+        }
+
         const frameIds = new Set(
           presented.map((event) => JSON.stringify(event.args.begin_frame_id)),
         );
@@ -551,6 +570,7 @@ if (mode === "capture" || mode === "walls") {
             event.ts <= traceEnd &&
             frameThreads.some((thread) => thread.pid === event.pid && thread.tid === event.tid),
         );
+
         const mainEvents = events.filter(
           (event) =>
             event.ph === "X" &&
@@ -568,6 +588,7 @@ if (mode === "capture" || mode === "walls") {
               update.ts < task.ts + task.dur,
           ),
         ).length;
+
         const stages = ["UpdateLayoutTree", "Layout", "Paint", "Layerize", "FireAnimationFrame"];
         const perUpdateMs = Object.fromEntries(
           stages.map((name) => [
@@ -577,12 +598,14 @@ if (mode === "capture" || mode === "walls") {
               .reduce((sum, event) => sum + (event.dur || 0) / 1000, 0) / updates.length,
           ]),
         );
+
         const styleEvents = mainEvents.filter((event) => event.name === "UpdateLayoutTree");
         const styleElements = styleEvents.reduce(
           (sum, event) => sum + (event.args.elementCount || 0),
           0,
         );
         const styleMicroseconds = styleEvents.reduce((sum, event) => sum + (event.dur || 0), 0);
+
         const tiltUpdates = await evaluate(`(() => {
         const w = document.querySelector('iframe').contentWindow;
         w.__tiltObserver.disconnect();

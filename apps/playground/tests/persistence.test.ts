@@ -18,6 +18,7 @@ const edited: Saved = {
 
 test("hydrates the cells from a saved session the user had edited", () => {
   const scope = createScope({ tags: [storage(fakeStorage(edited))] });
+
   expect(scope.resolve(persistence)).toEqual({ restored: true });
   expect(scope.resolve(filesCell)).toEqual(edited.files);
   expect(scope.resolve(activeCell)).toBe("lib.ts");
@@ -27,6 +28,7 @@ test("hydrates the cells from a saved session the user had edited", () => {
 
 test("an unedited saved session yields to the current starter and keeps only its theme", () => {
   const scope = createScope({ tags: [storage(fakeStorage({ ...edited, dirty: false }))] });
+
   expect(scope.resolve(persistence)).toEqual({ restored: false });
   expect(scope.resolve(filesCell)).toEqual([...DEFAULT_FILES]);
   expect(scope.resolve(activeCell)).toBe(ENTRY);
@@ -39,6 +41,7 @@ test("mirrors every later change back to storage", () => {
   const scope = createScope({ tags: [storage(store)] });
   scope.resolve(persistence);
   expect(store.load()).toBeUndefined();
+
   scope.run(setTheme, { input: "github-dark" });
   expect(store.load()).toEqual({
     files: [...DEFAULT_FILES],
@@ -46,6 +49,7 @@ test("mirrors every later change back to storage", () => {
     theme: "github-dark",
     dirty: false,
   });
+
   scope.run(editFile, { input: { name: "main.tsx", content: "" } });
   expect(store.load()?.dirty).toBe(true);
 });

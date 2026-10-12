@@ -7,6 +7,7 @@ test("a test-clock sleep with an already-aborted signal rejects with the abort r
   const reason = new Error("stop-now");
   const ac = new AbortController();
   ac.abort(reason);
+
   const nap = operation({
     label: "nap",
     run: (_deps, { clock: tick }) => tick.sleep(1000, ac.signal),
@@ -86,8 +87,10 @@ test("due test-clock sleeps wake earliest-first", async () => {
       }),
     )
     .run();
+
   clock.advance(200);
   await Promise.all([late, early]);
+
   expect(seen).toEqual(["early", "late"]);
 });
 
@@ -105,6 +108,7 @@ test("a system-clock sleep cleans its timer after an abort", async () => {
   const scope = createScope();
   const pending = scope.controller(nap).run() as Promise<unknown>;
   ac.abort(cause);
+
   expect(await pending).toBe(cause);
   await scope.close();
 });
@@ -126,6 +130,7 @@ test("a test-clock sleep set into the past wakes at once", async () => {
     )
     .run() as Promise<unknown>;
   clock.setTime(2000);
+
   expect(await nap).toBe("woke");
   expect(seen).toEqual([2000]);
 });

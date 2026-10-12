@@ -32,6 +32,7 @@ async function judgePair(id, cases) {
   for (const key of Object.keys(cases).filter((k) => k.startsWith("clean"))) {
     cleans.push((await ask(cases[key], { [id]: j.q }))[id].probability);
   }
+
   const clean = Math.max(...cleans);
   const sep = bad - clean;
   const ok = sep >= FLOOR && bad >= j.threshold && clean < j.threshold;

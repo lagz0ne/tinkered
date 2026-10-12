@@ -28,9 +28,11 @@ test("a call signal stops a run hook before it can start the body", async () => 
     ],
   });
   const work = operation({ label: "work", run: () => events.push("body") });
+
   const running = scope.settle(work, { signal: stop.signal });
   stop.abort(reason);
   gate.resolve();
+
   expect(await running).toEqual({ status: "cancelled", reason });
   expect(events).toEqual([]);
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "success" });
@@ -55,9 +57,11 @@ test("a call signal stops a session hook before it can start the body", async ()
     ],
   });
   const work = operation({ label: "work", run: () => events.push("body") });
+
   const running = scope.settle(work, { signal: stop.signal });
   stop.abort(reason);
   gate.resolve();
+
   expect(await running).toEqual({ status: "cancelled", reason });
   expect(events).toEqual([]);
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "success" });
@@ -81,9 +85,11 @@ test("a signalled run keeps hook access alive through graceful close", async () 
       }),
     ],
   });
+
   const running = scope.settle({ run: () => "done" }, { signal: stop.signal });
   const closing = scope.close({ graceful: true });
   gate.resolve();
+
   expect(await running).toEqual({ status: "success", value: "done" });
   expect(await closing).toMatchObject({ status: "success" });
 });
@@ -106,6 +112,7 @@ test("a write hook shares the call signal with its active body", async () => {
       }),
     ],
   });
+
   const result = await scope.settle(
     {
       depends: { count: count.controller },
@@ -113,6 +120,7 @@ test("a write hook shares the call signal with its active body", async () => {
     },
     { signal: stop.signal },
   );
+
   expect(result).toEqual({ status: "cancelled", reason });
   expect(scope.resolve(count)).toBe(0);
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "success" });

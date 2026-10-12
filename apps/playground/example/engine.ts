@@ -76,8 +76,9 @@ export const setPhysics = operation({
   label: "setPhysics",
   input: (raw): Partial<Physics> => {
     const patch = raw as Partial<Record<keyof Physics, unknown>> | null | undefined;
-    if (!patch || typeof patch !== "object")
+    if (!patch || typeof patch !== "object") {
       raise("BadPhysics", "physics is a partial record of numbers");
+    }
     const next: Partial<Physics> = {};
     for (const key of SETTINGS) {
       const value = patch[key];
@@ -122,6 +123,7 @@ export function shadeAt(x: number, y: number, list: Wave[], now: number, p: Phys
     const d = Math.hypot(x - w.x, y - w.y);
     const r = (age / 1000) * p.speed;
     const front = Math.exp(-(((d - r) / p.ring) ** 2));
+
     const fade = Math.max(0, 1 - d / p.reach);
     const i = front * fade * soften(age / 90) * soften((p.life - age) / 250);
     if (i > 0.04) hits.push({ w, i, angle: Math.atan2(y - w.y, x - w.x) });
@@ -140,6 +142,7 @@ export function shadeAt(x: number, y: number, list: Wave[], now: number, p: Phys
       sx += Math.cos((w.hue * Math.PI) / 180) * i;
       sy += Math.sin((w.hue * Math.PI) / 180) * i;
     }
+
     h = ((Math.atan2(sy, sx) * 180) / Math.PI + 360) % 360;
     s = 80;
     l = 64 - 16 * top.i;
@@ -219,6 +222,7 @@ export const ticker = resource({
           next.push(shade);
         }
       }
+
       if (changed) deps.board.set(next);
     };
 
@@ -232,6 +236,7 @@ export const ticker = resource({
     const step = () => {
       const now = clock.currentTimeMillis();
       const settings = deps.physics.get();
+
       expire(now, settings.life);
       storm(now, settings.stormRate);
       paint(now, settings);

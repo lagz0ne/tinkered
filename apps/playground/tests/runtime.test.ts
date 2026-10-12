@@ -10,6 +10,7 @@ test("an ok signal from the preview reports ready and keeps the compile time", (
   const scope = createScope();
   const status = scope.controller(statusCell);
   status.set({ kind: "info", text: "running…", ms: 12 });
+
   scope.resolve(runtime);
   post({ __pg: "ok" });
   expect(status.get()).toEqual({ kind: "ok", text: "ready", ms: 12 });
@@ -27,8 +28,10 @@ test("releasing the runtime stops listening; resolving it again listens anew", (
   const status = scope.controller(statusCell);
   scope.resolve(runtime);
   scope.release(runtime);
+
   post({ __pg: "error", text: "late" });
   expect(status.get()).toEqual({ kind: "info", text: "starting…" });
+
   scope.resolve(runtime);
   post({ __pg: "ok" });
   expect(status.get()).toEqual({ kind: "ok", text: "ready" });

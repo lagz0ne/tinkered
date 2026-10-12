@@ -29,6 +29,7 @@ async function checkBrowser(folder) {
   await new Promise((resolve, reject) =>
     reservation.close((error) => (error ? reject(error) : resolve())),
   );
+
   const child = spawn(
     "vp",
     ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(port), "--strictPort"],
@@ -39,15 +40,19 @@ async function checkBrowser(folder) {
       env: { ...process.env, NODE_PATH: "" },
     },
   );
+
   const closed = once(child, "close");
   let output = "";
+
   try {
     await new Promise((resolve, reject) => {
       const timeout = AbortSignal.timeout(30_000);
       const expired = () => reject(new Error(`Browser start did not finish:\n${output}`));
       timeout.addEventListener("abort", expired, { once: true });
+
       child.once("error", reject);
       child.once("exit", () => reject(new Error(`Browser start exited:\n${output}`)));
+
       const read = (chunk) => {
         output += chunk.toString();
         if (output.includes(`http://127.0.0.1:${port}`)) {
@@ -80,10 +85,13 @@ if (import.meta.main) {
     run(folder, ["install", "--prefer-offline"]);
     run(folder, ["run", "check"]);
     run(folder, ["run", "test"]);
+
     const manifest = JSON.parse(readFileSync(join(folder, "package.json"), "utf8"));
     if (manifest.scripts.build !== undefined) run(folder, ["run", "build"]);
+
     if (name === "react") await checkBrowser(folder);
     else run(folder, ["run", "start"]);
+
     console.log(`PASS ${name}: outside-repo install, check, tests, and run`);
   }
 }

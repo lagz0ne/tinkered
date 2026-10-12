@@ -15,7 +15,9 @@ test("a closed scope refuses a write before a stopping hook runs", async () => {
   const root = createScope({ extensions: [stop] });
   await root.ready;
   const controller = root.controller(count);
+
   expect((await root.close({ graceful: true })).status).toBe("success");
+
   try {
     controller.set(1);
     expect.unreachable("a closed scope must refuse a write");
@@ -23,5 +25,6 @@ test("a closed scope refuses a write before a stopping hook runs", async () => {
     if (!isError(error, "Disposed")) throw error;
     expect(error.payload.reason).toBe("scope is closed");
   }
+
   expect(writes).toBe(0);
 });

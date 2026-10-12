@@ -59,7 +59,9 @@ function Form({ life, work, seen }: FormProps): React.ReactElement {
   const run = useRun(work);
   const owner = useScope();
   const control = useController(title);
+
   seen.push({ owner, control, reset, refetch: query.refetch, value: live });
+
   return (
     <div>
       <Field label="title" value={value} onChange={setValue} />
@@ -96,6 +98,7 @@ test("a field reset keeps the form owner, other fields, and hook identities", as
   const scope = createScope();
   const life = resource({ label: "field-form", target: "session", factory: () => ({}) });
   const seen: Snapshot[] = [];
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: project }}>
@@ -104,23 +107,28 @@ test("a field reset keeps the form owner, other fields, and hook identities", as
     </ScopeProvider>,
   );
   const [before] = seen;
+
   await screen.getByRole("textbox", { name: "title" }).fill("changed");
   await screen.getByRole("textbox", { name: "note" }).fill("kept");
   await screen.getByRole("button", { name: "reset field" }).click();
+
   await expect.element(screen.getByRole("textbox", { name: "title" })).toHaveValue("new");
   await expect.element(screen.getByRole("textbox", { name: "note" })).toHaveValue("kept");
+
   const [after] = seen.slice(-1);
   expect(after.owner).toBe(before.owner);
   expect(after.control).toBe(before.control);
   expect(after.reset).toBe(before.reset);
   expect(after.refetch).toBe(before.refetch);
   expect(after.value).toBe(before.value);
+
   await scope.close();
 });
 
 test("a keyed form reset cancels its work and keeps the route alive", async () => {
   const ended: string[] = [];
   const scope = createScope();
+
   const route = resource({
     label: "form-route",
     target: "session",
@@ -131,6 +139,7 @@ test("a keyed form reset cancels its work and keeps the route alive", async () =
       return {};
     },
   });
+
   const life = resource({
     label: "reset-form",
     target: "session",
@@ -141,6 +150,7 @@ test("a keyed form reset cancels its work and keeps the route alive", async () =
       return {};
     },
   });
+
   let aborted = false;
   const work = operation({
     label: "form-work",
@@ -156,6 +166,7 @@ test("a keyed form reset cancels its work and keeps the route alive", async () =
         );
       }),
   });
+
   const seen: Snapshot[] = [];
   const screen = await render(
     <ScopeProvider scope={scope}>
@@ -164,10 +175,12 @@ test("a keyed form reset cancels its work and keeps the route alive", async () =
       </SessionProvider>
     </ScopeProvider>,
   );
+
   const [before] = seen;
   await screen.getByRole("textbox", { name: "title" }).fill("changed");
   await screen.getByRole("button", { name: "work" }).click();
   await expect.element(screen.getByText("work:pending")).toBeVisible();
+
   await screen.rerender(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: project }}>
@@ -175,12 +188,15 @@ test("a keyed form reset cancels its work and keeps the route alive", async () =
       </SessionProvider>
     </ScopeProvider>,
   );
+
   await expect.element(screen.getByRole("textbox", { name: "title" })).toHaveValue("new");
   await expect.poll(() => ended).toEqual(["form"]);
   expect(aborted).toBe(true);
+
   const [after] = seen.slice(-1);
   expect(after.owner).not.toBe(before.owner);
   expect(after.value).not.toBe(before.value);
+
   await scope.close();
 });
 
@@ -189,6 +205,7 @@ test("leaving a route cleans its form and returning reuses the project key", asy
   const scope = createScope();
   const cache = resource({ label: "route-cache", target: "namespace", factory: () => ({}) });
   const retained = scope.resolve(cache, { ns: project });
+
   const route = resource({
     label: "leaving-route",
     target: "session",
@@ -199,6 +216,7 @@ test("leaving a route cleans its form and returning reuses the project key", asy
       return {};
     },
   });
+
   const life = resource({
     label: "leaving-form",
     target: "session",
@@ -209,6 +227,7 @@ test("leaving a route cleans its form and returning reuses the project key", asy
       return {};
     },
   });
+
   const seen: Snapshot[] = [];
   const screen = await render(
     <ScopeProvider scope={scope}>
@@ -217,14 +236,17 @@ test("leaving a route cleans its form and returning reuses the project key", asy
       </SessionProvider>
     </ScopeProvider>,
   );
+
   const [before] = seen;
   await screen.getByRole("textbox", { name: "title" }).fill("discarded");
+
   await screen.rerender(
     <ScopeProvider scope={scope}>
       <p>away</p>
     </ScopeProvider>,
   );
   await expect.poll(() => ended).toEqual(["form", "route"]);
+
   await screen.rerender(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: project }}>
@@ -232,9 +254,11 @@ test("leaving a route cleans its form and returning reuses the project key", asy
       </SessionProvider>
     </ScopeProvider>,
   );
+
   await expect.element(screen.getByRole("textbox", { name: "title" })).toHaveValue("new");
   const [after] = seen.slice(-1);
   expect(after.value).not.toBe(before.value);
   expect(scope.resolve(cache, { ns: project })).toBe(retained);
+
   await scope.close();
 });

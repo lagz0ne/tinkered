@@ -8,7 +8,9 @@ test("an observed operation logs its label, elapsed time, outcome, level, and sp
   const scope = createScope({
     observe: { history: 2, clock: () => now++, log: (line) => void lines.push(line) },
   });
+
   expect(scope.run(op)).toBe(7);
+
   expect(lines).toEqual([
     {
       message: "step",
@@ -34,7 +36,9 @@ test("a failed operation logs its failure at error level", () => {
   const scope = createScope({
     observe: { history: 1, clock: () => now++, log: (line) => void lines.push(line) },
   });
+
   expect(() => scope.run(op)).toThrow(failure);
+
   expect(lines).toEqual([
     {
       message: "step",
@@ -55,10 +59,13 @@ test("nested subflows log child before parent, once each", () => {
     depends: { child, dep },
     run: ({ child, dep }) => child.run() + dep,
   });
+
   const scope = createScope({
     observe: { history: 2, log: (line) => void lines.push(line) },
   });
+
   expect(scope.run(parent)).toBe(3);
+
   expect(lines.map((line) => line.message)).toEqual(["child", "parent"]);
   expect(lines[0].span?.parentId).toBe(lines[1].span?.id);
 });
@@ -76,8 +83,10 @@ test("an info threshold drops ok step lines but keeps failed ones", () => {
   const scope = createScope({
     observe: { history: 2, level: LEVELS.info, log: (line) => void lines.push(line) },
   });
+
   scope.run(ok);
   expect(() => scope.run(failed)).toThrow(failure);
+
   expect(lines.map((line) => [line.message, line.level, line.attributes.outcome])).toEqual([
     ["failed", LEVELS.error, "failed"],
   ]);
@@ -93,7 +102,9 @@ test("logging without observation keeps ctx.log but emits no step line", () => {
     },
   });
   const scope = createScope({ observe: { log: (line) => void lines.push(line) } });
+
   expect(scope.run(op)).toBe(1);
+
   expect(lines.map((line) => line.message)).toEqual(["body"]);
   expect(lines[0].span).toBe(undefined);
 });

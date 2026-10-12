@@ -158,6 +158,7 @@ void describe("shape findings", () => {
         ["no-scope-prop", 6],
       ],
     );
+
     const aliased = inspectShape(
       `import { ScopeProvider as SP } from "@tinker/react";\nexport function Root(props) {\n  return <SP scope={props.scope}><App /></SP>;\n}`,
       "a.tsx",
@@ -232,6 +233,7 @@ void describe("shape findings", () => {
       [["no-writable-in-view", 3]],
     );
     assert.match(plain[0].message, /rule 9/);
+
     const aliased = inspectShape(
       `import { useData as read } from "@tinker/react";\nfunction MoveForm() {\n  const [item, setItem] = read(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
       "a.tsx",
@@ -265,6 +267,7 @@ function MoveForm() {
       "a.tsx",
     );
     assert.deepEqual(otherModule, []);
+
     const sameName = inspectShape(
       `function useData(cell, opts) { return [cell, () => {}]; }\nfunction MoveForm() {\n  const [item, setItem] = useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
       "a.tsx",
@@ -286,6 +289,7 @@ function MoveForm() {
       sibling.map((r) => [r.id, r.line]),
       [["no-writable-in-view", 3]],
     );
+
     const param = inspectShape(
       `import { useData } from "@tinker/react";\nfunction View(useData) { const x = useData(cell, { writable: true }); return <div/>; }`,
       "case.tsx",
@@ -312,6 +316,7 @@ function MoveForm() {
       "case.tsx",
     );
     assert.deepEqual(shadowedAlias, []);
+
     const namespaced = inspectShape(
       `import * as TR from "@tinker/react";\nfunction View() { const [a, setA] = TR.useData(c, { writable: true }); return <p>{a}</p>; }`,
       "case.tsx",
@@ -381,6 +386,7 @@ function MoveForm() {
       "a.tsx",
     );
     assert.deepEqual(insideCatch, []);
+
     const afterLoop = inspectShape(
       `import {useData} from "@tinker/react"; function V(){ for(let useData of []){} useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
@@ -468,6 +474,7 @@ function MoveForm() {
       "a.tsx",
     );
     assert.deepEqual(rest, []);
+
     const aliasDef = inspectShape(
       `import { useData as read } from "@tinker/react"; function View(read = local) { const x=read(c,{writable:true}); return <div/>; }`,
       "a.tsx",

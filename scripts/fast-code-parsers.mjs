@@ -38,6 +38,7 @@ function definition(program, name) {
     .map((node) => node.declaration ?? node)
     .find((node) => node.id?.name === name);
   if (!found) throw new Error(`Missing hot function ${name}`);
+
   if (found.type !== "ClassDeclaration") return found;
   const ctor = found.body.body.find((member) => member.kind === "constructor");
   if (!ctor) throw new Error(`Missing constructor ${name}`);
@@ -45,8 +46,11 @@ function definition(program, name) {
 }
 
 function literalCount(node) {
-  if (["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"].includes(node.type))
+  if (
+    ["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"].includes(node.type)
+  ) {
     return 1;
+  }
   return children(node).reduce((total, child) => total + literalCount(child), 0);
 }
 
@@ -72,16 +76,19 @@ function decode(segment) {
   const out = [];
   let value = 0;
   let shift = 0;
+
   for (const ch of segment) {
     const digit = alphabet.indexOf(ch);
     if (digit < 0) throw new Error("Invalid source map digit");
     value += (digit & 31) * 2 ** shift;
     shift += 5;
+
     if (digit & 32) continue;
     out.push(value & 1 ? -Math.floor(value / 2) : value / 2);
     value = 0;
     shift = 0;
   }
+
   if (shift) throw new Error("Incomplete source map segment");
   return out;
 }
@@ -91,12 +98,14 @@ export function mappings(map) {
   let source = 0;
   let line = 0;
   let column = 0;
+
   for (const [generatedLine, row] of map.mappings.split(";").entries()) {
     let generatedColumn = 0;
     for (const segment of row.split(",").filter(Boolean)) {
       const fields = decode(segment);
       generatedColumn += fields[0];
       if (fields.length < 4) continue;
+
       source += fields[1];
       line += fields[2];
       column += fields[3];
@@ -104,6 +113,7 @@ export function mappings(map) {
       positions.push({ generatedLine, generatedColumn, source, line, column });
     }
   }
+
   return positions;
 }
 
@@ -119,6 +129,7 @@ export function builtNames(code, map, names = hotFunctions) {
   const declarations = program.body.flatMap((node) =>
     node.type === "VariableDeclaration" ? node.declarations : [node],
   );
+
   const generatedLines = offsets(code);
   const originalLines = map.sourcesContent.map(offsets);
   const positions = mappings(map).map((pos) => ({
@@ -126,8 +137,10 @@ export function builtNames(code, map, names = hotFunctions) {
     generated: generatedLines[pos.generatedLine] + pos.generatedColumn,
     original: originalLines[pos.source][pos.line] + pos.column,
   }));
+
   const source = map.sources.findIndex((file) => /(?:^|\/)src\/index\.ts$/.test(file));
   if (source < 0) throw new Error("Core source is missing from the source map");
+
   const originals = parseProgram("source.ts", map.sourcesContent[source]);
   return Object.fromEntries(
     names.map((name) => {
@@ -135,8 +148,9 @@ export function builtNames(code, map, names = hotFunctions) {
       if (!original) throw new Error(`Missing source declaration ${name}`);
       const built = declarations.find((node) => {
         const kind = node.init?.type ?? node.type;
-        if (!["FunctionDeclaration", "ClassDeclaration", "ClassExpression"].includes(kind))
+        if (!["FunctionDeclaration", "ClassDeclaration", "ClassExpression"].includes(kind)) {
           return false;
+        }
         const pos = positions.findLast((pos) => pos.generated <= node.id.start);
         return (
           pos?.source === source && pos.original >= original.start && pos.original < original.end
@@ -182,23 +196,27 @@ export function clientLibraries(map) {
 }
 
 export function ratchet(label, actual, limit) {
-  if (!Number.isInteger(limit) || actual > limit)
+  if (!Number.isInteger(limit) || actual > limit) {
     throw new Error(
       `${label}: ${actual} > baseline ${limit}; lower the value or review a baseline edit`,
     );
+  }
 }
 
 /** Keep existing over-limit roots, but never raise their saved ceiling. */
 export function rebaselineEngine(baseline, engine, bytecode, inlining) {
-  if (!inlining || baseline.inlining.OperationCtxIntoRunOnce !== true)
+  if (!inlining || baseline.inlining.OperationCtxIntoRunOnce !== true) {
     throw new Error("F1/F2 OperationCtx must remain inlined into runOnce with default Maglev");
+  }
   for (const name of hotFunctions) {
     const next = bytecode[name];
     const previous = baseline.bytecode[name];
-    if (!Number.isInteger(next) || !Number.isInteger(previous))
+    if (!Number.isInteger(next) || !Number.isInteger(previous)) {
       throw new Error(`F1 missing bytecode for ${name}`);
-    if (next > 460 && next > previous)
+    }
+    if (next > 460 && next > previous) {
       throw new Error(`F1 ${name}: ${previous} → ${next}; cannot raise bytecode above 460`);
+    }
   }
   return { ...baseline, node: engine.node, v8: engine.v8, bytecode };
 }

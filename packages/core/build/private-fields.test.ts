@@ -92,6 +92,7 @@ async function guard(plants: Record<string, string>, extra: string[], dts = fals
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), code);
   }
+
   const entry: Record<string, string> = { index: "src/index.ts", testing: "src/testing.ts" };
   if (plants["plant.ts"] !== undefined) entry.plant = join(root, "plant.ts");
   const plugins = [privateFields([...listed, ...extra], root)];
@@ -1185,6 +1186,7 @@ test(
     mkdirSync(modules, { recursive: true });
     mkdirSync(join(fixtureCore, "build"));
     mkdirSync(join(root, "apps"));
+
     try {
       cpSync(join(core, "build/private-fields.ts"), join(fixtureCore, "build/private-fields.ts"));
       cpSync(
@@ -1203,6 +1205,7 @@ test(
         join(root, "apps/plant.ts"),
         `${imports}declare const o: any; export const read = o.layer;`,
       );
+
       const script = `
         import { build } from ${JSON.stringify(import.meta.resolve("vite-plus/pack"))};
         import { privateFields } from ${JSON.stringify(pathToFileURL(join(fixtureCore, "build/private-fields.ts")).href)};
@@ -1216,6 +1219,7 @@ test(
         }
       `;
       execFileSync(process.execPath, ["--input-type=module", "--eval", script], { stdio: "pipe" });
+
       expect(readdirSync(modules).filter((name) => name.startsWith("core-guard-"))).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });

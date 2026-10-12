@@ -41,6 +41,7 @@ export const immersive = resource({
       if (!isEscape(event.data) || frame === null || event.source !== frame.contentWindow) return;
       dismiss();
     };
+
     document.addEventListener("fullscreenchange", synced);
     document.addEventListener("keydown", escaped);
     window.addEventListener("message", messaged);
@@ -49,6 +50,7 @@ export const immersive = resource({
       document.removeEventListener("keydown", escaped);
       window.removeEventListener("message", messaged);
     });
+
     return {
       /** Fill the screen with `el`; when the browser refuses or cannot, pin it over the page. */
       enter: (el: HTMLElement | null): void => {

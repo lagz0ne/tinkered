@@ -100,6 +100,7 @@ for (const s of scenarios) {
   const en = e ? e.min : Number.NaN;
   const tb = t?.heap ? t.heap.min : Number.NaN;
   const eb = e?.heap ? e.heap.min : Number.NaN;
+
   console.log(`METRIC ${s.key}_tinker=${fmt(tn)}`);
   console.log(`METRIC ${s.key}_inferdi=${fmt(en)}`);
   console.log(`METRIC ${s.key}_speedup=${fmt(en / tn)}`);

@@ -112,6 +112,43 @@ head.
 13. **Change safety.** A new failure mode or a lifecycle change means listing
     every caller before merging. A test asserts only a shipped guarantee.
 
+14. **A body reads as steps (ADR 0111).**
+    A step is a few lines that do one job.
+    Put one blank line between steps.
+    Inside a step, no blank lines.
+    The blank line is the only step mark: line comments are banned (rule 10).
+    A test body has three steps: arrange, act, assert.
+    Split by job, not by statement kind:
+    a `const` stays with the lines that use it.
+    A step that needs a name to be clear becomes a named function.
+    Move no line to make steps; only add or remove blank lines.
+
+    ```ts
+    await history.lock(tx, user.id);
+    if (await history.find(tx, id, user.id)) return;
+
+    let changed = true;
+    if (change.kind === "add") {
+      await tx.insert(todo).values(row);
+    } else {
+      changed = await update(tx, change);
+    }
+
+    await tx.insert(execution).values({ id });
+
+    const payloads: Sync.Payload[] = [];
+    if (changed) payloads.push(rowsOf(tx));
+    await history.append(tx, user.id, id, payloads);
+    ```
+
+    `vp lint` checks the floor:
+    - `tinker/body-steps`: a block of six or more statements has at least
+      one step break;
+    - `curly` (`multi-line`): a body on its own line gets braces.
+
+    Which lines form a step is the writer's call.
+    Review checks it.
+
 ## Tests
 
 Tests prove behavior at the public seam. There are no unit tests of helpers

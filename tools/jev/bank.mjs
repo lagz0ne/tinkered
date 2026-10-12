@@ -466,6 +466,7 @@ function spanText(source, start, end) {
   const lines = source.split("\n");
   const at = (line, from = 0, to) => (lines[line - 1] ?? "").slice(from, to);
   if (start.line === end.line) return at(start.line, start.column - 1, end.column - 1);
+
   const out = [at(start.line, start.column - 1)];
   for (let line = start.line + 1; line < end.line; line++) out.push(lines[line - 1] ?? "");
   out.push(at(end.line, 0, end.column - 1));
@@ -476,8 +477,9 @@ function spanText(source, start, end) {
 function enclosingUnit(units, file, source, startLine, endLine) {
   for (const u of units) {
     const end = u.line + u.source.split("\n").length - 1;
-    if (u.line <= startLine && startLine <= end)
+    if (u.line <= startLine && startLine <= end) {
       return { unit: { kind: u.kind, name: u.name }, source: u.source };
+    }
   }
   const lines = source.split("\n");
   const from = Math.max(1, startLine - 15);
@@ -578,7 +580,8 @@ function judgeApplies(judge, unit, oldScope) {
 export function lintQuestions(unit, all = false) {
   const oldScope = inOldScope(unit, all);
   const questions = oldScope && !unit.wrapperOnly ? { unit: GUIDE.unit.q } : {};
-  for (const [id, judge] of Object.entries(LINT))
+  for (const [id, judge] of Object.entries(LINT)) {
     if (judgeApplies(judge, unit, oldScope)) questions[id] = judge.q;
+  }
   return questions;
 }

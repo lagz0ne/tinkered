@@ -52,6 +52,7 @@ test("an operation writes through a data controller edge", () => {
 test("a sync run retains its span in history before run returns", () => {
   const op = operation({ label: "op", run: () => 1 });
   const scope = createScope({ observe: { history: 10 } });
+
   expect(scope.run(op)).toBe(1);
   const spans = scope.spans();
   expect(spans.length).toBe(1);
@@ -67,10 +68,12 @@ test("a session body rejected with a primitive keeps its cause under close", asy
   const running = root.session(() => gate);
   const closing = root.close();
   release(null);
+
   const thrown = await running.then(
     () => undefined,
     (error: unknown) => error,
   );
+
   expect(thrown).toBe(null);
   await closing;
 });
