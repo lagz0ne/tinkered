@@ -3417,11 +3417,14 @@ On `bfa7d922`:
   The README does not say that yet.
 - `promises.mjs` could not check the title.
   The lead decides: add a README line, or accept the title as is.
+
 ## core/size-guard-overload-intersection
 
 Branch: `core/size-guard-overload-intersection-sol`.
-Base: `origin/main` at `d7dbee23`.
-Code and tests: `18fdb011`.
+Started from `origin/main` at `d7dbee23`.
+Rebased onto `origin/main` at `5b6622d9` first.
+The final base is `origin/main` at `b8c118e3`.
+Initial code and tests: `18fdb011`, now `46b63227` after the rebases.
 The first writer stays on its own branch and worktree.
 Its work is saved by the local tag `archive/overload-intersection-haiku-ca70df33`.
 Nothing was pushed.
@@ -3490,7 +3493,7 @@ The budget probe uses 1025 thenables with an early typed leaf.
 It flags on the head, exit 0.
 Log: `/tmp/overload-intersection-sol-budget.log`.
 
-### Probe table
+### Probe results
 
 The supplied `run.mjs` was used with both probe files joined.
 The proof run removes its diagnostic timers; it measures no speed.
@@ -3499,71 +3502,68 @@ The original runner also runs under the timing lock.
 - TS means the `IsAny` result for `layer` in the declaration form.
 - Main means the assignment form on `d7dbee23`.
 - Head means the assignment form with this guard.
-- A cell in the last column gives main first, then head.
 - Probe ids are the prefixes of the supplied names.
 - 54 rows ran; all 35 TS-any rows flag on the head.
 - No row where TS gives `any` is clean on the head.
 - The head keeps 15 known false flags.
 - Some supplied rows also have TS2490, TS2547, or TS2763 call errors.
-  The table keeps the runner's `IsAny` result.
+  The list keeps the runner's `IsAny` result.
 - The S1, optional, third, void, tuple rest, MY19b async subtype, and overloaded callback plants compile clean.
 
-| Probe | TS    | Main / head  |
-| ----- | ----- | ------------ |
-| S1    | flag  | flag / flag  |
-| S2    | flag  | flag / flag  |
-| Y4    | clean | flag / clean |
-| Y5a   | flag  | flag / flag  |
-| Y5b   | clean | flag / clean |
-| G98   | flag  | clean / flag |
-| S6    | flag  | flag / flag  |
-| Z4    | clean | flag / flag  |
-| Z4r   | clean | flag / flag  |
-| Z5    | flag  | flag / flag  |
-| Z2    | flag  | flag / flag  |
-| Z18   | clean | flag / flag  |
-| MY1   | clean | flag / flag  |
-| MY1r  | clean | flag / flag  |
-| MY1b  | flag  | flag / flag  |
-| MY1c  | flag  | flag / flag  |
-| MY1d  | clean | flag / flag  |
-| MY1e  | flag  | flag / flag  |
-| MY5   | clean | flag / flag  |
-| MY5r  | clean | flag / flag  |
-| MY6   | clean | flag / flag  |
-| MY7   | flag  | flag / flag  |
-| MY9   | flag  | flag / flag  |
-| MY10  | flag  | flag / flag  |
-| MY10b | clean | flag / flag  |
-| MY11  | flag  | flag / flag  |
-| MY12  | flag  | flag / flag  |
-| MY12b | flag  | flag / flag  |
-| MY13  | flag  | flag / flag  |
-| MY13b | flag  | flag / flag  |
-| MY14  | flag  | flag / flag  |
-| MY14b | flag  | flag / flag  |
-| MY15  | flag  | flag / flag  |
-| MY15b | flag  | flag / flag  |
-| MY16  | flag  | flag / flag  |
-| MY17  | flag  | flag / flag  |
-| MY19  | clean | flag / flag  |
-| MY22  | clean | flag / flag  |
-| MY25  | flag  | flag / flag  |
-| MY26  | clean | flag / flag  |
-| N10   | clean | flag / clean |
-| P7    | flag  | flag / flag  |
-| MY30  | flag  | flag / flag  |
-| MY31  | flag  | flag / flag  |
-| MY31b | flag  | flag / flag  |
-| MY32  | flag  | clean / flag |
-| MY32b | clean | clean / flag |
-| MY33  | flag  | flag / flag  |
-| MY34  | flag  | flag / flag  |
-| MY10c | flag  | flag / flag  |
-| MY10d | clean | flag / flag  |
-| MY13c | clean | flag / clean |
-| MY19b | flag  | flag / flag  |
-| MY35  | flag  | flag / flag  |
+- S1: TS flag; main flag; head flag.
+- S2: TS flag; main flag; head flag.
+- Y4: TS clean; main flag; head clean.
+- Y5a: TS flag; main flag; head flag.
+- Y5b: TS clean; main flag; head clean.
+- G98: TS flag; main clean; head flag.
+- S6: TS flag; main flag; head flag.
+- Z4: TS clean; main flag; head flag.
+- Z4r: TS clean; main flag; head flag.
+- Z5: TS flag; main flag; head flag.
+- Z2: TS flag; main flag; head flag.
+- Z18: TS clean; main flag; head flag.
+- MY1: TS clean; main flag; head flag.
+- MY1r: TS clean; main flag; head flag.
+- MY1b: TS flag; main flag; head flag.
+- MY1c: TS flag; main flag; head flag.
+- MY1d: TS clean; main flag; head flag.
+- MY1e: TS flag; main flag; head flag.
+- MY5: TS clean; main flag; head flag.
+- MY5r: TS clean; main flag; head flag.
+- MY6: TS clean; main flag; head flag.
+- MY7: TS flag; main flag; head flag.
+- MY9: TS flag; main flag; head flag.
+- MY10: TS flag; main flag; head flag.
+- MY10b: TS clean; main flag; head flag.
+- MY11: TS flag; main flag; head flag.
+- MY12: TS flag; main flag; head flag.
+- MY12b: TS flag; main flag; head flag.
+- MY13: TS flag; main flag; head flag.
+- MY13b: TS flag; main flag; head flag.
+- MY14: TS flag; main flag; head flag.
+- MY14b: TS flag; main flag; head flag.
+- MY15: TS flag; main flag; head flag.
+- MY15b: TS flag; main flag; head flag.
+- MY16: TS flag; main flag; head flag.
+- MY17: TS flag; main flag; head flag.
+- MY19: TS clean; main flag; head flag.
+- MY22: TS clean; main flag; head flag.
+- MY25: TS flag; main flag; head flag.
+- MY26: TS clean; main flag; head flag.
+- N10: TS clean; main flag; head clean.
+- P7: TS flag; main flag; head flag.
+- MY30: TS flag; main flag; head flag.
+- MY31: TS flag; main flag; head flag.
+- MY31b: TS flag; main flag; head flag.
+- MY32: TS flag; main clean; head flag.
+- MY32b: TS clean; main clean; head flag.
+- MY33: TS flag; main flag; head flag.
+- MY34: TS flag; main flag; head flag.
+- MY10c: TS flag; main flag; head flag.
+- MY10d: TS clean; main flag; head flag.
+- MY13c: TS clean; main flag; head clean.
+- MY19b: TS flag; main flag; head flag.
+- MY35: TS flag; main flag; head flag.
 
 Full names and call errors: `/tmp/overload-intersection-sol-combined.log`.
 
@@ -3581,7 +3581,7 @@ These choices flag more, never less, on the probes.
 No wide-union memo was added.
 The wide-union follow-up stays separate.
 
-### Build proof and gates
+### Initial build proof and gates
 
 - `vp run -r build`: exit 0.
 - `vp check`: exit 0, zero errors and the same 27 warnings as main.
@@ -3666,13 +3666,86 @@ Required parameters accepting `undefined` stay when the signature data is uncert
 The optional plain `Promise<any>` pruning was left out.
 Joining all `then` overloads was cheap, so that follow-up is handled here.
 
-Your setup uses `origin/main`, not the stale local `main`.
 The worktree hook installed and built the tree during creation.
 All later long jobs ran detached and were watched in this turn.
 The writer did not edit `TODO.md` or `pnpm-workspace.yaml`.
 No mutation lane ran: `build/` is not mutated and `src/` is unchanged.
 The temporary main-check and base worktrees are removed at handoff.
 The ticket worktree and branch stay for review.
+
+### Review fix round
+
+Fix code and tests: `53b5e9b6`, first committed as `93519cc6`.
+The guard logic is unchanged.
+The new test names a generic thenable that grows at each layer.
+It finds a typed leaf before the 1024-type budget runs out.
+
+```ts
+interface Gt<X> {
+  then(cb: (v: Gt<[X]> | { layer: number }) => void): void;
+}
+declare const s: Gt<0>[];
+for await ({ layer } of s) {}
+```
+
+- The full guard suite on `origin/main` at `5b6622d9`: 11 failed, 136 passed, exit 1.
+  Log: `/tmp/overload-intersection-sol-round-main-all.log`.
+- The new budget test on that main: one passed, exit 0.
+  Main's old depth limit also flags this plant.
+- On the head: one passed, exit 0.
+- Remove only `checker.getAnyType()` from the budget return: one failed, exit 1.
+  The guard wrongly returns clean after finding the typed leaf.
+- Restore the original return: one passed, exit 0.
+- The delete-and-restore run held `flock /tmp/mutation.lock` throughout.
+- Logs: `/tmp/overload-intersection-sol-round-budget-main-test.log`,
+  `/tmp/overload-intersection-sol-round-budget-mutant.log`,
+  and `/tmp/overload-intersection-sol-round-budget-restored.log`.
+- MY32b now says it keeps a known false flag, as Z4 and Z18 do.
+- The 54 probe rows are a list.
+- The direct address about setup is removed.
+- The `acceptsZeroArguments` TSDoc now states what the helper does.
+- One `packages/start/tests/typecheck.test.mjs` test hit its 5000 ms timeout.
+  The test file is unchanged; the test gate was rerun once.
+- The first gate run stopped on a missing blank line before this section.
+  Formatting was fixed before the next run.
+- No gateway step was retried after the prior HTTP 402.
+- The build-time A/B above is the initial run.
+  No timing run was repeated: this round changes tests and words only.
+
+The seven gates pass after the fixes:
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0; zero errors and 27 warnings.
+- `vp run -r test`: exit 0 on the one retry; Core has 900 passing source tests.
+- `vp run core#test:dist`: exit 0; 1047 tests pass, including 147 guard tests.
+- `scripts/ticket.sh --check-only --no-mutation 49 "Join iterator and thenable overloads safely"`: exit 0.
+- `pnpm validate`: exit 0; all 21 lanes pass.
+- `vp run prose`: exit 0; zero hits in 229 files.
+- Chain result: `EXIT 0`.
+- Logs: `/tmp/overload-intersection-sol-round-gates2.log`
+  and `/tmp/overload-intersection-sol-round-retry.log`.
+- Dist proof: 158 files, zero differences between main's guard and the restored head.
+  Log: `/tmp/overload-intersection-sol-round-dist-proof2.log`, exit 0.
+- Write mode still finds 55 names; `private-fields.json` matches `origin/main`.
+- The strict census passes for the changed functions and tests.
+- Both files have zero S26 rows.
+- Plain Jev tests: 7 of 852 source entries flagged, all outside this change.
+- The temporary main-check worktree is removed.
+
+After the first proof commit, main moved with the scaffold hook fix.
+The branch was rebased onto `b8c118e3`, and `vp install` ran again.
+All seven gates ran again on that base and passed by exit code.
+No timeout or OOM retry was needed on the final base.
+Core still has 900 passing source tests and 147 passing guard tests.
+The dist gate has 1047 passing tests.
+Check has zero errors and 27 warnings.
+Validate clears all 21 lanes; prose has zero hits in 229 files.
+Final chain: `EXIT 0`.
+Log: `/tmp/overload-intersection-sol-round-final-gates.log`.
+The final same-worktree dist proof also has 158 files and zero differences.
+It checks main's guard and then the restored head, both on the final base.
+Log: `/tmp/overload-intersection-sol-round-final-dist-proof.log`, exit 0.
+Write mode still leaves the 55-name field list unchanged.
 
 ### Core feedback
 
