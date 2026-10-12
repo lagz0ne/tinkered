@@ -1315,10 +1315,39 @@ test(
 test(
   "a read of a for-of assignment target declared below @ts-expect-error fails the build",
   async () => {
-    const plant = `${imports}let layer: { layer: number };
+    const plant = `${imports}declare const s: Iterable<{}>;
+let v: { layer: number } = { layer: 1 };
 // @ts-expect-error
-for ({ layer } of [{ layer: 1 }]) {}
-export const read = layer.layer;\n`;
+for (v of s) {}
+export const r = v.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+/**
+ * A for-of assignment target that binds `v`, with no listed key on the directive line. A later read
+ * of `v.layer` flags only through the name `v`, so each target kind proves its own names count.
+ */
+const boundTargets = [
+  ["an object pattern", "Iterable<{}>", "for ({ a: v } of s) {}"],
+  ["an array pattern", "Iterable<[{}]>", "for ([v] of s) {}"],
+  ["a nested pattern", "Iterable<{ a: [{}] }>", "for ({ a: [v] } of s) {}"],
+  ["a default value", "Iterable<{}>", "for ({ a: v = 1 } of s) {}"],
+  ["a rest element", "Iterable<{}[]>", "for ([...v] of s) {}"],
+  ["an await loop", "AsyncIterable<{}>", "for await ({ a: v } of s) {}"],
+] as const;
+
+test.each(boundTargets)(
+  "a read of a name bound by a for-of assignment with %s fails the build",
+  async (_name, source, loop) => {
+    const plant = `${imports}declare const s: ${source};
+let v: { layer: number } = { layer: 1 };
+// @ts-expect-error
+${loop}
+export const r = v.layer;\n`;
     expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
       "layer: read without type checks in packages/react/src/plant.ts",
     );
