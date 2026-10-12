@@ -472,6 +472,45 @@ test.each(hiddenReads)(
   BUILD_MS,
 );
 
+/** Line breaks TypeScript accepts, including a comment ending at a lone CR. */
+const hiddenBreaks = [
+  ["a lone CR", "\r"],
+  ["a blank CR line", "\r\r"],
+  ["U+2028", "\u2028"],
+  ["U+2029", "\u2029"],
+  ["a LF comment ending at CR", "\n// why\r"],
+] as const;
+
+test.each(hiddenBreaks)(
+  "%s below @ts-ignore hides a private read and fails the build",
+  async (_form, separator) => {
+    const plant = `${imports}// @ts-ignore${separator}export const read = createScope().layer;\n`;
+
+    const error = await guard({ "packages/react/src/plant.ts": plant }, ["layer"]);
+
+    expect(error).toContain("layer: read without type checks in packages/react/src/plant.ts");
+  },
+  BUILD_MS,
+);
+
+test.each(["\n", "\r\n", "\r", "\u2028", "\u2029"])(
+  "a block comment after a directive stops suppression with break %j",
+  async (separator) => {
+    const plant = [
+      imports,
+      "const view: { layer: number } = { layer: 1 };",
+      "// @ts-ignore",
+      "/* why */",
+      "export const read = view.layer;",
+    ].join(separator);
+
+    const error = await guard({ "packages/react/src/plant.ts": plant }, ["layer"]);
+
+    expect(error).toBe("");
+  },
+  BUILD_MS,
+);
+
 test(
   "a trailing @ts-expect-error on a code line hides the read after a blank line",
   async () => {

@@ -35,6 +35,9 @@ import {
 import { minifySync, parseSync, Visitor } from "vite-plus";
 import type { ESTree, Rolldown } from "vite-plus";
 
+/** TypeScript 7 line breaks; CRLF is one break. */
+const LINE_BREAKS = /\r\n?|[\n\u2028\u2029]/g;
+
 const LIST_FILE = fileURLToPath(new URL("./private-fields.json", import.meta.url));
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const CORE = join(ROOT, "packages/core");
@@ -1032,19 +1035,20 @@ function suppressedLines(
 
 /**
  * The offsets of the first line after `at` that is neither blank nor a `//` line, as `[from, to]`;
- * `undefined` when no such line follows.
+ * `undefined` when no such line follows. Uses every TypeScript 7 line break, with CRLF as one.
  */
 function codeLineBelow(code: string, at: number): [number, number] | undefined {
-  let newline = code.indexOf("\n", at);
-  while (newline !== -1) {
-    const from = newline + 1;
-    const next = code.indexOf("\n", from);
-    const to = next === -1 ? code.length : next;
+  LINE_BREAKS.lastIndex = at;
+  let found = LINE_BREAKS.exec(code);
+  while (found !== null) {
+    const from = found.index + found[0].length;
+    const next = LINE_BREAKS.exec(code);
+    const to = next === null ? code.length : next.index;
 
     const text = code.slice(from, to).trim();
     if (text !== "" && !text.startsWith("//")) return [from, to];
 
-    newline = next;
+    found = next;
   }
   return undefined;
 }
