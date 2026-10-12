@@ -1009,8 +1009,12 @@ function escapeName(name: string): string {
 }
 
 /**
- * The offsets below `@ts-expect-error` or `@ts-ignore`, or every offset for `@ts-nocheck`.
+ * The offsets `@ts-expect-error` or `@ts-ignore` hides, or every offset for `@ts-nocheck`.
  * Reads at these offsets lack type checks. Offsets are UTF-16, as `code` is.
+ *
+ * A directive hides the first line below it that is neither blank nor a `//` line. TypeScript 7
+ * skips those lines, and stops at a block comment line, which counts as code here too. A name with
+ * a suffix, such as `@ts-ignorexyz`, is a directive as TypeScript reads it.
  */
 function suppressedLines(
   code: string,
@@ -1019,12 +1023,30 @@ function suppressedLines(
   if (comments.some((comment) => /@ts-nocheck\b/.test(comment.value))) return () => true;
   const lines: [number, number][] = [];
   for (const comment of comments) {
-    const end = code.indexOf("\n", comment.end);
-    if (end === -1 || !/@ts-(expect-error|ignore)\b/.test(comment.value)) continue;
-    const next = code.indexOf("\n", end + 1);
-    lines.push([end + 1, next === -1 ? code.length : next]);
+    if (!/@ts-(expect-error|ignore)/.test(comment.value)) continue;
+    const line = codeLineBelow(code, comment.end);
+    if (line !== undefined) lines.push(line);
   }
   return (offset) => lines.some(([from, to]) => offset >= from && offset <= to);
+}
+
+/**
+ * The offsets of the first line after `at` that is neither blank nor a `//` line, as `[from, to]`;
+ * `undefined` when no such line follows.
+ */
+function codeLineBelow(code: string, at: number): [number, number] | undefined {
+  let newline = code.indexOf("\n", at);
+  while (newline !== -1) {
+    const from = newline + 1;
+    const next = code.indexOf("\n", from);
+    const to = next === -1 ? code.length : next;
+
+    const text = code.slice(from, to).trim();
+    if (text !== "" && !text.startsWith("//")) return [from, to];
+
+    newline = next;
+  }
+  return undefined;
 }
 
 /** True when the checker answers `any` for a read of `name` on `type`: see {@link anyRead}. */
