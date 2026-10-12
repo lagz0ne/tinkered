@@ -1,5 +1,5 @@
 import { createScope, isError as isCoreError } from "@tinker/core";
-import { env } from "@tinker/start/server";
+import { authSettings } from "@tinker/start/server";
 import { test, expect } from "vite-plus/test";
 
 import { migrate, databaseUrl } from "@/backend/database.server";
@@ -11,9 +11,9 @@ import { proofDatabase, proofMail, requestHeaders } from "./presets";
 
 const tags = [
   databaseUrl(new URL("postgres://proof")),
-  env({
-    PUBLIC_ORIGIN: "http://localhost:4318",
-    AUTH_SECRET: "test-secret-with-at-least-thirty-two-letters",
+  authSettings({
+    origin: "http://localhost:4318",
+    secret: "test-secret-with-at-least-thirty-two-letters",
   }),
 ];
 

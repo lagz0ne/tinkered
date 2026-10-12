@@ -1,9 +1,13 @@
 # 0113 A unit depends on its settings tag, not env
 
-Date: 2026-10-12. Status: proposed (user, 2026-10-12: "Component like
-mail and db just need to have those tags required, and that's it.").
-Replaces the "App settings become resources over `env`" part of ADR 0106.
-Uses: 0006, 0099, 0105, 0106.
+Date: 2026-10-12. Status: accepted.
+
+- User, 2026-10-12: "Component like mail and db just
+  need to have those tags required, and that's it."
+- User: "Yes, pattern applies for all."
+- User: "This is the official authoring pattern."
+  Replaces the "App settings become resources over `env`" part of ADR 0106.
+  Uses: 0006, 0099, 0105, 0106.
 
 ## Context
 
@@ -35,11 +39,16 @@ So `mailSettings` and `databaseSettings` each depended on every key.
 - A provider exposes the exact values it needs as tags.
   Mail: `smtpUrl` (a `URL`) and `mailFrom`.
   Database: `databaseUrl` (a `URL`).
+  Auth: `authSettings` (origin and secret).
+  Telemetry: `telemetryConfig` (service and URLs).
 - The value's type is the provider's choice.
 - A provider never reads `env` and never parses text.
 - Whoever makes the scope fills the tags:
   - the server seam's `settings(env)`, at start;
+  - each base part's `settings(env)`, at start;
   - a test, with typed values.
+- The `env` tag is gone. No unit can read the bag.
+- This is the authoring rule for every unit.
 - `settings` checks and converts env keys.
   A refused key raises BadSettings, with each key.
 - That conversion is tested alone; no provider runs.
@@ -84,5 +93,8 @@ tags: [databaseUrl(new URL("postgres://proof"))]
 - The plain check counts the base as `settings`'s caller.
 - The mail example now needs its SMTP keys to start.
   Before, it needed them only when it sent mail.
-- The base parts (auth, telemetry) still read `env`.
-  A second step moves them to tags; then no unit reads `env`.
+- Auth and telemetry fill their tags the same way.
+  Their keys are still checked by the part's env table.
+- A refused base key now stops start at once,
+  before any root starts.
+- Code that bound `env(...)` binds the typed tag.

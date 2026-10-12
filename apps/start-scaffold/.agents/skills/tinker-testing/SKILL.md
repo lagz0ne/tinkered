@@ -51,19 +51,19 @@ try {
 ```
 
 Fill each settings tag with a typed value.
-Never bind `env` for an app tag:
+There is no `env` tag; bind the typed tag:
 
 ```ts
 const settings = [
   databaseUrl(new URL("postgres://proof")),
-  env({
-    PUBLIC_ORIGIN: "http://localhost:4318",
-    AUTH_SECRET: "test-secret-with-32-letters-or-more",
+  authSettings({
+    origin: "http://localhost:4318",
+    secret: "test-secret-with-32-letters-or-more",
   }),
 ];
 ```
 
-The auth part still reads `env` until it moves to a tag.
+`authSettings` comes from `@tinker/start/server`.
 The worked tests show their filled values.
 For outgoing HTTP, bind httpBackend through the base testing entry:
 

@@ -1,6 +1,5 @@
 import { createScope, namespace, operation } from "@tinker/core";
 import { makeTestClock } from "@tinker/core/testing";
-import { env } from "@tinker/start/server";
 import {
   exportHealth,
   flushTelemetry,
@@ -9,6 +8,8 @@ import {
   serverTelemetry,
 } from "@tinker/start/testing";
 import { expect, test } from "vite-plus/test";
+
+import { readTelemetryConfig } from "../src/parts/telemetry/settings";
 
 /** Main's server part has only `observe`; these defaults keep the regression runnable there. */
 const telemetry = Object.assign(
@@ -21,7 +22,7 @@ const off = Object.assign(
   offTelemetry,
 );
 
-const storageEnv = env({
+const storageEnv = readTelemetryConfig({
   VICTORIA_TRACES_URL: "http://storage.test/traces",
   VICTORIA_LOGS_URL: "http://storage.test/logs",
   OTEL_SERVICE_NAME: "test-start",

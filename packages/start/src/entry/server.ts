@@ -9,7 +9,6 @@ import app from "#tinker/server";
 
 import { backendStop } from "../backend/lifetime";
 import { retainRender } from "../backend/render-lifetime.server";
-import { env } from "../env";
 import type { Env } from "../env";
 import { abortReasons, raise } from "../errors";
 import { startRequests } from "../start";
@@ -36,14 +35,13 @@ const renderRequest = createStart(async (context) => {
  */
 async function start() {
   const values = { ...process.env };
-  const settings = env(values);
   const readSettings: Env.Read = appSettings;
 
   const toolStop = new AbortController();
   const tools = createScope({
     signal: toolStop.signal,
     extensions: telemetry.extensions,
-    tags: [settings, telemetry.tags],
+    tags: [telemetry.settings(values), telemetry.tags],
   });
   await tools.ready;
 
@@ -54,7 +52,7 @@ async function start() {
     extensions: [startRequests, auth.extensions, extensions],
     tags: [
       backendStop(stop.signal),
-      settings,
+      auth.settings(values),
       readSettings(values),
       tools.resolve(telemetry.appTags),
     ],

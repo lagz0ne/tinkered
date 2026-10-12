@@ -1,7 +1,7 @@
 import { createScope, operation } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
 import { syncClient, applyBootstrap } from "@tinker/start/client";
-import { env } from "@tinker/start/server";
+import { authSettings } from "@tinker/start/server";
 import { accountOwner, tabStop, receiveMessage } from "@tinker/start/testing";
 import { openSync, notifications, backendStop, requestStop } from "@tinker/start/testing";
 import { test, expect } from "vite-plus/test";
@@ -20,9 +20,9 @@ import { proofDatabase, proofMail, requestHeaders } from "./presets";
 
 const settings = [
   databaseUrl(new URL("postgres://proof")),
-  env({
-    PUBLIC_ORIGIN: "http://localhost:4318",
-    AUTH_SECRET: "test-secret-with-at-least-thirty-two-letters",
+  authSettings({
+    origin: "http://localhost:4318",
+    secret: "test-secret-with-at-least-thirty-two-letters",
   }),
 ];
 

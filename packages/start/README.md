@@ -259,7 +259,7 @@ and so does the head of `.tinker/parts.server.ts`.
   wire values and refuse each broken one;
   a snapshot keeps the app's own fields
   beside the stream and revision.
-- `@tinker/start/server`: `readResult`, `env`,
+- `@tinker/start/server`: `readResult`, the `Env` types,
   `createServerEntry`, `authSettings`
   (the auth part's origin and secret),
   and `eventHistory` with the `Database` type
@@ -386,20 +386,22 @@ The package's `exports` refuses every other path.
     then the owned clock aborts a stuck storage request.
     Then closing gives up on storage,
     and what is left is dropped.
-  - A bad storage URL stops the telemetry root
-    at its start with `BadSettings`, naming each key.
+  - The telemetry part's `settings(env)` fills
+    the `telemetryConfig` tag (ADR 0113).
+    A bad storage URL stops start
+    with `BadSettings`, naming each key.
 - With auth on, `/api/auth/$` hands the whole
   request to the app's `auth` library,
   and returns its reply as is.
   It takes only a request;
   a failing library fails the call.
-- The auth part reads its two keys once,
-  and hands them to the app's `auth` as `authSettings`.
-  With auth on, the app root does not start
+- The auth part's `settings(env)` reads its two keys
+  once and fills the `authSettings` tag (ADR 0113).
+  With auth on, start stops at once
   while a key is unset or refused.
   With auth off, the app root reads no auth key.
   The auth part's work shows on the trace
-  as `auth.settings` and `handleAuth`.
+  as `handleAuth`.
 - With sync on, a tab keeps its sync state
   in its app root:
   - A server render loads the snapshot with

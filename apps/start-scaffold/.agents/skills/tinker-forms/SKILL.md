@@ -36,8 +36,10 @@ Never pass a scope or context bag to a helper.
 
 ## Settings
 
+This is the authoring rule for every unit (ADR 0113).
 A provider exposes the exact values it needs as tags.
 It never reads `env`, and it never parses text.
+There is no `env` tag to depend on.
 Pick the type the provider uses, such as `URL`.
 See `smtpUrl` and `mailFrom` in `src/backend/mail.server.ts`:
 
@@ -60,6 +62,9 @@ Whoever makes the scope fills the tags:
 
 - the server seam's `settings(env)`, at start;
 - a test, with typed values.
+
+The base parts follow it too.
+Auth needs `authSettings`; telemetry needs `telemetryConfig`.
 
 `settings` checks and converts env keys there.
 A refused key stops start with BadSettings.

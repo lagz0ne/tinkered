@@ -3,7 +3,6 @@ import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 
 import { httpBackend } from "../src/backend/http-backend";
-import { env } from "../src/env";
 import { exportHealth } from "../src/parts/telemetry/health";
 import {
   flushTelemetry,
@@ -14,10 +13,14 @@ import {
 import { telemetry as off } from "../src/parts/telemetry/off";
 import { telemetry as routerPart } from "../src/parts/telemetry/on";
 import type { Telemetry } from "../src/parts/telemetry/records";
-import { telemetrySettings, telemetrySide } from "../src/parts/telemetry/settings";
+import {
+  telemetrySettings,
+  telemetrySide,
+  readTelemetryConfig,
+} from "../src/parts/telemetry/settings";
 
 /** Storage keys for a test: each send lands in the fake bound as httpBackend. */
-const storageEnv = env({
+const storageEnv = readTelemetryConfig({
   VICTORIA_TRACES_URL: "http://storage.test/traces",
   VICTORIA_LOGS_URL: "http://storage.test/logs",
   OTEL_SERVICE_NAME: "test-start",
@@ -531,7 +534,7 @@ test("a tab sends its batch to the base's ingest route: same origin, kept alive"
   const sent = storage([200, 503]);
   const tools = createScope({
     extensions: [telemetryExport],
-    tags: [env({}), telemetrySide("browser"), httpBackend(sent.backend)],
+    tags: [telemetrySide("browser"), httpBackend(sent.backend)],
   });
   await tools.ready;
   const app = createScope({ observe: tools.resolve(observer) });
@@ -571,7 +574,6 @@ test("a tab whose send throws keeps its records for the next send", async () => 
   const tools = createScope({
     extensions: [telemetryExport],
     tags: [
-      env({}),
       telemetrySide("browser"),
       httpBackend(async () => {
         throw new TypeError("offline");
@@ -588,8 +590,8 @@ test("a tab whose send throws keeps its records for the next send", async () => 
   expect((await tools.close({ graceful: true })).status).toBe("success");
 });
 
-test("the part reads its three keys once: defaults, set values, and the browser's none", async () => {
-  const server = createScope({ tags: [env({}), telemetrySide("server")] });
+test("the part fills its config from three keys: defaults, set values, and the browser's none", async () => {
+  const server = createScope({ tags: [telemetrySide("server")] });
   expect(server.resolve(telemetrySettings)).toEqual({
     side: "server",
     service: "tinker-app",
@@ -612,25 +614,21 @@ test("the part reads its three keys once: defaults, set values, and the browser'
   expect((await tab.close({ graceful: true })).status).toBe("success");
 });
 
-test("a bad storage URL stops the telemetry root at its start, naming each bad key", async () => {
-  const tools = createScope({
-    extensions: [telemetryExport],
-    tags: [
-      env({ VICTORIA_TRACES_URL: "not a url", VICTORIA_LOGS_URL: "ftp://logs.test" }),
-      telemetrySide("server"),
-    ],
-  });
-  await expect(tools.ready).rejects.toMatchObject({
-    kind: "BadSettings",
-    payload: { part: "telemetry", keys: ["VICTORIA_TRACES_URL", "VICTORIA_LOGS_URL"] },
-  });
-  expect((await tools.close({ graceful: true })).status).toBe("failed");
+test("a bad storage URL stops the server entry before the telemetry root, naming each bad key", () => {
+  expect(() =>
+    readTelemetryConfig({ VICTORIA_TRACES_URL: "not a url", VICTORIA_LOGS_URL: "ftp://logs.test" }),
+  ).toThrow(
+    expect.objectContaining({
+      kind: "BadSettings",
+      payload: { part: "telemetry", keys: ["VICTORIA_TRACES_URL", "VICTORIA_LOGS_URL"] },
+    }),
+  );
 });
 
 test("the router's part records a server render as ssr", async () => {
   const tools = createScope({
     extensions: routerPart.extensions,
-    tags: [env({}), routerPart.tags],
+    tags: [routerPart.tags],
   });
   await tools.ready;
   expect(tools.resolve(telemetrySettings).side).toBe("ssr");

@@ -3,7 +3,7 @@ import { resource, tag } from "@tinker/core";
 import { telemetryEnv } from "#tinker/telemetry-env";
 
 import { readPartEnv } from "../../../lib/part-env.mjs";
-import { env } from "../../env";
+import type { Env } from "../../env";
 import { raise } from "../../errors";
 import type { Telemetry } from "./records";
 
@@ -11,17 +11,39 @@ import type { Telemetry } from "./records";
 export const telemetrySide = tag<Telemetry.Side>({ label: "telemetry.side" });
 
 /**
- * The telemetry part's own env keys, read once and checked (ADR 0106).
- * The browser has no storage URLs: it sends to the base's ingest route.
+ * The service name and storage URLs (ADR 0113). The server entry fills it from env; a tab
+ * keeps the defaults, since it sends to the base's ingest route.
  */
+export const telemetryConfig = tag<Telemetry.Config>({
+  label: "telemetry.config",
+  default: {
+    service: telemetryEnv.OTEL_SERVICE_NAME.default,
+    traces: telemetryEnv.VICTORIA_TRACES_URL.default,
+    logs: telemetryEnv.VICTORIA_LOGS_URL.default,
+  },
+});
+
+/**
+ * Fills {@link telemetryConfig} from the telemetry part's env keys, checked once at start.
+ * @param env - From the server entry's copy of process.env; why: the keys to check.
+ */
+export function readTelemetryConfig(env: Env.Values) {
+  const { values, refused } = readPartEnv(telemetryEnv, env);
+  if (refused.length > 0) raise("BadSettings", { part: "telemetry", keys: refused });
+
+  return telemetryConfig({
+    service: values.OTEL_SERVICE_NAME,
+    traces: values.VICTORIA_TRACES_URL,
+    logs: values.VICTORIA_LOGS_URL,
+  });
+}
+
+/** This side's settings. The browser has no storage URLs: it sends to the ingest route. */
 export const telemetrySettings = resource({
   label: "telemetry.settings",
-  depends: { env, side: telemetrySide },
-  factory: ({ env, side }): Telemetry.Settings => {
-    const { values, refused } = readPartEnv(telemetryEnv, env);
-    if (refused.length > 0) raise("BadSettings", { part: "telemetry", keys: refused });
-    const service = values.OTEL_SERVICE_NAME;
-    if (side === "browser") return { side, service };
-    return { side, service, traces: values.VICTORIA_TRACES_URL, logs: values.VICTORIA_LOGS_URL };
+  depends: { config: telemetryConfig, side: telemetrySide },
+  factory: ({ config, side }): Telemetry.Settings => {
+    if (side === "browser") return { side, service: config.service };
+    return { side, ...config };
   },
 });
