@@ -44,7 +44,8 @@ So `mailSettings` and `databaseSettings` each depended on every key.
   Database: `databaseUrl` (a `URL`).
   Auth: `authSettings` (origin and secret).
   Telemetry: `telemetryService`, `tracesUrl`, `logsUrl`
-  (both `URL`), and `telemetrySide`.
+  (both `URL`), `telemetrySide`, `logLevel`,
+  and `spanHistory`.
   The logger and span backend (observer, queue,
   delivery) each need only the tags they use.
 - The value's type is the provider's choice.
@@ -104,3 +105,7 @@ tags: [databaseUrl(new URL("postgres://proof"))]
 - A refused base key now stops start at once,
   before any root starts.
 - Code that bound `env(...)` binds the typed tag.
+- Core's log level and span history are tags too.
+  `LOG_LEVEL` (default `info`) and `SPAN_HISTORY`
+  (default `80`) fill them (user: "make them avail,
+  with default sensible").

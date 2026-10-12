@@ -1,4 +1,5 @@
-import { tag } from "@tinker/core";
+import { LEVELS, tag } from "@tinker/core";
+import type { Observe } from "@tinker/core";
 
 import { telemetryEnv } from "#tinker/telemetry-env";
 
@@ -28,6 +29,12 @@ export const logsUrl = tag<URL>({
   default: new URL(telemetryEnv.VICTORIA_LOGS_URL.default),
 });
 
+/** The lowest level Core writes; lower log lines are dropped before they cost a record. */
+export const logLevel = tag<Observe.Level>({ label: "telemetry.logLevel", default: LEVELS.info });
+
+/** How many finished spans a root keeps for `root.spans()`; 0 keeps none. */
+export const spanHistory = tag<number>({ label: "telemetry.spanHistory", default: 80 });
+
 /**
  * Fills the telemetry tags from the part's env keys, checked once at start (ADR 0113).
  * @param env - From the server entry's copy of process.env; why: the keys to check.
@@ -40,5 +47,7 @@ export function readTelemetryConfig(env: Env.Values) {
     telemetryService(values.OTEL_SERVICE_NAME),
     tracesUrl(new URL(values.VICTORIA_TRACES_URL)),
     logsUrl(new URL(values.VICTORIA_LOGS_URL)),
+    logLevel(LEVELS[values.LOG_LEVEL as keyof typeof LEVELS]),
+    spanHistory(Number(values.SPAN_HISTORY)),
   ];
 }

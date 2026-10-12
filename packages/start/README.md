@@ -80,6 +80,11 @@ export default defineConfig({
   - Reads `VICTORIA_LOGS_URL`,
     default `http://127.0.0.1:9428/insert/jsonline`.
   - Reads `OTEL_SERVICE_NAME`, default `tinker-app`.
+  - Reads `LOG_LEVEL`, default `info`:
+    `debug`, `info`, `warn`, or `error`.
+    Core drops log lines below it.
+  - Reads `SPAN_HISTORY`, default `80`:
+    how many finished spans a root keeps.
   - Both URLs must be http(s).
     An empty value reads as unset.
 - **auth**: off by default.
@@ -387,10 +392,11 @@ The package's `exports` refuses every other path.
     Then closing gives up on storage,
     and what is left is dropped.
   - The telemetry part's `settings(env)` fills
-    `telemetryService`, `tracesUrl`, and `logsUrl`
-    (ADR 0113). Each unit needs only its own tags:
+    `telemetryService`, `tracesUrl`, `logsUrl`,
+    `logLevel`, and `spanHistory` (ADR 0113).
+    Each unit needs only its own tags:
     the queue needs the side;
-    the observer, the side and service;
+    the observer, the side, service, level, and history;
     delivery, the side, service, and both URLs.
     A bad storage URL stops start
     with `BadSettings`, naming each key.

@@ -1,4 +1,4 @@
-import { createScope, operation } from "@tinker/core";
+import { createScope, LEVELS, operation } from "@tinker/core";
 import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 
@@ -14,7 +14,9 @@ import { telemetry as off } from "../src/parts/telemetry/off";
 import { telemetry as routerPart } from "../src/parts/telemetry/on";
 import type { Telemetry } from "../src/parts/telemetry/records";
 import {
+  logLevel,
   logsUrl,
+  spanHistory,
   readTelemetryConfig,
   telemetryService,
   telemetrySide,
@@ -592,7 +594,7 @@ test("a tab whose send throws keeps its records for the next send", async () => 
   expect((await tools.close({ graceful: true })).status).toBe("success");
 });
 
-test("the part turns its three keys into typed tags, with no telemetry unit running", () => {
+test("the part turns its five keys into typed tags, with no telemetry unit running", () => {
   const read = (env: Record<string, string>) =>
     readTelemetryConfig(env).map(({ tag, value }) => [tag.label, String(value)]);
 
@@ -600,18 +602,32 @@ test("the part turns its three keys into typed tags, with no telemetry unit runn
     ["telemetry.service", "tinker-app"],
     ["telemetry.tracesUrl", "http://127.0.0.1:10428/insert/opentelemetry/v1/traces"],
     ["telemetry.logsUrl", "http://127.0.0.1:9428/insert/jsonline"],
+    ["telemetry.logLevel", "30"],
+    ["telemetry.spanHistory", "80"],
   ]);
   expect(
     read({
       OTEL_SERVICE_NAME: "test-start",
       VICTORIA_TRACES_URL: "http://storage.test/traces",
       VICTORIA_LOGS_URL: "http://storage.test/logs",
+      LOG_LEVEL: "warn",
+      SPAN_HISTORY: "0",
     }),
   ).toEqual([
     ["telemetry.service", "test-start"],
     ["telemetry.tracesUrl", "http://storage.test/traces"],
     ["telemetry.logsUrl", "http://storage.test/logs"],
+    ["telemetry.logLevel", "40"],
+    ["telemetry.spanHistory", "0"],
   ]);
+});
+
+test("the observer takes Core's level and span history from its tags", async () => {
+  const quiet = createScope({
+    tags: [storageTags, telemetrySide("server"), logLevel(LEVELS.warn), spanHistory(0)],
+  });
+  expect(quiet.resolve(observer)).toMatchObject({ history: 0, level: LEVELS.warn });
+  expect((await quiet.close({ graceful: true })).status).toBe("success");
 });
 
 test("a bad storage URL stops the server entry before the telemetry root, naming each bad key", () => {

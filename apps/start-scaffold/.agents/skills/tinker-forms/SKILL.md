@@ -66,7 +66,8 @@ Whoever makes the scope fills the tags:
 The base parts follow it too.
 Auth needs `authSettings`.
 Telemetry's units need `telemetrySide`, `telemetryService`,
-`tracesUrl`, and `logsUrl`, each only what it uses.
+`tracesUrl`, `logsUrl`, `logLevel`, and `spanHistory`,
+each only what it uses.
 
 `settings` checks and converts env keys there.
 A refused key stops start with BadSettings.
