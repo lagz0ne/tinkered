@@ -22,6 +22,12 @@ head.
    checks the smallest stable shape needed to narrow. A `readX` reader does any
    real validation once and keeps the facts later code needs.
 
+   Outside effects enter at the seam (ADR 0113). Env, the clock, randomness,
+   the network, and the console reach a unit through its scope: a typed tag,
+   a resource, or `ctx.clock`. The entry, a seam file, or a test binds them.
+   Internal code stays static: no `process.*`, `Date.now`, `Math.random`,
+   bare `fetch`, or `console.*` in a unit body.
+
 2. **Errors are managed.** Each package has one `src/errors.ts` that names every
    error and its payload type. Code throws only from that registry. Callers
    narrow with `isError(error, "Name")`; on mismatch they rethrow. No bare
