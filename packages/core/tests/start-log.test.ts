@@ -28,8 +28,10 @@ describe("extension start", () => {
         }),
       ],
     });
+
     await scope.ready;
     await scope.close();
+
     expect(lines).toEqual([
       {
         time: 10,
@@ -53,6 +55,7 @@ describe("extension start", () => {
         span: undefined,
       },
     ]);
+
     expect(scope.spans()).toEqual([]);
   });
 
@@ -67,19 +70,23 @@ describe("extension start", () => {
             start(event) {
               const { log } = event;
               expect(event.log).toBe(log);
+
               log("plain");
               log.debug("debug");
               log.info("info");
               log.warn("warn");
               log.error("error");
+
               return event.next();
             },
           },
         }),
       ],
     });
+
     await scope.ready;
     await scope.close();
+
     expect(lines).toEqual(
       [
         { message: "plain", level: LEVELS.info },
@@ -113,8 +120,10 @@ describe("extension start", () => {
         }),
       ],
     });
+
     await scope.ready;
     await scope.close();
+
     expect(lines).toEqual([
       {
         time: 0,
@@ -124,6 +133,7 @@ describe("extension start", () => {
         span: undefined,
       },
     ]);
+
     expect(reads).toBe(1);
   });
 
@@ -144,6 +154,7 @@ describe("extension start", () => {
           event.log.info("info", attributes);
           event.log.warn("warn", attributes);
           event.log.error("error", attributes);
+
           return event.next();
         },
       },

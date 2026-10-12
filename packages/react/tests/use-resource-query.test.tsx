@@ -245,21 +245,25 @@ test("a parent render keeps the local query handle when its state did not change
   const scope = createScope();
   const answer = resource({ label: "stable-query", factory: () => 42 });
   const seen: { query?: Query.Handle<number> } = {};
+
   function View(): React.ReactElement {
     seen.query = useResource(answer, { suspense: false });
     return <p>{seen.query.data}</p>;
   }
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <View />
     </ScopeProvider>,
   );
+
   const first = seen.query;
   await screen.rerender(
     <ScopeProvider scope={scope}>
       <View />
     </ScopeProvider>,
   );
+
   expect(seen.query).toBe(first);
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });

@@ -17,10 +17,13 @@ test("typing then saving posts once and clears the draft", async () => {
   });
   try {
     await scope.ready;
+
     scope.run(typeDraft, { input: { title: "x" } });
     expect(scope.resolve(draft)).toEqual({ title: "x", description: "" });
+
     const saved = await scope.run(saveDraft);
     expect(saved).toEqual({ title: "x", description: "" });
+
     expect(seen).toEqual(["post"]);
     expect(scope.resolve(draft)).toEqual({ title: "", description: "" });
   } finally {

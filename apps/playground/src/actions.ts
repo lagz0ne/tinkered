@@ -69,6 +69,7 @@ export const addFile = operation({
       back: prev.place ? [...prev.back, prev.place] : prev.back,
       forward: [],
     });
+
     return name;
   },
 });
@@ -91,6 +92,7 @@ export const closeFile = operation({
     const next = names.filter((n) => n !== name);
     dirty.set(true);
     files.update((prev) => prev.filter((f) => f.name !== name));
+
     const [first] = next;
     if (active.get() === name) active.set(next[idx] ?? next[idx - 1] ?? first);
     const prev = nav.get();
@@ -99,6 +101,7 @@ export const closeFile = operation({
       back: prev.back.filter((p) => p.file !== name),
       forward: prev.forward.filter((p) => p.file !== name),
     });
+
     return true;
   },
 });
@@ -121,6 +124,7 @@ export const renameFile = operation({
   },
   run: ({ files, active, dirty, nav }, { input: { from, to } }) => {
     if (files.get().some((f) => f.name === to)) return false;
+
     dirty.set(true);
     files.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
     if (active.get() === from) active.set(to);

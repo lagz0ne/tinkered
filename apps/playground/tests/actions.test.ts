@@ -12,6 +12,7 @@ test("addFile opens an empty Untitled1.tsx tab and makes it active", () => {
   const scope = createScope();
   const name = scope.run(addFile);
   expect(name).toBe("Untitled1.tsx");
+
   expect(scope.resolve(filesCell).at(-1)).toEqual({ name: "Untitled1.tsx", content: "" });
   expect(scope.resolve(activeCell)).toBe("Untitled1.tsx");
   expect(scope.resolve(dirtyCell)).toBe(true);
@@ -52,6 +53,7 @@ test("editFile replaces one file's content and marks the session dirty", () => {
   scope.run(editFile, { input: { name: "state.ts", content: "export const x = 1;" } });
   const files = scope.resolve(filesCell);
   expect(files.find((f) => f.name === "state.ts")?.content).toBe("export const x = 1;");
+
   const [starter] = DEFAULT_FILES;
   expect(files.find((f) => f.name === "main.tsx")).toBe(starter);
   expect(scope.resolve(dirtyCell)).toBe(true);
@@ -61,6 +63,7 @@ test("reset restores the starter project and clears dirty", () => {
   const scope = createScope();
   scope.run(editFile, { input: { name: "main.tsx", content: "" } });
   scope.run(addFile);
+
   scope.run(reset);
   expect(scope.resolve(filesCell)).toEqual([...DEFAULT_FILES]);
   expect(scope.resolve(activeCell)).toBe(ENTRY);
@@ -110,6 +113,7 @@ test("closing a file prunes it from both navigation history stacks", () => {
   scope.run(openSource, { input: { file: "state.ts", offset: 5 } });
   scope.run(openSource, { input: { file: "errors.ts", offset: 3 } });
   scope.run(closeFile, { input: "state.ts" });
+
   const nav = scope.resolve(navigationCell);
   expect(nav.place).toEqual({ file: "errors.ts", offset: 3 });
   expect(nav.back).toEqual([{ file: "main.tsx", offset: 0 }]);
@@ -121,6 +125,7 @@ test("renaming a file rewrites its history entries, keeping offsets", () => {
   scope.run(openSource, { input: { file: "main.tsx", offset: 0 } });
   scope.run(openSource, { input: { file: "state.ts", offset: 5 } });
   scope.run(renameFile, { input: { from: "main.tsx", to: "launch.tsx" } });
+
   expect(scope.resolve(navigationCell).back).toEqual([{ file: "launch.tsx", offset: 0 }]);
   scope.run(goBack);
   expect(scope.resolve(navigationCell).place).toEqual({ file: "launch.tsx", offset: 0 });

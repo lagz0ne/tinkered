@@ -39,10 +39,12 @@ export const say = {
 function mergedPaths(root) {
   const own = readJsonc(join(root, "tsconfig.json"));
   if (own.error) return null;
+
   const parents = [own.value.extends ?? []]
     .flat()
     .filter((file) => /^\.{1,2}\//.test(file))
     .map((file) => readJsonc(resolve(root, file)));
+
   if (parents.some((parent) => parent.error)) return null;
   const found = [own, ...parents.reverse()].find((read) => read.value.compilerOptions?.paths);
   return found?.value.compilerOptions.paths ?? {};
@@ -96,10 +98,13 @@ function componentsProblems(root) {
   const components = readJsonc(join(root, "components.json"), { strict: true });
   if (components.error) return [say.parse(components.error)];
   if (!components.text) return [];
+
   const { text, value } = components;
   const { aliases = {}, tailwind = {} } = value;
+
   const paths = mergedPaths(root);
   if (!paths) return [];
+
   return [
     ...aliasProblems(root, text, aliases, paths),
     cssProblem(text, tailwind.css),

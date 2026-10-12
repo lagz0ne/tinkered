@@ -123,12 +123,14 @@ test("runs an operation imperatively: idle -> pending -> success, with rawInput 
   const scope = createScope();
   const gate = deferred<void>();
   const errors: unknown[] = [];
+
   const receive = (event: ErrorEvent) => {
     errors.push(event.error);
     event.preventDefault();
     event.stopImmediatePropagation();
   };
   window.addEventListener("error", receive, true);
+
   try {
     const doubleAsync = operation({
       label: "doubleAsync",

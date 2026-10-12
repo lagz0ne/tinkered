@@ -90,12 +90,15 @@ function bindingTypeSymbol(decl, node, symbol) {
 function symbolOf(node, seen = new Set()) {
   node = unwrap(node);
   if (!node) return undefined;
+
   const symbol = locationSymbol(node);
   if (seen.has(symbol)) return symbol;
   seen.add(symbol);
+
   const decl = symbol?.valueDeclaration;
   const bound = bindingTypeSymbol(decl, node, symbol);
   if (bound) return bound;
+
   const initializer = identifierInitializer(decl);
   return initializer ? symbolOf(initializer, seen) : symbol;
 }
@@ -298,9 +301,11 @@ function resolvedUnit(receiver) {
 
 function resolvedMethod(call) {
   if (!ts.isPropertyAccessExpression(call.expression)) return undefined;
+
   const receiver = call.expression.expression;
   const unit = dependencyUnit(receiver) ?? resolvedUnit(receiver);
   if (!unit || !coreSymbol(unit.expression, "resource")) return undefined;
+
   let method;
   walk(unit, (child) => {
     if (
@@ -311,6 +316,7 @@ function resolvedMethod(call) {
       method = child;
     }
   });
+
   return method;
 }
 
@@ -360,10 +366,13 @@ function callbackIndex(call, arg) {
 
 function callbackArgument(call, arg) {
   if (tagArgument(call)) return true;
+
   const index = callbackIndex(call, arg);
   const { signature, param } = callbackSlot(call, index);
   if (!param || index < 0) return false;
+
   if (nameOf(call.expression).endsWith(".validator")) return true;
+
   const type = callbackType(signature, param, index, arg);
   return type && !(type.flags & ts.TypeFlags.Any) && callable(type);
 }
@@ -417,6 +426,7 @@ function nativeArgument(node) {
 function nativeOption(node) {
   const member = ts.isPropertyAssignment(node.parent) ? node.parent : node;
   if (!ts.isObjectLiteralExpression(member.parent)) return false;
+
   let object = member.parent;
   while (
     ts.isPropertyAssignment(object.parent) &&
@@ -424,6 +434,7 @@ function nativeOption(node) {
   ) {
     object = object.parent.parent;
   }
+
   const call = object.parent;
   return argumentOf(object, call) && externalCall(call) && externalDeclaration(call);
 }
@@ -432,6 +443,7 @@ function namedNativeCallback(node) {
   const name = functionName(node);
   if (!name) return false;
   const symbol = symbolOf(name);
+
   let callback = false;
   for (const source of sources) {
     walk(source, (use) => {
@@ -440,6 +452,7 @@ function namedNativeCallback(node) {
       }
     });
   }
+
   return callback;
 }
 
@@ -538,13 +551,16 @@ function nestedTypeContains(type, mode, seen, depth) {
   if (type.isUnionOrIntersection()) {
     return type.types.some((part) => contains(part, mode, seen, depth + 1));
   }
+
   if (type.flags & ts.TypeFlags.TypeParameter) {
     const bound = checker.getBaseConstraintOfType(type);
     return bound ? contains(bound, mode, seen, depth + 1) : mode === "plain";
   }
+
   if (callable(type)) return mode === "plain";
   if (primitiveType(type)) return false;
   if (awaitedContains(type, mode, seen, depth)) return true;
+
   return checker
     .getPropertiesOfType(type)
     .some((prop) => propertyContains(prop, mode, seen, depth));
@@ -566,14 +582,18 @@ function exportedFunction(node) {
   if (node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
     return true;
   }
+
   const module = checker.getSymbolAtLocation(node.getSourceFile());
   if (!module) return false;
+
   let name = functionName(node);
   for (let parent = node.parent; parent; parent = parent.parent) {
     if (ts.isVariableDeclaration(parent)) name = parent.name;
     if (ts.isExportAssignment(parent)) return true;
   }
+
   if (!name) return false;
+
   const symbol = symbolOf(name);
   return checker
     .getExportsOfModule(module)
@@ -961,14 +981,17 @@ function createRequireReference(node) {
 function checkHttpImport(node) {
   if (typeOnlyImport(node) || typeReference(node)) return;
   const specifier = importSpecifier(node);
+
   if (createRequireReference(node)) {
     fail(node, "http-client: createRequire is not allowed in app code");
   }
   if (!specifier) return;
+
   if (!ts.isStringLiteralLike(specifier)) {
     fail(node, "http-client: module loads must use a literal path");
     return;
   }
+
   if (
     httpClients.some(
       (client) => specifier.text === client || specifier.text.startsWith(`${client}/`),
@@ -1055,11 +1078,14 @@ function callerLabel(use, caller) {
 
 function addCaller(use, name, symbol, node, source, callers) {
   if (!symbolUse(use, name, symbol)) return;
+
   const expression = calledExpression(use);
   const registered = registeredCaller(expression);
   if (!registered && !calledUse(expression)) return;
+
   const caller = registered ? expression.parent : callerOf(use);
   if (caller === node) return;
+
   callers.set(caller ?? source, callerLabel(use, caller));
 }
 
@@ -1157,13 +1183,17 @@ function checkPlainFunction(node) {
   const name = functionName(node);
   const params = node.parameters.map(paramRow);
   if (node.parameters.length > 3) fail(node, "three-params");
+
   walk(node.body, checkEffect);
+
   if (!name) {
     fail(node, "unnamed-plain");
     return;
   }
+
   const callers = callSites(name, node);
   if (callers.length < 2) fail(node, "two-sites");
+
   plain.push(
     `- **${pathOf(node)}#${nameOf(name)}**\n${params.join("\n")}\n  - Callers:\n${callers.map((caller) => `    - \`${caller}\``).join("\n")}`,
   );
@@ -1172,11 +1202,14 @@ function checkPlainFunction(node) {
 function checkFunction(node) {
   if (!isFunction(node) || !node.body) return;
   if (ts.isClassDeclaration(node.parent) || ts.isClassExpression(node.parent)) return;
+
   checkScopeReturn(node);
+
   if (isComponent(node)) {
     checkComponent(node);
     return;
   }
+
   if ([optionsMember, ownedMethod, nativeCallback].some((rule) => rule(node))) return;
   checkPlainFunction(node);
 }
@@ -1230,9 +1263,11 @@ function variableInitializer(symbol) {
 function requestSchema(node, seen = new Set()) {
   if (!node || seen.has(node)) return false;
   seen.add(node);
+
   const schema = checker.getTypeAtLocation(node);
   const output = schema.getProperty("_output");
   if (output && wireType(checker.getTypeOfSymbolAtLocation(output, node), "Request")) return true;
+
   let request = false;
   walk(node, (child) => {
     const symbol = locationSymbol(child);
@@ -1248,6 +1283,7 @@ function requestSchema(node, seen = new Set()) {
     }
     if (ts.isIdentifier(child) && requestSchema(variableInitializer(symbol), seen)) request = true;
   });
+
   return request;
 }
 
@@ -1262,10 +1298,12 @@ function functionImplementation(node, seen = new Set()) {
   if (!node || seen.has(node)) return undefined;
   seen.add(node);
   if (isFunction(node)) return node;
+
   const symbol = locationSymbol(node);
   if (symbol?.valueDeclaration && isFunction(symbol.valueDeclaration)) {
     return symbol.valueDeclaration;
   }
+
   return functionImplementation(variableInitializer(symbol), seen);
 }
 
@@ -1275,11 +1313,13 @@ function checkOperationInputCast(node) {
 
 function checkOperationRun(run) {
   if (!run) return;
+
   const expression = run.initializer ?? (ts.isShorthandPropertyAssignment(run) ? run.name : run);
   const signatures = checker.getTypeAtLocation(expression).getCallSignatures();
   let response = signatures.some((signature) =>
     wireType(checker.getReturnTypeOfSignature(signature), "Response"),
   );
+
   const implementation = functionImplementation(expression);
   if (implementation?.body) {
     walk(implementation.body, (child) => {
@@ -1289,6 +1329,7 @@ function checkOperationRun(run) {
       }
     });
   }
+
   if (response) fail(run, "operation-wire-output: replies belong to the protocol layer");
 }
 
@@ -1321,8 +1362,10 @@ for (const source of sources) {
     checkResponse(node);
     checkMountedAuth(node);
     checkHttpImport(node);
+
     checkService(node);
     checkRoots(node);
+
     if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) fail(node, "no-class");
     checkFunction(node);
   });
@@ -1362,6 +1405,7 @@ if (!process.argv.includes("--list")) {
 
 if (process.argv.includes("--prove")) {
   const planted = await mkdtemp(join(tmpdir(), "start-plain-red-"));
+
   const cases = [
     [
       "operation-request-input-cast",
@@ -2157,21 +2201,26 @@ if (process.argv.includes("--prove")) {
     ],
     ["list", "plain-list", "export const probe = 1;"],
   ];
+
   const names = process.argv
     .find((arg) => arg.startsWith("--cases="))
     ?.slice(8)
     .split(",");
   const selected = names ? cases.filter(([name]) => names.includes(name)) : cases;
   if (names) assert.equal(selected.length, names.length, "unknown planted case");
+
   try {
     await cp(join(root, "src"), join(planted, "src"), { recursive: true });
+
     for (const file of ["tsconfig.json", "PLAIN.md", "package.json", ".tinker"]) {
       await cp(join(root, file), join(planted, file), { recursive: true });
     }
+
     await cp(join(root, "tests"), join(planted, "tests"), { recursive: true });
     await symlink(join(root, "node_modules"), join(planted, "node_modules"), "dir");
     const generated = join(planted, ".tinker/tsconfig.json");
     await writeFile(generated, (await readFile(generated, "utf8")).replaceAll(root, planted));
+
     for (const [name, rule, source, file = "src/plain-probe.ts"] of selected) {
       const path = join(planted, file);
       const original = await readFile(path, "utf8").catch((error) => {
@@ -2179,7 +2228,9 @@ if (process.argv.includes("--prove")) {
         throw error;
       });
       await writeFile(path, original + source + "\n");
+
       if (name === "list") await writeFile(join(planted, "PLAIN.md"), "wrong list\n");
+
       const red = spawnSync(
         process.execPath,
         [fileURLToPath(import.meta.url), planted, ...(name === "plain-cap" ? ["--list"] : [])],
@@ -2189,12 +2240,16 @@ if (process.argv.includes("--prove")) {
       );
       const log = join(tmpdir(), `start-plain-proof-${name}.log`);
       await writeFile(log, red.stdout + red.stderr + `\nEXIT ${red.status}\n`);
+
       assert.equal(red.status, rule ? 1 : 0, name);
       if (rule) assert.ok(red.stderr.includes(rule), `${name}: must fail by ${rule}`);
+
       if (original) await writeFile(path, original);
       else await rm(path);
+
       console.log(`PASS: ${name} ${rule ?? "allowed"} EXIT ${red.status}; ${log}`);
     }
+
     console.log(`Plain proof passed: ${selected.length} planted cases.`);
   } finally {
     await rm(planted, { recursive: true, force: true });

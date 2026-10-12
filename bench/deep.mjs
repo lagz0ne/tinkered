@@ -69,8 +69,10 @@ assert(
   survives(() => {
     const root = createScope();
     const c = data({ label: "c", initial: 0 });
+
     let s = root;
     for (let i = 0; i < 1000; i++) s = s.createSession();
+
     s.controller(c).watch(() => {});
     root.controller(c).set(1);
   }),

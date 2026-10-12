@@ -70,12 +70,14 @@ const packages = new Map();
 function packageName(path) {
   const folder = dirname(path);
   if (packages.has(folder)) return packages.get(folder);
+
   const manifest = join(folder, "package.json");
   const name = existsSync(manifest)
     ? JSON.parse(readFileSync(manifest, "utf8")).name
     : folder === dirname(folder)
       ? undefined
       : packageName(folder);
+
   packages.set(folder, name);
   return name;
 }
@@ -99,8 +101,10 @@ function symbols(checker) {
   function target(node, seen = new Set()) {
     node = unwrap(node);
     if (!node) return undefined;
+
     const symbol = alias(symbolAt(node));
     if (!symbol || seen.has(symbol)) return symbol;
+
     seen.add(symbol);
     return declarationTarget(node, symbol, seen);
   }
@@ -118,10 +122,12 @@ function symbols(checker) {
     node = unwrap(node);
     if (!node || seen.has(node)) return [];
     seen.add(node);
+
     if (isExecutable(node)) return [node];
     if (ts.isConditionalExpression(node)) {
       return [...executables(node.whenTrue, seen), ...executables(node.whenFalse, seen)];
     }
+
     return symbolExecutables(node, seen);
   }
 
@@ -130,8 +136,10 @@ function symbols(checker) {
     const declarations = symbol?.declarations ?? [];
     const bodies = declarations.filter(isExecutable);
     if (bodies.length) return bodies;
+
     const found = executables(declarationInitializer(symbol?.valueDeclaration), seen);
     if (found.length) return found;
+
     return checker
       .getTypeAtLocation(node)
       .getCallSignatures()
@@ -143,10 +151,12 @@ function symbols(checker) {
     object = unwrap(object);
     if (!object || seen.has(object)) return undefined;
     seen.add(object);
+
     const declaration = propertyDeclaration(checker, object, name);
     const value = declarationInitializer(declaration);
     if (value) return value;
     if (isFunction(declaration)) return declaration;
+
     return (
       spreadProperty(object, name, seen) ?? initializedProperty(object, name, seen) ?? declaration
     );
@@ -239,6 +249,7 @@ function boundTarget(node, checker, seen = new Set()) {
   const symbol = aliasedSymbol(node, checker);
   if (!symbol || seen.has(symbol)) return undefined;
   seen.add(symbol);
+
   const initializer = unwrap(declarationInitializer(symbol.valueDeclaration));
   if (initializer && ts.isCallExpression(initializer)) return bindTarget(initializer);
   return boundTarget(initializer, checker, seen);
@@ -278,11 +289,13 @@ function appliedInvocation(expression, list) {
 function inlineCall(call, checker) {
   if (!ts.isCallExpression(call)) return undefined;
   const indirect = unbound(indirectInvocation(call), checker) ?? boundInvocation(call, checker);
+
   if (!indirect) {
     return inlineParameter(checker.getResolvedSignature(call), checker)
       ? { object: call.arguments[0] }
       : undefined;
   }
+
   const { expression, object } = indirect;
   if (!object || coreType(checker.getTypeAtLocation(object), "Handle", "Operation")) {
     return undefined;
@@ -305,6 +318,7 @@ function isComponent(node) {
   ) {
     return false;
   }
+
   let jsx = false;
   function inspect(child) {
     if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child) || ts.isJsxFragment(child)) {
@@ -313,6 +327,7 @@ function isComponent(node) {
     if (!isFunction(child)) ts.forEachChild(child, inspect);
   }
   inspect(node.body);
+
   return jsx;
 }
 
@@ -352,9 +367,11 @@ function typePosition(node) {
 function valueUse(node) {
   if (typePosition(node)) return false;
   const parent = node.parent;
+
   if (ts.isPropertyAccessExpression(parent) && parent.name === node) return false;
   if (bindingKey(node)) return false;
   if (ts.isShorthandPropertyAssignment(parent)) return true;
+
   return !(parent.name === node || ts.isImportDeclaration(parent) || ts.isExportSpecifier(parent));
 }
 
@@ -386,12 +403,14 @@ function importedName(node, checker, seen = new Set()) {
   node = unwrap(node);
   if (!node) return false;
   if (namespaceOutside(node, checker, seen)) return true;
+
   if (
     (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) &&
     importedName(node.expression, checker, seen)
   ) {
     return true;
   }
+
   const symbol = ts.isShorthandPropertyAssignment(node.parent)
     ? checker.getShorthandAssignmentValueSymbol(node.parent)
     : checker.getSymbolAtLocation(node);
@@ -514,12 +533,15 @@ function checkLazy(object, factory, load, fail, modules) {
   if (!shape) {
     fail(object, 10, "lazy module must have only label, scope target, and () => import(literal)");
   }
+
   const path = load.arguments[0];
   if (!path || !ts.isStringLiteral(path)) return false;
+
   const key = path.text.replace(/^node:/, "");
   if (modules.has(key)) {
     fail(load, 9, `duplicate module ${path.text}; first at ${modules.get(key)}`);
   } else modules.set(key, location(load));
+
   return shape;
 }
 
@@ -585,12 +607,14 @@ async function check(roots) {
   const modules = new Map();
   const fail = (node, rule, text) =>
     hits.add(`${location(node)} ${typeof rule === "number" ? `rule-${rule}` : rule}: ${text}`);
+
   for (const root of roots) {
     const files = await sourceFiles(root);
     const configPath = ts.findConfigFile(root, (path) => ts.sys.fileExists(path));
     assert.ok(configPath, `${root}: needs a tsconfig.json`);
     const config = ts.readConfigFile(configPath, (path) => ts.sys.readFile(path));
     assert.equal(config.error, undefined, configPath);
+
     const parsed = ts.parseJsonConfigFileContent(
       config.config,
       ts.sys,
@@ -600,21 +624,26 @@ async function check(roots) {
     );
     const program = ts.createProgram([...new Set([...parsed.fileNames, ...files])], parsed.options);
     const checker = program.getTypeChecker();
+
     const { target, executables, property } = symbols(checker);
     const bodies = [];
+
     for (const file of files) {
       walk(program.getSourceFile(file), (node) => {
         const declared = coreCall(node, target);
         const inline = inlineCall(node, checker);
         const kind = declared ?? (inline ? "operation" : undefined);
         if (!kind) return;
+
         const object = unwrap(inline ? inline.object : node.arguments[0]);
         if (!object) return fail(node, "unit-body", "unit body not found");
         collectBodies(kind, object, executables, property, checker, fail, modules, bodies, node);
       });
     }
+
     checkGraph(bodies, checker, target, executables, fail);
   }
+
   for (const hit of [...hits].sort((a, b) => a.localeCompare(b))) console.error(hit);
   if (!hits.size) console.log("Lazy modules: OK");
   return hits.size ? 1 : 0;
@@ -637,9 +666,11 @@ function collectBodies(kind, object, executables, property, checker, fail, modul
     }
     bodies.push(body);
   }
+
   if (kind !== "extension") {
     return collect(property(object, kind === "resource" ? "factory" : "run"));
   }
+
   const hooks = property(object, "hooks");
   if (!hooks) return fail(call, "unit-body", "unit body not found");
   const members = checker.getTypeAtLocation(hooks).getProperties();
@@ -708,6 +739,7 @@ function extraCases(outsideImport) {
       },
     );
   }
+
   for (const method of ["run", "settle"]) {
     for (const invoke of ["call(scope,", "bind(scope)("]) {
       cases.push({
@@ -797,6 +829,7 @@ function extraCases(outsideImport) {
       },
     );
   }
+
   cases.push(
     {
       name: "inline-renamed-parameter",
@@ -839,6 +872,7 @@ function extraCases(outsideImport) {
       helper: "export declare const spec: {label:string; run:()=>number};",
     })),
   );
+
   cases.push(
     {
       name: "inline-hook",
@@ -877,6 +911,7 @@ function extraCases(outsideImport) {
         outsideImport + 'function Page() {return outside("x");} resource({factory:()=>({Page})});',
     },
   );
+
   return cases;
 }
 
@@ -887,6 +922,7 @@ async function prove() {
   const outsideImport = 'import { resolve as outside } from "node:path";\n';
   const lazy =
     'resource({label: "module:node:path", target: "scope", factory: () => import("node:path")})';
+
   const cases = [
     {
       name: "namespace-loader",
@@ -1075,6 +1111,7 @@ async function prove() {
         "operation({run: () => {const value: typeof outside | null = null; return value;}});",
     },
   ];
+
   const expected = {
     "namespace-loader": "probe.ts:2",
     "created-require": "probe.ts:2",
@@ -1106,6 +1143,7 @@ async function prove() {
     duplicate: "duplicate-second/probe.ts:2",
   };
   for (const test of cases) if (test.rule) test.hit = expected[test.name];
+
   cases.push(
     {
       name: "conditional-unit",
@@ -1409,7 +1447,9 @@ async function prove() {
       source: "function createRequire() {return 1;} operation({run:()=>createRequire()});",
     },
   );
+
   cases.unshift(...extraCases(outsideImport));
+
   try {
     await symlink(
       join(workspace, "packages/start/node_modules"),
@@ -1436,6 +1476,7 @@ async function prove() {
       await writeFile(join(root, "tsconfig.json"), config);
       await plantSource(root, test, core);
       const roots = [root];
+
       if (test.second) {
         const second = join(planted, `${test.name}-second`);
         await mkdir(second);
@@ -1443,6 +1484,7 @@ async function prove() {
         await writeFile(join(second, "probe.ts"), core + test.second);
         roots.push(second);
       }
+
       proveCase(test, roots, planted);
     }
     console.log(`Lazy module proof: ${cases.length} cases passed`);

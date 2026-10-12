@@ -40,6 +40,7 @@ test("copies nested, re-exported, and dynamic imports without copying unused fil
     for (const [file, content] of Object.entries(files)) {
       writeFileSync(join(sourceDir, file), content);
     }
+
     writeFileSync(join(sourceDir, "unused.mjs"), "export const unused = true;");
     await copyModuleGraph(join(sourceDir, "index.mjs"), join(outputDir, "core.mjs"));
     expect(

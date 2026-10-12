@@ -63,9 +63,11 @@ export const Tile = memo(function Tile({
   const shade = useData(board, (b) => b[k] ?? IDLE, sameShade);
   const run = useRun(press);
   const water = waterOf(shade, k);
+
   const h = SLAB + shade.z * PER_UNIT;
   const wall = (part: number) =>
     `hsl(${water.hue} ${water.sat}% ${Math.max(4, Math.round(water.lit * part))}%)`;
+
   /** Keep the button's original background: it covers walls in the field's fade.
    * The flat top repeats that colour and folds the arrow into its own buffer. */
   const style = { transform: `translateZ(${h}px)`, background: topOf(water, shade.z) };

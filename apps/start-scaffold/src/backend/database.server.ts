@@ -33,10 +33,12 @@ export const database = resource({
     const { drizzle } = orm;
     const client = new pg.Pool({ connectionString: settings.url });
     const listeners = new Set<AbortController>();
+
     defer(async () => {
       for (const stop of listeners) stop.abort();
       await client.end();
     });
+
     return Object.assign(drizzle({ client }), {
       async listen(heard: (payload: string) => void, disconnected: () => void) {
         const listener = await client.connect();
@@ -44,8 +46,10 @@ export const database = resource({
         listener.on("notification", notified);
         listener.on("error", disconnected);
         listener.on("end", disconnected);
+
         const stop = new AbortController();
         listeners.add(stop);
+
         stop.signal.addEventListener(
           "abort",
           () => {
@@ -57,6 +61,7 @@ export const database = resource({
           },
           { once: true },
         );
+
         try {
           await listener.query("LISTEN start_sync");
           return stop.abort.bind(stop);

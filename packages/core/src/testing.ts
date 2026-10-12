@@ -90,6 +90,7 @@ export function makeTestRandom(options?: Random.Options): CoreRandom.Handle {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+
   const uuid = (): string => {
     let out = "";
     for (let i = 0; i < 16; i++) {
@@ -101,8 +102,10 @@ export function makeTestRandom(options?: Random.Options): CoreRandom.Handle {
     }
     return out;
   };
+
   const random = { next, uuid };
   const traceState = { a: (options?.seed ?? 0) | 0, b: 362436069, c: 521288629, d: 88675123 };
+
   for (let n = 0; n < 8; n++) nextTraceWord(traceState);
   seededTraceRandom.set(random, traceState);
   return random;

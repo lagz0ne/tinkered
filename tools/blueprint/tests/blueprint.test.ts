@@ -29,6 +29,7 @@ test("malformed YAML fails as InvalidBlueprint with the original text and parser
     expect.unreachable("must reject malformed YAML");
   } catch (error: unknown) {
     if (!isError(error, "InvalidBlueprint")) throw error;
+
     expect(error.payload.text).toBe(text);
     expect(error.payload.issues).toHaveLength(1);
     const issue = error.payload.issues[0];

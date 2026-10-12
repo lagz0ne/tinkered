@@ -189,6 +189,7 @@ test("a non-resource pick prints no target: line and makes one judge call", asyn
     ],
   });
   expect(result.code).toBe(0);
+
   expect(result.stdout).not.toContain("target:");
   expect(result.stdout).toContain("unit:    operation (80%)");
   expect(calls.count).toBe(1);

@@ -98,6 +98,7 @@ console.log("jev calibrate — median(true) − median(false), pairs ordered; fl
 
 for (const [judge, cases] of Object.entries(all)) {
   if (only && judge !== only) continue;
+
   if (!judgeOf(judge)) {
     console.log(
       `  · ${judge.padEnd(24)} retired     ${cases.length} labeled cases kept in the bank`,

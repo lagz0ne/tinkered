@@ -132,6 +132,7 @@ function wide(file) {
   let machine = false;
   let rows = 0;
   let code = 0;
+
   for (const line of readFileSync(resolve(ROOT, file), "utf8").split("\n")) {
     const info = fenceInfo(line);
     if (info === null) {
@@ -144,6 +145,7 @@ function wide(file) {
       machine = info === "impact";
     }
   }
+
   return rows || code ? `${file}: ${rows} wide table row(s), ${code} wide fenced line(s)` : null;
 }
 

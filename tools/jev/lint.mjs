@@ -38,6 +38,7 @@ function listFiles(specs) {
   // A directory argument means its git-tracked sources, like a glob; a file passes through.
   const isFile = (s) => existsSync(s) && !statSync(s).isDirectory();
   const direct = specs.filter(isFile);
+
   const globs = specs.filter((s) => !isFile(s));
   const quoted = globs.map((s) => `'${s}'`).join(" ");
   const listed = globs.length ? execSync(`git ls-files -- ${quoted}`, { encoding: "utf8" }) : "";
@@ -87,6 +88,7 @@ console.log(`jev lint (advisory) — ${files.length} file(s)\n`);
 
 for (const file of files) {
   if (report.length >= limit) break;
+
   const source = readFileSync(file, "utf8");
   const isTest = TEST_PATH.test(file);
   const codeHits = isTest ? [] : unitCouldBeModuleLevel(source, file);
@@ -94,6 +96,7 @@ for (const file of files) {
     hasKey && !isTest
       ? slice(source, file).filter((u) => Object.keys(lintQuestions(u, all)).length)
       : [];
+
   const shape = shapeOf(source, file).filter((row) => !isTest || row.id === "S29");
   if (units.length === 0 && codeHits.length === 0 && shape.length === 0) continue;
   console.log(file);
@@ -115,6 +118,7 @@ for (const file of files) {
   }
   for (const u of units) {
     if (report.length >= limit) break;
+
     let answers;
     try {
       answers = await ask(forJev(u), lintQuestions(u, all));

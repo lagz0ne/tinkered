@@ -61,9 +61,11 @@ test("a session resource built during the run lives in the run's session and is 
   const op = operation({ label: "use", depends: { flow }, run: ({ flow }) => flow });
   const scope = createScope();
   const out = scope.run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   expect(await out).toBe("f:x");
   expect(seen).toEqual(["success"]);
+
   expect(builds).toBe(1);
   expect(await scope.run(op, { tags })).toBe("f:x");
   expect(builds).toBe(2);
@@ -94,6 +96,7 @@ test("a first signal read attaches the session; the signal reads aborted once th
     },
   });
   const out = createScope().run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   expect(await out).toBe(1);
   expect(signal!.aborted).toBe(true);
@@ -122,6 +125,7 @@ test("a panic in a sync tagged body fails the run's own session, not its parent"
   });
   const root = createScope();
   const out = root.run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   await expect(out).rejects.toBe(cause);
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -138,6 +142,7 @@ test("a parent's forced close requested inside a sync tagged body cancels the ru
     },
   });
   const out = root.run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   const end = await closing!;
   expect(end.status).toBe("cancelled");
@@ -169,6 +174,7 @@ test("a managed error raised by the run rejects the call and leaves the parent h
   const op = operation({ label: "needs", depends: { required }, run: ({ required }) => required });
   const root = createScope();
   const out = root.run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   try {
     await out;
@@ -193,6 +199,7 @@ test("a parent close requested while a tagged call's body is being adopted waits
     }),
   });
   const out = root.run(op, { tags });
+
   expect(isNative(out)).toBe(true);
   await (out as Promise<unknown>).then(
     () => order.push("call-ended"),

@@ -45,6 +45,7 @@ test("closing the HTTP resource aborts a request still in flight", async () => {
       ),
     ],
   });
+
   await scope.ready;
   const result = scope
     .resolve(http)
@@ -56,8 +57,10 @@ test("closing the HTTP resource aborts a request still in flight", async () => {
       () => "completed",
       () => "aborted",
     );
+
   const signal = await started.promise;
   await scope.close({ graceful: true });
+
   expect(signal.aborted).toBe(true);
   expect(await result).toBe("aborted");
   expect((await scope.closed).status).toBe("success");
@@ -302,14 +305,18 @@ test("closing the caller aborts HTTP body reading", async () => {
       }),
     ],
   });
+
   await scope.ready;
   const session = scope.createSession();
   const result = session.settle(post);
   await reading.promise;
+
   await session.close({ graceful: false });
   await cancelled.promise;
+
   expect((await result).status).toBe("cancelled");
   stop.abort();
+
   expect((await scope.closed).status).toBe("success");
 });
 
@@ -414,14 +421,17 @@ test("backend stop settles a server function's signalled HTTP call", async () =>
     tags: [backend.binding, backendStop(stop.signal)],
   });
   await scope.ready;
+
   const session = scope.createSession();
   const sending = session.settle(post, { signal: call.signal });
   await backend.started;
   stop.abort();
+
   const closing = session.close({ graceful: true });
   const result = await sending;
   if (result.status !== "failed") throw result;
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
+
   expect(result.error.payload).toMatchObject({ method: "POST", path: "/x" });
   expect(call.signal.aborted).toBe(false);
   expect(await closing).toEqual({ status: "success" });
@@ -438,6 +448,7 @@ for (const shape of ["signal", "tags"]) {
       tags: [backend.binding, backendStop(stop.signal)],
     });
     await scope.ready;
+
     const input = { url: "https://slow.test/x", method: "GET" };
     const sending =
       shape === "signal"
@@ -445,9 +456,11 @@ for (const shape of ["signal", "tags"]) {
         : scope.settle(httpRequest, { rawInput: input, tags: requestStop(call.signal) });
     await backend.started;
     stop.abort();
+
     const result = await sending;
     if (result.status !== "failed") throw result;
     if (!isError(result.error, "HttpRequestFailed")) throw result.error;
+
     expect(result.error.payload).toMatchObject({ method: "GET", path: "/x" });
     expect(call.signal.aborted).toBe(false);
     expect(await scope.closed).toEqual({ status: "success" });
@@ -460,10 +473,12 @@ test("request end settles its tagged HTTP call and leaves siblings open", async 
   const stop = new AbortController();
   const request = new AbortController();
   const scope = createScope({ signal: stop.signal });
+
   await scope.ready;
   const session = scope.createSession({ tags: first.binding });
   const sibling = scope.createSession({ tags: second.binding });
   const input = { url: "https://slow.test/x", method: "GET" };
+
   const sending = session.settle(httpRequest, {
     rawInput: input,
     tags: requestStop(request.signal),
@@ -473,17 +488,22 @@ test("request end settles its tagged HTTP call and leaves siblings open", async 
     siblingFinished = true;
     return end;
   });
+
   await first.started;
   await second.started;
   request.abort();
   const result = await sending;
+
   if (result.status !== "failed") throw result;
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
+
   expect(result.error.payload).toMatchObject({ method: "GET", path: "/x" });
   expect(await session.close({ graceful: true })).toEqual({ status: "success" });
   expect(siblingFinished).toBe(false);
+
   await sibling.close();
   expect((await other).status).toBe("cancelled");
+
   stop.abort();
   expect(await scope.closed).toEqual({ status: "success" });
 }, 2000);
@@ -494,12 +514,15 @@ test("ending the server function's call signal still cancels its HTTP work", asy
   const request = new AbortController();
   const scope = createScope({ signal: stop.signal, tags: backend.binding });
   await scope.ready;
+
   const session = scope.createSession({ tags: requestStop(request.signal) });
   const sending = session.settle(post, { signal: request.signal });
   await backend.started;
   request.abort();
+
   expect((await sending).status).toBe("cancelled");
   expect(await session.close({ graceful: true })).toEqual({ status: "success" });
+
   stop.abort();
   expect(await scope.closed).toEqual({ status: "success" });
 }, 2000);
@@ -516,6 +539,7 @@ for (const end of [backendStop, requestStop]) {
         return new Response("too late");
       }),
     });
+
     await scope.ready;
     ended.abort();
     try {
@@ -545,13 +569,16 @@ test("forced root and session closes still cancel a never-answering HTTP request
     });
     await scope.ready;
     const target = where === "root" ? scope : scope.createSession();
+
     const sending = target.settle(httpRequest, {
       rawInput: { url: "https://slow.test/x", method: "GET" },
     });
     await backend.started;
     const closing = target.close();
+
     expect((await sending).status).toBe("cancelled");
     expect((await closing).status).toBe("cancelled");
+
     stop.abort();
     expect((await scope.closed).status).toBe(where === "root" ? "cancelled" : "success");
   }
@@ -568,6 +595,7 @@ test("backend stop settles HTTP while other running work finishes", async () => 
       return finish.promise;
     },
   });
+
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -575,6 +603,7 @@ test("backend stop settles HTTP while other running work finishes", async () => 
   });
   await scope.ready;
   const working = scope.run(waiting);
+
   const signal = await started.promise;
   const sending = scope.settle(httpRequest, {
     rawInput: { url: "https://slow.test/x", method: "GET" },
@@ -582,6 +611,7 @@ test("backend stop settles HTTP while other running work finishes", async () => 
   });
   await backend.started;
   let closed = false;
+
   const closing = scope.closed.then((end) => {
     closed = true;
     return end;
@@ -589,9 +619,12 @@ test("backend stop settles HTTP while other running work finishes", async () => 
   stop.abort();
   const result = await sending;
   if (result.status !== "failed") throw result;
+
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
+
   expect(signal.aborted).toBe(false);
   expect(closed).toBe(false);
+
   finish.resolve(42);
   expect(await working).toBe(42);
   expect(await closing).toEqual({ status: "success" });
@@ -603,13 +636,16 @@ test("a direct graceful session close settles a hung HTTP send without stop tags
   const call = new AbortController();
   const scope = createScope({ signal: stop.signal, tags: backend.binding });
   await scope.ready;
+
   const session = scope.createSession();
   const sending = session.settle(post, { signal: call.signal });
   await backend.started;
   const closing = session.close({ graceful: true });
+
   const result = await sending;
   if (result.status !== "failed") throw result;
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
+
   expect(result.error.payload).toEqual({
     method: "POST",
     path: "/x",
@@ -617,6 +653,7 @@ test("a direct graceful session close settles a hung HTTP send without stop tags
   });
   expect(call.signal.aborted).toBe(false);
   expect(await closing).toEqual({ status: "success" });
+
   stop.abort();
   expect(await scope.closed).toEqual({ status: "success" });
 }, 2000);
@@ -627,12 +664,15 @@ test("a direct graceful root close reaches a session's hung HTTP send without st
   const scope = createScope({ signal: stop.signal, tags: backend.binding });
   await scope.ready;
   const session = scope.createSession();
+
   const sending = session.settle(post);
   await backend.started;
   const closing = scope.close({ graceful: true });
   const result = await sending;
+
   if (result.status !== "failed") throw result;
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
+
   expect(result.error.payload).toEqual({
     method: "POST",
     path: "/x",
@@ -651,13 +691,16 @@ test("backendStop ends a pending HTTP send without closing its root", async () =
     tags: [backend.binding, backendStop(backendEnd.signal)],
   });
   await scope.ready;
+
   const session = scope.createSession();
   const sending = session.settle(post);
   await backend.started;
   backendEnd.abort();
+
   const result = await sending;
   if (result.status !== "failed") throw result;
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
+
   expect(result.error.payload).toEqual({
     method: "POST",
     path: "/x",
@@ -667,6 +710,7 @@ test("backendStop ends a pending HTTP send without closing its root", async () =
     "still open",
   );
   expect(await session.close({ graceful: true })).toEqual({ status: "success" });
+
   stop.abort();
   expect(await scope.closed).toEqual({ status: "success" });
 }, 2000);
@@ -686,6 +730,7 @@ test("running work finishes on graceful close when the HTTP backend answers", as
       return reply.body;
     },
   });
+
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
@@ -693,6 +738,7 @@ test("running work finishes on graceful close when the HTTP backend answers", as
   });
   await scope.ready;
   const session = scope.createSession();
+
   const sending = session.run(sendAndFinish);
   const signal = await working.promise;
   let closed = false;
@@ -700,11 +746,14 @@ test("running work finishes on graceful close when the HTTP backend answers", as
     closed = true;
     return end;
   });
+
   expect(signal.aborted).toBe(false);
   expect(closed).toBe(false);
+
   finish.resolve();
   expect(await sending).toBe("finished");
   expect(await closing).toEqual({ status: "success" });
+
   stop.abort();
   expect(await scope.closed).toEqual({ status: "success" });
 }, 2000);
@@ -720,13 +769,16 @@ test("releasing HTTP aborts a held direct send and leaves the scope open", async
       signal: new AbortController().signal,
     }),
   ).rejects.toMatchObject({ name: "AbortError", code: 20 });
+
   await backend.started;
   scope.release(http);
   await sending;
+
   expect(scope.run(operation({ label: "test.after-release", run: () => "still open" }))).toBe(
     "still open",
   );
   stop.abort();
+
   expect(await scope.closed).toEqual({ status: "success" });
 }, 2000);
 
@@ -741,6 +793,7 @@ test.each(["signal", "tags"] as const)(
       signal: stop.signal,
       tags: [backend.binding, backendStop(end.signal)],
     });
+
     await scope.ready;
     const input = { url: "https://slow.test/x", method: "GET" };
     const sending =
@@ -748,10 +801,13 @@ test.each(["signal", "tags"] as const)(
         ? scope.settle(httpRequest, { rawInput: input, signal: call.signal })
         : scope.settle(httpRequest, { rawInput: input, tags: requestStop(call.signal) });
     await backend.started;
+
     end.abort();
     const result = await sending;
+
     expect(result.status).toBe("failed");
     stop.abort();
+
     expect(await scope.closed).toEqual({ status: "success" });
   },
   2000,

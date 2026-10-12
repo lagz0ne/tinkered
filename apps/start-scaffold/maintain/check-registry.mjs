@@ -46,6 +46,7 @@ for (const composition of [["app"], ["app", "mail-example"], ["app", "starter"]]
   const consumer = await mkdtemp(join(tmpdir(), "start-registry-consumer-"));
   try {
     const copied = new Set();
+
     async function copyItem(name) {
       if (copied.has(name)) return;
       copied.add(name);
@@ -59,7 +60,9 @@ for (const composition of [["app"], ["app", "mail-example"], ["app", "starter"]]
         await writeFile(target, file.content);
       }
     }
+
     for (const name of composition) await copyItem(name);
+
     const installed = JSON.parse(await readFile(join(consumer, "package.json"), "utf8"));
     const template = JSON.parse(
       items
@@ -68,7 +71,9 @@ for (const composition of [["app"], ["app", "mail-example"], ["app", "starter"]]
     );
     assert.equal(installed.dependencies["@tinker/start"], template.dependencies["@tinker/start"]);
     assert.ok(!/workspace:|catalog:/.test(JSON.stringify(installed)));
+
     await symlink(join(app, "node_modules"), join(consumer, "node_modules"), "dir");
+
     if (composition.includes("starter")) {
       await writeFile(
         join(consumer, "vite.config.ts"),
@@ -81,8 +86,10 @@ for (const composition of [["app"], ["app", "mail-example"], ["app", "starter"]]
         );
       }
     }
+
     const build = spawnSync("vp", ["build"], { cwd: consumer, encoding: "utf8", timeout: 120000 });
     assert.equal(build.status, 0, build.stdout + build.stderr);
+
     if (composition.includes("starter")) {
       const plain = spawnSync(process.execPath, ["scripts/check-plain.mjs"], {
         cwd: consumer,
@@ -90,6 +97,7 @@ for (const composition of [["app"], ["app", "mail-example"], ["app", "starter"]]
       });
       assert.equal(plain.status, 0, plain.stdout + plain.stderr);
     }
+
     console.log(`PASS: ${composition.join(" + ")} composition build EXIT 0.`);
   } finally {
     await rm(consumer, { recursive: true, force: true });

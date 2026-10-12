@@ -97,9 +97,11 @@ export function prependExtends(path, read, entry) {
     "extends",
   ]);
   if (!node) return writeKey(path, read, ["extends"], entry);
+
   const quoted = JSON.stringify(entry);
   const [first] = node.children ?? [];
   const old = read.text.slice(node.offset, node.offset + node.length);
+
   const edit =
     node.type !== "array"
       ? { offset: node.offset, length: node.length, content: `[${quoted}, ${old}]` }
@@ -108,6 +110,7 @@ export function prependExtends(path, read, entry) {
           length: 0,
           content: first ? `${quoted}, ` : quoted,
         };
+
   writeBack(path, read, applyEdits(read.text, [edit]));
 }
 

@@ -13,6 +13,7 @@ async function readFreePort() {
   const listener = createServer();
   listener.listen(0, "127.0.0.1");
   await once(listener, "listening");
+
   const port = listener.address().port;
   await new Promise((done) => listener.close(done));
   return port;
@@ -31,12 +32,14 @@ function start(root, port) {
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+
   const events = new EventEmitter();
   const exited = once(child, "exit");
   let errorText = "";
   child.stderr.setEncoding("utf8").on("data", (text) => {
     errorText += text;
   });
+
   const lines = createInterface({ input: child.stdout });
   lines.on("line", (line) => {
     errorText += `${line}\n`;
@@ -44,6 +47,7 @@ function start(root, port) {
     if (event.kind === "ready") events.emit("ready");
     if (event.kind === "error") events.emit("error", new Error(JSON.stringify(event)));
   });
+
   const ready = () =>
     Promise.race([
       once(events, "ready"),
@@ -51,6 +55,7 @@ function start(root, port) {
         throw new Error(`early exit ${code}/${signal}: ${errorText}`);
       }),
     ]);
+
   return { child, exited, ready, output: () => errorText };
 }
 
@@ -66,14 +71,17 @@ async function run() {
   const app = resolve("apps/issue-tracker");
   await mkdir(".bench", { recursive: true });
   const directory = await mkdtemp(resolve(".bench/dev-cycle-"));
+
   for (const name of ["src", "drizzle", "index.html", "vite.config.ts", "package.json"]) {
     await cp(join(app, name), join(directory, name), { recursive: true });
   }
   await symlink(join(app, "node_modules"), join(directory, "node_modules"));
+
   const port = await readFreePort();
   const entry = join(directory, "src/server/main.ts");
   const source = await readFile(entry, "utf8");
   let host = start(directory, port);
+
   try {
     await host.ready();
     for (let edit = 1; edit <= edits; edit++) {

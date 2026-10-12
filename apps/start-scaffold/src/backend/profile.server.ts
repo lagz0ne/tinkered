@@ -45,6 +45,7 @@ const notifyProfile = operation({
     ).at(0);
     if (!stored?.notification) raise("RetryNotAvailable", {});
     if (stored.result) return { executionId: input.executionId };
+
     const sent = await send.settle({ rawInput: stored.notification });
     const result: Sync.Result =
       sent.status === "success"
@@ -58,12 +59,14 @@ const notifyProfile = operation({
               message: "Name saved; notification failed. You can retry the notification.",
             },
           };
+
     await database.transaction(async (tx) => {
       await history.lock(tx, stored.stream);
       const latest = await history.find(tx, input.executionId, stored.stream);
       if (latest?.result) return;
       await history.append(tx, stored.stream, input.executionId, [{ kind: "result", result }]);
     });
+
     return { executionId: input.executionId };
   },
 });
@@ -107,6 +110,7 @@ export const saveProfile = operation({
     await database.transaction(async (tx) => {
       await history.lock(tx, currentUser.id);
       if (await history.find(tx, input.executionId, currentUser.id)) return;
+
       const saved = (
         await tx
           .update(user)
@@ -120,6 +124,7 @@ export const saveProfile = operation({
           })
       ).at(0);
       if (!saved) raise("SignInRequired", {});
+
       await tx.insert(execution).values({
         id: input.executionId,
         stream: currentUser.id,
@@ -129,6 +134,7 @@ export const saveProfile = operation({
           text: `Your saved name is ${saved.name}.`,
         },
       });
+
       await history.append(tx, currentUser.id, input.executionId, [
         { kind: "change", change: { kind: "profile", profile: saved } },
       ]);
@@ -151,10 +157,12 @@ export const retryNotification = operation({
     await database.transaction(async (tx) => {
       await history.lock(tx, currentUser.id);
       if (await history.find(tx, input.executionId, currentUser.id)) return;
+
       const previous = await history.find(tx, input.previousExecutionId, currentUser.id);
       if (!previous?.notification || !previous.result) raise("RetryNotAvailable", {});
       const result = readFeatureResult.safeParse(previous.result);
       if (!result.success || result.data.kind !== "partial") raise("RetryNotAvailable", {});
+
       await tx.insert(execution).values({
         id: input.executionId,
         stream: currentUser.id,

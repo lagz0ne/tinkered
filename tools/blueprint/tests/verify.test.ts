@@ -320,6 +320,7 @@ test("verify walks nested source and ignores test and declaration files", async 
   writeFileSync(join(dir, "extra.test.ts"), 'export const extra = data({ label: "extra" });');
   writeFileSync(join(dir, "extra.d.ts"), 'export const extra = data({ label: "extra" });');
   writeFileSync(join(dir, "extra.js"), 'export const extra = data({ label: "extra" });');
+
   try {
     const result = await answer(["verify", yamlPath, dir, "--json"]);
     expect(result.code).toBe(0);

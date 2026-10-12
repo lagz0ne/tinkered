@@ -44,12 +44,15 @@ test("cached records keep exact log bytes and trace fields through a retry", asy
       }),
     ],
   });
+
   await root.ready;
   root.run(ingestTelemetry, { input: { traces: [span], logs: [log] } });
   await root.run(flushTelemetry);
   refused = false;
+
   await root.run(flushTelemetry);
   const { side: _side, ...wire } = span;
+
   expect(bodies).toEqual([
     JSON.stringify({
       resourceSpans: [
@@ -86,6 +89,7 @@ test("a full queue drops a record without reading its message", async () => {
   Object.defineProperty(unread, "msg", {
     get: () => expect.unreachable("a full queue must not encode the record"),
   });
+
   root.run(ingestTelemetry, { input: { traces: [], logs: [unread] } });
   expect(root.resolve(exportHealth)).toMatchObject({ pending: 512, dropped: 1 });
   expect((await root.close({ graceful: true })).status).toBe("success");

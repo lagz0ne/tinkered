@@ -45,6 +45,7 @@ const q2Hold = operation({
     });
     await input.body;
     input.ended.push(`body ${value.closed ? "closed" : "open"}`);
+
     return value;
   },
 });
@@ -98,12 +99,15 @@ test("a late default dependency stays open through its dependent's async cleanup
   const scope = createScope();
   const running = scope.run(hold);
   scope.release(pool);
+
   finishBuild();
   await runningBody;
+
   expect(ended).toEqual([]);
   finishRun();
   expect(await running).toBe(false);
   for (let i = 0; i < 10 && ended.length === 0; i++) await Promise.resolve();
+
   expect(ended).toEqual(["client:released"]);
   finishCleanup();
   await scope.settled();
@@ -134,10 +138,12 @@ test("release finishes a borrowed client before its pool", async () => {
   const scope = createScope();
   const running = scope.run(hold);
   scope.release(pool);
+
   expect(ended).toEqual([]);
   finish();
   await running;
   await scope.settled();
+
   expect(ended).toEqual(["client:released", "pool:released"]);
   await scope.close();
 });
@@ -169,16 +175,20 @@ test("a watcher borrowing a replacement cannot hold the old instance", async () 
   });
   const scope = createScope();
   scope.controller(cell).set(1);
+
   const old = scope.run(hold);
   let replacement!: Promise<number>;
   scope.controller(cell).watch(() => {
     replacement = scope.run(hold);
   });
+
   scope.release(cell);
+
   expect(built).toBe(2);
   finishOld();
   expect(await old).toBe(1);
   for (let i = 0; i < 10 && ended.length === 0; i++) await Promise.resolve();
+
   expect(ended).toEqual([1]);
   finishNew();
   expect(await replacement).toBe(2);
@@ -197,7 +207,9 @@ test("a build rejected before release keeps its failed hook outcome", async () =
   });
   const scope = createScope();
   await expect(scope.resolve(client)).rejects.toBe(cause);
+
   scope.release(client);
+
   expect(ended).toEqual(["failed"]);
   await scope.close();
 });
@@ -222,7 +234,9 @@ test("interleaved resource hooks keep reverse registration order", async () => {
     },
   });
   scope.resolve(a);
+
   await scope.close();
+
   expect(order).toEqual(["a-last", "b", "a-first"]);
 });
 
@@ -249,7 +263,9 @@ test("interleaved release hooks keep reverse registration order", async () => {
     },
   });
   scope.resolve(a);
+
   scope.release(cell);
+
   expect(order).toEqual(["a-last", "b", "a-first"]);
   await scope.close();
 });
@@ -258,6 +274,7 @@ test("a circular resource does not hold itself open after rejection", async () =
   const depends: Record<string, Resource.Handle<unknown>> = {};
   const loop = resource({ label: "loop", depends, factory: () => ({}) });
   depends.self = loop;
+
   const scope = createScope();
   let thrown: unknown;
   try {
@@ -265,7 +282,9 @@ test("a circular resource does not hold itself open after rejection", async () =
   } catch (error) {
     thrown = error;
   }
+
   if (!isError(thrown, "CircularResource")) throw thrown;
+
   expect((await scope.close()).status).toBe("cancelled");
 });
 
@@ -288,7 +307,9 @@ test("two dependency slots keep one hold on the same instance", async () => {
   });
   const scope = createScope();
   scope.resolve(client);
+
   scope.release(pool);
+
   expect(ended).toEqual(["client:released", "pool:released"]);
   await scope.close();
 });
@@ -326,11 +347,14 @@ test("release awaits interleaved async hooks in reverse registration order", asy
     },
   });
   scope.resolve(outer);
+
   scope.release(cell);
+
   expect(order).toEqual(["last"]);
   finishLast();
   for (let i = 0; i < 10 && order.length < 2; i++) await Promise.resolve();
   expect(order).toEqual(["last", "middle"]);
+
   finishMiddle();
   await scope.settled();
   expect(order).toEqual(["last", "middle", "first"]);
@@ -368,7 +392,9 @@ test("a dependency stays open through every hook of its dependent", async () => 
   });
   const scope = createScope();
   scope.resolve(client);
+
   scope.release(pool);
+
   expect(order).toEqual(["client-last", "client-first"]);
   finish();
   await scope.settled();
@@ -402,9 +428,11 @@ test("close joins a release whose next hook is queued behind an async hook", asy
   });
   const scope = createScope();
   scope.resolve(first);
+
   scope.resolve(second);
   scope.release(cell);
   const closed = scope.close({ graceful: true });
+
   expect(order).toEqual(["second"]);
   finish();
   await closed;
@@ -426,9 +454,11 @@ test("a released build keeps its end when it rejects after release", async () =>
   const scope = createScope();
   const first = scope.resolve(slow);
   scope.release(slow);
+
   rejectBuild(cause);
   await expect(first).rejects.toBe(cause);
   await scope.settled();
+
   expect(ends).toEqual(["released"]);
   await scope.close();
 });
@@ -448,7 +478,9 @@ test("release keeps its end when close joins a borrowed instance", async () => {
   const scope = createScope();
   const running = scope.run(hold);
   scope.release(pool);
+
   const closing = scope.close({ graceful: true });
+
   expect(ended).toEqual([]);
   finish();
   await running;
@@ -487,10 +519,12 @@ test("a named late client holds only its own dependency bucket", async () => {
   });
   const scope = createScope();
   const pending = scope.resolve(client, { ns: a });
+
   expect(await scope.resolve(client, { ns: b })).toBe(false);
   scope.release(pool);
   expect(ended).toEqual(["B"]);
   finish();
+
   expect(await pending).toBe(false);
   await scope.settled();
   expect(ended).toEqual(["B", "A"]);
@@ -522,9 +556,11 @@ test("a warm dependency stays open through its client's late build", async () =>
   const value = scope.resolve(pool);
   const building = scope.resolve(client);
   scope.release(pool);
+
   expect(value.closed).toBe(false);
   finish();
   expect(await building).toBe(false);
+
   await scope.settled();
   expect(value.closed).toBe(true);
   await scope.close();
@@ -556,9 +592,11 @@ test("a warm hookless bridge holds its pool through a client's late build", asyn
   const value = scope.resolve(bridge);
   const building = scope.resolve(client);
   scope.release(pool);
+
   expect(value.closed).toBe(false);
   finish();
   expect(await building).toBe(false);
+
   await scope.settled();
   expect(value.closed).toBe(true);
   await scope.close();
@@ -599,9 +637,11 @@ test("a child build keeps a preset root pool open through its hookless bridge", 
   const child = root.createSession();
   const building = child.resolve(client);
   root.release(pool);
+
   expect(closed).toBe(false);
   finish();
   expect(await building).toBe(false);
+
   await root.settled();
   expect(closed).toBe(true);
   await root.close();
@@ -634,6 +674,7 @@ test("closing a child waits for its late build while it holds a root pool", asyn
     closed = true;
   });
   await Promise.resolve();
+
   expect(closed).toBe(false);
   finish();
   expect(await building).toBe(42);
@@ -645,6 +686,7 @@ test("a warmed context-aware pool without cleanup can feed a client", async () =
   const pool = resource({ label: "pool", factory: (_deps, _ctx) => 42 });
   const client = resource({ label: "client", depends: { pool }, factory: ({ pool }) => pool });
   const scope = createScope();
+
   expect(scope.resolve(pool)).toBe(42);
   expect(scope.resolve(client)).toBe(42);
   await scope.close();
@@ -667,7 +709,9 @@ test("a hookless session client frees its hold on a root resource when it closes
   });
   const root = createScope();
   await root.session((child) => child.resolve(client));
+
   root.release(pool);
+
   expect(ended).toEqual(["released"]);
   await root.close();
 });
@@ -699,9 +743,11 @@ test("a preset cleanup waits for a hookless dependent's late build", async () =>
   });
   const building = scope.resolve(client);
   scope.release(pool);
+
   expect(closed).toBe(false);
   finish();
   expect(await building).toBe(false);
+
   await scope.settled();
   expect(closed).toBe(true);
   await scope.close();
@@ -718,13 +764,16 @@ test("a synchronous resource rejects defer after its factory finishes", async ()
   });
   const scope = createScope();
   scope.resolve(value);
+
   let thrown: unknown;
   try {
     captured.defer(() => undefined);
   } catch (error) {
     thrown = error;
   }
+
   if (!isError(thrown, "Disposed")) throw thrown;
+
   expect(thrown.payload.reason).toBe("resource factory already finished");
   await scope.close();
 });
@@ -740,13 +789,16 @@ test("an asynchronous resource rejects defer after its factory finishes", async 
   });
   const scope = createScope();
   await scope.resolve(value);
+
   let thrown: unknown;
   try {
     captured.defer(() => undefined);
   } catch (error) {
     thrown = error;
   }
+
   if (!isError(thrown, "Disposed")) throw thrown;
+
   expect(thrown.payload.reason).toBe("resource factory already finished");
   await scope.close();
 });
@@ -766,6 +818,7 @@ test("a late hookless build cannot replace the value built after release", async
   const scope = createScope();
   const stale = scope.resolve(value);
   scope.release(value);
+
   expect(await scope.resolve(value)).toBe(2);
   finish();
   expect(await stale).toBe(1);
@@ -791,6 +844,7 @@ test("a hookless factory can retry after a synchronous failure", async () => {
   } catch (error) {
     thrown = error;
   }
+
   expect(thrown).toBe(cause);
   expect(scope.resolve(value)).toBe(42);
   expect(spans.filter((span) => span.name === "retry").map((span) => span.status)).toEqual([
@@ -804,6 +858,7 @@ test("a context-aware resource reports its build span", async () => {
   const spans: Observe.Span[] = [];
   const value = resource({ label: "value", factory: (_deps, _ctx) => 42 });
   const scope = createScope({ observe: { export: (span) => void spans.push(span) } });
+
   expect(scope.resolve(value)).toBe(42);
   expect(spans.find((span) => span.name === "value")?.status).toBe("ok");
   await scope.close();
@@ -829,7 +884,9 @@ test("a late build gives its waiting run a value and ends its hook once as relea
   const scope = createScope();
   const running = scope.run(read);
   scope.release(slow);
+
   finish();
+
   expect(await running).toBe(42);
   await scope.settled();
   expect(ends).toEqual(["released"]);
@@ -848,14 +905,17 @@ test("release waits for the borrowed run body and all its defers", async () => {
     input: { body: body.promise, cleanup: cleanup.promise, draining: draining.resolve, ended },
   });
   scope.release(q2Value);
+
   expect(scope.resolve(q2Value)).not.toBe(original);
   expect(ended).toEqual([]);
   body.resolve();
   expect(await running).toBe(original);
   await draining.promise;
+
   expect(ended).toEqual(["body open", "last defer starts open"]);
   cleanup.resolve();
   await scope.settled();
+
   expect(ended).toEqual([
     "body open",
     "last defer starts open",

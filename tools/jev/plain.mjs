@@ -294,6 +294,7 @@ function testIds(node) {
   if (isFocus(node)) ids.push("T03");
   if (isPrivateSrc(modulePath(node))) ids.push("T04");
   if (isDoubleCast(node)) ids.push("T06");
+
   return ids;
 }
 
@@ -305,6 +306,7 @@ function srcIds(node, writer) {
   if (writer && isHidingCast(node)) ids.push("S17");
   if (node.type === "ThrowStatement" && isBareThrow(node)) ids.push("S05");
   if (node.type === "CallExpression" && isConsole(node)) ids.push("S06");
+
   return ids;
 }
 
@@ -780,6 +782,7 @@ function hasUnguardedAwait(node) {
   if (Array.isArray(node)) return node.some(hasUnguardedAwait);
   if (FN_NODE.has(node.type)) return false;
   if (isAwait(node)) return true;
+
   if (node.type === "IfStatement" && isMainGuard(node.test)) {
     return hasUnguardedAwait(node.alternate);
   }
@@ -843,6 +846,7 @@ function rootReturns(fn) {
   const visit = (node, outer) => {
     if (!node) return;
     if (Array.isArray(node)) return node.forEach((n) => visit(n, outer));
+
     const frame = ROOT_BLOCKS.has(node.type) ? { names: new Map(), parent: outer } : outer;
     bindRootNames(node, frame, root);
     if (FN_NODE.has(node.type)) return;
@@ -851,6 +855,7 @@ function rootReturns(fn) {
   };
   visit(fn.body, root);
   if (fn.body.type !== "BlockStatement") returns.push({ value: fn.body, frame: root });
+
   return returns;
 }
 
@@ -957,6 +962,7 @@ function lifetimeFacts(source, program) {
     if (!node) return;
     if (Array.isArray(node)) return node.forEach((n) => visit(n, outer));
     if (node.type === "FunctionDeclaration") lifetimeDeclarations(node, outer, source);
+
     const frame = lifetimeFrame(node, outer, source);
     frames.set(node, frame);
     nodes.push(node);
@@ -1041,6 +1047,7 @@ function readyTryHits(node, facts) {
 function readyCatchHits(node, facts) {
   if (node.type === "TryStatement") return readyTryHits(node, facts);
   if (node.type !== "CallExpression") return [];
+
   const method = propOf(node.callee);
   if (method !== "catch" && method !== "then") return [];
   const root = readyRoot(node.callee.object, facts);
@@ -1115,6 +1122,7 @@ function stopWaitHits(node, waits, facts) {
 /** Ready still owns cleanup in a test; stop checks keep the non-test lane. */
 function lifetimeHits(source, program, file, writer) {
   if (CORE_PATH.test(file)) return [];
+
   if (!writer && !USERLAND.test(file) && !PACKAGE_SRC.test(file) && kindOf(file) !== "test") {
     return [];
   }
@@ -1182,6 +1190,7 @@ function handRolledHits(source, program, file, writer) {
       for (const at of check(n, facts)) hits.push([id, at, key]);
     }
   });
+
   return hits;
 }
 
@@ -1264,10 +1273,12 @@ export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   walk(program, (node) => {
     for (const id of rules(node, writer)) rows.push(row(id, lineAt(starts, node.start)));
   });
+
   for (const [id, at, key] of programHits(source, program, file, writer)) {
     rows.push(row(id, lineAt(starts, at), key));
   }
   rows.push(...tsdocRows(source, file));
   rows.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
+
   return rows;
 }

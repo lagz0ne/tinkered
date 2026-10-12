@@ -15,7 +15,7 @@ The formatter cannot help.
 Oxfmt keeps blank lines but never adds them.
 Prettier, Biome and dprint do the same.
 
-The precedent is the paragraph rule in *Code Complete* (McConnell, ch. 31):
+The precedent is the paragraph rule in _Code Complete_ (McConnell, ch. 31):
 group the lines of one step, and put a blank line between steps.
 Tests already have a known shape: arrange, act, assert.
 When a step needs a name, Kent Beck's Composed Method moves it into a function.

@@ -323,18 +323,23 @@ function cellsOf(statement) {
   const locals = (statement.specifiers ?? []).map((sp) => sp.local);
   if (statement.type === "ImportDeclaration") return locals;
   if (!statement.type.startsWith("Export")) return [];
+
   const decl = statement.declaration;
   const vars = decl?.type === "VariableDeclaration" ? varNames(decl) : [];
+
   return [...locals, ...vars, ...(decl ? declaredBy(statement) : [])];
 }
 
 /** The module's names in declaration order, and the ones that are module cells. */
 function moduleNames(program) {
   const cells = new Set(program.body.flatMap(cellsOf).map((id) => id.name));
+
   const declared = [...lexicalNames(program.body), ...varNames(program)];
   declared.sort((a, b) => a.start - b.start);
+
   const seen = new Set();
   const names = declared.filter((id) => !seen.has(id.name) && seen.add(id.name));
+
   return { names, cells };
 }
 
@@ -343,8 +348,10 @@ export function slots(program) {
   const { names, cells } = moduleNames(program);
   const scope = new Scope(undefined, false);
   for (const name of [...names.map((id) => id.name), ...cells]) scope.names.add(name);
+
   const resolver = new Resolver(scope);
   for (const s of program.body) resolver.walk(s, scope);
+
   let next = FIRST_SLOT;
   return names
     .filter((id) => !cells.has(id.name) && (resolver.evals || resolver.captured.has(id.name)))
@@ -362,8 +369,10 @@ function vlq(segment) {
     const digit = B64.indexOf(ch);
     value += (digit & 31) << shift;
     shift += 5;
+
     if (digit & 32) continue;
     out.push(value & 1 ? -(value >>> 1) : value >>> 1);
+
     value = 0;
     shift = 0;
   }
@@ -420,26 +429,32 @@ function main(file) {
   const map = JSON.parse(readFileSync(`${file}.map`, "utf8"));
   const { program, errors } = parseSync(file, code, { sourceType: "module" });
   if (errors.length) throw new Error(`${file}: ${errors[0].message}`);
+
   const source = map.sources.indexOf(ANCHOR_SOURCE);
   const lines = map.sourcesContent[source].split("\n");
   const anchorLine = lines.findIndex((l) => new RegExp(`^function ${ANCHOR}\\b`).test(l)) + 1;
+
   const segs = segments(map);
   const all = slots(program).map((s) => ({ ...s, at: sourceAt(segs, s.start) }));
   const anchor = all.findIndex((s) => s.at?.source === source && s.at.line === anchorLine);
   if (!checkHotNames(all, source, map)) return 1;
+
   if (anchorLine === 0 || anchor < 0) {
     console.log(
       `FAIL no slot maps to \`function ${ANCHOR}\` in ${ANCHOR_SOURCE}: re-pick the anchor`,
     );
     return 1;
   }
+
   const hot = all.slice(0, anchor);
   const last = hot.at(-1)?.slot ?? FIRST_SLOT - 1;
   const over = hot.find((s) => s.slot > MAX_SLOT);
+
   console.log(
     `${hot.length} hot names before ${ANCHOR} (last slot ${last}), ${all.length} names in slots ` +
       `(last slot ${all.at(-1).slot}); headroom ${MAX_SLOT - last} names`,
   );
+
   if (!over) return 0;
   console.log(
     `FAIL ${over.name} = ${sourceName(map, over.at)} is slot ${over.slot} (> ${MAX_SLOT}): ` +

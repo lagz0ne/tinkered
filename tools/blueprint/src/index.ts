@@ -361,6 +361,7 @@ export const verify: Operation.Handle<
         findings.map(findingLine).join("\n"),
       );
     }
+
     return { json: ctx.input.json, report, bodySkipped: bodyJudge === undefined };
   },
 });
@@ -481,6 +482,7 @@ export const suggest: Operation.Handle<
   depends: { corpus, judge },
   run: async ({ corpus, judge }, ctx) => {
     const state: Blueprint.WordsState = { description: ctx.input.words };
+
     const unitFits = choiceTemplateById(corpus, "unitFits");
     const unitAnswers = await judge.ask(
       state,
@@ -493,6 +495,7 @@ export const suggest: Operation.Handle<
     if (!confident || unit.type !== "choice" || unit.choice !== "resource") {
       return { unit, unitMinConfidence: unitFits.minConfidence, shape };
     }
+
     const target = choiceTemplateById(corpus, "target");
     const targetAnswers = await judge.ask(state, { target: templateQuestion(target) }, ctx.signal);
     return {

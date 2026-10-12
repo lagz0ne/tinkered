@@ -48,6 +48,7 @@ test("a scope with no random option reads the system source", () => {
   const [n] = createScope().run(drawNext);
   const [id] = createScope().run(drawUuid);
   const [id2] = createScope().run(drawUuid);
+
   expect(n >= 0 && n < 1).toBe(true);
   expect(id).toMatch(V4);
   expect(id).not.toBe(id2);

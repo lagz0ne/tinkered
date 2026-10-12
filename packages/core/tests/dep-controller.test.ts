@@ -17,9 +17,11 @@ test("cell controller deps keep writes and watches across runs", async () => {
   });
   const unwatch = root.run(listen);
   root.run(increment);
+
   root.run(increment);
   unwatch();
   root.run(increment);
+
   expect(seen).toEqual([1, 2]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -34,6 +36,7 @@ test("a retained cell controller refuses to call its update function after close
   });
   const controller = root.run(getController);
   let updates = 0;
+
   expect((await root.close({ graceful: true })).status).toBe("success");
   try {
     controller.update(() => {

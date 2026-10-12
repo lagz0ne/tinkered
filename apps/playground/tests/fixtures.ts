@@ -27,6 +27,7 @@ function reachable(entry: string, files: readonly PlaygroundFile[]): PlaygroundF
     const base = path.replace(/^\.\//, "");
     return [base, `${base}.tsx`, `${base}.ts`].map((n) => byName.get(n)).find((f) => f);
   };
+
   const out: PlaygroundFile[] = [];
   const visit = (file: PlaygroundFile | undefined, path: string) => {
     if (!file) {

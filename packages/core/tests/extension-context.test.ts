@@ -49,7 +49,9 @@ for (const wait of ["before", "after"]) {
       return end;
     });
     gate.resolve();
+
     const [run, end] = await Promise.all([running, closing]);
+
     expect({ run: run.status, end: end.status, events }).toEqual({
       run: "success",
       end: "success",
@@ -86,7 +88,9 @@ for (const wait of ["before", "after"]) {
     const running = Promise.resolve(scope.settle(task));
     const closing = scope.close();
     await aborted.promise;
+
     gate.resolve();
+
     expect((await running).status).toBe("cancelled");
     expect((await closing).status).toBe("cancelled");
     expect(events).toEqual(wait === "before" ? [] : ["body"]);
@@ -122,6 +126,7 @@ for (const read of ["resolve", "controller"]) {
               const result = event.next();
               await gate.promise;
               events.push(`hook:${state.live}`);
+
               return result;
             },
           },
@@ -129,9 +134,11 @@ for (const read of ["resolve", "controller"]) {
       ],
     });
     scope.resolve(value);
+
     const running = Promise.resolve(scope.run(operation({ label: "task", run: () => 7 })));
     scope.release(value);
     gate.resolve();
+
     expect(await running).toBe(7);
     await scope.settled();
     expect(events).toEqual(["hook:true", "defer:true", "released"]);
@@ -162,12 +169,15 @@ test("run access follows the session owner and inherited or explicit namespace c
   });
   const session = scope.createSession({ ns: east });
   const task = operation({ label: "task", depends: { count }, run: ({ count }) => count });
+
   expect(session.run(task)).toBe(1);
   expect(session.run(task, { ns: [fallback, west] })).toBe(1);
   expect(seen).toEqual([[east], "east", [fallback, west], "west"]);
+
   expect(session.resolve(count, { ns: east })).toBe(1);
   expect(session.resolve(count, { ns: fallback })).toBe(1);
   expect(scope.resolve(count, { ns: east })).toBe(0);
+
   await scope.close();
 });
 
@@ -200,6 +210,7 @@ test("tagged events use the actual child and fire each hook once", async () => {
     ],
   });
   const task = operation({ label: "task", depends: { cell }, run: ({ cell }) => cell });
+
   expect(await scope.run(task, { tags: zone("child") })).toBe(9);
   expect(scope.resolve(cell)).toBe(0);
   expect(seen).toEqual(["session:child", "run:child", "run cleanup", "session cleanup"]);
@@ -236,9 +247,11 @@ test("write and resolve events bind access and cleanup to their owner", async ()
   });
   const session = scope.createSession();
   session.controller(input, { ns: east }).set(4);
+
   expect(session.resolve(input, { ns: east })).toBe(4);
   expect(scope.resolve(input, { ns: east })).toBe(0);
   await session.close({ graceful: true });
+
   expect(seen).toEqual(["write:east", "resolve:east", "write cleanup"]);
   await scope.close({ graceful: true });
   expect(seen).toEqual(["write:east", "resolve:east", "write cleanup", "resolve cleanup"]);
@@ -264,9 +277,11 @@ test("start and close events share only their own root resource", async () => {
   const a = createScope({ extensions: [shared] });
   const b = createScope({ extensions: [shared] });
   await Promise.all([a.ready, b.ready]);
+
   a.resolve(shared).count = 2;
   await a.close();
   await b.close();
+
   expect(seen).toEqual([2, 1]);
 });
 
@@ -294,17 +309,21 @@ test("hook-started actions share the active trace and run cleanup", async () => 
               events.push("hook cleanup");
             });
             event.obs.event("hook");
+
             expect(event.run(child)).toBe(2);
             expect(event.run({ label: "inline", run: () => 4 })).toBe(4);
             const result = event.next();
             events.push("after body");
+
             return result;
           },
         },
       }),
     ],
   });
+
   expect(scope.run(outer)).toBe(3);
+
   const spans = scope.spans();
   const parent = spans.find((span) => span.name === "outer");
   expect(parent?.events.map((entry) => entry.name)).toContain("hook");
@@ -313,6 +332,7 @@ test("hook-started actions share the active trace and run cleanup", async () => 
     parent?.spanId,
   ]);
   expect(events).toEqual(["child cleanup", "after body", "hook cleanup"]);
+
   await scope.close();
 });
 
@@ -338,6 +358,7 @@ test("a dropped hook-started action keeps its failure on the owner", async () =>
       }),
     ],
   });
+
   expect(scope.run(outer)).toBe(3);
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
 });
@@ -366,6 +387,7 @@ test("a hook can settle a child failure without failing its owner", async () => 
       }),
     ],
   });
+
   expect(scope.run(outer)).toBe(3);
   expect(originOf(cause)?.path).toEqual(["child"]);
   expect((await scope.close({ graceful: true })).status).toBe("success");
@@ -381,6 +403,7 @@ test("an event union narrows its payload by kind", async () => {
   const scope = createScope({
     extensions: [extension({ label: "events", hooks: { run: hook, resolve: hook } })],
   });
+
   expect(scope.run(operation({ label: "task", run: () => 3 }))).toBe(3);
   expect(scope.resolve(data({ label: "cell", initial: 4 }))).toBe(4);
   expect(events).toEqual(["task", "cell"]);
@@ -403,16 +426,19 @@ test("saved controllers stay usable through a waiting hook and its graceful clea
             const counter = event.controller(cell);
             const read = event.controller(child);
             await gate.promise;
+
             const unwatch = counter.watch((value) => events.push(`watch:${value}`));
             event.defer(() => {
               unwatch();
               counter.update((value) => value + 1);
               events.push("unwatched");
             });
+
             counter.set(4);
             counter.update((value) => value + 1);
             events.push(`get:${counter.get()}`);
             events.push(`child:${await Promise.resolve(read.run())}`);
+
             return event.next();
           },
         },
@@ -422,6 +448,7 @@ test("saved controllers stay usable through a waiting hook and its graceful clea
   const running = Promise.resolve(scope.run(task));
   const closing = scope.close({ graceful: true });
   gate.resolve();
+
   expect(await running).toBe(7);
   expect((await closing).status).toBe("success");
   expect(events).toEqual(["watch:4", "watch:5", "get:5", "child:5", "unwatched"]);
@@ -451,7 +478,9 @@ test("a saved operation settle returns cancellation when its waiting hook is for
   const running = Promise.resolve(scope.run(task));
   const closing = scope.close();
   await aborted.promise;
+
   gate.resolve();
+
   expect(await running).toMatchObject({ status: "cancelled" });
   await closing;
 });
@@ -475,7 +504,9 @@ test("a saved operation settle returns failed Disposed after its hook ends", asy
     ],
   });
   scope.run(task);
+
   const [controller] = saved;
+
   expect(controller.settle()).toMatchObject({
     status: "failed",
     kind: "error",
@@ -504,12 +535,15 @@ test("concurrent and repeated closes join the same root hook once", async () => 
   });
   const a = createScope({ extensions: [shared] });
   await a.ready;
+
   const closing = a.close({ graceful: true });
   const joined = a.close();
   gate.resolve();
+
   expect(await joined).toBe(await closing);
   const b = createScope({ extensions: [shared] });
   await b.ready;
+
   expect(await a.close()).toBe(await closing);
   expect(b.resolve(state).closes).toBe(0);
   await b.close();
@@ -543,6 +577,7 @@ test("a hook that returns a substitute still joins its started body", async () =
       return "body";
     },
   });
+
   expect(scope.run(task)).toBe("substitute");
   const closing = scope.close({ graceful: true });
   gate.resolve();
@@ -568,6 +603,7 @@ test("resource contexts expose the namespace chain used by their dependencies", 
       ns: target === "scope" ? undefined : [fallback, east],
     });
   }
+
   await scope.close();
 });
 
@@ -650,8 +686,10 @@ test("an unreturned body keeps its span open and records its failure", async () 
       throw cause;
     },
   });
+
   expect(scope.run(task)).toBe("substitute");
   expect(scope.spans()).toHaveLength(0);
+
   gate.resolve();
   await scope.close({ graceful: true });
   expect(scope.spans()).toMatchObject([{ name: "task", status: "failed", error: cause }]);

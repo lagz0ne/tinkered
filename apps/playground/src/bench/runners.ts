@@ -62,6 +62,7 @@ function tinkerLib(): Lib {
   const shared = data({ label: "shared", initial: 0 });
   const scope = createScope();
   const controllers = cells.map((c) => scope.controller(c));
+
   const sharedController = scope.controller(shared);
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
@@ -93,6 +94,7 @@ function tinkerLib(): Lib {
 function zustandLib(): Lib {
   type State = Record<string, number>;
   const keys = keyed((i) => `k${i}`);
+
   const SHARED_KEY = "shared";
   const useZ = create<State>(() => ({
     ...Object.fromEntries(keys.map((k) => [k, 0])),
@@ -102,6 +104,7 @@ function zustandLib(): Lib {
     const k = keys[i];
     return (s: State) => s[k];
   });
+
   const sharedSelector = (s: State) => s[SHARED_KEY];
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
@@ -132,6 +135,7 @@ function jotaiLib(): Lib {
   const sharedAtom = atom(0);
   const store = createStore();
   const opts = { store };
+
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
     sink = useAtomValueRaw(atoms[i], opts);
@@ -165,6 +169,7 @@ function jotaiLib(): Lib {
 function legendV2Lib(): Lib {
   const slices = keyed(() => observable2(0));
   const shared2 = observable2(0);
+
   let renders = 0;
   const Cell = observer2(({ i }: { i: number }) => {
     sink = slices[i].get();
@@ -195,6 +200,7 @@ function legendV2Lib(): Lib {
 function legendV3Lib(): Lib {
   const slices = keyed(() => observable3(0));
   const shared3 = observable3(0);
+
   let renders = 0;
   const Cell = observer3(({ i }: { i: number }) => {
     sink = use$(slices[i]);
@@ -224,6 +230,7 @@ function legendV3Lib(): Lib {
 function preactLib(): Lib {
   const sigs = keyed(() => signal(0));
   const sharedSig = signal(0);
+
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
     const store = useSignals(1);
@@ -265,6 +272,7 @@ function controlLib(): Lib {
   const setters: Array<(v: number) => void> = [];
   const SharedCtx = createContext(0);
   let setShared: ((v: number) => void) | null = null;
+
   const Cell = ({ i }: { i: number }) => {
     const [v, set] = useState(0);
     setters[i] = set;
@@ -272,6 +280,7 @@ function controlLib(): Lib {
     sink = v;
     sink = shared;
     renders++;
+
     return null;
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
@@ -306,6 +315,7 @@ function contextLib(): Lib {
   let renders = 0;
   let current: number[] = keyed(() => 0);
   let setArr: ((next: number[]) => void) | null = null;
+
   const Cell = ({ i }: { i: number }) => {
     sink = useContext(Ctx)[i];
     renders++;
@@ -411,6 +421,7 @@ export function prepare(lib: Lib): Sampler {
     });
   }
   for (let w = 0; w < MOUNT_BATCH; w++) mount(lib.App).unmount();
+
   const s: Sampler = {
     lib,
     rerenders,
@@ -421,6 +432,7 @@ export function prepare(lib: Lib): Sampler {
     mounts: [],
   };
   for (let w = 0; w < UPDATE_BATCH; w++) flushSync(() => lib.update(++s.k % N, s.k));
+
   return s;
 }
 
@@ -437,6 +449,7 @@ export function sampleUpdate(s: Sampler): number {
         reason: `${lib.renders()} renders for ${count} updates — not synchronous under flushSync`,
       });
     }
+
     return elapsed;
   });
 }
@@ -455,6 +468,7 @@ export function sampleFanout(s: Sampler): number {
         reason: `${lib.renders()} renders for ${count} fan-out writes — expected ${want}`,
       });
     }
+
     return elapsed;
   });
 }

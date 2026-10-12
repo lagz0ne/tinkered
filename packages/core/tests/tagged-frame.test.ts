@@ -38,7 +38,9 @@ test("the first defer keeps reverse order and the run's end", async () => {
       return 7;
     },
   });
+
   expect(root.run(op, { tags })).toBe(7);
+
   expect(events).toEqual(["call", "last:success", "first:success"]);
   await root.close();
 });
@@ -57,8 +59,10 @@ test("the first async defer keeps the tagged call pending", async () => {
       return 7;
     },
   });
+
   const flight = root.run(op, { tags });
   expect(Promise.resolve(flight)).toBe(flight);
+
   gate.resolve();
   expect(await flight).toBe(7);
   expect(events).toEqual(["cleaned"]);
@@ -75,8 +79,10 @@ test("the first signal read joins the parent's forced close", async () => {
         signal.addEventListener("abort", () => reject(signal.reason), { once: true });
       }),
   });
+
   const flight = root.settle(op, { tags });
   await root.close();
+
   expect((await flight).status).toBe("cancelled");
 });
 
@@ -108,7 +114,9 @@ for (const named of [false, true]) {
         return [before, cell.get(), zone];
       },
     });
+
     expect(await root.run(op, { tags, ns })).toEqual([1, 9, "call"]);
+
     expect(root.controller(cell, ns ? { ns } : undefined).get()).toBe(1);
     await root.close();
   });
@@ -125,10 +133,12 @@ for (const named of [false, true]) {
         cell.watch((value) => events.push(value));
       },
     });
+
     const flight = root.run(op, { tags, ns });
     root.controller(cell, ns ? { ns } : undefined).set(2);
     await flight;
     root.controller(cell, ns ? { ns } : undefined).set(3);
+
     expect(events).toEqual([2]);
     await root.close();
   });
@@ -139,6 +149,7 @@ test("the first resource build sees inherited namespaces and the call's tags", a
   const root = createScope({ ns: namespace({ tags: [zone("namespace")] }) });
   const cell = data({ initial: 0 });
   root.controller(cell).set(3);
+
   const value = resource({
     label: "value",
     target: "session",
@@ -152,7 +163,9 @@ test("the first resource build sees inherited namespaces and the call's tags", a
   });
   const inner = operation({ label: "inner", depends: { value }, run: ({ value }) => value });
   const outer = operation({ label: "outer", depends: { inner }, run: ({ inner }) => inner.run() });
+
   expect(await root.run(outer, { tags })).toEqual({ zones: ["call", "namespace"], cell: 3 });
+
   expect(events).toEqual(["success"]);
   await root.close();
 });
@@ -171,13 +184,16 @@ test("the first nested tagged build owns its resource and both tag levels", asyn
       return zones;
     },
   });
+
   const inner = operation({ label: "inner", depends: { value }, run: ({ value }) => value });
   const outer = operation({
     label: "outer",
     depends: { inner },
     run: ({ inner }) => inner.run({ tags: [zone("inner")] }),
   });
+
   expect(await root.run(outer, { tags })).toEqual(["inner", "call"]);
+
   expect(events).toEqual(["success"]);
   await root.close();
 });
@@ -201,9 +217,12 @@ test("the first dropped subflow is joined by tagged close", async () => {
       return 7;
     },
   });
+
   const flight = root.run(outer, { tags });
   expect(Promise.resolve(flight)).toBe(flight);
+
   gate.resolve();
+
   expect(await flight).toBe(7);
   expect(events).toEqual(["finished"]);
   await root.close();
@@ -236,7 +255,9 @@ test("the first nested panic keeps its caller in the error path", async () => {
     depends: { inner },
     run: ({ inner }) => inner.run({ tags: [zone("inner")] }),
   });
+
   await expect(root.run(outer, { tags })).rejects.toBe(cause);
+
   expect(originOf(cause)?.path).toEqual(["outer", "inner"]);
   await root.close();
 });
@@ -263,13 +284,16 @@ test("session hooks read the first write after next and run hooks fire once", as
       }),
     ],
   });
+
   await root.ready;
   const op = operation({
     label: "op",
     depends: { cell: cell.controller },
     run: ({ cell }) => cell.set(9),
   });
+
   await root.run(op, { tags });
+
   expect(events).toEqual(["before:call", "run", "after:9"]);
   await root.close();
 });

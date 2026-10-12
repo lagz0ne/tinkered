@@ -30,6 +30,7 @@ test("a panic caught with try/catch still fails its layer", async () => {
   });
   const root = createScope();
   const session = root.createSession();
+
   expect(await session.run(outer)).toBe("caught");
   expect(await session.close({ graceful: true })).toEqual({
     status: "failed",
@@ -55,6 +56,7 @@ test("a panic received through settle leaves its layer successful", async () => 
   });
   const root = createScope();
   const session = root.createSession();
+
   expect(await session.run(outer)).toBe("failed");
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
@@ -70,6 +72,7 @@ test("settle recovers a panic that a nested subflow threw", async () => {
   });
   const mid = operation({ label: "mid", depends: { leaf }, run: ({ leaf }) => leaf.run() });
   const scope = createScope();
+
   expect(scope.settle(mid)).toMatchObject({ status: "failed", kind: "panic", error: cause });
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });
@@ -94,6 +97,7 @@ test("settle recovers a panic carried as the cause of the error it receives", as
     },
   });
   const scope = createScope();
+
   expect(scope.settle(mid)).toMatchObject({ status: "failed", kind: "panic" });
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });
@@ -119,6 +123,7 @@ test("a panic swallowed inside a settled run still fails the layer", async () =>
     },
   });
   const scope = createScope();
+
   expect(scope.settle(mid)).toEqual({ status: "success", value: "swallowed" });
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
 });
@@ -144,6 +149,7 @@ test("settle recovers only the panic it receives, not one swallowed earlier", as
       return "kept";
     },
   });
+
   expect(kept).toBe("kept");
   const settled = scope.settle({
     run: () => {
@@ -168,6 +174,7 @@ test("a caught panic after an earlier failure leaves the first failure as the la
   });
   const scope = createScope();
   await expect(scope.resolve(broken)).rejects.toBe(first);
+
   expect(() =>
     scope.run({
       run: () => {
@@ -200,6 +207,7 @@ test("a managed error caught with try/catch leaves its layer successful", async 
   });
   const root = createScope();
   const session = root.createSession();
+
   expect(session.run(outer)).toBe("handled");
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
@@ -216,6 +224,7 @@ test("a caught panic in a session run fails that session and not its parent", as
   const root = createScope();
   const session = root.createSession();
   await expect(session.run(op)).rejects.toBe(cause);
+
   expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -254,6 +263,7 @@ test("a panic caught inside a tagged run fails the run's own session", async () 
   });
   const root = createScope();
   await expect(root.run(outer, { tags: zone("x") })).rejects.toBe(cause);
+
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -279,6 +289,7 @@ test("a tagged subflow's panic fails its caller's layer even when the caller cat
   });
   const root = createScope();
   const session = root.createSession();
+
   expect(await session.run(outer)).toBe("caught");
   expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
   await root.close({ graceful: true });
@@ -314,7 +325,9 @@ test("a forced close after a caught panic settles failed, not cancelled", async 
     () => true,
   );
   await ready;
+
   const closing = session.close();
+
   expect(await running).toBe(true);
   expect(await closing).toMatchObject({ status: "failed", error: cause });
   await root.close();
@@ -336,6 +349,7 @@ test("two caught panics in one layer leave the first as the layer's error", asyn
     },
   });
   const scope = createScope();
+
   expect(() => scope.run(firstOp)).toThrow(first);
   expect(() => scope.run(secondOp)).toThrow(second);
   expect(await scope.close({ graceful: true })).toEqual({
@@ -362,6 +376,7 @@ test("a caught panic before a failed resource build stays the layer's error", as
     },
   });
   const scope = createScope();
+
   expect(() => scope.run(buggy)).toThrow(panic);
   await expect(scope.resolve(broken)).rejects.toBe(later);
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error: panic });

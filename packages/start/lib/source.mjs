@@ -87,6 +87,7 @@ function exportAll(from, node, seen) {
   const target = localModule(from, node.source.value);
   if (!target) return { names: new Map(), open: true };
   if (seen.has(target)) return { names: new Map(), open: false };
+
   const inner = exportsOf(target, seen);
   inner.names.delete("default");
   return inner;
@@ -102,14 +103,18 @@ function exportAll(from, node, seen) {
  */
 function statementExports(path, source, node, seen) {
   const closed = (names) => ({ names, open: false });
+
   if (node.type === "ExportDefaultDeclaration") return closed([["default", source.line(node)]]);
   if (node.type === "ExportNamedDeclaration") {
     return closed(exportedIds(node).map((id) => [id.name ?? id.value, source.line(id)]));
   }
+
   if (node.type !== "ExportAllDeclaration") return closed([]);
+
   if (node.exported) {
     return closed([[node.exported.name ?? node.exported.value, source.line(node)]]);
   }
+
   const all = exportAll(path, node, seen);
   return { names: [...all.names], open: all.open };
 }
@@ -125,11 +130,13 @@ export function exportsOf(path, seen = new Set()) {
   const source = parseSource(path);
   const names = new Map();
   let open = false;
+
   for (const node of source.program.body) {
     const found = statementExports(path, source, node, seen);
     for (const [name, line] of found.names) if (!names.has(name)) names.set(name, line);
     open ||= found.open;
   }
+
   return { names, open };
 }
 

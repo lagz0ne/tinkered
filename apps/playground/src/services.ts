@@ -38,6 +38,7 @@ export const persistence = resource({
         dirty.set(true);
       }
     }
+
     const save = () =>
       storage.save({
         files: files.get(),
@@ -74,6 +75,7 @@ export const bundler = resource({
   factory: ({ files, bundle, status, compile, debounce }, { defer, clock, signal }) => {
     let generation = 0;
     let pending: AbortController | undefined;
+
     const build = () => {
       const mine = ++generation;
       const started = clock.currentTimeMillis();

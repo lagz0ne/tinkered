@@ -27,9 +27,11 @@ function checkRuntime(url) {
   if (visited.has(url.href)) return;
   visited.add(url.href);
   assert.notEqual(url.href, testingUrl.href, "the main entry must not load testing");
+
   const file = fileURLToPath(url);
   const code = readFileSync(file, "utf8");
   const { program } = parseSync(file, code);
+
   for (const statement of program.body) {
     if (
       statement.type !== "ImportDeclaration" &&

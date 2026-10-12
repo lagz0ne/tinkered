@@ -469,6 +469,7 @@ function spanText(source, start, end) {
   const out = [at(start.line, start.column - 1)];
   for (let line = start.line + 1; line < end.line; line++) out.push(lines[line - 1] ?? "");
   out.push(at(end.line, 0, end.column - 1));
+
   return out.join("\n");
 }
 

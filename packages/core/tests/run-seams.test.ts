@@ -10,6 +10,7 @@ test("a cached controller refuses a tagged run once its scope closed", async () 
   const controller = scope.controller(op);
   await scope.close();
   const out = controller.run({ tags: [zone("x")] });
+
   expect(out instanceof Promise).toBe(true);
   try {
     await out;
@@ -59,6 +60,7 @@ test("a run's borrow is released after its sync defer, so a release and a close 
     },
   });
   const scope = createScope();
+
   expect(scope.run(op)).toBe("c");
   expect(cleaned).toBe(1);
   scope.release(conn);
@@ -72,6 +74,7 @@ test("more than eight bindings on one layer: nearest wins and .all keeps authore
   const scope = createScope({ tags: bindings });
   const nearest = operation({ label: "nearest", depends: { many }, run: ({ many }) => many });
   const all = operation({ label: "all", depends: { all: many.all }, run: ({ all }) => all });
+
   expect(scope.run(nearest)).toBe(9);
   expect(scope.run(all)).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
 });
@@ -81,6 +84,7 @@ test(".all reads a handful of bindings across layers, nearest layer first, newes
   const all = operation({ label: "all", depends: { all: few.all }, run: ({ all }) => all });
   const scope = createScope({ tags: [few("r1"), few("r2"), few("r3")] });
   const session = scope.createSession({ tags: [few("s1"), few("s2")] });
+
   expect(session.run(all)).toEqual(["s2", "s1", "r3", "r2", "r1"]);
   expect(scope.run(all)).toEqual(["r3", "r2", "r1"]);
 });
@@ -108,5 +112,6 @@ test("a closed scope with session hooks refuses a new session", async () => {
   } catch (error) {
     if (!isError(error, "Disposed")) throw error;
   }
+
   expect(seen).toBe(0);
 });

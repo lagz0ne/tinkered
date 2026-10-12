@@ -53,6 +53,7 @@ function game() {
     tags: [grid({ cols: 3, rows: 3 }), frames(queue.frames), random(() => 0)],
   });
   const size = scope.resolve(ticker);
+
   const shades = () => scope.controller(board).get();
   return { scope, clock, queue, size, shades };
 }
@@ -93,8 +94,10 @@ test("a pressed tile rises into its wave instead of jumping to full height", () 
   scope.run(press, { input: { x: 1, y: 1 } });
   queue.pump();
   expect(shades()[4].z).toBe(0);
+
   clock.advance(40);
   queue.pump();
+
   const rising = shades()[4].z;
   clock.advance(50);
   queue.pump();
@@ -108,8 +111,10 @@ test("a slow wave settles before its lifetime ends", () => {
   scope.run(press, { input: { x: 1, y: 1 } });
   clock.advance(2350);
   queue.pump();
+
   const crest = shades()[1].z;
   clock.advance(200);
+
   queue.pump();
   expect(crest).toBeGreaterThan(0);
   expect(shades()[1].z).toBeLessThan(crest / 2);
@@ -121,6 +126,7 @@ test("a wave expires after its life", () => {
   scope.run(press, { input: { x: 1, y: 1 } });
   clock.advance(1000);
   queue.pump();
+
   expect(scope.resolve(waves)).toHaveLength(1);
   clock.advance(2000);
   queue.pump();
@@ -200,8 +206,10 @@ test("a turn eases at both ends and finishes in 250 milliseconds", () => {
   queue.pump();
   expect(scope.resolve(angle)).toBeGreaterThan(0);
   expect(scope.resolve(angle)).toBeLessThan(9);
+
   clock.advance(200);
   queue.pump();
+
   expect(scope.resolve(angle)).toBeGreaterThan(81);
   expect(scope.resolve(angle)).toBeLessThan(90);
   clock.advance(25);

@@ -165,6 +165,7 @@ for (const { file, title } of titles) {
   const hit = exactLine(title, promises);
   const answered = await answerTitle(title, promises, hit);
   report.push({ file, title, ...answered });
+
   const mark = answered.gap ? "⚠" : answered.unsure ? "?" : "✓";
   const tail = answerTail(answered);
   console.log(`  ${mark} ${title}${tail}`);

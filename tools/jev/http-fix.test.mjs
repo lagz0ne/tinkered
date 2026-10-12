@@ -14,6 +14,7 @@ await test("the S24 fix text typechecks against the Start base", (t) => {
   assert.equal(finding.id, "S24");
   const fix = finding.message.split(". Fix: ")[1];
   assert.ok(fix, "S24 must show a filled fix snippet");
+
   const scaffold = resolve(import.meta.dirname, "../../apps/start-scaffold");
   const copy = mkdtempSync(join(import.meta.dirname, ".s24-scaffold-"));
   try {
@@ -42,6 +43,7 @@ await test("the S24 fix text typechecks against the Start base", (t) => {
       'export function raise(kind: "NotificationFailed", payload: Record<string, never>): never { throw Object.assign(new Error(kind), { kind, payload }); }\n',
     );
     writeFileSync(join(copy, "src/backend/s24-fix.ts"), `${fix}\n`);
+
     const result = spawnSync(
       process.execPath,
       [join(scaffold, "node_modules/typescript/bin/tsc"), "--noEmit"],

@@ -138,6 +138,7 @@ test("a relative import links across the session's own files", () => {
 
 test("an aliased import links every way to the original declaration", () => {
   const scope = createScope();
+
   const aliased = `import { createScope as makeScope } from "@tinker/core";
 export const start = () => makeScope();
 `;
@@ -178,6 +179,7 @@ test("a package reexport links to the module that declares it", () => {
 export const ok = (value: unknown) => isError(value, "NoProvider");
 `;
   scope.controller(filesCell).set([{ name: "reexport.ts", content: fixture }]);
+
   const errors = {
     file: "@tinker/react/errors.ts",
     offset: contentOf("@tinker/react/errors.ts").indexOf("function isError") + 9,
@@ -271,6 +273,7 @@ test("back and forward walk history and restore the exact file and offset", () =
   const main = contentOf("main.tsx");
   scope.run(openSource, { input: { file: "main.tsx", offset: 10 } });
   scope.run(trackCursor, { input: { file: "main.tsx", offset: 55 } });
+
   scope.run(followDefinition, {
     input: { file: "main.tsx", offset: at(main, "createScope", 1) },
   });
@@ -279,6 +282,7 @@ test("back and forward walk history and restore the exact file and offset", () =
     back: [{ file: "main.tsx", offset: 55 }],
     forward: [],
   });
+
   expect(scope.run(goBack)).toEqual({ file: "main.tsx", offset: 55 });
   expect(scope.resolve(navigationCell).forward).toEqual([coreCreateScope]);
   expect(scope.run(goForward)).toEqual(coreCreateScope);
@@ -300,14 +304,17 @@ test("history walks the most recent place, and a new jump clears the forward sta
     ],
     forward: [],
   });
+
   expect(scope.run(goBack)).toEqual({ file: "state.ts", offset: 20 });
   expect(scope.run(goBack)).toEqual({ file: "main.tsx", offset: 10 });
+
   expect(scope.run(goBack)).toBeUndefined();
   expect(scope.run(goForward)).toEqual({ file: "state.ts", offset: 20 });
   expect(scope.run(goForward)).toEqual({ file: "Tile.tsx", offset: 30 });
   expect(scope.run(goForward)).toBeUndefined();
   expect(scope.run(goBack)).toEqual({ file: "state.ts", offset: 20 });
   scope.run(openSource, { input: { file: "engine.ts", offset: 40 } });
+
   expect(scope.resolve(navigationCell)).toEqual({
     place: { file: "engine.ts", offset: 40 },
     back: [

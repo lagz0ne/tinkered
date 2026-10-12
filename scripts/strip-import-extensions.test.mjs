@@ -41,11 +41,13 @@ await test("rewrites Markdown samples and source held in fixture strings and tem
   const sample = `import a from "./a${ts}";`;
   const markdown = "Text.\n```ts\n" + sample + "\n```\n";
   assert.equal(stripDocument(markdown).text, markdown.replace(`a${ts}`, "a"));
+
   const fixture = `const fixture = ${JSON.stringify(sample)};`;
   assert.equal(
     stripSource(fixture, "fixture.mjs").text,
     `const fixture = ${JSON.stringify('import a from "./a";')};`,
   );
+
   const template = "const fixture = `" + sample + "`;";
   assert.equal(stripSource(template, "fixture.mjs").text, template.replace(`a${ts}`, "a"));
 });
@@ -66,10 +68,12 @@ await test("rewrites saved judge code and keeps its ID tied to its state", () =>
     state: { code: `import x from "./x${ts}";`, file: "x.ts" },
     why: "a private module",
   };
+
   const result = stripJsonLines(JSON.stringify(row) + "\n");
   const changed = JSON.parse(result.text);
   assert.equal(result.count, 1);
   assert.deepEqual(changed.state, { code: 'import x from "./x";', file: "x.ts" });
+
   assert.equal(
     changed.id,
     createHash("sha1")
@@ -77,6 +81,7 @@ await test("rewrites saved judge code and keeps its ID tied to its state", () =>
       .digest("hex")
       .slice(0, 12),
   );
+
   assert.equal(changed.why, row.why);
   assert.deepEqual(stripJsonLines(result.text), { text: result.text, count: 0 });
 });

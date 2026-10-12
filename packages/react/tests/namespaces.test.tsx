@@ -102,6 +102,7 @@ test("explicit resource reads and refetch follow the current key on an app-owned
   const scope = createScope({ ns: forest });
   const first = scope.resolve(project, { ns: ocean });
   const second = scope.resolve(project);
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <Query handle={project} ns={ocean} />
@@ -110,6 +111,7 @@ test("explicit resource reads and refetch follow the current key on an app-owned
   );
   await expect.element(screen.getByText('query:{"name":"ocean"}')).toBeVisible();
   await expect.element(screen.getByText('read:{"name":"ocean"}')).toBeVisible();
+
   await screen.rerender(
     <ScopeProvider scope={scope}>
       <Query handle={project} ns={forest} />
@@ -117,9 +119,11 @@ test("explicit resource reads and refetch follow the current key on an app-owned
     </ScopeProvider>,
   );
   await expect.element(screen.getByText('query:{"name":"forest"}')).toBeVisible();
+
   await screen.getByRole("button", { name: "refetch" }).click();
   expect(scope.resolve(project)).not.toBe(second);
   expect(scope.resolve(project, { ns: ocean })).toBe(first);
+
   await scope.close();
 });
 
@@ -128,6 +132,7 @@ test("a nested session inherits its parent's reset key", async () => {
   const scope = createScope();
   const first = scope.resolve(project, { ns: ocean });
   const second = scope.resolve(project, { ns: forest });
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: ocean }}>
@@ -137,9 +142,11 @@ test("a nested session inherits its parent's reset key", async () => {
       </SessionProvider>
     </ScopeProvider>,
   );
+
   await screen.getByRole("button", { name: "refetch" }).click();
   expect(scope.resolve(project, { ns: ocean })).not.toBe(first);
   expect(scope.resolve(project, { ns: forest })).toBe(second);
+
   await scope.close();
 });
 
@@ -148,6 +155,7 @@ test("an inner session's explicit key replaces its parent's reset key", async ()
   const scope = createScope();
   const first = scope.resolve(project, { ns: ocean });
   const second = scope.resolve(project, { ns: forest });
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: ocean }}>
@@ -157,9 +165,11 @@ test("an inner session's explicit key replaces its parent's reset key", async ()
       </SessionProvider>
     </ScopeProvider>,
   );
+
   await screen.getByRole("button", { name: "refetch" }).click();
   expect(scope.resolve(project, { ns: forest })).not.toBe(second);
   expect(scope.resolve(project, { ns: ocean })).toBe(first);
+
   await scope.close();
 });
 
@@ -168,6 +178,7 @@ test("an explicit reset key overrides the React session's key", async () => {
   const scope = createScope();
   const first = scope.resolve(project, { ns: ocean });
   const second = scope.resolve(project, { ns: forest });
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: ocean }}>
@@ -175,9 +186,11 @@ test("an explicit reset key overrides the React session's key", async () => {
       </SessionProvider>
     </ScopeProvider>,
   );
+
   await screen.getByRole("button", { name: "reset" }).click();
   expect(scope.resolve(project, { ns: forest })).not.toBe(second);
   expect(scope.resolve(project, { ns: ocean })).toBe(first);
+
   await scope.close();
 });
 
@@ -186,6 +199,7 @@ test("changing session options without remounting keeps the live reset key", asy
   const scope = createScope();
   const first = scope.resolve(project, { ns: ocean });
   const second = scope.resolve(project, { ns: forest });
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: ocean }}>
@@ -193,6 +207,7 @@ test("changing session options without remounting keeps the live reset key", asy
       </SessionProvider>
     </ScopeProvider>,
   );
+
   await screen.rerender(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: forest }}>
@@ -200,9 +215,11 @@ test("changing session options without remounting keeps the live reset key", asy
       </SessionProvider>
     </ScopeProvider>,
   );
+
   await screen.getByRole("button", { name: "refetch" }).click();
   expect(scope.resolve(project, { ns: ocean })).not.toBe(first);
   expect(scope.resolve(project, { ns: forest })).toBe(second);
+
   await scope.close();
 });
 
@@ -216,6 +233,7 @@ test("a chain refetch clears its head and reuses its fallback", async () => {
   const scope = createScope();
   scope.resolve(project, { ns: ocean });
   const fallback = scope.resolve(project, { ns: forest });
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: [ocean, forest] }}>
@@ -224,9 +242,11 @@ test("a chain refetch clears its head and reuses its fallback", async () => {
     </ScopeProvider>,
   );
   await expect.element(screen.getByText('query:{"build":1}')).toBeVisible();
+
   await screen.getByRole("button", { name: "refetch" }).click();
   await expect.element(screen.getByText('query:{"build":2}')).toBeVisible();
   expect(scope.resolve(project, { ns: forest })).toBe(fallback);
+
   await scope.close();
 });
 
@@ -234,6 +254,7 @@ test("a named session can still refetch a shared scope resource", async () => {
   const shared = resource({ label: "shared-project", target: "scope", factory: () => ({}) });
   const scope = createScope();
   const first = scope.resolve(shared);
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <SessionProvider options={{ ns: ocean }}>
@@ -241,8 +262,10 @@ test("a named session can still refetch a shared scope resource", async () => {
       </SessionProvider>
     </ScopeProvider>,
   );
+
   await screen.getByRole("button", { name: "refetch" }).click();
   expect(scope.resolve(shared)).not.toBe(first);
+
   await scope.close();
 });
 
@@ -270,6 +293,7 @@ test.each(["borrowed", "owned"])(
     const inner = createScope();
     inner.controller(draft).set("changed");
     const children = <Reset node={draft} />;
+
     const screen = await render(
       <ScopeProvider scope={outer}>
         <SessionProvider options={{ ns: ocean }}>
@@ -281,8 +305,10 @@ test.each(["borrowed", "owned"])(
         </SessionProvider>
       </ScopeProvider>,
     );
+
     await screen.getByRole("button", { name: "reset" }).click();
     expect(inner.resolve(draft)).toBe("empty");
+
     await screen.unmount();
     await outer.close();
     await inner.close();

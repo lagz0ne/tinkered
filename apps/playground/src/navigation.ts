@@ -68,6 +68,7 @@ export const followDefinition = operation({
     const target = resolveDefinition(sources, from, input.offset);
     if (!target) return undefined;
     nav.set(landed(nav.get(), target));
+
     return target;
   },
 });

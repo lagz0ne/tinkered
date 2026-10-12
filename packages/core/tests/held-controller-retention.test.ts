@@ -31,9 +31,11 @@ async function collect(): Promise<void> {
 test("a closed root keeps the last write of a controller that is still held", async () => {
   const root = createScope();
   const held = root.controller(cell);
+
   const written = writeLarge(held);
   await root.close();
   await collect();
+
   expect(written.deref() !== undefined).toBe(true);
   expect(held.get()).toBe(initial);
 });
@@ -42,9 +44,11 @@ test("a root closed fast with a watcher keeps the last write of a controller tha
   const root = createScope();
   const held = root.controller(cell);
   held.watch(() => undefined);
+
   const written = writeLarge(held);
   await root.close();
   await collect();
+
   expect(written.deref() !== undefined).toBe(true);
   expect(held.get()).toBe(initial);
 });
@@ -54,9 +58,11 @@ test("a root closed slowly with an onClose hook keeps the last write of a contro
   const root = createScope();
   const held = root.controller(cell);
   root.onClose(() => undefined);
+
   const written = writeLarge(held);
   await root.close();
   await collect();
+
   expect(written.deref() !== undefined).toBe(true);
   expect(held.get()).toBe(initial);
 });
@@ -69,9 +75,11 @@ test("a session swept by a root closed slowly keeps the last write of a controll
   const held = session.controller(cell);
   session.onClose(() => undefined);
   root.onClose(() => undefined);
+
   const written = writeLarge(held);
   await root.close();
   await collect();
+
   expect(written.deref() !== undefined).toBe(true);
   expect(held.get()).toBe(initial);
 });
@@ -80,9 +88,11 @@ test("a fast-closed session keeps the last write of a controller that is still h
   const root = createScope();
   const session = root.createSession();
   const held = session.controller(cell);
+
   const written = writeLarge(held);
   await session.close();
   await collect();
+
   expect(written.deref() !== undefined).toBe(true);
   expect(held.get()).toBe(initial);
   await root.close();
@@ -95,12 +105,15 @@ test("a session closed under a session hook keeps the last write of a controller
       session: async (event) => event.next(),
     },
   });
+
   const root = createScope({ extensions: [reader] });
   const session = root.createSession();
   const held = session.controller(cell);
+
   const written = writeLarge(held);
   await session.close();
   await collect();
+
   expect(written.deref() !== undefined).toBe(true);
   expect(held.get()).toBe(initial);
   await root.close();

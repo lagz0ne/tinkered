@@ -137,6 +137,7 @@ test("malformed eval YAML reports the file and parser issue", () => {
     expect.unreachable("must reject bad YAML");
   } catch (error: unknown) {
     if (!isError(error, "InvalidEval")) throw error;
+
     expect(error.payload.file).toBe("broken.yaml");
     expect(error.payload.issues).toHaveLength(1);
     const issue = error.payload.issues[0];
@@ -409,6 +410,7 @@ test("goldenCasesOf yields every matching unordered pair, in file order, and non
       "- resource:\n    name: r\n    promise: p\n    why: w\n" +
       "- tag:\n    name: c\n    promise: p\n    why: w\n",
   );
+
   const pairTemplate: Blueprint.Template = {
     id: "pair",
     scope: "pair",
@@ -436,6 +438,7 @@ test("evalSet reads YAML evals only and treats an absent side as empty", async (
   mkdirSync(join(dir, "probe", "bad"), { recursive: true });
   writeFileSync(join(dir, "probe", "bad", "one.yaml"), exampleEval);
   writeFileSync(join(dir, "probe", "bad", "notes.txt"), "not YAML");
+
   const scope = createScope({ tags: [corpusPath(provisionalCorpus), evalsPath(dir)] });
   try {
     const set = scope.resolve(evalSet).get("probe");
@@ -493,6 +496,7 @@ test("evalSet attaches golden cases from evals/golden.yaml to every template it 
     expect(set.get("probe")?.golden.map((c) => c.target[0])).toEqual(["g3", "g4"]);
     expect(set.get("probe")?.golden.map((c) => c.expect)).toEqual([false, false]);
     expect(set.get("pick")?.golden.map((c) => c.target[0])).toEqual(["g1", "g2", "g3", "g4"]);
+
     expect(set.get("pick")?.golden.map((c) => c.expect)).toEqual([
       "tag",
       "resource",

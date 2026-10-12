@@ -28,12 +28,14 @@ export const queue = resource({
     const frameBytes = browser ? 23 : 0;
     const commaBytes = browser ? 1 : 0;
     const scratch = new Uint8Array(recordLimit + 4);
+
     const stdout = browser ? undefined : (console ?? process.stdout);
     let consoleLines: string[] = [];
     let consoleBytes = 0;
     let draining = false;
     let queueBytes = 0;
     let dropped = 0;
+
     let timer: Promise<void> | undefined;
     let pending: Promise<void> | undefined;
     const stopTimer = new AbortController();
@@ -41,6 +43,7 @@ export const queue = resource({
     let state: "open" | "closing" | "closed" = "open";
     let publishing = true;
     let failed = false;
+
     const owned = {
       ingest(batch: Telemetry.Batch) {
         for (let index = 0; index < batch.traces.length; index++) {
@@ -62,16 +65,19 @@ export const queue = resource({
           dropped++;
           return;
         }
+
         const json = JSON.stringify(value);
         const { read, written } = encoder.encodeInto(json, scratch);
         const bytes = written + (kind === "trace" ? side.length + 10 : 0);
         const record = { kind, side, json, bytes };
+
         if (read < json.length || bytes > recordLimit || queueBytes + bytes > 1_048_576) {
           dropped++;
         } else {
           records.push(record);
           queueBytes += bytes;
         }
+
         return record;
       },
       writeConsole(encoded: Telemetry.Record | undefined, value: Telemetry.Log) {
@@ -167,6 +173,7 @@ export const queue = resource({
         if (publishing) health.set({ kind: "sending", pending: records.length, dropped: dropped });
         const request = new AbortController();
         const deadline = new AbortController();
+
         const alarm = Promise.resolve().then(async () => {
           try {
             await ctx.clock.sleep(750, deadline.signal);
@@ -175,6 +182,7 @@ export const queue = resource({
             if (!deadline.signal.aborted) throw error;
           }
         });
+
         let result: Telemetry.Delivery;
         try {
           result = await delivery.send(
@@ -185,11 +193,13 @@ export const queue = resource({
           deadline.abort(abortReasons.done);
           await alarm;
         }
+
         const accepted = new Set(
           retained.filter((record) => (record.kind === "trace" ? result.traces : result.logs)),
         );
         records = records.filter((record) => !accepted.has(record));
         for (const record of accepted) queueBytes -= record.bytes;
+
         failed = !result.traces || !result.logs;
         if (publishing) {
           health.set(
@@ -211,9 +221,11 @@ export const queue = resource({
       /** The extension can write final data; a forced defer runs after its data owner is sealed. */
       async close(publishFinal: boolean) {
         if (state !== "open") return;
+
         state = "closing";
         publishing = false;
         stopTimer.abort(abortReasons.closed);
+
         const deadline = new AbortController();
         const alarm = Promise.resolve().then(async () => {
           try {
@@ -223,6 +235,7 @@ export const queue = resource({
             if (!deadline.signal.aborted) throw error;
           }
         });
+
         try {
           await timer;
           if (pending) await pending;
@@ -235,12 +248,14 @@ export const queue = resource({
           stopRequests.abort(abortReasons.closed);
           deadline.abort(abortReasons.done);
           await alarm;
+
           owned.flushConsole();
           dropped += records.length + consoleLines.length;
           consoleLines = [];
           consoleBytes = 0;
           records = [];
           queueBytes = 0;
+
           if (publishFinal) {
             health.set(
               failed
@@ -256,6 +271,7 @@ export const queue = resource({
         }
       },
     };
+
     ctx.defer(() => owned.close(!ctx.signal.aborted));
     return owned;
   },

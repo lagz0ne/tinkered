@@ -237,8 +237,10 @@ function ResultsTable({ results }: { results: LibResult[] }): ReactElement {
   const [quickestMount] = [...results].sort(byMedian("mount"));
   const [quickestFanout] = [...results].sort(byMedian("fanout"));
   const bestUpdate = fastest.metrics.update;
+
   const bestMount = quickestMount.metrics.mount;
   const bestFanout = quickestFanout.metrics.fanout;
+
   const maxUpdate = Math.max(...results.map((r) => r.metrics.update.median));
   const maxMount = Math.max(...results.map((r) => r.metrics.mount.median));
   const maxFanout = Math.max(...results.map((r) => r.metrics.fanout.median));
@@ -430,6 +432,7 @@ export function BenchPage(): ReactElement {
         (s) => s.updates,
         (r, t) => setProgress(`Update rounds ${r}/${t}…`),
       );
+
       await runRounds(
         samplers,
         FANOUT_SAMPLES,

@@ -284,6 +284,7 @@ function frameMap(program) {
     for (const v of Object.values(node)) visitKid(v, node, parent, visit);
   };
   visit(program, null);
+
   return { owners, parents };
 }
 
@@ -353,6 +354,7 @@ function declareAll(program, frames, bound, owners, parents) {
       for (const name of patternNames(n.param)) bind(n, name, "local");
     }
   });
+
   return owners;
 }
 
@@ -399,6 +401,7 @@ function bindAt(frames, owners, node, name, kind) {
   const owner = owners.get(node) ?? null;
   if (owner === null) return;
   if (!frames.has(owner)) frames.set(owner, new Map());
+
   const frame = frames.get(owner);
   if (!frame) return;
   if (!isHookKind(kind) || !frame.has(name)) frame.set(name, kind);
@@ -613,6 +616,7 @@ export function inspectShape(source, file = "a.tsx", options = {}) {
   if (plain.some((r) => r.id === "parse")) return plain;
   const program = parseSync(file, source).program;
   const rows = [...plain];
+
   const bound = {
     hooks: new Map(),
     scopeCall: new Set(),
@@ -629,6 +633,7 @@ export function inspectShape(source, file = "a.tsx", options = {}) {
     ns: bound.scopeNs,
     get: (name, node) => lookupAt(frames, owners, parents, node, name),
   };
+
   declareAll(program, frames, bound, owners, parents);
   const comps = units(source, file).filter((u) => u.kind === "component");
   const starts = new Set(comps.map((u) => u.line));
@@ -655,11 +660,13 @@ export function inspectShape(source, file = "a.tsx", options = {}) {
       }
     }
   }
+
   // S25 names a state hook's fix in writer mode; its no-react-state twin on that line would
   // only repeat it. useRef and the effect hooks keep their row.
   const stateLines = new Set(plain.filter((r) => r.id === "S25").map((r) => r.line));
   const twin = (r) => r.id === "no-react-state" && /^use(State|Reducer)\b/.test(r.message);
   const kept = rows.filter((r) => !(twin(r) && stateLines.has(r.line)));
   kept.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
+
   return kept;
 }

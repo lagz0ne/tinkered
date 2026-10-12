@@ -16,6 +16,7 @@ function patternNames(node) {
   if (node.type === "Identifier") return [node.name];
   if (node.type === "RestElement") return patternNames(node.argument);
   if (node.type === "AssignmentPattern") return patternNames(node.left);
+
   if (node.type === "ObjectPattern") {
     return node.properties.flatMap((p) => patternNames(p.value ?? p.argument));
   }
@@ -106,6 +107,7 @@ function childBindings(node, names, nested) {
   if (node.type === "CatchClause") {
     for (const local of patternNames(node.param)) inner.delete(local);
   }
+
   return inner;
 }
 

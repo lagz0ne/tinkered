@@ -36,7 +36,9 @@ test("a rejected start rejects ready only after its forced cleanup ends", async 
     return cause;
   });
   await cleanupStarted.promise;
+
   cleanup.release();
+
   expect(await ready).toBe(error);
   expect(events).toEqual(["cleanup", "ready"]);
 });
@@ -81,6 +83,7 @@ test("a rejected start runs every close hook through the current handle", async 
   });
   const scope = createScope({ extensions: [first, second] });
   await expect(scope.ready).rejects.toBe(error);
+
   expect(events).toEqual([
     "handle:before",
     "first:before",
@@ -110,6 +113,7 @@ test("a start that fails during close joins the hooks already running", async ()
         await cleanup.promise;
         const ended = await event.next();
         events.push("close:after");
+
         return ended;
       },
     },
@@ -121,7 +125,9 @@ test("a start that fails during close joins the hooks already running", async ()
   });
   const ended = scope.close();
   await closing.promise;
+
   start.release();
+
   expect(await Promise.race([ready, Promise.resolve("pending")])).toBe("pending");
   cleanup.release();
   expect(await ready).toBe(error);
@@ -155,11 +161,13 @@ test("closed reports the start error after cleanup even when a stop was requeste
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
   const ready = expect(scope.ready).rejects.toBe(error);
   await cleanupStarted.promise;
+
   expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
   cleanup.release();
   await ready;
   const ended = await scope.closed;
   if (ended.status !== "failed") throw ended;
+
   expect(ended.error).toBe(error);
   expect(closes).toEqual([{}]);
 });
@@ -169,6 +177,7 @@ test.each([false, true])(
   async (alreadyAborted) => {
     const stop = new AbortController();
     if (alreadyAborted) stop.abort();
+
     const start = gate();
     const events: string[] = [];
     const piece = extension({
@@ -186,9 +195,12 @@ test.each([false, true])(
     });
     const scope = createScope({ signal: stop.signal, extensions: [piece] });
     if (!alreadyAborted) stop.abort();
+
     scope.controller(count).set(2);
+
     expect(scope.resolve(count)).toBe(2);
     expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
+
     start.release();
     await scope.ready;
     expect((await scope.closed).status).toBe("success");
@@ -219,9 +231,11 @@ test("a stop lets in-flight work finish without aborting its ctx signal", async 
   });
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
   await scope.ready;
+
   const running = scope.run(run);
   stop.abort();
   await closing.promise;
+
   expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
   work.release();
   expect(await running).toBe(false);
@@ -242,8 +256,10 @@ test("a stop after a manual close does not run close hooks again", async () => {
   });
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
   await scope.ready;
+
   const ended = await scope.close();
   stop.abort();
+
   expect(await scope.closed).toBe(ended);
   expect(modes).toEqual([{}]);
 });
@@ -277,10 +293,13 @@ test("a stop joins an object run hook through its cleanup", async () => {
   });
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
   await scope.ready;
+
   const running = Promise.resolve(scope.run(task));
+
   expect(events).toEqual(["body", "waiting"]);
   stop.abort();
   expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
+
   resume.release();
   expect(await running).toBe(7);
   expect((await scope.closed).status).toBe("success");
@@ -296,12 +315,15 @@ test("a forced close joins the graceful close requested by the stop signal", asy
     cleanupStarted.release();
     await cleanup.promise;
   });
+
   await scope.ready;
   stop.abort();
   await cleanupStarted.promise;
+
   const forced = scope.close();
   cleanup.release();
   const ended = await scope.closed;
+
   expect(await forced).toBe(ended);
   expect(ended.status).toBe("success");
 });
@@ -319,9 +341,11 @@ test.each([false, true])(
     const scope = createScope({ signal: new AbortController().signal });
     await scope.ready;
     scope.controller(count).set(7);
+
     const first = scope.close({ graceful: true, withData });
     const second = scope.close({ withData: !withData });
     const ended = await first;
+
     expect(await second).toBe(ended);
     expect(await scope.closed).toBe(ended);
     expect(await scope.close()).toBe(ended);
@@ -346,8 +370,10 @@ test("closed waits for close hooks' after-work and keeps core's Result", async (
   });
   const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
   await scope.ready;
+
   const closing = scope.close();
   await afterStarted.promise;
+
   expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
   after.release();
   expect(await closing).toBe(result);
@@ -369,6 +395,7 @@ test("closed counts a close hook throw after next as a teardown error", async ()
   const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
   await scope.ready;
   const ended = await scope.close({ graceful: true });
+
   expect(await scope.closed).toBe(ended);
   expect(ended).toEqual({ status: "success", teardownErrors: [error] });
 });
@@ -405,8 +432,10 @@ test("closed keeps close-hook and resource cleanup errors together", async () =>
   });
   const scope = createScope({ signal: new AbortController().signal, extensions: [first, last] });
   await scope.ready;
+
   scope.resolve(owned);
   const ended = await scope.close({ graceful: true });
+
   expect(await scope.closed).toBe(ended);
   expect(ended).toEqual({ status: "success", teardownErrors: [before, cleanup, after] });
 });
@@ -438,11 +467,14 @@ test.each([false, true])(
     });
     const scope = createScope({ signal: new AbortController().signal, extensions: [piece, inner] });
     await scope.ready;
+
     const cleaned: string[] = [];
     scope.onClose(() => {
       cleaned.push("cleanup");
     });
+
     const ended = await scope.close();
+
     expect(await scope.closed).toBe(ended);
     expect(ended.status).toBe("cancelled");
     expect(ended.teardownErrors).toEqual(throws ? [error] : undefined);
@@ -466,6 +498,7 @@ test("the root drops its stop listener before any close hook runs", async () => 
   });
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
   await scope.ready;
+
   expect(getEventListeners(stop.signal, "abort")).toHaveLength(1);
   await scope.close();
   expect(listeners).toEqual([0]);
@@ -502,7 +535,9 @@ test("a signal close runs every close hook gracefully through the current handle
   });
   const scope = createScope({ signal: stop.signal, extensions: [first, second] });
   await scope.ready;
+
   stop.abort();
+
   expect((await scope.closed).status).toBe("success");
   expect(modes).toEqual([{ graceful: true }, { graceful: true }, { graceful: true }]);
 });
@@ -512,11 +547,13 @@ test("only a root given a signal has closed and sessions take no signal", async 
   const extended = createScope({ extensions: [extension({ label: "plain" })] });
   const root = createScope({ signal: new AbortController().signal });
   expectTypeOf(plain).not.toHaveProperty("closed");
+
   expectTypeOf(extended).not.toHaveProperty("closed");
   expectTypeOf(root).toEqualTypeOf<Scope.RootHandle>();
   expectTypeOf<NonNullable<Parameters<Scope.Handle["createSession"]>[0]>>().not.toHaveProperty(
     "signal",
   );
+
   expect(plain).not.toHaveProperty("closed");
   expect(extended).not.toHaveProperty("closed");
   expect(root).toHaveProperty("closed", root.closed);

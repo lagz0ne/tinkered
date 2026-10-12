@@ -48,6 +48,7 @@ test("malformed template YAML reports the file and parser issue", () => {
     expect.unreachable("must reject bad YAML");
   } catch (error: unknown) {
     if (!isError(error, "InvalidTemplate")) throw error;
+
     expect(error.payload.file).toBe("broken.yaml");
     expect(error.payload.issues).toHaveLength(1);
     const issue = error.payload.issues[0];

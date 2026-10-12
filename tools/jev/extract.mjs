@@ -43,6 +43,7 @@ const isUnitCall = (node) =>
 function unitOf(src, declarator, exported) {
   const init = declarator.init;
   if (!isUnitCall(init) || declarator.id.type !== "Identifier") return null;
+
   const config = init.arguments[0];
   const label = prop(config, "label");
   const depends = prop(config, "depends");
@@ -104,6 +105,7 @@ function rendersOutside(root) {
 function returnsJsx(body) {
   if (!body) return false;
   if (body.type !== "BlockStatement") return rendersOutside(body);
+
   const hidden = innerBodies(body);
   let found = false;
   walk(body, (n) => {
@@ -235,6 +237,7 @@ function withUses(src, program, records) {
     if (helper === undefined || insideOf(helper, line)) return;
     found.set(helper.name, (found.get(helper.name) ?? new Set()).add(line));
   });
+
   return records.map((r) => {
     const at = found.get(r.name);
     if (r.kind !== "function" || at === undefined) return r;
@@ -247,6 +250,7 @@ function withUses(src, program, records) {
 function bindings(pattern) {
   if (!pattern) return [];
   if (pattern.type === "Identifier") return [pattern.name];
+
   if (pattern.type === "RestElement" || pattern.type === "AssignmentPattern") {
     return bindings(pattern.argument ?? pattern.left);
   }
@@ -265,6 +269,7 @@ function references(node, shadow = new Set()) {
   function visit(n, hidden) {
     if (!n || typeof n !== "object") return;
     if (Array.isArray(n)) return n.forEach((v) => visit(v, hidden));
+
     if (n.type === "Identifier") {
       if (!hidden.has(n.name)) out.add(n.name);
       return;
@@ -274,6 +279,7 @@ function references(node, shadow = new Set()) {
       return;
     }
     if (n.type?.startsWith("TS") || n.type === "TSTypeAnnotation") return;
+
     if (FUNCTION_TYPES.has(n.type)) {
       const scoped = new Set([...hidden, ...(n.params ?? []).flatMap(bindings)]);
       if (n.id?.name) scoped.add(n.id.name);
@@ -315,6 +321,7 @@ function derivedNames(functions, before) {
   function collect(n) {
     if (!n || typeof n !== "object" || n.start >= before) return;
     if (Array.isArray(n)) return n.forEach(collect);
+
     if (n.type === "FunctionDeclaration") {
       if (n.id) edges.push({ names: bindings(n.id), value: n });
       return;
@@ -344,6 +351,7 @@ function derivedNames(functions, before) {
       }
     }
   } while (changed);
+
   return names;
 }
 
@@ -351,6 +359,7 @@ function derivedNames(functions, before) {
 // oxlint-disable-next-line complexity -- import and function guards are separate AST cases
 export function unitCouldBeModuleLevel(src, file = "a.ts") {
   if (/\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:test|tests|__tests__)\//.test(file)) return [];
+
   const program = parse(file, src);
   const coreNames = new Set();
   for (const n of program.body) {
@@ -367,6 +376,7 @@ export function unitCouldBeModuleLevel(src, file = "a.ts") {
   function visit(node, functions = [], name, locals = []) {
     if (!node || typeof node !== "object") return;
     if (Array.isArray(node)) return node.forEach((n) => visit(n, functions, name, locals));
+
     if (node.type === "ExportNamedDeclaration") {
       return visit(node.declaration, functions, name, locals);
     }
@@ -451,6 +461,7 @@ function expectCallOf(memberObject) {
 function assertOf(src, expr) {
   const call = unwrapAwait(expr);
   if (call?.type !== "CallExpression" || call.callee.type !== "MemberExpression") return null;
+
   const found = expectCallOf(call.callee.object);
   if (!found) return null;
   const { inner, not } = found;
@@ -497,6 +508,7 @@ function factsOf(src, block) {
     if (n) narrows.push(n);
     const c = causeOf(src, stmt);
     if (c) causes.push(c);
+
     if (stmt.type === "TryStatement") {
       const inner = factsOf(src, stmt.block);
       asserts.push(...inner.asserts);
@@ -539,6 +551,7 @@ export function tests(src, file = "a.test.ts") {
     const title = titleOf(call.arguments[0]);
     const fn = call.arguments[1];
     if (title === null) return [];
+
     const block = fn.body.type === "BlockStatement" ? fn.body : { body: [] };
     const record = { title, line: lineOf(src, call.start), body: text(src, fn.body) };
     return [{ ...record, ...factsOf(src, block) }];

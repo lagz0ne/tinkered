@@ -781,6 +781,7 @@ void describe("entry and root rules (ADR 0078)", () => {
     );
     const gate = gateOf({ file, plainFindings, rows: [] });
     assert.equal(gate.status, "block");
+
     assert.deepEqual(
       gate.blocking.map((r) => r.rule),
       ["S27", "S28"],

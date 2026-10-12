@@ -52,6 +52,7 @@ function main() {
         .filter((file) => /\.(?:md|json|txt)$/.test(file)),
     );
   }
+
   let count = 0;
   for (const file of new Set(files)) {
     for (const name of savedModuleEndings(file, readFileSync(file, "utf8"))) {
@@ -59,6 +60,7 @@ function main() {
       console.error(`${file}: ${name} has a TypeScript module ending; remove .ts/.tsx/.mts`);
     }
   }
+
   console.log(`Saved module ending check: ${count} hit(s).`);
   process.exitCode = count ? 1 : 0;
 }

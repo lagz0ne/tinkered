@@ -22,6 +22,7 @@ test("a 300-record burst is sent before the first tick, one batch at a time", as
   let requests = 0;
   let active = 0;
   let peak = 0;
+
   const clock = makeTestClock();
   const root = createScope({
     clock,
@@ -37,6 +38,7 @@ test("a 300-record burst is sent before the first tick, one batch at a time", as
         const batch = (typeof init?.body === "string" ? init.body : "")
           .split("\n")
           .map((line) => JSON.parse(line));
+
         expect(batch.length).toBeLessThanOrEqual(64);
         sent.push(...batch);
         active--;
@@ -44,6 +46,7 @@ test("a 300-record burst is sent before the first tick, one batch at a time", as
       }),
     ],
   });
+
   await root.ready;
   for (let index = 0; index < 5; index++) {
     root.run(ingestTelemetry, {
@@ -54,8 +57,10 @@ test("a 300-record burst is sent before the first tick, one batch at a time", as
     await expect.poll(() => requests).toBe(1);
     const flush = root.run(flushTelemetry);
     expect(requests).toBe(1);
+
     release.resolve();
     await flush;
+
     expect({
       records: sent.length,
       peak,
@@ -75,6 +80,7 @@ test("a full batch arriving as a send ends is sent before any tick", async () =>
     let incoming: Promise<void> | undefined;
     let sent = 0;
     let first = true;
+
     const root = createScope({
       clock,
       extensions: [telemetryExport],
@@ -99,6 +105,7 @@ test("a full batch arriving as a send ends is sent before any tick", async () =>
       ],
     });
     await root.ready;
+
     try {
       root.run(ingestTelemetry, { input: batch });
       await root.run(flushTelemetry);
@@ -126,6 +133,7 @@ test("a slow console keeps a bounded batch and counts every dropped copy", async
     },
   };
   let stored = 0;
+
   const root = createScope({
     extensions: [telemetryExport],
     tags: [
@@ -139,6 +147,7 @@ test("a slow console keeps a bounded batch and counts every dropped copy", async
     ],
   });
   await root.ready;
+
   const observe = root.resolve(observer);
   for (let index = 0; index < 600; index++) {
     observe.log?.({
@@ -149,16 +158,21 @@ test("a slow console keeps a bounded batch and counts every dropped copy", async
       span: undefined,
     });
   }
+
   await root.run(flushTelemetry);
   expect(writes).toEqual([]);
+
   sink.writableNeedDrain = false;
   await root.run(flushTelemetry);
   const text = writes.join("");
   const printed = text.trimEnd().split("\n").length;
+
   expect(new TextEncoder().encode(text).byteLength).toBeLessThanOrEqual(48_000);
   const dropped = 600 - stored + 600 - printed;
+
   expect(root.resolve(exportHealth)).toMatchObject({ pending: 0, dropped });
   const closed = await root.close({ graceful: true, withData: true });
+
   expect(closed.status).toBe("success");
   expect(closed.data?.get(exportHealth)).toMatchObject({
     present: true,
@@ -178,6 +192,7 @@ test("records refused during close are counted in the final health", async () =>
   await root.ready;
   root.run(ingestTelemetry, { input: { traces: [], logs: [log] } });
   const closed = await root.close({ graceful: true, withData: true });
+
   expect(closed.status).toBe("success");
   expect(closed.data?.get(exportHealth)).toMatchObject({
     present: true,

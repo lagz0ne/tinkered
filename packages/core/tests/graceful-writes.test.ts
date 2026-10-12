@@ -43,6 +43,7 @@ for (const mode of ["root stop", "root close", "session close"]) {
         return count.get();
       },
     });
+
     const stop = new AbortController();
     const root = createScope({ signal: stop.signal });
     await root.ready;
@@ -50,6 +51,7 @@ for (const mode of ["root stop", "root close", "session close"]) {
     const signals = session.resolve(lifetime);
     const began = gate();
     signals.closing.addEventListener("abort", () => began.resolve(), { once: true });
+
     const running = session.settle(write);
     const closing =
       mode === "session close"
@@ -57,13 +59,16 @@ for (const mode of ["root stop", "root close", "session close"]) {
         : mode === "root close"
           ? root.close({ graceful: true })
           : root.closed;
+
     if (mode === "root stop") stop.abort();
     await began.promise;
     await expect.poll(() => session.settle({ run: () => 0 }).status).toBe("failed");
     expect(signals.signal.aborted).toBe(false);
+
     finish.resolve();
     expect(await running).toMatchObject({ status: "success", value: 1 });
     const ended = await closing;
+
     expect(ended.status).toBe("success");
     if (mode === "session close") {
       expect(ended.data?.get(count)).toEqual({ present: true, value: 1 });
@@ -88,16 +93,20 @@ test("a running call's async defer can write during graceful close", async () =>
       await finish.promise;
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   const running = session.run(write);
   const closing = session.close({ graceful: true, withData: true });
+
   finish.resolve();
   await entered.promise;
   cleanup.resolve();
+
   await running;
   const ended = await closing;
   expect(ended.teardownErrors).toBeUndefined();
+
   expect(ended.data?.get(count)).toEqual({ present: true, value: 2 });
   await root.close();
 });
@@ -109,16 +118,19 @@ test("graceful close refuses new calls through handles and saved controllers", a
   const saved = root.controller(work);
   const running = root.run(work);
   const closing = root.close({ graceful: true });
+
   for (const result of [root.settle(work), saved.settle(), root.settle({ run: () => 1 })]) {
     const ended = await result;
     if (ended.status !== "failed" || !isError(ended.error, "Disposed")) throw ended;
   }
+
   try {
     root.createSession();
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "Disposed")) throw error;
   }
+
   const error = await root
     .session(() => 1)
     .then(
@@ -126,6 +138,7 @@ test("graceful close refuses new calls through handles and saved controllers", a
       (error: unknown) => error,
     );
   if (!isError(error, "Disposed")) throw error;
+
   finish.resolve();
   await running;
   expect((await closing).status).toBe("success");
@@ -146,11 +159,14 @@ test("forced close aborts a running call without waiting for its write gate", as
       count.set(1);
     },
   });
+
   const root = createScope();
   const running = root.settle(write);
   const closing = root.close({ withData: true });
+
   expect((await running).status).toBe("cancelled");
   const ended = await closing;
+
   expect(ended.status).toBe("cancelled");
   expect(ended.data?.get(count)).toEqual({ present: false });
   finish.resolve();
@@ -167,6 +183,7 @@ test("closed reports a real failure from a running call's write", async () => {
       count.set(1);
     },
   });
+
   const stop = new AbortController();
   const root = createScope({ signal: stop.signal });
   await root.ready;
@@ -174,15 +191,18 @@ test("closed reports a real failure from a running call's write", async () => {
   const signals = session.resolve(lifetime);
   const began = gate();
   signals.closing.addEventListener("abort", () => began.resolve(), { once: true });
+
   session.controller(count).watch(() => {
     throw cause;
   });
   const running = session.run(write);
+
   const rejected = expect(running).rejects.toBe(cause);
   stop.abort();
   await began.promise;
   await expect.poll(() => session.settle({ run: () => 0 }).status).toBe("failed");
   finish.resolve();
+
   await rejected;
   expect(await root.closed).toMatchObject({ status: "failed", error: cause });
 });
@@ -205,9 +225,11 @@ test("closing refuses new calls before a waiting root close hook resumes", async
       }),
     ],
   });
+
   await root.ready;
   const saved = root.controller(work);
   const closing = root.close({ graceful: true });
+
   for (const result of [
     root.settle(work),
     saved.settle(),
@@ -218,6 +240,7 @@ test("closing refuses new calls before a waiting root close hook resumes", async
     const ended = await result;
     if (ended.status !== "failed" || !isError(ended.error, "Disposed")) throw ended;
   }
+
   finish.resolve();
   expect((await closing).status).toBe("success");
 });
@@ -227,12 +250,15 @@ test("a first closing read during graceful root drain is already aborted", async
   const capture = resource({ label: "late closing", factory: (_deps, ctx) => ctx });
   const root = createScope();
   const ctx = root.resolve(capture);
+
   const running = root.run({ run: () => finish.promise });
   const closing = root.close({ graceful: true });
   const aborted = ctx.closing.aborted;
+
   finish.resolve();
   await running;
   await closing;
+
   expect(aborted).toBe(true);
 });
 
@@ -244,9 +270,11 @@ test("graceful close refuses new calls before run hooks start", async () => {
     extensions: [extension({ label: "run hook", hooks: { run: (event) => event.next() } })],
   });
   await root.ready;
+
   const saved = root.controller(later);
   const running = root.run(active);
   const closing = root.close({ graceful: true });
+
   try {
     const ended = saved.settle();
     if (ended.status !== "failed" || !isError(ended.error, "Disposed")) throw ended;
@@ -265,6 +293,7 @@ test("graceful close refuses new sessions through session hooks", async () => {
   await root.ready;
   const running = root.run({ run: () => finish.promise });
   const closing = root.close({ graceful: true });
+
   try {
     root.createSession();
     expect.unreachable();
@@ -282,9 +311,11 @@ test("a draining session refuses to release its parent's resource", async () => 
   const owned = resource({ label: "parent owned", factory: () => 1 });
   const root = createScope();
   root.resolve(owned);
+
   const session = root.createSession();
   const running = session.run({ run: () => finish.promise });
   const closing = session.close({ graceful: true });
+
   try {
     session.release(owned);
     expect.unreachable();
@@ -315,6 +346,7 @@ for (const named of [false, true]) {
     else root.controller(input).set(1);
     const held = session.controller(owned, named ? { ns } : undefined);
     held.resolve();
+
     const read = operation({
       label: "read after release",
       depends: { owned },
@@ -323,10 +355,13 @@ for (const named of [false, true]) {
         return held.get();
       },
     });
+
     const running = session.run(read, named ? { ns } : undefined);
     const closing = session.close({ graceful: true });
+
     if (named) root.releaseNs(input, ns);
     else root.release(input);
+
     finish.resolve();
     try {
       expect(await running).toBe(1);
@@ -362,6 +397,7 @@ for (const mode of ["root stop", "root close", "session close"]) {
         return save.run({ signal: new AbortController().signal });
       },
     });
+
     const stop = new AbortController();
     const root = createScope({
       signal: stop.signal,
@@ -369,6 +405,7 @@ for (const mode of ["root stop", "root close", "session close"]) {
     });
     await root.ready;
     const session = root.createSession();
+
     const signals = session.resolve(lifetime);
     const running = session.settle(work);
     const closing =
@@ -377,10 +414,12 @@ for (const mode of ["root stop", "root close", "session close"]) {
         : mode === "root close"
           ? root.close({ graceful: true })
           : root.closed;
+
     if (mode === "root stop") stop.abort();
     await expect.poll(() => session.settle({ run: () => 0 }).status).toBe("failed");
     expect(signals.signal.aborted).toBe(false);
     finish.resolve();
+
     expect(await running).toMatchObject({ status: "success", value: 2 });
     const ended = await closing;
     if (ended.status === "failed") throw ended.error;
@@ -399,6 +438,7 @@ for (const mode of ["root stop", "root close", "session close"]) {
         return count.get();
       },
     });
+
     const stop = new AbortController();
     const root = createScope({ signal: stop.signal });
     await root.ready;
@@ -410,10 +450,12 @@ for (const mode of ["root stop", "root close", "session close"]) {
       await finish.promise;
       return s.run(save);
     });
+
     const result = body.then(
       (value) => ({ status: "success", value }),
       (error: unknown) => ({ status: "failed", error }),
     );
+
     await entered.promise;
     const closing =
       mode === "session close"
@@ -421,10 +463,12 @@ for (const mode of ["root stop", "root close", "session close"]) {
         : mode === "root close"
           ? root.close({ graceful: true })
           : root.closed;
+
     if (mode === "root stop") stop.abort();
     if (mode !== "session close") {
       await expect.poll(() => root.settle({ run: () => 0 }).status).toBe("failed");
     }
+
     finish.resolve();
     expect(await result).toEqual({ status: "success", value: 7 });
     const ended = await closing;
@@ -440,6 +484,7 @@ test("forced parent close seals a child already draining gracefully", async () =
   const session = root.createSession();
   const held = session.controller(count);
   let writeError: unknown;
+
   const running = session.settle({
     run: async (_deps, ctx) => {
       ctx.signal.addEventListener(
@@ -457,10 +502,13 @@ test("forced parent close seals a child already draining gracefully", async () =
       await finish.promise;
     },
   });
+
   const closing = session.close({ graceful: true, withData: true });
   await root.close();
+
   await running;
   if (!isError(writeError, "Disposed")) throw writeError;
+
   expect((await closing).data?.get(count)).toEqual({ present: false });
 });
 
@@ -473,10 +521,13 @@ test("resource cleanup writes fail with Disposed after graceful drain", async ()
       return 1;
     },
   });
+
   const root = createScope();
   root.resolve(owned);
   const ended = await root.close({ graceful: true });
+
   expect(ended.teardownErrors).toHaveLength(1);
+
   for (const error of ended.teardownErrors ?? []) {
     if (!isError(error, "Disposed")) throw error;
   }
@@ -489,6 +540,7 @@ test("graceful close seals a child already aborted by its parent", async () => {
   const held = session.controller(count);
   let writeError: unknown;
   let childClosing: Promise<Scope.Result> | undefined;
+
   const running = session.settle({
     run: async (_deps, ctx) => {
       ctx.signal.addEventListener(
@@ -507,9 +559,12 @@ test("graceful close seals a child already aborted by its parent", async () => {
       await finish.promise;
     },
   });
+
   await root.close();
+
   await running;
   await childClosing;
+
   if (!isError(writeError, "Disposed")) throw writeError;
 });
 
@@ -531,10 +586,13 @@ for (const named of [false, true]) {
         }),
       ],
     });
+
     await root.ready;
     root.controller(owned, named ? { ns } : undefined).resolve();
+
     const session = root.createSession();
     const closing = root.close({ graceful: true });
+
     try {
       if (named) session.releaseNs(owned, ns);
       else session.release(owned);
@@ -555,8 +613,10 @@ test("a draining session refuses a named release", async () => {
   const root = createScope();
   const session = root.createSession();
   root.controller(owned, { ns }).resolve();
+
   const running = session.run({ run: () => finish.promise });
   const closing = session.close({ graceful: true });
+
   try {
     session.releaseNs(owned, ns);
     expect.unreachable();
@@ -581,6 +641,7 @@ for (const hooked of [false, true]) {
           ? [extension({ label: "saved helper hooks", hooks: { run: (event) => event.next() } })]
           : undefined,
       });
+
       await root.ready;
       await root.run({
         depends: { save },
@@ -590,9 +651,12 @@ for (const hooked of [false, true]) {
           return Promise.resolve();
         },
       });
+
       await root.settled();
+
       const running = root.run({ run: () => finish.promise });
       const closing = root.close({ graceful: true });
+
       try {
         saved();
         expect.unreachable();
@@ -613,10 +677,13 @@ test("a held controller can write outside a call until graceful drain ends", asy
   const held = root.controller(count);
   const running = root.run({ run: () => finish.promise });
   const closing = root.close({ graceful: true, withData: true });
+
   held.set(9);
   finish.resolve();
   await running;
+
   expect((await closing).data?.get(count)).toEqual({ present: true, value: 9 });
+
   try {
     held.set(10);
     expect.unreachable();
@@ -629,6 +696,7 @@ test("a running session body cannot release during graceful drain", async () => 
   const finish = gate();
   const root = createScope();
   let closeSession = () => root.close({ graceful: true });
+
   const body = root.session(async (s) => {
     s.controller(count).set(1);
     closeSession = () => s.close({ graceful: true });
@@ -641,8 +709,10 @@ test("a running session body cannot release during graceful drain", async () => 
     }
     return s.resolve(count);
   });
+
   const closing = closeSession();
   finish.resolve();
+
   expect(await body).toBe(1);
   await closing;
   await root.close();
@@ -657,6 +727,7 @@ test("a running call's cleanup can call a writing helper during graceful drain",
     depends: { count: count.controller },
     run: ({ count }) => count.set(4),
   });
+
   const root = createScope();
   const running = root.run({
     depends: { save },
@@ -669,11 +740,14 @@ test("a running call's cleanup can call a writing helper during graceful drain",
       await finish.promise;
     },
   });
+
   const closing = root.close({ graceful: true, withData: true });
+
   finish.resolve();
   await entered.promise;
   cleanup.resolve();
   await running;
+
   expect((await closing).data?.get(count)).toEqual({ present: true, value: 4 });
 });
 
@@ -687,10 +761,13 @@ test("a running call can use a tagged helper during graceful root close", async 
       return helper.run({ tags: [helperZone("away")] });
     },
   });
+
   const root = createScope();
   const running = root.settle(outer);
   const closing = root.close({ graceful: true });
+
   finish.resolve();
+
   try {
     expect(await running).toMatchObject({ status: "success", value: 7 });
   } finally {
@@ -704,13 +781,16 @@ test("a running session body can settle an operation during root stop", async ()
   const stop = new AbortController();
   const root = createScope({ signal: stop.signal });
   await root.ready;
+
   const body = root.session(async (s) => {
     entered.resolve(s);
     await finish.promise;
     return s.settle(helper);
   });
+
   const session = await entered.promise;
   stop.abort();
+
   await expect
     .poll(() => {
       try {
@@ -723,6 +803,7 @@ test("a running session body can settle an operation during root stop", async ()
     })
     .toBe(true);
   finish.resolve();
+
   try {
     expect(await body).toMatchObject({ status: "success", value: 7 });
   } finally {
@@ -743,17 +824,20 @@ for (const hooked of [false, true]) {
           : undefined,
       });
       await root.ready;
+
       const body = root.session((s) => {
         entered.resolve(s);
         void s.run({ run: () => finish.promise });
         return bodyEnd.promise;
       });
+
       const result = body.then(
         (value) => ({ status: "success", value }),
         (error: unknown) => ({ status: "failed", error }),
       );
       const session = await entered.promise;
       const closing = root.close({ graceful: true });
+
       await expect
         .poll(() => {
           try {
@@ -765,6 +849,7 @@ for (const hooked of [false, true]) {
           }
         })
         .toBe(true);
+
       if (failed) bodyEnd.reject(cause);
       else bodyEnd.resolve(1);
       await bodyEnd.promise.then(
@@ -773,6 +858,7 @@ for (const hooked of [false, true]) {
           if (error !== cause) throw error;
         },
       );
+
       try {
         session.run(helper);
         expect.unreachable();
@@ -806,13 +892,16 @@ test("a running call cannot start a helper after a forced parent seals its child
       }
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   const running = session.settle(outer);
   const closing = session.close({ graceful: true });
   const parentClosing = root.close();
+
   await sealed.promise;
   finish.resolve();
+
   try {
     expect(await running).toMatchObject({ status: "success" });
   } finally {

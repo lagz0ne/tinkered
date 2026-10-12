@@ -23,6 +23,7 @@ test("an HTTP request makes two spans and records its status", async () => {
     const spans = scope.spans();
     const caller = spans.find((span) => span.name === "test.post");
     const request = spans.find((span) => span.name === "http.request");
+
     expect(request?.parentId).toBe(caller?.id);
     expect(
       spans
@@ -43,6 +44,7 @@ test("an HTTP request makes two spans and records its status", async () => {
         },
       },
     ]);
+
     expect(spans.some((span) => span.name === "http" && span.kind === "resource")).toBe(true);
   } finally {
     stop.abort();

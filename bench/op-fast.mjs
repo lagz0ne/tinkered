@@ -15,11 +15,13 @@ if (scenario === "settle") {
   const cell = data({ label: "cfg", initial: 21 });
   const op = operation({ label: "op", depends: { cell }, run: ({ cell }) => cell + 1 });
   const root = createScope();
+
   for (let i = 0; i < iterations; i++) {
     const result = root.settle(op);
     assert.equal(result.status, "success");
     sum += result.value;
   }
+
   assert.equal(sum, iterations * 22);
   assert.equal((await root.close({ graceful: true })).status, "success");
 } else {

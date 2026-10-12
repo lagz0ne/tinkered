@@ -284,6 +284,7 @@ function duplicateNames(nodes: readonly Blueprint.Node[]): readonly Blueprint.Fi
       blocking: true,
     });
   }
+
   return found;
 }
 
@@ -398,6 +399,7 @@ function dependsMismatches(
     const declared = new Set(node.depends);
     const coded = new Set(unit.depends);
     if (sameSet(declared, coded)) return [];
+
     return [
       {
         source: "plain" as const,
@@ -925,6 +927,7 @@ async function scoreEval(
   const state = evalStateOf(template, evalCase);
   const answers = await judge.ask(state, { [template.id]: question }, signal);
   const answer = answers[template.id];
+
   const declared = "a" in state ? undefined : compareValueOf(template, state);
   const node = evalNodeOf(state);
   return {
@@ -962,6 +965,7 @@ function gradeFrom(
 ): Blueprint.Grade {
   const enough = bad.length >= 5 && clean.length >= 5;
   const sep = median(bad) - median(clean);
+
   const ordered = orderedShare(bad, clean);
   const passesBar = sep >= 0.3 && ordered >= 0.9;
   const status =
@@ -998,6 +1002,7 @@ export async function gradeTemplate(
     clean.push(scored.p);
     if (scored.hit) goldenHits.push(scored.node);
   }
+
   return gradeFrom(template.id, bad, clean, goldenHits, evals.golden.length);
 }
 

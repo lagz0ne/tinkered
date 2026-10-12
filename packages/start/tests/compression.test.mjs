@@ -37,6 +37,7 @@ test("streamed HTML is compressed and keeps existing Vary fields", async () => {
     expect(response.headers.get("content-encoding")).toBe(encoding);
     expect(response.headers.get("content-length")).toBeNull();
     expect(response.headers.get("vary")).toBe("Cookie, Accept-Encoding");
+
     const bytes = Buffer.from(await response.arrayBuffer());
     expect((encoding === "br" ? brotliDecompressSync(bytes) : gunzipSync(bytes)).toString()).toBe(
       "<p>Hello</p>",
@@ -106,9 +107,11 @@ test("HEAD cancels HTML and returns its negotiated encoding without a body", asy
     ),
   );
   expect(cancelled).toBe(true);
+
   expect(response.body).toBeNull();
   expect(response.headers.get("content-encoding")).toBe("br");
   expect(response.headers.get("content-length")).toBeNull();
+
   const empty = await compressResponse(
     new Request("http://app", { method: "HEAD", headers: { "accept-encoding": "br" } }),
     new Response(null, { headers: { "content-type": "text/html" } }),
@@ -130,6 +133,7 @@ test.each(["gzip", "br"])("%s sends the HTML shell before the source ends", asyn
     new Request("http://app", { headers: { "accept-encoding": encoding } }),
     new Response(body, { headers: { "content-type": "text/html" } }),
   );
+
   const encoded = Readable.fromWeb(response.body);
   const decoded = encoded.pipe(encoding === "br" ? createBrotliDecompress() : createGunzip());
   const chunks = decoded[Symbol.asyncIterator]();
@@ -139,6 +143,7 @@ test.each(["gzip", "br"])("%s sends the HTML shell before the source ends", asyn
     source.enqueue(new TextEncoder().encode(tail));
     source.close();
     let rest = "";
+
     for await (const chunk of chunks) rest += chunk.toString();
     expect(rest).toBe(tail);
   } finally {

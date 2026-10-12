@@ -67,6 +67,7 @@ function readFunctionAccess(program: Program): ReadonlyMap<Callable, readonly st
       if (owner === undefined) return;
       const [parameter] = owner.params;
       if (parameter?.type !== "Identifier") return;
+
       const target = accessTarget(node, parameter.name);
       if (target === undefined) return;
       const found = access.get(owner);
@@ -74,6 +75,7 @@ function readFunctionAccess(program: Program): ReadonlyMap<Callable, readonly st
       else found.push(target);
     },
   }).visit(program);
+
   return access;
 }
 
@@ -190,6 +192,7 @@ function unitOf(
   if (arg === undefined || arg.type === "SpreadElement") return undefined;
   const label = labelOf(arg);
   if (label === undefined) return undefined;
+
   return {
     kind: kindName,
     label,

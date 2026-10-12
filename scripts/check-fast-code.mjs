@@ -85,8 +85,10 @@ function measureBytecode() {
 function measureInlining() {
   const options = command(process.execPath, ["--v8-options"]);
   if (!/default: --maglev\s/.test(options)) throw new Error("Default Maglev is off");
+
   const emitted = names();
   const trace = command(process.execPath, ["--trace-turbo-inlining", driver, bundle, "200000"]);
+
   const actual = inlinedInto(trace, emitted.OperationCtx, emitted.runOnce);
   return actual;
 }
@@ -116,7 +118,9 @@ function rewriteEngineBaseline() {
     bytecode,
     inlining,
   );
+
   writeFileSync(values.baseline, JSON.stringify(next, null, 2) + "\n");
+
   console.log(`Node: ${baseline.node} → ${next.node}`);
   console.log(`V8: ${baseline.v8} → ${next.v8}`);
   for (const name of hotFunctions) {
@@ -150,14 +154,18 @@ function clientCheck() {
   if (!values["client-dir"]) {
     command("vp", ["build", "--sourcemap", "hidden"], resolve("apps/start-min"));
   }
+
   const dir = values["client-dir"] ?? "apps/start-min/dist/client";
   const chunks = filesIn(dir).filter((file) => file.endsWith(".js"));
   if (!chunks.length) throw new Error("F13 no built client chunks found");
+
   const actual = { zod: 0, drizzle: 0, pglite: 0 };
   for (const chunk of chunks) for (const library of librariesInChunk(chunk)) actual[library]++;
+
   for (const [library, count] of Object.entries(actual)) {
     ratchet(`F13 ${library} chunks`, count, baseline.client[library]);
   }
+
   return { ...actual, chunks: chunks.length };
 }
 

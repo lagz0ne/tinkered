@@ -12,6 +12,7 @@ test("only client entry chunks get Chrome's compile hint, on by default", () => 
   expect(plugin.applyToEnvironment({ name: "ssr" })).toBe(false);
   expect(plugin.augmentChunkHash({ isEntry: true })).toBe("//# allFunctionsCalledOnLoad");
   expect(plugin.augmentChunkHash({ isEntry: false })).toBe("");
+
   expect(clientOutput(false).augmentChunkHash({ isEntry: true })).toBe("");
   const entry = {
     type: "chunk",
@@ -21,8 +22,10 @@ test("only client entry chunks get Chrome's compile hint, on by default", () => 
     map: { mappings: "AAAA" },
   };
   const lazy = { type: "chunk", isEntry: false, code: "export {}" };
+
   const map = { type: "asset", source: '{"mappings":"AAAA"}' };
   plugin.generateBundle({}, { "app.js": entry, "lazy.js": lazy, "app.js.map": map });
+
   expect(entry.code).toBe("//# allFunctionsCalledOnLoad\nexport {}");
   expect(entry.map.mappings).toBe(";AAAA");
   expect(JSON.parse(map.source).mappings).toBe(";AAAA");

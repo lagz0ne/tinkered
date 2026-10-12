@@ -49,6 +49,7 @@ for (const f of files) {
     );
     continue;
   }
+
   const answers = await ask(
     { file: f, code },
     Object.fromEntries(Object.entries(JUDGES).map(([id, j]) => [id, j.q])),

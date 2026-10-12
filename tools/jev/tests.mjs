@@ -53,6 +53,7 @@ function fileNotes(src, file) {
   const hs = helpers(src, file);
   if (hs.length > 3) notes.push(`helpers ${hs.length} > 3`);
   for (const h of hs) if (h.lines > 20) notes.push(`helper ${h.name} ${h.lines} lines > 20`);
+
   return notes;
 }
 

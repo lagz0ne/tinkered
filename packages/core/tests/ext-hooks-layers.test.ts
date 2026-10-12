@@ -19,6 +19,7 @@ test("a tagged run invokes its hook once with the original call", async () => {
     ],
   });
   const call = { tags: zone("west") };
+
   expect(await scope.run(op, call)).toBe("west");
   expect(seen).toEqual([call]);
   await scope.close();
@@ -45,6 +46,7 @@ test("a subflow run invokes its hook once", async () => {
       }),
     ],
   });
+
   expect(scope.run(parent)).toBe(3);
   expect(seen).toEqual(["parent", "child"]);
   await scope.close();
@@ -68,6 +70,7 @@ test("a tagged run in a session invokes its hook once", async () => {
     ],
   });
   const call = { tags: zone("west") };
+
   expect(await scope.session((session) => session.run(op, call))).toBe("west");
   expect(seen).toEqual([call]);
   await scope.close();
@@ -89,6 +92,7 @@ test("an inline run in a session invokes its hook with the inline config", async
       }),
     ],
   });
+
   expect(await scope.session((session) => session.run(inline))).toBe(4);
   expect(seen).toEqual([inline]);
   await scope.close();
@@ -119,6 +123,7 @@ test("a run hook that skips next stops a subflow with its substitute", async () 
       }),
     ],
   });
+
   expect(scope.run(parent)).toBe("denied");
   expect(ran).toBe(false);
   await scope.close();
@@ -152,6 +157,7 @@ test("a run hook that throws stops a subflow before its body", async () => {
       }),
     ],
   });
+
   expect(() => scope.run(parent)).toThrow(cause);
   expect(ran).toBe(false);
   await scope.close();
@@ -181,6 +187,7 @@ test("an async run hook keeps a dropped subflow's rejection on the scope", async
   });
   const scope = createScope({ extensions: [gate] });
   await scope.ready;
+
   expect(await scope.run(drop)).toBe("dropped");
   expect(await scope.close()).toMatchObject({ status: "failed", error: cause });
 });
@@ -203,6 +210,7 @@ test("a namespaced write invokes its hook once", async () => {
     ],
   });
   scope.controller(cell, { ns: east }).set(2);
+
   expect(scope.controller(cell, { ns: east }).get()).toBe(2);
   expect(seen).toEqual([2]);
   await scope.close();
@@ -230,6 +238,7 @@ test("two run hooks keep registration order on a subflow", async () => {
       },
     });
   const scope = createScope({ extensions: [hook("a"), hook("b")] });
+
   expect(scope.run(parent)).toBe(3);
   expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
   await scope.close();
@@ -258,6 +267,7 @@ test("two hooks keep registration order on a child layer", async () => {
     });
   const scope = createScope({ extensions: [hook("a"), hook("b")] });
   const session = scope.createSession();
+
   expect(session.run(op)).toBe(5);
   session.controller(cell).set(1);
   expect(order).toEqual([

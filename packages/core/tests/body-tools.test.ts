@@ -12,6 +12,7 @@ test("a destructured operation logger stays the same and sends every level in or
     run: (_deps, ctx) => {
       const { log } = ctx;
       expect(ctx.log).toBe(log);
+
       log("body", { n: 1 });
       log.debug("debug");
       log.info("info");
@@ -20,7 +21,9 @@ test("a destructured operation logger stays the same and sends every level in or
     },
   });
   scope.run(op);
+
   const span = scope.spans()[0];
+
   expect(records).toEqual([
     { time: 1, level: LEVELS.info, message: "body", attributes: { n: 1 }, span },
     { time: 2, level: LEVELS.debug, message: "debug", attributes: {}, span },
@@ -52,16 +55,19 @@ test("a destructured resource logger stays the same and keeps the level threshol
     factory: (_deps, ctx) => {
       const { log } = ctx;
       expect(ctx.log).toBe(log);
+
       log("body");
       log.debug("debug");
       log.info("info");
       log.warn("warn", { n: 1 });
       log.error("error");
+
       return 7;
     },
   });
   scope.controller(res).resolve();
   const span = scope.spans()[0];
+
   expect(records).toEqual([
     { time: 10, level: LEVELS.warn, message: "warn", attributes: { n: 1 }, span },
     { time: 10, level: LEVELS.error, message: "error", attributes: {}, span },
@@ -79,6 +85,7 @@ test("a resource keeps its observation tools and exports manual events and child
       return obs.child("child", () => 7);
     },
   });
+
   expect(scope.controller(res).resolve()).toBe(7);
   const spans = scope.spans();
   expect(

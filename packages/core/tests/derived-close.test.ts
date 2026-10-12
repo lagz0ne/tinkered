@@ -37,9 +37,12 @@ for (const graceful of [true, false]) {
     });
     const root = createScope();
     const session = root.createSession();
+
     expect(await session.run(outer)).toBe("x");
+
     const closing = session.close(graceful ? { graceful: true } : undefined);
     finish();
+
     expect((await closing).status).toBe(graceful ? "success" : "cancelled");
     await root.close({ graceful: true });
   });
@@ -56,11 +59,15 @@ for (const graceful of [true, false]) {
         return "x";
       },
     });
+
     const root = createScope();
     const session = root.createSession();
+
     expect(await session.run(outer)).toBe("x");
+
     const closing = session.close(graceful ? { graceful: true } : undefined);
     fail(cause);
+
     expect(await closing).toMatchObject({ status: "failed", error: cause });
     await root.close({ graceful: true });
   });
@@ -88,12 +95,15 @@ test("an awaited slow rejection handler receives a managed error while its gate 
       return "caught";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
+
   const running = session.run(outer);
   await inside;
   const closing = session.close({ graceful: true });
   release();
+
   expect(await running).toBe("caught");
   expect((await closing).status).toBe("success");
   await root.close({ graceful: true });
@@ -119,9 +129,12 @@ test("a caller awaiting finally can catch the original managed subflow error", a
       return "caught";
     },
   });
+
   const root = createScope();
   const session = root.createSession();
+
   expect(await session.run(outer)).toBe("caught");
+
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -169,8 +182,11 @@ test("an async subflow returns a native promise that Promise.resolve keeps", asy
   const sub = operation({ label: "sub", run: async () => 1 });
   const outer = operation({ label: "outer", depends: { sub }, run: ({ sub }) => sub.run() });
   const scope = createScope();
+
   const result = scope.run(outer);
+
   expect(Promise.resolve(result)).toBe(result);
   await result;
+
   await scope.close({ graceful: true });
 });

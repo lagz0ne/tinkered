@@ -15,6 +15,7 @@ const blankLines = {
     const isImport = (node) => node.type === "ImportDeclaration";
     const mayTouch = (prev, next) =>
       (isImport(prev) && isImport(next)) || (!isImport(prev) && oneLine(prev) && oneLine(next));
+
     const lineEnd = (node) =>
       code
         .getCommentsAfter(node)
@@ -28,6 +29,7 @@ const blankLines = {
           const top = code.getCommentsBefore(next)[0] ?? next;
           const end = lineEnd(prev);
           if (top.loc.start.line - end.loc.end.line > 1) return;
+
           context.report({
             node: next,
             messageId: "blank",

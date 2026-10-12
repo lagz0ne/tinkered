@@ -125,6 +125,7 @@ export const codeEditor = resource({
      * so undo never pastes one file into another; the outgoing state is cached first. */
     const swapTo = (source: Source, offset: number): void => {
       if (current !== source.name) cache.set(current, view.state);
+
       const cached = cache.get(source.name);
       const reuse = cached?.doc.toString() === source.content ? cached : undefined;
       current = source.name;
@@ -164,6 +165,7 @@ export const codeEditor = resource({
         }
         return;
       }
+
       const source = sources().find((s) => s.name === place.file);
       if (source === undefined) return;
       swapTo(source, place.offset);

@@ -52,10 +52,12 @@ let revision = 0;
 async function save() {
   revision += 1;
   const held = Promise.all(readers.map((reader) => reader.read()));
+
   await db.execute(
     sql`insert into sync_event (stream, revision, "executionId", payload)
         values ('ada', ${revision}, ${`bench-${revision}`}, ${JSON.stringify({ kind: "change", change: revision })}::jsonb)`,
   );
+
   let bytes = 0;
   for (const { value } of await held) {
     if (!decoder.decode(value).startsWith("event: changes")) {
@@ -63,6 +65,7 @@ async function save() {
     }
     bytes += value.byteLength;
   }
+
   return bytes;
 }
 

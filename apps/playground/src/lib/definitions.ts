@@ -121,6 +121,7 @@ function modulePlace(sources: readonly Source[], from: Source, node: Node): Plac
 function importedName(from: Source, node: Node): string | undefined {
   if (node.name === "VariableName") return text(from, node);
   if (node.name !== "VariableDefinition") return undefined;
+
   const prev = node.prevSibling;
   if (prev?.name !== "as") return text(from, node);
   const imported = prev.prevSibling;
@@ -140,6 +141,7 @@ function importPlace(
   if (!name) return undefined;
   const target = resolveSource(text(from, spec).slice(1, -1), from, sources);
   if (!target) return undefined;
+
   return linkName(sources, target, name, visited);
 }
 
@@ -151,6 +153,7 @@ function reexportPlace(
   visited: Set<string>,
 ): Place | undefined {
   if (node.name !== "VariableName" && node.name !== "VariableDefinition") return undefined;
+
   const spec = childNamed(declaration, "String");
   if (!spec) return undefined;
   const target = resolveSource(text(from, spec).slice(1, -1), from, sources);
@@ -230,6 +233,7 @@ function importBinding(group: Node, source: Source, wanted: string): string | un
 function boundImport(root: Node, source: Source, name: string): Hop | undefined {
   for (const kid of children(root)) {
     if (kid.name !== "ImportDeclaration") continue;
+
     const spec = childNamed(kid, "String");
     const group = childNamed(kid, "ImportGroup");
     if (!spec || !group) continue;
@@ -242,6 +246,7 @@ function boundImport(root: Node, source: Source, name: string): Hop | undefined 
 function reexported(root: Node, source: Source, name: string): Hop | undefined {
   for (const kid of children(root)) {
     if (kid.name !== "ExportDeclaration") continue;
+
     const spec = childNamed(kid, "String");
     const group = childNamed(kid, "ExportGroup");
     if (!spec || !group) continue;
@@ -268,10 +273,12 @@ function linkName(
     const hit = declarationIn(kid, source, name);
     if (hit) return { file: source.name, offset: hit.from };
   }
+
   const hop = boundImport(root, source, name) ?? reexported(root, source, name);
   if (!hop) return undefined;
   const target = resolveSource(hop.module, source, sources);
   if (!target) return undefined;
+
   return linkName(sources, target, hop.imported, visited);
 }
 
@@ -302,7 +309,9 @@ export function resolveDefinition(
   if (exported && childNamed(exported, "String")) {
     return reexportPlace(sources, from, node, exported, visited);
   }
+
   const name = text(from, node);
   if (shadowed(node, from, name)) return undefined;
+
   return linkName(sources, from, name, visited);
 }

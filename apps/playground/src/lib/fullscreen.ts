@@ -36,6 +36,7 @@ export const immersive = resource({
     const escaped = (event: KeyboardEvent) => {
       if (event.key === "Escape") dismiss();
     };
+
     const messaged = (event: MessageEvent) => {
       const frame = document.querySelector("iframe");
       if (!isEscape(event.data) || frame === null || event.source !== frame.contentWindow) return;
@@ -49,6 +50,7 @@ export const immersive = resource({
       document.removeEventListener("keydown", escaped);
       window.removeEventListener("message", messaged);
     });
+
     return {
       /** Fill the screen with `el`; when the browser refuses or cannot, pin it over the page. */
       enter: (el: HTMLElement | null): void => {

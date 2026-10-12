@@ -16,7 +16,7 @@ export default defineConfig({
       "vite-plus/prefer-vite-plus-imports": "error",
       complexity: ["error", { max: 8 }],
       "tinker/blank-lines": "error",
-      "tinker/body-steps": "off",
+      "tinker/body-steps": "error",
       curly: ["error", "multi-line"],
     },
     options: { typeAware: true, typeCheck: true },

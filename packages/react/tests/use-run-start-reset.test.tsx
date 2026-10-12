@@ -32,12 +32,16 @@ test("reset during operation startup keeps idle when the old run finishes", asyn
         />
       </ScopeProvider>,
     );
+
     await expect.element(screen.getByText("status:idle")).toBeVisible();
+
     if (!captured) throw new Error("runner did not mount");
     const run = captured;
+
     await act(async () => {
       await expect(run.runAsync({ rawInput: run.reset })).resolves.toBe(42);
     });
+
     await expect.element(screen.getByText("status:idle")).toBeVisible();
   } finally {
     expect((await root.close({ graceful: true })).status).toBe("success");

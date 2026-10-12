@@ -45,10 +45,12 @@ test("render close finishes while the process telemetry send is held", async () 
       }),
     ],
   });
+
   await tools.ready;
   const app = createScope({
     observe: tools.resolve(telemetry.renderObserve, { ns: telemetry.renderNs }),
   });
+
   expect(app.run(render)).toBe("page");
   const send = tools.run(flushTelemetry);
   await sending.promise;
@@ -77,6 +79,7 @@ test("process close sends two renders from one queue with side ssr", async () =>
     ],
   });
   await tools.ready;
+
   for (let index = 0; index < 2; index++) {
     const app = createScope({
       observe: tools.resolve(telemetry.renderObserve, { ns: telemetry.renderNs }),
@@ -86,6 +89,7 @@ test("process close sends two renders from one queue with side ssr", async () =>
   }
   expect(tools.resolve(exportHealth)).toMatchObject({ pending: 4 });
   expect(requests).toEqual([]);
+
   expect((await tools.close({ graceful: true })).status).toBe("success");
   expect(requests).toEqual([
     expect.stringContaining('"stringValue":"ssr"'),
@@ -98,6 +102,7 @@ test("renders with telemetry off need no storage settings", async () => {
   const tools = createScope({ extensions: off.extensions, tags: off.tags });
   await tools.ready;
   const app = createScope({ observe: tools.resolve(off.renderObserve, { ns: off.renderNs }) });
+
   expect(app.run(render)).toBe("page");
   expect((await app.close({ graceful: true })).status).toBe("success");
   expect((await tools.close({ graceful: true })).status).toBe("success");

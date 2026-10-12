@@ -25,6 +25,7 @@ void test("fast-code judges read library helpers and unit builders while existin
   const unit = slice(source, "packages/demo/src/run.ts").find((u) => u.name === "make");
   const questions = lintQuestions(unit);
   for (const id of fast) assert.ok(id in questions);
+
   assert.ok(!("domainLogicInRender" in questions));
   assert.ok(!("effectWithoutDefer" in questions));
 });

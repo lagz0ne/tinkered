@@ -9,6 +9,7 @@ test("a cached resource resolve allocates no promise on the hot path", () => {
   const conn = resource({ label: "conn", factory: () => ({ open: true }) });
   const ctl = createScope().controller(conn);
   ctl.resolve();
+
   let promises = 0;
   const hook = createHook({
     init: (_id, type) => {
@@ -18,5 +19,6 @@ test("a cached resource resolve allocates no promise on the hot path", () => {
   hook.enable();
   for (let i = 0; i < 10_000; i++) ctl.resolve();
   hook.disable();
+
   expect(promises).toBe(0);
 });

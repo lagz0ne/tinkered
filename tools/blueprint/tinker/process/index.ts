@@ -66,6 +66,7 @@ async function execute(entry: Process.Entry, input: Process.RunOptions): Promise
     signal: ended.signal,
     tags: processBindings(entry, input, () => ended.abort()),
   });
+
   let stopping: Promise<Scope.Result> | undefined;
   const abort = (): void => {
     if (entry.kind === "command") stopping = scope.close();
@@ -84,6 +85,7 @@ async function execute(entry: Process.Entry, input: Process.RunOptions): Promise
   } finally {
     if (entry.kind === "command") ended.abort();
   }
+
   const result = await scope.closed;
   await stopping;
   input.signal?.removeEventListener("abort", abort);
@@ -167,11 +169,13 @@ export async function run(input: Process.RunOptions): Promise<number> {
     out.write(`${shell.version}\n`);
     return 0;
   }
+
   const route = shell.commands.find((row) => row.name === name);
   if (route === undefined) {
     out.error(usageOf(shell));
     return 2;
   }
+
   let entry: Process.Entry | undefined;
   try {
     entry = await loadEntry(route, rest, signal);
@@ -209,6 +213,7 @@ export async function main({ shell, args, options }: Process.MainOptions): Promi
   const proc = (globalThis as { process?: Proc }).process;
   if (proc === undefined) raise("NoProcess", { reason: "main needs a process to read argv" });
   const controller = new AbortController();
+
   const remove = (): void => {
     proc.removeListener("SIGINT", abort);
     proc.removeListener("SIGTERM", abort);

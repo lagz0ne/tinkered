@@ -135,8 +135,10 @@ function Tabs(): ReactElement {
   const shown = useData(navigationCell, (nav) => nav.place?.file ?? first, Object.is);
   const renaming = useData(renameCell);
   const select = useRun(selectFile);
+
   const open = useRun(openSource);
   const add = useRun(addFile);
+
   const close = useRun(closeFile);
   const rename = useRun(renameFile);
   const markRename = useRun(openRename);
@@ -288,10 +290,12 @@ function CodeOverlay(): ReactElement {
   const nav = useData(navigationCell);
   const shown = nav.place?.file ?? ENTRY;
   const editable = names.includes(shown);
+
   const record = useRun(trackCursor);
   const hop = useRun(followDefinition);
   const back = useRun(goBack);
   const forward = useRun(goForward);
+
   const follow = () => {
     const place = nav.place ?? { file: shown, offset: 0 };
     record.run({ input: place });

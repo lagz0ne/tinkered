@@ -38,6 +38,7 @@ function definition(program, name) {
     .map((node) => node.declaration ?? node)
     .find((node) => node.id?.name === name);
   if (!found) throw new Error(`Missing hot function ${name}`);
+
   if (found.type !== "ClassDeclaration") return found;
   const ctor = found.body.body.find((member) => member.kind === "constructor");
   if (!ctor) throw new Error(`Missing constructor ${name}`);
@@ -75,16 +76,21 @@ function decode(segment) {
   const out = [];
   let value = 0;
   let shift = 0;
+
   for (const ch of segment) {
     const digit = alphabet.indexOf(ch);
     if (digit < 0) throw new Error("Invalid source map digit");
+
     value += (digit & 31) * 2 ** shift;
     shift += 5;
+
     if (digit & 32) continue;
     out.push(value & 1 ? -Math.floor(value / 2) : value / 2);
+
     value = 0;
     shift = 0;
   }
+
   if (shift) throw new Error("Incomplete source map segment");
   return out;
 }
@@ -94,12 +100,14 @@ export function mappings(map) {
   let source = 0;
   let line = 0;
   let column = 0;
+
   for (const [generatedLine, row] of map.mappings.split(";").entries()) {
     let generatedColumn = 0;
     for (const segment of row.split(",").filter(Boolean)) {
       const fields = decode(segment);
       generatedColumn += fields[0];
       if (fields.length < 4) continue;
+
       source += fields[1];
       line += fields[2];
       column += fields[3];
@@ -107,6 +115,7 @@ export function mappings(map) {
       positions.push({ generatedLine, generatedColumn, source, line, column });
     }
   }
+
   return positions;
 }
 
@@ -122,6 +131,7 @@ export function builtNames(code, map, names = hotFunctions) {
   const declarations = program.body.flatMap((node) =>
     node.type === "VariableDeclaration" ? node.declarations : [node],
   );
+
   const generatedLines = offsets(code);
   const originalLines = map.sourcesContent.map(offsets);
   const positions = mappings(map).map((pos) => ({
@@ -129,8 +139,10 @@ export function builtNames(code, map, names = hotFunctions) {
     generated: generatedLines[pos.generatedLine] + pos.generatedColumn,
     original: originalLines[pos.source][pos.line] + pos.column,
   }));
+
   const source = map.sources.findIndex((file) => /(?:^|\/)src\/index\.ts$/.test(file));
   if (source < 0) throw new Error("Core source is missing from the source map");
+
   const originals = parseProgram("source.ts", map.sourcesContent[source]);
   return Object.fromEntries(
     names.map((name) => {

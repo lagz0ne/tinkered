@@ -28,9 +28,11 @@ export const changeTodo = operation({
   depends: { orm: drizzleOrm, currentUser, database, history: eventHistory },
   run: async ({ orm, currentUser, database, history }, { input }) => {
     const { and, asc, eq } = orm;
+
     await database.transaction(async (tx) => {
       await history.lock(tx, currentUser.id);
       if (await history.find(tx, input.executionId, currentUser.id)) return;
+
       const change = input.change;
       let changed = true;
       if (change.kind === "add") {
@@ -44,7 +46,9 @@ export const changeTodo = operation({
           await tx.update(todo).set({ done: change.done }).where(owned);
         } else changed = false;
       }
+
       await tx.insert(execution).values({ id: input.executionId, stream: currentUser.id });
+
       const payloads: Sync.Payload[] = [];
       if (changed) {
         const rows = await tx
@@ -54,9 +58,11 @@ export const changeTodo = operation({
           .orderBy(asc(todo.id));
         payloads.push({ kind: "change", change: { kind: "todos", rows } });
       }
+
       payloads.push({ kind: "result", result: { kind: "complete", action: "todo" } });
       await history.append(tx, currentUser.id, input.executionId, payloads);
     });
+
     return { executionId: input.executionId };
   },
 });

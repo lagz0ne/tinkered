@@ -12,6 +12,7 @@ test("a session hook that throws before next still lets the body run and rethrow
       },
     },
   });
+
   const scope = createScope({ extensions: [bad] });
   await scope.ready;
   const thrown = await scope
@@ -23,6 +24,7 @@ test("a session hook that throws before next still lets the body run and rethrow
       () => undefined,
       (error: unknown) => error,
     );
+
   expect(ran).toBe(true);
   expect(thrown).toBe(boom);
   await scope.close();
@@ -41,9 +43,11 @@ test("two session hooks see each ordered end in turn", async () => {
         },
       },
     });
+
   const scope = createScope({ extensions: [track("one"), track("two")] });
   await scope.ready;
   await scope.session(() => 7);
+
   expect(order).toEqual(["two:success", "one:success"]);
   await scope.close();
 });
@@ -75,8 +79,10 @@ test("a session body that throws sync rejects the session with its cause", async
 test("a cancelled session rejects with its reason", async () => {
   const scope = createScope();
   const child = scope.createSession();
+
   const pending = child.close();
   const result = await pending;
+
   expect(result.status).toBe("cancelled");
   await scope.close();
 });
@@ -94,6 +100,7 @@ test("a failing teardown inside session still reports the body failure", async (
       return 1;
     },
   });
+
   const thrown = await createScope()
     .session((s) => {
       s.resolve(leaky);
@@ -103,6 +110,7 @@ test("a failing teardown inside session still reports the body failure", async (
       () => undefined,
       (error: unknown) => error,
     );
+
   if (!isError(thrown, "TeardownFailed")) throw thrown;
   expect(thrown.payload.causes).toEqual([bodyCause, cleanup]);
 });
@@ -125,10 +133,12 @@ test("a close re-entered during a failing teardown reports the failure", async (
       return 1;
     },
   });
+
   scope.resolve(probe);
   await scope.settled().catch(() => undefined);
   await failed;
   const result = await scope.close();
+
   expect(result.status).toBe("failed");
   const innerResult = (await inner) as { status: string; error: unknown };
   expect(innerResult.status).toBe("failed");
@@ -146,9 +156,11 @@ test("a close re-entered during a clean forced teardown reports cancelled", asyn
       return 1;
     },
   });
+
   const scope = createScope();
   scope.resolve(probe);
   const result = await scope.close();
+
   expect(result.status).toBe("cancelled");
   const innerResult = (await inner) as { status: string };
   expect(innerResult.status).toBe("cancelled");
@@ -163,9 +175,11 @@ test("a forced close with a cleanup still settles cancelled", async () => {
       return 1;
     },
   });
+
   const scope = createScope();
   scope.resolve(probe);
   const result = await scope.close();
+
   expect(result.status).toBe("cancelled");
   expect(seen).toEqual(["cancelled"]);
 });
@@ -183,15 +197,19 @@ test("settled stays pending until an operation's async cleanup finishes", async 
       return 1;
     },
   });
+
   const scope = createScope();
   scope.run(op);
+
   let settled = false;
   const waiting = scope.settled().then(() => {
     settled = true;
   });
+
   for (let i = 0; i < 5; i++) await Promise.resolve();
   expect(settled).toBe(false);
   release();
+
   await waiting;
   expect(settled).toBe(true);
   expect(order).toEqual(["cleanup-done"]);
@@ -218,8 +236,10 @@ test("a wrapped session body that throws sync still drains cleanups then reports
       return 1;
     },
   });
+
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
+
   const thrown = await scope
     .session((s) => {
       s.resolve(leaky);
@@ -229,6 +249,7 @@ test("a wrapped session body that throws sync still drains cleanups then reports
       () => undefined,
       (error: unknown) => error,
     );
+
   if (!isError(thrown, "TeardownFailed")) throw thrown;
   expect(thrown.payload.causes).toEqual([cause, cleanup]);
   expect(seen).toEqual(["failed"]);
@@ -249,9 +270,11 @@ test("three session hooks nest in registration order", async () => {
         },
       },
     });
+
   const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
   await scope.ready;
   await scope.session(() => 1);
+
   expect(order).toEqual(["a:before", "b:before", "c:before", "c:after", "b:after", "a:after"]);
   await scope.close();
 });
@@ -268,9 +291,11 @@ test("a close hook sees the settled end", async () => {
       },
     },
   });
+
   const scope = createScope({ extensions: [ext] });
   await scope.ready;
   await scope.close({ graceful: true });
+
   expect(seen).toEqual(["success"]);
 });
 
@@ -306,6 +331,7 @@ test("a failing body with a failing cleanup reports both causes", async () => {
       return 1;
     },
   });
+
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
   const thrown = await scope
@@ -317,6 +343,7 @@ test("a failing body with a failing cleanup reports both causes", async () => {
       () => undefined,
       (error: unknown) => error,
     );
+
   if (!isError(thrown, "TeardownFailed")) throw thrown;
   expect(thrown.payload.causes).toEqual([bodyCause, cleanup]);
   await scope.close();
@@ -329,9 +356,11 @@ test("a session that ends cancelled rejects with its reason", async () => {
       session: async (event) => event.next(),
     },
   });
+
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
   const child = scope.createSession();
+
   const result = await child.close();
   expect(result.status).toBe("cancelled");
   await scope.close();
@@ -350,9 +379,11 @@ test("session hooks wrap sessions nested two deep", async () => {
       },
     },
   });
+
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
   await scope.session((s) => s.session(() => 1));
+
   expect(order).toEqual(["before", "before", "after", "after"]);
   await scope.close();
 });
@@ -374,12 +405,15 @@ test("a close re-entered from an async cleanup is still acknowledged", async () 
       return 1;
     },
   });
+
   const scope = createScope();
   scope.resolve(probe);
+
   const closing = scope.close();
   for (let i = 0; i < 5; i++) await Promise.resolve();
   release();
   const result = await closing;
+
   expect(result.status).toBe("cancelled");
   const innerResult = (await inner) as { status: string };
   expect(innerResult.status).toBe("cancelled");
@@ -400,10 +434,13 @@ test("an operation that finishes after abort still sees cancelled", async () => 
       return gate.then(() => 1);
     },
   });
+
   const scope = createScope();
   const running = scope.run(op) as Promise<unknown>;
   const closing = scope.close();
+
   release();
+
   expect(await running).toBe(1);
   const result = await closing;
   expect(result.status).toBe("cancelled");
@@ -426,7 +463,9 @@ test("a cleanup that closes another scope sees its real result", async () => {
   scope.onClose(async () => {
     seen = (await other.close()).status;
   });
+
   const result = await scope.close();
+
   expect(result.status).toBe("cancelled");
   expect(order).toEqual(["other-clean"]);
   expect(seen).toBe("cancelled");
@@ -445,9 +484,11 @@ test("a wrapped session cut by a forced close rejects", async () => {
   });
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
+
   const running = scope.session(() => gate);
   const closing = scope.close();
   release();
+
   let rejected = false;
   let value: unknown = "unset";
   await running.then(
@@ -457,6 +498,7 @@ test("a wrapped session cut by a forced close rejects", async () => {
       value = error;
     },
   );
+
   expect(rejected).toBe(true);
   expect(value).toBeDefined();
   await closing;
@@ -480,6 +522,7 @@ test("a clean body with a failing cleanup still reports the cleanup", async () =
       return 1;
     },
   });
+
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
   const thrown = await scope
@@ -491,6 +534,7 @@ test("a clean body with a failing cleanup still reports the cleanup", async () =
       () => undefined,
       (error: unknown) => error,
     );
+
   if (!isError(thrown, "TeardownFailed")) throw thrown;
   expect(thrown.payload.causes).toEqual([cleanup]);
   await scope.close();
@@ -507,8 +551,10 @@ test("an idle scope's close still reports an operation cleanup that threw", asyn
       return 1;
     },
   });
+
   const scope = createScope();
   expect(scope.run(op)).toBe(1);
+
   const result = await scope.close();
   expect(result.status).toBe("cancelled");
   expect(result.teardownErrors).toEqual([boom]);

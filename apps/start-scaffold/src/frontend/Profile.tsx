@@ -12,11 +12,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/
 function ProfileForm({ value }: { value: Profile.Value }) {
   const draft = useData(nameDraft);
   const last = useData(profileResult);
+
   const retry = useRun(retryMail);
   const changeName = useRun(editName);
   const save = useRun(saveName);
   const leave = useRun(signOut);
   const busy = useData(pending);
+
   return (
     <form
       className="space-y-5"

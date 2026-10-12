@@ -67,10 +67,12 @@ function fixture() {
   spawnSync("git", ["init", "-q"], { cwd: dir });
   mkdirSync(join(dir, "scripts"));
   copyFileSync(join(import.meta.dirname, "ticket.sh"), join(dir, "scripts", "ticket.sh"));
+
   mkdirSync(join(dir, "node_modules", ".bin"), { recursive: true });
   const vp = join(dir, "node_modules", ".bin", "vp");
   writeFileSync(vp, fakeVp);
   chmodSync(vp, 0o755);
+
   return dir;
 }
 
