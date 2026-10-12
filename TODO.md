@@ -24,9 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **scaffold/registry-after-rule-14** — main `24c1e93e` (rule 14 blank lines) left the scaffold registry copies stale. `pnpm validate` fails one lane on main: "scaffold registry index matches source".
-  Verify: after `pnpm --dir apps/start-scaffold run registry:build`, `pnpm validate` passes all 21 lanes.
-
 - **core/size-guard-settle-memo** — settle each type once per walk. A union of 100 thenables takes about 8 s (N² growth).
   Verify: a 300-thenable union finishes under 2 s; dist and private-fields.json unchanged.
 
@@ -71,6 +68,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **scaffold/registry-after-rule-14** — registry:build rerun after the rule 14 blank-line change; the registry index matches source again and pnpm validate passes all 21 lanes.
+  Note: a change merged on GitHub skips the local pre-commit registry hook, so the registry lane in `pnpm validate` is the guard there.
 
 - **core/size-guard-iterable-fallbacks** (Core 51) — array fast path only for real arrays and tuples with lib iterators; the guard reads iterator overrides, the async-to-sync fallback and a local `Promise` class. 11 plants red on main, 166 guard tests green. Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-iterable-fallbacks).
   Verify: each probe flags.
