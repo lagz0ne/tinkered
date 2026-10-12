@@ -38,12 +38,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **style/import-paths** — owner: thread lead (Opus 5.5). ADR 0112: `@/` paths, no `../`, sorted imports.
-  Saved: `@/` mapped, parent imports rewritten, `sortImports` and `import/no-relative-parent-imports` on.
-  Saved: scaffold keeps one internal backend barrel (no `exports`), no frontend barrel; tests may import any module.
-  Next: Duke reads the draft PR.
-  Proof: `vp check` green; build and tests green.
-
 ## Blocked
 
 ## Parked
@@ -75,6 +69,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **core/size-guard-iterable-fallbacks** (Core 51) — array fast path only for real arrays and tuples with lib iterators; the guard reads iterator overrides, the async-to-sync fallback and a local `Promise` class. 11 plants red on main, 166 guard tests green. Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-iterable-fallbacks).
   Verify: each probe flags.
+
+- **style/import-paths** — ADR 0112: `@/` paths, no `../`, sorted imports; one internal scaffold backend barrel. Merged in #5.
+  Verify: `vp check` green; build, tests and scaffold registry lanes green.
 
 - **style/body-steps** — ADR 0111: a body reads as steps; rule 14, `tinker/body-steps`, `curly`. Merged in #4.
   Verify: `vp check` green; each changed file kept its AST; tests green.
