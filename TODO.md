@@ -31,8 +31,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   The assignment walk's 8-layer limit also flags a thenable that settles to itself or to a value (for example `{ layer: number }`), where the `const` form stays clean.
   Verify: the `for (const …)` form agrees on every probe.
 
-- **scaffold/registry-hook** — run the fast index-match part of `check-registry.mjs` on commits that touch `apps/start-scaffold/**`, because docs cards skip validate.
-  Verify: a commit with a stale index fails the hook; a commit outside `apps/start-scaffold/**` skips it.
+- **scaffold/registry-hook-test-trim** — drop case f (validate already runs `test:registry`) and the 10-items/96-files pin, the old-commit matching and the `REGISTRY_HOOK_*` settings; make the hooks folder inside the `try`.
+  Verify: `test:registry-hook` still fails on `d333d23f`'s two gaps, passes on HEAD, runs faster.
 
 - **jev/recalibrate-after-key** — run `node tools/jev/calibrate.mjs` when the gateway key budget is back.
   It covers the labels added since 2026-10-10.
@@ -72,6 +72,9 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **scaffold/registry-hook** — pre-commit checks the staged registry after formatting. Stale staged index (also format race and delete-only input): exit 1 with the repair line. No input touched: skip. `test:registry-hook` 14/14 (landing gate for hook changes). Proof: [docs/roadmap/start-scaffold/PROGRESS.md](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook).
+  Verify: a commit with a stale staged index fails the hook; a commit that touches no registry input skips it.
 
 - **core/held-resolve-ns-test** (Core 50) — a test pins `resolve(cell, { ns })` in a session hook window. Verify: the test fails with `const chain = layer.ns;` at index.ts:4627 ([4,4,4] vs [3,4,4]). Mutation 86.8%. [Proof](docs/roadmap/core-v1/PROGRESS.md#coreheld-resolve-ns-test).
 

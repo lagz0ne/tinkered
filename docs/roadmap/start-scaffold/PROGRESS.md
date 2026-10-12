@@ -3565,10 +3565,8 @@ Jev:
 ## scaffold/registry-hook
 
 Branch: `scaffold/registry-hook-sol`, started at `b282cc68`.
-Owner: registry-hook-sol writer (Codex).
-Rebased onto `origin/main` at `d7dbee23` before the fix round.
+Owner: lead; writer: second writer (Sol).
 The first writer's work is saved in local tag `archive/registry-hook-haiku-20f5e789`.
-Its worktree and branch were left alone.
 
 The fast read-only part of `check-registry.mjs` is shared.
 The full lane still checks protected targets and builds three copied apps.
@@ -3592,7 +3590,8 @@ The fast check reads that copy, not the files on disk.
 The temp folder is removed in `finally`, on success or failure.
 No stash or shared Git config change is used.
 
-On this box, `/home/paseo/next/tinkered` is stale and its hook runs for every worktree, so the new pre-commit line takes effect here only once that checkout is updated; fresh clones get it at once.
+On this box, the hook of the main checkout runs for every worktree.
+The new check takes effect here only after that checkout is updated; fresh clones get it at once.
 
 ### Failing first
 
@@ -3659,14 +3658,13 @@ The queued test suite took 98.1 seconds; the whole queue job took 98.5 seconds.
 This is one run on CPU 7, with turbo off; no speed comparison is claimed.
 It passed all 14 test entries on clean source commit `e2fdd48b`.
 A clean standalone test copy used the already installed packages and prepared type files.
-Its Vite cache folders were writable in the queue.
 That copy was removed after the run.
 Log: `/tmp/registry-hook-sol-fix-time4.log`, exit 0.
 Mutation and Core timing lanes are not needed: no Core change.
 There is no mutation score or Core timing verdict.
 
 Jev preflight sees no TypeScript source changes.
-It skips JavaScript and config files; that proves nothing about the key budget.
+It skips JavaScript and config files.
 No package TypeScript test changed, so test and promise judges do not run.
 Label lines: none.
 `calibrate.mjs` is not run, as this ticket asks.
@@ -3675,7 +3673,7 @@ Core feedback: none.
 ### Fix-round gates
 
 Every workspace build and gate ran from the ticket worktree.
-The full chain used source commit `e2fdd48b`, after the rebase onto `d7dbee23`.
+The full chain used source commit `e2fdd48b`.
 No timeout or OOM retry was needed.
 Log: `/tmp/registry-hook-sol-fix-gate.log`.
 
@@ -3695,10 +3693,3 @@ Run the new package test from the repo root:
 ```bash
 vp run @tinker-start-scaffold#test:registry-hook
 ```
-
-The proof removes its scratch worktree and hook folder in `finally`.
-`/tmp/main-check-registry-hook-sol` is gone.
-No benchmark copy or base worktree remains.
-The ticket worktree and branch remain.
-`TODO.md` and `packages/core` were not edited.
-No push was made.
