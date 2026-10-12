@@ -141,6 +141,7 @@ export { settings } from "@/backend/settings.server";
 export { database } from "@/backend/database.server";
 export { auth, readAccount } from "@/backend/auth.server";
 export { bootstrap } from "@/backend/sync.server";
+export { settings } from "@/backend/settings.server";
 ```
 
 `settings` checks each env key with zod
@@ -348,12 +349,14 @@ export { database } from "@/backend/database.server";
 export { auth } from "@/backend/auth.server";
 export { readAccount } from "@/backend/auth.server";
 export { bootstrap } from "@/backend/sync.server";
+export { settings } from "@/backend/settings.server";
 ```
 
 For an empty server seam, the filled startup list is:
 
 ```ts
 export { extensions } from "@/examples/demo.server";
+export { settings } from "@/examples/demo.server";
 ```
 
 The browser seam exports the copied demo's readers and types:

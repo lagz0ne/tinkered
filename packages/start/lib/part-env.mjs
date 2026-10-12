@@ -14,7 +14,7 @@ export const rules = {
   },
   count: {
     wants: "a whole number, 0 or more",
-    accepts: (value) => /^\d+$/.test(value),
+    accepts: (value) => /^\d+$/.test(value) && Number.isSafeInteger(Number(value)),
   },
 };
 

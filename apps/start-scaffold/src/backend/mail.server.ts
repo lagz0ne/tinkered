@@ -23,7 +23,7 @@ export const mail = resource({
     const { default: nodemailer } = smtp;
     const user = decodeURIComponent(url.username);
     const transport = nodemailer.createTransport({
-      host: url.hostname,
+      host: url.hostname.replace(/^\[(.*)\]$/, "$1"),
       pool: true,
       port: url.port ? Number(url.port) : undefined,
       secure: url.protocol === "smtps:" || url.port === "465",

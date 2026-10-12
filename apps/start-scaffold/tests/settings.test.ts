@@ -27,3 +27,20 @@ test("a bad or missing key stops start with BadSettings naming each key", () => 
     }),
   );
 });
+
+test("an IPv6 SMTP host gets brackets, and a port or host a URL refuses names its key", () => {
+  const keys = {
+    DATABASE_URL: "postgres://proof",
+    SMTP_HOST: "::1",
+    SMTP_PORT: "11025",
+    SMTP_FROM: "ada@example.com",
+  };
+
+  expect(String(settings(keys)[1]?.value)).toBe("smtp://[::1]:11025");
+  expect(() => settings({ ...keys, SMTP_PORT: "65536" })).toThrow(
+    expect.objectContaining({ payload: { part: "app", keys: ["SMTP_PORT"] } }),
+  );
+  expect(() => settings({ ...keys, SMTP_HOST: "mail test" })).toThrow(
+    expect.objectContaining({ payload: { part: "app", keys: ["SMTP_HOST"] } }),
+  );
+});

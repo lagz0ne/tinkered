@@ -9,7 +9,7 @@ import { mailFrom, smtpUrl } from "./mail.server";
 const appEnv = z.object({
   DATABASE_URL: z.url(),
   SMTP_HOST: z.string().min(1),
-  SMTP_PORT: z.coerce.number().int().positive(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535),
   SMTP_USER: z.string().default(""),
   SMTP_PASSWORD: z.string().default(""),
   SMTP_FROM: z.email(),
@@ -30,7 +30,11 @@ export function settings(env: Env.Values) {
   }
 
   const keys = parsed.data;
-  const smtp = new URL(`smtp://${keys.SMTP_HOST}:${keys.SMTP_PORT}`);
+  const host = keys.SMTP_HOST.includes(":") ? `[${keys.SMTP_HOST}]` : keys.SMTP_HOST;
+  const address = `smtp://${host}:${keys.SMTP_PORT}`;
+  if (!URL.canParse(address)) raise("BadSettings", { part: "app", keys: ["SMTP_HOST"] });
+
+  const smtp = new URL(address);
   smtp.username = keys.SMTP_USER;
   smtp.password = keys.SMTP_PASSWORD;
 

@@ -36,12 +36,14 @@ const renderRequest = createStart(async (context) => {
 async function start() {
   const values = { ...process.env };
   const readSettings: Env.Read = appSettings;
+  const toolSettings = telemetry.settings(values);
+  const appSettingTags = [auth.settings(values), readSettings(values)];
 
   const toolStop = new AbortController();
   const tools = createScope({
     signal: toolStop.signal,
     extensions: telemetry.extensions,
-    tags: [telemetry.settings(values), telemetry.tags],
+    tags: [toolSettings, telemetry.tags],
   });
   await tools.ready;
 
@@ -50,12 +52,7 @@ async function start() {
     signal: stop.signal,
     observe: tools.resolve(telemetry.observe),
     extensions: [startRequests, auth.extensions, extensions],
-    tags: [
-      backendStop(stop.signal),
-      auth.settings(values),
-      readSettings(values),
-      tools.resolve(telemetry.appTags),
-    ],
+    tags: [backendStop(stop.signal), appSettingTags, tools.resolve(telemetry.appTags)],
   });
 
   try {

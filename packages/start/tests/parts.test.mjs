@@ -56,6 +56,7 @@ test("a value that breaks its key's rule is refused, every such key at once", ()
   expect(rules.level.accepts("warn")).toBe(true);
   expect(rules.count.accepts("0")).toBe(true);
   expect(rules.count.accepts("1.5")).toBe(false);
+  expect(rules.count.accepts("9".repeat(400))).toBe(false);
 
   expect(rules.http.wants).toBe("an http(s) URL");
   expect(rules.http.accepts("xhttp://a.example")).toBe(false);
