@@ -935,3 +935,11 @@ In `packages/core`, `vp test run build/private-fields.test.ts` prints "No test f
 `vite.config.ts` leaves out `build/**` on purpose.
 Run it with `--config vite.dist.config.ts`.
 State: by design; no ticket.
+
+## Guard scratch folder needs a writable root — 2026-10-12
+
+Asked by `core/size-guard-forof-gaps`. First asker.
+The size guard writes a scratch project with `mkdtempSync`.
+It puts it under `packages/core/node_modules` (`private-fields.ts` near :1655).
+So a build with a read-only root fails with `EROFS`.
+State: first caller; no ticket until a second asker.
