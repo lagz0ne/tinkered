@@ -1245,26 +1245,14 @@ function iteratedType(source: Type, isAwait: boolean, read: ForOfRead): Type[] {
 
   const syncKey = wellKnownKey(checker, "iterator");
   if (!isAwait) {
-    return methodElements(checker, memberType(checker, source, syncKey, at), false, at, read.walk);
+    return methodElements(read, memberType(checker, source, syncKey, at), false);
   }
 
   const asyncKey = wellKnownKey(checker, "asyncIterator");
-  const asyncPart = methodElements(
-    checker,
-    memberType(checker, source, asyncKey, at),
-    true,
-    at,
-    read.walk,
-  );
+  const asyncPart = methodElements(read, memberType(checker, source, asyncKey, at), true);
   if (hasMethod(checker, source, asyncKey, at)) return asyncPart;
 
-  const syncPart = methodElements(
-    checker,
-    memberType(checker, source, syncKey, at),
-    false,
-    at,
-    read.walk,
-  );
+  const syncPart = methodElements(read, memberType(checker, source, syncKey, at), false);
   return uniqueTypes([...asyncPart, ...syncPart]);
 }
 
@@ -1272,20 +1260,15 @@ function iteratedType(source: Type, isAwait: boolean, read: ForOfRead): Type[] {
  * The element types one iterator method gives: the iterator of each zero-argument overload, and
  * then the values of each `next()` result. Only a method with no zero-argument overload gives none.
  */
-function methodElements(
-  checker: Checker,
-  method: Type | undefined,
-  isAsync: boolean,
-  at: TsNode,
-  walk: Walk,
-): Type[] {
+function methodElements(read: ForOfRead, method: Type | undefined, isAsync: boolean): Type[] {
+  const { checker, source: at } = read;
   const results = uniqueTypes(
     zeroArgumentReturns(checker, method).flatMap((iterator) =>
       returnsOf(checker, memberType(checker, iterator, "next", at)),
     ),
   );
 
-  return iterationTypes(checker, results, isAsync, at, walk);
+  return iterationTypes(read, results, isAsync);
 }
 
 /**
@@ -1423,13 +1406,8 @@ function typeParts(type: Type | undefined): Type[] {
  * the sync checker API, so an `any` in any overload flags, even when TypeScript drops that result.
  * An overload with no yielding result makes the element `any`, as TypeScript does.
  */
-function iterationTypes(
-  checker: Checker,
-  results: Type[],
-  isAsync: boolean,
-  at: TsNode,
-  walk: Walk,
-): Type[] {
+function iterationTypes(read: ForOfRead, results: Type[], isAsync: boolean): Type[] {
+  const { checker, source: at, walk } = read;
   const falseLiteral = falseType(checker);
   const values: Type[] = [];
   for (const result of results) {
