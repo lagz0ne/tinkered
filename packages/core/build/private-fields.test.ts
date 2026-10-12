@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   cpSync,
   mkdirSync,
@@ -38,11 +38,17 @@ declare const u: U;
 declare const s: U[];
 let layer: number;\n`;
 
-/** Four thenables that each settle to a union of all four: the settle walk's worst case at this size. */
-const thenableSource = `${imports}type U = T0 | T1 | T2 | T3;
-${[0, 1, 2, 3].map((index) => `interface T${index} { then(cb: (value: U) => void): void }`).join("\n")}
+/** `count` thenables that each settle to a union of all of them: the settle walk's worst case. */
+const thenableUnion = (count: number) => {
+  const members = Array.from({ length: count }, (_, index) => `T${index}`);
+  return `${imports}type U = ${members.join(" | ")};
+${members.map((member) => `interface ${member} { then(cb: (value: U) => void): void }`).join("\n")}
 declare const ps: U[];
 let layer: number;\n`;
+};
+
+/** Four thenables that each settle to a union of all four. */
+const thenableSource = thenableUnion(4);
 
 const childBuild = `
   import { build } from ${JSON.stringify(import.meta.resolve("vite-plus/pack"))};
@@ -65,6 +71,48 @@ const thenableChain = (inner: string, depth: number) =>
     const value = index === 0 ? inner : `W${index}`;
     return `interface W${index + 1} { then(cb: (value: ${value}) => void): void }`;
   }).join("\n");
+
+/** {@link childBuild} with the guard's own hook timed: the child prints `{ ms, error }` as JSON. */
+const timedChild = `
+  import { build } from ${JSON.stringify(import.meta.resolve("vite-plus/pack"))};
+  import { privateFields } from ${JSON.stringify(pathToFileURL(join(core, "build/private-fields.ts")).href)};
+  const root = process.argv[1];
+  const plugin = privateFields(${JSON.stringify([...listed, "layer"])}, root);
+  const outside = plugin.generateBundle;
+  let ms = 0;
+  plugin.generateBundle = function (...args) {
+    const start = performance.now();
+    try { return outside.apply(this, args); } finally { ms = performance.now() - start; }
+  };
+  let error = "";
+  try {
+    await build({ config: false, cwd: ${JSON.stringify(core)}, entry: { index: "src/index.ts", testing: "src/testing.ts" },
+      outDir: root + "/dist", dts: false, logLevel: "silent", plugins: [plugin] });
+  } catch (caught) { error = String(caught); }
+  process.stdout.write(JSON.stringify({ ms, error }));
+`;
+
+/**
+ * Build `plant` in a child and time the guard: the milliseconds it took, and the build error (`""`
+ * when the build passes). A child still running at `deadline` is killed, and that throws.
+ */
+function guardTimedInChild(plant: string, deadline: number): { ms: number; error: string } {
+  const root = mkdtempSync(join(tmpdir(), "core-timed-guard-"));
+  const file = join(root, "packages/react/src/plant.ts");
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, plant);
+  try {
+    const run = spawnSync(process.execPath, ["--input-type=module", "--eval", timedChild, root], {
+      encoding: "utf8",
+      timeout: deadline,
+      killSignal: "SIGKILL",
+    });
+    if (run.signal !== null) throw new Error(`the guard ran past ${deadline} ms and was killed`);
+    return JSON.parse(run.stdout) as { ms: number; error: string };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
 
 /** A child deadline can stop a synchronous checker walk that blocks the test worker's timer. */
 function guardInChild(plant: string, deadline = 10_000): string {
@@ -2183,6 +2231,17 @@ for ({ layer } of s) {}\n`;
     expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
       "layer: read without type checks in packages/react/src/plant.ts",
     );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G110: a for-await assignment over 300 thenables that settle to each other flags within two seconds",
+  () => {
+    const plant = `${thenableUnion(300)}for await ({ layer } of ps) {}\n`;
+    const { ms, error } = guardTimedInChild(plant, 20_000);
+    expect(error).toContain("layer: read without type checks in packages/react/src/plant.ts");
+    expect(ms).toBeLessThan(2_000);
   },
   BUILD_MS,
 );

@@ -1097,6 +1097,8 @@ type AssignmentRead = {
   wanted: Set<string>;
   hits: string[];
   isLib: LibTest;
+  /** What the walk shares across its settles: promised values and finished settles. */
+  walk: Walk;
 };
 
 /** Walk every assignment target against the part of the source it reads. */
@@ -1113,6 +1115,7 @@ function checkAssignment(
     wanted,
     hits,
     isLib,
+    walk: { expanded: new Map(), reach: new Map() },
   });
 }
 
@@ -1128,7 +1131,14 @@ function checkForOf(
   hits: string[],
 ): void {
   if (!isLiteralTarget(node.initializer)) return;
-  const read = { checker, source: node.expression, wanted, hits, isLib };
+  const read = {
+    checker,
+    source: node.expression,
+    wanted,
+    hits,
+    isLib,
+    walk: { expanded: new Map(), reach: new Map() },
+  };
 
   const source = checker.getTypeAtLocation(node.expression);
   const isAwait = node.awaitModifier !== undefined;
@@ -1161,7 +1171,7 @@ function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type
   }
   const element = sourceElements(source, isAwait, read);
   return isAwait
-    ? uniqueTypes(element.flatMap((type) => settled(read.checker, type, read.source)))
+    ? uniqueTypes(element.flatMap((type) => settled(read.checker, type, read.source, read.walk)))
     : element;
 }
 
@@ -1214,13 +1224,27 @@ function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Typ
   const at = read.source;
 
   const syncKey = wellKnownKey(checker, "iterator");
-  if (!isAwait) return methodElements(checker, memberType(checker, source, syncKey, at), false, at);
+  if (!isAwait) {
+    return methodElements(checker, memberType(checker, source, syncKey, at), false, at, read.walk);
+  }
 
   const asyncKey = wellKnownKey(checker, "asyncIterator");
-  const asyncPart = methodElements(checker, memberType(checker, source, asyncKey, at), true, at);
+  const asyncPart = methodElements(
+    checker,
+    memberType(checker, source, asyncKey, at),
+    true,
+    at,
+    read.walk,
+  );
   if (hasMethod(checker, source, asyncKey, at)) return asyncPart;
 
-  const syncPart = methodElements(checker, memberType(checker, source, syncKey, at), false, at);
+  const syncPart = methodElements(
+    checker,
+    memberType(checker, source, syncKey, at),
+    false,
+    at,
+    read.walk,
+  );
   return uniqueTypes([...asyncPart, ...syncPart]);
 }
 
@@ -1233,6 +1257,7 @@ function methodElements(
   method: Type | undefined,
   isAsync: boolean,
   at: TsNode,
+  walk: Walk,
 ): Type[] {
   const results = uniqueTypes(
     zeroArgumentReturns(checker, method).flatMap((iterator) =>
@@ -1240,7 +1265,7 @@ function methodElements(
     ),
   );
 
-  return iterationTypes(checker, results, isAsync, at);
+  return iterationTypes(checker, results, isAsync, at, walk);
 }
 
 /**
@@ -1378,11 +1403,17 @@ function typeParts(type: Type | undefined): Type[] {
  * the sync checker API, so an `any` in any overload flags, even when TypeScript drops that result.
  * An overload with no yielding result makes the element `any`, as TypeScript does.
  */
-function iterationTypes(checker: Checker, results: Type[], isAsync: boolean, at: TsNode): Type[] {
+function iterationTypes(
+  checker: Checker,
+  results: Type[],
+  isAsync: boolean,
+  at: TsNode,
+  walk: Walk,
+): Type[] {
   const falseLiteral = falseType(checker);
   const values: Type[] = [];
   for (const result of results) {
-    const leaves = isAsync ? settled(checker, result, at) : typeParts(result);
+    const leaves = isAsync ? settled(checker, result, at, walk) : typeParts(result);
     const yielding = leaves.filter((leaf) => canYield(checker, falseLiteral, leaf, at));
     if (yielding.length === 0) return [checker.getAnyType()];
     values.push(...yielding.flatMap((leaf) => typeParts(memberType(checker, leaf, "value", at))));
@@ -1413,18 +1444,40 @@ function falseType(checker: Checker): Type | undefined {
 }
 
 /**
- * The most distinct types one {@link settled} call opens. A generic that names a new type at every
- * layer stops here; the await is then `any`, as a circular one is.
+ * The most distinct types one {@link settled} call reaches. A generic that names a new type at every
+ * layer stops here; the await is then `any`, as a circular one is. A call counts every type it
+ * reaches, including the ones a {@link Reach} gives it at once, so the budget is the same as without
+ * the memo.
  */
 const SETTLE_TYPES = 1024;
 
+/** What one complete {@link settled} call reached: every type's id, and the leaves among them. */
+type Reach = { opened: number[]; leaves: Type[] };
+
+/**
+ * What one for-of walk shares across its settles, since every settle reads the same `at`.
+ * `expanded` holds each type's {@link promisedValues}, asked once; `undefined` marks a leaf.
+ * `reach` holds each finished settle's {@link Reach}, by the type it started from.
+ */
+type Walk = { expanded: Map<number, Type[] | undefined>; reach: Map<number, Reach> };
+
+/**
+ * {@link promisedValues} for `type`, asked once per walk. Without this, a union of N thenables asks
+ * the checker N times in each of N settles.
+ */
+function expandOnce(checker: Checker, type: Type, at: TsNode, walk: Walk): Type[] | undefined {
+  if (!walk.expanded.has(type.id)) walk.expanded.set(type.id, promisedValues(checker, type, at));
+  return walk.expanded.get(type.id);
+}
+
 /**
  * The non-promise types a promise or a thenable settles to, unwrapping each layer as `await` does.
- * A union settles member by member. Each type is opened once, however many paths reach it, so the
- * depth has no fixed limit. A type reached again is a circular await: it adds no value, as
+ * A union settles member by member. Each type is opened once per call, however many paths reach it,
+ * so the depth has no fixed limit. A type reached again is a circular await: it adds no value, as
  * TypeScript drops it. When no value is left, the await is circular and the result is `any`.
+ * A type that an earlier settle of the walk finished adds its whole {@link Reach} at once.
  */
-function settled(checker: Checker, type: Type, at: TsNode): Type[] {
+function settled(checker: Checker, type: Type, at: TsNode, walk: Walk): Type[] {
   const leaves = new Map<number, Type>();
   const opened = new Set<number>();
   let open = typeParts(type);
@@ -1432,14 +1485,22 @@ function settled(checker: Checker, type: Type, at: TsNode): Type[] {
     const next: Type[] = [];
     for (const current of open) {
       if (opened.has(current.id)) continue;
-      if (opened.size >= SETTLE_TYPES) return [...leaves.values(), checker.getAnyType()];
-      opened.add(current.id);
-      const values = promisedValues(checker, current, at);
-      if (values === undefined) leaves.set(current.id, current);
-      else next.push(...values);
+      const known = walk.reach.get(current.id);
+      if (known === undefined) {
+        opened.add(current.id);
+        const values = expandOnce(checker, current, at, walk);
+        if (values === undefined) leaves.set(current.id, current);
+        else next.push(...values);
+      } else {
+        known.opened.forEach((id) => opened.add(id));
+        known.leaves.forEach((leaf) => leaves.set(leaf.id, leaf));
+      }
+      if (opened.size > SETTLE_TYPES) return [...leaves.values(), checker.getAnyType()];
     }
     open = next;
   }
+
+  walk.reach.set(type.id, { opened: [...opened], leaves: [...leaves.values()] });
   return leaves.size > 0 ? [...leaves.values()] : [checker.getAnyType()];
 }
 
