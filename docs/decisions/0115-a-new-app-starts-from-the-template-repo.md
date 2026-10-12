@@ -8,6 +8,9 @@ Date: 2026-10-12. Status: proposed.
   or tag or both."
 - User: "then using degit (or similar faster) tool
   seems to be the way."
+- User: "The main repo is going to be a router, to
+  correpsonding branches. So, when we send out the
+  link to the repo, it'll just work."
 
 Builds on: 0074, 0106, 0114.
 
@@ -41,10 +44,13 @@ The variations already exist in this repo.
 1. `lagz0ne/tinker-app` is the template repo.
    It is public.
 2. **A branch is a variation.**
-   - `main`: the small app, as `shadcn add app.json`
+   - `small`: the small app, as `shadcn add app.json`
      writes it.
    - `demo`: the scaffold app, with its release
      `package.json`.
+   - `main` is a router: only a README that names
+     each variation and its start command.
+     A shared link to the repo then just works.
 3. **A tag pins a variation to a release.**
    `small-v<version>` and `demo-v<version>`.
 4. A new app starts with degit:
@@ -55,7 +61,7 @@ The variations already exist in this repo.
 6. `scripts/template-sync.mjs` writes both trees
    from a tag's checkout.
    With `--push`, it commits each to its branch.
-   Then it tags each.
+   Then it tags each variation.
 7. Each tree commits its `package-lock.json`.
 8. The registry stays the way to add items to an
    app that exists.
@@ -83,3 +89,6 @@ The variations already exist in this repo.
   It cannot pick one variation.
 - **Folders in one branch.** degit can copy a
   folder, but a template button cannot.
+- **Small app on `main`.** The template button would
+  give a working app, but a shared link would show
+  one variation, not the choice.

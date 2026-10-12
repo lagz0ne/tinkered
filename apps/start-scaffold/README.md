@@ -23,7 +23,8 @@ npm run dev
 
 `npm run setup` writes `.env` with a new `AUTH_SECRET`.
 It starts the compose stack and installs packages.
-Its `main` branch is the smallest app.
+Its `small` branch is the smallest app;
+`main` lists every branch.
 
 To build an app from registry items, start in an empty folder:
 

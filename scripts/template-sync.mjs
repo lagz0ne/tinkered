@@ -13,8 +13,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 /**
- * Write each starter variation from this tree, one folder per branch of the template repo.
- * With `--push <remote>`, commit each folder to its branch and tag it `<variation>-v<version>`.
+ * Write the template repo from this tree: `main` is a router README, each variation is a branch.
+ * With `--push <remote>`, commit each folder to its branch and tag each variation
+ * `<variation>-v<version>`.
  *
  *   node scripts/template-sync.mjs <out> [--push git@github.com:lagz0ne/tinker-app.git]
  */
@@ -27,9 +28,6 @@ assert.ok(!flag || (flag === "--push" && remote), usage);
 const root = resolve(import.meta.dirname, "..");
 const app = join(root, "apps/start-scaffold");
 const version = JSON.parse(readFileSync(join(root, "packages/start/package.json"), "utf8")).version;
-
-/** Branch names: `main` is the small app, so the template button gives the smallest start. */
-const variations = { small: "main", demo: "demo" };
 
 /** Files that build the registry or prove the scaffold; a new app never needs them. */
 const scaffoldOnly = [
@@ -54,6 +52,10 @@ function small(folder) {
   for (const file of item.files) write(folder, file.target.slice(2), file.content);
 
   cpSync(join(app, "components.json"), join(folder, "components.json"));
+}
+
+/** `main` holds only the README that sends each reader to a variation, so a shared link works. */
+function router(folder) {
   const readme = readFileSync(join(app, "templates/template-README.md"), "utf8");
   write(folder, "README.md", readme.replaceAll("@VERSION@", version));
 }
@@ -80,9 +82,8 @@ function lock(folder) {
 }
 
 /** Replace the branch's tree with the new one; history stays, so each release is one commit. */
-function push(variation, folder) {
-  const branch = variations[variation];
-  const tag = `${variation}-v${version}`;
+function push(branch, folder) {
+  const tag = branch === "main" ? undefined : `${branch}-v${version}`;
   const clone = mkdtempSync(join(tmpdir(), "tinker-app-"));
   const git = (...args) => execFileSync("git", args, { cwd: clone, stdio: "inherit" });
 
@@ -105,22 +106,22 @@ function push(variation, folder) {
   cpSync(folder, clone, { recursive: true });
 
   git("add", "-A");
-  git("commit", "-q", "--allow-empty", "-m", `${variation} app for start-v${version}`);
-  git("tag", tag);
-  git("push", "-q", "origin", branch, tag);
+  git("commit", "-q", "--allow-empty", "-m", `${branch} for start-v${version}`);
+  if (tag) git("tag", tag);
+  git("push", "-q", "origin", branch, ...(tag ? [tag] : []));
 
   rmSync(clone, { recursive: true });
-  console.log(`Pushed ${branch} and ${tag}.`);
+  console.log(`Pushed ${[branch, tag].filter(Boolean).join(" and ")}.`);
 }
 
-for (const [variation, fill] of Object.entries({ small, demo })) {
-  const folder = resolve(out, variation);
+for (const [branch, fill] of Object.entries({ small, demo, main: router })) {
+  const folder = resolve(out, branch);
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true });
 
   fill(folder);
-  lock(folder);
+  if (fill !== router) lock(folder);
 
-  if (remote) push(variation, folder);
-  console.log(`Wrote ${variation} for start-v${version} to ${folder}.`);
+  if (remote) push(branch, folder);
+  console.log(`Wrote ${branch} for start-v${version} to ${folder}.`);
 }
