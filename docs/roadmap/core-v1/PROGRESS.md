@@ -4285,7 +4285,7 @@ Both directive names were checked.
 - The guard may flag more than TypeScript. These extra flags are allowed:
   - `// see @ts-ignore`.
   - A directive on the first line of a multi-line block comment.
-  - Lines holding only `\v`, NBSP or BOM.
+  - Lines holding only `\v`, `\f`, NBSP, BOM or other Unicode spaces.
 
 ### Failing tests first
 

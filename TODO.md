@@ -24,10 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-guard-directive-skip-lines** — TS 7 lets `// @ts-expect-error` skip blank lines and `//` lines to reach the next code line, but `suppressedLines` (`private-fields.ts` near :1015) marks only the very next line. So `const sc = createScope();` then `// @ts-expect-error`, `// why`, `export const r = sc.layer;` builds clean; a blank line between does the same. It affects every kind of read. Same on main.
-  Next: mark the next code line, as TS does.
-  Verify: the blank-line and comment-line plants fail the build; a directive followed by code keeps today's verdict.
-
 - **core/size-guard-cast-iterable** — `const x = createScope() as unknown as Iterable<{ layer: number }>` then `for (const { layer } of x) {}` builds clean, and the assignment form too; a plain cast destructure `const { layer } = x` flags. Same on main.
   Next: read a for-of target's keys as unchecked when the iterable came from a cast: in `untypedReads` pass `node.right` as the value; in `gatherCasts` add a flow from `node.right` to the target names.
   Verify: both forms fail the build; a typed iterable with no cast stays clean.
@@ -67,6 +63,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-directive-skip-lines** (Core 54) — directive hides the first non-blank, non-// line below it across LF/CRLF/CR/U+2028/U+2029 (t54); 5 plants red on c09a6393, green on the landed head; dist byte-identical; ab: no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-directive-skip-lines).
+  Verify: the blank-line and comment-line plants fail the build; a directive followed by code keeps today's verdict.
 
 - **core/size-guard-forof-gaps** (Core 53) — a for-of assignment target is checked like the const form, and a name bound through it is a cast for later reads. 14 plants red on main; 186 guard tests green. Budget unchanged (1023 clean, 1024 flags, both trees). Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical; `private-fields.json` unchanged (55). Calibrate pending: 1 Jev label (`stateOutsideCell` ← `forOfTarget`). Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-forof-gaps).
   Verify: a plant for the assignment form fails the build; the const form still flags.
