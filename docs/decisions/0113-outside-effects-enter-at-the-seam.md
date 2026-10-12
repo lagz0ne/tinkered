@@ -62,8 +62,9 @@ only through the scope. The seam puts it there.
   no `process.*`, `Date.now`, `Math.random`,
   bare `fetch`, or `console.*`.
 - A tag default may be a fixed value.
-  A default that does an effect is a seam choice;
-  name it in the tag's TSDoc.
+  It may also do a real effect, such as `fetch`
+  (user: "yes, they can"). The default sits on
+  the seam, not in a body; name it in the TSDoc.
 - Core already works this way:
   a scope takes its clock and random.
 
