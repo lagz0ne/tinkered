@@ -34,8 +34,9 @@ const untitled = (names: readonly string[]): string => {
 export const editFile = operation({
   label: "editFile",
   input: (raw) => {
-    if (isRecord(raw) && typeof raw.name === "string" && typeof raw.content === "string")
+    if (isRecord(raw) && typeof raw.name === "string" && typeof raw.content === "string") {
       return { name: raw.name, content: raw.content };
+    }
     raise("InvalidInput", { operation: "editFile", reason: "expected { name, content }" });
   },
   depends: { files: filesCell.controller, dirty: dirtyCell.controller },
@@ -107,8 +108,9 @@ export const closeFile = operation({
 export const renameFile = operation({
   label: "renameFile",
   input: (raw) => {
-    if (isRecord(raw) && typeof raw.from === "string" && typeof raw.to === "string")
+    if (isRecord(raw) && typeof raw.from === "string" && typeof raw.to === "string") {
       return { from: raw.from, to: raw.to };
+    }
     raise("InvalidInput", { operation: "renameFile", reason: "expected { from, to }" });
   },
   depends: {

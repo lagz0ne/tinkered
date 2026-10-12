@@ -36,6 +36,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **style/body-steps** — owner: thread lead (Opus 5.5). ADR 0111: a body reads as steps.
+  Done: rule 14 in coding-convention, `tinker/body-steps` and `curly` in `vp lint`, curly fixed by `--fix`.
+  Next: writers add step breaks, one area each; only blank lines change.
+  Verify: `vp check` green; `git diff -w --ignore-blank-lines` after the curly commit is empty; tests green.
+
 Roles since 2026-10-09 (user: "Instead of using sol as writer, use haiku, opus drives and review";
 16:32 UTC: "As replacement to current writer"): the Opus 5.5 (high) lead drives and lands; a Haiku 5.5
 writer (`claude/claude-haiku-5-5`, high, auto), its own Paseo agent, replaces Sol (`codex/gpt-6.1-sol`)

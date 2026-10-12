@@ -119,7 +119,7 @@ export const queue = resource({
         }
       },
       start(flush: () => Promise<void>) {
-        if (settings.side !== "ssr")
+        if (settings.side !== "ssr") {
           timer = Promise.resolve().then(async () => {
             while (!stopTimer.signal.aborted) {
               try {
@@ -131,6 +131,7 @@ export const queue = resource({
               if (!stopTimer.signal.aborted) await flush();
             }
           });
+        }
       },
       takeBatch() {
         let bytes = frameBytes;
@@ -190,7 +191,7 @@ export const queue = resource({
         records = records.filter((record) => !accepted.has(record));
         for (const record of accepted) queueBytes -= record.bytes;
         failed = !result.traces || !result.logs;
-        if (publishing)
+        if (publishing) {
           health.set(
             !failed
               ? {
@@ -205,6 +206,7 @@ export const queue = resource({
                   dropped: dropped,
                 },
           );
+        }
       },
       /** The extension can write final data; a forced defer runs after its data owner is sealed. */
       async close(publishFinal: boolean) {
@@ -239,7 +241,7 @@ export const queue = resource({
           consoleBytes = 0;
           records = [];
           queueBytes = 0;
-          if (publishFinal)
+          if (publishFinal) {
             health.set(
               failed
                 ? {
@@ -250,6 +252,7 @@ export const queue = resource({
                   }
                 : { kind: "idle", pending: 0, dropped },
             );
+          }
         }
       },
     };

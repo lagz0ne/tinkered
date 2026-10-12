@@ -16,6 +16,8 @@ export default defineConfig({
       "vite-plus/prefer-vite-plus-imports": "error",
       complexity: ["error", { max: 8 }],
       "tinker/blank-lines": "error",
+      "tinker/body-steps": "off",
+      curly: ["error", "multi-line"],
     },
     options: { typeAware: true, typeCheck: true },
     // The flight reference answer is its own app; run-reference checks it in the trial image.
@@ -24,7 +26,7 @@ export default defineConfig({
     overrides: [
       {
         files: ["tools/writer-trial/**", "tools/flight-trial/**"],
-        rules: { "tinker/blank-lines": "off" },
+        rules: { "tinker/blank-lines": "off", "tinker/body-steps": "off", curly: "off" },
       },
     ],
   },

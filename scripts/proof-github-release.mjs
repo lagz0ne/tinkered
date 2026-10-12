@@ -47,10 +47,11 @@ async function hashes(dir, excluded = new Set()) {
       if (excluded.has(entry.name)) continue;
       const file = join(path, entry.name);
       if (entry.isDirectory()) await visit(file);
-      else
+      else {
         result[relative(dir, file)] = createHash("sha256")
           .update(await readFile(file))
           .digest("hex");
+      }
     }
   }
   await visit(dir);
@@ -58,12 +59,13 @@ async function hashes(dir, excluded = new Set()) {
 }
 
 try {
-  for (const version of ["0.7.0", "0.7.1"])
+  for (const version of ["0.7.0", "0.7.1"]) {
     run(process.execPath, [
       "scripts/release.mjs",
       version,
       ...(version === "0.7.0" ? [] : ["--dry"]),
     ]);
+  }
   const staticServer = spawn(process.execPath, [join(root, "scripts/release-server.mjs"), mirror], {
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   });
@@ -91,8 +93,9 @@ try {
     );
     await mkdir(assets, { recursive: true });
     await cp(join(release, "apps/start-scaffold/public/r"), registry, { recursive: true });
-    for (const file of await readdir(registry))
+    for (const file of await readdir(registry)) {
       await writeFile(join(registry, file), rewrite(await readFile(join(registry, file), "utf8")));
+    }
     for (const name of ["core", "react", "start"]) {
       const file = `tinker-${name}-${version}.tgz`;
       const unpacked = join(scratch, `${name}-${version}`);
@@ -189,8 +192,9 @@ try {
   console.log("PASS: edited base refused before package.json changed.");
   run(tinker, ["upgrade", "0.7.1"], consumer);
   const pkg = JSON.parse(await readFile(join(consumer, "package.json"), "utf8"));
-  for (const [name, url] of Object.entries(releaseUrls("0.7.1", origin)))
+  for (const [name, url] of Object.entries(releaseUrls("0.7.1", origin))) {
     assert.equal(pkg.dependencies[name], url);
+  }
   assert.deepEqual(await hashes(consumer, excluded), userBefore);
   console.log("PASS: upgrade 0.7.0 -> 0.7.1 writes all three new URLs; every user file unchanged.");
   run("vp", ["build"], consumer);

@@ -66,10 +66,11 @@ function asset(paths, files, cache, request) {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const path = decodeURIComponent(new URL(request.url).pathname).replace(slashes, "/");
   const file = paths.get(path);
-  if (!file)
+  if (!file) {
     return path.startsWith("/assets/") && !dotPath.test(path)
       ? new Response(null, { status: 404 })
       : null;
+  }
   return readStatic(files, cache, file, path, request);
 }
 

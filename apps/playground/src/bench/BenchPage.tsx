@@ -330,7 +330,7 @@ async function runRounds(
 }
 
 function BenchNotice({ error }: { error: string | null }): ReactElement {
-  if (error)
+  if (error) {
     return (
       <div className="bench-notice bench-error" role="alert">
         <Info aria-hidden="true" className="size-5" />
@@ -340,6 +340,7 @@ function BenchNotice({ error }: { error: string | null }): ReactElement {
         </div>
       </div>
     );
+  }
   return (
     <div className="bench-notice">
       <ScanLine aria-hidden="true" className="size-6" />

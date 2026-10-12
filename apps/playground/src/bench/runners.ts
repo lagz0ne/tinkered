@@ -404,11 +404,12 @@ export function prepare(lib: Lib): Sampler {
   flushSync(() => lib.update(0, -1));
   const rerenders = lib.renders();
   r0.unmount();
-  if (rerenders < 1)
+  if (rerenders < 1) {
     raise("HarnessInvariant", {
       library: lib.name,
       reason: "an update did not render inside flushSync",
     });
+  }
   for (let w = 0; w < MOUNT_BATCH; w++) mount(lib.App).unmount();
   const s: Sampler = {
     lib,
@@ -430,11 +431,12 @@ export function sampleUpdate(s: Sampler): number {
     const t0 = performance.now();
     for (let i = 0; i < count; i++) flushSync(() => lib.update(++s.k % N, s.k));
     const elapsed = performance.now() - t0;
-    if (lib.renders() < count)
+    if (lib.renders() < count) {
       raise("HarnessInvariant", {
         library: lib.name,
         reason: `${lib.renders()} renders for ${count} updates — not synchronous under flushSync`,
       });
+    }
     return elapsed;
   });
 }
@@ -447,11 +449,12 @@ export function sampleFanout(s: Sampler): number {
     for (let i = 0; i < count; i++) flushSync(() => lib.updateShared(++s.k));
     const elapsed = performance.now() - t0;
     const want = count * N;
-    if (lib.renders() < want)
+    if (lib.renders() < want) {
       raise("HarnessInvariant", {
         library: lib.name,
         reason: `${lib.renders()} renders for ${count} fan-out writes — expected ${want}`,
       });
+    }
     return elapsed;
   });
 }

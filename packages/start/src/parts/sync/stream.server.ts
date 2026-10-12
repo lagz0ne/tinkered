@@ -82,8 +82,9 @@ export const eventStream = resource({
         }
         const changes = subscription;
         const initialAccount = await account.run();
-        if (initial.private && initial.private.accountId !== initialAccount)
+        if (initial.private && initial.private.accountId !== initialAccount) {
           raise("StreamDenied", {});
+        }
         const { and, or, eq, gt, asc } = orm;
         const cursor = { ...initial, private: initial.private ? { ...initial.private } : null };
         const lease = clock.currentTimeMillis() + 30_000;
@@ -174,8 +175,9 @@ export const eventStream = resource({
           /** A short page has every row at this wake, so the next pull waits. */
           if (frame.count < 100) afterWake = wake;
           cursor.public = frame.cursor.public;
-          if (cursor.private && frame.cursor.private)
+          if (cursor.private && frame.cursor.private) {
             cursor.private.revision = frame.cursor.private.revision;
+          }
           controller.enqueue(frame.bytes.slice());
           return true;
         };

@@ -12,8 +12,9 @@ export async function copyProofApp(source, target) {
     "vite.config.ts",
     "tsconfig.json",
     "components.json",
-  ])
+  ]) {
     await cp(join(source, name), join(target, name), { recursive: true });
+  }
   await symlink(join(source, "node_modules"), join(target, "node_modules"), "dir");
   const databaseFile = join(target, "src/backend/database.server.ts");
   const database = await readFile(databaseFile, "utf8");

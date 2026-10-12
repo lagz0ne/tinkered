@@ -82,8 +82,9 @@ const notificationWork = resource({
         if (running.has(executionId)) return;
         const completed = finish.settle({ input: { executionId } }).then((result) => {
           running.delete(executionId);
-          if (result.status !== "success")
+          if (result.status !== "success") {
             log.error("profile.notification.failed", { executionId, status: result.status });
+          }
         });
         running.set(executionId, completed);
       },

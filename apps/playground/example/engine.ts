@@ -76,8 +76,9 @@ export const setPhysics = operation({
   label: "setPhysics",
   input: (raw): Partial<Physics> => {
     const patch = raw as Partial<Record<keyof Physics, unknown>> | null | undefined;
-    if (!patch || typeof patch !== "object")
+    if (!patch || typeof patch !== "object") {
       raise("BadPhysics", "physics is a partial record of numbers");
+    }
     const next: Partial<Physics> = {};
     for (const key of SETTINGS) {
       const value = patch[key];

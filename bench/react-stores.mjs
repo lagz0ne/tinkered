@@ -214,8 +214,10 @@ const fmt = (n) => (Number.isFinite(n) ? n.toFixed(1) : "NaN");
 console.log("\n--- metrics (update/mount = min ns/iter; renders = count, ideal 1) ---");
 for (const name of Object.keys(libs)) console.log(`METRIC renders_${name}=${renders[name]}`);
 
-for (const name of Object.keys(libs))
+for (const name of Object.keys(libs)) {
   console.log(`METRIC update_${name}=${fmt(minOf(`update_${name}`))}`);
+}
 
-for (const name of Object.keys(libs))
+for (const name of Object.keys(libs)) {
   console.log(`METRIC mount_${name}=${fmt(minOf(`mount_${name}`))}`);
+}

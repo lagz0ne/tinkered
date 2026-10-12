@@ -51,8 +51,9 @@ export const notifications = resource({
     };
     const nextDeadline = () => {
       let next = Infinity;
-      for (const bucket of wheel.values())
+      for (const bucket of wheel.values()) {
         for (const subscriber of bucket) next = Math.min(next, subscriber.deadline);
+      }
       return next;
     };
     const expire = () => {

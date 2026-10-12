@@ -23,8 +23,9 @@ function unwrap(node) {
       ts.isTypeAssertionExpression(node) ||
       ts.isNonNullExpression(node) ||
       ts.isSatisfiesExpression(node))
-  )
+  ) {
     node = node.expression;
+  }
   return node;
 }
 
@@ -48,10 +49,11 @@ async function sourceFiles(root) {
   const files = [];
   for (const entry of await readdir(root, { withFileTypes: true })) {
     const path = join(root, entry.name);
-    if (entry.isDirectory() && !["node_modules", "__tests__"].includes(entry.name))
+    if (entry.isDirectory() && !["node_modules", "__tests__"].includes(entry.name)) {
       files.push(...(await sourceFiles(path)));
-    else if (/\.tsx?$/.test(entry.name) && !/\.(?:test|spec|d)\.|\.gen\./.test(entry.name))
+    } else if (/\.tsx?$/.test(entry.name) && !/\.(?:test|spec|d)\.|\.gen\./.test(entry.name)) {
       files.push(path);
+    }
   }
   return files.sort((a, b) => a.localeCompare(b));
 }
@@ -105,8 +107,9 @@ function symbols(checker) {
 
   function declarationTarget(node, symbol, seen) {
     const declaration = symbol.valueDeclaration;
-    if (declaration && ts.isBindingElement(declaration))
+    if (declaration && ts.isBindingElement(declaration)) {
       return checker.getTypeAtLocation(node).symbol ?? symbol;
+    }
     const initializer = declarationInitializer(declaration);
     return initializer ? (target(initializer, seen) ?? symbol) : symbol;
   }
@@ -116,8 +119,9 @@ function symbols(checker) {
     if (!node || seen.has(node)) return [];
     seen.add(node);
     if (isExecutable(node)) return [node];
-    if (ts.isConditionalExpression(node))
+    if (ts.isConditionalExpression(node)) {
       return [...executables(node.whenTrue, seen), ...executables(node.whenFalse, seen)];
+    }
     return symbolExecutables(node, seen);
   }
 
@@ -209,11 +213,12 @@ function indirectInvocation(call) {
 
 function bindInvocation(bindCall, call) {
   const bound = unwrap(bindCall.expression);
-  if (ts.isPropertyAccessExpression(bound) && bound.name.text === "bind")
+  if (ts.isPropertyAccessExpression(bound) && bound.name.text === "bind") {
     return {
       expression: bound.expression,
       object: bindCall.arguments[1] ?? call.arguments[0],
     };
+  }
 }
 
 function aliasedSymbol(node, checker) {
@@ -225,8 +230,9 @@ function aliasedSymbol(node, checker) {
 
 function bindTarget(bindCall) {
   const bound = unwrap(bindCall.expression);
-  if (ts.isPropertyAccessExpression(bound) && bound.name.text === "bind")
+  if (ts.isPropertyAccessExpression(bound) && bound.name.text === "bind") {
     return { expression: bound.expression, partial: bindCall.arguments[1] };
+  }
 }
 
 function boundTarget(node, checker, seen = new Set()) {
@@ -251,11 +257,13 @@ function unbound(indirect, checker) {
 }
 
 function reflectedInvocation(method, call) {
-  if (method.name.text === "call")
+  if (method.name.text === "call") {
     return { expression: method.expression, object: call.arguments[1] };
+  }
   if (method.name.text !== "apply") return undefined;
-  if (ts.isIdentifier(method.expression) && method.expression.text === "Reflect")
+  if (ts.isIdentifier(method.expression) && method.expression.text === "Reflect") {
     return appliedInvocation(call.arguments[0], call.arguments[2]);
+  }
   return appliedInvocation(method.expression, call.arguments[1]);
 }
 
@@ -270,13 +278,15 @@ function appliedInvocation(expression, list) {
 function inlineCall(call, checker) {
   if (!ts.isCallExpression(call)) return undefined;
   const indirect = unbound(indirectInvocation(call), checker) ?? boundInvocation(call, checker);
-  if (!indirect)
+  if (!indirect) {
     return inlineParameter(checker.getResolvedSignature(call), checker)
       ? { object: call.arguments[0] }
       : undefined;
+  }
   const { expression, object } = indirect;
-  if (!object || coreType(checker.getTypeAtLocation(object), "Handle", "Operation"))
+  if (!object || coreType(checker.getTypeAtLocation(object), "Handle", "Operation")) {
     return undefined;
+  }
   return checker
     .getTypeAtLocation(expression)
     .getCallSignatures()
@@ -292,12 +302,14 @@ function isComponent(node) {
     !node.getSourceFile().fileName.endsWith(".tsx") ||
     !/^[A-Z]/.test(propertyName(name) ?? "") ||
     node.parameters.length > 1
-  )
+  ) {
     return false;
+  }
   let jsx = false;
   function inspect(child) {
-    if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child) || ts.isJsxFragment(child))
+    if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child) || ts.isJsxFragment(child)) {
       jsx = true;
+    }
     if (!isFunction(child)) ts.forEachChild(child, inspect);
   }
   inspect(node.body);
@@ -317,18 +329,20 @@ function calledValue(node) {
 }
 
 function callTarget(parent, value) {
-  if (ts.isCallExpression(parent) || ts.isNewExpression(parent))
+  if (ts.isCallExpression(parent) || ts.isNewExpression(parent)) {
     return parent.expression === value || (parent.arguments?.includes(value) ?? false);
+  }
   return ts.isTaggedTemplateExpression(parent) && parent.tag === value;
 }
 
 function typePosition(node) {
   for (let parent = node.parent; parent; parent = parent.parent) {
-    if (ts.isExpressionWithTypeArguments(parent) && ts.isHeritageClause(parent.parent))
+    if (ts.isExpressionWithTypeArguments(parent) && ts.isHeritageClause(parent.parent)) {
       return (
         parent.parent.token !== ts.SyntaxKind.ExtendsKeyword ||
         ts.isInterfaceDeclaration(parent.parent.parent)
       );
+    }
     if (ts.isTypeNode(parent)) return true;
     if (ts.isExpression(parent) || ts.isStatement(parent)) break;
   }
@@ -350,8 +364,9 @@ function bindingKey(node) {
 
 function declarationInitializer(declaration) {
   if (!declaration) return undefined;
-  if (ts.isVariableDeclaration(declaration) || ts.isPropertyAssignment(declaration))
+  if (ts.isVariableDeclaration(declaration) || ts.isPropertyAssignment(declaration)) {
     return declaration.initializer;
+  }
   if (ts.isShorthandPropertyAssignment(declaration)) return declaration.name;
   if (ts.isBindingElement(declaration)) return declaration.parent.parent.initializer;
 }
@@ -374,8 +389,9 @@ function importedName(node, checker, seen = new Set()) {
   if (
     (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) &&
     importedName(node.expression, checker, seen)
-  )
+  ) {
     return true;
+  }
   const symbol = ts.isShorthandPropertyAssignment(node.parent)
     ? checker.getShorthandAssignmentValueSymbol(node.parent)
     : checker.getSymbolAtLocation(node);
@@ -404,10 +420,12 @@ function importedSymbol(symbol, checker, seen) {
     symbol.declarations?.some((declaration) => {
       return importHopOutside(declaration, checker, seen);
     })
-  )
+  ) {
     return true;
-  if (symbol.flags & ts.SymbolFlags.Alias)
+  }
+  if (symbol.flags & ts.SymbolFlags.Alias) {
     return importedSymbol(checker.getImmediateAliasedSymbol(symbol), checker, seen);
+  }
   return importedName(declarationInitializer(symbol.valueDeclaration), checker, seen);
 }
 
@@ -436,8 +454,9 @@ function moduleOutside(module, name, checker, seen) {
 }
 
 function starOutside(statement, name, checker, seen) {
-  if (!ts.isExportDeclaration(statement) || statement.exportClause || !statement.moduleSpecifier)
+  if (!ts.isExportDeclaration(statement) || statement.exportClause || !statement.moduleSpecifier) {
     return false;
+  }
   if (!ownPath(statement.moduleSpecifier.text)) return true;
   return moduleOutside(checker.getSymbolAtLocation(statement.moduleSpecifier), name, checker, seen);
 }
@@ -492,14 +511,15 @@ function moduleFactory(object, factory, load) {
 
 function checkLazy(object, factory, load, fail, modules) {
   const shape = moduleShape(object, factory, load);
-  if (!shape)
+  if (!shape) {
     fail(object, 10, "lazy module must have only label, scope target, and () => import(literal)");
+  }
   const path = load.arguments[0];
   if (!path || !ts.isStringLiteral(path)) return false;
   const key = path.text.replace(/^node:/, "");
-  if (modules.has(key))
+  if (modules.has(key)) {
     fail(load, 9, `duplicate module ${path.text}; first at ${modules.get(key)}`);
-  else modules.set(key, location(load));
+  } else modules.set(key, location(load));
   return shape;
 }
 
@@ -509,10 +529,15 @@ function location(node) {
 }
 
 function loaderDeclaration(declaration) {
-  if (!declaration || packageName(realPath(declaration.getSourceFile().fileName)) !== "@types/node")
+  if (
+    !declaration ||
+    packageName(realPath(declaration.getSourceFile().fileName)) !== "@types/node"
+  ) {
     return false;
-  if (["require", "createRequire", "getBuiltinModule"].includes(propertyName(declaration.name)))
+  }
+  if (["require", "createRequire", "getBuiltinModule"].includes(propertyName(declaration.name))) {
     return true;
+  }
   const owner = declaration.parent;
   return ts.isInterfaceDeclaration(owner) && ["Require", "NodeRequire"].includes(owner.name.text);
 }
@@ -543,12 +568,13 @@ function checkGraph(bodies, checker, target, executables, fail) {
   function inspectValue(node) {
     const symbol = target(node);
     if (symbol?.declarations?.some(loaderDeclaration)) fail(node, 8, "module loader in graph code");
-    else if (importedName(node, checker))
+    else if (importedName(node, checker)) {
       fail(node, 7, `outside name ${node.getText()} in graph code`);
-    else
+    } else {
       for (const body of executables(node)) {
         if (!isComponent(body) || calledValue(node)) follow(body);
       }
+    }
   }
 
   for (const body of bodies) follow(body);
@@ -606,12 +632,14 @@ function collectBodies(kind, object, executables, property, checker, fail, modul
       load &&
       ts.isObjectLiteralExpression(object) &&
       checkLazy(object, body, load, fail, modules)
-    )
+    ) {
       return;
+    }
     bodies.push(body);
   }
-  if (kind !== "extension")
+  if (kind !== "extension") {
     return collect(property(object, kind === "resource" ? "factory" : "run"));
+  }
   const hooks = property(object, "hooks");
   if (!hooks) return fail(call, "unit-body", "unit body not found");
   const members = checker.getTypeAtLocation(hooks).getProperties();
@@ -1425,11 +1453,12 @@ async function prove() {
 
 async function plantSource(root, test, core) {
   await writeFile(join(root, test.tsx ? "probe.tsx" : "probe.ts"), core + test.source);
-  if (test.helper)
+  if (test.helper) {
     await writeFile(
       join(root, test.helperName ?? (test.helperTsx ? "helper.tsx" : "helper.ts")),
       test.helper,
     );
+  }
   if (test.leaf) await writeFile(join(root, "leaf.ts"), test.leaf);
   if (test.declaration) await writeFile(join(root, "ambient.d.ts"), test.declaration);
 }
@@ -1460,8 +1489,9 @@ function proveHit(test, stderr) {
   );
   if (
     ["parameter-body", "wrapped-unit-callback", "missing-run", "missing-hooks"].includes(test.name)
-  )
+  ) {
     assert.match(stderr, /unit body not found/, test.name);
+  }
 }
 
 if (process.argv.includes("--prove")) await prove();

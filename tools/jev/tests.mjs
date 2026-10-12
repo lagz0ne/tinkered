@@ -29,10 +29,11 @@ const mark = (id) => (CALIBRATION[id]?.status === "noisy" ? "~" : "");
 /** A package name expands to its test files; a path passes through. */
 function readFiles(target) {
   const dir = target === "blueprint" ? "tools/blueprint/tests" : join("packages", target, "tests");
-  if (existsSync(dir))
+  if (existsSync(dir)) {
     return readdirSync(dir)
       .filter((f) => /\.test\.tsx?$/.test(f))
       .map((f) => join(dir, f));
+  }
   return [target];
 }
 
@@ -41,8 +42,11 @@ function readFiles(target) {
 /** File-level: a private `../src/*` import, mocks, sleeps, `.only`/`.skip`, helpers over 3 or 20 lines. */
 function fileNotes(src, file) {
   const notes = [];
-  if (imports(src, file).some((i) => i.source.startsWith("../src/") && i.source !== "../src/index"))
+  if (
+    imports(src, file).some((i) => i.source.startsWith("../src/") && i.source !== "../src/index")
+  ) {
     notes.push("privateImport");
+  }
   if (/\bvi\.(mock|fn|spyOn)\(/.test(src)) notes.push("mock");
   if (/\bsetTimeout\(/.test(src)) notes.push("sleep");
   if (/\b(test|it|describe)\.(only|skip)\(/.test(src)) notes.push("onlyOrSkip");
@@ -62,14 +66,17 @@ function testNotes(t) {
   const notes = new Set();
   for (const a of t.asserts) {
     if (a.subject.startsWith("isError(")) notes.add("isErrorInExpect");
-    if (INTERNAL_SUBJECT.test(a.subject) || INTERNAL_MATCHER.test(a.matcher))
+    if (INTERNAL_SUBJECT.test(a.subject) || INTERNAL_MATCHER.test(a.matcher)) {
       notes.add("assertsInternals");
-    if (a.matcher === "toBe" && t.narrows.includes(`${a.subject} !== ${a.arg}`))
+    }
+    if (a.matcher === "toBe" && t.narrows.includes(`${a.subject} !== ${a.arg}`)) {
       notes.add("expectThenNarrow");
+    }
   }
   const be = new Set(t.asserts.filter((a) => a.matcher === "toBe").map((a) => a.subject));
-  if (t.asserts.some((a) => a.matcher === "toEqual" && be.has(a.subject)))
+  if (t.asserts.some((a) => a.matcher === "toEqual" && be.has(a.subject))) {
     notes.add("toBeThenToEqual");
+  }
   return [...notes];
 }
 

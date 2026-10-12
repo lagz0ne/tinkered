@@ -33,16 +33,16 @@ export const changeTodo = operation({
       if (await history.find(tx, input.executionId, currentUser.id)) return;
       const change = input.change;
       let changed = true;
-      if (change.kind === "add")
+      if (change.kind === "add") {
         await tx.insert(todo).values({ ownerId: currentUser.id, title: change.title });
-      else {
+      } else {
         const owned = and(eq(todo.id, change.id), eq(todo.ownerId, currentUser.id));
         const row = (await tx.select().from(todo).where(owned)).at(0);
         if (!row) raise("TodoMissing", {});
         if (change.kind === "delete") await tx.delete(todo).where(owned);
-        else if (row.done !== change.done)
+        else if (row.done !== change.done) {
           await tx.update(todo).set({ done: change.done }).where(owned);
-        else changed = false;
+        } else changed = false;
       }
       await tx.insert(execution).values({ id: input.executionId, stream: currentUser.id });
       const payloads: Sync.Payload[] = [];

@@ -264,8 +264,9 @@ test("reconnecting from applied cursors finishes a save whose final event commit
     });
     const replay = resumed.getReader();
     let resultFrame = new TextDecoder().decode((await replay.read()).value);
-    if (resultFrame.startsWith(":"))
+    if (resultFrame.startsWith(":")) {
       resultFrame = new TextDecoder().decode((await replay.read()).value);
+    }
     browser.run(receiveMessage, {
       input: {
         message: streamMessage.parse(JSON.parse(resultFrame.split("\ndata: ").at(1)?.trim() ?? "")),

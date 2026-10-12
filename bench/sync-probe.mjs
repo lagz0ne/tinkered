@@ -58,8 +58,9 @@ async function save() {
   );
   let bytes = 0;
   for (const { value } of await held) {
-    if (!decoder.decode(value).startsWith("event: changes"))
+    if (!decoder.decode(value).startsWith("event: changes")) {
       throw new Error("expected a changes frame");
+    }
     bytes += value.byteLength;
   }
   return bytes;

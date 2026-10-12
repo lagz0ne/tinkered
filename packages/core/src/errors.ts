@@ -107,8 +107,9 @@ export function stampOrigin(
     return;
   }
   if (!stamp.open) return;
-  if (ctx === undefined || stamp.by !== ctx)
+  if (ctx === undefined || stamp.by !== ctx) {
     stamp.origin = { ...stamp.origin, path: [label, ...stamp.origin.path] };
+  }
   if (ends) stamp.open = false;
 }
 

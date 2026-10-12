@@ -82,8 +82,9 @@ try {
       ["Room", room],
       ["Start time", start],
       ["End time", end],
-    ])
+    ]) {
       await page.getByLabel(label, { exact: true }).fill(value);
+    }
     await page.getByRole("button", { name: "Book", exact: true }).click();
     await page.getByRole("button", { name: `Cancel ${title}`, exact: true }).waitFor();
   }
@@ -105,8 +106,9 @@ try {
       ["Start time", "09:00"],
       ["End time", "10:00"],
       ["Date", ""],
-    ])
+    ]) {
       await page.getByLabel(label, { exact: true }).fill(value);
+    }
     await page.getByRole("button", { name: "Book", exact: true }).click();
     await page.waitForFunction(
       () =>

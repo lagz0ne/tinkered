@@ -72,8 +72,9 @@ test("two real accounts can change only their own saved todos", async () => {
           input: { executionId: crypto.randomUUID(), change: input },
           tags: requestHeaders(grace),
         });
-        if (result.status !== "failed")
+        if (result.status !== "failed") {
           raise("BadInput", { reason: "expected private todo refusal" });
+        }
         if (!isError(result.error, "TodoMissing")) throw result.error;
       }
     }

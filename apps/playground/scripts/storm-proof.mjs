@@ -132,8 +132,9 @@ const navigate = async (url) => {
       await evaluate(
         "document.querySelector('iframe')?.contentDocument?.querySelectorAll('.tile').length === 144",
       )
-    )
+    ) {
       return;
+    }
     await sleep(100);
   }
   throw new Error("The game did not render 144 tiles");
@@ -407,8 +408,9 @@ if (mode === "capture" || mode === "walls") {
       quiet: loads.every((value) => value < 4),
     }) + "\n",
   );
-  if (loads.some((value) => value >= 4))
+  if (loads.some((value) => value >= 4)) {
     throw new Error("Load reached 4 during the frame benchmark");
+  }
   console.log(JSON.stringify({ frameCallbacks: 60, loads }));
 } else {
   await page("Page.addScriptToEvaluateOnNewDocument", {
@@ -453,8 +455,9 @@ if (mode === "capture" || mode === "walls") {
             message.sessionId === sessionId &&
             message.method === "LayerTree.layerTreeDidChange" &&
             message.params.layers
-          )
+          ) {
             layers = message.params.layers;
+          }
         };
         listeners.add(layerListener);
         await page("LayerTree.enable");
@@ -530,8 +533,9 @@ if (mode === "capture" || mode === "walls") {
             event.ts >= traceStart &&
             event.ts <= traceEnd,
         );
-        if (!presented.length)
+        if (!presented.length) {
           throw new Error("No presentation events; cannot report frames shown");
+        }
         const frameIds = new Set(
           presented.map((event) => JSON.stringify(event.args.begin_frame_id)),
         );

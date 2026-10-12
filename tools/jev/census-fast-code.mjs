@@ -16,8 +16,9 @@ function patternNames(node) {
   if (node.type === "Identifier") return [node.name];
   if (node.type === "RestElement") return patternNames(node.argument);
   if (node.type === "AssignmentPattern") return patternNames(node.left);
-  if (node.type === "ObjectPattern")
+  if (node.type === "ObjectPattern") {
     return node.properties.flatMap((p) => patternNames(p.value ?? p.argument));
+  }
   if (node.type === "ArrayPattern") return node.elements.flatMap(patternNames);
   return [];
 }
@@ -39,10 +40,12 @@ function localNames(node) {
         "ForInStatement",
         "ForOfStatement",
       ].includes(child.type)
-    )
+    ) {
       return;
-    if (child.type === "VariableDeclarator")
+    }
+    if (child.type === "VariableDeclarator") {
       for (const name of patternNames(child.id)) names.add(name);
+    }
     for (const next of children(child)) visit(next);
   };
   for (const child of children(node)) visit(child);
@@ -53,9 +56,11 @@ function functionVars(node) {
   const names = new Set();
   const visit = (child) => {
     if (FUNCTIONS.has(child.type) || CLASSES.has(child.type)) return;
-    if (child.type === "VariableDeclaration" && child.kind === "var")
-      for (const decl of child.declarations)
+    if (child.type === "VariableDeclaration" && child.kind === "var") {
+      for (const decl of child.declarations) {
         for (const name of patternNames(decl.id)) names.add(name);
+      }
+    }
     for (const next of children(child)) visit(next);
   };
   for (const child of children(node)) visit(child);
@@ -68,8 +73,9 @@ function importedBuilders(program) {
     if (node.type !== "ImportDeclaration" || node.source.value !== "@tinker/core") continue;
     for (const spec of node.specifiers) {
       if (spec.type === "ImportNamespaceSpecifier") names.set(spec.local.name, "*");
-      if (spec.type === "ImportSpecifier" && BUILDERS.has(spec.imported.name))
+      if (spec.type === "ImportSpecifier" && BUILDERS.has(spec.imported.name)) {
         names.set(spec.local.name, spec.imported.name);
+      }
     }
   }
   return names;
@@ -91,13 +97,15 @@ function childBindings(node, names, nested) {
     !["BlockStatement", "CatchClause", "ForStatement", "ForInStatement", "ForOfStatement"].includes(
       node.type,
     )
-  )
+  ) {
     return names;
+  }
   const inner = new Map(names);
   for (const local of localNames(node)) inner.delete(local);
   if (FUNCTIONS.has(node.type)) for (const local of functionVars(node)) inner.delete(local);
-  if (node.type === "CatchClause")
+  if (node.type === "CatchClause") {
     for (const local of patternNames(node.param)) inner.delete(local);
+  }
   return inner;
 }
 
@@ -183,8 +191,9 @@ for (const file of files) {
   if (
     !scope.test(resolve(file)) ||
     /(?:^|\/)(?:tests?|__tests__)\/|\.(?:test|spec|browser)\./.test(file)
-  )
+  ) {
     continue;
+  }
   const source = parseSource(file);
   const hits = rule === "P05" ? nestedBuilders(source) : droppedThen(source);
   for (const { node, text } of hits) console.log(`${file}:${source.line(node)}:${text}`);

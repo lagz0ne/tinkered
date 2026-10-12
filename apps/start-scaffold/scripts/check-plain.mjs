@@ -24,8 +24,9 @@ async function scan(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
     const path = join(folder, entry.name);
     if (entry.isDirectory()) await scan(path);
-    else if (/\.tsx?$/.test(entry.name) && !/\.(gen|generated|d)\.tsx?$/.test(entry.name))
+    else if (/\.tsx?$/.test(entry.name) && !/\.(gen|generated|d)\.tsx?$/.test(entry.name)) {
       files.push(path);
+    }
   }
 }
 
@@ -57,8 +58,9 @@ function unwrap(node) {
       ts.isAsExpression(node) ||
       ts.isTypeAssertionExpression(node) ||
       ts.isNonNullExpression(node))
-  )
+  ) {
     node = node.expression;
+  }
   return node;
 }
 
@@ -147,8 +149,9 @@ function isFunction(node) {
 }
 
 function enclosingFunction(node) {
-  for (let parent = node.parent; parent; parent = parent.parent)
+  for (let parent = node.parent; parent; parent = parent.parent) {
     if (isFunction(parent)) return parent;
+  }
 }
 
 function isComponent(node) {
@@ -156,12 +159,14 @@ function isComponent(node) {
     !node.getSourceFile().fileName.endsWith(".tsx") ||
     !/^[A-Z]/.test(nameOf(functionName(node))) ||
     node.parameters.length > 1
-  )
+  ) {
     return false;
+  }
   let jsx = false;
   ownWalk(node.body, (child) => {
-    if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child) || ts.isJsxFragment(child))
+    if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child) || ts.isJsxFragment(child)) {
       jsx = true;
+    }
   });
   return jsx;
 }
@@ -190,8 +195,9 @@ function hookOptions(object) {
 function optionsMember(node) {
   const member = ts.isPropertyAssignment(node.parent) ? node.parent : node;
   if (!member.name || !ts.isObjectLiteralExpression(member.parent)) return false;
-  if (directOptions(member.parent))
+  if (directOptions(member.parent)) {
     return ["run", "factory", "input"].includes(nameOf(member.name));
+  }
   return hookOptions(member.parent);
 }
 
@@ -220,8 +226,9 @@ function localReturn(object, owner) {
   const symbol = symbolOf(object.parent.name);
   let found = false;
   ownWalk(owner.body, (use) => {
-    if (ts.isReturnStatement(use) && use.expression && symbolOf(use.expression) === symbol)
+    if (ts.isReturnStatement(use) && use.expression && symbolOf(use.expression) === symbol) {
       found = true;
+    }
   });
   return found;
 }
@@ -281,8 +288,9 @@ function dependencyUnit(receiver) {
 
 function resolvedUnit(receiver) {
   if (ts.isIdentifier(receiver)) receiver = initializerOf(receiver) ?? receiver;
-  if (!ts.isCallExpression(receiver) || !ts.isPropertyAccessExpression(receiver.expression))
+  if (!ts.isCallExpression(receiver) || !ts.isPropertyAccessExpression(receiver.expression)) {
     return undefined;
+  }
   return receiver.expression.name.text === "resolve"
     ? initializerOf(receiver.arguments[0])
     : undefined;
@@ -299,8 +307,9 @@ function resolvedMethod(call) {
       isFunction(child) &&
       nameOf(functionName(child)) === call.expression.name.text &&
       ownedMethod(child)
-    )
+    ) {
       method = child;
+    }
   });
   return method;
 }
@@ -311,8 +320,9 @@ function externalCall(node) {
     /^(?:Object\.(?:freeze|assign)$|Reflect\.|String$|Number$|Boolean$)/.test(
       nameOf(node.expression),
     )
-  )
+  ) {
     return false;
+  }
   const declarations = resolvedMethod(node) ?? checker.getResolvedSignature(node)?.declaration;
   return (
     declarations &&
@@ -365,8 +375,9 @@ function callbackUse(use) {
     !/\.(?:addEventListener|removeEventListener|on|once|defer|dispose|listen|hold)$/.test(
       nameOf(call.expression),
     )
-  )
+  ) {
     return false;
+  }
   return (
     ts.isCallExpression(call) &&
     call.arguments.includes(use) &&
@@ -410,8 +421,9 @@ function nativeOption(node) {
   while (
     ts.isPropertyAssignment(object.parent) &&
     ts.isObjectLiteralExpression(object.parent.parent)
-  )
+  ) {
     object = object.parent.parent;
+  }
   const call = object.parent;
   return argumentOf(object, call) && externalCall(call) && externalDeclaration(call);
 }
@@ -421,11 +433,13 @@ function namedNativeCallback(node) {
   if (!name) return false;
   const symbol = symbolOf(name);
   let callback = false;
-  for (const source of sources)
+  for (const source of sources) {
     walk(source, (use) => {
-      if (ts.isIdentifier(use) && use !== name && symbolOf(use) === symbol && callbackUse(use))
+      if (ts.isIdentifier(use) && use !== name && symbolOf(use) === symbol && callbackUse(use)) {
         callback = true;
+      }
     });
+  }
   return callback;
 }
 
@@ -436,8 +450,9 @@ function classifyNativeCallback(node) {
 }
 
 function graphOwner(node) {
-  for (let parent = enclosingFunction(node); parent; parent = enclosingFunction(parent))
+  for (let parent = enclosingFunction(node); parent; parent = enclosingFunction(parent)) {
     if (optionsMember(parent) || factoryBody(parent)) return true;
+  }
   return false;
 }
 
@@ -454,8 +469,9 @@ function unitType(type) {
     checker
       .getPropertiesOfType(type)
       .some((prop) => /^__@(?:resource|operation|data|tag|extension)Sym@/.test(prop.name))
-  )
+  ) {
     return true;
+  }
   return ["Resource", "Operation", "Data", "Tag", "Extension"].includes(
     type.aliasSymbol?.name ?? type.symbol?.name,
   );
@@ -506,8 +522,9 @@ function primitiveType(type) {
 function propertyContains(prop, mode, seen, depth) {
   const decl = prop.valueDeclaration ?? prop.declarations?.at(0);
   if (!decl) return false;
-  if (mode === "react" && /^(?:ctx|context|clock|signal|scope|controller)$/.test(prop.name))
+  if (mode === "react" && /^(?:ctx|context|clock|signal|scope|controller)$/.test(prop.name)) {
     return true;
+  }
   if (!files.includes(decl.getSourceFile().fileName) && prop.name !== "signal") return false;
   return contains(checker.getTypeOfSymbolAtLocation(prop, decl), mode, seen, depth + 1);
 }
@@ -518,8 +535,9 @@ function awaitedContains(type, mode, seen, depth) {
 }
 
 function nestedTypeContains(type, mode, seen, depth) {
-  if (type.isUnionOrIntersection())
+  if (type.isUnionOrIntersection()) {
     return type.types.some((part) => contains(part, mode, seen, depth + 1));
+  }
   if (type.flags & ts.TypeFlags.TypeParameter) {
     const bound = checker.getBaseConstraintOfType(type);
     return bound ? contains(bound, mode, seen, depth + 1) : mode === "plain";
@@ -545,8 +563,9 @@ function contains(type, mode, seen = new Set(), depth = 0) {
 }
 
 function exportedFunction(node) {
-  if (node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword))
+  if (node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
     return true;
+  }
   const module = checker.getSymbolAtLocation(node.getSourceFile());
   if (!module) return false;
   let name = functionName(node);
@@ -572,8 +591,9 @@ function checkScopeReference(node) {
   if (
     ![ts.isIdentifier, ts.isStringLiteral].some((kind) => kind(node)) ||
     !coreSymbol(node, "createScope")
-  )
+  ) {
     return;
+  }
   if (ts.isImportSpecifier(node.parent) || ts.isImportClause(node.parent)) return;
   fail(node, "scope-entry-only");
 }
@@ -753,20 +773,23 @@ const browserHttpDeclarations = new Set([
 ]);
 
 function typeReference(node) {
-  for (let parent = node.parent; parent; parent = parent.parent)
+  for (let parent = node.parent; parent; parent = parent.parent) {
     if (ts.isTypeNode(parent) || typeOnlyImport(parent)) return true;
+  }
   return false;
 }
 
 function referenceSymbol(node) {
-  if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent))
+  if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent)) {
     return checker
       .getTypeAtLocation(node.parent)
       .getProperty(nameOf(node.propertyName ?? node.name));
+  }
   if (ts.isElementAccessExpression(node)) {
     const key = checker.getTypeAtLocation(node.argumentExpression);
-    if (key.isStringLiteral())
+    if (key.isStringLiteral()) {
       return checker.getTypeAtLocation(node.expression).getProperty(key.value);
+    }
   }
   return locationSymbol(node);
 }
@@ -777,8 +800,9 @@ function nativeReference(node, declarations) {
     !ts.isBindingElement(node) &&
     !ts.isPropertyAccessExpression(node) &&
     !ts.isElementAccessExpression(node)
-  )
+  ) {
     return false;
+  }
   return referenceSymbol(node)?.declarations?.some((decl) => declarations.has(decl));
 }
 
@@ -789,19 +813,22 @@ function checkFetch(node) {
 
 function checkBrowserHttp(node) {
   if (typeReference(node)) return;
-  if (nativeReference(node, browserHttpDeclarations))
+  if (nativeReference(node, browserHttpDeclarations)) {
     fail(node, "http-client: app HTTP must use httpRequest.controller");
+  }
 }
 
 function checkHttpResource(node) {
   if (typeReference(node)) return;
-  if (protocolUnitReference(node, "src/backend/http.ts", "http"))
+  if (protocolUnitReference(node, "src/backend/http.ts", "http")) {
     fail(node, "http-resource: app code must depend on httpRequest.controller");
+  }
 }
 
 function checkHttpBackend(node) {
-  if (protocolUnitReference(node, "src/backend/http-backend.ts", "httpBackend"))
+  if (protocolUnitReference(node, "src/backend/http-backend.ts", "httpBackend")) {
     fail(node, "http-backend: app code must depend on httpRequest.controller");
+  }
 }
 
 function protocolUnitReference(node, file, name) {
@@ -810,8 +837,9 @@ function protocolUnitReference(node, file, name) {
     !ts.isBindingElement(node) &&
     !ts.isPropertyAccessExpression(node) &&
     !ts.isElementAccessExpression(node)
-  )
+  ) {
     return false;
+  }
   const symbol = referenceSymbol(node);
   const target = aliasTarget(symbol);
   return target?.declarations?.some(
@@ -825,8 +853,9 @@ function protocolUnitReference(node, file, name) {
 function checkRequestHeaders(node) {
   const file = pathOf(node);
   if (file === "src/backend/auth.server.ts") return;
-  if (protocolUnitReference(node, "src/backend/headers.server.ts", "requestHeaders"))
+  if (protocolUnitReference(node, "src/backend/headers.server.ts", "requestHeaders")) {
     fail(node, "protocol-headers: app code must use principal or currentUser");
+  }
 }
 
 const builtinResponse = checker.resolveName("Response", undefined, ts.SymbolFlags.Value, false);
@@ -836,13 +865,15 @@ const responseDeclarations = new Set(builtinResponse.declarations);
 function checkResponse(node) {
   const file = pathOf(node);
   if (file.startsWith("src/routes/")) return;
-  if (nativeReference(node, responseDeclarations))
+  if (nativeReference(node, responseDeclarations)) {
     fail(node, "protocol-response: replies belong to routes or the base");
+  }
 }
 
 function checkMountedAuth(node) {
-  if (protocolUnitReference(node, "src/parts/auth/handle.server.ts", "handleAuth"))
+  if (protocolUnitReference(node, "src/parts/auth/handle.server.ts", "handleAuth")) {
     fail(node, "protocol-auth: only the auth route may use the mounted handler");
+  }
 }
 
 const httpClients = [
@@ -880,15 +911,17 @@ function requireReference(node) {
 
 function importSpecifier(node) {
   if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return node.moduleSpecifier;
-  if (ts.isImportEqualsDeclaration(node))
+  if (ts.isImportEqualsDeclaration(node)) {
     return ts.isExternalModuleReference(node.moduleReference)
       ? node.moduleReference.expression
       : undefined;
+  }
   if (
     ts.isCallExpression(node) &&
     (["import", "require"].includes(nameOf(node.expression)) || requireReference(node.expression))
-  )
+  ) {
     return node.arguments[0];
+  }
 }
 
 function typeOnlyExport(node) {
@@ -928,8 +961,9 @@ function createRequireReference(node) {
 function checkHttpImport(node) {
   if (typeOnlyImport(node) || typeReference(node)) return;
   const specifier = importSpecifier(node);
-  if (createRequireReference(node))
+  if (createRequireReference(node)) {
     fail(node, "http-client: createRequire is not allowed in app code");
+  }
   if (!specifier) return;
   if (!ts.isStringLiteralLike(specifier)) {
     fail(node, "http-client: module loads must use a literal path");
@@ -939,8 +973,9 @@ function checkHttpImport(node) {
     httpClients.some(
       (client) => specifier.text === client || specifier.text.startsWith(`${client}/`),
     )
-  )
+  ) {
     fail(node, "http-client: app HTTP must use httpRequest.controller");
+  }
 }
 
 function checkService(node) {
@@ -963,8 +998,9 @@ function callerOf(use) {
         ts.isCallExpression(call) &&
         /\.(?:map|filter|flatMap|reduce|then|catch|finally)$/.test(nameOf(call.expression))
       )
-    )
+    ) {
       break;
+    }
     caller = enclosingFunction(caller);
   }
   return caller;
@@ -1030,8 +1066,9 @@ function addCaller(use, name, symbol, node, source, callers) {
 function callSites(name, node) {
   const symbol = symbolOf(name),
     callers = new Map();
-  for (const source of sources)
+  for (const source of sources) {
     walk(source, (use) => addCaller(use, name, symbol, node, source, callers));
+  }
   return [...callers.values()].sort((a, b) => a.localeCompare(b));
 }
 
@@ -1046,8 +1083,9 @@ function paramRow(param) {
     /^(?:ctx|context|clock|signal|scope|controller)$/i.test(nameOf(param.name)) ||
     type.flags & ts.TypeFlags.Any ||
     contains(type, "plain")
-  )
+  ) {
     fail(param, "plain-param");
+  }
   return `  - \`${nameOf(param.name)}\`: \`${param.type?.getText() ?? checker.typeToString(type)}\`. ${doc}`;
 }
 
@@ -1075,8 +1113,9 @@ function checkCast(node) {
   if (
     (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) &&
     contains(checker.getTypeAtLocation(node.type), "plain")
-  )
+  ) {
     fail(node, "plain-cast");
+  }
 }
 
 function checkEffect(node) {
@@ -1085,8 +1124,9 @@ function checkEffect(node) {
     effectReference(node) ||
     ts.isAwaitExpression(node) ||
     serviceAllocation(node)
-  )
+  ) {
     fail(node, "plain-effect");
+  }
   checkCast(node);
 }
 
@@ -1099,13 +1139,15 @@ function checkScopeReturn(node) {
     !factoryBody(node) &&
     exportedFunction(node) &&
     contains(checker.getReturnTypeOfSignature(signature), "scope")
-  )
+  ) {
     fail(node, "exported-scope");
+  }
 }
 
 function checkComponent(node) {
-  for (const param of node.parameters)
+  for (const param of node.parameters) {
     if (contains(checker.getTypeAtLocation(param), "react")) fail(param, "component-param");
+  }
   ownWalk(node.body, (child) => {
     if (ts.isAwaitExpression(child)) fail(child, "component-await");
   });
@@ -1201,16 +1243,18 @@ function requestSchema(node, seen = new Set()) {
       type
         .getConstructSignatures()
         .some((signature) => wireType(checker.getReturnTypeOfSignature(signature), "Request"))
-    )
+    ) {
       request = true;
+    }
     if (ts.isIdentifier(child) && requestSchema(variableInitializer(symbol), seen)) request = true;
   });
   return request;
 }
 
 function checkOperationInput(input) {
-  if (requestSchema(input))
+  if (requestSchema(input)) {
     fail(input, "operation-wire-input: requests belong to the protocol layer");
+  }
 }
 
 function functionImplementation(node, seen = new Set()) {
@@ -1219,8 +1263,9 @@ function functionImplementation(node, seen = new Set()) {
   seen.add(node);
   if (isFunction(node)) return node;
   const symbol = locationSymbol(node);
-  if (symbol?.valueDeclaration && isFunction(symbol.valueDeclaration))
+  if (symbol?.valueDeclaration && isFunction(symbol.valueDeclaration)) {
     return symbol.valueDeclaration;
+  }
   return functionImplementation(variableInitializer(symbol), seen);
 }
 
@@ -1236,12 +1281,14 @@ function checkOperationRun(run) {
     wireType(checker.getReturnTypeOfSignature(signature), "Response"),
   );
   const implementation = functionImplementation(expression);
-  if (implementation?.body)
+  if (implementation?.body) {
     walk(implementation.body, (child) => {
       checkOperationInputCast(child);
-      if (ts.isExpression(child) && wireType(checker.getTypeAtLocation(child), "Response"))
+      if (ts.isExpression(child) && wireType(checker.getTypeAtLocation(child), "Response")) {
         response = true;
+      }
     });
+  }
   if (response) fail(run, "operation-wire-output: replies belong to the protocol layer");
 }
 
@@ -1261,8 +1308,9 @@ function checkOperationWire(node) {
 }
 
 for (const source of sources) {
-  for (const error of program.getSyntacticDiagnostics(source))
+  for (const error of program.getSyntacticDiagnostics(source)) {
     fail(source, ts.flattenDiagnosticMessageText(error.messageText, " "));
+  }
   walk(source, (node) => {
     checkOperationWire(node);
     checkFetch(node);
@@ -1280,10 +1328,11 @@ for (const source of sources) {
   });
 }
 
-if (plain.length > PLAIN_MAX)
+if (plain.length > PLAIN_MAX) {
   failures.push(
     `PLAIN.md: plain-max ${plain.length} exceeds ${PLAIN_MAX}; raising the cap needs a decision`,
   );
+}
 
 const list = `# Plain functions\n\nThis list is checked against src.\nCallers include direct calls and typed callback registrations.\nRepeated calls by one caller count once; self-calls do not count.\nTests and generated files do not count.\n\n${plain.join("\n\n")}\n`;
 
@@ -1305,10 +1354,11 @@ if (failures.length) {
   process.exit(1);
 }
 
-if (!process.argv.includes("--list"))
+if (!process.argv.includes("--list")) {
   console.log(
     `Plain check passed: ${sources.length} files, ${plain.length} plain functions (cap ${PLAIN_MAX}).`,
   );
+}
 
 if (process.argv.includes("--prove")) {
   const planted = await mkdtemp(join(tmpdir(), "start-plain-red-"));
@@ -2115,8 +2165,9 @@ if (process.argv.includes("--prove")) {
   if (names) assert.equal(selected.length, names.length, "unknown planted case");
   try {
     await cp(join(root, "src"), join(planted, "src"), { recursive: true });
-    for (const file of ["tsconfig.json", "PLAIN.md", "package.json", ".tinker"])
+    for (const file of ["tsconfig.json", "PLAIN.md", "package.json", ".tinker"]) {
       await cp(join(root, file), join(planted, file), { recursive: true });
+    }
     await cp(join(root, "tests"), join(planted, "tests"), { recursive: true });
     await symlink(join(root, "node_modules"), join(planted, "node_modules"), "dir");
     const generated = join(planted, ".tinker/tsconfig.json");

@@ -67,10 +67,11 @@ async function hashes(consumer) {
     ".env.example",
     ".gitignore",
     "components.json",
-  ])
+  ]) {
     result[file] = createHash("sha256")
       .update(await readFile(join(consumer, file)))
       .digest("hex");
+  }
   return result;
 }
 
@@ -119,10 +120,11 @@ async function serve(consumer, full, serviceEnv) {
   });
   console.log(`App server PID ${child.pid}: ${origin}`);
   assert.ok(run("curl", ["--fail", "--silent", `${origin}/`], consumer).includes("Hello, world."));
-  if (full)
+  if (full) {
     assert.ok(
       run("curl", ["--fail", "--silent", `${origin}/demo`], consumer).includes("A shared counter"),
     );
+  }
   console.log(
     `PASS: served ${full ? "/ and /demo" : "/"} HTTP 200; original first page still says Hello, world.`,
   );
@@ -130,8 +132,9 @@ async function serve(consumer, full, serviceEnv) {
 }
 
 try {
-  for (const name of ["core", "react"])
+  for (const name of ["core", "react"]) {
     run("vp", ["pm", "pack", "--pack-destination", packs], join(root, "packages", name));
+  }
   run(process.execPath, [join(root, "packages/start/scripts/pack.mjs"), packs]);
   const staticServer = spawn(
     process.execPath,
@@ -296,8 +299,9 @@ try {
     if (full) {
       const plain = report.replace(/\s+/g, " ");
       for (const part of item.meta.parts) assert.ok(plain.includes(`tinker({ ${part}: true })`));
-      for (const names of Object.values(item.meta.seams))
+      for (const names of Object.values(item.meta.seams)) {
         for (const needed of Object.values(names)) assert.ok(plain.includes(needed.line));
+      }
       await wire(consumer, item);
     }
     run("vp", ["build"], consumer);

@@ -95,8 +95,9 @@ void test("a catch parameter used by a unit config stays dynamic", () => {
 
 void test("dotted and dashed test filenames and test directories are excluded", () => {
   const src = core + "function f() { operation({ label: 'x' }); }";
-  for (const file of ["a.b.test.ts", "foo-bar.spec.tsx", "pkg/tests/a.ts", "pkg/test/a.ts"])
+  for (const file of ["a.b.test.ts", "foo-bar.spec.tsx", "pkg/tests/a.ts", "pkg/test/a.ts"]) {
     assert.deepEqual(unitCouldBeModuleLevel(src, file), []);
+  }
 });
 
 void test("this is not a module-level value", () => {

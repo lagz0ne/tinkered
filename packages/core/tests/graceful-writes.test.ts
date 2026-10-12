@@ -422,8 +422,9 @@ for (const mode of ["root stop", "root close", "session close"]) {
           ? root.close({ graceful: true })
           : root.closed;
     if (mode === "root stop") stop.abort();
-    if (mode !== "session close")
+    if (mode !== "session close") {
       await expect.poll(() => root.settle({ run: () => 0 }).status).toBe("failed");
+    }
     finish.resolve();
     expect(await result).toEqual({ status: "success", value: 7 });
     const ended = await closing;

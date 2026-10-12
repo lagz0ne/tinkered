@@ -49,8 +49,9 @@ await hooked.ready;
 hooked.run(op);
 
 for (const scope of [root, hooked]) {
-  if ((await scope.close({ graceful: true })).status !== "success")
+  if ((await scope.close({ graceful: true })).status !== "success") {
     throw new Error("Warm scope close failed");
+  }
 }
 
 if (sum !== iterations * 44) throw new Error("Warm loop result changed");

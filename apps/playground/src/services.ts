@@ -124,8 +124,9 @@ function readSignal(raw: unknown): Signal | undefined {
   if (typeof raw !== "object" || raw === null) return undefined;
   const { __pg, text } = raw as { __pg?: unknown; text?: unknown };
   if (__pg === "ok") return { kind: "ok" };
-  if (__pg === "error")
+  if (__pg === "error") {
     return { kind: "error", text: typeof text === "string" ? text : "runtime error" };
+  }
   return undefined;
 }
 

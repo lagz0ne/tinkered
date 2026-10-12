@@ -104,8 +104,9 @@ export function Todos() {
                 await save.runAsync({
                   rawInput: { kind: "add", title: new FormData(form).get("title") },
                 })
-              )
+              ) {
                 form.reset();
+              }
             }}
           >
             <label className="grid min-w-0 flex-1 gap-2 text-sm font-medium">

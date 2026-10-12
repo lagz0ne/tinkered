@@ -111,8 +111,9 @@ function resolveSource(spec: string, from: Source, sources: readonly Source[]): 
 
 function modulePlace(sources: readonly Source[], from: Source, node: Node): Place | undefined {
   const parent = node.parent;
-  if (!parent || (parent.name !== "ImportDeclaration" && parent.name !== "ExportDeclaration"))
+  if (!parent || (parent.name !== "ImportDeclaration" && parent.name !== "ExportDeclaration")) {
     return undefined;
+  }
   const target = resolveSource(text(from, node).slice(1, -1), from, sources);
   return target ? { file: target.name, offset: 0 } : undefined;
 }
@@ -175,8 +176,9 @@ function paramNamed(kid: Node, source: Source, name: string): boolean {
     const key = childNamed(kid, "PropertyName");
     return key !== undefined && text(source, key) === name;
   }
-  if (kid.name === "VariableDefinition" || kid.name === "TypeDefinition")
+  if (kid.name === "VariableDefinition" || kid.name === "TypeDefinition") {
     return text(source, kid) === name;
+  }
   return false;
 }
 
@@ -195,8 +197,9 @@ function declaresParam(fn: Node, source: Source, name: string): boolean {
 function shadowed(node: Node, source: Source, name: string): boolean {
   for (let scope = node.parent; scope; scope = scope.parent) {
     if (scope.parent === null) return false;
-    if (SCOPES[scope.name] && children(scope).some((kid) => declarationIn(kid, source, name)))
+    if (SCOPES[scope.name] && children(scope).some((kid) => declarationIn(kid, source, name))) {
       return true;
+    }
     if (FUNCTIONS[scope.name] && declaresParam(scope, source, name)) return true;
   }
   return false;
@@ -296,8 +299,9 @@ export function resolveDefinition(
   if (imported) return importPlace(sources, from, node, imported, visited);
   if (blocked(node)) return undefined;
   const exported = ancestor(node, "ExportDeclaration");
-  if (exported && childNamed(exported, "String"))
+  if (exported && childNamed(exported, "String")) {
     return reexportPlace(sources, from, node, exported, visited);
+  }
   const name = text(from, node);
   if (shadowed(node, from, name)) return undefined;
   return linkName(sources, from, name, visited);

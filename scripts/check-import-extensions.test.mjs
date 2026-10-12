@@ -30,8 +30,9 @@ await test("the gate rejects saved module endings, then accepts the rerunnable c
     });
     assert.equal(red.status, 1);
     assert.match(red.stdout, /5 hit\(s\)/);
-    for (const [file, text] of Object.entries(files))
+    for (const [file, text] of Object.entries(files)) {
       writeFileSync(join(root, file), stripDocument(text).text);
+    }
     const green = spawnSync(process.execPath, ["scripts/check-import-extensions.mjs", ...paths], {
       encoding: "utf8",
     });

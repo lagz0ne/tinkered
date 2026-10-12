@@ -328,8 +328,9 @@ test("an HTTP method is normalized once for sending and spans", async () => {
   });
   await scope.ready;
   try {
-    for (const method of ["patch", "x!#$%&'*+-.^_`|~09"])
+    for (const method of ["patch", "x!#$%&'*+-.^_`|~09"]) {
       await scope.run(httpRequest, { rawInput: { url: "https://example.test/x", method } });
+    }
     expect(methods).toEqual(["PATCH", "X!#$%&'*+-.^_`|~09"]);
     expect(
       scope
@@ -357,11 +358,12 @@ test("an HTTP method rejects non-token characters before sending", async () => {
   });
   await scope.ready;
   try {
-    for (const method of ["", "GE T", "GET\r\n", "MÉTHOD", "()"])
+    for (const method of ["", "GE T", "GET\r\n", "MÉTHOD", "()"]) {
       expect(
         (await scope.settle(httpRequest, { rawInput: { url: "https://example.test/x", method } }))
           .status,
       ).toBe("failed");
+    }
     expect(sent).toBe(0);
   } finally {
     stop.abort();

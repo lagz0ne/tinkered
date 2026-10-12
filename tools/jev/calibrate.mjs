@@ -35,8 +35,9 @@ function readCases() {
     ...SURVIVOR_CASES,
   })) {
     add(judge, true, pair.bad, "fixture:bad");
-    for (const k of Object.keys(pair).filter((k) => k.startsWith("clean")))
+    for (const k of Object.keys(pair).filter((k) => k.startsWith("clean"))) {
       add(judge, false, pair[k], `fixture:${k}`);
+    }
   }
   if (existsSync(BANK)) {
     for (const line of readFileSync(BANK, "utf8").split("\n").filter(Boolean)) {

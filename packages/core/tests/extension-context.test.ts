@@ -357,8 +357,9 @@ test("a hook can settle a child failure without failing its owner", async () => 
         label: "settle",
         hooks: {
           run: (event) => {
-            if (event.op === outer)
+            if (event.op === outer) {
               expect(event.settle(child)).toMatchObject({ status: "failed", error: cause });
+            }
             return event.next();
           },
         },

@@ -28,7 +28,7 @@ void describe("S19 repo lane", () => {
   ].join("\n");
 
   void it("checks roots and wrapped handle types in apps and examples", () => {
-    for (const file of [APP, "examples/basic.ts", `/repo/${APP}`])
+    for (const file of [APP, "examples/basic.ts", `/repo/${APP}`]) {
       assert.deepEqual(
         lifetimeRows(source, file).map((r) => [r.id, r.line]),
         [
@@ -38,6 +38,7 @@ void describe("S19 repo lane", () => {
         ],
         file,
       );
+    }
   });
 
   void it("keeps driver helpers and tests out of the repo lane, with the writer src lane intact", () => {
@@ -45,32 +46,36 @@ void describe("S19 repo lane", () => {
       "tools/blueprint/src/index.ts",
       "src/app.ts",
       "apps/tracker/scripts/build.ts",
-    ])
+    ]) {
       assert.deepEqual(lifetimeRows(source, file), [], file);
+    }
     assert.equal(lifetimeRows(source, "tools/blueprint/src/index.ts", true).length, 3);
     for (const file of [
       "apps/tracker/src/app.test.ts",
       "examples/tests/fixture.ts",
       "apps/start-scaffold/src/scaffold/backend/lifetime.spec.ts",
-    ])
-      for (const writer of [false, true])
+    ]) {
+      for (const writer of [false, true]) {
         assert.deepEqual(lifetimeRows(source, file, writer), [], file);
+      }
+    }
   });
 });
 
 void describe("S29 lifetimeByHand", () => {
   void it("reports each ready catch at its close call, including named failure callbacks", () => {
-    for (const writer of [false, true])
+    for (const writer of [false, true]) {
       assert.deepEqual(
         lifetimeRows(ready, APP, writer)
           .filter((r) => r.id === "S29")
           .map((r) => r.line),
         [6, 12, 16, 20, 26, 35, 41],
       );
+    }
   });
 
   void it("reports abort listeners and inline or local promise waits followed by graceful close", () => {
-    for (const writer of [false, true])
+    for (const writer of [false, true]) {
       assert.deepEqual(
         lifetimeRows(stop, APP, writer).map((r) => [r.id, r.line]),
         [
@@ -82,14 +87,16 @@ void describe("S29 lifetimeByHand", () => {
           ["S29", 40],
         ],
       );
+    }
   });
 
   void it("leaves other owners, streams, sessions, forced stops, work cleanup, and hidden names alone", () => {
-    for (const writer of [false, true])
+    for (const writer of [false, true]) {
       assert.deepEqual(
         lifetimeRows(fixture("near-misses"), APP, writer).filter((r) => r.id === "S29"),
         [],
       );
+    }
   });
 
   void it("checks ready in tests too and leaves every core file out of both lanes", () => {
@@ -98,22 +105,25 @@ void describe("S29 lifetimeByHand", () => {
       "apps/start-scaffold/tests/sync.test.ts",
       "src/app.spec.ts",
       "tests/app.browser.ts",
-    ])
+    ]) {
       for (const writer of [false, true]) {
         assert.equal(lifetimeRows(ready, file, writer).length, 7, file);
         assert.deepEqual(lifetimeRows(stop, file, writer), [], file);
       }
+    }
     for (const file of [
       "packages/core/src/index.ts",
       "packages/core/tests/lifetime.test.ts",
       "/repo/packages/core/tests/fixture.ts",
-    ])
-      for (const writer of [false, true])
+    ]) {
+      for (const writer of [false, true]) {
         assert.deepEqual(
           lifetimeRows(ready + stop, file, writer).filter((r) => r.id === "S29"),
           [],
           file,
         );
+      }
+    }
   });
 
   void it("limits repo source checks to apps, examples, and packages, with all writer files checked", () => {
@@ -122,8 +132,9 @@ void describe("S29 lifetimeByHand", () => {
       "examples/basic.ts",
       "tools/blueprint/tinker/process/index.ts",
       "packages/react/src/index.ts",
-    ])
+    ]) {
       assert.equal(lifetimeRows(stop, file).length, 6, file);
+    }
     for (const file of [
       "tools/boot.ts",
       "src/app.ts",

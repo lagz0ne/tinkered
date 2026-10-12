@@ -14,11 +14,12 @@ export const databaseSettings = resource({
   depends: { env },
   factory: ({ env }) => {
     const settings = databaseEnv.safeParse(env);
-    if (!settings.success)
+    if (!settings.success) {
       raise("BadSettings", {
         part: "database",
         keys: settings.error.issues.map((issue) => issue.path.join(".")),
       });
+    }
     return { url: settings.data.DATABASE_URL, migrations: "drizzle" };
   },
 });

@@ -45,8 +45,11 @@ function definition(program, name) {
 }
 
 function literalCount(node) {
-  if (["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"].includes(node.type))
+  if (
+    ["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"].includes(node.type)
+  ) {
     return 1;
+  }
   return children(node).reduce((total, child) => total + literalCount(child), 0);
 }
 
@@ -135,8 +138,9 @@ export function builtNames(code, map, names = hotFunctions) {
       if (!original) throw new Error(`Missing source declaration ${name}`);
       const built = declarations.find((node) => {
         const kind = node.init?.type ?? node.type;
-        if (!["FunctionDeclaration", "ClassDeclaration", "ClassExpression"].includes(kind))
+        if (!["FunctionDeclaration", "ClassDeclaration", "ClassExpression"].includes(kind)) {
           return false;
+        }
         const pos = positions.findLast((pos) => pos.generated <= node.id.start);
         return (
           pos?.source === source && pos.original >= original.start && pos.original < original.end
@@ -182,23 +186,27 @@ export function clientLibraries(map) {
 }
 
 export function ratchet(label, actual, limit) {
-  if (!Number.isInteger(limit) || actual > limit)
+  if (!Number.isInteger(limit) || actual > limit) {
     throw new Error(
       `${label}: ${actual} > baseline ${limit}; lower the value or review a baseline edit`,
     );
+  }
 }
 
 /** Keep existing over-limit roots, but never raise their saved ceiling. */
 export function rebaselineEngine(baseline, engine, bytecode, inlining) {
-  if (!inlining || baseline.inlining.OperationCtxIntoRunOnce !== true)
+  if (!inlining || baseline.inlining.OperationCtxIntoRunOnce !== true) {
     throw new Error("F1/F2 OperationCtx must remain inlined into runOnce with default Maglev");
+  }
   for (const name of hotFunctions) {
     const next = bytecode[name];
     const previous = baseline.bytecode[name];
-    if (!Number.isInteger(next) || !Number.isInteger(previous))
+    if (!Number.isInteger(next) || !Number.isInteger(previous)) {
       throw new Error(`F1 missing bytecode for ${name}`);
-    if (next > 460 && next > previous)
+    }
+    if (next > 460 && next > previous) {
       throw new Error(`F1 ${name}: ${previous} → ${next}; cannot raise bytecode above 460`);
+    }
   }
   return { ...baseline, node: engine.node, v8: engine.v8, bytecode };
 }

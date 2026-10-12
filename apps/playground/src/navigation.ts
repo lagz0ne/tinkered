@@ -26,8 +26,9 @@ const placeInput =
       typeof raw.offset === "number" &&
       Number.isInteger(raw.offset) &&
       raw.offset >= 0
-    )
+    ) {
       return { file: raw.file, offset: raw.offset };
+    }
     raise("InvalidInput", { operation, reason: "expected { file, offset }" });
   };
 

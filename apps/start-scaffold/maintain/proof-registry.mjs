@@ -40,10 +40,11 @@ async function hashes(dir) {
     for (const entry of await readdir(path, { withFileTypes: true })) {
       const file = join(path, entry.name);
       if (entry.isDirectory()) await visit(file);
-      else
+      else {
         result[relative(dir, file)] = createHash("sha256")
           .update(await readFile(file))
           .digest("hex");
+      }
     }
   }
   await visit(dir);
@@ -59,8 +60,9 @@ async function stop(child) {
 }
 
 try {
-  for (const name of ["core", "react"])
+  for (const name of ["core", "react"]) {
     run("vp", ["pm", "pack", "--pack-destination", packs], join(root, "packages", name));
+  }
   run(process.execPath, [join(root, "packages/start/scripts/pack.mjs"), packs], root);
   const release = join(scratch, "new-base");
   await mkdir(release);
@@ -173,12 +175,14 @@ try {
     "components.json",
     ".env.example",
     ".gitignore",
-  ])
+  ]) {
     configBefore[name] = await readFile(join(consumer, name), "utf8");
+  }
   run(tinker, ["upgrade", "0.7.1", "--from", packs]);
   assert.deepEqual(await hashes(join(consumer, "src")), userBefore);
-  for (const [name, content] of Object.entries(configBefore))
+  for (const [name, content] of Object.entries(configBefore)) {
     assert.equal(await readFile(join(consumer, name), "utf8"), content);
+  }
   console.log(
     "PASS: upgrade 0.7.0 -> 0.7.1 changed no user source or config; package.json and install files changed as expected.",
   );
@@ -196,8 +200,14 @@ try {
   await cp(join(consumer, "examples/demo.env.example"), join(consumer, ".env"));
   run("vp", ["build"]);
   run(tinker, ["doctor"]);
-  for (const name of ["profile-example", "auth-pages-example", "counter-example", "example-wiring"])
+  for (const name of [
+    "profile-example",
+    "auth-pages-example",
+    "counter-example",
+    "example-wiring",
+  ]) {
     run("npx", ["--yes", "shadcn@4.21.0", "add", `${url}/${name}.json`, "--yes"]);
+  }
   run("vp", ["build"]);
   run(tinker, ["doctor"]);
   console.log(

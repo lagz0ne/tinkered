@@ -80,8 +80,9 @@ export function stripSource(text, file = "sample.tsx") {
       .forEach((child) => visit(child, inSeams || propertyName(node) === "seams"));
   }
   visit(parseSync(file, text).program);
-  for (const edit of edits.sort((a, b) => b.start - a.start))
+  for (const edit of edits.sort((a, b) => b.start - a.start)) {
     text = text.slice(0, edit.start) + edit.text + text.slice(edit.end);
+  }
   return { text, count };
 }
 
@@ -149,11 +150,12 @@ export function stripJsonLines(text) {
       if (!result.count) return line;
       count += result.count;
       const row = JSON.parse(result.text);
-      if (typeof row.id === "string" && typeof row.label === "boolean" && row.judge && row.state)
+      if (typeof row.id === "string" && typeof row.label === "boolean" && row.judge && row.state) {
         row.id = createHash("sha1")
           .update(row.judge + String(row.label) + JSON.stringify(row.state))
           .digest("hex")
           .slice(0, 12);
+      }
       return JSON.stringify(row);
     })
     .join("\n");
@@ -175,11 +177,12 @@ function htmlText(html) {
   for (const part of html.matchAll(/<[^>]*>|&(?:quot|apos|lt|gt|amp|#39);|[^<&]+|[<&]/g)) {
     if (part[0].startsWith("<") && part[0].length > 1) continue;
     const value = entities[part[0]] ?? part[0];
-    for (let i = 0; i < value.length; i++)
+    for (let i = 0; i < value.length; i++) {
       offsets.push({
         start: part.index + i,
         end: part.index + (entities[part[0]] ? part[0].length : i + 1),
       });
+    }
     text += value;
   }
   return { text, offsets };
@@ -203,8 +206,9 @@ function stripHighlighted(html) {
       .forEach(visit);
   }
   visit(parseSync("sample.tsx", text).program);
-  for (const { start, end } of edits.sort((a, b) => b.start - a.start))
+  for (const { start, end } of edits.sort((a, b) => b.start - a.start)) {
     html = html.slice(0, start) + html.slice(end);
+  }
   return { text: html, count };
 }
 

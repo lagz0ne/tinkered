@@ -44,7 +44,7 @@ try {
     "--wait",
   ]);
   await run("browser-image", "docker", ["pull", "mcr.microsoft.com/playwright:v1.55.0-noble"]);
-  for (const name of ["core", "react"])
+  for (const name of ["core", "react"]) {
     await run(`pack-${name}`, "pnpm", [
       "--dir",
       join(repo, "packages", name),
@@ -52,8 +52,10 @@ try {
       "--out",
       join(stage, `${name}.tgz`),
     ]);
-  for (const name of ["dist", "drizzle", ".env"])
+  }
+  for (const name of ["dist", "drizzle", ".env"]) {
     await cp(join(app, name), join(stage, name), { recursive: true });
+  }
   await mkdir(join(stage, "scripts"));
   await mkdir(join(stage, "maintain"));
   await cp(join(app, "scripts/serve.mjs"), join(stage, "scripts/serve.mjs"));

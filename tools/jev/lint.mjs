@@ -103,7 +103,7 @@ for (const file of files) {
     console.log(`  ⚠ ${hit.kind} (L${hit.line}) in ${hit.functionName}: ${flags[0]}`);
   }
   for (const r of shape) console.log(`  ▪ L${r.line} ${r.id}: ${r.message}`);
-  for (const row of shape)
+  for (const row of shape) {
     report.push({
       file,
       kind: "shape",
@@ -112,6 +112,7 @@ for (const file of files) {
       flags: [],
       reads: row.message,
     });
+  }
   for (const u of units) {
     if (report.length >= limit) break;
     let answers;
@@ -134,8 +135,9 @@ const flagged = report.filter((r) => r.flags.length).length;
 const noted = report.filter((r) => r.reads).length;
 const counts = {};
 
-for (const r of report)
+for (const r of report) {
   for (const f of r.flags) counts[f.split(" ")[0]] = (counts[f.split(" ")[0]] ?? 0) + 1;
+}
 
 console.log(
   `\njev lint: ${report.length} unit(s), ${flagged} ⚠ flag(s), ${noted} ℹ note(s). By question: ${JSON.stringify(counts)}`,

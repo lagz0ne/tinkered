@@ -79,8 +79,9 @@ const msg = message(range);
 if (msg && d.trim()) {
   const a = await ask({ message: msg, diff: d }, { overclaim: OVERCLAIM.q });
   const p = a.overclaim.probability;
-  if (p >= OVERCLAIM.threshold)
+  if (p >= OVERCLAIM.threshold) {
     flag(`commit message overclaims (${pct(p)}) — check message vs diff`);
+  }
 }
 
 console.log(`\njev review: ${flags} flag(s). Advisory only — the gate and the lead decide.`);

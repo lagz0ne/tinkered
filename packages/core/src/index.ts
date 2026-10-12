@@ -916,8 +916,9 @@ const NO_NAMESPACE: readonly Namespace[] = Object.freeze([]);
  * silent second key space (ADR 0059: callers pass the value around; they never name one). */
 function nsChainOf(ns: Ns): readonly Namespace[] {
   const chain = Array.isArray(ns) ? ns : [ns];
-  if (chain.length === 0)
+  if (chain.length === 0) {
     raise("InvalidDependency", { label: "ns", reason: "empty namespace chain" });
+  }
   for (const key of chain) {
     if (!isNamespace(key)) raise("InvalidDependency", { label: "ns", reason: "not a namespace" });
   }
@@ -1227,8 +1228,9 @@ function ensureAccepting(layer: Layer): void {
   if (
     (layer.closed || layer.closing || (layer.swept && layer.up === undefined)) &&
     !hookCanRead(layer)
-  )
+  ) {
     raise("Disposed", { reason: "scope is closed" });
+  }
 }
 
 /** Only call entry uses the body's or caller's live ownership. Release still uses
@@ -1237,8 +1239,9 @@ function ensureRunning(layer: Layer, caller?: RunState): void {
   if (
     !layer.closed &&
     (layer.body !== undefined || (caller && caller !== RECOVERED && caller.live))
-  )
+  ) {
     return;
+  }
   ensureAccepting(layer);
 }
 
@@ -2052,8 +2055,9 @@ function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown
  * a cancel reason is a cancellation, so neither sticks. A layer already failing keeps its first
  * failure (ADR 0028), so a panic after that needs no record. */
 function stick(layer: Layer, error: unknown): void {
-  if (layer.failed !== undefined || isCancel(layer, error) || failureKind(error) === "error")
+  if (layer.failed !== undefined || isCancel(layer, error) || failureKind(error) === "error") {
     return;
+  }
   materialize(layer);
   (layer.panics ??= []).push(error);
 }
@@ -2153,8 +2157,9 @@ function isCancel(layer: Layer, error: unknown): boolean {
 }
 
 function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.End {
-  if (status === "failed")
+  if (status === "failed") {
     return isCancel(layer, error) ? { status: "cancelled" } : { status: "failed", error };
+  }
   return layer.aborted ? { status: "cancelled" } : SUCCESS;
 }
 
@@ -2608,7 +2613,7 @@ function runOnce<T, I>(
 ): unknown {
   if (call !== undefined) {
     if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
-    if (call.ns !== undefined)
+    if (call.ns !== undefined) {
       return runNsCall(
         layer,
         target,
@@ -2616,6 +2621,7 @@ function runOnce<T, I>(
         caller,
         call as Scope.Invocation<I> & { readonly ns: Ns },
       );
+    }
   }
   ensureRunning(layer, caller);
   const obs = layer.obs;
@@ -2669,7 +2675,7 @@ function operationController<T, I>(
 ): Scope.OperationController<T, I> {
   const execute = executorFor(layer, target, up, chain, caller);
   const runs = layer.exts.runs;
-  if (runs === undefined)
+  if (runs === undefined) {
     return new OperationControl(
       execute,
       layer,
@@ -2678,6 +2684,7 @@ function operationController<T, I>(
       chain,
       hookTarget,
     ) as Scope.OperationController<T, I>;
+  }
   const run = (call?: Scope.Invocation<I>): unknown =>
     runHookCall(layer, target, up, chain, caller, hookTarget, call);
   return new OperationControl(
@@ -2786,8 +2793,9 @@ function buildPlainDeps(
   override?: unknown,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
-  if (override === undefined)
+  if (override === undefined) {
     for (const key in depends) deps[key] = resolveDep(layer, depends[key], span, chain, caller);
+  }
   parked = undefined;
   return deps;
 }
@@ -2804,8 +2812,9 @@ function readOpDeps(
   caller?: RunState,
   override?: unknown,
 ): Record<string, unknown> {
-  if (override !== undefined || held === undefined)
+  if (override !== undefined || held === undefined) {
     return buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, caller);
+  }
   return buildDeps(
     layer,
     target.depends,
@@ -3035,12 +3044,13 @@ function drainReady(): void {
 }
 
 function completeInstance(owned: ResourceInstance): void {
-  if (owned.needs)
+  if (owned.needs) {
     for (const dependency of owned.needs) {
       dependency.users--;
       owned.layer.holds--;
       readyToFinish.push(dependency);
     }
+  }
   owned.needs = undefined;
   if (owned.done) owned.layer.pending.delete(owned.done);
   owned.finish?.();
@@ -3198,8 +3208,13 @@ function buildResource<T>(
   resolveDeps: typeof resolveResourceDeps = resolveResourceDeps,
 ): unknown {
   if (rec.busy) raise("CircularResource", { label: target.label });
-  if ((target as HookFlag).mayHook === false && rec.owned === undefined && !hasPresetLayers(owner))
+  if (
+    (target as HookFlag).mayHook === false &&
+    rec.owned === undefined &&
+    !hasPresetLayers(owner)
+  ) {
     return buildHooklessResource(owner, caller, target, up, chain, rec, resolveDeps);
+  }
   return buildTrackedResource(owner, caller, target, up, chain, rec, resolveDeps);
 }
 
@@ -3398,8 +3413,9 @@ function resourceSlot(
   ensureOpen(layer);
   ensureOpen(owner);
   recordUsed(layer.obs, up, target);
-  if (hasResourceNs(target, chain))
+  if (hasResourceNs(target, chain)) {
     return namedResourceSlot(owner, layer, target, up, chain, selected);
+  }
   selected?.(owner, target, rec);
   if (rec.built) return rec.built.value;
   if (rec.failed) return rec.failed.ready;
@@ -3815,8 +3831,9 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
    * no-hook close never reads the table. */
   const hooks = layer.exts.session && SESSION_HOOKS.get(layer);
   if (!layer.closing) {
-    if (canFastClose(layer))
+    if (canFastClose(layer)) {
       return tapSessionHooks(hooks, fastClose(layer, force, hooks, withData));
+    }
     /** Graceful drain retains state; call entry checks `closing` instead. */
     layer.closed = force || layer.aborted;
     layer.closing = startClose(layer, force, hooks, withData);
@@ -3827,8 +3844,9 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
    * hang, no throw — ADR 0026 Q3, 0027/0028). The real settled `Result` is `layer.closing`.
    * A session that ended in place holds the shared marker; a late `close()` on its handle gets a
    * clean `Result` of its own the same way (it recorded no failure and was not cancelled). */
-  if (layer.closing === ENDED_CLEAN || closeWouldReenter(layer))
+  if (layer.closing === ENDED_CLEAN || closeWouldReenter(layer)) {
     return Promise.resolve(buildResult(bestEffort(layer), layer, undefined));
+  }
   return tapSessionHooks(hooks, layer.closing);
 }
 
@@ -3863,10 +3881,11 @@ function collectLayerInstances(layer: Layer): ResourceInstance[] {
   const built: ResourceInstance[] = [];
   for (const state of layer.nodes.values()) {
     if (state.owned) built.push(state.owned);
-    if (state.named)
+    if (state.named) {
       for (const bucket of state.named.values()) {
         if (bucket.owned) built.push(bucket.owned);
       }
+    }
   }
   return built;
 }
@@ -3890,8 +3909,9 @@ function startClose(
    * the next tick (perf probe; the async `run` keeps every other case). */
   const first = (): Scope.Result | Promise<Scope.Result> => {
     if (forced) abortSubtree(layer);
-    if (layer.bodyEnd !== undefined || layer.children.size !== 0 || layer.pending.size !== 0)
+    if (layer.bodyEnd !== undefined || layer.children.size !== 0 || layer.pending.size !== 0) {
       return run();
+    }
     prepareTeardown(layer, forced, undefined);
     layer.closed = true;
     const settled = settleOutcome(layer, undefined);
@@ -4038,8 +4058,9 @@ function settleSession(
   cause: unknown,
   teardownCauses: unknown[] | undefined,
 ): void {
-  if (teardownCauses)
+  if (teardownCauses) {
     raise("TeardownFailed", { causes: hasFailure ? [cause, ...teardownCauses] : teardownCauses });
+  }
   if (hasFailure) throw cause;
 }
 
@@ -4329,8 +4350,9 @@ class ScopeHandle implements Scope.Handle {
     if (layer.closed) return resolveHeld(layer, target, ns);
     if (ns?.ns !== undefined) return resolveNs(layer, target, nsChainOf(ns.ns));
     if (isData(target)) return readCell(layer, target);
-    if (isResource(target))
+    if (isResource(target)) {
       return (this.controllerOf(target) as Scope.ResourceController<unknown>).resolve();
+    }
     if (isEdge(target)) return resolveEdge(layer, target, undefined);
     if (isExtension(target)) return resolveExtension(layer, target);
     return tagRequired(layer, target as Tag.Handle<unknown>);
@@ -4348,8 +4370,9 @@ class ScopeHandle implements Scope.Handle {
   run(op: unknown, call?: Scope.Invocation<unknown>): unknown {
     const layer = this.layer;
     ensureRunning(layer);
-    if (!isOperation(op))
+    if (!isOperation(op)) {
       return runInline(layer, op as Scope.Inline<Scope.Depends, unknown, unknown>, call);
+    }
     return (this.controllerOf(op) as { run(call?: Scope.Invocation<unknown>): unknown }).run(call);
   }
   /** `settle` uses a twin controller whose caller is RECOVERED. */
@@ -4395,8 +4418,9 @@ class ScopeHandle implements Scope.Handle {
     b?: (scope: Scope.Handle) => R | PromiseLike<R>,
   ): Promise<R> {
     if (typeof a === "function") return runSession(this.layer, undefined, a);
-    if (!b)
+    if (!b) {
       raise("InvalidDependency", { label: "session", reason: "session(options, fn) needs fn" });
+    }
     return runSession(this.layer, a, b);
   }
   /** Safe to pass as `cells.forEach(scope.release)`; made on first read and then retained.
@@ -4464,8 +4488,9 @@ function settledValue(
 /** `settle`'s Result for what `run` threw or rejected with: a cancel reason on an aborted layer is
  * `cancelled`; anything else is `failed`. */
 function failedRun(layer: Layer, error: unknown, signal?: AbortSignal): RunResult<never> {
-  if (isCancel(layer, error) || (signal?.aborted && error === signal.reason))
+  if (isCancel(layer, error) || (signal?.aborted && error === signal.reason)) {
     return { status: "cancelled", reason: error };
+  }
   recover(layer, error);
   closeOrigin(error);
   const origin = originOf(error);
@@ -4622,8 +4647,9 @@ function expandFrame(frame: Layer, up: Layer): void {
  * data cell or a tag reads as it did before the close. A data cell reads the cells above it, never
  * a memo (see {@link dataController}). Anything else throws `Disposed`. */
 function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
-  if (SESSION_HOOKS.get(layer)?.state !== 1 || isResource(target) || isExtension(target))
+  if (SESSION_HOOKS.get(layer)?.state !== 1 || isResource(target) || isExtension(target)) {
     raise("Disposed", { reason: "scope is closed" });
+  }
   const chain = ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns);
   return isData(target)
     ? effectiveEntryNs(layer, target, chain).value
@@ -4658,10 +4684,11 @@ function extendHandle(
     session === undefined ? plain : withSessionCreate(plain, layer, session),
   );
   Object.assign(extended, { ready });
-  if (signal)
+  if (signal) {
     extended.closed = new Promise<Scope.Result>((resolveClosed) => {
       lifetime.finish = resolveClosed;
     });
+  }
   extended.close = watchRootClose(layer, extended, closers, lifetime);
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
   if (signal) listenForStop(extended, signal, lifetime);
@@ -4682,8 +4709,9 @@ function runHookCall<T, I>(
 ): unknown {
   ensureRunning(layer, caller);
   const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
-  if (!hasCallSession(call))
+  if (!hasCallSession(call)) {
     return runHookChain(layer, target, up, chain, caller, hookTarget, call);
+  }
   const result = runSessionWith(
     layer,
     { tags: call.tags, ns: chain },
@@ -4979,10 +5007,11 @@ function collectReleasedInstances(
   const state = nodeState(owner, target);
   const entry = affected.get(owner) ?? { built: new Set(), hooks: [] };
   if (state.owned) entry.built.add(state.owned);
-  if (state.named)
+  if (state.named) {
     for (const bucket of state.named.values()) {
       if (bucket.owned) entry.built.add(bucket.owned);
     }
+  }
   affected.set(owner, entry);
   invalidateResource(owner, target);
 }
@@ -5274,8 +5303,9 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return (this.resolver ??= ((target: Scope.Dependency, ns?: Scope.NsArg): unknown =>
       this.use(() => {
         const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-        if (this.layer.closed && this.flight === undefined)
+        if (this.layer.closed && this.flight === undefined) {
           return resolveHeld(this.layer, target, chain === undefined ? undefined : { ns: chain });
+        }
         if (isResource(target)) return this.resource(target, chain).resolve();
         return resolveNs(this.layer, target, chain);
       })) as Scope.Handle["resolve"]);
@@ -5367,8 +5397,9 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     caller: RunState | undefined,
   ): unknown {
     return this.use(() => {
-      if (!isOperation(op))
+      if (!isOperation(op)) {
         return runInline(this.layer, op, call, caller, this.ns, this.flight?.span);
+      }
       const controller = operationController(
         this.layer,
         op,
@@ -6145,8 +6176,13 @@ function resolveNamedResourceDeps(
     chain,
     state,
     (depOwner, depTarget, depState) => {
-      if (!superseded() && state instanceof NsResourceState && depState instanceof NsResourceState)
+      if (
+        !superseded() &&
+        state instanceof NsResourceState &&
+        depState instanceof NsResourceState
+      ) {
         linkNsResourceDependent(depState, state);
+      }
       selected?.(depOwner, depTarget, depState);
     },
   );

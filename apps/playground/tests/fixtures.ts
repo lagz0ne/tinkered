@@ -29,8 +29,9 @@ function reachable(entry: string, files: readonly PlaygroundFile[]): PlaygroundF
   };
   const out: PlaygroundFile[] = [];
   const visit = (file: PlaygroundFile | undefined, path: string) => {
-    if (!file)
+    if (!file) {
       raise("CompileFailed", { message: `[plugin: virtual-fs] Cannot find file "${path}"` });
+    }
     if (out.includes(file)) return;
     out.push(file);
     for (const [, from, bare] of file.content.matchAll(RELATIVE)) {

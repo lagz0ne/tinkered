@@ -55,13 +55,15 @@ for (const [id, g] of Object.entries(GUIDE)) {
   const q = g.q;
   if (md) {
     console.log(`**\`${id}\`** — ${q.instructions}\n`);
-    for (const [opt, meaning] of Object.entries(q.criteria))
+    for (const [opt, meaning] of Object.entries(q.criteria)) {
       console.log(`- \`${opt}\`: ${meaning}`);
+    }
     console.log("");
     continue;
   }
   console.log(`${id}: ${q.instructions}`);
-  for (const [opt, meaning] of Object.entries(q.criteria))
+  for (const [opt, meaning] of Object.entries(q.criteria)) {
     console.log(`  ${opt.padEnd(10)} ${meaning}`);
+  }
   console.log("");
 }

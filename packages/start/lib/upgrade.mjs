@@ -123,10 +123,11 @@ function finish(root) {
  */
 export function planUpgrade(root, version, options) {
   const pinned = bytes(root);
-  if (pinned.status === "fail" && !options.force)
+  if (pinned.status === "fail" && !options.force) {
     return {
       stop: `stop: ${pinned.lines.join("; ")}\nRun tinker doctor --fix first, or pass --force.`,
     };
+  }
   const next = release(root, version, options.from);
   if (next.missing) return { stop: `stop: ${next.missing} does not exist` };
   const pkg = readJson(join(root, "package.json"));

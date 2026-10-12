@@ -379,8 +379,9 @@ class ResourceOwner<T> {
       cached.status === status &&
       Object.is(cached.data, data) &&
       Object.is(cached.error, err)
-    )
+    ) {
       return cached;
+    }
     return (this.cached = {
       status,
       data,
@@ -423,8 +424,9 @@ export function useResource<T>(
   const [, force] = useReducer(RunOwner.bump, 0);
   const ref = useRef<ResourceOwner<T> | undefined>(undefined);
   let owner = ref.current;
-  if (owner === undefined || owner.scope !== scope || owner.handle !== handle || owner.ns !== ns)
+  if (owner === undefined || owner.scope !== scope || owner.handle !== handle || owner.ns !== ns) {
     owner = ref.current = new ResourceOwner(scope, handle, ns, force);
+  }
   owner.inherited = inherited;
   return useResolvedResource(owner, options.suspense === false);
 }
@@ -539,10 +541,11 @@ function notify<T, I>(
 /** Callback failures belong to the host's error reporting, not the operation's outcome. */
 function reportCallbackError(error: unknown): void {
   if (typeof reportError === "function") reportError(error);
-  else
+  else {
     queueMicrotask(() => {
       throw error;
     });
+  }
 }
 
 /** Each committed hook owns its view; old calls keep their result but lose publication on detach. */
@@ -624,8 +627,9 @@ class RunOwner<T, I> {
     const [variables] = call;
     const result = this.controller.settle(...call);
     if (!(result instanceof Promise)) return this.finish(id, result, variables);
-    if (this.live && this.runId === id)
+    if (this.live && this.runId === id) {
       this.publish({ status: "pending", data: undefined, error: undefined, variables });
+    }
     return result.then((settled) => this.finish(id, settled, variables));
   }
 
@@ -663,8 +667,9 @@ export function useRun<T, I>(
   const [, force] = useReducer(RunOwner.bump, 0);
   const ref = useRef<RunOwner<T, I> | undefined>(undefined);
   let owner = ref.current;
-  if (owner === undefined || owner.scope !== scope || owner.op !== op)
+  if (owner === undefined || owner.scope !== scope || owner.op !== op) {
     owner = ref.current = new RunOwner(scope, op, force);
+  }
   owner.options = options;
   useLayoutEffect(owner.attach, [owner]);
   return owner.handle();

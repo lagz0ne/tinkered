@@ -74,8 +74,9 @@ const passed = ["prerender", "pages", "spa", "sitemap"];
 export function passThrough(options) {
   const known = ["root", "compileHints", ...passed, ...Object.keys(parts)];
   const unknown = Object.keys(options).filter((key) => !known.includes(key));
-  if (unknown.length > 0)
+  if (unknown.length > 0) {
     throw new Error(`tinker(): unknown option ${unknown.join(", ")}; known: ${known.join(", ")}`);
+  }
   return Object.fromEntries(
     passed.filter((key) => key in options).map((key) => [key, options[key]]),
   );

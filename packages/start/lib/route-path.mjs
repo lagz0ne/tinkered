@@ -64,8 +64,9 @@ export function routeClash(file, owned) {
   const caught = owned.find(
     (path) => path.endsWith("/$") && routePath(file).startsWith(path.slice(0, -1)),
   );
-  if (caught)
+  if (caught) {
     return `takes ${routePath(file)} from ${caught}, a base route that answers every path under it`;
+  }
   const under = owned.find((path) => routePath(file, true).startsWith(`${path}/`));
   if (under) return `nests under ${under}, a base route with no outlet; the base page renders`;
   return null;

@@ -101,8 +101,9 @@ test("private cursors cannot read another real account's history", async () => {
       input: { accountId: snapshot.stream, after: 0 },
       tags: requestHeaders(grace),
     });
-    if (refused.status !== "failed")
+    if (refused.status !== "failed") {
       raise("BadInput", { reason: "expected private stream refusal" });
+    }
     if (!isError(refused.error, "StreamDenied")) throw refused.error;
     const anonymous = await root.settle(replayPrivate, {
       input: { accountId: snapshot.stream, after: 0 },

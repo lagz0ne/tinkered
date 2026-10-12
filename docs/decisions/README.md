@@ -93,3 +93,4 @@ by a new decision that names the old one.
 - [0109](0109-a-preset-replaces-the-whole-node.md): a preset replaces the whole node; its deps are not built.
 - [0107](0107-a-body-gets-outside-libraries-only-from-its-deps.md): a body gets outside libraries only from its deps.
 - [0110](0110-sign-out-reaches-open-streams-as-a-notice.md): sign-out reaches open streams as a notice; a wake no longer re-reads the account.
+- [0111](0111-a-body-reads-as-steps.md): a body reads as steps, a blank line between them; lint checks a floor.

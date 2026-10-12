@@ -179,23 +179,26 @@ try {
       ["client", "FAIL"],
     ],
   );
-  for (const check of ["bytecode", "inlining"])
+  for (const check of ["bytecode", "inlining"]) {
     assert.match(
       rows.find((row) => row.check === check).error,
       /run: node scripts\/check-fast-code.mjs --rebaseline-engine$/,
     );
+  }
   for (const [check, expected] of [
     ["slots", /F9 core/],
     ["closures", /F6 runOnce/],
     ["client", /F13 zod/],
-  ])
+  ]) {
     assert.match(rows.find((row) => row.check === check).error, expected);
+  }
   const recovered = run(undefined, ["--baseline", mismatchFile, "--rebaseline-engine"]);
   assert.equal(recovered.exit, 0, JSON.stringify(recovered));
   const updated = JSON.parse(read(mismatchFile));
   assert.deepEqual(updated, { ...mismatch, node: process.version, v8: process.versions.v8 });
-  for (const [name, size] of Object.entries(mismatch.bytecode))
+  for (const [name, size] of Object.entries(mismatch.bytecode)) {
     assert.ok(recovered.output.includes(`${name}: ${size} → ${size}`));
+  }
   const afterRecovery = run(undefined, [
     "--baseline",
     mismatchFile,

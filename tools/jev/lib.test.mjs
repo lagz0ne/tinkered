@@ -17,6 +17,7 @@ void test("core's index.ts is too big for one call; blueprint.ts fits", () => {
 });
 
 void test("preflight and review both guard the whole-file call with the size check", () => {
-  for (const tool of ["preflight.mjs", "review.mjs"])
+  for (const tool of ["preflight.mjs", "review.mjs"]) {
     assert.match(readFileSync(join(HERE, tool), "utf8"), /fitsOneCall\(code\)/, tool);
+  }
 });

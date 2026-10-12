@@ -166,8 +166,9 @@ function noteAssignment(left: ESTree.Node, right: ESTree.Node, flow: Flow): void
   if (left.type !== "MemberExpression") return;
   const key = keyName(left.property, left.computed);
   if (key === "attributes") flow.roots.push(right);
-  if (key !== undefined && left.object.type === "Identifier")
+  if (key !== undefined && left.object.type === "Identifier") {
     push(flow.writes, left.object.name, key);
+  }
 }
 
 /** Add the keys of every object `node` can be to `flow.keys`. */
@@ -212,8 +213,9 @@ type Binding = { name: string; at: number; rest: boolean; key?: string };
 function bindingsOf(param: ESTree.Node, at: number): Binding[] {
   if (param.type === "AssignmentPattern") return bindingsOf(param.left, at);
   if (param.type === "Identifier") return [{ name: param.name, at, rest: false }];
-  if (param.type === "RestElement" && param.argument.type === "Identifier")
+  if (param.type === "RestElement" && param.argument.type === "Identifier") {
     return [{ name: param.argument.name, at, rest: true }];
+  }
   if (param.type !== "ObjectPattern") return [];
   return param.properties.flatMap((entry) => {
     if (entry.type !== "Property") return [];
@@ -304,8 +306,9 @@ function callTargets(program: ESTree.Program): {
   };
   /** A variable given a function or a class: calls to its name reach that function or constructor. */
   const initSignature = (name: string | undefined, init: ESTree.Expression) => {
-    if (init.type === "ArrowFunctionExpression" || init.type === "FunctionExpression")
+    if (init.type === "ArrowFunctionExpression" || init.type === "FunctionExpression") {
       signature(name, init.params);
+    }
     if (init.type === "ClassExpression") classSignature(name, init);
   };
   const superOf = (node: ESTree.Class) => (node.superClass ? nameOf(node.superClass) : undefined);
@@ -319,13 +322,18 @@ function callTargets(program: ESTree.Program): {
     ClassExpression: (node) => supers.push(superOf(node)),
     "ClassExpression:exit": () => supers.pop(),
     VariableDeclarator: (node) => {
-      if (node.init !== null)
+      if (node.init !== null) {
         initSignature(node.id.type === "Identifier" ? node.id.name : undefined, node.init);
+      }
     },
     Property: (node) => {
       const key = keyName(node.key, node.computed);
-      if (node.value.type === "FunctionExpression" || node.value.type === "ArrowFunctionExpression")
+      if (
+        node.value.type === "FunctionExpression" ||
+        node.value.type === "ArrowFunctionExpression"
+      ) {
         signature(key, node.value.params);
+      }
     },
     MethodDefinition: (node) => signature(keyName(node.key, node.computed), node.value.params),
     CallExpression: (node) => calls.push({ call: node, superName: supers.at(-1) }),
@@ -558,8 +566,9 @@ function unwrapped(node: ESTree.Node): ESTree.Node {
     at.type === "ParenthesizedExpression" ||
     at.type === "TSNonNullExpression" ||
     at.type === "TSSatisfiesExpression"
-  )
+  ) {
     at = at.expression;
+  }
   return at;
 }
 
@@ -612,8 +621,9 @@ function isFromCast(node: ESTree.Node, casts: Casts): boolean {
   let at: ESTree.Node | undefined = node;
   while (at !== undefined) {
     if (at.type === "Identifier") return casts.names.has(at.name);
-    if (at.type === "ObjectExpression" || at.type === "ArrayExpression")
+    if (at.type === "ObjectExpression" || at.type === "ArrayExpression") {
       return literalHoldsCast(at, casts);
+    }
     if (isCastStep(at, casts)) return true;
     at = inner(at);
   }
@@ -625,11 +635,12 @@ function literalHoldsCast(
   node: ESTree.ObjectExpression | ESTree.ArrayExpression,
   casts: Casts,
 ): boolean {
-  if (node.type === "ArrayExpression")
+  if (node.type === "ArrayExpression") {
     return node.elements.some(
       (item) =>
         item !== null && isFromCast(item.type === "SpreadElement" ? item.argument : item, casts),
     );
+  }
   return node.properties.some((entry) =>
     isFromCast(entry.type === "SpreadElement" ? entry.argument : entry.value, casts),
   );
@@ -751,8 +762,9 @@ function gatherCasts(program: ESTree.Program, suppressed: (offset: number) => bo
       nameFn(gathered, name, node.value);
     },
     Property: (node) => {
-      if (isFunctionNode(node.value))
+      if (isFunctionNode(node.value)) {
         nameFn(gathered, keyName(node.key, node.computed), node.value);
+      }
     },
   }).visit(program);
   return gathered;
@@ -776,8 +788,9 @@ function declared(
   const value = node.init;
   if (value !== null) {
     gathered.flows.push({ value, names: bound });
-    if (isFunctionNode(value))
+    if (isFunctionNode(value)) {
       nameFn(gathered, node.id.type === "Identifier" ? node.id.name : undefined, value);
+    }
   }
   if (suppressed(node.id.start) || (value !== null && suppressed(value.start))) {
     for (const name of bound) gathered.names.add(name);
@@ -898,12 +911,14 @@ function untypedReads(
     },
     TemplateLiteral: (node) => {
       const [only] = node.quasis;
-      if (node.expressions.length === 0 && only !== undefined)
+      if (node.expressions.length === 0 && only !== undefined) {
         add(only.value.cooked ?? only.value.raw);
+      }
     },
     MemberExpression: (node) => {
-      if (!node.computed && (untyped(node.object) || suppressed(node.property.start)))
+      if (!node.computed && (untyped(node.object) || suppressed(node.property.start))) {
         add(node.property.name);
+      }
     },
     VariableDeclarator: (node) => destructure(node.id, node.init),
     AssignmentExpression: (node) => destructure(node.left, node.right),

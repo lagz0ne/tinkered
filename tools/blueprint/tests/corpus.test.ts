@@ -135,8 +135,9 @@ test("forKind answers a body template only with { body: true }", async () => {
 test("a pair template sits in pairs and in no forKind list", async () => {
   const loaded = await loadShipped();
   expect(loaded.pairs.map((template) => template.id)).toEqual(["whyDuplicate"]);
-  for (const kind of ["data", "resource", "operation", "tag"] as const)
+  for (const kind of ["data", "resource", "operation", "tag"] as const) {
     expect(loaded.forKind(kind).map((template) => template.id)).not.toContain("whyDuplicate");
+  }
 });
 
 test("explain uses plain text when no markdown flag is given", async () => {

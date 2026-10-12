@@ -52,8 +52,9 @@ async function releasePackage(path, packs, releaseVersion) {
   );
   for (const dependencies of [pkg.dependencies, pkg.devDependencies]) {
     for (const [name, version] of Object.entries(dependencies)) {
-      if (version.startsWith("npm:") && !version.slice(4).includes("@"))
+      if (version.startsWith("npm:") && !version.slice(4).includes("@")) {
         dependencies[name] = version.slice(4);
+      }
       if (version === "catalog:") dependencies[name] = catalog[name];
       if (version === "workspace:*") {
         const release = JSON.parse(
@@ -159,10 +160,11 @@ export async function registryItems(options = {}) {
   for (const item of registry.items) {
     const emitted = { $schema: "https://ui.shadcn.com/schema/registry-item.json", ...item };
     Object.assign(emitted, itemDependencies(item, full));
-    if (item.registryDependencies)
+    if (item.registryDependencies) {
       emitted.registryDependencies = item.registryDependencies.map(
         (name) => `${url.replace(/\/$/, "")}/${name.replace("@tinker-start/", "")}.json`,
       );
+    }
     emitted.files = await Promise.all(
       item.files.map(async (file) => ({
         ...file,

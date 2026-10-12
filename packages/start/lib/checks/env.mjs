@@ -28,8 +28,9 @@ function partProblems(root, local, listed) {
   return recordedParts(root).flatMap((name) => {
     const keys = parts[name].env;
     return readPartEnv(keys, { ...local, ...process.env }).refused.flatMap((key) => {
-      if (!process.env[key] && !local[key])
+      if (!process.env[key] && !local[key]) {
         return listed.includes(key) ? [] : [say.unset(key, name)];
+      }
       const at = process.env[key]
         ? "the shell"
         : `.env:${lineAt(text, text.search(new RegExp(`^${key}=`, "m")))}`;

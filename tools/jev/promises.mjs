@@ -30,8 +30,9 @@ function readTitles() {
   const out = [];
   for (const f of readdirSync(testDir).filter((f) => /\.test\.tsx?$/.test(f))) {
     const src = readFileSync(join(testDir, f), "utf8");
-    for (const m of src.matchAll(/^\s*(?:test|it)\(\s*"([^"]+)"/gm))
+    for (const m of src.matchAll(/^\s*(?:test|it)\(\s*"([^"]+)"/gm)) {
       out.push({ file: f, title: m[1] });
+    }
   }
   return out;
 }

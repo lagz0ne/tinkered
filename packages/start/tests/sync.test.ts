@@ -974,8 +974,9 @@ test("a notice re-reads only its account's streams; the one whose own session en
   expect(reads.filter((token) => token === "grace")).toHaveLength(1);
   expect(reads.filter((token) => token === "ada-two")).toHaveLength(2);
   await Promise.all(readers.map((reader) => reader.cancel()));
-  for (const { session } of tabs)
+  for (const { session } of tabs) {
     expect((await session.close({ graceful: true })).status).toBe("success");
+  }
   expect((await root.close({ graceful: true })).status).toBe("success");
 }, 30_000);
 
@@ -1322,8 +1323,9 @@ test("a sign-out frame is each stream's own copy", async () => {
   expect(new TextDecoder().decode(two.value)).toBe(account);
   expect((await readers[0]!.read()).done).toBe(true);
   expect((await readers[1]!.read()).done).toBe(true);
-  for (const session of sessions)
+  for (const session of sessions) {
     expect((await session.close({ graceful: true })).status).toBe("success");
+  }
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -1618,8 +1620,9 @@ test("shared private rows keep accounts apart and check each session after sign-
     }),
   ]);
   await Promise.all(readers.map((reader) => reader.cancel()));
-  for (const { session } of tabs)
+  for (const { session } of tabs) {
     expect((await session.close({ graceful: true })).status).toBe("success");
+  }
   expect((await root.close({ graceful: true })).status).toBe("success");
 }, 30_000);
 

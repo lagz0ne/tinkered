@@ -58,8 +58,9 @@ function mergedPaths(root) {
 function aliasTarget(root, paths, alias) {
   for (const [key, [target]] of Object.entries(paths)) {
     const prefix = key.replace(/\*$/, "");
-    if (key.endsWith("*") ? alias.startsWith(prefix) : alias === key)
+    if (key.endsWith("*") ? alias.startsWith(prefix) : alias === key) {
       return resolve(root, target.replace("*", alias.slice(prefix.length)));
+    }
   }
   return null;
 }
@@ -141,8 +142,9 @@ function tailwindProblems(root) {
 
 /** @param {string} path - From linkedSheets; why: the module paths one stylesheet or source file names. */
 function linksOf(path) {
-  if (path.endsWith(".css"))
+  if (path.endsWith(".css")) {
     return [...cssText(path).matchAll(/@import\s+["']([^"']+)["']/g)].map((match) => match[1]);
+  }
   if (/\.[jt]sx?$/.test(path)) return specifiers(parseSource(path)).map(({ name }) => name);
   return [];
 }

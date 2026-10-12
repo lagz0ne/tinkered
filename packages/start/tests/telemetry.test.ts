@@ -76,8 +76,9 @@ const levels = operation({
 function sized(bytes: number): Telemetry.Log {
   const attributes: Record<string, string> = {};
   const log = { ...record(""), attributes };
-  for (let index = 0; bytes - JSON.stringify(log).length > 2048; index++)
+  for (let index = 0; bytes - JSON.stringify(log).length > 2048; index++) {
     attributes[`a${index}`] = "x".repeat(1000);
+  }
   log.msg = "x".repeat(bytes - JSON.stringify(log).length);
   return log;
 }
@@ -441,10 +442,11 @@ test("a record over 48 KB is dropped; one send takes at most 64 records", async 
   };
   tools.run(ingestTelemetry, { input: { traces: [], logs: [big] } });
   expect(tools.resolve(exportHealth)).toEqual({ kind: "queued", pending: 0, dropped: 1 });
-  for (let index = 0; index < 2; index++)
+  for (let index = 0; index < 2; index++) {
     tools.run(ingestTelemetry, {
       input: { traces: [], logs: Array.from({ length: 40 }, () => record("many")) },
     });
+  }
   await tools.run(flushTelemetry);
   expect(sent.bodyOf("http://storage.test/logs?").split("\n")).toHaveLength(64);
   expect(tools.resolve(exportHealth)).toEqual({ kind: "idle", pending: 0, dropped: 1 });
@@ -725,10 +727,11 @@ test("closing gives up on storage after 1.5 s; what is left is dropped", async (
     ],
   });
   await tools.ready;
-  for (let round = 0; round < 4; round++)
+  for (let round = 0; round < 4; round++) {
     tools.run(ingestTelemetry, {
       input: { traces: [], logs: Array.from({ length: 64 }, () => record("held")) },
     });
+  }
   const closing = tools.close({ graceful: true });
   for (let round = 0; round < 3; round++) {
     const call = await arrival.promise;
@@ -868,8 +871,9 @@ test("closing a tab never sends a batch over 32,000 UTF-8 bytes", async () => {
   });
   expect((await tools.close({ graceful: true })).status).toBe("success");
   expect(sent.requests.length).toBeGreaterThan(1);
-  for (const { body } of sent.requests)
+  for (const { body } of sent.requests) {
     expect(new TextEncoder().encode(body).byteLength).toBeLessThanOrEqual(32_000);
+  }
   expect(sent.requests.flatMap(({ body }) => JSON.parse(body).logs)).toEqual([
     fitting,
     ...Array.from({ length: 40 }, () => log),

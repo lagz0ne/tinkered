@@ -45,10 +45,11 @@ test("a 300-record burst is sent before the first tick, one batch at a time", as
     ],
   });
   await root.ready;
-  for (let index = 0; index < 5; index++)
+  for (let index = 0; index < 5; index++) {
     root.run(ingestTelemetry, {
       input: { traces: [], logs: Array.from({ length: index === 4 ? 44 : 64 }, () => log) },
     });
+  }
   try {
     await expect.poll(() => requests).toBe(1);
     const flush = root.run(flushTelemetry);
@@ -139,7 +140,7 @@ test("a slow console keeps a bounded batch and counts every dropped copy", async
   });
   await root.ready;
   const observe = root.resolve(observer);
-  for (let index = 0; index < 600; index++)
+  for (let index = 0; index < 600; index++) {
     observe.log?.({
       level: 30,
       time: 1,
@@ -147,6 +148,7 @@ test("a slow console keeps a bounded batch and counts every dropped copy", async
       attributes: {},
       span: undefined,
     });
+  }
   await root.run(flushTelemetry);
   expect(writes).toEqual([]);
   sink.writableNeedDrain = false;

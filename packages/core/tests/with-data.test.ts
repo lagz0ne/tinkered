@@ -170,10 +170,11 @@ test("a withData close hands over what the session wrote, never what it inherite
   for (const end of ["success", "cancelled", "failed"]) {
     const session = root.createSession();
     session.controller(draft).set(7);
-    if (end === "failed")
+    if (end === "failed") {
       await session.run(panic).then(undefined, (error: unknown) => {
         if (error !== bug) throw error;
       });
+    }
     ends.push(await session.close({ graceful: end === "success", withData: true }));
   }
   expect(ends.map((ended) => ended.status)).toEqual(["success", "cancelled", "failed"]);

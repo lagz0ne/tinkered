@@ -63,8 +63,9 @@ export const codeEditor = resource({
 
     const onTracked = (u: { docChanged: boolean; selectionSet: boolean; state: EditorState }) => {
       if (u.docChanged) edit.run({ input: { name: current, content: u.state.doc.toString() } });
-      if (u.selectionSet)
+      if (u.selectionSet) {
         track.run({ input: { file: current, offset: u.state.selection.main.head } });
+      }
     };
 
     const extensions = (): readonly Extension[] => [
@@ -154,12 +155,13 @@ export const codeEditor = resource({
       if (!place) return;
       if (place.file === current) {
         const anchor = Math.min(place.offset, view.state.doc.length);
-        if (anchor !== view.state.selection.main.head)
+        if (anchor !== view.state.selection.main.head) {
           view.dispatch({
             selection: { anchor },
             scrollIntoView: true,
             annotations: external.of(true),
           });
+        }
         return;
       }
       const source = sources().find((s) => s.name === place.file);

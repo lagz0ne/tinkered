@@ -533,16 +533,18 @@ void describe("entry and root rules (ADR 0078)", () => {
   });
 
   void it("S27 counts top-level await using as an awaited declaration", () => {
-    for (const writer of [false, true])
+    for (const writer of [false, true]) {
       assert.deepEqual(entryRows("await using s = open();", APP, writer), [["S27", 1]]);
+    }
   });
 
   void it("S27 accepts await using inside the main guard", () => {
-    for (const writer of [false, true])
+    for (const writer of [false, true]) {
       assert.deepEqual(
         entryRows("if (import.meta.main) { await using s = open(); }", APP, writer),
         [],
       );
+    }
   });
 
   void it("S27 accepts the main branch and awaits inside every function form", () => {
@@ -581,20 +583,22 @@ void describe("entry and root rules (ADR 0078)", () => {
       "examples/cli.ts",
       "packages/blueprint/src/main.ts",
       "/repo/apps/a/main.ts",
-    ])
+    ]) {
       assert.deepEqual(entryRows(source, file), [["S27", 1]], file);
+    }
     for (const file of [
       "bench/probe.ts",
       "tools/cli.ts",
       "scripts/check.ts",
       "packages/a/config.ts",
       "src/main.ts",
-    ])
+    ]) {
       assert.deepEqual(
         [entryRows(source, file), entryRows(source, file, true)],
         [[], [["S27", 1]]],
         file,
       );
+    }
   });
 
   void it("S27 skips browser and test paths in both lanes", () => {
@@ -606,9 +610,11 @@ void describe("entry and root rules (ADR 0078)", () => {
       "src/boot.test.ts",
       "src/boot.spec.ts",
       "src/boot.browser.ts",
-    ])
-      for (const writer of [false, true])
+    ]) {
+      for (const writer of [false, true]) {
         assert.deepEqual(entryRows("await main(shell);", file, writer), [], file);
+      }
+    }
   });
 
   void it("S28 reports a returned scope in declarations, expressions, arrows, and methods", () => {
@@ -644,10 +650,11 @@ void describe("entry and root rules (ADR 0078)", () => {
     ],
     ["a new argument", APP, "new Owner(() => createScope());"],
     ["a function expression argument", APP, "provide(function () { return createScope(); });"],
-  ])
+  ]) {
     void it(`S28 skips a factory passed directly through ${name}`, () => {
       for (const writer of [false, true]) assert.deepEqual(entryRows(source, file, writer), []);
     });
+  }
 
   void it("S28 still counts returned factories, named factories, and the sync boot root", () => {
     for (const source of [
@@ -655,9 +662,11 @@ void describe("entry and root rules (ADR 0078)", () => {
       "provide(() => () => createScope());",
       "const make = () => createScope(); provide(make);",
       "export async function boot() { const scope = createScope({ extensions: [src, web] }); await scope.ready; return { scope, app: scope.resolve(web) }; }",
-    ])
-      for (const writer of [false, true])
+    ]) {
+      for (const writer of [false, true]) {
         assert.deepEqual(entryRows(source, "examples/sync/hono.ts", writer), [["S28", 1]]);
+      }
+    }
   });
 
   void it("S28 keeps bindings and returns within their own function and block", () => {
@@ -735,23 +744,32 @@ void describe("entry and root rules (ADR 0078)", () => {
       "src/app.test.ts",
       "src/app.spec.ts",
       "src/app.browser.ts",
-    ])
-      for (const writer of [false, true])
+    ]) {
+      for (const writer of [false, true]) {
         assert.deepEqual(entryRows(source, file, writer), [], file);
-    for (const file of [APP, "examples/cli.ts", "apps/a/src/Page.tsx", "apps/a/src/client/main.ts"])
+      }
+    }
+    for (const file of [
+      APP,
+      "examples/cli.ts",
+      "apps/a/src/Page.tsx",
+      "apps/a/src/client/main.ts",
+    ]) {
       assert.deepEqual(entryRows(source, file), [["S28", 1]], file);
+    }
     for (const file of [
       "packages/process/src/main.ts",
       "tools/cli.ts",
       "scripts/check.ts",
       "bench/probe.ts",
       "src/main.ts",
-    ])
+    ]) {
       assert.deepEqual(
         [entryRows(source, file), entryRows(source, file, true)],
         [[], [["S28", 1]]],
         file,
       );
+    }
   });
 
   void it("the writer gate blocks both rules and prints their filled-in fixes", () => {

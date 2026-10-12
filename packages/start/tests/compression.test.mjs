@@ -21,10 +21,11 @@ test("encoding weights, exclusions, wildcard, and identity are honored", () => {
     ["BR; Q=1", "br"],
     ["gzip;q=bad", "identity"],
   ];
-  for (const [accepted, chosen] of choices)
+  for (const [accepted, chosen] of choices) {
     expect(
       readEncoding(new Request("http://app", { headers: { "accept-encoding": accepted } })),
     ).toBe(chosen);
+  }
 });
 
 test("streamed HTML is compressed and keeps existing Vary fields", async () => {
@@ -65,8 +66,9 @@ test("encoded, partial, no-transform, and non-text responses pass through", asyn
     new Response("x", {
       headers: { "content-type": "text/html", "cache-control": "no-transform" },
     }),
-  ])
+  ]) {
     expect(await compressResponse(new Request("http://app"), response)).toBe(response);
+  }
 });
 
 test("a refused encoding cancels HTML and drops its old length", async () => {

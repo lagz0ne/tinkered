@@ -103,15 +103,17 @@ const isNode = (value) => value !== null && typeof value === "object" && "type" 
 /** The children of a node, in source order. */
 function children(node) {
   const out = [];
-  for (const value of Object.values(node))
+  for (const value of Object.values(node)) {
     out.push(...(Array.isArray(value) ? value : [value]).filter(isNode));
+  }
   return out;
 }
 
 /** `var` bindings hoisted to the enclosing function (or module), not entering nested functions. */
 function varNames(node, out = []) {
-  if (node.type === "VariableDeclaration" && node.kind === "var")
+  if (node.type === "VariableDeclaration" && node.kind === "var") {
     for (const d of node.declarations) bindingNames(d.id, out);
+  }
   for (const child of children(node)) if (!isFunction(child)) varNames(child, out);
   return out;
 }
@@ -119,8 +121,9 @@ function varNames(node, out = []) {
 /** The names one statement declares in its block: let, const, class, function (not var). */
 function declaredBy(statement) {
   const decl = statement.declaration ?? statement;
-  if (decl.type === "VariableDeclaration")
+  if (decl.type === "VariableDeclaration") {
     return decl.kind === "var" ? [] : decl.declarations.flatMap((d) => bindingNames(d.id));
+  }
   const named = decl.type === "FunctionDeclaration" || decl.type === "ClassDeclaration";
   return named && decl.id ? [decl.id] : [];
 }
@@ -159,8 +162,9 @@ class Resolver {
   pattern(node, scope) {
     if (!node) return;
     if (node.type === "AssignmentPattern") this.walk(node.right, scope);
-    if (node.type === "ObjectPattern")
+    if (node.type === "ObjectPattern") {
       for (const p of node.properties) if (p.computed) this.walk(p.key, scope);
+    }
     for (const part of parts(node)) this.pattern(part, scope);
   }
 
@@ -444,5 +448,6 @@ function main(file) {
   return 1;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`)
+if (import.meta.url === `file://${process.argv[1]}`) {
   process.exit(main(process.argv[2] ?? "packages/core/dist/index.mjs"));
+}

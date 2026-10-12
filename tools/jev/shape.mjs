@@ -124,8 +124,9 @@ function isNsKind(type) {
 /** The `useScope` half: name or alias — else null. Namespaces share `hook-ns`. */
 function specScope(s, hook, scopeAlias) {
   const named = s.type === "ImportSpecifier" && hook;
-  if (named && (s.imported?.name === "useScope" || scopeAlias.has(s.local.name)))
+  if (named && (s.imported?.name === "useScope" || scopeAlias.has(s.local.name))) {
     return "hook-scope";
+  }
   return null;
 }
 
@@ -169,8 +170,9 @@ function topFns(src, node) {
 
 /** The JSX tag behind an element's opening name: `Provider`, `Scope.Provider`, or null. */
 function tagOf(opening) {
-  if (opening?.name.type === "JSXMemberExpression")
+  if (opening?.name.type === "JSXMemberExpression") {
     return { obj: opening.name.object.name, prop: opening.name.property.name };
+  }
   if (opening?.name.type === "JSXIdentifier") return { obj: null, prop: opening.name.name };
   return null;
 }
@@ -190,8 +192,9 @@ function isScopeTag(tag, bound) {
 function providesScope(body, bound) {
   let found = false;
   walk(body, (n) => {
-    if (!found && n.type === "JSXElement" && isScopeTag(tagOf(n.openingElement), bound))
+    if (!found && n.type === "JSXElement" && isScopeTag(tagOf(n.openingElement), bound)) {
       found = true;
+    }
   });
   return found;
 }
@@ -218,9 +221,11 @@ function patternInto(p, out) {
 
 /** The bound names under one object or array pattern. */
 function patternKids(p, out) {
-  if (p.type === "ObjectPattern")
-    for (const q of p.properties ?? [])
+  if (p.type === "ObjectPattern") {
+    for (const q of p.properties ?? []) {
       patternNames(q.type === "Property" ? q.value : q.argument, out);
+    }
+  }
   if (p.type === "ArrayPattern") for (const e of p.elements ?? []) patternNames(e, out);
   return out;
 }
@@ -344,8 +349,9 @@ function declareAll(program, frames, bound, owners, parents) {
     if (!n.type) return;
     bindParams(n, bind);
     bindLocals(n, bind);
-    if (n.type === "CatchClause" && n.param)
+    if (n.type === "CatchClause" && n.param) {
       for (const name of patternNames(n.param)) bind(n, name, "local");
+    }
   });
   return owners;
 }
@@ -356,15 +362,17 @@ function declareAll(program, frames, bound, owners, parents) {
  *  declare nothing here; their own BlockStatement frame owns them. */
 function bindLocals(n, bind) {
   bindDecl(n, bind);
-  if ((n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression") && n.id)
+  if ((n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression") && n.id) {
     bind(n, n.id.name, "local");
+  }
 }
 
 /** Bind `let`/`const` declarator names into the owning frame. */
 function bindDecl(n, bind) {
   if (n.type !== "VariableDeclaration" || n.kind === "var") return;
-  for (const d of n.declarations ?? [])
+  for (const d of n.declarations ?? []) {
     for (const name of patternNames(d.id)) bind(n, name, "local");
+  }
 }
 
 /** Bind function params into the function's own frame. */
@@ -373,8 +381,9 @@ function bindParams(n, bind) {
     n.type !== "FunctionDeclaration" &&
     n.type !== "FunctionExpression" &&
     n.type !== "ArrowFunctionExpression"
-  )
+  ) {
     return;
+  }
   for (const q of n.params ?? []) for (const name of patternNames(q)) bind(n, name, "local");
 }
 
@@ -400,8 +409,9 @@ function bindAt(frames, owners, node, name, kind) {
  *  owners map: a frame owns itself there, which loops forever. */
 function bindVar(node, owners, frames, parents) {
   const owner = fnOwner(owners, parents, owners.get(node) ?? null);
-  for (const d of node.declarations ?? [])
+  for (const d of node.declarations ?? []) {
     for (const name of patternNames(d.id)) bindAt(frames, owners, owner ?? node, name, "local");
+  }
 }
 
 /** Walk up to the enclosing function (or module) frame owner. */
@@ -420,8 +430,9 @@ function isFnRoot(node) {
 function noteRow(node, bind, bound) {
   const hook = node.source.value === "@tinker/react";
   for (const q of node.specifiers) {
-    if (q.local)
+    if (q.local) {
       bind(node, q.local.name, specKind(q, hook, bound.dataCall, bound.scopeNs, bound.scopeCall));
+    }
   }
 }
 
@@ -451,10 +462,12 @@ function scopeAliases(source, program) {
  *  aliases/namespaces from `@tinker/react`. One branch per source keeps it under the cap. */
 function bindReact(into, node) {
   for (const s of node.specifiers) {
-    if (s.type === "ImportSpecifier" && HOOK_RULE.has(s.imported?.name))
+    if (s.type === "ImportSpecifier" && HOOK_RULE.has(s.imported?.name)) {
       into.hooks.set(s.local.name, s.imported.name);
-    if (s.type === "ImportDefaultSpecifier" || s.type === "ImportNamespaceSpecifier")
+    }
+    if (s.type === "ImportDefaultSpecifier" || s.type === "ImportNamespaceSpecifier") {
       into.hooks.set(s.local.name, "*");
+    }
   }
 }
 
@@ -467,10 +480,12 @@ function bindScope(into, node) {
     useData: into.dataCall,
   };
   for (const s of node.specifiers) {
-    if (s.type === "ImportSpecifier" && s.imported?.name in named)
+    if (s.type === "ImportSpecifier" && s.imported?.name in named) {
       named[s.imported.name].add(s.local.name);
-    if (s.type === "ImportDefaultSpecifier" || s.type === "ImportNamespaceSpecifier")
+    }
+    if (s.type === "ImportDefaultSpecifier" || s.type === "ImportNamespaceSpecifier") {
       into.scopeNs.add(s.local.name);
+    }
   }
 }
 
@@ -526,13 +541,14 @@ function callRow(source, node, bound, ctx, inView) {
       message: `${hook} (best-practices rule ${rule}): ${what}`,
     };
   }
-  if (isScopeCall(node, bound, ctx) && inView(line))
+  if (isScopeCall(node, bound, ctx) && inView(line)) {
     return {
       id: "no-scope-in-view",
       line,
       message:
         "useScope in a view (best-practices rule 2): only the root holds the scope; views read cells and run operations",
     };
+  }
   return writableRow(source, node, ctx, inView);
 }
 
@@ -547,8 +563,9 @@ function eachCall(node, fn) {
 function refName(p) {
   const typeName = p.typeAnnotation?.typeAnnotation?.typeName;
   if (typeName?.type === "Identifier") return { plain: typeName.name, qualified: null };
-  if (typeName?.type === "TSQualifiedName")
+  if (typeName?.type === "TSQualifiedName") {
     return { plain: null, qualified: `${typeName.left.name}.${typeName.right.name}` };
+  }
   return { plain: null, qualified: null };
 }
 
@@ -578,13 +595,14 @@ function paramRow(source, seen, aliases, p) {
   if (!p || p.start === undefined || seen.has(p.start)) return null;
   seen.add(p.start);
   const hit = textHit(source.slice(p.start, p.end)) || refHit(aliases, p);
-  if (hit)
+  if (hit) {
     return {
       id: "no-scope-prop",
       line: lineOf(source, p.start),
       message:
         "scope in view props (best-practices rule 2): the root provides it; views never take it",
     };
+  }
   return null;
 }
 
@@ -620,22 +638,23 @@ export function inspectShape(source, file = "a.tsx", options = {}) {
     const row = callRow(source, node, bound, scopes, inView);
     if (row !== null) rows.push(row);
   });
-  for (const node of program.body)
+  for (const node of program.body) {
     for (const fn of topFns(source, node)) {
       if (!starts.has(fn.line) || providesScope(fn.body, bound)) continue;
       const seen = new Set();
       for (const p of fn.params) {
-        if (p.type === "ObjectPattern")
+        if (p.type === "ObjectPattern") {
           for (const q of p.properties) {
             const row = paramRow(source, seen, aliases, q.value ?? q);
             if (row !== null) rows.push(row);
           }
-        else {
+        } else {
           const row = paramRow(source, seen, aliases, p);
           if (row !== null) rows.push(row);
         }
       }
     }
+  }
   // S25 names a state hook's fix in writer mode; its no-react-state twin on that line would
   // only repeat it. useRef and the effect hooks keep their row.
   const stateLines = new Set(plain.filter((r) => r.id === "S25").map((r) => r.line));

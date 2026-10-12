@@ -38,16 +38,18 @@ function command(file, args, cwd = process.cwd()) {
     maxBuffer: 32 * 1024 * 1024,
     timeout: Math.max(1, Math.floor(deadline - performance.now())),
   });
-  if (result.error || result.status !== 0)
+  if (result.error || result.status !== 0) {
     throw new Error(`${file} failed: ${result.error?.message ?? result.stderr.slice(-2000)}`);
+  }
   return result.stdout;
 }
 
 function engine() {
-  if (process.version !== baseline.node || process.versions.v8 !== baseline.v8)
+  if (process.version !== baseline.node || process.versions.v8 !== baseline.v8) {
     throw new Error(
       `Engine changed: ${process.version} / ${process.versions.v8}; run: node scripts/check-fast-code.mjs --rebaseline-engine`,
     );
+  }
 }
 
 function names() {
@@ -59,8 +61,9 @@ function slotCheck() {
     core: highestSlot(read(bundle)),
     react: highestSlot(read("packages/react/dist/index.mjs")),
   };
-  for (const [name, value] of Object.entries(actual))
+  for (const [name, value] of Object.entries(actual)) {
     ratchet(`F9 ${name}`, value, baseline.slots[name]);
+  }
   return actual;
 }
 
@@ -98,8 +101,9 @@ function bytecodeCheck() {
 function inlineCheck() {
   engine();
   const actual = measureInlining();
-  if (!actual || actual !== baseline.inlining.OperationCtxIntoRunOnce)
+  if (!actual || actual !== baseline.inlining.OperationCtxIntoRunOnce) {
     throw new Error("F1/F2 OperationCtx was not inlined into runOnce with default Maglev");
+  }
   return { OperationCtxIntoRunOnce: actual, maglev: "default on" };
 }
 
@@ -115,8 +119,9 @@ function rewriteEngineBaseline() {
   writeFileSync(values.baseline, JSON.stringify(next, null, 2) + "\n");
   console.log(`Node: ${baseline.node} → ${next.node}`);
   console.log(`V8: ${baseline.v8} → ${next.v8}`);
-  for (const name of hotFunctions)
+  for (const name of hotFunctions) {
     console.log(`${name}: ${baseline.bytecode[name]} → ${next.bytecode[name]}`);
+  }
   console.log("OperationCtxIntoRunOnce: true → true");
 }
 
@@ -135,21 +140,24 @@ function filesIn(dir) {
 
 function librariesInChunk(chunk) {
   const map = JSON.parse(read(`${chunk}.map`));
-  if (!map.mappings || !map.sources.length)
+  if (!map.mappings || !map.sources.length) {
     throw new Error(`F13 missing source evidence for ${chunk}`);
+  }
   return clientLibraries(map);
 }
 
 function clientCheck() {
-  if (!values["client-dir"])
+  if (!values["client-dir"]) {
     command("vp", ["build", "--sourcemap", "hidden"], resolve("apps/start-min"));
+  }
   const dir = values["client-dir"] ?? "apps/start-min/dist/client";
   const chunks = filesIn(dir).filter((file) => file.endsWith(".js"));
   if (!chunks.length) throw new Error("F13 no built client chunks found");
   const actual = { zod: 0, drizzle: 0, pglite: 0 };
   for (const chunk of chunks) for (const library of librariesInChunk(chunk)) actual[library]++;
-  for (const [library, count] of Object.entries(actual))
+  for (const [library, count] of Object.entries(actual)) {
     ratchet(`F13 ${library} chunks`, count, baseline.client[library]);
+  }
   return { ...actual, chunks: chunks.length };
 }
 

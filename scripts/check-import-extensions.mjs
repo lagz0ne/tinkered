@@ -43,7 +43,7 @@ export function savedModuleEndings(file, text) {
 /** No arguments checks every saved doc, JSON file, and template tracked by git. */
 function main() {
   const files = process.argv.slice(2);
-  if (!files.length)
+  if (!files.length) {
     files.push(
       ...execFileSync("git", ["ls-files", "-co", "--exclude-standard", "-z"], {
         encoding: "utf8",
@@ -51,6 +51,7 @@ function main() {
         .split("\0")
         .filter((file) => /\.(?:md|json|txt)$/.test(file)),
     );
+  }
   let count = 0;
   for (const file of new Set(files)) {
     for (const name of savedModuleEndings(file, readFileSync(file, "utf8"))) {

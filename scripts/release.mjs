@@ -41,8 +41,9 @@ try {
     const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
     pkg.version = version;
     for (const field of ["dependencies", "devDependencies"]) {
-      for (const dependency of Object.keys(pkg[field] ?? {}))
+      for (const dependency of Object.keys(pkg[field] ?? {})) {
         if (dependency in urls) pkg[field][dependency] = urls[dependency];
+      }
     }
     if (name === "start") {
       pkg.tinker.tested["@tinker/core"] = version;
@@ -62,14 +63,16 @@ try {
   const { registry, items, packages } = await registryItems({ version });
   const registryOut = join(out, registryPath);
   await mkdir(registryOut, { recursive: true });
-  for (const item of items)
+  for (const item of items) {
     await writeFile(join(registryOut, `${item.name}.json`), JSON.stringify(item, null, 2) + "\n");
+  }
   await writeFile(
     join(registryOut, "registry.json"),
     JSON.stringify({ ...registry, items }, null, 2) + "\n",
   );
-  for (const [path, pkg] of Object.entries(packages))
+  for (const [path, pkg] of Object.entries(packages)) {
     await writeFile(join(out, "apps/start-scaffold", path), JSON.stringify(pkg, null, 2) + "\n");
+  }
   await writeFile(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   console.log(`DRY RELEASE ${out}`);
   console.log(

@@ -17,8 +17,9 @@ function tracesBody(records: Telemetry.Record[], service: string) {
   const groups: string[] = [];
   for (const side of ["server", "browser", "ssr"]) {
     const spans: string[] = [];
-    for (const record of records)
+    for (const record of records) {
       if (record.kind === "trace" && record.side === side) spans.push(record.json);
+    }
     if (!spans.length) continue;
     const resource = JSON.stringify({
       attributes: [

@@ -34,6 +34,7 @@ void test("class constructors and methods reach fast-code judges without app jud
   const units = slice(source, "packages/demo/src/frame.ts");
   const frame = units.find((unit) => unit.name === "Frame");
   assert.equal(frame.source, source.slice("export ".length));
-  for (const all of [false, true])
+  for (const all of [false, true]) {
     assert.deepEqual(Object.keys(lintQuestions(frame, all)).sort(), [...fast].sort());
+  }
 });

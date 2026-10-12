@@ -66,8 +66,9 @@ function sources() {
       closed: false,
       closes: 0,
       emit: (type, data) => {
-        for (const [name, listener] of listeners)
+        for (const [name, listener] of listeners) {
           if (name === type) listener(new MessageEvent(type, { data }));
+        }
       },
     };
     opened.push(connection);
@@ -307,8 +308,9 @@ test("an error, a bad frame, a ninth unread frame, or a stop ends a connection f
     (connection: { emit(type: string, data?: string): void }) =>
       connection.emit("changes", "not json"),
     (connection: { emit(type: string, data?: string): void }) => {
-      for (let count = 0; count < 9; count += 1)
+      for (let count = 0; count < 9; count += 1) {
         connection.emit("changes", changes(["public", 3 + count, count]));
+      }
     },
   ]) {
     const opening = fake.next();

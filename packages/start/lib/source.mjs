@@ -43,8 +43,9 @@ export function specifiers(source) {
         : node.type === "TSExternalModuleReference"
           ? node.expression.value
           : node.source?.value;
-    if (typeof name === "string" && node.type !== "Literal")
+    if (typeof name === "string" && node.type !== "Literal") {
       found.push({ name, line: source.line(node) });
+    }
   });
   return found;
 }
@@ -102,11 +103,13 @@ function exportAll(from, node, seen) {
 function statementExports(path, source, node, seen) {
   const closed = (names) => ({ names, open: false });
   if (node.type === "ExportDefaultDeclaration") return closed([["default", source.line(node)]]);
-  if (node.type === "ExportNamedDeclaration")
+  if (node.type === "ExportNamedDeclaration") {
     return closed(exportedIds(node).map((id) => [id.name ?? id.value, source.line(id)]));
+  }
   if (node.type !== "ExportAllDeclaration") return closed([]);
-  if (node.exported)
+  if (node.exported) {
     return closed([[node.exported.name ?? node.exported.value, source.line(node)]]);
+  }
   const all = exportAll(path, node, seen);
   return { names: [...all.names], open: all.open };
 }
@@ -234,9 +237,11 @@ export function augmentations(source) {
   const found = [];
   walk(source.program, (node) => {
     if (node.type !== "TSModuleDeclaration" || typeof node.id?.value !== "string") return;
-    for (const item of node.body?.body ?? [])
-      if (item.type === "TSInterfaceDeclaration")
+    for (const item of node.body?.body ?? []) {
+      if (item.type === "TSInterfaceDeclaration") {
         found.push({ module: node.id.value, name: item.id.name });
+      }
+    }
   });
   return found;
 }
