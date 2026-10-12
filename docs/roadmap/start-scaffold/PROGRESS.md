@@ -3693,3 +3693,62 @@ Run the new package test from the repo root:
 ```bash
 vp run @tinker-start-scaffold#test:registry-hook
 ```
+
+## scaffold/registry-hook-test-trim
+
+Branch: `scaffold/registry-hook-test-trim`, from `origin/main` at `b8c118e3`.
+Commit: `4277465a`, test file only.
+Writer: Claude Haiku 5.5.
+
+### Changes
+
+- Drop case f. It reran `test:registry`, about 23 s.
+- Drop the "10 registry items; 96 emitted files" pin with case f.
+- Drop the old-commit matching in `passed()`. Only the PASS line counts.
+- Drop the old lint-staged regex in case e.
+- Drop `REGISTRY_HOOK_REF`, `REGISTRY_HOOK_SCRATCH`, and `REGISTRY_HOOK_WORKING`.
+- Make the hooks folder inside the `try`. Its cleanup checks it exists.
+- Keep the command-line block in `check-registry-index.mjs`.
+  The format-race case runs it, so it is not dead code.
+
+### Proof
+
+Old hook, new test: the `d333d23f` hook files with the trimmed test.
+
+- Format race: hook EXIT 0, so the test fails. Gap seen.
+- Delete-only input: hook EXIT 0, so the test fails. Gap seen.
+- Cases c and e also fail, on the PASS line the old hook does not print.
+- Log: `/tmp/registry-hook-test-trim-proof-d333.log`, exit 1.
+
+HEAD `4277465a`: 13 of 13 pass, exit 0.
+Log: `/tmp/registry-hook-test-trim-after.log`.
+
+### Time
+
+- Before, `b8c118e3`: 14 of 14 pass, 59 s.
+- After, `4277465a`: 13 of 13 pass, 33 s.
+- One run each. The box was busy: load 11.5 on 8 cores.
+- Wall clock only. Not a benchmark claim.
+- Not sent to `benchd`: this test writes to `/tmp` and to `.git`.
+
+### Gates
+
+- Worktree setup hook: install and build, run by the hook.
+- `vp run -r build`: EXIT 0, 12 tasks.
+- `vp check`: 0 errors, 27 warnings. Same as `main`.
+- `vp run -r test`: EXIT 0.
+- `pnpm validate`: 21 lanes PASS, EXIT 0.
+  `pnpm-workspace.yaml` was not touched.
+- `vp run prose`: 0 hits in 229 files, EXIT 0.
+- `vp run @tinker-start-scaffold#test:registry-hook`: 13 of 13 pass.
+
+### Judges
+
+- Jev preflight on `origin/main..HEAD`: no source files changed.
+  It proves nothing about the budget.
+- No 402 or budget error printed.
+- `calibrate.mjs` not run, as the brief asks.
+- Label lines: none.
+
+Mutation and Core timing: not needed. No Core change.
+Core feedback: none.
