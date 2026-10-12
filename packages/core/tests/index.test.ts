@@ -47,10 +47,9 @@ test("set and update are reflected on the next read", () => {
   const c = createScope().controller(count);
 
   c.set(5);
-
   expect(c.get()).toBe(5);
-  c.update((n) => n + 1);
 
+  c.update((n) => n + 1);
   expect(c.get()).toBe(6);
 });
 
@@ -62,11 +61,10 @@ test("watch fires once per real change, never on an eq-equal write; unsubscribe 
 
   c.set(1);
   c.set(1);
-
   expect(seen).toEqual([1]);
+
   stop();
   c.set(2);
-
   expect(seen).toEqual([1]);
 });
 
@@ -168,8 +166,8 @@ test("read-mode dep delivers the current value; write-mode dep causes an effect"
 
   const scope = createScope();
   expect(scope.run(peek)).toBe(10);
-  scope.run(bump, { rawInput: 5 });
 
+  scope.run(bump, { rawInput: 5 });
   expect(scope.run(peek)).toBe(15);
 });
 
@@ -224,6 +222,7 @@ test("a resource depends on another resource and receives its instance (pool →
 
   const a = scope.resolve(tx);
   const b = scope.resolve(tx);
+
   expect(a).toBe(b);
   expect(a.from).toBe(1);
   expect(pools).toBe(1);
@@ -254,12 +253,12 @@ test("an async resource dep is delivered as its value: the body reads it without
     depends: { conn },
     factory: async ({ conn }) => ({ sees: conn.open }),
   });
-
   const op = operation({
     label: "op",
     depends: { conn, view },
     run: async ({ conn, view }) => [conn.open, view.sees],
   });
+
   const scope = createScope();
   expect(await scope.run(op)).toEqual([true, true]);
   expect(await scope.run(op)).toEqual([true, true]);
@@ -278,10 +277,10 @@ test("a run over a still-building async dep waits for the build, then runs with 
     },
   });
   const op = operation({ label: "op", depends: { conn }, run: async ({ conn }) => conn.id });
+
   const scope = createScope();
   const first = scope.run(op);
   const second = scope.run(op);
-
   gate.resolve();
 
   expect(await Promise.all([first, second])).toEqual([1, 1]);
@@ -309,6 +308,7 @@ test("a failed async build fails the call before the body runs and stays failed 
       return conn.id;
     },
   });
+
   const scope = createScope();
   const first = await scope.run(op).then(
     () => "resolved",
@@ -323,8 +323,8 @@ test("a failed async build fails the call before the body runs and stays failed 
   expect(second).toBe(boom);
   expect(bodies).toBe(0);
   expect(builds).toBe(1);
-  scope.release(conn);
 
+  scope.release(conn);
   expect(await scope.run(op)).toBe(2);
   expect(bodies).toBe(1);
   await scope.close();
@@ -359,12 +359,12 @@ test("async is typed through the graph: an op over an async resource is an async
 test("a resource dep the factory reads twice builds once and caches (lazy access parity)", () => {
   let builds = 0;
   const dep = resource({ label: "dep", factory: () => ({ id: ++builds }) });
-
   const top = resource({
     label: "top",
     depends: { dep },
     factory: (deps) => deps.dep.id + deps.dep.id,
   });
+
   const scope = createScope();
   expect(scope.resolve(top)).toBe(2);
   expect(scope.resolve(top)).toBe(2);
@@ -501,8 +501,8 @@ test("a rejecting async operation rejects with its cause, and settled still drai
   });
 
   await Promise.resolve();
-
   expect(drained).toBe(false);
+
   gate.resolve();
   let caught: unknown;
   try {
@@ -510,10 +510,9 @@ test("a rejecting async operation rejects with its cause, and settled still drai
   } catch (error) {
     caught = error;
   }
-
   expect(caught).toBe(cause);
-  await s;
 
+  await s;
   expect(drained).toBe(true);
 });
 
@@ -656,12 +655,11 @@ test("settled reports work as pending until it finishes", async () => {
   });
 
   await Promise.resolve();
-
   expect(joined).toBe(false);
+
   gate.resolve();
   await p;
   await s;
-
   expect(joined).toBe(true);
 });
 
@@ -674,8 +672,8 @@ test("a session inherits its parent's data and tags", () => {
   const child = root.createSession();
   expect(child.controller(theme).get()).toBe("light");
   expect(child.run(readRegion)).toBe("root");
-  root.controller(theme).set("dark");
 
+  root.controller(theme).set("dark");
   expect(child.controller(theme).get()).toBe("dark");
 });
 
@@ -699,13 +697,12 @@ test("inherited watchers react to parent writes until the child shadows", () => 
   const stop = child.controller(n).watch((v) => seen.push(v));
 
   root.controller(n).set(1);
-
   expect(seen).toEqual([1]);
+
   child.controller(n).set(2);
-
   expect(seen).toEqual([1, 2]);
-  root.controller(n).set(3);
 
+  root.controller(n).set(3);
   expect(seen).toEqual([1, 2]);
   stop();
 });
@@ -718,10 +715,9 @@ test("a watcher subscribed after a write still fires when the value returns to t
   const seen: number[] = [];
   const stop = c.watch((n) => seen.push(n));
   c.set(1);
-
   expect(seen).toEqual([]);
-  c.set(0);
 
+  c.set(0);
   expect(seen).toEqual([0]);
   stop();
 });
@@ -756,11 +752,10 @@ test("the same listener subscribed twice fires twice, and one unsubscribe leaves
   const stopSecond = ctl.watch(listener);
 
   ctl.set(1);
-
   expect(calls).toBe(2);
+
   stopFirst();
   ctl.set(2);
-
   expect(calls).toBe(3);
   stopSecond();
 });
@@ -773,10 +768,9 @@ test("a watcher registered before a child shadows still sees the parent's later 
   const child = root.createSession();
 
   child.controller(n).set(1);
-
   expect(seen).toEqual([]);
-  root.controller(n).set(2);
 
+  root.controller(n).set(2);
   expect(seen).toEqual([2]);
   stop();
 });
@@ -797,14 +791,13 @@ test("a nearer shadow invalidates a descendant's cached effective cell", () => {
   const v = data({ initial: "a", parse: asText });
   const root = createScope();
   const mid = root.createSession();
-
   const leaf = mid.createSession();
   expect(leaf.controller(v).get()).toBe("a");
+
   root.controller(v).set("b");
-
   expect(leaf.controller(v).get()).toBe("b");
-  mid.controller(v).set("c");
 
+  mid.controller(v).set("c");
   expect(leaf.controller(v).get()).toBe("c");
   expect(root.controller(v).get()).toBe("b");
 });
@@ -852,11 +845,10 @@ test("close joins in-flight operation work before completing", async () => {
     closed = true;
   });
   await Promise.resolve();
-
   expect(closed).toBe(false);
+
   gate.resolve();
   await closing;
-
   expect(finished).toBe(true);
 });
 
@@ -950,6 +942,7 @@ test("a scope resource builds once: two resolves share one instance", () => {
 
   const a = ctl.resolve();
   const b = ctl.resolve();
+
   expect(a).toBe(b);
   expect(built).toBe(1);
 });
@@ -1157,6 +1150,7 @@ test("a scope-target resource is one instance shared across sessions", () => {
 
   const a = s1.resolve(conn);
   const b = s2.resolve(conn);
+
   expect(a).toBe(b);
   expect(built).toBe(1);
 });
@@ -1209,7 +1203,6 @@ test("a session resource reads its owner-bound session data and tags", () => {
   const session = createScope().createSession({ tags: [region("eu")] });
 
   session.controller(port).set(6000);
-
   expect(session.resolve(conn)).toBe("eu:6000");
 });
 
@@ -1228,6 +1221,7 @@ test("session(fn) success commits via onOutcome; a thrown error rolls back and p
   await root.session((s) => {
     s.resolve(tx);
   });
+
   const cause = new Error("boom");
   const thrown = await root
     .session((s) => {
@@ -1264,6 +1258,7 @@ test("a throwing onOutcome is aggregated, keeps the outcome, and does not stop o
       return 2;
     },
   });
+
   const root = createScope();
   const thrown = await root
     .session((s) => {
@@ -1277,7 +1272,6 @@ test("a throwing onOutcome is aggregated, keeps the outcome, and does not stop o
 
   expect(seen).toEqual(["success"]);
   if (!isError(thrown, "TeardownFailed")) throw thrown;
-
   expect(thrown.payload.causes).toContain(hookError);
 });
 
@@ -1309,6 +1303,7 @@ test("owned async work that fails settles the session outcome as failed and surf
       throw cause;
     },
   });
+
   const thrown = await createScope()
     .session((s) => {
       s.resolve(tx);
@@ -1491,6 +1486,7 @@ test("closing a parent whose owned work awaits a child's onClose does not deadlo
       order.push("waiter-done");
     },
   });
+
   void root.run(waiter);
   await root.close();
 
@@ -1586,7 +1582,6 @@ test("releasing a resource runs its cleanup and a re-resolve rebuilds a new inst
   const a = scope.resolve(conn);
 
   scope.release(conn);
-
   expect(cleaned).toEqual([1]);
 
   const b = scope.resolve(conn);
@@ -1611,6 +1606,7 @@ test("a build in flight when its resource is released never publishes", async ()
   scope.release(conn);
   gate.resolve();
   await first;
+
   try {
     void scope.controller(conn).get();
     throw new Error("expected NotResolved");
@@ -1789,6 +1785,7 @@ test("two sessions share one scope-target resource's sticky rejection (one build
   const a = s1.resolve(conn);
   const b = s2.resolve(conn);
   expect(b).toBe(a);
+
   const settled = a.then(
     () => undefined,
     () => undefined,
@@ -1817,10 +1814,9 @@ test("release drops only the resource's cleanup, not a shared onClose callback",
   scope.onClose(shared);
   scope.resolve(conn);
   scope.release(conn);
-
   expect(calls).toBe(1);
-  await scope.close();
 
+  await scope.close();
   expect(calls).toBe(2);
 });
 
@@ -1842,13 +1838,13 @@ test("a release triggered during a factory prevents that build from publishing",
     if (n === 1) scope.release(conn);
   });
   scope.resolve(conn);
+
   try {
     scope.controller(conn).get();
     throw new Error("expected NotResolved");
   } catch (error) {
     if (!isError(error, "NotResolved")) throw error;
   }
-
   expect(built).toBe(1);
 });
 
@@ -1871,8 +1867,8 @@ test("releasing a resource whose owner is already closing fails with Disposed", 
 test("a nested release inside a release cleanup does not hang close", async () => {
   const scope = createScope();
   let closed = false;
-
   scope.onClose(() => void (closed = true));
+
   const b = resource({
     label: "b",
     factory: (_deps, { defer }) => {
@@ -1890,6 +1886,7 @@ test("a nested release inside a release cleanup does not hang close", async () =
       return 1;
     },
   });
+
   scope.resolve(b);
   scope.resolve(a);
   scope.release(a);
@@ -1901,8 +1898,8 @@ test("a nested release inside a release cleanup does not hang close", async () =
 test("a release cleanup that returns its own close does not hang", async () => {
   const scope = createScope();
   let closedFlag = false;
-
   scope.onClose(() => void (closedFlag = true));
+
   const conn = resource({
     label: "conn",
     factory: (_deps, { defer }) => {
@@ -1912,6 +1909,7 @@ test("a release cleanup that returns its own close does not hang", async () => {
       return 1;
     },
   });
+
   scope.resolve(conn);
   scope.release(conn);
   await scope.close();
@@ -1987,11 +1985,10 @@ test("releasing a resource cascades to its dependent exactly once; upstream unto
   const scope = createScope();
 
   scope.resolve(a);
-
   expect([cBuilds, bBuilds, aBuilds]).toEqual([1, 1, 1]);
+
   scope.release(b);
   scope.resolve(a);
-
   expect(cBuilds).toBe(1);
   expect(bBuilds).toBe(2);
   expect(aBuilds).toBe(2);
@@ -2079,6 +2076,7 @@ test("releasing the head of a deep chain does not overflow the stack", () => {
       resource({ label: `r${i}`, depends: { dep }, factory: ({ dep }) => ({ n: dep.n + 1 }) }),
     );
   }
+
   const scope = createScope();
   for (const node of chain) scope.resolve(node);
   scope.release(chain[0]);
@@ -2164,12 +2162,11 @@ test("releasing a scope resource cascades to its dependent instances in each ses
 
   s1.resolve(tx);
   s2.resolve(tx);
-
   expect([poolBuilds, txBuilds]).toEqual([1, 2]);
+
   root.release(pool);
   s1.resolve(tx);
   s2.resolve(tx);
-
   expect(poolBuilds).toBe(2);
   expect(txBuilds).toBe(4);
 });
@@ -2238,10 +2235,9 @@ test("releasing a scope resource skips a closing session and still releases the 
   const closing = s1.close();
   root.release(pool);
   await closing;
-
   expect(poolCleaned).toBe(true);
-  s2.resolve(tx);
 
+  s2.resolve(tx);
   expect(txBuilds).toBe(3);
 });
 
@@ -2286,10 +2282,9 @@ test("releasing a parent session's resource does not touch a child session's own
 
   parent.resolve(tx);
   child.resolve(tx);
-
   expect([connBuilds, txBuilds]).toEqual([2, 2]);
-  parent.release(conn);
 
+  parent.release(conn);
   const childTx = child.resolve(tx);
   expect(childTx.n).toBe(2);
   expect(txBuilds).toBe(2);
@@ -2330,12 +2325,12 @@ test("resolving an operation with a subflow yields a parent-linked span tree", (
     input: asNumber,
     run: (_deps, { input }) => input + 1,
   });
-
   const outer = operation({
     label: "outer",
     depends: { inner },
     run: ({ inner }) => inner.run({ rawInput: 9 }),
   });
+
   const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
   expect(scope.run(outer)).toBe(10);
 
@@ -2479,9 +2474,9 @@ test("a bare log call is info; the four methods carry their level to the sink", 
       log("bare");
       log.debug("d");
       log.info("i");
-
       log.warn("w");
       log.error("e");
+
       return 1;
     },
   });
@@ -2701,8 +2696,8 @@ test("a subflow call with input skips parse; rawInput runs parse", () => {
     if (typeof v !== "number") throw new Error("not a number");
     return v;
   };
-
   const op = operation({ label: "op", input: parseCount, run: (_deps, { input }) => input });
+
   const scope = createScope();
   expect(scope.run(op, { input: 7 })).toBe(7);
   expect(parses).toBe(0);
@@ -2718,12 +2713,12 @@ test("a tagged scope.run binds the whole flow: the run, a subflow, and a nested 
     depends: { leaf, zone },
     run: ({ leaf, zone }) => `${zone}/${leaf.run()}`,
   });
-
   const outer = operation({
     label: "outer",
     depends: { mid, zone },
     run: ({ mid, zone }) => `${zone}/${mid.run()}`,
   });
+
   const scope = createScope({ tags: [zone("eu")] });
   expect(scope.run(outer)).toBe("eu/eu/eu");
   expect(await scope.run(outer, { tags: [zone("us")] })).toBe("us/us/us");
@@ -2810,8 +2805,8 @@ test("a resource preset does not build the deps of the node it replaces", () => 
       return 41;
     },
   });
-
   const conn = resource({ label: "conn", depends: { count }, factory: ({ count }) => count + 1 });
+
   const scope = createScope({ presets: [preset(conn, () => 7)] });
   expect(scope.resolve(conn)).toBe(7);
   expect(built).toBe(0);
@@ -2835,8 +2830,8 @@ test("an operation preset gets empty deps: the real node's deps are not built", 
       return 41;
     },
   });
-
   const greet = operation({ label: "greet", depends: { count }, run: ({ count }) => count + 1 });
+
   const scope = createScope({ presets: [preset(greet, (deps) => Object.keys(deps).length)] });
   expect(scope.run(greet)).toBe(0);
   expect(built).toBe(0);
@@ -2858,12 +2853,12 @@ test("an operation preset gets empty deps under a run hook too", () => {
       return 41;
     },
   });
-
   const greet = operation({ label: "greet", depends: { count }, run: ({ count }) => count + 1 });
   const scope = createScope({
     presets: [preset(greet, (deps) => Object.keys(deps).length)],
     extensions: [extension({ label: "run hook", hooks: { run: (event) => event.next() } })],
   });
+
   expect(scope.run(greet)).toBe(0);
   expect(built).toBe(0);
 });
@@ -2895,8 +2890,8 @@ test("scope and session tags take the same authored shape: a binding, nothing, o
 
 test("a call's tags take the authored shape: a single binding opens the session, a nested nothing does not", async () => {
   const zone = tag<string>({ label: "zone", default: "base" });
-
   const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
+
   const scope = createScope();
   expect(await scope.run(read, { tags: zone("us") })).toBe("us");
   expect(await scope.run(read, { tags: [null, [zone("eu"), undefined]] })).toBe("eu");
@@ -3041,10 +3036,11 @@ test("a resource cleanup rolls back on a forced close, commits on a graceful clo
       return 1;
     },
   });
-  const forced = createScope();
 
+  const forced = createScope();
   forced.resolve(r);
   await forced.close();
+
   const graceful = createScope();
   graceful.resolve(r);
   await graceful.close({ graceful: true });
@@ -3326,6 +3322,7 @@ test("close keeps a child's real failure and cleanup error while waiting for its
     error: failure,
     teardownErrors: [cleanup],
   });
+
   body.resolve();
   const result = await closing;
   await parentClosing;
@@ -3373,6 +3370,7 @@ test("close keeps a grandchild's real failure while its ancestor awaits its body
     error: failure,
     teardownErrors: [cleanup],
   });
+
   body.resolve();
   const result = await parentClosing;
   await rootClosing;
@@ -3430,6 +3428,7 @@ test("close keeps a session grandchild's failure while its ancestor awaits its b
     error: failure,
     teardownErrors: [cleanup],
   });
+
   body.resolve();
   const result = await parentClosing;
   await rootClosing;
@@ -3544,7 +3543,6 @@ test("a parent close preserves a real owned failure in an interrupted child", as
   const result = await root.close();
 
   await rejected;
-
   expect(seen).toEqual([{ status: "failed", error: cause }]);
   expect(result).toEqual({
     status: "failed",
@@ -3643,6 +3641,7 @@ for (const graceful of [false, true]) {
       entered.resolve();
       return release.promise;
     });
+
     let childFinished = false;
     const watched = child.close({ graceful }).then((r) => {
       childFinished = true;
@@ -3651,8 +3650,8 @@ for (const graceful of [false, true]) {
     await entered.promise;
     release.resolve();
     await release.promise;
-
     expect(childFinished).toBe(false);
+
     const rootClosing = root.close({ graceful });
     const childResult = await watched;
     const rootResult = await rootClosing;
@@ -3703,13 +3702,14 @@ test("a descendant failure known before the cascade rolls back the remaining chi
 
   const childResult = await failedChild.close({ graceful: true });
   expect(childResult.status).toBe("failed");
+
   bodyGate.resolve();
   const result = await closing;
   await session;
   await root.close();
+
   if (result.status !== "failed") expect.unreachable();
   if (result.status === "failed") expect(result.error).toBe(cause);
-
   expect(seen).toEqual(["cancelled"]);
 });
 
@@ -3777,11 +3777,11 @@ test("a first graceful child close after an ancestor abort still rolls its resou
       () => undefined,
       (e: unknown) => e,
     );
+
   const closing = parent.close();
-
   await abortedGate.promise;
-
   expect(childSignal.aborted).toBe(true);
+
   const childResult = await child.close({ graceful: true });
   bodyGate.resolve();
   await closing;
@@ -3797,13 +3797,13 @@ test("a body that rejects with a surfaced failure reports it over a caught owned
    * rejection (`ancestor`, surfaced from a grandchild that really failed) wins (ADR 0028). */
   const own = new Error("owned failure");
   const ancestor = new Error("ancestor failure");
-
   const bad = operation({ label: "bad", run: () => Promise.reject(own) });
   const root = createScope();
   const done = root.session(async (child) => {
     await expect(child.run(bad)).rejects.toBe(own);
     return child.session(() => Promise.reject(ancestor));
   });
+
   await expect(done).rejects.toBe(ancestor);
   await root.close();
 });
@@ -3865,6 +3865,7 @@ test("a later session throwing a reused error fails with it", async () => {
 
   await expect(first).rejects.toBe(shared);
   await root1.close();
+
   const interrupted = deferred();
   const ownedCause = new Error("owned");
   const seen: Scope.End[] = [];
@@ -3889,8 +3890,8 @@ test("a later session throwing a reused error fails with it", async () => {
     () => undefined,
     (error: unknown) => error,
   );
-  await root2.close();
 
+  await root2.close();
   expect.soft(await caught).toBe(shared);
 });
 
@@ -3967,7 +3968,6 @@ test("a manual child's earlier close does not swallow the body's own throw of th
   });
 
   await expect.soft(running).rejects.toBe(cause);
-
   expect(seen).toEqual([{ status: "failed", error: cause }]);
   await root.close();
 });
@@ -4022,12 +4022,11 @@ test("release waits for an in-flight op borrowing the resource before running it
   const running = scope.run(op);
 
   scope.release(res);
-
   expect(order).toEqual([]);
+
   opGate.resolve();
   await running;
   await scope.close();
-
   expect(order).toEqual(["op-done", "res-clean"]);
 });
 
@@ -4074,12 +4073,11 @@ test("releasing a scope resource waits for a cross-owner op that borrowed it", a
   const running = child.run(use);
 
   root.release(conn);
-
   expect(order).toEqual([]);
+
   opGate.resolve();
   await running;
   await root.close();
-
   expect(order).toEqual(["use-done", "conn-clean"]);
 });
 
@@ -4256,7 +4254,6 @@ test("release keeps a borrowed resource alive when the op throws first", async (
       return value;
     },
   });
-
   const use = operation({
     label: "use",
     depends: { conn },
@@ -4268,6 +4265,7 @@ test("release keeps a borrowed resource alive when the op throws first", async (
       throw cause;
     },
   });
+
   const scope = createScope();
   expect(() => scope.run(use)).toThrow(cause);
   scope.release(conn);
@@ -4491,11 +4489,10 @@ test("a second close returns the owned Result and never throws", async () => {
 test("an operation reads the scope's clock, and advancing it moves later reads", () => {
   const clk = makeTestClock({ now: 0 });
   const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
-
   const c = createScope({ clock: clk }).controller(now);
   expect(c.run()).toBe(0);
-  clk.advance(50);
 
+  clk.advance(50);
   expect(c.run()).toBe(50);
 });
 
@@ -4538,11 +4535,10 @@ test("a child session reads its parent scope's clock", async () => {
 test("setTime replaces the test clock's current time", () => {
   const clk = makeTestClock({ now: 100 });
   const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
-
   const c = createScope({ clock: clk }).controller(now);
   expect(c.run()).toBe(100);
-  clk.setTime(9000);
 
+  clk.setTime(9000);
   expect(c.run()).toBe(9000);
 });
 
@@ -4572,10 +4568,9 @@ test("a test-clock sleep resolves only once virtual time is advanced past it", a
 
   clk.advance(500);
   await Promise.resolve();
-
   expect(done).toBe(false);
-  clk.advance(500);
 
+  clk.advance(500);
   expect(await woke).toBe(1000);
   expect(done).toBe(true);
 });
@@ -4770,9 +4765,9 @@ test("a labelled inline run yields its name with a nested subflow under it", () 
 
   const spans = scope.spans();
   expect(spans.length).toBe(2);
+
   const job = spans.find((s) => s.name === "job");
   const leaf = spans.find((s) => s.name === "inner");
-
   expect(job?.kind).toBe("operation");
   expect(job?.status).toBe("ok");
   expect(leaf?.parentId).toBe(job?.id);
@@ -4817,9 +4812,9 @@ test("an inline run receives a preset resource through the deps it names", () =>
 
 test("the same inline config run twice shares nothing: two spans, two bodies", () => {
   let runs = 0;
-
   const scope = createScope({ observe: { history: 10 } });
   const cfg = { run: () => ++runs };
+
   expect(scope.run(cfg)).toBe(1);
   expect(scope.run(cfg)).toBe(2);
   expect(runs).toBe(2);
@@ -4839,12 +4834,12 @@ test("a tagged run builds session resources in the flow and leaves scope resourc
     depends: { zone },
     factory: ({ zone }) => zone,
   });
-
   const read = operation({
     label: "read",
     depends: { flow, root },
     run: ({ flow, root }) => `${flow}/${root}`,
   });
+
   const scope = createScope({ tags: [zone("eu")] });
   expect(await scope.run(read, { tags: [zone("us")] })).toBe("us/eu");
 });
@@ -4870,18 +4865,18 @@ test("a tagged run's session closes when the run settles: success then failed", 
       return flow;
     },
   });
-
   const zone = tag<string>({ label: "zone", default: "base" });
   const scope = createScope();
+
   expect(await scope.run(ok, { tags: [zone("us")] })).toBe("f");
   expect(seen).toEqual(["success"]);
+
   try {
     await scope.run(boom, { tags: [zone("us")] });
     expect.unreachable();
   } catch (error) {
     if (!(error instanceof Error) || error.message !== "no") throw error;
   }
-
   expect(seen).toEqual(["success", "failed"]);
 });
 
@@ -4902,8 +4897,8 @@ test("an untagged run builds a session resource at the root, with no session ope
     target: "session",
     factory: () => `f${++builds}`,
   });
-
   const read = operation({ label: "read", depends: { flow }, run: ({ flow }) => flow });
+
   const scope = createScope();
   expect(scope.run(read)).toBe("f1");
   expect(scope.run(read)).toBe("f1");
@@ -5061,6 +5056,7 @@ test("resolve(ext) fails with NotResolved before ready", async () => {
     if (!isError(e, "NotResolved")) throw e;
     expect(e.payload.label).toBe("num");
   }
+
   release();
   await scope.ready;
   await scope.close();
@@ -5817,12 +5813,14 @@ test("session(fn) reports the close Result: success, a failed run, a forced clos
 
   await scope.ready;
   await scope.session(() => 1);
+
   const boom = new Error("session-boom");
   const failing = operation({
     label: "failing",
     run: () => Promise.reject(boom),
   });
   await scope.session((s) => s.run(failing)).catch(() => undefined);
+
   const poke = operation({
     label: "poke",
     run: (_deps, { signal }) =>
@@ -5954,6 +5952,7 @@ test("running an operation on a pending extension dependency raises NotResolved"
     if (!isError(e, "NotResolved")) throw e;
     expect(e.payload.label).toBe("driver");
   }
+
   gate.resolve();
   await scope.ready;
 

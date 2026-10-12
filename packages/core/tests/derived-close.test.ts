@@ -187,6 +187,5 @@ test("an async subflow returns a native promise that Promise.resolve keeps", asy
 
   expect(Promise.resolve(result)).toBe(result);
   await result;
-
   await scope.close({ graceful: true });
 });

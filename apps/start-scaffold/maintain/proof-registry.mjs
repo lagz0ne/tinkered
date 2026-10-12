@@ -21,7 +21,6 @@ const original = await readFile(mailSource, "utf8");
 
 function run(command, args, cwd = consumer, extra = {}) {
   console.log(`\n$ ${command} ${args.join(" ")} (cwd ${cwd})`);
-
   const child = spawnSync(command, args, {
     cwd,
     env: { ...env, ...extra },
@@ -31,8 +30,8 @@ function run(command, args, cwd = consumer, extra = {}) {
 
   process.stdout.write(child.stdout ?? "");
   process.stdout.write(child.stderr ?? "");
-
   console.log(`EXIT ${child.status}`);
+
   assert.equal(child.status, 0, `${command}: ${child.error ?? "failed"}`);
   return child.stdout + child.stderr;
 }
@@ -178,7 +177,6 @@ try {
     "--diff",
     "src/backend/mail.server.ts",
   ]);
-
   assert.ok(diff.includes("mail.completed.changed"));
   assert.deepEqual(await hashes(join(consumer, "src")), userBefore);
   assert.deepEqual(await hashes(join(consumer, "node_modules/@tinker/start")), baseBefore);
@@ -207,7 +205,6 @@ try {
   for (const [name, content] of Object.entries(configBefore)) {
     assert.equal(await readFile(join(consumer, name), "utf8"), content);
   }
-
   console.log(
     "PASS: upgrade 0.7.0 -> 0.7.1 changed no user source or config; package.json and install files changed as expected.",
   );

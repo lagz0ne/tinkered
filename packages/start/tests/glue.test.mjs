@@ -65,8 +65,8 @@ test("Start's usual files the glue does not read are listed, and the read ones a
   expect(files).toContain("src/router.tsx");
   expect(files).toContain("src/client.tsx");
   expect(files).toContain("src/routeTree.gen.ts");
-  expect(files).not.toContain("src/router.ts");
 
+  expect(files).not.toContain("src/router.ts");
   expect(files).not.toContain("src/start.ts");
   expect(files).not.toContain("src/server.ts");
 });

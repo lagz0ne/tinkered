@@ -45,13 +45,13 @@ test("render close finishes while the process telemetry send is held", async () 
       }),
     ],
   });
-
   await tools.ready;
+
   const app = createScope({
     observe: tools.resolve(telemetry.renderObserve, { ns: telemetry.renderNs }),
   });
-
   expect(app.run(render)).toBe("page");
+
   const send = tools.run(flushTelemetry);
   await sending.promise;
   try {
@@ -87,6 +87,7 @@ test("process close sends two renders from one queue with side ssr", async () =>
     expect(app.run(render)).toBe("page");
     expect((await app.close({ graceful: true })).status).toBe("success");
   }
+
   expect(tools.resolve(exportHealth)).toMatchObject({ pending: 4 });
   expect(requests).toEqual([]);
 

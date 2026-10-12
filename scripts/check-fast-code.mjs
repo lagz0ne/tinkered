@@ -88,7 +88,6 @@ function measureInlining() {
 
   const emitted = names();
   const trace = command(process.execPath, ["--trace-turbo-inlining", driver, bundle, "200000"]);
-
   const actual = inlinedInto(trace, emitted.OperationCtx, emitted.runOnce);
   return actual;
 }

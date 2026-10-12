@@ -41,7 +41,6 @@ try {
   assert.equal(prepared.status, 0, prepared.stdout + prepared.stderr);
 
   const before = await inventory(join(consumer, "drizzle"));
-
   const result = spawnSync(join(app, "node_modules/.bin/drizzle-kit"), ["generate"], {
     cwd: consumer,
     encoding: "utf8",

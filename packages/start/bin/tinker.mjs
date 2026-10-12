@@ -40,7 +40,6 @@ async function serve(root) {
     port: Number(process.env.PORT ?? 4318),
     fetch: (request) => asset(request) ?? render(request),
   });
-
   console.log(
     `tinker serve: http://${process.env.HOST ?? "127.0.0.1"}:${process.env.PORT ?? 4318}`,
   );

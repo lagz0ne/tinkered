@@ -315,8 +315,8 @@ test("closing the caller aborts HTTP body reading", async () => {
   await cancelled.promise;
 
   expect((await result).status).toBe("cancelled");
-  stop.abort();
 
+  stop.abort();
   expect((await scope.closed).status).toBe("success");
 });
 
@@ -493,7 +493,6 @@ test("request end settles its tagged HTTP call and leaves siblings open", async 
   await second.started;
   request.abort();
   const result = await sending;
-
   if (result.status !== "failed") throw result;
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
 
@@ -610,8 +609,8 @@ test("backend stop settles HTTP while other running work finishes", async () => 
     signal: new AbortController().signal,
   });
   await backend.started;
-  let closed = false;
 
+  let closed = false;
   const closing = scope.closed.then((end) => {
     closed = true;
     return end;
@@ -619,7 +618,6 @@ test("backend stop settles HTTP while other running work finishes", async () => 
   stop.abort();
   const result = await sending;
   if (result.status !== "failed") throw result;
-
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
 
   expect(signal.aborted).toBe(false);
@@ -668,8 +666,8 @@ test("a direct graceful root close reaches a session's hung HTTP send without st
   const sending = session.settle(post);
   await backend.started;
   const closing = scope.close({ graceful: true });
-  const result = await sending;
 
+  const result = await sending;
   if (result.status !== "failed") throw result;
   if (!isError(result.error, "HttpRequestFailed")) throw result.error;
 
@@ -777,8 +775,8 @@ test("releasing HTTP aborts a held direct send and leaves the scope open", async
   expect(scope.run(operation({ label: "test.after-release", run: () => "still open" }))).toBe(
     "still open",
   );
-  stop.abort();
 
+  stop.abort();
   expect(await scope.closed).toEqual({ status: "success" });
 }, 2000);
 
@@ -804,10 +802,9 @@ test.each(["signal", "tags"] as const)(
 
     end.abort();
     const result = await sending;
-
     expect(result.status).toBe("failed");
-    stop.abort();
 
+    stop.abort();
     expect(await scope.closed).toEqual({ status: "success" });
   },
   2000,

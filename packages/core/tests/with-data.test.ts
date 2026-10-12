@@ -204,9 +204,9 @@ test("a family member and a namespaced session's cell read back from data", asyn
   const bob = namespace();
   const member = root.createSession();
   member.controller(draft, { ns: alice }).set(3);
-
   const named = root.createSession({ ns: bob });
   named.controller(draft).set(4);
+
   const fromMember = (await member.close({ withData: true })).data;
   const fromNamed = (await named.close({ withData: true })).data;
 
@@ -229,12 +229,12 @@ test("a graceful withData close keeps what in-flight work wrote before it settle
       await gate;
     },
   });
+
   const root = createScope();
   const session = root.createSession();
   const running = session.run(save);
   const closing = session.close({ graceful: true, withData: true });
   release();
-
   await running;
   const ended = await closing;
 
@@ -285,8 +285,8 @@ test("a session hook reads the cell in the namespace its resolve names after nex
   const root = createScope({ extensions: [reader] });
   const session = root.createSession();
   session.controller(draft, { ns: alice }).set(3);
-
   session.controller(draft).set(4);
+
   await session.close();
 
   expect(seen).toEqual([3, 4, 4]);
@@ -310,8 +310,8 @@ test("a session hook cannot write a cell or read a resource after next", async (
   });
   const root = createScope({ extensions: [reader] });
   await root.session((scope) => scope.resolve(db));
-  for (const error of errors) if (!isError(error, "Disposed")) throw error;
 
+  for (const error of errors) if (!isError(error, "Disposed")) throw error;
   expect(errors).toHaveLength(2);
   await root.close();
 });

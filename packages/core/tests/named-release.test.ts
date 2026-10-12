@@ -48,13 +48,12 @@ test("a failed async named build stays on its bucket until releaseNs", async () 
   const ctl = scope.controller(client, { ns: a });
   const first = ctl.resolve();
   await expect(first).rejects.toBe(cause);
-
   expect(ctl.resolve()).toBe(first);
   expect(ctl.get()).toBe(first);
+
   scope.releaseNs(client, a);
   const second = ctl.resolve();
   expect(second).not.toBe(first);
-
   await expect(second).rejects.toBe(cause);
   expect(builds).toBe(2);
   await scope.close();
@@ -102,11 +101,12 @@ test("a named run borrows the bucket selected after earlier dependencies resolve
       await gate;
     },
   });
+
   const running = scope.run(hold, { ns: [a, b] });
   scope.releaseNs(client, a);
-
   expect(held).toEqual({ tenant: "A", closed: false });
   expect(ended).toEqual([]);
+
   scope.releaseNs(client, b);
   expect(ended).toEqual(["B"]);
 
@@ -154,6 +154,7 @@ test("a named run borrows a replacement built after an earlier dependency releas
       await gate;
     },
   });
+
   const running = scope.run(hold, { ns: a });
   scope.releaseNs(client, a);
 
@@ -214,19 +215,18 @@ test("a named run keeps a late dependency cleanup alive through its dependent", 
       await runGate;
     },
   });
+
   const scope = createScope();
   const running = scope.run(hold, { ns: a });
   scope.releaseNs(pool, a);
-
   finishBuild();
   await entered;
-
   expect(held.closed).toBe(false);
   expect(ended).toEqual([]);
+
   finishRun();
   await running;
   await scope.settled();
-
   expect(held.closed).toBe(true);
   expect(ended).toHaveLength(2);
   expect(ended).toContain("client");
@@ -271,10 +271,10 @@ test("a named run keeps dependencies borrowed after its dependent is released", 
       await gate;
     },
   });
+
   const scope = createScope();
   const running = scope.run(hold, { ns: a });
   scope.releaseNs(client, a);
-
   scope.releaseNs(pool, a);
 
   expect(held.closed).toBe(false);
@@ -324,6 +324,7 @@ test("a named run keeps a scope pool alive through its session client", async ()
       await gate;
     },
   });
+
   const scope = createScope();
   const running = scope.run(hold, { ns: a });
   scope.release(pool);
@@ -357,7 +358,6 @@ test("releaseNs cleans one resource bucket and close drains the buckets left beh
   const firstA = scope.resolve(client, { ns: a });
   const firstB = scope.resolve(client, { ns: b });
   scope.releaseNs(client, a);
-
   await scope.settled();
 
   expect(ended).toEqual([`${firstA.build}:released`]);
@@ -392,8 +392,8 @@ test("release without ns drops every named resource bucket", async () => {
   });
   const scope = createScope();
   scope.resolve(client, { ns: a });
-
   scope.resolve(client, { ns: b });
+
   scope.release(client);
   await scope.settled();
 
@@ -430,8 +430,8 @@ test("releaseNs waits for its own live borrow but not a sibling namespace", asyn
 
   const running = scope.run(hold, { ns: a });
   scope.releaseNs(client, b);
-
   expect(ended).toEqual(["released"]);
+
   scope.releaseNs(client, a);
   expect(ended).toEqual(["released"]);
 
@@ -478,12 +478,11 @@ test("releaseNs keeps a dependency alive until its named dependent borrow ends",
   const scope = createScope();
   const running = scope.run(hold, { ns: a });
   scope.releaseNs(base, a);
-
   expect(ended).toEqual([]);
+
   finish();
   await running;
   await scope.settled();
-
   expect(ended).toEqual(["client:1", "base:1"]);
   expect(scope.resolve(client, { ns: a })).toEqual({ base: { build: 2 }, build: 2 });
   await scope.close();
@@ -494,8 +493,8 @@ test("release passed point-free to forEach releases each cell", async () => {
   const c2 = data({ label: "second", initial: 0 });
   const scope = createScope();
   scope.controller(c1).set(1);
-
   scope.controller(c2).set(2);
+
   [c1, c2].forEach(scope.release);
 
   expect([scope.resolve(c1), scope.resolve(c2)]).toEqual([0, 0]);
@@ -508,8 +507,8 @@ test("release(cell) resets every named entry at its layer", async () => {
   const cell = data({ label: "named-cell", initial: 0 });
   const root = createScope();
   root.controller(cell, { ns: a }).set(5);
-
   root.controller(cell, { ns: b }).set(6);
+
   root.release(cell);
 
   expect(root.controller(cell, { ns: a }).get()).toBe(0);
@@ -538,8 +537,8 @@ test("release(cell) calls only the child watcher that inherits its named entry",
   const inherited = root.createSession();
   const shadowed = root.createSession();
   root.controller(cell, { ns: a }).set(5);
-
   shadowed.controller(cell, { ns: a }).set(7);
+
   const seen: number[] = [];
   inherited.controller(cell, { ns: a }).watch((value) => seen.push(value));
   shadowed.controller(cell, { ns: a }).watch((value) => seen.push(value));
@@ -570,7 +569,6 @@ test("release(cell) unlinks clients of its named entry, not a child's entry", as
   child.controller(cell, { ns: a }).set(7);
   const kept = child.resolve(client, { ns: a });
   root.release(cell);
-
   expect(ended).toEqual([5]);
 
   const rebuilt = root.resolve(client, { ns: a });
@@ -612,9 +610,9 @@ test("releaseNs resets one data bucket and leaves its sibling and default", asyn
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope();
   scope.controller(cell).set(3);
-
   scope.controller(cell, { ns: a }).set(1);
   scope.controller(cell, { ns: b }).set(2);
+
   scope.releaseNs(cell, a);
 
   expect(scope.resolve(cell, { ns: a })).toBe(3);
@@ -639,11 +637,11 @@ test("releaseNs on named data invalidates only resources that read that bucket",
   });
   const scope = createScope();
   scope.controller(config, { ns: a }).set(1);
-
   scope.controller(config, { ns: b }).set(2);
   const plain = scope.resolve(client);
   const first = scope.resolve(client, { ns: a });
   const sibling = scope.resolve(client, { ns: b });
+
   scope.releaseNs(config, a);
 
   expect(scope.resolve(config, { ns: a })).toBe(0);
@@ -653,7 +651,6 @@ test("releaseNs on named data invalidates only resources that read that bucket",
   expect(scope.resolve(client, { ns: b })).toBe(sibling);
   expect(scope.resolve(client)).toBe(plain);
   expect(ended).toEqual(["1:released"]);
-
   await scope.close();
 });
 
@@ -673,8 +670,8 @@ test("releaseNs on parent data invalidates a child resource that read its bucket
   const scope = createScope();
   const child = scope.createSession();
   scope.controller(config, { ns: a }).set(1);
-
   const first = child.resolve(client, { ns: a });
+
   scope.releaseNs(config, a);
 
   expect(ended).toEqual(["1:released"]);
@@ -701,9 +698,9 @@ test("releaseNs on parent data cleans child resources before parent resources", 
   const scope = createScope();
   const child = scope.createSession();
   scope.controller(config, { ns: a }).set(1);
-
   child.resolve(client, { ns: a });
   scope.resolve(client, { ns: a });
+
   scope.releaseNs(config, a);
 
   expect(ended).toEqual([1, 2]);
@@ -753,8 +750,8 @@ test("releaseNs waits for an async cleanup without a live borrow", async () => {
   scope.resolve(client, { ns: a });
 
   scope.releaseNs(client, a);
-
   expect(ended).toBe(false);
+
   finish();
   await scope.settled();
   expect(ended).toBe(true);
@@ -784,8 +781,8 @@ test("release waits for a live borrow from a named bucket", async () => {
   const scope = createScope();
   const running = scope.run(hold, { ns: a });
   scope.release(client);
-
   expect(ended).toEqual([]);
+
   finish();
   await running;
   await scope.settled();
@@ -817,7 +814,6 @@ test("a late named resource build cleans up and never fills its released bucket"
   scope.releaseNs(client, a);
 
   finish();
-
   expect(await first).toEqual({ build: 1 });
   await scope.settled();
 
@@ -1000,12 +996,11 @@ test("releasing a far named data bucket does not invalidate a client reading a n
   });
   const scope = createScope();
   scope.controller(config, { ns: a }).set(1);
-
   const child = scope.createSession();
   child.controller(config).set(2);
   const first = child.resolve(client, { ns: [a] });
-
   expect(first.value).toBe(2);
+
   scope.releaseNs(config, a);
   const second = child.resolve(client, { ns: [a] });
   expect(second).toBe(first);
@@ -1027,8 +1022,8 @@ test("releaseNs ignores data and resource buckets that were never built or alrea
   });
   const scope = createScope();
   scope.releaseNs(cell, ns);
-
   scope.releaseNs(pool, ns);
+
   scope.controller(cell, { ns }).set(1);
   scope.resolve(pool, { ns });
 
@@ -1133,6 +1128,7 @@ test("a rebuilt named data dependent leaves its old fallback entry", async () =>
 
   expect(scope.resolve(client, { ns: [a, b] })).toBe(rebuilt);
   expect(ended).toEqual([2]);
+
   scope.releaseNs(config, a);
   expect(ended).toEqual([2, 1]);
   await scope.close({ graceful: true });
@@ -1298,7 +1294,6 @@ test("releaseNs on a named pool drops a dependent's sticky async failure", async
   scope.releaseNs(pool, b);
   const rebuilt = scope.resolve(client, { ns: [a, b] });
   expect(rebuilt).not.toBe(failed);
-
   await expect(rebuilt).resolves.toEqual({ pool: 2 });
   await scope.close({ graceful: true });
 });
@@ -1526,13 +1521,13 @@ test("releaseNs notifies only chains containing the released key", async () => {
   });
   const scope = createScope();
   scope.controller(cell, { ns: a }).set(1);
-
   scope.controller(cell, { ns: b }).set(2);
+
   const seen: string[] = [];
   scope.controller(cell, { ns: [a, b] }).watch(() => seen.push("a-b"));
-
   scope.controller(cell, { ns: a }).watch(() => seen.push("a"));
   scope.controller(cell, { ns: c }).watch(() => seen.push("c"));
+
   comparisons = 0;
   scope.releaseNs(cell, a);
 
@@ -1547,8 +1542,8 @@ test("releaseNs notifies a chain watcher of its fallback value", async () => {
   const cell = data({ label: "fallback-cell", initial: 0 });
   const scope = createScope();
   scope.controller(cell, { ns: b }).set(2);
-
   scope.controller(cell, { ns: a }).set(1);
+
   const changes: number[] = [];
   scope.controller(cell, { ns: [a, b] }).watch((value) => {
     changes.push(value);
@@ -1595,8 +1590,8 @@ test("a watcher starting another namespace cannot hold the released instance (N4
   });
 
   scope.releaseNs(cell, a);
-
   expect(ended).toEqual(["1"]);
+
   finishRun();
   await running;
   await scope.close({ graceful: true });
@@ -1644,19 +1639,18 @@ test("a late named dependency finishes after its dependent (N5)", async () => {
       await runGate;
     },
   });
+
   const scope = createScope();
   const running = scope.run(hold, { ns });
   scope.releaseNs(pool, ns);
-
   finishBuild();
   await runningBody;
-
   expect(ended).toEqual([]);
+
   scope.releaseNs(client, ns);
   finishRun();
   await running;
   await scope.settled();
-
   expect(ended).toEqual(["client:released", "pool:released"]);
   await scope.close({ graceful: true });
 });

@@ -43,7 +43,6 @@ test("a stream checks the session once at open, and a save does not check it aga
 
     const response = await root.run(openSync, { input: { cursor: { public: 0, private: null } } });
     const reader = response.getReader();
-
     await reader.read();
     await reader.read();
 
@@ -150,7 +149,6 @@ test("sign-in, an old stream account event, and route loads fetch one signed-in 
       })),
     ],
   });
-
   await browser.ready;
   try {
     const client = browser.resolve(syncClient);
@@ -169,7 +167,6 @@ test("sign-in, an old stream account event, and route loads fetch one signed-in 
     const reconnect = browser.run(refreshAccount);
     const route = browser.run(loadSnapshot);
     allowed.resolve();
-
     await Promise.all([signingIn, reconnect, route]);
 
     browser.run(receiveMessage, {
@@ -178,7 +175,6 @@ test("sign-in, an old stream account event, and route loads fetch one signed-in 
 
     await browser.run(refreshAccount);
     await Promise.all([browser.run(loadSnapshot), browser.run(loadSnapshot)]);
-
     expect(loads).toBe(1);
   } finally {
     allowed.resolve();

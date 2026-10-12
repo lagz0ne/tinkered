@@ -101,13 +101,13 @@ function childBindings(node, names, nested) {
   ) {
     return names;
   }
+
   const inner = new Map(names);
   for (const local of localNames(node)) inner.delete(local);
   if (FUNCTIONS.has(node.type)) for (const local of functionVars(node)) inner.delete(local);
   if (node.type === "CatchClause") {
     for (const local of patternNames(node.param)) inner.delete(local);
   }
-
   return inner;
 }
 

@@ -106,7 +106,6 @@ test("a running call's async defer can write during graceful close", async () =>
   await running;
   const ended = await closing;
   expect(ended.teardownErrors).toBeUndefined();
-
   expect(ended.data?.get(count)).toEqual({ present: true, value: 2 });
   await root.close();
 });
@@ -166,7 +165,6 @@ test("forced close aborts a running call without waiting for its write gate", as
 
   expect((await running).status).toBe("cancelled");
   const ended = await closing;
-
   expect(ended.status).toBe("cancelled");
   expect(ended.data?.get(count)).toEqual({ present: false });
   finish.resolve();
@@ -527,7 +525,6 @@ test("resource cleanup writes fail with Disposed after graceful drain", async ()
   const ended = await root.close({ graceful: true });
 
   expect(ended.teardownErrors).toHaveLength(1);
-
   for (const error of ended.teardownErrors ?? []) {
     if (!isError(error, "Disposed")) throw error;
   }
@@ -767,7 +764,6 @@ test("a running call can use a tagged helper during graceful root close", async 
   const closing = root.close({ graceful: true });
 
   finish.resolve();
-
   try {
     expect(await running).toMatchObject({ status: "success", value: 7 });
   } finally {
@@ -869,6 +865,7 @@ for (const hooked of [false, true]) {
         await result;
         await closing;
       }
+
       const ended = await result;
       if ("error" in ended && ended.error !== cause) throw ended.error;
     });

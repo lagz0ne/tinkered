@@ -208,8 +208,8 @@ test("settled stays pending until an operation's async cleanup finishes", async 
 
   for (let i = 0; i < 5; i++) await Promise.resolve();
   expect(settled).toBe(false);
-  release();
 
+  release();
   await waiting;
   expect(settled).toBe(true);
   expect(order).toEqual(["cleanup-done"]);
@@ -440,7 +440,6 @@ test("an operation that finishes after abort still sees cancelled", async () => 
   const closing = scope.close();
 
   release();
-
   expect(await running).toBe(1);
   const result = await closing;
   expect(result.status).toBe("cancelled");

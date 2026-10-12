@@ -264,7 +264,6 @@ export const streamChanges = operation({
         consumed.status === "success" && consumed.value
           ? await load.settle()
           : await refresh.settle();
-
       if (loaded.status === "failed") log("sync.reconnecting");
       await clock.sleep(500, signal);
     }

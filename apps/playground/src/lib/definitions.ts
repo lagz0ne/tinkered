@@ -267,6 +267,7 @@ function linkName(
   const key = `${source.name} ${name}`;
   if (visited.has(key)) return undefined;
   visited.add(key);
+
   const tree = parseSource(source);
   const root = rootNode(tree);
   for (const kid of children(root)) {
@@ -300,6 +301,7 @@ export function resolveDefinition(
   const tree = parseSource(from);
   const node = nodeAt(tree, from.content, offset);
   const visited = new Set<string>();
+
   if (node.name === "String") return modulePlace(sources, from, node);
   if (!NAMES[node.name]) return undefined;
   const imported = ancestor(node, "ImportDeclaration");

@@ -40,6 +40,7 @@ for (const wait of ["before", "after"]) {
       ],
     });
     const task = operation({ label: "task", run: () => events.push("body") });
+
     const running = Promise.resolve(scope.run(task)).then(
       () => ({ status: "success" }),
       () => ({ status: "failed" }),
@@ -51,7 +52,6 @@ for (const wait of ["before", "after"]) {
     gate.resolve();
 
     const [run, end] = await Promise.all([running, closing]);
-
     expect({ run: run.status, end: end.status, events }).toEqual({
       run: "success",
       end: "success",
@@ -85,10 +85,10 @@ for (const wait of ["before", "after"]) {
       ],
     });
     const task = operation({ label: "task", run: () => events.push("body") });
+
     const running = Promise.resolve(scope.settle(task));
     const closing = scope.close();
     await aborted.promise;
-
     gate.resolve();
 
     expect((await running).status).toBe("cancelled");
@@ -245,6 +245,7 @@ test("write and resolve events bind access and cleanup to their owner", async ()
       }),
     ],
   });
+
   const session = scope.createSession();
   session.controller(input, { ns: east }).set(4);
 
@@ -445,6 +446,7 @@ test("saved controllers stay usable through a waiting hook and its graceful clea
       }),
     ],
   });
+
   const running = Promise.resolve(scope.run(task));
   const closing = scope.close({ graceful: true });
   gate.resolve();
@@ -475,10 +477,10 @@ test("a saved operation settle returns cancellation when its waiting hook is for
       }),
     ],
   });
+
   const running = Promise.resolve(scope.run(task));
   const closing = scope.close();
   await aborted.promise;
-
   gate.resolve();
 
   expect(await running).toMatchObject({ status: "cancelled" });
@@ -503,10 +505,10 @@ test("a saved operation settle returns failed Disposed after its hook ends", asy
       }),
     ],
   });
+
   scope.run(task);
 
   const [controller] = saved;
-
   expect(controller.settle()).toMatchObject({
     status: "failed",
     kind: "error",

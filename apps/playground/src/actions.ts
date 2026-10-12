@@ -63,6 +63,7 @@ export const addFile = operation({
     dirty.set(true);
     files.update((prev) => [...prev, { name, content: "" }]);
     active.set(name);
+
     const prev = nav.get();
     nav.set({
       place: { file: name, offset: 0 },
@@ -89,12 +90,13 @@ export const closeFile = operation({
     const names = files.get().map((f) => f.name);
     const idx = names.indexOf(name);
     if (idx < 0 || names.length < 2) return false;
+
     const next = names.filter((n) => n !== name);
     dirty.set(true);
     files.update((prev) => prev.filter((f) => f.name !== name));
-
     const [first] = next;
     if (active.get() === name) active.set(next[idx] ?? next[idx - 1] ?? first);
+
     const prev = nav.get();
     nav.set({
       place: prev.place?.file === name ? { file: active.get(), offset: 0 } : prev.place,
@@ -128,6 +130,7 @@ export const renameFile = operation({
     dirty.set(true);
     files.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
     if (active.get() === from) active.set(to);
+
     const retitle = (places: readonly Place[]): readonly Place[] =>
       places.map((p) => (p.file === from ? { file: to, offset: p.offset } : p));
     const prev = nav.get();
@@ -136,6 +139,7 @@ export const renameFile = operation({
       back: retitle(prev.back),
       forward: retitle(prev.forward),
     });
+
     return true;
   },
 });

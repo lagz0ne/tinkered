@@ -35,7 +35,6 @@ test("catching a subflow panic still fails its tagged session", async () => {
 
   const root = createScope();
   await expect(root.run(outer, { tags })).rejects.toBe(cause);
-
   await root.close();
 });
 
@@ -78,7 +77,6 @@ test("a data controller from an idle tagged call refuses a late write", async ()
   } catch (error) {
     if (!isError(error, "Disposed")) throw error;
   }
-
   await root.close();
 });
 

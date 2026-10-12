@@ -593,7 +593,6 @@ function exportedFunction(node) {
   }
 
   if (!name) return false;
-
   const symbol = symbolOf(name);
   return checker
     .getExportsOfModule(module)
@@ -2211,13 +2210,12 @@ if (process.argv.includes("--prove")) {
 
   try {
     await cp(join(root, "src"), join(planted, "src"), { recursive: true });
-
     for (const file of ["tsconfig.json", "PLAIN.md", "package.json", ".tinker"]) {
       await cp(join(root, file), join(planted, file), { recursive: true });
     }
-
     await cp(join(root, "tests"), join(planted, "tests"), { recursive: true });
     await symlink(join(root, "node_modules"), join(planted, "node_modules"), "dir");
+
     const generated = join(planted, ".tinker/tsconfig.json");
     await writeFile(generated, (await readFile(generated, "utf8")).replaceAll(root, planted));
 
@@ -2228,7 +2226,6 @@ if (process.argv.includes("--prove")) {
         throw error;
       });
       await writeFile(path, original + source + "\n");
-
       if (name === "list") await writeFile(join(planted, "PLAIN.md"), "wrong list\n");
 
       const red = spawnSync(

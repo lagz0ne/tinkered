@@ -50,18 +50,18 @@ test("counts tinker() under the name it is imported as, in any Vite config file 
   const renamed =
     'import { tinker as base } from "@tinker/start/vite";\nexport default { plugins: [base()] };\n';
   expect(glue(goodApp({ "vite.config.ts": renamed })).status).toBe("ok");
+
   const mts = goodApp({ "vite.config.mts": renamed });
   rmSync(join(mts, "vite.config.ts"));
-
   expect(glue(mts).lines).toEqual([
     "vite.config.mts calls tinker() once; tsconfig.json extends .tinker; postinstall runs tinker prepare",
   ]);
+
   const twice = goodApp({
     "vite.config.mjs":
       'import { tinker as base } from "@tinker/start/vite";\nexport default { plugins: [base(), base()] };\n',
   });
   rmSync(join(twice, "vite.config.ts"));
-
   expect(glue(twice).lines).toEqual([
     "vite.config.mjs:2 calls tinker() 2 times; call it once: plugins: [tinker()]",
   ]);
@@ -196,20 +196,20 @@ test("reads the extends list as tsc does: the last file that sets a key wins ove
     "paths.json": '{ "compilerOptions": { "strict": false, "paths": { "x": ["y"] } } }\n',
   });
   expect(glue(before).status).toBe("ok");
+
   const later = goodApp({
     "tsconfig.json":
       '{\n  "extends": ["./.tinker/tsconfig.json", "./loose.json", "./tight.json"]\n}\n',
     "loose.json": '{ "compilerOptions": { "strict": false } }\n',
     "tight.json": '{\n  "compilerOptions": {\n    "strict": true\n  }\n}\n',
   });
-
   expect(glue(later).status).toBe("ok");
+
   const own = goodApp({
     "tsconfig.json":
       '{\n  "extends": ["./.tinker/tsconfig.json", "./loose.json"],\n  "compilerOptions": { "strict": true }\n}\n',
     "loose.json": '{ "compilerOptions": { "strict": false } }\n',
   });
-
   expect(glue(own).status).toBe("ok");
 });
 
@@ -348,7 +348,6 @@ test("--fix writes only the key that is wrong", () => {
 
   const pkg = '{ "scripts": { "postinstall": "tinker prepare" } }\n';
   const noExtends = goodApp({ "tsconfig.json": "{}\n", "package.json": pkg });
-
   expect(runCheck(noExtends, glue, true).status).toBe("fixed");
   expect(readFileSync(join(noExtends, "package.json"), "utf8")).toBe(pkg);
 });

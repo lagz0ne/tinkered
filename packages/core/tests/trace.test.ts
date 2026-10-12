@@ -100,12 +100,10 @@ test("operation, resource, and manual children inherit the trace and name their 
   const spans = scope.spans();
   const root = spans.find((span) => span.name === "parent")!;
   expect(spans.map((span) => span.name)).toEqual(["manual", "full", "bare", "readSpan", "parent"]);
-
   for (const span of spans.filter((span) => span !== root)) {
     expect(span.traceId).toBe(root.traceId);
     expect(span.parentSpanId).toBe(spans.find((parent) => parent.id === span.parentId)?.spanId);
   }
-
   expect(new Set(spans.map((span) => span.spanId)).size).toBe(spans.length);
   await scope.close();
 });
@@ -154,7 +152,6 @@ test("span JSON keeps public fields, ids, attributes, and events without interna
       attributes: { answer: 42 },
       events: [{ name: "read", time: 100, attributes: { size: 1 } }],
     });
-
     await scope.close();
   }
 });
@@ -334,7 +331,6 @@ test("a session seed overrides its scope seed without changing siblings", async 
   const child = scope.createSession({ trace: other });
 
   expect(child.run(readSpan)).toMatchObject({ ...other, sampled: true });
-
   expect(scope.createSession().run(readSpan)).toMatchObject(seed);
   await scope.close();
 });

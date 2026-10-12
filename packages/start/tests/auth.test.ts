@@ -19,13 +19,12 @@ test("handleAuth hands the whole request to the app's auth library and returns i
     input: new Request("http://app/api/auth/get-session"),
   });
   if (get.status !== "success") throw get;
-
   expect(await get.value.json()).toEqual({ method: "GET", path: "/api/auth/get-session" });
+
   const post = await root.settle(handleAuth, {
     input: new Request("http://app/api/auth/sign-in/email", { method: "POST", body: "{}" }),
   });
   if (post.status !== "success") throw post;
-
   expect(await post.value.json()).toEqual({ method: "POST", path: "/api/auth/sign-in/email" });
   expect((await root.close({ graceful: true })).status).toBe("success");
 });

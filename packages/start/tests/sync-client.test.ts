@@ -41,12 +41,12 @@ test("binding after the factory ends closes the tab once on a real page hide", a
   root.resolve(tabLifetime).bind(async () => {
     closes += 1;
   });
-  page.dispatchEvent(hide(true));
 
+  page.dispatchEvent(hide(true));
   expect(closes).toBe(0);
+
   page.dispatchEvent(new Event("pagehide"));
   page.dispatchEvent(hide(false));
-
   expect(closes).toBe(2);
   expect((await root.close({ graceful: true })).status).toBe("success");
 
@@ -66,17 +66,16 @@ test("the account owner versions each account and stops its work; the tab stop s
   await root.ready;
   const owner = root.resolve(accountOwner);
   const first = owner.capture();
-
   expect([first.version, first.signal.aborted]).toEqual([0, false]);
+
   owner.reset();
   const second = owner.capture();
-
   expect([first.signal.aborted, second.version, second.signal.aborted]).toEqual([true, 1, false]);
+
   tab.abort();
-
   expect(second.signal.aborted).toBe(true);
-  owner.reset();
 
+  owner.reset();
   expect(owner.capture()).toMatchObject({ version: 2, signal: { aborted: true } });
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -99,32 +98,31 @@ test("a snapshot sets the records and cursors once; a stale version or an older 
   });
   await root.ready;
   const client = root.resolve(syncClient);
-
   expect(client.cursors()).toEqual({ accountId: null, publicRevision: -1, privateRevision: -1 });
+
   const first = {
     public: { stream: "public" as const, revision: 2 },
     private: { stream: "ada", revision: 3 },
   };
-
   expect(root.run(applyBootstrap, { input: { snapshot: first, version: 0 } })).toBe(1);
   expect(client.cursors()).toEqual({ accountId: "ada", publicRevision: 2, privateRevision: 3 });
   expect([root.resolve(savedPublic), root.resolve(savedPrivate)]).toEqual([
     first.public,
     first.private,
   ]);
-  expect(root.run(applyBootstrap, { input: { snapshot: ada, version: 1 } })).toBe(1);
 
+  expect(root.run(applyBootstrap, { input: { snapshot: ada, version: 1 } })).toBe(1);
   expect([root.resolve(savedPublic), root.resolve(savedPrivate)]).toEqual([
     first.public,
     first.private,
   ]);
   expect(client.cursors()).toEqual({ accountId: "ada", publicRevision: 2, privateRevision: 3 });
+
   expect(root.run(applyBootstrap, { input: { snapshot: first, version: 7 } })).toBe(undefined);
   expect(client.snapshot()).toEqual({
     public: { stream: "public", revision: 2 },
     private: { stream: "ada", revision: 3 },
   });
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -191,10 +189,9 @@ test("an event before its receipt finishes the write only after the receipt, wit
   root.run(applyEvents, {
     input: { version: 1, events: [event("public", 1, "saved"), result("public", 2, ids[1])] },
   });
-
   expect(root.resolve(applied)).toEqual(["saved"]);
-  receipt.resolve({ kind: "accepted", executionId: ids[1] });
 
+  receipt.resolve({ kind: "accepted", executionId: ids[1] });
   expect(await waiting).toEqual({ kind: "done" });
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -269,15 +266,14 @@ test("a rejected write fails with its message; a send that throws is retried aft
 
   const writing = root.settle(send);
   await arrived[0]?.promise;
-
   expect(tries).toEqual(["sent"]);
+
   await Promise.resolve();
   clock.advance(499);
-
   expect(tries).toEqual(["sent"]);
+
   clock.advance(1);
   await arrived[1]?.promise;
-
   expect(await writing).toMatchObject({
     status: "failed",
     error: { kind: "WriteRejected", payload: { message: "name taken" } },
@@ -362,8 +358,8 @@ test("a snapshot for another account while a write is pending leaves the account
 
   const writing = root.settle(send);
   await sent.promise;
-  const grace = { ...ada, private: { stream: "grace", revision: 0 } };
 
+  const grace = { ...ada, private: { stream: "grace", revision: 0 } };
   expect(root.run(applyBootstrap, { input: { snapshot: ada, version: 1 } })).toBe(undefined);
   expect(client.capture().version).toBe(1);
   expect(root.run(applyBootstrap, { input: { snapshot: grace, version: 1 } })).toBe(2);
@@ -392,8 +388,8 @@ test("closing the root cancels a write that waits for its result", async () => {
         signal,
       ),
   });
-  const tab = new AbortController();
 
+  const tab = new AbortController();
   const root = createScope({ extensions: [accountOwner], tags: tabStop(tab.signal) });
   await root.ready;
   root.run(applyBootstrap, { input: { snapshot: ada, version: 0 } });
@@ -652,7 +648,6 @@ test("a call stopped before it sends fails at once, and sends nothing", async ()
     error: { kind: "Cancelled" },
   });
   expect(sends).toBe(0);
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 

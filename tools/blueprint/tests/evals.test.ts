@@ -410,7 +410,6 @@ test("goldenCasesOf yields every matching unordered pair, in file order, and non
       "- resource:\n    name: r\n    promise: p\n    why: w\n" +
       "- tag:\n    name: c\n    promise: p\n    why: w\n",
   );
-
   const pairTemplate: Blueprint.Template = {
     id: "pair",
     scope: "pair",
@@ -423,7 +422,9 @@ test("goldenCasesOf yields every matching unordered pair, in file order, and non
     false: "f",
     threshold: 0.5,
   };
+
   const cases = goldenCasesOf(pairTemplate, golden, "golden.yaml");
+
   expect(cases.map((c) => c.target)).toEqual([
     ["a", "b"],
     ["a", "c"],
@@ -493,10 +494,10 @@ test("evalSet attaches golden cases from evals/golden.yaml to every template it 
   });
   try {
     const set = scope.resolve(evalSet);
+
     expect(set.get("probe")?.golden.map((c) => c.target[0])).toEqual(["g3", "g4"]);
     expect(set.get("probe")?.golden.map((c) => c.expect)).toEqual([false, false]);
     expect(set.get("pick")?.golden.map((c) => c.target[0])).toEqual(["g1", "g2", "g3", "g4"]);
-
     expect(set.get("pick")?.golden.map((c) => c.expect)).toEqual([
       "tag",
       "resource",

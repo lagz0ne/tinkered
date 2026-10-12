@@ -125,7 +125,6 @@ function staticResponse(body, headers, compressible) {
 function readEncoded(files, cache, candidate, encoding) {
   const encoded =
     encoding === "identity" ? candidate : `${candidate}.${encoding === "br" ? "br" : "gz"}`;
-
   const kept = cache.bytes.get(encoded);
   if (kept !== undefined) return kept;
 

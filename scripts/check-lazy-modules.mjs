@@ -289,7 +289,6 @@ function appliedInvocation(expression, list) {
 function inlineCall(call, checker) {
   if (!ts.isCallExpression(call)) return undefined;
   const indirect = unbound(indirectInvocation(call), checker) ?? boundInvocation(call, checker);
-
   if (!indirect) {
     return inlineParameter(checker.getResolvedSignature(call), checker)
       ? { object: call.arguments[0] }
@@ -367,7 +366,6 @@ function typePosition(node) {
 function valueUse(node) {
   if (typePosition(node)) return false;
   const parent = node.parent;
-
   if (ts.isPropertyAccessExpression(parent) && parent.name === node) return false;
   if (bindingKey(node)) return false;
   if (ts.isShorthandPropertyAssignment(parent)) return true;
@@ -627,7 +625,6 @@ async function check(roots) {
 
     const { target, executables, property } = symbols(checker);
     const bodies = [];
-
     for (const file of files) {
       walk(program.getSourceFile(file), (node) => {
         const declared = coreCall(node, target);

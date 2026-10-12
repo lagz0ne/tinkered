@@ -70,7 +70,6 @@ export const eventStream = resource({
     };
 
     signal.addEventListener("abort", close, { once: true });
-
     defer(async () => {
       close();
       signal.removeEventListener("abort", close);
@@ -81,7 +80,6 @@ export const eventStream = resource({
       async open(initial: Stream.Cursor) {
         const expectedAccount = initial.private?.accountId ?? null;
         subscription = await notifications.subscribe(close, expectedAccount);
-
         if (signal.aborted) {
           notifications.close(subscription);
           raise("Cancelled", {});
@@ -208,7 +206,6 @@ export const eventStream = resource({
 
               const heartbeat = await notifications.wait(changes, wake, lease);
               await checkWake();
-
               activity?.resolve(heartbeat);
               activity = undefined;
             }

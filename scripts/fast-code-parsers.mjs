@@ -80,13 +80,11 @@ function decode(segment) {
   for (const ch of segment) {
     const digit = alphabet.indexOf(ch);
     if (digit < 0) throw new Error("Invalid source map digit");
-
     value += (digit & 31) * 2 ** shift;
     shift += 5;
 
     if (digit & 32) continue;
     out.push(value & 1 ? -Math.floor(value / 2) : value / 2);
-
     value = 0;
     shift = 0;
   }

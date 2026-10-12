@@ -138,11 +138,11 @@ test("a relative import links across the session's own files", () => {
 
 test("an aliased import links every way to the original declaration", () => {
   const scope = createScope();
-
   const aliased = `import { createScope as makeScope } from "@tinker/core";
 export const start = () => makeScope();
 `;
   scope.controller(filesCell).set([{ name: "aliased.ts", content: aliased }]);
+
   expect(
     scope.run(followDefinition, {
       input: { file: "aliased.ts", offset: at(aliased, "createScope") },
@@ -307,14 +307,14 @@ test("history walks the most recent place, and a new jump clears the forward sta
 
   expect(scope.run(goBack)).toEqual({ file: "state.ts", offset: 20 });
   expect(scope.run(goBack)).toEqual({ file: "main.tsx", offset: 10 });
-
   expect(scope.run(goBack)).toBeUndefined();
+
   expect(scope.run(goForward)).toEqual({ file: "state.ts", offset: 20 });
   expect(scope.run(goForward)).toEqual({ file: "Tile.tsx", offset: 30 });
   expect(scope.run(goForward)).toBeUndefined();
+
   expect(scope.run(goBack)).toEqual({ file: "state.ts", offset: 20 });
   scope.run(openSource, { input: { file: "engine.ts", offset: 40 } });
-
   expect(scope.resolve(navigationCell)).toEqual({
     place: { file: "engine.ts", offset: 40 },
     back: [

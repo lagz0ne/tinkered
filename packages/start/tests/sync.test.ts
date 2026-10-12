@@ -95,16 +95,14 @@ test("a wait holds until a wake or close, and returns at once after its revision
   const feed = await root.resolve(notifications);
   const subscription = await feed.subscribe();
   const waiting = feed.wait(subscription, feed.revision());
-
   expect(await settledFirst(Promise.resolve(waiting))).toBe("pending");
-  wake();
 
+  wake();
   expect(await waiting).toBe(false);
   expect(feed.wait(subscription, 0)).toBe(false);
 
   const closing = feed.wait(subscription, feed.revision());
   feed.close(subscription);
-
   expect(await closing).toBe(false);
   expect(feed.wait(subscription, feed.revision())).toBe(false);
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -128,14 +126,12 @@ test("a wait on a broken listener returns at once", async () => {
     ],
   });
   const feed = await root.resolve(notifications);
-
   const subscription = await feed.subscribe();
+
   failures[0]?.();
   const broken = feed.wait(subscription, feed.revision());
-
   expect(subscription.waiting).toBeUndefined();
   await broken;
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -150,7 +146,6 @@ test("notifications wake after a commit, stay silent on a rollback, and a read b
 
   await root.run(publish, { input: { stream: "public", executionId: ids[0], changes: [1] } });
   await feed.wait(subscription, before);
-
   expect(feed.revision()).toBeGreaterThan(before);
   expect(feed.ended(subscription)).toBe(false);
 
@@ -179,13 +174,12 @@ test("the stream replays after its cursor in one frame, greets once, then sends 
 
   const held = reader.read();
   await root.run(publish, { input: { stream: "public", executionId: ids[1], changes: [3] } });
-
   expect(await text(held)).toBe(
     changesFrame([row("public", 3, ids[1], 3)], { public: 3, private: null }),
   );
+
   const idle = reader.read();
   await reader.cancel();
-
   expect((await idle).done).toBe(true);
   expect((await session.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -228,7 +222,6 @@ test("an account's own private events replay beside the public ones; another acc
 
   const cursor = { public: 0, private: { accountId: "ada", revision: 0 } };
   const grace = root.createSession({ tags: requestHeaders(new Headers({ "x-account": "grace" })) });
-
   expect(await grace.settle(openSync, { input: { cursor } })).toMatchObject({
     status: "failed",
     error: { kind: "StreamDenied" },
@@ -237,15 +230,14 @@ test("an account's own private events replay beside the public ones; another acc
 
   const ada = root.createSession({ tags: requestHeaders(new Headers({ "x-account": "ada" })) });
   const reader = (await ada.run(openSync, { input: { cursor } })).getReader();
-
   expect(await text(reader.read())).toBe(
     changesFrame([row("ada", 1, ids[0], "a1"), row("public", 1, ids[2], 1)], {
       public: 1,
       private: { accountId: "ada", revision: 1 },
     }),
   );
-  await reader.cancel();
 
+  await reader.cancel();
   expect((await ada.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -262,17 +254,16 @@ test("a held stream whose account signs out sends the account frame, then no sav
       input: { cursor: { public: 0, private: { accountId: "ada", revision: 0 } } },
     })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
+
   const held = reader.read();
   accounts.delete("ada");
   await root.run(notify, { input: accountNotice("ada") });
-
   await root.run(publish, { input: { stream: "ada", executionId: ids[0], changes: ["secret"] } });
+
   expect(await text(held)).toBe(account);
   expect((await reader.read()).done).toBe(true);
   expect((await ada.close({ graceful: true })).status).toBe("success");
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -295,12 +286,11 @@ test("a sign-in sends no notice: an anonymous stream keeps its account to its 30
   const held = reader.read();
   await settledFirst(held);
   clock.advance(10_000);
-
   expect(await text(held)).toBe(": heartbeat\n\n");
+
   const lastHeld = reader.read();
   await settledFirst(lastHeld);
   clock.advance(20_000);
-
   expect(await text(lastHeld)).toBe("");
   expect((await tab.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -327,8 +317,8 @@ test("a quiet stream sends a heartbeat each 10 s, closes at its 30 s lease, and 
     clock.advance(10_000);
     expect([at, await text(held)]).toEqual([at, ": heartbeat\n\n"]);
   }
-  clock.advance(10_000);
 
+  clock.advance(10_000);
   expect((await reader.read()).done).toBe(true);
   expect((await quiet.close({ graceful: true })).status).toBe("success");
 
@@ -338,17 +328,16 @@ test("a quiet stream sends a heartbeat each 10 s, closes at its 30 s lease, and 
       input: { cursor: { public: 0, private: { accountId: "ada", revision: 0 } } },
     })
   ).getReader();
-
   expect(await text(own.read())).toBe(": connected\n\n");
+
   const held = own.read();
   await settledFirst(held);
   accounts.delete("ada");
-
   await root.run(notify, { input: accountNotice("ada") });
+
   expect(await text(held)).toBe(account);
   expect((await own.read()).done).toBe(true);
   expect((await ada.close({ graceful: true })).status).toBe("success");
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -380,8 +369,8 @@ test("a backend stop ends a held stream, and the request ends clean", async () =
   const reader = (
     await session.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
+
   const held = reader.read();
   backend.abort();
 
@@ -427,10 +416,9 @@ test("a listener that cannot start fails the subscribe; one that breaks ends its
     disconnected += 1;
   });
   listens[1]?.failed();
-
   expect([disconnected, feed.ended(first)]).toEqual([1, true]);
-  const second = await feed.subscribe();
 
+  const second = await feed.subscribe();
   expect([listens.length, listens[1]?.stopped, feed.ended(second)]).toEqual([3, true, false]);
   expect(feed.ended(first)).toBe(true);
 
@@ -524,7 +512,6 @@ test("the sync route answers each request with the stream or its status", async 
           : [],
       body: row.status === 200 ? ": connected\n\n" : "",
     });
-
     expect((await session.close({ graceful: true })).status).toBe("success");
   }
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -554,7 +541,6 @@ test("a request that fails to read, or a stream that fails to open, fails the re
   await expect(
     root.resolve(syncEndpoint).answer(new Request("http://localhost/api/sync")),
   ).rejects.toBe(opened);
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -626,7 +612,6 @@ test("the event history locks a stream, appends in order, saves a result, and ke
     status: "failed",
     error: { kind: "StreamDenied" },
   });
-
   expect(await root.settle(unlocked)).toMatchObject({
     status: "failed",
     error: { kind: "StreamMissing" },
@@ -656,10 +641,9 @@ test("the stream reads the account with no cookie cache and no refresh", async (
   const reader = (
     await session.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
-  await reader.cancel();
 
+  await reader.cancel();
   expect(asked[0]).toEqual({ disableCookieCache: true, disableRefresh: true });
   expect((await session.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -686,8 +670,8 @@ test("a body cancelled while it waits stops its wait at once", async () => {
   const reader = (
     await session.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
+
   const held = reader.read();
   const waiting = await slept.promise;
   await reader.cancel();
@@ -707,10 +691,9 @@ test("a graceful close of the request ends a held read", async () => {
   const reader = (
     await session.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
-  const held = reader.read();
 
+  const held = reader.read();
   expect((await session.close({ graceful: true })).status).toBe("success");
   expect((await held).done).toBe(true);
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -727,24 +710,22 @@ test("a stream opened after a wake still replays; a signed-in tab with no accoun
 
   await feed.wait(subscription, 0);
   feed.close(subscription);
-
   expect(feed.revision()).toBe(1);
+
   const guest = root.createSession({ tags: requestHeaders(new Headers()) });
   const replayed = (
     await guest.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(replayed.read())).toBe(
     changesFrame([row("public", 1, ids[0], 1)], { public: 1, private: null }),
   );
   await replayed.cancel();
-
   expect((await guest.close({ graceful: true })).status).toBe("success");
+
   const ada = root.createSession({ tags: requestHeaders(new Headers({ "x-account": "ada" })) });
   const reader = (
     await ada.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(reader.read())).toBe(account);
   expect((await reader.read()).done).toBe(true);
   expect((await ada.close({ graceful: true })).status).toBe("success");
@@ -820,9 +801,9 @@ test("the sync part's work shows on the trace under its own names", async () => 
   await reader?.cancel();
 
   expect((await session.close({ graceful: true })).status).toBe("success");
+
   const names = new Set(root.spans().map(({ name }) => name));
   const parts = ["history", "endpoint", "open", "stream", "notifications", "liveAccount"];
-
   expect(parts.filter((part) => !names.has(`sync.${part}`))).toEqual([]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -901,8 +882,8 @@ test("a notice checks the account before the rows read, so a sign-out whose rows
       input: { cursor: { public: 0, private: { accountId: "ada", revision: 0 } } },
     })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
+
   const held = reader.read();
   await root.run(dropEvents);
   notice("ada");
@@ -980,8 +961,8 @@ test("only the check after the rows read can stop rows of an account that signed
       input: { cursor: { public: 0, private: { accountId: "ada", revision: 0 } } },
     })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
+
   const held = reader.read();
   await root.run(publish, { input: { stream: "ada", executionId: ids[0], changes: ["secret"] } });
   armed = true;
@@ -990,7 +971,6 @@ test("only the check after the rows read can stop rows of an account that signed
   expect(await text(held)).toBe(account);
   expect((await reader.read()).done).toBe(true);
   expect(reads).toBe(2);
-
   expect((await session.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -1037,18 +1017,17 @@ test("a notice re-reads only its account's streams; the one whose own session en
       ).getReader(),
     ),
   );
-
   expect(await Promise.all(readers.map((reader) => text(reader.read())))).toEqual(
     tabs.map(() => ": connected\n\n"),
   );
+
   live.delete("ada-one");
   notice("ada");
-
   expect(await text(readers[0]!.read())).toBe(account);
+
   await root.run(publish, { input: { stream: "ada", executionId: ids[0], changes: ["ada two"] } });
   await root.run(publish, { input: { stream: "grace", executionId: ids[1], changes: ["grace"] } });
   const held = readers.slice(1).map((reader) => reader.read());
-
   wake();
   expect(await Promise.all(held.map(text))).toEqual([
     changesFrame([row("ada", 1, ids[0], "ada two")], {
@@ -1068,7 +1047,6 @@ test("a notice re-reads only its account's streams; the one whose own session en
   for (const { session } of tabs) {
     expect((await session.close({ graceful: true })).status).toBe("success");
   }
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 }, 30_000);
 
@@ -1092,21 +1070,19 @@ test("a notice that keeps its account sends no frame; the next save is the strea
   const held = reader.read();
   notice("ada");
   for (let turn = 0; turn < 100; turn += 1) await Promise.resolve();
-
   expect(reads.reads()).toBe(2);
   expect(await settledFirst(held)).toBe("pending");
 
   await root.run(publish, { input: { stream: "ada", executionId: ids[0], changes: ["ada"] } });
   wake();
-
   expect(await text(held)).toBe(
     changesFrame([row("ada", 1, ids[0], "ada")], {
       public: 0,
       private: { accountId: "ada", revision: 1 },
     }),
   );
-  await reader.cancel();
 
+  await reader.cancel();
   expect((await session.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
 }, 30_000);
@@ -1130,23 +1106,21 @@ test("a notice takes its stream off the wheel: closing the other waiter stops th
   const root = createScope({ clock, presets: [db] });
   const feed = await root.resolve(notifications);
   const ada = await feed.subscribe(undefined, "ada");
-
   const grace = await feed.subscribe();
+
   const adaWaiting = feed.wait(ada, feed.revision(), 30_000);
   const graceWaiting = feed.wait(grace, feed.revision(), 30_000);
-
   expect(pending()).toBe(1);
+
   notice("ada");
-
   expect(await adaWaiting).toBe(false);
-  feed.close(grace);
 
+  feed.close(grace);
   expect(await graceWaiting).toBe(false);
   for (let turn = 0; turn < 100 && pending(); turn += 1) await Promise.resolve();
-
   expect(pending()).toBe(0);
-  feed.close(ada);
 
+  feed.close(ada);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -1169,8 +1143,8 @@ test("a saved change takes every stream off the wheel: closing one waiter stops 
   const root = createScope({ clock, presets: [db] });
   const feed = await root.resolve(notifications);
   const first = await feed.subscribe();
-
   const second = await feed.subscribe();
+
   const firstWaiting = feed.wait(first, feed.revision(), 30_000);
   const secondWaiting = feed.wait(second, feed.revision(), 30_000);
   wake();
@@ -1180,10 +1154,9 @@ test("a saved change takes every stream off the wheel: closing one waiter stops 
 
   feed.close(first);
   for (let turn = 0; turn < 100 && pending(); turn += 1) await Promise.resolve();
-
   expect(pending()).toBe(0);
-  feed.close(second);
 
+  feed.close(second);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -1209,13 +1182,11 @@ test("waiting again moves a stream's wheel slot instead of adding one", async ()
 
   void feed.wait(sub, feed.revision(), 30_000);
   const again = feed.wait(sub, feed.revision(), 30_000);
-
   expect(pending()).toBe(1);
-  feed.close(sub);
 
+  feed.close(sub);
   expect(await again).toBe(false);
   for (let turn = 0; turn < 100 && pending(); turn += 1) await Promise.resolve();
-
   expect(pending()).toBe(0);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -1304,16 +1275,15 @@ test("closing one waiter keeps the wheel running for the other's heartbeat", asy
   const root = createScope({ clock: time, presets: [db] });
   const feed = await root.resolve(notifications);
   const first = await feed.subscribe();
-
   const second = await feed.subscribe();
+
   const firstWaiting = feed.wait(first, feed.revision(), 30_000);
   const secondWaiting = feed.wait(second, feed.revision(), 30_000);
   feed.close(first);
-
   expect(await firstWaiting).toBe(false);
+
   time.advance(10_000);
   for (let turn = 0; turn < 100; turn += 1) await Promise.resolve();
-
   expect(await settledFirst(Promise.resolve(secondWaiting))).toBe("settled");
   expect(await secondWaiting).toBe(true);
 
@@ -1332,8 +1302,8 @@ test("rows from wakes with no read pending wait for the next read, in one frame"
   const reader = (
     await session.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
+
   await root.run(publish, { input: { stream: "public", executionId: ids[0], changes: [1] } });
   wake();
   for (let turn = 0; turn < 100; turn += 1) await Promise.resolve();
@@ -1348,8 +1318,8 @@ test("rows from wakes with no read pending wait for the next read, in one frame"
       private: null,
     }),
   );
-  await reader.cancel();
 
+  await reader.cancel();
   expect((await session.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -1374,25 +1344,24 @@ test("a private stream sends each row once; a later frame carries only the new r
   const first = reader.read();
   await root.run(publish, { input: { stream: "ada", executionId: ids[0], changes: ["a1"] } });
   wake();
-
   expect(await text(first)).toBe(
     changesFrame([row("ada", 1, ids[0], "a1")], {
       public: 0,
       private: { accountId: "ada", revision: 1 },
     }),
   );
+
   const second = reader.read();
   await root.run(publish, { input: { stream: "ada", executionId: ids[1], changes: ["a2"] } });
   wake();
-
   expect(await text(second)).toBe(
     changesFrame([row("ada", 2, ids[1], "a2")], {
       public: 0,
       private: { accountId: "ada", revision: 2 },
     }),
   );
-  await reader.cancel();
 
+  await reader.cancel();
   expect((await session.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -1413,11 +1382,11 @@ test("streams that share one read each get their own copy of its bytes", async (
       (await session.run(openSync, { input: { cursor } })).getReader(),
     ),
   );
-
   expect(await Promise.all(readers.map((reader) => text(reader.read())))).toEqual([
     ": connected\n\n",
     ": connected\n\n",
   ]);
+
   const held = readers.map((reader) => reader.read());
   await root.run(publish, { input: { stream: "public", executionId: ids[0], changes: [1] } });
   wake();
@@ -1428,8 +1397,8 @@ test("streams that share one read each get their own copy of its bytes", async (
   expect(new TextDecoder().decode(two.value)).toBe(
     changesFrame([row("public", 1, ids[0], 1)], { public: 1, private: null }),
   );
-  await Promise.all(readers.map((reader) => reader.cancel()));
 
+  await Promise.all(readers.map((reader) => reader.cancel()));
   expect((await first.close({ graceful: true })).status).toBe("success");
   expect((await second.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -1573,12 +1542,11 @@ test("a quiet stream reads no account at its heartbeats; each notice reads it on
       input: { cursor: { public: 0, private: { accountId: "ada", revision: 0 } } },
     })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
+
   let held = reader.read();
   await settledFirst(held);
   clock.advance(10_000);
-
   expect(await text(held)).toBe(": heartbeat\n\n");
   expect(reads.reads()).toBe(1);
 
@@ -1586,7 +1554,6 @@ test("a quiet stream reads no account at its heartbeats; each notice reads it on
   await settledFirst(held);
   notice("ada");
   for (let turn = 0; turn < 100 && reads.reads() < 2; turn += 1) await Promise.resolve();
-
   expect(reads.reads()).toBe(2);
   expect(await settledFirst(held)).toBe("pending");
 
@@ -1594,7 +1561,6 @@ test("a quiet stream reads no account at its heartbeats; each notice reads it on
   expect(await text(held)).toBe(account);
   expect((await reader.read()).done).toBe(true);
   expect(reads.reads()).toBe(3);
-
   expect((await session.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -1641,8 +1607,8 @@ test("the lease closes a client that stopped reading", async () => {
   const reader = (
     await session.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
+
   let closed = false;
   const closing = reader.closed.then(() => {
     closed = true;
@@ -1672,10 +1638,9 @@ test("a notice closes a stream whose client stopped reading", async () => {
       input: { cursor: { public: 0, private: { accountId: "ada", revision: 0 } } },
     })
   ).getReader();
-
   expect(await text(reader.read())).toBe(": connected\n\n");
-  await root.run(notify, { input: accountNotice("ada") });
 
+  await root.run(notify, { input: accountNotice("ada") });
   expect(await text(reader.read())).toBe(account);
   expect((await reader.read()).done).toBe(true);
   expect(reads.reads()).toBe(2);
@@ -1696,19 +1661,19 @@ test("streams at the same cursor share one read per wake and skip the empty read
     presets: [db],
   });
   const first = root.createSession();
-
   const second = root.createSession();
+
   const cursor = { public: 0, private: null };
   const readers = await Promise.all(
     [first, second].map(async (session) =>
       (await session.run(openSync, { input: { cursor } })).getReader(),
     ),
   );
-
   expect(await Promise.all(readers.map((reader) => text(reader.read())))).toEqual([
     ": connected\n\n",
     ": connected\n\n",
   ]);
+
   const held = readers.map((reader) => reader.read());
   await root.run(publish, { input: { stream: "public", executionId: ids[0], changes: [1] } });
   wake();
@@ -1725,7 +1690,6 @@ test("streams at the same cursor share one read per wake and skip the empty read
   expect((await first.close({ graceful: true })).status).toBe("success");
   expect((await second.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
-
   expect(reads).toBe(2);
 }, 30_000);
 
@@ -1769,16 +1733,15 @@ test("shared private rows keep accounts apart and check each session after sign-
       ).getReader(),
     ),
   );
-
   expect(await Promise.all(readers.map((reader) => text(reader.read())))).toEqual(
     tabs.map(() => ": connected\n\n"),
   );
+
   live.delete("ada-one");
   notice("ada");
   await root.run(publish, {
     input: { stream: "ada", executionId: ids[0], changes: ["ada secret"] },
   });
-
   await root.run(publish, {
     input: { stream: "grace", executionId: ids[1], changes: ["grace secret"] },
   });
@@ -1795,8 +1758,8 @@ test("shared private rows keep accounts apart and check each session after sign-
       private: { accountId: "grace", revision: 1 },
     }),
   ]);
-  await Promise.all(readers.map((reader) => reader.cancel()));
 
+  await Promise.all(readers.map((reader) => reader.cancel()));
   for (const { session } of tabs) {
     expect((await session.close({ graceful: true })).status).toBe("success");
   }
@@ -1836,10 +1799,9 @@ test("a failed shared row read can be retried by another open stream", async () 
   await root.run(rename, { input: false });
   const survivor = readers[1];
   if (!survivor) throw new Error("missing stream fixture");
-
   expect(await text(survivor.read())).toBe(": connected\n\n");
-  await survivor.cancel();
 
+  await survivor.cancel();
   expect((await first.close({ graceful: true })).status).toBe("success");
   expect((await second.close({ graceful: true })).status).toBe("success");
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -1865,12 +1827,11 @@ test("staggered streams keep their own heartbeat and lease times", async () => {
   const two = (
     await second.run(openSync, { input: { cursor: { public: 0, private: null } } })
   ).getReader();
-
   expect(await text(two.read())).toBe(": connected\n\n");
+
   const firstBeat = one.read();
   const secondBeat = two.read();
   await settledFirst(firstBeat);
-
   await settledFirst(secondBeat);
   clock.advance(8750);
 
@@ -1887,7 +1848,6 @@ test("staggered streams keep their own heartbeat and lease times", async () => {
   expect((await two.read()).done).toBe(true);
   expect((await first.close({ graceful: true })).status).toBe("success");
   expect((await second.close({ graceful: true })).status).toBe("success");
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 

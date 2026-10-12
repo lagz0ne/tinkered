@@ -122,7 +122,6 @@ export const Route = createFileRoute("/proof/write")({server: {
               headers: { "x-proof-user": user },
             }),
           );
-
           assert.equal(response.status, 200);
           const html = await response.text();
           const content = html.match(/<pre id="native-proof">(?<data>.*?)<\/pre>/)?.groups?.data;

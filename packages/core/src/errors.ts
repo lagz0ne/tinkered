@@ -101,8 +101,8 @@ export function stampOrigin(
   ends: boolean,
 ): void {
   if (!isObject(error)) return;
-  const stamp = stamps.get(error);
 
+  const stamp = stamps.get(error);
   if (stamp === undefined) {
     stamps.set(error, { origin: firstOrigin(label, span), open: !ends });
     return;
@@ -112,7 +112,6 @@ export function stampOrigin(
   if (ctx === undefined || stamp.by !== ctx) {
     stamp.origin = { ...stamp.origin, path: [label, ...stamp.origin.path] };
   }
-
   if (ends) stamp.open = false;
 }
 

@@ -90,19 +90,19 @@ test("receiveTelemetry raises Cancelled once the backend or the request stops", 
       browserTelemetry(() => expect.unreachable("a stopped request must not ingest")),
     ],
   });
+
   request.abort();
   const late = await root.settle(receiveTelemetry, {
     rawInput: empty,
     tags: requestStop(request.signal),
   });
-
   expect(late).toMatchObject({ status: "failed", error: { kind: "Cancelled", payload: {} } });
+
   backend.abort();
   const closing = await root.settle(receiveTelemetry, {
     rawInput: empty,
     tags: requestStop(new AbortController().signal),
   });
-
   expect(closing).toMatchObject({ status: "failed", error: { kind: "Cancelled" } });
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -173,8 +173,8 @@ test("the ingest route answers each case with its status, and only a good batch 
     });
     expect((await session.close({ graceful: true })).status).toBe("success");
   }
-  expect(accepted).toEqual([good, { traces: [tabSpan], logs: [] }, good, good]);
 
+  expect(accepted).toEqual([good, { traces: [tabSpan], logs: [] }, good, good]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -219,12 +219,11 @@ test("a bound public origin is the one the route expects", async () => {
     ],
   });
   const session = root.createSession();
-
   const endpoint = session.resolve(telemetryEndpoint);
+
   expect((await endpoint.answer(post({ origin: "https://shop.example" }))).status).toBe(202);
   expect((await endpoint.answer(post({ origin: "http://localhost" }))).status).toBe(403);
   expect((await session.close({ graceful: true })).status).toBe("success");
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -254,8 +253,8 @@ test("closing the scope cancels an unfinished request body, and the route answer
       { duplex: "half" },
     ),
   );
-  const stop = new AbortController();
 
+  const stop = new AbortController();
   const root = createScope({
     tags: [
       backendStop(stop.signal),
@@ -289,11 +288,12 @@ test("a body that fails to read fails the reply, as the route's own error", asyn
       { duplex: "half" },
     ),
   );
-  const stop = new AbortController();
 
+  const stop = new AbortController();
   const root = createScope({
     tags: [backendStop(stop.signal), requestStop(stop.signal), browserTelemetry(() => {})],
   });
+
   await expect(root.resolve(telemetryEndpoint).answer(request)).rejects.toBe(torn);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -411,8 +411,8 @@ test("a body that comes while the backend stops is cancelled unread, and answere
       { duplex: "half" },
     ),
   );
-  const stop = new AbortController();
 
+  const stop = new AbortController();
   stop.abort();
   const root = createScope({
     tags: [
@@ -461,8 +461,8 @@ test("a browser batch split inside UTF-8 text is read from its byte views", asyn
       { duplex: "half" },
     ),
   );
-  expect((await root.resolve(telemetryEndpoint).answer(request)).status).toBe(202);
 
+  expect((await root.resolve(telemetryEndpoint).answer(request)).status).toBe(202);
   expect(accepted).toEqual([batch]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });

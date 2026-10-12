@@ -204,9 +204,7 @@ try {
       throw new Error(relayErrors || "relay exited");
     }),
   ]);
-
   assert.ok(String(ready[0]).includes("relays ready"));
-
   say(
     "Own TCP relays reach Postgres and Mailpit through docker compose exec; host loopback is outside this workspace",
   );
@@ -228,7 +226,6 @@ try {
     ],
     { cwd: app, env, encoding: "utf8", timeout: 30000 },
   );
-
   say(`run app migrations: EXIT ${migration.status}`);
   assert.equal(migration.status, 0, migration.stderr);
 
@@ -276,7 +273,6 @@ try {
     email: "step-one@example.com",
     password: "safe-password-42",
   });
-
   assert.equal(signup.user.email, "step-one@example.com");
   say("curl POST /api/auth/sign-up/email: 200; account step-one@example.com");
 
@@ -285,7 +281,6 @@ try {
   say("Mailpit: real SMTP verification message received");
 
   authCurl("sign-out", {});
-
   const signin = authCurl("sign-in/email", {
     email: "step-one@example.com",
     password: "safe-password-42",
@@ -321,7 +316,6 @@ try {
 
   activeSession = session;
   const todoTitle = "Step one crosses two tabs";
-
   browser("fill", 'input[name="title"]', todoTitle);
   browser("find", "role", "button", "click", "--name", "Add todo", "--exact");
   browser("wait", "--text", todoTitle);
@@ -360,11 +354,9 @@ try {
   const notifications = await fetch(`${mailpitOrigin}/api/v1/messages`).then((response) =>
     response.json(),
   );
-
   assert.ok(
     notifications.messages.some((message) => message.Subject === "Your profile was updated"),
   );
-
   say("profile page saved name; Mailpit received the real SMTP notification");
   say("PROOF PASS: real auth, SMTP, migrations, two-tab sync, and profile page");
 } catch (error) {

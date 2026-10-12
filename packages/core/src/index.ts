@@ -795,7 +795,6 @@ export function parse<T>(parser: Data.Parse<T>, raw: unknown): T {
 
   const standard = parser["~standard"];
   const result = standard.validate(raw);
-
   if (result instanceof Promise) raise("SchemaAsync", { vendor: standard.vendor });
   if (result.issues) raise("SchemaRejected", { issues: result.issues });
 
@@ -1341,7 +1340,6 @@ function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
 
   const next = readCell(layer, target);
   const prev = rec.prev;
-
   if (!cellEq(target, prev, next)) notifyLayer(rec, ws, next, prev);
 }
 
@@ -1365,7 +1363,6 @@ function writeCell<T>(
 
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
-
   if (cellEq(target, readCell(layer, target, chain), value)) return;
 
   ownCell(layer, target, chain).value = value;
@@ -1384,7 +1381,6 @@ function writeCellNs(
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
   const current = readCell(layer, target, chain);
-
   if (cellEq(target, current, value)) return;
 
   const [key] = chain;
@@ -1795,7 +1791,6 @@ class SpanImpl implements Observe.Span {
   constructor(obs: Obs, layer: Layer, up: SpanImpl | undefined, name: string, kind: Observe.Kind) {
     const random = SpanImpl.randomFor(layer.random);
     this.trace = SpanImpl.traceFor(layer, up);
-
     if (this.trace === undefined) {
       this.a = nextTraceWord(random);
       this.b = nextTraceWord(random);
@@ -2216,7 +2211,6 @@ function runDefers(
   for (let i = from; i >= 0; i--) {
     let pending: void | PromiseLike<void>;
     tearing.push(layer);
-
     try {
       pending = fns[i](end);
     } catch (error) {
@@ -2225,7 +2219,6 @@ function runDefers(
     } finally {
       tearing.pop();
     }
-
     if (!isThenable(pending)) continue;
 
     const rest = i - 1;
@@ -2240,7 +2233,6 @@ function runDefers(
         return runDefers(layer, fns, end, rest);
       },
     );
-
     addWork(layer, cont);
     return cont;
   }
@@ -3224,13 +3216,11 @@ function buildHooklessResource<T>(
 
   rec.busy = true;
   buildDepth++;
-
   try {
     const deps = resolveDeps(owner, target, span, superseded, chain, rec, undefined);
     const pending = parked;
     const ctx = emptyCtxFor(owner, chain);
     const fn = target.factory;
-
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
 
@@ -3288,7 +3278,6 @@ function buildTrackedResource<T>(
   rec.busy = true;
   let settled = false;
   buildDepth++;
-
   try {
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
@@ -3989,7 +3978,6 @@ function startClose(
 
     const settled = settleOutcome(layer, undefined);
     const built = collectLayerInstances(layer);
-
     const wait = built.length
       ? closeInstancesSync(layer, settled, built)
       : drainDefersSync(layer, layer.hooks, settled);
@@ -4025,7 +4013,6 @@ function startClose(
      * gate) can land WHILE we await the defers; `settleOutcome` never downgrades a recorded failure, so
      * the result stays monotonic and a collecting ancestor still sees it. */
     const finalSettled = settleOutcome(layer, body);
-
     const keeps = hooks !== undefined || withData;
     const teardownErrors = finishLayer(layer, keeps);
     const ended = buildResult(finalSettled, layer, teardownErrors);
@@ -4398,7 +4385,6 @@ class ScopeHandle implements Scope.Handle {
       : isResource(target)
         ? resourceController(layer, target, undefined, layer.ns)
         : operationController(layer, target, undefined, layer.ns);
-
     s.controller = ctl;
     return ctl;
   }
@@ -4833,7 +4819,6 @@ function runHookCall<T, I>(
     caller,
     call.signal,
   );
-
   if (caller) track(layer, result, runFailure(layer, caller));
   return result;
 }
@@ -4860,7 +4845,6 @@ function enterHookAccess(run: HookRun): typeof activeHookOwner {
   const previous = activeHookOwner;
   activeHookOwner = run.layer;
   buildDepth++;
-
   return previous;
 }
 
@@ -4954,7 +4938,6 @@ function collectAffected(target: Node, targetOwner: Layer): Affected[] {
     if (owners.has(item.layer)) continue;
     owners.add(item.layer);
     order.push(item);
-
     forEachDependent(item.layer, item.node, (t, owner) => stack.push({ node: t, layer: owner }));
   }
   return order;
@@ -5379,7 +5362,6 @@ function runStartChain(
     const value = await ext.hooks.start(
       hookEvent({ kind: "start", scope, next }, layer, ext.label),
     );
-
     const rec = EXTENSIONS.get(layer)?.get(ext);
     if (rec !== undefined) {
       rec.value = value;
@@ -5808,12 +5790,10 @@ async function runSessionWrapped<R>(
   SESSION_HOOKS.set(child, hooks);
   const handle = withSessionCreate(new ScopeHandle(child), child, session);
   let wrapped: { result: unknown; ended: Scope.Result };
-
   try {
     wrapped = await sessionThrough(session, handle, child, async () => {
       const started = Promise.resolve(runBodyWith(child, body, handle));
       child.body = started;
-
       child.bodyEnd = started.then(
         (): Scope.Outcome => {
           child.body = undefined;
@@ -5835,7 +5815,6 @@ async function runSessionWrapped<R>(
       /** The body is done, so force-close any owned work. Its own outcome decides cancellation;
        * the close Result decides resolve/reject in {@link settleSessionEnded} (ADR 0027/0028). */
       const ended = await closeLayer(child, true, false);
-
       return { result, ended };
     });
   } finally {
@@ -5961,7 +5940,6 @@ function withHookAccess<T>(run: HookRun, fn: () => T): T {
   const previous = activeHookOwner;
   activeHookOwner = run.layer;
   buildDepth++;
-
   try {
     return fn();
   } finally {
@@ -5982,7 +5960,6 @@ function runHookChain<T, I>(
   const span = openSpan(layer.obs, layer, up, target.label, "operation");
   const run = createHookRun(layer, span, target.label, call, caller);
   let result: unknown;
-
   try {
     result = invokeRunHooks(run, target, hookTarget, call, chain);
   } catch (error) {
@@ -6071,7 +6048,6 @@ function runHookBody<T, I>(
       run.call as Scope.Invocation<I> | undefined,
       run.span,
     );
-
     if (run.ctx) OperationCtx.share(run.ctx, ctx);
     run.ctx = ctx;
     run.held ??= takeBorrows(target);
@@ -6123,7 +6099,6 @@ function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): 
     status = "failed";
     error = run.failed.error;
   }
-
   closeSpan(run.layer.obs, run.span, status, error);
 
   const fns = run.ctx?.hooks;

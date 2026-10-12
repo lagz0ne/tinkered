@@ -103,18 +103,15 @@ function exportAll(from, node, seen) {
  */
 function statementExports(path, source, node, seen) {
   const closed = (names) => ({ names, open: false });
-
   if (node.type === "ExportDefaultDeclaration") return closed([["default", source.line(node)]]);
   if (node.type === "ExportNamedDeclaration") {
     return closed(exportedIds(node).map((id) => [id.name ?? id.value, source.line(id)]));
   }
-
   if (node.type !== "ExportAllDeclaration") return closed([]);
 
   if (node.exported) {
     return closed([[node.exported.name ?? node.exported.value, source.line(node)]]);
   }
-
   const all = exportAll(path, node, seen);
   return { names: [...all.names], open: all.open };
 }

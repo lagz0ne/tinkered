@@ -965,9 +965,9 @@ function gradeFrom(
 ): Blueprint.Grade {
   const enough = bad.length >= 5 && clean.length >= 5;
   const sep = median(bad) - median(clean);
-
   const ordered = orderedShare(bad, clean);
   const passesBar = sep >= 0.3 && ordered >= 0.9;
+
   const status =
     goldenHits.length > 0 ? "noisy" : !enough ? "provisional" : passesBar ? "proven" : "noisy";
   return { id, status, bad, clean, sep, ordered, goldenHits, goldenTotal };

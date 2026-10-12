@@ -155,7 +155,6 @@ test("private SSE cursors are refused and a revoked held stream sends no saved p
       await root.run(handleAuth, { input: signup("Grace"), tags: requestHeaders(new Headers()) }),
     );
     const snapshot = await root.run(bootstrapPrivate, { tags: requestHeaders(ada) });
-
     const cursor = {
       public: 0,
       private: { accountId: snapshot.stream, revision: snapshot.revision },

@@ -96,19 +96,19 @@ test("a late default dependency stays open through its dependent's async cleanup
       return value.closed;
     },
   });
+
   const scope = createScope();
   const running = scope.run(hold);
   scope.release(pool);
-
   finishBuild();
   await runningBody;
-
   expect(ended).toEqual([]);
+
   finishRun();
   expect(await running).toBe(false);
   for (let i = 0; i < 10 && ended.length === 0; i++) await Promise.resolve();
-
   expect(ended).toEqual(["client:released"]);
+
   finishCleanup();
   await scope.settled();
   expect(ended).toEqual(["client:released", "pool:released"]);
@@ -135,15 +135,15 @@ test("release finishes a borrowed client before its pool", async () => {
     },
   });
   const hold = operation({ label: "hold", depends: { client }, run: async () => gate });
+
   const scope = createScope();
   const running = scope.run(hold);
   scope.release(pool);
-
   expect(ended).toEqual([]);
+
   finish();
   await running;
   await scope.settled();
-
   expect(ended).toEqual(["client:released", "pool:released"]);
   await scope.close();
 });
@@ -183,13 +183,13 @@ test("a watcher borrowing a replacement cannot hold the old instance", async () 
   });
 
   scope.release(cell);
-
   expect(built).toBe(2);
+
   finishOld();
   expect(await old).toBe(1);
   for (let i = 0; i < 10 && ended.length === 0; i++) await Promise.resolve();
-
   expect(ended).toEqual([1]);
+
   finishNew();
   expect(await replacement).toBe(2);
   await scope.close();
@@ -284,7 +284,6 @@ test("a circular resource does not hold itself open after rejection", async () =
   }
 
   if (!isError(thrown, "CircularResource")) throw thrown;
-
   expect((await scope.close()).status).toBe("cancelled");
 });
 
@@ -349,8 +348,8 @@ test("release awaits interleaved async hooks in reverse registration order", asy
   scope.resolve(outer);
 
   scope.release(cell);
-
   expect(order).toEqual(["last"]);
+
   finishLast();
   for (let i = 0; i < 10 && order.length < 2; i++) await Promise.resolve();
   expect(order).toEqual(["last", "middle"]);
@@ -394,8 +393,8 @@ test("a dependency stays open through every hook of its dependent", async () => 
   scope.resolve(client);
 
   scope.release(pool);
-
   expect(order).toEqual(["client-last", "client-first"]);
+
   finish();
   await scope.settled();
   expect(order).toEqual(["client-last", "client-first", "pool"]);
@@ -428,12 +427,12 @@ test("close joins a release whose next hook is queued behind an async hook", asy
   });
   const scope = createScope();
   scope.resolve(first);
-
   scope.resolve(second);
+
   scope.release(cell);
   const closed = scope.close({ graceful: true });
-
   expect(order).toEqual(["second"]);
+
   finish();
   await closed;
   expect(order).toEqual(["second", "first"]);
@@ -480,8 +479,8 @@ test("release keeps its end when close joins a borrowed instance", async () => {
   scope.release(pool);
 
   const closing = scope.close({ graceful: true });
-
   expect(ended).toEqual([]);
+
   finish();
   await running;
   await closing;
@@ -523,8 +522,8 @@ test("a named late client holds only its own dependency bucket", async () => {
   expect(await scope.resolve(client, { ns: b })).toBe(false);
   scope.release(pool);
   expect(ended).toEqual(["B"]);
-  finish();
 
+  finish();
   expect(await pending).toBe(false);
   await scope.settled();
   expect(ended).toEqual(["B", "A"]);
@@ -556,8 +555,8 @@ test("a warm dependency stays open through its client's late build", async () =>
   const value = scope.resolve(pool);
   const building = scope.resolve(client);
   scope.release(pool);
-
   expect(value.closed).toBe(false);
+
   finish();
   expect(await building).toBe(false);
 
@@ -592,8 +591,8 @@ test("a warm hookless bridge holds its pool through a client's late build", asyn
   const value = scope.resolve(bridge);
   const building = scope.resolve(client);
   scope.release(pool);
-
   expect(value.closed).toBe(false);
+
   finish();
   expect(await building).toBe(false);
 
@@ -637,8 +636,8 @@ test("a child build keeps a preset root pool open through its hookless bridge", 
   const child = root.createSession();
   const building = child.resolve(client);
   root.release(pool);
-
   expect(closed).toBe(false);
+
   finish();
   expect(await building).toBe(false);
 
@@ -674,8 +673,8 @@ test("closing a child waits for its late build while it holds a root pool", asyn
     closed = true;
   });
   await Promise.resolve();
-
   expect(closed).toBe(false);
+
   finish();
   expect(await building).toBe(42);
   await closing;
@@ -743,8 +742,8 @@ test("a preset cleanup waits for a hookless dependent's late build", async () =>
   });
   const building = scope.resolve(client);
   scope.release(pool);
-
   expect(closed).toBe(false);
+
   finish();
   expect(await building).toBe(false);
 
@@ -773,7 +772,6 @@ test("a synchronous resource rejects defer after its factory finishes", async ()
   }
 
   if (!isError(thrown, "Disposed")) throw thrown;
-
   expect(thrown.payload.reason).toBe("resource factory already finished");
   await scope.close();
 });
@@ -798,7 +796,6 @@ test("an asynchronous resource rejects defer after its factory finishes", async 
   }
 
   if (!isError(thrown, "Disposed")) throw thrown;
-
   expect(thrown.payload.reason).toBe("resource factory already finished");
   await scope.close();
 });
@@ -886,7 +883,6 @@ test("a late build gives its waiting run a value and ends its hook once as relea
   scope.release(slow);
 
   finish();
-
   expect(await running).toBe(42);
   await scope.settled();
   expect(ends).toEqual(["released"]);
@@ -899,23 +895,23 @@ test("release waits for the borrowed run body and all its defers", async () => {
   const cleanup = Promise.withResolvers<void>();
   const draining = Promise.withResolvers<void>();
   const ended: string[] = [];
+
   const scope = createScope();
   const original = scope.resolve(q2Value);
   const running = scope.run(q2Hold, {
     input: { body: body.promise, cleanup: cleanup.promise, draining: draining.resolve, ended },
   });
   scope.release(q2Value);
-
   expect(scope.resolve(q2Value)).not.toBe(original);
   expect(ended).toEqual([]);
+
   body.resolve();
   expect(await running).toBe(original);
   await draining.promise;
-
   expect(ended).toEqual(["body open", "last defer starts open"]);
+
   cleanup.resolve();
   await scope.settled();
-
   expect(ended).toEqual([
     "body open",
     "last defer starts open",

@@ -81,8 +81,8 @@ for (const named of [false, true]) {
         seen.push([v, p]);
       });
     });
-    root.controller(cell, options).set(1);
 
+    root.controller(cell, options).set(1);
     await flight;
 
     expect(seen).toEqual([[1, 0]]);
@@ -180,10 +180,10 @@ test("a late close of a session that ended in place gets a Result of its own", a
   await root.session((s) => {
     first = s;
   });
-
   await root.session((s) => {
     second = s;
   });
+
   const a = await first!.close();
   const b = await second!.close();
 

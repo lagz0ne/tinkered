@@ -171,9 +171,9 @@ export const queue = resource({
       async sendBatch() {
         const retained = owned.takeBatch();
         if (publishing) health.set({ kind: "sending", pending: records.length, dropped: dropped });
+
         const request = new AbortController();
         const deadline = new AbortController();
-
         const alarm = Promise.resolve().then(async () => {
           try {
             await ctx.clock.sleep(750, deadline.signal);

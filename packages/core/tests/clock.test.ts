@@ -87,8 +87,8 @@ test("due test-clock sleeps wake earliest-first", async () => {
       }),
     )
     .run();
-  clock.advance(200);
 
+  clock.advance(200);
   await Promise.all([late, early]);
 
   expect(seen).toEqual(["early", "late"]);

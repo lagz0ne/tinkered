@@ -144,9 +144,9 @@ test("the shipped choices offer extensions and namespace resources", async () =>
   try {
     const loaded = scope.resolve(corpus);
     const unit = loaded.templates.find((template) => template.id === "unitFits");
-
     const target = loaded.templates.find((template) => template.id === "target");
     if (unit?.kind !== "choice" || target?.kind !== "choice") expect.unreachable();
+
     expect(unit.shapes?.extension).toContain("hooks");
     expect(target.choices.namespace).toContain("root");
   } finally {

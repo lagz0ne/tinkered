@@ -128,7 +128,6 @@ export const syncClient = resource({
           for (;;) {
             if (signal.aborted) raise("Cancelled", {});
             let reply: Sync.Reply;
-
             try {
               reply = await request.send({ data: request.data, signal });
             } catch (error) {

@@ -100,10 +100,8 @@ export function SessionProvider(props: {
   useEffect(() => {
     const options = optionsRef.current;
     const session = parent.createSession(options);
-
     const ns = options?.ns;
     const [head] = ns === undefined ? [inherited] : "tags" in ns ? [ns] : ns;
-
     setOwned({ parent, session, ns: head });
 
     return () => {
@@ -246,7 +244,6 @@ function createDataStore<T, S>(controller: Scope.DataController<T>): SelectingSt
     read: (): S => {
       const raw = controller.get();
       const prev = memo;
-
       if (prev !== undefined && prev.select === store.select && prev.equal === store.equal) {
         if (Object.is(prev.raw, raw)) return prev.slice;
 

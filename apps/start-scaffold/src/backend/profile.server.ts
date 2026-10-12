@@ -107,6 +107,7 @@ export const saveProfile = operation({
   },
   run: async ({ orm, currentUser, database, history, notify }, { input, clock }) => {
     const { eq } = orm;
+
     await database.transaction(async (tx) => {
       await history.lock(tx, currentUser.id);
       if (await history.find(tx, input.executionId, currentUser.id)) return;
@@ -139,6 +140,7 @@ export const saveProfile = operation({
         { kind: "change", change: { kind: "profile", profile: saved } },
       ]);
     });
+
     notify.finish(input.executionId);
     return { executionId: input.executionId };
   },
@@ -169,6 +171,7 @@ export const retryNotification = operation({
         notification: previous.notification,
       });
     });
+
     notify.finish(input.executionId);
     return { executionId: input.executionId };
   },

@@ -100,7 +100,6 @@ test("a subflow failure that escapes its caller fails the session", async () => 
 
   const root = createScope();
   const session = root.createSession();
-
   await expect(session.run(outer)).rejects.toBe(cause);
 
   expect(await session.close({ graceful: true })).toEqual({
@@ -465,7 +464,6 @@ test("a caught subflow closes its own span failed and its caller span ok", async
     ["inner", "failed"],
     ["outer", "ok"],
   ]);
-
   expect(spans.find((span) => span.name === "inner")?.error).toBe(cause);
   await scope.close({ graceful: true });
 });

@@ -44,8 +44,8 @@ function mergedPaths(root) {
     .flat()
     .filter((file) => /^\.{1,2}\//.test(file))
     .map((file) => readJsonc(resolve(root, file)));
-
   if (parents.some((parent) => parent.error)) return null;
+
   const found = [own, ...parents.reverse()].find((read) => read.value.compilerOptions?.paths);
   return found?.value.compilerOptions.paths ?? {};
 }

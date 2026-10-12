@@ -162,7 +162,6 @@ export const notifications = resource({
       broken = true;
       wake();
       timer?.abort(wheelStopped);
-
       await ticking;
 
       const current = await connection;
@@ -204,7 +203,6 @@ export const notifications = resource({
           bucket: undefined,
           deadline: Infinity,
         };
-
         watchers.add(subscriber);
         return subscriber;
       },
@@ -220,7 +218,6 @@ export const notifications = resource({
           at.delete(key);
           throw error;
         });
-
         at.set(key, started);
         return started;
       },

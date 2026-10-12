@@ -53,7 +53,6 @@ function Field({
 function Form({ life, work, seen }: FormProps): React.ReactElement {
   const [value, setValue] = useData(title, { writable: true });
   const [other, setOther] = useData(note, { writable: true });
-
   const reset = useRelease();
   const live = useResource(life);
   const query = useResource(life, { ns: project, suspense: false });

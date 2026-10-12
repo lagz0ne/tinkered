@@ -209,6 +209,7 @@ test("a namespaced write invokes its hook once", async () => {
       }),
     ],
   });
+
   scope.controller(cell, { ns: east }).set(2);
 
   expect(scope.controller(cell, { ns: east }).get()).toBe(2);

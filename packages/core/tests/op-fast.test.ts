@@ -146,7 +146,6 @@ test("a saved run next refuses to start a body after its run has finished", asyn
 
   if (!isError(error, "Disposed")) throw error;
   expect(error.payload.reason).toBe("run is finished");
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -185,7 +184,6 @@ test("a hooked run waits for its async resource before calling its body", async 
   expect(calls).toEqual(["before"]);
 
   release(7);
-
   expect(await running).toEqual({ status: "success", value: 8 });
   expect((await root.close({ graceful: true })).status).toBe("success");
   expect(calls).toEqual(["before", "body", "after", "cleanup"]);
@@ -232,7 +230,6 @@ for (const controller of [false, true]) {
 
     if (result.status !== "failed") throw result;
     expect(result.error).toBe(cause);
-
     expect((await root.close({ graceful: true })).status).toBe("success");
   });
 }

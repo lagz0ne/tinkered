@@ -22,8 +22,8 @@ const refuse = operation({
 test("readResult returns a settled value and throws a settled failure as is", async () => {
   const root = createScope({ tags: [env({ GREETING_NAME: "Ada" })] });
   expect(readResult(root.settle(greet))).toBe("Hello, Ada.");
-  const failed = root.settle(refuse);
 
+  const failed = root.settle(refuse);
   expect(failed.status).toBe("failed");
   expect(() => readResult(failed)).toThrow(failed.status === "failed" ? failed.error : undefined);
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -86,11 +86,12 @@ function endOnce(ends: boolean[]) {
 test("a held response body ends the request when read to the end, or when cancelled", async () => {
   const root = createScope();
   const ends: boolean[] = [];
+
   const read = await (
     await root.resolve(responseBodies)
   ).hold(new Response("hello"), endOnce(ends));
-
   expect(await read.text()).toBe("hello");
+
   const open = await (
     await root.resolve(responseBodies)
   ).hold(new Response(new ReadableStream()), endOnce(ends));
@@ -129,13 +130,12 @@ test("dev passes on any response that is not a page load's JSON 500", async () =
   const page = new Request("http://app/", { headers: { accept: "text/html" } });
   const data = new Request("http://app/", { headers: { accept: "application/json" } });
   const failed = Response.json({ message: "boom" }, { status: 500 });
-
   expect(await devErrorPage(data, failed)).toBe(failed);
+
   const text = new Response("boom", { status: 500 });
-
   expect(await devErrorPage(page, text)).toBe(text);
-  const bare = new Response(null, { status: 500 });
 
+  const bare = new Response(null, { status: 500 });
   expect(await devErrorPage(page, bare)).toBe(bare);
 });
 
@@ -224,9 +224,9 @@ test("a request that cannot end fails the body's cancel, and the scope's close",
   });
 
   await expect(cancelled.body?.cancel()).rejects.toBe(lost);
+
   await bodies.hold(new Response(new ReadableStream()), async () => {
     throw lost;
   });
-
   expect((await root.close({ graceful: true })).teardownErrors).toEqual([lost]);
 });

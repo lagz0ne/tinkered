@@ -86,10 +86,10 @@ function Controls(): ReactElement {
   const p = useData(physics);
   const storm = useData(stormOn);
   const tune = useRun(setPhysics);
-
   const flipStorm = useRun(setStorm);
   const spin = useRun(turn);
   const wipe = useRun(clear);
+
   return (
     <section className="panel" aria-label="Storm controls">
       <div className="control-group turn-controls">

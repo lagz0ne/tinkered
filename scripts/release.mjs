@@ -55,7 +55,6 @@ try {
     }
 
     await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-
     const file = `tinker-${name}-${version}.tgz`;
     const target = join(assets, file);
     run("tar", ["-czf", target, "-C", unpacked, "package"]);
@@ -65,7 +64,6 @@ try {
       .update(await readFile(target))
       .digest("hex");
     manifest.assets.push({ file, size, sha256, url: urls[`@tinker/${name}`] });
-
     console.log(`ASSET ${file} ${size} bytes sha256 ${sha256}`);
   }
 

@@ -93,7 +93,6 @@ test("an async child span closes as failed when its promise rejects", async () =
 
   await Promise.resolve();
   await Promise.resolve();
-
   expect(spans.find((s) => s.name === "step")?.status).toBe("failed");
 });
 
@@ -103,8 +102,8 @@ test("sibling spans carry distinct ids in call order", () => {
   const first = operation({ label: "first", run: () => 1 });
   const second = operation({ label: "second", run: () => 2 });
   const scope = createScope({ observe: { clock: () => ++now, export: (s) => void more.push(s) } });
-  scope.run(first);
 
+  scope.run(first);
   scope.run(second);
 
   expect(more[1].id).toBe(more[0].id + 1);
@@ -114,8 +113,8 @@ test("a run retains its span in history", () => {
   const op = operation({ label: "op", run: () => 1 });
   const scope = createScope({ observe: { history: 10 } });
   scope.run(op);
-  const spans = scope.spans();
 
+  const spans = scope.spans();
   expect(spans.length).toBe(1);
   expect(spans[0].status).toBe("ok");
 });

@@ -75,6 +75,7 @@ test("a call signal stops a nested wait before the retry clock advances", async 
     run: ({ request }) => request.run(),
   });
   const scope = createScope({ clock });
+
   const running = scope.controller(step).settle({ signal: stop.signal });
   stop.abort(reason);
 
@@ -105,12 +106,12 @@ test("a cancelled call waits for its cleanup before it settles", async () => {
     },
   });
   const scope = createScope();
+
   const running = Promise.resolve(scope.settle(work, { signal: stop.signal })).then((end) => {
     events.push(end.status);
     return end;
   });
   stop.abort(reason);
-
   body.resolve();
   await cleaning.promise;
 
@@ -133,9 +134,9 @@ test("a distinct error after call cancellation remains a handled failure", async
     },
   });
   const scope = createScope();
+
   const running = scope.settle(work, { signal: stop.signal });
   stop.abort(new Error("steer"));
-
   body.resolve();
 
   expect(await running).toMatchObject({ status: "failed", error });
@@ -158,6 +159,7 @@ test("a call signal gives sync inline work its own data and session resource lif
   });
   const scope = createScope();
   const parentValue = scope.resolve(local);
+
   const running = scope.settle(
     {
       depends: { count: count.controller, local },
@@ -194,6 +196,7 @@ test("a signalled call keeps input parsing, tags, and its namespace", async () =
     run: ({ service, token }, { input }) => `${service}/${token}/${input}`,
   });
   const scope = createScope();
+
   const result = scope.controller(work).run({
     rawInput: "zones",
     signal: stop.signal,
@@ -242,6 +245,7 @@ test("abort during tag-list setup cannot slip past call cancellation", async () 
   });
   const events: string[] = [];
   const scope = createScope();
+
   const result = await scope.settle(
     { run: () => events.push("body") },
     {
@@ -264,6 +268,7 @@ test("graceful owner close still permits cancellation of an active call", async 
     label: "work",
     run: (_deps, ctx) => ctx.clock.sleep(100, ctx.signal),
   });
+
   const running = scope.settle(work, { signal: stop.signal });
   const closing = scope.close({ graceful: true });
   stop.abort(reason);
@@ -279,6 +284,7 @@ test("forced owner close cancels a call even when its supplied signal stays live
     label: "work",
     run: (_deps, ctx) => ctx.clock.sleep(100, ctx.signal),
   });
+
   const running = scope.settle(work, { signal: stop.signal });
   const closing = scope.close();
   const result = await running;

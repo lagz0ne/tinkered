@@ -25,7 +25,6 @@ console.log(
 
 function run(command, args, cwd = root, extra = {}, expected = 0) {
   console.log(`\n$ ${command} ${args.join(" ")} (cwd ${cwd})`);
-
   const result = spawnSync(command, args, {
     cwd,
     env: { ...env, ...extra },
@@ -126,7 +125,6 @@ async function serve(consumer, full, serviceEnv) {
 
   console.log(`App server PID ${child.pid}: ${origin}`);
   assert.ok(run("curl", ["--fail", "--silent", `${origin}/`], consumer).includes("Hello, world."));
-
   if (full) {
     assert.ok(
       run("curl", ["--fail", "--silent", `${origin}/demo`], consumer).includes("A shared counter"),
@@ -261,7 +259,6 @@ try {
     relay.once("error", fail);
     relay.once("exit", (code) => fail(new Error(`relay exited ${code}`)));
   });
-
   console.log(
     `Own TCP relay PID ${relay.pid} reaches Postgres and Mailpit through docker compose exec; Docker host loopback is outside this workspace.`,
   );
@@ -273,7 +270,6 @@ try {
     SMTP_PORT: String(smtpPort),
   };
   const index = JSON.parse(await readFile(join(registry, "registry.json"), "utf8"));
-
   for (const item of index.items.filter((item) => item.name !== "app")) {
     const consumer = join(scratch, item.name);
     await mkdir(consumer);
@@ -311,7 +307,6 @@ try {
       JSON.parse(await readFile(join(consumer, "package.json"), "utf8")).scripts,
       scripts,
     );
-
     console.log(
       `PASS: ${item.name} added to a fresh app without --overwrite; edited config and both seams unchanged byte for byte; app scripts unchanged.`,
     );
@@ -319,7 +314,6 @@ try {
     const tinker = join(consumer, "node_modules/.bin/tinker");
     const full = item.meta.parts?.includes("sync") ?? false;
     const report = run(tinker, ["doctor"], consumer, {}, full ? 1 : 0);
-
     if (full) {
       const plain = report.replace(/\s+/g, " ");
       for (const part of item.meta.parts) assert.ok(plain.includes(`tinker({ ${part}: true })`));

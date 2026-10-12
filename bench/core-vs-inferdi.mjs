@@ -96,7 +96,6 @@ console.log("\n--- metrics (ns = min ns/iter; _b = alloc bytes/iter; both lower 
 for (const s of scenarios) {
   const t = statsOf(`${s.key}_tinker`);
   const e = statsOf(`${s.key}_inferdi`);
-
   const tn = t ? t.min : Number.NaN;
   const en = e ? e.min : Number.NaN;
   const tb = t?.heap ? t.heap.min : Number.NaN;

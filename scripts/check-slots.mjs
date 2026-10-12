@@ -326,7 +326,6 @@ function cellsOf(statement) {
 
   const decl = statement.declaration;
   const vars = decl?.type === "VariableDeclaration" ? varNames(decl) : [];
-
   return [...locals, ...vars, ...(decl ? declaredBy(statement) : [])];
 }
 
@@ -336,7 +335,6 @@ function moduleNames(program) {
 
   const declared = [...lexicalNames(program.body), ...varNames(program)];
   declared.sort((a, b) => a.start - b.start);
-
   const seen = new Set();
   const names = declared.filter((id) => !seen.has(id.name) && seen.add(id.name));
 
@@ -372,7 +370,6 @@ function vlq(segment) {
 
     if (digit & 32) continue;
     out.push(value & 1 ? -(value >>> 1) : value >>> 1);
-
     value = 0;
     shift = 0;
   }

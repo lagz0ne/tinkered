@@ -130,7 +130,6 @@ class TelemetryEndpoint {
     if (typeof read === "number") return new Response(null, { status: read });
 
     const result = await this.receive.settle({ input: read, signal: request.signal });
-
     if (result.status === "failed" && Object(result.error).kind === "Cancelled") {
       return new Response(null, { status: 503 });
     }

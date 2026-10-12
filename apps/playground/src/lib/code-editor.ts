@@ -132,11 +132,13 @@ export const codeEditor = resource({
       editable = source.editable;
       view.setState(reuse ?? EditorState.create({ doc: source.content, extensions: extensions() }));
       cache.set(source.name, view.state);
+
       view.dispatch({
         selection: { anchor: Math.min(offset, view.state.doc.length) },
         scrollIntoView: true,
         annotations: external.of(true),
       });
+
       view.dispatch({
         effects: [
           compartments.access.reconfigure([

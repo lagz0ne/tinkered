@@ -35,12 +35,13 @@ test("a 300-record burst is sent before the first tick, one batch at a time", as
         peak = Math.max(peak, active);
         requests++;
         if (requests === 1) await release.promise;
+
         const batch = (typeof init?.body === "string" ? init.body : "")
           .split("\n")
           .map((line) => JSON.parse(line));
-
         expect(batch.length).toBeLessThanOrEqual(64);
         sent.push(...batch);
+
         active--;
         return new Response(null);
       }),
@@ -111,6 +112,7 @@ test("a full batch arriving as a send ends is sent before any tick", async () =>
       await root.run(flushTelemetry);
       await incoming;
       for (let step = 0; step < 30; step++) await Promise.resolve();
+
       expect({
         sent,
         pending: root.resolve(exportHealth).pending,
@@ -164,15 +166,14 @@ test("a slow console keeps a bounded batch and counts every dropped copy", async
 
   sink.writableNeedDrain = false;
   await root.run(flushTelemetry);
+
   const text = writes.join("");
   const printed = text.trimEnd().split("\n").length;
-
   expect(new TextEncoder().encode(text).byteLength).toBeLessThanOrEqual(48_000);
   const dropped = 600 - stored + 600 - printed;
-
   expect(root.resolve(exportHealth)).toMatchObject({ pending: 0, dropped });
-  const closed = await root.close({ graceful: true, withData: true });
 
+  const closed = await root.close({ graceful: true, withData: true });
   expect(closed.status).toBe("success");
   expect(closed.data?.get(exportHealth)).toMatchObject({
     present: true,

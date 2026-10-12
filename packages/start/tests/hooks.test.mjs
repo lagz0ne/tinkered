@@ -17,8 +17,8 @@ test("a build's boundary record starts empty, and keeps each violation once, at 
   const root = goodApp();
   const found = startViolations(root);
   const path = join(root, ".tinker/violations.json");
-
   expect(JSON.parse(readFileSync(path, "utf8"))).toEqual([]);
+
   const info = { ...leak, importer: join(root, "src/routes/leak.tsx") };
   recordViolation(root, found, info);
   recordViolation(root, found, info);

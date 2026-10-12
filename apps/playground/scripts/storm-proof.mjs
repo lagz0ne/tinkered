@@ -449,12 +449,14 @@ if (mode === "capture" || mode === "walls") {
           console.log(JSON.stringify({ waitingForLoadUnder4: load() }));
           await sleep(10000);
         }
+
         await navigate(url);
         const settings = await evaluate(setup);
         await evaluate(
           "[...document.querySelector('iframe').contentDocument.querySelectorAll('button')].find(button => button.textContent.includes('Start storm')).click()",
         );
         await sleep(2500);
+
         let layers = [];
         const layerListener = (message) => {
           if (
@@ -487,20 +489,20 @@ if (mode === "capture" || mode === "walls") {
             drawsContent: layer.drawsContent,
           });
         }
-
         await page("LayerTree.disable");
         listeners.delete(layerListener);
+
         const events = [];
         let complete;
         const ended = new Promise((resolve) => {
           complete = resolve;
         });
-
         const traceListener = (message) => {
           if (message.method === "Tracing.dataCollected") events.push(...message.params.value);
           if (message.method === "Tracing.tracingComplete") complete();
         };
         listeners.add(traceListener);
+
         const documentState = await evaluate(`(() => {
         const w = document.querySelector('iframe').contentWindow;
         const d = w.document;
@@ -602,8 +604,8 @@ if (mode === "capture" || mode === "walls") {
           (sum, event) => sum + (event.args.elementCount || 0),
           0,
         );
-
         const styleMicroseconds = styleEvents.reduce((sum, event) => sum + (event.dur || 0), 0);
+
         const tiltUpdates = await evaluate(`(() => {
         const w = document.querySelector('iframe').contentWindow;
         w.__tiltObserver.disconnect();

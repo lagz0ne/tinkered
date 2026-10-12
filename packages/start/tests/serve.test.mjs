@@ -39,10 +39,10 @@ test("a hashed asset is immutable, and a missing one is a 404", async () => {
 test("pages, dot paths, escapes, and writes pass on to the server entry", async () => {
   const root = built();
   const asset = await createAssets(root);
+
   expect(await asset(new Request("http://app/"))).toBeNull();
   expect(await asset(new Request("http://app/posts/1"))).toBeNull();
   expect(await asset(new Request("http://app/.vite/manifest.json"))).toBeNull();
-
   expect(await asset(new Request("http://app/..%2f..%2fetc/passwd"))).toBeNull();
   expect(await asset(new Request("http://app/robots.txt", { method: "POST" }))).toBeNull();
 });
@@ -96,8 +96,8 @@ test("a host keeps its file list until restart", async () => {
   writeFileSync(join(root, "dist/client/new.html"), "<p>New</p>");
 
   expect(await asset(new Request("http://app/new.html"))).toBeNull();
-  const restarted = await createAssets(root);
 
+  const restarted = await createAssets(root);
   expect(await (await restarted(new Request("http://app/new.html")))?.text()).toBe("<p>New</p>");
 });
 
@@ -170,18 +170,18 @@ test("a warmed host serves its retained raw and encoded bytes after files go awa
   const zipped = new Request("http://app/assets/app-1a2b.js", {
     headers: { "accept-encoding": "br" },
   });
-  await (await asset(raw)).text();
 
+  await (await asset(raw)).text();
   await (await asset(zipped)).arrayBuffer();
+
   unlinkSync(join(root, "dist/client/robots.txt"));
   unlinkSync(join(root, "dist/client/assets/app-1a2b.js"));
-  const text = asset(raw);
 
+  const text = asset(raw);
   const bytes = asset(zipped);
   expect(text).toBeInstanceOf(Response);
   expect(bytes).toBeInstanceOf(Response);
   expect(await text.text()).toBe("User-agent: *\n");
-
   expect(brotliDecompressSync(Buffer.from(await bytes.arrayBuffer())).toString()).toBe(
     "console.log(1)",
   );

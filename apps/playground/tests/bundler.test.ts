@@ -91,13 +91,13 @@ test("a compile failure lands in status and keeps the last bundle", async () => 
   const { scope, writes, status } = readScope();
   scope.resolve(bundler);
   await until(status, (s) => s.text === "running…");
+
   edit(scope, 'import "./missing";');
   const failed = await until(status, (s) => s.kind === "error");
   expect(failed).toEqual({
     kind: "error",
     text: '[plugin: virtual-fs] Cannot find file "./missing"',
   });
-
   expect(writes.length).toBe(1);
 });
 

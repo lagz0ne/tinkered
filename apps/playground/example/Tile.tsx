@@ -74,6 +74,7 @@ export const Tile = memo(function Tile({
   const low = wall(0.4);
   const high = wall(0.52);
   const arrow = arrowOf(shade, water);
+
   return (
     <button
       type="button"

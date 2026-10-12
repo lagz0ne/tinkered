@@ -134,6 +134,7 @@ test("settle returns what run returns when a body answers its abort with a value
   const a = createScope();
   const ran = a.run(serve);
   void a.close();
+
   const b = createScope();
   const settled = b.settle(serve);
   void b.close();
@@ -320,7 +321,6 @@ test("scope settle on a tagged inline config: a Result in place, a native promis
     { depends: { zone }, run: ({ zone }, { input }) => `${zone}:${input}` },
     { input: 2, tags: zone("away") },
   );
-
   expectTypeOf(direct).toEqualTypeOf<RunResult<string> | Promise<RunResult<string>>>();
   expect(direct).toEqual({ status: "success", value: "away:2" });
 
@@ -328,9 +328,7 @@ test("scope settle on a tagged inline config: a Result in place, a native promis
     { depends: { zone }, run: async ({ zone }, { input }) => `${zone}:${input}` },
     { input: 3, tags: zone("away") },
   );
-
   expect(Promise.resolve(waits)).toBe(waits);
-
   expect(await waits).toEqual({ status: "success", value: "away:3" });
   await scope.close();
 });
@@ -509,7 +507,6 @@ test("three failed runs build a root-first origin path", async () => {
     depends: { inner },
     run: ({ inner }) => inner.run(),
   });
-
   const outer = operation({
     label: "outer",
     depends: { middle },

@@ -466,10 +466,10 @@ function spanText(source, start, end) {
   const lines = source.split("\n");
   const at = (line, from = 0, to) => (lines[line - 1] ?? "").slice(from, to);
   if (start.line === end.line) return at(start.line, start.column - 1, end.column - 1);
+
   const out = [at(start.line, start.column - 1)];
   for (let line = start.line + 1; line < end.line; line++) out.push(lines[line - 1] ?? "");
   out.push(at(end.line, 0, end.column - 1));
-
   return out.join("\n");
 }
 

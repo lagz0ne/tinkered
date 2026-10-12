@@ -235,8 +235,8 @@ export const ticker = resource({
 
     const step = () => {
       const now = clock.currentTimeMillis();
-
       const settings = deps.physics.get();
+
       expire(now, settings.life);
       storm(now, settings.stormRate);
       paint(now, settings);

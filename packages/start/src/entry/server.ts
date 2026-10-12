@@ -40,7 +40,6 @@ async function start() {
     extensions: telemetry.extensions,
     tags: [settings, telemetry.tags],
   });
-
   await tools.ready;
 
   const stop = new AbortController();
@@ -73,7 +72,6 @@ async function start() {
       if (toolEnd.status === "failed") throw toolEnd.error;
       if (toolEnd.teardownErrors?.length) throw toolEnd.teardownErrors.at(0);
     })());
-
   if (import.meta.hot) import.meta.hot.dispose(close);
 
   return (entry.ready = {

@@ -15,9 +15,9 @@ test("cell controller deps keep writes and watches across runs", async () => {
     depends: { count: count.controller },
     run: ({ count }) => count.update((previous) => previous + 1),
   });
+
   const unwatch = root.run(listen);
   root.run(increment);
-
   root.run(increment);
   unwatch();
   root.run(increment);

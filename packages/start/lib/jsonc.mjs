@@ -101,7 +101,6 @@ export function prependExtends(path, read, entry) {
   const quoted = JSON.stringify(entry);
   const [first] = node.children ?? [];
   const old = read.text.slice(node.offset, node.offset + node.length);
-
   const edit =
     node.type !== "array"
       ? { offset: node.offset, length: node.length, content: `[${quoted}, ${old}]` }

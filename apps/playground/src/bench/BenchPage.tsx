@@ -236,14 +236,15 @@ function ResultsTable({ results }: { results: LibResult[] }): ReactElement {
   const [fastest] = sorted;
   const [quickestMount] = [...results].sort(byMedian("mount"));
   const [quickestFanout] = [...results].sort(byMedian("fanout"));
-  const bestUpdate = fastest.metrics.update;
 
+  const bestUpdate = fastest.metrics.update;
   const bestMount = quickestMount.metrics.mount;
   const bestFanout = quickestFanout.metrics.fanout;
 
   const maxUpdate = Math.max(...results.map((r) => r.metrics.update.median));
   const maxMount = Math.max(...results.map((r) => r.metrics.mount.median));
   const maxFanout = Math.max(...results.map((r) => r.metrics.fanout.median));
+
   return (
     <>
       <section className="bench-results" aria-label="Measured library results">
@@ -425,6 +426,7 @@ export function BenchPage(): ReactElement {
       setProgress("Preparing…");
       await nextTick();
       for (const lib of buildLibs()) samplers.push(prepare(lib));
+
       await runRounds(
         samplers,
         UPDATE_SAMPLES,
@@ -440,6 +442,7 @@ export function BenchPage(): ReactElement {
         (s) => s.fanouts,
         (r, t) => setProgress(`Fan-out rounds ${r}/${t}…`),
       );
+
       samplers.forEach(endUpdates);
       await runRounds(
         samplers,
@@ -448,6 +451,7 @@ export function BenchPage(): ReactElement {
         (s) => s.mounts,
         (r, t) => setProgress(`Mount rounds ${r}/${t}…`),
       );
+
       setResults(samplers.map(finish));
       setProgress("");
     } catch (err) {

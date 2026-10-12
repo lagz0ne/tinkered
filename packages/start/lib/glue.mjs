@@ -41,7 +41,6 @@ export function startOptions(root, on) {
   const shell = existsSync(join(root, shellFile))
     ? "__root.tsx"
     : fromRoutes("src/routes/root.tsx");
-
   const mounted = [basePackage.tinker.routes, ...on.map((name) => parts[name].routes)].flatMap(
     (routes) => Object.entries(routes).map(([path, file]) => route(path, fromRoutes(file))),
   );

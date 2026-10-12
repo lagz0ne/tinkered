@@ -159,7 +159,6 @@ export function stripJsonLines(text) {
 
       count += result.count;
       const row = JSON.parse(result.text);
-
       if (typeof row.id === "string" && typeof row.label === "boolean" && row.judge && row.state) {
         row.id = createHash("sha1")
           .update(row.judge + String(row.label) + JSON.stringify(row.state))
@@ -270,7 +269,6 @@ function main() {
       ? file.split("/").slice(0, 2).join("/")
       : file.split("/")[0];
     counts.set(group, (counts.get(group) ?? 0) + result.count);
-
     console.log(`${file}: ${result.count}`);
   }
   console.log(JSON.stringify(Object.fromEntries(counts), null, 2));

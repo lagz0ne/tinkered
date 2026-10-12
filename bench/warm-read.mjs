@@ -22,7 +22,6 @@ const warmLeaf = (depth, seedRoot) => {
   const v = data({ initial: 0, parse: asNumber });
   const root = createScope();
   let layer = root;
-
   for (let i = 0; i < depth; i++) layer = layer.createSession();
 
   if (seedRoot) root.controller(v).set(1);

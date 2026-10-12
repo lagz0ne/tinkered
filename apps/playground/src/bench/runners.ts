@@ -62,8 +62,8 @@ function tinkerLib(): Lib {
   const shared = data({ label: "shared", initial: 0 });
   const scope = createScope();
   const controllers = cells.map((c) => scope.controller(c));
-
   const sharedController = scope.controller(shared);
+
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
     sink = useData(cells[i]);
@@ -72,6 +72,7 @@ function tinkerLib(): Lib {
     return null;
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "@tinker/react",
     fine: true,
@@ -94,7 +95,6 @@ function tinkerLib(): Lib {
 function zustandLib(): Lib {
   type State = Record<string, number>;
   const keys = keyed((i) => `k${i}`);
-
   const SHARED_KEY = "shared";
   const useZ = create<State>(() => ({
     ...Object.fromEntries(keys.map((k) => [k, 0])),
@@ -104,8 +104,8 @@ function zustandLib(): Lib {
     const k = keys[i];
     return (s: State) => s[k];
   });
-
   const sharedSelector = (s: State) => s[SHARED_KEY];
+
   let renders = 0;
   const Cell = ({ i }: { i: number }) => {
     sink = useZ(selectors[i]);
@@ -114,6 +114,7 @@ function zustandLib(): Lib {
     return null;
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Zustand",
     fine: true,
@@ -144,6 +145,7 @@ function jotaiLib(): Lib {
     return null;
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Jotai",
     fine: true,
@@ -178,6 +180,7 @@ function legendV2Lib(): Lib {
     return null;
   });
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Legend v2",
     fine: true,
@@ -209,6 +212,7 @@ function legendV3Lib(): Lib {
     return null;
   });
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Legend v3",
     fine: true,
@@ -244,6 +248,7 @@ function preactLib(): Lib {
     }
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
+
   return {
     name: "Preact Signals",
     fine: true,
@@ -277,10 +282,10 @@ function controlLib(): Lib {
     const [v, set] = useState(0);
     setters[i] = set;
     const shared = useContext(SharedCtx);
+
     sink = v;
     sink = shared;
     renders++;
-
     return null;
   };
   const children = keyed((i) => h(Cell, { key: i, i }));
@@ -289,6 +294,7 @@ function controlLib(): Lib {
     setShared = set;
     return h(SharedCtx.Provider, { value: shared }, children);
   };
+
   return {
     name: "React useState (control)",
     fine: true,
@@ -333,6 +339,7 @@ function contextLib(): Lib {
     current = next;
     setArr?.(next);
   };
+
   return {
     name: "React Context",
     fine: false,
@@ -414,6 +421,7 @@ export function prepare(lib: Lib): Sampler {
   flushSync(() => lib.update(0, -1));
   const rerenders = lib.renders();
   r0.unmount();
+
   if (rerenders < 1) {
     raise("HarnessInvariant", {
       library: lib.name,
@@ -443,6 +451,7 @@ export function sampleUpdate(s: Sampler): number {
     const t0 = performance.now();
     for (let i = 0; i < count; i++) flushSync(() => lib.update(++s.k % N, s.k));
     const elapsed = performance.now() - t0;
+
     if (lib.renders() < count) {
       raise("HarnessInvariant", {
         library: lib.name,
@@ -461,6 +470,7 @@ export function sampleFanout(s: Sampler): number {
     const t0 = performance.now();
     for (let i = 0; i < count; i++) flushSync(() => lib.updateShared(++s.k));
     const elapsed = performance.now() - t0;
+
     const want = count * N;
     if (lib.renders() < want) {
       raise("HarnessInvariant", {

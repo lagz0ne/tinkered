@@ -71,9 +71,9 @@ await test("rewrites saved judge code and keeps its ID tied to its state", () =>
 
   const result = stripJsonLines(JSON.stringify(row) + "\n");
   const changed = JSON.parse(result.text);
+
   assert.equal(result.count, 1);
   assert.deepEqual(changed.state, { code: 'import x from "./x";', file: "x.ts" });
-
   assert.equal(
     changed.id,
     createHash("sha1")
@@ -81,7 +81,6 @@ await test("rewrites saved judge code and keeps its ID tied to its state", () =>
       .digest("hex")
       .slice(0, 12),
   );
-
   assert.equal(changed.why, row.why);
   assert.deepEqual(stripJsonLines(result.text), { text: result.text, count: 0 });
 });

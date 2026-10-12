@@ -36,12 +36,12 @@ export const immersive = resource({
     const escaped = (event: KeyboardEvent) => {
       if (event.key === "Escape") dismiss();
     };
-
     const messaged = (event: MessageEvent) => {
       const frame = document.querySelector("iframe");
       if (!isEscape(event.data) || frame === null || event.source !== frame.contentWindow) return;
       dismiss();
     };
+
     document.addEventListener("fullscreenchange", synced);
     document.addEventListener("keydown", escaped);
     window.addEventListener("message", messaged);

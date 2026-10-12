@@ -132,7 +132,6 @@ function readRuntime(fileName: string, code: string, census: Census): void {
   const { program } = parseSync(fileName, code);
   const counts = new Map<string, number>();
   countProps(program, counts);
-
   for (const name of counts.keys()) census.props.add(name);
 
   new Visitor({
@@ -725,7 +724,6 @@ function typedCasts(program: ESTree.Program, suppressed: (offset: number) => boo
     getters: gathered.getters,
     returns: returnsOf,
   };
-
   settle(casts, gathered.flows);
 
   return casts;
@@ -1484,7 +1482,6 @@ function typedReads(files: string[], names: string[]): Map<string, string[]> {
         node.forEachChild(visit);
       };
       source.forEachChild(visit);
-
       found.set(file, hits);
     }
   } finally {
@@ -1584,7 +1581,6 @@ function findUnsafeNames(names: string[], census: Census, root: string): Map<str
  */
 function seedNames(listed: string[], sources: string[]): Record<string, string> {
   const counts = new Map<string, number>();
-
   for (const [index, code] of sources.entries()) {
     countProps(parseSync(`source-${index}.ts`, code).program, counts);
   }
@@ -1681,7 +1677,6 @@ export function privateFields(
         codegen: { removeWhitespace: false },
         sourcemap: true,
       });
-
       const [error] = result.errors;
       if (error !== undefined) this.error(error.message);
       return { code: result.code, map: result.map };

@@ -40,8 +40,8 @@ test("each request runs in its own session, with its headers and stop signal, un
       return signal.aborted;
     },
   });
-  const request = new Request("http://app/", { headers: { "x-who": "Ada" } });
 
+  const request = new Request("http://app/", { headers: { "x-who": "Ada" } });
   let asked;
   const running = Promise.withResolvers();
   const result = await startRequests.middleware.options.server?.({
@@ -63,10 +63,9 @@ test("each request runs in its own session, with its headers and stop signal, un
 
   const reading = result.response.text();
   await closing.promise;
-
   expect(closed).toEqual([]);
-  gate.resolve();
 
+  gate.resolve();
   expect(await reading).toBe("hello");
   expect(closed).toEqual(["session"]);
   expect(await running.promise).toEqual({ status: "success", value: false });
@@ -93,7 +92,6 @@ test("a request that throws stops its session by force and passes the error on",
     }),
   ).rejects.toBe(boom);
   expect(await running.promise).toEqual({ status: "success", value: "stopped" });
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -123,7 +121,6 @@ test("a teardown error in the request session fails the body read", async () => 
       return { request, pathname: "/", context, response: new Response("hello") };
     },
   });
-
   if (!result || result instanceof Response) return expect.unreachable("Start's result comes back");
 
   await expect(result.response.text()).rejects.toBe(lost);
@@ -157,7 +154,6 @@ test("cancelling a body stops active request work before it can close gracefully
       return { request, pathname: "/", context, response: new Response(new ReadableStream()) };
     },
   });
-
   if (!result || result instanceof Response) return expect.unreachable("Start's result comes back");
 
   await started.promise;
@@ -194,8 +190,8 @@ test.each(["end", "cancel", "error"])(
         });
       },
     });
-    const torn = new Error("source failed");
 
+    const torn = new Error("source failed");
     const source =
       ending === "end"
         ? new Response("page")

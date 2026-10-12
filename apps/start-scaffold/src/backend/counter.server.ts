@@ -12,6 +12,7 @@ export const incrementCounter = operation({
   depends: { orm: drizzleOrm, database, history: eventHistory },
   run: async ({ orm, database, history }, { input }) => {
     const { eq, sql } = orm;
+
     await database.transaction(async (tx) => {
       await history.lock(tx, "public");
       if (await history.find(tx, input.executionId, "public")) return;
@@ -33,6 +34,7 @@ export const incrementCounter = operation({
         { kind: "result", result: { kind: "complete", action: "counter" } },
       ]);
     });
+
     return { executionId: input.executionId };
   },
 });

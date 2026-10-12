@@ -50,6 +50,7 @@ export const persistence = resource({
     defer(active.watch(save));
     defer(theme.watch(save));
     defer(dirty.watch(save));
+
     return { restored: saved?.dirty === true };
   },
 });
@@ -112,9 +113,11 @@ export const bundler = resource({
         },
       );
     };
+
     build();
     defer(files.watch(schedule));
     defer(() => pending?.abort(superseded));
+
     return { schedule };
   },
 });

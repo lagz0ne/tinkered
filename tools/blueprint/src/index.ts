@@ -482,7 +482,6 @@ export const suggest: Operation.Handle<
   depends: { corpus, judge },
   run: async ({ corpus, judge }, ctx) => {
     const state: Blueprint.WordsState = { description: ctx.input.words };
-
     const unitFits = choiceTemplateById(corpus, "unitFits");
     const unitAnswers = await judge.ask(
       state,

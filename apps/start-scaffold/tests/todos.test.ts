@@ -158,9 +158,9 @@ test("todo changes reject empty titles, long titles, and caller-selected owners"
       const result = await root.settle(changeTodo, {
         rawInput: { executionId: crypto.randomUUID(), change: rawInput },
       });
-
       if (result.status !== "failed") raise("BadInput", { reason: "expected input refusal" });
       if (!isCoreError(result.error, "DataValidationFailed")) throw result.error;
+
       const cause = result.error.payload.cause;
       if (!isError(cause, "BadInput")) throw cause;
       expect(cause.payload.reason).toContain("valid todo change");

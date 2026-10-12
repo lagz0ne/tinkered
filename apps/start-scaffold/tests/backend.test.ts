@@ -119,7 +119,6 @@ test("a real account can sign up, save its name, sign out and sign in", async ()
       }),
       tags: requestHeaders(new Headers()),
     });
-
     expect(
       await root.run(readProfile, {
         tags: requestHeaders(new Headers({ cookie: readCookie(signin) })),
@@ -223,7 +222,6 @@ test("a native commit failure never returns a saved profile", async () => {
       input: { executionId: "10000000-0000-4000-8000-000000000004", profile: { name: "Grace" } },
       tags: requestHeaders(headers),
     });
-
     expect(result.status).toBe("failed");
     expect(await root.run(readProfile, { tags: requestHeaders(headers) })).toMatchObject({
       name: "Ada",

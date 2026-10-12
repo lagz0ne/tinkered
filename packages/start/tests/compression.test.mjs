@@ -107,7 +107,6 @@ test("HEAD cancels HTML and returns its negotiated encoding without a body", asy
     ),
   );
   expect(cancelled).toBe(true);
-
   expect(response.body).toBeNull();
   expect(response.headers.get("content-encoding")).toBe("br");
   expect(response.headers.get("content-length")).toBeNull();
@@ -140,10 +139,11 @@ test.each(["gzip", "br"])("%s sends the HTML shell before the source ends", asyn
   try {
     const first = await chunks.next();
     expect(first.value.toString()).toBe(shell);
+
     source.enqueue(new TextEncoder().encode(tail));
     source.close();
-    let rest = "";
 
+    let rest = "";
     for await (const chunk of chunks) rest += chunk.toString();
     expect(rest).toBe(tail);
   } finally {

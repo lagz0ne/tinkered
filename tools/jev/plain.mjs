@@ -1122,10 +1122,10 @@ function stopWaitHits(node, waits, facts) {
 /** Ready still owns cleanup in a test; stop checks keep the non-test lane. */
 function lifetimeHits(source, program, file, writer) {
   if (CORE_PATH.test(file)) return [];
-
   if (!writer && !USERLAND.test(file) && !PACKAGE_SRC.test(file) && kindOf(file) !== "test") {
     return [];
   }
+
   const facts = lifetimeFacts(source, program);
   const waits = facts.nodes.filter((n) => n.type === "AwaitExpression" && abortWait(n, facts));
   const hits = facts.nodes.flatMap((node) => [

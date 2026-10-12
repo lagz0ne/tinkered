@@ -926,7 +926,6 @@ for (const change of all) {
 
   const { failed, broken } = failedTests();
   const ok = failed > 0 && broken === 0;
-
   if (ok) caught += 1;
   console.log(`${ok ? "caught" : "MISSED"}  ${String(failed).padStart(3)} failed  ${change.name}`);
 }

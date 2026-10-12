@@ -105,7 +105,6 @@ export function makeTestRandom(options?: Random.Options): CoreRandom.Handle {
 
   const random = { next, uuid };
   const traceState = { a: (options?.seed ?? 0) | 0, b: 362436069, c: 521288629, d: 88675123 };
-
   for (let n = 0; n < 8; n++) nextTraceWord(traceState);
   seededTraceRandom.set(random, traceState);
   return random;

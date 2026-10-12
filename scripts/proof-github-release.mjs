@@ -123,11 +123,9 @@ try {
 
         const urls = join(unpacked, "package/lib/release.mjs");
         await writeFile(urls, rewrite(await readFile(urls, "utf8")));
-
         pinned["lib/release.mjs"] = createHash("sha256")
           .update(await readFile(urls))
           .digest("hex");
-
         await writeFile(
           join(unpacked, "package/files.json"),
           JSON.stringify(pinned, null, 2) + "\n",
@@ -192,7 +190,6 @@ try {
   const html = run("curl", ["--fail", "--silent", `http://127.0.0.1:${hostPort}/`]);
   assert.ok(html.includes("Hello, world."));
   console.log("PASS: GET / HTTP 200; Hello, world.");
-
   await stop(host);
 
   const excluded = new Set([

@@ -20,10 +20,10 @@ test("a destructured operation logger stays the same and sends every level in or
       log.error("error");
     },
   });
+
   scope.run(op);
 
   const span = scope.spans()[0];
-
   expect(records).toEqual([
     { time: 1, level: LEVELS.info, message: "body", attributes: { n: 1 }, span },
     { time: 2, level: LEVELS.debug, message: "debug", attributes: {}, span },
@@ -65,9 +65,10 @@ test("a destructured resource logger stays the same and keeps the level threshol
       return 7;
     },
   });
-  scope.controller(res).resolve();
-  const span = scope.spans()[0];
 
+  scope.controller(res).resolve();
+
+  const span = scope.spans()[0];
   expect(records).toEqual([
     { time: 10, level: LEVELS.warn, message: "warn", attributes: { n: 1 }, span },
     { time: 10, level: LEVELS.error, message: "error", attributes: {}, span },

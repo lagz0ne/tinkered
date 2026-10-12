@@ -127,8 +127,8 @@ test("a tab loads its snapshot once per account, and shares a load in flight", a
   await root.ready;
   const loader = root.resolve(snapshotLoader);
   const signal = new AbortController().signal;
-  const first = loader.load(signal);
 
+  const first = loader.load(signal);
   const shared = loader.load(signal);
   reply.resolve(ada);
 
@@ -157,7 +157,6 @@ test("an account check keeps the same account, and leaves a changed one", async 
     null,
     ["load", "account", "account"],
   ]);
-
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -253,20 +252,20 @@ test("a frame of changes applies; an account frame leaves the account; a stale v
       input: { version: 0, message: streamMessage.parse(JSON.parse(changes(["public", 4, "p4"]))) },
     }),
   ).toBe(false);
-
   expect(root.resolve(applied)).toEqual(["p3"]);
+
   expect(
     root.run(receiveMessage, {
       input: { version: 0, message: streamMessage.parse(JSON.parse(accountChange)) },
     }),
   ).toBe(false);
   expect(client.cursors().accountId).toBe("ada");
+
   expect(
     root.run(receiveMessage, {
       input: { version: 1, message: streamMessage.parse(JSON.parse(accountChange)) },
     }),
   ).toBe(true);
-
   expect([client.cursors().accountId, client.capture().version]).toEqual([null, 2]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -284,11 +283,10 @@ test("a connection opens from the applied cursors, applies each frame, and ends 
   const consuming = root.run(consumeConnection);
   const connection = await opening;
   const cursor = { public: 2, private: { accountId: "ada", revision: 3 } };
-
   expect(connection.url).toBe(`/api/sync?cursor=${encodeURIComponent(JSON.stringify(cursor))}`);
+
   connection.emit("changes", changes(["public", 3, "p3"], ["ada", 4, "a4"]));
   connection.emit("account", accountChange);
-
   expect(await consuming).toBe(true);
   expect([root.resolve(applied), connection.closed]).toEqual([["p3", "a4"], true]);
   expect((await root.close({ graceful: true })).status).toBe("success");
@@ -363,11 +361,10 @@ test("eight unread frames wait in order, and a frame after the end is dropped", 
   for (let count = 0; count < 8; count += 1) connection?.emit("changes", String(count));
   const read: (string | undefined)[] = [];
   for (let count = 0; count < 8; count += 1) read.push(await source.next());
-
   expect(read).toEqual(["0", "1", "2", "3", "4", "5", "6", "7"]);
+
   source.close();
   connection?.emit("changes", "late");
-
   expect([await source.next(), connection?.closed]).toEqual([undefined, true]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
@@ -383,10 +380,9 @@ test("a second connect closes the first; a stopped signal closes at once; closin
   const stopped = new AbortController();
   stopped.abort();
   source.connect({ public: 2, private: null }, stopped.signal);
-
   expect(await source.next()).toBe(undefined);
-  source.connect({ public: 3, private: null }, signal);
 
+  source.connect({ public: 3, private: null }, signal);
   expect(fake.opened.map(({ closed }) => closed)).toEqual([true, true, true, false]);
   expect((await root.close({ graceful: true })).status).toBe("success");
   expect(fake.opened[3]?.closed).toBe(true);
@@ -559,8 +555,8 @@ test("the router side loads and checks through the loader, dehydrates, and hydra
   expect(await router.options.context.bootstrap()).toEqual(ada);
   expect(await router.options.context.account()).toBe("ada");
   expect(router.options.dehydrate()).toEqual(ada);
-
   expect(calls).toEqual(["load", "account"]);
+
   const opening = fake.next();
   await router.options.hydrate({ ...ada, public: { stream: "public", revision: 5 } });
 
@@ -574,10 +570,9 @@ test("the router side loads and checks through the loader, dehydrates, and hydra
     closes += 1;
   });
   page.dispatchEvent(new Event("pagehide"));
-
   expect(closes).toBe(1);
-  tab.abort();
 
+  tab.abort();
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -649,10 +644,9 @@ test("a load that cannot apply yet is tried again; a newer load is not dropped w
   replies[0]?.resolve(ada);
   await older;
   const shared = loader.load(signal);
-
   expect(replies).toHaveLength(2);
-  replies[1]?.resolve({ ...ada, private: null });
 
+  replies[1]?.resolve({ ...ada, private: null });
   expect([await newer, await shared]).toEqual([
     { public: ada.public, private: null },
     { public: ada.public, private: null },
@@ -744,10 +738,9 @@ test("before any connection, close does nothing and next ends at once; a root th
   const fake = sources();
   const root = createScope({ tags: eventSourceBackend(fake.backend) });
   const source = root.resolve(eventSource);
-
   expect(() => source.close()).not.toThrow();
-  const next = source.next();
 
+  const next = source.next();
   expect(await settledFirst(next)).toBe("settled");
   expect(await next).toBe(undefined);
   expect(await root.close({ graceful: true })).toMatchObject({
@@ -892,8 +885,8 @@ test("the tab's sync work shows on the trace under its own names", async () => {
   root.run(receiveMessage, {
     input: { version: 1, message: streamMessage.parse(JSON.parse(changes())) },
   });
-  const opening = fake.next();
 
+  const opening = fake.next();
   const consuming = root.run(consumeConnection);
   (await opening).emit("error");
   await consuming;
@@ -905,6 +898,7 @@ test("the tab's sync work shows on the trace under its own names", async () => {
   tab.abort();
 
   expect((await root.close({ graceful: true })).status).toBe("success");
+
   const names = new Set(root.spans().map(({ name }) => name));
   const expected = [
     "sync.snapshotLoader",
@@ -917,6 +911,5 @@ test("the tab's sync work shows on the trace under its own names", async () => {
     "sync.router",
     "sync.listen",
   ];
-
   expect(expected.filter((name) => !names.has(name))).toEqual([]);
 });

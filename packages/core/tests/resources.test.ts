@@ -92,8 +92,8 @@ test("releasing a data cell resets it and releases only its dependents", () => {
   const other = data({ initial: 9, parse: asNumber });
   const scope = createScope();
   scope.controller(count).set(30);
-
   scope.controller(other).set(90);
+
   scope.release(count);
 
   expect(scope.controller(count).get()).toBe(3);
@@ -169,8 +169,8 @@ test("releasing one resource leaves another resource's cleanup in place", async 
   });
   const scope = createScope();
   scope.resolve(first);
-
   scope.resolve(second);
+
   scope.release(first);
 
   expect(order).toEqual(["first-clean"]);
@@ -393,7 +393,6 @@ test("a defer from a superseded build never joins the live rebuild's drain", asy
   scope.release(slow);
 
   release(7);
-
   expect(await first).toBe(7);
   for (let i = 0; i < 10; i++) await Promise.resolve();
   expect(seen).toEqual(["late:released"]);
@@ -549,8 +548,8 @@ test("releasing a diamond leg then the root still tears down the other leg", () 
   scope.resolve(top);
 
   scope.release(l);
-
   expect(cleaned).toEqual(["top", "l"]);
+
   scope.release(d);
   expect(cleaned).toEqual(["top", "l", "r", "d"]);
 });

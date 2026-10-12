@@ -47,7 +47,6 @@ if (import.meta.main) {
           })),
         ],
       });
-
       await scope.ready;
 
       try {

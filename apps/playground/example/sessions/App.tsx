@@ -44,10 +44,10 @@ function Draft({ project }: { project: Project }): ReactElement {
   const title = useData(draftTitle);
   const notes = useData(draftNotes);
   const setTitle = useRun(editTitle);
-
   const setNotes = useRun(editNotes);
   const release = useRelease();
   const signal = useResource(draftSignal);
+
   return (
     <>
       <Brief project={project} />

@@ -109,7 +109,6 @@ test("private cursors cannot read another real account's history", async () => {
       input: { accountId: snapshot.stream, after: 0 },
       tags: requestHeaders(grace),
     });
-
     if (refused.status !== "failed") {
       raise("BadInput", { reason: "expected private stream refusal" });
     }
@@ -156,7 +155,6 @@ test("failed notification keeps the saved profile and retry replies before sendi
     stop.abort();
     expect((await root.closed).status).toBe("success");
   });
-
   await root.ready;
 
   try {
@@ -257,7 +255,6 @@ test("request exit cannot strand a profile that already committed", async () => 
       })),
     ],
   });
-
   await root.ready;
 
   try {
@@ -332,7 +329,6 @@ test("profile replies finish while duplicate receipts share one pending notifica
     stop.abort();
     await root.closed;
   });
-
   await root.ready;
 
   try {
@@ -344,7 +340,6 @@ test("profile replies finish while duplicate receipts share one pending notifica
 
     const input = { executionId: crypto.randomUUID(), profile: { name: "Visible before mail" } };
     const first = root.settle(saveProfile, { input, tags: requestHeaders(account) });
-
     await sending.promise;
 
     const second = root.settle(saveProfile, { input, tags: requestHeaders(account) });
@@ -355,7 +350,6 @@ test("profile replies finish while duplicate receipts share one pending notifica
       "success",
       "success",
     ]);
-
     expect(sends).toBe(1);
   } finally {
     accepted.resolve();
@@ -379,7 +373,6 @@ test("a bad stored event returns a stored data failure", async () => {
       input: { after: 0 },
       tags: requestHeaders(new Headers()),
     });
-
     if (result.status !== "failed") raise("BadInput", { reason: "expected bad stored event" });
     if (!isError(result.error, "StoredDataInvalid")) throw result.error;
     expect(result.error.payload).toEqual({});
@@ -404,7 +397,6 @@ test("a bad stored event is not shown to the user as a rejected change", async (
       input: { after: 0 },
       tags: requestHeaders(new Headers()),
     });
-
     if (result.status !== "failed") raise("BadInput", { reason: "expected bad stored event" });
     expect(() => readReceipt(result)).toThrow("StoredDataInvalid");
   } finally {
@@ -436,7 +428,6 @@ test("a bad stored notification result has no retry available", async () => {
       },
       tags: requestHeaders(account),
     });
-
     if (result.status !== "failed") raise("BadInput", { reason: "expected bad stored result" });
     if (!isError(result.error, "RetryNotAvailable")) throw result.error;
     expect(result.error.payload).toEqual({});

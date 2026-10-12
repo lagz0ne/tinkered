@@ -211,6 +211,7 @@ test("graceful closing fires now while work and resource cleanup still wait", as
   const session = scope.createSession();
   const owned = session.resolve(layerSignals);
   const running = session.run(finishingWork);
+
   const closing = session.close({ graceful: true });
 
   expect(owned.closing.aborted).toBe(true);
@@ -242,7 +243,6 @@ test("a parent's closing fires in its child before a close hook waits", async ()
         expect(event.closing.aborted).toBe(true);
 
         before.release();
-
         await resume.promise;
         return event.next();
       },
@@ -261,7 +261,6 @@ test("a parent's closing fires in its child before a close hook waits", async ()
   expect(owned.ctx.closing).toBe(owned.closing);
 
   resume.release();
-
   expect((await closing).status).toBe("success");
 });
 
@@ -400,11 +399,11 @@ test("run, resolve, and write hooks read their owner's closing signal", async ()
   scope.run({ label: "hook-read", run: () => 1 });
 
   expect(signals).toHaveLength(4);
-
   for (const signal of signals) {
     expect(signal).toBe(signals.at(0));
     expect(signal.aborted).toBe(false);
   }
+
   await scope.close({ graceful: true });
 
   for (const signal of signals) expect(signal.aborted).toBe(true);

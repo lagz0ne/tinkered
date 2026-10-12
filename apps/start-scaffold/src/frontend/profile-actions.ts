@@ -64,7 +64,6 @@ export const retryMail = operation({
     );
 
     result.set({ executionId, result: completed });
-
     notice.set(
       completed.kind === "complete"
         ? "Notification accepted. Your saved name stayed the same."

@@ -46,14 +46,12 @@ test("an event before its receipt finishes only after saved records are applied"
     extensions: [accountOwner],
     tags: tabStop(stop.signal),
   });
-
   await root.ready;
 
   try {
     root.run(applyBootstrap, { input: { snapshot: initial, version: 0 } });
     const client = root.resolve(syncClient);
     const waiting = root.run(send, { signal: call.signal });
-
     await sent.promise;
 
     await root.run(applyEvents, {
@@ -76,7 +74,6 @@ test("an event before its receipt finishes only after saved records are applied"
       },
       signal: call.signal,
     });
-
     expect(root.resolve(counter)).toBe(1);
 
     receipt.resolve({ kind: "accepted", executionId });
@@ -111,7 +108,6 @@ test("replayed events and older snapshots leave newer records and dirty drafts a
         change: { kind: "profile", profile: { ...ada, name: "Remote first" } },
       },
     };
-
     const second: Sync.Event = {
       stream: "ada",
       revision: 2,
@@ -161,7 +157,6 @@ test("account exit stops local waits and ignores an old account's late response"
     extensions: [accountOwner],
     tags: tabStop(stop.signal),
   });
-
   await root.ready;
 
   try {
@@ -208,7 +203,6 @@ test("account exit stops local waits and ignores an old account's late response"
         ],
       },
     });
-
     expect(root.resolve(profile)?.id).toBe("grace");
   } finally {
     stop.abort();

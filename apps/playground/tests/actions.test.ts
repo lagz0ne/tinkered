@@ -11,8 +11,8 @@ const names = (files: readonly { name: string }[]) => files.map((f) => f.name);
 test("addFile opens an empty Untitled1.tsx tab and makes it active", () => {
   const scope = createScope();
   const name = scope.run(addFile);
-  expect(name).toBe("Untitled1.tsx");
 
+  expect(name).toBe("Untitled1.tsx");
   expect(scope.resolve(filesCell).at(-1)).toEqual({ name: "Untitled1.tsx", content: "" });
   expect(scope.resolve(activeCell)).toBe("Untitled1.tsx");
   expect(scope.resolve(dirtyCell)).toBe(true);
@@ -51,6 +51,7 @@ test("renameFile refuses a name another tab already has", () => {
 test("editFile replaces one file's content and marks the session dirty", () => {
   const scope = createScope();
   scope.run(editFile, { input: { name: "state.ts", content: "export const x = 1;" } });
+
   const files = scope.resolve(filesCell);
   expect(files.find((f) => f.name === "state.ts")?.content).toBe("export const x = 1;");
 

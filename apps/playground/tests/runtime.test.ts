@@ -31,6 +31,7 @@ test("releasing the runtime stops listening; resolving it again listens anew", (
 
   post({ __pg: "error", text: "late" });
   expect(status.get()).toEqual({ kind: "info", text: "starting…" });
+
   scope.resolve(runtime);
   post({ __pg: "ok" });
   expect(status.get()).toEqual({ kind: "ok", text: "ready" });

@@ -184,7 +184,6 @@ test("the first nested tagged build owns its resource and both tag levels", asyn
       return zones;
     },
   });
-
   const inner = operation({ label: "inner", depends: { value }, run: ({ value }) => value });
   const outer = operation({
     label: "outer",
@@ -222,7 +221,6 @@ test("the first dropped subflow is joined by tagged close", async () => {
   expect(Promise.resolve(flight)).toBe(flight);
 
   gate.resolve();
-
   expect(await flight).toBe(7);
   expect(events).toEqual(["finished"]);
   await root.close();

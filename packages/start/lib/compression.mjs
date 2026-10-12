@@ -49,7 +49,6 @@ export function readEncoding(request) {
   if (encodings.has(accepted)) return encodings.get(accepted);
 
   const encoding = selectEncoding(accepted);
-
   if (encodings.size === 128) encodings.clear();
   encodings.set(accepted, encoding);
   return encoding;
