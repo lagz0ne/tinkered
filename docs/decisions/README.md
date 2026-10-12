@@ -95,3 +95,4 @@ by a new decision that names the old one.
 - [0110](0110-sign-out-reaches-open-streams-as-a-notice.md): sign-out reaches open streams as a notice; a wake no longer re-reads the account.
 - [0111](0111-a-body-reads-as-steps.md): a body reads as steps, a blank line between them; lint checks a floor.
 - [0112](0112-imports-name-a-place.md): imports name a place: `@/` for the project, `./` for siblings, sorted in three groups.
+- [0113](0113-a-unit-depends-on-its-settings-tag-not-env.md): a unit depends on its settings tags, not env; the server seam turns env into those tags.

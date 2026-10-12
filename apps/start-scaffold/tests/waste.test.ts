@@ -15,18 +15,20 @@ import { test, expect } from "vite-plus/test";
 
 import { readAccount } from "@/backend/auth.server";
 import { incrementCounter } from "@/backend/counter.server";
-import { migrate } from "@/backend/database.server";
+import { migrate, databaseUrl } from "@/backend/database.server";
 import { bootstrap } from "@/backend/sync.server";
 import { authClient, signIn } from "@/frontend/actions";
 
 import { handleAuth } from "./presets";
 import { proofDatabase, proofMail, requestHeaders } from "./presets";
 
-const settings = env({
-  DATABASE_URL: "postgres://proof",
-  PUBLIC_ORIGIN: "http://localhost:4318",
-  AUTH_SECRET: "test-secret-with-at-least-thirty-two-letters",
-});
+const settings = [
+  databaseUrl(new URL("postgres://proof")),
+  env({
+    PUBLIC_ORIGIN: "http://localhost:4318",
+    AUTH_SECRET: "test-secret-with-at-least-thirty-two-letters",
+  }),
+];
 
 test("a stream checks the session once at open, and a save does not check it again", async () => {
   const stop = new AbortController();

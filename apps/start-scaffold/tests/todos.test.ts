@@ -2,18 +2,20 @@ import { createScope, isError as isCoreError } from "@tinker/core";
 import { env } from "@tinker/start/server";
 import { test, expect } from "vite-plus/test";
 
-import { migrate } from "@/backend/database.server";
+import { migrate, databaseUrl } from "@/backend/database.server";
 import { listTodos, changeTodo } from "@/backend/todos.server";
 import { raise, isError } from "@/errors";
 
 import { handleAuth } from "./presets";
 import { proofDatabase, proofMail, requestHeaders } from "./presets";
 
-const tags = env({
-  DATABASE_URL: "postgres://proof",
-  PUBLIC_ORIGIN: "http://localhost:4318",
-  AUTH_SECRET: "test-secret-with-at-least-thirty-two-letters",
-});
+const tags = [
+  databaseUrl(new URL("postgres://proof")),
+  env({
+    PUBLIC_ORIGIN: "http://localhost:4318",
+    AUTH_SECRET: "test-secret-with-at-least-thirty-two-letters",
+  }),
+];
 
 function signupRequest(name: string) {
   return new Request("http://localhost:4318/api/auth/sign-up/email", {

@@ -50,7 +50,20 @@ try {
 }
 ```
 
-Give `settings` the database, auth, and mail tags.
+Fill each settings tag with a typed value.
+Never bind `env` for an app tag:
+
+```ts
+const settings = [
+  databaseUrl(new URL("postgres://proof")),
+  env({
+    PUBLIC_ORIGIN: "http://localhost:4318",
+    AUTH_SECRET: "test-secret-with-32-letters-or-more",
+  }),
+];
+```
+
+The auth part still reads `env` until it moves to a tag.
 The worked tests show their filled values.
 For outgoing HTTP, bind httpBackend through the base testing entry:
 

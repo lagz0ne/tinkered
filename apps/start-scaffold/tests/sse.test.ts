@@ -7,7 +7,7 @@ import { openSync, notifications, backendStop, requestStop } from "@tinker/start
 import { test, expect } from "vite-plus/test";
 
 import { incrementCounter } from "@/backend/counter.server";
-import { database, migrate } from "@/backend/database.server";
+import { database, migrate, databaseUrl } from "@/backend/database.server";
 import { mail } from "@/backend/mail.server";
 import type { Mail } from "@/backend/mail.server";
 import { saveProfile } from "@/backend/profile.server";
@@ -18,11 +18,13 @@ import { streamMessage } from "@/lib/tinker";
 import { handleAuth } from "./presets";
 import { proofDatabase, proofMail, requestHeaders } from "./presets";
 
-const settings = env({
-  DATABASE_URL: "postgres://proof",
-  PUBLIC_ORIGIN: "http://localhost:4318",
-  AUTH_SECRET: "test-secret-with-at-least-thirty-two-letters",
-});
+const settings = [
+  databaseUrl(new URL("postgres://proof")),
+  env({
+    PUBLIC_ORIGIN: "http://localhost:4318",
+    AUTH_SECRET: "test-secret-with-at-least-thirty-two-letters",
+  }),
+];
 
 function signup(name: string) {
   return new Request("http://localhost:4318/api/auth/sign-up/email", {
