@@ -89,6 +89,8 @@ const PUBLIC_ENTRY =
   /^(?:[a-z-]+\/)?(?:index|testing|sse|pglite|migrations|dev|pages)(\.(ts|tsx|js))?$/;
 
 const PRIVATE_SRC = /^(?:(?:\.\.\/)+src\/|@\/)(.+)$/;
+/** An app has no package entry: its tests import the feature module they prove, so T04 skips them. */
+const APP_TEST = /(^|\/)apps\/[^/]+\/tests\//;
 const TS_DIRECTIVE = /^[\s*/]*@ts-(ignore|expect-error)\b/m;
 const LINT_DIRECTIVE = /^[\s*/]*(eslint|oxlint|biome)-disable/m;
 
@@ -1270,9 +1272,12 @@ export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   const starts = lineStarts(source);
   if (errors.length > 0) return [parseRow(errors, starts)];
   const rules = NODE_RULES[kindOf(file)];
+  const appTest = APP_TEST.test(file);
   const rows = commentRows(comments, starts);
   walk(program, (node) => {
-    for (const id of rules(node, writer)) rows.push(row(id, lineAt(starts, node.start)));
+    for (const id of rules(node, writer)) {
+      if (!(appTest && id === "T04")) rows.push(row(id, lineAt(starts, node.start)));
+    }
   });
 
   for (const [id, at, key] of programHits(source, program, file, writer)) {

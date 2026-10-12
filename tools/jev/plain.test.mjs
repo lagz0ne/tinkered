@@ -52,6 +52,11 @@ void describe("plain rules in a test file", () => {
     ]);
   });
 
+  void it("T04 skips an app test, which imports the feature module it proves", () => {
+    const src = 'import { listTodos } from "@/backend/todos.server";\n';
+    assert.deepEqual(hits(src, "apps/start-scaffold/tests/todos.test.ts"), []);
+  });
+
   void it("T05 fires on an internals probe", () => {
     assert.deepEqual(hits("\nObject.isFrozen(x);\n", TEST), [["T05", 2]]);
   });

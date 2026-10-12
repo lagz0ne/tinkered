@@ -98,41 +98,41 @@
         "seams": {
           "src/lib/tinker.server.ts": {
             "extensions": {
-              "line": "export { extensions } from \"../examples/demo.server\";",
-              "from": "../examples/demo.server",
+              "line": "export { extensions } from \"@/examples/demo.server\";",
+              "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "../backend/database.server"
+                "from": "@/backend/database.server"
               }
             },
             "database": {
-              "line": "export { database } from \"../backend/database\";"
+              "line": "export { database } from \"@/backend/database.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"../backend/auth\";"
+              "line": "export { auth } from \"@/backend/auth.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"../backend/auth\";"
+              "line": "export { readAccount } from \"@/backend/auth.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"../backend/sync\";"
+              "line": "export { bootstrap } from \"@/backend/sync.server\";"
             }
           },
           "src/lib/tinker.ts": {
             "records": {
-              "line": "export { records } from \"../examples/demo\";"
+              "line": "export { records } from \"@/examples/demo\";"
             },
             "readSnapshot": {
-              "line": "export { readSnapshot } from \"../examples/demo\";"
+              "line": "export { readSnapshot } from \"@/examples/demo\";"
             },
             "readBootstrap": {
-              "line": "export { readBootstrap } from \"../examples/demo\";"
+              "line": "export { readBootstrap } from \"@/examples/demo\";"
             },
             "readBatch": {
-              "line": "export { readBatch } from \"../examples/demo\";"
+              "line": "export { readBatch } from \"@/examples/demo\";"
             },
             "streamMessage": {
-              "line": "export { streamMessage } from \"../examples/demo\";"
+              "line": "export { streamMessage } from \"@/examples/demo\";"
             }
           }
         }
@@ -154,41 +154,41 @@
         "seams": {
           "src/lib/tinker.server.ts": {
             "extensions": {
-              "line": "export { extensions } from \"../examples/demo.server\";",
-              "from": "../examples/demo.server",
+              "line": "export { extensions } from \"@/examples/demo.server\";",
+              "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "../backend/database.server"
+                "from": "@/backend/database.server"
               }
             },
             "database": {
-              "line": "export { database } from \"../backend/database\";"
+              "line": "export { database } from \"@/backend/database.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"../backend/auth\";"
+              "line": "export { auth } from \"@/backend/auth.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"../backend/auth\";"
+              "line": "export { readAccount } from \"@/backend/auth.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"../backend/sync\";"
+              "line": "export { bootstrap } from \"@/backend/sync.server\";"
             }
           },
           "src/lib/tinker.ts": {
             "records": {
-              "line": "export { records } from \"../examples/demo\";"
+              "line": "export { records } from \"@/examples/demo\";"
             },
             "readSnapshot": {
-              "line": "export { readSnapshot } from \"../examples/demo\";"
+              "line": "export { readSnapshot } from \"@/examples/demo\";"
             },
             "readBootstrap": {
-              "line": "export { readBootstrap } from \"../examples/demo\";"
+              "line": "export { readBootstrap } from \"@/examples/demo\";"
             },
             "readBatch": {
-              "line": "export { readBatch } from \"../examples/demo\";"
+              "line": "export { readBatch } from \"@/examples/demo\";"
             },
             "streamMessage": {
-              "line": "export { streamMessage } from \"../examples/demo\";"
+              "line": "export { streamMessage } from \"@/examples/demo\";"
             }
           }
         }
@@ -210,41 +210,41 @@
         "seams": {
           "src/lib/tinker.server.ts": {
             "extensions": {
-              "line": "export { extensions } from \"../examples/demo.server\";",
-              "from": "../examples/demo.server",
+              "line": "export { extensions } from \"@/examples/demo.server\";",
+              "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "../backend/database.server"
+                "from": "@/backend/database.server"
               }
             },
             "database": {
-              "line": "export { database } from \"../backend/database\";"
+              "line": "export { database } from \"@/backend/database.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"../backend/auth\";"
+              "line": "export { auth } from \"@/backend/auth.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"../backend/auth\";"
+              "line": "export { readAccount } from \"@/backend/auth.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"../backend/sync\";"
+              "line": "export { bootstrap } from \"@/backend/sync.server\";"
             }
           },
           "src/lib/tinker.ts": {
             "records": {
-              "line": "export { records } from \"../examples/demo\";"
+              "line": "export { records } from \"@/examples/demo\";"
             },
             "readSnapshot": {
-              "line": "export { readSnapshot } from \"../examples/demo\";"
+              "line": "export { readSnapshot } from \"@/examples/demo\";"
             },
             "readBootstrap": {
-              "line": "export { readBootstrap } from \"../examples/demo\";"
+              "line": "export { readBootstrap } from \"@/examples/demo\";"
             },
             "readBatch": {
-              "line": "export { readBatch } from \"../examples/demo\";"
+              "line": "export { readBatch } from \"@/examples/demo\";"
             },
             "streamMessage": {
-              "line": "export { streamMessage } from \"../examples/demo\";"
+              "line": "export { streamMessage } from \"@/examples/demo\";"
             }
           }
         }
@@ -299,41 +299,41 @@
         "seams": {
           "src/lib/tinker.server.ts": {
             "extensions": {
-              "line": "export { extensions } from \"../examples/demo.server\";",
-              "from": "../examples/demo.server",
+              "line": "export { extensions } from \"@/examples/demo.server\";",
+              "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "../backend/database.server"
+                "from": "@/backend/database.server"
               }
             },
             "database": {
-              "line": "export { database } from \"../backend/database\";"
+              "line": "export { database } from \"@/backend/database.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"../backend/auth\";"
+              "line": "export { auth } from \"@/backend/auth.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"../backend/auth\";"
+              "line": "export { readAccount } from \"@/backend/auth.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"../backend/sync\";"
+              "line": "export { bootstrap } from \"@/backend/sync.server\";"
             }
           },
           "src/lib/tinker.ts": {
             "records": {
-              "line": "export { records } from \"../examples/demo\";"
+              "line": "export { records } from \"@/examples/demo\";"
             },
             "readSnapshot": {
-              "line": "export { readSnapshot } from \"../examples/demo\";"
+              "line": "export { readSnapshot } from \"@/examples/demo\";"
             },
             "readBootstrap": {
-              "line": "export { readBootstrap } from \"../examples/demo\";"
+              "line": "export { readBootstrap } from \"@/examples/demo\";"
             },
             "readBatch": {
-              "line": "export { readBatch } from \"../examples/demo\";"
+              "line": "export { readBatch } from \"@/examples/demo\";"
             },
             "streamMessage": {
-              "line": "export { streamMessage } from \"../examples/demo\";"
+              "line": "export { streamMessage } from \"@/examples/demo\";"
             }
           }
         }
@@ -355,41 +355,41 @@
         "seams": {
           "src/lib/tinker.server.ts": {
             "extensions": {
-              "line": "export { extensions } from \"../examples/demo.server\";",
-              "from": "../examples/demo.server",
+              "line": "export { extensions } from \"@/examples/demo.server\";",
+              "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "../backend/database.server"
+                "from": "@/backend/database.server"
               }
             },
             "database": {
-              "line": "export { database } from \"../backend/database\";"
+              "line": "export { database } from \"@/backend/database.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"../backend/auth\";"
+              "line": "export { auth } from \"@/backend/auth.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"../backend/auth\";"
+              "line": "export { readAccount } from \"@/backend/auth.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"../backend/sync\";"
+              "line": "export { bootstrap } from \"@/backend/sync.server\";"
             }
           },
           "src/lib/tinker.ts": {
             "records": {
-              "line": "export { records } from \"../examples/demo\";"
+              "line": "export { records } from \"@/examples/demo\";"
             },
             "readSnapshot": {
-              "line": "export { readSnapshot } from \"../examples/demo\";"
+              "line": "export { readSnapshot } from \"@/examples/demo\";"
             },
             "readBootstrap": {
-              "line": "export { readBootstrap } from \"../examples/demo\";"
+              "line": "export { readBootstrap } from \"@/examples/demo\";"
             },
             "readBatch": {
-              "line": "export { readBatch } from \"../examples/demo\";"
+              "line": "export { readBatch } from \"@/examples/demo\";"
             },
             "streamMessage": {
-              "line": "export { streamMessage } from \"../examples/demo\";"
+              "line": "export { streamMessage } from \"@/examples/demo\";"
             }
           }
         }
@@ -558,11 +558,6 @@
           "target": "~/src/backend/database.server.ts"
         },
         {
-          "path": "src/backend/index.server.ts",
-          "type": "registry:file",
-          "target": "~/src/backend/index.server.ts"
-        },
-        {
           "path": "src/backend/sync.schema.server.ts",
           "type": "registry:file",
           "target": "~/src/backend/sync.schema.server.ts"
@@ -591,11 +586,6 @@
           "path": "src/frontend/error-text.ts",
           "type": "registry:file",
           "target": "~/src/frontend/error-text.ts"
-        },
-        {
-          "path": "src/frontend/index.ts",
-          "type": "registry:file",
-          "target": "~/src/frontend/index.ts"
         },
         {
           "path": "src/frontend/records.ts",
@@ -686,41 +676,41 @@
         "seams": {
           "src/lib/tinker.server.ts": {
             "extensions": {
-              "line": "export { extensions } from \"../examples/demo.server\";",
-              "from": "../examples/demo.server",
+              "line": "export { extensions } from \"@/examples/demo.server\";",
+              "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "../backend/database.server"
+                "from": "@/backend/database.server"
               }
             },
             "database": {
-              "line": "export { database } from \"../backend/database\";"
+              "line": "export { database } from \"@/backend/database.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"../backend/auth\";"
+              "line": "export { auth } from \"@/backend/auth.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"../backend/auth\";"
+              "line": "export { readAccount } from \"@/backend/auth.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"../backend/sync\";"
+              "line": "export { bootstrap } from \"@/backend/sync.server\";"
             }
           },
           "src/lib/tinker.ts": {
             "records": {
-              "line": "export { records } from \"../examples/demo\";"
+              "line": "export { records } from \"@/examples/demo\";"
             },
             "readSnapshot": {
-              "line": "export { readSnapshot } from \"../examples/demo\";"
+              "line": "export { readSnapshot } from \"@/examples/demo\";"
             },
             "readBootstrap": {
-              "line": "export { readBootstrap } from \"../examples/demo\";"
+              "line": "export { readBootstrap } from \"@/examples/demo\";"
             },
             "readBatch": {
-              "line": "export { readBatch } from \"../examples/demo\";"
+              "line": "export { readBatch } from \"@/examples/demo\";"
             },
             "streamMessage": {
-              "line": "export { streamMessage } from \"../examples/demo\";"
+              "line": "export { streamMessage } from \"@/examples/demo\";"
             }
           }
         },
@@ -858,41 +848,41 @@
         "seams": {
           "src/lib/tinker.server.ts": {
             "extensions": {
-              "line": "export { extensions } from \"../examples/demo.server\";",
-              "from": "../examples/demo.server",
+              "line": "export { extensions } from \"@/examples/demo.server\";",
+              "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "../backend/database.server"
+                "from": "@/backend/database.server"
               }
             },
             "database": {
-              "line": "export { database } from \"../backend/database\";"
+              "line": "export { database } from \"@/backend/database.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"../backend/auth\";"
+              "line": "export { auth } from \"@/backend/auth.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"../backend/auth\";"
+              "line": "export { readAccount } from \"@/backend/auth.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"../backend/sync\";"
+              "line": "export { bootstrap } from \"@/backend/sync.server\";"
             }
           },
           "src/lib/tinker.ts": {
             "records": {
-              "line": "export { records } from \"../examples/demo\";"
+              "line": "export { records } from \"@/examples/demo\";"
             },
             "readSnapshot": {
-              "line": "export { readSnapshot } from \"../examples/demo\";"
+              "line": "export { readSnapshot } from \"@/examples/demo\";"
             },
             "readBootstrap": {
-              "line": "export { readBootstrap } from \"../examples/demo\";"
+              "line": "export { readBootstrap } from \"@/examples/demo\";"
             },
             "readBatch": {
-              "line": "export { readBatch } from \"../examples/demo\";"
+              "line": "export { readBatch } from \"@/examples/demo\";"
             },
             "streamMessage": {
-              "line": "export { streamMessage } from \"../examples/demo\";"
+              "line": "export { streamMessage } from \"@/examples/demo\";"
             }
           }
         },

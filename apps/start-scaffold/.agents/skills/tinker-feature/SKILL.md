@@ -43,9 +43,10 @@ Map the reply to a feature value or managed error (ADR 0103).
 The filled request example is in tinker-forms.
 Never call built-in fetch from feature code.
 
-Export backend operations from `src/backend/index.server.ts`.
-Tests import `@tinker-start-scaffold/backend`.
-Export frontend operations from `src/frontend/index.ts`.
+Each feature is its own module. There is no barrel.
+Transport and tests import the module by its `@/` path:
+`@/backend/todos.server`, `@/frontend/state`.
+Tests import presets from the sibling `./presets`.
 
 Use this private guard from `src/routes/todos.tsx`:
 

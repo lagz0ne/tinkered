@@ -181,6 +181,8 @@ or private modules.
 
 - A test file imports only the package entry (`@/index`), never a
   private module.
+  An app has no entry and no barrel: its test imports the feature module
+  it proves (`@/backend/todos.server`). See ADR 0112.
 - Flat `test("does x", ...)`, or `it` inside one `describe` per file. The
   title says the behavior in plain words. A regression test names the bug.
 - Fixtures sit at the top of the file, built with the public API. A helper is

@@ -40,6 +40,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **style/import-paths** — owner: thread lead (Opus 5.5). ADR 0112: `@/` paths, no `../`, sorted imports.
   Saved: `@/` mapped, parent imports rewritten, `sortImports` and `import/no-relative-parent-imports` on.
+  Saved: scaffold barrels removed (`index.server.ts`, `frontend/index.ts`, `exports`); `check-imports` loads each backend module.
   Next: Duke reads the draft PR.
   Proof: `vp check` green; build and tests green.
 

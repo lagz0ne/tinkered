@@ -3,7 +3,7 @@ import { setResponseHeader } from "@tanstack/react-start/server";
 import { startRequests } from "@tinker/start";
 import { readResult } from "@tinker/start/server";
 
-import { listTodos, changeTodo } from "@/backend/index.server";
+import { listTodos, changeTodo } from "@/backend/todos.server";
 import { readTodoCommand } from "@/contracts/commands";
 
 import { readReceipt } from "./result.server";

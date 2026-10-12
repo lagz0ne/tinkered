@@ -20,6 +20,7 @@ done
 (( ${#targets[@]} )) || targets=(.)
 
 test_glob='.*\.(test|spec)\.(ts|tsx|mts)$'
+app_test='(^|/)apps/[^/]+/tests/'
 all_files=$(find "${targets[@]}" -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.mts' \) \
   -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.stryker-tmp/*' \
   -not -name '*.d.ts' 2>/dev/null || true)
@@ -131,6 +132,8 @@ while IFS='|' read -r id scope label regex; do
     test) files=$test_files ;;
     *) files=$all_files ;;
   esac
+  # An app has no package entry: its tests import the feature module they prove.
+  [[ "$id" == T04 ]] && files=$(printf '%s\n' "$files" | grep -Ev "$app_test" || true)
   if [[ -z "$files" ]]; then
     count=0
   else

@@ -121,6 +121,9 @@ const path = "./file.ts";
 TS
 check "keeps extensionless modules, assets, queries, and plain strings" S17 0 "$(id_count S17 "$tmp/imports.test.ts")"
 check "allows the extensionless public test entry" T04 0 "$(id_count T04 "$tmp/imports.test.ts")"
+mkdir -p "$tmp/apps/demo/tests"
+printf 'import { a } from "@/backend/a.server";\n' >"$tmp/apps/demo/tests/a.test.ts"
+check "lets an app test import its feature module" T04 0 "$(id_count T04 "$tmp/apps/demo/tests/a.test.ts")"
 
 mkdir -p "$tmp/apps/demo/src" "$tmp/examples" "$tmp/packages/demo/src"
 cat >"$tmp/apps/demo/src/units.tsx" <<'TS'

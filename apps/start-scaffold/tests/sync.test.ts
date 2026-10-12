@@ -1,28 +1,25 @@
-import {
-  migrate,
-  database,
-  readProfile,
-  saveProfile,
-  retryNotification,
-  bootstrapPublic,
-  bootstrapPrivate,
-  replayPublic,
-  replayPrivate,
-  incrementCounter,
-  mail,
-  raise,
-  isError,
-} from "@tinker-start-scaffold/backend";
-import type { Mail } from "@tinker-start-scaffold/backend";
-import { handleAuth } from "@tinker-start-scaffold/testing";
-import { proofDatabase, proofMail, requestHeaders } from "@tinker-start-scaffold/testing";
 import { createScope } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
 import { env } from "@tinker/start/server";
 import { sql } from "drizzle-orm";
 import { test, expect, onTestFinished } from "vite-plus/test";
 
+import { incrementCounter } from "@/backend/counter.server";
+import { migrate, database } from "@/backend/database.server";
+import { mail } from "@/backend/mail.server";
+import type { Mail } from "@/backend/mail.server";
+import { readProfile, saveProfile, retryNotification } from "@/backend/profile.server";
+import {
+  bootstrapPublic,
+  bootstrapPrivate,
+  replayPublic,
+  replayPrivate,
+} from "@/backend/sync.server";
+import { raise, isError } from "@/errors";
 import { readReceipt } from "@/transport/result.server";
+
+import { handleAuth } from "./presets";
+import { proofDatabase, proofMail, requestHeaders } from "./presets";
 
 const tags = env({
   DATABASE_URL: "postgres://proof",
