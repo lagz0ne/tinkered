@@ -1,0 +1,62 @@
+# A pushed tag start-vX.Y.Z publishes Core, React, and Start as one GitHub release.
+# No registry and no secret: only the job's own GITHUB_TOKEN.
+name: release
+
+on:
+  push:
+    tags: ["start-v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Read the version from the tag
+        run: echo "VERSION=${TAG#start-v}" >> "$GITHUB_ENV"
+
+      - name: The tag is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Install
+        run: |
+          npm install --global pnpm@12.4.1
+          pnpm install --frozen-lockfile
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Pack the set
+        run: node scripts/release.mjs "$VERSION"
+
+      - name: Check versions, notes, and registry
+        run: node scripts/release-check.mjs "$VERSION" > notes.md
+
+      # Draft, attach, then publish: the order GitHub gives for immutable releases.
+      - name: Publish
+        run: |
+          gh release create "$TAG" --draft \
+            ".release/$TAG/assets/"*.tgz ".release/$TAG/manifest.json" \
+            --verify-tag --title "Tinker $VERSION" --notes-file notes.md
+          gh release edit "$TAG" --draft=false --latest
+
+      - name: Download and match sha256
+        run: |
+          mkdir fetched
+          gh release download "$TAG" --dir fetched --pattern '*.tgz'
+          jq -r '.assets[] | "\(.sha256)  fetched/\(.file)"' \
+            ".release/$TAG/manifest.json" | sha256sum --check
