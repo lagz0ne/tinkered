@@ -1513,8 +1513,7 @@ function settled(checker: Checker, type: Type, at: TsNode, walk: Walk): Type[] {
         if (values === undefined) leaves.set(current.id, current);
         else next.push(...values);
       } else {
-        known.opened.forEach((id) => opened.add(id));
-        known.leaves.forEach((leaf) => leaves.set(leaf.id, leaf));
+        adoptReach(known, opened, leaves);
       }
       if (opened.size > SETTLE_TYPES) return [...leaves.values(), checker.getAnyType()];
     }
@@ -1523,6 +1522,15 @@ function settled(checker: Checker, type: Type, at: TsNode, walk: Walk): Type[] {
 
   walk.reach.set(type.id, { opened: [...opened], leaves: [...leaves.values()] });
   return leaves.size > 0 ? [...leaves.values()] : [checker.getAnyType()];
+}
+
+/**
+ * Add a finished settle's {@link Reach} to the settle in progress, so that settle does not open
+ * again the types the finished one already reached.
+ */
+function adoptReach(known: Reach, opened: Set<number>, leaves: Map<number, Type>): void {
+  known.opened.forEach((id) => opened.add(id));
+  known.leaves.forEach((leaf) => leaves.set(leaf.id, leaf));
 }
 
 /**
