@@ -422,6 +422,123 @@ test(
   BUILD_MS,
 );
 
+/**
+ * Lines TypeScript skips between a directive and the code it covers. Each form sits above each
+ * kind of read, so a hidden read flags however the code is written.
+ */
+const skippedForms = [
+  ["a blank line", [""]],
+  ["a comment line", ["// why"]],
+  ["two comment lines", ["// why", "// more"]],
+  ["a whitespace-only line", ["   \t"]],
+  ["a blank line and a comment line", ["", "// why"]],
+] as const;
+
+/** The reads a directive can hide: a prelude the read needs, then the read itself. */
+const hiddenReads = [
+  ["a direct read", "", "export const read = createScope().layer;"],
+  ["a destructure", "", "export const { layer } = createScope();"],
+  [
+    "a for-of target",
+    "declare const s: Iterable<{}>;\nlet layer: unknown;\n",
+    "for ({ layer } of s) {}",
+  ],
+] as const;
+
+test.each(
+  skippedForms.flatMap(([form, lines]) =>
+    hiddenReads.map(([read, prelude, code]) => [form, read, lines, prelude, code] as const),
+  ),
+)(
+  "%s between @ts-expect-error and %s fails the build",
+  async (_form, _read, lines, prelude, code) => {
+    const skipped = lines.map((line) => `${line}\n`).join("");
+    const plant = `${imports}${prelude}// @ts-expect-error\n${skipped}${code}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test.each(hiddenReads)(
+  "a blank line between @ts-ignore and %s fails the build",
+  async (_read, prelude, code) => {
+    const plant = `${imports}${prelude}// @ts-ignore\n\n${code}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a trailing @ts-expect-error on a code line hides the read after a blank line",
+  async () => {
+    const plant = `${imports}const first = 1; // @ts-expect-error\n\nexport const read = createScope().layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test.each(["@ts-ignorexyz", "@ts-expect-errorxyz"])(
+  "a directive named %s hides the read below it, as TypeScript reads the name",
+  async (directive) => {
+    const plant = `${imports}// ${directive}\nexport const read = createScope().layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a JSX brace directive above a blank line hides the read after it",
+  async () => {
+    const plant = `${imports}export const el = (
+  <div>
+    {/* @ts-expect-error */}
+
+    {createScope().layer}
+  </div>
+);\n`;
+    expect(await guard({ "packages/react/src/plant.tsx": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.tsx",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a directive above blank and comment lines leaves a typed read on a later line unflagged",
+  async () => {
+    const plant = `${imports}const view: { layer: number } = { layer: 1 };
+// @ts-expect-error
+
+// why
+export const unrelated = 1;
+export const read = view.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "JSX text that reads like a directive is not one, so the read after it stays unflagged",
+  async () => {
+    const plant = `${imports}export const el = (
+  <div>
+    // @ts-expect-error
+    {createScope().layer}
+  </div>
+);\n`;
+    expect(await guard({ "packages/react/src/plant.tsx": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
 test(
   "G21: a read of a variable typed by an alias of any fails the build",
   async () => {
