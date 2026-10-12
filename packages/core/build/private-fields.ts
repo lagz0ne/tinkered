@@ -1107,14 +1107,18 @@ function checkKey(node: ElementNode, checker: Checker, wanted: Set<string>, hits
 /** True when a declaration sits in a default library file, such as `lib.es2015.iterable.d.ts`. */
 type LibTest = (declaration: NodeHandle) => boolean;
 
-/** The source read and the names one assignment walk records. */
+/** The source read and the names one assignment records. */
 type AssignmentRead = {
   checker: Checker;
   source: TsNode;
   wanted: Set<string>;
   hits: string[];
   isLib: LibTest;
-  /** What the walk shares across its settles: promised values and finished settles. */
+};
+
+/** An {@link AssignmentRead} of a for-of loop: the only read with a {@link Walk}. */
+type ForOfRead = AssignmentRead & {
+  /** What the loop's settles share: see {@link Walk}. */
   walk: Walk;
 };
 
@@ -1132,7 +1136,6 @@ function checkAssignment(
     wanted,
     hits,
     isLib,
-    walk: { expanded: new Map(), reach: new Map() },
   });
 }
 
@@ -1148,7 +1151,7 @@ function checkForOf(
   hits: string[],
 ): void {
   if (!isLiteralTarget(node.initializer)) return;
-  const read = {
+  const read: ForOfRead = {
     checker,
     source: node.expression,
     wanted,
@@ -1182,7 +1185,7 @@ function wellKnownKey(checker: Checker, name: string): string | undefined {
  * The type one for-of step reads: an array's or tuple's element by index, else the iterable's
  * element. Under `for await` a promised element is settled, as TypeScript awaits it.
  */
-function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type[] {
+function elementType(source: Type, isAwait: boolean, read: ForOfRead): Type[] {
   if (source.isUnionType()) {
     return uniqueTypes(source.getTypes().flatMap((member) => elementType(member, isAwait, read)));
   }
@@ -1198,7 +1201,7 @@ function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type
  * declare its async iterator either. Any other source keeps both the index and iterator answers:
  * a library iterator can yield `any` through a type argument even when the index type is typed.
  */
-function sourceElements(source: Type, isAwait: boolean, read: AssignmentRead): Type[] {
+function sourceElements(source: Type, isAwait: boolean, read: ForOfRead): Type[] {
   const indexed = sourcePart([source], undefined, true, read);
   const { checker } = read;
   const isArray = checker.isArrayType(source) || checker.isTupleType(source);
@@ -1236,7 +1239,7 @@ function libMember(checker: Checker, type: Type, key: string | undefined, isLib:
  * iterated-type call, so this repeats the protocol: each iterator, then each `next()` overload.
  * Under `for await` the iterator is `[Symbol.asyncIterator]()`, and its `next()` gives a promise.
  */
-function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Type[] {
+function iteratedType(source: Type, isAwait: boolean, read: ForOfRead): Type[] {
   const { checker } = read;
   const at = read.source;
 
@@ -1472,7 +1475,8 @@ const SETTLE_TYPES = 1024;
 type Reach = { opened: number[]; leaves: Type[] };
 
 /**
- * What one for-of walk shares across its settles, since every settle reads the same `at`.
+ * What one for-of loop shares across its settles, since every settle reads the same `at`.
+ * An assignment never settles, so no other read has a walk.
  * `expanded` holds each type's {@link promisedValues}, asked once; `undefined` marks a leaf.
  * `reach` holds each finished settle's {@link Reach}, by the type it started from.
  */
