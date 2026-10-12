@@ -102,20 +102,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -158,20 +158,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -214,20 +214,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -303,20 +303,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -359,20 +359,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -558,6 +558,11 @@
           "target": "~/src/backend/database.server.ts"
         },
         {
+          "path": "src/backend/index.server.ts",
+          "type": "registry:file",
+          "target": "~/src/backend/index.server.ts"
+        },
+        {
           "path": "src/backend/sync.schema.server.ts",
           "type": "registry:file",
           "target": "~/src/backend/sync.schema.server.ts"
@@ -680,20 +685,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -852,20 +857,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {

@@ -30,16 +30,21 @@ Oxfmt's `sortImports` is a port of it, so it runs inside `vp check`.
   This is the Oxfmt default.
 - A test imports the package entry as `@/index`. T04 and the census read
   `@/` as they read `../src/`.
-- An app has no barrel (user, 2026-10-12: a barrel exposes "supposed to be
-  internal" services and adds side effects).
-  - Transport and tests import each feature module by its `@/` path.
-  - A test imports presets from the sibling `./presets`.
-  - The app's `package.json` has no `exports`.
-  - So T04 skips tests under `apps/*/tests/`.
+- In the scaffold, a test may import any module.
+  An app has no package entry, so T04 skips tests under `apps/*/tests/`.
+- Scaffold code outside `src/backend` imports `@/backend/index.server`.
+  - The barrel is internal: the app's `package.json` has no `exports`
+    (user, 2026-10-12: exports expose "supposed to be internal" services).
+  - Loading it loads every backend module.
+    `check-imports` proves no driver loads on import.
+  - No lint rule enforces it (user: "no reason to enforce that practice
+    for no gain").
+- The frontend has no barrel: a route imports `@/frontend/App`.
+  A barrel there could pull every component into each route chunk.
 
 The backend and frontend stay apart by Start's import protection.
 It refuses a client import of any `.server.` file or `/backend/` path.
-A barrel added nothing to that.
+A barrel adds nothing to that.
 
 ## Where `../` stays
 

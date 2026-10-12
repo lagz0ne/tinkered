@@ -109,7 +109,7 @@
           "path": "src/examples/todos-example.tinker.json",
           "target": "~/src/examples/todos-example.tinker.json",
           "type": "registry:file",
-          "content": "{\n  \"name\": \"todos-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/database.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/database.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/sync.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
+          "content": "{\n  \"name\": \"todos-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/index.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/index.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/index.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/index.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/index.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
         }
       ],
       "meta": {
@@ -125,20 +125,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -175,7 +175,7 @@
           "path": "src/examples/profile-example.tinker.json",
           "target": "~/src/examples/profile-example.tinker.json",
           "type": "registry:file",
-          "content": "{\n  \"name\": \"profile-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/database.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/database.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/sync.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
+          "content": "{\n  \"name\": \"profile-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/index.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/index.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/index.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/index.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/index.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
         }
       ],
       "meta": {
@@ -191,20 +191,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -241,7 +241,7 @@
           "path": "src/examples/auth-pages-example.tinker.json",
           "target": "~/src/examples/auth-pages-example.tinker.json",
           "type": "registry:file",
-          "content": "{\n  \"name\": \"auth-pages-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/database.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/database.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/sync.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
+          "content": "{\n  \"name\": \"auth-pages-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/index.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/index.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/index.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/index.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/index.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
         }
       ],
       "meta": {
@@ -257,20 +257,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -350,7 +350,7 @@
           "path": "src/examples/counter-example.tinker.json",
           "target": "~/src/examples/counter-example.tinker.json",
           "type": "registry:file",
-          "content": "{\n  \"name\": \"counter-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/database.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/database.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/sync.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
+          "content": "{\n  \"name\": \"counter-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/index.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/index.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/index.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/index.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/index.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
         }
       ],
       "meta": {
@@ -366,20 +366,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -416,7 +416,7 @@
           "path": "src/examples/example-wiring.tinker.json",
           "target": "~/src/examples/example-wiring.tinker.json",
           "type": "registry:file",
-          "content": "{\n  \"name\": \"example-wiring\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/database.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/database.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/sync.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
+          "content": "{\n  \"name\": \"example-wiring\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/index.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/index.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/index.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/index.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/index.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
         }
       ],
       "meta": {
@@ -432,20 +432,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -512,7 +512,7 @@
           "path": "src/transport/todos.functions.ts",
           "type": "registry:file",
           "target": "~/src/transport/todos.functions.ts",
-          "content": "import { createServerFn } from \"@tanstack/react-start\";\nimport { setResponseHeader } from \"@tanstack/react-start/server\";\nimport { startRequests } from \"@tinker/start\";\nimport { readResult } from \"@tinker/start/server\";\n\nimport { listTodos, changeTodo } from \"@/backend/todos.server\";\nimport { readTodoCommand } from \"@/contracts/commands\";\n\nimport { readReceipt } from \"./result.server\";\n\nexport const getTodos = createServerFn({ method: \"GET\" })\n  .middleware([startRequests.middleware])\n  .handler(async ({ context }) => {\n    setResponseHeader(\"Cache-Control\", \"no-store\");\n    return readResult(await context.session.settle(listTodos, { signal: context.signal }));\n  });\n\nexport const updateTodo = createServerFn({ method: \"POST\" })\n  .middleware([startRequests.middleware])\n  .validator(readTodoCommand)\n  .handler(async ({ context, data }) =>\n    readReceipt(await context.session.settle(changeTodo, { input: data, signal: context.signal })),\n  );\n"
+          "content": "import { createServerFn } from \"@tanstack/react-start\";\nimport { setResponseHeader } from \"@tanstack/react-start/server\";\nimport { startRequests } from \"@tinker/start\";\nimport { readResult } from \"@tinker/start/server\";\n\nimport { listTodos, changeTodo } from \"@/backend/index.server\";\nimport { readTodoCommand } from \"@/contracts/commands\";\n\nimport { readReceipt } from \"./result.server\";\n\nexport const getTodos = createServerFn({ method: \"GET\" })\n  .middleware([startRequests.middleware])\n  .handler(async ({ context }) => {\n    setResponseHeader(\"Cache-Control\", \"no-store\");\n    return readResult(await context.session.settle(listTodos, { signal: context.signal }));\n  });\n\nexport const updateTodo = createServerFn({ method: \"POST\" })\n  .middleware([startRequests.middleware])\n  .validator(readTodoCommand)\n  .handler(async ({ context, data }) =>\n    readReceipt(await context.session.settle(changeTodo, { input: data, signal: context.signal })),\n  );\n"
         },
         {
           "path": "src/backend/profile.server.ts",
@@ -548,7 +548,7 @@
           "path": "src/transport/profile.functions.ts",
           "type": "registry:file",
           "target": "~/src/transport/profile.functions.ts",
-          "content": "import { createServerFn } from \"@tanstack/react-start\";\nimport { startRequests } from \"@tinker/start\";\nimport { readResult } from \"@tinker/start/server\";\n\nimport { readProfile, saveProfile, retryNotification } from \"@/backend/profile.server\";\nimport { readProfileCommand } from \"@/contracts/commands\";\nimport { readRetry } from \"@/contracts/sync\";\n\nimport { readReceipt } from \"./result.server\";\n\nexport const getProfile = createServerFn({ method: \"GET\" })\n  .middleware([startRequests.middleware])\n  .handler(async ({ context }) =>\n    readResult(await context.session.settle(readProfile, { signal: context.signal })),\n  );\n\nexport const updateProfile = createServerFn({ method: \"POST\" })\n  .middleware([startRequests.middleware])\n  .validator(readProfileCommand)\n  .handler(async ({ context, data }) =>\n    readReceipt(await context.session.settle(saveProfile, { input: data, signal: context.signal })),\n  );\n\nexport const retryProfileNotification = createServerFn({ method: \"POST\" })\n  .middleware([startRequests.middleware])\n  .validator(readRetry)\n  .handler(async ({ context, data }) =>\n    readReceipt(\n      await context.session.settle(retryNotification, { input: data, signal: context.signal }),\n    ),\n  );\n"
+          "content": "import { createServerFn } from \"@tanstack/react-start\";\nimport { startRequests } from \"@tinker/start\";\nimport { readResult } from \"@tinker/start/server\";\n\nimport { readProfile, saveProfile, retryNotification } from \"@/backend/index.server\";\nimport { readProfileCommand } from \"@/contracts/commands\";\nimport { readRetry } from \"@/contracts/sync\";\n\nimport { readReceipt } from \"./result.server\";\n\nexport const getProfile = createServerFn({ method: \"GET\" })\n  .middleware([startRequests.middleware])\n  .handler(async ({ context }) =>\n    readResult(await context.session.settle(readProfile, { signal: context.signal })),\n  );\n\nexport const updateProfile = createServerFn({ method: \"POST\" })\n  .middleware([startRequests.middleware])\n  .validator(readProfileCommand)\n  .handler(async ({ context, data }) =>\n    readReceipt(await context.session.settle(saveProfile, { input: data, signal: context.signal })),\n  );\n\nexport const retryProfileNotification = createServerFn({ method: \"POST\" })\n  .middleware([startRequests.middleware])\n  .validator(readRetry)\n  .handler(async ({ context, data }) =>\n    readReceipt(\n      await context.session.settle(retryNotification, { input: data, signal: context.signal }),\n    ),\n  );\n"
         },
         {
           "path": "src/backend/auth.server.ts",
@@ -596,7 +596,7 @@
           "path": "src/transport/counter.functions.ts",
           "type": "registry:file",
           "target": "~/src/transport/counter.functions.ts",
-          "content": "import { createServerFn } from \"@tanstack/react-start\";\nimport { startRequests } from \"@tinker/start\";\n\nimport { incrementCounter } from \"@/backend/counter.server\";\nimport { readExecution } from \"@/contracts/sync\";\n\nimport { readReceipt } from \"./result.server\";\n\nexport const updateCounter = createServerFn({ method: \"POST\" })\n  .middleware([startRequests.middleware])\n  .validator(readExecution)\n  .handler(async ({ context, data }) =>\n    readReceipt(\n      await context.session.settle(incrementCounter, { input: data, signal: context.signal }),\n    ),\n  );\n"
+          "content": "import { createServerFn } from \"@tanstack/react-start\";\nimport { startRequests } from \"@tinker/start\";\n\nimport { incrementCounter } from \"@/backend/index.server\";\nimport { readExecution } from \"@/contracts/sync\";\n\nimport { readReceipt } from \"./result.server\";\n\nexport const updateCounter = createServerFn({ method: \"POST\" })\n  .middleware([startRequests.middleware])\n  .validator(readExecution)\n  .handler(async ({ context, data }) =>\n    readReceipt(\n      await context.session.settle(incrementCounter, { input: data, signal: context.signal }),\n    ),\n  );\n"
         },
         {
           "path": "drizzle/20261002031710_past_preak/migration.sql",
@@ -663,6 +663,12 @@
           "type": "registry:file",
           "target": "~/src/backend/database.server.ts",
           "content": "import { extension, operation, resource } from \"@tinker/core\";\nimport type { Database } from \"@tinker/start/server\";\n\nexport type { Database } from \"@tinker/start/server\";\nimport { env } from \"@tinker/start/server\";\nimport { z } from \"zod\";\n\nimport { raise } from \"@/errors\";\n\nimport { postgres, drizzlePostgres, drizzlePgCore, drizzleMigrator } from \"./modules\";\n\nconst databaseEnv = z.object({ DATABASE_URL: z.string().min(1) });\n\nexport const databaseSettings = resource({\n  label: \"database.settings\",\n  depends: { env },\n  factory: ({ env }) => {\n    const settings = databaseEnv.safeParse(env);\n    if (!settings.success) {\n      raise(\"BadSettings\", {\n        part: \"database\",\n        keys: settings.error.issues.map((issue) => issue.path.join(\".\")),\n      });\n    }\n    return { url: settings.data.DATABASE_URL, migrations: \"drizzle\" };\n  },\n});\n\n/** Feature code uses native PostgreSQL queries, without the driver's client field. */\nexport const database = resource({\n  label: \"database\",\n  depends: { settings: databaseSettings, postgres, orm: drizzlePostgres },\n  factory: async ({ settings, postgres, orm }, { defer }): Promise<Database.Handle> => {\n    const { default: pg } = postgres;\n    const { drizzle } = orm;\n    const client = new pg.Pool({ connectionString: settings.url });\n    const listeners = new Set<AbortController>();\n\n    defer(async () => {\n      for (const stop of listeners) stop.abort();\n      await client.end();\n    });\n\n    return Object.assign(drizzle({ client }), {\n      async listen(heard: (payload: string) => void, disconnected: () => void) {\n        const listener = await client.connect();\n        const notified = (message: { payload?: string }) => heard(message.payload ?? \"\");\n        listener.on(\"notification\", notified);\n        listener.on(\"error\", disconnected);\n        listener.on(\"end\", disconnected);\n\n        const stop = new AbortController();\n        listeners.add(stop);\n\n        stop.signal.addEventListener(\n          \"abort\",\n          () => {\n            listeners.delete(stop);\n            listener.removeListener(\"notification\", notified);\n            listener.removeListener(\"error\", disconnected);\n            listener.removeListener(\"end\", disconnected);\n            listener.release(true);\n          },\n          { once: true },\n        );\n\n        try {\n          await listener.query(\"LISTEN start_sync\");\n          return stop.abort.bind(stop);\n        } catch (error) {\n          stop.abort();\n          throw error;\n        }\n      },\n    });\n  },\n});\n\nexport const migrate = operation({\n  label: \"migrate\",\n  depends: {\n    database,\n    settings: databaseSettings,\n    pgCore: drizzlePgCore,\n    migrator: drizzleMigrator,\n  },\n  run: async ({ database, settings, pgCore, migrator }) => {\n    const { migrate } = pgCore;\n    const { readMigrationFiles } = migrator;\n    await migrate(readMigrationFiles({ migrationsFolder: settings.migrations }), database, {\n      migrationsFolder: settings.migrations,\n    });\n  },\n});\n\nexport const databaseSetup = extension({\n  label: \"database.setup\",\n  hooks: {\n    async start({ next, scope }) {\n      await next();\n      await scope.run(migrate);\n    },\n  },\n});\n"
+        },
+        {
+          "path": "src/backend/index.server.ts",
+          "type": "registry:file",
+          "target": "~/src/backend/index.server.ts",
+          "content": "export { auth, authSettings, principal, currentUser, readAccount } from \"./auth.server\";\nexport { incrementCounter } from \"./counter.server\";\nexport type { Database } from \"./database.server\";\nexport { database, databaseSettings, databaseSetup, migrate } from \"./database.server\";\nexport type { Mail } from \"./mail.server\";\nexport { authMail, mail, mailSettings, sendMail } from \"./mail.server\";\nexport { readProfile, saveProfile, retryNotification } from \"./profile.server\";\n\nexport {\n  bootstrap,\n  bootstrapPublic,\n  bootstrapPrivate,\n  replayPublic,\n  replayPrivate,\n} from \"./sync.server\";\n\nexport { listTodos, changeTodo } from \"./todos.server\";\n"
         },
         {
           "path": "src/backend/sync.schema.server.ts",
@@ -770,7 +776,7 @@
           "path": "templates/demo.server.ts.txt",
           "target": "~/src/examples/demo.server.ts",
           "type": "registry:file",
-          "content": "import { databaseSetup } from \"@/backend/database.server\";\nexport const extensions = [databaseSetup];\nexport { database } from \"@/backend/database.server\";\nexport { auth, readAccount } from \"@/backend/auth.server\";\nexport { bootstrap } from \"@/backend/sync.server\";\n"
+          "content": "import { databaseSetup } from \"@/backend/index.server\";\nexport const extensions = [databaseSetup];\nexport { auth, bootstrap, database, readAccount } from \"@/backend/index.server\";\n"
         },
         {
           "path": "templates/demo-route.tsx.txt",
@@ -800,7 +806,7 @@
           "path": "src/examples/postgres-auth-mail-example.tinker.json",
           "target": "~/src/examples/postgres-auth-mail-example.tinker.json",
           "type": "registry:file",
-          "content": "{\n  \"name\": \"postgres-auth-mail-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/database.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/database.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/sync.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
+          "content": "{\n  \"name\": \"postgres-auth-mail-example\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/index.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/index.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/index.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/index.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/index.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
         }
       ],
       "meta": {
@@ -815,20 +821,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
@@ -889,7 +895,7 @@
           "path": ".agents/skills/tinker-feature/SKILL.md",
           "type": "registry:file",
           "target": "~/.agents/skills/tinker-feature/SKILL.md",
-          "content": "---\nname: tinker-feature\ndescription: Add a feature from its table to its page.\n---\n\n# Add one feature\n\nOmit `.ts`, `.tsx`, and `.mts` endings in imports and exports.\n\nUse todos as the worked path.\nRead these files in this order:\n\n1. `src/backend/todos.schema.server.ts`: the feature table.\n2. `src/contracts/todos.ts`: input reader and row type.\n3. `src/backend/todos.server.ts`: scoped read and write operations.\n4. `src/backend/sync.server.ts`: private snapshot and saved events.\n5. `src/transport/todos.functions.ts`: Start function.\n6. `src/contracts/sync.ts`: change and result bodies.\n7. `src/frontend/records.ts`: apply changes to saved data.\n8. `src/frontend/Todos.tsx`: page and action.\n9. `src/routes/todos.tsx`: account guard.\n10. `tests/todos.test.ts`: scope tests for the public promise.\n\nAdd your table to `drizzle.config.ts`.\nGenerate and keep its migration:\n\n```bash\nvp exec drizzle-kit generate\n```\n\nA private operation depends on `currentUser`.\nTake the owner from that user, never from caller input.\nUse `eventHistory` from `@tinker/start/server`.\nIn one transaction, `lock` orders writes to the stream.\n`find` checks the execution ID before any saved effect.\n`append` stores the events with the saved change.\nSee `changeTodo` in `src/backend/todos.server.ts`.\nA repeated execution ID must not repeat saved effects.\n\nFor outgoing HTTP, depend on httpRequest.controller and run it.\nImport it from `@tinker/start/server` and pass request values with rawInput.\nMap the reply to a feature value or managed error (ADR 0103).\nThe filled request example is in tinker-forms.\nNever call built-in fetch from feature code.\n\nEach feature is its own module. There is no barrel.\nTransport and tests import the module by its `@/` path:\n`@/backend/todos.server`, `@/frontend/state`.\nTests import presets from the sibling `./presets`.\n\nUse this private guard from `src/routes/todos.tsx`:\n\n```ts\nbeforeLoad: async ({ context }) => {\n  if ((await context.account()) === null) {\n    throw redirect({ to: \"/\" });\n  }\n  await context.bootstrap();\n},\n```\n\nExtend `Register` through `src/lib/tinker.ts`.\nAdd data and its change reader before adding the page.\nRun the build, types, tests, and schema check.\n"
+          "content": "---\nname: tinker-feature\ndescription: Add a feature from its table to its page.\n---\n\n# Add one feature\n\nOmit `.ts`, `.tsx`, and `.mts` endings in imports and exports.\n\nUse todos as the worked path.\nRead these files in this order:\n\n1. `src/backend/todos.schema.server.ts`: the feature table.\n2. `src/contracts/todos.ts`: input reader and row type.\n3. `src/backend/todos.server.ts`: scoped read and write operations.\n4. `src/backend/sync.server.ts`: private snapshot and saved events.\n5. `src/transport/todos.functions.ts`: Start function.\n6. `src/contracts/sync.ts`: change and result bodies.\n7. `src/frontend/records.ts`: apply changes to saved data.\n8. `src/frontend/Todos.tsx`: page and action.\n9. `src/routes/todos.tsx`: account guard.\n10. `tests/todos.test.ts`: scope tests for the public promise.\n\nAdd your table to `drizzle.config.ts`.\nGenerate and keep its migration:\n\n```bash\nvp exec drizzle-kit generate\n```\n\nA private operation depends on `currentUser`.\nTake the owner from that user, never from caller input.\nUse `eventHistory` from `@tinker/start/server`.\nIn one transaction, `lock` orders writes to the stream.\n`find` checks the execution ID before any saved effect.\n`append` stores the events with the saved change.\nSee `changeTodo` in `src/backend/todos.server.ts`.\nA repeated execution ID must not repeat saved effects.\n\nFor outgoing HTTP, depend on httpRequest.controller and run it.\nImport it from `@tinker/start/server` and pass request values with rawInput.\nMap the reply to a feature value or managed error (ADR 0103).\nThe filled request example is in tinker-forms.\nNever call built-in fetch from feature code.\n\nExport each backend operation from `src/backend/index.server.ts`.\nCode outside `src/backend` imports it from `@/backend/index.server`.\nThe frontend has no barrel: import `@/frontend/state` directly.\nTests may import any module by its `@/` path.\nTests import presets from the sibling `./presets`.\n\nUse this private guard from `src/routes/todos.tsx`:\n\n```ts\nbeforeLoad: async ({ context }) => {\n  if ((await context.account()) === null) {\n    throw redirect({ to: \"/\" });\n  }\n  await context.bootstrap();\n},\n```\n\nExtend `Register` through `src/lib/tinker.ts`.\nAdd data and its change reader before adding the page.\nRun the build, types, tests, and schema check.\n"
         },
         {
           "path": ".agents/skills/tinker-forms/SKILL.md",
@@ -1003,7 +1009,7 @@
           "path": "src/examples/starter.tinker.json",
           "target": "~/src/examples/starter.tinker.json",
           "type": "registry:file",
-          "content": "{\n  \"name\": \"starter\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/database.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/database.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/auth.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/sync.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
+          "content": "{\n  \"name\": \"starter\",\n  \"parts\": [\n    \"auth\",\n    \"sync\"\n  ],\n  \"seams\": {\n    \"src/lib/tinker.server.ts\": {\n      \"extensions\": {\n        \"line\": \"export { extensions } from \\\"@/examples/demo.server\\\";\",\n        \"from\": \"@/examples/demo.server\",\n        \"include\": {\n          \"name\": \"databaseSetup\",\n          \"from\": \"@/backend/index.server\"\n        }\n      },\n      \"database\": {\n        \"line\": \"export { database } from \\\"@/backend/index.server\\\";\"\n      },\n      \"auth\": {\n        \"line\": \"export { auth } from \\\"@/backend/index.server\\\";\"\n      },\n      \"readAccount\": {\n        \"line\": \"export { readAccount } from \\\"@/backend/index.server\\\";\"\n      },\n      \"bootstrap\": {\n        \"line\": \"export { bootstrap } from \\\"@/backend/index.server\\\";\"\n      }\n    },\n    \"src/lib/tinker.ts\": {\n      \"records\": {\n        \"line\": \"export { records } from \\\"@/examples/demo\\\";\"\n      },\n      \"readSnapshot\": {\n        \"line\": \"export { readSnapshot } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBootstrap\": {\n        \"line\": \"export { readBootstrap } from \\\"@/examples/demo\\\";\"\n      },\n      \"readBatch\": {\n        \"line\": \"export { readBatch } from \\\"@/examples/demo\\\";\"\n      },\n      \"streamMessage\": {\n        \"line\": \"export { streamMessage } from \\\"@/examples/demo\\\";\"\n      }\n    }\n  }\n}\n"
         }
       ],
       "meta": {
@@ -1018,20 +1024,20 @@
               "from": "@/examples/demo.server",
               "include": {
                 "name": "databaseSetup",
-                "from": "@/backend/database.server"
+                "from": "@/backend/index.server"
               }
             },
             "database": {
-              "line": "export { database } from \"@/backend/database.server\";"
+              "line": "export { database } from \"@/backend/index.server\";"
             },
             "auth": {
-              "line": "export { auth } from \"@/backend/auth.server\";"
+              "line": "export { auth } from \"@/backend/index.server\";"
             },
             "readAccount": {
-              "line": "export { readAccount } from \"@/backend/auth.server\";"
+              "line": "export { readAccount } from \"@/backend/index.server\";"
             },
             "bootstrap": {
-              "line": "export { bootstrap } from \"@/backend/sync.server\";"
+              "line": "export { bootstrap } from \"@/backend/index.server\";"
             }
           },
           "src/lib/tinker.ts": {
