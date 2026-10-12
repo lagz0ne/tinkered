@@ -4199,3 +4199,115 @@ EROFS: read-only file system, mkdtemp
 ```
 
 - The cast iterable gap above is also feedback.
+
+## core/size-guard-directive-skip-lines
+
+Branch: `core/size-guard-directive-skip-lines`.
+Base: `origin/main` at `8c1bb358`.
+The first base was `770a1086`; `8c1bb358` touches no Core file.
+Commits, oldest first:
+
+- `2d4d5c2f` red tests: 22 plants fail on main.
+- `94645c36` the fix.
+- The newest commit adds this section.
+
+Nothing was pushed. The lead owns `TODO.md` and landing.
+
+### TypeScript 7 probes
+
+Run with `tsc` 7.0.2, `strict`, one real error on the probe line.
+Each row says whether the directive hides the probe line.
+
+- Directive, then code: hidden.
+- Directive, blank line, code: hidden.
+- Directive, one `// why` line, code: hidden.
+- Directive, two `//` lines, code: hidden.
+- Directive, whitespace-only line, code: hidden.
+- Directive, blank, `//`, blank, code: hidden.
+- Directive, `/* why */` line, code: not hidden.
+- Directive, `/** why */` line, code: not hidden.
+- Directive, multi-line `/**` JSDoc, code: not hidden.
+- Directive, then a code line, then the error: not hidden.
+- Directive at the end of the file: nothing hidden.
+- Two directives in a row, code: hidden; the upper one is unused.
+- `@ts-ignore`, blank, code: hidden.
+- `@ts-ignore`, then `@ts-expect-error`, code: hidden.
+- `@ts-expect-error`, then `@ts-ignore`, code: hidden.
+- Directive, code line with trailing `// why`: hidden.
+- Directive, line starting with `/* why */` and code: hidden.
+- Trailing directive on a code line, then blank, code: hidden.
+- Trailing directive on the error line itself: not hidden.
+- `/* @ts-expect-error */`, blank, code: hidden.
+- Multi-line `/* @ts-expect-error` block: not a directive.
+- `//@ts-expect-error` with no space: a directive.
+- `@ts-expect-error: reason`: a directive.
+- `@ts-ignorexyz` and `@ts-expect-errorxyz`: directives.
+- CRLF line endings: same as LF.
+- In `.tsx`, `{/* @ts-expect-error */}`, blank, JSX line: hidden.
+- In `.tsx`, `// @ts-expect-error` as JSX text: not a directive.
+
+### Rule as built
+
+- A directive hides the first line below it that is not blank and not `//`.
+- A block comment line ends the search. TypeScript does the same.
+- The name match has no word end, so `@ts-ignorexyz` counts.
+- Trailing directives work as before: the next line counts.
+- The guard now marks a superset of TypeScript's lines. It never marks fewer.
+
+### Failing tests first
+
+- Red on origin/main, in `/tmp/main-check-directive-skip-lines`: 22 of 210 fail.
+- The 22: 15 forms (five skipped forms, three reads), 3 blank lines under `@ts-ignore`, a trailing directive, two glued names, and a JSX brace directive.
+- Controls pass on main: a directive over blank and comment lines, then a typed read; and JSX text that looks like a directive.
+- Green on the branch: 210 of 210 pass.
+
+### Verdicts elsewhere
+
+- All old guard tests pass, including the budget edge: 1023 clean, 1024 flags.
+- The change only adds flags; no verdict went clean.
+- Core `dist`: 9 files, byte-identical to origin/main.
+- Pack output of both trees: the JavaScript chunks are identical.
+- Only the source maps differ, by tree path.
+- `vp run core#fields`: `private-fields.json` unchanged, 55 names.
+
+### Build time
+
+- `benchctl ab`, 10 rounds, under `flock /tmp/mutation.lock`.
+- A: origin/main in `.bench/base`. B: head `94645c36`.
+- The script packs Core with the `vite.config.ts` pack options.
+- It skips `dts` and the exports rewrite, as core/size-guard-forof-gaps did.
+- A median 8663 ms. B median 8574 ms.
+- Delta -89.0 ms (-1.0%). 95% range -146.1 to 38.7 ms.
+- Verdict: no difference we can see.
+
+### Gates
+
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings. Same as main.
+- `vp run -r test`: exit 0. Core: 900 pass.
+- `scripts/ticket.sh --check-only --no-mutation 54`: exit 0.
+- `vp run core#test:dist`: exit 0. 1110 pass.
+- `pnpm validate`: exit 0. 21 of 21 lanes pass.
+- `vp run prose`: exit 0.
+- Mutation: not run. The lane mutates `src/**` only, and `src` did not change.
+
+### Jev
+
+- Preflight on `origin/main..HEAD`: exit 0. No HTTP 402.
+- Its hits sit in functions this change did not touch.
+- `suppressedLines` and `codeLineBelow`: no hit.
+- No label written: no new hit in changed code.
+- `tests.mjs core`: exit 0. No flag in the guard tests.
+- `promises.mjs core`: exit 0. No title in the guard tests.
+- `calibrate.mjs`: not run, as asked.
+
+### Core feedback
+
+- A timing job cannot see `/tmp` or a sibling worktree.
+- A job's folder holds only its own tree. Put the baseline inside it:
+
+```text
+Cannot find module .../tinkered-base/packages/core/...
+```
+
+- Use `.bench/base` inside the tree, as core/size-guard-forof-gaps did.
