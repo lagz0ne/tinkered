@@ -71,8 +71,10 @@ The variations already exist in this repo.
 - The small app starts in 4 commands.
 - The demo starts in 4 commands with Docker.
 - The release job runs `template-sync --push`.
-  The job's `GITHUB_TOKEN` reaches only this repo,
-  so it uses the `TINKER_APP_TOKEN` secret.
+  The job's `GITHUB_TOKEN` reaches only this repo.
+  So it pushes with a write deploy key.
+  The key works on `tinker-app` only.
+  Its secret is `TINKER_APP_DEPLOY_KEY`.
   Without the secret, the step warns and skips.
 - The tags never move.
   A fix goes out as a new release.

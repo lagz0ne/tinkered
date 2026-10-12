@@ -1,7 +1,7 @@
 # When CI passes on main and main's version has no release yet,
 # publish Core, React, and Start as one GitHub release, tag start-vX.Y.Z.
 # Landing the bump commit is the release. No registry. The release uses only
-# the job's own GITHUB_TOKEN; TINKER_APP_TOKEN refreshes the template repo.
+# the job's own GITHUB_TOKEN; a deploy key refreshes the template repo.
 name: release
 
 on:
@@ -87,20 +87,24 @@ jobs:
             ".release/$TAG/manifest.json" | sha256sum --check
 
       # Refresh the template repo: each variation branch plus its new tag (ADR 0115).
-      # The job's own token reaches only this repo, so this push needs TINKER_APP_TOKEN:
-      # a fine-grained token with contents write on lagz0ne/tinker-app. Without it, skip.
+      # The job's own token reaches only this repo, so this push uses a write deploy
+      # key on lagz0ne/tinker-app, saved here as TINKER_APP_DEPLOY_KEY. Without it, skip.
       - name: Refresh tinker-app
         if: steps.version.outputs.new == 'true'
         env:
-          TINKER_APP_TOKEN: ${{ secrets.TINKER_APP_TOKEN }}
+          TINKER_APP_DEPLOY_KEY: ${{ secrets.TINKER_APP_DEPLOY_KEY }}
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
-          if [ -z "$TINKER_APP_TOKEN" ]; then
-            echo "::warning::No TINKER_APP_TOKEN; run scripts/template-sync.mjs --push by hand."
+          if [ -z "$TINKER_APP_DEPLOY_KEY" ]; then
+            echo "::warning::No TINKER_APP_DEPLOY_KEY; run scripts/template-sync.mjs --push by hand."
             exit 0
           fi
+          key="$RUNNER_TEMP/tinker-app-key"
+          (umask 077 && printf '%s\n' "$TINKER_APP_DEPLOY_KEY" > "$key")
+          trap 'rm -f "$key"' EXIT
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
           node scripts/template-sync.mjs "$RUNNER_TEMP/tinker-app" --push \
-            "https://x-access-token:${TINKER_APP_TOKEN}@github.com/lagz0ne/tinker-app.git"
+            git@github.com:lagz0ne/tinker-app.git
