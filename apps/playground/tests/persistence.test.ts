@@ -1,9 +1,11 @@
-import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
+import { expect, test } from "vite-plus/test";
+
 import { editFile, setTheme } from "@/actions";
 import { DEFAULT_FILES, ENTRY } from "@/lib/files";
 import { persistence } from "@/services";
 import { activeCell, dirtyCell, filesCell, type Saved, storage, themeCell } from "@/state";
+
 import { fakeStorage } from "./fixtures";
 
 const edited: Saved = {

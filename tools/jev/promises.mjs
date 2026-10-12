@@ -8,6 +8,7 @@
 //   N candidates per title (default 6); a `none` below confidence P (default 0.7) prints as unsure, not a gap
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+
 import { loadKey, ask, pct, resolvePick } from "./lib.mjs";
 
 const args = process.argv.slice(2);

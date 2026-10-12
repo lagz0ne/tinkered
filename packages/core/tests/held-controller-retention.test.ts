@@ -1,7 +1,9 @@
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
+
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension } from "../src/index";
+
+import { createScope, data, extension } from "@/index";
 
 setFlagsFromString("--expose-gc");
 const gc = runInNewContext("gc") as () => void;

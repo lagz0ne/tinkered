@@ -1,15 +1,9 @@
-import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
 import { execFileSync } from "node:child_process";
+
+import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
-import {
-  createScope,
-  extension,
-  namespace,
-  operation,
-  resource,
-  tag,
-  type Observe,
-} from "../src/index";
+
+import { createScope, extension, namespace, operation, resource, tag, type Observe } from "@/index";
 
 const readSpan = operation({ label: "readSpan", run: (_deps, ctx) => ctx.obs.span });
 

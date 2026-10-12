@@ -1,6 +1,7 @@
-import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
+import { expect, test } from "vite-plus/test";
+
 import {
   bodyJudge,
   corpus,
@@ -10,7 +11,7 @@ import {
   verify,
   verifyChecks,
   type Blueprint,
-} from "../src/index";
+} from "@/index";
 
 const namespaceSource = 'const client = resource({ label: "client", target: "namespace" });';
 

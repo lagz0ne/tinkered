@@ -111,7 +111,7 @@ if bash "$census" "$tmp/imports.mts" --strict >"$tmp/strict.log" 2>&1; then
   fail=1
 fi
 cat >"$tmp/imports.test.ts" <<'TS'
-import { x } from "../src/index";
+import { x } from "@/index";
 export * from "./b";
 import "./plain.mjs";
 import "./style.css";

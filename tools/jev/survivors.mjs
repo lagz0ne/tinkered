@@ -11,8 +11,9 @@
 //   node tools/jev/survivors.mjs core --top 20                         # print the 20 highest rows only
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
+
 import { SURVIVORS, sliceSurvivors, forSurvivorJev } from "./bank.mjs";
+import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
 
 const args = process.argv.slice(2);
 const targets = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));

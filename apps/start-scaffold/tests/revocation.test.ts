@@ -1,10 +1,10 @@
-import { backendStop, env, requestStop } from "@tinker/start/server";
-import { openSync } from "@tinker/start/testing";
+import { auth, migrate, saveProfile } from "@tinker-start-scaffold/backend";
 import { handleAuth } from "@tinker-start-scaffold/testing";
 import { proofDatabase, proofMail, requestHeaders } from "@tinker-start-scaffold/testing";
-import { test, expect } from "vite-plus/test";
 import { createScope } from "@tinker/core";
-import { auth, migrate, saveProfile } from "@tinker-start-scaffold/backend";
+import { backendStop, env, requestStop } from "@tinker/start/server";
+import { openSync } from "@tinker/start/testing";
+import { test, expect } from "vite-plus/test";
 
 const tags = env({
   DATABASE_URL: "postgres://proof",

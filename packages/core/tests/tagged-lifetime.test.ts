@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, operation, tag } from "../src/index";
+
+import { createScope, data, isError, operation, tag } from "@/index";
 
 const zone = tag({ label: "lifetime-zone", default: "root" });
 const tags = [zone("call")];

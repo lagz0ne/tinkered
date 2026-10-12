@@ -1,8 +1,9 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 // Focused checks for the Jev extractor and the shape helper (`shape.mjs`).
 // Run: node --test tools/jev/shape.test.mjs (no network; oxc-parser is local).
 import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+
 import { units } from "./extract.mjs";
 import { inspectShape } from "./shape.mjs";
 

@@ -149,12 +149,37 @@ head.
     Which lines form a step is the writer's call.
     Review checks it.
 
+15. **Imports name a place, not a climb (ADR 0112).**
+    `@/` is the project's `src/`, as in shadcn.
+    A file in the same folder is `./name`.
+    Every other file in the project is `@/path`.
+    Never `../`.
+    So a file moves without its imports changing.
+    `vp check` sorts imports into three groups:
+    - packages (`node:fs`, `react`, `@tinker/core`);
+    - `@/` paths;
+    - `./` siblings.
+
+    ```ts
+    import { operation } from "@tinker/core";
+
+    import { raise } from "@/errors";
+
+    import { todo } from "./todos.schema.server";
+    ```
+
+    `vp lint` flags `../` (`import/no-relative-parent-imports`).
+    Two places keep `../`:
+    - plain `.mjs` scripts, which have no `tsconfig`;
+    - `packages/start`, whose source each app compiles,
+      where `@/` is the app's own `src/`.
+
 ## Tests
 
 Tests prove behavior at the public seam. There are no unit tests of helpers
 or private modules.
 
-- A test file imports only the package entry (`../src/index`), never a
+- A test file imports only the package entry (`@/index`), never a
   private module.
 - Flat `test("does x", ...)`, or `it` inside one `describe` per file. The
   title says the behavior in plain words. A regression test names the bug.

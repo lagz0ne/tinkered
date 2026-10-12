@@ -1,7 +1,8 @@
+import assert from "node:assert/strict";
 // Extraction: wrapper and module-level unit reports (from main), and a helper's `uses` and
 // arrow helpers as units (writer trials).
 import { describe, it, test } from "node:test";
-import assert from "node:assert/strict";
+
 import { docs, unitCouldBeModuleLevel, units } from "./extract.mjs";
 
 const core = 'import { operation, resource, data, tag, operation as op } from "@tinker/core";\n';

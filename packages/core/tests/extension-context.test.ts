@@ -1,4 +1,5 @@
 import { expect, test } from "vite-plus/test";
+
 import {
   createScope,
   data,
@@ -9,7 +10,7 @@ import {
   resource,
   tag,
   type Scope,
-} from "../src/index";
+} from "@/index";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;

@@ -1,5 +1,6 @@
 import { describe, expect, it, test } from "vite-plus/test";
-import { createScope, extension, LEVELS, type Observe } from "../src/index";
+
+import { createScope, extension, LEVELS, type Observe } from "@/index";
 
 describe("extension start", () => {
   it("extension start logs before and after next reach the scope sink without a span", async () => {

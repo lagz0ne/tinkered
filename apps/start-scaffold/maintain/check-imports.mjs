@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
+
 import { createServer } from "vite-plus";
 
 if (import.meta.main) {

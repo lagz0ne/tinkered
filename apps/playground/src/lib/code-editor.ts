@@ -3,11 +3,12 @@ import { Annotation, Compartment, EditorState, type Extension } from "@codemirro
 import { EditorView, keymap } from "@codemirror/view";
 import { resource } from "@tinker/core";
 import { basicSetup } from "codemirror";
+
 import { editFile } from "@/actions";
+import { sourceFiles, type Source } from "@/lib/sources";
+import { themeExtension } from "@/lib/themes";
 import { followDefinition, goBack, goForward, navigationCell, trackCursor } from "@/navigation";
 import { activeCell, filesCell, themeCell } from "@/state";
-import { themeExtension } from "@/lib/themes";
-import { sourceFiles, type Source } from "@/lib/sources";
 
 const compartments = {
   theme: new Compartment(),

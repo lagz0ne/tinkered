@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 // Shared helpers for the Jev advisory layer (ADR: docs/roadmap/jev-loop/PLAN.md).
 //
 // Jev is TypeSafe's evaluation model: typed probabilistic decisions in/out, no text.
@@ -9,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
+
 import { experimental_evaluate as evaluate } from "ai";
 
 const MODEL = "typesafe-ai/jev";

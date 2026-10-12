@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, tag, type Operation } from "../src/index";
+
+import { createScope, operation, tag, type Operation } from "@/index";
 
 /** Every body gets the real `ctx` as its second argument, however it declares its parameters:
  * `Function.length` does not count rest or defaulted parameters and says nothing about

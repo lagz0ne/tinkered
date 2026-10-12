@@ -1,4 +1,5 @@
 import { expect, test } from "vite-plus/test";
+
 import {
   createScope,
   data,
@@ -7,7 +8,7 @@ import {
   resource,
   type Resource,
   type Scope,
-} from "../src/index";
+} from "@/index";
 
 function waiting(ctx: Resource.Ctx) {
   let finish = (): void => undefined;

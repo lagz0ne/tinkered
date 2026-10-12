@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, operation } from "../src/index";
+
+import { createScope, data, isError, operation } from "@/index";
 
 test("cell controller deps keep writes and watches across runs", async () => {
   const count = data({ label: "count", initial: 0 });

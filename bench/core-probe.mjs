@@ -1,3 +1,8 @@
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { getHeapStatistics } from "node:v8";
+
+import { Container } from "@inferdi/inferdi";
 // Standalone core probe: ONE scenario per process (min ns/iter + bytes/iter), pinned to one core.
 // usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opsink|oplog|opobs|opres|hooked|asyncsub|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl|inline|tagged|session>
 // CORE_DIST=<path to a core dist/index.mjs> measures that build with this probe (bench/ab.sh runs
@@ -11,10 +16,6 @@
 // bench()/run() make, with run()'s heap reader), and first runs the scenario WARM_CALLS times so V8
 // has settled before the timed loop starts. The METRIC line says which mode mitata used.
 import { measure } from "mitata";
-import { Container } from "@inferdi/inferdi";
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import { getHeapStatistics } from "node:v8";
 
 // `sync1k` times the Start sync stream, not Core: bench/sync-probe.mjs loads the tree's own source.
 if (process.argv[2] === "sync1k") {

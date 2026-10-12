@@ -12,8 +12,10 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
 import { build } from "vite-plus/pack";
 import { expect, test } from "vite-plus/test";
+
 import { privateFields } from "./private-fields";
 
 const core = fileURLToPath(new URL("..", import.meta.url));

@@ -2,6 +2,7 @@ import { defineConfig } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 
 export default defineConfig({
+  resolve: { tsconfigPaths: true },
   pack: {
     deps: { resolveDepSubpath: true },
     dts: {

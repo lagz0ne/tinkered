@@ -1,8 +1,8 @@
-import type { presetSym } from "./preset-symbol";
-import { nextTraceWord, seededTraceRandom } from "./trace-random";
 import { isError, raise } from "./errors";
 import { causesOf, closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } from "./errors";
 import type { Origin, RunResult } from "./errors";
+import type { presetSym } from "./preset-symbol";
+import { nextTraceWord, seededTraceRandom } from "./trace-random";
 
 export { originOf };
 export type { Origin, RunResult };

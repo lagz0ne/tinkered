@@ -13,6 +13,7 @@ import {
   TSDocTagSyntaxKind,
 } from "@microsoft/tsdoc";
 import { parseSync } from "oxc-parser";
+
 import { docs } from "./extract.mjs";
 
 const TEST_PATH = /(^|\/)tests\/|\.(test|spec|browser)\./;
@@ -31,7 +32,7 @@ const MESSAGES = {
   T01: "mock or spy in a test: drive the real public API and check what it returns or shows",
   T02: "fixed sleep in a test: wait for the state you need (an awaited promise, a locator assert, expect.poll)",
   T03: "only or skip left in a test: remove it so every test runs",
-  T04: "private source import in a test: import from the public entry src/index",
+  T04: "private source import in a test: import from the public entry @/index",
   T05: "internals asserted in a test: check public behavior, not frozen state or prototypes",
   T06: "cast through unknown in a test: type the value honestly or narrow it",
   T07: "error class or message asserted: narrow with isError, then check the payload",
@@ -87,7 +88,7 @@ const SLEEPS = new Set(["setTimeout", "sleep"]);
 const PUBLIC_ENTRY =
   /^(?:[a-z-]+\/)?(?:index|testing|sse|pglite|migrations|dev|pages)(\.(ts|tsx|js))?$/;
 
-const PRIVATE_SRC = /^(\.\.\/)+src\/(.+)$/;
+const PRIVATE_SRC = /^(?:(?:\.\.\/)+src\/|@\/)(.+)$/;
 const TS_DIRECTIVE = /^[\s*/]*@ts-(ignore|expect-error)\b/m;
 const LINT_DIRECTIVE = /^[\s*/]*(eslint|oxlint|biome)-disable/m;
 
@@ -269,10 +270,10 @@ function isFocus(node) {
   return (name === "only" || name === "skip") && TEST_ROOTS.has(rootName(node.object));
 }
 
-/** T04: a module path into `../src/` that is not the public entry `src/index`. */
+/** T04: a module path into `src/` (`@/` or `../src/`) that is not the public entry `src/index`. */
 function isPrivateSrc(spec) {
   const m = typeof spec === "string" ? PRIVATE_SRC.exec(spec) : null;
-  return m !== null && !PUBLIC_ENTRY.test(m[2]);
+  return m !== null && !PUBLIC_ENTRY.test(m[1]);
 }
 
 /** The module path an import, re-export, or `import(…)` names, or null. */

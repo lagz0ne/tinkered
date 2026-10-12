@@ -12,10 +12,11 @@
 //   noisy       enough cases but the separation or the ordering fails — a hit is a note
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadKey, ask, pct, BANK, HERE } from "./lib.mjs";
+
 import { judgeOf } from "./bank.mjs";
 import { JUDGE_CASES, REACT_CASES } from "./evals/fixtures/lint.mjs";
 import { SURVIVOR_CASES } from "./evals/fixtures/survivors.mjs";
+import { loadKey, ask, pct, BANK, HERE } from "./lib.mjs";
 
 const OUT = join(HERE, "calibration.json");
 const args = process.argv.slice(2);

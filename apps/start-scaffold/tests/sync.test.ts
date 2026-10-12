@@ -1,10 +1,3 @@
-import { env } from "@tinker/start/server";
-import { handleAuth } from "@tinker-start-scaffold/testing";
-import { test, expect, onTestFinished } from "vite-plus/test";
-import { createScope } from "@tinker/core";
-import { sql } from "drizzle-orm";
-import { preset } from "@tinker/core/testing";
-import { proofDatabase, proofMail, requestHeaders } from "@tinker-start-scaffold/testing";
 import {
   migrate,
   database,
@@ -21,7 +14,15 @@ import {
   isError,
 } from "@tinker-start-scaffold/backend";
 import type { Mail } from "@tinker-start-scaffold/backend";
-import { readReceipt } from "../src/transport/result.server";
+import { handleAuth } from "@tinker-start-scaffold/testing";
+import { proofDatabase, proofMail, requestHeaders } from "@tinker-start-scaffold/testing";
+import { createScope } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
+import { env } from "@tinker/start/server";
+import { sql } from "drizzle-orm";
+import { test, expect, onTestFinished } from "vite-plus/test";
+
+import { readReceipt } from "@/transport/result.server";
 
 const tags = env({
   DATABASE_URL: "postgres://proof",

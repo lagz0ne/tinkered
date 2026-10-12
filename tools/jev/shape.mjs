@@ -8,6 +8,7 @@
 //
 //   inspectShape(source, file) → stable rows [{ id, line, message }] in source order
 import { parseSync } from "oxc-parser";
+
 import { units } from "./extract.mjs";
 import { inspectPlain } from "./plain.mjs";
 

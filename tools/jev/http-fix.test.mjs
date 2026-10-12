@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
+
 import { inspectPlain } from "./plain.mjs";
 
 await test("the S24 fix text typechecks against the Start base", (t) => {

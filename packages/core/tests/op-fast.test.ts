@@ -1,13 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import {
-  createScope,
-  data,
-  extension,
-  isError,
-  operation,
-  resource,
-  type Scope,
-} from "../src/index";
+
+import { createScope, data, extension, isError, operation, resource, type Scope } from "@/index";
 
 for (const graceful of [true, false]) {
   test(`sync resource cleanup closes without extra turns (graceful: ${graceful})`, async () => {

@@ -1,8 +1,9 @@
-import { expect, test } from "vite-plus/test";
 import { createScope, isError } from "@tinker/core";
+import { expect, test } from "vite-plus/test";
+
 import { addFile, closeFile, editFile, renameFile, reset, selectFile, setTheme } from "@/actions";
 import { isError as isPlaygroundError } from "@/errors";
-import { goBack, navigationCell, openSource } from "../src/index";
+import { goBack, navigationCell, openSource } from "@/index";
 import { DEFAULT_FILES, ENTRY } from "@/lib/files";
 import { activeCell, dirtyCell, filesCell, themeCell } from "@/state";
 

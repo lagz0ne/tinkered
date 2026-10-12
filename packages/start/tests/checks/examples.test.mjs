@@ -1,7 +1,8 @@
 import { expect, test } from "vite-plus/test";
+
+import { registryItems } from "../../../../apps/start-scaffold/maintain/registry-source.mjs";
 import { examples } from "../../lib/checks/examples.mjs";
 import { named } from "../../lib/checks/named.mjs";
-import { registryItems } from "../../../../apps/start-scaffold/maintain/registry-source.mjs";
 import { goodApp, write } from "../fixture.mjs";
 
 const receipt = JSON.stringify({

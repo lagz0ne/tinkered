@@ -1,9 +1,12 @@
 import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite-plus";
+
 import { privateFields } from "./build/private-fields";
 
 export default defineConfig({
   resolve: {
+    tsconfigPaths: true,
     alias: { "@tinker/core/testing": fileURLToPath(new URL("./src/testing.ts", import.meta.url)) },
   },
   pack: {

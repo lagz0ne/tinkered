@@ -1,5 +1,6 @@
-import { main } from "../tinker/process/index";
 import { readFileSync } from "node:fs";
+
+import { main } from "../tinker/process/index";
 import { engine, shell } from "./index";
 
 function keyFrom(argv: readonly string[]): string | undefined {

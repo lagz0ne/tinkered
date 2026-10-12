@@ -2,7 +2,9 @@ import { createScope, operation, tag, type Operation } from "@tinker/core";
 import { StrictMode, useLayoutEffect, useRef } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useRun, type Run } from "../src/index";
+
+import { ScopeProvider, useRun, type Run } from "@/index";
+
 import { deferred } from "./support/deferred";
 
 const answer = tag<Promise<string>>({ label: "answer" });

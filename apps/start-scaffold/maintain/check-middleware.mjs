@@ -1,10 +1,11 @@
-import { copyProofApp, proofEnv } from "./proof-app.mjs";
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { spawnSync } from "node:child_process";
-import assert from "node:assert/strict";
+
+import { copyProofApp, proofEnv } from "./proof-app.mjs";
 
 if (import.meta.main) {
   const source = resolve(import.meta.dirname, "..");

@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension, isError } from "../src/index";
+
+import { createScope, data, extension, isError } from "@/index";
 
 test("a closed scope refuses a write before a stopping hook runs", async () => {
   const count = data({ label: "count", initial: 0 });

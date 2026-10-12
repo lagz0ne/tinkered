@@ -2,6 +2,7 @@ import { createScope } from "@tinker/core";
 import { ScopeProvider, useResource } from "@tinker/react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
+
 import { App } from "./App";
 import { ticker } from "./engine";
 import { grid } from "./state";

@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { measureBatch } from "../src/index";
+
+import { measureBatch } from "@/index";
 
 test("a 1.9 ms benchmark batch grows and includes the first batch in its average", () => {
   const batches: number[] = [];

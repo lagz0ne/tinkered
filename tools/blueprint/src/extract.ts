@@ -10,6 +10,7 @@ import type {
   Program,
   VariableDeclarator,
 } from "oxc-parser";
+
 import type { Blueprint } from "./blueprint";
 
 const UNIT_KINDS = ["data", "resource", "operation", "tag", "extension"];

@@ -1,5 +1,5 @@
-import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { resolve, sep } from "node:path";
 
 /** A proof-only HTTP mirror; a separate process keeps serving during installs and builds. */

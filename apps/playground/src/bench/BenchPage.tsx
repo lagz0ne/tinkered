@@ -10,8 +10,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { ReactElement } from "react";
+
 import { isError } from "@/errors";
 import { cn } from "@/lib/utils";
+
 import {
   buildLibs,
   DISCARD_ROUNDS,
@@ -29,6 +31,7 @@ import {
   type Stat,
   UPDATE_SAMPLES,
 } from "./runners";
+
 import "./benchmark.css";
 
 function fmtUs(v: number): string {

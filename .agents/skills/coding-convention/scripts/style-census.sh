@@ -48,7 +48,7 @@ S16|src|preset() call in source (test-only API)|^(?![[:space:]]*[*/])(?:(?!//|/\
 T01|test|mock or spy|\bvi\.(mock|fn|spyOn|doMock|stubGlobal|useFakeTimers)\(
 T02|test|sleeping in a test|\bsetTimeout\(|(?<!\.)\bsleep\(
 T03|test|only / skip left in|\.(only|skip)\(
-T04|test|import of a private source module|from "\.\./src/(?!index")|from "\.\./src/[^"]*/[^"]+"
+T04|test|import of a private source module|from "(\.\./src|@)/(?!index")|from "(\.\./src|@)/[^"]*/[^"]+"
 T05|test|internals asserted|Object\.(isFrozen|getPrototypeOf|getOwnPropertyDescriptor)\(
 T06|test|cast through unknown|as unknown as
 T08|test|isError inside expect (guard used as assertion)|expect\(isError\(

@@ -1,3 +1,4 @@
+import { Context, Effect, Layer, ManagedRuntime, Ref } from "effect";
 // Head-to-head microbenchmarks: @tinker/core (built dist) vs Effect (3.x).
 //
 // "Proper" wall-clock via mitata: warms up, defeats dead-code elimination, and reports robust
@@ -12,7 +13,6 @@
 //
 // Run: node --expose-gc bench/core-vs-effect.mjs
 import { bench, group, run, summary } from "mitata";
-import { Context, Effect, Layer, ManagedRuntime, Ref } from "effect";
 
 const { createScope, data, operation, resource } = await import("../packages/core/dist/index.mjs");
 

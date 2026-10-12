@@ -1,6 +1,7 @@
 import { makeTestRandom } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
-import { createScope, operation } from "../src/index";
+
+import { createScope, operation } from "@/index";
 
 const V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 

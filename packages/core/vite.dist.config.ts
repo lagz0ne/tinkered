@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite-plus";
+
 import base from "./vite.config";
 
 /** A built file in `dist`, by name. */

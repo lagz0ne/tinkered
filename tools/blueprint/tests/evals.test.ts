@@ -2,10 +2,11 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "vite-plus/test";
+
 import { createScope } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
-import { run } from "../tinker/process/index";
+import { expect, test } from "vite-plus/test";
+
 import {
   corpus,
   corpusPath,
@@ -22,7 +23,9 @@ import {
   readEval,
   shell,
   type Blueprint,
-} from "../src/index";
+} from "@/index";
+
+import { run } from "../tinker/process/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const provisionalCorpus = join(here, "fixtures", "corpus-provisional");

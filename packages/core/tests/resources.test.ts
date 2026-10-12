@@ -1,13 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import {
-  createScope,
-  data,
-  extension,
-  isError,
-  operation,
-  resource,
-  type Resource,
-} from "../src/index";
+
+import { createScope, data, extension, isError, operation, resource, type Resource } from "@/index";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");

@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { listFiles, readJson } from "../paths.mjs";
+
 import { recordedParts } from "../parts.mjs";
+import { listFiles, readJson } from "../paths.mjs";
 import { importsFrom, mayExport, parseSource } from "../source.mjs";
 import { verdict } from "./result.mjs";
 

@@ -2,8 +2,9 @@ import type { Operation } from "@tinker/core";
 import { createScope, operation } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import type { Run } from "../src/index";
-import { ScopeProvider, useRun } from "../src/index";
+
+import type { Run } from "@/index";
+import { ScopeProvider, useRun } from "@/index";
 
 const answer = operation({ label: "callback-answer", run: () => 42 });
 const operationError = new Error("operation failed");

@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, namespace } from "../src/index";
+
+import { createScope, data, namespace } from "@/index";
 
 test("a child named watcher sees a parent's named write", async () => {
   const a = namespace();

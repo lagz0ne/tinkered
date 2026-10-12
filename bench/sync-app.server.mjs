@@ -1,10 +1,10 @@
+import { PGlite } from "@electric-sql/pglite";
 // The sync probe's stand-in for the app's server seam (`#tinker/app.server`). Every tree that runs
 // the sync probe gets a copy, so each side loads its own Start source against this one seam.
 // An in-memory Postgres (PGlite) holds the sync tables and the wake trigger; an account read is one query.
 import { resource } from "@tinker/core";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
-import { PGlite } from "@electric-sql/pglite";
 
 const syncTables = `
 CREATE TABLE sync_stream (id text PRIMARY KEY, revision integer DEFAULT 0 NOT NULL);

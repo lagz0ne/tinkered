@@ -4,7 +4,7 @@ export { database, databaseSettings, migrate } from "./database.server";
 export { mail, mailSettings, sendMail } from "./mail.server";
 export type { Mail } from "./mail.server";
 export { readProfile, saveProfile, retryNotification } from "./profile.server";
-export { isError, raise } from "../errors";
+export { isError, raise } from "@/errors";
 export { listTodos, changeTodo } from "./todos.server";
 export { incrementCounter } from "./counter.server";
 

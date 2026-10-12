@@ -9,9 +9,10 @@
 //   node tools/jev/tests.mjs <pkg | file…> [--json out.json] [--pairs N]   (N pairs per file, default 8)
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
+
 import { TESTS } from "./bank.mjs";
 import { tests as extractTests, helpers, imports } from "./extract.mjs";
+import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
 
 const args = process.argv.slice(2);
 const targets = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));

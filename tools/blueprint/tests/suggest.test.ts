@@ -1,16 +1,10 @@
-import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, type Scope } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
+import { expect, test } from "vite-plus/test";
+
+import { corpusPath, isError, judge, readTemplate, shell, suggest, type Blueprint } from "@/index";
+
 import { run } from "../tinker/process/index";
-import {
-  corpusPath,
-  isError,
-  judge,
-  readTemplate,
-  shell,
-  suggest,
-  type Blueprint,
-} from "../src/index";
 
 /** Run the shell in-process: argv in, exit code and streams out. */
 async function answer(args: readonly string[], options?: Omit<Scope.Options, "extensions">) {

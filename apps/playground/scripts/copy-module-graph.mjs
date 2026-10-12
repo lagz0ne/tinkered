@@ -1,6 +1,7 @@
-import { build } from "esbuild";
 import { copyFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
+
+import { build } from "esbuild";
 
 /** Copy the entry and its local imports verbatim; bare imports stay with the iframe's import map. */
 export async function copyModuleGraph(from, to) {

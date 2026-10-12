@@ -1,10 +1,3 @@
-import { streamMessage } from "../src/lib/tinker";
-import { env } from "@tinker/start/server";
-import { handleAuth } from "@tinker-start-scaffold/testing";
-import { test, expect } from "vite-plus/test";
-import { createScope, operation } from "@tinker/core";
-import { preset } from "@tinker/core/testing";
-import { proofDatabase, proofMail, requestHeaders } from "@tinker-start-scaffold/testing";
 import {
   database,
   migrate,
@@ -16,9 +9,17 @@ import {
   mail,
 } from "@tinker-start-scaffold/backend";
 import type { Mail } from "@tinker-start-scaffold/backend";
+import { handleAuth } from "@tinker-start-scaffold/testing";
+import { proofDatabase, proofMail, requestHeaders } from "@tinker-start-scaffold/testing";
+import { createScope, operation } from "@tinker/core";
+import { preset } from "@tinker/core/testing";
 import { syncClient, applyBootstrap } from "@tinker/start/client";
+import { env } from "@tinker/start/server";
 import { accountOwner, tabStop, receiveMessage } from "@tinker/start/testing";
 import { openSync, notifications, backendStop, requestStop } from "@tinker/start/testing";
+import { test, expect } from "vite-plus/test";
+
+import { streamMessage } from "@/lib/tinker";
 
 const settings = env({
   DATABASE_URL: "postgres://proof",

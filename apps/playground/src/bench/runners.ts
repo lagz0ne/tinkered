@@ -11,9 +11,11 @@ import { observer as observer3, use$ } from "legend3/react";
 import { createContext, createElement as h, useContext, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { raise } from "@/errors";
-import { measureBatch } from "./sampling";
 import { create } from "zustand";
+
+import { raise } from "@/errors";
+
+import { measureBatch } from "./sampling";
 
 /** In-browser port of bench/react-stores.mjs. N components each subscribe to ONE slice; we update
  * a single slice and measure: re-render count (ideal 1 — the fine-grained story), update latency,
