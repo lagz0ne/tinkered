@@ -1302,6 +1302,46 @@ for (layer of s) {}\n`;
 );
 
 test(
+  "a for-of assignment target in a script fails the build",
+  async () => {
+    const plant = `${imports}let layer;\nfor ({ layer } of [{ layer: 1 }]) {}\n`;
+    expect(await guard({ "apps/demo/plant.mjs": plant }, ["layer"])).toContain(
+      "layer: read without type checks in apps/demo/plant.mjs",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a read of a for-of assignment target declared below @ts-expect-error fails the build",
+  async () => {
+    const plant = `${imports}let layer: { layer: number };
+// @ts-expect-error
+for ({ layer } of [{ layer: 1 }]) {}
+export const read = layer.layer;\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-await over a thenable chain 1023 layers deep stays unflagged, and 1024 layers flag",
+  async () => {
+    const chain = (depth: number) => `${imports}${thenableChain("{ layer: number }", depth)}
+declare const ws: W${depth}[];
+let layer: unknown;
+for await ({ layer } of ws) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": chain(1023) }, ["layer"])).toBe("");
+    expect(await guard({ "packages/react/src/plant.ts": chain(1024) }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS * 2,
+);
+
+test(
   "a missing checker binary leaves no scratch folder after the build fails",
   () => {
     const root = mkdtempSync(join(tmpdir(), "core-guard-"));
