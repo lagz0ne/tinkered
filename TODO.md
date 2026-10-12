@@ -24,11 +24,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-guard-iterable-fallbacks** — the guard says clean where TypeScript gives `any`, on main too: R9c `T[] & { [Symbol.iterator](): It<any> }`; R9d an Array subtype that overrides `[Symbol.iterator]` with an `any` iterator (the array index path skips the override); A6/A7b optional or `undefined` `[Symbol.asyncIterator]` (TS falls back to the sync iterator); T14 a local `declare class Promise<X>` with an `any` `then` (the guard trusts the name). Probes in /tmp/rev3-probes.
-  Verify: each probe flags.
+- **scaffold/registry-after-rule-14** — main `24c1e93e` (rule 14 blank lines) left the scaffold registry copies stale. `pnpm validate` fails one lane on main: "scaffold registry index matches source".
+  Verify: after `pnpm --dir apps/start-scaffold run registry:build`, `pnpm validate` passes all 21 lanes.
 
 - **core/size-guard-settle-memo** — settle each type once per walk. A union of 100 thenables takes about 8 s (N² growth).
   Verify: a 300-thenable union finishes under 2 s; dist and private-fields.json unchanged.
+
+- **core/size-guard-forof-gaps** — visit a for-of assignment target (`ForOfStatement.left` pattern) in `gatherCasts`, as `declared()` does for the const form. Gap: with `// @ts-expect-error` above `for ({ layer } of s)`, `s: Iterable<{}>`, the build stays clean; `for (const { layer } of s)` flags. Same on main.
+  Verify: a plant for the assignment form fails the build; the const form still flags.
 
 - **jev/recalibrate-after-key** — run `node tools/jev/calibrate.mjs` when the gateway key budget is back.
   It covers the labels added since 2026-10-10.
@@ -68,6 +71,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-iterable-fallbacks** (Core 51) — array fast path only for real arrays and tuples with lib iterators; the guard reads iterator overrides, the async-to-sync fallback and a local `Promise` class. 11 plants red on main, 166 guard tests green. Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-iterable-fallbacks).
+  Verify: each probe flags.
 
 - **scaffold/registry-hook-test-trim** — `test:registry-hook` trimmed to the staged checks: case f, the 10/96 pin, old-commit matching and `REGISTRY_HOOK_*` gone; hooks folder made inside the `try`. 13/13 on HEAD; `d333d23f`'s hook fails the format race and delete-only cases. 59 s → 33 s (wall clock, one run). Proof: [PROGRESS](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook-test-trim).
   Verify: `test:registry-hook` still fails on `d333d23f`'s two gaps, passes on HEAD, runs faster.
