@@ -1,4 +1,5 @@
 import type { Many, Scope } from "@tinker/core";
+
 import type { Env } from "../env";
 
 /** The base's empty server seam: an app with no src/lib/tinker.server.ts adds no extensions. */

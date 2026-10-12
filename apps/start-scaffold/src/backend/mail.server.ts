@@ -1,5 +1,6 @@
 import { operation, resource, tag } from "@tinker/core";
 import { z } from "zod";
+
 import { smtp } from "./modules";
 
 const message = z.strictObject({ to: z.string(), subject: z.string(), text: z.string() });
