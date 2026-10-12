@@ -71,6 +71,9 @@ function demo(folder) {
   const pkg = JSON.parse(readFileSync(join(app, "starter.package.json"), "utf8"));
   pkg.name = "tinker-app";
   write(folder, "package.json", JSON.stringify(pkg, null, 2) + "\n");
+
+  // The scaffold's own ignore file leans on the monorepo root; a lone app needs the full one.
+  cpSync(join(app, "templates/gitignore"), join(folder, ".gitignore"));
 }
 
 /** A committed lockfile pins the tree and lets npm skip the resolve step. */
@@ -120,7 +123,15 @@ for (const [branch, fill] of Object.entries({ small, demo, main: router })) {
   mkdirSync(folder, { recursive: true });
 
   fill(folder);
-  if (fill !== router) lock(folder);
+
+  if (fill !== router) {
+    const ignored = readFileSync(join(folder, ".gitignore"), "utf8").split("\n");
+    assert.ok(
+      ignored.includes(".env") && ignored.includes("node_modules/"),
+      `${branch} .gitignore`,
+    );
+    lock(folder);
+  }
 
   if (remote) push(branch, folder);
   console.log(`Wrote ${branch} for start-v${version} to ${folder}.`);
