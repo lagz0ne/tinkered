@@ -3950,3 +3950,95 @@ The ticket worktree and branch stay for review.
 ### Core feedback
 
 None.
+
+## core/size-guard-settle-memo
+
+Branch: `core/size-guard-settle-memo`.
+Base: `origin/main` at `fbdcf333`.
+The first base was `9f3c062e`; `fbdcf333` touches no Core file.
+Code and test: `6300ea7d`.
+Jev label: `c7e278c3`.
+Nothing was pushed.
+The lead owns `TODO.md` and landing.
+
+### Problem
+
+- A for-await over a union of N thenables settles each member.
+- Each thenable settles to the whole union.
+- Each settle asked the checker about every type again.
+- The whole probe took about 8 s for 100 thenables.
+- 300 thenables took about 13 times as long as 100.
+
+### Fix
+
+- `expanded`: each type's promised values are read once per for-of walk.
+- `reach`: a finished settle keeps every type it reached.
+- A later settle that reaches that type adds the whole set at once.
+- Both live in one walk: the same `at` and the same checker.
+- The budget still counts every type a settle reaches, saved or not.
+- So `SETTLE_TYPES` (1024) means what it meant before.
+
+### Failing test first
+
+- G110: a for-await over 300 thenables must flag `layer` in under 2 s.
+  The timer covers the guard step, not the Core pack.
+- On `origin/main`: the guard ran past 20 s and was killed. The test fails.
+- On head: G110 passes.
+- Full guard file: head 167 of 167 pass.
+- Full guard file on `origin/main` with G110: 166 pass, G110 fails.
+
+### Timing
+
+Measured with `benchctl run` on benchd. Each number is the whole probe command: node start, Core pack, guard.
+
+- 100 thenables, base: median 8294.5 ms, 3 runs.
+- 100 thenables, head: median 1222.5 ms, 3 runs.
+- 300 thenables, base: median 109768.2 ms, 1 run.
+- 300 thenables, head: median 1664.9 ms, 3 runs.
+
+### Build A/B
+
+Run with `benchctl ab`, 10 rounds, under `flock /tmp/mutation.lock`.
+
+- A: `origin/main` at `fbdcf333`. B: head `6300ea7d`.
+- A median 4907 ms. B median 4911 ms.
+- Delta +3.9 ms (+0.1%). 95% range -111.9 to 147.9 ms.
+- Verdict: no difference we can see.
+
+### Proof
+
+- No verdict changed: 427 plants, flags equal on `origin/main` and head.
+- The 427 are 118 saved probe rows and 309 new plants.
+- 244 plants flag on both sides; 0 differ.
+- Budget edge: a chain of 1023 stays clean, 1024 flags, on both.
+- Core dist: 9 files, byte-identical to `fbdcf333`.
+- Private fields: write mode leaves the list unchanged, 55 names.
+- Gate chain: `vp run -r build`, `vp check`, `vp run -r test`,
+  `vp run core#test:dist`, `scripts/ticket.sh --check-only --no-mutation 52`,
+  `vp run prose`: `EXIT 0`.
+- `vp check`: 0 errors, 27 warnings.
+- `core#test:dist`: 1067 pass.
+- `pnpm validate`: `EXIT 0`, 21 of 21 lanes pass.
+- Mutation: not run. The lane mutates `src/**` only. `src` did not change.
+
+### Jev
+
+- Preflight on `origin/main..HEAD`: exit 0, no HTTP 402.
+- Preflight flags 7. Six are in function bodies this change did not touch.
+- `expandOnce` is the seventh: `stateOutsideCell`.
+- Label: `stateOutsideCell false` on `expandOnce`, with a reason.
+- `tests.mjs core`: exit 0. No flag on the guard tests.
+- `promises.mjs core`: exit 0. G110 is not in its input.
+- `calibrate.mjs`: not run, as asked.
+
+### Core feedback
+
+- A build test run alone finds no tests:
+
+  ```bash
+  cd packages/core
+  vp test run build/private-fields.test.ts
+  # No test files found, exiting with code 1
+  ```
+
+- Add `--config vite.dist.config.ts` to run it.
