@@ -25,7 +25,7 @@ export default defineConfig({
     // Trial fixtures keep the layout their runs recorded.
     overrides: [
       {
-        files: ["tools/writer-trial/**", "tools/flight-trial/**"],
+        files: ["tools/writer-trial/**", "tools/flight-trial/**", "docs/roadmap/**"],
         rules: { "tinker/blank-lines": "off", "tinker/body-steps": "off", curly: "off" },
       },
     ],
