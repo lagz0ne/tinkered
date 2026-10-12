@@ -838,17 +838,27 @@ function assigned(
   }
 }
 
-/**
- * {@link declared} for a for-of loop whose target is an assignment, as in `for ({ x } of s)`.
- * As in `declared`, the iterable is not a flow: a for-of declarator has no `init`.
- */
+/** Both loop forms read the iterable even though a for-of declarator has no `init`. */
+function forOfPatterns(node: ESTree.ForOfStatement): ESTree.Node[] {
+  return node.left.type === "VariableDeclaration"
+    ? node.left.declarations.map((declaration) => declaration.id)
+    : [node.left];
+}
+
+/** A cast iterable makes each target name a cast; a directive also hides the target's type. */
 function forOfTarget(
   node: ESTree.ForOfStatement,
   gathered: Gathered,
   suppressed: (offset: number) => boolean,
 ): void {
-  if (node.left.type === "VariableDeclaration" || !suppressed(node.left.start)) return;
-  for (const name of patternNames(node.left)) gathered.names.add(name);
+  for (const target of forOfPatterns(node)) {
+    const bound = patternNames(target);
+    gathered.flows.push({ value: node.right, names: bound });
+
+    if (suppressed(target.start)) {
+      for (const name of bound) gathered.names.add(name);
+    }
+  }
 }
 
 /** The values each function returns: an arrow's expression body, and each `return` in a block. */
@@ -967,7 +977,7 @@ function untypedReads(
     VariableDeclarator: (node) => destructure(node.id, node.init),
     AssignmentExpression: (node) => destructure(node.left, node.right),
     ForOfStatement: (node) => {
-      if (node.left.type !== "VariableDeclaration") destructure(node.left, null);
+      for (const target of forOfPatterns(node)) destructure(target, node.right);
     },
     CatchClause: (node) => {
       if (node.param !== null) destructure(node.param, null);

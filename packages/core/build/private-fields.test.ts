@@ -2544,3 +2544,58 @@ test(
   },
   BUILD_MS,
 );
+
+/** Cast iterables must guard both target keys and later reads of target names. */
+const castIterableTargets = [
+  ["a key", "{ layer: number }", "{ layer }", "", false],
+  ["a nested array key", "[{ layer: number }]", "[{ layer }]", "", false],
+  ["an awaited key", "{ layer: number }", "{ layer }", "", true],
+  ["an element name", "{ layer: number }", "v", "v.layer;", false],
+  ["a nested name", "{ a: { layer: number } }", "{ a: v }", "v.layer;", false],
+  ["a rest name", "{ layer: number }[]", "[...v]", "v[0].layer;", false],
+] as const;
+
+const castIterableForms = ["declaration", "assignment"] as const;
+
+const castIterableCases = castIterableTargets.flatMap((row) =>
+  castIterableForms.map((form) => [form, ...row] as const),
+);
+
+test.each(castIterableCases)(
+  "a cast iterable %s with %s fails the build",
+  async (form, _name, element, target, read, isAwait) => {
+    const source = `${isAwait ? "AsyncIterable" : "Iterable"}<${element}>`;
+    const binding = form === "declaration" ? `const ${target}` : target;
+    const variable = target === "[...v]" ? "{ layer: number }[]" : "{ layer: number }";
+    const plant = `${imports}const raw = createScope() as unknown as ${source};
+const s = raw;
+let layer: number;
+declare let v: ${variable};
+for ${isAwait ? "await " : ""}(${binding} of s) { ${read} }
+`;
+
+    const error = await guard({ "packages/react/src/plant.ts": plant }, ["layer"]);
+
+    expect(error).toContain("layer: read without type checks in packages/react/src/plant.ts");
+  },
+  BUILD_MS,
+);
+
+test.each(castIterableCases)(
+  "a typed iterable %s with %s stays clean",
+  async (form, _name, element, target, read, isAwait) => {
+    const source = `${isAwait ? "AsyncIterable" : "Iterable"}<${element}>`;
+    const binding = form === "declaration" ? `const ${target}` : target;
+    const variable = target === "[...v]" ? "{ layer: number }[]" : "{ layer: number }";
+    const plant = `${imports}declare const s: ${source};
+let layer: number;
+declare let v: ${variable};
+for ${isAwait ? "await " : ""}(${binding} of s) { ${read} }
+`;
+
+    const error = await guard({ "packages/react/src/plant.ts": plant }, ["layer"]);
+
+    expect(error).toBe("");
+  },
+  BUILD_MS,
+);
