@@ -1227,6 +1227,80 @@ for ({ layer } of anys) {}\n`;
   BUILD_MS,
 );
 
+/**
+ * A for-of loop whose target is an assignment, not a declaration. Each row is the source's type and
+ * the loop. The line above the loop holds `@ts-expect-error`, so the reads on it are unchecked.
+ */
+const assignmentLoops = [
+  ["an object pattern", "Iterable<{}>", "for ({ layer } of s) {}"],
+  ["an array pattern", "Iterable<[{}]>", "for ([{ layer }] of s) {}"],
+  ["a nested pattern", "Iterable<{ a: {} }>", "for ({ a: { layer } } of s) {}"],
+  ["a default value", "Iterable<{}>", "for ({ layer = 1 } of s) {}"],
+  ["a rest element", "Iterable<{}[]>", "for ([...[{ layer }]] of s) {}"],
+  ["an await loop", "AsyncIterable<{}>", "for await ({ layer } of s) {}"],
+] as const;
+
+test.each(assignmentLoops)(
+  "a for-of assignment with %s below @ts-expect-error fails the build",
+  async (_name, source, loop) => {
+    const plant = `${imports}declare const s: ${source};
+let layer: unknown;
+// @ts-expect-error
+${loop}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of declaration with a destructured key below @ts-expect-error still fails the build",
+  async () => {
+    const plant = `${imports}declare const s: Iterable<{}>;
+// @ts-expect-error
+for (const { layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment from a typed source stays unflagged",
+  async () => {
+    const plant = `${imports}declare const s: Iterable<{ layer: number }>;
+let layer: number;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a for-of assignment with no directive stays unflagged",
+  async () => {
+    const plant = `${imports}declare const s: Iterable<{}>;
+let layer: number;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
+test(
+  "a plain identifier for-of target reads no property, so it stays unflagged",
+  async () => {
+    const plant = `${imports}declare const s: Iterable<{}>;
+let layer: number;
+// @ts-expect-error
+for (layer of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
 test(
   "a missing checker binary leaves no scratch folder after the build fails",
   () => {

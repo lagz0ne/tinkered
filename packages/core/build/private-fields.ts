@@ -772,6 +772,7 @@ function gatherCasts(program: ESTree.Program, suppressed: (offset: number) => bo
       if (node.argument) gathered.returned.push({ value: node.argument, start: node.start });
     },
     AssignmentExpression: (node) => assigned(node, gathered, suppressed),
+    ForOfStatement: (node) => forOfTarget(node, gathered, suppressed),
     AssignmentPattern: (node) =>
       gathered.flows.push({ value: node.right, names: patternNames(node.left) }),
     FunctionDeclaration: (node) => {
@@ -832,6 +833,19 @@ function assigned(
   if (suppressed(node.left.start) || suppressed(node.right.start)) {
     for (const name of bound) gathered.names.add(name);
   }
+}
+
+/**
+ * {@link declared} for a for-of loop whose target is an assignment, as in `for ({ x } of s)`. A
+ * declaration gives the loop no value to flow, so the iterable is not a flow here either.
+ */
+function forOfTarget(
+  node: ESTree.ForOfStatement,
+  gathered: Gathered,
+  suppressed: (offset: number) => boolean,
+): void {
+  if (node.left.type === "VariableDeclaration" || !suppressed(node.left.start)) return;
+  for (const name of patternNames(node.left)) gathered.names.add(name);
 }
 
 /** The values each function returns: an arrow's expression body, and each `return` in a block. */
@@ -949,6 +963,9 @@ function untypedReads(
     },
     VariableDeclarator: (node) => destructure(node.id, node.init),
     AssignmentExpression: (node) => destructure(node.left, node.right),
+    ForOfStatement: (node) => {
+      if (node.left.type !== "VariableDeclaration") destructure(node.left, null);
+    },
     CatchClause: (node) => {
       if (node.param !== null) destructure(node.param, null);
     },
