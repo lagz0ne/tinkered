@@ -24,12 +24,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-guard-overload-intersection** — match TypeScript's iteration types.
-  Join `[Symbol.iterator]` and async `next()` overloads with `&`, not as a list.
-  Treat a result as done when `false` cannot be assigned to its `done` type (`done?: true`).
-  Handle a typed promise deeper than 8 layers and `then(cb: () => void)`. Today each is a false flag.
-  The assignment walk's 8-layer limit also flags a thenable that settles to itself or to a value (for example `{ layer: number }`), where the `const` form stays clean.
-  Verify: the `for (const …)` form agrees on every probe.
+- **core/size-guard-iterable-fallbacks** — the guard says clean where TypeScript gives `any`, on main too: R9c `T[] & { [Symbol.iterator](): It<any> }`; R9d an Array subtype that overrides `[Symbol.iterator]` with an `any` iterator (the array index path skips the override); A6/A7b optional or `undefined` `[Symbol.asyncIterator]` (TS falls back to the sync iterator); T14 a local `declare class Promise<X>` with an `any` `then` (the guard trusts the name). Probes in /tmp/rev3-probes.
+  Verify: each probe flags.
+
+- **core/size-guard-settle-memo** — settle each type once per walk. A union of 100 thenables takes about 8 s (N² growth).
+  Verify: a 300-thenable union finishes under 2 s; dist and private-fields.json unchanged.
 
 - **scaffold/registry-hook-test-trim** — drop case f (validate already runs `test:registry`) and the 10-items/96-files pin, the old-commit matching and the `REGISTRY_HOOK_*` settings; make the hooks folder inside the `try`.
   Verify: `test:registry-hook` still fails on `d333d23f`'s two gaps, passes on HEAD, runs faster.
@@ -72,6 +71,9 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-overload-intersection** — the guard joins every iterator overload a zero-argument call can use, every `next()` result, and every `then` and callback overload. The settle budget adds `any` on overflow, and a test pins it. 11 new plants fail on main; all guard tests pass. 15 known false flags, all safe-side. Dist files identical. Build A/B: no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-overload-intersection).
+  Verify: the guard never says clean where `for (const …)` gives `any` on the overload probes: S1, void param, tuple rest, async subtype, overloaded callback, `then` overloads, budget overflow. It may flag more. Array-index and async-to-sync fallback reads belong to core/size-guard-iterable-fallbacks.
 
 - **scaffold/registry-hook** — pre-commit checks the staged registry after formatting. Stale staged index (also format race and delete-only input): exit 1 with the repair line. No input touched: skip. `test:registry-hook` 14/14 (landing gate for hook changes). Proof: [docs/roadmap/start-scaffold/PROGRESS.md](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook).
   Verify: a commit with a stale staged index fails the hook; a commit that touches no registry input skips it.
