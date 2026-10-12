@@ -67,7 +67,10 @@ no token on any box, one name (the tag) per set.
 - The registry is read from the tag over
   `raw.githubusercontent.com`. The check makes
   sure the tag's registry names its own tarballs.
-- The workflow runs no tests. The gates ran when
-  the bump landed on main.
+- `.github/workflows/ci.yml` runs build, check,
+  tests and prose on every PR and push to main.
+  The release job runs no tests; CI already did.
+- Mutation and timing stay on the bench box.
+  They need its quiet core.
 - Immutable releases are a repository setting.
   Only the owner can turn them on.
