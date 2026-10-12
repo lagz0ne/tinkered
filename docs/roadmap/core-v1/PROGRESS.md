@@ -4202,27 +4202,33 @@ EROFS: read-only file system, mkdtemp
 
 ## core/size-guard-directive-skip-lines
 
-Branch: `core/size-guard-directive-skip-lines`.
-Base: `origin/main` at `8c1bb358`.
-The first base was `770a1086`; `8c1bb358` touches no Core file.
+Branch: `core/size-guard-directive-skip-lines-sol`.
+Base: `origin/main` at `0f121817`.
+The first writer's head is saved at
+`archive/directive-skip-lines-haiku-c09a6393`.
+Its old worktree was left alone.
+The three first-writer commits were rebased onto this base.
 Commits, oldest first:
 
-- `2d4d5c2f` red tests: 22 plants fail on main.
-- `94645c36` the fix.
-- The newest commit adds this section.
+- `8105c5bd`: the first writer's red plants.
+- `c535c200`: the first writer's blank and comment skip.
+- `58bd52f8`: the first writer's proof, corrected here.
+- `7780abbe`: all TypeScript line breaks and ten new plants.
+- The last commit records this proof.
 
 Nothing was pushed. The lead owns `TODO.md` and landing.
 
 ### TypeScript 7 probes
 
 Run with `tsc` 7.0.2, `strict`, one real error on the probe line.
-Each row says whether the directive hides the probe line.
+Each item says whether the directive hides the probe line.
+Both directive names were checked.
 
 - Directive, then code: hidden.
 - Directive, blank line, code: hidden.
 - Directive, one `// why` line, code: hidden.
 - Directive, two `//` lines, code: hidden.
-- Directive, whitespace-only line, code: hidden.
+- Directive, space-and-tab-only line, code: hidden.
 - Directive, blank, `//`, blank, code: hidden.
 - Directive, `/* why */` line, code: not hidden.
 - Directive, `/** why */` line, code: not hidden.
@@ -4230,7 +4236,6 @@ Each row says whether the directive hides the probe line.
 - Directive, then a code line, then the error: not hidden.
 - Directive at the end of the file: nothing hidden.
 - Two directives in a row, code: hidden; the upper one is unused.
-- `@ts-ignore`, blank, code: hidden.
 - `@ts-ignore`, then `@ts-expect-error`, code: hidden.
 - `@ts-expect-error`, then `@ts-ignore`, code: hidden.
 - Directive, code line with trailing `// why`: hidden.
@@ -4238,13 +4243,28 @@ Each row says whether the directive hides the probe line.
 - Trailing directive on a code line, then blank, code: hidden.
 - Trailing directive on the error line itself: not hidden.
 - `/* @ts-expect-error */`, blank, code: hidden.
-- Multi-line `/* @ts-expect-error` block: not a directive.
+- A directive on the first line of a multi-line block
+  comment does not count.
+- A directive on the last line does count:
+
+```ts
+/**
+ * @ts-ignore */
+```
+
 - `//@ts-expect-error` with no space: a directive.
 - `@ts-expect-error: reason`: a directive.
 - `@ts-ignorexyz` and `@ts-expect-errorxyz`: directives.
-- CRLF line endings: same as LF.
+- CRLF, lone CR, U+2028 and U+2029: same line breaks as LF.
+- A blank CR line below the directive: hidden.
+- Directive, LF, `// why`, CR, code: hidden.
+- A directive after each of those breaks: hidden.
+- A block comment stop with each of those breaks: not hidden.
+- Lines holding only `\v`, NBSP or BOM stop TypeScript's search.
 - In `.tsx`, `{/* @ts-expect-error */}`, blank, JSX line: hidden.
 - In `.tsx`, `// @ts-expect-error` as JSX text: not a directive.
+- The new run checked 78 probes: all gave the expected answer.
+  The earlier review checked 48 probes and found the five gaps below.
 
 ### Rule as built
 
@@ -4252,62 +4272,116 @@ Each row says whether the directive hides the probe line.
 - A block comment line ends the search. TypeScript does the same.
 - The name match has no word end, so `@ts-ignorexyz` counts.
 - Trailing directives work as before: the next line counts.
-- The guard now marks a superset of TypeScript's lines. It never marks fewer.
+- The scan now uses LF, CRLF, lone CR, U+2028 and U+2029.
+  CRLF counts as one break.
+- The directive scan uses the parser's comment-end offsets.
+  The five plants check those offsets with the new breaks.
+- `suppressedLines` keeps offset ranges; it does not split lines.
+  It gets each range from `codeLineBelow`.
+- Messages name files, with no line numbers to change.
+  The only line-splitting code was `codeLineBelow`.
+- The five known TypeScript-hidden reads now all flag.
+  The first writer missed them, so its superset claim was false.
+- The guard may flag more than TypeScript. These extra flags are allowed:
+  - `// see @ts-ignore`.
+  - A directive on the first line of a multi-line block comment.
+  - Lines holding only `\v`, NBSP or BOM.
 
 ### Failing tests first
 
-- Red on origin/main, in `/tmp/main-check-directive-skip-lines`: 22 of 210 fail.
-- The 22: 15 forms (five skipped forms, three reads), 3 blank lines under `@ts-ignore`, a trailing directive, two glued names, and a JSX brace directive.
-- Controls pass on main: a directive over blank and comment lines, then a typed read; and JSX text that looks like a directive.
-- Green on the branch: 210 of 210 pass.
+- The first writer added 22 plants that failed on its main base.
+- Five new plants fail on `c09a6393`, each with a clean build:
+  - Directive, lone CR, private read.
+  - Directive, CR, blank CR line, private read.
+  - Directive, U+2028, private read.
+  - Directive, U+2029, private read.
+  - Directive, LF, `// why`, CR, private read.
+- The exact old head was checked in a separate scratch tree.
+  Its archived worktree was not touched.
+- Red proof: `/tmp/dsl-sol-first-red.log`.
+- Green proof: the five plants now flag in the dist gate.
+- Focused rerun: ten of ten pass, including the typed controls.
+  Log: `/tmp/dsl-sol-green-plants.log`.
+- Five typed-read controls check the block-comment stop with LF,
+  CRLF, lone CR, U+2028 and U+2029. All stay unflagged.
 
 ### Verdicts elsewhere
 
-- All old guard tests pass, including the budget edge: 1023 clean, 1024 flags.
-- The change only adds flags; no verdict went clean.
-- Core `dist`: 9 files, byte-identical to origin/main.
-- Pack output of both trees: the JavaScript chunks are identical.
-- Only the source maps differ, by tree path.
+- All old guard tests pass, including the budget edge:
+  1023 clean, 1024 flags.
+- The first writer made the LF-comment-CR plant go clean.
+  This fix restores its flag and flags the other four gaps.
+- Core `dist`: 9 files, byte-identical to `origin/main`, maps included.
 - `vp run core#fields`: `private-fields.json` unchanged, 55 names.
 
 ### Build time
 
 - `benchctl ab`, 10 rounds, under `flock /tmp/mutation.lock`.
-- A: origin/main in `.bench/base`. B: head `94645c36`.
-- The script packs Core with the `vite.config.ts` pack options.
-- It skips `dts` and the exports rewrite, as core/size-guard-forof-gaps did.
-- A median 8663 ms. B median 8574 ms.
-- Delta -89.0 ms (-1.0%). 95% range -146.1 to 38.7 ms.
+- A: `origin/main` in `.bench/base`. B: `7780abbe`.
+- Both use the `vite.config.ts` pack options.
+- The script skips `dts` and the exports rewrite, as the earlier run did.
+- A median 10781 ms. B median 10887 ms.
+- Delta +106.4 ms (+1.0%). 95% range -952.4 to 898.2 ms.
 - Verdict: no difference we can see.
+- Both sides ran three packs per round, for ten rounds.
+- Timing used a clean worktree and a read-only base tree.
+- Log: `/tmp/dsl-sol-ab-fixed.log`.
+- The first harness attempt imported the Vite config directly.
+  Native Node could not resolve its extensionless plugin import.
+  It failed before timing; that log is not used.
+- The working script imports the plugin by its exact file path
+  and fills in the same pack options.
+- Scratch trees and scripts are removed after the checks.
 
 ### Gates
 
 - `vp run -r build`: exit 0.
-- `vp check`: 0 errors, 27 warnings. Same as main.
+- `vp check`: 0 errors, 27 warnings, the main baseline.
 - `vp run -r test`: exit 0. Core: 900 pass.
+- `vp run core#test:dist`: exit 0. 1120 pass.
+  The guard file has 220 pass, including all 210 old tests.
 - `scripts/ticket.sh --check-only --no-mutation 54`: exit 0.
-- `vp run core#test:dist`: exit 0. 1110 pass.
-- `pnpm validate`: exit 0. 21 of 21 lanes pass.
-- `vp run prose`: exit 0.
-- Mutation: not run. The lane mutates `src/**` only, and `src` did not change.
+  The title was `size-guard-directive-skip-lines`.
+- The full gate chain printed `EXIT 0`.
+- `pnpm validate`: exit 0. All 22 lanes pass.
+  This main base adds a registry lane to the earlier 21.
+- `vp run prose`: exit 0. Zero hits in 229 files.
+- `vp run core#fields`: exit 0. The list remains unchanged, with 55 names.
+- The final byte check compares all nine dist files, including maps.
+  Log: `/tmp/dsl-sol-dist-proof.log`.
+- Gate chain log: `/tmp/dsl-sol-gate.log`.
+- Ticket log: `/tmp/dsl-sol-ticket.log`.
+- Mutation: not run. The lane mutates `src/**` only; `src` did not change.
+- The strict style census reports the same rule IDs on main and head.
+  Its hits are old code, regex match text, and deliberate source text in plants.
 
 ### Jev
 
-- Preflight on `origin/main..HEAD`: exit 0. No HTTP 402.
-- Its hits sit in functions this change did not touch.
+- Preflight on `origin/main..HEAD`: exit 0. Run once; no HTTP 402.
+- Nine model hits, all in functions this fix did not touch.
 - `suppressedLines` and `codeLineBelow`: no hit.
 - No label written: no new hit in changed code.
-- `tests.mjs core`: exit 0. No flag in the guard tests.
-- `promises.mjs core`: exit 0. No title in the guard tests.
+- `tests.mjs core`: exit 0. Seven flags in old tests.
+  Build guard plants are outside its input.
+- `promises.mjs core`: exit 0. 45 of 824 old titles lack a README line.
+  Another 77 answers were unsure.
+- Both test readers exclude `build/`; no changed plant was in their input.
+  Their old test and README findings are outside this card.
+- These files did not change, so no label or README edit was added.
+- No HTTP 402 occurred in either test reader.
+- No retry after HTTP 402.
 - `calibrate.mjs`: not run, as asked.
+
+### Scope and choices
+
+- One shared regex defines the breaks, with CRLF matched first.
+  The search resets its position for each directive.
+- This keeps the regex out of each directive's allocation work.
+- Long jobs use the requested detached shell and exit files.
+  Every job is awaited before the final report.
+- No main-checkout command was used beyond fetch, tag and worktree add.
+- No git config changed. `TODO.md` was not edited.
 
 ### Core feedback
 
-- A timing job cannot see `/tmp` or a sibling worktree.
-- A job's folder holds only its own tree. Put the baseline inside it:
-
-```text
-Cannot find module .../tinkered-base/packages/core/...
-```
-
-- Use `.bench/base` inside the tree, as core/size-guard-forof-gaps did.
+- None.
