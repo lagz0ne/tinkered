@@ -30,9 +30,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/size-guard-settle-memo** — settle each type once per walk. A union of 100 thenables takes about 8 s (N² growth).
   Verify: a 300-thenable union finishes under 2 s; dist and private-fields.json unchanged.
 
-- **scaffold/registry-hook-test-trim** — drop case f (validate already runs `test:registry`) and the 10-items/96-files pin, the old-commit matching and the `REGISTRY_HOOK_*` settings; make the hooks folder inside the `try`.
-  Verify: `test:registry-hook` still fails on `d333d23f`'s two gaps, passes on HEAD, runs faster.
-
 - **jev/recalibrate-after-key** — run `node tools/jev/calibrate.mjs` when the gateway key budget is back.
   It covers the labels added since 2026-10-10.
   Verify: calibrate exits 0; `calibration.json` committed.
@@ -71,6 +68,9 @@ one for one; a separate Opus 5.5 (high) reviewer; no Fable. One branch at a time
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **scaffold/registry-hook-test-trim** — `test:registry-hook` trimmed to the staged checks: case f, the 10/96 pin, old-commit matching and `REGISTRY_HOOK_*` gone; hooks folder made inside the `try`. 13/13 on HEAD; `d333d23f`'s hook fails the format race and delete-only cases. 59 s → 33 s (wall clock, one run). Proof: [PROGRESS](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook-test-trim).
+  Verify: `test:registry-hook` still fails on `d333d23f`'s two gaps, passes on HEAD, runs faster.
 
 - **core/size-guard-overload-intersection** — the guard joins every iterator overload a zero-argument call can use, every `next()` result, and every `then` and callback overload. The settle budget adds `any` on overflow, and a test pins it. 11 new plants fail on main; all guard tests pass. 15 known false flags, all safe-side. Dist files identical. Build A/B: no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-overload-intersection).
   Verify: the guard never says clean where `for (const …)` gives `any` on the overload probes: S1, void param, tuple rest, async subtype, overloaded callback, `then` overloads, budget overflow. It may flag more. Array-index and async-to-sync fallback reads belong to core/size-guard-iterable-fallbacks.
