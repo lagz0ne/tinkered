@@ -32,5 +32,4 @@ if (!releaseNotes(upgrade, version)) {
   console.log(`TODO: add a "## ${version}" section to packages/start/UPGRADE.md.`);
 }
 
-console.log(`Bumped to ${version}. Commit, land on main, then push the tag:`);
-console.log(`  git tag start-v${version} && git push origin start-v${version}`);
+console.log(`Bumped to ${version}. Land it on main; green CI publishes start-v${version}.`);

@@ -1,4 +1,4 @@
-# 0114 A tag on main publishes the release
+# 0114 A new version on main publishes the release
 
 Date: 2026-10-12. Status: proposed.
 
@@ -6,6 +6,7 @@ Date: 2026-10-12. Status: proposed.
   of distribution but rather strictly via github
   release, and that'll make us moving fast (and we
   care about our stuff only)."
+- User: "shouldn't we go for CI CD on this?"
 
 Builds on: 0074, 0106.
 Replaces: ADR 0074's "published to npm" step.
@@ -29,9 +30,11 @@ An app's `package.json` names each tarball's URL.
 - **npm URL dependencies.** npm and pnpm install
   a `.tgz` from any HTTPS URL. The lockfile keeps
   its integrity hash.
-- **Tag-triggered release workflows.** A pushed
-  tag starts a job that packs and uploads.
-  The job uses its own `GITHUB_TOKEN`.
+- **Changesets' publish step.** After CI passes
+  on main, publish each version not yet out.
+  The version bump is the release.
+- **Release workflows on GitHub Actions.** A job
+  packs and uploads with its own `GITHUB_TOKEN`.
 - **GitHub immutable releases** (GA 2025-10-28).
   Once published, assets cannot change.
   The tag cannot move or be deleted.
@@ -49,21 +52,26 @@ no token on any box, one name (the tag) per set.
    registry links to one version.
 3. The lead adds the version's `UPGRADE.md` section
    and lands the bump on main like any card.
-4. The lead pushes tag `start-v<version>` on main.
-5. `.github/workflows/release.yml` then:
-   - refuses a tag that is not on main;
+4. `.github/workflows/ci.yml` runs the gates on
+   every PR and every push to main.
+5. When CI passes on main, `release.yml` reads
+   Start's version. If `start-v<version>` is out,
+   it stops. Else it:
    - packs with `scripts/release.mjs`;
    - runs `scripts/release-check.mjs`:
      versions, notes, and the committed registry
      must all match the tag;
    - drafts the release, attaches the tarballs
      and `manifest.json`, then publishes;
+     publishing makes the tag on that commit;
    - downloads the tarballs and matches sha256.
 6. The release notes are the `UPGRADE.md` section.
 
 ## Consequences
 
-- A release is one tag push; no one runs `gh`.
+- A release is one landed bump; no one tags
+  and no one runs `gh`.
+- A commit with no bump publishes nothing.
 - The registry is read from the tag over
   `raw.githubusercontent.com`. The check makes
   sure the tag's registry names its own tarballs.
