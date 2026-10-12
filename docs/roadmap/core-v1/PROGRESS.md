@@ -4042,3 +4042,126 @@ Run with `benchctl ab`, 10 rounds, under `flock /tmp/mutation.lock`.
   ```
 
 - Add `--config vite.dist.config.ts` to run it.
+
+## core/size-guard-forof-gaps
+
+Branch: `core/size-guard-forof-gaps`.
+Base: `origin/main` at `cb976380`.
+Commits: `57689506`, `289a1959`, `04336fec`, `8b6b573d`, `9ebbaa47`.
+Nothing was pushed.
+The lead owns `TODO.md` and landing.
+
+### Gap
+
+- A for-of loop with an assignment target was not visited.
+- Only the declaration form, `for (const { x } of s)`, was checked.
+- A directive above `for ({ layer } of s)` left the read clean.
+- The source here is `Iterable<{}>`, so TypeScript flags the read.
+
+### Rules as built
+
+- `gatherCasts` visits `ForOfStatement`, as `declared()` does.
+- A directive above the target makes its names casts (`forOfTarget`).
+- `untypedReads` checks each key of the target, as it does for `const`.
+- A script checks every key of the target, as it does for any destructure.
+- A typed element still goes through the checker only.
+- A plain identifier target, `for (x of s)`, reads no property. It stays clean.
+- No public symbol changed. Core's runtime source did not change.
+
+### Failing tests first
+
+- Red on `origin/main`, in `/tmp/main-check-forof-gaps`: 8 of 180 fail.
+- The eight: object, array, nested, default, rest, and await patterns.
+- Also: the script target, and the read of a name bound under a directive.
+- The const form, the controls, and the budget test pass there.
+- Green on the branch: 180 of 180 pass.
+- Logs: `/tmp/forof-gaps-red-main2.log`, `/tmp/forof-gaps-green2.log`.
+
+### Verdicts on both trees
+
+Each row is one real build of one plant: flag or clean.
+
+- Script `for ({ layer } of [...])`: clean on main, flags on head.
+- Directive, then a read of `layer.layer`: clean on main, flags on head.
+- Thenable chain, `for await`, 1023 layers: clean on both.
+- Thenable chain, 1024 layers: flags on both. 1025, 1026, and 1030 flag too.
+- The card said 1024 clean and 1025 flag. This chain's edge is 1023 and 1024.
+- Main and head agree at every depth, so the budget did not change.
+- Log: `/tmp/forof-gaps-verdicts-main.txt` and `-head.txt`.
+
+### Open gap, not fixed here
+
+- A read of an element from a cast iterable stays clean.
+- This holds for the `const` form and the assignment form, on main too.
+- The read is typed, not `any`, so it is outside this card.
+
+```ts
+import { createScope } from "@tinker/core";
+export const x = createScope() as unknown as Iterable<{ layer: number }>;
+for (const { layer } of x) {}
+```
+
+- Expected: flag. Actual: clean.
+
+### Cleanups
+
+- Dropped the unused `walk` from `checkAssignment`. Only `ForOfRead` holds one.
+- Moved the saved-reach merge in `settled` into `adoptReach`.
+- `methodElements` and `iterationTypes` take `read`, not five parameters.
+- The guard file passes after each step. No verdict changed.
+
+### Build time
+
+- `benchctl ab`, 10 rounds, under `flock /tmp/mutation.lock`.
+- A: `origin/main` in `.bench/base`. B: head `9ebbaa47`.
+- A median 9441 ms. B median 9398 ms.
+- Delta -43.5 ms (-0.5%). 95% range -113.0 to 16.2 ms.
+- Verdict: no difference we can see.
+- Both sides run `.bench/forof-build.mjs`: the `vite.config.ts` pack options.
+- Their medians do not compare with older rows: the harness differs.
+- Log: `/tmp/forof-gaps-ab.log`.
+
+### Gates
+
+- `vp run -r build`: exit 0.
+- `vp check`: 0 errors, 27 warnings. Same as main.
+- `vp run -r test`: exit 0. Core: 900 pass.
+- `scripts/ticket.sh --check-only --no-mutation 53`: exit 0. Size budget passes.
+- `vp run core#test:dist`: exit 0. 1080 pass.
+- `pnpm validate`: exit 0. 21 of 21 lanes pass.
+- `vp run prose`: exit 0. 0 hits in 229 files.
+- Core `dist`: 9 files, byte-identical to `origin/main`, maps included.
+- `vp run core#fields`: exit 0. `private-fields.json` unchanged: 55 names.
+- Gate chain log: `/tmp/forof-gaps-gate.log`.
+
+### Jev
+
+- Preflight on `origin/main..HEAD`: exit 0. No HTTP 402.
+- Nine model hits. Eight sit in bodies this change did not touch.
+- The new hit is `forOfTarget`, `stateOutsideCell`. Labelled `false`.
+  - Reason: its names live in one build walk's `gathered` set.
+- `tests.mjs core`: exit 0. Seven flags, none in this change.
+- `promises.mjs core`: exit 0. Build guard tests are not in its input.
+- `calibrate.mjs`: not run, as asked.
+- Label: `stateOutsideCell false`, `packages/core/build/private-fields.ts#forOfTarget`.
+
+### Scope and choices
+
+- Timing runs the `vite.config.ts` pack options through the JS API.
+- The CLI rewrites `package.json` for a non-`dist` folder, and the job is read-only.
+- `.bench/base` is a worktree inside this one. A job sees only its own folder.
+- The guard writes a scratch project under `packages/core/node_modules`.
+- One stray `benchctl run` on `sh` ran outside the lock. It timed 5 ms. No result is used.
+- `build/` is not in the mutation lane, so no mutation run.
+
+### Core feedback
+
+- The guard writes a scratch project into Core's `node_modules` at build time.
+- A read-only build root fails:
+
+```text
+EROFS: read-only file system, mkdtemp
+.../packages/core/node_modules/core-guard-XXXXXX
+```
+
+- The cast iterable gap above is also feedback.
