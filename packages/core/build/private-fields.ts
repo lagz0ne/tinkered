@@ -22,8 +22,10 @@ import { SyntaxKind, type Node as TsNode } from "typescript/unstable/ast";
 import {
   API,
   type Checker,
+  type NodeHandle,
   type Signature,
   SignatureKind,
+  type Symbol as ApiSymbol,
   SymbolFlags,
   type Type,
   type TypeReference,
@@ -1025,7 +1027,13 @@ function anyRead(checker: Checker, type: Type | undefined, name: string): boolea
  * Add the name a read answers `any` for to `hits`: a member read, or a key of a destructuring
  * pattern or of a destructuring assignment. Only the names in `wanted` count.
  */
-function checkRead(node: TsNode, checker: Checker, wanted: Set<string>, hits: string[]): void {
+function checkRead(
+  node: TsNode,
+  checker: Checker,
+  isLib: LibTest,
+  wanted: Set<string>,
+  hits: string[],
+): void {
   if (node.kind === SyntaxKind.PropertyAccessExpression) {
     checkMember(node as MemberNode, checker, wanted, hits);
   } else if (
@@ -1034,9 +1042,9 @@ function checkRead(node: TsNode, checker: Checker, wanted: Set<string>, hits: st
   ) {
     checkKey(node as ElementNode, checker, wanted, hits);
   } else if (isDestructuringAssignment(node)) {
-    checkAssignment(node as AssignNode, checker, wanted, hits);
+    checkAssignment(node as AssignNode, checker, isLib, wanted, hits);
   } else if (node.kind === SyntaxKind.ForOfStatement) {
-    checkForOf(node as ForOfNode, checker, wanted, hits);
+    checkForOf(node as ForOfNode, checker, isLib, wanted, hits);
   }
 }
 
@@ -1070,13 +1078,23 @@ function checkKey(node: ElementNode, checker: Checker, wanted: Set<string>, hits
   if (anyRead(checker, checker.getTypeAtLocation(node.parent), name)) hits.push(name);
 }
 
+/** True when a declaration sits in a default library file, such as `lib.es2015.iterable.d.ts`. */
+type LibTest = (declaration: NodeHandle) => boolean;
+
 /** The source read and the names one assignment walk records. */
-type AssignmentRead = { checker: Checker; source: TsNode; wanted: Set<string>; hits: string[] };
+type AssignmentRead = {
+  checker: Checker;
+  source: TsNode;
+  wanted: Set<string>;
+  hits: string[];
+  isLib: LibTest;
+};
 
 /** Walk every assignment target against the part of the source it reads. */
 function checkAssignment(
   node: AssignNode,
   checker: Checker,
+  isLib: LibTest,
   wanted: Set<string>,
   hits: string[],
 ): void {
@@ -1085,6 +1103,7 @@ function checkAssignment(
     source: node.right,
     wanted,
     hits,
+    isLib,
   });
 }
 
@@ -1092,9 +1111,15 @@ function checkAssignment(
  * A for-of assignment reads one element of the iterable, rather than the iterable itself. Only an
  * object or array target reads parts of that element, so any other target skips the walk.
  */
-function checkForOf(node: ForOfNode, checker: Checker, wanted: Set<string>, hits: string[]): void {
+function checkForOf(
+  node: ForOfNode,
+  checker: Checker,
+  isLib: LibTest,
+  wanted: Set<string>,
+  hits: string[],
+): void {
   if (!isLiteralTarget(node.initializer)) return;
-  const read = { checker, source: node.expression, wanted, hits };
+  const read = { checker, source: node.expression, wanted, hits, isLib };
 
   const source = checker.getTypeAtLocation(node.expression);
   const isAwait = node.awaitModifier !== undefined;
@@ -1125,11 +1150,49 @@ function elementType(source: Type, isAwait: boolean, read: AssignmentRead): Type
   if (source.isUnionType()) {
     return uniqueTypes(source.getTypes().flatMap((member) => elementType(member, isAwait, read)));
   }
-  const indexed = sourcePart([source], undefined, true, read);
-  const element = indexed.length === 0 ? iteratedType(source, isAwait, read) : indexed;
+  const element = sourceElements(source, isAwait, read);
   return isAwait
     ? uniqueTypes(element.flatMap((type) => settled(read.checker, type, read.source)))
     : element;
+}
+
+/**
+ * The element of one source that is not a union. Only a real array or tuple whose iterator the
+ * default library declares can use its index type alone. Under `for await`, no user file may
+ * declare its async iterator either. Any other source keeps both the index and iterator answers:
+ * a library iterator can yield `any` through a type argument even when the index type is typed.
+ */
+function sourceElements(source: Type, isAwait: boolean, read: AssignmentRead): Type[] {
+  const indexed = sourcePart([source], undefined, true, read);
+  const { checker } = read;
+  const isArray = checker.isArrayType(source) || checker.isTupleType(source);
+  if (isArray && libIteration(checker, source, isAwait, read.isLib)) {
+    return indexed.length === 0 ? iteratedType(source, isAwait, read) : indexed;
+  }
+  return uniqueTypes([...indexed, ...iteratedType(source, isAwait, read)]);
+}
+
+/**
+ * True when the iterator a loop uses is the one the default library declares. Under `for await`,
+ * an async iterator that no user file declares is also needed, or absent, as TypeScript reads it.
+ */
+function libIteration(checker: Checker, source: Type, isAwait: boolean, isLib: LibTest): boolean {
+  if (!libMember(checker, source, wellKnownKey(checker, "iterator"), isLib)) return false;
+  if (!isAwait) return true;
+  const asyncKey = wellKnownKey(checker, "asyncIterator");
+  return (
+    memberSymbol(checker, source, asyncKey) === undefined ||
+    libMember(checker, source, asyncKey, isLib)
+  );
+}
+
+/**
+ * True when every declaration of member `key` of `type` is in a default library file. A member
+ * that a user file adds or overrides fails, and so does a member that is missing.
+ */
+function libMember(checker: Checker, type: Type, key: string | undefined, isLib: LibTest): boolean {
+  const declarations = memberSymbol(checker, type, key)?.declarations ?? [];
+  return declarations.length > 0 && declarations.every(isLib);
 }
 
 /**
@@ -1141,18 +1204,48 @@ function iteratedType(source: Type, isAwait: boolean, read: AssignmentRead): Typ
   const { checker } = read;
   const at = read.source;
 
-  const asyncMethod = isAwait
-    ? memberType(checker, source, wellKnownKey(checker, "asyncIterator"), at)
-    : undefined;
-  const method = asyncMethod ?? memberType(checker, source, wellKnownKey(checker, "iterator"), at);
+  const syncKey = wellKnownKey(checker, "iterator");
+  if (!isAwait) return methodElements(checker, memberType(checker, source, syncKey, at), false, at);
 
+  const asyncKey = wellKnownKey(checker, "asyncIterator");
+  const asyncPart = methodElements(checker, memberType(checker, source, asyncKey, at), true, at);
+  if (hasMethod(checker, source, asyncKey, at)) return asyncPart;
+
+  const syncPart = methodElements(checker, memberType(checker, source, syncKey, at), false, at);
+  return uniqueTypes([...asyncPart, ...syncPart]);
+}
+
+/**
+ * The element types one iterator method gives: the iterator of each zero-argument overload, and
+ * then the values of each `next()` result. Only a method with no zero-argument overload gives none.
+ */
+function methodElements(
+  checker: Checker,
+  method: Type | undefined,
+  isAsync: boolean,
+  at: TsNode,
+): Type[] {
   const results = uniqueTypes(
     zeroArgumentReturns(checker, method).flatMap((iterator) =>
       returnsOf(checker, memberType(checker, iterator, "next", at)),
     ),
   );
 
-  return iterationTypes(checker, results, asyncMethod !== undefined, at);
+  return iterationTypes(checker, results, isAsync, at);
+}
+
+/**
+ * True when TypeScript can call member `key` as a method: the member exists, is not optional, is
+ * not typed `undefined`, and has an overload a zero-argument call can use. Any other
+ * `[Symbol.asyncIterator]` falls back to the sync iterator, as TypeScript falls back.
+ */
+function hasMethod(checker: Checker, type: Type, key: string | undefined, at: TsNode): boolean {
+  const member = memberSymbol(checker, type, key);
+  if (member === undefined || (member.flags & SymbolFlags.Optional) !== 0) return false;
+
+  const method = checker.getTypeOfSymbolAtLocation(member, at);
+  const undefinedFree = typeParts(method).every((part) => (part.flags & TypeFlags.Undefined) === 0);
+  return undefinedFree && zeroArgumentReturns(checker, method).length > 0;
 }
 
 /**
@@ -1166,13 +1259,21 @@ function memberType(
   at: TsNode,
 ): Type | undefined {
   if (type !== undefined && isAny(type)) return type;
+  const member = memberSymbol(checker, type, key);
+  return member === undefined ? undefined : checker.getTypeOfSymbolAtLocation(member, at);
+}
+
+/** The symbol of member `key` of `type`, or `undefined` when `type` has no member `key`. */
+function memberSymbol(
+  checker: Checker,
+  type: Type | undefined,
+  key: string | undefined,
+): ApiSymbol | undefined {
   if (type === undefined || key === undefined) return undefined;
   const apparent = checker.getApparentType(type);
-  const member =
-    apparent === undefined
-      ? undefined
-      : checker.getPropertiesOfType(apparent).find((symbol) => symbol.escapedName === key);
-  return member === undefined ? undefined : checker.getTypeOfSymbolAtLocation(member, at);
+  return apparent === undefined
+    ? undefined
+    : checker.getPropertiesOfType(apparent).find((symbol) => symbol.escapedName === key);
 }
 
 /** The return type of each call signature of a function type: one per overload. */
@@ -1334,11 +1435,21 @@ function settled(checker: Checker, type: Type, at: TsNode): Type[] {
 }
 
 /**
+ * True for a reference to the global `Promise`, as {@link wellKnownKey} finds the global `Symbol`.
+ * A local class or interface named `Promise` is an ordinary thenable: its `then` decides.
+ */
+function isGlobalPromise(checker: Checker, type: Type): boolean {
+  const global = checker.resolveName("Promise", SymbolFlags.Type);
+  const symbol = type.getSymbol();
+  return global !== undefined && symbol !== undefined && symbol.id === global.id;
+}
+
+/**
  * Promise values, or the values passed to all callable `then` callbacks. The list joins all
  * overloads of both `then` and its callback. A non-callable `then` is not a promise.
  */
 function promisedValues(checker: Checker, type: Type, at: TsNode): Type[] | undefined {
-  if (type.getSymbol()?.name === "Promise") {
+  if (isGlobalPromise(checker, type)) {
     return typeParts(checker.getTypeArguments(type as TypeReference)[0]);
   }
   const then = memberType(checker, type, "then", at);
@@ -1472,13 +1583,16 @@ function typedReads(files: string[], names: string[]): Map<string, string[]> {
     api = new API({ cwd: dir });
     const project = api.updateSnapshot({ openProjects: [config] }).getProjects()[0];
     if (project === undefined) throw new Error(`the checker opened no project for ${config}`);
+
+    const isLib: LibTest = (declaration) =>
+      project.program.getSourceFileMetadataByPath(declaration.path)?.isDefaultLibrary === true;
     for (const file of files) {
       const source = project.program.getSourceFile(file);
       if (source === undefined) throw new Error(`the checker did not load ${file}`);
 
       const hits: string[] = [];
       const visit = (node: TsNode): void => {
-        checkRead(node, project.checker, wanted, hits);
+        checkRead(node, project.checker, isLib, wanted, hits);
         node.forEachChild(visit);
       };
       source.forEachChild(visit);

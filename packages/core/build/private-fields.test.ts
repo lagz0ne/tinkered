@@ -1937,6 +1937,151 @@ for ({ layer } of s) {}\n`;
   BUILD_MS,
 );
 
+const typedAsync = "{ next(): Promise<{ done: false; value: { layer: number } }> }";
+
+/** Each row: a name, the declaration, whether the loop awaits, and the loop's target. */
+const fallbackPlants = [
+  [
+    "R9c: an array intersected with an any iterator",
+    `declare const s: { layer: number }[] & {
+    [Symbol.iterator](): ${anyIterator};
+  };`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "R9d: an Array subtype that overrides the iterator with an any iterator",
+    `interface Sub extends Array<{ layer: number }> {
+    [Symbol.iterator](): ArrayIterator<any>;
+  }
+  declare const s: Sub;`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "A6: an optional async iterator falls back to a sync any iterator",
+    `declare const s: {
+    [Symbol.asyncIterator]?(): ${typedAsync};
+    [Symbol.iterator](): ${anyIterator};
+  };`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "A7b: an async iterator typed undefined falls back to a sync any iterator",
+    `declare const s: {
+    [Symbol.asyncIterator]: undefined;
+    [Symbol.iterator](): ${anyIterator};
+  };`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "A7: a required async parameter falls back to a sync any iterator",
+    `declare const s: {
+    [Symbol.asyncIterator](x: number): ${typedAsync};
+    [Symbol.iterator](): ${anyIterator};
+  };`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "T14: a local Promise class with an any then is a thenable, not the global Promise",
+    `declare class Promise<X> {
+    then(cb: (v: any) => void): void;
+    x: X;
+  }
+  declare const s: Promise<{ layer: number }>[];`,
+    true,
+    "{ layer }",
+  ],
+] as const;
+
+test.each(fallbackPlants)(
+  "%s fails the build",
+  async (_name, declaration, isAwait, target) => {
+    const plant = `${imports}${declaration}
+let layer: unknown;
+for ${isAwait ? "await " : ""}(${target} of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+/** Each row: a name, the declaration, whether the loop awaits, and the loop's target. */
+const fallbackControls = [
+  [
+    "a plain array of typed objects stays clean",
+    `declare const s: { layer: number }[];`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "an Array subtype without an override stays clean",
+    `interface Sub extends Array<{ layer: number }> {}
+  declare const s: Sub;`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "an array intersected with a typed iterator stays clean",
+    `declare const s: { layer: number }[] & {
+    [Symbol.iterator](): ${typedIterator};
+  };`,
+    false,
+    "{ layer }",
+  ],
+  [
+    "a real AsyncIterable of typed objects stays clean",
+    `declare const s: AsyncIterable<{ layer: number }>;`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "an async iterator typed undefined with a typed sync iterator stays clean",
+    `declare const s: {
+    [Symbol.asyncIterator]: undefined;
+    [Symbol.iterator](): ${typedIterator};
+  };`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "an optional async iterator with a typed sync iterator stays clean",
+    `declare const s: {
+    [Symbol.asyncIterator]?(): ${typedAsync};
+    [Symbol.iterator](): ${typedIterator};
+  };`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "the global Promise of typed objects stays clean",
+    `declare const s: Promise<{ layer: number }>[];`,
+    true,
+    "{ layer }",
+  ],
+  [
+    "a tuple of typed objects stays clean",
+    `declare const s: [{ layer: number }, { layer: number }];`,
+    false,
+    "{ layer }",
+  ],
+] as const;
+
+test.each(fallbackControls)(
+  "%s passes the build",
+  async (_name, declaration, isAwait, target) => {
+    const plant = `${imports}${declaration}
+let layer: unknown;
+for ${isAwait ? "await " : ""}(${target} of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toBe("");
+  },
+  BUILD_MS,
+);
+
 /** Runtime fields that the shipped list lacked: each must be renamed in every built file. */
 const unlisted = [
   "borrows",
@@ -1970,6 +2115,72 @@ test(
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  },
+  BUILD_MS,
+);
+
+test(
+  "G105: an array joined with Iterable<any> fails the build",
+  async () => {
+    const plant = `${imports}declare const s: { layer: number }[] & Iterable<any>;
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G106: an Array<any> subtype with a typed index fails the build",
+  async () => {
+    const plant = `${imports}interface Sub extends Array<any> { [n: number]: { layer: number } }
+declare const s: Sub;
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G107: Iterable<any> with a typed index fails the build",
+  async () => {
+    const plant = `${imports}declare const s: Iterable<any> & { [n: number]: { layer: number } };
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G108: Set<any> with a typed index fails the build",
+  async () => {
+    const plant = `${imports}declare const s: Set<any> & { [n: number]: { layer: number } };
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
+test(
+  "G109: ArrayLike with Iterable<any> fails the build",
+  async () => {
+    const plant = `${imports}declare const s: ArrayLike<{ layer: number }> & Iterable<any>;
+let layer;
+for ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
   },
   BUILD_MS,
 );
