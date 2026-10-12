@@ -61,33 +61,29 @@ Every user file must stay the same through upgrade.
 An edited base must stop upgrade before any package write.
 Every server stops by its own PID.
 
-## Publish only after the user's go
+## Publish: land a bump on main
 
-These are instructions for the lead, not steps this card runs.
-Catch up to main, run the gates, and review the proof first.
-The first release also waits for `start/registry-no-overwrite`.
-Keep the package files and generated registry at `0.7.0`.
-From a clean, committed repo root:
+ADR 0114: CI publishes; no one tags or runs `gh`.
 
 ```bash
-node scripts/release.mjs 0.7.0 --dry
-git tag start-v0.7.0
-git push origin HEAD:main
-git push origin start-v0.7.0
+node scripts/bump.mjs 0.8.0
 ```
 
-Then attach the three assets:
+- It moves the three versions and the registry.
+- Add a `## 0.8.0` section to `UPGRADE.md`.
+- Land the bump on main like any card.
+- When `ci` passes on main, `release.yml` packs,
+  runs `scripts/release-check.mjs`, publishes
+  `start-v0.8.0`, and matches each sha256.
+- A main commit whose version is out publishes
+  nothing.
+
+Run the check locally before landing:
 
 ```bash
-gh release create start-v0.7.0 \
-  --repo lagz0ne/tinkered \
-  --verify-tag --title 'Start 0.7.0' \
-  --notes-file packages/start/UPGRADE.md \
-  .release/start-v0.7.0/assets/tinker-core-0.7.0.tgz \
-  .release/start-v0.7.0/assets/tinker-react-0.7.0.tgz \
-  .release/start-v0.7.0/assets/tinker-start-0.7.0.tgz
+node scripts/release.mjs 0.8.0
+node scripts/release-check.mjs 0.8.0
 ```
 
 After publication, check each asset URL and the raw registry
 URL in `app.json`, then rerun the empty-app proof using them.
-Public GitHub hosting is not proven by the local mirror.

@@ -1,0 +1,51 @@
+# The gates a contributor runs, on every PR and every push to main.
+# Mutation and timing stay on the bench box: they need its quiet core.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install
+        run: |
+          npm install --global pnpm@12.4.1
+          pnpm install --frozen-lockfile
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Browser for the React tests
+        run: pnpm --dir packages/react exec playwright install --with-deps chromium
+
+      - name: Build
+        run: vp run -r build
+
+      - name: Check
+        run: vp check
+
+      - name: Test
+        run: vp run -r test
+
+      - name: Prose
+        run: vp run prose
+
+      - name: Release check
+        run: node --test scripts/release-check.test.mjs

@@ -1,0 +1,87 @@
+# When CI passes on main and main's version has no release yet,
+# publish Core, React, and Start as one GitHub release, tag start-vX.Y.Z.
+# Landing the bump commit is the release. No registry and no secret:
+# only the job's own GITHUB_TOKEN.
+name: release
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Is this version released yet?
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/start/package.json').version")
+          TAG="start-v$VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null || echo none)
+          if [ "$DRAFT" = "false" ]; then
+            echo "$TAG is out already; nothing to publish."
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$DRAFT" = "true" ]; then
+            echo "A failed run left a $TAG draft; deleting it to publish again."
+            gh release delete "$TAG" --yes
+          fi
+          echo "new=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v5
+        if: steps.version.outputs.new == 'true'
+        with:
+          node-version: 22
+
+      - name: Install
+        if: steps.version.outputs.new == 'true'
+        run: |
+          npm install --global pnpm@12.4.1
+          pnpm install --frozen-lockfile
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Pack the set
+        if: steps.version.outputs.new == 'true'
+        run: node scripts/release.mjs "$VERSION"
+
+      - name: Check versions, notes, and registry
+        if: steps.version.outputs.new == 'true'
+        run: node scripts/release-check.mjs "$VERSION" > notes.md
+
+      # Draft, attach, then publish: the order GitHub gives for immutable releases.
+      # Publishing creates the tag on the commit CI just passed.
+      - name: Publish
+        if: steps.version.outputs.new == 'true'
+        run: |
+          gh release create "$TAG" --draft --target "$SHA" \
+            ".release/$TAG/assets/"*.tgz ".release/$TAG/manifest.json" \
+            --title "Tinker $VERSION" --notes-file notes.md
+          gh release edit "$TAG" --draft=false --latest
+
+      - name: Download and match sha256
+        if: steps.version.outputs.new == 'true'
+        run: |
+          mkdir fetched
+          gh release download "$TAG" --dir fetched --pattern '*.tgz'
+          jq -r '.assets[] | "\(.sha256)  fetched/\(.file)"' \
+            ".release/$TAG/manifest.json" | sha256sum --check
