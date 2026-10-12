@@ -24,7 +24,7 @@ for (const name of ["core", "react", "start"]) {
 for (const readme of ["apps/start-scaffold/README.md", "packages/start/README.md"]) {
   const file = join(root, readme);
   const text = readFileSync(file, "utf8");
-  writeFileSync(file, text.replaceAll(/start-v\d+\.\d+\.\d+/g, `start-v${version}`));
+  writeFileSync(file, text.replaceAll(/(start-v|tinker upgrade )\d+\.\d+\.\d+/g, `$1${version}`));
 }
 
 execFileSync("pnpm", ["--dir", "apps/start-scaffold", "run", "registry:build"], {
