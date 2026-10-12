@@ -1,6 +1,7 @@
 import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, type Observe } from "../src/index";
+
+import { createScope, operation, type Observe } from "@/index";
 
 test("a test-clock sleep with an already-aborted signal rejects with the abort reason", async () => {
   const clock = makeTestClock({ now: 0 });

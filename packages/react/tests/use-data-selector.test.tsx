@@ -2,7 +2,8 @@ import { createScope, data } from "@tinker/core";
 import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useData } from "../src/index";
+
+import { ScopeProvider, useData } from "@/index";
 
 const box = data({ label: "box", initial: { a: 1, b: 1 } });
 

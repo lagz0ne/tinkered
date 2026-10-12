@@ -5,7 +5,8 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useResource } from "../src/index";
+
+import { ScopeProvider, useResource } from "@/index";
 
 const store = resource({
   label: "store",

@@ -1,6 +1,8 @@
-import { makeTestClock } from "@tinker/core/testing";
 import { inspect } from "node:util";
+
+import { makeTestClock } from "@tinker/core/testing";
 import { expect, expectTypeOf, test } from "vite-plus/test";
+
 import {
   createScope,
   extension,
@@ -12,7 +14,7 @@ import {
   type Operation,
   type RunResult,
   type Scope,
-} from "../src/index";
+} from "@/index";
 
 const zone = tag({ label: "zone", default: "home" });
 

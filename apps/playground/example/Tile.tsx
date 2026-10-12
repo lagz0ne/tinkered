@@ -1,6 +1,7 @@
 import { useData, useRun } from "@tinker/react";
 import { memo } from "react";
 import type { ReactElement } from "react";
+
 import { press } from "./engine";
 import { board, IDLE, sameShade, type Shade } from "./state";
 

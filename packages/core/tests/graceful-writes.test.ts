@@ -1,5 +1,6 @@
 /// <reference lib="es2024.promise" />
 import { expect, test } from "vite-plus/test";
+
 import {
   createScope,
   data,
@@ -10,7 +11,7 @@ import {
   resource,
   tag,
   type Scope,
-} from "../src/index";
+} from "@/index";
 
 function gate() {
   let resolve = (): void => undefined;

@@ -18,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { SyntaxKind, type Node as TsNode } from "typescript/unstable/ast";
 import {
   API,
@@ -487,9 +488,17 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 /** True when `specifier`, imported from `file`, loads Core's runtime: the package or its files. */
 function isCore(specifier: string, file: string): boolean {
   if (specifier === "@tinker/core" || specifier.startsWith("@tinker/core/")) return true;
+  if (specifier.startsWith("@/")) return !relative(CORE, file).startsWith("..");
   if (!specifier.startsWith(".")) return false;
   const target = relative(CORE, resolve(dirname(file), specifier));
   return target.startsWith("src/") || target.startsWith("dist/");
+}
+
+/** The nearest folder above `file` with a `tsconfig.json`: the project whose `@/` the file uses. */
+function projectOf(file: string): string {
+  let dir = dirname(file);
+  while (!existsSync(join(dir, "tsconfig.json")) && dirname(dir) !== dir) dir = dirname(dir);
+  return dir;
 }
 
 /** True for a JavaScript file: no types check its reads. */
@@ -1568,18 +1577,21 @@ function isDestructuringAssignment(node: TsNode): boolean {
  * That is the question typescript-eslint's `no-unsafe-member-access` asks its checker, through the
  * same TypeScript 7 API `tsgo` builds the declarations with. The files form one project in a folder
  * under Core's `node_modules`, made for this call and removed after it; each name counts once per file.
+ * The files share `home`, the project whose `src/` their `@/` names.
  */
-function typedReads(files: string[], names: string[]): Map<string, string[]> {
+function typedReads(files: string[], names: string[], home: string): Map<string, string[]> {
   const found = new Map<string, string[]>();
   if (files.length === 0) return found;
   const wanted = new Set(names);
 
   const dir = mkdtempSync(join(CORE, "node_modules", "core-guard-"));
   const config = join(dir, "tsconfig.json");
+  const paths = { ...CHECK_OPTIONS.paths, "@/*": [join(home, "src/*")] };
+  const compilerOptions = { ...CHECK_OPTIONS, paths };
   let api: API | undefined;
 
   try {
-    writeFileSync(config, JSON.stringify({ compilerOptions: CHECK_OPTIONS, files }));
+    writeFileSync(config, JSON.stringify({ compilerOptions, files }));
     api = new API({ cwd: dir });
     const project = api.updateSnapshot({ openProjects: [config] }).getProjects()[0];
     if (project === undefined) throw new Error(`the checker opened no project for ${config}`);
@@ -1609,6 +1621,22 @@ function typedReads(files: string[], names: string[]): Map<string, string[]> {
   return found;
 }
 
+/** {@link typedReads} once per project, since each project's `@/` names its own `src/`. */
+function typedReadsByProject(files: string[], names: string[]): Map<string, string[]> {
+  const byProject = new Map<string, string[]>();
+  for (const file of files) {
+    const project = projectOf(file);
+    byProject.set(project, [...(byProject.get(project) ?? []), file]);
+  }
+
+  const typed = new Map<string, string[]>();
+  for (const [project, group] of byProject) {
+    for (const [file, hits] of typedReads(group, names, project)) typed.set(file, hits);
+  }
+
+  return typed;
+}
+
 /**
  * Each of `names` that a file under `root`, outside Core's source, may read from Core without
  * type checks, with the file. A quick text test parses only the files that may load Core and use
@@ -1621,7 +1649,7 @@ function outsideReads(names: string[], root: string): Map<string, string> {
     scanFile(file, uses),
   );
 
-  const typed = typedReads(
+  const typed = typedReadsByProject(
     scanned.map((entry) => entry.file).filter((file) => !isScript(file)),
     names,
   );
@@ -1642,7 +1670,7 @@ function outsideReads(names: string[], root: string): Map<string, string> {
  */
 function scanFile(file: string, uses: RegExp): { file: string; syntactic: string[] }[] {
   const code = readFileSync(file, "utf8");
-  if (!/@tinker\/core|\/(src|dist)\/|import\s*\(/.test(code) || !uses.test(code)) return [];
+  if (!/@tinker\/core|@\/|\/(src|dist)\/|import\s*\(/.test(code) || !uses.test(code)) return [];
 
   const { program, comments } = parseSync(file, code);
   if (!importsCore(file, program)) return [];

@@ -2,19 +2,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "vite-plus/test";
+
 import { createScope, isError as isCoreError, type Scope } from "@tinker/core";
 import { preset } from "@tinker/core/testing";
+import { expect, test } from "vite-plus/test";
+
+import { check, corpusPath, isError, judge, readBlueprint, shell, type Blueprint } from "@/index";
+
 import { run } from "../tinker/process/index";
-import {
-  check,
-  corpusPath,
-  isError,
-  judge,
-  readBlueprint,
-  shell,
-  type Blueprint,
-} from "../src/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const trackerPath = join(here, "..", "examples", "tracker.yaml");

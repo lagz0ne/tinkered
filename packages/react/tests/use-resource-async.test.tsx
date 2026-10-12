@@ -3,7 +3,9 @@ import { createScope, resource } from "@tinker/core";
 import { Suspense, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useResource } from "../src/index";
+
+import { ScopeProvider, useResource } from "@/index";
+
 import { deferred } from "./support/deferred";
 
 type Named = { name: string };

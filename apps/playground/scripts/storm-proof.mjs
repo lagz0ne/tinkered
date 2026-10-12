@@ -7,8 +7,8 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { extname, join, resolve } from "node:path";
 import { createServer } from "node:http";
+import { extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { gzipSync } from "node:zlib";
 

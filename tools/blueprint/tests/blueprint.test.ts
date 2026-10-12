@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { expect, test } from "vite-plus/test";
-import { isError, plainChecks, readBlueprint } from "../src/index";
+
+import { isError, plainChecks, readBlueprint } from "@/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

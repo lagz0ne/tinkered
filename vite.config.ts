@@ -6,8 +6,19 @@ export default defineConfig({
     "*.md": "node scripts/prose-lint.mjs",
   },
   // Markdown fences keep the line breaks we wrote (docs/writing-style.md, 60-char rule).
-  fmt: { embeddedLanguageFormatting: "off" },
+  fmt: {
+    embeddedLanguageFormatting: "off",
+    sortImports: true,
+    // Trial fixtures keep the import order their runs recorded.
+    overrides: [
+      {
+        files: ["tools/writer-trial/**", "tools/flight-trial/**", "docs/roadmap/**"],
+        options: { sortImports: false },
+      },
+    ],
+  },
   lint: {
+    plugins: ["eslint", "typescript", "unicorn", "oxc", "import"],
     jsPlugins: [
       { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
       { name: "tinker", specifier: "./tools/lint/blank-lines.mjs" },
@@ -18,15 +29,42 @@ export default defineConfig({
       "tinker/blank-lines": "error",
       "tinker/body-steps": "error",
       curly: ["error", "multi-line"],
+      "import/no-relative-parent-imports": "error",
+      // Misreads Vite's `?raw` text imports as missing default exports.
+      "import/default": "off",
     },
     options: { typeAware: true, typeCheck: true },
     // The flight reference answer is its own app; run-reference checks it in the trial image.
     ignorePatterns: ["tools/flight-trial/reference/**"],
-    // Trial fixtures keep the layout their runs recorded.
     overrides: [
+      // Plain Node scripts have no tsconfig, so `@/` cannot reach them.
+      // Start's source is compiled inside each app, where `@/` is the app's own folder.
+      {
+        files: ["**/*.mjs", "**/*.js", "**/*.cjs", "packages/start/**"],
+        rules: { "import/no-relative-parent-imports": "off" },
+      },
+      // A second source folder next to src/ (the playground's example/, blueprint's tinker/),
+      // and raw text read from other packages: no `@/` names them.
+      {
+        files: [
+          "apps/playground/src/App.tsx",
+          "apps/playground/src/lib/files.ts",
+          "apps/playground/src/lib/sources.ts",
+          "apps/playground/example/**",
+          "apps/playground/tests/**",
+          "tools/blueprint/**",
+        ],
+        rules: { "import/no-relative-parent-imports": "off" },
+      },
+      // Trial fixtures keep the layout their runs recorded.
       {
         files: ["tools/writer-trial/**", "tools/flight-trial/**", "docs/roadmap/**"],
-        rules: { "tinker/blank-lines": "off", "tinker/body-steps": "off", curly: "off" },
+        rules: {
+          "tinker/blank-lines": "off",
+          "tinker/body-steps": "off",
+          curly: "off",
+          "import/no-relative-parent-imports": "off",
+        },
       },
     ],
   },

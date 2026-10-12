@@ -38,11 +38,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **style/body-steps** — owner: thread lead (Opus 5.5). ADR 0111: a body reads as steps.
-  Saved: rule 14, `tinker/body-steps` and `curly` on; 1,431 blocks split, then seams fixed by hand review.
-  Next: Duke reads the draft PR.
-  Proof: `vp check` green; each changed file parses to the same AST as before; tests green.
-
 ## Blocked
 
 ## Parked
@@ -74,6 +69,12 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **core/size-guard-iterable-fallbacks** (Core 51) — array fast path only for real arrays and tuples with lib iterators; the guard reads iterator overrides, the async-to-sync fallback and a local `Promise` class. 11 plants red on main, 166 guard tests green. Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-iterable-fallbacks).
   Verify: each probe flags.
+
+- **style/import-paths** — ADR 0112: `@/` paths, no `../`, sorted imports; one internal scaffold backend barrel. Merged in #5.
+  Verify: `vp check` green; build, tests and scaffold registry lanes green.
+
+- **style/body-steps** — ADR 0111: a body reads as steps; rule 14, `tinker/body-steps`, `curly`. Merged in #4.
+  Verify: `vp check` green; each changed file kept its AST; tests green.
 
 - **scaffold/registry-hook-test-trim** — `test:registry-hook` trimmed to the staged checks: case f, the 10/96 pin, old-commit matching and `REGISTRY_HOOK_*` gone; hooks folder made inside the `try`. 13/13 on HEAD; `d333d23f`'s hook fails the format race and delete-only cases. 59 s → 33 s (wall clock, one run). Proof: [PROGRESS](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook-test-trim).
   Verify: `test:registry-hook` still fails on `d333d23f`'s two gaps, passes on HEAD, runs faster.

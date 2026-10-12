@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, resource, tag } from "../src/index";
+
+import { createScope, operation, resource, tag } from "@/index";
 
 const zone = tag<string>({ label: "zone" });
 

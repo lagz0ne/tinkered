@@ -1,4 +1,3 @@
-import { presetSym } from "./preset-symbol";
 import type {
   Clock as CoreClock,
   Data,
@@ -7,6 +6,7 @@ import type {
   Resource,
   Scope,
 } from "./index";
+import { presetSym } from "./preset-symbol";
 import { nextTraceWord, seededTraceRandom } from "./trace-random";
 
 export declare namespace Clock {

@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
+
 import { releaseUrls } from "../packages/start/lib/release.mjs";
 
 /** Real shadcn, HTTP tarballs, build, doctor, and upgrade. No framework runs inside tests. */

@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension, operation } from "../src/index";
+
+import { createScope, data, extension, operation } from "@/index";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;

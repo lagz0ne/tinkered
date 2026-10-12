@@ -8,9 +8,10 @@
 //   (functions that call createScope) — only fast-code judges read those helpers by default
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { loadKey, ask, pct, readCalibration, isTieError } from "./lib.mjs";
+
 import { slice, forJev, LINT, GUIDE, lintQuestions } from "./bank.mjs";
 import { unitCouldBeModuleLevel } from "./extract.mjs";
+import { loadKey, ask, pct, readCalibration, isTieError } from "./lib.mjs";
 import { inspectShape } from "./shape.mjs";
 
 /** Per-judge status from `tools/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */

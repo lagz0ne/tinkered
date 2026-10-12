@@ -1,6 +1,7 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  resolve: { tsconfigPaths: true },
   pack: {
     entry: ["src/index.ts", "src/main.ts"],
     banner: ({ fileName }) => (fileName === "main.mjs" ? "#!/usr/bin/env node" : undefined),

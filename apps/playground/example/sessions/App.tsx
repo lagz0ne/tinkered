@@ -1,6 +1,7 @@
 import { SessionProvider, useData, useRelease, useResource, useRun } from "@tinker/react";
 import { ArrowRight, Code2, CornerDownRight, LogOut, RefreshCw, RotateCcw } from "lucide-react";
 import type { ReactElement } from "react";
+
 import {
   draftNotes,
   draftSignal,
@@ -14,6 +15,7 @@ import {
   resetForm,
   toggleRoute,
 } from "./model";
+
 import "./sessions.css";
 
 type Project = (typeof projects)[number];

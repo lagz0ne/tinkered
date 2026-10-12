@@ -2,7 +2,8 @@ import { createScope, operation } from "@tinker/core";
 import { act } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useRun, type Run } from "../src/index";
+
+import { ScopeProvider, useRun, type Run } from "@/index";
 
 const resetOnStart = operation({
   label: "resetOnStart",

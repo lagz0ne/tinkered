@@ -1,8 +1,9 @@
-// The size check preflight runs before a file-level call (no network, no key).
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+// The size check preflight runs before a file-level call (no network, no key).
+import { test } from "node:test";
+
 import { fitsOneCall, HERE, MAX_CALL_CHARS } from "./lib.mjs";
 
 void test("code at the cap fits one call; one character more does not", () => {

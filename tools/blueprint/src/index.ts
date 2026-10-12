@@ -1,12 +1,14 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+
 import { operation, resource, tag, type Operation, type Resource, type Tag } from "@tinker/core";
-import { argv, io, jsonLine, positionals, type Process } from "../tinker/process/index";
 import {
   createGateway,
   experimental_evaluate as evaluate,
   type Experimental_EvaluationModel as EvaluationModel,
 } from "ai";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+
+import { argv, io, jsonLine, positionals, type Process } from "../tinker/process/index";
 import {
   bodyFindings,
   findingLine,

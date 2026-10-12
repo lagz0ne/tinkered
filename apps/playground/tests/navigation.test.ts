@@ -1,5 +1,7 @@
-import { expect, test } from "vite-plus/test";
 import { createScope, isError } from "@tinker/core";
+import { expect, test } from "vite-plus/test";
+
+import { isError as isPlaygroundError, raise } from "@/errors";
 import {
   followDefinition,
   goBack,
@@ -9,8 +11,7 @@ import {
   PACKAGE_SOURCES,
   sourceFiles,
   trackCursor,
-} from "../src/index";
-import { isError as isPlaygroundError, raise } from "@/errors";
+} from "@/index";
 import { DEFAULT_FILES } from "@/lib/files";
 import { filesCell } from "@/state";
 

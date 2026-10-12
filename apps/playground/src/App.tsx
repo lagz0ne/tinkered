@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useRef } from "react";
 import type { ReactElement, RefObject } from "react";
+
 import {
   addFile,
   closeFile,
@@ -24,7 +25,9 @@ import {
   setTheme,
   setView,
 } from "@/actions";
+import { Editor } from "@/components/Editor";
 import { FileTabs } from "@/components/FileTabs";
+import { SourcePicker } from "@/components/SourcePicker";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -35,12 +38,10 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { codeEditor } from "@/lib/code-editor";
+import { ENTRY } from "@/lib/files";
 import { immersive } from "@/lib/fullscreen";
 import { previewDocument } from "@/lib/preview";
-import { ENTRY } from "@/lib/files";
 import { THEMES } from "@/lib/themes";
-import { Editor } from "@/components/Editor";
-import { SourcePicker } from "@/components/SourcePicker";
 import {
   followDefinition,
   goBack,

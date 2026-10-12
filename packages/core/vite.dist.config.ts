@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite-plus";
+
 import base from "./vite.config";
 
 /** A built file in `dist`, by name. */
@@ -14,7 +16,7 @@ export default defineConfig({
   ...base,
   resolve: {
     alias: {
-      "../src/index": built("index.mjs"),
+      "@/index": built("index.mjs"),
       "@tinker/core/testing": built("testing.mjs"),
     },
   },

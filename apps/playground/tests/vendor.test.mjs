@@ -1,9 +1,11 @@
-import { build } from "esbuild";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { build } from "esbuild";
 import { expect, test } from "vite-plus/test";
+
 import { copyModuleGraph } from "../scripts/copy-module-graph.mjs";
 
 test("vendor output includes every file imported by the Core entry", async () => {

@@ -1,18 +1,13 @@
 import { join } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "vite-plus/test";
+
 import { createScope, type Scope } from "@tinker/core";
+import { expect, test } from "vite-plus/test";
+
+import { corpus, corpusPath, explain, isError, readCorpus, readTemplate, shell } from "@/index";
+
 import { run } from "../tinker/process/index";
-import {
-  corpus,
-  corpusPath,
-  explain,
-  isError,
-  readCorpus,
-  readTemplate,
-  shell,
-} from "../src/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

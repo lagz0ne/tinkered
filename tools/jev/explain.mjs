@@ -4,8 +4,9 @@
 //
 //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
 import { existsSync, readFileSync } from "node:fs";
-import { JUDGES, readCalibration } from "./lib.mjs";
+
 import { LINT, GUIDE, TESTS, SURVIVORS, DOCS } from "./bank.mjs";
+import { JUDGES, readCalibration } from "./lib.mjs";
 
 const md = process.argv.includes("--md");
 const status = readCalibration();

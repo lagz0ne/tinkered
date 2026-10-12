@@ -20,6 +20,7 @@ done
 (( ${#targets[@]} )) || targets=(.)
 
 test_glob='.*\.(test|spec)\.(ts|tsx|mts)$'
+app_test='(^|/)apps/[^/]+/tests/'
 all_files=$(find "${targets[@]}" -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.mts' \) \
   -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.stryker-tmp/*' \
   -not -name '*.d.ts' 2>/dev/null || true)
@@ -48,7 +49,7 @@ S16|src|preset() call in source (test-only API)|^(?![[:space:]]*[*/])(?:(?!//|/\
 T01|test|mock or spy|\bvi\.(mock|fn|spyOn|doMock|stubGlobal|useFakeTimers)\(
 T02|test|sleeping in a test|\bsetTimeout\(|(?<!\.)\bsleep\(
 T03|test|only / skip left in|\.(only|skip)\(
-T04|test|import of a private source module|from "\.\./src/(?!index")|from "\.\./src/[^"]*/[^"]+"
+T04|test|import of a private source module|from "(\.\./src|@)/(?!index")|from "(\.\./src|@)/[^"]*/[^"]+"
 T05|test|internals asserted|Object\.(isFrozen|getPrototypeOf|getOwnPropertyDescriptor)\(
 T06|test|cast through unknown|as unknown as
 T08|test|isError inside expect (guard used as assertion)|expect\(isError\(
@@ -131,6 +132,8 @@ while IFS='|' read -r id scope label regex; do
     test) files=$test_files ;;
     *) files=$all_files ;;
   esac
+  # An app has no package entry: its tests import the feature module they prove.
+  [[ "$id" == T04 ]] && files=$(printf '%s\n' "$files" | grep -Ev "$app_test" || true)
   if [[ -z "$files" ]]; then
     count=0
   else

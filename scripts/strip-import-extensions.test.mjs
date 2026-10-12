@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
 import { createHash } from "node:crypto";
+import { test } from "node:test";
+
 import {
   stripDocument,
   stripHtml,

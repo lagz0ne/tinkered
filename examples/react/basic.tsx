@@ -1,5 +1,4 @@
 import { createScope, data, operation, resource } from "@tinker/core";
-import { Suspense, useState } from "react";
 import {
   ScopeProvider,
   SessionProvider,
@@ -10,6 +9,7 @@ import {
   useResource,
   useSpans,
 } from "@tinker/react";
+import { Suspense, useState } from "react";
 
 const count = data({ label: "count", initial: 0 });
 

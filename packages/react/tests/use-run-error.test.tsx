@@ -2,7 +2,9 @@ import type { Operation, Scope } from "@tinker/core";
 import { createScope, operation } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useRun } from "../src/index";
+
+import { ScopeProvider, useRun } from "@/index";
+
 import { Catch } from "./support/boundary";
 import { deferred } from "./support/deferred";
 

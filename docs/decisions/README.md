@@ -94,3 +94,4 @@ by a new decision that names the old one.
 - [0107](0107-a-body-gets-outside-libraries-only-from-its-deps.md): a body gets outside libraries only from its deps.
 - [0110](0110-sign-out-reaches-open-streams-as-a-notice.md): sign-out reaches open streams as a notice; a wake no longer re-reads the account.
 - [0111](0111-a-body-reads-as-steps.md): a body reads as steps, a blank line between them; lint checks a floor.
+- [0112](0112-imports-name-a-place.md): imports name a place: `@/` for the project, `./` for siblings, sorted in three groups.

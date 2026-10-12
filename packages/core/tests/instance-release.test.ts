@@ -1,5 +1,6 @@
 import { preset } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
+
 import {
   createScope,
   data,
@@ -11,7 +12,7 @@ import {
   type Observe,
   type Operation,
   type Resource,
-} from "../src/index";
+} from "@/index";
 
 type BorrowWork = {
   body: Promise<void>;

@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, type Observe } from "../src/index";
+
+import { createScope, operation, type Observe } from "@/index";
 
 test("a manual child span exports its event", () => {
   const op = operation({

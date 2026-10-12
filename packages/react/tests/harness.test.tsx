@@ -2,6 +2,7 @@ import { createScope } from "@tinker/core";
 import { Suspense, use } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
+
 import { deferred, pendingResource } from "./support/deferred";
 
 function Value({ pending }: { pending: Promise<string> }): React.ReactElement {

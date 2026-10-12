@@ -6,6 +6,7 @@
 //   --plain is kept so older commands run; the parser is all that runs, no key needed
 //   globs are Node's (`**`, `{ts,tsx}`); node_modules, dist, and .d.ts files never count
 import { existsSync, globSync, readFileSync, statSync } from "node:fs";
+
 import { tsdocRows } from "./plain.mjs";
 
 const specs = process.argv.slice(2).filter((a) => !a.startsWith("--"));

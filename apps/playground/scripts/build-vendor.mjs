@@ -1,3 +1,8 @@
+import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 // Builds the self-hosted vendor bundles the preview iframe imports through its import map.
 //
 // - @tinker/core / @tinker/react: copied straight from their built dist (core has no deps; the
@@ -7,10 +12,7 @@
 //
 // Output: apps/playground/public/vendor/*.mjs and public/esbuild.wasm.
 import { build } from "esbuild";
-import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+
 import { copyModuleGraph } from "./copy-module-graph.mjs";
 
 const require = createRequire(import.meta.url);

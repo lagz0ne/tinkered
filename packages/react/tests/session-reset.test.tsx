@@ -2,6 +2,7 @@ import type { Operation, Resource, Scope } from "@tinker/core";
 import { createScope, data, namespace, operation, resource } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
+
 import {
   ScopeProvider,
   SessionProvider,
@@ -11,7 +12,7 @@ import {
   useResource,
   useRun,
   useScope,
-} from "../src/index";
+} from "@/index";
 
 const project = namespace();
 const title = data({ label: "form-title", initial: "new" });

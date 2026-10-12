@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createTasks, isError } from "../src/index";
+
+import { createTasks, isError } from "@/index";
 
 test("adds tasks and lists them in order", () => {
   const tasks = createTasks();

@@ -1,3 +1,4 @@
+import { Container } from "@inferdi/inferdi";
 // Head-to-head microbenchmarks: @tinker/core (built dist) vs InferDI (@inferdi/inferdi 6.x).
 //
 // InferDI is a real, fast, decorator-free typed DI container (scopes + teardown) — tinker's exact
@@ -12,7 +13,6 @@
 //
 // Run: node --expose-gc bench/core-vs-inferdi.mjs
 import { bench, group, run, summary } from "mitata";
-import { Container } from "@inferdi/inferdi";
 
 const { createScope, data, resource } = await import("../packages/core/dist/index.mjs");
 

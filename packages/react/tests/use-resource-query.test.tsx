@@ -3,7 +3,9 @@ import { createScope, resource } from "@tinker/core";
 import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useResource, type Query } from "../src/index";
+
+import { ScopeProvider, useResource, type Query } from "@/index";
+
 import { Catch } from "./support/boundary";
 import { deferred } from "./support/deferred";
 

@@ -1,6 +1,7 @@
+import { createScope } from "@tinker/core";
 // @vitest-environment happy-dom
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+
 import { runtime } from "@/services";
 import { statusCell } from "@/state";
 

@@ -3,7 +3,9 @@ import { createScope, data, resource } from "@tinker/core";
 import { Suspense, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useController, useData, useRelease, useResource } from "../src/index";
+
+import { ScopeProvider, useController, useData, useRelease, useResource } from "@/index";
+
 import { Catch } from "./support/boundary";
 import { deferred } from "./support/deferred";
 

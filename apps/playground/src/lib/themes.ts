@@ -1,6 +1,6 @@
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import { oneDark } from "@codemirror/theme-one-dark";
 import type { Extension } from "@codemirror/state";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 
 export type ThemeId = "github-light" | "github-dark" | "one-dark";
 

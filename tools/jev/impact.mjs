@@ -1,3 +1,4 @@
+import { execFileSync, execSync } from "node:child_process";
 // Impact diff for the lead review (ADR 0047, narrowed by ADR 0054: plain code only).
 // Compares the plan's declared blast radius (the ```impact <tag> block in the track's
 // PROGRESS.md) against SCIP's actual refs per symbol and prints every discrepancy —
@@ -8,7 +9,6 @@
 //   range defaults to <tag>~1..<tag> (or HEAD~1..HEAD when the tag does not exist).
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFileSync, execSync } from "node:child_process";
 
 function progressFiles() {
   try {

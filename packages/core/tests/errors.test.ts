@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError } from "../src/index";
+
+import { createScope, data, isError } from "@/index";
 
 test("isError rejects a plain error with no kind", () => {
   expect(isError(new Error("plain"), "Disposed")).toBe(false);

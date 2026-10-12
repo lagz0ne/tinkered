@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError } from "../src/index";
+
+import { createScope, data, isError } from "@/index";
 
 const first = data({ label: "first", initial: 1 });
 const second = data({ label: "second", initial: 2 });

@@ -1,5 +1,6 @@
-import { expect, test } from "vite-plus/test";
 import { preset } from "@tinker/core/testing";
+import { expect, test } from "vite-plus/test";
+
 import {
   createScope,
   data,
@@ -10,7 +11,7 @@ import {
   resource,
   tag,
   type Scope,
-} from "../src/index";
+} from "@/index";
 
 const draft = data({ label: "draft", initial: 0 });
 const shared = data({ label: "shared", initial: "none" });

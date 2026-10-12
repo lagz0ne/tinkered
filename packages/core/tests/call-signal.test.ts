@@ -1,5 +1,6 @@
 import { makeTestClock } from "@tinker/core/testing";
 import { expect, expectTypeOf, test } from "vite-plus/test";
+
 import {
   createScope,
   data,
@@ -9,7 +10,7 @@ import {
   resource,
   tag,
   type RunResult,
-} from "../src/index";
+} from "@/index";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;

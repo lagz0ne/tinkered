@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 // Label one case for the calibration bank (docs/roadmap/jev-loop/PLAN.md, "calibration").
 // A case is a judge, a label, and the exact Jev state the judge saw — stored inline so the
 // bank survives history rewrites. The workflow feeds it: a pre-flight flag the writer FIXED is
@@ -10,8 +12,7 @@
 //   A doc judge (bank.mjs DOCS) takes `<file>:<line>` (a line of the doc, or the first line of
 //   its declaration) or `<file>#<name>` (the first doc on that declaration).
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+
 import { BANK } from "./lib.mjs";
 
 //   node tools/jev/label.mjs --merge
@@ -60,6 +61,8 @@ if (args.includes("--merge")) {
   process.exit(0);
 }
 
+import { join } from "node:path";
+
 import {
   BANKS,
   judgeOf,
@@ -75,7 +78,6 @@ import {
   forSurvivorJev,
   forDocJev,
 } from "./bank.mjs";
-import { join } from "node:path";
 import { namedFunction } from "./extract.mjs";
 
 const flag = (name) => {

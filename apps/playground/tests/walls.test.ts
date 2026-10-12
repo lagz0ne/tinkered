@@ -1,4 +1,5 @@
 import { expect, test } from "vite-plus/test";
+
 import { pickVisibleWalls } from "../example/index";
 
 /** Read from the tagged four-wall screenshots in proof/wall-regions.json,

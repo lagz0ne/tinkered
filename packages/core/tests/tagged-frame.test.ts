@@ -1,4 +1,5 @@
 import { expect, test } from "vite-plus/test";
+
 import {
   createScope,
   data,
@@ -8,7 +9,7 @@ import {
   originOf,
   resource,
   tag,
-} from "../src/index";
+} from "@/index";
 
 const zone = tag({ label: "frame-zone", default: "root" });
 const tags = [zone("call")];

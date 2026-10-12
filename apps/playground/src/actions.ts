@@ -1,9 +1,10 @@
 import { operation } from "@tinker/core";
-import { navigationCell } from "@/navigation";
+
 import { raise } from "@/errors";
 import type { Place } from "@/lib/definitions";
 import { DEFAULT_FILES, ENTRY } from "@/lib/files";
 import { THEMES, type ThemeId } from "@/lib/themes";
+import { navigationCell } from "@/navigation";
 import {
   activeCell,
   dirtyCell,

@@ -1,5 +1,7 @@
 import { makeTestClock, preset } from "@tinker/core/testing";
 import { expect, expectTypeOf, test } from "vite-plus/test";
+import { z } from "zod";
+
 import {
   createScope,
   type Data,
@@ -14,8 +16,7 @@ import {
   type Resource,
   type Scope,
   tag,
-} from "../src/index";
-import { z } from "zod";
+} from "@/index";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");

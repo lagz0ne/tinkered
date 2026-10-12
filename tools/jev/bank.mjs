@@ -7,11 +7,12 @@
 // evals/fixtures/lint.mjs and stays in the bank only while evals/lint.mjs shows >= 30 points
 // of separation. Advisory: vp check / tests / mutate / the lead still decide.
 
+import { parseSync } from "oxc-parser";
+
 // ---------- slicer (deterministic: Jev never locates or counts) ----------
 // On a real parser since 2026-09-21 (`extract.mjs`, oxc-parser); these keep the old names.
 import { docs as extractDocs, units as extractUnits, tests as extractTests } from "./extract.mjs";
 import { JUDGES } from "./lib.mjs";
-import { parseSync } from "oxc-parser";
 
 /** Classes go only to fast-code judges; builder/arrow records keep their existing wrapper scope. */
 export function slice(src, file = "a.ts") {

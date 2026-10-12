@@ -1,11 +1,12 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 // Plain rule breaks: each census rule the writer guidelines share fires on a minimal bad
 // snippet with its id and line, and never on the same words inside a string or a comment.
 import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { gateOf } from "../writer-trial/gate.mjs";
 import { inspectPlain } from "./plain.mjs";
 import { inspectShape } from "./shape.mjs";
-import { gateOf } from "../writer-trial/gate.mjs";
 
 const TEST = "tests/app.test.ts";
 const SRC = "src/app.ts";
@@ -44,11 +45,16 @@ void describe("plain rules in a test file", () => {
   });
 
   void it("T04 fires on an import of a private source module", () => {
-    const src = 'import { a } from "../src/model";\nimport { b } from "../src/model";\n';
+    const src = 'import { a } from "../src/model";\nimport { b } from "@/model";\n';
     assert.deepEqual(hits(src, TEST), [
       ["T04", 1],
       ["T04", 2],
     ]);
+  });
+
+  void it("T04 skips an app test, which imports the feature module it proves", () => {
+    const src = 'import { listTodos } from "@/backend/todos.server";\n';
+    assert.deepEqual(hits(src, "apps/start-scaffold/tests/todos.test.ts"), []);
   });
 
   void it("T05 fires on an internals probe", () => {

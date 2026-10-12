@@ -1,4 +1,5 @@
 import { tsxLanguage, typescriptLanguage } from "@codemirror/lang-javascript";
+
 import type { Source } from "@/lib/sources";
 
 /** A spot in a source: the file's name and the character offset inside it. */
