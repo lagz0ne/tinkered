@@ -4117,7 +4117,9 @@ for (const { layer } of x) {}
 - A median 9441 ms. B median 9398 ms.
 - Delta -43.5 ms (-0.5%). 95% range -113.0 to 16.2 ms.
 - Verdict: no difference we can see.
-- Both sides run `.bench/forof-build.mjs`: the `vite.config.ts` pack options.
+- Both sides ran a small script: the `vite.config.ts` pack options, with `exports: false`.
+- The script wrote into the job folder. It was deleted after the run.
+- Its output was not compared byte for byte with `dist`.
 - Their medians do not compare with older rows: the harness differs.
 - Log: `/tmp/forof-gaps-ab.log`.
 
