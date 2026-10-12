@@ -36,12 +36,17 @@ jobs:
           TAG="start-v$VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
-          if gh release view "$TAG" > /dev/null 2>&1; then
+          DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null || echo none)
+          if [ "$DRAFT" = "false" ]; then
             echo "$TAG is out already; nothing to publish."
             echo "new=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "new=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          if [ "$DRAFT" = "true" ]; then
+            echo "A failed run left a $TAG draft; deleting it to publish again."
+            gh release delete "$TAG" --yes
+          fi
+          echo "new=true" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v5
         if: steps.version.outputs.new == 'true'
