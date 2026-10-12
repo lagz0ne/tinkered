@@ -97,3 +97,4 @@ by a new decision that names the old one.
 - [0112](0112-imports-name-a-place.md): imports name a place: `@/` for the project, `./` for siblings, sorted in three groups.
 - [0113](0113-outside-effects-enter-at-the-seam.md): outside effects (env, clock, network, console) reach a unit only through the scope, put there by a seam; settings are typed tags (accepted).
 - [0114](0114-a-new-version-on-main-publishes-the-release.md): a new version on green main publishes the release; GitHub releases are the only way out (proposed).
+- [0115](0115-a-new-app-starts-from-the-template-repo.md): a new app starts from the `tinker-app` template repo; a branch is a variation, a tag pins it (proposed).
