@@ -30,7 +30,7 @@ export const queue = resource({
     const commaBytes = browser ? 1 : 0;
     const scratch = new Uint8Array(recordLimit + 4);
 
-    const stdout = browser ? undefined : (console ?? process.stdout);
+    const stdout = browser ? null : console;
     let consoleLines: string[] = [];
     let consoleBytes = 0;
     let draining = false;

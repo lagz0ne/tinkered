@@ -1,6 +1,7 @@
 import { extension, LEVELS, operation, resource } from "@tinker/core";
 import type { Observe } from "@tinker/core";
 
+import { logConsole } from "./console";
 import { queue } from "./queue";
 import { encodeValue } from "./records";
 import type { Telemetry } from "./records";
@@ -96,14 +97,16 @@ export const observer = resource({
     side: telemetrySide,
     level: logLevel,
     history: spanHistory,
+    show: logConsole,
   },
-  factory: ({ queue, service, side, level, history }, ctx): Observe.Config => {
+  factory: ({ queue, service, side, level, history, show }, ctx): Observe.Config => {
     const write = (record: Telemetry.Log) => {
       const encoded = queue.add("log", side, record);
       if (side !== "browser") queue.writeConsole(encoded, record);
-      else if (record.level >= LEVELS.error) console.error(record);
-      else if (record.level >= LEVELS.warn) console.warn(record);
-      else console.info(record);
+      else if (!show) return;
+      else if (record.level >= LEVELS.error) show.error(record);
+      else if (record.level >= LEVELS.warn) show.warn(record);
+      else show.info(record);
     };
     return {
       history,

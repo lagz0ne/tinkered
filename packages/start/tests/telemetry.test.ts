@@ -3,6 +3,7 @@ import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 
 import { httpBackend } from "../src/backend/http-backend";
+import { consoleOutput, logConsole } from "../src/parts/telemetry/console";
 import { exportHealth } from "../src/parts/telemetry/health";
 import {
   flushTelemetry,
@@ -620,6 +621,31 @@ test("the part turns its five keys into typed tags, with no telemetry unit runni
     ["telemetry.logLevel", "40"],
     ["telemetry.spanHistory", "0"],
   ]);
+});
+
+test("a tab shows its records only on the console its seam binds", async () => {
+  const shown: unknown[] = [];
+  const show = { error: () => {}, warn: () => {}, info: (value: unknown) => shown.push(value) };
+  const bare = createScope({ tags: [storageTags, telemetrySide("browser")] });
+  bare
+    .resolve(observer)
+    ?.log?.({ level: 30, time: 1, message: "a", attributes: {}, span: undefined });
+  expect(shown).toEqual([]);
+
+  const tab = createScope({ tags: [storageTags, telemetrySide("browser"), logConsole(show)] });
+  tab
+    .resolve(observer)
+    ?.log?.({ level: 30, time: 1, message: "b", attributes: {}, span: undefined });
+  expect(shown).toMatchObject([{ msg: "b", side: "browser" }]);
+
+  expect((await bare.close({ graceful: true })).status).toBe("success");
+  expect((await tab.close({ graceful: true })).status).toBe("success");
+});
+
+test("the router part binds stdout as the sink on a server render", async () => {
+  const tools = createScope({ tags: [routerPart.tags] });
+  expect(tools.resolve(consoleOutput)).toBe(process.stdout);
+  expect((await tools.close({ graceful: true })).status).toBe("success");
 });
 
 test("the observer takes Core's level and span history from its tags", async () => {
