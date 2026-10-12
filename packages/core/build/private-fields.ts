@@ -836,8 +836,8 @@ function assigned(
 }
 
 /**
- * {@link declared} for a for-of loop whose target is an assignment, as in `for ({ x } of s)`. A
- * declaration gives the loop no value to flow, so the iterable is not a flow here either.
+ * {@link declared} for a for-of loop whose target is an assignment, as in `for ({ x } of s)`.
+ * As in `declared`, the iterable is not a flow: a for-of declarator has no `init`.
  */
 function forOfTarget(
   node: ESTree.ForOfStatement,
