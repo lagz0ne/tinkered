@@ -4047,9 +4047,22 @@ Run with `benchctl ab`, 10 rounds, under `flock /tmp/mutation.lock`.
 
 Branch: `core/size-guard-forof-gaps`.
 Base: `origin/main` at `cb976380`.
-Commits: `57689506`, `289a1959`, `04336fec`, `8b6b573d`, `9ebbaa47`.
 Nothing was pushed.
 The lead owns `TODO.md` and landing.
+
+Commits, oldest first:
+
+- `57689506` the fix, with its first tests.
+- `289a1959` cleanup: drop the unused `walk` from `checkAssignment`.
+- `04336fec` cleanup: move the saved-reach merge into `adoptReach`.
+- `8b6b573d` cleanup: `methodElements` and `iterationTypes` take `read`.
+- `9ebbaa47` tests: script target, name-cast read, budget edge.
+- `1bfe75a7` Jev label for `forOfTarget`.
+- `05d548da` this section.
+- `a625be08` correction: the timing script is gone.
+- `301b2439` fix round: later-read plants replace the directive-line read.
+- `b7727223` fix round: reword the `forOfTarget` doc.
+- The newest commit fixes this section's own text.
 
 ### Gap
 
@@ -4070,12 +4083,26 @@ The lead owns `TODO.md` and landing.
 
 ### Failing tests first
 
-- Red on `origin/main`, in `/tmp/main-check-forof-gaps`: 8 of 180 fail.
-- The eight: object, array, nested, default, rest, and await patterns.
-- Also: the script target, and the read of a name bound under a directive.
+- Red on `origin/main`, in `/tmp/main-check-forof-gaps`: 14 of 186 fail.
+- The six loop patterns: object, array, nested, default, rest, and await.
+- The script target.
+- The seven name-based reads: the identifier plant and six bound patterns.
 - The const form, the controls, and the budget test pass there.
-- Green on the branch: 180 of 180 pass.
-- Logs: `/tmp/forof-gaps-red-main2.log`, `/tmp/forof-gaps-green2.log`.
+- Green on the branch: 186 of 186 pass.
+- Logs: `/tmp/forof-gaps-red-main3.log`, `/tmp/forof-gaps-fix1-head.log`.
+
+### Fix round: each plant needs its own mechanism
+
+- The directive-line read was caught by its key alone.
+- It passed with `forOfTarget` off, so it proved nothing about it.
+- It is replaced by an identifier plant.
+- Six bound-name plants bind `v`, and a later read uses `v.layer`.
+- With `forOfTarget` returning early in a scratch tree: 7 of 186 fail.
+  - The identifier plant and the six bound-name plants.
+  - The six loop plants and the script still pass: their key check flags them.
+- With the key visitor in `untypedReads` returning early: 7 of 186 fail.
+  - The six loop plants and the script target.
+- Logs: `/tmp/forof-gaps-off-fot.log`, `/tmp/forof-gaps-off-key.log`.
 
 ### Verdicts on both trees
 
@@ -4085,6 +4112,7 @@ Each row is one real build of one plant: flag or clean.
 - Directive, then a read of `layer.layer`: clean on main, flags on head.
 - Thenable chain, `for await`, 1023 layers: clean on both.
 - Thenable chain, 1024 layers: flags on both. 1025, 1026, and 1030 flag too.
+- Budget edge: 1023 clean, 1024 flags, on both trees.
 - The card said 1024 clean and 1025 flag. This chain's edge is 1023 and 1024.
 - Main and head agree at every depth, so the budget did not change.
 - Log: `/tmp/forof-gaps-verdicts-main.txt` and `-head.txt`.
@@ -4097,7 +4125,8 @@ Each row is one real build of one plant: flag or clean.
 
 ```ts
 import { createScope } from "@tinker/core";
-export const x = createScope() as unknown as Iterable<{ layer: number }>;
+const x = createScope() as unknown as
+  Iterable<{ layer: number }>;
 for (const { layer } of x) {}
 ```
 
@@ -4129,18 +4158,21 @@ for (const { layer } of x) {}
 - `vp check`: 0 errors, 27 warnings. Same as main.
 - `vp run -r test`: exit 0. Core: 900 pass.
 - `scripts/ticket.sh --check-only --no-mutation 53`: exit 0. Size budget passes.
-- `vp run core#test:dist`: exit 0. 1080 pass.
+- `vp run core#test:dist`: exit 0. 1080 pass at `9ebbaa47`; 1086 pass after the fix round.
 - `pnpm validate`: exit 0. 21 of 21 lanes pass.
 - `vp run prose`: exit 0. 0 hits in 229 files.
 - Core `dist`: 9 files, byte-identical to `origin/main`, maps included.
 - `vp run core#fields`: exit 0. `private-fields.json` unchanged: 55 names.
 - Gate chain log: `/tmp/forof-gaps-gate.log`.
+- Fix round, after `b7727223`: build, `vp check`, guard file, dist lane, prose: all exit 0.
+- Fix round: `vp check` 0 errors and 27 warnings; guard file 186 of 186.
+- Fix round log: `/tmp/forof-gaps-fix1-gate.log`.
 
 ### Jev
 
 - Preflight on `origin/main..HEAD`: exit 0. No HTTP 402.
 - Nine model hits. Eight sit in bodies this change did not touch.
-- The new hit is `forOfTarget`, `stateOutsideCell`. Labelled `false`.
+- The new hit is `forOfTarget`, `stateOutsideCell`. Labeled `false`.
   - Reason: its names live in one build walk's `gathered` set.
 - `tests.mjs core`: exit 0. Seven flags, none in this change.
 - `promises.mjs core`: exit 0. Build guard tests are not in its input.
