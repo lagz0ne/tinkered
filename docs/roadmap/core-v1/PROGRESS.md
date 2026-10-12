@@ -4385,3 +4385,45 @@ Both directive names were checked.
 ### Core feedback
 
 - None.
+
+## core/size-guard-cast-iterable
+
+- Branch: `core/size-guard-cast-iterable`.
+- Base: `origin/main` at `9ece6aa6`.
+- Code and tests: `eca7c49b`.
+- Nothing was pushed; the lead owns the card and landing.
+
+### Rules and choice
+
+- Both loop forms use the same target picker, `forOfPatterns`.
+- `untypedReads` checks target keys against `node.right`.
+- `forOfTarget` flows `node.right` to each target name.
+- A cast iterable flags its target keys and later reads.
+- This uses the existing cast walk; no new type walk was added.
+- Directive reads still flag; typed iterable reads still stay clean.
+- Runtime source did not change.
+
+### TypeScript 7 probes
+
+- `tsc` 7.0.2, strict, no emit: 24 files, exit 0.
+- Each shape ran with a cast and a typed source, in both loop forms.
+- Each read passed `IsAny` set to false and a number assignment.
+- Object key: typed number, all four probes pass.
+- Nested array key: typed number, all four probes pass.
+- Awaited object key: typed number, all four probes pass.
+- Element name followed by `v.layer`: typed number, all four pass.
+- Nested name followed by `v.layer`: typed number, all four pass.
+- Rest name followed by `v[0].layer`: typed number, all four pass.
+- Log: `/tmp/cast-iterable-tsc.log`.
+
+### Failing tests first
+
+- New plants were copied to `/tmp/main-check-cast-iterable` before the fix.
+- On main: all 12 cast plants build clean, so their flag assertions fail.
+- On main: all 12 typed controls pass.
+- On main: the budget test passes, 1023 clean and 1024 flags.
+- Red run: 12 fail, 13 pass, 219 skipped; exit 1.
+- On head: all 244 guard tests pass, including all 220 old tests.
+- Head keeps the budget edge: 1023 clean, 1024 flags.
+- Red log: `/tmp/cast-iterable-red-main.log`.
+- Green log: `/tmp/cast-iterable-step.log`.
