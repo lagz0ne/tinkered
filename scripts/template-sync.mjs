@@ -87,6 +87,11 @@ function lock(folder) {
 /** Replace the branch's tree with the new one; history stays, so each release is one commit. */
 function push(branch, folder) {
   const tag = branch === "main" ? undefined : `${branch}-v${version}`;
+  const tags = tag
+    ? execFileSync("git", ["ls-remote", "--tags", remote, tag], { encoding: "utf8" })
+    : "";
+  assert.equal(tags, "", `${tag} exists; a release tag never moves`);
+
   const clone = mkdtempSync(join(tmpdir(), "tinker-app-"));
   const git = (...args) => execFileSync("git", args, { cwd: clone, stdio: "inherit" });
 
@@ -111,7 +116,7 @@ function push(branch, folder) {
   git("add", "-A");
   git("commit", "-q", "--allow-empty", "-m", `${branch} for start-v${version}`);
   if (tag) git("tag", tag);
-  git("push", "-q", "origin", branch, ...(tag ? [tag] : []));
+  git("push", "-q", "--atomic", "origin", branch, ...(tag ? [tag] : []));
 
   rmSync(clone, { recursive: true });
   console.log(`Pushed ${[branch, tag].filter(Boolean).join(" and ")}.`);

@@ -15,7 +15,11 @@ const run = (command, args) => {
 if (existsSync(env)) {
   console.log(".env exists; kept as it is.");
 } else {
-  const sample = readFileSync(join(app, ".env.example"), "utf8");
+  // A registry app keeps the small sample at the root; its added demo brings the full one.
+  const copied = join(app, "examples/demo.env.example");
+  const sample = readFileSync(existsSync(copied) ? copied : join(app, ".env.example"), "utf8");
+  if (!/^AUTH_SECRET=/m.test(sample)) throw new Error("The env sample has no AUTH_SECRET line.");
+
   const secret = randomBytes(32).toString("base64url");
   writeFileSync(env, sample.replace(/^AUTH_SECRET=.*$/m, `AUTH_SECRET=${secret}`));
   console.log("Wrote .env with a new AUTH_SECRET.");
@@ -23,6 +27,7 @@ if (existsSync(env)) {
 
 run("docker", ["compose", "up", "-d", "--wait"]);
 
-if (!existsSync(join(app, "node_modules"))) run("npm", ["install"]);
+// Always install: an interrupted first install leaves node_modules behind.
+run("npm", ["install"]);
 
 console.log("Ready. Run: npm run dev");
