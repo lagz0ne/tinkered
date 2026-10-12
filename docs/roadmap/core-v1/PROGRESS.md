@@ -3835,7 +3835,7 @@ No supplied probe file was changed.
 
 - Reviewer `p1`: 40 rows; 30 compiling `any`, 8 typed, 2 compiler errors.
 - All 30 compiling `any` rows flag on the head.
-- Reviewer `p3`: only T10 compiles and gives `any`; it stays clean.
+- Reviewer `p3`: no row compiles with an `any` read.
 - R11 and A14 fail with TS2339 on `unknown`.
 - M3 fails with TS2488; its optional `next` is not an iterator.
 - A7 also has TS2322; it still flags on the safe side.
@@ -3844,8 +3844,9 @@ No supplied probe file was changed.
 The earlier 118-row set was rerun with the same counting rule:
 
 - Files: `probes.new`, `probes.all`, `probes.more` in `/tmp/rev3-probes`.
-- 73 compiling `any` rows, 17 typed rows, 28 compiler-error rows.
-- Main misses 6 compiling `any` rows; head misses only T10.
+- T10 is typed: its element is a union of typed objects, so the guard is right.
+- 72 `any`-read rows, 18 typed, 28 errors.
+- Main misses 5; head misses none.
 - Head flags 6 more rows and loses no flag from main.
 - The old count of 88 mixed compiler errors into the `any` count.
 - Log: `/tmp/iterable-fallbacks-sol-matrix.log`.
@@ -3854,20 +3855,7 @@ The earlier 118-row set was rerun with the same counting rule:
 
 ### Open misses for a follow-up card
 
-Only T10 is a compiling `any` miss in the supplied sets.
-Its thenable callback joins a typed field and an `any` field:
-
-```ts
-type Z = {
-  then(cb: (v: { layer: number } |
-    { layer: any }) => void): void;
-};
-declare const s: Z[];
-let layer: unknown;
-for await ({ layer } of s) {}
-```
-
-The other gap is a suppressed for-of assignment target.
+One gap is open: a suppressed for-of assignment target.
 `untypedReads` visits the declaration form but misses the assignment form:
 
 ```ts
@@ -3882,7 +3870,8 @@ for ({ layer } of s) {}
 - Replace the target with `const { layer }`: flag.
 - Both forms were checked through the real build plugin.
 - Log: `/tmp/iterable-fallbacks-sol-suppressed.log`, exit 0.
-- Both gaps belong to a follow-up card; neither was fixed here.
+- Main has the same gap.
+- It belongs to a follow-up card; it was not fixed here.
 
 ### Build time and output
 
@@ -3960,5 +3949,4 @@ The ticket worktree and branch stay for review.
 
 ### Core feedback
 
-The two failing snippets above are the feedback.
-The lead can put both on a follow-up card.
+None.
