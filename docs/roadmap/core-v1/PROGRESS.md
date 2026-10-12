@@ -3750,3 +3750,215 @@ Write mode still leaves the 55-name field list unchanged.
 ### Core feedback
 
 None.
+
+## core/size-guard-iterable-fallbacks
+
+Branch: `core/size-guard-iterable-fallbacks-sol`.
+Base: `origin/main` at `59425c22`.
+Code and tests: `c0803fa7`.
+The local tag `archive/iterable-fallbacks-haiku-24a4cd65` saves the first writer's head.
+The first writer's branch and worktree were left alone.
+Nothing was pushed.
+The lead owns `TODO.md` and landing.
+
+### Rules as built
+
+The precedent is TypeScript's for-of and for-await element rule.
+The guard may flag more than TypeScript, never less.
+
+- Only a real array or tuple with a library-declared iterator uses its index type alone.
+- Under `for await`, its async iterator must also be library-declared or absent.
+- Every other iterable joins its index type with the iterator walk.
+- A library iterator can still give `any` through a type argument.
+- A typed numeric index cannot hide that `any`.
+- Library declarations are found through the program's default-library file check.
+- An optional or undefined async iterator also reads the sync iterator.
+- An async method with no zero-argument overload also reads the sync iterator.
+- All answers join on these fallback paths.
+- Only the global `Promise` symbol gets the built-in promise shortcut.
+- A local `Promise` class or interface follows its `then` callbacks.
+- `hasMethod` reads its member once.
+- The existing type-id dedupe, overload walk, literal-target skip and settle budget stay.
+- No public symbol or runtime source changed.
+
+### Failing tests first
+
+The first writer's tests were reused before its guard code.
+Five more plants were added before changing the guard.
+The guard still matched `origin/main` at `59425c22` for the red run.
+The run used this ticket's own worktree.
+
+- Red: 11 failed, 8 passed, 147 skipped; exit 1.
+- Log: `/tmp/iterable-fallbacks-sol-red-all.log`.
+- Green: all 166 guard tests pass; `EXIT 0`.
+- Log: `/tmp/iterable-fallbacks-sol-step.log`.
+
+The six kept plants flag:
+
+- R9c: an array intersected with a custom `any` iterator.
+- R9d: an Array subtype overriding its iterator with `ArrayIterator<any>`.
+- A6: an optional async iterator with a sync `any` iterator.
+- A7b: an undefined async iterator with a sync `any` iterator.
+- A7: an async iterator requiring an argument with a sync `any` iterator.
+- T14: a local `Promise` class with an `any` callback value.
+
+The five new plants compile, give `any`, and flag:
+
+- G105: `{ layer: number }[] & Iterable<any>`.
+- G106: an `Array<any>` subtype with a typed numeric index.
+- G107: `Iterable<any> & { [n: number]: { layer: number } }`.
+- G108: `Set<any> & { [n: number]: { layer: number } }`.
+- G109: `ArrayLike<{ layer: number }> & Iterable<any>`.
+
+Eight kept controls stay clean:
+
+- A plain typed array.
+- An Array subtype with no override.
+- An array with a typed iterator override.
+- A typed async iterable.
+- An undefined async iterator with a typed sync iterator.
+- An optional async iterator with a typed sync iterator.
+- The global promise of a typed object.
+- A typed tuple.
+
+A copied guard made every iterator walk throw.
+Real `T[]`, tuples and `Promise<T>[]` still passed without reaching that walk.
+This checks that the array fast path stays in use.
+
+### Corrected probe counts
+
+The supplied `p1.mjs`, `p3.mjs`, `run.mjs` and `pf-fix.ts` were read.
+The supplied runner was adapted to this head and the ticket's own toolchain.
+A row counts as `any` only if it compiles and its `IsAny` assertion passes.
+An error on the loop line is a compiler error, not evidence of `any`.
+No supplied probe file was changed.
+
+- Reviewer `p1`: 40 rows; 30 compiling `any`, 8 typed, 2 compiler errors.
+- All 30 compiling `any` rows flag on the head.
+- Reviewer `p3`: only T10 compiles and gives `any`; it stays clean.
+- R11 and A14 fail with TS2339 on `unknown`.
+- M3 fails with TS2488; its optional `next` is not an iterator.
+- A7 also has TS2322; it still flags on the safe side.
+- Log: `/tmp/iterable-fallbacks-sol-probes2.log`.
+
+The earlier 118-row set was rerun with the same counting rule:
+
+- Files: `probes.new`, `probes.all`, `probes.more` in `/tmp/rev3-probes`.
+- 73 compiling `any` rows, 17 typed rows, 28 compiler-error rows.
+- Main misses 6 compiling `any` rows; head misses only T10.
+- Head flags 6 more rows and loses no flag from main.
+- The old count of 88 mixed compiler errors into the `any` count.
+- Log: `/tmp/iterable-fallbacks-sol-matrix.log`.
+- `probes.t10` and `probes.budget` were not part of this set.
+- The suite still pins the 1024-type settle budget.
+
+### Open misses for a follow-up card
+
+Only T10 is a compiling `any` miss in the supplied sets.
+Its thenable callback joins a typed field and an `any` field:
+
+```ts
+type Z = {
+  then(cb: (v: { layer: number } |
+    { layer: any }) => void): void;
+};
+declare const s: Z[];
+let layer: unknown;
+for await ({ layer } of s) {}
+```
+
+The other gap is a suppressed for-of assignment target.
+`untypedReads` visits the declaration form but misses the assignment form:
+
+```ts
+import { createScope } from "@tinker/core";
+declare const s: Iterable<{}>;
+let layer: number;
+// @ts-expect-error
+for ({ layer } of s) {}
+```
+
+- Assignment form: clean.
+- Replace the target with `const { layer }`: flag.
+- Both forms were checked through the real build plugin.
+- Log: `/tmp/iterable-fallbacks-sol-suppressed.log`, exit 0.
+- Both gaps belong to a follow-up card; neither was fixed here.
+
+### Build time and output
+
+- `benchctl ab`: 10 rounds, one run per side per round.
+- The whole run held `flock /tmp/mutation.lock`.
+- A: clean `origin/main` at `59425c22` in the scratch base tree.
+- B: clean code head `c0803fa7` in the ticket tree.
+- Each command ran the real Core build: `vp pack`, including declarations and the guard.
+- A median: 4960 ms; B median: 4929 ms.
+- 95% range for B minus A: -166.1 to 107.4 ms.
+- Verdict: `no difference we can see`; `EXIT 0`.
+- Log: `/tmp/iterable-fallbacks-sol-ab.log`.
+- Core's 9 dist files match main byte for byte, including maps.
+- `vp run core#fields`: exit 0.
+- Write mode leaves `private-fields.json` unchanged: 55 names.
+- Proof is at the start of `/tmp/iterable-fallbacks-sol-gates2.log`.
+
+### Final gate chain
+
+Every gate ran from the ticket worktree.
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0; zero errors and the same 27 warnings as main.
+- `vp run -r test`: exit 0; Core has 900 passing source tests.
+- `vp run core#test:dist`: exit 0; 1066 tests pass, including all 166 guard tests.
+- `scripts/ticket.sh --check-only --no-mutation 51 "size-guard-iterable-fallbacks"`: exit 0.
+- `pnpm validate`: exit 0; all 21 lanes pass.
+- `vp run prose`: exit 0; zero hits in 229 files.
+- Chain: `EXIT 0`.
+- Log: `/tmp/iterable-fallbacks-sol-gates2.log`.
+- No timeout or OOM retry was needed.
+- The ticket gate's extra advisory review had no key, so it made no gateway call.
+- No labels or calibration file changed.
+
+My first gate ran while the A/B build was rebuilding Core's dist.
+Seven scaffold suites then failed to find the Core entry.
+The A/B run was allowed to finish before the full chain ran again.
+That second chain passed.
+The first log is `/tmp/iterable-fallbacks-sol-gates.log`.
+This was a job-order error; no code change was needed.
+
+### Jev and style
+
+- Preflight ran once on `origin/main..HEAD`: exit 0, no HTTP 402.
+- Seven notes are in unchanged function bodies.
+- `noteAssignment` and `privateFields`: `shapeGrowsPerCall`.
+- `followVariable`, `readTypes`, `declared`, `assigned`, `returnFlows`: `stateOutsideCell`.
+- These hold private state for one build walk; no new shared app state was added.
+- `tests.mjs core`: exit 0; 7 of 852 entries flagged, all outside this change.
+- The build guard tests are outside that tool's source-test folder.
+- No labels were added or changed, as requested.
+- `promises.mjs core`: exit 0; 47 of 824 titles have no README line, 71 more unsure.
+- Those titles and the README match main; these older gaps are outside this card.
+- No new guard-test title is part of that tool's input.
+- Promise log: `/tmp/iterable-fallbacks-sol-jev-promises.log`.
+- Neither gateway run hit HTTP 402; no failed gateway call was retried.
+- `calibrate.mjs` was not run, as requested.
+- Logs: `/tmp/iterable-fallbacks-sol-jev.log` and `/tmp/iterable-fallbacks-sol-jev-tests.log`.
+- Added code and plants pass the strict style census.
+- Full-file strict counts match main; existing build-tool and plant-string hits remain.
+- Both changed files have zero S26 TSDoc rows.
+- `vp check` keeps complexity at 8 or less per function.
+
+### Scope and choices
+
+The archive saved the first writer's commits without changing its tree.
+Its code and tests were reused by file, then the array gate was tightened.
+The optional promise-symbol cache was left out to keep this fix small.
+The worktree hook installed and built both new trees.
+All later long jobs ran detached and were watched in this turn.
+No mutation lane ran: runtime source is unchanged and the ticket excludes it.
+No git config, labels, `TODO.md` or workspace config was changed.
+The scratch base worktree is removed.
+The ticket worktree and branch stay for review.
+
+### Core feedback
+
+The two failing snippets above are the feedback.
+The lead can put both on a follow-up card.
