@@ -1798,6 +1798,22 @@ for await ({ layer } of zs) {}\n`;
   BUILD_MS,
 );
 
+test(
+  "a growing thenable with a typed leaf keeps any when the settle budget runs out",
+  async () => {
+    const plant = `${imports}interface Gt<X> {
+  then(cb: (v: Gt<[X]> | { layer: number }) => void): void;
+}
+declare const s: Gt<0>[];
+let layer: unknown;
+for await ({ layer } of s) {}\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
+    );
+  },
+  BUILD_MS,
+);
+
 const typedIterator = "{ next(): { done: false; value: { layer: number } } }";
 const anyIterator = "{ next(): { done: false; value: any } }";
 
@@ -1879,7 +1895,7 @@ const overloadPlants = [
     "{ layer }",
   ],
   [
-    "then overloads: a typed callback must not hide a later any",
+    "MY32b: joining a later then overload keeps a known false flag",
     `interface Z {
     then(cb: (v: { layer: number }) => void): void;
     then(cb: (v: any) => void, x: number): void;

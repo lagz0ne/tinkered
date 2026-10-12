@@ -1162,7 +1162,10 @@ function zeroArgumentReturns(checker: Checker, type: Type | undefined): Type[] {
   return uniqueTypes(returns.filter((returned): returned is Type => returned !== undefined));
 }
 
-/** Parameter types include `undefined` for optional and defaulted parameters, even after mapping. */
+/**
+ * Keep an overload when its parameters might all be left out. Parameter types include
+ * `undefined` for optional and defaulted parameters, even after mapping.
+ */
 function acceptsZeroArguments(checker: Checker, signature: Signature): boolean {
   const parameters = signature.getParameters();
   const fixedCount = parameters.length - (signature.hasRestParameter ? 1 : 0);
