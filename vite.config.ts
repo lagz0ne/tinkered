@@ -50,6 +50,7 @@ export default defineConfig({
           "apps/playground/src/App.tsx",
           "apps/playground/src/lib/files.ts",
           "apps/playground/src/lib/sources.ts",
+          "apps/playground/example/**",
           "apps/playground/tests/**",
           "tools/blueprint/**",
         ],

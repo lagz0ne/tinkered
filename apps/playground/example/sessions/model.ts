@@ -1,6 +1,6 @@
 import { data, namespace, operation, resource, tag } from "@tinker/core";
 
-import { raise } from "@/errors";
+import { raise } from "../../src/errors";
 
 const projectName = tag<string>({ label: "project-name" });
 
