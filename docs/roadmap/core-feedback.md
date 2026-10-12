@@ -927,3 +927,11 @@ Keeping the old symbol name restored the trial check.
 The runtime bytes are identical before and after that name change.
 A future scaffold check should find Core units without private field names.
 Proof: `/home/paseo/.cache/tinkered-briefs/core-b/brand-compat-scaffold.log`.
+
+## Build tests need the dist config — 2026-10-12
+
+Asked by `core/size-guard-settle-memo`. First asker.
+In `packages/core`, `vp test run build/private-fields.test.ts` prints "No test files found".
+`vite.config.ts` leaves out `build/**` on purpose.
+Run it with `--config vite.dist.config.ts`.
+State: by design; no ticket.
