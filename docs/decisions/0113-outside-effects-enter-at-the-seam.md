@@ -1,4 +1,4 @@
-# 0113 A unit depends on its settings tag, not env
+# 0113 Outside effects enter at the seam
 
 Date: 2026-10-12. Status: accepted.
 
@@ -8,6 +8,10 @@ Date: 2026-10-12. Status: accepted.
 - User: "This is the official authoring pattern."
 - User: "this is also the pattern meant to be applied to
   the core backend of logger and otel span."
+- User: "Env is just a specific way of receiving the
+  side-effect. We want the side-effect, external to
+  come from seam. The internal should be as static
+  as possible."
 
 Replaces the "App settings become resources over `env`" part of ADR 0106.
 Uses: 0006, 0099, 0105, 0106.
@@ -25,6 +29,12 @@ So `mailSettings` and `databaseSettings` each depended on every key.
 
 ## Precedent
 
+- **Functional core, imperative shell** (Bernhardt).
+  The core takes values and returns values.
+  The shell does the effects.
+- **Ports and adapters** (Cockburn).
+  The inside names a port; the outside plugs in.
+
 - **Composition Root** (Seemann).
   Read config in one place, at the root.
   Pass each part only its own values.
@@ -37,7 +47,30 @@ So `mailSettings` and `databaseSettings` each depended on every key.
 - **Twelve-Factor, III Config.**
   Config lives in env. That stays true at the root.
 
-## Decision
+## Rule
+
+Anything from outside the process reaches a unit
+only through the scope. The seam puts it there.
+
+- Outside means: env, the clock, randomness,
+  the network, the console and stdout, files.
+- The seam is an entry, a server or client seam
+  file, a part's `settings(env)`, or a test.
+- A unit names what it needs: a tag, a resource,
+  or Core's `ctx.clock` and `ctx.random`.
+- A unit body never reads a global for it:
+  no `process.*`, `Date.now`, `Math.random`,
+  bare `fetch`, or `console.*`.
+- A tag default may be a fixed value.
+  A default that does an effect is a seam choice;
+  name it in the tag's TSDoc.
+- Core already works this way:
+  a scope takes its clock and random.
+
+Env is one case of the rule. The rest of this
+ADR is that case.
+
+## Decision for settings
 
 - A provider exposes the exact values it needs as tags.
   Mail: `smtpUrl` (a `URL`) and `mailFrom`.

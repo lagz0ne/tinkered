@@ -12,6 +12,8 @@ Choose one of these four forms before adding app work.
 - **Tag:** fixed settings or a fact injected by the entry.
   A unit depends on its own typed settings tags.
   There is no `env` tag; the scope maker fills each tag.
+  Any outside effect (env, clock, network, console)
+  enters at a seam; unit bodies stay static.
 - **Data:** changing records, drafts, and visible progress.
   Use a `kind` union when states carry different values.
 - **Resource:** a shared client, current user, or owned queue.
