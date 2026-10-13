@@ -1575,7 +1575,7 @@ Core feedback: none.
 ## start/join-index
 
 Branch: `start/join-index`. Start ticket number: 1.
-Status: file-name design gates pass; mutation pending.
+Status: complete; file-name design gates and mutation pass.
 
 Items supply default exports in `src/items/<number-name>/`.
 Prepare reads only role file names, never item source.
@@ -1611,6 +1611,22 @@ Proof:
   Server content matches after path/hash normalization:
   12 small-app files and 43 scaffold files.
   Baseline: `/tmp/join-index-review-baseline`.
+- Final Start mutation lane ran under the mutation lock.
+  Killed 4418 / valid 5189 = 85.14%; floor 75 passes.
+  Stryker reports 85.32% when it counts timeouts as kills.
+  Valid excludes 63 timeouts and 1 runtime error.
+  Commit: `02e9e221`; clean tree at start and finish.
+  The full lane includes Start `src/` and `lib/**/*.mjs`.
+  Log: `/tmp/join-index-convention-mutation.log`; `EXIT 0`.
+- Build A/B: 10 rounds under the mutation lock, exit 0.
+  Verdict: `no difference we can see`.
+  Job: `51819c826f6c`; A `b602b31f`, B `258a5802`.
+  The first comparison failed during the gate rebuild;
+  the retry after the gates passed. No runtime code changed.
+  Log: `/tmp/join-index-convention-timing2.log`.
+- The generated seam from the real build fixture is saved
+  at `.bench/app.server.sample.ts`; 20 readable lines.
+  The fixture and both temporary worktrees were removed.
 - The old design's final original suite failed 8 of 9
   tests on main; the three-test note was only a draft.
 - The old mutation lane finished on clean `7af412e8`:
@@ -1623,7 +1639,6 @@ Proof:
 - The earlier no-join client proof matched main exactly.
   The reviewer checked server output too: same content,
   with only path-built hashes different.
-  The final build comparison is pending.
 - Jev preflight ran once for this design on
   `origin/main..HEAD`; `lib/app.d.ts` has no flags.
   Tests and promises ran; only old untouched hits remain.
