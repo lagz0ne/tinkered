@@ -50,6 +50,8 @@ The file name is the role. Other files are the item's own code;
 prepare reads only file names and `item.json`, never role source.
 
 Use `src/items/postgres/`, with a name like `[a-z][a-z0-9-]*`.
+The folder name is the module name and registry item name.
+`requires: ["mail"]` names the API at `@/items/mail`.
 Old numbered role folders fail with a rename message.
 Declare the items this one needs in `src/items/mail/item.json`:
 
@@ -58,7 +60,17 @@ Declare the items this one needs in `src/items/mail/item.json`:
 ```
 
 Dependencies run first; ready items sort by name.
-A missing manifest or an empty object means no dependencies.
+Every folder with role files or a public index needs `item.json`.
+A missing file stops prepare and doctor.
+An item with no dependencies uses:
+
+```json
+{ "requires": [] }
+```
+
+An existing empty object also means no dependencies.
+Only `requires` is allowed; no `name`, `version`, or `hash`.
+`tsc` checks that item APIs match their callers.
 Unknown keys, missing items, self-requires, and cycles fail prepare.
 The errors name paths; a missing-item error says to `shadcn add` it.
 Core runs the first extension on the outside.
@@ -113,7 +125,7 @@ Adding, removing, or editing `item.json` also restarts it.
   Tests may import private files; own-item imports stay free.
   An item importing another item's API must list it in `requires`.
   An indirect dependency does not grant direct imports.
-- A manifest or public index can satisfy a dependency without roles.
+- An item with a manifest and no roles can satisfy a dependency.
   A folder with only helper files does not join the lists.
   It must still declare imports of other items.
 - Unreadable star exports in your seam fail prepare and doctor.

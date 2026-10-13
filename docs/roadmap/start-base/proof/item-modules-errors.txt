@@ -1,8 +1,12 @@
 src/items/10-mail: rename to src/items/mail and declare requires in item.json
 src/items/Mail: item names must match [a-z][a-z0-9-]*
+src/items/mail: missing item.json; add src/items/mail/item.json with { "requires": [] }
 src/items/mail/item.json: invalid JSON
 src/items/mail/item.json: expected an object with only requires
 src/items/mail/item.json: unknown key "exports"; only requires is allowed
+src/items/mail/item.json: unknown key "name"; only requires is allowed
+src/items/mail/item.json: unknown key "version"; only requires is allowed
+src/items/mail/item.json: unknown key "hash"; only requires is allowed
 src/items/mail/item.json: requires must be an array of item names
 src/items/mail/item.json: requires missing item src/items/missing; shadcn add it
 src/items/mail/item.json: cannot require itself (src/items/mail)

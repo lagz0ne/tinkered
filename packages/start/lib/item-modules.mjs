@@ -3,10 +3,13 @@ import { join } from "node:path";
 
 const itemName = /^[a-z][a-z0-9-]*$/;
 
-/** JSON is the only item content prepare reads. Missing manifests declare no dependencies. */
+/** JSON is the only item content prepare reads; participating items must declare it. */
 function readRequires(root, name, problems) {
   const file = `src/items/${name}/item.json`;
-  if (!existsSync(join(root, file))) return [];
+  if (!existsSync(join(root, file))) {
+    problems.push(`src/items/${name}: missing item.json; add ${file} with { "requires": [] }`);
+    return [];
+  }
   let value;
   try {
     value = JSON.parse(readFileSync(join(root, file), "utf8"));

@@ -25,6 +25,12 @@ also name imports and export only their public providers.
 limit callers to a package's public entries.
 Our entries are fixed file names, without an export map.
 
+Java's unnamed module has no module declaration.
+We avoid that implicit case by requiring `item.json`.
+The [javac module-pattern source path](https://docs.oracle.com/en/java/javase/25/docs/specs/man/javac.html#module-pattern-form)
+places each module in a folder with the same name.
+We use that placement rule without a second name field.
+
 [Python graphlib](https://docs.python.org/3/library/graphlib.html)
 exposes ready nodes and reports a closed cycle with `CycleError`.
 We use Kahn's algorithm: take a ready item, then unlock its readers.
@@ -34,7 +40,11 @@ Unlike graphlib, a missing required item is an error here.
 ## Decision
 
 - Items live in `src/items/<item>/`.
+  The folder name is the module name.
   Names match `[a-z][a-z0-9-]*`.
+  Placement is the interface:
+  `requires: ["mail"]` = `@/items/mail` = registry item `mail`.
+  There is no `name` field in `item.json`.
   Reject old numbered role folders.
   The error says to rename and declare `requires`.
 - `item.json` declares direct dependencies:
@@ -43,7 +53,14 @@ Unlike graphlib, a missing required item is an error here.
   { "requires": ["errors", "postgres"] }
   ```
 
-  Missing `item.json` means `requires: []`.
+  Every folder with role files or a public index must have `item.json`.
+  A missing file fails prepare and doctor.
+  The error names the folder and shows the minimal file:
+
+  ```json
+  { "requires": [] }
+  ```
+
   An empty object also means no dependencies.
   Repeated names mean one edge.
   Unknown keys and invalid names or JSON fail prepare.
@@ -112,5 +129,6 @@ The user seam may override any item on purpose.
 ## Left out on purpose
 
 No `requires transitive`, qualified exports, or `opens`.
+No versions or hashes in `item.json`; `tsc` checks interface mismatch, while the graph covers only runtime wiring: missing items, cycles, order, and unrelated shared tags.
 No configurable export map or new role list.
 Sync slices and navigation stay on later registry cards.

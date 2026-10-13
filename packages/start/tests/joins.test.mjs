@@ -19,6 +19,7 @@ test("prepare uses declared item order, then the user's seam, without reading ro
     "src/items/mail/item.json": '{"requires":["postgres"]}',
     "src/items/mail/extensions.server.ts": "export default [];\n",
     "src/items/mail/settings.server.ts": "export default () => [];\n",
+    "src/items/postgres/item.json": '{"requires":[]}',
     "src/items/postgres/database.server.ts": "not even parseable source",
     "src/items/postgres/settings.server.ts": "export default () => [];\n",
     "src/items/mail/extensions.ts": "export default [];\n",
@@ -56,8 +57,10 @@ test("ready items sort by name, including newly ready items", () => {
     "src/items/auth/extensions.server.ts": "export default [];\n",
     "src/items/auth/settings.server.ts": "export default () => [];\n",
     "src/items/2fa/helper.ts": "export const helper = 42;\n",
+    "src/items/db/item.json": '{"requires":[]}',
     "src/items/db/extensions.server.ts": "export default [];\n",
     "src/items/db/settings.server.ts": "export default () => [];\n",
+    "src/items/mail/item.json": '{"requires":[]}',
     "src/items/mail/settings.server.ts": "export default () => [];\n",
   });
 
@@ -80,7 +83,9 @@ test("two item database files fail prepare and doctor once, even with a user own
   prepare(root);
   write(root, {
     ".tinker/routeTree.gen.ts": "import { Route } from './../src/routes/index'\n",
+    "src/items/first/item.json": '{"requires":[]}',
     "src/items/first/database.server.ts": "export default {};\n",
+    "src/items/second/item.json": '{"requires":[]}',
     "src/items/second/database.server.ts": "export default {};\n",
   });
 
@@ -110,6 +115,7 @@ test("the user's single names win over item roles", () => {
   const root = goodApp({
     "src/lib/tinker.server.ts":
       "export const extensions = [];\nexport const settings = () => [];\nexport const database = {};\n",
+    "src/items/postgres/item.json": '{"requires":[]}',
     "src/items/postgres/database.server.ts": "export default {};\n",
   });
 
@@ -177,7 +183,9 @@ function typedApp(files) {
 
 test("tsc rejects wrong settings bindings and a single name even with its part off", () => {
   const root = typedApp({
+    "src/items/mail/item.json": '{"requires":[]}',
     "src/items/mail/settings.server.ts": "export default () => [42];\n",
+    "src/items/postgres/item.json": '{"requires":[]}',
     "src/items/postgres/database.server.ts": "export default 42;\n",
   });
 
@@ -189,8 +197,10 @@ test("tsc rejects wrong settings bindings and a single name even with its part o
 
 test("tsc keeps tag values and the sync change union exact through the generated seam", () => {
   const root = typedApp({
+    "src/items/mail/item.json": '{"requires":[]}',
     "src/items/mail/settings.server.ts":
       'import { tag } from "@tinker/core";\nconst smtpUrl = tag<URL>({ label: "mail.smtpUrl" });\nexport default () => [smtpUrl(new URL("smtp://mail"))];\n',
+    "src/items/sync/item.json": '{"requires":[]}',
     "src/items/sync/readBatch.ts":
       'import { z } from "zod";\nexport default z.object({ version: z.number(), events: z.array(z.object({ stream: z.string(), revision: z.number(), executionId: z.string(), payload: z.object({ kind: z.literal("change"), change: z.object({ kind: z.literal("counter"), value: z.number() }) }) })) });\n',
     "src/check.ts":
@@ -217,6 +227,7 @@ test("tsc passes when the user's seams export no list the generated file reads",
   const root = typedApp({
     "src/lib/tinker.server.ts": "export const unused = 1;\n",
     "src/lib/tinker.ts": "export const settings = 1;\n",
+    "src/items/mail/item.json": "{}",
     "src/items/mail/settings.server.ts": "export default () => [];\n",
     "src/items/mail/extensions.ts": "export default [];\n",
   });
@@ -230,12 +241,14 @@ test("tsc passes when the user's seams export no list the generated file reads",
 
 test("roles accept server operations and client resources", () => {
   const root = typedApp({
+    "src/items/auth/item.json": '{"requires":[]}',
     "src/items/auth/readAccount.server.ts":
       'import { operation } from "@tinker/core";\nexport default operation({ label: "account", run: () => null });\n',
     "src/items/auth/bootstrap.server.ts":
       'import { operation } from "@tinker/core";\nexport default operation({ label: "bootstrap", run: () => ({ public: { stream: "public" as const, revision: 0 }, private: null }) });\n',
     "src/items/auth/auth.server.ts":
       'import { resource } from "@tinker/core";\nexport default resource({ label: "auth", factory: () => ({ handler: async () => new Response(), api: { getSession: async () => null } }) });\n',
+    "src/items/sync/item.json": '{"requires":[]}',
     "src/items/sync/records.ts": `import { resource } from "@tinker/core";
 import type { Sync } from "@tinker/start";
 export default resource({ label: "records", factory: (): Sync.Records => ({ resetPrivate() {}, bootstrapPublic() {}, bootstrapPrivate() {}, change() {}, snapshot: () => ({ public: { stream: "public", revision: 0 }, private: null }) }) });
@@ -254,6 +267,7 @@ test("a user's alias star export still wins over an item owner", () => {
     "src/lib/tinker.server.ts": 'export * from "@/backend/own.server";\n',
     "src/backend/own.server.ts":
       "export const extensions = [];\nexport const settings = () => [];\nexport const database = {};\n",
+    "src/items/postgres/item.json": '{"requires":[]}',
     "src/items/postgres/database.server.ts": "export default {};\n",
   });
 
@@ -285,6 +299,21 @@ for (const file of ["src/lib/tinker.server.ts", "src/lib/tinker.ts"]) {
   });
 }
 
+for (const file of ["settings.server.ts", "extensions.ts", "index.ts", "index.server.ts"]) {
+  test(`prepare and doctor require item.json beside ${file}`, () => {
+    const root = goodApp({ [`src/items/mail/${file}`]: "export default [];" });
+
+    const prepareApp = () => prepare(root);
+    const checked = doctor(root, false);
+
+    const message =
+      'src/items/mail: missing item.json; add src/items/mail/item.json with { "requires": [] }';
+    expect(prepareApp).toThrow(message);
+    expect(checked.code).toBe(1);
+    expect(checked.lines.join("\n").replaceAll(/\s+/g, " ").split(message)).toHaveLength(2);
+  });
+}
+
 for (const [manifest, message] of [
   ['{"requires":null}', "src/items/mail/item.json: requires must be an array of item names"],
   ['{"requires":["Bad"]}', "src/items/mail/item.json: requires must be an array of item names"],
@@ -296,6 +325,18 @@ for (const [manifest, message] of [
   [
     '{"requires":[],"exports":[]}',
     'src/items/mail/item.json: unknown key "exports"; only requires is allowed',
+  ],
+  [
+    '{"requires":[],"name":"mail"}',
+    'src/items/mail/item.json: unknown key "name"; only requires is allowed',
+  ],
+  [
+    '{"requires":[],"version":"1.0.0"}',
+    'src/items/mail/item.json: unknown key "version"; only requires is allowed',
+  ],
+  [
+    '{"requires":[],"hash":"abc123"}',
+    'src/items/mail/item.json: unknown key "hash"; only requires is allowed',
   ],
   ['{"requires":"postgres"}', "src/items/mail/item.json: requires must be an array of item names"],
   ["null", "src/items/mail/item.json: expected an object with only requires"],
@@ -335,6 +376,7 @@ test("dependencies with only a public index still order both sides", () => {
     "src/items/z/item.json": '{"requires":["shared"]}',
     "src/items/z/extensions.ts": "not parseable",
     "src/items/z/extensions.server.ts": "not parseable",
+    "src/items/shared/item.json": '{"requires":[]}',
     "src/items/shared/index.ts": "export const shared = 1;",
   });
 
@@ -363,9 +405,11 @@ async function loadApp(root) {
 const sharedSettings = {
   "src/shared.ts":
     'import { tag } from "@tinker/core"; export const shared = tag({ label: "shared" });',
+  "src/items/errors/item.json": '{"requires":[]}',
   "src/items/errors/index.ts": 'export { shared } from "@/shared";',
   "src/items/errors/settings.server.ts":
     'import { shared } from "./index"; export default () => [null, [shared("errors"), false, undefined]];',
+  "src/items/mail/item.json": '{"requires":[]}',
   "src/items/mail/settings.server.ts":
     'import { shared } from "@/shared"; export default (env) => env.MAIL ? [[shared("mail")]] : [];',
 };
@@ -450,8 +494,10 @@ for (const name of ["Mail", "mail_box", "2fa"]) {
 
 test("equal tag labels do not make distinct tags clash", async () => {
   const root = typedApp({
+    "src/items/errors/item.json": '{"requires":[]}',
     "src/items/errors/settings.server.ts":
       'import { tag } from "@tinker/core"; const value = tag({ label: "shared" }); export default () => value("errors");',
+    "src/items/mail/item.json": '{"requires":[]}',
     "src/items/mail/settings.server.ts":
       'import { tag } from "@tinker/core"; const value = tag({ label: "shared" }); export default () => value("mail");',
   });
@@ -466,6 +512,7 @@ test("prepare refuses a seam star export that would read an item index", () => {
   const root = goodApp({
     "src/lib/tinker.server.ts": 'export * from "@/backend/seam.server";',
     "src/backend/seam.server.ts": 'export * from "@/items/mail";',
+    "src/items/mail/item.json": '{"requires":[]}',
     "src/items/mail/index.ts": "export const settings = () => [];",
   });
 
@@ -479,6 +526,7 @@ test("prepare refuses a seam star export that would read an item index", () => {
 test("prepare can read explicit seam exports without reading item source", () => {
   const root = goodApp({
     "src/lib/tinker.server.ts": 'export { settings } from "@/items/mail";',
+    "src/items/mail/item.json": '{"requires":[]}',
     "src/items/mail/index.ts": "not parseable",
     "src/items/mail/settings.server.ts": "not parseable",
   });

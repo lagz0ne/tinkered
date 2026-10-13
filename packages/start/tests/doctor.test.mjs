@@ -78,6 +78,7 @@ for (const statement of [
 ]) {
   test(`doctor blocks private item paths in ${statement}`, () => {
     const root = preparedApp({
+      "src/items/mail/item.json": '{"requires":[]}',
       "src/items/mail/index.ts": "export const mail = 1;",
       "src/items/mail/secret.ts": "export const secret = 1;",
       "src/consumer.ts": `\n${statement}\n`,
@@ -94,7 +95,9 @@ for (const statement of [
 
 test("doctor requires a direct dependency for another item's public API", () => {
   const root = preparedApp({
+    "src/items/mail/item.json": '{"requires":[]}',
     "src/items/mail/index.ts": 'import { db } from "@/items/postgres"; export const mail = db;',
+    "src/items/postgres/item.json": '{"requires":[]}',
     "src/items/postgres/index.ts": "export const db = 1;",
   });
 
@@ -112,6 +115,7 @@ test("doctor allows declared public imports, own private files, and private test
     "src/items/mail/index.ts":
       'import { db } from "@/items/postgres/index"; import { secret } from "@/items/mail/secret"; export const mail = db + secret;',
     "src/items/mail/secret.ts": "export const secret = 1;",
+    "src/items/postgres/item.json": '{"requires":[]}',
     "src/items/postgres/index.ts": "export const db = 1;",
     "src/items/postgres/index.server.ts": "export const server = 1;",
     "src/consumer.ts":
@@ -129,6 +133,7 @@ for (const name of ["@/items/postgres", "@/items/mail/../postgres"]) {
   test(`a helper-only item must declare its import of ${name}`, () => {
     const root = preparedApp({
       "src/items/mail/reader.ts": `import { db } from "${name}"; export const mail = db;`,
+      "src/items/postgres/item.json": '{"requires":[]}',
       "src/items/postgres/index.ts": "export const db = 1;",
     });
 
@@ -145,6 +150,7 @@ test("a graph error elsewhere does not make declared imports undeclared", () => 
   const root = preparedApp({
     "src/items/mail/item.json": '{"requires":["postgres"]}',
     "src/items/mail/index.ts": 'import { db } from "@/items/postgres"; export const mail = db;',
+    "src/items/postgres/item.json": '{"requires":[]}',
     "src/items/postgres/index.ts": "export const db = 1;",
   });
   write(root, { "src/items/broken/item.json": '{"requires":["missing"]}' });

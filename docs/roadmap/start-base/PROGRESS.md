@@ -3,8 +3,8 @@
 ## start/item-modules
 
 Owner: item-modules writer; lead reviews and lands.
-Next: lead review; the writer did not push or land.
-Verify: every requested gate returned 0; Start mutation clears 75 on kills alone.
+Next: check the required-manifest change, then lead review.
+Verify: all requested checks return 0; the lander runs final mutation.
 
 The item names have no number prefix.
 `item.json` declares direct `requires`.
@@ -16,8 +16,12 @@ The user's seam stays last.
 Choices from registry plan card 1b:
 
 - Reject old numbered role folders, with a rename message.
-- A missing manifest means no dependencies.
+- A manifest is required beside every role or public index.
+  A missing file names the folder and shows `{ "requires": [] }`.
   An empty object also means no dependencies.
+- The folder name is the module and registry item name.
+  No `name`, `version`, or `hash` field is allowed.
+  `tsc` checks interface mismatch; the graph controls runtime wiring.
 - Export only `index.ts` and `index.server.ts` to other items.
   Existing role files still provide the roles.
 - Doctor errors on private paths and undeclared item imports.
@@ -58,7 +62,21 @@ The generated-seam tests run real item settings through Vite.
 They cover nested bindings, conditional returns, indirect overrides,
 repeated tags in one item, and distinct tags with the same label.
 
-Mutation runner:
+Owner follow-up:
+
+Four missing-manifest tests failed before the fix.
+They cover a server role, a client role, and both public indexes.
+Prepare and doctor now both report the exact missing-file message.
+Valid item fixtures declare their manifests.
+The source change affects `readItemModules`, called by item
+composition in `lib/joins.mjs` and boundary checks in `lib/checks/imports.mjs`.
+No Core or cross-package TypeScript symbol changed.
+The focused join and doctor suite passed all 58 tests.
+The remaining requested gates still need proof.
+Mutation is skipped this round because the owner asked.
+The lander will run the final lane.
+
+Previous mutation run:
 
 The first full lane returned 0 at 85.39.
 Its settings-helper rows ran zero tests during mutation.
@@ -78,11 +96,11 @@ It caught 4,543 changes and timed out on 337.
 There were 546 survivors, 118 with no coverage, and one runtime error.
 The full lane also caught all 23 helper changes without timeouts.
 Its log names clean commit `4d9c0928`.
-The final proof commit only changes docs and the board.
-The Start package tree stays `ca21737875742819ae115bcae2242fb2cf849971`.
+That run predates the required-manifest change.
+Its Start package tree was `ca21737875742819ae115bcae2242fb2cf849971`.
 The raw full log is `/tmp/item-modules-mutation.log`.
 
-Checks:
+Checks before the owner follow-up:
 
 - Worktree setup installed and built only this tree.
 - Full build and all package tests returned 0.
