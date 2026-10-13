@@ -1571,3 +1571,71 @@ Two test internal wheel and buffer details, so they are not promises.
 One flag is an older title in `sync-notice.test.ts`, not changed here.
 
 Core feedback: none.
+
+## start/join-index
+
+Branch: `start/join-index`. Start ticket number: 1.
+No earlier Start checkpoint number appears here or in git.
+Status: all gates pass; ready for review.
+
+Prepare writes typed app seams from `src/joins/`.
+Lists follow needs order; the user's seam comes last.
+User single names win; two join owners fail with both paths.
+Server joins stay out of the client; new joins restart dev.
+Prepare never edits the user seam.
+ADR 0116 is proposed; sync slices and nav stay on card 4.
+
+Proof:
+
+- Red first: three tests failed on `origin/main` at
+  `f214b96e`, in `/tmp/main-check-join-index`; exit 1.
+  Log: `/tmp/join-index-red.log`.
+  Start is unchanged on the later base `b602b31f`.
+- Gate chain: build, check, all tests, Start ticket 1,
+  validate, prose, registry proof, and join proof pass.
+  Check: 0 errors, 27 warnings. Validate: 22 lanes PASS.
+  Start: 478 tests; scaffold: 39 tests.
+  Log: `/tmp/join-index-gates2.log`; `EXIT 0`.
+- Nine join tests pass. tsc rejects wrong tag values,
+  wrong settings bindings, wrong single names,
+  and an unknown sync change kind.
+  Valid operations, records, and user star exports pass.
+- The real two-join fixture builds; doctor exits 0.
+  A Start render reads all three tags; mail starts.
+  A duplicate database owner fails prepare and doctor.
+  The fixture is removed in `finally`.
+- No joins: both apps' client output is byte-identical
+  to main, built in the same ticket worktree.
+  Small: 12 files, 645734 bytes.
+  Scaffold: 41 files, 1846033 bytes.
+- Build A/B: 10 rounds under the mutation lock.
+  Verdict: `no difference we can see`; exit 0.
+  Job: `aa9f03254313`; A `b602b31f`, B `86ecccab`.
+  Later fixes change join-only reads and type checks.
+- Start `src/` is unchanged: no mutation lane or
+  runtime timing run is needed for this card.
+- Jev preflight ran once on `origin/main..HEAD`.
+  No TypeScript source changed; no new source hits.
+  Test and promise checks ran; old hits were left alone.
+  The nine join tests and ticket regression have no flags.
+  Jev label lines: none.
+
+Choices and gate repair:
+
+- No joins pass on the existing seam's exports.
+  This keeps client bytes unchanged.
+- A dependency without a join adds no list entries.
+- `.mjs` imports use ADR 0112's Node exception.
+- The ticket gate called a Start size task that main
+  does not have. Start ships source, with no bundle budget.
+  The gate now says that and keeps checks, tests,
+  and the chosen mutation step. Its regression passes.
+
+Start feedback, fixed by this card:
+
+```text
+vp run --fail-if-no-match -F start size
+error: Task "size" not found
+```
+
+That snippet failed on main `b602b31f`; exit 1.
