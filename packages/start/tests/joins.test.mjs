@@ -361,12 +361,13 @@ async function loadApp(root) {
 }
 
 const sharedSettings = {
-  "src/items/errors/index.ts":
+  "src/shared.ts":
     'import { tag } from "@tinker/core"; export const shared = tag({ label: "shared" });',
+  "src/items/errors/index.ts": 'export { shared } from "@/shared";',
   "src/items/errors/settings.server.ts":
     'import { shared } from "./index"; export default () => [null, [shared("errors"), false, undefined]];',
   "src/items/mail/settings.server.ts":
-    'import { shared } from "@/items/errors"; export default (env) => env.MAIL ? [[shared("mail")]] : [];',
+    'import { shared } from "@/shared"; export default (env) => env.MAIL ? [[shared("mail")]] : [];',
 };
 
 test("unrelated item readers cannot silently override a shared tag", async () => {
