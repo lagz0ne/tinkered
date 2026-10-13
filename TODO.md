@@ -29,6 +29,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **start/item-modules** (registry plan 1b) — owner: item-modules writer.
+  Next: add dependency order, item boundaries, and shared-tag checks.
+  Verify: all requested gates green; Start mutation clears 75.
+
 ## Review
 
 ## Blocked
