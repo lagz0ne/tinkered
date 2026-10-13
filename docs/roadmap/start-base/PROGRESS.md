@@ -3,8 +3,8 @@
 ## start/item-modules
 
 Owner: item-modules writer; lead reviews and lands.
-Next: finish the full gates and Start mutation, then lead review.
-Verify: every requested gate returns 0; Start mutation clears 75.
+Next: lead review; the writer did not push or land.
+Verify: every requested gate returned 0; Start mutation clears 75 on kills alone.
 
 The item names have no number prefix.
 `item.json` declares direct `requires`.
@@ -72,16 +72,37 @@ No per-file target was added.
 The focused helper run caught all 23 mutations, with no timeouts.
 It used the same fixture tests and returned 0.
 
-Checks so far:
+The full lane with the filter off returned 0 at 88.02.
+Kills alone score 81.94, above the package floor of 75.
+It caught 4,543 changes and timed out on 337.
+There were 546 survivors, 118 with no coverage, and one runtime error.
+The full lane also caught all 23 helper changes without timeouts.
+Its log names clean commit `4d9c0928`.
+The final proof commit only changes docs and the board.
+The Start package tree stays `ca21737875742819ae115bcae2242fb2cf849971`.
+The raw full log is `/tmp/item-modules-mutation.log`.
+
+Checks:
 
 - Worktree setup installed and built only this tree.
-- Full build returned 0.
+- Full build and all package tests returned 0.
+  Start passed 516 tests; the scaffold passed 39.
 - Code check returned 0: zero errors, 27 warnings.
 - Strict census for the new type declaration returned 0.
-- Start tests passed before the last added cases.
-  Full package tests and the ticket gate are in progress.
-- Prose returned 0 before the progress entry was added.
-- Full validation and Start mutation still need proof.
+- The ticket check returned 0 with mutation skipped there.
+  The separate full Start mutation lane returned 0.
+- Full validation returned 0; all 22 budget lanes passed.
+- Prose returned 0.
+- Jev pre-flight found no changed source files and no flags.
+  Its parser does not cover the changed JavaScript files.
+  The Start test scan flagged none of 218 TypeScript entries.
+  The promise scan has six old gaps and 43 unsure titles.
+  These titles were not changed by this card.
+  The doc scan found no TypeScript source rows to check.
+  No labels were added and calibration was not run.
+
+[Gate and full mutation proof](proof/item-modules-gates.txt).
+The lead still reviews and lands this saved work.
 
 ## start/sync-test-warm
 

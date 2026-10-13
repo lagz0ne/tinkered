@@ -29,11 +29,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/item-modules** (registry plan 1b) — owner: item-modules writer.
-  Next: add dependency order, item boundaries, and shared-tag checks.
-  Verify: all requested gates green; Start mutation clears 75.
-
 ## Review
+
+- **start/item-modules** (registry plan 1b) — owner: item-modules writer; lead reviews and lands.
+  Next: lead review of dependency order, item boundaries, and shared-tag checks.
+  Verify: all requested gates returned 0; Start mutation 88.02, 81.94 on kills alone.
+  Proof: [Start progress](docs/roadmap/start-base/PROGRESS.md#startitem-modules).
 
 ## Blocked
 

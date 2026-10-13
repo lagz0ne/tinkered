@@ -477,4 +477,4 @@ New sections are lists, one term per item (vertical layout,
 - **microtask turn** — One spin of a repeating `queueMicrotask` marker while waiting for promise work.
 - **context slot** — V8's numbered place for a module name used by a nested function.
 
-- **item module** — An app-owned folder in `src/items/` with declared dependencies and a public index.
+- **item module** — An app-owned folder in `src/items/` with its own dependencies and public API.
