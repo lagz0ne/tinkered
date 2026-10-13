@@ -122,12 +122,18 @@ Adding, removing, or editing `item.json` also restarts it.
   Other code imports `@/items/mail` or
   `@/items/mail/index.server`.
   Doctor rejects imports of private item files at file:line.
+  Relative imports obey the same item rules as `@/items` aliases.
+  Errors show the path as written in the import.
+  Client hints name the item index; server hints also name `index.server`.
   Tests may import private files; own-item imports stay free.
   An item importing another item's API must list it in `requires`.
+  This dependency rule applies to tests inside an item too.
   An indirect dependency does not grant direct imports.
 - An item with a manifest and no roles can satisfy a dependency.
   A folder with only helper files does not join the lists.
   It must still declare imports of other items.
+  If its manifest is missing, doctor shows the file to add
+  with the required item in its `requires` list.
 - Unreadable star exports in your seam fail prepare and doctor.
   Use explicit named exports from packages.
   Local star exports, including `@/` paths, still work outside items.

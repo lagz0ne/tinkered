@@ -82,11 +82,22 @@ Unlike graphlib, a missing required item is an error here.
   Missing items, self-requires, and cycles fail with paths.
   A missing-item message says to `shadcn add` it.
   A cycle repeats its first manifest at the end.
+  Graph errors are reported in stages to keep input checks
+  separate from sorting.
+  All manifest, missing-item, and self-require errors come first.
+  Any such error postpones cycle checks until it is fixed.
+  Cycle checking reports one closed path per run.
+  Fixing it may reveal another cycle; run prepare again.
 - `index.ts` and `index.server.ts` are the public API.
   Use `@/items/mail`, `@/items/mail/index`, or
   `@/items/mail/index.server` from outside the item.
   Other item files are private.
-  Doctor check 6 reports private `@/items` paths at file:line.
+  Doctor check 6 reports private item paths at file:line.
+  It checks both `@/items` aliases and relative imports.
+  Relative imports resolve from the importing file's folder.
+  Errors show the original path from the import.
+  Client hints name `@/items/mail`.
+  Server hints also name `@/items/mail/index.server`.
   Tests may import private files, as with package barrels.
   Imports within one item stay free.
 - An item importing another item's API must name that item
@@ -94,8 +105,13 @@ Unlike graphlib, a missing required item is an error here.
   An indirect dependency permits ordered bindings;
   it does not grant direct imports.
   Doctor reports undeclared imports as errors.
+  The direct dependency rule also applies to item tests.
   Helper-only folders must declare imports too.
+  If their manifest is missing, the error says to add it
+  and shows a `requires` list with the required item.
   Normalize item alias paths before checking their target.
+  Check 6 parses each app file once and shares its import paths
+  across the base, file-ending, and item checks.
   The build already stops on check 6 errors.
 - Adding, removing, or editing `item.json` restarts dev.
   Role-file add and remove still restart it.

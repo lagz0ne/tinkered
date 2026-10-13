@@ -88,8 +88,54 @@ for (const statement of [
 
     expect(checked.code).toBe(1);
     expect(checked.lines.join(" ").replaceAll(/\s+/g, " ")).toContain(
-      'src/consumer.ts:2 "@/items/mail/secret" is private to item mail; use "@/items/mail" or "@/items/mail/index.server"',
+      'src/consumer.ts:2 "@/items/mail/secret" is private to item mail; use "@/items/mail"',
     );
+    expect(checked.lines.join(" ")).not.toContain("index.server");
+  });
+}
+
+for (const { file, name, symbol, messages } of [
+  {
+    file: "src/consumer.ts",
+    name: "./items/mail/secret",
+    symbol: "s",
+    messages: [
+      'src/consumer.ts:1 "./items/mail/secret" is private to item mail; use "@/items/mail"',
+    ],
+  },
+  {
+    file: "src/items/inbox/x.ts",
+    name: "../mail/secret",
+    symbol: "s",
+    messages: [
+      'src/items/inbox/x.ts:1 "../mail/secret" is private to item mail; use "@/items/mail"',
+      'src/items/inbox/x.ts:1 "../mail/secret" needs "mail" in src/items/inbox/item.json requires',
+    ],
+  },
+  {
+    file: "src/items/inbox/x.ts",
+    name: "../mail",
+    symbol: "m",
+    messages: [
+      'src/items/inbox/x.ts:1 "../mail" needs "mail" in src/items/inbox/item.json requires',
+    ],
+  },
+]) {
+  test(`doctor checks the relative item import ${name} in ${file}`, () => {
+    const root = preparedApp({
+      "src/items/inbox/item.json": '{"requires":[]}',
+      "src/items/mail/item.json": '{"requires":[]}',
+      "src/items/mail/index.ts": "export const m = 1;",
+      "src/items/mail/secret.ts": "export const s = 1;",
+      [file]: `import { ${symbol} } from "${name}";`,
+    });
+
+    const checked = doctor(root, false);
+
+    expect(checked.lines).toContain("fail  6 imports");
+    for (const message of messages) {
+      expect(checked.lines.join(" ").replaceAll(/\s+/g, " ")).toContain(message);
+    }
   });
 }
 
@@ -113,7 +159,7 @@ test("doctor allows declared public imports, own private files, and private test
   const root = preparedApp({
     "src/items/mail/item.json": '{"requires":["postgres"]}',
     "src/items/mail/index.ts":
-      'import { db } from "@/items/postgres/index"; import { secret } from "@/items/mail/secret"; export const mail = db + secret;',
+      'import { db } from "../postgres/index"; import { secret } from "./secret"; export const mail = db + secret;',
     "src/items/mail/secret.ts": "export const secret = 1;",
     "src/items/postgres/item.json": '{"requires":[]}',
     "src/items/postgres/index.ts": "export const db = 1;",
@@ -141,7 +187,7 @@ for (const name of ["@/items/postgres", "@/items/mail/../postgres"]) {
 
     expect(checked.code).toBe(1);
     expect(checked.lines.join(" ").replaceAll(/\s+/g, " ")).toContain(
-      `src/items/mail/reader.ts:1 "${name}" needs "postgres" in src/items/mail/item.json requires`,
+      `src/items/mail/reader.ts:1 "${name}" needs "postgres"; add src/items/mail/item.json with { "requires": ["postgres"] }`,
     );
   });
 }
@@ -158,4 +204,42 @@ test("a graph error elsewhere does not make declared imports undeclared", () => 
   const checked = doctor(root, false);
 
   expect(checked.lines).toContain("ok    6 imports");
+});
+
+test("doctor includes the server public entry for a private server import", () => {
+  const root = preparedApp({
+    "src/items/mail/item.json": '{"requires":[]}',
+    "src/items/mail/index.server.ts": "export const mail = 1;",
+    "src/items/mail/secret.server.ts": "export const secret = 1;",
+    "src/consumer.server.ts": 'import { secret } from "./items/mail/secret.server";',
+  });
+
+  const checked = doctor(root, false);
+
+  expect(checked.lines.join(" ").replaceAll(/\s+/g, " ")).toContain(
+    'src/consumer.server.ts:1 "./items/mail/secret.server" is private to item mail; use "@/items/mail" or "@/items/mail/index.server"',
+  );
+});
+
+test("item tests can use private relative paths only with a declared dependency", () => {
+  const root = preparedApp({
+    "src/items/inbox/item.json": '{"requires":[]}',
+    "src/items/inbox/x.test.ts": 'import { secret } from "../mail/secret";',
+    "src/items/mail/item.json": '{"requires":[]}',
+    "src/items/mail/secret.ts": "export const secret = 1;",
+  });
+
+  const missing = doctor(root, false);
+
+  expect(missing.lines).toContain("fail  6 imports");
+  expect(missing.lines.join(" ").replaceAll(/\s+/g, " ")).toContain(
+    'src/items/inbox/x.test.ts:1 "../mail/secret" needs "mail" in src/items/inbox/item.json requires',
+  );
+  expect(missing.lines.join(" ")).not.toContain("is private");
+
+  write(root, { "src/items/inbox/item.json": '{"requires":["mail"]}' });
+
+  const declared = doctor(root, false);
+
+  expect(declared.code).toBe(0);
 });

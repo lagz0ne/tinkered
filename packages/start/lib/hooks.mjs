@@ -55,8 +55,8 @@ export function restartNote(root, path, verb) {
   if (verb === "changed" && !manifest) return null;
 
   const picked = [shellFile, ...appFiles.map(({ file }) => file)].map((file) => join(root, file));
-  const isItemRole = isRoleFile(relative(root, path));
+  const isItemRole = isRoleFile(file);
   return picked.includes(path) || isItemRole || manifest
-    ? `tinker: ${relative(root, path)} ${verb}; restarting`
+    ? `tinker: ${file} ${verb}; restarting`
     : null;
 }

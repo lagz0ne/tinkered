@@ -3,8 +3,8 @@
 ## start/item-modules
 
 Owner: item-modules writer; lead reviews and lands.
-Next: lead review and the lander's final mutation run.
-Verify: all requested checks returned 0; mutation skipped this round by the owner.
+Next: finish the review fix checks, then lead review.
+Verify: all requested checks return 0; mutation skipped, final run by lander.
 
 The item names have no number prefix.
 `item.json` declares direct `requires`.
@@ -62,7 +62,29 @@ The generated-seam tests run real item settings through Vite.
 They cover nested bindings, conditional returns, indirect overrides,
 repeated tags in one item, and distinct tags with the same label.
 
-Owner follow-up:
+Review fix round:
+
+Three doctor tests first failed for relative item imports.
+They now report private files and missing dependencies under check 6.
+The path in each error is the path written in the import.
+Own-item relative imports remain free.
+Item tests may use private files but still need direct dependencies.
+Client hints name the item index; server hints also name `index.server`.
+A helper without a manifest gets the exact file and `requires` list to add.
+Check 6 now parses each app file once for its three sets of checks.
+Dev restart reuses the computed relative file path.
+ADR 0116 and its index row point to the new ordering rule.
+ADR 0117 records the staged graph-error limit:
+manifest, missing-item, and self-require errors come first;
+after those are fixed, each run reports one closed cycle.
+The focused doctor, import, and join suite passed 68 tests.
+The affected functions are `imports`, called by doctor, and
+`restartNote`, called by the Vite watcher.
+No cross-package TypeScript symbol changed.
+The full requested gates still need proof.
+Mutation is skipped this round; the lander runs it.
+
+Owner follow-up before review:
 
 Four missing-manifest tests failed before the fix.
 They cover a server role, a client role, and both public indexes.
