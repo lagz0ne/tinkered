@@ -1575,65 +1575,52 @@ Core feedback: none.
 ## start/join-index
 
 Branch: `start/join-index`. Start ticket number: 1.
-No earlier Start checkpoint number appears here or in git.
-Status: review fixes made; final gates and mutation pending.
+Status: file-name design implemented; final gates pending.
 
-Prepare writes typed app seams from `src/joins/`.
-Lists follow needs order; the user's seam comes last.
-User single names win; two join owners fail with both paths.
-Server joins stay out of the client; new joins restart dev.
+Items supply default exports in `src/items/<number-name>/`.
+Prepare reads only role file names, never item source.
+Lists follow numeric folder order, then the user's seam.
+User single names win; two item owners fail with both paths.
+Doctor prints an owner clash once.
+Server roles stay out of the client; new roles restart dev.
 Prepare never edits the user seam.
 ADR 0116 is proposed; sync slices and nav stay on card 4.
 
 Proof:
 
-- Red proof: the final original suite fails 8 of 9 tests
-  on `origin/main` at `b602b31f`; exit 1.
-  Log: `/tmp/join-index-review-main.log`.
-  The earlier three-test log covered only the first draft.
-- Gate chain: build, check, all tests, Start ticket 1,
-  validate, prose, registry proof, and join proof pass.
-  Check: 0 errors, 27 warnings. Validate: 22 lanes PASS.
-  Start: 478 tests; scaffold: 39 tests.
-  Log: `/tmp/join-index-gates2.log`; `EXIT 0`.
-- Nine join tests pass. tsc rejects wrong tag values,
-  wrong settings bindings, wrong single names,
-  and an unknown sync change kind.
-  Valid operations, records, and user star exports pass.
-- The real two-join fixture builds; doctor exits 0.
-  A Start render reads all three tags; mail starts.
-  A duplicate database owner fails prepare and doctor.
-  The fixture is removed in `finally`.
-- No joins: both apps' client output is byte-identical
-  to main, built in the same ticket worktree.
-  Small: 12 files, 645734 bytes.
-  Scaffold: 41 files, 1846033 bytes.
-  The reviewer also checked server output against main:
-  same content after normalizing paths and built hashes.
-- Build A/B: 10 rounds under the mutation lock.
-  Verdict: `no difference we can see`; exit 0.
-  Job: `aa9f03254313`; A `b602b31f`, B `86ecccab`.
-  Later fixes change join-only reads and type checks.
-- The Start mutation lane includes `lib/**/*.mjs`.
-  A full run under the mutation lock is required here,
-  even though Start `src/` is unchanged.
-  The earlier claim that no lane was needed was wrong.
-- Jev preflight ran once on `origin/main..HEAD`.
-  No TypeScript source changed; no new source hits.
-  Test and promise checks ran; old hits were left alone.
-  The nine join tests and ticket regression have no flags.
-  Jev label lines: none.
+- New-design red proof: 11 of 12 tests fail on main
+  `b602b31f`; exit 1. All 12 pass after the change.
+  Log: `/tmp/join-index-convention-main.log`.
+- Order matters in Core: first extension wraps the rest
+  at `packages/core/src/index.ts:5343`; the last binding
+  for one tag wins at `packages/core/src/index.ts:1465`.
+  Role folders need numeric prefixes; ties use names.
+- The old design's final original suite failed 8 of 9
+  tests on main; the three-test note was only a draft.
+- The old mutation lane finished on clean `7af412e8`:
+  killed 4435 / valid 5196 = 85.35%; exit 0.
+  This includes `lib/**/*.mjs`, including the new walker.
+  Its score is old-design proof, not final-design proof.
+  Log: `/tmp/join-index-review-mutation2.log`.
+- The old gate chain was stopped after the owner changed
+  the design. Its partial result is not a final gate pass.
+- The earlier no-join client proof matched main exactly.
+  The reviewer checked server output too: same content,
+  with only path-built hashes different.
+  New no-item output and timing checks are pending.
+- Jev preflight already ran once on `origin/main..HEAD`.
+  No runtime TypeScript changed; no new source hits.
+  Test and promise checks will cover the new role tests.
 
-Choices and gate repair:
+Choices:
 
-- No joins pass on the existing seam's exports.
-  This keeps client bytes unchanged.
-- A dependency without a join adds no list entries.
+- Numeric prefixes make order visible without `needs`.
+- Keep `root` and `@/` support in the seam reader:
+  the user's existing local alias star exports need it.
+  Item roles never use that reader.
 - `.mjs` imports use ADR 0112's Node exception.
-- The ticket gate called a Start size task that main
-  does not have. Start ships source, with no bundle budget.
-  The gate now says that and keeps checks, tests,
-  and the chosen mutation step. Its regression passes.
+- The ticket gate now handles Start's source-only package;
+  main has no Start size task. Its regression passes.
 
 Start feedback, fixed by this card:
 
