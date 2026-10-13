@@ -1644,6 +1644,27 @@ Proof:
   Tests and promises ran; only old untouched hits remain.
   Jev label lines: none.
 
+Re-review sort fix:
+
+- The `2fa` helper-folder test fails before the fix on
+  `14ef9e1b`, and on main `b602b31f`; both exit 1.
+  Logs: `/tmp/join-index-sort-red.log` and
+  `/tmp/join-index-sort-main.log`.
+- Only folders with role files and a matched numeric
+  prefix enter the sort. Ties use the full folder name.
+  Full list assertions, alias keys, and dead code are fixed.
+- All six requested gates pass; check has 0 errors and
+  27 warnings, Start has 482 tests, validate has 22 lanes.
+  Log: `/tmp/join-index-sort-gates.log`; `EXIT 0`.
+- No full mutation rerun: changes stay in prepare paths
+  already covered by the prior full lane, with new checks.
+  A focused run under the lock killed 88 / 94 = 93.62%
+  on clean `a2bae0ef`; `EXIT 0`. Both all-role list
+  mutants are killed. No test coverage was removed.
+  Log: `/tmp/join-index-sort-mutation2.log`.
+  Prior full report: `.bench/mutation-full-02e9e221.json`.
+- The temporary main-proof worktree is removed.
+
 Choices:
 
 - Numeric prefixes make order visible without `needs`.
