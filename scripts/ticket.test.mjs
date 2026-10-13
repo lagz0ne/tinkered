@@ -25,12 +25,14 @@ echo "$*" >> "$VP_LOG"
 known=" core react start "
 strict=0
 prev=""
+selected=""
 for arg in "$@"; do
   [ "$arg" = --fail-if-no-match ] && strict=1
 done
 for arg in "$@"; do
   case "$prev" in
     -F)
+      selected="$arg"
       case "$known" in
         *" $arg "*) ;;
         *)
@@ -48,6 +50,7 @@ for arg in "$@"; do
 done
 for arg in "$@"; do
   case "$arg" in
+    size) [ "$selected" = start ] && { echo 'error: Task "size" not found' >&2; exit 1; } ;;
     mutate | *#mutate) [ -n "$FAIL_MUTATE" ] && exit 1 ;;
   esac
 done
@@ -142,6 +145,18 @@ await test("ticket.sh accepts ticket NN 0", () => {
   try {
     const run = runTicket(dir, ["--check-only", "--no-mutation", "core", "0", "zero"], {});
     assert.equal(run.status, 0, run.stdout + run.stderr);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+await test("ticket.sh checks Start source without calling a missing bundle size task", () => {
+  const dir = fixture();
+  try {
+    const run = runTicket(dir, ["--check-only", "start", "1", "join-index"], {});
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    const calls = readFileSync(join(dir, "vp.log"), "utf8").trim().split("\n");
+    assert.deepEqual(calls, ["check", "run -r test", "run --fail-if-no-match -F start mutate"]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

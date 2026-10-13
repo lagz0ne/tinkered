@@ -58,8 +58,12 @@ if [ "$PKG" = "core" ]; then
 fi
 # `vp run <pkg>#<task>` exits 0 and runs nothing when no package has that name.
 # `--fail-if-no-match -F <pkg>` exits 1 instead, so a typo cannot pass the gate.
-echo "== gate ${TAG}: size budget =="
-vp run --fail-if-no-match -F "${PKG}" size
+if [ "$PKG" = "start" ]; then
+  echo "== gate ${TAG}: source package; no bundle size budget =="
+else
+  echo "== gate ${TAG}: size budget =="
+  vp run --fail-if-no-match -F "${PKG}" size
+fi
 if (( no_mutation )); then
   echo "== gate ${TAG}: mutation skipped by request =="
 else
