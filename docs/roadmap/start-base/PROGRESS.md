@@ -80,6 +80,11 @@ after those are fixed, each run reports one closed cycle.
 The focused doctor, import, and join suite passed 68 tests.
 The affected functions are `imports`, called by doctor, and
 `restartNote`, called by the Vite watcher.
+
+Lander final gates on `cabf2f35` all returned 0.
+One typecheck test timed out under load; its re-run passed.
+Start mutation lower bound: 80.4%, above the floor of 75.
+[Gate and mutation lines](proof/item-modules-gates.txt).
 No cross-package TypeScript symbol changed.
 All six requested gate commands returned 0 on clean commit `eb4048fa`.
 They ran in order: build, check, tests, ticket, validation, prose.
