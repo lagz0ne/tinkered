@@ -49,15 +49,16 @@ An item puts one default export in each role file it supplies.
 The file name is the role. Other files are the item's own code;
 prepare reads only file names and `item.json`, never role source.
 
-Use `src/items/postgres/`, with a name like `[a-z][a-z0-9-]*`.
+Use `src/items/mail/`, with a name like `[a-z][a-z0-9-]*`.
 The folder name is the module name and registry item name.
-`requires: ["mail"]` names the API at `@/items/mail`.
-Old numbered role folders fail with a rename message.
-Declare the items this one needs in `src/items/mail/item.json`:
+Declare the items `mail` needs in `src/items/mail/item.json`:
 
 ```json
 { "requires": ["errors", "postgres"] }
 ```
+
+`"postgres"` in that list names the API at `@/items/postgres`.
+Old numbered role folders fail with a rename message.
 
 Dependencies run first; ready items sort by name.
 Every folder with role files or a public index needs `item.json`.
