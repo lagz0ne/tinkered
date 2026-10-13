@@ -1575,7 +1575,7 @@ Core feedback: none.
 ## start/join-index
 
 Branch: `start/join-index`. Start ticket number: 1.
-Status: file-name design implemented; final gates pending.
+Status: file-name design gates pass; mutation pending.
 
 Items supply default exports in `src/items/<number-name>/`.
 Prepare reads only role file names, never item source.
@@ -1595,11 +1595,27 @@ Proof:
   at `packages/core/src/index.ts:5343`; the last binding
   for one tag wins at `packages/core/src/index.ts:1465`.
   Role folders need numeric prefixes; ties use names.
+- New gate chain: build, check, all tests, Start ticket 1,
+  validate, prose, registry proof, and item proof pass.
+  Check: 0 errors, 27 warnings. Start: 481 tests.
+  Scaffold: 39 tests. Validate: all 22 lanes PASS.
+  Log: `/tmp/join-index-convention-gates.log`; `EXIT 0`.
+- The real two-item fixture builds; doctor exits 0.
+  Start reads all three tags, and the mail extension starts.
+  Two database roles stop prepare and doctor once, naming
+  both paths. Wrong bindings and single roles fail tsc;
+  valid operations and exact sync unions pass.
+- No item roles: both client outputs match main exactly.
+  Small: 12 files, 645734 bytes.
+  Scaffold: 41 files, 1846033 bytes.
+  Server content matches after path/hash normalization:
+  12 small-app files and 43 scaffold files.
+  Baseline: `/tmp/join-index-review-baseline`.
 - The old design's final original suite failed 8 of 9
   tests on main; the three-test note was only a draft.
 - The old mutation lane finished on clean `7af412e8`:
   killed 4435 / valid 5196 = 85.35%; exit 0.
-  This includes `lib/**/*.mjs`, including the new walker.
+  This includes `lib/**/*.mjs`, including the old join walker.
   Its score is old-design proof, not final-design proof.
   Log: `/tmp/join-index-review-mutation2.log`.
 - The old gate chain was stopped after the owner changed
@@ -1607,10 +1623,11 @@ Proof:
 - The earlier no-join client proof matched main exactly.
   The reviewer checked server output too: same content,
   with only path-built hashes different.
-  New no-item output and timing checks are pending.
-- Jev preflight already ran once on `origin/main..HEAD`.
-  No runtime TypeScript changed; no new source hits.
-  Test and promise checks will cover the new role tests.
+  The final build comparison is pending.
+- Jev preflight ran once for this design on
+  `origin/main..HEAD`; `lib/app.d.ts` has no flags.
+  Tests and promises ran; only old untouched hits remain.
+  Jev label lines: none.
 
 Choices:
 
