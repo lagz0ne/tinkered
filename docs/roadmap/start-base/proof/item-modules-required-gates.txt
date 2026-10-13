@@ -1,0 +1,95 @@
+start/item-modules — required-manifest follow-up proof
+
+Worktree: /home/paseo/next/tinkered-item-modules
+Branch: start/item-modules
+Tested clean commit: 992e87db78d422ce1a72e9d3f2171da1cf9572be
+Start package tree: f6929bb1c800901eea3210288d1ac39e64f42306
+The later proof commit changes only docs and TODO.md.
+
+Owner decisions:
+- A role or public index requires item.json in the same folder.
+- The folder name is the module and registry item name.
+- item.json accepts only requires; name, version, and hash fail.
+- tsc checks interface mismatch; the graph controls runtime wiring.
+- Mutation is skipped this round; the lander runs the final lane.
+
+Red first:
+Command: vp test tests/joins.test.mjs -t 'require item.json beside'
+Working directory: packages/start
+Observed exit: 1
+Log: /tmp/item-modules-required-red.log
+AssertionError: expected [Function prepareApp] to throw an error
+      Tests  4 failed | 41 skipped (45)
+These four cases cover settings.server.ts, extensions.ts,
+index.ts, and index.server.ts without item.json.
+
+Focused run after the fix:
+Command: vp test tests/joins.test.mjs tests/doctor.test.mjs
+Working directory: packages/start
+Observed exit: 0
+      Tests  58 passed (58)
+
+Full gate commands, run in this order:
+vp run -r build                                      exit 0
+vp check                                            exit 0
+vp run -r test                                      exit 0
+scripts/ticket.sh --check-only --no-mutation start 1 "item-modules"
+                                                    exit 0
+pnpm validate                                       exit 0
+vp run prose                                        exit 0
+No supplier retry was needed.
+
+The runner recorded:
+Tested commit: 992e87db78d422ce1a72e9d3f2171da1cf9572be
+Start package tree: f6929bb1c800901eea3210288d1ac39e64f42306
+Tree before gates:
+build: exit 0
+check: exit 0
+tests: exit 0
+ticket: exit 0
+validate: exit 0
+prose: exit 0
+Mutation skipped by owner; final run belongs to lander.
+
+Gate output excerpts:
+
+check:
+Found 0 errors and 27 warnings in 696 files (8.1s, 8 threads)
+
+tests:
+      Tests  523 passed (523)
+      Tests  39 passed (39)
+
+ticket:
+Found 0 errors and 27 warnings in 696 files (9.5s, 8 threads)
+      Tests  523 passed (523)
+      Tests  39 passed (39)
+== gate start/t1: checks pass; no checkpoint requested ==
+
+validate:
+All deterministic budget lanes PASS (22)
+
+prose:
+prose-lint: 0 hit(s) in 230 file(s)
+
+Additional proof:
+- The same exact missing-file text comes from the real three-item fixture.
+  Its mail manifest was removed and restored in a finally block.
+- render() still matches item-modules-app.server.txt byte for byte.
+- The strict census on the unchanged type declaration returned 0.
+  This round changes .mjs files, which the census does not scan.
+- Jev pre-flight reported no changed TypeScript source files and zero flags.
+  No labels or calibration were added.
+- No build or install ran in the main checkout.
+- No push was made.
+
+Exact new error:
+src/items/mail: missing item.json; add src/items/mail/item.json with { "requires": [] }
+
+Exact unknown-key errors:
+src/items/mail/item.json: unknown key "name"; only requires is allowed
+src/items/mail/item.json: unknown key "version"; only requires is allowed
+src/items/mail/item.json: unknown key "hash"; only requires is allowed
+
+The earlier mutation score belongs to commit 4d9c0928.
+It is not proof of this follow-up. Final mutation is still owed by the lander.

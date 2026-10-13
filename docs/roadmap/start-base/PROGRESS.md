@@ -3,8 +3,8 @@
 ## start/item-modules
 
 Owner: item-modules writer; lead reviews and lands.
-Next: check the required-manifest change, then lead review.
-Verify: all requested checks return 0; the lander runs final mutation.
+Next: lead review and the lander's final mutation run.
+Verify: all requested checks returned 0; mutation skipped this round by the owner.
 
 The item names have no number prefix.
 `item.json` declares direct `requires`.
@@ -72,7 +72,18 @@ The source change affects `readItemModules`, called by item
 composition in `lib/joins.mjs` and boundary checks in `lib/checks/imports.mjs`.
 No Core or cross-package TypeScript symbol changed.
 The focused join and doctor suite passed all 58 tests.
-The remaining requested gates still need proof.
+All six requested gate commands returned 0.
+Build, code check, full tests, ticket, validation, and prose
+ran in that order on clean commit `992e87db`.
+Code check has zero errors and 27 warnings.
+Start passed 523 tests; the scaffold passed 39.
+Validation passed all 22 budget lanes.
+The exact missing-file message was also checked against the
+real three-item fixture after removing and restoring its manifest.
+The generated server sample remains byte-identical.
+The Start package tree is `f6929bb1c800901eea3210288d1ac39e64f42306`.
+The new proof commit only changes docs and the board.
+[Required-manifest gate proof](proof/item-modules-required-gates.txt).
 Mutation is skipped this round because the owner asked.
 The lander will run the final lane.
 

@@ -29,12 +29,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/item-modules** (registry plan 1b) — owner: item-modules writer; lead reviews and lands.
-  Next: require item.json, update tests and docs, then run the requested gates.
-  Verify: all gates return 0; mutation skipped this round by the owner, final run by the lander.
-  Proof: [Start progress](docs/roadmap/start-base/PROGRESS.md#startitem-modules).
-
 ## Review
+
+- **start/item-modules** (registry plan 1b) — owner: item-modules writer; lead reviews and lands.
+  Next: lead review and the lander's final mutation run.
+  Verify: all requested checks returned 0; mutation skipped this round by the owner.
+  Proof: [Start progress](docs/roadmap/start-base/PROGRESS.md#startitem-modules).
 
 ## Blocked
 
