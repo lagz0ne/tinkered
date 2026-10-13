@@ -2,9 +2,9 @@
 
 ## start/item-modules
 
-Owner: item-modules writer; lead reviews and lands.
-Next: lead review of the fix round, then the lander's final mutation run.
-Verify: all requested checks returned 0; mutation skipped, final run by lander.
+Owner: lander.
+Next: wait for the PR to merge; no push to main.
+Verify: final gates and Start mutation on the PR head.
 
 The item names have no number prefix.
 `item.json` declares direct `requires`.

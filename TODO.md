@@ -27,13 +27,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
+- **start/backend-server-hint** — Doctor check 6 names `index.server` in its private-path hint only for `.server.` files (`packages/start/lib/checks/imports.mjs:120`); Start also treats `/backend/` paths as server code, so those files get the client hint.
+  Verify: a test with a deep item import from `src/backend/` expects the `index.server` hint and fails before the fix.
+
 ## Doing
 
 ## Review
 
-- **start/item-modules** (registry plan 1b) — owner: item-modules writer; lead reviews and lands.
-  Next: lead review of the fix round, then the lander's final mutation run.
-  Verify: three relative-import tests failed before the fix; all requested gates returned 0; mutation skipped.
+- **start/item-modules** (registry plan 1b) — items declare `requires` in a required `src/items/<item>/item.json`; an item's `index.ts` and `index.server.ts` are its only exports to other items; no `NN-` prefix, so the folder name is the module name; prepare sorts items by `requires`; doctor check 6 fails deep imports and imports not in `requires`, relative paths too (ADR 0117; replaces the numbered ordering part of ADR 0116).
+  Owner: lander. Next: wait for the PR to merge; no push to main.
+  Verify: gates and Start mutation (floor 75) on the PR head.
   Proof: [Start progress](docs/roadmap/start-base/PROGRESS.md#startitem-modules).
 
 ## Blocked
