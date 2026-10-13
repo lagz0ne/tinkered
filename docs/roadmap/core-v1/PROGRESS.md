@@ -4389,8 +4389,9 @@ Both directive names were checked.
 ## core/size-guard-cast-iterable
 
 - Branch: `core/size-guard-cast-iterable`.
-- Base: `origin/main` at `9ece6aa6`.
-- Code and tests: `eca7c49b`.
+- Base: `origin/main` at `f214b96e`.
+- First base: `9ece6aa6`; main then changed only the board and Jev thresholds.
+- Code and tests: `7b46deb6`, the same Core files as `eca7c49b`.
 - Nothing was pushed; the lead owns the card and landing.
 
 ### Rules and choice
@@ -4427,3 +4428,64 @@ Both directive names were checked.
 - Head keeps the budget edge: 1023 clean, 1024 flags.
 - Red log: `/tmp/cast-iterable-red-main.log`.
 - Green log: `/tmp/cast-iterable-step.log`.
+
+### Timing and output
+
+- `benchctl ab`: 10 rounds, one Core pack per side per round.
+- The whole run held `flock /tmp/mutation.lock`.
+- A: `9ece6aa6` in `.bench/base`; B: code at `eca7c49b`.
+- Both commands ran `vp pack`, including declarations and the guard.
+- Verdict: `no difference we can see`; exit 0.
+- Log: `/tmp/cast-iterable-ab.log`.
+- Core dist: all nine files byte-identical to main, maps included.
+- `vp run core#fields`: exit 0; the list is unchanged, with 55 names.
+- Both byte checks ran after the final field write and rebuild.
+- Log: `/tmp/cast-iterable-fields.log`.
+- After rebase, a fresh `f214b96e` build matches all nine files too.
+- The field list also matches `f214b96e`, byte for byte.
+- Final base log: `/tmp/cast-iterable-final-base.log`.
+
+### Gates
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0, 0 errors and the baseline 27 warnings.
+- `vp run -r test`: exit 0; Core has 900 passing source tests.
+- Core 55 ticket gate: exit 0, with check-only and no mutation.
+- Ticket title: `size-guard-cast-iterable`.
+- `vp run core#test:dist`: exit 0, 1144 tests pass.
+- `pnpm validate`: exit 0, all 22 lanes pass.
+- `vp run prose`: exit 0, zero hits.
+- The full chain printed `EXIT 0`.
+- Log: `/tmp/cast-iterable-gates.log`.
+- After rebase: install, build, check, and prose were repeated.
+- The full gate proof still covers the same code and tests.
+- Rebase log: `/tmp/cast-iterable-rebase.log`.
+- No timeout or OOM retry was needed.
+- Mutation was not run: the lane excludes `build/` and source did not change.
+- Strict style counts match main; no new hit was added.
+- Both changed TypeScript files have zero S26 TSDoc rows.
+
+### Jev and departures
+
+- Preflight ran once on `origin/main..HEAD` before rebase: exit 0.
+- Nine flagged units: eight untouched; the ninth is `forOfTarget`.
+- Its saved `stateOutsideCell false` label still applies.
+- Its names and flows belong to one build walk, as before.
+- `forOfPatterns` and `untypedReads` have no flag.
+- No new label was needed or written.
+- `tests.mjs core`: exit 0, seven flags in old source tests.
+- `promises.mjs core`: exit 0, 45 old titles lack a README line.
+- Another 74 promise answers were unsure.
+- Both test readers exclude `build/`; none of the changed tests was judged.
+- No HTTP 402 or budget error occurred; no failed call was retried.
+- `calibrate.mjs` did not run, as asked: the key budget is used up.
+- The ticket's extra Jev reads were skipped for the same reason.
+- Setup used `origin/main` and detached jobs, as the ticket requires.
+- The automatic setup hook was skipped so install and build ran detached.
+- `TODO.md`, git config, and workspace config were not edited.
+- The main-check tree, base tree, and scratch probes are removed.
+- The ticket worktree and branch stay for review.
+
+### Core feedback
+
+- None.
