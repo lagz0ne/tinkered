@@ -118,7 +118,9 @@ Adding, removing, or editing `item.json` also restarts it.
   It must still declare imports of other items.
 - Unreadable star exports in your seam fail prepare and doctor.
   Use explicit named exports from packages.
-  Local star exports, including `@/` paths, still work.
+  Local star exports, including `@/` paths, still work outside items.
+  A seam star export of an item fails with the same message.
+  Use named exports there so prepare never reads item source.
 - tsc rejects wrong settings bindings and wrong single roles,
   even when the base part is off.
   It keeps each role's inferred sync change union.

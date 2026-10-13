@@ -50,6 +50,10 @@ Unlike graphlib, a missing required item is an error here.
 
 - Prepare reads JSON and file names only.
   It never parses or imports item TypeScript.
+  A seam star export cannot cross into item source, even
+  through another local module.
+  Use explicit named exports from item indexes there.
+  The existing unreadable-star message names the seam path.
   Role files still provide the roles named in 0116.
   An item with only `index.ts`, `index.server.ts`, or a
   manifest can satisfy a dependency without providing a role.

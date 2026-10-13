@@ -461,3 +461,29 @@ test("equal tag labels do not make distinct tags clash", async () => {
 
   expect(bindings[0].tag).not.toBe(bindings[1].tag);
 });
+
+test("prepare refuses a seam star export that would read an item index", () => {
+  const root = goodApp({
+    "src/lib/tinker.server.ts": 'export * from "@/backend/seam.server";',
+    "src/backend/seam.server.ts": 'export * from "@/items/mail";',
+    "src/items/mail/index.ts": "export const settings = () => [];",
+  });
+
+  const prepareApp = () => prepare(root);
+
+  expect(prepareApp).toThrow(
+    "src/lib/tinker.server.ts:1 has an export * whose names prepare cannot read; use explicit named exports",
+  );
+});
+
+test("prepare can read explicit seam exports without reading item source", () => {
+  const root = goodApp({
+    "src/lib/tinker.server.ts": 'export { settings } from "@/items/mail";',
+    "src/items/mail/index.ts": "not parseable",
+    "src/items/mail/settings.server.ts": "not parseable",
+  });
+
+  const server = render(root)["app.server.ts"];
+
+  expect(server).toContain("const ownSettings: App.Settings = own.settings;");
+});

@@ -47,6 +47,13 @@ Two more tests exposed imports from helper-only folders.
 Doctor now checks those folders and reads the actual target of
 an alias with `..` in its path.
 Declared imports stay declared when a graph error appears elsewhere.
+A seam star export used to let prepare read an item index.
+It now fails with the existing named-export message.
+Explicit seam exports still work without reading item source.
+The affected callers are `readExports` through `appFile`,
+`joinProblems`, and `seamExports` in Start's `lib/joins.mjs`.
+`exportsOf` without an app root keeps its existing behavior.
+Its `mayExport` caller is used by doctor, not item composition.
 The generated-seam tests run real item settings through Vite.
 They cover nested bindings, conditional returns, indirect overrides,
 repeated tags in one item, and distinct tags with the same label.
