@@ -1576,7 +1576,7 @@ Core feedback: none.
 
 Branch: `start/join-index`. Start ticket number: 1.
 No earlier Start checkpoint number appears here or in git.
-Status: all gates pass; ready for review.
+Status: review fixes made; final gates and mutation pending.
 
 Prepare writes typed app seams from `src/joins/`.
 Lists follow needs order; the user's seam comes last.
@@ -1587,10 +1587,10 @@ ADR 0116 is proposed; sync slices and nav stay on card 4.
 
 Proof:
 
-- Red first: three tests failed on `origin/main` at
-  `f214b96e`, in `/tmp/main-check-join-index`; exit 1.
-  Log: `/tmp/join-index-red.log`.
-  Start is unchanged on the later base `b602b31f`.
+- Red proof: the final original suite fails 8 of 9 tests
+  on `origin/main` at `b602b31f`; exit 1.
+  Log: `/tmp/join-index-review-main.log`.
+  The earlier three-test log covered only the first draft.
 - Gate chain: build, check, all tests, Start ticket 1,
   validate, prose, registry proof, and join proof pass.
   Check: 0 errors, 27 warnings. Validate: 22 lanes PASS.
@@ -1608,12 +1608,16 @@ Proof:
   to main, built in the same ticket worktree.
   Small: 12 files, 645734 bytes.
   Scaffold: 41 files, 1846033 bytes.
+  The reviewer also checked server output against main:
+  same content after normalizing paths and built hashes.
 - Build A/B: 10 rounds under the mutation lock.
   Verdict: `no difference we can see`; exit 0.
   Job: `aa9f03254313`; A `b602b31f`, B `86ecccab`.
   Later fixes change join-only reads and type checks.
-- Start `src/` is unchanged: no mutation lane or
-  runtime timing run is needed for this card.
+- The Start mutation lane includes `lib/**/*.mjs`.
+  A full run under the mutation lock is required here,
+  even though Start `src/` is unchanged.
+  The earlier claim that no lane was needed was wrong.
 - Jev preflight ran once on `origin/main..HEAD`.
   No TypeScript source changed; no new source hits.
   Test and promise checks ran; old hits were left alone.

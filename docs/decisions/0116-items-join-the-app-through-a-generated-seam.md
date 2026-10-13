@@ -14,9 +14,9 @@ Prepare already writes `.tinker/parts.ts` with explicit imports.
 Use declaration merging, which adds fields to an open type,
 as the app already fills Start's `Register` interface.
 
-The lead's plan is `/home/paseo/plans/registry-composition.md`,
-section 2, "Self-join".
-Probe numbers below count that section's probe bullets from one.
+The self-join probes ran on the scaffold at `f214b96e`.
+These facts are kept here so the decision needs no local plan file.
+Probe numbers keep their original order.
 
 - Probe 5: the generated shape passed tsc and build.
   It added 108 server bytes and 2 client bytes.
@@ -44,6 +44,9 @@ Probe numbers below count that section's probe bullets from one.
   The user's seam wins over that owner.
   Two join owners fail prepare and doctor with both paths,
   even when the user also exports the name.
+- A seam or join with unreadable star exports stops prepare.
+  Doctor names the file once, under named files.
+  Use named exports from packages; local star exports may be read.
 - Type-only checks reject wrong exports without widening
   a join's inferred types or its sync unions.
 - Both `#tinker/app` aliases point at the generated files.
