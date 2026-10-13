@@ -1,6 +1,8 @@
 import { readdirSync } from "node:fs";
 import { join, dirname, resolve, sep, isAbsolute } from "node:path";
 
+import { readItemModules } from "../item-modules.mjs";
+import { isRoleFile } from "../joins.mjs";
 import { installedBase, listFiles } from "../paths.mjs";
 import { parseSource, specifiers } from "../source.mjs";
 import { verdict } from "./result.mjs";
@@ -77,6 +79,48 @@ function badImport(name, file, base) {
   return reachesBase(name, file, base) ? say.path : null;
 }
 
+/** Test files may reach private files, as with the package barrel rule. */
+function isTest(file) {
+  return /(?:^|\/)tests\//.test(file) || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file);
+}
+
+/** Public entries have fixed names; tests may import any file. */
+function isPrivate(path, file) {
+  return Boolean(path) && !["index", "index.server"].includes(path) && !isTest(file);
+}
+
+/** Import paths, including re-exports and dynamic imports, obey one item's public entry. */
+function itemImport(name, file, line, folders) {
+  const target = /^@\/items\/([^/]+)(?:\/(.*))?$/.exec(name);
+  if (!target) return [];
+  const [, item, path] = target;
+  const owner = /^src\/items\/([^/]+)\//.exec(file)?.[1];
+  if (owner === item) return [];
+  const at = `${file}:${line}`;
+  const problems = [];
+
+  if (isPrivate(path, file)) {
+    problems.push(
+      `${at} "${name}" is private to item ${item}; use "@/items/${item}" or "@/items/${item}/index.server"`,
+    );
+  }
+  const from = folders.find((folder) => folder.name === owner);
+  if (from && !from.requires.includes(item)) {
+    problems.push(`${at} "${name}" needs "${item}" in src/items/${owner}/item.json requires`);
+  }
+  return problems;
+}
+
+/** Graph errors belong to named files; check 6 reports import boundaries without loading items. */
+function itemImports(root) {
+  const { folders } = readItemModules(root, isRoleFile);
+  return appSources(root).flatMap((file) =>
+    specifiers(parseSource(join(root, file))).flatMap(({ name, line }) =>
+      itemImport(name, file, line, folders),
+    ),
+  );
+}
+
 /**
  * Check 6: app code reaches the base only through its entries, and never by a base-only
  * `#tinker/*` name or a path into the package. App imports omit TypeScript file endings.
@@ -96,5 +140,8 @@ export function imports(root) {
       .filter(({ message }) => message)
       .map(({ name, at, message }) => message(at, name));
   });
-  return verdict([...bad, ...extensionImports(root)], say.passed(files.length));
+  return verdict(
+    [...bad, ...extensionImports(root), ...itemImports(root)],
+    say.passed(files.length),
+  );
 }

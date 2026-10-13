@@ -69,3 +69,58 @@ test("doctor counts every failing check in its last line", () => {
   expect(lines.at(-1)).toBe("doctor: 2 check(s) fail");
   expect(code).toBe(1);
 });
+
+for (const statement of [
+  'import { secret } from "@/items/mail/secret";',
+  'export { secret } from "@/items/mail/secret";',
+  'const secret = import("@/items/mail/secret");',
+  'type Secret = import("@/items/mail/secret").Secret;',
+]) {
+  test(`doctor blocks private item paths in ${statement}`, () => {
+    const root = preparedApp({
+      "src/items/mail/index.ts": "export const mail = 1;",
+      "src/items/mail/secret.ts": "export const secret = 1;",
+      "src/consumer.ts": `\n${statement}\n`,
+    });
+
+    const checked = doctor(root, false);
+
+    expect(checked.code).toBe(1);
+    expect(checked.lines.join(" ").replaceAll(/\s+/g, " ")).toContain(
+      'src/consumer.ts:2 "@/items/mail/secret" is private to item mail; use "@/items/mail" or "@/items/mail/index.server"',
+    );
+  });
+}
+
+test("doctor requires a direct dependency for another item's public API", () => {
+  const root = preparedApp({
+    "src/items/mail/index.ts": 'import { db } from "@/items/postgres"; export const mail = db;',
+    "src/items/postgres/index.ts": "export const db = 1;",
+  });
+
+  const checked = doctor(root, false);
+
+  expect(checked.code).toBe(1);
+  expect(checked.lines.join(" ").replaceAll(/\s+/g, " ")).toContain(
+    'src/items/mail/index.ts:1 "@/items/postgres" needs "postgres" in src/items/mail/item.json requires',
+  );
+});
+
+test("doctor allows declared public imports, own private files, and private test imports", () => {
+  const root = preparedApp({
+    "src/items/mail/item.json": '{"requires":["postgres"]}',
+    "src/items/mail/index.ts":
+      'import { db } from "@/items/postgres/index"; import { secret } from "@/items/mail/secret"; export const mail = db + secret;',
+    "src/items/mail/secret.ts": "export const secret = 1;",
+    "src/items/postgres/index.ts": "export const db = 1;",
+    "src/items/postgres/index.server.ts": "export const server = 1;",
+    "src/consumer.ts":
+      'import { mail } from "@/items/mail"; import { server } from "@/items/postgres/index.server";',
+    "tests/mail.test.ts": 'import { secret } from "@/items/mail/secret";',
+    "src/mail.test.ts": 'import { secret } from "@/items/mail/secret";',
+  });
+
+  const checked = doctor(root, false);
+
+  expect(checked.code).toBe(0);
+});
