@@ -124,4 +124,12 @@ Lower bound, if all 574 untested mutants survive:
 Kills alone, timeouts not counted: 4353 / 5571 = 78.1%
 Both clear the floor of 75.
 The log shows no runtime or compile errors.
-The final score is added below when the run ends.
+
+The run was stopped at 1h 58m by the agent's 2-hour job limit.
+Stryker printed no final score.
+Last line:
+5128/5571 tested (519 survived, 167 timed out)
+Lower bound, if all 443 untested mutants survive:
+(5571 - 519 - 443) / 5571 = 82.7%
+Kills alone, timeouts not counted: 4442 / 5571 = 79.7%
+Both clear the floor of 75.
