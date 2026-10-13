@@ -22,12 +22,12 @@
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 408,
-    "medianTrue": 0.9,
+    "falses": 414,
+    "medianTrue": 0.89,
     "medianFalse": 0.56,
-    "separation": 0.34,
-    "ordered": 0.98,
-    "at": "2026-10-11"
+    "separation": 0.33,
+    "ordered": 0.97,
+    "at": "2026-10-13"
   },
   "configNotTag": {
     "status": "provisional",
@@ -202,22 +202,22 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 55,
-    "medianTrue": 0.77,
-    "medianFalse": 0.57,
+    "falses": 56,
+    "medianTrue": 0.76,
+    "medianFalse": 0.56,
     "separation": 0.2,
     "ordered": 0.81,
-    "at": "2026-10-11"
+    "at": "2026-10-12"
   },
   "waitsOnSideWork": {
     "status": "provisional",
     "trues": 1,
-    "falses": 58,
-    "medianTrue": 0.7,
+    "falses": 61,
+    "medianTrue": 0.69,
     "medianFalse": 0.54,
-    "separation": 0.16,
-    "ordered": 1,
-    "at": "2026-10-11"
+    "separation": 0.15,
+    "ordered": 0.98,
+    "at": "2026-10-12"
   },
   "recomputesSameValue": {
     "status": "provisional",
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 1,
-    "falses": 107,
-    "medianTrue": 0.52,
-    "medianFalse": 0.62,
-    "separation": -0.1,
-    "ordered": 0.23,
-    "at": "2026-10-11"
+    "falses": 108,
+    "medianTrue": 0.56,
+    "medianFalse": 0.6,
+    "separation": -0.04,
+    "ordered": 0.36,
+    "at": "2026-10-12"
   }
 }
