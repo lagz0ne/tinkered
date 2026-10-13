@@ -47,16 +47,26 @@ It is gitignored, and nobody edits it.
 
 An item puts one default export in each role file it supplies.
 The file name is the role. Other files are the item's own code;
-prepare reads only file names, never the role's source.
+prepare reads only file names and `item.json`, never role source.
 
-Use a numeric folder prefix, such as `src/items/10-postgres/`.
-Items run in numeric order; equal numbers use folder-name order.
+Use `src/items/postgres/`, with a name like `[a-z][a-z0-9-]*`.
+Old numbered role folders fail with a rename message.
+Declare the items this one needs in `src/items/mail/item.json`:
+
+```json
+{ "requires": ["errors", "postgres"] }
+```
+
+Dependencies run first; ready items sort by name.
+A missing manifest or an empty object means no dependencies.
+Unknown keys, missing items, self-requires, and cycles fail prepare.
+The errors name paths; a missing-item error says to `shadcn add` it.
 Core runs the first extension on the outside.
 The last binding for the same tag wins.
 Your own `src/lib/tinker` seam files come last and stay yours.
 Prepare never edits them.
 
-`src/items/10-postgres/settings.server.ts`:
+`src/items/postgres/settings.server.ts`:
 
 ```ts
 import type { Env } from "@tinker/start/server";
@@ -68,7 +78,7 @@ export default function settings(env: Env.Values) {
 }
 ```
 
-`src/items/10-postgres/database.server.ts`:
+`src/items/postgres/database.server.ts`:
 
 ```ts
 export { database as default } from "@/backend/database.server";
@@ -77,10 +87,11 @@ export { database as default } from "@/backend/database.server";
 Prepare writes `.tinker/app.server.ts` and `.tinker/app.ts`.
 Each role gets a default import and a type check.
 Adding or removing a role file restarts dev.
+Adding, removing, or editing `item.json` also restarts it.
 
 - Server list files: `extensions.server.ts`, `settings.server.ts`.
   Client list file: `extensions.ts`.
-  Each item's list joins in folder order, then your seam's list.
+  Each item's list joins in dependency order, then your seam's list.
 - Server single files: `database.server.ts`, `auth.server.ts`,
   `readAccount.server.ts`, `bootstrap.server.ts`.
 - Client single files: `records.ts`, `readBatch.ts`,
@@ -88,8 +99,20 @@ Adding or removing a role file restarts dev.
 - Your single name wins over an item's role.
   Two items with the same single role stop prepare.
   Doctor reports both paths once, even if your seam owns it too.
-- An item folder with a role needs its numeric prefix.
-  A folder without role files has no effect.
+- Two unrelated items binding the same tag fail when settings runs.
+  Both settings paths appear in the error.
+  A declared dependency, even through another item, allows a later
+  binding to win on purpose.
+  Your own settings still wins over items.
+- Public files are `index.ts` and `index.server.ts`.
+  Other code imports `@/items/mail` or
+  `@/items/mail/index.server`.
+  Doctor rejects imports of private item files at file:line.
+  Tests may import private files; own-item imports stay free.
+  An item importing another item's API must list it in `requires`.
+  An indirect dependency does not grant direct imports.
+- A manifest or public index can satisfy a dependency without roles.
+  A folder with only helper files has no effect.
 - Unreadable star exports in your seam fail prepare and doctor.
   Use explicit named exports from packages.
   Local star exports, including `@/` paths, still work.

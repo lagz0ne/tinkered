@@ -99,3 +99,4 @@ by a new decision that names the old one.
 - [0114](0114-a-new-version-on-main-publishes-the-release.md): a new version on green main publishes the release; GitHub releases are the only way out (proposed).
 - [0115](0115-a-new-app-starts-from-the-template-repo.md): a new app starts from the `tinker-app` template repo; a branch is a variation, a tag pins it (proposed).
 - [0116](0116-items-join-the-app-by-file-name-convention.md): items join the app by role file names under `src/items/<NN-item>/`; prepare writes the generated seam, the user's seam last (proposed).
+- [0117](0117-items-declare-requires-and-export-one-public-entry.md): items declare dependencies in `item.json`, expose only their index files, and reject unordered shared tags (proposed; replaces 0116 ordering).

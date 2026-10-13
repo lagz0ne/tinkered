@@ -1,5 +1,63 @@
 # Start base progress
 
+## start/item-modules
+
+Owner: item-modules writer; lead reviews and lands.
+Next: finish the full gates and Start mutation, then lead review.
+Verify: every requested gate returns 0; Start mutation clears 75.
+
+The item names have no number prefix.
+`item.json` declares direct `requires`.
+Prepare sorts dependencies before their readers.
+Each ready set sorts by name, including newly ready items.
+It reads manifests and file names, never item TypeScript.
+The user's seam stays last.
+
+Choices from registry plan card 1b:
+
+- Reject old numbered role folders, with a rename message.
+- A missing manifest means no dependencies.
+  An empty object also means no dependencies.
+- Export only `index.ts` and `index.server.ts` to other items.
+  Existing role files still provide the roles.
+- Doctor errors on private paths and undeclared item imports.
+  Tests may import private modules.
+- Check shared tags in generated settings using real tag identity.
+  Related items may override a dependency's binding.
+  Indirect dependencies count for binding order.
+  Imports still need a direct dependency.
+
+[ADR 0117](../../decisions/0117-items-declare-requires-and-export-one-public-entry.md)
+records the precedents and why a source check cannot prove shared tags.
+It replaces the numbered ordering part of ADR 0116.
+No Core change or workaround was needed.
+
+The real three-item fixture lives in `scratch/item-modules-sample/`.
+Its manifests are:
+
+- `errors`: `{ "requires": [] }`.
+- `postgres`: `{ "requires": ["errors"] }`.
+- `mail`: `{ "requires": ["errors", "postgres"] }`.
+
+[Exact generated server seam](proof/item-modules-app.server.txt).
+[Exact errors](proof/item-modules-errors.txt).
+The original no-item byte equality test still passes.
+The dependency and boundary tests failed before the change.
+The generated-seam tests run real item settings through Vite.
+They cover nested bindings, conditional returns, indirect overrides,
+repeated tags in one item, and distinct tags with the same label.
+
+Checks so far:
+
+- Worktree setup installed and built only this tree.
+- Full build returned 0.
+- Code check returned 0: zero errors, 27 warnings.
+- Strict census for the new type declaration returned 0.
+- Start tests passed before the last added cases.
+  Full package tests and the ticket gate are in progress.
+- Prose returned 0 before the progress entry was added.
+- Full validation and Start mutation still need proof.
+
 ## start/sync-test-warm
 
 Owner: Sol writer; lead reviews and lands.
