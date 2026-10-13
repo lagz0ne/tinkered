@@ -124,3 +124,32 @@ test("doctor allows declared public imports, own private files, and private test
 
   expect(checked.code).toBe(0);
 });
+
+for (const name of ["@/items/postgres", "@/items/mail/../postgres"]) {
+  test(`a helper-only item must declare its import of ${name}`, () => {
+    const root = preparedApp({
+      "src/items/mail/reader.ts": `import { db } from "${name}"; export const mail = db;`,
+      "src/items/postgres/index.ts": "export const db = 1;",
+    });
+
+    const checked = doctor(root, false);
+
+    expect(checked.code).toBe(1);
+    expect(checked.lines.join(" ").replaceAll(/\s+/g, " ")).toContain(
+      `src/items/mail/reader.ts:1 "${name}" needs "postgres" in src/items/mail/item.json requires`,
+    );
+  });
+}
+
+test("a graph error elsewhere does not make declared imports undeclared", () => {
+  const root = preparedApp({
+    "src/items/mail/item.json": '{"requires":["postgres"]}',
+    "src/items/mail/index.ts": 'import { db } from "@/items/postgres"; export const mail = db;',
+    "src/items/postgres/index.ts": "export const db = 1;",
+  });
+  write(root, { "src/items/broken/item.json": '{"requires":["missing"]}' });
+
+  const checked = doctor(root, false);
+
+  expect(checked.lines).toContain("ok    6 imports");
+});

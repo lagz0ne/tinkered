@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs";
-import { join, dirname, resolve, sep, isAbsolute } from "node:path";
+import { join, dirname, resolve, sep, isAbsolute, posix } from "node:path";
 
 import { readItemModules } from "../item-modules.mjs";
 import { isRoleFile } from "../joins.mjs";
@@ -91,7 +91,7 @@ function isPrivate(path, file) {
 
 /** Import paths, including re-exports and dynamic imports, obey one item's public entry. */
 function itemImport(name, file, line, folders) {
-  const target = /^@\/items\/([^/]+)(?:\/(.*))?$/.exec(name);
+  const target = /^@\/items\/([^/]+)(?:\/(.*))?$/.exec(posix.normalize(name));
   if (!target) return [];
   const [, item, path] = target;
   const owner = /^src\/items\/([^/]+)\//.exec(file)?.[1];
@@ -105,7 +105,7 @@ function itemImport(name, file, line, folders) {
     );
   }
   const from = folders.find((folder) => folder.name === owner);
-  if (from && !from.requires.includes(item)) {
+  if (owner && !from?.requires.includes(item)) {
     problems.push(`${at} "${name}" needs "${item}" in src/items/${owner}/item.json requires`);
   }
   return problems;
@@ -113,7 +113,7 @@ function itemImport(name, file, line, folders) {
 
 /** Graph errors belong to named files; check 6 reports import boundaries without loading items. */
 function itemImports(root) {
-  const { folders } = readItemModules(root, isRoleFile);
+  const { declared: folders } = readItemModules(root, isRoleFile);
   return appSources(root).flatMap((file) =>
     specifiers(parseSource(join(root, file))).flatMap(({ name, line }) =>
       itemImport(name, file, line, folders),

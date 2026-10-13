@@ -139,5 +139,6 @@ export function readItemModules(root, isRoleFile) {
     .flatMap((entry) => readFolder(root, entry.name, isRoleFile, problems));
 
   checkDependencies(folders, problems);
-  return { folders: problems.length === 0 ? sortModules(folders, problems) : [], problems };
+  const ordered = problems.length === 0 ? sortModules(folders, problems) : [];
+  return { folders: ordered, declared: folders, problems };
 }
