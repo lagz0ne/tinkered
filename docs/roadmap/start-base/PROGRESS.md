@@ -1575,7 +1575,7 @@ Core feedback: none.
 ## start/join-index
 
 Branch: `start/join-index`. Start ticket number: 1.
-Status: complete; file-name design gates and mutation pass.
+Status: landed; file-name design gates and mutation pass.
 
 Items supply default exports in `src/items/<number-name>/`.
 Prepare reads only role file names, never item source.
@@ -1664,6 +1664,18 @@ Re-review sort fix:
   Log: `/tmp/join-index-sort-mutation2.log`.
   Prior full report: `.bench/mutation-full-02e9e221.json`.
 - The temporary main-proof worktree is removed.
+
+Landing fix:
+
+- Cutting `void own` was not safe. With item roles,
+  a seam that exports no list left the namespace import
+  unused. Then tsc failed with TS6133 on both files.
+- Now the generated file imports the seam only when it
+  reads `extensions`, or `settings` on the server.
+- A new tsc test fails before the fix on `2559c54e`
+  with two TS6133 errors; it passes after.
+- The `2fa` test also failed with only `joins.mjs`
+  reverted to `14ef9e1b`.
 
 Choices:
 

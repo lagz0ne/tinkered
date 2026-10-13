@@ -57,6 +57,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **start/join-index** (Start 1) — items join the app by role file names under `src/items/<NN-item>/`; prepare reads only file names and writes `.tinker/app.ts` and `.tinker/app.server.ts`; lists run in numeric folder order, then the user's seam; the user's single names win; two item owners fail prepare and doctor once (ADR 0116). Also fixes the `scripts/ticket.sh` Start size gate: Start has no size task. Helper folders such as `2fa` stay out of item order; a seam with no list no longer fails tsc. Gates green; Start mutation above the 75 floor. Proof: [docs/roadmap/start-base/PROGRESS.md](docs/roadmap/start-base/PROGRESS.md#startjoin-index).
+
 - **core/size-guard-cast-iterable** (Core 55) — for-of targets over a cast iterable now flag in both loop forms (12 plants red on main, green on head); typed controls clean; 244 guard tests, budget 1023/1024 kept; gates green, dist byte-identical, A/B no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-cast-iterable).
 
 - **jev/recalibrate-after-key** — one test call (no 402), then `calibrate.mjs --judge` for the 4 judges with labels since the last calibrate (d17c1559): 648 calls. Every run exited 0; `calibration.json` committed (81b6e4a9). All 4 stay provisional (too few true cases):
