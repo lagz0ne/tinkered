@@ -24,9 +24,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/size-guard-cast-iterable** — `const x = createScope() as unknown as Iterable<{ layer: number }>` then `for (const { layer } of x) {}` builds clean, and the assignment form too; a plain cast destructure `const { layer } = x` flags. Same on main.
-  Next: read a for-of target's keys as unchecked when the iterable came from a cast: in `untypedReads` pass `node.right` as the value; in `gatherCasts` add a flow from `node.right` to the target names.
-  Verify: both forms fail the build; a typed iterable with no cast stays clean.
+- **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
+  Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
 ## Doing
 
@@ -57,6 +56,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/size-guard-cast-iterable** (Core 55) — for-of targets over a cast iterable now flag in both loop forms (12 plants red on main, green on head); typed controls clean; 244 guard tests, budget 1023/1024 kept; gates green, dist byte-identical, A/B no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-cast-iterable).
 
 - **jev/recalibrate-after-key** — one test call (no 402), then `calibrate.mjs --judge` for the 4 judges with labels since the last calibrate (d17c1559): 648 calls. Every run exited 0; `calibration.json` committed (81b6e4a9). All 4 stay provisional (too few true cases):
   - `stateOutsideCell`: true 3, false 414, sep 33%, ordered 97%.
