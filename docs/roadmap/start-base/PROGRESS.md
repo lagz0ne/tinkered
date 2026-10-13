@@ -58,6 +58,20 @@ The generated-seam tests run real item settings through Vite.
 They cover nested bindings, conditional returns, indirect overrides,
 repeated tags in one item, and distinct tags with the same label.
 
+Mutation runner:
+
+The first full lane returned 0 at 85.39.
+Its settings-helper rows ran zero tests during mutation.
+The helper is reached through a generated import, so the
+runner's direct-import filter dropped its real fixture tests.
+Start now sets `vitest.related` to `false`.
+The [runner docs](https://stryker-mutator.io/docs/stryker-js/vitest-runner/#vitestrelated-boolean)
+call for this when tests reach code without direct imports.
+No source mutation or test was excluded.
+No per-file target was added.
+The focused helper run caught all 23 mutations, with no timeouts.
+It used the same fixture tests and returned 0.
+
 Checks so far:
 
 - Worktree setup installed and built only this tree.
