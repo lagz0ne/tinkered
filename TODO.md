@@ -28,12 +28,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: read a for-of target's keys as unchecked when the iterable came from a cast: in `untypedReads` pass `node.right` as the value; in `gatherCasts` add a flow from `node.right` to the target names.
   Verify: both forms fail the build; a typed iterable with no cast stays clean.
 
-- **jev/recalibrate-after-key** — run `node tools/jev/calibrate.mjs` when the gateway key budget is back.
-  It covers the labels added since 2026-10-10.
-  The label from core/size-guard-settle-memo (`stateOutsideCell` ← `expandOnce`) waits for it too.
-  The label from core/size-guard-forof-gaps (`stateOutsideCell` ← `forOfTarget`) waits for it too.
-  Verify: calibrate exits 0; `calibration.json` committed.
-
 ## Doing
 
 ## Review
@@ -64,13 +58,20 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **jev/recalibrate-after-key** — one test call (no 402), then `calibrate.mjs --judge` for the 4 judges with labels since the last calibrate (d17c1559): 648 calls. Every run exited 0; `calibration.json` committed (81b6e4a9). All 4 stay provisional (too few true cases):
+  - `stateOutsideCell`: true 3, false 414, sep 33%, ordered 97%.
+  - `awaitsSyncWork`: true 4, false 56, sep 20%, ordered 81%.
+  - `waitsOnSideWork`: true 1, false 61, sep 15%, ordered 98%.
+  - `shapeGrowsPerCall`: true 1, false 108, sep -4%, ordered 36%.
+    Verify: calibrate exits 0; `calibration.json` committed.
+
 - **core/size-guard-directive-skip-lines** (Core 54) — directive hides the first non-blank, non-// line below it across LF/CRLF/CR/U+2028/U+2029 (t54); 5 plants red on c09a6393, green on the landed head; dist byte-identical; ab: no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-directive-skip-lines).
   Verify: the blank-line and comment-line plants fail the build; a directive followed by code keeps today's verdict.
 
-- **core/size-guard-forof-gaps** (Core 53) — a for-of assignment target is checked like the const form, and a name bound through it is a cast for later reads. 14 plants red on main; 186 guard tests green. Budget unchanged (1023 clean, 1024 flags, both trees). Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical; `private-fields.json` unchanged (55). Calibrate pending: 1 Jev label (`stateOutsideCell` ← `forOfTarget`). Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-forof-gaps).
+- **core/size-guard-forof-gaps** (Core 53) — a for-of assignment target is checked like the const form, and a name bound through it is a cast for later reads. 14 plants red on main; 186 guard tests green. Budget unchanged (1023 clean, 1024 flags, both trees). Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical; `private-fields.json` unchanged (55). Jev label (`stateOutsideCell` ← `forOfTarget`) calibrated in jev/recalibrate-after-key. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-forof-gaps).
   Verify: a plant for the assignment form fails the build; the const form still flags.
 
-- **core/size-guard-settle-memo** (Core 52) — settle each type once per walk: one promised-values memo and one finished-reach memo per for-of. Whole probe (`benchctl run`): 100 thenables 8294 → 1222 ms; 300 thenables 109768 → 1665 ms. G110 (300, guard step under 2 s) red on main, green on head. Budget unchanged (1023 clean, 1024 flags). Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical; `private-fields.json` unchanged (55). Calibrate pending: 1 new Jev label (`stateOutsideCell` ← `expandOnce`). Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-settle-memo).
+- **core/size-guard-settle-memo** (Core 52) — settle each type once per walk: one promised-values memo and one finished-reach memo per for-of. Whole probe (`benchctl run`): 100 thenables 8294 → 1222 ms; 300 thenables 109768 → 1665 ms. G110 (300, guard step under 2 s) red on main, green on head. Budget unchanged (1023 clean, 1024 flags). Build A/B (`benchctl ab`, 10 rounds): no difference we can see. Dist byte-identical; `private-fields.json` unchanged (55). Jev label (`stateOutsideCell` ← `expandOnce`) calibrated in jev/recalibrate-after-key. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-settle-memo).
   Verify: a 300-thenable union finishes under 2 s; dist and private-fields.json unchanged.
 
 - **scaffold/registry-after-rule-14** — registry:build rerun after the rule 14 blank-line change; the registry index matches source again and pnpm validate passes all 21 lanes.
