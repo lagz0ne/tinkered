@@ -81,7 +81,9 @@ export default function settings(env: Env.Values) {
 `src/items/postgres/database.server.ts`:
 
 ```ts
-export { database as default } from "@/backend/database.server";
+export {
+  database as default,
+} from "@/backend/database.server";
 ```
 
 Prepare writes `.tinker/app.server.ts` and `.tinker/app.ts`.
@@ -112,7 +114,8 @@ Adding, removing, or editing `item.json` also restarts it.
   An item importing another item's API must list it in `requires`.
   An indirect dependency does not grant direct imports.
 - A manifest or public index can satisfy a dependency without roles.
-  A folder with only helper files has no effect.
+  A folder with only helper files does not join the lists.
+  It must still declare imports of other items.
 - Unreadable star exports in your seam fail prepare and doctor.
   Use explicit named exports from packages.
   Local star exports, including `@/` paths, still work.

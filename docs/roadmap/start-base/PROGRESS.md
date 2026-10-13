@@ -43,6 +43,10 @@ Its manifests are:
 [Exact errors](proof/item-modules-errors.txt).
 The original no-item byte equality test still passes.
 The dependency and boundary tests failed before the change.
+Two more tests exposed imports from helper-only folders.
+Doctor now checks those folders and reads the actual target of
+an alias with `..` in its path.
+Declared imports stay declared when a graph error appears elsewhere.
 The generated-seam tests run real item settings through Vite.
 They cover nested bindings, conditional returns, indirect overrides,
 repeated tags in one item, and distinct tags with the same label.

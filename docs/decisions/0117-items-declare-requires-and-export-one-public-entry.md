@@ -10,6 +10,7 @@ A folder number makes the app owner guess an item's order.
 An item should name what it needs instead.
 Core only needs order for shared tag bindings, `tag.all`,
 and extensions that resolve another extension.
+
 Tags are values; resources are built on first use.
 
 [Java modules, JEP 261](https://openjdk.org/jeps/261),
@@ -72,6 +73,8 @@ Unlike graphlib, a missing required item is an error here.
   An indirect dependency permits ordered bindings;
   it does not grant direct imports.
   Doctor reports undeclared imports as errors.
+  Helper-only folders must declare imports too.
+  Normalize item alias paths before checking their target.
   The build already stops on check 6 errors.
 - Adding, removing, or editing `item.json` restarts dev.
   Role-file add and remove still restart it.
