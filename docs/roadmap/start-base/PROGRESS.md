@@ -3,8 +3,8 @@
 ## start/item-modules
 
 Owner: item-modules writer; lead reviews and lands.
-Next: finish the review fix checks, then lead review.
-Verify: all requested checks return 0; mutation skipped, final run by lander.
+Next: lead review of the fix round, then the lander's final mutation run.
+Verify: all requested checks returned 0; mutation skipped, final run by lander.
 
 The item names have no number prefix.
 `item.json` declares direct `requires`.
@@ -81,7 +81,18 @@ The focused doctor, import, and join suite passed 68 tests.
 The affected functions are `imports`, called by doctor, and
 `restartNote`, called by the Vite watcher.
 No cross-package TypeScript symbol changed.
-The full requested gates still need proof.
+All six requested gate commands returned 0 on clean commit `eb4048fa`.
+They ran in order: build, check, tests, ticket, validation, prose.
+Code check has zero errors and the same 27 warnings.
+Start passed 528 tests; the scaffold passed 39.
+Validation passed all 22 budget lanes.
+The changed source and doctor test files have zero lint or type warnings.
+The Start package tree is `c3540acbc16d8646babf490fdde2896fbe68afd8`.
+The proof commit only changes docs and the board.
+A real fixture confirmed that a missing item is reported before
+its cycle; fixing the missing item reveals the closed cycle.
+The restored three-item generated sample remains byte-identical.
+[Review fix gate proof](proof/item-modules-review-fix-gates.txt).
 Mutation is skipped this round; the lander runs it.
 
 Owner follow-up before review:

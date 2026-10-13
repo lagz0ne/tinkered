@@ -29,12 +29,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **start/item-modules** (registry plan 1b) — owner: item-modules writer; lead reviews and lands.
-  Next: fix relative item imports and the review notes, then run the requested checks.
-  Verify: three relative-import tests fail before the fix; all gates return 0; final mutation by lander.
-  Proof: [Start progress](docs/roadmap/start-base/PROGRESS.md#startitem-modules).
-
 ## Review
+
+- **start/item-modules** (registry plan 1b) — owner: item-modules writer; lead reviews and lands.
+  Next: lead review of the fix round, then the lander's final mutation run.
+  Verify: three relative-import tests failed before the fix; all requested gates returned 0; mutation skipped.
+  Proof: [Start progress](docs/roadmap/start-base/PROGRESS.md#startitem-modules).
 
 ## Blocked
 
