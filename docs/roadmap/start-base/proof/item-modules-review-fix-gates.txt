@@ -1,0 +1,105 @@
+start/item-modules — review fix round proof
+
+Worktree: /home/paseo/next/tinkered-item-modules
+Branch: start/item-modules
+Tested clean commit: eb4048faf5ea0c512b4f1e4f1ab4b2394cbc2f8c
+Start package tree: c3540acbc16d8646babf490fdde2896fbe68afd8
+The later proof commit changes only docs and TODO.md.
+
+Review changes:
+- Relative imports into items use the same checks as item aliases.
+  Errors keep the original specifier and its file:line.
+- Check 6 parses each app file once and shares the specifier list.
+- Client hints name the item index; server hints also name index.server.
+- Missing helper manifests get a complete file and requires list to add.
+- Graph errors remain staged; ADR 0117 states the limit.
+  Other graph errors are fixed before cycle checks; one cycle per run.
+- restartNote reuses its computed relative path.
+- The decision index no longer says NN-item for ADR 0116.
+  ADR 0116 marks ordering as superseded by ADR 0117.
+- Item tests may use private files but must declare the other item.
+  Own-item relative imports remain free.
+
+Red first:
+Command: vp test tests/doctor.test.mjs -t 'checks the relative item import'
+Working directory: packages/start
+Observed exit: 1
+Log: /tmp/item-modules-review-fix-red.log
+AssertionError: expected [ 'ok    1 base version', …(20) ] to include 'fail  6 imports'
+      Tests  3 failed | 13 skipped (16)
+The three cases are:
+src/consumer.ts -> ./items/mail/secret
+src/items/inbox/x.ts -> ../mail/secret
+src/items/inbox/x.ts -> ../mail
+
+Focused run after the fix:
+Command: vp test tests/doctor.test.mjs tests/checks/imports.test.mjs tests/joins.test.mjs
+Working directory: packages/start
+Observed exit: 0
+      Tests  68 passed (68)
+
+Changed-file lint and type check:
+pass: All 3 files are correctly formatted (220ms, 8 threads)
+pass: Found no warnings, lint errors, or type errors in 3 files (573ms, 8 threads)
+
+Full gate commands, run in this order:
+vp run -r build                                      exit 0
+vp check                                            exit 0
+vp run -r test                                      exit 0
+scripts/ticket.sh --check-only --no-mutation start 1 "item-modules"
+                                                    exit 0
+pnpm validate                                       exit 0
+vp run prose                                        exit 0
+No supplier retry was needed.
+
+The runner recorded:
+Tested commit: eb4048faf5ea0c512b4f1e4f1ab4b2394cbc2f8c
+Start package tree: c3540acbc16d8646babf490fdde2896fbe68afd8
+Tree before gates:
+build: exit 0
+check: exit 0
+tests: exit 0
+ticket: exit 0
+validate: exit 0
+prose: exit 0
+Mutation skipped by owner; final run belongs to lander.
+
+Gate output excerpts:
+
+check:
+Found 0 errors and 27 warnings in 696 files (10.1s, 8 threads)
+
+tests:
+      Tests  528 passed (528)
+      Tests  39 passed (39)
+
+ticket:
+Found 0 errors and 27 warnings in 696 files (8.3s, 8 threads)
+      Tests  528 passed (528)
+      Tests  39 passed (39)
+== gate start/t1: checks pass; no checkpoint requested ==
+
+validate:
+All deterministic budget lanes PASS (22)
+
+prose:
+prose-lint: 0 hit(s) in 230 file(s)
+
+Observed graph diagnostic stages:
+With a missing item and a cycle: src/items/mail/item.json: requires missing item src/items/missing; shadcn add it
+After fixing the missing item: item requires cycle: src/items/errors/item.json -> src/items/mail/item.json -> src/items/errors/item.json
+Restored three-item sample remains byte-identical.
+
+Extra checks:
+- The strict census on the unchanged type declaration returned 0.
+  The changed .mjs files are not scanned by that census.
+- Jev pre-flight had no changed TypeScript source files and zero flags.
+  No labels or calibration were added.
+- No build or install ran in the main checkout.
+- Nothing was pushed.
+
+Mutation was skipped as requested.
+The lander must run final mutation; the older score does not cover this fix.
+
+Exact messages are saved in item-modules-errors.txt.
+The unchanged generated sample is item-modules-app.server.txt.

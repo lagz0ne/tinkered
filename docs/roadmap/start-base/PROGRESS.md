@@ -1,5 +1,177 @@
 # Start base progress
 
+## start/item-modules
+
+Owner: lander.
+Next: wait for the PR to merge; no push to main.
+Verify: final gates and Start mutation on the PR head.
+
+The item names have no number prefix.
+`item.json` declares direct `requires`.
+Prepare sorts dependencies before their readers.
+Each ready set sorts by name, including newly ready items.
+It reads manifests and file names, never item TypeScript.
+The user's seam stays last.
+
+Choices from registry plan card 1b:
+
+- Reject old numbered role folders, with a rename message.
+- A manifest is required beside every role or public index.
+  A missing file names the folder and shows `{ "requires": [] }`.
+  An empty object also means no dependencies.
+- The folder name is the module and registry item name.
+  No `name`, `version`, or `hash` field is allowed.
+  `tsc` checks interface mismatch; the graph controls runtime wiring.
+- Export only `index.ts` and `index.server.ts` to other items.
+  Existing role files still provide the roles.
+- Doctor errors on private paths and undeclared item imports.
+  Tests may import private modules.
+- Check shared tags in generated settings using real tag identity.
+  Related items may override a dependency's binding.
+  Indirect dependencies count for binding order.
+  Imports still need a direct dependency.
+
+[ADR 0117](../../decisions/0117-items-declare-requires-and-export-one-public-entry.md)
+records the precedents and why a source check cannot prove shared tags.
+It replaces the numbered ordering part of ADR 0116.
+No Core change or workaround was needed.
+
+The real three-item fixture lives in `scratch/item-modules-sample/`.
+Its manifests are:
+
+- `errors`: `{ "requires": [] }`.
+- `postgres`: `{ "requires": ["errors"] }`.
+- `mail`: `{ "requires": ["errors", "postgres"] }`.
+
+[Exact generated server seam](proof/item-modules-app.server.txt).
+[Exact errors](proof/item-modules-errors.txt).
+The original no-item byte equality test still passes.
+The dependency and boundary tests failed before the change.
+Two more tests exposed imports from helper-only folders.
+Doctor now checks those folders and reads the actual target of
+an alias with `..` in its path.
+Declared imports stay declared when a graph error appears elsewhere.
+A seam star export used to let prepare read an item index.
+It now fails with the existing named-export message.
+Explicit seam exports still work without reading item source.
+The affected callers are `readExports` through `appFile`,
+`joinProblems`, and `seamExports` in Start's `lib/joins.mjs`.
+`exportsOf` without an app root keeps its existing behavior.
+Its `mayExport` caller is used by doctor, not item composition.
+The generated-seam tests run real item settings through Vite.
+They cover nested bindings, conditional returns, indirect overrides,
+repeated tags in one item, and distinct tags with the same label.
+
+Review fix round:
+
+Three doctor tests first failed for relative item imports.
+They now report private files and missing dependencies under check 6.
+The path in each error is the path written in the import.
+Own-item relative imports remain free.
+Item tests may use private files but still need direct dependencies.
+Client hints name the item index; server hints also name `index.server`.
+A helper without a manifest gets the exact file and `requires` list to add.
+Check 6 now parses each app file once for its three sets of checks.
+Dev restart reuses the computed relative file path.
+ADR 0116 and its index row point to the new ordering rule.
+ADR 0117 records the staged graph-error limit:
+manifest, missing-item, and self-require errors come first;
+after those are fixed, each run reports one closed cycle.
+The focused doctor, import, and join suite passed 68 tests.
+The affected functions are `imports`, called by doctor, and
+`restartNote`, called by the Vite watcher.
+
+Lander final gates on `cabf2f35` all returned 0.
+One typecheck test timed out under load; its re-run passed.
+Start mutation stopped at 5128/5571 tested, with no final score.
+Its lower bound is 82.7%, above the floor of 75.
+[Gate and mutation lines](proof/item-modules-gates.txt).
+No cross-package TypeScript symbol changed.
+All six requested gate commands returned 0 on clean commit `eb4048fa`.
+They ran in order: build, check, tests, ticket, validation, prose.
+Code check has zero errors and the same 27 warnings.
+Start passed 528 tests; the scaffold passed 39.
+Validation passed all 22 budget lanes.
+The changed source and doctor test files have zero lint or type warnings.
+The Start package tree is `c3540acbc16d8646babf490fdde2896fbe68afd8`.
+The proof commit only changes docs and the board.
+A real fixture confirmed that a missing item is reported before
+its cycle; fixing the missing item reveals the closed cycle.
+The restored three-item generated sample remains byte-identical.
+[Review fix gate proof](proof/item-modules-review-fix-gates.txt).
+Mutation is skipped this round; the lander runs it.
+
+Owner follow-up before review:
+
+Four missing-manifest tests failed before the fix.
+They cover a server role, a client role, and both public indexes.
+Prepare and doctor now both report the exact missing-file message.
+Valid item fixtures declare their manifests.
+The source change affects `readItemModules`, called by item
+composition in `lib/joins.mjs` and boundary checks in `lib/checks/imports.mjs`.
+No Core or cross-package TypeScript symbol changed.
+The focused join and doctor suite passed all 58 tests.
+All six requested gate commands returned 0.
+Build, code check, full tests, ticket, validation, and prose
+ran in that order on clean commit `992e87db`.
+Code check has zero errors and 27 warnings.
+Start passed 523 tests; the scaffold passed 39.
+Validation passed all 22 budget lanes.
+The exact missing-file message was also checked against the
+real three-item fixture after removing and restoring its manifest.
+The generated server sample remains byte-identical.
+The Start package tree is `f6929bb1c800901eea3210288d1ac39e64f42306`.
+The new proof commit only changes docs and the board.
+[Required-manifest gate proof](proof/item-modules-required-gates.txt).
+Mutation is skipped this round because the owner asked.
+The lander will run the final lane.
+
+Previous mutation run:
+
+The first full lane returned 0 at 85.39.
+Its settings-helper rows ran zero tests during mutation.
+The helper is reached through a generated import, so the
+runner's direct-import filter dropped its real fixture tests.
+Start now sets `vitest.related` to `false`.
+The [runner docs](https://stryker-mutator.io/docs/stryker-js/vitest-runner/#vitestrelated-boolean)
+call for this when tests reach code without direct imports.
+No source mutation or test was excluded.
+No per-file target was added.
+The focused helper run caught all 23 mutations, with no timeouts.
+It used the same fixture tests and returned 0.
+
+The full lane with the filter off returned 0 at 88.02.
+Kills alone score 81.94, above the package floor of 75.
+It caught 4,543 changes and timed out on 337.
+There were 546 survivors, 118 with no coverage, and one runtime error.
+The full lane also caught all 23 helper changes without timeouts.
+Its log names clean commit `4d9c0928`.
+That run predates the required-manifest change.
+Its Start package tree was `ca21737875742819ae115bcae2242fb2cf849971`.
+The raw full log is `/tmp/item-modules-mutation.log`.
+
+Checks before the owner follow-up:
+
+- Worktree setup installed and built only this tree.
+- Full build and all package tests returned 0.
+  Start passed 516 tests; the scaffold passed 39.
+- Code check returned 0: zero errors, 27 warnings.
+- Strict census for the new type declaration returned 0.
+- The ticket check returned 0 with mutation skipped there.
+  The separate full Start mutation lane returned 0.
+- Full validation returned 0; all 22 budget lanes passed.
+- Prose returned 0.
+- Jev pre-flight found no changed source files and no flags.
+  Its parser does not cover the changed JavaScript files.
+  The Start test scan flagged none of 218 TypeScript entries.
+  The promise scan has six old gaps and 43 unsure titles.
+  These titles were not changed by this card.
+  The doc scan found no TypeScript source rows to check.
+  No labels were added and calibration was not run.
+
+[Gate and full mutation proof](proof/item-modules-gates.txt).
+The lead still reviews and lands this saved work.
+
 ## start/sync-test-warm
 
 Owner: Sol writer; lead reviews and lands.

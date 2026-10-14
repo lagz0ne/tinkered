@@ -1,6 +1,7 @@
 # 0116 Items join the app by file-name convention
 
 Date: 2026-10-13. Status: proposed.
+Superseded in part by [ADR 0117](0117-items-declare-requires-and-export-one-public-entry.md) (ordering).
 Builds on: 0106, 0107, 0112, 0113, 0115.
 
 ## Context and precedent

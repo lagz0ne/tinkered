@@ -1,0 +1,150 @@
+# 0117 Items declare requires and export one public entry
+
+Date: 2026-10-13. Status: proposed.
+Replaces the numbered ordering part of 0116.
+Builds on: 0112, 0113, 0116.
+
+## Context and precedent
+
+A folder number makes the app owner guess an item's order.
+An item should name what it needs instead.
+Core only needs order for shared tag bindings, `tag.all`,
+and extensions that resolve another extension.
+
+Tags are values; resources are built on first use.
+
+[Java modules, JEP 261](https://openjdk.org/jeps/261),
+use `requires` for dependencies, `exports` for public packages,
+and `provides` for service implementations.
+Their dependency graph forbids cycles.
+They also refuse two readable modules exporting the same package.
+We borrow that rule for unrelated items binding the same tag.
+[NestJS modules](https://docs.nestjs.com/modules)
+also name imports and export only their public providers.
+[Node package exports](https://nodejs.org/api/packages.html#package-entry-points)
+limit callers to a package's public entries.
+Our entries are fixed file names, without an export map.
+
+Java's unnamed module has no module declaration.
+We avoid that implicit case by requiring `item.json`.
+The [javac module-pattern source path](https://docs.oracle.com/en/java/javase/25/docs/specs/man/javac.html#module-pattern-form)
+places each module in a folder with the same name.
+We use that placement rule without a second name field.
+
+[Python graphlib](https://docs.python.org/3/library/graphlib.html)
+exposes ready nodes and reports a closed cycle with `CycleError`.
+We use Kahn's algorithm: take a ready item, then unlock its readers.
+Sorting the ready names after each item gives stable ties.
+Unlike graphlib, a missing required item is an error here.
+
+## Decision
+
+- Items live in `src/items/<item>/`.
+  The folder name is the module name.
+  Names match `[a-z][a-z0-9-]*`.
+  Placement is the interface:
+  `requires: ["mail"]` = `@/items/mail` = registry item `mail`.
+  There is no `name` field in `item.json`.
+  Reject old numbered role folders.
+  The error says to rename and declare `requires`.
+- `item.json` declares direct dependencies:
+
+  ```json
+  { "requires": ["errors", "postgres"] }
+  ```
+
+  Every folder with role files or a public index must have `item.json`.
+  A missing file fails prepare and doctor.
+  The error names the folder and shows the minimal file:
+
+  ```json
+  { "requires": [] }
+  ```
+
+  An empty object also means no dependencies.
+  Repeated names mean one edge.
+  Unknown keys and invalid names or JSON fail prepare.
+
+- Prepare reads JSON and file names only.
+  It never parses or imports item TypeScript.
+  A seam star export cannot cross into item source, even
+  through another local module.
+  Use explicit named exports from item indexes there.
+  The existing unreadable-star message names the seam path.
+  Role files still provide the roles named in 0116.
+  An item with only `index.ts`, `index.server.ts`, or a
+  manifest can satisfy a dependency without providing a role.
+  Helper-only folders still have no effect.
+- Dependencies come first, then ready items by name.
+  That puts dependency extensions on the outside.
+  It puts dependency bindings before their readers' bindings.
+  The user's seam stays last.
+  Missing items, self-requires, and cycles fail with paths.
+  A missing-item message says to `shadcn add` it.
+  A cycle repeats its first manifest at the end.
+  Graph errors are reported in stages to keep input checks
+  separate from sorting.
+  All manifest, missing-item, and self-require errors come first.
+  Any such error postpones cycle checks until it is fixed.
+  Cycle checking reports one closed path per run.
+  Fixing it may reveal another cycle; run prepare again.
+- `index.ts` and `index.server.ts` are the public API.
+  Use `@/items/mail`, `@/items/mail/index`, or
+  `@/items/mail/index.server` from outside the item.
+  Other item files are private.
+  Doctor check 6 reports private item paths at file:line.
+  It checks both `@/items` aliases and relative imports.
+  Relative imports resolve from the importing file's folder.
+  Errors show the original path from the import.
+  Client hints name `@/items/mail`.
+  Server hints also name `@/items/mail/index.server`.
+  Tests may import private files, as with package barrels.
+  Imports within one item stay free.
+- An item importing another item's API must name that item
+  in its own direct `requires` list.
+  An indirect dependency permits ordered bindings;
+  it does not grant direct imports.
+  Doctor reports undeclared imports as errors.
+  The direct dependency rule also applies to item tests.
+  Helper-only folders must declare imports too.
+  If their manifest is missing, the error says to add it
+  and shows a `requires` list with the required item.
+  Normalize item alias paths before checking their target.
+  Check 6 parses each app file once and shares its import paths
+  across the base, file-ending, and item checks.
+  The build already stops on check 6 errors.
+- Adding, removing, or editing `item.json` restarts dev.
+  Role-file add and remove still restart it.
+- No items keeps the original generated seam bytes.
+  Single-role ownership rules from 0116 stay the same.
+
+## Shared tags: check values at settings time
+
+Prepare cannot see tags without parsing or running item code.
+Doctor cannot prove what a settings reader returns:
+a helper, alias, conditional return, or nested list can bind a tag.
+Matching source names would miss real clashes and flag distinct tags.
+
+Generated server settings calls each item reader once.
+When at least two items supply settings, `joinSettings` checks
+nested bindings by tag object identity before returning them.
+It keeps binding objects and their list order.
+No resources are opened and the user's reader stays last.
+Unrelated owners of one tag fail with both settings paths.
+A reader may replace a dependency's binding, even through
+an indirect dependency with no settings of its own.
+Repeated bindings inside one item still follow Core's rules.
+The check compares every prior owner, so a shared dependent
+cannot hide a clash between its unrelated dependencies.
+
+This is a settings-time error, not a doctor source check.
+It costs one walk over the returned bindings at scope setup.
+It adds no work to later tag reads.
+The user seam may override any item on purpose.
+
+## Left out on purpose
+
+No `requires transitive`, qualified exports, or `opens`.
+No versions or hashes in `item.json`; `tsc` checks interface mismatch, while the graph covers only runtime wiring: missing items, cycles, order, and unrelated shared tags.
+No configurable export map or new role list.
+Sync slices and navigation stay on later registry cards.

@@ -1,0 +1,24 @@
+src/items/10-mail: rename to src/items/mail and declare requires in item.json
+src/items/Mail: item names must match [a-z][a-z0-9-]*
+src/items/mail: missing item.json; add src/items/mail/item.json with { "requires": [] }
+src/items/mail/item.json: invalid JSON
+src/items/mail/item.json: expected an object with only requires
+src/items/mail/item.json: unknown key "exports"; only requires is allowed
+src/items/mail/item.json: unknown key "name"; only requires is allowed
+src/items/mail/item.json: unknown key "version"; only requires is allowed
+src/items/mail/item.json: unknown key "hash"; only requires is allowed
+src/items/mail/item.json: requires must be an array of item names
+src/items/mail/item.json: requires missing item src/items/missing; shadcn add it
+src/items/mail/item.json: cannot require itself (src/items/mail)
+item requires cycle: src/items/errors/item.json -> src/items/mail/item.json -> src/items/postgres/item.json -> src/items/errors/item.json
+src/consumer.ts:2 "@/items/mail/secret" is private to item mail; use "@/items/mail"
+src/consumer.ts:1 "./items/mail/secret" is private to item mail; use "@/items/mail"
+src/items/inbox/x.ts:1 "../mail/secret" is private to item mail; use "@/items/mail"
+src/items/inbox/x.ts:1 "../mail/secret" needs "mail" in src/items/inbox/item.json requires
+src/items/inbox/x.ts:1 "../mail" needs "mail" in src/items/inbox/item.json requires
+src/consumer.server.ts:1 "./items/mail/secret.server" is private to item mail; use "@/items/mail" or "@/items/mail/index.server"
+src/items/mail/reader.ts:1 "@/items/postgres" needs "postgres"; add src/items/mail/item.json with { "requires": ["postgres"] }
+src/items/mail/index.ts:1 "@/items/postgres" needs "postgres" in src/items/mail/item.json requires
+src/items/errors/settings.server.ts and src/items/mail/settings.server.ts: both bind tag "shared" without a requires path; declare requires in item.json
+database: src/items/first/database.server.ts and src/items/second/database.server.ts both own database
+src/lib/tinker.server.ts:1 has an export * whose names prepare cannot read; use explicit named exports
