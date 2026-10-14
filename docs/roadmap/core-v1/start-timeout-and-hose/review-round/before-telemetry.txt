@@ -1,0 +1,1 @@
+{"wiring":"scope observe","value":42,"spans":[{"name":"work","status":"ok"}],"count":1}

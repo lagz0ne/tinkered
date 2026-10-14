@@ -1,0 +1,10 @@
+note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/core
+
+
+ Test Files  2 passed (2)
+      Tests  39 passed (39)
+   Start at  11:56:34
+   Duration  640ms (transform 65%, import 19%, tests 14%, worker 2%)
+

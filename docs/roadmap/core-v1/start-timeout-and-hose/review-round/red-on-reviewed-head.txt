@@ -1,0 +1,137 @@
+~/packages/core$ vp test -- tests/start-timeout-and-hose.test.ts --testTimeout 1000 ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/core
+
+ ❯ tests/start-timeout-and-hose.test.ts (16 tests | 8 failed) 2062ms
+   × close cancels a hanging start and its timer with the close reason 1008ms
+   × startTimeout 0 leaves the start timer off 13ms
+   × startTimeout Infinity leaves the start timer off 6ms
+   × a negative start timeout raises a managed error 0ms
+   × a finite start timeout is clamped to the largest timer delay 1001ms
+   × a recovered inner start leaves ready and close successful 3ms
+   × a tap called after ready raises a managed error 0ms
+   × a rejected clock sleep leaves startup waiting without a timeout 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > close cancels a hanging start and its timer with the close reason
+Error: Test timed out in 1000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/start-timeout-and-hose.test.ts:312:1
+    310| });
+    311|
+    312| test("close cancels a hanging start and its timer with the close reaso…
+       | ^
+    313|   const clock = makeTestClock();
+    314|   let sleepSignal: AbortSignal | undefined;
+ ❯ VitestModuleRunner.directRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1272:59
+ ❯ VitestModuleRunner.cachedRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1179:73
+ ❯ VitestModuleRunner.import ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1134:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > startTimeout 0 leaves the start timer off
+Error: StartTimeout
+ ❯ makeError src/errors.ts:33:24
+     31|   payload: Errors.Payload<N>,
+     32| ): Errors.Of<N> {
+     33|   return Object.assign(new Error(kind), { kind, payload });
+       |                        ^
+     34| }
+     35|
+ ❯ raise src/errors.ts:39:9
+ ❯ src/index.ts:5444:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > startTimeout Infinity leaves the start timer off
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ tests/start-timeout-and-hose.test.ts:366:18
+    364|   const closed = await scope.close({ graceful: true });
+    365|
+    366|   expect(sleeps).toBe(0);
+       |                  ^
+    367|   expect(closed).toEqual({ status: "success" });
+    368| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > a negative start timeout raises a managed error
+Unknown Error: undefined
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > a finite start timeout is clamped to the largest timer delay
+Error: Test timed out in 1000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/start-timeout-and-hose.test.ts:383:1
+    381| });
+    382|
+    383| test("a finite start timeout is clamped to the largest timer delay", a…
+       | ^
+    384|   const clock = makeTestClock();
+    385|   const scope = createScope({
+ ❯ VitestModuleRunner.directRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1272:59
+ ❯ VitestModuleRunner.cachedRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1179:73
+ ❯ VitestModuleRunner.import ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1134:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > a recovered inner start leaves ready and close successful
+AssertionError: expected { status: 'failed', …(2) } to deeply equal { status: 'success' }
+
+- Expected
++ Received
+
+  {
+-   "status": "success",
++   "error": Error {
++     "message": "inner",
++   },
++   "status": "failed",
++   "teardownErrors": undefined,
+  }
+
+ ❯ tests/start-timeout-and-hose.test.ts:421:18
+    419|   const closed = await scope.close({ graceful: true });
+    420|
+    421|   expect(closed).toEqual({ status: "success" });
+       |                  ^
+    422| });
+    423|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > a tap called after ready raises a managed error
+Unknown Error: undefined
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > a rejected clock sleep leaves startup waiting without a timeout
+Error: clock unavailable
+ ❯ Object.sleep tests/start-timeout-and-hose.test.ts:460:52
+    458|   });
+    459|   const scope = createScope({
+    460|     clock: { ...clock, sleep: () => Promise.reject(new Error("clock un…
+       |                                                    ^
+    461|     extensions: [extension({ label: "waiting", hooks: { start: () => s…
+    462|   });
+ ❯ runStartChain src/index.ts:5441:19
+ ❯ extendHandle src/index.ts:4846:3
+ ❯ createScope src/index.ts:4598:10
+ ❯ tests/start-timeout-and-hose.test.ts:459:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 8 passed (16)
+   Start at  10:05:00
+   Duration  2.62s (tests 86%, transform 11%, import 2%)
+
+

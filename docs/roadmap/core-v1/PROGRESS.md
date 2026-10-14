@@ -4565,3 +4565,60 @@ Proof folder: `docs/roadmap/core-v1/start-timeout-and-hose/`.
 - Mutation is skipped for the lander; calibration is not run.
 - ADR differences: none.
 - Core feedback: none; the old Start clock fixture needed the small fix above.
+
+### Startup review fix round
+
+- Code commit: `50688759`.
+- Close claims pending startup at once and aborts its sleep signal.
+  `ready` rejects with the close reason after cleanup.
+- One guarded finish also covers the gap after the start promise settles.
+  Its regression test fails on the reviewed code and passes on the fix.
+- `0` and `Infinity` disable the timer.
+  Negative values and `NaN` raise `BadStartTimeout`.
+  Finite values clamp at 2 147 483 647 ms.
+- A caught inner start failure leaves the root healthy.
+  Only the final failure handler marks it failed.
+- A late tap raises `LateTap`.
+- A rejected clock sleep leaves startup pending without a timeout.
+- Quiet log checks run only in the lazy getter.
+  Plain runs keep the one `obs.on` check.
+- Empty observers get their own empty tap and history lists.
+- The build keeps local map files and hides their links.
+  The published file list already omits the maps.
+  Runtime size is 16 343 B gzip; the cap stays 16 384 B.
+- Core source: 918 passed; React: 98 passed; Start: 528 passed.
+  Core dist: 1162 passed, including 244 build guard tests.
+- Card tests: 18 passed; card plus lifetime tests: 39 passed.
+  Reviewed code: 8 failures in the saved first regression run.
+  The added close-race test gives one more saved failure before the fix.
+- Build, check, workspace tests, dist, size, budget, ticket, and prose: exit 0.
+  All 22 budget lanes pass; mutation is skipped for the lander.
+- Fast code: 338 Core slots; default Maglev inline passes.
+  Closure counts stay the same; `runHookBody` is 300 bytes within its 311 cap.
+- Two queued comparisons run both `op` and `run`, with N = 61 per side.
+  The second comparison reverses the tree order.
+  Both pinned trees are clean; both use the same probe.
+- `scope.run`: main 78.4 ns, branch 79.4 ns in run 1.
+  Main 79.5 ns, branch 79.5 ns in run 2.
+  Both say no difference we can see; paired p = 0.0204 and 0.7982.
+- Cached controller: main 63.6 ns, branch 65.0 ns in run 1.
+  The branch is slower; paired p = 0.000394.
+  Main 63.7 ns, branch 64.7 ns in run 2.
+  No difference we can see; paired p = 0.7982.
+  This result is mixed; it does not prove every plain entry has no gap.
+- Each queued job uses CPU 7 with turbo off.
+  Raw rows, MAD, order, tree hashes, and the test method are saved.
+- One live start tap sends one `work` span, status `ok`, value 42.
+- Changed tests have strict style OK.
+  Source strict counts match main; no new strict hit.
+  Jev has 21 changed-unit flags, explained and labeled false.
+  The other 95 unit flags are old code outside this card.
+  Calibration is not run, as asked.
+- ADR differences are now written in ADR 0119 and the README.
+  Quiet covers the call's namespace; an explicit nested namespace chooses its own setting.
+  This avoids added work on plain runs.
+  Timer off values, cancellation, late taps, and rejected sleeps are now explicit.
+- The separate Start fixture commit stays `1bdc8fde`.
+  Startup sleep waits for abort; the 500 ms stream fault stays in place.
+- Proof: `docs/roadmap/core-v1/start-timeout-and-hose/review-round/`.
+- Core feedback: none.

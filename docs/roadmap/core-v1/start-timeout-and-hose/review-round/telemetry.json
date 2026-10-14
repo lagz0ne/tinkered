@@ -1,0 +1,14 @@
+{
+  "code_commit": "50688759b5f5e7fe840b7d1d63079d596dbbeaa4",
+  "value": 42,
+  "spans": [
+    {
+      "name": "work",
+      "kind": "operation",
+      "status": "ok"
+    }
+  ],
+  "closed": {
+    "status": "success"
+  }
+}

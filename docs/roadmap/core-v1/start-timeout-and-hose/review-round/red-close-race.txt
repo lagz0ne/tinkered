@@ -1,0 +1,36 @@
+note: You are running `vp test` as a Vite+ built-in command. If you meant to run the test npm script, use `vpr test` instead.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/core
+
+ ❯ tests/start-timeout-and-hose.test.ts (18 tests | 1 failed | 17 skipped) 14ms
+   × close wins while a completed start still has ready pending 12ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > close wins while a completed start still has ready pending
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/start-timeout-and-hose.test.ts:533:19
+    531|   clock.advance(10_000);
+    532|
+    533|   expect(pending).toBe(true);
+       |                   ^
+    534|   expect(aborted).toBe(true);
+    535|   expect(error).toBe(closingSignal.reason);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 skipped (18)
+   Start at  11:55:31
+   Duration  507ms (transform 85%, import 11%, tests 4%, worker 1%)
+
+
+Exit: 1
