@@ -407,6 +407,9 @@ New sections are lists, one term per item (vertical layout,
 
 - **call signal** — Stops one action and its child work; the caller stays alive.
 - **tool scope** — Owns a logger, observer, or devtools graph.
+- **hose** — The scope's one stream of spans and log lines. Every tap gets every record (ADR 0119).
+- **tap** — One `Observe.Config` on the hose: the scope's `observe`, or one an extension adds in `start`.
+- **start timeout** — How long `ready` waits for the extensions' `start` hooks. Default 10 s.
 
 ## UI state model
 
