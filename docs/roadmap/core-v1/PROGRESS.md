@@ -4530,4 +4530,38 @@ Proof folder: `docs/roadmap/core-v1/start-timeout-and-hose/`.
   They are outside this card.
 - Calibration and mutation are not run, as asked.
 - ADR differences: none.
-- Full gates and queued timing follow on the saved code.
+- Code commit: `993a5079`.
+- Start fixture commit: `1bdc8fde`.
+  It waits through startup until the signal aborts.
+  Its 500 ms stream wait still raises the test's fault.
+  Red: 1 failed, 39 passed; fixed: 40 passed.
+  Full Start lane: 528 passed with one worker.
+
+### Queue result
+
+- Main: `fef10e46`; Core code: `993a5079`.
+- Two queue jobs, 61 samples per side per job.
+- The second job reverses the tree order.
+- Run 1: main 64.1 ns, branch 65.0 ns.
+  Verdict: no difference we can see; paired p = 0.237.
+- Run 2: main 63.6 ns, branch 64.7 ns.
+  Verdict: no difference we can see; paired p = 0.200.
+- Both jobs: CPU 7, turbo off, about 3.5 GHz.
+- The saved bench tree is clean at `993a5079`.
+- The Start fixture and proof do not change that Core build.
+- Raw rows and the method are in the proof folder.
+
+### Full gates
+
+- Build, check, full workspace tests, dist, size, and prose: exit 0.
+- Dist: 1151 tests pass, including 244 build guard tests.
+- Full workspace tests use `VITEST_MAX_WORKERS=1`.
+  This avoids the box's five-second test timeouts.
+- Check: 0 errors, 27 warnings, the same as main.
+- Size: 16 383 B gzip; unchanged cap 16 384 B.
+- Budget: all 22 lanes pass; ticket 119: exit 0.
+- All eight gate exits in `gates.json` are 0.
+- The gate runner printed `EXIT 0`.
+- Mutation is skipped for the lander; calibration is not run.
+- ADR differences: none.
+- Core feedback: none; the old Start clock fixture needed the small fix above.

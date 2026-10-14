@@ -92,7 +92,7 @@ warn: Lint or type warnings found
 
   ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
     ,-[tools/jev/tests.mjs:92:7]
- 91 | 
+ 91 |
  92 | const stems = (s) =>
     :       ^^|^^
     :         `-- 'stems' is declared here
@@ -106,7 +106,7 @@ warn: Lint or type warnings found
  6 | import { existsSync, readFileSync } from "node:fs";
    :          ^^^^^|^^^^
    :               `-- 'existsSync' is imported here
- 7 | 
+ 7 |
    `----
   help: Consider removing this import.
 
@@ -116,13 +116,13 @@ warn: Lint or type warnings found
  6 | import { existsSync, readFileSync } from "node:fs";
    :                      ^^^^^^|^^^^^
    :                            `-- 'readFileSync' is imported here
- 7 | 
+ 7 |
    `----
   help: Consider removing this import.
 
   ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
     ,-[bench/react-render.mjs:14:7]
- 13 | 
+ 13 |
  14 | const React = (await import("react")).default;
     :       ^^|^^
     :         `-- 'React' is declared here
@@ -154,7 +154,7 @@ warn: Lint or type warnings found
  8 | import { existsSync, readFileSync } from "node:fs";
    :                      ^^^^^^|^^^^^
    :                            `-- 'readFileSync' is imported here
- 9 | 
+ 9 |
    `----
   help: Consider removing this import.
 

@@ -1,4 +1,4 @@
-pass: All 1518 files are correctly formatted (6646ms, 8 threads)
+pass: All 1520 files are correctly formatted (5891ms, 8 threads)
 warn: Lint or type warnings found
 ! unicorn(no-thenable): Do not add `then` to an object.
      ,-[packages/core/tests/tagged-frame-boundaries.test.ts:196:11]
@@ -90,33 +90,13 @@ warn: Lint or type warnings found
       `----
   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 
-  ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
-    ,-[tools/jev/tests.mjs:92:7]
- 91 | 
- 92 | const stems = (s) =>
-    :       ^^|^^
-    :         `-- 'stems' is declared here
- 93 |   new Set(
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Identifier 'existsSync' is imported but never used.
-   ,-[tools/jev/explain.mjs:6:10]
- 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
- 6 | import { existsSync, readFileSync } from "node:fs";
-   :          ^^^^^|^^^^
-   :               `-- 'existsSync' is imported here
- 7 | 
-   `----
-  help: Consider removing this import.
-
   ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
-   ,-[tools/jev/explain.mjs:6:22]
- 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
- 6 | import { existsSync, readFileSync } from "node:fs";
+   ,-[tools/jev/preflight.mjs:8:22]
+ 7 | import { execFileSync } from "node:child_process";
+ 8 | import { existsSync, readFileSync } from "node:fs";
    :                      ^^^^^^|^^^^^
    :                            `-- 'readFileSync' is imported here
- 7 | 
+ 9 |
    `----
   help: Consider removing this import.
 
@@ -140,7 +120,7 @@ warn: Lint or type warnings found
 
   ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
     ,-[bench/react-render.mjs:14:7]
- 13 | 
+ 13 |
  14 | const React = (await import("react")).default;
     :       ^^|^^
     :         `-- 'React' is declared here
@@ -148,13 +128,33 @@ warn: Lint or type warnings found
     `----
   help: Consider removing this declaration.
 
+  ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
+    ,-[tools/jev/tests.mjs:92:7]
+ 91 |
+ 92 | const stems = (s) =>
+    :       ^^|^^
+    :         `-- 'stems' is declared here
+ 93 |   new Set(
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'existsSync' is imported but never used.
+   ,-[tools/jev/explain.mjs:6:10]
+ 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
+ 6 | import { existsSync, readFileSync } from "node:fs";
+   :          ^^^^^|^^^^
+   :               `-- 'existsSync' is imported here
+ 7 |
+   `----
+  help: Consider removing this import.
+
   ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
-   ,-[tools/jev/preflight.mjs:8:22]
- 7 | import { execFileSync } from "node:child_process";
- 8 | import { existsSync, readFileSync } from "node:fs";
+   ,-[tools/jev/explain.mjs:6:22]
+ 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
+ 6 | import { existsSync, readFileSync } from "node:fs";
    :                      ^^^^^^|^^^^^
    :                            `-- 'readFileSync' is imported here
- 9 | 
+ 7 |
    `----
   help: Consider removing this import.
 
@@ -255,4 +255,4 @@ warn: Lint or type warnings found
  29 |   if (!Object.keys(bank).length) {
     `----
 
-Found 0 errors and 27 warnings in 698 files (25.5s, 8 threads)
+Found 0 errors and 27 warnings in 698 files (8.6s, 8 threads)

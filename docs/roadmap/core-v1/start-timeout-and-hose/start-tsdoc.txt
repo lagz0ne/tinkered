@@ -1,0 +1,6 @@
+jev docs (advisory) — 1 file(s), parser only
+
+
+jev docs: 1 file(s), 0 S26 row(s).
+S26 by folder: {}
+Advisory only — an S26 row is a doc to fix. Whether a doc says what code cannot is the reviewer's call (rule 10).

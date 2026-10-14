@@ -1,0 +1,60 @@
+[
+  {
+    "gate": "build",
+    "command": "vp run -r build",
+    "exit": 0
+  },
+  {
+    "gate": "check",
+    "command": "vp check",
+    "exit": 0
+  },
+  {
+    "gate": "workspace-tests",
+    "command": "vp run -r --concurrency-limit 1 test",
+    "environment": {
+      "VITEST_MAX_WORKERS": "1"
+    },
+    "exit": 0
+  },
+  {
+    "gate": "dist",
+    "command": "vp run --no-cache core#test:dist",
+    "environment": {
+      "VITEST_MAX_WORKERS": "1"
+    },
+    "exit": 0
+  },
+  {
+    "gate": "size",
+    "command": "vp run core#size",
+    "environment": {
+      "VITEST_MAX_WORKERS": "1"
+    },
+    "exit": 0
+  },
+  {
+    "gate": "prose",
+    "command": "vp run prose",
+    "environment": {
+      "VITEST_MAX_WORKERS": "1"
+    },
+    "exit": 0
+  },
+  {
+    "gate": "validate",
+    "command": "pnpm validate",
+    "environment": {
+      "VITEST_MAX_WORKERS": "1"
+    },
+    "exit": 0
+  },
+  {
+    "gate": "ticket",
+    "command": "scripts/ticket.sh --check-only --no-mutation 119 start-timeout-and-hose",
+    "environment": {
+      "VITEST_MAX_WORKERS": "1"
+    },
+    "exit": 0
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "method": "Two-sided paired sign test; ties omitted; p < 0.01. Second queue job reverses tree order.",
+  "runs": [
+    {
+      "run": 1,
+      "scenario": "op",
+      "main": "fef10e46",
+      "branch": "993a5079",
+      "samples_per_side": 61,
+      "first_side": "main",
+      "main_median_ns": 64.1,
+      "branch_median_ns": 65.0,
+      "faster_pairs": 24,
+      "slower_pairs": 34,
+      "ties": 3,
+      "paired_sign_p": 0.2370471147627195,
+      "verdict": "no difference we can see"
+    },
+    {
+      "run": 2,
+      "scenario": "op",
+      "main": "fef10e46",
+      "branch": "993a5079",
+      "samples_per_side": 61,
+      "first_side": "branch",
+      "main_median_ns": 63.6,
+      "branch_median_ns": 64.7,
+      "faster_pairs": 25,
+      "slower_pairs": 36,
+      "ties": 0,
+      "paired_sign_p": 0.20003136851310316,
+      "verdict": "no difference we can see"
+    }
+  ]
+}

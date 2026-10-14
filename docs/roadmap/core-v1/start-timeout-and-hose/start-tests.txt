@@ -1,0 +1,17 @@
+~/packages/start$ vp test --maxWorkers=1 ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/start
+
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"01b02816617c7c70c53e5e2f625aee04","spanId":"c53e5e2f625aee04","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"e22a8ac16037f50857cf1007e250fe34","spanId":"57cf1007e250fe34","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"549a1c3d8bda3c13a4ba4a47c17ea1ba","spanId":"a4ba4a47c17ea1ba","msg":"core.span"}
+
+ Test Files  45 passed (45)
+      Tests  528 passed (528)
+   Start at  08:34:39
+   Duration  108.28s (tests 74%, import 22%, transform 4%)
+
+    Isolate  45 workers spawned · ~144ms startup each (spawn + environment, per file)
+             at least ~6.33s faster with isolate: false — reuses workers across files instead of one per file
+
+

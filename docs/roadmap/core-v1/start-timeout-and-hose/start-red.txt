@@ -1,0 +1,28 @@
+~/packages/start$ vp test sync-tab typecheck upgrade ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/start
+
+ ❯ tests/sync-tab.test.ts (27 tests | 1 failed) 2946ms
+   × a tab stream that fails surfaces its error when the tab closes 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/sync-tab.test.ts > a tab stream that fails surfaces its error when the tab closes
+Error: clock torn
+ ❯ tests/sync-tab.test.ts:838:16
+    836|
+    837| test("a tab stream that fails surfaces its error when the tab closes",…
+    838|   const torn = new Error("clock torn");
+       |                ^
+    839|   const time = makeTestClock();
+    840|   const slept = Promise.withResolvers<void>();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 39 passed (40)
+   Start at  08:18:42
+   Duration  6.37s (tests 55%, import 27%, transform 18%)
+
+
