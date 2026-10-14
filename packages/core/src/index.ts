@@ -1,4 +1,4 @@
-import { isError, raise } from "./errors";
+import { isError, makeError, raise } from "./errors";
 import { causesOf, closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } from "./errors";
 import type { Origin, RunResult } from "./errors";
 import type { presetSym } from "./preset-symbol";
@@ -608,7 +608,7 @@ export declare namespace Scope {
   };
 
   export type RootOptions = Options & {
-    /** The start chain's limit in scope-clock milliseconds; default 10 000 (ADR 0119). */
+    /** Scope-clock milliseconds, default 10 000; 0 or Infinity disables the timer (ADR 0119). */
     readonly startTimeout?: number;
     /** Ask the root to close gracefully once `ready` resolves, even if already aborted.
      * A failed start closes forcibly instead. This never aborts `ctx.signal` (ADR 0085). */
@@ -1131,12 +1131,18 @@ function signalOf(layer: Layer): AbortSignal {
  * that declare that hook, or undefined when none does. One record per root, shared by every layer
  * under it, so a session reads its route from its parent instead of walking to the root. */
 type ExtRoutes = {
-  readonly runs: readonly Scope.Extension<unknown>[] | undefined;
-  readonly writes: readonly Scope.Extension<unknown>[] | undefined;
-  readonly session: readonly Scope.Extension<unknown>[] | undefined;
+  [K in keyof Scope.Hooks<unknown>]: Scope.Extension<unknown>[] | undefined;
 };
 
-const NO_EXTS: ExtRoutes = { runs: undefined, writes: undefined, session: undefined };
+const NO_EXTS: ExtRoutes = {
+  run: undefined,
+  write: undefined,
+  session: undefined,
+  start: undefined,
+  close: undefined,
+  resolve: undefined,
+};
+
 /** A layer's node store, child set, owned-work set, defer list, and teardown errors start as these
  * shared empty ones, so an idle layer allocates none (performance rule 4). Never written: the first
  * write gives the layer its own ({@link nodeState}, {@link makeLayer}, {@link addWork},
@@ -1556,7 +1562,7 @@ function writeWithHooks<T>(
   value: T,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): void {
-  const writes = layer.exts.writes;
+  const writes = layer.exts.write;
   if (writes === undefined) return writeCell(layer, target, value, chain);
   runWriteHooks(layer, target, value, chain, writes);
 }
@@ -1749,12 +1755,11 @@ const systemRandom = {
 /** Span and log times read `observe.clock` if set, else the scope's ambient clock, so a test clock
  * freezes them too (ADR 0034). */
 function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
-  if (!config) return DEFAULT_OBS;
-  const c = config;
+  const c = config ?? {};
   const limit = c.history ?? 0;
   return {
-    taps: [config],
-    on: c.export !== undefined || limit > 0,
+    taps: config ? [config] : [],
+    on: !!c.export || limit > 0,
     clock: c.clock ?? (() => clock.currentTimeMillis()),
     export: c.export,
     limit,
@@ -1766,8 +1771,7 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
 }
 
 /** Observation off: no span opens and no log line is written, so nothing reads its clock. */
-const DEFAULT_OBS: Obs = makeObs({}, systemClock);
-DEFAULT_OBS.taps.length = 0;
+const DEFAULT_OBS: Obs = makeObs(undefined, systemClock);
 
 /** Keep the off check small enough to inline; id creation runs only behind it. */
 function openSpan(
@@ -1998,8 +2002,13 @@ function obsCtx(layer: Layer, span: SpanImpl | undefined): Observe.Ctx {
   };
 }
 
-function logFor(obs: Obs, span: SpanImpl | undefined, extension?: string): Observe.Logger {
-  if (!obs.log) return noop;
+function logFor(
+  obs: Obs,
+  span: SpanImpl | undefined,
+  chain?: readonly Namespace[],
+  extension?: string,
+): Observe.Logger {
+  if (!obs.log || chain?.[0]?.observe === false) return noop;
   const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
     if (level < obs.level) return;
     isolate(() =>
@@ -2065,10 +2074,6 @@ class OperationControl<T, I> {
     this.twin = undefined;
     this.settler = undefined;
   }
-  static quietLog(chain: readonly Namespace[] | undefined): Observe.Logger | undefined {
-    return chain?.[0]?.observe === false ? noop : undefined;
-  }
-
   get settle(): (call?: Scope.Invocation<I>) => unknown {
     if (this.settler === undefined) {
       const layer = this.layer;
@@ -2320,7 +2325,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   declare readonly rawInput: unknown;
   declare readonly input: I;
   private tools: Observe.Ctx | undefined;
-  declare private logs: Observe.Logger | undefined;
+  declare private logs: Observe.Logger | readonly Namespace[] | undefined;
   declare readonly span: SpanImpl | undefined;
   declare readonly clock: Clock.Handle;
   declare readonly random: Random.Handle;
@@ -2329,9 +2334,9 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     target: Pick<Operation.Handle<unknown, I>, "label" | "input">,
     call: Scope.Invocation<I> | undefined,
     span: SpanImpl | undefined,
-    log?: Observe.Logger,
+    chain?: readonly Namespace[],
   ) {
-    this.logs = log;
+    this.logs = chain;
     this.layer = owner;
     this.label = target.label;
 
@@ -2361,7 +2366,10 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     return (this.tools ??= obsCtx(this.layer, this.span));
   }
   get log(): Observe.Logger {
-    return (this.logs ??= logFor(this.layer.obs, this.span));
+    if (typeof this.logs !== "function") {
+      this.logs = logFor(this.layer.obs, this.span, this.logs);
+    }
+    return this.logs;
   }
   get raise(): Operation.Ctx<I>["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
@@ -2655,9 +2663,8 @@ function executorFor<T, I>(
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
 ): (call?: Scope.Invocation<I>) => unknown {
-  const log = OperationControl.quietLog(chain);
   return (call?: Scope.Invocation<I>): unknown =>
-    runOnce(layer, target, up, chain, caller, false, call, log);
+    runOnce(layer, target, up, chain, caller, false, call);
 }
 
 /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
@@ -2674,7 +2681,6 @@ function runOnce<T, I>(
   caller: RunState | undefined,
   replay: Replay,
   call: Scope.Invocation<I> | undefined,
-  log?: Observe.Logger,
 ): unknown {
   if (call !== undefined) {
     if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
@@ -2706,7 +2712,7 @@ function runOnce<T, I>(
   let result: T;
   buildDepth++;
   try {
-    ctx = new OperationCtx<I>(layer, target, call, span, log);
+    ctx = new OperationCtx<I>(layer, target, call, span, chain);
     result = runBody(
       override,
       target,
@@ -2744,7 +2750,7 @@ function operationController<T, I>(
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
 ): Scope.OperationController<T, I> {
   const execute = executorFor(layer, target, up, chain, caller);
-  const runs = layer.exts.runs;
+  const runs = layer.exts.run;
   if (runs === undefined) {
     return new OperationControl(
       execute,
@@ -2779,16 +2785,7 @@ function runUntagged<T, I>(
   caller?: RunState,
   nested = false,
 ): T {
-  return runOnce(
-    layer,
-    target,
-    up,
-    chain,
-    caller,
-    nested ? "nested" : "root",
-    call,
-    OperationControl.quietLog(chain),
-  ) as T;
+  return runOnce(layer, target, up, chain, caller, nested ? "nested" : "root", call) as T;
 }
 
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
@@ -2962,7 +2959,6 @@ class ResourceCtx implements Resource.Ctx {
 
     this.label = owned.target.label;
     this.span = span;
-    if (chain?.[0]?.observe === false) this.logs = noop;
     this.clock = owned.layer.clock;
     this.random = owned.layer.random;
   }
@@ -2975,7 +2971,7 @@ class ResourceCtx implements Resource.Ctx {
     return (this.tools ??= obsCtx(this.layer, this.span));
   }
   get log(): Observe.Logger {
-    return (this.logs ??= logFor(this.layer.obs, this.span));
+    return (this.logs ??= logFor(this.layer.obs, this.span, this.ns));
   }
   get raise(): Resource.Ctx["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
@@ -3654,7 +3650,7 @@ function seedPresets(seeds: Many<Scope.Preset>): Seeded {
 
 function makeRootLayer(options: Scope.Options | undefined): Layer {
   const clock = options?.clock ?? systemClock;
-  const obs = makeObs(options?.observe, clock);
+  const obs = options?.observe ? makeObs(options.observe, clock) : DEFAULT_OBS;
   return layerRecord(
     undefined,
     options,
@@ -4591,11 +4587,14 @@ export function createScope(
 export function createScope(options?: Scope.RootOptions): Scope.Handle;
 
 export function createScope(options?: Scope.RootOptions): Scope.Handle {
+  const { startTimeout = 10_000, extensions, signal } = options ?? {};
+  if (!(startTimeout >= 0)) raise("BadStartTimeout", { timeout: startTimeout });
+
   const layer = makeRootLayer(options);
   const plain = new ScopeHandle(layer);
-  const exts = readMany(options?.extensions);
-  if (exts.length === 0 && options?.signal === undefined) return plain;
-  return extendHandle(layer, plain, exts, options?.signal, options?.startTimeout ?? 10_000);
+  const exts = readMany(extensions);
+  if (exts.length === 0 && signal === undefined) return plain;
+  return extendHandle(layer, plain, exts, signal, startTimeout);
 }
 
 /** A node to release and the layer that owns it. Release and invalidation sit at the END of this
@@ -4806,21 +4805,18 @@ function extendHandle(
   startTimeout: number,
 ): Scope.Handle {
   if (layer.obs === DEFAULT_OBS) {
-    layer.obs = makeObs({}, layer.clock);
-    layer.obs.taps.length = 0;
+    layer.obs = makeObs(undefined, layer.clock);
   }
 
   const records = new Map<Scope.Extension<unknown>, ExtRec>();
   for (const ext of exts) records.set(ext, { settled: false, value: undefined });
   EXTENSIONS.set(layer, records);
 
-  const closers = exts.filter((ext) => ext.hooks?.close !== undefined);
-  const resolvers = exts.filter((ext) => ext.hooks?.resolve !== undefined);
   layer.exts = readExtRoutes(exts);
-  const session = layer.exts.session;
+  const { close: closers = [], resolve: resolvers, session } = layer.exts;
 
-  let settleReady: () => void = noop;
-  let failReady: (error: unknown) => void = noop;
+  let settleReady!: () => void;
+  let failReady!: (error: unknown) => void;
   const ready = new Promise<void>((resolveReady, rejectReady) => {
     settleReady = resolveReady;
     failReady = rejectReady;
@@ -4840,10 +4836,10 @@ function extendHandle(
   }
 
   extended.close = watchRootClose(layer, extended, closers, lifetime);
-  if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
+  if (resolvers) extended.resolve = resolveThrough(layer, resolvers);
   if (signal) listenForStop(extended, signal, lifetime);
 
-  runStartChain(layer, extended, exts, lifetime, settleReady, failReady, startTimeout);
+  runStartChain(layer, extended, lifetime, settleReady, failReady, startTimeout);
   return extended;
 }
 
@@ -5396,73 +5392,102 @@ function closingOf(layer: Layer): AbortSignal {
  * start's returned value (awaited) is stored per extension; the records flip `settled` only when
  * that extension's start settled. A rejected start records the layer failure (so a later close
  * settles `failed`), closes through the current handle, and rejects `ready` with the same error
- * only after that close ends. A close already under way is joined without running hooks again. */
+ * only after that close ends. Close claims startup at once; one microtask lets the close handler
+ * retain cleanup before startup joins it. */
 function runStartChain(
   layer: Layer,
   scope: Scope.Handle,
-  exts: readonly Scope.Extension<unknown>[],
   lifetime: RootLifetime,
   done: () => void,
   failed: (error: unknown) => void,
   timeout: number,
 ): void {
+  const starters = layer.exts.start;
+  if (!starters) {
+    done();
+    return;
+  }
+
   const pending = new Set<Scope.Extension<unknown>>();
+  /** A first tap stays direct; only another tap creates the fan-out. */
+  const tap = (config: Observe.Config): void => {
+    if (!lifetime.stopStart) raise("LateTap", {});
+
+    const obs = layer.obs;
+    const taps = obs.taps;
+    const next = makeObs(config, layer.clock);
+    if (!taps.length) {
+      Object.assign(obs, next);
+      return;
+    }
+
+    taps.push(config);
+    obs.level = Math.min(obs.level, next.level);
+    obs.limit = Math.max(obs.limit, next.limit);
+
+    obs.on ||= next.on;
+    obs.export = (span) => {
+      for (const tap of taps) {
+        const sink = tap.export;
+        if (sink) isolate(() => sink(span));
+      }
+    };
+    if (obs.log || next.log) {
+      obs.log = (line) => {
+        for (const tap of taps) {
+          const sink = tap.log;
+          if (sink && line.level >= (tap.level ?? 0)) isolate(() => sink(line));
+        }
+      };
+    }
+  };
   const at = async (index: number): Promise<void> => {
-    if (index >= exts.length) return;
-    const ext = exts[index];
-    const next = (): Promise<void> => at(index + 1);
-    if (!ext.hooks?.start) return next();
+    if (index >= starters.length) return;
+    const ext = starters[index];
 
     pending.add(ext);
     try {
-      const value = await ext.hooks.start(
-        hookEvent(
-          { kind: "start", scope, next, tap: (config) => ExtensionCtx.addTap(layer, config) },
-          layer,
-          ext.label,
-        ),
+      const rec = EXTENSIONS.get(layer)!.get(ext)!;
+      rec.value = await ext.hooks!.start!(
+        hookEvent({ kind: "start", scope, next: () => at(index + 1), tap }, layer, ext.label),
       );
-      const rec = EXTENSIONS.get(layer)?.get(ext);
-      if (rec !== undefined) {
-        rec.value = value;
-        rec.settled = true;
-      }
-    } catch (error) {
-      layer.failed ??= { cause: error };
-      throw error;
+      rec.settled = true;
     } finally {
       pending.delete(ext);
     }
   };
-  const stop = exts.some((ext) => ext.hooks?.start !== undefined)
-    ? new AbortController()
-    : undefined;
-  const expiry = stop
-    ? layer.clock.sleep(timeout, stop.signal).then(() => {
+  const stop = new AbortController();
+  const claim = (): boolean => {
+    if (!lifetime.stopStart) return false;
+    lifetime.stopStart = undefined;
+    stop.abort(CLOSING_REASON);
+    return true;
+  };
+  const end = async (error: unknown, closing = false): Promise<void> => {
+    if (!claim()) return;
+    if (closing) await Promise.resolve();
+    else layer.failed ??= { cause: error };
+
+    try {
+      await (lifetime.closing ?? layer.closing ?? scope.close());
+    } finally {
+      failed(error);
+    }
+  };
+  lifetime.stopStart = () => ignoreRejection(end(CLOSING_REASON, true));
+  if (timeout > 0 && timeout !== Infinity) {
+    ignoreRejection(
+      layer.clock.sleep(Math.min(timeout, 2 ** 31 - 1), stop.signal).then(() => {
         let label = "";
         for (const ext of pending) label = ext.label;
-        raise("StartTimeout", { label });
-      })
-    : undefined;
-  const started = at(0);
-  const ready = expiry ? Promise.race([started, expiry]) : started;
-
+        return end(makeError("StartTimeout", { label }));
+      }, noop),
+    );
+  }
   ignoreRejection(
-    ready.then(
-      () => {
-        stop?.abort(CLOSING_REASON);
-        done();
-      },
-      async (error: unknown) => {
-        stop?.abort(CLOSING_REASON);
-        layer.failed ??= { cause: error };
-        try {
-          await (lifetime.closing ?? layer.closing ?? scope.close());
-        } finally {
-          failed(error);
-        }
-      },
-    ),
+    at(0).then(() => {
+      if (claim()) done();
+    }, end),
   );
 }
 
@@ -5486,37 +5511,6 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     this.ns = chain;
     this.flight = run;
   }
-  /** The first sink stays direct; only a second sink creates a fan-out (ADR 0119). */
-  static addTap(layer: Layer, config: Observe.Config): void {
-    const obs = layer.obs;
-    const taps = obs.taps;
-    if (taps.length === 0) {
-      Object.assign(obs, makeObs(config, layer.clock));
-      return;
-    }
-
-    taps.push(config);
-    obs.level = Math.min(obs.level, config.level ?? 0);
-    obs.limit = Math.max(obs.limit, config.history ?? 0);
-
-    obs.export = taps.some((tap) => tap.export !== undefined)
-      ? (span) => {
-          for (const tap of taps) {
-            const sink = tap.export;
-            if (sink) isolate(() => sink(span));
-          }
-        }
-      : undefined;
-    obs.log = taps.some((tap) => tap.log !== undefined)
-      ? (line) => {
-          for (const tap of taps) {
-            const sink = tap.log;
-            if (sink && line.level >= (tap.level ?? 0)) isolate(() => sink(line));
-          }
-        }
-      : undefined;
-    obs.on = obs.export !== undefined || obs.limit > 0;
-  }
 
   get clock(): Clock.Handle {
     return this.layer.clock;
@@ -5534,7 +5528,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
       { label: run.label, input: undefined },
       run.call,
       run.span,
-      OperationControl.quietLog(this.ns),
+      this.ns,
     ));
   }
   private use<T>(fn: () => T): T {
@@ -5679,12 +5673,12 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return this.ctx?.obs ?? OFF_OBS;
   }
   get log(): Observe.Logger {
-    const ctx = this.ctx;
-    if (ctx) return ctx.log;
-    if (this.ns?.[0]?.observe === false) return noop;
-    return this.layer.obs.log
-      ? (this.logs ??= logFor(this.layer.obs, undefined, this.label))
-      : noop;
+    return (
+      this.ctx?.log ??
+      (this.layer.obs.log
+        ? (this.logs ??= logFor(this.layer.obs, undefined, this.ns, this.label))
+        : noop)
+    );
   }
   get raise(): Resource.Ctx["raise"] {
     return (this.raiser ??= (kind, payload) => raiseFrom(this.ctx ?? this, kind, payload));
@@ -5747,19 +5741,19 @@ function wrapSession(
 }
 
 function readExtRoutes(exts: readonly Scope.Extension<unknown>[]): ExtRoutes {
-  const runs = exts.filter((ext) => ext.hooks?.run !== undefined);
-  const writes = exts.filter((ext) => ext.hooks?.write !== undefined);
-  const session = exts.filter((ext) => ext.hooks?.session !== undefined);
-  return {
-    runs: runs.length > 0 ? runs : undefined,
-    writes: writes.length > 0 ? writes : undefined,
-    session: session.length > 0 ? session : undefined,
-  };
+  const routes: ExtRoutes = { ...NO_EXTS };
+  for (const key of Object.keys(routes) as (keyof ExtRoutes)[]) {
+    for (const ext of exts) {
+      if (ext.hooks?.[key]) (routes[key] ??= []).push(ext);
+    }
+  }
+  return routes;
 }
 
 /** Only the extension path owns this state. The first close includes the hooks' after-work;
  * a start failure joins it, and a stop request never starts another close (ADR 0085). */
 type RootLifetime = {
+  stopStart?: () => void;
   closing?: Promise<Scope.Result>;
   finish?: (ended: Scope.Result) => void;
   detach?: () => void;
@@ -5774,6 +5768,7 @@ function watchRootClose(
   lifetime: RootLifetime,
 ): Scope.Handle["close"] {
   return (options = {}) => {
+    lifetime.stopStart?.();
     lifetime.detach?.();
     const close = (): Promise<Scope.Result> =>
       closeLayer(layer, !options.graceful, options.withData === true);
@@ -6114,7 +6109,7 @@ function invokeRunHooks<T, I>(
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined,
 ): unknown {
-  return stepRunHook(run, target, hookTarget, call, chain, run.layer.exts.runs ?? [], 0);
+  return stepRunHook(run, target, hookTarget, call, chain, run.layer.exts.run ?? [], 0);
 }
 
 function exitHookAccess(previous: typeof activeHookOwner): void {
@@ -6128,7 +6123,7 @@ function stepRunHook<T, I>(
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined,
-  runs: NonNullable<ExtRoutes["runs"]>,
+  runs: NonNullable<ExtRoutes["run"]>,
   index: number,
 ): unknown {
   const previous = enterHookAccess(run);
@@ -6156,7 +6151,7 @@ function runHookBody<T, I>(
       target,
       run.call as Scope.Invocation<I> | undefined,
       run.span,
-      OperationControl.quietLog(chain),
+      chain,
     );
     if (run.ctx) OperationCtx.share(run.ctx, ctx);
     run.ctx = ctx;

@@ -95,16 +95,18 @@ test("a rejected start runs every close hook through the current handle", async 
   ]);
 });
 
-test("a start that fails during close joins the hooks already running", async () => {
+test("close cancels a pending start and joins the hooks already running", async () => {
   const start = gate();
   const closing = gate();
   const cleanup = gate();
   const events: string[] = [];
   const error = new Error("late start failure");
+  let closeSignal!: AbortSignal;
   const piece = extension({
     label: "overlap",
     hooks: {
-      start: async () => {
+      start: async (event) => {
+        closeSignal = event.closing;
         await start.promise;
         throw error;
       },
@@ -130,8 +132,8 @@ test("a start that fails during close joins the hooks already running", async ()
   expect(await Promise.race([ready, Promise.resolve("pending")])).toBe("pending");
 
   cleanup.release();
-  expect(await ready).toBe(error);
-  expect((await ended).status).toBe("failed");
+  expect(await ready).toBe(closeSignal.reason);
+  expect((await ended).status).toBe("cancelled");
   expect(events).toEqual(["close:before", "close:after", "ready"]);
 });
 

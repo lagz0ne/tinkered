@@ -1,5 +1,4 @@
 [
-  "addTap",
   "attrs",
   "bits",
   "bodyEnd",
@@ -37,7 +36,6 @@
   "panics",
   "parentHex",
   "prev",
-  "quietLog",
   "raiser",
   "randomFor",
   "readers",
@@ -48,12 +46,12 @@
   "settler",
   "settles",
   "share",
+  "stopStart",
   "swept",
   "system",
   "taps",
   "traceFor",
   "twin",
   "up",
-  "wake",
-  "writes"
+  "wake"
 ]

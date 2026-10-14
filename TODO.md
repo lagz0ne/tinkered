@@ -32,12 +32,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-## Review
-
 - **core/start-timeout-and-hose** — ADR 0119.
-  Owner: lander. Next: review the branch and run mutation; writer never pushes.
-  Verify: clock timeout, taps, quiet namespace, Core and React gates, queued no-tap comparison.
+  Owner: writer. Next: fix the review findings, then rerun gates and two queued comparisons.
+  Verify: timer cancel, timeout values, recovered start, late tap, quiet logs, size cap, full gates.
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#corestart-timeout-and-hose).
+
+## Review
 
 - **start/item-modules** (registry plan 1b) — items declare `requires` in a required `src/items/<item>/item.json`; an item's `index.ts` and `index.server.ts` are its only exports to other items; no `NN-` prefix, so the folder name is the module name; prepare sorts items by `requires`; doctor check 6 fails deep imports and imports not in `requires`, relative paths too (ADR 0117; replaces the numbered ordering part of ADR 0116).
   Owner: lander. Next: wait for the PR to merge; no push to main.

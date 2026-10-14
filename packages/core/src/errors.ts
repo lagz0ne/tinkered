@@ -11,6 +11,8 @@ type Payloads = {
   TeardownFailed: { causes: unknown[] };
   NotResolved: { label: string };
   StartTimeout: { label: string };
+  BadStartTimeout: { timeout: number };
+  LateTap: Record<string, never>;
   CircularResource: { label: string };
 };
 

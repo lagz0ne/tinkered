@@ -17,7 +17,8 @@ export default defineConfig({
     },
     exports: true,
     minify: true,
-    sourcemap: true,
+    /** Keep map files for local checks; the published file list omits them. */
+    sourcemap: "hidden",
     /** Rename Core's private fields (core/size-build); `build/private-fields.ts` says why it is safe. */
     plugins: [privateFields()],
     outputOptions: { comments: { annotation: false } },

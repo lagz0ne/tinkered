@@ -83,11 +83,18 @@ const otel = extension({
 
 - `createScope({ startTimeout })` sets the limit.
 - Default: 10 000 ms, as Fastify.
+- `0` and `Infinity` turn the timer off.
+  Negative values and `NaN` raise `BadStartTimeout`.
+  Finite delays are capped at 2 147 483 647 ms.
 - The timer reads the scope's clock, so a test
   clock can fire it (ADR 0113).
 - On timeout, `ready` rejects with a managed
   error that names the extension's label.
   The scope then closes.
+- A settled start cancels the timer.
+  Closing the root also cancels it and rejects
+  `ready` with the close reason.
+- A clock sleep rejection is ignored; no timeout fires.
 
 ### 2. A tool keeps its state in its own namespace
 
@@ -113,6 +120,8 @@ A tap is an `Observe.Config`.
 - History: the largest tap history.
 - A tap added in `start` misses records made
   before it.
+- After the start chain settles, `tap` raises
+  the managed error `LateTap`.
 
 ### 4. Performance comes first
 
@@ -124,6 +133,9 @@ The hot path keeps one flag check (`obs.on`).
 - `namespace({ observe: false })`: work in that
   namespace makes no records. A tool uses it so
   its own sends are not traced.
+  Quiet covers the call's namespace only.
+  An explicit nested namespace uses its own
+  setting, keeping extra checks off plain runs.
 
 ## Consequences
 

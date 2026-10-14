@@ -146,6 +146,11 @@ Its payload holds the extension's `label`.
 Core closes the scope and runs cleanup before `ready` rejects.
 The label names the innermost start still waiting.
 A settled start cancels the timer.
+Closing the root cancels it and rejects pending `ready` with the close reason.
+Set `createScope({ startTimeout: 0 })` or `Infinity` to turn the timer off.
+Negative limits and `NaN` raise `BadStartTimeout`.
+Finite limits are capped at 2 147 483 647 ms.
+A rejected clock sleep leaves startup waiting without a timeout.
 
 ```ts
 import { createScope, extension } from "@tinker/core";
@@ -600,6 +605,7 @@ The bare call uses `info`; `debug`, `info`, `warn`, and `error` pick a level.
 
 Each line keeps caller attributes and sets `attributes.extension` to the extension's label.
 Start opens no span, so its log lines have `span: undefined`.
+Calling `event.tap` after the start chain settles raises `LateTap`.
 Close events use the same logger.
 
 ## Namespaces
@@ -607,6 +613,9 @@ Close events use the same logger.
 `namespace({ observe: false })` makes a quiet bucket (ADR 0119).
 Operations, resource builds, nested work, and hook logs in that bucket emit no records.
 Use it for a tool's own sends, so they do not trace themselves.
+Quiet covers the call's namespace only.
+An explicit nested namespace uses its own setting.
+This keeps extra checks off plain runs.
 Other buckets still observe.
 
 A resource factory's `ctx.ns` is the chain used for its dependencies.
@@ -1008,6 +1017,14 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A hanging inner start times out on the scope clock and closes with its label.
 - Start defaults to ten seconds and names an outer hook hanging after next.
 - A settled start cancels its timeout.
+- Close cancels a hanging start and its timer with the close reason.
+- Zero and infinite start limits keep the timer off.
+- Negative start limits raise a managed error.
+- Finite start limits are capped at the largest timer delay.
+- A recovered inner start leaves ready and close successful.
+- A tap called after ready raises a managed error.
+- A rejected clock sleep leaves startup waiting without a timeout.
+- An explicit nested namespace chooses its own observation setting.
 - A held controller keeps its last write alive after its root closes, with or without a watcher or an `onClose` hook.
 - A held controller keeps its last write alive after its session closes, fast, under a session hook, or swept by its root.
 - Without a held controller, a closed root frees its last write.
