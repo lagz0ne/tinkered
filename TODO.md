@@ -34,11 +34,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **core/mutation-seeded-random** — fix the first plain test pass in Core's mutation run.
-  Owner: Codex lead. Next: finish review, then run the full gates.
-  Verify: all requested gates exit 0; full Core mutation clears 85.
-  Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#coremutation-seeded-random).
-
 - **start/item-modules** (registry plan 1b) — items declare `requires` in a required `src/items/<item>/item.json`; an item's `index.ts` and `index.server.ts` are its only exports to other items; no `NN-` prefix, so the folder name is the module name; prepare sorts items by `requires`; doctor check 6 fails deep imports and imports not in `requires`, relative paths too (ADR 0117; replaces the numbered ordering part of ADR 0116).
   Owner: lander. Next: wait for the PR to merge; no push to main.
   Verify: gates and Start mutation (floor 75) on the PR head.
@@ -69,6 +64,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
+  Owner: Codex lead; Haiku writer; separate Opus review READY.
+  Proof: gates on `d188bacb` exited 0; plain pass 900 tests; full mutation 86.11, floor 85, exit 0.
+  Next: review `core/mutation-seeded-random`; no push.
+  [Core progress](docs/roadmap/core-v1/PROGRESS.md#coremutation-seeded-random).
 
 - **start/join-index** (Start 1) — items join the app by role file names under `src/items/<NN-item>/`; prepare reads only file names and writes `.tinker/app.ts` and `.tinker/app.server.ts`; lists run in numeric folder order, then the user's seam; the user's single names win; two item owners fail prepare and doctor once (ADR 0116). Also fixes the `scripts/ticket.sh` Start size gate: Start has no size task. Helper folders such as `2fa` stay out of item order; a seam with no list no longer fails tsc. Gates green; Start mutation above the 75 floor. Proof: [docs/roadmap/start-base/PROGRESS.md](docs/roadmap/start-base/PROGRESS.md#startjoin-index).
 
