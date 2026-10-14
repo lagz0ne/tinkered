@@ -4492,7 +4492,8 @@ Both directive names were checked.
 
 ## core/mutation-seeded-random
 
-- Owner: Codex lead; Haiku writer; separate Opus review READY.
+- Owner: Codex lead; Haiku writer.
+- Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
 - Base: `origin/main` at `fef10e46`.
 - Worktree: `/home/paseo/next/tinkered-mutation-fix`.
 - Branch: `core/mutation-seeded-random`; no push.
@@ -4507,7 +4508,7 @@ Both directive names were checked.
 - Each copy had its own seed map; Core could not find the test seed.
 - This also let tests miss the Core code changed by Stryker.
 - Vite's path resolver printed both source paths.
-- The fix maps `@` to Vite's own `src` folder, beside the testing helper's map.
+- The fix maps `@` to Core's own `src` folder, beside the testing helper's map.
 - Both entries now resolve to the sandbox's own source.
 - Core source, old tests, the size cap, and the Stryker config did not change.
 - The first fix tried copying the TypeScript config into the sandbox.
@@ -4520,6 +4521,7 @@ Both directive names were checked.
 - The new path test failed with main's Vite config and passed with the fix.
 - Trace and random tests in a copy without the TypeScript config: 25 passed.
 - The full Core mutation run's first plain pass: 900 tests passed.
+- Stryker ran 900 tests versus 901 normal tests because the new sandbox test imports no mutated code.
 - Gates ran one at a time on the clean commit `d188bacb`.
 - Both memory settings were 1: `VITEST_MAX_WORKERS` and `VP_RUN_CONCURRENCY_LIMIT`.
 - `vp run -r build`: exit 0.
@@ -4544,7 +4546,7 @@ Both directive names were checked.
 - Path proof: `/home/paseo/plans/mutation-fix-paths.log`.
 - TypeScript 7 blocker: `/home/paseo/plans/mutation-fix-ts7-blocker.log`.
 - Writer: `/home/paseo/plans/mutation-fix-writer.txt`.
-- Review: `/home/paseo/plans/mutation-fix-review.txt`.
+- Review: `/home/paseo/plans/mutation-fix-review.md`.
 - Gate exits: `/home/paseo/plans/mutation-fix-gates.txt`.
 - Full mutation: `/home/paseo/plans/mutation-fix.log`.
 - Report: `packages/core/reports/mutation/mutation.json`.
