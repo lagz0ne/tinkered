@@ -94,7 +94,8 @@ const otel = extension({
 - A settled start cancels the timer.
   Closing the root also cancels it and rejects
   `ready` with the close reason.
-- A clock sleep rejection is ignored; no timeout fires.
+- A clock sleep throw or rejection is ignored; no timeout fires.
+- Start failures during close reach `closed`; the close reason is ignored (ADR 0067).
 
 ### 2. A tool keeps its state in its own namespace
 

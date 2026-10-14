@@ -456,30 +456,40 @@ test("a tap called after ready raises a managed error", async () => {
   expect(error.payload).toEqual({});
 });
 
-test("a rejected clock sleep leaves startup waiting without a timeout", async () => {
-  const clock = makeTestClock();
-  let finish!: () => void;
-  let settled = false;
-  const start = new Promise<void>((resolve) => {
-    finish = resolve;
-  });
-  const scope = createScope({
-    clock: { ...clock, sleep: () => Promise.reject(new Error("clock unavailable")) },
-    extensions: [extension({ label: "waiting", hooks: { start: () => start } })],
-  });
-  const ready = scope.ready.then(() => {
-    settled = true;
-  });
+test.each(["rejected", "thrown"])(
+  "a %s clock sleep leaves startup waiting without a timeout",
+  async (kind) => {
+    const clock = makeTestClock();
+    let finish!: () => void;
+    let settled = false;
+    const start = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const scope = createScope({
+      clock: {
+        ...clock,
+        sleep: () => {
+          const error = new Error("clock unavailable");
+          if (kind === "thrown") throw error;
+          return Promise.reject(error);
+        },
+      },
+      extensions: [extension({ label: "waiting", hooks: { start: () => start } })],
+    });
+    const ready = scope.ready.then(() => {
+      settled = true;
+    });
 
-  for (let turn = 0; turn < 10; turn++) await Promise.resolve();
-  const pending = !settled;
-  finish();
-  await ready;
-  const closed = await scope.close({ graceful: true });
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+    const pending = !settled;
+    finish();
+    await ready;
+    const closed = await scope.close({ graceful: true });
 
-  expect(pending).toBe(true);
-  expect(closed).toEqual({ status: "success" });
-});
+    expect(pending).toBe(true);
+    expect(closed).toEqual({ status: "success" });
+  },
+);
 
 test("close wins while a completed start still has ready pending", async () => {
   const clock = makeTestClock();
@@ -533,6 +543,53 @@ test("close wins while a completed start still has ready pending", async () => {
   expect(pending).toBe(true);
   expect(aborted).toBe(true);
   expect(error).toBe(closingSignal.reason);
+});
+
+test("closed keeps a real start error after close has claimed startup", async () => {
+  const clock = makeTestClock();
+  const error = new Error("real start bug");
+  let rejectStart!: (error: unknown) => void;
+  let releaseCleanup!: () => void;
+  let beginCleanup!: () => void;
+  const start = new Promise<void>((_resolve, reject) => {
+    rejectStart = reject;
+  });
+  const cleanup = new Promise<void>((resolve) => {
+    releaseCleanup = resolve;
+  });
+  const cleaning = new Promise<void>((resolve) => {
+    beginCleanup = resolve;
+  });
+  const scope = createScope({
+    clock,
+    signal: new AbortController().signal,
+    extensions: [
+      extension({
+        label: "late-failure",
+        hooks: {
+          start(event) {
+            event.defer(() => {
+              beginCleanup();
+              return cleanup;
+            });
+            return start;
+          },
+        },
+      }),
+    ],
+  });
+
+  const closing = scope.close({ graceful: true });
+  await cleaning;
+  rejectStart(error);
+  for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+  releaseCleanup();
+  await closing;
+  const closed = await scope.closed;
+
+  if (closed.status !== "failed") throw closed;
+  expect(closed.error).toBe(error);
+  expect(closed.teardownErrors).toEqual([error]);
 });
 
 test("an explicit nested namespace chooses its own observation setting", async () => {

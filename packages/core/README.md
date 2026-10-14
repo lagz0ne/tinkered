@@ -150,7 +150,7 @@ Closing the root cancels it and rejects pending `ready` with the close reason.
 Set `createScope({ startTimeout: 0 })` or `Infinity` to turn the timer off.
 Negative limits and `NaN` raise `BadStartTimeout`.
 Finite limits are capped at 2 147 483 647 ms.
-A rejected clock sleep leaves startup waiting without a timeout.
+A clock sleep throw or rejection leaves startup waiting without a timeout.
 
 ```ts
 import { createScope, extension } from "@tinker/core";
@@ -563,6 +563,7 @@ Each tap is an `Observe.Config` and gets records made after it joins.
 Each tap gets the same span object.
 The hose uses the lowest tap level and largest history.
 Each log sink still filters to its own level.
+All taps share the first tap's clock.
 No tap makes no spans.
 One tap is called directly; two or more use a loop.
 A throwing sink does not stop the other sinks.
@@ -1023,7 +1024,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Finite start limits are capped at the largest timer delay.
 - A recovered inner start leaves ready and close successful.
 - A tap called after ready raises a managed error.
-- A rejected clock sleep leaves startup waiting without a timeout.
+- A clock sleep throw or rejection leaves startup waiting without a timeout.
+- A real start error after close begins fails `closed` and keeps the error.
 - An explicit nested namespace chooses its own observation setting.
 - A held controller keeps its last write alive after its root closes, with or without a watcher or an `onClose` hook.
 - A held controller keeps its last write alive after its session closes, fast, under a session hook, or swept by its root.

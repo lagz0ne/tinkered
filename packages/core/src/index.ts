@@ -5464,7 +5464,13 @@ function runStartChain(
     return true;
   };
   const end = async (error: unknown, closing = false): Promise<void> => {
-    if (!claim()) return;
+    if (!claim()) {
+      if (error !== CLOSING_REASON) {
+        stick(layer, error);
+        addError(layer, error);
+      }
+      return;
+    }
     if (closing) await Promise.resolve();
     else layer.failed ??= { cause: error };
 
@@ -5476,13 +5482,17 @@ function runStartChain(
   };
   lifetime.stopStart = () => ignoreRejection(end(CLOSING_REASON, true));
   if (timeout > 0 && timeout !== Infinity) {
-    ignoreRejection(
-      layer.clock.sleep(Math.min(timeout, 2 ** 31 - 1), stop.signal).then(() => {
-        let label = "";
-        for (const ext of pending) label = ext.label;
-        return end(makeError("StartTimeout", { label }));
-      }, noop),
-    );
+    try {
+      ignoreRejection(
+        layer.clock.sleep(Math.min(timeout, 2 ** 31 - 1), stop.signal).then(() => {
+          let label = "";
+          for (const ext of pending) label = ext.label;
+          return end(makeError("StartTimeout", { label }));
+        }, noop),
+      );
+    } catch (error) {
+      void error;
+    }
   }
   ignoreRejection(
     at(0).then(() => {

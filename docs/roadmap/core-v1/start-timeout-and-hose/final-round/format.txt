@@ -1,0 +1,33 @@
+warn: Lint or type warnings found
+! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:3265:16]
+ 3264 |     const ctx = emptyCtxFor(owner, chain);
+ 3265 |     const fn = target.factory;
+      :                ^^^^^^^^^^^^^^|
+      :                       |      `-- This reference may be unbound and lose `this` context
+ 3266 |     const result =
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:3325:28]
+ 3324 |     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
+ 3325 |     const fn = override ?? target.factory;
+      :                            ^^^^^^^^^^^^^^|
+      :                                   |      `-- This reference may be unbound and lose `this` context
+ 3326 |     owned = startBuildInstance(owner, target, rec, fn.length >= 2);
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:4401:20]
+ 4400 |    * every userland call site; the seam cast below only widens this internal entry. */
+ 4401 |   const dispatch = operationController(layer, handle, up, chain, receiver, inline).run as (
+      :                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|
+      :                                                     |                                 `-- This reference may be unbound and lose `this` context
+ 4402 |     call?: Scope.Invocation<I>,
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+Found 0 errors and 3 warnings in 3 files (1.7s, 8 threads)
+pass: Formatting completed for checked files (2.7s)

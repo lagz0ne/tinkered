@@ -4622,3 +4622,29 @@ Proof folder: `docs/roadmap/core-v1/start-timeout-and-hose/`.
   Startup sleep waits for abort; the 500 ms stream fault stays in place.
 - Proof: `docs/roadmap/core-v1/start-timeout-and-hose/review-round/`.
 - Core feedback: none.
+
+### Final startup fixes
+
+- Re-review accepted the eight fixes, close race, and hidden map links.
+- A real start error after close claims startup now fails `closed`.
+  Core records the panic and keeps that error in `teardownErrors`.
+  The closing reason is ignored.
+- A thrown clock sleep disables the timer, like a rejected sleep.
+  `createScope` returns its handle and startup keeps waiting.
+- The README now states that all taps share the first tap's clock.
+- Regression on `e75b3719`: 3 failed, 38 passed.
+  Fixed Core: 920 passed; dist: 1164 passed.
+- Size: 16 360 B gzip, 17 B more than the reviewed code.
+  The unchanged 16 384 B cap leaves 24 B.
+- Core tests, size, and ticket ran one at a time; final exits are 0.
+  Ticket includes check, workspace tests, dist, and size.
+  React: 98 passed; Start: 528 passed.
+- The first ticket attempt caught TODO formatting.
+  The second caught an old vendored Core build.
+  Formatting and a full workspace rebuild fixed them.
+  Both failed attempts and the final green output are saved.
+- Changed tests have strict style OK; source strict hits are unchanged.
+  Jev has zero file flags and five changed-unit flags, explained and labeled false.
+- Mutation stays with the lander; calibration is not run.
+- The observer setup and span opening code are unchanged in this round.
+- Proof: `docs/roadmap/core-v1/start-timeout-and-hose/final-round/`.

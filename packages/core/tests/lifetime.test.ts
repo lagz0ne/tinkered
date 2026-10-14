@@ -133,7 +133,10 @@ test("close cancels a pending start and joins the hooks already running", async 
 
   cleanup.release();
   expect(await ready).toBe(closeSignal.reason);
-  expect((await ended).status).toBe("cancelled");
+  const result = await ended;
+  if (result.status !== "failed") throw result;
+  expect(result.error).toBe(error);
+  expect(result.teardownErrors).toEqual([error]);
   expect(events).toEqual(["close:before", "close:after", "ready"]);
 });
 

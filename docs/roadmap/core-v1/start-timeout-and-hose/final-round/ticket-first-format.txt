@@ -1,0 +1,14 @@
+== core/t119: jev review (advisory) ==
+jev review (advisory) — range HEAD
+
+  - packages/core/src/index.ts: skipped: too big for one call (250026 > 100000 chars)
+
+  route: look first at correctness (96%)
+
+jev review: 0 flag(s). Advisory only — the gate and the lead decide.
+no impact block for core/t119
+== gate core/t119: vp check ==
+error: Formatting issues found
+TODO.md (952ms)
+
+Found formatting issues in 1 file (7079ms, 8 threads). Run `vp check --fix` to fix them.

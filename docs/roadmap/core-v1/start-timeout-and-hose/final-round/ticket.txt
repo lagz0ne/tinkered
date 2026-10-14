@@ -1,0 +1,672 @@
+== core/t119: jev review (advisory) ==
+jev review (advisory) — range HEAD
+
+  - packages/core/src/index.ts: skipped: too big for one call (250026 > 100000 chars)
+
+  route: look first at correctness (98%)
+  ⚠ commit message overclaims (62%) — check message vs diff
+
+jev review: 1 flag(s). Advisory only — the gate and the lead decide.
+no impact block for core/t119
+== gate core/t119: vp check ==
+pass: All 1529 files are correctly formatted (6350ms, 8 threads)
+warn: Lint or type warnings found
+! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-frame-boundaries.test.ts:196:11]
+ 195 |     run: () => ({
+ 196 |       get then(): unknown {
+     :           ^^^^
+ 197 |         closing ??= root.close().then(() => order.push("parent-ended"));
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-lifetime.test.ts:203:13]
+ 202 |       return {
+ 203 |         get then(): unknown {
+     :             ^^^^
+ 204 |           reads++;
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-lifetime.test.ts:226:13]
+ 225 |       return {
+ 226 |         get then(): unknown {
+     :             ^^^^
+ 227 |           reads++;
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-lifetime.test.ts:249:9]
+ 248 |       const result: (() => number) & { then: unknown } = Object.assign(() => 0, {
+ 249 |         then: undefined,
+     :         ^^^^
+ 250 |       });
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to a class.
+     ,-[packages/core/tests/tagged-lifetime.test.ts:252:9]
+ 251 |       defer(() => {
+ 252 |         result.then = (resolve: (value: number) => void) => resolve(7);
+     :         ^^^^^^^^^^^
+ 253 |       });
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:37:13]
+ 36 |       return {
+ 37 |         get then(): never {
+    :             ^^^^
+ 38 |           throw cause;
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:52:9]
+ 51 |   const value = await root.session((): unknown => ({
+ 52 |     get then() {
+    :         ^^^^
+ 53 |       const n = ++reads;
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:65:9]
+ 64 |   const value = await root.session((): unknown => ({
+ 65 |     get then() {
+    :         ^^^^
+ 66 |       if (++reads > 1) throw new Error("second-read");
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+      ,-[packages/core/tests/index.test.ts:2540:5]
+ 2539 |   const lazy = {
+ 2540 |     then: (res: (v: number) => void) => {
+      :     ^^^^
+ 2541 |       thenCalls++;
+      `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+      ,-[packages/core/tests/index.test.ts:2564:13]
+ 2563 |       export: () => ({
+ 2564 |         get then() {
+      :             ^^^^
+ 2565 |           throw new Error("evil-then");
+      `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
+    ,-[tools/jev/tests.mjs:92:7]
+ 91 |
+ 92 | const stems = (s) =>
+    :       ^^|^^
+    :         `-- 'stems' is declared here
+ 93 |   new Set(
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'existsSync' is imported but never used.
+   ,-[tools/jev/explain.mjs:6:10]
+ 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
+ 6 | import { existsSync, readFileSync } from "node:fs";
+   :          ^^^^^|^^^^
+   :               `-- 'existsSync' is imported here
+ 7 |
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
+   ,-[tools/jev/explain.mjs:6:22]
+ 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
+ 6 | import { existsSync, readFileSync } from "node:fs";
+   :                      ^^^^^^|^^^^^
+   :                            `-- 'readFileSync' is imported here
+ 7 |
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
+   ,-[tools/jev/preflight.mjs:8:22]
+ 7 | import { execFileSync } from "node:child_process";
+ 8 | import { existsSync, readFileSync } from "node:fs";
+   :                      ^^^^^^|^^^^^
+   :                            `-- 'readFileSync' is imported here
+ 9 |
+   `----
+  help: Consider removing this import.
+
+  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+    ,-[bench/heap.mjs:26:14]
+ 25 | const N = 20000;
+ 26 | const live = new Array(N);
+    :              ^^^^^^^^^^^^
+ 27 | globalThis.gc();
+    `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
+
+  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+    ,-[bench/heap.mjs:41:20]
+ 40 | const zone = tag({ label: "zone", default: "base" });
+ 41 | const liveTagged = new Array(N);
+    :                    ^^^^^^^^^^^^
+ 42 | globalThis.gc();
+    `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
+
+  ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
+    ,-[bench/react-render.mjs:14:7]
+ 13 |
+ 14 | const React = (await import("react")).default;
+    :       ^^|^^
+    :         `-- 'React' is declared here
+ 15 | const { act, createElement: h, Fragment } = await import("react");
+    `----
+  help: Consider removing this declaration.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:3265:16]
+ 3264 |     const ctx = emptyCtxFor(owner, chain);
+ 3265 |     const fn = target.factory;
+      :                ^^^^^^^^^^^^^^|
+      :                       |      `-- This reference may be unbound and lose `this` context
+ 3266 |     const result =
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:3325:28]
+ 3324 |     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
+ 3325 |     const fn = override ?? target.factory;
+      :                            ^^^^^^^^^^^^^^|
+      :                                   |      `-- This reference may be unbound and lose `this` context
+ 3326 |     owned = startBuildInstance(owner, target, rec, fn.length >= 2);
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:4401:20]
+ 4400 |    * every userland call site; the seam cast below only widens this internal entry. */
+ 4401 |   const dispatch = operationController(layer, handle, up, chain, receiver, inline).run as (
+      :                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|
+      :                                                     |                                 `-- This reference may be unbound and lose `this` context
+ 4402 |     call?: Scope.Invocation<I>,
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(await-thenable): Unexpected `await` of a non-Promise (non-"Thenable") value.
+      ,-[packages/core/tests/index.test.ts:4298:21]
+ 4297 |     run: async ({ conn }) => {
+ 4298 |       const value = await conn;
+      :                     ^^^^^ ^^|^
+      :                       |     `-- This expression is not Promise-like
+ 4299 |       order.push(value.open ? "use-open" : "use-closed");
+      `----
+  help: Remove `await` if the value is synchronous, or change the expression to return a Promise or Thenable before awaiting it.
+
+  ! typescript(await-thenable): Unexpected `await` of a non-Promise (non-"Thenable") value.
+      ,-[packages/core/tests/index.test.ts:4332:31]
+ 4331 |     depends: { conn },
+ 4332 |     run: async ({ conn }) => (await conn).open,
+      :                               ^^^^^ ^^|^
+      :                                 |     `-- This expression is not Promise-like
+ 4333 |   });
+      `----
+  help: Remove `await` if the value is synchronous, or change the expression to return a Promise or Thenable before awaiting it.
+
+  ! typescript(no-useless-default-assignment): Default value is useless because the parameter has type `SlotValues<Record<string, never>>` (not nullish). This default assignment will never be used.
+      ,-[packages/core/tests/index.test.ts:4549:23]
+ 4548 |     label: "stamped-default-deps",
+ 4549 |     factory: (_deps = {}, { clock }) => clock.currentTimeMillis(),
+      :               ^^|^^   ^|^
+      :                 |      `-- Default value
+      :                 `-- parameter type `SlotValues<Record<string, never>>` is not nullish
+ 4550 |   });
+      `----
+  help: Remove the default assignment
+
+  ! typescript(no-base-to-string): 'title' will use Object's default stringification format ('[object Object]') when stringified.
+    ,-[tools/jev/explain.mjs:28:29]
+ 27 | for (const [title, bank] of GROUPS) {
+ 28 |   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+    :                             ^^^^^
+ 29 |   if (!Object.keys(bank).length) {
+    `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript(restrict-template-expressions): Invalid type used in template literal expression.
+    ,-[tools/jev/explain.mjs:28:29]
+ 27 | for (const [title, bank] of GROUPS) {
+ 28 |   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+    :                             ^^|^^^
+    :                               `-- Type: {}
+ 29 |   if (!Object.keys(bank).length) {
+    `----
+
+  ! typescript(no-base-to-string): 'title' will use Object's default stringification format ('[object Object]') when stringified.
+    ,-[tools/jev/explain.mjs:28:49]
+ 27 | for (const [title, bank] of GROUPS) {
+ 28 |   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+    :                                                 ^^^^^
+ 29 |   if (!Object.keys(bank).length) {
+    `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript(restrict-template-expressions): Invalid type used in template literal expression.
+    ,-[tools/jev/explain.mjs:28:49]
+ 27 | for (const [title, bank] of GROUPS) {
+ 28 |   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+    :                                                 ^^|^^^
+    :                                                   `-- Type: {}
+ 29 |   if (!Object.keys(bank).length) {
+    `----
+
+Found 0 errors and 27 warnings in 698 files (13.6s, 8 threads)
+== gate core/t119: vp run -r test ==
+~/tools/jev$ node --test *.test.mjs ⊘ cache disabled
+✔ a static core unit inside a function is reported at its call (5.533825ms)
+✔ parameters and locals derived from them keep factory units dynamic (1.283165ms)
+✔ a loader that only updates an input counter still builds the same unit (4.054082ms)
+✔ module names and callback parameters do not make a config depend on the factory (0.572092ms)
+✔ inline run configs and other modules are not core unit calls (0.589893ms)
+✔ tests are excluded; functions that declare units remain judge candidates (1.681337ms)
+✔ inner locals derived from outer parameters stay dynamic (0.824802ms)
+✔ a for-of or for-in binding derived from input stays dynamic (0.793707ms)
+✔ a nested function that closes over an input keeps its operation dynamic (1.006658ms)
+✔ a reassigned local derived from an input stays dynamic (0.644531ms)
+✔ a catch parameter used by a unit config stays dynamic (2.082485ms)
+✔ dotted and dashed test filenames and test directories are excluded (0.245969ms)
+✔ this is not a module-level value (0.437072ms)
+▶ a helper's uses
+  ✔ lists each distinct line that calls the helper, in source order (1.892455ms)
+  ✔ does not count a call inside the helper's own body (1.885048ms)
+  ✔ gives a helper no one calls no uses at all (0.360266ms)
+  ✔ keeps at most six lines (1.002195ms)
+✔ a helper's uses (5.99076ms)
+▶ arrow helpers in a .ts file
+  ✔ reads a const arrow as a function unit with its uses (0.699906ms)
+  ✔ reads a const function expression as a function unit (0.281841ms)
+  ✔ keeps a unit builder call an operation, not a helper (0.41065ms)
+  ✔ gives each arrow of one const its own unit (0.314435ms)
+✔ arrow helpers in a .ts file (2.040246ms)
+✔ each doc block carries its words and the declaration it sits on (2.945223ms)
+✔ preflight's lint includes fast-code judges on short helpers and roots (10.428292ms)
+✔ fast-code judges read library helpers and unit builders while existing scope stays intact (0.520193ms)
+✔ class constructors and methods reach fast-code judges without app judges (0.775454ms)
+✔ the S24 fix text typechecks against the Start base (440.060787ms)
+ℹ Start base snippet: tsc --noEmit EXIT 0
+✔ code at the cap fits one call; one character more does not (1.980439ms)
+✔ core's index.ts is too big for one call; blueprint.ts fits (1.699665ms)
+✔ preflight and review both guard the whole-file call with the size check (0.426873ms)
+▶ S19 repo lane
+  ✔ checks roots and wrapped handle types in apps and examples (20.086619ms)
+  ✔ keeps driver helpers and tests out of the repo lane, with the writer src lane intact (15.911129ms)
+✔ S19 repo lane (38.77513ms)
+▶ S29 lifetimeByHand
+  ✔ reports each ready catch at its close call, including named failure callbacks (27.606716ms)
+  ✔ reports abort listeners and inline or local promise waits followed by graceful close (19.074963ms)
+  ✔ leaves other owners, streams, sessions, forced stops, work cleanup, and hidden names alone (44.865834ms)
+  ✔ checks ready in tests too and leaves every core file out of both lanes (66.365303ms)
+  ✔ limits repo source checks to apps, examples, and packages, with all writer files checked (58.709407ms)
+  ✔ blocks the writer gate and prints both filled-in fixes (11.556381ms)
+  ✔ the repo lint prints only S29 for tests with an error assertion and React state (292.25723ms)
+✔ S29 lifetimeByHand (521.544986ms)
+▶ plain rules in a test file
+  ✔ T01 fires on a mock or spy call (6.55673ms)
+  ✔ T02 fires on setTimeout, sleep, and waitForTimeout (1.468047ms)
+  ✔ T03 fires on only and skip off test, it, or describe (0.793794ms)
+  ✔ T04 fires on an import of a private source module (0.850261ms)
+  ✔ T04 skips an app test, which imports the feature module it proves (0.552859ms)
+  ✔ T05 fires on an internals probe (0.467855ms)
+  ✔ T06 fires on a cast through unknown (5.278131ms)
+  ✔ T07 fires on an error class, snapshot, or message assert (1.069083ms)
+  ✔ T08 fires on isError inside expect (2.255195ms)
+✔ plain rules in a test file (22.047023ms)
+▶ plain rules in a source file
+  ✔ S02 fires on a cast through unknown (3.694743ms)
+  ✔ S05 fires on a bare throw of Error, TypeError, or RangeError (1.005739ms)
+  ✔ S17 fires on a type assertion in either form (0.969776ms)
+  ✔ S17 leaves as const and an empty list's element type alone (0.674108ms)
+  ✔ S17 does not repeat a cast through unknown that S02 reports (0.712795ms)
+  ✔ S17 is writer policy: the repo's own lint does not report it (0.962011ms)
+  ✔ S17 does not apply to test files (0.282384ms)
+  ✔ S18 fires on a unit builder called inside a function (3.757924ms)
+  ✔ S18 leaves a module-level unit and a non-core function alone (2.091385ms)
+  ✔ S18 fires on a sync family made inside a function (1.205416ms)
+  ✔ S18 leaves a driver's extension built from wiring rows alone (1.120812ms)
+  ✔ S18's message names exactly the builders it counts (1.020986ms)
+  ✔ S19 fires on a helper that takes a controller, directly or through a type alias (1.646573ms)
+  ✔ S19 leaves a helper over plain values alone (0.808912ms)
+  ✔ S18 stays writer policy: the repo's own lint does not report it (0.786564ms)
+  ✔ S06 fires on a console call (1.516277ms)
+✔ plain rules in a source file (23.619085ms)
+▶ hand-rolled rules: code that redoes what tinker gives
+  ✔ S20 fires on Math.random, crypto.randomUUID, and randomUUID from node:crypto (4.992192ms)
+  ✔ S20 leaves ctx.random, a local randomUUID, and core's own default alone (0.976433ms)
+  ✔ S21 fires on Date.now, performance.now, timers, and new Date() in a unit body (3.944557ms)
+  ✔ S21 leaves raw time outside any unit alone in the writer gate too (0.717857ms)
+  ✔ S21 leaves ctx.clock and a formatted saved time in a unit body alone (4.296313ms)
+  ✔ S21 counts only unit bodies in the repo lint: a driver's own timer is fine (3.9083ms)
+  ✔ S22 fires on a run whose failure is dropped by then, catch, or a bare catch (8.191414ms)
+  ✔ S22 leaves settle, a handler that narrows, and a non-run promise alone (7.740974ms)
+  ✔ S22 fires on a settle whose Result a core handle drops (8.267328ms)
+  ✔ S22 names the hidden panic and the read Result on a dropped settle (8.20547ms)
+  ✔ S22 leaves a read settle, a returned one, void run, and a local settle method alone (18.962548ms)
+  ✔ S23 fires on a hand-made onX backed by a listener set (3.29206ms)
+  ✔ S23 leaves the Sync.Transport pair and a plain event handler alone (1.736577ms)
+  ✔ S24 fires on fetch and globalThis.fetch in app code (0.942132ms)
+  ✔ S24 repo lint skips package fetch; sync transports keep native connections (2.687067ms)
+  ✔ S24 tells a flight app to depend on httpRequest.controller and run it (0.661455ms)
+  ✔ S24 leaves the scaffold's built-in fetch backend alone (14.407065ms)
+  ✔ S24 fires on bare fetch in other scaffold files (0.988978ms)
+  ✔ S25 fires on useState and useReducer in a .tsx source file (1.099494ms)
+  ✔ S25 leaves a DOM useRef alone and stays out of the repo lint (0.844079ms)
+  ✔ each hand-rolled message ends with its fix line (0.453613ms)
+  ✔ hand-rolled rules skip test files (0.291497ms)
+✔ hand-rolled rules: code that redoes what tinker gives (99.178298ms)
+▶ entry and root rules (ADR 0078)
+  ✔ S27 reports each unguarded statement once, including declarations and for await (1.62191ms)
+  ✔ S27 counts top-level await using as an awaited declaration (0.544377ms)
+  ✔ S27 accepts await using inside the main guard (0.859281ms)
+  ✔ S27 accepts the main branch and awaits inside every function form (3.029442ms)
+  ✔ S27 rejects awaits in the else branch, the condition, and lookalike guards (3.20245ms)
+  ✔ S27 uses the repo source paths; the writer gate also checks scripts (2.009164ms)
+  ✔ S27 skips browser and test paths in both lanes (1.543461ms)
+  ✔ S28 reports a returned scope in declarations, expressions, arrows, and methods (2.707749ms)
+  ✔ S28 skips a factory passed directly through a JSX attribute (0.850262ms)
+  ✔ S28 skips a factory passed directly through useMemo (0.417568ms)
+  ✔ S28 skips a factory passed directly through a block-bodied call argument (0.555658ms)
+  ✔ S28 skips a factory passed directly through a new argument (0.518123ms)
+  ✔ S28 skips a factory passed directly through a function expression argument (1.932681ms)
+  ✔ S28 still counts returned factories, named factories, and the sync boot root (4.408155ms)
+  ✔ S28 keeps bindings and returns within their own function and block (8.369744ms)
+  ✔ S28 leaves returned values and closures that use the root alone (12.972431ms)
+  ✔ S28 finds the tracker's old createApp from 9aece1e (23.282684ms)
+  ✔ both rules accept runServer owning its root and the ADR 0078 main guard (9.822725ms)
+  ✔ S28 skips a test's boot helper and limits repo hits to apps and examples (8.167729ms)
+  ✔ the writer gate blocks both rules and prints their filled-in fixes (3.868399ms)
+✔ entry and root rules (ADR 0078) (91.995577ms)
+▶ plain rules in every file
+  ✔ S12 fires on a ts-ignore or ts-expect-error comment (0.47702ms)
+  ✔ S13 fires on a lint disable comment (0.253978ms)
+  ✔ an unparsable file yields one parse row (0.644127ms)
+✔ plain rules in every file (1.74004ms)
+▶ plain rules never fire on
+  ✔ console.log( inside a string in source (0.389573ms)
+  ✔ ts-ignore text inside a string (0.203915ms)
+  ✔ a rule word in the middle of a comment (0.400249ms)
+  ✔ a locator assert, waitForSelector, or expect.poll (0.458996ms)
+  ✔ an import of the public entry src/index (1.092894ms)
+  ✔ vi.fn() in a source file that is not a test (0.443638ms)
+  ✔ isError narrowing in an if, then a payload assert (0.357237ms)
+✔ plain rules never fire on (3.758392ms)
+▶ S26 malformed TSDoc
+  ✔ fires on each parser error kind at its line (4.256485ms)
+  ✔ fires on a @param that names no parameter (2.4405ms)
+  ✔ stays quiet on prose, the standard tags, and real parameters (7.69043ms)
+  ✔ stays quiet on the repo's own @ambientSource tag (0.451555ms)
+✔ S26 malformed TSDoc (15.14758ms)
+▶ component extraction
+  ✔ marks a named function returning JSX a component (3.395913ms)
+  ✔ marks an exported and a default-exported component a component (0.616085ms)
+  ✔ marks arrow and function-expression consts returning JSX a component (0.655621ms)
+  ✔ counts a fragment and nested JSX as a component (0.404859ms)
+  ✔ marks a component with if/switch/try returns a component (4.176372ms)
+  ✔ keeps a helper holding an inner arrow returning JSX a function (0.824723ms)
+  ✔ reads every function declarator of one const statement (0.579835ms)
+  ✔ gives each const declarator its own line and source span (0.539578ms)
+  ✔ keeps a capital-named helper with no JSX a function (0.31765ms)
+  ✔ keeps a root that only passes JSX to a call a function (0.493358ms)
+✔ component extraction (14.519732ms)
+▶ shape findings
+  ✔ flags an aliased useState and a namespaced useEffect with rule 9 and 8 (9.363869ms)
+  ✔ reports a state hook once in writer mode: S25, not also no-react-state (10.174056ms)
+  ✔ lets useId through and flags useRef (1.599597ms)
+  ✔ flags useScope in a view and a scope prop, not the ScopeProvider root (6.511167ms)
+  ✔ flags a scope prop through a ThemeProvider, not only ScopeProvider (1.719649ms)
+  ✔ flags a scope prop through a named Props alias and a typed scope param (2.821507ms)
+  ✔ flags a scope prop on the second declarator of one const statement (1.607839ms)
+  ✔ flags a scope prop through an exported Props alias (1.3758ms)
+  ✔ flags writable useData in a view, plain, aliased, and namespaced (6.862287ms)
+  ✔ leaves read-only useData, other modules, same-name functions, and useRun alone (12.603006ms)
+  ✔ flags writable useData in one scope, not a sibling's local or a param (4.308108ms)
+  ✔ flags aliased and namespaced hook calls, not their shadowed names (9.494422ms)
+  ✔ flags one mixed file's imported call only (5.262566ms)
+  ✔ binds a nested function local wherever the use sits (3.479798ms)
+  ✔ binds late imports and late functions before resolving calls (3.944184ms)
+  ✔ keeps catch params and loop heads inside their own frame (4.940173ms)
+  ✔ keeps a strict block function inside its block (2.044653ms)
+  ✔ sees a nested block under any statement shape (0.877619ms)
+  ✔ binds var in its function frame without hanging (619.701615ms)
+  ✔ keeps a block-local const inside its block (1.795282ms)
+  ✔ reads defaults and rests in params, including aliased and namespaced (2.347069ms)
+  ✔ leaves plain helpers and typed non-scope props alone (1.61082ms)
+  ✔ returns stable rows in source order (0.689201ms)
+✔ shape findings (717.427601ms)
+ℹ tests 152
+ℹ suites 13
+ℹ pass 152
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 945.064829
+
+~/packages/core$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/core
+
+
+ Test Files  45 passed (45)
+      Tests  920 passed (920)
+   Start at  13:18:55
+   Duration  10.59s (tests 50%, import 27%, transform 18%, worker 4%)
+
+    Isolate  45 workers spawned · ~118ms startup each (spawn + environment, per file)
+             at least ~5.18s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/tools/flight-trial$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/tools/flight-trial
+
+{"service":"supplier-a","url":"http://127.0.0.1:39449","pid":1149806}
+{"service":"payment","url":"http://127.0.0.1:37659","pid":1149806}
+
+ Test Files  12 passed (12)
+      Tests  148 passed (148)
+   Start at  13:19:06
+   Duration  32.50s (tests 93%, import 6%, transform 1%)
+
+
+~/tools/blueprint$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/tools/blueprint
+
+
+ Test Files  8 passed (8)
+      Tests  118 passed | 1 skipped (119)
+   Start at  13:19:40
+   Duration  5.42s (import 60%, tests 29%, transform 11%, worker 1%)
+
+    Isolate  8 workers spawned · ~146ms startup each (spawn + environment, per file)
+             at least ~1.02s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/packages/react$ vp test ⊘ cache disabled
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/react
+      API started at http://localhost:63315/
+
+
+ Test Files  23 passed (23)
+      Tests  98 passed (98)
+   Start at  13:19:48
+   Duration  15.16s (worker 96%, tests 4%)
+
+
+~/examples/core$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/examples/core
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  13:20:04
+   Duration  314ms (transform 72%, import 17%, tests 8%, worker 3%)
+
+
+~/packages/start$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/start
+
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"f6676579271f3587905925e6d96307af","spanId":"905925e6d96307af","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"14e2fd57ca8f414193a03be3523f0847","spanId":"93a03be3523f0847","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"51344f12e101893c73ecc9dcd93b8ad6","spanId":"73ecc9dcd93b8ad6","msg":"core.span"}
+
+ Test Files  45 passed (45)
+      Tests  528 passed (528)
+   Start at  13:20:05
+   Duration  77.86s (tests 78%, import 20%, transform 2%)
+
+    Isolate  45 workers spawned · ~117ms startup each (spawn + environment, per file)
+             at least ~5.14s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/examples/react$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/examples/react
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  13:21:23
+   Duration  471ms (transform 62%, import 34%, tests 2%, worker 1%)
+
+
+~/apps/playground$ vp test ⊘ cache disabled
+1:21:24 PM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic', jsxImportSource: undefined }`
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/apps/playground
+
+
+ Test Files  10 passed (10)
+      Tests  68 passed (68)
+   Start at  13:21:24
+   Duration  4.77s (tests 48%, import 22%, transform 16%, environment 13%, worker 1%)
+
+    Isolate  10 workers spawned · ~164ms startup each (spawn + environment, per file)
+             at least ~1.48s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/apps/start-scaffold$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/apps/start-scaffold
+
+
+ Test Files  8 passed (8)
+      Tests  39 passed (39)
+   Start at  13:21:29
+   Duration  52.85s (tests 80%, import 19%, transform 1%)
+
+
+---
+vp run: 0/10 cache hit (0%). (Run `vp run --last-details` for full details)
+== gate core/t119: core tests on the built files ==
+~/packages/core$ vp pack ⊘ cache disabled
+ℹ entry: src/index.ts, src/testing.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 9 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+context canceled
+ℹ dist/index.mjs                       47.97 kB │ gzip:  16.23 kB
+ℹ dist/testing.mjs                      1.22 kB │ gzip:   0.74 kB
+ℹ dist/index.mjs.map                  358.22 kB │ gzip: 103.03 kB
+ℹ dist/testing.mjs.map                  7.30 kB │ gzip:   2.96 kB
+ℹ dist/trace-random-DbkDB-C-.mjs.map    1.04 kB │ gzip:   0.56 kB
+ℹ dist/trace-random-DbkDB-C-.mjs        0.13 kB │ gzip:   0.13 kB
+ℹ dist/testing.d.mts                    2.50 kB │ gzip:   1.10 kB
+ℹ dist/index.d.mts                      0.66 kB │ gzip:   0.33 kB
+ℹ dist/index-CLCXv3jM.d.mts            40.91 kB │ gzip:  12.51 kB
+ℹ 9 files, total: 459.93 kB
+[PLUGIN_TIMINGS] JavaScript callbacks ran for 10.1s of this 10.2s build (99%).
+The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - plugin core-private-fields generateBundle (92%, 9.4s, 1 call)
+Additional callback time came from the callbacks below and from callbacks under 1s.
+2 callbacks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
+  - plugin rolldown-plugin-dts:resolver resolveId (10 calls)
+  - plugin rolldown-plugin-dts:generate load (4 calls)
+See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
+
+✔ Build complete in 10286ms
+
+~/packages/core$ vp test --config vite.dist.config.ts ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/core
+
+context canceled
+context canceled
+context canceled
+context canceled
+context canceled
+context canceled
+context canceled
+context canceled
+context canceled
+
+ Test Files  46 passed (46)
+      Tests  1164 passed (1164)
+   Start at  13:22:34
+   Duration  129.47s (tests 98%, import 1%, transform 1%)
+
+
+---
+vp run: 0/2 cache hit (0%). (Run `vp run --last-details` for full details)
+== gate core/t119: size budget ==
+~/packages/core$ vp pack ⊘ cache disabled
+ℹ entry: src/index.ts, src/testing.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 9 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+ℹ dist/index.mjs                       47.97 kB │ gzip:  16.23 kB
+ℹ dist/testing.mjs                      1.22 kB │ gzip:   0.74 kB
+ℹ dist/index.mjs.map                  358.22 kB │ gzip: 103.03 kB
+ℹ dist/testing.mjs.map                  7.30 kB │ gzip:   2.96 kB
+ℹ dist/trace-random-DbkDB-C-.mjs.map    1.04 kB │ gzip:   0.56 kB
+ℹ dist/trace-random-DbkDB-C-.mjs        0.13 kB │ gzip:   0.13 kB
+ℹ dist/testing.d.mts                    2.50 kB │ gzip:   1.10 kB
+ℹ dist/index.d.mts                      0.66 kB │ gzip:   0.33 kB
+ℹ dist/index-CLCXv3jM.d.mts            40.91 kB │ gzip:  12.51 kB
+ℹ 9 files, total: 459.93 kB
+[PLUGIN_TIMINGS] JavaScript callbacks ran for 6.5s of this 6.6s build (99%).
+The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - plugin core-private-fields generateBundle (84%, 5.5s, 1 call)
+Additional callback time came from the callbacks below and from callbacks under 1s.
+2 callbacks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
+  - plugin rolldown-plugin-dts:generate load (4 calls)
+  - plugin rolldown-plugin-dts:resolver resolveId (10 calls)
+See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
+
+✔ Build complete in 6669ms
+
+~/packages/core$ node ../../scripts/check-core-entries.mjs ⊘ cache disabled
+core runtime size: 16360 B gzip (cap 16384 B; all runtime files)
+core entries: main loads no testing; all three testing helpers work across entries
+
+---
+vp run: 0/2 cache hit (0%). (Run `vp run --last-details` for full details)
+== gate core/t119: mutation skipped by request ==
+== gate core/t119: checks pass; no checkpoint requested ==

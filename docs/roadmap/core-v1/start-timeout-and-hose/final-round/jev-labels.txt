@@ -1,0 +1,5 @@
+label: effectWithoutDefer false ← packages/core/src/index.ts#runStartChain (52f52110ee40)
+label: stateOutsideCell false ← packages/core/src/index.ts#runStartChain (a206c8276a24)
+label: awaitsSyncWork false ← packages/core/src/index.ts#runStartChain (205ceefdcf5c)
+label: waitsOnSideWork false ← packages/core/src/index.ts#runStartChain (fbb4343ed92b)
+label: shapeGrowsPerCall false ← packages/core/src/index.ts#runStartChain (4f5f3857744a)
