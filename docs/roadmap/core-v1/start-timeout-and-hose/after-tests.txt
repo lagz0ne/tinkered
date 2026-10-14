@@ -1,0 +1,30 @@
+~/packages/core$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/core
+
+
+ Test Files  45 passed (45)
+      Tests  907 passed (907)
+   Start at  07:58:48
+   Duration  3.50s (tests 41%, transform 34%, import 21%, worker 3%)
+
+  Transform  transforming modules took 4.17s · 34% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+
+~/packages/react$ vp test ⊘ cache disabled
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/react
+      API started at http://localhost:63315/
+
+
+ Test Files  23 passed (23)
+      Tests  98 passed (98)
+   Start at  07:58:53
+   Duration  5.18s (worker 77%, tests 15%, import 7%)
+
+
+---
+vp run: 0/2 cache hit (0%). (Run `vp run --last-details` for full details)

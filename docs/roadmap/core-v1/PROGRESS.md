@@ -4489,3 +4489,45 @@ Both directive names were checked.
 ### Core feedback
 
 - None.
+
+## core/start-timeout-and-hose
+
+Owner: start-timeout writer.
+Spec: ADR 0119, accepted by Duke on 2026-10-14.
+Base: PR 11 at `e26dd00f`, with the accepted ADR.
+Compare: `origin/main` at `fef10e46`.
+Proof folder: `docs/roadmap/core-v1/start-timeout-and-hose/`.
+
+### Impact
+
+- `Scope.RootOptions` adds `startTimeout`; old calls keep their shape.
+- Start events add `tap`; other hook types keep their shape.
+- `Namespace` adds `observe`; old keys still observe by default.
+- A hanging start now fails and closes instead of waiting forever.
+- Consumers: Core tests, React, Start, Drizzle, drivers, examples, and apps.
+- Only Core source changes; the workspace build checks consumers.
+
+### Saved code
+
+- Scope-clock timeout, default 10 000 ms; `StartTimeout` carries the hanging label.
+- Start taps share spans and logs; level is the lowest, history the largest.
+- A quiet namespace suppresses its spans and logs.
+- Source tests: Core 907, React 98; base: Core 900, React 98.
+- One tap sends one `work` span, status `ok`, value 42.
+- Runtime size: 16 383 B gzip, within the unchanged 16 384 B cap.
+- Fast-code checks pass, including the default Maglev inline call.
+- Bytecode ceilings grow only for namespace and logger arguments.
+  `runOnce`: 499 to 504; `OperationCtx`: 126 to 132.
+  `buildHooklessResource`: 451 to 454; `runHookChain`: 187 to 190.
+  `runHookBody`: 298 to 311.
+- Slots fall from 339 to 338; closure counts stay the same.
+- Seven new tests: strict style OK, no mocks or sleeps.
+- Source strict counts match the pinned base; no new strict hit.
+- TSDoc: zero S26 rows.
+- Jev: new tests have no flags; 14 changed-unit flags are labeled false.
+  They describe Core-owned state, startup waits, or fixed shapes.
+- Old flags: 7 test flags and 45 missing README lines.
+  They are outside this card.
+- Calibration and mutation are not run, as asked.
+- ADR differences: none.
+- Full gates and queued timing follow on the saved code.

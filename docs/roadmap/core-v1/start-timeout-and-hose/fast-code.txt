@@ -1,0 +1,5 @@
+{"check":"slots","status":"PASS","actual":{"core":338,"react":21},"milliseconds":53}
+{"check":"bytecode","status":"PASS","actual":{"runOnce":504,"settleRun":53,"OperationCtx":132,"buildHooklessResource":454,"resolveDep":223,"runHookChain":190,"runHookBody":311,"invokeRunHooks":49,"stepRunHook":201},"milliseconds":850}
+{"check":"inlining","status":"PASS","actual":{"OperationCtxIntoRunOnce":true,"maglev":"default on"},"milliseconds":544}
+{"check":"closures","status":"PASS","actual":{"runOnce":0,"settleRun":0,"OperationCtx":0,"buildHooklessResource":3,"resolveDep":0,"runHookChain":0,"runHookBody":0,"invokeRunHooks":0,"stepRunHook":1},"milliseconds":42}
+{"check":"client","status":"PASS","actual":{"zod":0,"drizzle":0,"pglite":0,"chunks":3},"milliseconds":4746}

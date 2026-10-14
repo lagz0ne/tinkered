@@ -10,6 +10,7 @@ type Payloads = {
   Disposed: { reason: string };
   TeardownFailed: { causes: unknown[] };
   NotResolved: { label: string };
+  StartTimeout: { label: string };
   CircularResource: { label: string };
 };
 

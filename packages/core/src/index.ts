@@ -102,6 +102,8 @@ export declare namespace Tag {
 export type Namespace = {
   readonly [namespaceSym]: true;
   readonly tags: readonly Tag.Binding<unknown>[];
+  /** False suppresses spans and logs for work in this bucket (ADR 0119). */
+  readonly observe?: false;
 };
 
 /** A namespace as authored on an invocation or scope option: one key, or a read-through
@@ -514,7 +516,13 @@ export declare namespace Scope {
 
   /** Each hook keeps one object as its input. `kind` narrows the payload and `next` result. */
   export type ExtensionDetails = {
-    start: { readonly kind: "start"; readonly scope: Handle; readonly next: () => Promise<void> };
+    start: {
+      readonly kind: "start";
+      readonly scope: Handle;
+      readonly next: () => Promise<void>;
+      /** Adds a sink for records made after this call (ADR 0119). */
+      readonly tap: (config: Observe.Config) => void;
+    };
     resolve: {
       readonly kind: "resolve";
       readonly target: Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>;
@@ -600,6 +608,8 @@ export declare namespace Scope {
   };
 
   export type RootOptions = Options & {
+    /** The start chain's limit in scope-clock milliseconds; default 10 000 (ADR 0119). */
+    readonly startTimeout?: number;
     /** Ask the root to close gracefully once `ready` resolves, even if already aborted.
      * A failed start closes forcibly instead. This never aborts `ctx.signal` (ADR 0085). */
     readonly signal?: AbortSignal;
@@ -902,8 +912,15 @@ export function tag<T>(config: {
 /** Mint a namespace: a branded parallel storage bucket (ADR 0059), exactly as `data`/`tag` mint
  * configured handles. It carries no string — two namespaces differ by identity. `opts.tags` are
  * the namespace's own bindings, read when a call resolves in it. */
-export function namespace(options?: { readonly tags?: Tag.Bindings }): Namespace {
-  return { [namespaceSym]: true as const, tags: readMany(options?.tags) };
+export function namespace(options?: {
+  readonly tags?: Tag.Bindings;
+  readonly observe?: false;
+}): Namespace {
+  return {
+    [namespaceSym]: true as const,
+    tags: readMany(options?.tags),
+    observe: options?.observe,
+  };
 }
 
 const isNamespace = (n: unknown): n is Namespace =>
@@ -1668,6 +1685,7 @@ function ignoreRejection(ready: Promise<unknown>): void {
 }
 
 type Obs = {
+  taps: Observe.Config[];
   on: boolean;
   clock: () => number;
   export: ((span: SpanImpl) => void) | undefined;
@@ -1735,6 +1753,7 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
   const c = config;
   const limit = c.history ?? 0;
   return {
+    taps: [config],
     on: c.export !== undefined || limit > 0,
     clock: c.clock ?? (() => clock.currentTimeMillis()),
     export: c.export,
@@ -1748,6 +1767,7 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
 
 /** Observation off: no span opens and no log line is written, so nothing reads its clock. */
 const DEFAULT_OBS: Obs = makeObs({}, systemClock);
+DEFAULT_OBS.taps.length = 0;
 
 /** Keep the off check small enough to inline; id creation runs only behind it. */
 function openSpan(
@@ -1756,8 +1776,10 @@ function openSpan(
   up: SpanImpl | undefined,
   name: string,
   kind: Observe.Kind,
+  chain?: readonly Namespace[],
 ): SpanImpl | undefined {
   if (!obs.on) return undefined;
+  if (chain?.[0]?.observe === false) return undefined;
   return new SpanImpl(obs, layer, up, name, kind);
 }
 
@@ -1976,13 +1998,19 @@ function obsCtx(layer: Layer, span: SpanImpl | undefined): Observe.Ctx {
   };
 }
 
-function logFor(obs: Obs, span: SpanImpl | undefined): Observe.Logger {
-  const sink = obs.log;
-  if (!sink) return noop;
-  const min = obs.level;
+function logFor(obs: Obs, span: SpanImpl | undefined, extension?: string): Observe.Logger {
+  if (!obs.log) return noop;
   const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
-    if (level < min) return;
-    isolate(() => sink({ time: obs.clock(), level, message, attributes: attributes ?? {}, span }));
+    if (level < obs.level) return;
+    isolate(() =>
+      obs.log!({
+        time: obs.clock(),
+        level,
+        message,
+        attributes: extension === undefined ? (attributes ?? {}) : { ...attributes, extension },
+        span,
+      }),
+    );
   };
   return Object.assign(at(LEVELS.info), {
     debug: at(LEVELS.debug),
@@ -2037,6 +2065,10 @@ class OperationControl<T, I> {
     this.twin = undefined;
     this.settler = undefined;
   }
+  static quietLog(chain: readonly Namespace[] | undefined): Observe.Logger | undefined {
+    return chain?.[0]?.observe === false ? noop : undefined;
+  }
+
   get settle(): (call?: Scope.Invocation<I>) => unknown {
     if (this.settler === undefined) {
       const layer = this.layer;
@@ -2288,7 +2320,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   declare readonly rawInput: unknown;
   declare readonly input: I;
   private tools: Observe.Ctx | undefined;
-  private logs: Observe.Logger | undefined;
+  declare private logs: Observe.Logger | undefined;
   declare readonly span: SpanImpl | undefined;
   declare readonly clock: Clock.Handle;
   declare readonly random: Random.Handle;
@@ -2297,7 +2329,9 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     target: Pick<Operation.Handle<unknown, I>, "label" | "input">,
     call: Scope.Invocation<I> | undefined,
     span: SpanImpl | undefined,
+    log?: Observe.Logger,
   ) {
+    this.logs = log;
     this.layer = owner;
     this.label = target.label;
 
@@ -2621,8 +2655,9 @@ function executorFor<T, I>(
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
 ): (call?: Scope.Invocation<I>) => unknown {
+  const log = OperationControl.quietLog(chain);
   return (call?: Scope.Invocation<I>): unknown =>
-    runOnce(layer, target, up, chain, caller, false, call);
+    runOnce(layer, target, up, chain, caller, false, call, log);
 }
 
 /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
@@ -2639,6 +2674,7 @@ function runOnce<T, I>(
   caller: RunState | undefined,
   replay: Replay,
   call: Scope.Invocation<I> | undefined,
+  log?: Observe.Logger,
 ): unknown {
   if (call !== undefined) {
     if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
@@ -2655,7 +2691,7 @@ function runOnce<T, I>(
 
   ensureRunning(layer, caller);
   const obs = layer.obs;
-  const span = openSpan(obs, layer, up, target.label, "operation");
+  const span = openSpan(obs, layer, up, target.label, "operation", chain);
   const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
 
   /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
@@ -2670,7 +2706,7 @@ function runOnce<T, I>(
   let result: T;
   buildDepth++;
   try {
-    ctx = new OperationCtx<I>(layer, target, call, span);
+    ctx = new OperationCtx<I>(layer, target, call, span, log);
     result = runBody(
       override,
       target,
@@ -2743,7 +2779,16 @@ function runUntagged<T, I>(
   caller?: RunState,
   nested = false,
 ): T {
-  return runOnce(layer, target, up, chain, caller, nested ? "nested" : "root", call) as T;
+  return runOnce(
+    layer,
+    target,
+    up,
+    chain,
+    caller,
+    nested ? "nested" : "root",
+    call,
+    OperationControl.quietLog(chain),
+  ) as T;
 }
 
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
@@ -2917,6 +2962,7 @@ class ResourceCtx implements Resource.Ctx {
 
     this.label = owned.target.label;
     this.span = span;
+    if (chain?.[0]?.observe === false) this.logs = noop;
     this.clock = owned.layer.clock;
     this.random = owned.layer.random;
   }
@@ -3212,7 +3258,7 @@ function buildHooklessResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(obs, caller, up, target.label, "resource");
+  const span = openSpan(obs, caller, up, target.label, "resource", chain);
 
   rec.busy = true;
   buildDepth++;
@@ -3273,7 +3319,7 @@ function buildTrackedResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(obs, caller, up, target.label, "resource");
+  const span = openSpan(obs, caller, up, target.label, "resource", chain);
 
   rec.busy = true;
   let settled = false;
@@ -4549,7 +4595,7 @@ export function createScope(options?: Scope.RootOptions): Scope.Handle {
   const plain = new ScopeHandle(layer);
   const exts = readMany(options?.extensions);
   if (exts.length === 0 && options?.signal === undefined) return plain;
-  return extendHandle(layer, plain, exts, options?.signal);
+  return extendHandle(layer, plain, exts, options?.signal, options?.startTimeout ?? 10_000);
 }
 
 /** A node to release and the layer that owns it. Release and invalidation sit at the END of this
@@ -4757,7 +4803,13 @@ function extendHandle(
   plain: Scope.Handle,
   exts: readonly Scope.Extension<unknown>[],
   signal: AbortSignal | undefined,
+  startTimeout: number,
 ): Scope.Handle {
+  if (layer.obs === DEFAULT_OBS) {
+    layer.obs = makeObs({}, layer.clock);
+    layer.obs.taps.length = 0;
+  }
+
   const records = new Map<Scope.Extension<unknown>, ExtRec>();
   for (const ext of exts) records.set(ext, { settled: false, value: undefined });
   EXTENSIONS.set(layer, records);
@@ -4791,7 +4843,7 @@ function extendHandle(
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
   if (signal) listenForStop(extended, signal, lifetime);
 
-  runStartChain(layer, extended, exts, lifetime, settleReady, failReady);
+  runStartChain(layer, extended, exts, lifetime, settleReady, failReady, startTimeout);
   return extended;
 }
 
@@ -5352,31 +5404,65 @@ function runStartChain(
   lifetime: RootLifetime,
   done: () => void,
   failed: (error: unknown) => void,
+  timeout: number,
 ): void {
+  const pending = new Set<Scope.Extension<unknown>>();
   const at = async (index: number): Promise<void> => {
     if (index >= exts.length) return;
     const ext = exts[index];
     const next = (): Promise<void> => at(index + 1);
     if (!ext.hooks?.start) return next();
 
-    const value = await ext.hooks.start(
-      hookEvent({ kind: "start", scope, next }, layer, ext.label),
-    );
-    const rec = EXTENSIONS.get(layer)?.get(ext);
-    if (rec !== undefined) {
-      rec.value = value;
-      rec.settled = true;
+    pending.add(ext);
+    try {
+      const value = await ext.hooks.start(
+        hookEvent(
+          { kind: "start", scope, next, tap: (config) => ExtensionCtx.addTap(layer, config) },
+          layer,
+          ext.label,
+        ),
+      );
+      const rec = EXTENSIONS.get(layer)?.get(ext);
+      if (rec !== undefined) {
+        rec.value = value;
+        rec.settled = true;
+      }
+    } catch (error) {
+      layer.failed ??= { cause: error };
+      throw error;
+    } finally {
+      pending.delete(ext);
     }
   };
+  const stop = exts.some((ext) => ext.hooks?.start !== undefined)
+    ? new AbortController()
+    : undefined;
+  const expiry = stop
+    ? layer.clock.sleep(timeout, stop.signal).then(() => {
+        let label = "";
+        for (const ext of pending) label = ext.label;
+        raise("StartTimeout", { label });
+      })
+    : undefined;
+  const started = at(0);
+  const ready = expiry ? Promise.race([started, expiry]) : started;
+
   ignoreRejection(
-    at(0).then(done, async (error: unknown) => {
-      layer.failed ??= { cause: error };
-      try {
-        await (lifetime.closing ?? layer.closing ?? scope.close());
-      } finally {
-        failed(error);
-      }
-    }),
+    ready.then(
+      () => {
+        stop?.abort(CLOSING_REASON);
+        done();
+      },
+      async (error: unknown) => {
+        stop?.abort(CLOSING_REASON);
+        layer.failed ??= { cause: error };
+        try {
+          await (lifetime.closing ?? layer.closing ?? scope.close());
+        } finally {
+          failed(error);
+        }
+      },
+    ),
   );
 }
 
@@ -5400,6 +5486,38 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     this.ns = chain;
     this.flight = run;
   }
+  /** The first sink stays direct; only a second sink creates a fan-out (ADR 0119). */
+  static addTap(layer: Layer, config: Observe.Config): void {
+    const obs = layer.obs;
+    const taps = obs.taps;
+    if (taps.length === 0) {
+      Object.assign(obs, makeObs(config, layer.clock));
+      return;
+    }
+
+    taps.push(config);
+    obs.level = Math.min(obs.level, config.level ?? 0);
+    obs.limit = Math.max(obs.limit, config.history ?? 0);
+
+    obs.export = taps.some((tap) => tap.export !== undefined)
+      ? (span) => {
+          for (const tap of taps) {
+            const sink = tap.export;
+            if (sink) isolate(() => sink(span));
+          }
+        }
+      : undefined;
+    obs.log = taps.some((tap) => tap.log !== undefined)
+      ? (line) => {
+          for (const tap of taps) {
+            const sink = tap.log;
+            if (sink && line.level >= (tap.level ?? 0)) isolate(() => sink(line));
+          }
+        }
+      : undefined;
+    obs.on = obs.export !== undefined || obs.limit > 0;
+  }
+
   get clock(): Clock.Handle {
     return this.layer.clock;
   }
@@ -5416,6 +5534,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
       { label: run.label, input: undefined },
       run.call,
       run.span,
+      OperationControl.quietLog(this.ns),
     ));
   }
   private use<T>(fn: () => T): T {
@@ -5562,20 +5681,10 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   get log(): Observe.Logger {
     const ctx = this.ctx;
     if (ctx) return ctx.log;
-    const sink = this.layer.obs.log;
-    return sink ? (this.logs ??= this.logFor(sink)) : noop;
-  }
-  /** Keep the sink wrapper's captured state off the run logger's path. */
-  private logFor(sink: NonNullable<Obs["log"]>): Observe.Logger {
-    const obs = this.layer.obs;
-    const label = this.label;
-    return logFor(
-      {
-        ...obs,
-        log: (line) => sink({ ...line, attributes: { ...line.attributes, extension: label } }),
-      },
-      undefined,
-    );
+    if (this.ns?.[0]?.observe === false) return noop;
+    return this.layer.obs.log
+      ? (this.logs ??= logFor(this.layer.obs, undefined, this.label))
+      : noop;
   }
   get raise(): Resource.Ctx["raise"] {
     return (this.raiser ??= (kind, payload) => raiseFrom(this.ctx ?? this, kind, payload));
@@ -5957,7 +6066,7 @@ function runHookChain<T, I>(
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  const span = openSpan(layer.obs, layer, up, target.label, "operation");
+  const span = openSpan(layer.obs, layer, up, target.label, "operation", chain);
   const run = createHookRun(layer, span, target.label, call, caller);
   let result: unknown;
   try {
@@ -6047,6 +6156,7 @@ function runHookBody<T, I>(
       target,
       run.call as Scope.Invocation<I> | undefined,
       run.span,
+      OperationControl.quietLog(chain),
     );
     if (run.ctx) OperationCtx.share(run.ctx, ctx);
     run.ctx = ctx;

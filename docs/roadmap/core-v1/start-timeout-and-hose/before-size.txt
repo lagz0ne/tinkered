@@ -1,0 +1,2 @@
+core runtime size: 16030 B gzip (cap 16384 B; all runtime files)
+core entries: main loads no testing; all three testing helpers work across entries

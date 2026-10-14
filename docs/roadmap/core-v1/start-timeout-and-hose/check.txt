@@ -1,0 +1,258 @@
+pass: All 1518 files are correctly formatted (6646ms, 8 threads)
+warn: Lint or type warnings found
+! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-frame-boundaries.test.ts:196:11]
+ 195 |     run: () => ({
+ 196 |       get then(): unknown {
+     :           ^^^^
+ 197 |         closing ??= root.close().then(() => order.push("parent-ended"));
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-lifetime.test.ts:203:13]
+ 202 |       return {
+ 203 |         get then(): unknown {
+     :             ^^^^
+ 204 |           reads++;
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-lifetime.test.ts:226:13]
+ 225 |       return {
+ 226 |         get then(): unknown {
+     :             ^^^^
+ 227 |           reads++;
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/core/tests/tagged-lifetime.test.ts:249:9]
+ 248 |       const result: (() => number) & { then: unknown } = Object.assign(() => 0, {
+ 249 |         then: undefined,
+     :         ^^^^
+ 250 |       });
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to a class.
+     ,-[packages/core/tests/tagged-lifetime.test.ts:252:9]
+ 251 |       defer(() => {
+ 252 |         result.then = (resolve: (value: number) => void) => resolve(7);
+     :         ^^^^^^^^^^^
+ 253 |       });
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:37:13]
+ 36 |       return {
+ 37 |         get then(): never {
+    :             ^^^^
+ 38 |           throw cause;
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:52:9]
+ 51 |   const value = await root.session((): unknown => ({
+ 52 |     get then() {
+    :         ^^^^
+ 53 |       const n = ++reads;
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/core/tests/session-end.test.ts:65:9]
+ 64 |   const value = await root.session((): unknown => ({
+ 65 |     get then() {
+    :         ^^^^
+ 66 |       if (++reads > 1) throw new Error("second-read");
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+      ,-[packages/core/tests/index.test.ts:2540:5]
+ 2539 |   const lazy = {
+ 2540 |     then: (res: (v: number) => void) => {
+      :     ^^^^
+ 2541 |       thenCalls++;
+      `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! unicorn(no-thenable): Do not add `then` to an object.
+      ,-[packages/core/tests/index.test.ts:2564:13]
+ 2563 |       export: () => ({
+ 2564 |         get then() {
+      :             ^^^^
+ 2565 |           throw new Error("evil-then");
+      `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint(no-unused-vars): Variable 'stems' is declared but never used. Unused variables should start with a '_'.
+    ,-[tools/jev/tests.mjs:92:7]
+ 91 | 
+ 92 | const stems = (s) =>
+    :       ^^|^^
+    :         `-- 'stems' is declared here
+ 93 |   new Set(
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'existsSync' is imported but never used.
+   ,-[tools/jev/explain.mjs:6:10]
+ 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
+ 6 | import { existsSync, readFileSync } from "node:fs";
+   :          ^^^^^|^^^^
+   :               `-- 'existsSync' is imported here
+ 7 | 
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
+   ,-[tools/jev/explain.mjs:6:22]
+ 5 | //   node tools/jev/explain.mjs [--md]      (--md: lists for the README)
+ 6 | import { existsSync, readFileSync } from "node:fs";
+   :                      ^^^^^^|^^^^^
+   :                            `-- 'readFileSync' is imported here
+ 7 | 
+   `----
+  help: Consider removing this import.
+
+  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+    ,-[bench/heap.mjs:26:14]
+ 25 | const N = 20000;
+ 26 | const live = new Array(N);
+    :              ^^^^^^^^^^^^
+ 27 | globalThis.gc();
+    `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
+
+  ! unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+    ,-[bench/heap.mjs:41:20]
+ 40 | const zone = tag({ label: "zone", default: "base" });
+ 41 | const liveTagged = new Array(N);
+    :                    ^^^^^^^^^^^^
+ 42 | globalThis.gc();
+    `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
+
+  ! eslint(no-unused-vars): Variable 'React' is declared but never used. Unused variables should start with a '_'.
+    ,-[bench/react-render.mjs:14:7]
+ 13 | 
+ 14 | const React = (await import("react")).default;
+    :       ^^|^^
+    :         `-- 'React' is declared here
+ 15 | const { act, createElement: h, Fragment } = await import("react");
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'readFileSync' is imported but never used.
+   ,-[tools/jev/preflight.mjs:8:22]
+ 7 | import { execFileSync } from "node:child_process";
+ 8 | import { existsSync, readFileSync } from "node:fs";
+   :                      ^^^^^^|^^^^^
+   :                            `-- 'readFileSync' is imported here
+ 9 | 
+   `----
+  help: Consider removing this import.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:3269:16]
+ 3268 |     const ctx = emptyCtxFor(owner, chain);
+ 3269 |     const fn = target.factory;
+      :                ^^^^^^^^^^^^^^|
+      :                       |      `-- This reference may be unbound and lose `this` context
+ 3270 |     const result =
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:3329:28]
+ 3328 |     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
+ 3329 |     const fn = override ?? target.factory;
+      :                            ^^^^^^^^^^^^^^|
+      :                                   |      `-- This reference may be unbound and lose `this` context
+ 3330 |     owned = startBuildInstance(owner, target, rec, fn.length >= 2);
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+      ,-[packages/core/src/index.ts:4405:20]
+ 4404 |    * every userland call site; the seam cast below only widens this internal entry. */
+ 4405 |   const dispatch = operationController(layer, handle, up, chain, receiver, inline).run as (
+      :                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|
+      :                                                     |                                 `-- This reference may be unbound and lose `this` context
+ 4406 |     call?: Scope.Invocation<I>,
+      `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript(await-thenable): Unexpected `await` of a non-Promise (non-"Thenable") value.
+      ,-[packages/core/tests/index.test.ts:4298:21]
+ 4297 |     run: async ({ conn }) => {
+ 4298 |       const value = await conn;
+      :                     ^^^^^ ^^|^
+      :                       |     `-- This expression is not Promise-like
+ 4299 |       order.push(value.open ? "use-open" : "use-closed");
+      `----
+  help: Remove `await` if the value is synchronous, or change the expression to return a Promise or Thenable before awaiting it.
+
+  ! typescript(await-thenable): Unexpected `await` of a non-Promise (non-"Thenable") value.
+      ,-[packages/core/tests/index.test.ts:4332:31]
+ 4331 |     depends: { conn },
+ 4332 |     run: async ({ conn }) => (await conn).open,
+      :                               ^^^^^ ^^|^
+      :                                 |     `-- This expression is not Promise-like
+ 4333 |   });
+      `----
+  help: Remove `await` if the value is synchronous, or change the expression to return a Promise or Thenable before awaiting it.
+
+  ! typescript(no-useless-default-assignment): Default value is useless because the parameter has type `SlotValues<Record<string, never>>` (not nullish). This default assignment will never be used.
+      ,-[packages/core/tests/index.test.ts:4549:23]
+ 4548 |     label: "stamped-default-deps",
+ 4549 |     factory: (_deps = {}, { clock }) => clock.currentTimeMillis(),
+      :               ^^|^^   ^|^
+      :                 |      `-- Default value
+      :                 `-- parameter type `SlotValues<Record<string, never>>` is not nullish
+ 4550 |   });
+      `----
+  help: Remove the default assignment
+
+  ! typescript(no-base-to-string): 'title' will use Object's default stringification format ('[object Object]') when stringified.
+    ,-[tools/jev/explain.mjs:28:29]
+ 27 | for (const [title, bank] of GROUPS) {
+ 28 |   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+    :                             ^^^^^
+ 29 |   if (!Object.keys(bank).length) {
+    `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript(restrict-template-expressions): Invalid type used in template literal expression.
+    ,-[tools/jev/explain.mjs:28:29]
+ 27 | for (const [title, bank] of GROUPS) {
+ 28 |   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+    :                             ^^|^^^
+    :                               `-- Type: {}
+ 29 |   if (!Object.keys(bank).length) {
+    `----
+
+  ! typescript(no-base-to-string): 'title' will use Object's default stringification format ('[object Object]') when stringified.
+    ,-[tools/jev/explain.mjs:28:49]
+ 27 | for (const [title, bank] of GROUPS) {
+ 28 |   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+    :                                                 ^^^^^
+ 29 |   if (!Object.keys(bank).length) {
+    `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript(restrict-template-expressions): Invalid type used in template literal expression.
+    ,-[tools/jev/explain.mjs:28:49]
+ 27 | for (const [title, bank] of GROUPS) {
+ 28 |   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+    :                                                 ^^|^^^
+    :                                                   `-- Type: {}
+ 29 |   if (!Object.keys(bank).length) {
+    `----
+
+Found 0 errors and 27 warnings in 698 files (25.5s, 8 threads)

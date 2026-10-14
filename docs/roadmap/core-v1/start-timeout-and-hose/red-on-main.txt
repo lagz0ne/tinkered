@@ -1,0 +1,192 @@
+~/packages/core$ vp test start-timeout-and-hose ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout-base/packages/core
+
+ ❯ tests/start-timeout-and-hose.test.ts (7 tests | 6 failed) 10051ms
+   × a hanging inner start times out on the scope clock and closes with its label 5011ms
+   × start defaults to ten seconds and names an outer hook hanging after next 5003ms
+   × one start tap receives a span and misses work before the tap 13ms
+   × two taps receive the same span, filter their own levels, and keep the largest history 3ms
+   × a throwing tap does not stop another tap 1ms
+   × a quiet namespace emits no spans or logs from its work and hooks 18ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > a hanging inner start times out on the scope clock and closes with its label
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/start-timeout-and-hose.test.ts:15:1
+     13| } from "@/index";
+     14|
+     15| test("a hanging inner start times out on the scope clock and closes wi…
+       | ^
+     16|   const clock = makeTestClock();
+     17|   const cleanups: string[] = [];
+ ❯ VitestModuleRunner.directRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1272:59
+ ❯ VitestModuleRunner.cachedRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1179:73
+ ❯ VitestModuleRunner.import ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1134:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > start defaults to ten seconds and names an outer hook hanging after next
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/start-timeout-and-hose.test.ts:48:1
+     46| });
+     47|
+     48| test("start defaults to ten seconds and names an outer hook hanging af…
+       | ^
+     49|   const clock = makeTestClock();
+     50|   let waiting = false;
+ ❯ VitestModuleRunner.directRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1272:59
+ ❯ VitestModuleRunner.cachedRequest ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1179:73
+ ❯ VitestModuleRunner.import ../../node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.0.0_@types+node@26.5.1_esbuild@0.28.2_jiti@2.7.0_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/module-runner.js:1134:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > one start tap receives a span and misses work before the tap
+TypeError: event.tap is not a function
+ ❯ Object.start tests/start-timeout-and-hose.test.ts:105:19
+    103|           start(event) {
+    104|             event.run(work);
+    105|             event.tap({
+       |                   ^
+    106|               export: (span) => {
+    107|                 spans.push(span);
+ ❯ at src/index.ts:5362:35
+ ❯ runStartChain src/index.ts:5372:5
+ ❯ extendHandle src/index.ts:4794:3
+ ❯ createScope src/index.ts:4552:10
+ ❯ tests/start-timeout-and-hose.test.ts:98:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > two taps receive the same span, filter their own levels, and keep the largest history
+TypeError: event.tap is not a function
+ ❯ Object.start tests/start-timeout-and-hose.test.ts:154:19
+    152|           start(event) {
+    153|             const { log } = event;
+    154|             event.tap({
+       |                   ^
+    155|               export: (span) => {
+    156|                 second.push(span);
+ ❯ at src/index.ts:5362:35
+ ❯ runStartChain src/index.ts:5372:5
+ ❯ extendHandle src/index.ts:4794:3
+ ❯ createScope src/index.ts:4552:10
+ ❯ tests/start-timeout-and-hose.test.ts:137:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > a throwing tap does not stop another tap
+TypeError: event.tap is not a function
+ ❯ Object.start tests/start-timeout-and-hose.test.ts:217:19
+    215|         hooks: {
+    216|           start(event) {
+    217|             event.tap({
+       |                   ^
+    218|               export: (span) => {
+    219|                 spans.push(span);
+ ❯ at src/index.ts:5362:35
+ ❯ runStartChain src/index.ts:5372:5
+ ❯ extendHandle src/index.ts:4794:3
+ ❯ createScope src/index.ts:4552:10
+ ❯ tests/start-timeout-and-hose.test.ts:203:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/start-timeout-and-hose.test.ts > a quiet namespace emits no spans or logs from its work and hooks
+AssertionError: expected [ SpanImpl{ …(16) }, …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "attributes": {},
++     "end": 1791962864463,
++     "events": [],
++     "id": 2,
++     "kind": "resource",
++     "name": "client",
++     "parentId": 1,
++     "parentSpanId": "93b83da58d1eadc5",
++     "sampled": true,
++     "spanId": "4cef42f5c0899936",
++     "start": 1791962864462,
++     "status": "ok",
++     "traceId": "d002265dc4a9086693b83da58d1eadc5",
++   },
++   {
++     "attributes": {},
++     "end": 1791962864463,
++     "events": [],
++     "id": 3,
++     "kind": "manual",
++     "name": "send",
++     "parentId": 1,
++     "parentSpanId": "93b83da58d1eadc5",
++     "sampled": true,
++     "spanId": "928ec197ea862686",
++     "start": 1791962864463,
++     "status": "ok",
++     "traceId": "d002265dc4a9086693b83da58d1eadc5",
++   },
++   {
++     "attributes": {},
++     "end": 1791962864464,
++     "events": [],
++     "id": 4,
++     "kind": "operation",
++     "name": "nested",
++     "parentId": 1,
++     "parentSpanId": "93b83da58d1eadc5",
++     "sampled": true,
++     "spanId": "dc4829c950845b5f",
++     "start": 1791962864463,
++     "status": "ok",
++     "traceId": "d002265dc4a9086693b83da58d1eadc5",
++   },
++   {
++     "attributes": {},
++     "end": 1791962864464,
++     "events": [
++       {
++         "attributes": {
++           "resource": "client",
++         },
++         "name": "used",
++         "time": 1791962864462,
++       },
++     ],
++     "id": 1,
++     "kind": "operation",
++     "name": "work",
++     "parentId": undefined,
++     "parentSpanId": undefined,
++     "sampled": true,
++     "spanId": "93b83da58d1eadc5",
++     "start": 1791962864461,
++     "status": "ok",
++     "traceId": "d002265dc4a9086693b83da58d1eadc5",
++   },
++ ]
+
+ ❯ tests/start-timeout-and-hose.test.ts:299:17
+    297|
+    298|   expect(value).toBe(42);
+    299|   expect(spans).toEqual([]);
+       |                 ^
+    300|   expect(lines).toEqual([]);
+    301|   expect(scope.spans()).toEqual([]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 1 passed (7)
+   Start at  07:27:34
+   Duration  10.54s (tests 98%, transform 2%)
+
+

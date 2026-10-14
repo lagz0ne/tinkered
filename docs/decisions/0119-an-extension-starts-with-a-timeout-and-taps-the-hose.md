@@ -1,6 +1,7 @@
 # 0119 An extension starts with a timeout and taps the hose
 
-Date: 2026-10-14. Status: accepted (user, 2026-10-14 07:18: "Yes, go").
+Date: 2026-10-14. Status: implemented (2026-10-14).
+Accepted: user, 2026-10-14 07:18: "Yes, go".
 Builds on: 0050, 0059, 0064, 0091, 0093, 0104.
 
 - User, 2026-10-14: "This is not an fi everything

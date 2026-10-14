@@ -1,0 +1,61 @@
+~/packages/core$ CORE_PRIVATE_FIELDS=write vp pack ⊘ cache disabled
+ℹ entry: src/index.ts, src/testing.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 9 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+context canceled
+context canceled
+ℹ dist/index.mjs                       50.20 kB │ gzip:  16.56 kB
+ℹ dist/testing.mjs                      1.26 kB │ gzip:   0.77 kB
+ℹ dist/index.mjs.map                  357.61 kB │ gzip: 102.19 kB
+ℹ dist/testing.mjs.map                  7.29 kB │ gzip:   2.95 kB
+ℹ dist/trace-random-DbkDB-C-.mjs.map    1.04 kB │ gzip:   0.56 kB
+ℹ dist/trace-random-DbkDB-C-.mjs        0.18 kB │ gzip:   0.17 kB
+ℹ dist/testing.d.mts                    2.54 kB │ gzip:   1.12 kB
+ℹ dist/index.d.mts                      0.66 kB │ gzip:   0.33 kB
+ℹ dist/index-BJjFsjND.d.mts            40.89 kB │ gzip:  12.52 kB
+ℹ 9 files, total: 461.66 kB
+[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 12.7s of this 12.8s build (99%).
+The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - plugin core-private-fields generateBundle (94%, 12.1s, 1 call)
+Additional callback time came from the callbacks below and from callbacks under 1s.
+2 callbacks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
+  - plugin rolldown-plugin-dts:generate load (4 calls)
+  - plugin rolldown-plugin-dts:resolver resolveId (10 calls)
+See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
+
+✔ Build complete in 12867ms
+
+~/packages/core$ vp pack ⊘ cache disabled
+ℹ entry: src/index.ts, src/testing.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ Cleaning 9 files
+warn: TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.
+ℹ Emit types with typescript@7.0.2
+context canceled
+ℹ dist/index.mjs                       48.26 kB │ gzip:  16.24 kB
+ℹ dist/testing.mjs                      1.25 kB │ gzip:   0.77 kB
+ℹ dist/index.mjs.map                  359.14 kB │ gzip: 103.16 kB
+ℹ dist/testing.mjs.map                  7.30 kB │ gzip:   2.96 kB
+ℹ dist/trace-random-DbkDB-C-.mjs.map    1.04 kB │ gzip:   0.56 kB
+ℹ dist/trace-random-DbkDB-C-.mjs        0.18 kB │ gzip:   0.17 kB
+ℹ dist/testing.d.mts                    2.54 kB │ gzip:   1.12 kB
+ℹ dist/index.d.mts                      0.66 kB │ gzip:   0.33 kB
+ℹ dist/index-BJjFsjND.d.mts            40.89 kB │ gzip:  12.52 kB
+ℹ 9 files, total: 461.25 kB
+[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 5.8s of this 6.1s build (96%).
+The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - plugin core-private-fields generateBundle (86%, 5.2s, 1 call)
+Additional callback time came from the callbacks below and from callbacks under 1s.
+2 callbacks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
+  - plugin rolldown-plugin-dts:generate load (4 calls)
+  - plugin rolldown-plugin-dts:resolver resolveId (10 calls)
+See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
+
+✔ Build complete in 6123ms
+
+---
+vp run: 0/2 cache hit (0%). (Run `vp run --last-details` for full details)

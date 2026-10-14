@@ -100,4 +100,4 @@ by a new decision that names the old one.
 - [0115](0115-a-new-app-starts-from-the-template-repo.md): a new app starts from the `tinker-app` template repo; a branch is a variation, a tag pins it (proposed).
 - [0116](0116-items-join-the-app-by-file-name-convention.md): items join the app by role file names under `src/items/<item>/`; prepare writes the generated seam, the user's seam last (proposed; ordering superseded by 0117).
 - [0117](0117-items-declare-requires-and-export-one-public-entry.md): items declare dependencies in `item.json`, expose only their index files, and reject unordered shared tags (proposed; replaces 0116 ordering).
-- [0119](0119-an-extension-starts-with-a-timeout-and-taps-the-hose.md): an extension's `start` hook is its init, with a 10 s timeout; a tool keeps state in its own namespace; observe is one hose that extensions tap (accepted).
+- [0119](0119-an-extension-starts-with-a-timeout-and-taps-the-hose.md): an extension's `start` hook is its init, with a 10 s timeout; a tool keeps state in its own namespace; observe is one hose that extensions tap (implemented).

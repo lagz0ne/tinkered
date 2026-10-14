@@ -1,0 +1,906 @@
+packages/core/tests/body-tools.test.ts
+  ✓ L5 a destructured operation logger stays the same and sends every level in order
+  ✓ L44 a destructured resource logger stays the same and keeps the level threshold
+  ✓ L79 a resource keeps its observation tools and exports manual events and children
+  ✓ L106 a caught operation raise carries its span before the body reads observation tools
+  ✓ L122 a caught resource raise carries its span before the factory reads observation tools
+packages/core/tests/cache.bench.test.ts
+  ✓ L10 a cached resource resolve allocates no promise on the hot path
+packages/core/tests/call-signal-hooks.test.ts
+  ✓ L13 a call signal stops a run hook before it can start the body
+  ✓ L42 a call signal stops a session hook before it can start the body
+  ✓ L71 a signalled run keeps hook access alive through graceful close
+  ✓ L98 a write hook shares the call signal with its active body
+packages/core/tests/call-signal.test.ts
+  ✓ L23 an already aborted call starts no body and leaves its caller alive
+  ✓ L61 a call signal stops a nested wait before the retry clock advances
+  ✓ L90 a cancelled call waits for its cleanup before it settles
+  ✓ L126 a distinct error after call cancellation remains a handled failure
+  ✓ L147 a call signal gives sync inline work its own data and session resource lifetime
+  ✓ L188 a signalled call keeps input parsing, tags, and its namespace
+  ✓ L221 a synchronous body sees call cancellation with the exact reason
+  ✓ L237 abort during tag-list setup cannot slip past call cancellation
+  ✓ L263 graceful owner close still permits cancellation of an active call
+  ✓ L281 forced owner close cancels a call even when its supplied signal stays live
+packages/core/tests/caught-subflow.test.ts  ⚠ sleep
+  ✓ L11 ${…} ${…} run resolves when its caller catches a managed subflow error
+  ✓ L43 a graceful parent close keeps success when a running tagged subflow's managed error is caught
+  ✓ L88 a subflow failure that escapes its caller fails the session
+  ✓ L115 an unreceived subflow that fails after its caller returns fails the session
+  ✓ L148 a dropped subflow's ${…} while its caller runs ${…} the session
+  ✓ L190 an awaited catch of a managed subflow error leaves the session successful
+  ✓ L217 catch after finally receives the managed subflow error
+  ✓ L247 a then rejection handler receives the managed subflow error
+  ✓ L277 an awaited catch after fulfillment-only then receives the managed subflow error
+  ✓ L307 a managed subflow error caught in an operation defer does not fail the session
+  ✓ L338 a returned managed subflow error received by an outer caller does not fail the session
+  ✓ L368 Promise.all receives both managed subflow errors when its caller catches them
+  ✓ L403 a handler attached by a later timer cannot undo an unreceived failure
+  ✓ L439 a caught subflow closes its own span failed and its caller span ok
+  ✓ L472 a forced close after a caught managed subflow error cancels the session
+  ✓ L516 a controller subflow's managed error caught by its caller leaves the session successful
+  ✓ L545 an unreceived controller subflow fails its session
+  ✓ L570 an unreceived tagged subflow fails its parent session
+  ✓ L596 a catch after its caller returns does not undo an orphan failure
+  ✓ L628 an orphan reports the original failure once
+  ✓ L657 an async subflow that succeeds exports an ok span
+  ✓ L673 a caught managed error two subflows deep does not fail the session
+packages/core/tests/clock.test.ts
+  ✓ L6 a test-clock sleep with an already-aborted signal rejects with the abort reason
+  ✓ L19 a system-clock sleep with an already-aborted signal rejects with the abort reason
+  ✓ L30 the system clock's nanos advance with wall time
+  ✓ L46 a system-clock sleep with no signal resolves
+  ✓ L54 a system-clock sleep with a live signal resolves
+  ✓ L63 due test-clock sleeps wake earliest-first
+  ✓ L98 a system-clock sleep cleans its timer after an abort
+  ✓ L117 a test-clock sleep set into the past wakes at once
+  ✓ L139 a span's start and end read the scope's test clock
+  ✓ L153 a log line's time reads the scope's test clock
+  ✓ L161 an explicit observe clock wins over the scope's clock
+packages/core/tests/closing.test.ts
+  ✓ L51 an idle session close aborts its resource and session hook closing signals
+  ✓ L76 a close hook's first closing read is already aborted
+  ✓ L96 closed settles when a session cleanup makes the first root close
+  ✓ L125 a root without a stop signal closes from a session cleanup
+  ✓ L137 a graceful root close ends a resource-owned wait before draining work
+  ✓ L158 a graceful session close ends a resource-owned wait before draining work
+  ✓ L210 graceful closing fires now while work and resource cleanup still wait
+  ✓ L230 a parent's closing fires in its child before a close hook waits
+  ✓ L268 the first closing read after a parent starts closing is already aborted
+  ✓ L296 closing one session leaves its parent and sibling closing signals live
+  ✓ L316 forced close still stops work through the work signal and rolls back
+  ✓ L337 a closing signal first read after close is aborted
+  ✓ L354 a graceful parent close ends a wait inside a running session body
+  ✓ L371 run, resolve, and write hooks read their owner's closing signal
+packages/core/tests/data.test.ts
+  ✓ L10 an empty nested list reads frozen
+  ✓ L21 a data controller get reads the latest write
+  ✓ L29 a scope with empty tag bindings reads defaults
+  ✓ L39 an operation depending on a non-unit fails with InvalidDependency
+packages/core/tests/dep-controller.test.ts
+  ✓ L5 cell controller deps keep writes and watches across runs
+  ✓ L30 a retained cell controller refuses to call its update function after close
+packages/core/tests/derived-close.test.ts
+  ✓ L23 ${…} close does not join a never-ending then callback
+  ✓ L52 ${…} close reports an orphan without joining its never-ending catch callback
+  ✓ L78 an awaited slow rejection handler receives a managed error while its gate is closed
+  ✓ L114 a caller awaiting finally can catch the original managed subflow error
+  ✓ L145 a detached callback rejection after its ${…} closes belongs to the host
+  ✓ L183 an async subflow returns a native promise that Promise.resolve keeps
+packages/core/tests/entry.test.ts
+  ✓ L5 the main entry keeps test helpers in the testing entry
+packages/core/tests/errors.test.ts
+  ⚠ L5 isError rejects a plain error with no kind  — isErrorInExpect
+  ⚠ L9 isError rejects a real error of the wrong kind  — isErrorInExpect
+packages/core/tests/ext-hooks-layers.test.ts
+  ✓ L5 a tagged run invokes its hook once with the original call
+  ✓ L29 a subflow run invokes its hook once
+  ✓ L56 a tagged run in a session invokes its hook once
+  ✓ L80 an inline run in a session invokes its hook with the inline config
+  ✓ L102 a run hook that skips next stops a subflow with its substitute
+  ✓ L133 a run hook that throws stops a subflow before its body
+  ✓ L167 an async run hook keeps a dropped subflow's rejection on the scope
+  ✓ L196 a namespaced write invokes its hook once
+  ✓ L221 two run hooks keep registration order on a subflow
+  ✓ L249 two hooks keep registration order on a child layer
+packages/core/tests/extension-context.test.ts
+  ✓ L24 graceful close joins a root run hook waiting ${…} next
+  ✓ L65 forced close cancels a hook waiting ${…} next without a late body
+  ✓ L102 a hook ${…} holds its resource through release and run cleanup
+  ✓ L150 run access follows the session owner and inherited or explicit namespace chain
+  ✓ L185 tagged events use the actual child and fire each hook once
+  ✓ L221 write and resolve events bind access and cleanup to their owner
+  ✓ L262 start and close events share only their own root resource
+  ✓ L290 hook-started actions share the active trace and run cleanup
+  ✓ L341 a dropped hook-started action keeps its failure on the owner
+  ✓ L368 a hook can settle a child failure without failing its owner
+  ✓ L398 an event union narrows its payload by kind
+  ✓ L415 saved controllers stay usable through a waiting hook and its graceful cleanup
+  ✓ L460 a saved operation settle returns cancellation when its waiting hook is forced closed
+  ✓ L491 a saved operation settle returns failed Disposed after its hook ends
+  ✓ L521 concurrent and repeated closes join the same root hook once
+  ✓ L556 a hook that returns a substitute still joins its started body
+  ✓ L591 resource contexts expose the namespace chain used by their dependencies
+  ✓ L613 a hook can refuse raw input before its parser runs
+  ✓ L639 catching a body's panic in its hook does not erase the owned failure
+  ✓ L668 an unreturned body keeps its span open and records its failure
+  ✓ L702 a saved event raise keeps one run in the failure path after next
+packages/core/tests/extensions.test.ts
+  ✓ L10 a write chain skips an extension with no write hook
+  ✓ L33 a write chain that skips still refuses when the writer denies
+  ✓ L51 three write hooks nest in registration order
+  ✓ L75 three resolve hooks nest in registration order
+  ✓ L99 a scope with no resolve hooks reads straight through
+  ✓ L107 a session chain is installed only when a hook exists
+  ✓ L126 three run hooks nest in registration order
+  ✓ L150 two close hooks nest in registration order
+  ✓ L172 a scope with no close hooks closes straight through
+  ✓ L182 a forced close with a close hook still settles cancelled
+  ✓ L203 a close chain runs past an extension with no close hook
+  ✓ L225 a resolve chain runs past an extension with no resolve hook
+packages/core/tests/graceful-writes.test.ts
+  ✓ L36 a running call finishes its write during graceful ${…}
+  ✓ L81 a running call's async defer can write during graceful close
+  ✓ L114 graceful close refuses new calls through handles and saved controllers
+  ✓ L147 forced close aborts a running call without waiting for its write gate
+  ✓ L174 closed reports a real failure from a running call's write
+  ✓ L209 closing refuses new calls before a waiting root close hook resumes
+  ✓ L247 a first closing read during graceful root drain is already aborted
+  ✓ L264 graceful close refuses new calls before run hooks start
+  ✓ L287 graceful close refuses new sessions through session hooks
+  ✓ L308 a draining session refuses to release its parent's resource
+  ✓ L332 a parent release keeps a draining child's ${…} resource usable
+  ✓ L376 a running call can run writing helpers during ${…}
+  ✓ L429 a running session body can run an operation during ${…}
+  ✓ L480 forced parent close seals a child already draining gracefully
+  ✓ L514 resource cleanup writes fail with Disposed after graceful drain
+  ✓ L534 graceful close seals a child already aborted by its parent
+  ✓ L570 a child cannot release its draining parent's ${…} resource
+  ✓ L607 a draining session refuses a named release
+  ✓ L633 a finished ${…} call ${…} cannot start helpers during another call's drain
+  ✓ L672 a held controller can write outside a call until graceful drain ends
+  ✓ L693 a running session body cannot release during graceful drain
+  ✓ L719 a running call's cleanup can call a writing helper during graceful drain
+  ✓ L752 a running call can use a tagged helper during graceful root close
+  ✓ L775 a running session body can settle an operation during root stop
+  ✓ L813 a ${…} session handle refuses calls after its body ${…}
+  ✓ L876 a running call cannot start a helper after a forced parent seals its child
+packages/core/tests/handle-proto.test.ts
+  ✓ L8 a repeat controller read gives back the same controller, even after another target
+  ✓ L23 a session's repeat controller read stays apart from its root's
+  ✓ L36 a controller read after close throws Disposed
+  ✓ L48 scope and both session forms share their verbs on one prototype
+  ✓ L78 release passed to forEach resets cells and keeps one function after first read
+  ✓ L93 opening and closing scopes makes no own verb functions
+  ✓ L109 a saved spans list keeps its entries when later runs replace the history
+packages/core/tests/held-controller-retention.test.ts
+  ✓ L33 a closed root keeps the last write of a controller that is still held
+  ✓ L45 a root closed fast with a watcher keeps the last write of a controller that is still held
+  ✓ L59 a root closed slowly with an onClose hook keeps the last write of a controller that is still held
+  ✓ L74 a session swept by a root closed slowly keeps the last write of a controller that is still held
+  ✓ L89 a fast-closed session keeps the last write of a controller that is still held
+  ✓ L103 a session closed under a session hook keeps the last write of a controller that is still held
+  ✓ L124 with no held controller, a closed root frees its last write
+packages/core/tests/index.test.ts
+  ✓ L31 reads a cell's initial value through the scope seam
+  ✓ L36 parse transforms the initial before the first read
+  ✓ L46 set and update are reflected on the next read
+  ✓ L57 watch fires once per real change, never on an eq-equal write; unsubscribe stops it
+  ✓ L72 a watcher reads the previous value beside the next
+  ✓ L90 an invalid write throws DataValidationFailed with a typed payload
+  ✓ L106 a zod schema is a parser as-is: the cell's type is inferred and a bad write carries the issues
+  ✓ L122 an operation's input takes a zod schema and delivers the schema's output
+  ✓ L132 an async schema is refused at the edge with SchemaAsync naming the vendor
+  ✓ L148 an operation parses rawInput into typed input and returns synchronously
+  ✓ L158 read-mode dep delivers the current value; write-mode dep causes an effect
+  ✓ L175 an operation runs on every run (never memoized)
+  ✓ L186 an operation composes a child operation through its controller
+  ✓ L200 a bare operation dependency is delivered as a subflow the caller invokes
+  ✓ L214 a resource depends on another resource and receives its instance (pool → tx)
+  ✓ L232 a resource dep is built before the body runs, whether or not the body reads it
+  ✓ L250 an async resource dep is delivered as its value: the body reads it without awaiting
+  ✓ L269 a run over a still-building async dep waits for the build, then runs with the value
+  ✓ L292 a failed async build fails the call before the body runs and stays failed until release
+  ✓ L334 resolve of an async resource keeps returning the same settled promise
+  ✓ L347 async is typed through the graph: an op over an async resource is an async op
+  ✓ L360 a resource dep the factory reads twice builds once and caches (lazy access parity)
+  ✓ L375 a write through an object inheriting from deps lands on the child, not on deps
+  ✓ L393 a required tag reads its binding, or its default when unbound
+  ✓ L403 a required tag with no binding and no default throws MissingTag
+  ✓ L414 optional reads a bound tag as present
+  ✓ L423 optional reads a missing tag as absent
+  ✓ L433 all returns every binding nearest-first, with no default fallback
+  ✓ L443 a tag binding is validated by parse
+  ✓ L472 an async operation runs to its awaited value
+  ✓ L487 a rejecting async operation rejects with its cause, and settled still drains
+  ✓ L520 dependency snapshots are captured at resolve time, before suspension
+  ✓ L540 concurrent calls each keep their own input
+  ✓ L571 concurrent calls finish in release order, not entry order
+  ✓ L598 two scopes read back their own writes
+  ✓ L622 a read in flight still sees the snapshot from before a later write
+  ✓ L642 settled reports work as pending until it finishes
+  ✓ L667 a session inherits its parent's data and tags
+  ✓ L681 a session write shadows locally (copy-on-write); the parent is unchanged
+  ✓ L693 inherited watchers react to parent writes until the child shadows
+  ✓ L711 a watcher subscribed after a write still fires when the value returns to the initial
+  ✓ L726 a watcher joining after the value returned still fires on the next change
+  ✓ L745 the same listener subscribed twice fires twice, and one unsubscribe leaves the other
+  ✓ L764 a watcher registered before a child shadows still sees the parent's later write
+  ✓ L779 nested tags: nearest layer wins, and .all collects nearest-first across layers
+  ✓ L791 a nearer shadow invalidates a descendant's cached effective cell
+  ✓ L806 a closed scope's held controller still reads the initial value
+  ✓ L818 close runs children first, then userland onClose hooks in LIFO order
+  ✓ L831 close joins in-flight operation work before completing
+  ✓ L856 a closed scope is sealed: late access and late writes fail with Disposed
+  ✓ L876 a throwing onClose hook does not stop the others, and its cause surfaces
+  ✓ L892 close is idempotent: hooks run once
+  ✓ L903 a hook that re-enters close does not run teardown twice
+  ✓ L914 close joins operation work started before the operation's first await
+  ✓ L935 a scope resource builds once: two resolves share one instance
+  ✓ L951 a resource factory sees its owner-bound deps
+  ✓ L963 resource cleanup runs on close
+  ✓ L980 get() before resolve fails with NotResolved
+  ✓ L992 get() through a closed session fails with Disposed, not a stale value
+  ✓ L1008 resolve() through a controller whose owner has closed fails with Disposed
+  ✓ L1027 a resource factory that resolves itself fails with CircularResource
+  ✓ L1042 concurrent resolves of an async resource share one in-flight build
+  ✓ L1064 a resolved async resource caches: a later resolve returns the same instance
+  ✓ L1075 close awaits an in-flight async build before tearing down
+  ✓ L1096 an async build that completes during close does not publish and close stays clean
+  ✓ L1115 cleanup registered by an in-flight factory during close still runs
+  ✓ L1136 an async resource whose factory returns an augmented thenable resolves to the awaited value
+  ✓ L1145 a scope-target resource is one instance shared across sessions
+  ✓ L1159 a session-target resource builds once per session, distinct across sessions
+  ✓ L1178 a scope resource requiring a session-only tag fails with MissingTag
+  ✓ L1195 a session resource reads its owner-bound session data and tags
+  ✓ L1210 session(fn) success commits via onOutcome; a thrown error rolls back and propagates
+  ✓ L1241 a throwing onOutcome is aggregated, keeps the outcome, and does not stop other hooks
+  ✓ L1279 session(fn) closes the child automatically after fn returns
+  ✓ L1290 owned async work that fails settles the session outcome as failed and surfaces its cause
+  ✓ L1323 closing the parent while a session runs joins the body and rolls back on its failure
+  ✓ L1354 an ancestor failure force-closes its subtree: a nested child's resource rolls back
+  ✓ L1382 a factory context is dead after a synchronous throw: a late onOutcome fails
+  ✓ L1408 settled() inside session(fn) drains owned work without waiting on the body itself
+  ✓ L1426 a leaf failure bubbles out through nested sessions to the caller and rolls back the leaf
+  ✓ L1460 a teardown hook that returns its own close() does not hang
+  ✓ L1473 closing a parent whose owned work awaits a child's onClose does not deadlock
+  ✓ L1497 a concurrent close during an async hook awaits the real teardown and its error
+  ✓ L1518 closing again after a close with teardown errors re-reports them
+  ✓ L1532 when owned work and the body both fail, the body cause is primary for hook and caller
+  ✓ L1571 releasing a resource runs its cleanup and a re-resolve rebuilds a new instance
+  ✓ L1593 a build in flight when its resource is released never publishes
+  ✓ L1619 releasing a data cell resets it to its initial value and notifies watchers
+  ✓ L1633 an old build settling after release does not drop the replacement build
+  ✓ L1658 an old build rejecting after release does not fail a session that got the replacement
+  ✓ L1684 a rejected build is sticky: a re-resolve without release returns the same rejection, one build
+  ✓ L1711 releasing a rejected resource lets a re-resolve rebuild a fresh instance
+  ✓ L1739 releasing a dependency cascades to a dependent whose build had rejected, so it rebuilds
+  ✓ L1770 two sessions share one scope-target resource's sticky rejection (one build)
+  ✓ L1803 release drops only the resource's cleanup, not a shared onClose callback
+  ✓ L1824 a release triggered during a factory prevents that build from publishing
+  ✓ L1852 releasing a resource whose owner is already closing fails with Disposed
+  ✓ L1868 a nested release inside a release cleanup does not hang close
+  ✓ L1899 a release cleanup that returns its own close does not hang
+  ✓ L1921 a session-owned build that rejects during auto-close fails the session
+  ✓ L1945 a release cleanup that rejects surfaces as secondary
+  ✓ L1971 releasing a resource cascades to its dependent exactly once; upstream untouched
+  ✓ L1998 a diamond release cascades to the shared dependent exactly once
+  ✓ L2019 a release cascade rebuilds the dependent resource without re-running the operation
+  ✓ L2040 a throwing cleanup mid-cascade still drops every dependent's cache
+  ✓ L2067 releasing the head of a deep chain does not overflow the stack
+  ✓ L2088 a throwing watcher during release still runs the cleanups
+  ✓ L2117 an old build's late rejection does not detach the replacement's edges
+  ✓ L2150 releasing a scope resource cascades to its dependent instances in each session
+  ✓ L2175 a sibling session that did not depend on the released scope resource is unaffected
+  ✓ L2195 a closed session's dependency edges are pruned so a later release skips it
+  ✓ L2214 releasing a scope resource skips a closing session and still releases the others
+  ✓ L2245 a session cleanup that closes the root does not deadlock
+  ✓ L2270 releasing a parent session's resource does not touch a child session's own instance
+  ✓ L2294 closing an unrelated scope from a cleanup awaits its real teardown and surfaces its error
+  ✓ L2321 resolving an operation with a subflow yields a parent-linked span tree
+  ✓ L2345 two interleaved async operations link each leaf span to its own parent
+  ✓ L2381 observation off gives ctx.obs.span undefined and no retained spans
+  ✓ L2398 a throwing exporter does not fail the operation
+  ✓ L2410 history is bounded and toggles independently of export and logging
+  ✓ L2429 observation on keeps the operation's returned value identity (behavior-neutral)
+  ✓ L2439 an async exporter that rejects is isolated (no unhandled rejection, op unaffected)
+  ✓ L2452 a throwing logger does not fail the operation
+  ✓ L2470 a bare log call is info; the four methods carry their level to the sink
+  ✓ L2494 the config level drops every line below the threshold
+  ✓ L2512 a span for an operation whose setup throws is still closed and exported as failed
+  ✓ L2537 a manual child span does not consume a non-promise thenable's then
+  ✓ L2559 a sink returning a thenable whose then getter throws is isolated
+  ✓ L2573 a shared resource used by two operations links a used edge to each caller span
+  ✓ L2595 resource value identity is unchanged with observation on (no wrapping)
+  ✓ L2602 an async resource build opens and closes a balanced span
+  ✓ L2624 a data preset is seen by a downstream operation, validated by parse
+  ✓ L2631 a data preset value runs through parse and can be rejected
+  ✓ L2646 an operation preset replaces the run for a downstream subflow
+  ✓ L2661 an operation preset replaces the run for a direct run too
+  ✓ L2671 a preset is scoped to its scope, not the node globally
+  ✓ L2681 a void-input operation is always delivered as a callable subflow, never a value
+  ✓ L2693 a subflow call with input skips parse; rawInput runs parse
+  ✓ L2709 a tagged scope.run binds the whole flow: the run, a subflow, and a nested subflow read the call's tags
+  ✓ L2729 an undefined input is treated as absent, so rawInput is parsed (no NaN leak)
+  ✓ L2738 a never-parse operation still takes its input at the seam
+  ✓ L2750 a resource preset replaces the built instance for downstream consumers
+  ✓ L2758 a resource preset is built once per owner and cached
+  ✓ L2769 a resource preset's cleanup runs when the owner closes; the real factory never runs
+  ✓ L2793 an async resource preset resolves to its awaited value
+  ✓ L2800 a resource preset does not build the deps of the node it replaces
+  ✓ L2816 a resource preset gets empty deps: the real node's deps are never read
+  ✓ L2825 an operation preset gets empty deps: the real node's deps are not built
+  ✓ L2841 an operation preset does not read an unbound tag
+  ✓ L2848 an operation preset gets empty deps under a run hook too
+  ✓ L2867 an operation preset still parses the call's input and rejects a bad one
+  ✓ L2879 a unit takes no meta: the option is a type error and the handle has no field
+  ✓ L2884 scope and session tags take the same authored shape: a binding, nothing, or a nested list
+  ✓ L2892 a call's tags take the authored shape: a single binding opens the session, a nested nothing does not
+  ✓ L2903 presets and extensions take the same authored shape: nested lists and false are read flat
+  ✓ L2929 close runs defers in reverse registration order (LIFO)
+  ✓ L2954 a later onClose runs before an earlier resource defer (layer-wide LIFO)
+  ✓ L2972 a dependent's defer runs before its dependency's (registration order)
+  ✓ L2997 an operation defer sees success on a clean run
+  ✓ L3010 an operation defer sees failed when the run throws
+  ✓ L3023 an operation context carries no borrow or drain handle
+  ✓ L3031 a resource cleanup rolls back on a forced close, commits on a graceful close
+  ✓ L3052 close aborts ctx.signal so a parked op stops cleanly
+  ✓ L3073 a streaming operation writes a data cell over time; a watcher sees it grow
+  ✓ L3094 a real late owned failure during close still surfaces (cancel-clean is only the abort reason)
+  ✓ L3115 a cancelled session rejects rather than resolving undefined
+  ✓ L3133 a throwing defer is aggregated as TeardownFailed and does not stop other defers
+  ✓ L3155 closing a scope with thousands of defers settles cancelled with no teardown errors
+  ✓ L3172 an interrupted session resource sees cancelled, not success
+  ✓ L3192 closing a deeply nested scope tree does not overflow
+  ✓ L3204 an owned rejection with an undefined cause keeps that cause
+  ✓ L3218 teardown errors are aggregated in execution order
+  ✓ L3240 close aborts children created by a still-running nested body
+  ✓ L3270 a settled body result survives a later interrupt
+  ✓ L3278 a session that completes before any cancel keeps its success (Q5)
+  ✓ L3293 close keeps a child's real failure and cleanup error while waiting for its parent's body
+  ✓ L3340 close keeps a grandchild's real failure while its ancestor awaits its body
+  ✓ L3388 close keeps a session grandchild's failure while its ancestor awaits its body (Q5)
+  ✓ L3441 close collects a child born and finished during its ancestor's body wait
+  ✓ L3486 close collects a session child born and finished during its ancestor's body wait
+  ✓ L3524 a parent close preserves a real owned failure in an interrupted child
+  ✓ L3556 a collecting parent gets a child's winning body failure, not its caught owned-work error
+  ✓ L3600 a graceful close still force-rolls-back children when the scope already failed
+  ✓ L3625 a child still closing when its parent close is called is collected (graceful=${…})
+  ✓ L3670 a descendant failure known before the cascade rolls back the remaining child
+  ✓ L3717 a failure collected from an earlier child rolls back the next child
+  ✓ L3753 a first graceful child close after an ancestor abort still rolls its resource back
+  ✓ L3796 a body that rejects with a surfaced failure reports it over a caught owned-work error
+  ✓ L3812 an own body failure wins even when an ancestor reports the same cause
+  ✓ L3848 a body that rejects with a primitive closes with that value as the failure error
+  ✓ L3862 a later session throwing a reused error fails with it
+  ✓ L3899 a later session's teardown records its own body failure
+  ✓ L3922 closing a manual child does not demote its parent's own body failure
+  ✓ L3953 a manual child's earlier close does not swallow the body's own throw of the same cause
+  ✓ L3976 a diamond release tears down dependents before dependencies (reverse registration)
+  ✓ L4003 release waits for an in-flight op borrowing the resource before running its cleanup
+  ✓ L4034 a sync op borrowing a released resource does not delay its cleanup
+  ✓ L4052 releasing a scope resource waits for a cross-owner op that borrowed it
+  ✓ L4085 release keeps a scope dependency alive while a child op borrows its dependent
+  ✓ L4129 release keeps a scope dependency alive until a child resource's async cleanup finishes
+  ✓ L4167 release keeps a borrowed resource alive until async cleanup finishes
+  ✓ L4202 release waits for a child borrower even when its resource has no defer
+  ✓ L4243 release keeps a borrowed resource alive when the op throws first
+  ✓ L4279 release waits for a borrower before running a defer registered by an in-flight build
+  ✓ L4313 a superseded build's late defer leaves the rebuilt resource alive in cache
+  ✓ L4348 a cross-owner release leaves a dependency rebuilt by child cleanup alive in cache
+  ✓ L4382 cross-owner release tears down a descendant dependent before its ancestor dependency
+  ✓ L4422 release during dependency resolution waits for the operation's cleanup
+  ✓ L4465 a clean scope closes success when graceful and never throws
+  ✓ L4470 a clean scope closes cancelled when forced
+  ✓ L4476 a second close returns the owned Result and never throws
+  ✓ L4490 an operation reads the scope's clock, and advancing it moves later reads
+  ✓ L4500 a resource factory reads the scope's clock
+  ✓ L4511 the test clock handles fractional virtual time: truncated millis, precise nanos
+  ✓ L4519 the default scope clock reads real wall-clock time
+  ✓ L4529 a child session reads its parent scope's clock
+  ✓ L4536 setTime replaces the test clock's current time
+  ✓ L4546 a resource factory that defaults its deps param still reads the injected clock
+  ✓ L4557 a test-clock sleep resolves only once virtual time is advanced past it
+  ✓ L4579 aborting a pending test-clock sleep rejects with the signal's reason
+  ✓ L4590 a system-clock sleep rejects with the reason when its signal aborts
+  ✓ L4603 a test-clock sleep of zero resolves without advancing time
+  ✓ L4612 a forced close aborts an in-flight sleep: the run's defer sees cancelled and close settles cancelled
+  ✓ L4632 scope.resolve reads a data cell's current value with no subscription
+  ✓ L4640 scope.resolve builds a resource once and caches, like controller resolve
+  ✓ L4652 scope.resolve reads a tag's nearest binding, default, and throws MissingTag when absent
+  ✓ L4665 scope.resolve delivers all and optional through a tag edge
+  ✓ L4673 scope.resolve delivers required through a tag edge, throwing MissingTag when absent
+  ✓ L4685 scope.run runs an operation now with rawInput
+  ✓ L4695 scope.run runs an operation with no call args
+  ✓ L4702 scope.run and the operation controller share one lookup and one controller
+  ✓ L4714 scope.run runs an inline operation with deps and ctx
+  ✓ L4741 scope.run runs an inline operation with no call: deps resolve and ctx.input is void
+  ✓ L4756 a labelled inline run yields its name with a nested subflow under it
+  ✓ L4777 an unlabeled inline run yields one span named inline
+  ✓ L4789 a forced close aborts an in-flight inline sleep: defer sees cancelled, close settles cancelled
+  ✓ L4808 an inline run receives a preset resource through the deps it names
+  ✓ L4814 the same inline config run twice shares nothing: two spans, two bodies
+  ✓ L4825 a tagged run builds session resources in the flow and leaves scope resources at the root
+  ✓ L4848 a tagged run's session closes when the run settles: success then failed
+  ✓ L4884 a tagged inline run behaves the same: the flow sees the tags
+  ✓ L4894 an untagged run builds a session resource at the root, with no session opened
+  ✓ L4909 a tagged sync call that ended in place returns its value (ADR 0072)
+  ✓ L4916 a tagged call that must wait still returns a native promise (ADR 0072)
+  ✓ L4926 a scope with no extensions is ready at once on one shared promise
+  ✓ L4933 ready waits for an async start
+  ✓ L4965 a rejected start rejects ready and fails the scope
+  ✓ L4981 start hooks nest: the first registered runs outermost
+  ✓ L5011 a start that skips next short-circuits the inner starts
+  ✓ L5036 resolve(ext) fails with NotResolved before ready
+  ✓ L5066 resolve(ext) reads the start value once ready
+  ✓ L5091 a close hook wraps the structural close
+  ✓ L5116 ctx.defer registered in start runs at close with the settled end
+  ✓ L5138 ctx.signal aborts on a forced close
+  ✓ L5159 a session after ready has an already-resolved ready
+  ✓ L5175 resolve of an extension that is not installed throws NotResolved
+  ✓ L5201 a resolve hook wraps a cell read: before, next, after
+  ✓ L5225 a resolve hook that skips next short-circuits with a substitute
+  ✓ L5243 two resolve hooks nest in registration order
+  ✓ L5277 a resolve hook also wraps tag and resource reads
+  ✓ L5304 resolve(ext) bypasses the resolve chain
+  ✓ L5330 a session read bypasses the resolve chain
+  ✓ L5353 a run hook wraps a declared operation call: before, next, after
+  ✓ L5377 a run hook that skips next refuses the call and the body never runs
+  ✓ L5401 two run hooks nest in registration order
+  ✓ L5435 a run hook sees an inline config too
+  ✓ L5456 a run hook passes the call through to the operation unchanged
+  ✓ L5486 a tagged call opens its child session under the run hook
+  ✓ L5503 a session run from an extended scope passes through the run hook
+  ✓ L5525 a write hook wraps controller(cell).set: before, next, after
+  ✓ L5556 a write hook that skips next refuses the write: value and watchers unchanged
+  ✓ L5578 two write hooks nest in registration order
+  ✓ L5611 update(fn) runs through the chain with the computed value
+  ✓ L5633 the wrapped cell controller is cached per cell
+  ✓ L5651 a cached write controller still rejects controller(cell) after close
+  ✓ L5672 resource and operation controllers from the extended handle stay plain
+  ✓ L5693 an operation controller from the extended handle stays plain
+  ✓ L5701 a session write from an extended scope passes through the write hook
+  ✓ L5724 a dependency controller write passes through the layer's write hook
+  ✓ L5751 two session hooks nest in registration order and both see success
+  ✓ L5777 createSession plus an explicit close runs the chain: graceful success, forced cancelled
+  ✓ L5801 session(fn) reports the close Result: success, a failed run, a forced close
+  ✓ L5840 a tagged call runs the session chain once
+  ✓ L5866 a session created under a session is wrapped
+  ✓ L5891 a scope with no session hook runs session bodies and closes the child session
+  ✓ L5899 a scope with no session hook binds a tagged call's tags
+  ✓ L5907 an operation depending on an extension receives the start value after ready
+  ✓ L5930 running an operation on a pending extension dependency raises NotResolved
+  ✓ L5964 an operation depending on an extension reads the start value
+  ✓ L5987 a session hook that skips next still lets the session run and close
+  ✓ L6014 a throwing session hook rejects the session with its error
+  ✓ L6029 a session felled by a forced parent close still settles next() as cancelled
+  ✓ L6050 a session felled by a graceful parent close still settles next() as success
+packages/core/tests/instance-release.test.ts
+  ✓ L54 a late default dependency stays open through its dependent's async cleanup
+  ✓ L119 release finishes a borrowed client before its pool
+  ✓ L152 a watcher borrowing a replacement cannot hold the old instance
+  ✓ L199 a build rejected before release keeps its failed hook outcome
+  ✓ L218 interleaved resource hooks keep reverse registration order
+  ✓ L244 interleaved release hooks keep reverse registration order
+  ✓ L274 a circular resource does not hold itself open after rejection
+  ✓ L291 two dependency slots keep one hold on the same instance
+  ✓ L317 release awaits interleaved async hooks in reverse registration order
+  ✓ L364 a dependency stays open through every hook of its dependent
+  ✓ L405 close joins a release whose next hook is queued behind an async hook
+  ✓ L442 a released build keeps its end when it rejects after release
+  ✓ L466 release keeps its end when close joins a borrowed instance
+  ✓ L491 a named late client holds only its own dependency bucket
+  ✓ L534 a warm dependency stays open through its client's late build
+  ✓ L569 a warm hookless bridge holds its pool through a client's late build
+  ✓ L605 a child build keeps a preset root pool open through its hookless bridge
+  ✓ L650 closing a child waits for its late build while it holds a root pool
+  ✓ L685 a warmed context-aware pool without cleanup can feed a client
+  ✓ L695 a hookless session client frees its hold on a root resource when it closes
+  ✓ L719 a preset cleanup waits for a hookless dependent's late build
+  ✓ L756 a synchronous resource rejects defer after its factory finishes
+  ✓ L780 an asynchronous resource rejects defer after its factory finishes
+  ✓ L804 a late hookless build cannot replace the value built after release
+  ✓ L827 a hookless factory can retry after a synchronous failure
+  ✓ L855 a context-aware resource reports its build span
+  ✓ L865 a late build gives its waiting run a value and ends its hook once as released
+  ✓ L894 release waits for the borrowed run body and all its defers
+packages/core/tests/lifetime.test.ts
+  ✓ L17 a rejected start rejects ready only after its forced cleanup ends
+  ✓ L47 a rejected start runs every close hook through the current handle
+  ✓ L98 a start that fails during close joins the hooks already running
+  ✓ L138 closed reports the start error after cleanup even when a stop was requested
+  ✓ L210 a stop lets in-flight work finish without aborting its ctx signal
+  ✓ L244 a stop after a manual close does not run close hooks again
+  ✓ L266 a stop joins an object run hook through its cleanup
+  ✓ L308 a forced close joins the graceful close requested by the stop signal
+  ✓ L330 closed stays pending while the root is open
+  ✓ L355 closed waits for close hooks' after-work and keeps core's Result
+  ✓ L383 closed counts a close hook throw after next as a teardown error
+  ✓ L402 closed keeps close-hook and resource cleanup errors together
+  ✓ L485 the root drops its stop listener before any close hook runs
+  ✓ L506 a signal close runs every close hook gracefully through the current handle
+  ✓ L544 only a root given a signal has closed and sessions take no signal
+packages/core/tests/named-child-watch.test.ts
+  ✓ L5 a child named watcher sees a parent's named write
+  ✓ L20 a grandchild named watcher sees a root named write
+  ✓ L35 a child's own named entry shields its watcher from a parent's write
+  ✓ L51 a child's named entry skips comparisons in its subtree on a parent write
+  ✓ L76 a child's fallback chain sees its parent's write until the child shadows it
+  ✓ L94 releasing a parent's named entry notifies a child watcher of its fallback
+packages/core/tests/named-release.test.ts
+  ✓ L10 a tagged subflow in a named run uses session hooks
+  ✓ L36 a failed async named build stays on its bucket until releaseNs
+  ✓ L63 a named run borrows the bucket selected after earlier dependencies resolve
+  ✓ L121 a named run borrows a replacement built after an earlier dependency releases it
+  ✓ L172 a named run keeps a late dependency cleanup alive through its dependent
+  ✓ L238 a named run keeps dependencies borrowed after its dependent is released
+  ✓ L291 a named run keeps a scope pool alive through its session client
+  ✓ L343 releaseNs cleans one resource bucket and close drains the buckets left behind
+  ✓ L380 release without ns drops every named resource bucket
+  ✓ L408 releaseNs waits for its own live borrow but not a sibling namespace
+  ✓ L446 releaseNs keeps a dependency alive until its named dependent borrow ends
+  ✓ L492 release passed point-free to forEach releases each cell
+  ✓ L505 release(cell) resets every named entry at its layer
+  ✓ L520 release(cell) notifies a named watcher after resetting its entry
+  ✓ L534 release(cell) calls only the child watcher that inherits its named entry
+  ✓ L552 release(cell) unlinks clients of its named entry, not a child's entry
+  ✓ L582 releaseNs still unlinks a new named client after release(cell)
+  ✓ L608 releaseNs resets one data bucket and leaves its sibling and default
+  ⚠ L625 releaseNs on named data invalidates only resources that read that bucket  — toBeThenToEqual
+  ⚠ L658 releaseNs on parent data invalidates a child resource that read its bucket  — toBeThenToEqual
+  ✓ L684 releaseNs on parent data cleans child resources before parent resources
+  ✓ L711 releaseNs leaves a namespace-blind scope resource built
+  ✓ L732 releaseNs waits for an async cleanup without a live borrow
+  ✓ L762 release waits for a live borrow from a named bucket
+  ✓ L795 a late named resource build cleans up and never fills its released bucket
+  ✓ L827 release supersedes a named build before its late cleanup registers
+  ✓ L856 a rebuilt chain dependent leaves its old fallback bucket
+  ✓ L901 a throwing named data watcher still runs the extracted release cleanup (N2)
+  ✓ L938 a failed named build's cleanup is still run by releaseNs (N3)
+  ✓ L963 a failed named build does not fill a sibling chain's fallback (N3)
+  ✓ L989 releasing a far named data bucket does not invalidate a client reading a nearer default (N6)
+  ✓ L1010 releaseNs ignores data and resource buckets that were never built or already released
+  ✓ L1041 releaseNs from a closed session cannot unlink the root's named pool
+  ✓ L1058 releaseNs cannot unlink a root pool after its owner begins closing
+  ✓ L1075 releaseNs unlinks a namespace-target resource at the root from a child
+  ✓ L1105 a rebuilt named data dependent leaves its old fallback entry
+  ✓ L1138 releaseNs rebuilds a hookless named client without touching its sibling
+  ✓ L1164 a fallback client survives release of a different pool bucket, with or without hooks
+  ✓ L1197 a fallback client rebuilds when its selected pool bucket is released, with or without hooks
+  ✓ L1231 a rebuilt client drops the named resource link from its failed build
+  ✓ L1266 releaseNs on a named pool drops a dependent's sticky async failure
+  ✓ L1302 releaseNs finishes a named diamond once, dependent before its pool
+  ✓ L1360 releaseNs does not run a closing child's cleanup twice
+  ✓ L1406 closed sessions leave a root named pool usable for later clients
+  ✓ L1441 closed sessions leave a root named data entry usable for later clients
+  ✓ L1473 releaseNs on a root pool unlinks child clients built on that namespace
+  ✓ L1510 releaseNs notifies only chains containing the released key
+  ✓ L1540 releaseNs notifies a chain watcher of its fallback value
+  ✓ L1559 a watcher starting another namespace cannot hold the released instance (N4)
+  ✓ L1601 a late named dependency finishes after its dependent (N5)
+packages/core/tests/namespaces.test.ts
+  ✓ L37 two namespaces split one cell; the default is untouched
+  ⚠ L56 a tag chain [a, muse] finds the binding bound in muse  — isErrorInExpect
+  ✓ L82 ambient createSession({ ns }) resolves in that ns; a per-call ns wins for one run
+  ✓ L99 a child's own default write shadows a parent's namespaced write (layers-first)
+  ✓ L115 tags and cells both use layers-first chain order
+  ✓ L131 a child session inherits the parent's ambient ns; its own ns replaces it
+  ✓ L153 a named write lands at (layer, first key) and never notifies a default watcher
+  ✓ L175 a subflow .run({ input, ns }) writes its own bucket; without ns it inherits the run's
+  ✓ L213 a tagged subflow inherits its named caller's namespace
+  ✓ L241 named calls keep the real layer lifecycle and extension registry
+  ✓ L275 a tagged subflow in a named run uses session hooks
+  ✓ L301 pass-through extensions preserve namespaces for writes and resolves
+  ✓ L325 a session-target resource builds once in each namespace and reuses its warm bucket
+  ✓ L346 a resource chain reuses its fallback then switches to a nearer warm bucket
+  ✓ L369 a sync-failed named bucket is not filled by a sibling chain
+  ✓ L394 a named resource dependency reads a nearer default before a farther named entry
+  ✓ L432 namespace clients share one scope-target pool
+  ✓ L459 namespace resources share a root bucket across request sessions
+  ✓ L480 sessions without a namespace share one root default resource
+  ✓ L498 namespace resource dependencies see tenant and root tags but not request tags
+  ✓ L522 request transactions share their tenant database but not each other
+  ✓ L556 release waits for a request borrowing a namespace resource and clears all buckets
+  ✓ L605 closing the root waits for a request and cleans each namespace bucket once
+  ✓ L646 close waits for a named resource borrow and tears every bucket down once
+  ✓ L695 a scope-target resource is namespace-blind and keeps default storage clean
+  ✓ L711 an ambient namespace cannot enter a scope-target resource build
+  ✓ L727 namespace-blind scope builds keep tagged operation dependencies blind
+  ✓ L748 invalid input rejects before dependencies build
+  ✓ L765 a re-registered named watcher refreshes its comparison value
+  ✓ L783 a namespace-blind watcher observes default storage, never ambient tenant storage
+  ✓ L840 a named write compares only its namespace watcher among a thousand
+  ✓ L866 a chain watcher sees its fallback key but not an unrelated key
+  ✓ L893 unsubscribing a chain watcher removes it from every named key
+  ✓ L909 a chained watcher compares against the full resolved namespace chain
+  ✓ L925 an empty namespace chain is rejected
+  ⚠ L933 a non-namespace ns value is a loud error, not a silent key  — isErrorInExpect
+  ✓ L948 a watcher that writes during notify does not rob a later watcher of its change
+  ✓ L971 named and chained cell watches notify only when their resolved value changes
+  ✓ L1009 a failed named resource retries without leaking to a sibling chain
+  ✓ L1037 named tag all keeps repeated bindings through a chain
+  ✓ L1048 ambient namespace survives child, tagged subflow, inline run, and imperative controllers
+  ✓ L1095 tag.all skips other tags bound on the same layer
+  ✓ L1103 tag.all skips other tags bound on the same namespace
+packages/core/tests/observation.test.ts
+  ✓ L5 a manual child span exports its event
+  ✓ L24 a manual child span that returns a value closes as ok
+  ✓ L39 a manual child span that throws closes as failed and rethrows
+  ✓ L62 an async child span closes as ok when its promise resolves
+  ✓ L83 an async child span closes as failed when its promise rejects
+  ✓ L100 sibling spans carry distinct ids in call order
+  ✓ L113 a run retains its span in history
+packages/core/tests/op-fast.test.ts
+  ✓ L6 sync resource cleanup closes without extra turns (graceful: ${…})
+  ✓ L47 close waits for async cleanup before running earlier cleanup
+  ✓ L79 a destructured operation defer keeps its run's cleanup
+  ✓ L102 closing keeps the web AbortError code for callers
+  ✓ L117 a saved run next refuses to start a body after its run has finished
+  ✓ L145 a hooked run waits for its async resource before calling its body
+  ✓ L185 a sync cleanup close keeps written data when withData is set
+  ✓ L197 an async scope cleanup failure is returned with the close result
+  ✓ L208 settle keeps the call signal chosen before its body runs (controller: ${…})
+packages/core/tests/operations.test.ts
+  ✓ L10 a tagged call replays typed input inside the child session
+  ✓ L20 a tagged call replays raw input inside the child session
+  ✓ L30 a tagged call with no input still reads the call tags
+  ✓ L40 an operation writes through a data controller edge
+  ✓ L53 a sync run retains its span in history before run returns
+  ✓ L63 a session body rejected with a primitive keeps its cause under close
+packages/core/tests/random.test.ts
+  ✓ L18 two scopes with the same seed replay the same next() stream
+  ✓ L24 two scopes with the same seed replay the same uuid() stream, each v4-shaped
+  ✓ L31 different seeds produce different next() streams
+  ✓ L37 uuid() yields a distinct id on each call
+  ✓ L42 makeTestRandom with no seed is a deterministic default generator
+  ✓ L48 a scope with no random option reads the system source
+  ✓ L58 the system source uses the native randomUUID when the page has it
+  ✓ L68 the system source still makes v4 ids where randomUUID is missing (plain-http browser pages)
+  ✓ L80 a child session inherits the parent scope's injected random
+packages/core/tests/resources.test.ts
+  ✓ L10 a child session reads its parent's cell value
+  ✓ L17 releasing a resource drops its dependents so they rebuild
+  ✓ L32 a throwing operation defer is aggregated as TeardownFailed
+  ✓ L55 releasing a cell cascades into a resource behind its controller edge
+  ✓ L70 a released resource rebuilds with a fresh generation
+  ✓ L83 releasing a data cell resets it and releases only its dependents
+  ✓ L96 a factory that declares no ctx fails its defer with Disposed
+  ✓ L115 a factory that declares no ctx still reads its abort signal
+  ✓ L134 a resource context hands the same abort signal on every read
+  ✓ L147 releasing one resource leaves another resource's cleanup in place
+  ✓ L174 releasing a mid-chain resource tears down each dependent once in order
+  ✓ L208 a resource cleanup that rejects asynchronously lands in teardown errors
+  ✓ L228 a child session reads its parent's latest write
+  ✓ L236 a child update builds on its parent's latest write
+  ✓ L247 releasing a dependency after its dependent never tears down twice
+  ✓ L273 a release inside a run drains unrelated cleanups at once
+  ✓ L301 a build superseded twice never publishes its value
+  ✓ L337 a finished borrow is forgotten before the next release
+  ✓ L370 a defer from a superseded build never joins the live rebuild's drain
+  ✓ L396 a failing start fails the scope with its cause
+  ✓ L419 a forced close aborts a nested grandchild session
+  ✓ L445 a rejection from a superseded build never goes sticky
+  ✓ L474 get on a rejected build returns its rejection
+  ✓ L490 concurrent resolves share one tracked build
+  ✓ L524 releasing a diamond leg then the root still tears down the other leg
+  ✓ L550 a build that releases itself still rebuilds on the next resolve
+  ✓ L585 a release waits for every borrower, not just the first done
+packages/core/tests/run-ctx.test.ts
+  ✓ L38 a body behind a rest-parameter wrapper reads ctx (${…})
+  ✓ L46 a body with a defaulted ctx parameter reads the real ctx (${…})
+  ✓ L54 a body reading its second argument through `arguments` gets ctx (${…})
+packages/core/tests/run-result.test.ts
+  ✓ L31 settle returns an async operation's success value
+  ✓ L43 settle classifies a registry-shaped Error as an error
+  ✓ L61 settle classifies a plain Error as a panic
+  ✓ L89 settle classifies ${…} as a panic
+  ✓ L102 settle returns a primitive panic without an origin
+  ✓ L114 settle returns the value when an operation returns under a forced close
+  ✓ L127 settle returns what run returns when a body answers its abort with a value
+  ✓ L148 settle reports cancellation when a body rejects with its abort reason
+  ✓ L165 settle mirrors run for a sync operation under a forced close
+  ✓ L194 settle reports a cancel reason from another scope as a failure
+  ✓ L221 a forced close's cancel reason reads as AbortError text
+  ✓ L246 a forced close's cancel reason is named AbortError
+  ✓ L252 a forced close's cancel reason inspects as AbortError text
+  ✓ L258 settle reports a foreign AbortError rejecting during a forced close as a failure
+  ✓ L276 settle reports cancellation when a forced close aborts its operation
+  ✓ L290 settle returns a sync Result for an untagged sync operation
+  ✓ L301 settle on a tagged sync call returns its Result directly when it ended in place (ADR 0072)
+  ✓ L312 scope settle accepts a typed inline call without making it async
+  ✓ L320 scope settle on a tagged inline config: a Result in place, a native promise when it waits (ADR 0072)
+  ✓ L338 settle on an unknown-typed operation types as a Result or a promise of one
+  ✓ L355 settle on a generic operation assigns to a Result or a promise of one
+  ✓ L371 scope settle keeps an unknown-typed inline a Result or a promise of one
+  ✓ L379 settle recovers a root operation's panic without failing the layer
+  ✓ L392 settle recovers through a ${…}
+  ✓ L418 a settle call remains recovered when its caller finishes first
+  ✓ L441 a tagged settle failure does not bubble through a graceful parent close
+  ✓ L454 settle returns a closed-scope error rather than throwing
+  ✓ L461 a sync throw gets the innermost run's origin
+  ✓ L478 an async rejection gets the innermost run's origin
+  ✓ L499 three failed runs build a root-first origin path
+  ✓ L525 originOf follows cause chains to a stamped error
+  ✓ L542 rethrowing an already-stamped error keeps its first origin
+  ✓ L565 a sentinel error thrown on every settle keeps a one-run path
+  ✓ L582 a sentinel thrown by a ${…} root run five times keeps a one-run path
+  ✓ L608 a tagged subflow keeps its caller in the path
+  ✓ L629 a sibling rethrow does not extend the first path
+  ✓ L647 an observed origin carries the failed run's span id
+  ✓ L667 an unobserved origin has no span id
+  ✓ L683 destructured operation raise sets kind, payload, and message at the throw site
+  ✓ L704 resource raise stamps the resource ctx before a run receives it
+  ✓ L726 an escaping operation raise adds its own run label only once
+  ✓ L738 an empty ctx raise gets its origin from the run it reaches
+  ✓ L755 extension raise stamps the start ctx
+  ✓ L776 a failed session close carries its error's origin
+packages/core/tests/run-seams.test.ts
+  ✓ L8 a cached controller refuses a tagged run once its scope closed
+  ✓ L24 a cached controller refuses an untagged run once its scope closed
+  ✓ L37 a tagged sync run that raises a managed error rejects with it
+  ✓ L50 a run's borrow is released after its sync defer, so a release and a close do not wait on it
+  ✓ L72 more than eight bindings on one layer: nearest wins and .all keeps authored order, newest first
+  ✓ L83 .all reads a handful of bindings across layers, nearest layer first, newest first
+  ✓ L93 a closed scope with session hooks refuses a new session
+packages/core/tests/session-end.test.ts
+  ✓ L8 a session that ended leaves its signal aborted: tagged=${…}, async=${…}
+  ✓ L25 a throwing then getter rejects the session and closes it
+  ✓ L48 a then getter is read once: the body value is the first read's
+  ✓ L61 a then getter usable once still succeeds
+  ✓ L75 a watcher registered by the body sees an immediate parent write: ns=${…}
+  ✓ L106 a leaked handle is disposed once the body returned: onClose raises Disposed
+  ✓ L126 a leaked handle is disposed once the body returned: resolve raises Disposed
+  ✓ L140 close({ withData: true }) keeps the data inside the body, and gets none after it
+  ✓ L166 a parent's forced close requested inside a sync body cancels the session
+  ⚠ L177 a late close of a session that ended in place gets a Result of its own  — toBeThenToEqual
+packages/core/tests/sessions.test.ts
+  ✓ L5 a session hook that throws before next still lets the body run and rethrows the hook error
+  ✓ L34 two session hooks see each ordered end in turn
+  ✓ L56 a body that rejects inside session fails the close with its cause
+  ✓ L67 a session body that throws sync rejects the session with its cause
+  ✓ L80 a cancelled session rejects with its reason
+  ✓ L91 a failing teardown inside session still reports the body failure
+  ✓ L119 a close re-entered during a failing teardown reports the failure
+  ✓ L149 a close re-entered during a clean forced teardown reports cancelled
+  ✓ L170 a forced close with a cleanup still settles cancelled
+  ✓ L188 settled stays pending until an operation's async cleanup finishes
+  ✓ L219 a wrapped session body that throws sync still drains cleanups then reports the cause
+  ✓ L260 three session hooks nest in registration order
+  ✓ L283 a close hook sees the settled end
+  ✓ L303 a graceful close through hooks settles success
+  ✓ L316 a failing body with a failing cleanup reports both causes
+  ✓ L353 a session that ends cancelled rejects with its reason
+  ✓ L370 session hooks wrap sessions nested two deep
+  ✓ L392 a close re-entered from an async cleanup is still acknowledged
+  ✓ L423 an operation that finishes after abort still sees cancelled
+  ✓ L450 a cleanup that closes another scope sees its real result
+  ✓ L474 a wrapped session cut by a forced close rejects
+  ✓ L507 a clean body with a failing cleanup still reports the cleanup
+  ✓ L543 an idle scope's close still reports an operation cleanup that threw
+packages/core/tests/start-log.test.ts
+  ✓ L6 extension start logs before and after next reach the scope sink without a span
+  ✓ L63 a destructured extension start logger sends every level without span observation
+  ✓ L102 an info threshold drops extension start debug lines before reading the clock
+  ✓ L141 extension start logging without a sink reads no clock or attributes
+  ✓ L171 a failed extension start delivers the log before its throw
+  ✓ L192 a throwing extension start log sink does not fail ready
+  ✓ L217 an extension close hook logs before and after next with the scope filter and clock
+packages/core/tests/start-timeout-and-hose.test.ts
+  ✓ L15 a hanging inner start times out on the scope clock and closes with its label
+  ✓ L48 start defaults to ten seconds and names an outer hook hanging after next
+  ✓ L79 a settled start cancels its timeout
+  ✓ L95 one start tap receives a span and misses work before the tap
+  ✓ L125 two taps receive the same span, filter their own levels, and keep the largest history
+  ✓ L200 a throwing tap does not stop another tap
+  ✓ L242 a quiet namespace emits no spans or logs from its work and hooks
+packages/core/tests/step-log.test.ts
+  ✓ L5 an observed operation logs its label, elapsed time, outcome, level, and span
+  ✓ L27 a failed operation logs its failure at error level
+  ✓ L54 nested subflows log child before parent, once each
+  ✓ L74 an info threshold drops ok step lines but keeps failed ones
+  ✓ L96 logging without observation keeps ctx.log but emits no step line
+  ✓ L113 observing without a log sink preserves operation and resource spans
+  ✓ L124 a throwing step log sink does not change the run result
+packages/core/tests/sticky-panic.test.ts
+  ✓ L19 a panic caught with try/catch still fails its layer
+  ✓ L45 a panic received through settle leaves its layer successful
+  ✓ L66 settle recovers a panic that a nested subflow threw
+  ✓ L81 settle recovers a panic carried as the cause of the error it receives
+  ✓ L106 a panic swallowed inside a settled run still fails the layer
+  ✓ L132 settle recovers only the panic it receives, not one swallowed earlier
+  ✓ L167 a caught panic after an earlier failure leaves the first failure as the layer's error
+  ✓ L189 a managed error caught with try/catch leaves its layer successful
+  ✓ L217 a caught panic in a session run fails that session and not its parent
+  ✓ L233 a caught panic in an inline run fails the scope it ran in
+  ✓ L252 a panic caught inside a tagged run fails the run's own session
+  ✓ L271 a tagged subflow's panic fails its caller's layer even when the caller catches it
+  ✓ L299 a forced close after a caught panic settles failed, not cancelled
+  ✓ L337 two caught panics in one layer leave the first as the layer's error
+  ✓ L364 a caught panic before a failed resource build stays the layer's error
+packages/core/tests/tagged-frame-boundaries.test.ts
+  ✓ L12 a run that touches nothing comes back as a value, and its tag was visible
+  ✓ L17 an op-level defer runs before the value comes back and needs no session
+  ✓ L32 a write through a data-controller dep stays in the run's session
+  ✓ L47 a session resource built during the run lives in the run's session and is cleaned when it ends
+  ✓ L75 a watcher registered by the run keeps the session on the full path
+  ✓ L90 a first signal read attaches the session; the signal reads aborted once the run ended
+  ✓ L106 a signal read only after the run ended is aborted too
+  ✓ L119 a panic in a sync tagged body fails the run's own session, not its parent
+  ✓ L135 a parent's forced close requested inside a sync tagged body cancels the run
+  ✓ L158 a tagged subflow inside a tagged run: the inner waits (a body is running), the outer waits for it
+  ✓ L173 a managed error raised by the run rejects the call and leaves the parent healthy
+  ✓ L189 a parent close requested while a tagged call's body is being adopted waits for the call
+packages/core/tests/tagged-frame.test.ts
+  ✓ L25 the first defer keeps reverse order and the run's end
+  ✓ L49 the first async defer keeps the tagged call pending
+  ✓ L73 the first signal read joins the parent's forced close
+  ✓ L90 a parent close inside an untouched tagged body sees that body
+  ✓ L105 the first write stays in the tagged session: named=${…}
+  ✓ L125 the first watcher sees a parent write before tagged close: named=${…}
+  ✓ L148 the first resource build sees inherited namespaces and the call's tags
+  ✓ L174 the first nested tagged build owns its resource and both tag levels
+  ✓ L201 the first dropped subflow is joined by tagged close
+  ✓ L230 a first panic fails the tagged session and leaves the root open
+  ✓ L243 the first nested panic keeps its caller in the error path
+  ✓ L264 session hooks read the first write after next and run hooks fire once
+packages/core/tests/tagged-lifetime.test.ts
+  ✓ L16 catching a subflow panic still fails its tagged session
+  ✓ L42 a sync cleanup error fails an otherwise empty tagged call
+  ✓ L64 a data controller from an idle tagged call refuses a late write
+  ✓ L84 a nested tagged watcher sees a root write before the nested body returns
+  ✓ L108 a later tagged sibling does not detach a live watcher
+  ✓ L134 a tagged call started by its parent's abort sees cancelled cleanup
+  ✓ L168 an ancestor collects a late tagged failure after that child has detached
+  ✓ L194 adopting a body's late then method keeps its tagged controller writable
+  ✓ L218 a forced parent close reaches a body adopted after its run returned
+  ✓ L243 a tagged session adopts a callable made thenable by run cleanup
+packages/core/tests/tagged-wait.test.ts
+  ✓ L11 wait: a promise body
+  ✓ L18 wait: a defer registered by a session resource of the run
+  ✓ L39 wait: a session resource built for the run, even with no cleanup
+  ✓ L52 wait: a child session opened by the body
+  ✓ L71 wait: pending work the body did not await
+  ✓ L96 wait: a signal handed out, aborted once the run ended
+  ✓ L113 wait: a failure rejects through a promise
+  ✓ L126 wait: a session hook wraps the tagged call once
+  ✓ L152 wait: a tagged subflow called before its caller's first await; a value after it
+  ✓ L175 in place: a sync body on an idle session comes back as a value, and reads its tag
+packages/core/tests/trace.test.ts
+  ✓ L18 importing core draws no random values; the id stream seeds on the first observed span
+  ✓ L60 a root span has nonzero W3C ids before its body runs
+  ✓ L79 operation, resource, and manual children inherit the trace and name their parent span
+  ✓ L105 two unseeded root spans start different traces
+  ✓ L113 span JSON keeps public fields, ids, attributes, and events without internal state
+  ✓ L153 a seeded random replays trace and span ids
+  ✓ L168 reading ids later leaves the seeded random stream and ids unchanged
+  ✓ L194 observation leaves seeded and custom user randomness unchanged
+  ✓ L229 user random reads do not change seeded trace and child span ids
+  ✓ L257 seeded ids use generator bits in every hex position and stay nonzero
+  ✓ L281 observation off leaves the ambient random stream untouched
+  ✓ L297 a session copies its remote trace seed and child sessions inherit it
+  ✓ L322 a session seed overrides its scope seed without changing siblings
+  ✓ L332 a seeded subflow uses its local caller as parent and keeps the sampled flag
+  ✓ L351 a null session seed starts a fresh trace without changing its parent
+  ✓ L362 a session seed follows direct resource builds to their scope owner
+packages/core/tests/with-data.test.ts
+  ✓ L38 a default close frees a session's data and returns none
+  ✓ L51 a held controller reads the initial value once a parent's close frees its fast-closed child
+  ✓ L61 a held controller reads the initial value once its fast-closed session closes
+  ✓ L72 a held controller reads the initial value once the root closes
+  ✓ L80 a held controller on a preset data cell reads the initial value once the root closes
+  ✓ L88 a closed leaf reads the open middle's write made after the leaf's own read
+  ✓ L104 a closed leaf reads the open root's write made after the leaf's own read
+  ✓ L118 a closed leaf reads the initial value once every layer above it has closed
+  ✓ L133 a session hook reads its own held write after next
+  ✓ L156 a session hook reads an ancestor's write made after the session closed
+  ✓ L179 a withData close hands over what the session wrote, never what it inherited
+  ✓ L202 a family member and a namespaced session's cell read back from data
+  ✓ L220 a graceful withData close keeps what in-flight work wrote before it settled
+  ✓ L247 a session hook reads the session's cells and tags after next
+  ✓ L268 a session hook reads the cell in the namespace its resolve names after next
+  ✓ L297 a session hook cannot write a cell or read a resource after next
+  ✓ L320 a hooked session's reads throw once its hooks return
+packages/core/tests/write-hook-cold.test.ts
+  ✓ L5 a closed scope refuses a write before a stopping hook runs
+
+jev tests: 7/859 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.
