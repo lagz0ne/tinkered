@@ -4503,13 +4503,25 @@ Both directive names were checked.
 - Each copy has its own seed map; Core cannot find the test seed.
 - Proof: Vite's path resolver printed both source paths.
 - This also lets tests miss the Core code changed by Stryker.
-- Fix: keep the path config in the sandbox.
-- Code commit: `2627edeb`.
+- First fix: keep the path config in the sandbox.
+- That run hit a second blocker before tests: Stryker calls a TypeScript 7 API that is gone.
+- Blocker log: `/home/paseo/plans/mutation-fix-ts7-blocker.log`.
+- Final fix: Vite maps `@/` from its own config file, as the testing helper already does.
+- Stryker can keep excluding the TypeScript config.
+- Both entries now stay in the sandbox without Stryker's broken config rewrite.
+- First code commit: `2627edeb`; a fix round follows the TypeScript 7 blocker.
 - Regression: imports point to the sandbox's own source files.
 - The regression failed with the old config and passed with the fix.
 - Trace tests in a copy: 16 passed with the config; 3 failed without it.
 - Writer proof: `/home/paseo/plans/mutation-fix-writer.txt`.
 - Path proof: `/home/paseo/plans/mutation-fix-paths.log`.
 - Style census: OK; Jev pre-flight: 0 flags.
-- Next: review, then all requested gates on the saved fix.
+- First review: READY; `/home/paseo/plans/mutation-fix-review.txt`.
+- First gates on `394a3c9a`: build, check, tests, validate, prose all exited 0.
+- The full mutation run exited 1 before tests on the TypeScript 7 blocker.
+- Fix round commit: `e24973fc`.
+- Final Stryker config matches main; no test selection or threshold changed.
+- Regression: red with the old Vite config, green with the source alias.
+- Trace and random tests in a copy without the TypeScript config: 25 passed.
+- Next: review the fix round, then rerun all requested gates.
 - Full Core mutation must clear its 85 floor.
