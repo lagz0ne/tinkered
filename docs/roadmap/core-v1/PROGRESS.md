@@ -4489,3 +4489,27 @@ Both directive names were checked.
 ### Core feedback
 
 - None.
+
+## core/mutation-seeded-random
+
+- Owner: Codex lead; Haiku writer; separate Opus review.
+- Base: `origin/main` at `fef10e46`.
+- First run: Core mutation exited 1 in its first plain test pass.
+- Failed test: "a seeded random replays trace and span ids".
+- Log: `/home/paseo/plans/mutation-fix-repro.log`.
+- Cause: Stryker excludes `tsconfig.json` from its sandbox.
+- Without that file, `@/index` resolves to the source outside the sandbox.
+- The test random helper resolves to the source inside the sandbox.
+- Each copy has its own seed map; Core cannot find the test seed.
+- Proof: Vite's path resolver printed both source paths.
+- This also lets tests miss the Core code changed by Stryker.
+- Fix: keep the path config in the sandbox.
+- Code commit: `2627edeb`.
+- Regression: imports point to the sandbox's own source files.
+- The regression failed with the old config and passed with the fix.
+- Trace tests in a copy: 16 passed with the config; 3 failed without it.
+- Writer proof: `/home/paseo/plans/mutation-fix-writer.txt`.
+- Path proof: `/home/paseo/plans/mutation-fix-paths.log`.
+- Style census: OK; Jev pre-flight: 0 flags.
+- Next: review, then all requested gates on the saved fix.
+- Full Core mutation must clear its 85 floor.
