@@ -841,7 +841,8 @@ test("a tab stream that fails surfaces its error when the tab closes", async () 
   const clock = {
     currentTimeMillis: () => time.currentTimeMillis(),
     currentTimeNanos: () => time.currentTimeNanos(),
-    sleep: async () => {
+    sleep: async (ms: number, signal?: AbortSignal) => {
+      if (ms !== 500) return time.sleep(ms, signal);
       slept.resolve();
       throw torn;
     },
