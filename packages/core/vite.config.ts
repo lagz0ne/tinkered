@@ -7,7 +7,10 @@ import { privateFields } from "./build/private-fields";
 export default defineConfig({
   resolve: {
     tsconfigPaths: true,
-    alias: { "@tinker/core/testing": fileURLToPath(new URL("./src/testing.ts", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@tinker/core/testing": fileURLToPath(new URL("./src/testing.ts", import.meta.url)),
+    },
   },
   pack: {
     entry: ["src/index.ts", "src/testing.ts"],

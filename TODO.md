@@ -34,6 +34,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
+- **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
+  Owner: Codex lead; Haiku writer.
+  Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
+  Proof: gates on `d188bacb` exited 0; plain pass 900 tests; full mutation 86.11, floor 85, exit 0.
+  Next: the lander lands `core/mutation-seeded-random` and marks it Done.
+  [Core progress](docs/roadmap/core-v1/PROGRESS.md#coremutation-seeded-random).
+
 - **core/start-timeout-and-hose** — ADR 0119.
   Owner: lander. Next: land after mutation.
   Verify: Core 920, dist 1164, ticket exit 0; size 16,360 B within the 16,384 B cap.
