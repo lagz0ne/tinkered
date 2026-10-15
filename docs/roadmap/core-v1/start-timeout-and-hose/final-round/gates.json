@@ -1,0 +1,38 @@
+[
+  {
+    "gate": "core-tests",
+    "command": "vp run --no-cache core#test",
+    "exit": 0
+  },
+  {
+    "gate": "size",
+    "command": "vp run --no-cache core#size",
+    "exit": 0
+  },
+  {
+    "gate": "build",
+    "command": "vp run -r build",
+    "exit": 0
+  },
+  {
+    "gate": "ticket",
+    "command": "bash scripts/ticket.sh --check-only --no-mutation 119 start-timeout-and-hose",
+    "exit": 0,
+    "env": {
+      "VITEST_MAX_WORKERS": "1",
+      "VP_RUN_CONCURRENCY_LIMIT": "1"
+    },
+    "previous_attempts": [
+      {
+        "exit": 1,
+        "reason": "TODO.md formatting",
+        "log": "ticket-first-format.txt"
+      },
+      {
+        "exit": 1,
+        "reason": "stale vendored Core build; workspace rebuilt",
+        "log": "ticket-stale-build.txt"
+      }
+    ]
+  }
+]

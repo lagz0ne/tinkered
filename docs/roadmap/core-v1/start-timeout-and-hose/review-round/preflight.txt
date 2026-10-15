@@ -1,0 +1,324 @@
+jev pre-flight (advisory) — clear or explain these before reporting
+
+  ✓ packages/core/src/errors.ts
+  - packages/core/src/index.ts: skipped: too big for one call (249835 > 100000 chars)
+
+jev lint (advisory) — 2 file(s)
+
+packages/core/src/errors.ts
+  ⚠ function makeError (L29): shapeGrowsPerCall 60%
+  ✓ function raise (L38)
+  ✓ function isError (L43)
+  ✓ function isObject (L66)
+  ✓ function originOf (L71)
+  ✓ function causesOf (L82)
+  ✓ function firstOrigin (L92)
+  ⚠ function stampOrigin (L99): stateOutsideCell 67%
+  ⚠ function closeOrigin (L122): stateOutsideCell 53%  ℹ reads like a resource (85%)
+  ✓ function failureKind (L129)
+  ⚠ function raiseFrom (L138): stateOutsideCell 61%, shapeGrowsPerCall 65%
+packages/core/src/index.ts
+  ✓ function isData (L764)
+  ✓ function isOperation (L767)
+  ✓ function isResource (L770)
+  ✓ function isTag (L773)
+  ✓ function isEdge (L776)
+  ✓ function isExtension (L779)
+  ✓ function isThenable (L782)
+  ✓ function edgeTo (L787)
+  ✓ function extension (L793)
+  ✓ function parse (L803)
+  ✓ function admit (L815)
+  ✓ function isNothing (L829)
+  ✓ function isNotList (L835)
+  ✓ function pushMany (L839)
+  ✓ function readMany (L856)
+  ⚠ function data (L867): shapeGrowsPerCall 50%  ℹ reads like a data (100%)
+  ℹ function tag (L885): reads like a tag (86%)
+  ✓ function namespace (L915)
+  ✓ function isNamespace (L926)
+  ✓ function nsChainOf (L936)
+  ⚠ function operation (L948): shapeGrowsPerCall 74%  ℹ reads like an operation (100%)
+  ⚠ function resource (L980): waitsOnSideWork 50%  ℹ reads like a resource (100%)
+  ✓ function NodeState (L1055)
+  ✓ function nodeState (L1100)
+  ⚠ function signalOf (L1118): stateOutsideCell 51%, shapeGrowsPerCall 78%  ℹ reads like a resource (68%)
+  ✓ function tapSessionHooks (L1235)
+  ✓ function ensureOpen (L1250)
+  ✓ function ensureAccepting (L1256)
+  ⚠ function ensureRunning (L1267): stateOutsideCell 54%  ℹ reads like a resource (71%)
+  ⚠ function effectiveEntry (L1284): shapeGrowsPerCall 52%
+  ✓ function effectiveEntryNs (L1301)
+  ✓ function readCell (L1316)
+  ✓ function invalidateEff (L1325)
+  ⚠ function ownCell (L1331): shapeGrowsPerCall 81%  ℹ reads like a data (78%)
+  ✓ function flushCell (L1347)
+  ✓ function flushOne (L1359)
+  ✓ function notifyLayer (L1370)
+  ✓ function cellEq (L1375)
+  ℹ function writeCell (L1379): reads like a data (74%)
+  ⚠ function writeCellNs (L1398): shapeGrowsPerCall 70%  ℹ reads like a data (62%)
+  ℹ function flushNsWatchers (L1416): reads like a resource (65%)
+  ✓ function pendingNsWatchers (L1429)
+  ✓ function topTag (L1450)
+  ℹ function tagFind (L1458): reads like a tag (70%)
+  ✓ function tagFindNs (L1473)
+  ✓ function findBinding (L1489)
+  ✓ function tagAll (L1500)
+  ✓ function tagAllNs (L1512)
+  ✓ function tagRequired (L1525)
+  ✓ function presetFor (L1535)
+  ⚠ function addWatcher (L1543): effectWithoutDefer 90%, shapeGrowsPerCall 66%  ℹ reads like a resource (98%)
+  ✓ function writeWithHooks (L1559)
+  ℹ function dataController (L1573): reads like a data (73%)
+  ⚠ function addWatcherNs (L1601): effectWithoutDefer 90%, shapeGrowsPerCall 69%  ℹ reads like a resource (94%)
+  ⚠ function resolveControllerEdge (L1633): shapeGrowsPerCall 58%
+  ✓ function resolveEdge (L1649)
+  ✓ function resolveDep (L1663)
+  ✓ function ignoreRejection (L1689)
+  ⚠ function makeObs (L1757): stateOutsideCell 58%
+  ✓ function openSpan (L1777)
+  ⚠ function SpanImpl (L1792): shapeGrowsPerCall 50%
+  ✓ function isolate (L1921)
+  ⚠ function closeSpan (L1930): stateOutsideCell 66%, shapeGrowsPerCall 58%
+  ✓ function logStep (L1953)
+  ✓ function settleSpan (L1969)
+  ✓ function obsCtx (L1982)
+  ⚠ function logFor (L2005): shapeGrowsPerCall 68%
+  ✓ function recordUsed (L2032)
+  ✓ function OperationControl (L2049)
+  ✓ function runFailure (L2107)
+  ⚠ function stick (L2116): stateOutsideCell 59%, shapeGrowsPerCall 72%
+  ✓ function failureOf (L2127)
+  ⚠ function track (L2135): stateOutsideCell 52%
+  ⚠ function addWork (L2160): stateOutsideCell 60%, shapeGrowsPerCall 50%
+  ⚠ function addDefer (L2167): shapeGrowsPerCall 72%
+  ⚠ function CancelReason (L2182): waitsOnSideWork 57%
+  ✓ function isCancelReason (L2207)
+  ⚠ function isCancel (L2214): shapeGrowsPerCall 52%
+  ⚠ function endFor (L2218): awaitsSyncWork 74%
+  ✓ function closeWouldReenter (L2232)
+  ⚠ function runDefers (L2242): waitsOnSideWork 54%
+  ✓ function parseInput (L2282)
+  ℹ function runBody (L2292): reads like an operation (91%)
+  ⚠ function runParked (L2304): awaitsSyncWork 75%  ℹ reads like an operation (80%)
+  ⚠ function OperationCtx (L2319): waitsOnSideWork 56%, shapeGrowsPerCall 52%
+  ✓ function hasCallSession (L2389)
+  ℹ function runTagged (L2402): reads like an operation (73%)
+  ✓ function materialize (L2443)
+  ⚠ function TaggedFrame (L2449): waitsOnSideWork 56%
+  ⚠ function endTaggedFrame (L2506): stateOutsideCell 58%
+  ⚠ function runTaggedFrame (L2525): stateOutsideCell 55%  ℹ reads like an operation (77%)
+  ✓ function runNsCall (L2558)
+  ✓ function stripNs (L2572)
+  ⚠ function releaseBorrows (L2580): stateOutsideCell 51%  ℹ reads like a resource (64%)
+  ⚠ function finishRun (L2592): awaitsSyncWork 72%
+  ✓ function stampRunOrigin (L2618)
+  ⚠ function finishAsyncRun (L2635): awaitsSyncWork 68%
+  ✓ function executorFor (L2659)
+  ℹ function runOnce (L2676): reads like an operation (97%)
+  ℹ function operationController (L2744): reads like an operation (89%)
+  ✓ function runUntagged (L2779)
+  ✓ function ownerOf (L2791)
+  ✓ function resolveSelectedDep (L2821)
+  ⚠ function buildDeps (L2834): stateOutsideCell 66%, shapeGrowsPerCall 85%
+  ⚠ function buildPlainDeps (L2863): stateOutsideCell 52%, shapeGrowsPerCall 82%
+  ✓ function readOpDeps (L2882)
+  ⚠ function settleDeps (L2908): awaitsSyncWork 53%, shapeGrowsPerCall 89%
+  ✓ function resolveResourceDeps (L2914)
+  ✓ function ResourceCtx (L2938)
+  ✓ function buildCtx (L2991)
+  ⚠ function raiseUnstamped (L3001): shapeGrowsPerCall 53%
+  ✓ function EmptyCtx (L3004)
+  ⚠ function emptyCtxFor (L3030): shapeGrowsPerCall 61%
+  ⚠ function resolveExtension (L3036): stateOutsideCell 51%
+  ⚠ function instanceOf (L3047): stateOutsideCell 58%  ℹ reads like a resource (89%)
+  ✓ function hasPresetLayers (L3074)
+  ✓ function hasRetainedInstance (L3079)
+  ✓ function needsHold (L3083)
+  ⚠ function holdDependency (L3089): stateOutsideCell 57%, shapeGrowsPerCall 75%
+  ⚠ function unlinkInstance (L3096): stateOutsideCell 58%, shapeGrowsPerCall 55%  ℹ reads like a resource (89%)
+  ✓ function finishTracked (L3108)
+  ⚠ function drainReady (L3113): stateOutsideCell 55%  ℹ reads like a resource (80%)
+  ⚠ function completeInstance (L3123): stateOutsideCell 69%  ℹ reads like a resource (83%)
+  ⚠ function finishHook (L3137): stateOutsideCell 62%, handRolledLifetime 50%, awaitsSyncWork 54%, waitsOnSideWork 57%, shapeGrowsPerCall 71%  ℹ reads like a resource (90%)
+  ⚠ function finishInstance (L3157): stateOutsideCell 61%, handRolledLifetime 59%, awaitsSyncWork 57%, waitsOnSideWork 58%, shapeGrowsPerCall 62%  ℹ reads like a resource (97%)
+  ℹ function startBuildInstance (L3178): reads like a resource (78%)
+  ✓ function holdSelectedDependency (L3189)
+  ⚠ function settleResourceInstance (L3204): stateOutsideCell 59%, shapeGrowsPerCall 52%  ℹ reads like a resource (85%)
+  ℹ function publishSyncResource (L3215): reads like a resource (70%)
+  ℹ function failResourceBuild (L3228): reads like a resource (94%)
+  ⚠ function buildHooklessResource (L3244): stateOutsideCell 54%  ℹ reads like a resource (99%)
+  ℹ function buildResource (L3284): reads like a resource (94%)
+  ⚠ function buildTrackedResource (L3304): stateOutsideCell 63%  ℹ reads like a resource (100%)
+  ⚠ function finishAsyncBuild (L3394): stateOutsideCell 70%, awaitsSyncWork 85%, shapeGrowsPerCall 54%  ℹ reads like a resource (62%)
+  ℹ function resourceController (L3430): reads like a resource (91%)
+  ✓ function selectNsResource (L3466)
+  ✓ function hasResourceNs (L3482)
+  ℹ function resourceSlot (L3494): reads like a resource (90%)
+  ✓ function namedResourceSlot (L3521)
+  ⚠ function addDependent (L3535): shapeGrowsPerCall 80%
+  ✓ function addNsDataDependent (L3547)
+  ⚠ function detachNsDependencies (L3560): stateOutsideCell 53%  ℹ reads like a resource (82%)
+  ⚠ function detachNsLinked (L3567): stateOutsideCell 51%
+  ℹ function detachResourceDependencies (L3572): reads like a resource (78%)
+  ✓ function detachDependent (L3584)
+  ✓ function depNode (L3593)
+  ⚠ function addBorrow (L3602): stateOutsideCell 59%, shapeGrowsPerCall 72%
+  ✓ function takeBorrows (L3608)
+  ✓ function seedTags (L3615)
+  ✓ function readBindings (L3628)
+  ✓ function seedPresets (L3644)
+  ✓ function makeRootLayer (L3651)
+  ✓ function nsFor (L3666)
+  ⚠ function makeLayer (L3677): stateOutsideCell 52%  ℹ reads like a resource (68%)
+  ⚠ function layerRecord (L3699): stateOutsideCell 53%
+  ✓ function traceFor (L3744)
+  ⚠ function markSwept (L3758): stateOutsideCell 51%
+  ⚠ function markAborted (L3771): stateOutsideCell 74%  ℹ reads like a resource (75%)
+  ✓ function abortSubtree (L3780)
+  ⚠ function drainDefers (L3796): waitsOnSideWork 53%
+  ⚠ function settleOutcome (L3806): stateOutsideCell 55%
+  ✓ function canFastClose (L3827)
+  ⚠ function isIdle (L3834): stateOutsideCell 58%
+  ⚠ function fastClose (L3851): stateOutsideCell 56%, waitsOnSideWork 54%  ℹ reads like a resource (93%)
+  ✓ function canEndIdle (L3896)
+  ✓ function ownsNothing (L3909)
+  ⚠ function closeLayer (L3929): stateOutsideCell 60%, waitsOnSideWork 50%, shapeGrowsPerCall 52%  ℹ reads like a resource (91%)
+  ✓ function buildResult (L3955)
+  ⚠ function prepareTeardown (L3972): stateOutsideCell 57%
+  ✓ function collectLayerInstances (L3981)
+  ⚠ function startClose (L4000): stateOutsideCell 54%, awaitsSyncWork 55%, waitsOnSideWork 65%  ℹ reads like a resource (87%)
+  ℹ function closeInstancesSync (L4069): reads like a resource (86%)
+  ⚠ function finishBuilt (L4079): stateOutsideCell 52%
+  ✓ function joinPending (L4087)
+  ⚠ function drainDefersSync (L4092): waitsOnSideWork 55%
+  ⚠ function drainRest (L4104): awaitsSyncWork 80%, waitsOnSideWork 54%
+  ⚠ function drainEntrySync (L4116): waitsOnSideWork 50%  ℹ reads like a resource (62%)
+  ℹ function finishLayer (L4151): reads like a resource (60%)
+  ✓ function settleSession (L4174)
+  ⚠ function runSessionWith (L4192): stateOutsideCell 62%, waitsOnSideWork 54%
+  ⚠ function endSession (L4241): waitsOnSideWork 52%  ℹ reads like a resource (66%)
+  ⚠ function endInPlace (L4255): stateOutsideCell 58%  ℹ reads like a resource (81%)
+  ⚠ function settleSessionWith (L4267): stateOutsideCell 55%, awaitsSyncWork 68%  ℹ reads like a resource (69%)
+  ✓ function settleSessionEnded (L4301)
+  ⚠ function runSession (L4308): awaitsSyncWork 54%
+  ⚠ function runBodyWith (L4323): awaitsSyncWork 55%, waitsOnSideWork 54%
+  ✓ function adoptBody (L4340)
+  ✓ function resolveNs (L4351)
+  ✓ function controllerNs (L4364)
+  ⚠ function runInline (L4380): ~wrapsCallersStep 62%
+  ⚠ function ScopeHandle (L4407): waitsOnSideWork 65%
+  ⚠ function createScope (L4589): waitsOnSideWork 50%
+  ✓ function settledValue (L4607)
+  ✓ function failedRun (L4621)
+  ✓ function detachLayer (L4637)
+  ✓ function beginClosing (L4644)
+  ⚠ function keepData (L4651): stateOutsideCell 50%, awaitsSyncWork 53%
+  ✓ function materializeActiveFrames (L4667)
+  ✓ function bestEffort (L4673)
+  ✓ function clearBindings (L4680)
+  ⚠ function propagateSweptOutcome (L4685): shapeGrowsPerCall 68%
+  ✓ function walkEntry (L4695)
+  ✓ function memoEntry (L4715)
+  ⚠ function freshEntry (L4729): shapeGrowsPerCall 55%
+  ⚠ function hookCanRead (L4741): stateOutsideCell 59%
+  ⚠ function createBorrows (L4750): stateOutsideCell 73%
+  ✓ function thenDone (L4758)
+  ⚠ function expandFrame (L4770): stateOutsideCell 65%
+  ✓ function resolveHeld (L4787)
+  ⚠ function extendHandle (L4800): effectWithoutDefer 87%, stateOutsideCell 72%, waitsOnSideWork 66%, shapeGrowsPerCall 82%  ℹ reads like a resource (90%)
+  ✓ function runHookCall (L4848)
+  ✓ function settleRun (L4876)
+  ⚠ function enterHookAccess (L4889): stateOutsideCell 71%
+  ℹ function invalidateResource (L4899): reads like a resource (89%)
+  ✓ function clearBuild (L4924)
+  ✓ function invalidateData (L4929)
+  ✓ function spansDescendants (L4944)
+  ✓ function forEachDependent (L4950)
+  ✓ function visitDependents (L4964)
+  ✓ function collectAffected (L4974)
+  ✓ function releaseNode (L5009)
+  ✓ function releaseNamed (L5032)
+  ✓ function releaseNamedData (L5040)
+  ✓ function namedDataSeeds (L5053)
+  ℹ function releaseNamedResource (L5057): reads like a resource (76%)
+  ✓ function drainRelease (L5064)
+  ✓ function collectNamedRelease (L5073)
+  ✓ function isLiveNamedRelease (L5094)
+  ✓ function unlinkNamedState (L5102)
+  ✓ function isHeld (L5113)
+  ℹ function drainReleasedOwner (L5117): reads like a resource (67%)
+  ℹ function drainHookless (L5132): reads like a resource (81%)
+  ⚠ function drainReleased (L5144): handRolledLifetime 55%  ℹ reads like a resource (68%)
+  ✓ function byDepthDesc (L5151)
+  ✓ function layerDepth (L5155)
+  ℹ function collectReleasedInstances (L5164): reads like a resource (78%)
+  ⚠ function orderReleased (L5183): stateOutsideCell 62%
+  ✓ function invalidateAffected (L5190)
+  ✓ function freeData (L5206)
+  ✓ function freeAfterHooks (L5216)
+  ✓ function keepCellsOnly (L5227)
+  ✓ function finalData (L5242)
+  ✓ function ownEntry (L5256)
+  ✓ function busyRecord (L5273)
+  ⚠ function adoptThenable (L5292): awaitsSyncWork 62%
+  ✓ function appendLayerTags (L5305)
+  ✓ function appendBindings (L5310)
+  ⚠ function sessionThrough (L5329): waitsOnSideWork 56%
+  ⚠ function recover (L5369): stateOutsideCell 70%
+  ⚠ function closingOf (L5378): stateOutsideCell 58%, shapeGrowsPerCall 68%  ℹ reads like a resource (87%)
+  ⚠ function runStartChain (L5397): effectWithoutDefer 78%, stateOutsideCell 70%, awaitsSyncWork 59%, waitsOnSideWork 66%, shapeGrowsPerCall 64%  ℹ reads like a resource (67%)
+  ⚠ function ExtensionCtx (L5496): waitsOnSideWork 55%, shapeGrowsPerCall 52%
+  ⚠ function withSessionCreate (L5697): shapeGrowsPerCall 83%
+  ⚠ function wrapSession (L5713): effectWithoutDefer 53%, stateOutsideCell 59%, awaitsSyncWork 59%, waitsOnSideWork 60%  ℹ reads like a resource (83%)
+  ⚠ function readExtRoutes (L5743): shapeGrowsPerCall 51%
+  ⚠ function watchRootClose (L5764): stateOutsideCell 66%, awaitsSyncWork 52%, waitsOnSideWork 52%, shapeGrowsPerCall 77%  ℹ reads like a resource (74%)
+  ⚠ function listenForStop (L5828): effectWithoutDefer 68%, stateOutsideCell 59%, shapeGrowsPerCall 60%  ℹ reads like a resource (99%)
+  ⚠ function resolveThrough (L5847): shapeGrowsPerCall 65%
+  ✓ function runTaggedBody (L5874)
+  ⚠ function runSessionWrapped (L5888): ~wrapsCallersStep 53%, stateOutsideCell 61%, awaitsSyncWork 82%, waitsOnSideWork 60%
+  ✓ function applyPresets (L5933)
+  ⚠ function reentersTeardown (L5951): stateOutsideCell 63%
+  ⚠ function addError (L5961): stateOutsideCell 65%, shapeGrowsPerCall 63%
+  ✓ function drainEntries (L5968)
+  ⚠ function closeEach (L5978): awaitsSyncWork 55%  ℹ reads like a resource (85%)
+  ✓ function failedResult (L6015)
+  ✓ function withHookAccess (L6040)
+  ℹ function runHookChain (L6055): reads like an operation (62%)
+  ✓ function createHookRun (L6084)
+  ✓ function invokeRunHooks (L6105)
+  ✓ function exitHookAccess (L6115)
+  ✓ function stepRunHook (L6120)
+  ℹ function runHookBody (L6143): reads like an operation (92%)
+  ⚠ function failHookRun (L6182): shapeGrowsPerCall 66%
+  ⚠ function finishHookRun (L6191): handRolledLifetime 54%, awaitsSyncWork 73%
+  ⚠ function trackHookRun (L6217): stateOutsideCell 56%, awaitsSyncWork 53%, shapeGrowsPerCall 62%
+  ✓ function finishHookDone (L6233)
+  ✓ function hookEvent (L6239)
+  ✓ function RunEvent (L6250)
+  ✓ function selectBucket (L6278)
+  ℹ function ownNsCell (L6295): reads like a data (68%)
+  ✓ function flushInheritedNsWatchers (L6309)
+  ✓ function shadowsNamedChange (L6322)
+  ✓ function appendNsTags (L6327)
+  ✓ function occupiedNsResource (L6335)
+  ⚠ function ownNsResource (L6339): stateOutsideCell 56%
+  ℹ function readResourceState (L6353): reads like a resource (81%)
+  ⚠ function linkNsResourceDependent (L6368): stateOutsideCell 61%, shapeGrowsPerCall 71%
+  ⚠ function linkNsDataDependent (L6374): stateOutsideCell 59%, shapeGrowsPerCall 68%
+  ✓ function selectNsDataEntry (L6385)
+  ⚠ function detachNsResourceLinks (L6405): stateOutsideCell 53%
+  ✓ function resolveNamedResourceDeps (L6413)
+  ✓ function NsResourceState (L6443)
+  ⚠ function finishCloseInstance (L6468): awaitsSyncWork 55%  ℹ reads like a resource (95%)
+  ⚠ function drainCloseEntry (L6478): awaitsSyncWork 90%, waitsOnSideWork 64%  ℹ reads like a resource (95%)
+  ⚠ function closeInstances (L6497): stateOutsideCell 50%, waitsOnSideWork 51%  ℹ reads like a resource (88%)
+  ✓ function seesResource (L6512)
+  ✓ function nanosFromMillis (L6520)
+  ✓ function runWriteHooks (L6526)
+
+jev lint: 310 unit(s), 116 ⚠ flag(s), 71 ℹ note(s). By question: {"shapeGrowsPerCall":49,"stateOutsideCell":66,"waitsOnSideWork":28,"effectWithoutDefer":6,"awaitsSyncWork":24,"handRolledLifetime":4,"~wrapsCallersStep":2}
+Advisory only — model ⚠ hits are fixed or explained, then labeled (a ~ hit: read it, no line owed); unitCouldBeModuleLevel (code) is deterministic and needs no label or calibration. vp check / tests / the lead decide.
+
+jev pre-flight: 0 file flag(s) plus the lint notes above. An ℹ note is a hint: no fix or label owed. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (tools/jev/label.mjs). Not a gate.

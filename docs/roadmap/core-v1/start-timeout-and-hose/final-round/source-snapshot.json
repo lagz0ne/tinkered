@@ -1,0 +1,14 @@
+{
+  "base_commit": "e75b371971ffb1b27864e0a189f70b707f33c9b6",
+  "sha256": {
+    "packages/core/src/index.ts": "286c00675e70014ab0db0895735c0bcf106e4553f5827ac730bdc5dcc36f83bb",
+    "packages/core/tests/start-timeout-and-hose.test.ts": "64eee1c37b94a04eb1843cfe2a55bc2105a22e20b39b3d3f90b4acee1b81a19b",
+    "packages/core/tests/lifetime.test.ts": "1ee66742efe519bd43992028f5b2769b96ece7aebbd059341195ee1b4b92bc6b"
+  },
+  "core_tests": 920,
+  "dist_tests": 1164,
+  "react_tests": 98,
+  "start_tests": 528,
+  "runtime_gzip_bytes": 16360,
+  "runtime_cap_bytes": 16384
+}

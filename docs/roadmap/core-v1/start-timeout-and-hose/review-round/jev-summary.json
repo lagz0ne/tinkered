@@ -1,0 +1,133 @@
+{
+  "changed_unit_flags": 21,
+  "labels": [
+    {
+      "unit": "makeObs",
+      "judge": "stateOutsideCell",
+      "label": false,
+      "why": "Core owns this observer state. It copies the tap and history containers; callers cannot write them."
+    },
+    {
+      "unit": "logFor",
+      "judge": "shapeGrowsPerCall",
+      "label": false,
+      "why": "The logger is made only on its first read. Its fields are filled in one order; plain runs never call it."
+    },
+    {
+      "unit": "OperationCtx",
+      "judge": "waitsOnSideWork",
+      "label": false,
+      "why": "The context is Core runtime state. Its fields have one birth order. Quiet logs stay lazy; no extra field is added."
+    },
+    {
+      "unit": "OperationCtx",
+      "judge": "shapeGrowsPerCall",
+      "label": false,
+      "why": "The context is Core runtime state. Its fields have one birth order. Quiet logs stay lazy; no extra field is added."
+    },
+    {
+      "unit": "createScope",
+      "judge": "waitsOnSideWork",
+      "label": false,
+      "why": "Scope construction starts the approved hook chain. Plain scopes still return before startup work."
+    },
+    {
+      "unit": "extendHandle",
+      "judge": "effectWithoutDefer",
+      "label": false,
+      "why": "Only extension installation enters this cold setup. Core owns the ready and close state; both promises are guarded."
+    },
+    {
+      "unit": "extendHandle",
+      "judge": "stateOutsideCell",
+      "label": false,
+      "why": "Only extension installation enters this cold setup. Core owns the ready and close state; both promises are guarded."
+    },
+    {
+      "unit": "extendHandle",
+      "judge": "waitsOnSideWork",
+      "label": false,
+      "why": "Only extension installation enters this cold setup. Core owns the ready and close state; both promises are guarded."
+    },
+    {
+      "unit": "extendHandle",
+      "judge": "shapeGrowsPerCall",
+      "label": false,
+      "why": "Only extension installation enters this cold setup. Core owns the ready and close state; both promises are guarded."
+    },
+    {
+      "unit": "runStartChain",
+      "judge": "effectWithoutDefer",
+      "label": false,
+      "why": "Startup is the approved Core lifecycle. The timer is cancelled on success or close; failure waits for required cleanup. No plain run enters this code."
+    },
+    {
+      "unit": "runStartChain",
+      "judge": "stateOutsideCell",
+      "label": false,
+      "why": "Startup is the approved Core lifecycle. The timer is cancelled on success or close; failure waits for required cleanup. No plain run enters this code."
+    },
+    {
+      "unit": "runStartChain",
+      "judge": "awaitsSyncWork",
+      "label": false,
+      "why": "Startup is the approved Core lifecycle. The timer is cancelled on success or close; failure waits for required cleanup. No plain run enters this code."
+    },
+    {
+      "unit": "runStartChain",
+      "judge": "waitsOnSideWork",
+      "label": false,
+      "why": "Startup is the approved Core lifecycle. The timer is cancelled on success or close; failure waits for required cleanup. No plain run enters this code."
+    },
+    {
+      "unit": "runStartChain",
+      "judge": "shapeGrowsPerCall",
+      "label": false,
+      "why": "Startup is the approved Core lifecycle. The timer is cancelled on success or close; failure waits for required cleanup. No plain run enters this code."
+    },
+    {
+      "unit": "ExtensionCtx",
+      "judge": "waitsOnSideWork",
+      "label": false,
+      "why": "Only hook tools enter this context. Logger and other tool fields are made on first read; operation fields keep one birth order."
+    },
+    {
+      "unit": "ExtensionCtx",
+      "judge": "shapeGrowsPerCall",
+      "label": false,
+      "why": "Only hook tools enter this context. Logger and other tool fields are made on first read; operation fields keep one birth order."
+    },
+    {
+      "unit": "readExtRoutes",
+      "judge": "shapeGrowsPerCall",
+      "label": false,
+      "why": "Cold installation fills all route fields in the same order. Plain runs only read their saved route."
+    },
+    {
+      "unit": "watchRootClose",
+      "judge": "stateOutsideCell",
+      "label": false,
+      "why": "Core owns cleanup and retains the first close. Startup cancellation claims its result now and joins this retained cleanup."
+    },
+    {
+      "unit": "watchRootClose",
+      "judge": "awaitsSyncWork",
+      "label": false,
+      "why": "Core owns cleanup and retains the first close. Startup cancellation claims its result now and joins this retained cleanup."
+    },
+    {
+      "unit": "watchRootClose",
+      "judge": "waitsOnSideWork",
+      "label": false,
+      "why": "Core owns cleanup and retains the first close. Startup cancellation claims its result now and joins this retained cleanup."
+    },
+    {
+      "unit": "watchRootClose",
+      "judge": "shapeGrowsPerCall",
+      "label": false,
+      "why": "Core owns cleanup and retains the first close. Startup cancellation claims its result now and joins this retained cleanup."
+    }
+  ],
+  "old_unit_flags_left": 95,
+  "calibration": "not run, as requested"
+}

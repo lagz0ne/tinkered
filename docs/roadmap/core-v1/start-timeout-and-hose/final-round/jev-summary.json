@@ -1,0 +1,13 @@
+{
+  "file_flags": 0,
+  "changed_unit": "runStartChain",
+  "changed_unit_flags": 5,
+  "labels": {
+    "effectWithoutDefer": "Core owns the startup timer and AbortController. The guarded claim aborts sleep on success or close.",
+    "stateOutsideCell": "RootLifetime and Layer own startup, cancellation, panic, and teardown state. This is Core state, not application state.",
+    "awaitsSyncWork": "Close yields one microtask so the first close retains its promise before startup joins it. The remaining waits are required cleanup.",
+    "waitsOnSideWork": "The public startup and close lifecycle waits for its hooks and cleanup. Normal runs do not enter this path.",
+    "shapeGrowsPerCall": "Startup and late error records are cold Core state. No field or work is added to a successful plain run."
+  },
+  "calibration": "not run, as requested"
+}

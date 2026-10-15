@@ -1,0 +1,11 @@
+~/packages/start$ vp test sync-tab typecheck upgrade ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/start
+
+
+ Test Files  3 passed (3)
+      Tests  40 passed (40)
+   Start at  08:23:15
+   Duration  6.86s (tests 52%, transform 25%, import 23%)
+
+

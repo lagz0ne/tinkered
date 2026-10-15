@@ -1,0 +1,14 @@
+~/packages/core$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/core
+
+
+ Test Files  45 passed (45)
+      Tests  920 passed (920)
+   Start at  13:05:19
+   Duration  10.41s (tests 52%, import 27%, transform 17%, worker 4%)
+
+    Isolate  45 workers spawned · ~115ms startup each (spawn + environment, per file)
+             at least ~5.05s faster with isolate: false — reuses workers across files instead of one per file
+
+

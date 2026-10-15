@@ -1,0 +1,56 @@
+[
+  {
+    "id": "@tinker/core@0.8.0",
+    "name": "@tinker/core",
+    "version": "0.8.0",
+    "size": 51951,
+    "unpackedSize": 159744,
+    "shasum": "7903d36f85bf02081ac5fdce14dfce643d95bd78",
+    "integrity": "sha512-/gZsTcDtIB+q2qZ1QsUH+GyO34IuAqTdd9KryEV3LuIE94SOs6zoFtrRovRa2tfl9EktGWa9yyddtLGwyVx57Q==",
+    "filename": "tinker-core-0.8.0.tgz",
+    "files": [
+      {
+        "path": "README.md",
+        "size": 65082,
+        "mode": 420
+      },
+      {
+        "path": "dist/index-CLCXv3jM.d.mts",
+        "size": 40914,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.d.mts",
+        "size": 655,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.mjs",
+        "size": 47882,
+        "mode": 420
+      },
+      {
+        "path": "dist/testing.d.mts",
+        "size": 2500,
+        "mode": 420
+      },
+      {
+        "path": "dist/testing.mjs",
+        "size": 1217,
+        "mode": 420
+      },
+      {
+        "path": "dist/trace-random-DbkDB-C-.mjs",
+        "size": 125,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 1369,
+        "mode": 420
+      }
+    ],
+    "entryCount": 8,
+    "bundled": []
+  }
+]

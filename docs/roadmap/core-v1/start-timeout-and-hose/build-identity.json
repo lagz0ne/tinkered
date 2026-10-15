@@ -1,0 +1,6 @@
+{
+  "core_code_commit": "993a5079",
+  "start_fixture_commit": "1bdc8fde",
+  "core_dist_sha256": "cfdd7db21d17c47f7e93e86186895d0d7e69b9da308f3da19aada9b06a19dbf2",
+  "bench_dist_matches_final_dist": true
+}

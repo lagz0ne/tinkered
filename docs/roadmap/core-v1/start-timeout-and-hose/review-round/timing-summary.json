@@ -1,0 +1,70 @@
+{
+  "main": "fef10e465de403501828821ed33b854f0355b3a9",
+  "branch": "50688759b5f5e7fe840b7d1d63079d596dbbeaa4",
+  "method": "Two-sided paired sign test; ties omitted; p < 0.01. Second wrapper reverses tree order. Each wrapper uses a separate output folder.",
+  "scope_run_verdict": "no difference we can see, both runs",
+  "cached_controller_verdict": "mixed: first slower, reversed run no difference we can see",
+  "probe_sha256": "0770a18e54d257fc67ae53da3e6b9d0a0525b1de0f3178c711884bdf88fdcc0d",
+  "runs": [
+    {
+      "run": 1,
+      "scenario": "op",
+      "samples_per_side": 61,
+      "first_side": "main",
+      "main_median_ns": 63.6,
+      "branch_median_ns": 65.0,
+      "main_MAD_ns": 1.6000000000000014,
+      "branch_MAD_ns": 0.7999999999999972,
+      "faster_pairs": 16,
+      "slower_pairs": 44,
+      "ties": 1,
+      "paired_sign_p": 0.00039404324272610154,
+      "verdict": "branch is slower"
+    },
+    {
+      "run": 1,
+      "scenario": "run",
+      "samples_per_side": 61,
+      "first_side": "main",
+      "main_median_ns": 78.4,
+      "branch_median_ns": 79.4,
+      "main_MAD_ns": 1.2999999999999972,
+      "branch_MAD_ns": 1.0,
+      "faster_pairs": 21,
+      "slower_pairs": 40,
+      "ties": 0,
+      "paired_sign_p": 0.020414713799634897,
+      "verdict": "no difference we can see"
+    },
+    {
+      "run": 2,
+      "scenario": "op",
+      "samples_per_side": 61,
+      "first_side": "branch",
+      "main_median_ns": 63.7,
+      "branch_median_ns": 64.7,
+      "main_MAD_ns": 1.4000000000000057,
+      "branch_MAD_ns": 1.2000000000000028,
+      "faster_pairs": 29,
+      "slower_pairs": 32,
+      "ties": 0,
+      "paired_sign_p": 0.798152627305718,
+      "verdict": "no difference we can see"
+    },
+    {
+      "run": 2,
+      "scenario": "run",
+      "samples_per_side": 61,
+      "first_side": "branch",
+      "main_median_ns": 79.5,
+      "branch_median_ns": 79.5,
+      "main_MAD_ns": 1.2000000000000028,
+      "branch_MAD_ns": 0.9000000000000057,
+      "faster_pairs": 29,
+      "slower_pairs": 32,
+      "ties": 0,
+      "paired_sign_p": 0.798152627305718,
+      "verdict": "no difference we can see"
+    }
+  ]
+}

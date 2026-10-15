@@ -1,0 +1,319 @@
+~/tools/jev$ node --test *.test.mjs ⊘ cache disabled
+✔ a static core unit inside a function is reported at its call (6.886136ms)
+✔ parameters and locals derived from them keep factory units dynamic (1.240103ms)
+✔ a loader that only updates an input counter still builds the same unit (2.369557ms)
+✔ module names and callback parameters do not make a config depend on the factory (0.523063ms)
+✔ inline run configs and other modules are not core unit calls (0.565588ms)
+✔ tests are excluded; functions that declare units remain judge candidates (1.463418ms)
+✔ inner locals derived from outer parameters stay dynamic (0.330621ms)
+✔ a for-of or for-in binding derived from input stays dynamic (0.604688ms)
+✔ a nested function that closes over an input keeps its operation dynamic (0.326397ms)
+✔ a reassigned local derived from an input stays dynamic (0.378766ms)
+✔ a catch parameter used by a unit config stays dynamic (0.400254ms)
+✔ dotted and dashed test filenames and test directories are excluded (0.203884ms)
+✔ this is not a module-level value (0.351169ms)
+▶ a helper's uses
+  ✔ lists each distinct line that calls the helper, in source order (1.244636ms)
+  ✔ does not count a call inside the helper's own body (0.616549ms)
+  ✔ gives a helper no one calls no uses at all (0.321471ms)
+  ✔ keeps at most six lines (0.567188ms)
+✔ a helper's uses (3.584032ms)
+▶ arrow helpers in a .ts file
+  ✔ reads a const arrow as a function unit with its uses (0.509856ms)
+  ✔ reads a const function expression as a function unit (0.207515ms)
+  ✔ keeps a unit builder call an operation, not a helper (0.295633ms)
+  ✔ gives each arrow of one const its own unit (0.209364ms)
+✔ arrow helpers in a .ts file (1.468901ms)
+✔ each doc block carries its words and the declaration it sits on (1.440203ms)
+✔ preflight's lint includes fast-code judges on short helpers and roots (3.301953ms)
+✔ fast-code judges read library helpers and unit builders while existing scope stays intact (0.616276ms)
+✔ class constructors and methods reach fast-code judges without app judges (0.616953ms)
+✔ the S24 fix text typechecks against the Start base (499.049008ms)
+ℹ Start base snippet: tsc --noEmit EXIT 0
+✔ code at the cap fits one call; one character more does not (0.91592ms)
+✔ core's index.ts is too big for one call; blueprint.ts fits (1.183914ms)
+✔ preflight and review both guard the whole-file call with the size check (0.436976ms)
+▶ S19 repo lane
+  ✔ checks roots and wrapped handle types in apps and examples (12.973724ms)
+  ✔ keeps driver helpers and tests out of the repo lane, with the writer src lane intact (9.02714ms)
+✔ S19 repo lane (23.607839ms)
+▶ S29 lifetimeByHand
+  ✔ reports each ready catch at its close call, including named failure callbacks (14.864866ms)
+  ✔ reports abort listeners and inline or local promise waits followed by graceful close (11.991617ms)
+  ✔ leaves other owners, streams, sessions, forced stops, work cleanup, and hidden names alone (57.05563ms)
+  ✔ checks ready in tests too and leaves every core file out of both lanes (66.745746ms)
+  ✔ limits repo source checks to apps, examples, and packages, with all writer files checked (61.186566ms)
+  ✔ blocks the writer gate and prints both filled-in fixes (14.415973ms)
+  ✔ the repo lint prints only S29 for tests with an error assertion and React state (324.766718ms)
+✔ S29 lifetimeByHand (552.193672ms)
+▶ plain rules in a test file
+  ✔ T01 fires on a mock or spy call (4.461664ms)
+  ✔ T02 fires on setTimeout, sleep, and waitForTimeout (1.026113ms)
+  ✔ T03 fires on only and skip off test, it, or describe (0.665702ms)
+  ✔ T04 fires on an import of a private source module (0.838666ms)
+  ✔ T04 skips an app test, which imports the feature module it proves (0.460186ms)
+  ✔ T05 fires on an internals probe (0.531706ms)
+  ✔ T06 fires on a cast through unknown (1.204624ms)
+  ✔ T07 fires on an error class, snapshot, or message assert (1.716141ms)
+  ✔ T08 fires on isError inside expect (0.448473ms)
+✔ plain rules in a test file (13.316498ms)
+▶ plain rules in a source file
+  ✔ S02 fires on a cast through unknown (2.941726ms)
+  ✔ S05 fires on a bare throw of Error, TypeError, or RangeError (0.752714ms)
+  ✔ S17 fires on a type assertion in either form (0.946355ms)
+  ✔ S17 leaves as const and an empty list's element type alone (0.435683ms)
+  ✔ S17 does not repeat a cast through unknown that S02 reports (0.29933ms)
+  ✔ S17 is writer policy: the repo's own lint does not report it (0.547623ms)
+  ✔ S17 does not apply to test files (0.532418ms)
+  ✔ S18 fires on a unit builder called inside a function (3.092247ms)
+  ✔ S18 leaves a module-level unit and a non-core function alone (1.553357ms)
+  ✔ S18 fires on a sync family made inside a function (0.932484ms)
+  ✔ S18 leaves a driver's extension built from wiring rows alone (0.75371ms)
+  ✔ S18's message names exactly the builders it counts (0.672273ms)
+  ✔ S19 fires on a helper that takes a controller, directly or through a type alias (1.149751ms)
+  ✔ S19 leaves a helper over plain values alone (0.542453ms)
+  ✔ S18 stays writer policy: the repo's own lint does not report it (0.536715ms)
+  ✔ S06 fires on a console call (0.458046ms)
+✔ plain rules in a source file (17.052128ms)
+▶ hand-rolled rules: code that redoes what tinker gives
+  ✔ S20 fires on Math.random, crypto.randomUUID, and randomUUID from node:crypto (3.073524ms)
+  ✔ S20 leaves ctx.random, a local randomUUID, and core's own default alone (0.698853ms)
+  ✔ S21 fires on Date.now, performance.now, timers, and new Date() in a unit body (1.670618ms)
+  ✔ S21 leaves raw time outside any unit alone in the writer gate too (0.370323ms)
+  ✔ S21 leaves ctx.clock and a formatted saved time in a unit body alone (1.987732ms)
+  ✔ S21 counts only unit bodies in the repo lint: a driver's own timer is fine (2.68428ms)
+  ✔ S22 fires on a run whose failure is dropped by then, catch, or a bare catch (5.017989ms)
+  ✔ S22 leaves settle, a handler that narrows, and a non-run promise alone (1.936827ms)
+  ✔ S22 fires on a settle whose Result a core handle drops (4.96224ms)
+  ✔ S22 names the hidden panic and the read Result on a dropped settle (0.733481ms)
+  ✔ S22 leaves a read settle, a returned one, void run, and a local settle method alone (9.944379ms)
+  ✔ S23 fires on a hand-made onX backed by a listener set (2.006235ms)
+  ✔ S23 leaves the Sync.Transport pair and a plain event handler alone (1.937446ms)
+  ✔ S24 fires on fetch and globalThis.fetch in app code (0.943346ms)
+  ✔ S24 repo lint skips package fetch; sync transports keep native connections (0.686413ms)
+  ✔ S24 tells a flight app to depend on httpRequest.controller and run it (0.4906ms)
+  ✔ S24 leaves the scaffold's built-in fetch backend alone (8.093881ms)
+  ✔ S24 fires on bare fetch in other scaffold files (0.738675ms)
+  ✔ S25 fires on useState and useReducer in a .tsx source file (0.593841ms)
+  ✔ S25 leaves a DOM useRef alone and stays out of the repo lint (0.855959ms)
+  ✔ each hand-rolled message ends with its fix line (0.742555ms)
+  ✔ hand-rolled rules skip test files (0.397403ms)
+✔ hand-rolled rules: code that redoes what tinker gives (51.892604ms)
+▶ entry and root rules (ADR 0078)
+  ✔ S27 reports each unguarded statement once, including declarations and for await (1.487898ms)
+  ✔ S27 counts top-level await using as an awaited declaration (0.559296ms)
+  ✔ S27 accepts await using inside the main guard (0.711625ms)
+  ✔ S27 accepts the main branch and awaits inside every function form (3.643643ms)
+  ✔ S27 rejects awaits in the else branch, the condition, and lookalike guards (2.0445ms)
+  ✔ S27 uses the repo source paths; the writer gate also checks scripts (2.318537ms)
+  ✔ S27 skips browser and test paths in both lanes (2.393836ms)
+  ✔ S28 reports a returned scope in declarations, expressions, arrows, and methods (16.372102ms)
+  ✔ S28 skips a factory passed directly through a JSX attribute (0.819733ms)
+  ✔ S28 skips a factory passed directly through useMemo (0.521354ms)
+  ✔ S28 skips a factory passed directly through a block-bodied call argument (2.420339ms)
+  ✔ S28 skips a factory passed directly through a new argument (0.460192ms)
+  ✔ S28 skips a factory passed directly through a function expression argument (0.522139ms)
+  ✔ S28 still counts returned factories, named factories, and the sync boot root (3.939974ms)
+  ✔ S28 keeps bindings and returns within their own function and block (3.491445ms)
+  ✔ S28 leaves returned values and closures that use the root alone (25.534439ms)
+  ✔ S28 finds the tracker's old createApp from 9aece1e (23.55877ms)
+  ✔ both rules accept runServer owning its root and the ADR 0078 main guard (4.081629ms)
+  ✔ S28 skips a test's boot helper and limits repo hits to apps and examples (5.374434ms)
+  ✔ the writer gate blocks both rules and prints their filled-in fixes (2.665441ms)
+✔ entry and root rules (ADR 0078) (104.284703ms)
+▶ plain rules in every file
+  ✔ S12 fires on a ts-ignore or ts-expect-error comment (0.346749ms)
+  ✔ S13 fires on a lint disable comment (0.399079ms)
+  ✔ an unparsable file yields one parse row (0.320287ms)
+✔ plain rules in every file (1.384363ms)
+▶ plain rules never fire on
+  ✔ console.log( inside a string in source (0.424655ms)
+  ✔ ts-ignore text inside a string (0.221364ms)
+  ✔ a rule word in the middle of a comment (0.448078ms)
+  ✔ a locator assert, waitForSelector, or expect.poll (0.605188ms)
+  ✔ an import of the public entry src/index (0.275436ms)
+  ✔ vi.fn() in a source file that is not a test (0.286856ms)
+  ✔ isError narrowing in an if, then a payload assert (0.336446ms)
+✔ plain rules never fire on (3.278963ms)
+▶ S26 malformed TSDoc
+  ✔ fires on each parser error kind at its line (2.904608ms)
+  ✔ fires on a @param that names no parameter (1.900575ms)
+  ✔ stays quiet on prose, the standard tags, and real parameters (7.354844ms)
+  ✔ stays quiet on the repo's own @ambientSource tag (0.495512ms)
+✔ S26 malformed TSDoc (12.985362ms)
+▶ component extraction
+  ✔ marks a named function returning JSX a component (4.263127ms)
+  ✔ marks an exported and a default-exported component a component (0.816076ms)
+  ✔ marks arrow and function-expression consts returning JSX a component (1.082653ms)
+  ✔ counts a fragment and nested JSX as a component (0.657092ms)
+  ✔ marks a component with if/switch/try returns a component (48.854409ms)
+  ✔ keeps a helper holding an inner arrow returning JSX a function (0.783233ms)
+  ✔ reads every function declarator of one const statement (0.557985ms)
+  ✔ gives each const declarator its own line and source span (0.692711ms)
+  ✔ keeps a capital-named helper with no JSX a function (0.419953ms)
+  ✔ keeps a root that only passes JSX to a call a function (0.537163ms)
+✔ component extraction (61.697896ms)
+▶ shape findings
+  ✔ flags an aliased useState and a namespaced useEffect with rule 9 and 8 (12.964515ms)
+  ✔ reports a state hook once in writer mode: S25, not also no-react-state (7.339906ms)
+  ✔ lets useId through and flags useRef (1.940952ms)
+  ✔ flags useScope in a view and a scope prop, not the ScopeProvider root (4.041602ms)
+  ✔ flags a scope prop through a ThemeProvider, not only ScopeProvider (1.181781ms)
+  ✔ flags a scope prop through a named Props alias and a typed scope param (1.64906ms)
+  ✔ flags a scope prop on the second declarator of one const statement (1.094665ms)
+  ✔ flags a scope prop through an exported Props alias (0.998279ms)
+  ✔ flags writable useData in a view, plain, aliased, and namespaced (4.272493ms)
+  ✔ leaves read-only useData, other modules, same-name functions, and useRun alone (3.86082ms)
+  ✔ flags writable useData in one scope, not a sibling's local or a param (2.817924ms)
+  ✔ flags aliased and namespaced hook calls, not their shadowed names (6.073113ms)
+  ✔ flags one mixed file's imported call only (1.586683ms)
+  ✔ binds a nested function local wherever the use sits (1.92421ms)
+  ✔ binds late imports and late functions before resolving calls (1.539473ms)
+  ✔ keeps catch params and loop heads inside their own frame (2.542092ms)
+  ✔ keeps a strict block function inside its block (2.127503ms)
+  ✔ sees a nested block under any statement shape (0.814988ms)
+  ✔ binds var in its function frame without hanging (663.742536ms)
+  ✔ keeps a block-local const inside its block (1.9629ms)
+  ✔ reads defaults and rests in params, including aliased and namespaced (5.440692ms)
+  ✔ leaves plain helpers and typed non-scope props alone (1.190779ms)
+  ✔ returns stable rows in source order (0.925346ms)
+✔ shape findings (733.668452ms)
+ℹ tests 152
+ℹ suites 13
+ℹ pass 152
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1175.042527
+
+~/packages/core$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/core
+
+
+ Test Files  45 passed (45)
+      Tests  918 passed (918)
+   Start at  11:59:54
+   Duration  11.75s (tests 55%, import 25%, transform 16%, worker 4%)
+
+    Isolate  45 workers spawned · ~127ms startup each (spawn + environment, per file)
+             at least ~5.58s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/tools/flight-trial$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/tools/flight-trial
+
+{"service":"supplier-a","url":"http://127.0.0.1:39697","pid":908324}
+{"service":"payment","url":"http://127.0.0.1:41165","pid":908324}
+
+ Test Files  12 passed (12)
+      Tests  148 passed (148)
+   Start at  12:00:06
+   Duration  41.24s (tests 90%, import 8%, transform 2%)
+
+    Isolate  12 workers spawned · ~293ms startup each (spawn + environment, per file)
+             at least ~3.22s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/tools/blueprint$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/tools/blueprint
+
+
+ Test Files  8 passed (8)
+      Tests  118 passed | 1 skipped (119)
+   Start at  12:00:51
+   Duration  7.95s (import 57%, tests 29%, transform 13%, worker 1%)
+
+    Isolate  8 workers spawned · ~159ms startup each (spawn + environment, per file)
+             at least ~1.12s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/packages/react$ vp test ⊘ cache disabled
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/react
+      API started at http://localhost:63315/
+
+
+ Test Files  23 passed (23)
+      Tests  98 passed (98)
+   Start at  12:01:02
+   Duration  23.60s (worker 96%, tests 3%, import 1%)
+
+
+~/examples/core$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/examples/core
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  12:01:26
+   Duration  605ms (transform 85%, import 9%, tests 3%, worker 2%)
+
+
+~/packages/start$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/packages/start
+
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"50385933dda0a75144592327f8bc89da","spanId":"44592327f8bc89da","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"6adfa63fb29d1e1a3f50537523beff1c","spanId":"3f50537523beff1c","msg":"core.span"}
+{"level":30,"time":0,"service":"test-start","side":"ssr","traceId":"b4c74b0aeef0fe465386d31687148065","spanId":"5386d31687148065","msg":"core.span"}
+
+ Test Files  45 passed (45)
+      Tests  528 passed (528)
+   Start at  12:01:30
+   Duration  105.42s (tests 78%, import 19%, transform 3%)
+
+    Isolate  45 workers spawned · ~138ms startup each (spawn + environment, per file)
+             at least ~6.08s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/examples/react$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/examples/react
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  12:03:16
+   Duration  632ms (transform 71%, import 26%, tests 2%, worker 1%)
+
+
+~/apps/playground$ vp test ⊘ cache disabled
+12:03:18 PM [vite+] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic', jsxImportSource: undefined }`
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/apps/playground
+
+
+ Test Files  10 passed (10)
+      Tests  68 passed (68)
+   Start at  12:03:18
+   Duration  7.68s (tests 38%, environment 25%, import 20%, transform 15%, worker 1%)
+
+    Isolate  10 workers spawned · ~295ms startup each (spawn + environment, per file)
+             at least ~2.65s faster with isolate: false — reuses workers across files instead of one per file
+
+
+~/apps/start-scaffold$ vp test ⊘ cache disabled
+
+ RUN  v5.0.1 /home/paseo/next/tinkered-start-timeout/apps/start-scaffold
+
+
+ Test Files  8 passed (8)
+      Tests  39 passed (39)
+   Start at  12:03:27
+   Duration  103.13s (tests 63%, import 34%, transform 3%)
+
+    Isolate  8 workers spawned · ~804ms startup each (spawn + environment, per file)
+             at least ~5.63s faster with isolate: false — reuses workers across files instead of one per file
+
+
+---
+vp run: 0/10 cache hit (0%). (Run `vp run --last-details` for full details)

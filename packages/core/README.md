@@ -139,6 +139,19 @@ An extension is middleware over the scope's verbs (ADR 0050).
 Declare its callbacks under `hooks` and install it with `createScope({ extensions })`.
 Wait with `await scope.ready`, then read its value with `scope.resolve(ext)`.
 
+Start has a 10 000 ms limit on the scope clock (ADR 0119).
+Set `createScope({ startTimeout: 5_000 })` to change it.
+A hanging start rejects `ready` with `StartTimeout`.
+Its payload holds the extension's `label`.
+Core closes the scope and runs cleanup before `ready` rejects.
+The label names the innermost start still waiting.
+A settled start cancels the timer.
+Closing the root cancels it and rejects pending `ready` with the close reason.
+Set `createScope({ startTimeout: 0 })` or `Infinity` to turn the timer off.
+Negative limits and `NaN` raise `BadStartTimeout`.
+Finite limits are capped at 2 147 483 647 ms.
+A clock sleep throw or rejection leaves startup waiting without a timeout.
+
 ```ts
 import { createScope, extension } from "@tinker/core";
 
@@ -543,6 +556,30 @@ rows are themselves arrays (sync's `[cell, key]` pairs) it passes the row discri
 
 ## Observation
 
+Core owns one hose for spans and log lines (ADR 0119).
+`createScope({ observe })` adds one tap.
+A start hook can add another with `event.tap(config)`.
+Each tap is an `Observe.Config` and gets records made after it joins.
+Each tap gets the same span object.
+The hose uses the lowest tap level and largest history.
+Each log sink still filters to its own level.
+All taps share the first tap's clock.
+No tap makes no spans.
+One tap is called directly; two or more use a loop.
+A throwing sink does not stop the other sinks.
+
+```ts
+const telemetry = extension({
+  label: "telemetry",
+  hooks: {
+    start(event) {
+      event.tap({ export: sendSpan, history: 80 });
+      return event.next();
+    },
+  },
+});
+```
+
 Enable `observe.history` to retain a bounded list of completed spans for `scope.spans()`.
 Each call returns a list that keeps its entries when later runs replace the history.
 Each resource build emits a `resource` span, so tests can count builds without a test-only
@@ -569,9 +606,18 @@ The bare call uses `info`; `debug`, `info`, `warn`, and `error` pick a level.
 
 Each line keeps caller attributes and sets `attributes.extension` to the extension's label.
 Start opens no span, so its log lines have `span: undefined`.
+Calling `event.tap` after the start chain settles raises `LateTap`.
 Close events use the same logger.
 
 ## Namespaces
+
+`namespace({ observe: false })` makes a quiet bucket (ADR 0119).
+Operations, resource builds, nested work, and hook logs in that bucket emit no records.
+Use it for a tool's own sends, so they do not trace themselves.
+Quiet covers the call's namespace only.
+An explicit nested namespace uses its own setting.
+This keeps extra checks off plain runs.
+Other buckets still observe.
 
 A resource factory's `ctx.ns` is the chain used for its dependencies.
 Scope-target resources expose no namespace; namespace and session targets expose their build chain.
@@ -969,6 +1015,18 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close
   returns the same result.
 - A failed start rejects `ready` with its cause and fails the scope.
+- A hanging inner start times out on the scope clock and closes with its label.
+- Start defaults to ten seconds and names an outer hook hanging after next.
+- A settled start cancels its timeout.
+- Close cancels a hanging start and its timer with the close reason.
+- Zero and infinite start limits keep the timer off.
+- Negative start limits raise a managed error.
+- Finite start limits are capped at the largest timer delay.
+- A recovered inner start leaves ready and close successful.
+- A tap called after ready raises a managed error.
+- A clock sleep throw or rejection leaves startup waiting without a timeout.
+- A real start error after close begins fails `closed` and keeps the error.
+- An explicit nested namespace chooses its own observation setting.
 - A held controller keeps its last write alive after its root closes, with or without a watcher or an `onClose` hook.
 - A held controller keeps its last write alive after its session closes, fast, under a session hook, or swept by its root.
 - Without a held controller, a closed root frees its last write.
@@ -1059,6 +1117,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A test random with no seed is a deterministic default generator.
 
 ### Observation
+
+- One start tap receives a span and misses work before the tap.
+- Two taps receive the same span, filter their own levels, and keep the largest history.
+- A throwing tap does not stop another tap.
+- A quiet namespace emits no spans or logs from its work and hooks.
 
 - Extension start logs before and after next reach the scope sink without a span.
 - A destructured extension start logger sends every level without span observation.

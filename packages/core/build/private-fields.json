@@ -27,7 +27,6 @@
   "layer",
   "links",
   "lo",
-  "logFor",
   "low",
   "marks",
   "mayHook",
@@ -47,11 +46,12 @@
   "settler",
   "settles",
   "share",
+  "stopStart",
   "swept",
   "system",
+  "taps",
   "traceFor",
   "twin",
   "up",
-  "wake",
-  "writes"
+  "wake"
 ]

@@ -1,0 +1,57 @@
+== core
+  definitions
+    /Namespace#  ->  src/index.ts:102
+    /Scope/ExtensionDetails#  ->  src/index.ts:518
+    /Scope/RootOptions#  ->  src/index.ts:610
+    /createScope().  ->  src/index.ts:4581
+  references (count  symbol  file)
+      106  /Namespace#  src/index.ts
+        6  /Scope/ExtensionDetails#  src/index.ts
+        3  /Scope/RootOptions#  src/index.ts
+        6  /createScope().  tests/body-tools.test.ts
+        2  /createScope().  tests/cache.bench.test.ts
+        5  /createScope().  tests/call-signal-hooks.test.ts
+       11  /createScope().  tests/call-signal.test.ts
+       23  /createScope().  tests/caught-subflow.test.ts
+       12  /createScope().  tests/clock.test.ts
+       15  /createScope().  tests/closing.test.ts
+        4  /createScope().  tests/data.test.ts
+        3  /createScope().  tests/dep-controller.test.ts
+        6  /createScope().  tests/derived-close.test.ts
+        2  /createScope().  tests/errors.test.ts
+       11  /createScope().  tests/ext-hooks-layers.test.ts
+       24  /createScope().  tests/extension-context.test.ts
+       15  /createScope().  tests/extensions.test.ts
+       27  /createScope().  tests/graceful-writes.test.ts
+        8  /createScope().  tests/handle-proto.test.ts
+        8  /createScope().  tests/held-controller-retention.test.ts
+      302  /createScope().  tests/index.test.ts
+       29  /createScope().  tests/instance-release.test.ts
+       21  /createScope().  tests/lifetime.test.ts
+        7  /createScope().  tests/named-child-watch.test.ts
+       51  /createScope().  tests/named-release.test.ts
+       45  /createScope().  tests/namespaces.test.ts
+        8  /createScope().  tests/observation.test.ts
+       10  /createScope().  tests/op-fast.test.ts
+        7  /createScope().  tests/operations.test.ts
+       17  /createScope().  tests/random.test.ts
+       29  /createScope().  tests/resources.test.ts
+        4  /createScope().  tests/run-ctx.test.ts
+       47  /createScope().  tests/run-result.test.ts
+        8  /createScope().  tests/run-seams.test.ts
+       11  /createScope().  tests/session-end.test.ts
+       25  /createScope().  tests/sessions.test.ts
+        8  /createScope().  tests/start-log.test.ts
+        8  /createScope().  tests/start-timeout-and-hose.test.ts
+        8  /createScope().  tests/step-log.test.ts
+       16  /createScope().  tests/sticky-panic.test.ts
+       13  /createScope().  tests/tagged-frame-boundaries.test.ts
+       13  /createScope().  tests/tagged-frame.test.ts
+       11  /createScope().  tests/tagged-lifetime.test.ts
+       13  /createScope().  tests/tagged-wait.test.ts
+       19  /createScope().  tests/trace.test.ts
+       18  /createScope().  tests/with-data.test.ts
+        2  /createScope().  tests/write-hook-cold.test.ts
+== react: no index (run scripts/scip.sh index react)
+== start: no index (run scripts/scip.sh index start)
+== blueprint: no index (run scripts/scip.sh index blueprint)

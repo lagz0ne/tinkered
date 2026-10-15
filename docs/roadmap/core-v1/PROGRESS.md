@@ -4550,3 +4550,162 @@ Both directive names were checked.
 - Gate exits: `/home/paseo/plans/mutation-fix-gates.txt`.
 - Full mutation: `/home/paseo/plans/mutation-fix.log`.
 - Report: `packages/core/reports/mutation/mutation.json`.
+
+## core/start-timeout-and-hose
+
+Owner: start-timeout writer.
+Spec: ADR 0119, accepted by Duke on 2026-10-14.
+Base: PR 11 at `e26dd00f`, with the accepted ADR.
+Compare: `origin/main` at `fef10e46`.
+Proof folder: `docs/roadmap/core-v1/start-timeout-and-hose/`.
+
+### Impact
+
+- `Scope.RootOptions` adds `startTimeout`; old calls keep their shape.
+- Start events add `tap`; other hook types keep their shape.
+- `Namespace` adds `observe`; old keys still observe by default.
+- A hanging start now fails and closes instead of waiting forever.
+- Consumers: Core tests, React, Start, Drizzle, drivers, examples, and apps.
+- Only Core source changes; the workspace build checks consumers.
+
+### Saved code
+
+- Scope-clock timeout, default 10 000 ms; `StartTimeout` carries the hanging label.
+- Start taps share spans and logs; level is the lowest, history the largest.
+- A quiet namespace suppresses its spans and logs.
+- Source tests: Core 907, React 98; base: Core 900, React 98.
+- One tap sends one `work` span, status `ok`, value 42.
+- Runtime size: 16 383 B gzip, within the unchanged 16 384 B cap.
+- Fast-code checks pass, including the default Maglev inline call.
+- Bytecode ceilings grow only for namespace and logger arguments.
+  `runOnce`: 499 to 504; `OperationCtx`: 126 to 132.
+  `buildHooklessResource`: 451 to 454; `runHookChain`: 187 to 190.
+  `runHookBody`: 298 to 311.
+- Slots fall from 339 to 338; closure counts stay the same.
+- Seven new tests: strict style OK, no mocks or sleeps.
+- Source strict counts match the pinned base; no new strict hit.
+- TSDoc: zero S26 rows.
+- Jev: new tests have no flags; 14 changed-unit flags are labeled false.
+  They describe Core-owned state, startup waits, or fixed shapes.
+- Old flags: 7 test flags and 45 missing README lines.
+  They are outside this card.
+- Calibration and mutation are not run, as asked.
+- ADR differences: none.
+- Code commit: `993a5079`.
+- Start fixture commit: `1bdc8fde`.
+  It waits through startup until the signal aborts.
+  Its 500 ms stream wait still raises the test's fault.
+  Red: 1 failed, 39 passed; fixed: 40 passed.
+  Full Start lane: 528 passed with one worker.
+
+### Queue result
+
+- Main: `fef10e46`; Core code: `993a5079`.
+- Two queue jobs, 61 samples per side per job.
+- The second job reverses the tree order.
+- Run 1: main 64.1 ns, branch 65.0 ns.
+  Verdict: no difference we can see; paired p = 0.237.
+- Run 2: main 63.6 ns, branch 64.7 ns.
+  Verdict: no difference we can see; paired p = 0.200.
+- Both jobs: CPU 7, turbo off, about 3.5 GHz.
+- The saved bench tree is clean at `993a5079`.
+- The Start fixture and proof do not change that Core build.
+- Raw rows and the method are in the proof folder.
+
+### Full gates
+
+- Build, check, full workspace tests, dist, size, and prose: exit 0.
+- Dist: 1151 tests pass, including 244 build guard tests.
+- Full workspace tests use `VITEST_MAX_WORKERS=1`.
+  This avoids the box's five-second test timeouts.
+- Check: 0 errors, 27 warnings, the same as main.
+- Size: 16 383 B gzip; unchanged cap 16 384 B.
+- Budget: all 22 lanes pass; ticket 119: exit 0.
+- All eight gate exits in `gates.json` are 0.
+- The gate runner printed `EXIT 0`.
+- Mutation is skipped for the lander; calibration is not run.
+- ADR differences: none.
+- Core feedback: none; the old Start clock fixture needed the small fix above.
+
+### Startup review fix round
+
+- Code commit: `50688759`.
+- Close claims pending startup at once and aborts its sleep signal.
+  `ready` rejects with the close reason after cleanup.
+- One guarded finish also covers the gap after the start promise settles.
+  Its regression test fails on the reviewed code and passes on the fix.
+- `0` and `Infinity` disable the timer.
+  Negative values and `NaN` raise `BadStartTimeout`.
+  Finite values clamp at 2 147 483 647 ms.
+- A caught inner start failure leaves the root healthy.
+  Only the final failure handler marks it failed.
+- A late tap raises `LateTap`.
+- A rejected clock sleep leaves startup pending without a timeout.
+- Quiet log checks run only in the lazy getter.
+  Plain runs keep the one `obs.on` check.
+- Empty observers get their own empty tap and history lists.
+- The build keeps local map files and hides their links.
+  The published file list already omits the maps.
+  Runtime size is 16 343 B gzip; the cap stays 16 384 B.
+- Core source: 918 passed; React: 98 passed; Start: 528 passed.
+  Core dist: 1162 passed, including 244 build guard tests.
+- Card tests: 18 passed; card plus lifetime tests: 39 passed.
+  Reviewed code: 8 failures in the saved first regression run.
+  The added close-race test gives one more saved failure before the fix.
+- Build, check, workspace tests, dist, size, budget, ticket, and prose: exit 0.
+  All 22 budget lanes pass; mutation is skipped for the lander.
+- Fast code: 338 Core slots; default Maglev inline passes.
+  Closure counts stay the same; `runHookBody` is 300 bytes within its 311 cap.
+- Two queued comparisons run both `op` and `run`, with N = 61 per side.
+  The second comparison reverses the tree order.
+  Both pinned trees are clean; both use the same probe.
+- `scope.run`: main 78.4 ns, branch 79.4 ns in run 1.
+  Main 79.5 ns, branch 79.5 ns in run 2.
+  Both say no difference we can see; paired p = 0.0204 and 0.7982.
+- Cached controller: main 63.6 ns, branch 65.0 ns in run 1.
+  The branch is slower; paired p = 0.000394.
+  Main 63.7 ns, branch 64.7 ns in run 2.
+  No difference we can see; paired p = 0.7982.
+  This result is mixed; it does not prove every plain entry has no gap.
+- Each queued job uses CPU 7 with turbo off.
+  Raw rows, MAD, order, tree hashes, and the test method are saved.
+- One live start tap sends one `work` span, status `ok`, value 42.
+- Changed tests have strict style OK.
+  Source strict counts match main; no new strict hit.
+  Jev has 21 changed-unit flags, explained and labeled false.
+  The other 95 unit flags are old code outside this card.
+  Calibration is not run, as asked.
+- ADR differences are now written in ADR 0119 and the README.
+  Quiet covers the call's namespace; an explicit nested namespace chooses its own setting.
+  This avoids added work on plain runs.
+  Timer off values, cancellation, late taps, and rejected sleeps are now explicit.
+- The separate Start fixture commit stays `1bdc8fde`.
+  Startup sleep waits for abort; the 500 ms stream fault stays in place.
+- Proof: `docs/roadmap/core-v1/start-timeout-and-hose/review-round/`.
+- Core feedback: none.
+
+### Final startup fixes
+
+- Re-review accepted the eight fixes, close race, and hidden map links.
+- A real start error after close claims startup now fails `closed`.
+  Core records the panic and keeps that error in `teardownErrors`.
+  The closing reason is ignored.
+- A thrown clock sleep disables the timer, like a rejected sleep.
+  `createScope` returns its handle and startup keeps waiting.
+- The README now states that all taps share the first tap's clock.
+- Regression on `e75b3719`: 3 failed, 38 passed.
+  Fixed Core: 920 passed; dist: 1164 passed.
+- Size: 16 360 B gzip, 17 B more than the reviewed code.
+  The unchanged 16 384 B cap leaves 24 B.
+- Core tests, size, and ticket ran one at a time; final exits are 0.
+  Ticket includes check, workspace tests, dist, and size.
+  React: 98 passed; Start: 528 passed.
+- The first ticket attempt caught TODO formatting.
+  The second caught an old vendored Core build.
+  Formatting and a full workspace rebuild fixed them.
+  Both failed attempts and the final green output are saved.
+- Changed tests have strict style OK; source strict hits are unchanged.
+  Jev has zero file flags and five changed-unit flags, explained and labeled false.
+- Mutation stays with the lander; calibration is not run.
+- The observer setup and span opening code are unchanged in this round.
+- Proof: `docs/roadmap/core-v1/start-timeout-and-hose/final-round/`.

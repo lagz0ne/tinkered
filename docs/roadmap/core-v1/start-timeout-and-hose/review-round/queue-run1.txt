@@ -1,0 +1,13 @@
+queued.sh: N=61 core=assigned CPU
+  A /home/paseo/next/tinkered-start-timeout-base
+  B /home/paseo/next/tinkered-start-timeout-bench
+  -> /home/paseo/next/tinkered-start-timeout/.bench/review-run1.csv
+bench-exec: {"cpu":7,"no_turbo":1,"mhz_before":3500,"mhz_after":3499}
+[benchctl] exit 0 in 112.4s, waited 0.0s in the queue
+done op 12:02:43 batch A 61/61 B 61/61
+ALLDONE
+bench-exec: {"cpu":7,"no_turbo":1,"mhz_before":3500,"mhz_after":3499}
+[benchctl] exit 0 in 111.2s, waited 117.4s in the queue
+done run 12:06:33 batch A 61/61 B 61/61
+ALLDONE
+ALLDONE

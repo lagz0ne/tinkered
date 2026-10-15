@@ -1,0 +1,8 @@
+head 8509c56e4299b4b0de787ff5e078b776ae3f791e
+build 0 vp run -r build
+check 0 vp check
+test 0 vp run -r test
+ticket 0 scripts/ticket.sh --check-only --no-mutation 119 start timeout and telemetry taps
+validate 0 pnpm validate
+prose 0 vp run prose
+done
