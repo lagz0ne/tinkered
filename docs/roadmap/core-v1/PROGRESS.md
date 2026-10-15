@@ -4489,3 +4489,64 @@ Both directive names were checked.
 ### Core feedback
 
 - None.
+
+## core/mutation-seeded-random
+
+- Owner: Codex lead; Haiku writer.
+- Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
+- Base: `origin/main` at `fef10e46`.
+- Worktree: `/home/paseo/next/tinkered-mutation-fix`.
+- Branch: `core/mutation-seeded-random`; no push.
+
+### Cause and fix
+
+- The first full Core mutation attempt exited 1 in its first plain test pass.
+- Failed test: "a seeded random replays trace and span ids".
+- Stryker excludes `tsconfig.json` from its sandbox.
+- Without that file, `@/index` resolved to Core's source outside the sandbox.
+- The test random helper resolved to the source inside the sandbox.
+- Each copy had its own seed map; Core could not find the test seed.
+- This also let tests miss the Core code changed by Stryker.
+- Vite's path resolver printed both source paths.
+- The fix maps `@` to Core's own `src` folder, beside the testing helper's map.
+- Both entries now resolve to the sandbox's own source.
+- Core source, old tests, the size cap, and the Stryker config did not change.
+- The first fix tried copying the TypeScript config into the sandbox.
+- That hit a second blocker: Stryker calls a function TypeScript 7 no longer has.
+- Vite's path rule avoids that broken config rewrite.
+- Code commits: `2627edeb`, then the fix round `e24973fc`.
+
+### Proof
+
+- The new path test failed with main's Vite config and passed with the fix.
+- Trace and random tests in a copy without the TypeScript config: 25 passed.
+- The full Core mutation run's first plain pass: 900 tests passed.
+- Stryker ran 900 tests versus 901 normal tests because the new sandbox test imports no mutated code.
+- Gates ran one at a time on the clean commit `d188bacb`.
+- Both memory settings were 1: `VITEST_MAX_WORKERS` and `VP_RUN_CONCURRENCY_LIMIT`.
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0; 0 errors and 27 warnings.
+- `vp run -r test`: exit 0; Core 901 tests passed.
+- `pnpm validate`: exit 0; all 22 lanes passed.
+- `vp run prose`: exit 0; 0 hits.
+- Full Core mutation: exit 0; score 86.11, floor 85.
+- Counts: 3073 killed, 28 timed out, 464 survived, 36 no cover, 3 errors.
+- Kills alone: 85.27% of all 3604 changes; above 85.
+- All mutation attempts were detached under `/tmp/tinkered-mutation.lock`.
+- Final command: `vp run --fail-if-no-match -F core mutate --concurrency 1`.
+- Style census: OK; Jev pre-flight: 0 flags.
+- The new test had no Jev test flag; its README match was unsure.
+- It guards the test runner's source paths, not a new Core API promise.
+- Existing Jev flags and README gaps were outside this fix; no labels changed.
+- No calibration ran.
+
+### Logs
+
+- First failure: `/home/paseo/plans/mutation-fix-repro.log`.
+- Path proof: `/home/paseo/plans/mutation-fix-paths.log`.
+- TypeScript 7 blocker: `/home/paseo/plans/mutation-fix-ts7-blocker.log`.
+- Writer: `/home/paseo/plans/mutation-fix-writer.txt`.
+- Review: `/home/paseo/plans/mutation-fix-review.md`.
+- Gate exits: `/home/paseo/plans/mutation-fix-gates.txt`.
+- Full mutation: `/home/paseo/plans/mutation-fix.log`.
+- Report: `packages/core/reports/mutation/mutation.json`.

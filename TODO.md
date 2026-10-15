@@ -34,6 +34,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
+- **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
+  Owner: Codex lead; Haiku writer.
+  Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
+  Proof: gates on `d188bacb` exited 0; plain pass 900 tests; full mutation 86.11, floor 85, exit 0.
+  Next: the lander lands `core/mutation-seeded-random` and marks it Done.
+  [Core progress](docs/roadmap/core-v1/PROGRESS.md#coremutation-seeded-random).
+
 - **start/item-modules** (registry plan 1b) — items declare `requires` in a required `src/items/<item>/item.json`; an item's `index.ts` and `index.server.ts` are its only exports to other items; no `NN-` prefix, so the folder name is the module name; prepare sorts items by `requires`; doctor check 6 fails deep imports and imports not in `requires`, relative paths too (ADR 0117; replaces the numbered ordering part of ADR 0116).
   Owner: lander. Next: wait for the PR to merge; no push to main.
   Verify: gates and Start mutation (floor 75) on the PR head.
