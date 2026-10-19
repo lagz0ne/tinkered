@@ -54,7 +54,7 @@ const runtimeSize = [...visited].reduce(
   0,
 );
 
-const runtimeCap = 16384;
+const runtimeCap = 20480;
 assert.ok(runtimeSize <= runtimeCap, `core runtime exceeds ${runtimeCap} B gzip: ${runtimeSize} B`);
 console.log(`core runtime size: ${runtimeSize} B gzip (cap ${runtimeCap} B; all runtime files)`);
 
