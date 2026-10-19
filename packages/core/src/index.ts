@@ -5392,7 +5392,7 @@ function sessionThrough(
 
     let outcome: Promise<Scope.Result>;
     try {
-      outcome = ext.hooks!.session!(hookEvent({ kind: "session", handle, next }, owner, ext.label));
+      outcome = ext.hooks!.session!(new SessionEvent(owner, ext.label, handle, next));
     } catch (error) {
       const done = inner ?? ensure();
       ignoreRejection(done);
@@ -5915,9 +5915,7 @@ function resolveThrough(
     if (index >= resolvers.length) return resolveNs(layer, target, chain);
     const next = (): unknown => at(target, index + 1, chain);
     const ext = resolvers[index];
-    return ext.hooks!.resolve!(
-      hookEvent({ kind: "resolve", target, next }, layer, ext.label, chain),
-    );
+    return ext.hooks!.resolve!(new ResolveEvent(layer, ext.label, chain, target, next));
   };
   const chained = (target: OnionTarget, ns?: Scope.NsArg): unknown => {
     ensureOpen(layer);
@@ -6304,8 +6302,9 @@ function hookEvent<const D extends Scope.ExtensionDetails[keyof Scope.ExtensionD
   return Object.assign(new ExtensionCtx(owner, label, chain), detail);
 }
 
-/** Run events use one object with direct field writes; the other hook kinds stay on the cold
- * event builder. Reading only the call and `next` does not make any access functions. */
+/** Run, write, resolve, and session events use one object with direct field writes; start and
+ * close, once per root, stay on the cold event builder. Reading only the call and `next` does
+ * not make any access functions. */
 class RunEvent extends ExtensionCtx {
   declare readonly kind: "run";
   declare readonly op: Scope.ExtensionDetails["run"]["op"];
@@ -6346,6 +6345,43 @@ class WriteEvent extends ExtensionCtx {
     this.kind = "write";
     this.cell = cell;
     this.value = value;
+    this.next = next;
+  }
+}
+
+/** Resolve events, built like {@link WriteEvent}: one shape per resolve hook call. */
+class ResolveEvent extends ExtensionCtx {
+  declare readonly kind: "resolve";
+  declare readonly target: Scope.ExtensionDetails["resolve"]["target"];
+  declare readonly next: () => unknown;
+  constructor(
+    owner: Layer,
+    label: string,
+    chain: readonly Namespace[] | undefined,
+    target: Scope.ExtensionDetails["resolve"]["target"],
+    next: () => unknown,
+  ) {
+    super(owner, label, chain);
+    this.kind = "resolve";
+    this.target = target;
+    this.next = next;
+  }
+}
+
+/** Session events, built like {@link WriteEvent}: one shape per session hook call. */
+class SessionEvent extends ExtensionCtx {
+  declare readonly kind: "session";
+  declare readonly handle: Scope.Handle;
+  declare readonly next: () => Promise<Scope.Result>;
+  constructor(
+    owner: Layer,
+    label: string,
+    handle: Scope.Handle,
+    next: () => Promise<Scope.Result>,
+  ) {
+    super(owner, label);
+    this.kind = "session";
+    this.handle = handle;
     this.next = next;
   }
 }
