@@ -259,6 +259,32 @@ test("write and resolve events bind access and cleanup to their owner", async ()
   expect(seen).toEqual(["write:east", "resolve:east", "write cleanup", "resolve cleanup"]);
 });
 
+test("a write event reads another cell through its controller", async () => {
+  const written = data({ label: "written", initial: 1 });
+  const other = data({ label: "other", initial: 7 });
+  const seen: unknown[] = [];
+  const scope = createScope({
+    extensions: [
+      extension({
+        label: "read other",
+        hooks: {
+          write: (event) => {
+            seen.push(event.cell === written, event.controller(other).get());
+            event.next();
+          },
+        },
+      }),
+    ],
+  });
+  await scope.ready;
+
+  scope.controller(written).set(2);
+
+  expect(seen).toEqual([true, 7]);
+  expect(scope.resolve(written)).toBe(2);
+  await scope.close();
+});
+
 test("start and close events share only their own root resource", async () => {
   const state = resource({ label: "state", factory: () => ({ count: 0 }) });
   const seen: number[] = [];

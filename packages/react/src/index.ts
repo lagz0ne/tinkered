@@ -19,6 +19,13 @@ import { raise } from "./errors";
 export { isError } from "./errors";
 export type { Errors } from "./errors";
 
+/** No DOM means a server render: one pass, no commit, no effects, no subscription. Like React's
+ * `useSyncExternalStore` server snapshot, a hook there reads once and keeps nothing. Hydration
+ * does not compare hook lists, so the server may call fewer hooks than the client. Trap: any
+ * renderer with no DOM that does commit takes this path too, and its views do not re-render on a
+ * change: React Native, a Web Worker renderer, Ink, react-test-renderer. */
+const IS_SERVER = typeof document === "undefined";
+
 const ScopeContext = createContext<Scope.Handle | undefined>(undefined);
 const NamespaceContext = createContext<Namespace | undefined>(undefined);
 
@@ -167,6 +174,14 @@ export function useData<T, S>(
   a?: ((value: T) => S) | UseData.Options<T>,
   b?: ((a: S, b: S) => boolean) | UseData.Options<S>,
 ): T | S | UseData.Pair<T, T | S> {
+  return IS_SERVER ? readData(useScope(), cell, a, b) : useStoreData(cell, a, b);
+}
+
+function useStoreData<T, S>(
+  cell: Data.Cell<T>,
+  a: ((value: T) => S) | UseData.Options<T> | undefined,
+  b: ((a: S, b: S) => boolean) | UseData.Options<S> | undefined,
+): T | S | UseData.Pair<T, T | S> {
   const selector = typeof a === "function" ? a : undefined;
   const options = typeof a === "function" ? (typeof b === "function" ? undefined : b) : a;
   const isEqual = typeof b === "function" ? b : options?.isEqual;
@@ -176,6 +191,22 @@ export function useData<T, S>(
   const value = useSyncExternalStore(store.subscribe, store.read, store.read);
 
   return writable ? [value, store.set] : value;
+}
+
+/** A server read: no controller and no store. `set` is built here and finds its controller only
+ * when called. */
+function readData<T, S>(
+  scope: Scope.Handle,
+  cell: Data.Cell<T>,
+  a: ((value: T) => S) | UseData.Options<T> | undefined,
+  b: ((a: S, b: S) => boolean) | UseData.Options<S> | undefined,
+): T | S | UseData.Pair<T, T | S> {
+  const raw = scope.resolve(cell);
+  const value = typeof a === "function" ? a(raw) : raw;
+  const options = typeof a === "function" ? b : a;
+  if (typeof options !== "object" || options.writable !== true) return value;
+
+  return [value, (next: T) => scope.controller(cell).set(next)];
 }
 
 function useDataStore<T, S>(
@@ -439,8 +470,10 @@ export function useResource<T>(
   options: Query.Options = QUERY_OPTIONS,
 ): Awaited<T> | Query.Handle<Awaited<T>> {
   const scope = useScope();
-  const inherited = useContext(NamespaceContext);
+  if (IS_SERVER) return readServerResource(scope, handle, options);
+
   const ns = options.ns;
+  const inherited = useContext(NamespaceContext);
   const [, force] = useReducer(RunOwner.bump, 0);
   const ref = useRef<ResourceOwner<T> | undefined>(undefined);
 
@@ -456,6 +489,20 @@ export function useResource<T>(
   return useQueryResource(owner);
 }
 
+/** A server render never runs the effect that would observe a pending build, so the owner gets
+ * no `force` and the hooks of the client path are skipped. */
+function readServerResource<T>(
+  scope: Scope.Handle,
+  handle: Resource.Handle<T>,
+  options: Query.Options,
+): Awaited<T> | Query.Handle<Awaited<T>> {
+  if (options.suspense !== false) return readSuspended(scope, handle, options.ns);
+
+  const owner = new ResourceOwner(scope, handle, options.ns, noop);
+  owner.inherited = useContext(NamespaceContext);
+  return readQuery(owner);
+}
+
 /** A suspending read keeps no owner: it hands out no refetch and observes nothing. The hooks
  * above and the effect here keep the hook order of the query path. */
 function useSuspendedResource<T>(
@@ -463,16 +510,30 @@ function useSuspendedResource<T>(
   handle: Resource.Handle<T>,
   ns: Namespace | undefined,
 ): Awaited<T> {
-  const value = scope.controller(handle, ns === undefined ? undefined : { ns }).resolve();
+  useEffect(noop, [scope, undefined]);
 
-  useEffect(noEffect, [scope, undefined]);
+  return readSuspended(scope, handle, ns);
+}
 
+function readSuspended<T>(
+  scope: Scope.Handle,
+  handle: Resource.Handle<T>,
+  ns: Namespace | undefined,
+): Awaited<T> {
+  const value = ns === undefined ? scope.resolve(handle) : scope.resolve(handle, { ns });
   return value instanceof Promise ? use(value as Promise<Awaited<T>>) : (value as Awaited<T>);
 }
 
-const noEffect = (): undefined => undefined;
+const noop = (): undefined => undefined;
 
 function useQueryResource<T>(owner: ResourceOwner<T>): Query.Handle<Awaited<T>> {
+  const query = readQuery(owner);
+  useSettled(owner);
+
+  return query;
+}
+
+function readQuery<T>(owner: ResourceOwner<T>): Query.Handle<Awaited<T>> {
   let value: Scope.ResourceValue<T> | undefined;
   let error: unknown;
   let failed = false;
@@ -486,7 +547,6 @@ function useQueryResource<T>(owner: ResourceOwner<T>): Query.Handle<Awaited<T>> 
 
   const pending = value instanceof Promise ? (value as Promise<Awaited<T>>) : undefined;
   owner.pending = pending;
-  useSettled(owner);
 
   return owner.query(failed, error, value, pending);
 }
@@ -602,7 +662,8 @@ class RunOwner<T, I> {
 
   scope: Scope.Handle;
   op: Operation.Handle<T, I>;
-  private controller: Scope.OperationController<T, I>;
+  /** Made on the first run: a server render, or a view never clicked, needs none. */
+  private controller: Scope.OperationController<T, I> | undefined = undefined;
   private force: () => void;
   private live = false;
   private runId = 0;
@@ -613,7 +674,6 @@ class RunOwner<T, I> {
   constructor(scope: Scope.Handle, op: Operation.Handle<T, I>, force: () => void) {
     this.scope = scope;
     this.op = op;
-    this.controller = scope.controller(op);
     this.force = force;
   }
 
@@ -662,6 +722,7 @@ class RunOwner<T, I> {
   }
 
   private invoke(call: Scope.CallArgs<I>): Outcome<Awaited<T>> | Promise<Outcome<Awaited<T>>> {
+    this.controller ??= this.scope.controller(this.op);
     const id = (this.runId += 1);
     const [variables] = call;
     const result = this.controller.settle(...call);
@@ -706,6 +767,8 @@ export function useRun<T, I>(
   options?: Run.Options<Awaited<T>, I>,
 ): Run.Handle<Awaited<T>, I> {
   const scope = useScope();
+  if (IS_SERVER) return new RunOwner(scope, op, noop).handle();
+
   const [, force] = useReducer(RunOwner.bump, 0);
   const ref = useRef<RunOwner<T, I> | undefined>(undefined);
 
