@@ -20,7 +20,7 @@ review: convention-review
 fix, or answer with a reason
   |
   v  review the new commits only
-out of rounds with a blocking finding:
+out of rounds with an important finding:
 the lead checks the approach
 ```
 
@@ -41,7 +41,7 @@ Run the gates in CLAUDE.md, in its order:
 `vp run -r build`, `vp check`, the package tests,
 the strict style census for the changed folders,
 and `vp run prose` when a `.md` file changed.
-A red gate is finding `G1`, severity blocking.
+A red gate is finding `G1`, severity important.
 Name the gate and its first error.
 
 ## Quick scan
@@ -149,11 +149,14 @@ Raw millisecond numbers are not proof.
 
 Severity:
 
-- `blocking`: breaks a rule above on changed code,
+- `important`: breaks a rule above on changed code,
   or breaks behavior.
-- `nit`: style only. Never blocking.
+- `nit`: style only.
 - `old`: real, but the code was there before.
 - `question`: the rules do not decide it.
+
+All findings are advice. None blocks a merge.
+The writer still fixes or answers each one.
 
 ## Report
 
@@ -161,7 +164,7 @@ One JSON line per finding, no other text:
 
 ```json
 {"id":"slug","rule":"C2",
- "severity":"blocking",
+ "severity":"important",
  "file":"packages/core/src/x.ts",
  "line":12,
  "summary":"one sentence",
