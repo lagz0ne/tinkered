@@ -1703,6 +1703,8 @@ type Obs = {
   log: ((entry: Observe.Log) => void) | undefined;
   level: number;
   id: number;
+  /** The logger for runs with no span and no extension label: built once, shared. */
+  plain?: Observe.Logger;
 };
 
 const OFF_OBS: Observe.Ctx = {
@@ -2012,6 +2014,12 @@ function logFor(
   extension?: string,
 ): Observe.Logger {
   if (!obs.log || chain?.[0]?.observe === false) return noop;
+  if (span || extension !== undefined) return makeLogger(obs, span, extension);
+
+  return (obs.plain ??= makeLogger(obs));
+}
+
+function makeLogger(obs: Obs, span?: SpanImpl, extension?: string): Observe.Logger {
   const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
     if (level < obs.level) return;
     isolate(() =>
@@ -2024,6 +2032,7 @@ function logFor(
       }),
     );
   };
+
   return Object.assign(at(LEVELS.info), {
     debug: at(LEVELS.debug),
     info: at(LEVELS.info),
