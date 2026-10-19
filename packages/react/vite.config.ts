@@ -23,6 +23,25 @@ export default defineConfig({
     /** Skip Stryker's leftover sandbox copies of the tests (gitignored, not ours). */
     exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**"],
     server: { deps: { inline: ["vite-plus"] } },
+    /** A server render has no DOM, so its tests run in Node, apart from the browser tests. */
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "browser",
+          exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "**/*.server.test.tsx"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "server",
+          include: ["tests/**/*.server.test.tsx"],
+          environment: "node",
+          browser: { enabled: false },
+        },
+      },
+    ],
     browser: {
       locators: {
         /** Keep partial, case-insensitive matching until older locators use exact names. */
