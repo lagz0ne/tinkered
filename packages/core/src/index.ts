@@ -4426,23 +4426,25 @@ function runInline<R, I>(
   chain: readonly Namespace[] | undefined = layer.ns,
   up?: SpanImpl,
 ): R | Promise<Awaited<R>> {
-  /** A throwaway `Operation.Handle` through the controller path — one handle + one controller
-   * per call, nothing cached in the layer (no `nodeState`/`controllerOf` residue). The body's
-   * `input` is replayed as the invocation's `input`, landing on `ctx.input`/`ctx.rawInput`
-   * unchanged (no parse — ADR 0037); `tags` open the run's child session exactly as for a
-   * declared operation (ADR 0038). Discrimination is the brand only. */
-  const handle: Operation.Handle<R, I> = operation({
+  /** A throwaway target straight into {@link runOnce}: no handle edge, no controller, nothing
+   * cached in the layer (no `nodeState`/`controllerOf` residue). The body's `input` is replayed
+   * as the invocation's `input`, landing on `ctx.input`/`ctx.rawInput` unchanged (no parse — ADR
+   * 0037); `tags` open the run's child session exactly as for a declared operation (ADR 0038).
+   * Discrimination is the brand only. */
+  const depends = inline.depends ?? {};
+  const target = {
+    [operationSym]: true,
     label: inline.label ?? "inline",
-    depends: inline.depends,
+    input: undefined,
+    depends,
     run: inline.run,
-  });
-  /** The controller's public face is two overloads, but this entry already holds a broad
-   * `Invocation<I>` — one untyped dispatch, no per-shape narrowing. The overloads still type
-   * every userland call site; the seam cast below only widens this internal entry. */
-  const dispatch = operationController(layer, handle, up, chain, receiver, inline).run as (
-    call?: Scope.Invocation<I>,
-  ) => R | Promise<Awaited<R>>;
-  return dispatch(call);
+    borrows: seesResource(depends),
+  } as unknown as Operation.Handle<R, I>;
+
+  if (layer.exts.run === undefined) {
+    return runOnce(layer, target, up, chain, receiver, false, call) as R | Promise<Awaited<R>>;
+  }
+  return runHookCall(layer, target, up, chain, receiver, inline, call) as R | Promise<Awaited<R>>;
 }
 
 class ScopeHandle implements Scope.Handle {
