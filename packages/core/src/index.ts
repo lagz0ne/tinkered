@@ -1182,6 +1182,8 @@ type Layer = {
   cancelled: boolean;
   swept: boolean;
   bodyEnd: Promise<Scope.Outcome> | undefined;
+  /** The body end, once its reaction ran: a close that finds it skips the async drain. */
+  bodyDone: Scope.Outcome | undefined;
   failed: { cause: unknown } | undefined;
   /** Panics stuck to this layer before any recorded `failed`, in failure order; a `settle` that
    * receives one takes it back (ADR 0067). Absent until the first panic. A subflow under a run hook
@@ -2508,6 +2510,7 @@ class TaggedFrame {
   declare cancelled: boolean;
   declare swept: boolean;
   declare bodyEnd: Promise<Scope.Outcome> | undefined;
+  declare bodyDone: Scope.Outcome | undefined;
   declare failed: { cause: unknown } | undefined;
   declare childError: { cause: unknown } | undefined;
   declare errors: unknown[];
@@ -3763,6 +3766,7 @@ function layerRecord(
     cancelled: false,
     swept: false,
     bodyEnd: undefined,
+    bodyDone: undefined,
     failed: undefined,
     childError: undefined,
     caller: undefined,
@@ -4048,19 +4052,25 @@ function startClose(
   const forced = force || layer.aborted;
   markSwept(layer);
 
-  /** Sync first: with no body to read, no child, and no owned work, nothing below waits unless a
-   * defer returns a promise, so the whole teardown runs in this one job and the close settles on
-   * the next tick (perf probe; the async `run` keeps every other case). */
+  /** Sync first: with no body still running (none, or its end already read), no child, and no
+   * owned work, nothing below waits unless a defer returns a promise, so the whole teardown runs
+   * in this one job, in the same phase order, and the close settles on the next tick (perf probe;
+   * the async `run` keeps every other case). */
   const first = (): Scope.Result | Promise<Scope.Result> => {
     if (forced) abortSubtree(layer);
-    if (layer.bodyEnd !== undefined || layer.children.size !== 0 || layer.pending.size !== 0) {
+    const known = layer.bodyDone;
+    if (
+      (layer.bodyEnd !== undefined && known === undefined) ||
+      layer.children.size !== 0 ||
+      layer.pending.size !== 0
+    ) {
       return run();
     }
 
-    prepareTeardown(layer, forced, undefined);
+    prepareTeardown(layer, forced, known);
     layer.closed = true;
 
-    const settled = settleOutcome(layer, undefined);
+    const settled = settleOutcome(layer, known);
     const built = collectLayerInstances(layer);
     const wait = built.length
       ? closeInstancesSync(layer, settled, built)
@@ -4070,7 +4080,7 @@ function startClose(
   };
 
   const tail = (): Scope.Result | Promise<Scope.Result> => {
-    const finalSettled = settleOutcome(layer, undefined);
+    const finalSettled = settleOutcome(layer, layer.bodyDone);
     const keeps = hooks !== undefined || withData;
     const teardownErrors = finishLayer(layer, keeps);
     const ended = buildResult(finalSettled, layer, teardownErrors);
@@ -4312,11 +4322,15 @@ async function settleSessionWith<R>(child: Layer, started: Promise<R>): Promise<
     (value: R): Scope.Outcome => {
       child.body = undefined;
       result = value;
-      return child.aborted ? { status: "cancelled" } : SUCCESS;
+      child.bodyDone = child.aborted ? { status: "cancelled" } : SUCCESS;
+      return child.bodyDone;
     },
     (cause: unknown): Scope.Outcome => {
       child.body = undefined;
-      return isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause };
+      child.bodyDone = isCancel(child, cause)
+        ? { status: "cancelled" }
+        : { status: "failed", error: cause };
+      return child.bodyDone;
     },
   );
   child.bodyEnd = ended;
@@ -6056,6 +6070,7 @@ const FRAME_STATE = {
   cancelled: false,
   swept: false,
   bodyEnd: undefined,
+  bodyDone: undefined,
   failed: undefined,
   childError: undefined,
   errors: NO_DEFERS,
