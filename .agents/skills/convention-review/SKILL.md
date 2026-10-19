@@ -20,9 +20,13 @@ review: convention-review
 fix, or answer with a reason
   |
   v  review the new commits only
-3 rounds with a blocking finding:
+out of rounds with a blocking finding:
 the lead checks the approach
 ```
+
+Rounds: the lead's card loop gives one fix round
+(CLAUDE.md). The continuous review job stops
+at three rounds.
 
 ## Scope
 
@@ -35,7 +39,8 @@ the lead checks the approach
 
 Run the gates in CLAUDE.md, in its order:
 `vp run -r build`, `vp check`, the package tests,
-and the strict style census for the changed folders.
+the strict style census for the changed folders,
+and `vp run prose` when a `.md` file changed.
 A red gate is finding `G1`, severity blocking.
 Name the gate and its first error.
 
@@ -95,7 +100,8 @@ The number is the aim's number in coding-convention.
 
 ### T: tests
 
-- `T1` Tests import only the package entry.
+- `T1` Package tests import only the package entry;
+  app tests may import feature modules.
 - `T2` No mocks, spies, global patches, or sleeps.
 - `T3` One test names one public cause and one
   outcome. No test of a private helper.
