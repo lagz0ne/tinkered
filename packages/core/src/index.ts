@@ -1158,6 +1158,8 @@ const NO_DEFERS: DeferEntry[] = [];
 
 /** One layer of the scope chain. A lazy frame is always a child, so promotion has a parent. */
 type Layer = {
+  /** Set once a watcher registers on this layer or below; a write skips subtrees without it. */
+  watched: boolean;
   children: Set<Layer>;
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
    * borrows, dependents, and cached controllers all live in one {@link NodeState} per node. */
@@ -1347,11 +1349,20 @@ function ownCell(
 /** Fire the changed cell's watchers on this layer, then on descendants that inherit it (a child that
  * shadows the cell, and everything under it, still sees its own value). One equality check against
  * the layer's last notified value, then every watcher runs in registration order. */
-function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
-  flushOne(layer, target);
-  flushNsWatchers(layer, target, key);
+function flushCell(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  key?: Namespace,
+  rec = layer.nodes.get(target),
+): void {
+  if (rec !== undefined) {
+    flushOne(layer, target, rec);
+    flushNsWatchers(layer, target, key, rec);
+  }
   for (const child of layer.children) {
-    if (!child.nodes.get(target)?.cell) flushCell(child, target);
+    if (!child.watched) continue;
+    const own = child.nodes.get(target);
+    if (!own?.cell) flushCell(child, target, undefined, own);
   }
 }
 
@@ -1359,10 +1370,9 @@ function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): v
  * handing each the value before the write beside the next one. The previous value travels
  * positionally — no pair allocated per notification — and costs a one-argument listener
  * nothing: an extra argument passed is an extra argument ignored. */
-function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
-  const rec = layer.nodes.get(target);
-  const ws = rec?.watch;
-  if (!ws?.size || !rec) return;
+function flushOne(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): void {
+  const ws = rec.watch;
+  if (!ws?.size) return;
 
   const next = readCell(layer, target);
   const prev = rec.prev;
@@ -1416,8 +1426,13 @@ function writeCellNs(
 
 /** A named bucket change can affect only chains containing its key at this layer. A default
  * change or a flush inherited by a child re-resolves all chains. */
-function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
-  const nsWatch = layer.nodes.get(target)?.nsWatch;
+function flushNsWatchers(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  key: Namespace | undefined,
+  rec: NodeState,
+): void {
+  const nsWatch = rec.nsWatch;
   if (!nsWatch) return;
 
   const watch = key === undefined ? nsWatch.all : nsWatch.keys.get(key);
@@ -1554,9 +1569,18 @@ function addWatcher(
     const next = readCell(layer, target);
     if (!cellEq(target, rec.prev, next)) rec.prev = next;
   }
+
+  markWatched(layer);
   const w: Watcher = { fn };
   (rec.watch ??= new Set()).add(w);
   return () => void rec.watch?.delete(w);
+}
+
+/** Mark the layer and its ancestors watched. The walk stops at the first marked layer, since its
+ * ancestors are marked already. The flag never clears: a layer whose watchers left keeps the
+ * walk. */
+function markWatched(layer: Layer): void {
+  for (let cur: Layer | undefined = layer; cur && !cur.watched; cur = cur.up) cur.watched = true;
 }
 
 function writeWithHooks<T>(
@@ -1611,6 +1635,7 @@ function addWatcherNs(
   const rec = nodeState(layer, target);
   const watcher: NsWatcher = { fn, ns: chain, prev: readCell(layer, target, chain) };
   const nsWatch = (rec.nsWatch ??= { all: new Set(), keys: new Map() });
+  markWatched(layer);
   nsWatch.all.add(watcher);
 
   const keys = nsWatch.keys;
@@ -2470,6 +2495,7 @@ class TaggedFrame {
   declare exts: ExtRoutes;
   declare stack: TaggedFrame | undefined;
   declare lazy: boolean;
+  declare watched: boolean;
   declare children: Set<Layer>;
   declare nodes: Map<object, NodeState>;
   declare presets: Map<unknown, unknown> | undefined;
@@ -3724,6 +3750,7 @@ function layerRecord(
   return {
     up,
     children: NO_CHILDREN,
+    watched: false,
     nodes: seeded.nodes,
     presets: seeded.presets,
     tags,
@@ -6015,6 +6042,7 @@ async function closeEach(layer: Layer, force: boolean): Promise<void> {
  * storage before adding entries; scalar writes create own fields. Copying all defaults at once
  * added a property array and an ObjectAssign call to every grown frame. */
 const FRAME_STATE = {
+  watched: false,
   children: NO_CHILDREN,
   nodes: NO_NODES,
   presets: undefined,
