@@ -1031,7 +1031,10 @@ type ResourceInstance = {
   target: Resource.Handle<unknown>;
   hooks: ((end: Scope.End) => void | PromiseLike<void>)[];
   needs: Set<ResourceInstance> | undefined;
-  pending: Set<Promise<unknown>> | undefined;
+  /** Runs that borrow this instance now (ADR 0026 Q2). */
+  borrows: number;
+  /** Made only when a release must wait for the borrows to end. */
+  idle: { done: Promise<void>; wake: () => void } | undefined;
   users: number;
   busy: boolean;
   end: Scope.End | undefined;
@@ -2580,10 +2583,12 @@ function stripNs<I>(call: Scope.Invocation<I>): Scope.Invocation<I> | undefined 
 function releaseBorrows(held: HeldBorrows | undefined): void {
   if (!held) return;
   for (const owned of held.list) {
-    owned.pending?.delete(held.done);
+    if (--owned.borrows === 0 && owned.idle) {
+      owned.idle.wake();
+      owned.idle = undefined;
+    }
     finishTracked(owned);
   }
-  held.settle();
 }
 
 /** End a run: drain its `defer`s in reverse order (ADR 0026), then release its borrows — after
@@ -3056,7 +3061,8 @@ function instanceOf(
       target,
       hooks: [],
       needs: undefined,
-      pending: undefined,
+      borrows: 0,
+      idle: undefined,
       users: 0,
       busy: state.busy,
       end: undefined,
@@ -3096,7 +3102,7 @@ function holdDependency(dependent: ResourceInstance, dependency: ResourceInstanc
 function unlinkInstance(owned: ResourceInstance, end: Scope.End): void {
   if (owned.end) return;
   owned.end = owned.failed ?? end;
-  if (owned.busy || owned.users || owned.pending?.size) {
+  if (owned.busy || owned.users || owned.borrows) {
     owned.done = new Promise<void>((resolve) => (owned.finish = resolve));
     addWork(owned.layer, owned.done);
   }
@@ -3597,12 +3603,12 @@ function depNode(dep: Scope.Dependency): Node | undefined {
   return undefined;
 }
 
-type HeldBorrows = { list: ResourceInstance[]; done: Promise<void>; settle: () => void };
+type HeldBorrows = { list: ResourceInstance[] };
 
 function addBorrow(owned: ResourceInstance, held: HeldBorrows): void {
   if (held.list.includes(owned)) return;
   held.list.push(owned);
-  (owned.pending ??= new Set()).add(held.done);
+  owned.borrows++;
 }
 
 function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | undefined {
@@ -4153,10 +4159,9 @@ function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
   const up = detachLayer(layer);
   if (up && layer.swept) propagateSweptOutcome(layer, up);
 
-  layer.pending.clear();
-  layer.children.clear();
-  layer.hooks.length = 0;
-  layer.errors.length = 0;
+  /** Back to the shared empties: every add checks for them first ({@link addWork}). */
+  layer.pending = layer.children = NO_CHILDREN;
+  layer.hooks = layer.errors = NO_DEFERS;
   layer.lastTarget = undefined;
   layer.lastController = undefined;
 
@@ -4748,10 +4753,16 @@ function hookCanRead(layer: Layer): boolean {
 let activeHookOwner: Layer | undefined;
 
 function createBorrows(): HeldBorrows {
-  const list: ResourceInstance[] = [];
-  let settle: () => void = noop;
-  const done = new Promise<void>((resolve) => (settle = resolve));
-  return { list, done, settle };
+  return { list: [] };
+}
+
+/** The promise a release waits on: settles when the last borrow of `owned` ends. */
+function idleOf(owned: ResourceInstance): Promise<void> {
+  if (owned.idle) return owned.idle.done;
+  let wake: () => void = noop;
+  const done = new Promise<void>((resolve) => (wake = resolve));
+  owned.idle = { done, wake };
+  return done;
 }
 
 /** Call `done` after a defer drain: now when it stayed synchronous, else after its tail. */
@@ -5111,7 +5122,7 @@ function unlinkNamedState(state: NsResourceState): void {
 }
 
 function isHeld(owned: ResourceInstance): boolean {
-  return owned.users > 0 || owned.busy || !!owned.pending?.size;
+  return owned.users > 0 || owned.busy || owned.borrows > 0;
 }
 
 function drainReleasedOwner(
@@ -5119,7 +5130,7 @@ function drainReleasedOwner(
   previous: Promise<void> | undefined,
 ): Promise<void> | undefined {
   let prev = previous;
-  const borrowed = [...entry.built].flatMap((owned) => [...(owned.pending ?? [])]);
+  const borrowed = [...entry.built].filter((owned) => owned.borrows > 0).map(idleOf);
   const gate = borrowed.length ? Promise.allSettled(borrowed).then(() => undefined) : undefined;
   for (const hook of entry.hooks) {
     const owned = hook.owned as ResourceInstance;
