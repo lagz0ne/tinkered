@@ -58,6 +58,8 @@ For a plan, a design, a decision, or "how does X work":
 3. `show-me`: show structure before asking about it.
 4. `to-tickets`: split the settled design into tickets.
 5. `coding-convention`: for every TypeScript file and test after that.
+6. `convention-review`: the reviewer checks each diff against those rules,
+   one rule ID per finding.
 
 Skills live in `.agents/skills/`, linked from `.claude/skills/`.
 
@@ -178,8 +180,9 @@ opus drives and review"; 16:32 UTC: "As replacement to current writer"):
 - **Writer:** Claude Haiku 5.5 (`claude/claude-haiku-5-5`, thinking high,
   mode auto). Its own Paseo agent, in `../tinkered-<task>`. It writes the
   code, runs the gates, and commits. It never pushes.
-- **Reviewer:** a separate Claude Opus 5.5 agent (high). Verdict: READY or
-  NOT READY. One fix round, done by the same writer.
+- **Reviewer:** a separate Claude Opus 5.5 agent (high), using
+  `convention-review`. Verdict: READY or NOT READY. One fix round,
+  done by the same writer.
 - Haiku replaces Codex Sol (`codex/gpt-6.1-sol`) one for one.
 
 One package per writer. The writer's fixed rules:
