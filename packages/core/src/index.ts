@@ -3524,6 +3524,22 @@ function hasResourceNs(
   return target.target !== "scope" && chain !== undefined && chain.length > 0;
 }
 
+/** `scope.resolve(resource)`: a kept controller answers; otherwise read the slot straight, so a
+ * one-off read keeps no controller. Same value and checks as the controller's `resolve`. */
+function resolveResource(layer: Layer, target: Resource.Handle<unknown>): unknown {
+  const kept = layer.nodes.get(target)?.controller as Scope.ResourceController<unknown> | undefined;
+  if (kept !== undefined) return kept.resolve();
+
+  const chain = layer.ns;
+  const value = resourceSlot(layer, target, undefined, chain);
+  const owner = ownerOf(layer, target);
+  const state = hasResourceNs(target, chain)
+    ? selectNsResource(owner, target, chain)
+    : owner.nodes.get(target);
+
+  return state?.ready ?? value;
+}
+
 /** A resource in a `depends` slot (ADR 0044): the built VALUE for sync and async builds alike; a
  * still-building async resource returns its build promise, and a sticky async failure its rejected
  * one — {@link buildDeps} parks either for the caller to await before the body, so the call rejects
@@ -4534,9 +4550,7 @@ class ScopeHandle implements Scope.Handle {
     if (ns?.ns !== undefined) return resolveNs(layer, target, nsChainOf(ns.ns));
 
     if (isData(target)) return readCell(layer, target);
-    if (isResource(target)) {
-      return (this.controllerOf(target) as Scope.ResourceController<unknown>).resolve();
-    }
+    if (isResource(target)) return resolveResource(layer, target);
     if (isEdge(target)) return resolveEdge(layer, target, undefined);
     if (isExtension(target)) return resolveExtension(layer, target);
 
