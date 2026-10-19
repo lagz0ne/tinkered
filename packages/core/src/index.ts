@@ -5610,12 +5610,13 @@ class ExtensionCtx implements Scope.ExtensionCtx {
       this.use(() => {
         ensureOpen(this.layer);
         const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-        if (isData(target)) return this.cell(target, chain);
+        if (isData(target)) return this.cellControl(target, chain);
         if (isResource(target)) return this.resource(target, chain);
         return this.operation(target, chain);
       })) as Scope.Handle["controller"]);
   }
-  private cell(
+  /** Not named `cell`: a write event's own `cell` field would hide it. */
+  private cellControl(
     target: Data.Cell<unknown>,
     chain: readonly Namespace[] | undefined,
   ): Scope.DataController<unknown> {
@@ -6326,6 +6327,29 @@ class RunEvent extends ExtensionCtx {
   }
 }
 
+/** Write events take the same direct field writes as {@link RunEvent}: one shape per write hook
+ * call, so the hook's reads stay monomorphic. */
+class WriteEvent extends ExtensionCtx {
+  declare readonly kind: "write";
+  declare readonly cell: Data.Cell<unknown>;
+  declare readonly value: unknown;
+  declare readonly next: () => void;
+  constructor(
+    owner: Layer,
+    label: string,
+    chain: readonly Namespace[] | undefined,
+    cell: Data.Cell<unknown>,
+    value: unknown,
+    next: () => void,
+  ) {
+    super(owner, label, chain);
+    this.kind = "write";
+    this.cell = cell;
+    this.value = value;
+    this.next = next;
+  }
+}
+
 /** THE bucket selector (ADR 0059): layers near→far; at each layer the ns chain in order, then
  * that layer's default bucket. ONE walk serves cells AND tags so the two cannot disagree on the
  * order (the spike's bug). CHAIN ORDER, decided: layers-first, namespaces-second within each
@@ -6593,9 +6617,7 @@ function runWriteHooks<T>(
     if (index === writes.length) return writeCell(layer, target, value, chain);
     const ext = writes[index];
     const next = (): void => at(index + 1);
-    ext.hooks!.write!(
-      hookEvent({ kind: "write", cell: target, value, next }, layer, ext.label, chain),
-    );
+    ext.hooks!.write!(new WriteEvent(layer, ext.label, chain, target, value, next));
   };
   at(0);
 }
