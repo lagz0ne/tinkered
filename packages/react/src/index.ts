@@ -21,9 +21,9 @@ export type { Errors } from "./errors";
 
 /** No DOM means a server render: one pass, no commit, no effects, no subscription. Like React's
  * `useSyncExternalStore` server snapshot, a hook there reads once and keeps nothing. Hydration
- * does not compare hook lists, so the server may call fewer hooks than the client. Trap: a
- * renderer that runs in Node with no DOM and does commit (a terminal or test renderer) takes
- * this path too, and its views do not re-render on a change. */
+ * does not compare hook lists, so the server may call fewer hooks than the client. Trap: any
+ * renderer with no DOM that does commit takes this path too, and its views do not re-render on a
+ * change: React Native, a Web Worker renderer, Ink, react-test-renderer. */
 const IS_SERVER = typeof document === "undefined";
 
 const ScopeContext = createContext<Scope.Handle | undefined>(undefined);

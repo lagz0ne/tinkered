@@ -30,8 +30,8 @@ function Pair({
   return <p>{`pair:${pair[0]}`}</p>;
 }
 
-function Value({ handle }: { handle: Resource.Handle<number> }): ReactNode {
-  return <p>{`value:${useResource(handle)}`}</p>;
+function Value({ handle }: { handle: Resource.Handle<unknown> }): ReactNode {
+  return <p>{`value:${String(useResource(handle))}`}</p>;
 }
 
 function Local({ handle }: { handle: Resource.Handle<unknown> }): ReactNode {

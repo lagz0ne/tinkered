@@ -29,7 +29,12 @@ export default defineConfig({
         extends: true,
         test: {
           name: "browser",
-          exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "**/*.server.test.tsx"],
+          exclude: [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/.stryker-tmp/**",
+            "**/*.server.test.tsx",
+          ],
         },
       },
       {
