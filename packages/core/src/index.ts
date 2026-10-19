@@ -1076,8 +1076,9 @@ class NodeState {
   busy = false;
   /** The live build; its `pending` are the op promises a release waits on. */
   owned: ResourceInstance | undefined;
-  /** Resources that depend on this node (for cascade release/close). */
-  users: Set<Resource.Handle<unknown>> | undefined;
+  /** Resources that depend on this node (for cascade release/close): the one dependent itself,
+   * and a Set only once a second one arrives (most nodes have one). */
+  users: Set<Resource.Handle<unknown>> | Resource.Handle<unknown> | undefined;
   /** Memoized controller: the public `controller` path always passes an undefined observation
    * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
   controller: unknown;
@@ -3578,7 +3579,10 @@ function addDependent(
 ): void {
   if (addNsDataDependent(owner, node, chain, state)) return;
   const s = nodeState(owner, node);
-  (s.users ??= new Set()).add(dependent);
+  const users = s.users;
+  if (users === undefined || users === dependent) s.users = dependent;
+  else if (users instanceof Set) users.add(dependent);
+  else s.users = new Set([users, dependent]);
 }
 
 function addNsDataDependent(
@@ -3620,8 +3624,11 @@ function detachResourceDependencies(
 
 function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): void {
   for (const s of owner.nodes.values()) {
-    const set = s.users;
-    if (set && set.delete(dependent) && set.size === 0) s.users = undefined;
+    const users = s.users;
+    if (users === dependent) s.users = undefined;
+    else if (users instanceof Set && users.delete(dependent) && users.size === 0) {
+      s.users = undefined;
+    }
   }
 }
 
@@ -5022,7 +5029,9 @@ function visitDependents(
   owner: Layer,
   visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
 ): void {
-  if (rec?.users) for (const target of rec.users) visit(target, owner);
+  const users = rec?.users;
+  if (users instanceof Set) for (const target of users) visit(target, owner);
+  else if (users) visit(users, owner);
 }
 
 /** Walk dependents from a node (iterative; keyed on node+owner so diamonds collapse while the same
