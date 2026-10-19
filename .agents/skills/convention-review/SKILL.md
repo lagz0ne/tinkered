@@ -19,7 +19,8 @@ review: convention-review
   v  findings
 fix, or answer with a reason
   |
-  v  review the new commits only
+  v  review the new commits,
+     and recheck open findings
 out of rounds with an important finding:
 the lead checks the approach
 ```
@@ -34,6 +35,9 @@ at three rounds.
 - A problem in code the change did not touch is `old`.
 - Read coding-convention before the diff.
 - Do not edit files. Report findings only.
+- On a later round, recheck each open finding from
+  earlier rounds at HEAD. It stays open until its code
+  is fixed or the writer answers it.
 
 ## Gates first
 
@@ -63,6 +67,10 @@ $D | grep -nE '^\+.*(//|get [a-z]+\(\) \{)'
 ```
 
 ## Rules
+
+### G: gates
+
+- `G1` Every gate in CLAUDE.md passes.
 
 ### C: coding-convention aims
 
