@@ -2838,15 +2838,29 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
   return cur;
 }
 
-/** Per-dependency edge bookkeeping run when a dependency is realized (undefined for operations, which
- * form no release edges). */
-type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
-
 type SelectedResource = (
   owner: Layer,
   target: Resource.Handle<unknown>,
   state: ResourceState,
 ) => void;
+
+/** What a selected resource instance is taken by, as data where it can be (no closure per call):
+ * a run's borrow list, the building instance that holds its dependencies, or a callback for the
+ * rarer paths (named links, a lazy borrow list, a build with no instance yet). */
+type Selection = SelectedResource | HeldBorrows | ResourceInstance;
+
+function select(
+  selection: Selection,
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  state: ResourceState,
+): void {
+  if (typeof selection === "function") selection(owner, target, state);
+  else if ("list" in selection) addBorrow(instanceOf(owner, target, state), selection);
+  else if (needsHold(owner, target, state)) {
+    holdDependency(selection, instanceOf(owner, target, state));
+  }
+}
 
 type PendingSlot = { key: string; build: Promise<unknown> };
 /** The slots the last {@link buildDeps} parked, handed to its caller through this module slot —
@@ -2859,14 +2873,14 @@ let parked: PendingSlot[] | undefined;
  * before the body runs (ADR 0026 for data, ADR 0044 for resources): a data snapshot, tag, subflow,
  * or controller is fixed at resolve time; a resource is built now — its value lands in the slot
  * when the build is sync or already settled, and a still-building async resource parks its build
- * under {@link PENDING} for the caller to await before the body. `registerEdge` records a
- * resource's dependency edge and is omitted for operations. */
+ * under {@link PENDING} for the caller to await before the body. A resource build passes its
+ * `dependent`, `state`, and build `gen` so each dependency edge is recorded; operations form none. */
 function resolveSelectedDep(
   layer: Layer,
   dep: Scope.Dependency,
   span: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
-  selected: SelectedResource | undefined,
+  selected: Selection | undefined,
   caller?: RunState,
 ): unknown {
   return selected && isResource(dep)
@@ -2874,20 +2888,37 @@ function resolveSelectedDep(
     : resolveDep(layer, dep, span, chain, caller);
 }
 
+/** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
+ * deps were still resolving records none, so a stale build never evicts its live replacement. */
+function registerEdge(
+  owner: Layer,
+  dep: Scope.Dependency,
+  dependent: Resource.Handle<unknown> | undefined,
+  chain: readonly Namespace[] | undefined,
+  state: ResourceState | undefined,
+  gen: number | undefined,
+): void {
+  if (dependent === undefined || state === undefined || state.gen !== gen) return;
+  const node = depNode(dep);
+  if (node) addDependent(owner, node, dependent, chain, state);
+}
+
 function buildDeps(
   layer: Layer,
   depends: Scope.Depends,
   span: SpanImpl | undefined,
-  registerEdge: RegisterEdge,
-  chain: readonly Namespace[] | undefined = layer.ns,
-  selected?: SelectedResource,
+  chain: readonly Namespace[] | undefined,
+  selected: Selection | undefined,
   caller?: RunState,
+  dependent?: Resource.Handle<unknown>,
+  state?: ResourceState,
+  gen?: number,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
   for (const key in depends) {
     const dep = depends[key];
-    registerEdge?.(dep);
+    registerEdge(layer, dep, dependent, chain, state, gen);
     const value =
       selected === undefined
         ? resolveDep(layer, dep, span, chain, caller)
@@ -2934,15 +2965,7 @@ function readOpDeps(
   if (override !== undefined || held === undefined) {
     return buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, caller);
   }
-  return buildDeps(
-    layer,
-    target.depends,
-    span,
-    undefined,
-    chain,
-    held && ((owner, res, state) => addBorrow(instanceOf(owner, res, state), held)),
-    caller,
-  );
+  return buildDeps(layer, target.depends, span, chain, held, caller);
 }
 
 /** Await every parked build, then deliver the values into their slots. A rejected build rejects
@@ -2958,24 +2981,12 @@ function resolveResourceDeps(
   owner: Layer,
   target: Resource.Handle<unknown>,
   span: SpanImpl | undefined,
-  superseded: () => boolean,
+  gen: number,
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
-  selected: SelectedResource | undefined,
+  selected: Selection | undefined,
 ): Record<string, unknown> {
-  return buildDeps(
-    owner,
-    target.depends,
-    span,
-    (dep) => {
-      const node = depNode(dep);
-      /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
-       * deps were still resolving records none, so a stale build never evicts its live replacement. */
-      if (node && !superseded()) addDependent(owner, node, target, chain, state);
-    },
-    chain,
-    selected,
-  );
+  return buildDeps(owner, target.depends, span, chain, selected, undefined, target, state, gen);
 }
 
 class ResourceCtx implements Resource.Ctx {
@@ -3257,14 +3268,15 @@ function settleResourceInstance(
 }
 
 function publishSyncResource(
+  owner: Layer,
   rec: ResourceState,
+  gen: number,
   result: unknown,
-  canPublish: () => boolean,
   owned: ResourceInstance | undefined,
   obs: Obs,
   span: SpanImpl | undefined,
 ): void {
-  if (canPublish()) rec.built = { value: result };
+  if (rec.gen === gen && !owner.closed) rec.built = { value: result };
   settleResourceInstance(owned, "ok");
   closeSpan(obs, span, "ok");
 }
@@ -3295,15 +3307,13 @@ function buildHooklessResource<T>(
   resolveDeps: typeof resolveResourceDeps,
 ): unknown {
   const gen = rec.gen;
-  const superseded = (): boolean => rec.gen !== gen;
-  const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
   const span = openSpan(obs, caller, up, target.label, "resource", chain);
 
   rec.busy = true;
   buildDepth++;
   try {
-    const deps = resolveDeps(owner, target, span, superseded, chain, rec, undefined);
+    const deps = resolveDeps(owner, target, span, gen, chain, rec, undefined);
     const pending = parked;
     const ctx = emptyCtxFor(owner, chain);
     const fn = target.factory;
@@ -3311,12 +3321,12 @@ function buildHooklessResource<T>(
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
 
     if (!isThenable(result)) {
-      if (canPublish()) rec.built = { value: result };
+      if (rec.gen === gen && !owner.closed) rec.built = { value: result };
       closeSpan(obs, span, "ok");
       return result;
     }
 
-    return finishAsyncBuild(owner, rec, result, superseded, canPublish, noop, obs, span);
+    return finishAsyncBuild(owner, rec, gen, result, noop, obs, span);
   } catch (error) {
     return failResourceBuild(owner, target, rec, gen, undefined, error, obs, span);
   } finally {
@@ -3356,8 +3366,6 @@ function buildTrackedResource<T>(
 ): unknown {
   let owned: ResourceInstance | undefined;
   const gen = rec.gen;
-  const superseded = (): boolean => rec.gen !== gen;
-  const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
   const span = openSpan(obs, caller, up, target.label, "resource", chain);
 
@@ -3369,27 +3377,14 @@ function buildTrackedResource<T>(
     const fn = override ?? target.factory;
     owned = startBuildInstance(owner, target, rec, fn.length >= 2);
 
+    const hold: Selection =
+      owned ??
+      ((depOwner, depTarget, depState) => {
+        owned = holdSelectedDependency(owned, owner, target, rec, depOwner, depTarget, depState);
+      });
     const deps =
       override === undefined
-        ? resolveDeps(
-            owner,
-            target,
-            span,
-            superseded,
-            chain,
-            rec,
-            (depOwner, depTarget, depState) => {
-              owned = holdSelectedDependency(
-                owned,
-                owner,
-                target,
-                rec,
-                depOwner,
-                depTarget,
-                depState,
-              );
-            },
-          )
+        ? resolveDeps(owner, target, span, gen, chain, rec, hold)
         : buildPlainDeps(owner, {}, span, chain);
 
     const pending = parked;
@@ -3402,16 +3397,15 @@ function buildTrackedResource<T>(
 
     if (!isThenable(result)) {
       settled = true;
-      publishSyncResource(rec, result, canPublish, owned, obs, span);
+      publishSyncResource(owner, rec, gen, result, owned, obs, span);
       return result;
     }
 
     return finishAsyncBuild(
       owner,
       rec,
+      gen,
       result,
-      superseded,
-      canPublish,
       (status, error) => {
         settled = true;
         settleResourceInstance(owned, status, error);
@@ -3438,9 +3432,8 @@ function buildTrackedResource<T>(
 function finishAsyncBuild(
   owner: Layer,
   rec: ResourceState,
+  gen: number,
   result: PromiseLike<unknown>,
-  superseded: () => boolean,
-  canPublish: () => boolean,
   markSettled: (status: "ok" | "failed", error?: unknown) => void,
   obs: Obs,
   span: SpanImpl | undefined,
@@ -3449,7 +3442,7 @@ function finishAsyncBuild(
     (value) => {
       markSettled("ok");
       if (rec.build === build) rec.build = undefined;
-      if (canPublish()) {
+      if (rec.gen === gen && !owner.closed) {
         rec.built = { value };
         rec.ready = build;
       }
@@ -3459,14 +3452,14 @@ function finishAsyncBuild(
     (error: unknown) => {
       markSettled("failed", error);
       if (rec.build === build) rec.build = undefined;
-      if (!superseded()) rec.failed = { error, ready: build };
+      if (rec.gen === gen) rec.failed = { error, ready: build };
       closeSpan(obs, span, "failed");
       throw error;
     },
   );
-  if (!superseded()) rec.build = build;
+  if (rec.gen === gen) rec.build = build;
   track(owner, build, (error) => {
-    if (!superseded() && !isCancel(owner, error)) owner.failed ??= { cause: error };
+    if (rec.gen === gen && !isCancel(owner, error)) owner.failed ??= { cause: error };
   });
   return build;
 }
@@ -3540,7 +3533,7 @@ function resourceSlot(
   target: Resource.Handle<unknown>,
   up: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
-  selected?: SelectedResource,
+  selected?: Selection,
 ): unknown {
   const owner = ownerOf(layer, target);
   const rec = nodeState(owner, target);
@@ -3553,7 +3546,7 @@ function resourceSlot(
     return namedResourceSlot(owner, layer, target, up, chain, selected);
   }
 
-  selected?.(owner, target, rec);
+  if (selected) select(selected, owner, target, rec);
   if (rec.built) return rec.built.value;
   if (rec.failed) return rec.failed.ready;
   if (rec.build) return rec.build;
@@ -3568,11 +3561,11 @@ function namedResourceSlot(
   target: Resource.Handle<unknown>,
   up: SpanImpl | undefined,
   chain: readonly [Namespace, ...Namespace[]],
-  selected?: SelectedResource,
+  selected?: Selection,
 ): unknown {
   const [head] = chain;
   const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
-  selected?.(owner, target, state);
+  if (selected) select(selected, owner, target, state);
   return readResourceState(owner, caller, target, up, chain, state);
 }
 
@@ -6549,27 +6542,27 @@ function resolveNamedResourceDeps(
   owner: Layer,
   target: Resource.Handle<unknown>,
   span: SpanImpl | undefined,
-  superseded: () => boolean,
+  gen: number,
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
-  selected: SelectedResource | undefined,
+  selected: Selection | undefined,
 ): Record<string, unknown> {
   return resolveResourceDeps(
     owner,
     target,
     span,
-    superseded,
+    gen,
     chain,
     state,
     (depOwner, depTarget, depState) => {
       if (
-        !superseded() &&
+        state.gen === gen &&
         state instanceof NsResourceState &&
         depState instanceof NsResourceState
       ) {
         linkNsResourceDependent(depState, state);
       }
-      selected?.(depOwner, depTarget, depState);
+      if (selected) select(selected, depOwner, depTarget, depState);
     },
   );
 }
