@@ -187,7 +187,7 @@ function useDataStore<T, S>(
   const own = useRef<SelectingStore<T, S> | undefined>(undefined);
 
   if (selector === undefined && isEqual === undefined) {
-    return (rawStores.get(controller) as DataStore<T, T> | undefined) ?? createRawStore(controller);
+    return (controller as RawHolder<T>)[RAW] ?? createRawStore(controller);
   }
 
   const kept = own.current;
@@ -216,10 +216,13 @@ type SelectingStore<T, S> = DataStore<T, S> & {
   equal: (a: S, b: S) => boolean;
 };
 
-const rawStores = new WeakMap<object, DataStore<never, unknown>>();
+/** The raw store rides on its controller: a property read, not a hash lookup. */
+const RAW = Symbol("raw store");
+
+type RawHolder<T> = { [RAW]?: DataStore<T, T> };
 
 /** Only a cache miss creates these closures. Core keeps each controller stable, and the
- * WeakMap lets its raw store go when the scope no longer retains that controller. */
+ * store goes with its controller when the scope no longer retains it. */
 function createRawStore<T>(controller: Scope.DataController<T>): DataStore<T, T> {
   const store: SelectingStore<T, T> = {
     controller,
@@ -229,7 +232,7 @@ function createRawStore<T>(controller: Scope.DataController<T>): DataStore<T, T>
     read: () => controller.get(),
     set: (value) => controller.set(value),
   };
-  rawStores.set(controller, store);
+  (controller as RawHolder<T>)[RAW] = store;
   return store;
 }
 
@@ -441,6 +444,8 @@ export function useResource<T>(
   const [, force] = useReducer(RunOwner.bump, 0);
   const ref = useRef<ResourceOwner<T> | undefined>(undefined);
 
+  if (options.suspense !== false) return useSuspendedResource(scope, handle, ns);
+
   let owner = ref.current;
   if (owner === undefined || owner.scope !== scope || owner.handle !== handle || owner.ns !== ns) {
     owner = ref.current = new ResourceOwner(scope, handle, ns, force);
@@ -448,13 +453,26 @@ export function useResource<T>(
 
   owner.inherited = inherited;
 
-  return useResolvedResource(owner, options.suspense === false);
+  return useQueryResource(owner);
 }
 
-function useResolvedResource<T>(
-  owner: ResourceOwner<T>,
-  local: boolean,
-): Awaited<T> | Query.Handle<Awaited<T>> {
+/** A suspending read keeps no owner: it hands out no refetch and observes nothing. The hooks
+ * above and the effect here keep the hook order of the query path. */
+function useSuspendedResource<T>(
+  scope: Scope.Handle,
+  handle: Resource.Handle<T>,
+  ns: Namespace | undefined,
+): Awaited<T> {
+  const value = scope.controller(handle, ns === undefined ? undefined : { ns }).resolve();
+
+  useEffect(noEffect, [scope, undefined]);
+
+  return value instanceof Promise ? use(value as Promise<Awaited<T>>) : (value as Awaited<T>);
+}
+
+const noEffect = (): undefined => undefined;
+
+function useQueryResource<T>(owner: ResourceOwner<T>): Query.Handle<Awaited<T>> {
   let value: Scope.ResourceValue<T> | undefined;
   let error: unknown;
   let failed = false;
@@ -467,12 +485,10 @@ function useResolvedResource<T>(
   }
 
   const pending = value instanceof Promise ? (value as Promise<Awaited<T>>) : undefined;
-  owner.pending = local ? pending : undefined;
+  owner.pending = pending;
   useSettled(owner);
 
-  if (local) return owner.query(failed, error, value, pending);
-  if (failed) throw error;
-  return pending ? use(pending) : (value as Awaited<T>);
+  return owner.query(failed, error, value, pending);
 }
 
 /** Detaching a resource owner or changing its promise stops the old observer from publishing. */
