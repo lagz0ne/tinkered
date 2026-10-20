@@ -39,4 +39,4 @@ if (!releaseNotes(upgrade, version)) {
 }
 
 console.log(`Bumped to ${version}. Land it on main; green CI publishes start-v${version}.`);
-console.log("The release job then refreshes tinker-app (with the TINKER_APP_DEPLOY_KEY secret).");
+console.log("tinker-app takes the new Core and React through its own pin bump.");
