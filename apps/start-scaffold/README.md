@@ -31,7 +31,7 @@ To build an app from registry items, start in an empty folder:
 ```bash
 npx shadcn@4.21.0 add \
   "https://raw.githubusercontent.com/lagz0ne/tinkered/\
-start-v0.8.0/apps/start-scaffold/public/r/app.json" --yes
+start-v0.9.0/apps/start-scaffold/public/r/app.json" --yes
 ```
 
 This is the smallest app, with telemetry on.
