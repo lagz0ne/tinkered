@@ -2,6 +2,67 @@
 
 `tinker upgrade` prints the sections between your old and new version.
 
+## 0.9.0
+
+Core, React, and Start move to 0.9.0 together.
+`tinker upgrade 0.9.0` sets all three release URLs.
+The tag is `start-v0.9.0` on `lagz0ne/tinkered`.
+
+Start's own home is now `lagz0ne/tinker-app`.
+Its tags are separate: tinker-app's Start 0.9.0
+is not this Start 0.9.0.
+An app on tinker-app's Start takes only
+Core and React from this release.
+
+Two changes can need an app edit:
+
+- An extension's `start` hook has a time limit
+  (ADR 0119). Default: 10 s, as Fastify.
+  The whole start chain counts, so slow
+  migrations or a slow database connect count.
+  On timeout, `ready` rejects with an error
+  that names the extension, and the scope closes.
+  A start that can take longer sets
+  `createScope({ startTimeout: 60_000 })`.
+  `0` or `Infinity` turns the timer off.
+- `src/lib/tinker.server.ts` and `src/lib/tinker.ts`
+  may not `export *` from a package.
+  Prepare cannot read those names, so it stops
+  and names the file. Use named exports.
+  A local `export *` still works.
+
+New, with no edit needed:
+
+- `event.tap(config)` in a `start` hook adds
+  a telemetry sink. Every tap gets every span
+  and log line. A tap after start raises `LateTap`.
+- `namespace({ observe: false })` keeps a
+  tool's own work out of the traces.
+- Items: `src/items/<item>/` with an `item.json`
+  that lists `requires` (ADR 0116, ADR 0117).
+  Prepare joins their role files in that order.
+  An app with no `src/items` is unchanged.
+- `event.controller(cell)` in a write hook
+  works again; it threw on 0.8.0.
+
+Faster, in instructions per call
+(cachegrind, lowest of 3 runs):
+
+- op run with a resource dep: −42.6% (#15)
+- session: −37% (#15)
+- op that logs: −48.8% (#17)
+- write with no watcher below:
+  33,657 → 3,870, −88.5% (#26)
+- write hook: 3,722 → 1,597, −57.1% (#26)
+- resolve hook: −80.2% (#26)
+- request: 24,459 → 21,786, −10.9% (#26)
+- cold build: −14.7% (#26)
+- React SSR, per render:
+  `useData` −24.1%, `useRun` −25.8% (#26);
+  suspending `useResource` −5.4% (#16)
+
+Core's gzip size cap is now 20 KiB.
+
 ## 0.8.0
 
 Core, React, and Start move to 0.8.0 together.
