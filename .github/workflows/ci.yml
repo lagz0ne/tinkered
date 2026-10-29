@@ -1,9 +1,8 @@
-# The gates a contributor runs, on every PR and every push to main.
+# The gates a contributor runs, on every push to main (trunk-based, no PRs).
 # Mutation and timing stay on the bench box: they need its quiet core.
 name: ci
 
 on:
-  pull_request:
   push:
     branches: [main]
 
