@@ -1,0 +1,7 @@
+# Trunk-based: no PR gate, so this is the pre-integration check
+# (trunkbaseddevelopment.com). It runs the fast CI gates before a push.
+# CI runs them again on main. Skip only in an emergency: --no-verify.
+set -e
+vp run -r build
+vp check
+vp run -r test
