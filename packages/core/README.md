@@ -82,6 +82,14 @@ A schema's refusal arrives as the `DataValidationFailed` cause: `SchemaRejected 
 A schema that answers with a promise is refused with `SchemaAsync { vendor }`; every edge parses
 before it runs.
 
+A run passes objects the way a function call does: no copy.
+
+- `{ input: obj }` reaches `ctx.input` as `obj` itself. Core never copies it or freezes it.
+- `{ rawInput: obj }` reaches `ctx.rawInput` as `obj`. `ctx.input` is what the parser returns.
+- The caller gets the body's return value itself, or a promise of it.
+- This holds for a scope run, a session run, and a controller run, tagged or namespaced.
+- So a body that changes its input changes the caller's object.
+
 ## Root lifetime
 
 Give a root a stop signal and await its final Result (ADR 0085):
@@ -942,6 +950,12 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A rejected promise with an `undefined` cause keeps that cause; a primitive body cause still settles the
   session.
 - A preset is scoped to its scope: another scope still builds the real value.
+- A nested controller run passes the caller's object to the callee and returns the callee's own.
+- An async nested controller run gives the caller the callee's own object.
+- A callee that changes `ctx.input` changes the caller's object.
+- A tagged nested call passes the caller's object into the child session.
+- A namespaced nested call passes the caller's object to the callee.
+- A run holds the caller's `rawInput` object and takes the parser's answer as its input.
 
 ### Errors and panics
 
