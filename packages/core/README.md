@@ -332,8 +332,8 @@ run: ({ users }, { input, raise }) =>
 ```
 
 `raise` returns `never`. A later line sees the narrowed value only when
-TypeScript knows the call never returns. It knows that when the called
-function has a written type. So the form decides:
+TypeScript knows the call never returns. It knows that only when every name
+in the call has a written type. So the form decides:
 
 - A destructured `raise(...)` does not narrow. That is TypeScript's rule;
   no Core type changes it.
@@ -341,35 +341,6 @@ function has a written type. So the form decides:
   `ctx: Operation.Ctx<I>`.
 - `return raise(...)` narrows in every form. Use it when a later line needs
   the narrowed value.
-
-### Your own error shapes
-
-`raise` stays open for an app: any string `kind`, any object `payload`.
-Core keeps no registry of app errors.
-
-An app keeps each shape in its contracts. Hedl's refusals live in
-`src/contracts/hedl/errors.ts`:
-
-```ts
-export const refused = "Refused" as const;
-export type RefusedPayload = { message: string };
-```
-
-A body raises that kind with `satisfies`, so the payload must fit the shape:
-
-```ts
-run: (_deps, { raise }) => {
-  const payload = { message: "no seat" }
-    satisfies RefusedPayload;
-  return raise(refused, payload);
-},
-```
-
-A caller reads `kind` and `payload` back. `settle` gives them on a Result of
-kind `"error"`. A `catch` gets them with the app's own check.
-
-`isError` and `Errors` cover Core's own kinds only. An app's kinds are the
-app's to check.
 
 `settle` runs like `run` but never throws. It returns a Result:
 
@@ -411,6 +382,35 @@ A dropped subflow's panic fails the layer, even while its caller still runs.
 A dropped subflow's error stays with its caller and shows on its span.
 A root run's dropped error goes to the host as an unhandled rejection; the layer stays fine.
 A forced close after a sticky panic settles `failed`, not `cancelled`.
+
+### Your own error shapes
+
+`raise` stays open for an app: any string `kind`, any object `payload`.
+Core keeps no registry of app errors.
+
+An app keeps each shape in its contracts. In the Hedl app, refusals live in
+its `src/contracts/hedl/errors.ts`:
+
+```ts
+export const refused = "Refused" as const;
+export type RefusedPayload = { message: string };
+```
+
+A body raises that kind with `satisfies`, so the payload must fit the shape:
+
+```ts
+run: (_deps, { raise }) => {
+  const payload = { message: "no seat" }
+    satisfies RefusedPayload;
+  return raise(refused, payload);
+},
+```
+
+A caller reads `kind` and `payload` back. `settle` gives them on a Result of
+kind `"error"`. A `catch` gets them with the app's own check.
+
+`isError` and `Errors` cover Core's own kinds only. An app's kinds are the
+app's to check.
 
 ## Resource cleanup
 
@@ -984,7 +984,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A callee that changes `ctx.input` changes the caller's object.
 - A tagged nested call passes the caller's object into the child session.
 - A namespaced nested call passes the caller's object to the callee.
-- A run holds the caller's `rawInput` object and takes the parser's answer as its input.
+- A scope run passes the caller's object to the callee and returns the callee's own object.
+- A session run passes the caller's object to the callee and returns the callee's own object.
+- A parser that hands back its raw object gives `ctx.input` that object.
+- A parser's new object is `ctx.input`, while `ctx.rawInput` stays the caller's.
 
 ### Errors and panics
 
@@ -1032,7 +1035,6 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A `ctx` read without a written type does not narrow a later value.
 - A `raise` call on a written `ctx` type narrows a later value.
 - A returned `raise` narrows a later value even when it is destructured.
-- An app's own `raise` kind comes back on `settle` with its payload.
 - A resource `raise` stamps the resource ctx before a run receives it.
 - An escaping operation `raise` adds its own run label only once.
 - An empty ctx `raise` gets its origin from the run it reaches.

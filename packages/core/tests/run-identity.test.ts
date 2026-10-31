@@ -19,7 +19,7 @@ const buildPayload = (): Payload => built;
 
 const zone = tag({ label: "zone", default: "home" });
 
-test("a nested controller run passes the caller's object to the callee and returns its own", () => {
+test("a nested controller run passes the caller's object to the callee and returns the callee's own object", () => {
   const obj: Payload = { x: 1 };
   const returned: Payload = { x: 2 };
   let seen: Payload | undefined;
@@ -138,7 +138,47 @@ test("a namespaced nested call passes the caller's object to the callee", () => 
   return scope.close();
 });
 
-test("a run holds the caller's rawInput object and takes the parser's answer as its input", () => {
+test("a scope run passes the caller's object to the callee and returns the callee's own object", () => {
+  const obj: Payload = { x: 1 };
+  const returned: Payload = { x: 2 };
+  let seen: Payload | undefined;
+  const op: Operation.Handle<Payload, Payload> = operation({
+    label: "op",
+    run: (_deps, ctx) => {
+      seen = ctx.input;
+      return returned;
+    },
+  });
+  const scope = createScope();
+
+  expect(scope.run(op, { input: obj })).toBe(returned);
+  expect(seen).toBe(obj);
+
+  return scope.close();
+});
+
+test("a session run passes the caller's object to the callee and returns the callee's own object", async () => {
+  const obj: Payload = { x: 1 };
+  const returned: Payload = { x: 2 };
+  let seen: Payload | undefined;
+  const op: Operation.Handle<Payload, Payload> = operation({
+    label: "op",
+    run: (_deps, ctx) => {
+      seen = ctx.input;
+      return returned;
+    },
+  });
+  const scope = createScope();
+  const session = scope.createSession();
+
+  expect(session.run(op, { input: obj })).toBe(returned);
+  expect(seen).toBe(obj);
+
+  await session.close();
+  await scope.close();
+});
+
+test("a parser that hands back its raw object gives ctx.input that object", () => {
   const obj: Payload = { x: 1 };
   let raw: unknown;
   let parsed: Payload | undefined;
@@ -157,6 +197,13 @@ test("a run holds the caller's rawInput object and takes the parser's answer as 
   expect(raw).toBe(obj);
   expect(parsed).toBe(obj);
 
+  return scope.close();
+});
+
+test("a parser's new object is ctx.input while ctx.rawInput stays the caller's", () => {
+  const obj: Payload = { x: 1 };
+  let raw: unknown;
+  let parsed: Payload | undefined;
   const build = operation({
     label: "build",
     input: buildPayload,
@@ -166,6 +213,8 @@ test("a run holds the caller's rawInput object and takes the parser's answer as 
       return ctx.input;
     },
   });
+  const scope = createScope();
+
   expect(scope.run(build, { rawInput: obj })).toBe(built);
   expect(raw).toBe(obj);
   expect(parsed).toBe(built);
