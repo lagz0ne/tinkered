@@ -342,6 +342,35 @@ function has a written type. So the form decides:
 - `return raise(...)` narrows in every form. Use it when a later line needs
   the narrowed value.
 
+### Your own error shapes
+
+`raise` stays open for an app: any string `kind`, any object `payload`.
+Core keeps no registry of app errors.
+
+An app keeps each shape in its contracts. Hedl's refusals live in
+`src/contracts/hedl/errors.ts`:
+
+```ts
+export const refused = "Refused" as const;
+export type RefusedPayload = { message: string };
+```
+
+A body raises that kind with `satisfies`, so the payload must fit the shape:
+
+```ts
+run: (_deps, { raise }) => {
+  const payload = { message: "no seat" }
+    satisfies RefusedPayload;
+  return raise(refused, payload);
+},
+```
+
+A caller reads `kind` and `payload` back. `settle` gives them on a Result of
+kind `"error"`. A `catch` gets them with the app's own check.
+
+`isError` and `Errors` cover Core's own kinds only. An app's kinds are the
+app's to check.
+
 `settle` runs like `run` but never throws. It returns a Result:
 
 ```ts
@@ -1003,6 +1032,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A `ctx` read without a written type does not narrow a later value.
 - A `raise` call on a written `ctx` type narrows a later value.
 - A returned `raise` narrows a later value even when it is destructured.
+- An app's own `raise` kind comes back on `settle` with its payload.
 - A resource `raise` stamps the resource ctx before a run receives it.
 - An escaping operation `raise` adds its own run label only once.
 - An empty ctx `raise` gets its origin from the run it reaches.
