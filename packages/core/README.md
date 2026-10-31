@@ -323,6 +323,17 @@ run: ({ users }, { input, raise }) =>
   raise("NotFound", { id: input.id }),
 ```
 
+`raise` returns `never`. A later line sees the narrowed value only when
+TypeScript knows the call never returns. It knows that when the called
+function has a written type. So the form decides:
+
+- A destructured `raise(...)` does not narrow. That is TypeScript's rule;
+  no Core type changes it.
+- `ctx.raise(...)` narrows only when the parameter is written
+  `ctx: Operation.Ctx<I>`.
+- `return raise(...)` narrows in every form. Use it when a later line needs
+  the narrowed value.
+
 `settle` runs like `run` but never throws. It returns a Result:
 
 ```ts
@@ -974,6 +985,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An observed origin carries the failed run's span id.
 - An unobserved origin has no span id.
 - A destructured operation `raise` sets kind, payload, and message at the throw site.
+- A destructured `raise` call does not narrow a later value of its run.
+- A `ctx` read without a written type does not narrow a later value.
+- A `raise` call on a written `ctx` type narrows a later value.
+- A returned `raise` narrows a later value even when it is destructured.
 - A resource `raise` stamps the resource ctx before a run receives it.
 - An escaping operation `raise` adds its own run label only once.
 - An empty ctx `raise` gets its origin from the run it reaches.
