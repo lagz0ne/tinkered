@@ -146,6 +146,7 @@ function exitCode(end: Scope.Result): number {
 An extension is middleware over the scope's verbs (ADR 0050).
 Declare its callbacks under `hooks` and install it with `createScope({ extensions })`.
 Wait with `await scope.ready`, then read its value with `scope.resolve(ext)`.
+A library that reads tags declares them as its `config` ([Config](#config)).
 
 Start has a 10 000 ms limit on the scope clock (ADR 0119).
 Set `createScope({ startTimeout: 5_000 })` to change it.
@@ -315,6 +316,85 @@ A root write and a session write each invoke the `write` hook once.
 A write through a `depends: { x: cell.controller }` edge invokes the `write` hook.
 A namespaced write invokes the `write` hook once and stores its value in that namespace.
 Two hooks keep registration order for both runs and writes on child layers.
+
+### Config
+
+A library reads tags to learn what it is configured against.
+It declares them once, as its `config` (ADR 0120).
+Calling the extension fills the config and answers the extension a scope installs.
+
+```ts
+const mailStart = extension({
+  label: "mail",
+  config: { smtpUrl, from: mailFrom, timeout: mailTimeout },
+  hooks: {
+    start: (event) => ({ send: (msg) => post(msg) }),
+  },
+});
+
+const scope = createScope({
+  extensions: [
+    mailStart({ smtpUrl: url, from: "ops@example.com" }),
+  ],
+});
+```
+
+A key is required when its tag has no default.
+The type names it when the call leaves it out.
+Calling `tag.required` makes a key required whatever its tag says.
+Calling `tag.optional` lets the call leave it out.
+Calling `tag.all` makes a list key: the call takes a list, and each item is one binding.
+
+A filled key binds its tag on the root, before the app's own `tags`.
+So a `tags` entry on the root still wins over the extension's.
+An `undefined` value counts as unfilled: an optional key reads the tag's default.
+A list reads every binding last first, so a list key reads back in the reverse of the call's order.
+
+A slot key holds a unit: a resource or an operation the app chooses.
+
+```ts
+const storeSlot = tag<Resource.Handle<Store>>({
+  label: "sync.store",
+});
+const migrateSlot = tag<Operation.Handle<string, void>>({
+  label: "sync.migrate",
+});
+
+const syncStart = extension({
+  label: "sync",
+  config: { store: storeSlot, migrate: migrateSlot },
+  hooks: {
+    start: (event) => ({
+      store: event.resolve(event.resolve(storeSlot)),
+      ran: event.run(event.resolve(migrateSlot)),
+    }),
+  },
+});
+```
+
+Only a hand holds a scope (ADR 0051), so the library resolves the held unit in its own start.
+A unit that reads the start value sees the instance the scope built, not a copy.
+So a preset on that unit reaches every reader of it.
+
+Core adds no owner mark. A library's index does not export its config tags, so the app uses the
+library through its extension.
+
+`createScope` checks the config once, before the root layer exists.
+A required key still missing raises `MissingConfig` with `{ label, key }`.
+One library installed twice on a root raises `DuplicateExtension` with `{ label }`.
+A bad value raises `DataValidationFailed` from the tag's own `parse`, there.
+Resolve, run, and write add no work: the bindings sit on the root like any other tag.
+
+`scope.resolve(mailStart)` and `scope.resolve(mailStart({ ... }))` both read the start value.
+
+A test fills config the same way, and swaps a heavy unit with a preset (ADR 0015):
+
+```ts
+const scope = createScope({
+  extensions: [syncStart({ store: sqlite, migrate })],
+  presets: [preset(sqlite, () => fakeStore)],
+});
+```
 
 ## Errors and panics
 
@@ -1228,6 +1308,14 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   `NotResolved` naming the extension.
 - Resolving an extension that is not installed throws `NotResolved` naming it; `resolve(ext)` reads the
   extension's own start value, bypassing the resolve chain.
+- `extension({ label, config })` declares the tags a library reads; call it to fill them and get the
+  extension a scope installs (ADR 0120).
+- A required config key is a type error until the call fills it, and `MissingConfig { label, key }` when
+  it is left out at start; one library installed twice raises `DuplicateExtension { label }`.
+- A filled config key binds its tag on the root, and the root's own `tags` win; a `tag.all` key binds
+  one tag per item and reads every binding last first.
+- A slot key holds a resource or an operation, which the library resolves through the scope, so a
+  preset on the held unit reaches its readers.
 - A run hook sees every call and passes it through unchanged; a start or run hook that skips `next`
   short-circuits: inner starts never run, the refused body never runs.
 - `update(fn)` runs through the write chain with the computed value; the cell controller is cached

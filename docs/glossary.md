@@ -21,6 +21,9 @@
 - **exporter** — An extension (`onStart`/`onEnd`) that consumes spans; its failures are isolated and never fail application work.
 - **behavior-neutral** — Observation never changes results or value identity; the core wraps no user value. Deep client tracing lives in adapters.
 - **tag** — A typed key for static configuration, with a fixed value per binding.
+- **config key** — One tag an extension declares as its `config`: the library reads it, the command fills it in one call (ADR 0120). Required when the tag has no default.
+- **list key** — A config key declared as `tag.all`: the call takes a list, and every item is one binding. Reads last first.
+- **slot key** — A config key whose tag holds a unit (a resource or operation handle), so the app picks the unit the library uses.
 - **data** — A mutable value cell that callers can read, watch, and write.
 - **dependency mode** — How a dep is taken: **read** (bare `data` → the value) or **write** (`data.controller` → get/set/watch handle). A bare resource slot delivers its **built value** — never a promise (ADR 0044); a bare operation delivers a subflow.
 - **derivation** — A pattern, not a unit: an operation/resource writes a `data` cell (write-mode dep) that others watch; or a consumer watches sources and combines them.
