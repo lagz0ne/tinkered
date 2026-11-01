@@ -127,3 +127,11 @@ test("exports type onto the handle and the binding as the same units", () => {
   expectTypeOf(mail.send).toEqualTypeOf(send);
   expectTypeOf(mail({ smtpUrl: "smtp://x" }).send).toEqualTypeOf(send);
 });
+
+test("A21 a tag export types onto the handle as the same tag", () => {
+  const request = tag<Request>({ label: "tt.request" });
+  const http = capsule({ label: "tt.http", exports: { request } });
+
+  expectTypeOf(http.request).toEqualTypeOf(request);
+  expectTypeOf(http().request).toEqualTypeOf(request);
+});

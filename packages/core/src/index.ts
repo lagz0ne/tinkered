@@ -753,9 +753,15 @@ export declare namespace Capsule {
   /** What a capsule says about one unit it loads. Devtools show it; nothing else reads it. */
   export type Meta = { readonly role: Role; readonly explain: string };
 
-  /** The units a capsule exports, by the name a caller reads them under: `mail.enqueue`. */
+  /** The units a capsule exports, by the name a caller reads them under: `mail.enqueue`. A tag
+   * export is one the capsule binds per call or request (`http.request`); a scope does not check
+   * that its capsule is installed, so an unbound one fails as any tag does (`MissingTag`). */
   export type Exports = {
-    readonly [name: string]: Operation.Handle<any, any> | Resource.Handle<any> | Data.Cell<any>;
+    readonly [name: string]:
+      | Operation.Handle<any, any>
+      | Resource.Handle<any>
+      | Data.Cell<any>
+      | Tag.Handle<any>;
   };
 
   /** The names an export may not take: the handle's own fields. */
@@ -857,12 +863,16 @@ export declare namespace Capsule {
     session?(event: Events<C>["session"]): Promise<Scope.Result>;
   };
 
-  /** What a capsule call returns and a scope installs: the label, the hooks, and the exports. */
-  export type Binding<T = unknown, E = unknown> = {
+  /** A binding's own fields: the label and the hooks. Named, so a declaration of a value built
+   * on a binding can name it. */
+  export type Base<T = unknown> = {
     readonly [capsuleSym]: true;
     readonly label: string;
     readonly hooks: Hooks<T>;
-  } & E;
+  };
+
+  /** What a capsule call returns and a scope installs: the label, the hooks, and the exports. */
+  export type Binding<T = unknown, E = unknown> = Base<T> & E;
 
   /** A capsule's call arguments: optional only when no key is required. */
   export type Args<C extends Scope.Config> = [Scope.Unfilled<C>] extends [never]
@@ -6968,13 +6978,19 @@ class Capsules {
       hooks: { value: hooks },
       config: { value: config ?? NO_VALUES },
     });
-    for (const key of Object.keys(exports)) {
-      Object.defineProperty(handle, key, { value: exports[key], enumerable: true });
-      (exports[key] as Exported).capsule ??= handle as unknown as Capsule.Binding;
-    }
-
+    Capsules.export(handle, exports);
     Capsules.wired.set(handle, { config, values: NO_VALUES, of: fill, exports });
     return handle as unknown as Capsule.Binding;
+  }
+
+  /** Copy each export onto the handle, and mark each unit but a tag with it: a tag export is
+   * bound per call, so it has no capsule check. */
+  static export(handle: object, exports: Capsule.Exports): void {
+    for (const key of Object.keys(exports)) {
+      const unit = exports[key];
+      Object.defineProperty(handle, key, { value: unit, enumerable: true });
+      if (!isTag(unit)) (unit as Exported).capsule ??= handle as Capsule.Binding;
+    }
   }
 
   /** One start-value record per installed capsule, and one under the handle a binding was filled

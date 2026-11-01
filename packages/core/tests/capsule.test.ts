@@ -781,3 +781,131 @@ test("Q7b scope.resolve answers a binding's start value, through the binding or 
   expect(scope.resolve(db)).toEqual({ url: "sqlite://" });
   await scope.close();
 });
+
+test("A21 an exported tag is bound per call by the capsule; each session reads its own", async () => {
+  const request = tag<string>({ label: "http.request" });
+  const handler = operation({
+    label: "http.handler",
+    depends: { request },
+    run: async ({ request }) => {
+      await Promise.resolve();
+      return `served ${request}`;
+    },
+  });
+  const serve = operation({
+    label: "http.serve",
+    input: (raw): string => String(raw),
+    run: () => "unreached",
+  });
+  const http = capsule({
+    label: "http",
+    exports: { request, handler },
+    hooks: {
+      run: ({ op, call, next, run }) => {
+        if (op !== serve) return next();
+        return run(handler, { tags: [request(String(call?.input))] }, serving);
+      },
+    },
+  });
+  const serving = { role: "handler", explain: "Serves one request" } as const;
+  const scope = createScope({ capsules: [http()] });
+  await scope.ready;
+  const a = scope.createSession();
+  const b = scope.createSession();
+
+  const served = await Promise.all([
+    Promise.resolve(a.run(serve, { input: "/a" })),
+    Promise.resolve(b.run(serve, { input: "/b" })),
+  ]);
+
+  expect(http.request).toBe(request);
+  expect(http().request).toBe(request);
+  expect(served).toEqual(["served /a", "served /b"]);
+  expect(scope.capsules[0]?.exports).toEqual(["request", "handler"]);
+  const unbound = caught(() =>
+    scope.run(operation({ label: "read", depends: { request }, run: ({ request }) => request })),
+  );
+  if (!isError(unbound, "MissingTag")) throw unbound;
+  expect(unbound.payload).toEqual({ label: "http.request" });
+  await scope.close();
+});
+
+test("A22 a hook run in an unobserved namespace leaves no span or log for the tap", async () => {
+  const quiet = namespace({ observe: false });
+  const spans: string[] = [];
+  const logs: string[] = [];
+  const flush = operation({
+    label: "telemetry.flush",
+    run: (_deps, { log }) => {
+      log("flushed");
+      return "flushed";
+    },
+  });
+  const flushes: Promise<unknown>[] = [];
+  const telemetry = capsule({
+    label: "telemetry",
+    hooks: {
+      start: ({ tap, run }) => {
+        tap({
+          export: (span) => void spans.push(span.name),
+          log: (line) => void logs.push(line.message),
+        });
+        flushes.push(run(flush, { ns: quiet }, worker));
+      },
+    },
+  });
+  const scope = createScope({ capsules: [telemetry()] });
+  await scope.ready;
+  expect(await Promise.all(flushes)).toEqual(["flushed"]);
+  expect([spans, logs]).toEqual([[], []]);
+
+  scope.run(flush);
+
+  expect([spans, logs]).toEqual([["telemetry.flush"], ["flushed", "telemetry.flush"]]);
+  await scope.close();
+});
+
+for (const [kind, make] of [
+  ["a redirect-like object", () => ({ isRedirect: true, to: "/x" })],
+  ["a Response", () => new Response(null, { status: 302 })],
+] as const) {
+  test(`A23 ${kind} thrown by an op is settled and rethrown as the same object, on scope and hook`, async () => {
+    const thrown = make();
+    const jump = operation({
+      label: "jump",
+      run: () => {
+        throw thrown;
+      },
+    });
+    const request = operation({ label: "request", run: () => "request" });
+    const hooked: unknown[] = [];
+    const router = capsule({
+      label: "router",
+      hooks: {
+        run: async ({ op, next, run, settle }) => {
+          if (op !== request) return next();
+          hooked.push(await settle(jump, {}, handler));
+          hooked.push(await run(jump, {}, handler).catch((error: unknown) => error));
+          return next();
+        },
+      },
+    });
+    const plain = createScope();
+    const scope = createScope({ capsules: [router()] });
+    await scope.ready;
+
+    const settled = plain.settle(jump);
+    const rethrown = caught(() => plain.run(jump));
+    await Promise.resolve(scope.run(request));
+
+    if (settled.status !== "failed") throw new Error(`expected failed, got ${settled.status}`);
+    expect(settled.error).toBe(thrown);
+    expect(rethrown).toBe(thrown);
+    const [hookSettled, hookRethrown] = hooked;
+    expect(hookSettled).toMatchObject({ status: "failed" });
+    expect((hookSettled as { error: unknown }).error).toBe(thrown);
+    expect(hookRethrown).toBe(thrown);
+    await plain.close();
+    await scope.close();
+  });
+}
