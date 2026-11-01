@@ -17,12 +17,6 @@ import { Container } from "@inferdi/inferdi";
 // has settled before the timed loop starts. The METRIC line says which mode mitata used.
 import { measure } from "mitata";
 
-// `sync1k` times the Start sync stream, not Core: bench/sync-probe.mjs loads the tree's own source.
-if (process.argv[2] === "sync1k") {
-  await import("./sync-probe.mjs");
-  process.exit(0);
-}
-
 const WARM_CALLS = 10_000;
 const coreDist = process.env.CORE_DIST;
 
