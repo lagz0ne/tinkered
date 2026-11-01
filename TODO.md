@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **jev/review-enobufs** — `tools/jev/lib.mjs:80` runs `git` through `execSync` with the default `maxBuffer`, so a big range crashes with `spawnSync /bin/sh ENOBUFS`.
+  Seen on `node tools/jev/review.mjs 5a9f13a9..154f5a2b` (a 123k-line diff).
+  Verify: that command exits 0.
+
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
@@ -69,8 +73,11 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **repo/start-sunset** — Start leaves main (ADR 0122): `packages/start`, `apps/start-min`, `apps/start-scaffold`, the `tinker` CLI, the registry, their tracks, benches, and the writer trial's Flight suite; the code is in tag `start-archive`; old `start-v*` releases stay.
   Checks that used a Start app now use a kept one: `vp run lazy` reads the examples and React; F13 builds the playground.
-  Owner: W1 writer, branch `sunset-start`. The release scripts move on the release branch.
-  Proof: on `1008d756`, `vp install`, `vp run -r build`, `vp check`, `vp run prose` exit 0; `vp run -r test` exit 0 on the second run (the first timed out one flight-trial supplier test at 5 s). Logs: `/home/paseo/plans/tinkered-sunset/w1/`.
+  The same branch, `sunset-start`, also holds:
+  - release: Core and React only, tag `vX.Y.Z`, version from `packages/core/package.json`, notes from root `CHANGELOG.md`; first `v0.10.1` (`scripts/release.mjs`, `release-check.mjs`, `proof-github-release.mjs`, `bump.mjs`, `release.yml`);
+  - Bun first: `bun >=1.4` in Core and React `engines`, Bun-first install lines, CI job `bun` (Core and React tests on Bun 1.4, then a dist smoke); CI job `gates` stays on Node 22.
+    Owner: W1 and W2 writers; the lead lands it.
+    Proof: `/home/paseo/plans/tinkered-sunset/gates.sh` at the branch head, every lane exit 0: `/home/paseo/plans/tinkered-sunset/w1/fix/gates/gates.exit` (it names the HEAD it ran on).
 
 - **start/join-index** (Start 1) — items join the app by role file names under `src/items/<NN-item>/`; prepare reads only file names and writes `.tinker/app.ts` and `.tinker/app.server.ts`; lists run in numeric folder order, then the user's seam; the user's single names win; two item owners fail prepare and doctor once (ADR 0116). Also fixes the `scripts/ticket.sh` Start size gate: Start has no size task. Helper folders such as `2fa` stay out of item order; a seam with no list no longer fails tsc. Gates green; Start mutation above the 75 floor. Proof: [docs/roadmap/start-base/PROGRESS.md](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROGRESS.md#startjoin-index).
 
