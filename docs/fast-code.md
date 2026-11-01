@@ -603,7 +603,7 @@ pnpm validate
   Zero: `runOnce`, `settleRun`, `OperationCtx`, `resolveDep`, `invokeRunHooks`.
   Three: `buildHooklessResource`; two: `runHookChain`; one: `stepRunHook`.
 - **F13:** zero client chunks mapping to zod, drizzle, or PGlite.
-  The check builds start-min with hidden source maps.
+  The check builds the playground with hidden source maps.
   It reads mapped source paths in every built client JS chunk.
   No string search that a minifier can erase.
   Missing chunks or maps fail.

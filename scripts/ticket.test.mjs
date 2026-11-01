@@ -15,14 +15,14 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 // A stub `vp` logs each call. It resolves names as the real vp does, for the fixture's
-// packages (core, react, start):
+// packages (core, react):
 //   name#task with an unknown name runs nothing and exits 0;
 //   -F with an unknown name exits 1 only with --fail-if-no-match.
 // With FAIL_MUTATE set, every mutate call exits 1.
 // ticket.sh puts <repo>/node_modules/.bin first on PATH, so the stub wins.
 const fakeVp = `#!/usr/bin/env bash
 echo "$*" >> "$VP_LOG"
-known=" core react start "
+known=" core react "
 strict=0
 prev=""
 selected=""
@@ -50,7 +50,6 @@ for arg in "$@"; do
 done
 for arg in "$@"; do
   case "$arg" in
-    size) [ "$selected" = start ] && { echo 'error: Task "size" not found' >&2; exit 1; } ;;
     mutate | *#mutate) [ -n "$FAIL_MUTATE" ] && exit 1 ;;
   esac
 done
@@ -114,8 +113,8 @@ await test("ticket.sh runs only the named package's mutation lane", () => {
 });
 
 await test("ticket.sh exits non-zero for a name that no package has", () => {
-  // A typo, and a folder name: the package is @tinker-start-scaffold, not start-scaffold.
-  for (const name of ["nope", "start-scaffold"]) {
+  // A typo, and a package that is gone (Start, ADR 0122).
+  for (const name of ["nope", "start"]) {
     const dir = fixture();
     try {
       const run = runTicket(dir, ["--check-only", name, "61", "unknown package"], {});
@@ -145,18 +144,6 @@ await test("ticket.sh accepts ticket NN 0", () => {
   try {
     const run = runTicket(dir, ["--check-only", "--no-mutation", "core", "0", "zero"], {});
     assert.equal(run.status, 0, run.stdout + run.stderr);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-await test("ticket.sh checks Start source without calling a missing bundle size task", () => {
-  const dir = fixture();
-  try {
-    const run = runTicket(dir, ["--check-only", "start", "1", "join-index"], {});
-    assert.equal(run.status, 0, run.stdout + run.stderr);
-    const calls = readFileSync(join(dir, "vp.log"), "utf8").trim().split("\n");
-    assert.deepEqual(calls, ["check", "run -r test", "run --fail-if-no-match -F start mutate"]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

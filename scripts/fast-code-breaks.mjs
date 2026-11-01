@@ -82,7 +82,7 @@ function prove(check, args, expected, plant) {
 
   const green = run(
     check,
-    check === "client" ? ["--client-dir", resolve("apps/start-min/dist/client")] : [],
+    check === "client" ? ["--client-dir", resolve("apps/playground/dist")] : [],
   );
   assert.equal(green.exit, 0, JSON.stringify(green));
 
@@ -149,7 +149,7 @@ try {
   );
 
   const clientDir = join(root, "client");
-  cpSync("apps/start-min/dist/client", clientDir, { recursive: true });
+  cpSync("apps/playground/dist", clientDir, { recursive: true });
   const chunk = join(clientDir, "planted.js");
   writeFileSync(chunk, "export const planted = 1;");
   writeFileSync(
@@ -221,7 +221,7 @@ try {
     "--baseline",
     mismatchFile,
     "--client-dir",
-    resolve("apps/start-min/dist/client"),
+    resolve("apps/playground/dist"),
   ]);
   assert.equal(afterRecovery.exit, 0, JSON.stringify(afterRecovery));
 

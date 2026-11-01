@@ -152,10 +152,10 @@ function librariesInChunk(chunk) {
 
 function clientCheck() {
   if (!values["client-dir"]) {
-    command("vp", ["build", "--sourcemap", "hidden"], resolve("apps/start-min"));
+    command("vp", ["build", "--sourcemap", "hidden"], resolve("apps/playground"));
   }
 
-  const dir = values["client-dir"] ?? "apps/start-min/dist/client";
+  const dir = values["client-dir"] ?? "apps/playground/dist";
   const chunks = filesIn(dir).filter((file) => file.endsWith(".js"));
   if (!chunks.length) throw new Error("F13 no built client chunks found");
 
