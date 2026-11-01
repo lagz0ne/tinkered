@@ -121,9 +121,9 @@ const active = data({ label: "active", initial: 0 });
 const client = resource({ label: "client", target: "session", factory: () => ({}) });
 const send = operation({ label: "send", run: () => undefined });
 const meta = { role: "handler", explain: "Runs one managed call" };
-const engine = capsule({ label: "engine", hooks: {
-    async run({ next, load, run, settle }) {
-      if (!(await run(managed, {}, meta))) return next();
+const engine = capsule({ label: "engine", config: { managed }, hooks: {
+    async run({ config, next, load, settle }) {
+      if (!config.managed) return next();
       load(active, meta).update((count) => count + 1);
       await load(client, meta);
       await settle(send, {}, meta);

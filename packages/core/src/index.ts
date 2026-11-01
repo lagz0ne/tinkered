@@ -776,9 +776,13 @@ export declare namespace Capsule {
   export type ConfigOf<C extends Scope.Config> = { readonly [K in keyof C]: Scope.SlotValue<C[K]> };
 
   /** Read a resource's value, or a cell's controller, the way the hook's own context reaches it. */
+  /** A `load`'s call options: the namespace to read the unit in, as a run's `ns` (A22). A
+   * namespace made with `observe: false` builds the unit with no spans or logs. Never meta. */
+  export type LoadOptions = { readonly ns?: Ns };
+
   export type Load = {
-    <V>(unit: Resource.Handle<V>, meta: Meta): Promise<Awaited<V>>;
-    <V>(unit: Data.Cell<V>, meta: Meta): Scope.DataController<V>;
+    <V>(unit: Resource.Handle<V>, meta: Meta, options?: LoadOptions): Promise<Awaited<V>>;
+    <V>(unit: Data.Cell<V>, meta: Meta, options?: LoadOptions): Scope.DataController<V>;
   };
 
   /** Run an operation the way `scope.run` does, from the hook's own context. */
@@ -4663,8 +4667,9 @@ function runInline<R, I>(
    * cached in the layer (no `nodeState`/`controllerOf` residue). The body's `input` is replayed
    * as the invocation's `input`, landing on `ctx.input`/`ctx.rawInput` unchanged (no parse — ADR
    * 0037); `tags` open the run's child session exactly as for a declared operation (ADR 0038).
-   * Discrimination is the brand only. An inline is never exported, so it is born passed for this
-   * root: the capsule check is one compare, with no walk (ADR 0121). */
+   * Discrimination is the brand only. An inline is never exported, but an exported unit in its
+   * `depends` needs its capsule (ADR 0121): {@link Capsules.inline} checks them once per root and
+   * `depends` object. The target is born passed, so it has no shape change and no walk per call. */
   const depends = inline.depends ?? {};
   const target = {
     [operationSym]: true,
@@ -4674,7 +4679,7 @@ function runInline<R, I>(
     run: inline.run,
     borrows: seesResource(depends),
     capsule: undefined,
-    passed: layer.exts,
+    passed: Capsules.inline(layer, inline.depends),
   } as unknown as Operation.Handle<R, I>;
 
   if (layer.exts.run === undefined) {
@@ -5858,28 +5863,36 @@ class HookCtx implements Capsule.Ctx {
     return (this.loader ??= ((
       unit: Resource.Handle<unknown> | Data.Cell<unknown>,
       meta: Capsule.Meta,
+      options?: Capsule.LoadOptions,
     ): unknown => {
       Capsules.note(this.record, unit, meta);
-      if (isData(unit)) return this.use(() => this.cellControl(unit));
+      const chain = options?.ns === undefined ? this.ns : nsChainOf(options.ns);
+      if (isData(unit)) return this.use(() => this.cellControl(unit, chain));
       try {
-        return Promise.resolve(this.use(() => this.readResource(unit)));
+        return Promise.resolve(this.use(() => this.readResource(unit, chain)));
       } catch (error) {
         return Promise.reject(error);
       }
     }) as Capsule.Load);
   }
   /** A resource's value as this hook reaches it: built on first read, held for a run's life. */
-  protected readResource(target: Resource.Handle<unknown>): unknown {
+  protected readResource(
+    target: Resource.Handle<unknown>,
+    chain: readonly Namespace[] | undefined,
+  ): unknown {
     if (this.layer.closed && this.flight === undefined) {
       return resolveHeld(this.layer, target, undefined);
     }
-    return this.resource(target, this.ns).resolve();
+    return this.resource(target, chain).resolve();
   }
   /** Not named `cell`: a write event's own `cell` field would hide it. */
-  private cellControl(target: Data.Cell<unknown>): Scope.DataController<unknown> {
+  private cellControl(
+    target: Data.Cell<unknown>,
+    chain: readonly Namespace[] | undefined,
+  ): Scope.DataController<unknown> {
     ensureOpen(this.layer);
     Capsules.check(this.layer, target);
-    const controller = dataController(this.layer, target, this.ns);
+    const controller = dataController(this.layer, target, chain);
     if (this.flight === undefined) return controller;
     return {
       get: () => this.use(() => controller.get()),
@@ -6016,11 +6029,13 @@ class CloseEvent extends HookCtx {
     };
   }
 
-  protected override readResource(target: Resource.Handle<unknown>): unknown {
+  protected override readResource(
+    target: Resource.Handle<unknown>,
+    chain: readonly Namespace[] | undefined,
+  ): unknown {
     if (this.released) raise("Disposed", { reason: "unit is released" });
 
     const owner = ownerOf(this.layer, target);
-    const chain = this.ns;
     const built = hasResourceNs(target, chain)
       ? selectNsResource(owner, target, chain)
       : owner.nodes.get(target);
@@ -7106,6 +7121,38 @@ class Capsules {
     const owner = (unit as Exported).capsule;
     if (owner === undefined || Capsules.installed.get(routes)?.has(owner)) return;
     raise("CapsuleMissing", { unit: (unit as { label: string }).label, capsule: owner.label });
+  }
+
+  /** The routes an inline's `depends` passed, per `depends` object: kept off the caller's own
+   * object. */
+  static readonly inlines = new WeakMap<Scope.Depends, ExtRoutes>();
+
+  /** Check an inline's `depends` on its first run under a root; answer the routes it passed. */
+  static inline(layer: Layer, depends: Scope.Depends | undefined): ExtRoutes {
+    const routes = layer.exts;
+    if (depends === undefined) return routes;
+    if (depends === Capsules.lastDepends && routes === Capsules.lastRoutes) return routes;
+
+    return Capsules.inlineFirst(routes, depends);
+  }
+
+  /** The last inline `depends` that passed, and its routes: a loop over one inline pays two
+   * compares. */
+  static lastDepends: Scope.Depends | undefined = undefined;
+  static lastRoutes: ExtRoutes | undefined = undefined;
+
+  static inlineFirst(routes: ExtRoutes, depends: Scope.Depends): ExtRoutes {
+    if (Capsules.inlines.get(depends) !== routes) {
+      for (const key of Object.keys(depends)) {
+        const dep = depends[key];
+        Capsules.need(routes, isEdge(dep) ? (dep.target as object) : dep);
+      }
+      Capsules.inlines.set(depends, routes);
+    }
+
+    Capsules.lastDepends = depends;
+    Capsules.lastRoutes = routes;
+    return routes;
   }
 
   /** Mark a span of an exported unit with its capsule's label. */

@@ -1014,3 +1014,94 @@ test("I2b load, run and settle each write their record line when called, even wh
   ]);
   await scope.close();
 });
+
+test("A16b a scope without mail runs an inline op on a mail export: CapsuleMissing, no body", () => {
+  const work: string[] = [];
+  const scope = createScope({});
+
+  const onOp = caught(() =>
+    scope.run({
+      depends: { e: mail.enqueue },
+      run: () => work.push("enqueue body"),
+    }),
+  );
+  const onCell = caught(() =>
+    scope.run({
+      depends: { o: mail.outbox },
+      run: () => work.push("outbox body"),
+    }),
+  );
+
+  if (!isError(onOp, "CapsuleMissing")) throw onOp;
+  if (!isError(onCell, "CapsuleMissing")) throw onCell;
+  expect(onOp.payload).toEqual({ unit: "mail.enqueue", capsule: "mail" });
+  expect(onCell.payload).toEqual({ unit: "mail.outbox", capsule: "mail" });
+  expect(work).toEqual([]);
+});
+
+/** A sink capsule's own units, for A24: a queue it loads and a flush it runs, in start. The
+ * queue keeps its state in the sink's own namespace (ADR 0119), so the quiet one is not seen. */
+function sinkCapsule(quiet: boolean) {
+  const space = namespace({ observe: false });
+  const queue = resource({
+    label: "sink.queue",
+    target: "namespace",
+    factory: () => ({ held: [] as string[] }),
+  });
+  const flush = operation({
+    label: "sink.flush",
+    depends: { queue },
+    run: ({ queue }, { log }) => {
+      log("flushed");
+      return queue.held.length;
+    },
+  });
+
+  const seen: string[] = [];
+  const options = quiet ? { ns: space } : {};
+  const sink = capsule({
+    label: "sink",
+    hooks: {
+      start: async ({ tap, load, run }) => {
+        tap({
+          export: (span) => void seen.push(`span ${span.name}`),
+          log: (line) => void seen.push(`log ${line.message}`),
+        });
+        await load(queue, state, options);
+        await run(flush, options, worker);
+      },
+    },
+  });
+
+  return { sink, seen };
+}
+
+test("A24a a quiet load and run in start leave no span or log for the tap", async () => {
+  const { sink, seen } = sinkCapsule(true);
+  const scope = createScope({ capsules: [sink()] });
+  await scope.ready;
+
+  expect(seen).toEqual([]);
+  await scope.close();
+});
+
+test("A24b the same load and run without the option are seen as before", async () => {
+  const { sink, seen } = sinkCapsule(false);
+  const scope = createScope({ capsules: [sink()] });
+  await scope.ready;
+
+  expect(seen).toEqual(["span sink.queue", "log flushed", "span sink.flush", "log sink.flush"]);
+  await scope.close();
+});
+
+test("A24c a quiet load still writes its record line", async () => {
+  const { sink } = sinkCapsule(true);
+  const scope = createScope({ capsules: [sink()] });
+  await scope.ready;
+
+  expect(scope.capsules[0]?.loaded).toEqual([
+    { unit: "sink.queue", role: "state", explain: "Holds spans until flush" },
+    { unit: "sink.flush", role: "worker", explain: "Waits for a stop" },
+  ]);
+  await scope.close();
+});

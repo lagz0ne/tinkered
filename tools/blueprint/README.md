@@ -114,6 +114,7 @@ ok: 2 nodes, 2 units, 0 findings
 An `extension` node is a Core capsule in source (Core ADR 0121).
 It reaches units through its hook event: `load`, `run`, or `settle`,
 on the event or destructured from it.
+Its `config` keys count too: they are the tags it reads.
 The YAML lists those units in `depends`:
 
 ```yaml

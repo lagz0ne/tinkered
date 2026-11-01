@@ -174,8 +174,16 @@ function dependsOf(
   kind: Blueprint.Node["kind"],
   access: ReadonlyMap<Callable, readonly string[]>,
 ): readonly string[] {
-  if (kind === "extension") return hookDepends(config, access);
-  const node = prop(config, "depends");
+  if (kind === "extension") {
+    return [...new Set([...entriesOf(src, config, "config"), ...hookDepends(config, access)])];
+  }
+  return entriesOf(src, config, "depends");
+}
+
+/** The roots of a `{ … }` property's values: a unit's `depends`, or a capsule's `config` keys,
+ * which are the tags it reads (Core ADR 0121). */
+function entriesOf(src: string, config: Expression, name: string): readonly string[] {
+  const node = prop(config, name);
   if (node?.type !== "ObjectExpression") return [];
   return node.properties
     .filter((property): property is ObjectProperty => property.type === "Property")

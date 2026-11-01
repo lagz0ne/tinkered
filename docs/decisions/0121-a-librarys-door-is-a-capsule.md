@@ -120,9 +120,10 @@ An event gains:
 
 - `config`: the config values, read once after
   the binding, with defaults filled.
-- `load(unit, meta)`: a resource answers a
-  promise of its value; a cell answers its
-  controller.
+- `load(unit, meta, options?)`: a resource
+  answers a promise of its value; a cell answers
+  its controller. `options.ns` reads the unit in
+  that namespace, as a run's `ns` does.
 - `run(op, options, meta)` and
   `settle(op, options, meta)`: the same options
   and result as `scope.run` / `scope.settle`, as
@@ -148,6 +149,12 @@ await run(migrate, {}, {
 - Call options (`input`, `rawInput`, `signal`,
   `ns`, `tags`) go on the run, never in the
   meta.
+- A sink capsule runs and loads its own units
+  in a namespace made with `observe: false`, so
+  the hose shows none of them. A `scope` target
+  resource builds with no namespace, so a sink
+  keeps its state in a `namespace` target one
+  (ADR 0119).
 
 ### 5. Reach
 

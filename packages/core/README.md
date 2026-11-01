@@ -214,7 +214,8 @@ Every event has `config`, `load`, `run`, and `settle`.
 None has `resolve`, `controller`, or `scope`.
 
 - `config`: the config values, read once after the binding, with defaults filled.
-- `load(unit, meta)`: a resource answers a promise of its value; a cell answers its controller.
+- `load(unit, meta, options?)`: a resource answers a promise of its value; a cell answers its
+  controller. `options.ns` reads it in that namespace; one made with `observe: false` is quiet.
 - `run(op, options, meta)`: what `scope.run` answers, as a promise. No controller is made.
 - `settle(op, options, meta)`: what `scope.settle` answers, as a promise.
 
