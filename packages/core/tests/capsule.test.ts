@@ -1520,6 +1520,59 @@ test("S1k two requests at the same tick each open a session from their run hook;
   await scope.close();
 });
 
+test("S1l a caller's options.trace wins over the hook's trace", async () => {
+  const remote = { traceId: "0af7651916cd43dd8448eb211c80319c", parentSpanId: "b7ad6b7169203331" };
+  const inner = operation({ label: "inner", run: () => "inner" });
+  const request = operation({ label: "request", run: () => "request" });
+  const probe = capsule({
+    label: "probe",
+    hooks: {
+      run: ({ op, next, session }) => {
+        if (op !== request) return next();
+
+        const own = session({ trace: remote }, handler);
+        own.run(inner);
+        return next();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [probe()], observe: { history: 20 } });
+  await scope.ready;
+
+  await Promise.resolve(scope.run(request));
+
+  const span = scope.spans().find((each) => each.name === "inner");
+  expect([span?.traceId, span?.parentSpanId]).toEqual([remote.traceId, remote.parentSpanId]);
+  await scope.close();
+});
+
+test("S1m with no options.ns a hook session reads through the hook's ns; a caller's options.ns wins", async () => {
+  const zone = tag({ label: "zone", default: "root" });
+  const east = namespace({ tags: zone("east") });
+  const west = namespace({ tags: zone("west") });
+  const request = operation({ label: "request", run: () => "request" });
+  const zones: unknown[] = [];
+  const probe = capsule({
+    label: "probe",
+    hooks: {
+      run: ({ op, next, session }) => {
+        if (op !== request) return next();
+
+        zones.push(session({}, handler).resolve(zone));
+        zones.push(session({ ns: west }, handler).resolve(zone));
+        return next();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [probe()] });
+  await scope.ready;
+
+  await Promise.resolve(scope.run(request, { ns: east }));
+
+  expect(zones).toEqual(["east", "west"]);
+  await scope.close();
+});
+
 test("S2b a left-out defaulted key reads its default in a hook and in a unit", async () => {
   const readFrom = operation({
     label: "mail.readFrom",
