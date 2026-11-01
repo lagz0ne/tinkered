@@ -4,7 +4,7 @@ import { expect, expectTypeOf, test } from "vite-plus/test";
 import {
   createScope,
   data,
-  extension,
+  capsule,
   namespace,
   operation,
   resource,
@@ -37,8 +37,8 @@ test("an already aborted call starts no body and leaves its caller alive", async
     run: () => events.push("body"),
   });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "calls",
         hooks: {
           run: (event) => {

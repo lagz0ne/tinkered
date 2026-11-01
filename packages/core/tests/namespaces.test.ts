@@ -3,7 +3,7 @@ import { expect, test } from "vite-plus/test";
 import {
   createScope,
   data,
-  extension,
+  capsule,
   isError,
   namespace,
   operation,
@@ -239,7 +239,7 @@ test("a tagged subflow inherits its named caller's namespace", async () => {
 });
 
 test("named calls keep the real layer lifecycle and extension registry", async () => {
-  const readyValue = extension({
+  const readyValue = capsule({
     label: "readyValue",
     hooks: {
       start: async () => 42,
@@ -260,7 +260,7 @@ test("named calls keep the real layer lifecycle and extension registry", async (
       }),
   });
 
-  const scope = createScope({ extensions: [readyValue] });
+  const scope = createScope({ capsules: [readyValue] });
   await scope.ready;
 
   expect(scope.run(readExtension, { ns: named })).toBe(42);
@@ -274,7 +274,7 @@ test("named calls keep the real layer lifecycle and extension registry", async (
 
 test("a tagged subflow in a named run uses session hooks", async () => {
   let sessions = 0;
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => {
@@ -291,7 +291,7 @@ test("a tagged subflow in a named run uses session hooks", async () => {
     run: ({ child }) => child.run({ tags: [marker(1)] }),
   });
 
-  const scope = createScope({ extensions: [spy] });
+  const scope = createScope({ capsules: [spy] });
   await scope.ready;
   expect(await scope.run(parent, { ns: namespace() })).toBe(1);
   expect(sessions).toBe(1);
@@ -299,7 +299,7 @@ test("a tagged subflow in a named run uses session hooks", async () => {
 });
 
 test("pass-through extensions preserve namespaces for writes and resolves", async () => {
-  const pass = extension({
+  const pass = capsule({
     label: "pass",
     hooks: {
       resolve: (event) => event.next(),
@@ -309,7 +309,7 @@ test("pass-through extensions preserve namespaces for writes and resolves", asyn
 
   const named = namespace();
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
-  const scope = createScope({ extensions: [pass] });
+  const scope = createScope({ capsules: [pass] });
   await scope.ready;
 
   const defaultSeen: number[] = [];

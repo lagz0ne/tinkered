@@ -4,7 +4,7 @@ import { expect, test } from "vite-plus/test";
 import {
   createScope,
   data,
-  extension,
+  capsule,
   isError,
   namespace,
   operation,
@@ -132,7 +132,7 @@ test("a closed leaf reads the initial value once every layer above it has closed
 
 test("a session hook reads its own held write after next", async () => {
   const seen: unknown[] = [];
-  const reader = extension({
+  const reader = capsule({
     label: "reader",
     hooks: {
       session: async (event) => {
@@ -142,7 +142,7 @@ test("a session hook reads its own held write after next", async () => {
       },
     },
   });
-  const root = createScope({ extensions: [reader] });
+  const root = createScope({ capsules: [reader] });
   const session = root.createSession();
   const held = session.controller(draft);
   held.set(4);
@@ -155,7 +155,7 @@ test("a session hook reads its own held write after next", async () => {
 
 test("a session hook reads an ancestor's write made after the session closed", async () => {
   const seen: unknown[] = [];
-  const reader = extension({
+  const reader = capsule({
     label: "reader",
     hooks: {
       session: async (event) => {
@@ -166,7 +166,7 @@ test("a session hook reads an ancestor's write made after the session closed", a
       },
     },
   });
-  const root = createScope({ extensions: [reader] });
+  const root = createScope({ capsules: [reader] });
   const session = root.createSession();
   const held = session.controller(draft);
 
@@ -246,7 +246,7 @@ test("a graceful withData close keeps what in-flight work wrote before it settle
 
 test("a session hook reads the session's cells and tags after next", async () => {
   const seen: unknown[] = [];
-  const reader = extension({
+  const reader = capsule({
     label: "reader",
     hooks: {
       session: async (event) => {
@@ -256,7 +256,7 @@ test("a session hook reads the session's cells and tags after next", async () =>
       },
     },
   });
-  const root = createScope({ extensions: [reader] });
+  const root = createScope({ capsules: [reader] });
   await root.session({ tags: [zone("eu")] }, (scope) => {
     scope.controller(draft).set(5);
   });
@@ -269,7 +269,7 @@ test("a session hook reads the cell in the namespace its resolve names after nex
   const alice = namespace();
   const bob = namespace();
   const seen: unknown[] = [];
-  const reader = extension({
+  const reader = capsule({
     label: "reader",
     hooks: {
       session: async (event) => {
@@ -283,7 +283,7 @@ test("a session hook reads the cell in the namespace its resolve names after nex
       },
     },
   });
-  const root = createScope({ extensions: [reader] });
+  const root = createScope({ capsules: [reader] });
   const session = root.createSession();
   session.controller(draft, { ns: alice }).set(3);
   session.controller(draft).set(4);
@@ -296,7 +296,7 @@ test("a session hook reads the cell in the namespace its resolve names after nex
 
 test("a session hook cannot write a cell or read a resource after next", async () => {
   const errors: unknown[] = [];
-  const reader = extension({
+  const reader = capsule({
     label: "reader",
     hooks: {
       session: async (event) => {
@@ -309,7 +309,7 @@ test("a session hook cannot write a cell or read a resource after next", async (
       },
     },
   });
-  const root = createScope({ extensions: [reader] });
+  const root = createScope({ capsules: [reader] });
   await root.session((scope) => scope.resolve(db));
 
   for (const error of errors) if (!isError(error, "Disposed")) throw error;
@@ -318,13 +318,13 @@ test("a session hook cannot write a cell or read a resource after next", async (
 });
 
 test("a hooked session's reads throw once its hooks return", async () => {
-  const reader = extension({
+  const reader = capsule({
     label: "reader",
     hooks: {
       session: async (event) => event.next(),
     },
   });
-  const root = createScope({ extensions: [reader] });
+  const root = createScope({ capsules: [reader] });
   const session = root.createSession();
   session.controller(draft).set(2);
 

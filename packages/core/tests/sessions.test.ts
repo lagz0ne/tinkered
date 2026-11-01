@@ -1,11 +1,11 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, extension, isError, operation, resource } from "@/index";
+import { createScope, capsule, isError, operation, resource } from "@/index";
 
 test("a session hook that throws before next still lets the body run and rethrows the hook error", async () => {
   const boom = new Error("sync-hook-boom");
   let ran = false;
-  const bad = extension({
+  const bad = capsule({
     label: "bad",
     hooks: {
       session: () => {
@@ -14,7 +14,7 @@ test("a session hook that throws before next still lets the body run and rethrow
     },
   });
 
-  const scope = createScope({ extensions: [bad] });
+  const scope = createScope({ capsules: [bad] });
   await scope.ready;
   const thrown = await scope
     .session(() => {
@@ -34,7 +34,7 @@ test("a session hook that throws before next still lets the body run and rethrow
 test("two session hooks see each ordered end in turn", async () => {
   const order: string[] = [];
   const track = (label: string) =>
-    extension({
+    capsule({
       label,
       hooks: {
         session: async (event) => {
@@ -45,7 +45,7 @@ test("two session hooks see each ordered end in turn", async () => {
       },
     });
 
-  const scope = createScope({ extensions: [track("one"), track("two")] });
+  const scope = createScope({ capsules: [track("one"), track("two")] });
   await scope.ready;
   await scope.session(() => 7);
 
@@ -220,7 +220,7 @@ test("a wrapped session body that throws sync still drains cleanups then reports
   const cause = new Error("wrapped-sync-boom");
   const cleanup = new Error("wrapped-cleanup-boom");
   const seen: string[] = [];
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => event.next(),
@@ -238,7 +238,7 @@ test("a wrapped session body that throws sync still drains cleanups then reports
     },
   });
 
-  const scope = createScope({ extensions: [spy] });
+  const scope = createScope({ capsules: [spy] });
   await scope.ready;
 
   const thrown = await scope
@@ -260,7 +260,7 @@ test("a wrapped session body that throws sync still drains cleanups then reports
 test("three session hooks nest in registration order", async () => {
   const order: string[] = [];
   const hook = (label: string) =>
-    extension({
+    capsule({
       label,
       hooks: {
         session: async (event) => {
@@ -272,7 +272,7 @@ test("three session hooks nest in registration order", async () => {
       },
     });
 
-  const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
+  const scope = createScope({ capsules: [hook("a"), hook("b"), hook("c")] });
   await scope.ready;
   await scope.session(() => 1);
 
@@ -282,7 +282,7 @@ test("three session hooks nest in registration order", async () => {
 
 test("a close hook sees the settled end", async () => {
   const seen: unknown[] = [];
-  const ext = extension({
+  const ext = capsule({
     label: "spy",
     hooks: {
       close: async (event) => {
@@ -293,7 +293,7 @@ test("a close hook sees the settled end", async () => {
     },
   });
 
-  const scope = createScope({ extensions: [ext] });
+  const scope = createScope({ capsules: [ext] });
   await scope.ready;
   await scope.close({ graceful: true });
 
@@ -301,13 +301,13 @@ test("a close hook sees the settled end", async () => {
 });
 
 test("a graceful close through hooks settles success", async () => {
-  const ext = extension({
+  const ext = capsule({
     label: "pass",
     hooks: {
       close: (event) => event.next(),
     },
   });
-  const scope = createScope({ extensions: [ext] });
+  const scope = createScope({ capsules: [ext] });
   await scope.ready;
   const result = await scope.close({ graceful: true });
   expect(result.status).toBe("success");
@@ -316,7 +316,7 @@ test("a graceful close through hooks settles success", async () => {
 test("a failing body with a failing cleanup reports both causes", async () => {
   const bodyCause = new Error("body-boom");
   const cleanup = new Error("cleanup-boom");
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => event.next(),
@@ -333,7 +333,7 @@ test("a failing body with a failing cleanup reports both causes", async () => {
     },
   });
 
-  const scope = createScope({ extensions: [spy] });
+  const scope = createScope({ capsules: [spy] });
   await scope.ready;
   const thrown = await scope
     .session((s) => {
@@ -351,14 +351,14 @@ test("a failing body with a failing cleanup reports both causes", async () => {
 });
 
 test("a session that ends cancelled rejects with its reason", async () => {
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => event.next(),
     },
   });
 
-  const scope = createScope({ extensions: [spy] });
+  const scope = createScope({ capsules: [spy] });
   await scope.ready;
   const child = scope.createSession();
 
@@ -369,7 +369,7 @@ test("a session that ends cancelled rejects with its reason", async () => {
 
 test("session hooks wrap sessions nested two deep", async () => {
   const order: string[] = [];
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => {
@@ -381,7 +381,7 @@ test("session hooks wrap sessions nested two deep", async () => {
     },
   });
 
-  const scope = createScope({ extensions: [spy] });
+  const scope = createScope({ capsules: [spy] });
   await scope.ready;
   await scope.session((s) => s.session(() => 1));
 
@@ -476,13 +476,13 @@ test("a wrapped session cut by a forced close rejects", async () => {
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => event.next(),
     },
   });
-  const scope = createScope({ extensions: [spy] });
+  const scope = createScope({ capsules: [spy] });
   await scope.ready;
 
   const running = scope.session(() => gate);
@@ -506,7 +506,7 @@ test("a wrapped session cut by a forced close rejects", async () => {
 
 test("a clean body with a failing cleanup still reports the cleanup", async () => {
   const cleanup = new Error("cleanup-boom");
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => event.next(),
@@ -523,7 +523,7 @@ test("a clean body with a failing cleanup still reports the cleanup", async () =
     },
   });
 
-  const scope = createScope({ extensions: [spy] });
+  const scope = createScope({ capsules: [spy] });
   await scope.ready;
   const thrown = await scope
     .session((s) => {

@@ -3,14 +3,17 @@ import { expect, test } from "vite-plus/test";
 import {
   createScope,
   data,
-  extension,
+  capsule,
   namespace,
   operation,
   originOf,
   resource,
   tag,
-  type Scope,
+  type Capsule,
 } from "@/index";
+
+/** The meta every hook in this file loads with: these tests read the context, not the record. */
+const meta = { role: "handler", explain: "Reads the hook's own context" } as const;
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
@@ -25,8 +28,8 @@ for (const wait of ["before", "after"]) {
     const gate = deferred();
     const events: string[] = [];
     const scope = createScope({
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "wait",
           hooks: {
             run: async (event) => {
@@ -67,8 +70,8 @@ for (const wait of ["before", "after"]) {
     const aborted = deferred();
     const events: string[] = [];
     const scope = createScope({
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "wait",
           hooks: {
             run: async (event) => {
@@ -98,54 +101,51 @@ for (const wait of ["before", "after"]) {
   });
 }
 
-for (const read of ["resolve", "controller"]) {
-  test(`a hook ${read} holds its resource through release and run cleanup`, async () => {
-    const gate = deferred();
-    const events: string[] = [];
-    const value = resource({
-      label: "held",
-      factory: (_deps, { defer }) => {
-        const state = { live: true };
-        defer(() => {
-          state.live = false;
-          events.push("released");
-        });
-        return state;
-      },
-    });
-    const scope = createScope({
-      extensions: [
-        extension({
-          label: "hold",
-          hooks: {
-            run: async (event) => {
-              const state =
-                read === "resolve" ? event.resolve(value) : event.controller(value).get();
-              event.defer(() => {
-                events.push(`defer:${state.live}`);
-              });
-              const result = event.next();
-              await gate.promise;
-              events.push(`hook:${state.live}`);
-
-              return result;
-            },
-          },
-        }),
-      ],
-    });
-    scope.resolve(value);
-
-    const running = Promise.resolve(scope.run(operation({ label: "task", run: () => 7 })));
-    scope.release(value);
-    gate.resolve();
-
-    expect(await running).toBe(7);
-    await scope.settled();
-    expect(events).toEqual(["hook:true", "defer:true", "released"]);
-    await scope.close();
+test("a hook load holds its resource through release and run cleanup", async () => {
+  const gate = deferred();
+  const events: string[] = [];
+  const value = resource({
+    label: "held",
+    factory: (_deps, { defer }) => {
+      const state = { live: true };
+      defer(() => {
+        state.live = false;
+        events.push("released");
+      });
+      return state;
+    },
   });
-}
+  const scope = createScope({
+    capsules: [
+      capsule({
+        label: "hold",
+        hooks: {
+          run: async (event) => {
+            const state = await event.load(value, meta);
+            event.defer(() => {
+              events.push(`defer:${state.live}`);
+            });
+            const result = event.next();
+            await gate.promise;
+            events.push(`hook:${state.live}`);
+
+            return result;
+          },
+        },
+      }),
+    ],
+  });
+  scope.resolve(value);
+
+  const running = Promise.resolve(scope.run(operation({ label: "task", run: () => 7 })));
+  scope.release(value);
+  gate.resolve();
+
+  expect(await running).toBe(7);
+  await scope.settled();
+  expect(events).toEqual(["hook:true", "defer:true", "released"]);
+  await scope.close();
+});
 
 test("run access follows the session owner and inherited or explicit namespace chain", async () => {
   const zone = tag({ label: "zone", default: "root" });
@@ -153,15 +153,17 @@ test("run access follows the session owner and inherited or explicit namespace c
   const west = namespace({ tags: zone("west") });
   const fallback = namespace();
   const count = data({ initial: 0 });
+  const readZone = operation({ label: "read zone", depends: { zone }, run: ({ zone }) => zone });
   const seen: unknown[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "write",
         hooks: {
           run: (event) => {
-            seen.push(event.ns, event.resolve(zone));
-            event.controller(count).update((n) => n + 1);
+            if (event.op === readZone) return event.next();
+            seen.push(event.ns, event.run(readZone, {}, meta));
+            event.load(count, meta).update((n) => n + 1);
             return event.next();
           },
         },
@@ -173,7 +175,7 @@ test("run access follows the session owner and inherited or explicit namespace c
 
   expect(session.run(task)).toBe(1);
   expect(session.run(task, { ns: [fallback, west] })).toBe(1);
-  expect(seen).toEqual([[east], "east", [fallback, west], "west"]);
+  expect(await Promise.all(seen)).toEqual([[east], "east", [fallback, west], "west"]);
 
   expect(session.resolve(count, { ns: east })).toBe(1);
   expect(session.resolve(count, { ns: fallback })).toBe(1);
@@ -185,24 +187,26 @@ test("run access follows the session owner and inherited or explicit namespace c
 test("tagged events use the actual child and fire each hook once", async () => {
   const zone = tag({ label: "zone", default: "root" });
   const cell = data({ initial: 0 });
-  const seen: string[] = [];
+  const readZone = operation({ label: "read zone", depends: { zone }, run: ({ zone }) => zone });
+  const seen: Promise<string>[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "child",
         hooks: {
           session: async (event) => {
-            seen.push(`session:${event.resolve(zone)}`);
+            seen.push(event.run(readZone, {}, meta).then((zone) => `session:${zone}`));
             event.defer(() => {
-              seen.push("session cleanup");
+              seen.push(Promise.resolve("session cleanup"));
             });
             return event.next();
           },
           run: (event) => {
-            seen.push(`run:${event.resolve(zone)}`);
-            event.controller(cell).set(9);
+            if (event.op === readZone) return event.next();
+            seen.push(event.run(readZone, {}, meta).then((zone) => `run:${zone}`));
+            event.load(cell, meta).set(9);
             event.defer(() => {
-              seen.push("run cleanup");
+              seen.push(Promise.resolve("run cleanup"));
             });
             return event.next();
           },
@@ -214,7 +218,12 @@ test("tagged events use the actual child and fire each hook once", async () => {
 
   expect(await scope.run(task, { tags: zone("child") })).toBe(9);
   expect(scope.resolve(cell)).toBe(0);
-  expect(seen).toEqual(["session:child", "run:child", "run cleanup", "session cleanup"]);
+  expect(await Promise.all(seen)).toEqual([
+    "session:child",
+    "run:child",
+    "run cleanup",
+    "session cleanup",
+  ]);
   await scope.close();
 });
 
@@ -222,23 +231,24 @@ test("write and resolve events bind access and cleanup to their owner", async ()
   const zone = tag({ label: "zone", default: "root" });
   const east = namespace({ tags: zone("east") });
   const input = data({ initial: 0 });
-  const seen: string[] = [];
+  const readZone = operation({ label: "read zone", depends: { zone }, run: ({ zone }) => zone });
+  const seen: Promise<string>[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "access",
         hooks: {
           write: (event) => {
-            seen.push(`write:${event.resolve(zone)}`);
+            seen.push(event.run(readZone, {}, meta).then((zone) => `write:${zone}`));
             event.defer(() => {
-              seen.push("write cleanup");
+              seen.push(Promise.resolve("write cleanup"));
             });
             event.next();
           },
           resolve: (event) => {
-            seen.push(`resolve:${event.resolve(zone)}`);
+            seen.push(event.run(readZone, {}, meta).then((zone) => `resolve:${zone}`));
             event.defer(() => {
-              seen.push("resolve cleanup");
+              seen.push(Promise.resolve("resolve cleanup"));
             });
             return event.next();
           },
@@ -254,9 +264,14 @@ test("write and resolve events bind access and cleanup to their owner", async ()
   expect(scope.resolve(input, { ns: east })).toBe(0);
   await session.close({ graceful: true });
 
-  expect(seen).toEqual(["write:east", "resolve:east", "write cleanup"]);
+  expect(await Promise.all(seen)).toEqual(["write:east", "resolve:east", "write cleanup"]);
   await scope.close({ graceful: true });
-  expect(seen).toEqual(["write:east", "resolve:east", "write cleanup", "resolve cleanup"]);
+  expect(await Promise.all(seen)).toEqual([
+    "write:east",
+    "resolve:east",
+    "write cleanup",
+    "resolve cleanup",
+  ]);
 });
 
 test("a write event reads another cell through its controller", async () => {
@@ -264,12 +279,12 @@ test("a write event reads another cell through its controller", async () => {
   const other = data({ label: "other", initial: 7 });
   const seen: unknown[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "read other",
         hooks: {
           write: (event) => {
-            seen.push(event.cell === written, event.controller(other).get());
+            seen.push(event.cell === written, event.load(other, meta).get());
             event.next();
           },
         },
@@ -288,22 +303,24 @@ test("a write event reads another cell through its controller", async () => {
 test("start and close events share only their own root resource", async () => {
   const state = resource({ label: "state", factory: () => ({ count: 0 }) });
   const seen: number[] = [];
-  const shared = extension({
+  const shared = capsule({
     label: "roots",
     hooks: {
       start: async (event) => {
-        event.resolve(state).count++;
+        expect("scope" in event).toBe(false);
+        (await event.load(state, meta)).count++;
         await event.next();
-        return event.scope.resolve(state);
+        return event.load(state, meta);
       },
       close: async (event) => {
-        seen.push(event.resolve(state).count);
+        expect("scope" in event).toBe(false);
+        seen.push((await event.load(state, meta)).count);
         return event.next();
       },
     },
   });
-  const a = createScope({ extensions: [shared] });
-  const b = createScope({ extensions: [shared] });
+  const a = createScope({ capsules: [shared] });
+  const b = createScope({ capsules: [shared] });
   await Promise.all([a.ready, b.ready]);
 
   a.resolve(shared).count = 2;
@@ -325,10 +342,12 @@ test("hook-started actions share the active trace and run cleanup", async () => 
     },
   });
   const outer = operation({ label: "outer", run: () => 3 });
+  const second = operation({ label: "inline", run: () => 4 });
+  const ran: Promise<number>[] = [];
   const scope = createScope({
     observe: { history: 10 },
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "trace",
         hooks: {
           run: (event) => {
@@ -338,8 +357,7 @@ test("hook-started actions share the active trace and run cleanup", async () => 
             });
             event.obs.event("hook");
 
-            expect(event.run(child)).toBe(2);
-            expect(event.run({ label: "inline", run: () => 4 })).toBe(4);
+            ran.push(event.run(child, {}, meta), event.run(second, {}, meta));
             const result = event.next();
             events.push("after body");
 
@@ -351,6 +369,7 @@ test("hook-started actions share the active trace and run cleanup", async () => 
   });
 
   expect(scope.run(outer)).toBe(3);
+  expect(await Promise.all(ran)).toEqual([2, 4]);
 
   const spans = scope.spans();
   const parent = spans.find((span) => span.name === "outer");
@@ -374,12 +393,12 @@ test("a dropped hook-started action keeps its failure on the owner", async () =>
   });
   const outer = operation({ label: "outer", run: () => 3 });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "drop",
         hooks: {
           run: (event) => {
-            if (event.op === outer) void event.run(child);
+            if (event.op === outer) void event.run(child, {}, meta);
             return event.next();
           },
         },
@@ -400,15 +419,14 @@ test("a hook can settle a child failure without failing its owner", async () => 
     },
   });
   const outer = operation({ label: "outer", run: () => 3 });
+  const settled: Promise<unknown>[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "settle",
         hooks: {
           run: (event) => {
-            if (event.op === outer) {
-              expect(event.settle(child)).toMatchObject({ status: "failed", error: cause });
-            }
+            if (event.op === outer) settled.push(event.settle(child, {}, meta));
             return event.next();
           },
         },
@@ -417,19 +435,20 @@ test("a hook can settle a child failure without failing its owner", async () => 
   });
 
   expect(scope.run(outer)).toBe(3);
+  expect(await Promise.all(settled)).toMatchObject([{ status: "failed", error: cause }]);
   expect(originOf(cause)?.path).toEqual(["child"]);
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });
 
 test("an event union narrows its payload by kind", async () => {
   const events: string[] = [];
-  const hook = (event: Scope.ExtensionEvent): unknown => {
+  const hook = (event: Capsule.Events[keyof Capsule.Events]): unknown => {
     if (event.kind === "run") events.push(event.op.label ?? "inline");
     if (event.kind === "resolve") events.push(event.target.label ?? "unnamed");
     return event.next();
   };
   const scope = createScope({
-    extensions: [extension({ label: "events", hooks: { run: hook, resolve: hook } })],
+    capsules: [capsule({ label: "events", hooks: { run: hook, resolve: hook } })],
   });
 
   expect(scope.run(operation({ label: "task", run: () => 3 }))).toBe(3);
@@ -445,14 +464,14 @@ test("saved controllers stay usable through a waiting hook and its graceful clea
   const child = operation({ label: "child", depends: { cell }, run: ({ cell }) => cell });
   const task = operation({ label: "task", run: () => 7 });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "continue",
         hooks: {
           run: async (event) => {
             if (event.op !== task) return event.next();
-            const counter = event.controller(cell);
-            const read = event.controller(child);
+            const counter = event.load(cell, meta);
+            const { run } = event;
             await gate.promise;
 
             const unwatch = counter.watch((value) => events.push(`watch:${value}`));
@@ -465,7 +484,7 @@ test("saved controllers stay usable through a waiting hook and its graceful clea
             counter.set(4);
             counter.update((value) => value + 1);
             events.push(`get:${counter.get()}`);
-            events.push(`child:${await Promise.resolve(read.run())}`);
+            events.push(`child:${await run(child, {}, meta)}`);
 
             return event.next();
           },
@@ -489,16 +508,16 @@ test("a saved operation settle returns cancellation when its waiting hook is for
   const child = operation({ label: "child", run: () => 3 });
   const task = operation({ label: "task", run: () => 7 });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "settle after abort",
         hooks: {
           run: async (event) => {
             if (event.op !== task) return event.next();
-            const controller = event.controller(child);
+            const { settle } = event;
             event.signal.addEventListener("abort", aborted.resolve, { once: true });
             await gate.promise;
-            return controller.settle();
+            return settle(child, {}, meta);
           },
         },
       }),
@@ -517,15 +536,15 @@ test("a saved operation settle returns cancellation when its waiting hook is for
 test("a saved operation settle returns failed Disposed after its hook ends", async () => {
   const child = operation({ label: "child", run: () => 3 });
   const task = operation({ label: "task", run: () => 7 });
-  const saved: Scope.OperationController<number, void>[] = [];
+  const saved: Capsule.Settle[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "settle after hook",
         hooks: {
           run: (event) => {
             if (event.op !== task) return event.next();
-            saved.push(event.controller(child));
+            saved.push(event.settle);
             return event.next();
           },
         },
@@ -535,8 +554,8 @@ test("a saved operation settle returns failed Disposed after its hook ends", asy
 
   scope.run(task);
 
-  const [controller] = saved;
-  expect(controller.settle()).toMatchObject({
+  const [settle] = saved;
+  expect(await settle(child, {}, meta)).toMatchObject({
     status: "failed",
     kind: "error",
     error: { kind: "Disposed" },
@@ -548,21 +567,21 @@ test("concurrent and repeated closes join the same root hook once", async () => 
   const gate = deferred();
   const state = resource({ label: "close state", factory: () => ({ closes: 0 }) });
   const seen: number[] = [];
-  const shared = extension({
+  const shared = capsule({
     label: "close once",
     hooks: {
       start: async (event) => {
-        event.resolve(state);
+        await event.load(state, meta);
         await event.next();
       },
       close: async (event) => {
-        seen.push(++event.resolve(state).closes);
+        seen.push(++(await event.load(state, meta)).closes);
         await gate.promise;
         return event.next();
       },
     },
   });
-  const a = createScope({ extensions: [shared] });
+  const a = createScope({ capsules: [shared] });
   await a.ready;
 
   const closing = a.close({ graceful: true });
@@ -570,7 +589,7 @@ test("concurrent and repeated closes join the same root hook once", async () => 
   gate.resolve();
 
   expect(await joined).toBe(await closing);
-  const b = createScope({ extensions: [shared] });
+  const b = createScope({ capsules: [shared] });
   await b.ready;
 
   expect(await a.close()).toBe(await closing);
@@ -583,8 +602,8 @@ test("a hook that returns a substitute still joins its started body", async () =
   const gate = deferred();
   const events: string[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "substitute",
         hooks: {
           run: (event) => {
@@ -646,8 +665,8 @@ test("a hook can refuse raw input before its parser runs", async () => {
     run: () => "body",
   });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "refuse",
         hooks: {
           run: (event) => {
@@ -665,8 +684,8 @@ test("a hook can refuse raw input before its parser runs", async () => {
 test("catching a body's panic in its hook does not erase the owned failure", async () => {
   const cause = new Error("body failed");
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "catch",
         hooks: {
           run: (event) => {
@@ -696,8 +715,8 @@ test("an unreturned body keeps its span open and records its failure", async () 
   const cause = new Error("body failed");
   const scope = createScope({
     observe: { history: 5 },
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "substitute",
         hooks: {
           run: (event) => {
@@ -727,8 +746,8 @@ test("an unreturned body keeps its span open and records its failure", async () 
 
 test("a saved event raise keeps one run in the failure path after next", async () => {
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "saved raise",
         hooks: {
           run: (event) => {

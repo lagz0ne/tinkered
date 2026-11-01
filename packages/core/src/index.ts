@@ -12,7 +12,7 @@ const operationSym: unique symbol = Symbol("operation");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
-const extensionSym: unique symbol = Symbol("extension");
+const capsuleSym: unique symbol = Symbol("capsule");
 const namespaceSym: unique symbol = Symbol("namespace");
 
 /** The type-only key an unfilled config marks itself with (ADR 0120). Declared, never written: it
@@ -91,6 +91,8 @@ export declare namespace Tag {
     readonly hasDefault: boolean;
     readonly def: T | undefined;
     readonly parse: Data.Parse<T> | undefined;
+    /** A secret's value never shows: a capsule record shows `"[hidden]"` (ADR 0120). */
+    readonly secret: boolean;
     eq(a: T, b: T): boolean;
     readonly required: Edge<"required", Handle<T>>;
     readonly optional: Edge<"optional", Handle<T>>;
@@ -484,14 +486,14 @@ export declare namespace Scope {
     | Operation.Handle<unknown, unknown>
     | Resource.Handle<unknown>
     | Tag.Handle<any>
-    | Extension<unknown>
+    | Capsule.Binding
     | Edge<"controller", Data.Cell<unknown> | Operation.Handle<unknown, unknown>>
     | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
   export type Depends = Readonly<Record<string, Dependency>>;
 
   /** Maps one declared dependency to the value delivered in `deps` — exact, no casts in userland.
    * A bare operation is a subflow (a callable controller); a bare resource is its built instance;
-   * a bare extension is its settled start value (ADR 0051: what `scope.resolve(ext)` returns). */
+   * a bare capsule is its settled start value (ADR 0051: what `scope.resolve(capsule)` returns). */
   export type SlotValue<D> =
     D extends Edge<"controller", infer N>
       ? N extends Data.Cell<infer T>
@@ -513,7 +515,7 @@ export declare namespace Scope {
                   ? OperationController<T, I>
                   : D extends Resource.Handle<infer T>
                     ? Awaited<T>
-                    : D extends Extension<infer T>
+                    : D extends Capsule.Binding<infer T>
                       ? T
                       : never;
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
@@ -542,88 +544,6 @@ export declare namespace Scope {
     readonly replacement: unknown;
   };
 
-  /** Bound access to the hook's owner and effective namespace. Run hooks share their run's
-   * trace, resource holds, cancellation, and defer lifetime. Other hooks defer to their session. */
-  export type ExtensionCtx = Resource.Ctx &
-    Pick<Handle, "resolve" | "controller" | "run" | "settle"> & {
-      readonly ns: readonly Namespace[] | undefined;
-    };
-
-  /** Each hook keeps one object as its input. `kind` narrows the payload and `next` result. */
-  export type ExtensionDetails = {
-    start: {
-      readonly kind: "start";
-      readonly scope: Handle;
-      readonly next: () => Promise<void>;
-      /** Adds a sink for records made after this call (ADR 0119). */
-      readonly tap: (config: Observe.Config) => void;
-    };
-    resolve: {
-      readonly kind: "resolve";
-      readonly target: Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>;
-      readonly next: () => unknown;
-    };
-    run: {
-      readonly kind: "run";
-      readonly op: Operation.Handle<unknown, unknown> | Inline<Depends, unknown, unknown>;
-      readonly call: Invocation<unknown> | undefined;
-      readonly next: () => unknown;
-    };
-    write: {
-      readonly kind: "write";
-      readonly cell: Data.Cell<unknown>;
-      readonly value: unknown;
-      readonly next: () => void;
-    };
-    close: {
-      readonly kind: "close";
-      /** The root whose close this hook observes. */
-      readonly scope: Handle;
-      readonly options: CloseOptions;
-      readonly next: () => Promise<Result>;
-    };
-    session: {
-      readonly kind: "session";
-      readonly handle: Handle;
-      readonly next: () => Promise<Result>;
-    };
-  };
-  export type ExtensionEvents = {
-    [K in keyof ExtensionDetails]: ExtensionCtx & ExtensionDetails[K];
-  };
-  export type ExtensionEvent = ExtensionEvents[keyof ExtensionEvents];
-  export type Hooks<T = unknown> = {
-    start?(event: ExtensionEvents["start"]): T | PromiseLike<T>;
-    resolve?(event: ExtensionEvents["resolve"]): unknown;
-    run?(event: ExtensionEvents["run"]): unknown;
-    write?(event: ExtensionEvents["write"]): void;
-    /** Observes the root's one close. Skipping `next` cannot skip cleanup; returns cannot
-     * replace Core's Result, and throws become teardown errors (ADR 0085). */
-    close?(event: ExtensionEvents["close"]): Promise<Result>;
-    session?(event: ExtensionEvents["session"]): Promise<Result>;
-  };
-
-  /** Middleware over the scope's verbs (ADR 0050): each hook is an onion layer with `next`. All
-   * run and write hooks follow child sessions and dependencies. Resolve hooks wrap direct root
-   * reads only; session, dependency, and event access bypass them. `session` (ADR 0051) is the
-   * sixth hook: it wraps a session's whole life — registration order, first is outermost.
-   * `next()` resolves with the session's close `Result` (whatever `closeLayer` produced; never
-   * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists,
-   * before any work in it; code after runs after the close settled. `next()` is an observation
-   * point, not a gate: the session runs and closes regardless of whether a hook calls it. Each
-   * level's return is that level's session result. Root-only in v1: installed on
-   * the root, applies to every session created under that root, including a session created under
-   * a session. A hook that does not call `next()` is an observer only: the session's own close
-   * still runs regardless (`next()` is the observation point, not a gate). Hooks must not throw:
-   * a throw skips the remaining inner hooks and, if `next()` was never called, the hook's own
-   * rejection stands in for the close `Result` — the session's close still ran, but the thrown
-   * error is what the caller sees (record a span; do not branch on the error). */
-  export type Extension<T = unknown> = {
-    readonly [extensionSym]: true;
-    readonly label: string;
-    readonly hooks?: Hooks<T>;
-  };
-
   /** One config entry: a tag, or a tag edge that says how the key is filled (ADR 0120). */
   export type ConfigEntry =
     | Tag.Handle<any>
@@ -648,19 +568,6 @@ export declare namespace Scope {
     [K in keyof C]: EntryNeeds<C[K]> extends true ? K : never;
   }[keyof C];
 
-  /** An extension that declares its config (ADR 0120). Call it to fill the config and get the
-   * extension the scope installs; it is an extension either way, so `resolve` and `depends` take
-   * it called or not. While a required key is unfilled it carries a marker no `extensions` list
-   * accepts, which is what turns a missing key into the compiler naming it. */
-  export type Configurable<T, C extends Config> = Extension<T> & {
-    readonly config: C;
-    (values: ConfigValues<C>): Extension<T>;
-  } & ([Unfilled<C>] extends [never] ? unknown : { readonly [unfilled]: Unfilled<C> });
-
-  /** What `extensions` installs: an extension, or a filled configurable one — an unfilled
-   * required key is refused by its marker. */
-  export type Startable = Extension<unknown> & { readonly [unfilled]?: never };
-
   export type Options = {
     tags?: Tag.Bindings;
     /** The ambient namespace (ADR 0059): every read and write inside resolves through it; a
@@ -675,9 +582,9 @@ export declare namespace Scope {
     clock?: Clock.Handle;
     /** The ambient randomness for this scope; child sessions inherit it. Default is the system source. */
     random?: Random.Handle;
-    /** Middleware installed on the root scope only (ADR 0050); sessions inherit the resolved values.
-     * A library's configurable extension is called to fill its config first (ADR 0120). */
-    extensions?: Many<Startable>;
+    /** The libraries this root installs (ADR 0120): each capsule is called to fill its config
+     * first. Their hooks are middleware on the root only (ADR 0050); sessions inherit them. */
+    capsules?: Many<Capsule.Installable>;
   };
 
   export type RootOptions = Options & {
@@ -767,9 +674,9 @@ export declare namespace Scope {
     resolve<T>(edge: Edge<"all", Tag.Handle<T>>, ns?: NsArg): T[];
     resolve<T>(edge: Edge<"optional", Tag.Handle<T>>, ns?: NsArg): Tag.Presence<T>;
     resolve<T>(edge: Edge<"required", Tag.Handle<T>>, ns?: NsArg): T;
-    /** Read what an extension's `start` returned (ADR 0050): available once that extension's start
-     * settled (`NotResolved` before, or when the extension is not installed on this scope). */
-    resolve<T>(ext: Extension<T>): T;
+    /** Read what a capsule's `start` returned (ADR 0050): available once that capsule's start
+     * settled (`NotResolved` before, or when the capsule is not installed on this scope). */
+    resolve<T>(capsule: Capsule.Binding<T>): T;
     /** Run an operation now — the everyday call; `controller(op).run(call)` is the long form.
      * Same `CallArgs`/`Invocation` rules as before (ADR 0022). A call carrying `tags` or `signal` opens a
      * child session for the run (ADR 0038): the run's value when that session ended in place, a
@@ -827,10 +734,162 @@ export declare namespace Scope {
      * ({@link CloseOptions}, ADR 0028). Always resolves to a {@link Result} describing the actual
      * settled state + any teardown errors — never throws (0027). */
     close(opts?: CloseOptions): Promise<Result>;
-    /** Wait for every extension's start. A failed start closes through the handle's close hooks
+    /** Wait for every capsule's start. A failed start closes through the handle's close hooks
      * and rejects with the start error only after cleanup ends (ADR 0085). A close already under
-     * way is joined. A scope with no extensions is ready at once. */
+     * way is joined. A scope with no capsules is ready at once. */
     readonly ready: Promise<void>;
+    /** What this scope knows about each installed capsule, in `capsules` order (ADR 0120). Live:
+     * a read shows the state now. Empty on a scope with no capsules. */
+    readonly capsules: readonly Capsule.Record[];
+  };
+}
+
+/** A library's door (ADR 0120): its config, its hooks, and the units it exports. */
+export declare namespace Capsule {
+  /** What a capsule holds a unit for: it runs once to make ready, runs on in the background,
+   * runs per call or request, or is a value the library holds. */
+  export type Role = "setup" | "worker" | "handler" | "state";
+
+  /** What a capsule says about one unit it loads. Devtools show it; nothing else reads it. */
+  export type Meta = { readonly role: Role; readonly explain: string };
+
+  /** The units a capsule exports, by the name a caller reads them under: `mail.enqueue`. */
+  export type Exports = {
+    readonly [name: string]: Operation.Handle<any, any> | Resource.Handle<any> | Data.Cell<any>;
+  };
+
+  /** The names an export may not take: the handle's own fields. */
+  export type Reserved = "label" | "config" | "hooks" | "exports";
+
+  /** A hook's `run` and `settle` options: those of `scope.run`, where an input-carrying operation
+   * must name `input` or `rawInput`. */
+  export type RunOptions<I> = [I] extends [void] ? Scope.Invocation<I> : Scope.ProvideInput<I>;
+
+  /** The config a hook reads: each key's value once bound, a tag's default filled, in the form a
+   * `depends` slot of that entry delivers. */
+  export type ConfigOf<C extends Scope.Config> = { readonly [K in keyof C]: Scope.SlotValue<C[K]> };
+
+  /** Read a resource's value, or a cell's controller, the way the hook's own context reaches it. */
+  export type Load = {
+    <V>(unit: Resource.Handle<V>, meta: Meta): Promise<Awaited<V>>;
+    <V>(unit: Data.Cell<V>, meta: Meta): Scope.DataController<V>;
+  };
+
+  /** Run an operation the way `scope.run` does, from the hook's own context. */
+  export type Run = <O, I>(
+    op: Operation.Handle<O, I>,
+    options: RunOptions<I>,
+    meta: Meta,
+  ) => Promise<Awaited<O>>;
+
+  /** Settle an operation the way `scope.settle` does, from the hook's own context. */
+  export type Settle = <O, I>(
+    op: Operation.Handle<O, I>,
+    options: RunOptions<I>,
+    meta: Meta,
+  ) => Promise<RunResult<Awaited<O>>>;
+
+  /** What every hook event holds: the hook's own owner, namespace, trace, signal, and lifetime.
+   * `load`, `run`, and `settle` reach units through it; a request's controller never serves
+   * another request. */
+  export type Ctx<C extends Scope.Config = Scope.Config> = Resource.Ctx & {
+    readonly config: ConfigOf<C>;
+    readonly load: Load;
+    readonly run: Run;
+    readonly settle: Settle;
+  };
+
+  /** Each hook keeps one object as its input. `kind` narrows the payload and `next` result. */
+  export type Details = {
+    start: {
+      readonly kind: "start";
+      readonly next: () => Promise<void>;
+      /** Adds a sink for records made after this call (ADR 0119). */
+      readonly tap: (config: Observe.Config) => void;
+    };
+    resolve: {
+      readonly kind: "resolve";
+      readonly target: Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>;
+      readonly next: () => unknown;
+    };
+    run: {
+      readonly kind: "run";
+      readonly op:
+        | Operation.Handle<unknown, unknown>
+        | Scope.Inline<Scope.Depends, unknown, unknown>;
+      readonly call: Scope.Invocation<unknown> | undefined;
+      readonly next: () => unknown;
+    };
+    write: {
+      readonly kind: "write";
+      readonly cell: Data.Cell<unknown>;
+      readonly value: unknown;
+      readonly next: () => void;
+    };
+    close: {
+      readonly kind: "close";
+      readonly options: Scope.CloseOptions;
+      readonly next: () => Promise<Scope.Result>;
+    };
+    session: {
+      readonly kind: "session";
+      readonly handle: Scope.Handle;
+      readonly next: () => Promise<Scope.Result>;
+    };
+  };
+
+  export type Events<C extends Scope.Config = Scope.Config> = {
+    [K in keyof Details]: Ctx<C> & Details[K];
+  };
+
+  /** The six hooks (ADR 0050, 0051). `start` runs once, in `capsules` order, and its value is the
+   * capsule's start value. `close` runs once at the root's close, in reverse order; skipping
+   * `next` cannot skip cleanup, returns cannot replace Core's Result, and throws become teardown
+   * errors (ADR 0085). `resolve`, `run`, `write`, and `session` are onion middleware: install
+   * order, first is outermost. `session` wraps a session's whole life: `next()` resolves with
+   * its close `Result` and never rejects (ADR 0027); it is an observation point, not a gate. */
+  export type Hooks<T = unknown, C extends Scope.Config = Scope.Config> = {
+    start?(event: Events<C>["start"]): T | PromiseLike<T>;
+    resolve?(event: Events<C>["resolve"]): unknown;
+    run?(event: Events<C>["run"]): unknown;
+    write?(event: Events<C>["write"]): void;
+    close?(event: Events<C>["close"]): Promise<Scope.Result>;
+    session?(event: Events<C>["session"]): Promise<Scope.Result>;
+  };
+
+  /** What a capsule call returns and a scope installs: the label, the hooks, and the exports. */
+  export type Binding<T = unknown, E = unknown> = {
+    readonly [capsuleSym]: true;
+    readonly label: string;
+    readonly hooks: Hooks<T>;
+  } & E;
+
+  /** A capsule's call arguments: optional only when no key is required. */
+  export type Args<C extends Scope.Config> = [Scope.Unfilled<C>] extends [never]
+    ? [values?: Scope.ConfigValues<C>]
+    : [values: Scope.ConfigValues<C>];
+
+  /** What `capsule()` returns: a binding itself, and a function that fills the config. While a
+   * required key is unfilled it carries a marker no `capsules` list accepts, which is what turns a
+   * missing key into the compiler naming it. */
+  export type Handle<C extends Scope.Config, E, T> = Binding<T, E> & {
+    readonly config: C;
+    (...values: Args<C>): Binding<T, E>;
+  } & ([Scope.Unfilled<C>] extends [never] ? unknown : { readonly [unfilled]: Scope.Unfilled<C> });
+
+  /** What `capsules` installs: a binding; an unfilled required key is refused by its marker. */
+  export type Installable = Binding & { readonly [unfilled]?: never };
+
+  /** One unit a capsule loaded, with the meta of its first load. A unit shows its label. */
+  export type Loaded = { readonly unit: string; readonly role: Role; readonly explain: string };
+
+  /** What a scope knows about one installed capsule. A `secret` tag's value shows `"[hidden]"`;
+   * a unit shows its label. No run status: runs and failures are spans. */
+  export type Record = {
+    readonly label: string;
+    readonly config: { readonly [key: string]: unknown };
+    readonly exports: readonly string[];
+    readonly loaded: readonly Loaded[];
   };
 }
 
@@ -849,8 +908,8 @@ const isTag = (n: unknown): n is Tag.Handle<unknown> =>
 const isEdge = (n: unknown): n is Edge<string, unknown> =>
   (n as { [edge]?: true } | null | undefined)?.[edge] === true;
 
-const isExtension = (n: unknown): n is Scope.Extension<unknown> =>
-  (n as { [extensionSym]?: true } | null | undefined)?.[extensionSym] === true;
+const isCapsule = (n: unknown): n is Capsule.Binding =>
+  (n as { [capsuleSym]?: true } | null | undefined)?.[capsuleSym] === true;
 
 const isThenable = (v: unknown): v is PromiseLike<unknown> =>
   !!v &&
@@ -863,28 +922,29 @@ const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
   target,
 });
 
-/** Declare an extension: its label and its hooks. A library that reads tags declares them as its
- * `config`, and the command fills them by calling the extension (ADR 0120). */
-export function extension<const C extends Scope.Config, T = void>(config: {
-  readonly label: string;
-  readonly config: C;
-  readonly hooks?: Scope.Hooks<T>;
-}): Scope.Configurable<T, C>;
-
-export function extension<T = void>(config: {
-  readonly label: string;
-  readonly hooks?: Scope.Hooks<T>;
-}): Scope.Extension<T>;
-
-export function extension<T = void>(config: {
-  readonly label: string;
-  readonly config?: Scope.Config;
-  readonly hooks?: Scope.Hooks<T>;
-}): Scope.Extension<T> {
-  const keys = config.config;
-  if (keys === undefined) return { ...config, [extensionSym]: true as const };
-  return configurableExtension(config.label, keys, config.hooks);
+/** Declare a capsule (ADR 0120): a library's door. Its `config` names the tags the library
+ * reads, and the command fills them by calling the capsule; its `exports` are the units others
+ * use, copied onto the handle and every binding; its `hooks` run on the root that installs it.
+ * An export under a reserved name raises `ReservedExport`. */
+export function capsule<
+  const C extends Scope.Config = {},
+  const E extends Capsule.Exports = {},
+  T = void,
+>(
+  def: {
+    readonly label: string;
+    readonly config?: C;
+    readonly exports?: E;
+    readonly hooks?: Capsule.Hooks<T, C>;
+  } & ReservedCheck<E>,
+): Capsule.Handle<C, E, T> {
+  return Capsules.handle(def) as Capsule.Handle<C, E, T>;
 }
+
+/** Refuses, in the type, an export under a name the handle keeps for itself. */
+type ReservedCheck<E> = [Extract<keyof E, Capsule.Reserved>] extends [never]
+  ? unknown
+  : { readonly exports: { readonly [K in Extract<keyof E, Capsule.Reserved>]: never } };
 
 /** Run a parser on a raw value: a function's return, or a schema's validated value. A schema's
  * issues raise `SchemaRejected { issues }`; a schema that answers with a promise raises
@@ -966,7 +1026,9 @@ export function data<T>(config: {
     initial: admit(label, config.parse, config.initial),
     parse: config.parse,
     eq: config.eq ?? Object.is,
-  } as Data.Cell<T>;
+    capsule: undefined,
+    passed: undefined,
+  } as Data.Cell<T> & Exported;
   return Object.assign(base, { controller: edgeTo("controller", base) });
 }
 
@@ -976,12 +1038,14 @@ export function tag<T>(config: {
   default: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
+  secret?: true;
 }): Tag.Defaulted<T>;
 
 export function tag<T>(config: {
   label: string;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
+  secret?: true;
 }): Tag.Handle<T>;
 
 export function tag<T>(config: {
@@ -989,6 +1053,7 @@ export function tag<T>(config: {
   default?: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
+  secret?: true;
 }): Tag.Handle<T> {
   const parser = config.parse;
   const label = config.label;
@@ -1002,6 +1067,7 @@ export function tag<T>(config: {
     hasDefault: "default" in config,
     def: config.default,
     parse: parser,
+    secret: config.secret === true,
     eq: config.eq ?? Object.is,
   }) as Tag.Handle<T>;
   return Object.assign(handle, {
@@ -1063,10 +1129,13 @@ export function operation<
     input: config.input,
     depends: config.depends ?? {},
     run: config.run as Operation.Handle<R, I>["run"],
-  } as Operation.Handle<R, I> & {
-    controller: Operation.Handle<R, I>["controller"];
-    borrows: boolean;
-  };
+    capsule: undefined,
+    passed: undefined,
+  } as Operation.Handle<R, I> &
+    Exported & {
+      controller: Operation.Handle<R, I>["controller"];
+      borrows: boolean;
+    };
 
   const controller = edgeTo("controller", base);
   const borrows = seesResource(base.depends);
@@ -1099,7 +1168,9 @@ export function resource<
     target: config.target ?? "scope",
     depends,
     factory: config.factory as Resource.Handle<T>["factory"],
-  } as Resource.Handle<T>;
+    capsule: undefined,
+    passed: undefined,
+  } as Resource.Handle<T> & Exported;
 }
 
 type HookFlag = { readonly mayHook?: boolean };
@@ -1237,7 +1308,7 @@ function signalOf(layer: Layer): AbortSignal {
  * that declare that hook, or undefined when none does. One record per root, shared by every layer
  * under it, so a session reads its route from its parent instead of walking to the root. */
 type ExtRoutes = {
-  [K in keyof Scope.Hooks<unknown>]: Scope.Extension<unknown>[] | undefined;
+  [K in keyof Capsule.Hooks]: Capsule.Binding[] | undefined;
 };
 
 const NO_EXTS: ExtRoutes = {
@@ -1320,7 +1391,21 @@ type Layer = {
   exts: ExtRoutes;
 } & ({ lazy?: false; up: Layer | undefined } | { lazy: true; up: Layer });
 
-type ExtRec = { settled: boolean; value: unknown };
+/** One installed capsule on its root: its start value, its config as hooks read it, its line of
+ * `scope.capsules`, and the units that line already names. */
+type ExtRec = {
+  settled: boolean;
+  value: unknown;
+  config: Readonly<Record<string, unknown>>;
+  line: {
+    label: string;
+    config: Readonly<Record<string, unknown>>;
+    exports: readonly string[];
+    loaded: Capsule.Loaded[];
+  };
+  seen: Set<object>;
+};
+
 const EXTENSIONS = new WeakMap<Layer, Map<object, ExtRec>>();
 
 /** A session under the root's `session` hooks (ADR 0051, 0069), off the Layer record: registered
@@ -1805,7 +1890,7 @@ function resolveDep(
   if (isTag(dep)) return tagRequired(layer, dep, chain);
   if (isOperation(dep)) return operationController(layer, dep, up, chain, caller);
   if (isResource(dep)) return resourceSlot(layer, dep, up, chain);
-  if (isExtension(dep)) return resolveExtension(layer, dep);
+  if (isCapsule(dep)) return resolveCapsule(layer, dep);
 
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
@@ -1916,10 +2001,11 @@ function openSpan(
   name: string,
   kind: Observe.Kind,
   chain?: readonly Namespace[],
+  unit?: object,
 ): SpanImpl | undefined {
   if (!obs.on) return undefined;
   if (chain?.[0]?.observe === false) return undefined;
-  return new SpanImpl(obs, layer, up, name, kind);
+  return Capsules.mark(new SpanImpl(obs, layer, up, name, kind), unit);
 }
 
 /** Bits are drawn at open. Text is made only on read; children share the trace cache.
@@ -2157,7 +2243,8 @@ function makeLogger(obs: Obs, span?: SpanImpl, extension?: string): Observe.Logg
         time: obs.clock(),
         level,
         message,
-        attributes: extension === undefined ? (attributes ?? {}) : { ...attributes, extension },
+        attributes:
+          extension === undefined ? (attributes ?? {}) : { ...attributes, capsule: extension },
         span,
       }),
     );
@@ -2828,6 +2915,7 @@ function runOnce<T, I>(
   replay: Replay,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
+  Capsules.check(layer, target);
   if (call !== undefined) {
     if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
     if (call.ns !== undefined) {
@@ -2843,7 +2931,7 @@ function runOnce<T, I>(
 
   ensureRunning(layer, caller);
   const obs = layer.obs;
-  const span = openSpan(obs, layer, up, target.label, "operation", chain);
+  const span = openSpan(obs, layer, up, target.label, "operation", chain, target);
   const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
 
   /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
@@ -3190,7 +3278,7 @@ function emptyCtxFor(owner: Layer, chain: readonly Namespace[] | undefined): Res
 
 /** Read what an extension's `start` returned: the root layer holds one record per installed
  * extension, so a session walks up (ADR 0050). Unsettled or not installed is `NotResolved`. */
-function resolveExtension(layer: Layer, ext: Scope.Extension<unknown>): unknown {
+function resolveCapsule(layer: Layer, ext: Capsule.Binding): unknown {
   for (let current: Layer | undefined = layer; current !== undefined; current = current.up) {
     const rec = EXTENSIONS.get(current)?.get(ext);
     if (rec !== undefined) {
@@ -3411,7 +3499,7 @@ function buildHooklessResource<T>(
 ): unknown {
   const gen = rec.gen;
   const obs = owner.obs;
-  const span = openSpan(obs, caller, up, target.label, "resource", chain);
+  const span = openSpan(obs, caller, up, target.label, "resource", chain, target);
 
   rec.busy = true;
   buildDepth++;
@@ -3448,6 +3536,7 @@ function buildResource<T>(
   resolveDeps: typeof resolveResourceDeps = resolveResourceDeps,
 ): unknown {
   if (rec.busy) raise("CircularResource", { label: target.label });
+  Capsules.check(owner, target);
   if (
     (target as HookFlag).mayHook === false &&
     rec.owned === undefined &&
@@ -3470,7 +3559,7 @@ function buildTrackedResource<T>(
   let owned: ResourceInstance | undefined;
   const gen = rec.gen;
   const obs = owner.obs;
-  const span = openSpan(obs, caller, up, target.label, "resource", chain);
+  const span = openSpan(obs, caller, up, target.label, "resource", chain, target);
 
   rec.busy = true;
   let settled = false;
@@ -4529,7 +4618,7 @@ function resolveNs(
   if (isData(target)) return readCell(layer, target, chain);
   if (isResource(target)) return resourceController(layer, target, undefined, chain).resolve();
   if (isEdge(target)) return resolveEdge(layer, target, undefined, chain);
-  if (isExtension(target)) return resolveExtension(layer, target);
+  if (isCapsule(target)) return resolveCapsule(layer, target);
   return tagRequired(layer, target as Tag.Handle<unknown>, chain);
 }
 
@@ -4597,6 +4686,7 @@ class ScopeHandle implements Scope.Handle {
     const s = nodeState(layer, target);
     if (s.controller) return s.controller;
 
+    Capsules.check(layer, target);
     const ctl = isData(target)
       ? dataController(layer, target)
       : isResource(target)
@@ -4637,24 +4727,24 @@ class ScopeHandle implements Scope.Handle {
   resolve<T>(edge: Edge<"required", Tag.Handle<T>>, ns?: Scope.NsArg): T;
   /** Read what an extension's `start` returned (ADR 0050): available once that extension's start
    * settled (`NotResolved` before, or when the extension is not installed on this scope). */
-  resolve<T>(ext: Scope.Extension<T>): T;
+  resolve<T>(ext: Capsule.Binding<T>): T;
   resolve(
     target:
       | Data.Cell<unknown>
       | Resource.Handle<unknown>
       | Tag.Handle<unknown>
       | Edge<string, Tag.Handle<unknown>>
-      | Scope.Extension<unknown>,
+      | Capsule.Binding,
     ns?: Scope.NsArg,
   ): unknown {
     const layer = this.layer;
     if (layer.closed) return resolveHeld(layer, target, ns);
     if (ns?.ns !== undefined) return resolveNs(layer, target, nsChainOf(ns.ns));
 
-    if (isData(target)) return readCell(layer, target);
+    if (isData(target)) return readCell(layer, Capsules.check(layer, target));
     if (isResource(target)) return resolveResource(layer, target);
     if (isEdge(target)) return resolveEdge(layer, target, undefined);
-    if (isExtension(target)) return resolveExtension(layer, target);
+    if (isCapsule(target)) return resolveCapsule(layer, target);
 
     return tagRequired(layer, target as Tag.Handle<unknown>);
   }
@@ -4739,6 +4829,9 @@ class ScopeHandle implements Scope.Handle {
   spans(): readonly Observe.Span[] {
     return this.layer.obs.history.slice();
   }
+  get capsules(): readonly Capsule.Record[] {
+    return Capsules.linesOf(this.layer);
+  }
   onClose(fn: () => void | PromiseLike<void>): void {
     ensureOpen(this.layer);
     addDefer(this.layer, { fn: () => fn(), owned: undefined });
@@ -4760,10 +4853,10 @@ export function createScope(
 export function createScope(options?: Scope.RootOptions): Scope.Handle;
 
 export function createScope(options?: Scope.RootOptions): Scope.Handle {
-  const { startTimeout = 10_000, extensions, signal } = options ?? {};
+  const { startTimeout = 10_000, capsules, signal } = options ?? {};
   if (!(startTimeout >= 0)) raise("BadStartTimeout", { timeout: startTimeout });
 
-  const exts = readMany(extensions);
+  const exts = readMany(capsules);
   /** The config bindings a declared config mints; none at all for a scope without one, which
    * then reads its options exactly as before (ADR 0120). */
   const wired = bindConfig(exts);
@@ -4969,7 +5062,7 @@ function expandFrame(frame: Layer, up: Layer): void {
  * data cell or a tag reads as it did before the close. A data cell reads the cells above it, never
  * a memo (see {@link dataController}). Anything else throws `Disposed`. */
 function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
-  if (SESSION_HOOKS.get(layer)?.state !== 1 || isResource(target) || isExtension(target)) {
+  if (SESSION_HOOKS.get(layer)?.state !== 1 || isResource(target) || isCapsule(target)) {
     raise("Disposed", { reason: "scope is closed" });
   }
   const chain = ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns);
@@ -4978,13 +5071,13 @@ function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined)
     : resolveNs(layer, target, chain);
 }
 
-/** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
- * start-value record per installed extension, override `close` with the close chain, add `ready`,
- * then kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
+/** Wrap a plain root handle with the capsules' plumbing (ADR 0050, 0120): store one record per
+ * installed capsule, override `close` with the close chain (reverse order), add `ready`, then
+ * kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
 function extendHandle(
   layer: Layer,
   plain: Scope.Handle,
-  exts: readonly Scope.Extension<unknown>[],
+  exts: readonly Capsule.Binding[],
   signal: AbortSignal | undefined,
   startTimeout: number,
 ): Scope.Handle {
@@ -4992,10 +5085,17 @@ function extendHandle(
     layer.obs = makeObs(undefined, layer.clock);
   }
 
-  EXTENSIONS.set(layer, extensionRecords(exts));
+  const records = Capsules.records(plain, exts);
+  EXTENSIONS.set(layer, records);
+  Capsules.lines.set(
+    layer,
+    exts.map((ext) => records.get(ext)!.line),
+  );
 
   layer.exts = readExtRoutes(exts);
-  const { close: closers = [], resolve: resolvers, session } = layer.exts;
+  Capsules.installed.set(layer.exts, new Set(exts.map((ext) => Capsules.wired.get(ext)!.of)));
+  const { close: closing = [], resolve: resolvers, session } = layer.exts;
+  const closers = closing.toReversed();
 
   let settleReady!: () => void;
   let failReady!: (error: unknown) => void;
@@ -5511,7 +5611,7 @@ function appendBindings(
  * the hook's error wins. The life runs at most once per session no matter how many hooks call
  * `next()` (`ensure` memo). */
 function sessionThrough(
-  session: readonly Scope.Extension<unknown>[],
+  session: readonly Capsule.Binding[],
   handle: Scope.Handle,
   owner: Layer,
   run: () => Promise<{ result: unknown; ended: Scope.Result }>,
@@ -5529,7 +5629,7 @@ function sessionThrough(
 
     let outcome: Promise<Scope.Result>;
     try {
-      outcome = ext.hooks!.session!(new SessionEvent(owner, ext.label, handle, next));
+      outcome = ext.hooks!.session!(new SessionEvent(owner, ext, handle, next));
     } catch (error) {
       const done = inner ?? ensure();
       ignoreRejection(done);
@@ -5592,7 +5692,7 @@ function runStartChain(
     return;
   }
 
-  const pending = new Set<Scope.Extension<unknown>>();
+  const pending = new Set<Capsule.Binding>();
   /** A first tap stays direct; only another tap creates the fan-out. */
   const tap = (config: Observe.Config): void => {
     if (!lifetime.stopStart) raise("LateTap", {});
@@ -5628,17 +5728,18 @@ function runStartChain(
   const at = async (index: number): Promise<void> => {
     if (index >= starters.length) return;
     const ext = starters[index];
+    let inner: Promise<void> | undefined;
+    const next = (): Promise<void> => (inner ??= at(index + 1));
 
     pending.add(ext);
     try {
       const rec = EXTENSIONS.get(layer)!.get(ext)!;
-      rec.value = await ext.hooks!.start!(
-        hookEvent({ kind: "start", scope, next: () => at(index + 1), tap }, layer, ext.label),
-      );
+      rec.value = await ext.hooks.start!(hookEvent({ kind: "start", next, tap }, layer, ext));
       rec.settled = true;
     } finally {
       pending.delete(ext);
     }
+    if (inner === undefined) await next();
   };
   const stop = new AbortController();
   const claim = (): boolean => {
@@ -5686,22 +5787,24 @@ function runStartChain(
 }
 
 /** Run access uses the run's trace and borrow set. Other hooks own their cleanup at their
- * session; root start and close use the root. Reads bypass the root-only resolve onion. */
-class ExtensionCtx implements Scope.ExtensionCtx {
+ * session; root start and close use the root. Reads bypass the root-only resolve onion. `load`,
+ * `run`, and `settle` reach units from this context only (ADR 0120). */
+class HookCtx implements Capsule.Ctx {
   declare readonly label: string;
   declare readonly ns: readonly Namespace[] | undefined;
-  declare private layer: Layer;
+  declare protected layer: Layer;
+  declare private ext: Capsule.Binding;
   declare private flight: HookRun | undefined;
-  declare private resolver: Scope.Handle["resolve"] | undefined;
-  declare private control: Scope.Handle["controller"] | undefined;
-  declare private runner: Scope.Handle["run"] | undefined;
-  declare private settles: Scope.Handle["settle"] | undefined;
+  declare private loader: Capsule.Load | undefined;
+  declare private runner: Capsule.Run | undefined;
+  declare private settles: Capsule.Settle | undefined;
   declare private clean: Resource.Ctx["defer"] | undefined;
   declare private raiser: Resource.Ctx["raise"] | undefined;
   declare private logs: Observe.Logger | undefined;
-  constructor(owner: Layer, label: string, chain = owner.ns, run?: HookRun) {
+  constructor(owner: Layer, ext: Capsule.Binding, chain = owner.ns, run?: HookRun) {
     this.layer = owner;
-    this.label = label;
+    this.ext = ext;
+    this.label = ext.label;
     this.ns = chain;
     this.flight = run;
   }
@@ -5711,6 +5814,9 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   }
   get random(): Random.Handle {
     return this.layer.random;
+  }
+  get config(): Capsule.ConfigOf<Scope.Config> {
+    return Capsules.recordOf(this.layer, this.ext).config as Capsule.ConfigOf<Scope.Config>;
   }
   /** Hook tools can precede input parsing. Only `next()` admits the input; both contexts share
    * the same span and ordered cleanup list once a body starts. */
@@ -5728,36 +5834,37 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   private use<T>(fn: () => T): T {
     return this.flight === undefined ? fn() : withHookAccess(this.flight, fn);
   }
-  get resolve(): Scope.Handle["resolve"] {
-    return (this.resolver ??= ((target: Scope.Dependency, ns?: Scope.NsArg): unknown =>
-      this.use(() => {
-        const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-        if (this.layer.closed && this.flight === undefined) {
-          return resolveHeld(this.layer, target, chain === undefined ? undefined : { ns: chain });
-        }
-        if (isResource(target)) return this.resource(target, chain).resolve();
-        return resolveNs(this.layer, target, chain);
-      })) as Scope.Handle["resolve"]);
+  get load(): Capsule.Load {
+    return (this.loader ??= ((
+      unit: Resource.Handle<unknown> | Data.Cell<unknown>,
+      meta: Capsule.Meta,
+    ): unknown => {
+      if (isData(unit)) {
+        const controller = this.use(() => this.cellControl(unit));
+        Capsules.note(this.layer, this.ext, unit, meta);
+        return controller;
+      }
+      try {
+        const value = this.use(() => this.readResource(unit));
+        Capsules.note(this.layer, this.ext, unit, meta);
+        return Promise.resolve(value);
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    }) as Capsule.Load);
   }
-  get controller(): Scope.Handle["controller"] {
-    return (this.control ??= ((
-      target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
-      ns?: Scope.NsArg,
-    ): unknown =>
-      this.use(() => {
-        ensureOpen(this.layer);
-        const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-        if (isData(target)) return this.cellControl(target, chain);
-        if (isResource(target)) return this.resource(target, chain);
-        return this.operation(target, chain);
-      })) as Scope.Handle["controller"]);
+  /** A resource's value as this hook reaches it: built on first read, held for a run's life. */
+  protected readResource(target: Resource.Handle<unknown>): unknown {
+    if (this.layer.closed && this.flight === undefined) {
+      return resolveHeld(this.layer, target, undefined);
+    }
+    return this.resource(target, this.ns).resolve();
   }
   /** Not named `cell`: a write event's own `cell` field would hide it. */
-  private cellControl(
-    target: Data.Cell<unknown>,
-    chain: readonly Namespace[] | undefined,
-  ): Scope.DataController<unknown> {
-    const controller = dataController(this.layer, target, chain);
+  private cellControl(target: Data.Cell<unknown>): Scope.DataController<unknown> {
+    ensureOpen(this.layer);
+    Capsules.check(this.layer, target);
+    const controller = dataController(this.layer, target, this.ns);
     if (this.flight === undefined) return controller;
     return {
       get: () => this.use(() => controller.get()),
@@ -5797,67 +5904,46 @@ class ExtensionCtx implements Scope.ExtensionCtx {
         }),
     };
   }
-  private operation(
-    target: Operation.Handle<unknown, unknown>,
-    chain: readonly Namespace[] | undefined,
-  ): unknown {
-    const controller = operationController(
-      this.layer,
-      target,
-      this.flight?.span,
-      chain,
-      this.ctx,
-    ) as {
-      run(call?: Scope.Invocation<unknown>): unknown;
-      settle(call?: Scope.Invocation<unknown>): unknown;
-    };
-    if (this.flight === undefined) return controller;
-    return {
-      run: (call?: Scope.Invocation<unknown>) => this.use(() => controller.run(call)),
-      settle: (call?: Scope.Invocation<unknown>) => {
-        try {
-          return this.use(() => controller.settle(call));
-        } catch (error) {
-          return failedRun(this.layer, error);
-        }
-      },
-    };
-  }
+  /** Run straight through the run path, as a controller's `run` would, without making one. */
   private invoke(
-    op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
+    op: Operation.Handle<unknown, unknown>,
     call: Scope.Invocation<unknown> | undefined,
     caller: RunState | undefined,
   ): unknown {
     return this.use(() => {
-      if (!isOperation(op)) {
-        return runInline(this.layer, op, call, caller, this.ns, this.flight?.span);
+      const layer = this.layer;
+      const span = this.flight?.span;
+      if (layer.exts.run === undefined) {
+        return runOnce(layer, op, span, this.ns, caller, false, call);
       }
-      const controller = operationController(
-        this.layer,
-        op,
-        this.flight?.span,
-        this.ns,
-        caller,
-      ) as { run(call?: Scope.Invocation<unknown>): unknown };
-      return controller.run(call);
+      return runHookCall(layer, op, span, this.ns, caller, op, call);
     });
   }
-  get run(): Scope.Handle["run"] {
+  get run(): Capsule.Run {
     return (this.runner ??= ((
-      op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
-      call?: Scope.Invocation<unknown>,
-    ): unknown => this.invoke(op, call, this.ctx)) as Scope.Handle["run"]);
+      op: Operation.Handle<unknown, unknown>,
+      call: Scope.Invocation<unknown>,
+      meta: Capsule.Meta,
+    ): Promise<unknown> => {
+      try {
+        const value = this.invoke(op, call, this.ctx);
+        Capsules.note(this.layer, this.ext, op, meta);
+        return Promise.resolve(value);
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    }) as Capsule.Run);
   }
-  get settle(): Scope.Handle["settle"] {
+  get settle(): Capsule.Settle {
     return (this.settles ??= ((
-      op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
-      call?: Scope.Invocation<unknown>,
-    ): unknown =>
-      settleRun(
-        this.layer,
-        () => this.invoke(op, call, RECOVERED),
-        call?.signal,
-      )) as Scope.Handle["settle"]);
+      op: Operation.Handle<unknown, unknown>,
+      call: Scope.Invocation<unknown>,
+      meta: Capsule.Meta,
+    ): Promise<unknown> => {
+      const result = settleRun(this.layer, () => this.invoke(op, call, RECOVERED), call.signal);
+      Capsules.note(this.layer, this.ext, op, meta);
+      return Promise.resolve(result);
+    }) as Capsule.Settle);
   }
   get defer(): Resource.Ctx["defer"] {
     return (
@@ -5886,13 +5972,43 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   }
 }
 
+/** The close hook's event (ADR 0120, X3): `load` reads only units already built on the root,
+ * and raises `Disposed` once the hook called `next()`, which releases them. */
+class CloseEvent extends HookCtx {
+  declare readonly kind: "close";
+  declare readonly options: Scope.CloseOptions;
+  declare readonly next: () => Promise<Scope.Result>;
+  declare private released: boolean;
+  constructor(
+    owner: Layer,
+    ext: Capsule.Binding,
+    options: Scope.CloseOptions,
+    next: () => Promise<Scope.Result>,
+  ) {
+    super(owner, ext);
+    this.kind = "close";
+    this.options = options;
+    this.released = false;
+    this.next = () => {
+      this.released = true;
+      return next();
+    };
+  }
+
+  protected override readResource(target: Resource.Handle<unknown>): unknown {
+    const built = this.released ? undefined : ownerOf(this.layer, target).nodes.get(target);
+    if (built?.built === undefined) raise("Disposed", { reason: "unit is released" });
+    return built.ready ?? built.built.value;
+  }
+}
+
 /** A handle whose `createSession` wraps every child in the root's `session` chain (ADR 0051): the
  * direct `resolve` stays plain; run and write hooks follow the inherited routes.
  * Only built when hooks exist; the unwrapped path never enters. */
 function withSessionCreate(
   plain: Scope.Handle,
   layer: Layer,
-  session: readonly Scope.Extension<unknown>[],
+  session: readonly Capsule.Binding[],
 ): Scope.Handle {
   const h = Object.create(plain) as Scope.Handle;
   h.createSession = (options?: Scope.Options) => wrapSession(layer, options, session);
@@ -5908,7 +6024,7 @@ function withSessionCreate(
 function wrapSession(
   up: Layer,
   options: Scope.Options | undefined,
-  session: readonly Scope.Extension<unknown>[],
+  session: readonly Capsule.Binding[],
 ): Scope.Handle {
   ensureAccepting(up);
   const child = makeLayer(up, options);
@@ -5935,7 +6051,7 @@ function wrapSession(
   });
 }
 
-function readExtRoutes(exts: readonly Scope.Extension<unknown>[]): ExtRoutes {
+function readExtRoutes(exts: readonly Capsule.Binding[]): ExtRoutes {
   const routes: ExtRoutes = { ...NO_EXTS };
   for (const key of Object.keys(routes) as (keyof ExtRoutes)[]) {
     for (const ext of exts) {
@@ -5959,7 +6075,7 @@ type RootLifetime = {
 function watchRootClose(
   layer: Layer,
   scope: Scope.Handle & { readonly closed?: Promise<Scope.Result> },
-  closers: readonly Scope.Extension<unknown>[],
+  closers: readonly Capsule.Binding[],
   lifetime: RootLifetime,
 ): Scope.Handle["close"] {
   return (options = {}) => {
@@ -5995,9 +6111,7 @@ function watchRootClose(
       const next = (): Promise<Scope.Result> => (pending ??= at(index + 1));
       return (async () => {
         try {
-          await closer.hooks!.close!(
-            hookEvent({ kind: "close", scope, options, next }, layer, closer.label),
-          );
+          await closer.hooks.close!(new CloseEvent(layer, closer, options, next));
         } catch (error) {
           addError(layer, error);
         }
@@ -6041,7 +6155,7 @@ function listenForStop(scope: Scope.Handle, signal: AbortSignal, lifetime: RootL
  * snapshot the chain wraps. Root handle only in v1: sessions keep the plain dispatch. */
 function resolveThrough(
   layer: Layer,
-  resolvers: readonly Scope.Extension<unknown>[],
+  resolvers: readonly Capsule.Binding[],
 ): Scope.Handle["resolve"] {
   type OnionTarget = Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>;
   const at = (
@@ -6052,11 +6166,11 @@ function resolveThrough(
     if (index >= resolvers.length) return resolveNs(layer, target, chain);
     const next = (): unknown => at(target, index + 1, chain);
     const ext = resolvers[index];
-    return ext.hooks!.resolve!(new ResolveEvent(layer, ext.label, chain, target, next));
+    return ext.hooks!.resolve!(new ResolveEvent(layer, ext, chain, target, next));
   };
   const chained = (target: OnionTarget, ns?: Scope.NsArg): unknown => {
     ensureOpen(layer);
-    if (isExtension(target)) return resolveExtension(layer, target);
+    if (isCapsule(target)) return resolveCapsule(layer, target);
     const chain = ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns);
     return at(target, 0, chain);
   };
@@ -6081,7 +6195,7 @@ function runTaggedBody<T, I>(
 async function runSessionWrapped<R>(
   child: Layer,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
-  session: readonly Scope.Extension<unknown>[],
+  session: readonly Capsule.Binding[],
 ): Promise<R> {
   const hooks: SessionHooks = { settle: undefined, state: 0, moved: false };
   SESSION_HOOKS.set(child, hooks);
@@ -6256,7 +6370,8 @@ function runHookChain<T, I>(
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  const span = openSpan(layer.obs, layer, up, target.label, "operation", chain);
+  Capsules.check(layer, target);
+  const span = openSpan(layer.obs, layer, up, target.label, "operation", chain, target);
   const run = createHookRun(layer, span, target.label, call, caller);
   let result: unknown;
   try {
@@ -6329,7 +6444,7 @@ function stepRunHook<T, I>(
       | Operation.Handle<unknown, unknown>
       | Scope.Inline<Scope.Depends, unknown, unknown>;
     const next = (): unknown => stepRunHook(run, target, hookTarget, call, chain, runs, index + 1);
-    return ext.hooks!.run!(new RunEvent(run, ext.label, chain, op, call, next));
+    return ext.hooks!.run!(new RunEvent(run, ext, chain, op, call, next));
   } finally {
     exitHookAccess(previous);
   }
@@ -6431,32 +6546,31 @@ function finishHookDone(run: HookRun): void {
   releaseBorrows(run.held);
 }
 
-function hookEvent<const D extends Scope.ExtensionDetails[keyof Scope.ExtensionDetails]>(
+function hookEvent<const D extends Capsule.Details[keyof Capsule.Details]>(
   detail: D,
   owner: Layer,
-  label: string,
-  chain: readonly Namespace[] | undefined = owner.ns,
-): Scope.ExtensionCtx & D {
-  return Object.assign(new ExtensionCtx(owner, label, chain), detail);
+  ext: Capsule.Binding,
+): Capsule.Ctx & D {
+  return Object.assign(new HookCtx(owner, ext), detail);
 }
 
 /** Run, write, resolve, and session events use one object with direct field writes; start and
  * close, once per root, stay on the cold event builder. Reading only the call and `next` does
  * not make any access functions. */
-class RunEvent extends ExtensionCtx {
+class RunEvent extends HookCtx {
   declare readonly kind: "run";
-  declare readonly op: Scope.ExtensionDetails["run"]["op"];
+  declare readonly op: Capsule.Details["run"]["op"];
   declare readonly call: Scope.Invocation<unknown> | undefined;
   declare readonly next: () => unknown;
   constructor(
     run: HookRun,
-    label: string,
+    ext: Capsule.Binding,
     chain: readonly Namespace[] | undefined,
-    op: Scope.ExtensionDetails["run"]["op"],
+    op: Capsule.Details["run"]["op"],
     call: Scope.Invocation<unknown> | undefined,
     next: () => unknown,
   ) {
-    super(run.layer, label, chain, run);
+    super(run.layer, ext, chain, run);
     this.kind = "run";
     this.op = op;
     this.call = call;
@@ -6466,20 +6580,20 @@ class RunEvent extends ExtensionCtx {
 
 /** Write events take the same direct field writes as {@link RunEvent}: one shape per write hook
  * call, so the hook's reads stay monomorphic. */
-class WriteEvent extends ExtensionCtx {
+class WriteEvent extends HookCtx {
   declare readonly kind: "write";
   declare readonly cell: Data.Cell<unknown>;
   declare readonly value: unknown;
   declare readonly next: () => void;
   constructor(
     owner: Layer,
-    label: string,
+    ext: Capsule.Binding,
     chain: readonly Namespace[] | undefined,
     cell: Data.Cell<unknown>,
     value: unknown,
     next: () => void,
   ) {
-    super(owner, label, chain);
+    super(owner, ext, chain);
     this.kind = "write";
     this.cell = cell;
     this.value = value;
@@ -6488,18 +6602,18 @@ class WriteEvent extends ExtensionCtx {
 }
 
 /** Resolve events, built like {@link WriteEvent}: one shape per resolve hook call. */
-class ResolveEvent extends ExtensionCtx {
+class ResolveEvent extends HookCtx {
   declare readonly kind: "resolve";
-  declare readonly target: Scope.ExtensionDetails["resolve"]["target"];
+  declare readonly target: Capsule.Details["resolve"]["target"];
   declare readonly next: () => unknown;
   constructor(
     owner: Layer,
-    label: string,
+    ext: Capsule.Binding,
     chain: readonly Namespace[] | undefined,
-    target: Scope.ExtensionDetails["resolve"]["target"],
+    target: Capsule.Details["resolve"]["target"],
     next: () => unknown,
   ) {
-    super(owner, label, chain);
+    super(owner, ext, chain);
     this.kind = "resolve";
     this.target = target;
     this.next = next;
@@ -6507,17 +6621,17 @@ class ResolveEvent extends ExtensionCtx {
 }
 
 /** Session events, built like {@link WriteEvent}: one shape per session hook call. */
-class SessionEvent extends ExtensionCtx {
+class SessionEvent extends HookCtx {
   declare readonly kind: "session";
   declare readonly handle: Scope.Handle;
   declare readonly next: () => Promise<Scope.Result>;
   constructor(
     owner: Layer,
-    label: string,
+    ext: Capsule.Binding,
     handle: Scope.Handle,
     next: () => Promise<Scope.Result>,
   ) {
-    super(owner, label);
+    super(owner, ext);
     this.kind = "session";
     this.handle = handle;
     this.next = next;
@@ -6784,65 +6898,185 @@ function runWriteHooks<T>(
   target: Data.Cell<T>,
   value: T,
   chain: readonly Namespace[] | undefined,
-  writes: readonly Scope.Extension<unknown>[],
+  writes: readonly Capsule.Binding[],
 ): void {
   ensureOpen(layer);
   const at = (index: number): void => {
     if (index === writes.length) return writeCell(layer, target, value, chain);
     const ext = writes[index];
     const next = (): void => at(index + 1);
-    ext.hooks!.write!(new WriteEvent(layer, ext.label, chain, target, value, next));
+    ext.hooks!.write!(new WriteEvent(layer, ext, chain, target, value, next));
   };
   at(0);
 }
 
-/** A configurable extension's own fields (ADR 0120): the config it declares, the values a call
- * filled (`{}` until then), and the callable it came from. Read once, in `createScope`. */
-type WiredExtension<T = unknown> = Scope.Extension<T> & {
-  readonly config?: Scope.Config;
-  readonly values?: Readonly<Record<string, unknown>>;
-  readonly of?: object;
+/** What a capsule's handle and each of its bindings carry beside their public fields (ADR 0120):
+ * the config it declares, the values a call filled (`{}` until then), the handle it came from,
+ * and its exports. Kept off the objects, so an export may take any name not reserved. */
+type Wired = {
+  readonly config: Scope.Config | undefined;
+  readonly values: Readonly<Record<string, unknown>>;
+  readonly of: object;
+  readonly exports: Capsule.Exports;
 };
 
-/** The empty fill of a configurable extension nobody called yet. */
+/** The empty fill of a capsule nobody called yet, and the exports of one that exports none. */
 const NO_VALUES: Readonly<Record<string, never>> = Object.freeze({});
 
-/** A configurable extension: an extension until it is called, and a function that fills its
- * config and answers the extension the scope installs (ADR 0120). `of` keeps the one identity a
- * second copy of the same library is caught by, called or not. */
-function configurableExtension<const C extends Scope.Config, T>(
-  label: string,
-  config: C,
-  hooks: Scope.Hooks<T> | undefined,
-): Scope.Configurable<T, C> {
-  const fill = Object.assign(
-    (values: Scope.ConfigValues<C>): Scope.Extension<T> => {
-      const filled: WiredExtension<T> = {
-        [extensionSym]: true,
-        label,
-        hooks,
-        config,
-        values,
-        of: fill,
-      };
-      return filled;
-    },
-    { [extensionSym]: true as const, label, hooks, config },
-  );
-  return fill as Scope.Configurable<T, C>;
-}
+/** A unit as a capsule marks it: the handle of the capsule that exports it, and the root routes
+ * it last passed its capsule check on. */
+type Exported = { capsule?: Capsule.Binding; passed?: ExtRoutes };
 
-/** One start-value record per installed extension, and one under the callable a copy was filled
- * from, so `scope.resolve(mailStart)` reads what `mailStart({...})` returned (ADR 0120). */
-function extensionRecords(exts: readonly Scope.Extension<unknown>[]): Map<object, ExtRec> {
-  const records = new Map<object, ExtRec>();
-  for (const ext of exts) {
-    const rec: ExtRec = { settled: false, value: undefined };
-    records.set(ext, rec);
-    const base = (ext as WiredExtension).of;
-    if (base !== undefined) records.set(base, rec);
+/** A capsule's wiring (ADR 0120): its handle and bindings, the record each root keeps, and the
+ * check that an exported unit's capsule is installed. One class, so Core's module keeps few
+ * names. */
+class Capsules {
+  static readonly wired = new WeakMap<object, Wired>();
+  /** Each root's lines of `scope.capsules`, in `capsules` order. */
+  static readonly lines = new WeakMap<Layer, Capsule.Record[]>();
+  static readonly noLines: readonly Capsule.Record[] = Object.freeze([]);
+  /** The handles each root installs, keyed by its routes, for the capsule check. */
+  static readonly installed = new WeakMap<ExtRoutes, Set<object>>();
+  /** The hooks of a capsule that declares none. */
+  static readonly noHooks: Capsule.Hooks = Object.freeze({});
+  static readonly reserved: readonly string[] = ["label", "config", "hooks", "exports"];
+
+  /** Build a capsule's handle (ADR 0120): a binding itself, and a function that fills the config
+   * and answers the binding a scope installs. Each export is copied onto both, the same object
+   * (ADR 0057), and marked with the handle, so a scope can tell when its capsule is missing. */
+  static handle(def: {
+    readonly label: string;
+    readonly config?: Scope.Config;
+    readonly exports?: Capsule.Exports;
+    readonly hooks?: Capsule.Hooks<unknown, never>;
+  }): Capsule.Binding {
+    const { label, config } = def;
+    const exports = def.exports ?? NO_VALUES;
+    const hooks = (def.hooks ?? Capsules.noHooks) as Capsule.Hooks;
+    for (const key of Object.keys(exports)) {
+      if (Capsules.reserved.includes(key)) raise("ReservedExport", { label, key });
+    }
+
+    const fill = (values?: Readonly<Record<string, unknown>>): Capsule.Binding => {
+      const binding = { [capsuleSym]: true as const, label, hooks, ...exports };
+      Capsules.wired.set(binding, { config, values: values ?? NO_VALUES, of: fill, exports });
+      return binding;
+    };
+    const handle = Object.defineProperties(fill, {
+      [capsuleSym]: { value: true },
+      label: { value: label },
+      hooks: { value: hooks },
+      config: { value: config ?? NO_VALUES },
+    });
+    for (const key of Object.keys(exports)) {
+      Object.defineProperty(handle, key, { value: exports[key], enumerable: true });
+      (exports[key] as Exported).capsule ??= handle as unknown as Capsule.Binding;
+    }
+
+    Capsules.wired.set(handle, { config, values: NO_VALUES, of: fill, exports });
+    return handle as unknown as Capsule.Binding;
   }
-  return records;
+
+  /** One start-value record per installed capsule, and one under the handle a binding was filled
+   * from, so `scope.resolve(mail)` reads what `mail({...})` returned (ADR 0120). Each record also
+   * holds the capsule's line of `scope.capsules`, made now, before any start. */
+  static records(scope: Scope.Handle, exts: readonly Capsule.Binding[]): Map<object, ExtRec> {
+    const records = new Map<object, ExtRec>();
+    for (const ext of exts) {
+      const { config = NO_VALUES, of, exports } = Capsules.wired.get(ext)!;
+      const values: Record<string, unknown> = {};
+      const shown: Record<string, unknown> = {};
+      for (const key of Object.keys(config)) {
+        const entry = config[key];
+        values[key] = scope.resolve(entry as Tag.Handle<unknown>);
+        shown[key] = Capsules.shown(entry, values[key]);
+      }
+
+      const line = { label: ext.label, config: shown, exports: Object.keys(exports), loaded: [] };
+      const rec: ExtRec = {
+        settled: false,
+        value: undefined,
+        config: values,
+        line,
+        seen: new Set(),
+      };
+      records.set(ext, rec);
+      records.set(of, rec);
+    }
+    return records;
+  }
+
+  /** A config value as the record shows it: a secret tag's whole value hidden, a unit by its
+   * label, a list item by item. */
+  static shown(entry: Scope.ConfigEntry, value: unknown): unknown {
+    const tag = "kind" in entry ? entry.target : entry;
+    if (tag.secret) return "[hidden]";
+    if (Array.isArray(value)) return value.map(Capsules.shownValue);
+    return Capsules.shownValue(value);
+  }
+
+  static shownValue(value: unknown): unknown {
+    return isOperation(value) || isResource(value) || isData(value) ? value.label : value;
+  }
+
+  /** The record of `ext` on the root over `layer`. */
+  static recordOf(layer: Layer, ext: Capsule.Binding): ExtRec {
+    let root = layer;
+    while (root.up) root = root.up;
+    return EXTENSIONS.get(root)!.get(ext)!;
+  }
+
+  /** Add a unit's line to its capsule's record on first load; a later load keeps the first meta. */
+  static note(layer: Layer, ext: Capsule.Binding, unit: object, meta: Capsule.Meta): void {
+    const rec = Capsules.recordOf(layer, ext);
+    if (rec.seen.has(unit)) return;
+
+    rec.seen.add(unit);
+    rec.line.loaded.push({
+      unit: (unit as { label: string }).label,
+      role: meta.role,
+      explain: meta.explain,
+    });
+  }
+
+  /** What `scope.capsules` reads on any layer: its root's records, in `capsules` order. */
+  static linesOf(layer: Layer): readonly Capsule.Record[] {
+    let root = layer;
+    while (root.up) root = root.up;
+    return Capsules.lines.get(root) ?? Capsules.noLines;
+  }
+
+  /** Check `unit` and its direct dependencies on first touch in a root (ADR 0120): an exported
+   * unit whose capsule the root does not install raises `CapsuleMissing` before any work. A pass
+   * is kept on the unit, so later runs under the same root skip the check. */
+  static check<U extends object & { readonly depends?: Scope.Depends }>(layer: Layer, unit: U): U {
+    const routes = layer.exts;
+    if ((unit as Exported).passed === routes) return unit;
+
+    Capsules.need(routes, unit);
+    const depends = unit.depends;
+    if (depends !== undefined) {
+      for (const key of Object.keys(depends)) {
+        const dep = depends[key];
+        Capsules.need(routes, isEdge(dep) ? (dep.target as object) : dep);
+      }
+    }
+    (unit as Exported).passed = routes;
+    return unit;
+  }
+
+  static need(routes: ExtRoutes, unit: object): void {
+    const owner = (unit as Exported).capsule;
+    if (owner === undefined || Capsules.installed.get(routes)?.has(owner)) return;
+    raise("CapsuleMissing", { unit: (unit as { label: string }).label, capsule: owner.label });
+  }
+
+  /** Mark a span of an exported unit with its capsule's label. */
+  static mark(span: SpanImpl, unit: object | undefined): SpanImpl {
+    const owner = (unit as Exported | undefined)?.capsule;
+    if (owner !== undefined) span.attributes.capsule = owner.label;
+    return span;
+  }
 }
 
 /** True when a config key must be filled: a required edge, or a tag with no default (ADR 0120). */
@@ -6850,33 +7084,21 @@ function needsConfig(entry: Scope.ConfigEntry): boolean {
   return "kind" in entry ? entry.kind === "required" : !entry.hasDefault;
 }
 
-/** Bind every configured extension's filled values on the root, before the root layer is made
- * (ADR 0120). A filled key binds its tag, a list key binds one tag per item, and a missing
- * required key or a second copy of one library raises. Answers undefined when no extension
- * declares config, so such a scope takes exactly the path it took before. */
-function bindConfig(exts: readonly Scope.Extension<unknown>[]): Tag.Binding<unknown>[] | undefined {
+/** Bind every capsule's filled values on the root, before the root layer is made (ADR 0120). A
+ * filled key binds its tag, a list key binds one tag per item, and a missing required key or a
+ * second copy of one library raises. Answers undefined when no capsule declares config, so such
+ * a scope reads its options exactly as before. */
+function bindConfig(exts: readonly Capsule.Binding[]): Tag.Binding<unknown>[] | undefined {
   let out: Tag.Binding<unknown>[] | undefined;
   const bases = new Set<object>();
   for (const ext of exts) {
-    const { config, of } = ext as WiredExtension;
+    const { config, of, values } = Capsules.wired.get(ext)!;
+    if (bases.has(of)) raise("DuplicateCapsule", { label: ext.label });
+    bases.add(of);
     if (config === undefined) continue;
 
-    const base = of ?? ext;
-    if (bases.has(base)) raise("DuplicateExtension", { label: ext.label });
-    bases.add(base);
-    out = bindExtension(out, ext, config);
+    for (const key of Object.keys(config)) out = bindKey(out, ext, key, config[key], values[key]);
   }
-  return out;
-}
-
-/** One extension's filled values as bindings, in the config's own key order. */
-function bindExtension(
-  out: Tag.Binding<unknown>[] | undefined,
-  ext: Scope.Extension<unknown>,
-  config: Scope.Config,
-): Tag.Binding<unknown>[] | undefined {
-  const filled = (ext as WiredExtension).values ?? NO_VALUES;
-  for (const key of Object.keys(config)) out = bindKey(out, ext, key, config[key], filled[key]);
   return out;
 }
 
@@ -6884,7 +7106,7 @@ function bindExtension(
  * `undefined` value is a missing key, so a required one raises (ADR 0120). */
 function bindKey(
   out: Tag.Binding<unknown>[] | undefined,
-  ext: Scope.Extension<unknown>,
+  ext: Capsule.Binding,
   key: string,
   entry: Scope.ConfigEntry,
   value: unknown,

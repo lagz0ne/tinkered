@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 
-import { createScope, extension, namespace, operation, resource, tag, type Observe } from "@/index";
+import { createScope, capsule, namespace, operation, resource, tag, type Observe } from "@/index";
 
 const readSpan = operation({ label: "readSpan", run: (_deps, ctx) => ctx.obs.span });
 
@@ -295,13 +295,13 @@ test("observation off leaves the ambient random stream untouched", async () => {
 });
 
 test("a session copies its remote trace seed and child sessions inherit it", async () => {
-  const hook = extension({
+  const hook = capsule({
     label: "sessions",
     hooks: {
       session: (event) => event.next(),
     },
   });
-  const scope = createScope({ observe: { history: 20 }, extensions: hook });
+  const scope = createScope({ observe: { history: 20 }, capsules: hook });
   await scope.ready;
 
   const given = { ...seed };

@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension, operation } from "@/index";
+import { createScope, data, capsule, operation } from "@/index";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
@@ -16,8 +16,8 @@ test("a call signal stops a run hook before it can start the body", async () => 
   const reason = new Error("steer");
   const events: string[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "gate",
         hooks: {
           run: async (event) => {
@@ -45,8 +45,8 @@ test("a call signal stops a session hook before it can start the body", async ()
   const reason = new Error("steer");
   const events: string[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "gate",
         hooks: {
           session: async (event) => {
@@ -73,13 +73,15 @@ test("a signalled run keeps hook access alive through graceful close", async () 
   const gate = deferred();
   const value = data({ initial: "ready" });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "gate",
         hooks: {
           run: async (event) => {
             await gate.promise;
-            expect(event.resolve(value)).toBe("ready");
+            expect(event.load(value, { role: "state", explain: "Reads the gate" }).get()).toBe(
+              "ready",
+            );
             return event.next();
           },
         },
@@ -100,8 +102,8 @@ test("a write hook shares the call signal with its active body", async () => {
   const reason = new Error("stop in write hook");
   const count = data({ initial: 0 });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "stop-write",
         hooks: {
           write: (event) => {

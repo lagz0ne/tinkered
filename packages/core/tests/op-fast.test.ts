@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension, isError, operation, resource, type Scope } from "@/index";
+import { createScope, data, capsule, isError, operation, resource, type Scope } from "@/index";
 
 for (const graceful of [true, false]) {
   test(`sync resource cleanup closes without extra turns (graceful: ${graceful})`, async () => {
@@ -116,7 +116,7 @@ test("closing keeps the web AbortError code for callers", async () => {
 
 test("a saved run next refuses to start a body after its run has finished", async () => {
   let next = (): unknown => undefined;
-  const around = extension({
+  const around = capsule({
     label: "save-next",
     hooks: {
       run: (event) => {
@@ -126,7 +126,7 @@ test("a saved run next refuses to start a body after its run has finished", asyn
     },
   });
   const op = operation({ label: "late-body", run: () => 9 });
-  const root = createScope({ extensions: [around] });
+  const root = createScope({ capsules: [around] });
 
   expect(root.settle(op)).toEqual({ status: "success", value: 7 });
 
@@ -160,7 +160,7 @@ test("a hooked run waits for its async resource before calling its body", async 
       return owned + 1;
     },
   });
-  const around = extension({
+  const around = capsule({
     label: "around-async-input",
     hooks: {
       run: async (event) => {
@@ -172,7 +172,7 @@ test("a hooked run waits for its async resource before calling its body", async 
     },
   });
 
-  const root = createScope({ extensions: [around] });
+  const root = createScope({ capsules: [around] });
   const running = root.settle(op);
   expect(calls).toEqual(["before"]);
 

@@ -14,10 +14,14 @@ type Payloads = {
   BadStartTimeout: { timeout: number };
   LateTap: Record<string, never>;
   CircularResource: { label: string };
-  /** An extension's config named a required key the command left out (ADR 0120). */
+  /** A capsule's config named a required key the command left out (ADR 0120). */
   MissingConfig: { label: string; key: string };
-  /** One library's configured extension was installed twice on one root (ADR 0120). */
-  DuplicateExtension: { label: string };
+  /** One library's capsule was installed twice on one root (ADR 0120). */
+  DuplicateCapsule: { label: string };
+  /** A capsule exports a unit under a name its handle keeps for itself (ADR 0120). */
+  ReservedExport: { label: string; key: string };
+  /** A scope touched an exported unit whose capsule it does not install (ADR 0120). */
+  CapsuleMissing: { unit: string; capsule: string };
 };
 
 export declare namespace Errors {

@@ -3,7 +3,7 @@ import { expect, test } from "vite-plus/test";
 
 import {
   createScope,
-  extension,
+  capsule,
   isError,
   LEVELS,
   namespace,
@@ -15,7 +15,7 @@ import {
 test("a hanging inner start times out on the scope clock and closes with its label", async () => {
   const clock = makeTestClock();
   const cleanups: string[] = [];
-  const hang = extension({
+  const hang = capsule({
     label: "telemetry",
     hooks: {
       start(event) {
@@ -30,7 +30,7 @@ test("a hanging inner start times out on the scope clock and closes with its lab
     clock,
     signal: new AbortController().signal,
     startTimeout: 25,
-    extensions: [extension({ label: "outer", hooks: { start: (event) => event.next() } }), hang],
+    capsules: [capsule({ label: "outer", hooks: { start: (event) => event.next() } }), hang],
   });
   const ready = scope.ready.catch((error: unknown) => error);
 
@@ -51,8 +51,8 @@ test("start defaults to ten seconds and names an outer hook hanging after next",
   const scope = createScope({
     clock,
     signal: new AbortController().signal,
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "outer",
         hooks: {
           async start(event) {
@@ -62,7 +62,7 @@ test("start defaults to ten seconds and names an outer hook hanging after next",
           },
         },
       }),
-      extension({ label: "inner", hooks: { start: (event) => event.next() } }),
+      capsule({ label: "inner", hooks: { start: (event) => event.next() } }),
     ],
   });
   const ready = scope.ready.catch((error: unknown) => error);
@@ -88,7 +88,7 @@ test("a settled start cancels its timeout", async () => {
       },
     },
     startTimeout: 1,
-    extensions: [extension({ label: "done", hooks: { start: (event) => event.next() } })],
+    capsules: [capsule({ label: "done", hooks: { start: (event) => event.next() } })],
   });
 
   await scope.ready;
@@ -105,12 +105,12 @@ test("one start tap receives a span and misses work before the tap", async () =>
   const logs: string[] = [];
   const work = operation({ label: "work", run: () => 42 });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "telemetry",
         hooks: {
           start(event) {
-            event.run(work);
+            void event.run(work, {}, { role: "setup", explain: "Runs before the tap" });
             event.log("before");
             event.tap({
               level: LEVELS.info,
@@ -159,8 +159,8 @@ test("two taps receive the same span, filter their own levels, and keep the larg
         info.push(line);
       },
     },
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "telemetry",
         hooks: {
           start(event) {
@@ -223,8 +223,8 @@ test("a throwing tap does not stop another tap", async () => {
         throw new Error("sink");
       },
     },
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "telemetry",
         hooks: {
           start(event) {
@@ -292,8 +292,8 @@ test("a quiet namespace emits no spans or logs from its work and hooks", async (
       },
       history: 10,
     },
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "hooks",
         hooks: {
           run(event) {
@@ -330,7 +330,7 @@ test("close cancels a hanging start and its timer with the close reason", async 
       },
     },
     startTimeout: 25,
-    extensions: [extension({ label: "hung", hooks: { start: () => new Promise<void>(() => {}) } })],
+    capsules: [capsule({ label: "hung", hooks: { start: () => new Promise<void>(() => {}) } })],
   });
   const ready = scope.ready.catch((error: unknown) => error);
 
@@ -361,7 +361,7 @@ test.each([0, Infinity])("startTimeout %s leaves the start timer off", async (st
         return clock.sleep(ms, signal);
       },
     },
-    extensions: [extension({ label: "waiting", hooks: { start: () => start } })],
+    capsules: [capsule({ label: "waiting", hooks: { start: () => start } })],
   });
 
   clock.advance(2 ** 31);
@@ -391,7 +391,7 @@ test("a finite start timeout is clamped to the largest timer delay", async () =>
   const scope = createScope({
     clock,
     startTimeout: 2 ** 31,
-    extensions: [extension({ label: "hung", hooks: { start: () => new Promise<void>(() => {}) } })],
+    capsules: [capsule({ label: "hung", hooks: { start: () => new Promise<void>(() => {}) } })],
   });
   const ready = scope.ready.catch((error: unknown) => error);
 
@@ -404,8 +404,8 @@ test("a finite start timeout is clamped to the largest timer delay", async () =>
 
 test("a recovered inner start leaves ready and close successful", async () => {
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "recover",
         hooks: {
           async start(event) {
@@ -417,7 +417,7 @@ test("a recovered inner start leaves ready and close successful", async () => {
           },
         },
       }),
-      extension({ label: "fail", hooks: { start: () => Promise.reject(new Error("inner")) } }),
+      capsule({ label: "fail", hooks: { start: () => Promise.reject(new Error("inner")) } }),
     ],
   });
 
@@ -431,8 +431,8 @@ test("a tap called after ready raises a managed error", async () => {
   let tap!: (config: Observe.Config) => void;
   let error: unknown;
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "telemetry",
         hooks: {
           start(event) {
@@ -474,7 +474,7 @@ test.each(["rejected", "thrown"])(
           return Promise.reject(error);
         },
       },
-      extensions: [extension({ label: "waiting", hooks: { start: () => start } })],
+      capsules: [capsule({ label: "waiting", hooks: { start: () => start } })],
     });
     const ready = scope.ready.then(() => {
       settled = true;
@@ -508,8 +508,8 @@ test("close wins while a completed start still has ready pending", async () => {
         return clock.sleep(ms, signal);
       },
     },
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "completed",
         hooks: {
           start(event) {
@@ -563,8 +563,8 @@ test("closed keeps a real start error after close has claimed startup", async ()
   const scope = createScope({
     clock,
     signal: new AbortController().signal,
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "late-failure",
         hooks: {
           start(event) {

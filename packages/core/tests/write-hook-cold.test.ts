@@ -1,11 +1,11 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension, isError } from "@/index";
+import { createScope, data, capsule, isError } from "@/index";
 
 test("a closed scope refuses a write before a stopping hook runs", async () => {
   const count = data({ label: "count", initial: 0 });
   let writes = 0;
-  const stop = extension({
+  const stop = capsule({
     label: "stop",
     hooks: {
       write: () => {
@@ -13,7 +13,7 @@ test("a closed scope refuses a write before a stopping hook runs", async () => {
       },
     },
   });
-  const root = createScope({ extensions: [stop] });
+  const root = createScope({ capsules: [stop] });
   await root.ready;
   const controller = root.controller(count);
 

@@ -3,9 +3,10 @@ import { expect, test } from "vite-plus/test";
 import {
   createScope,
   data,
-  extension,
+  capsule,
   operation,
   resource,
+  type Capsule,
   type Resource,
   type Scope,
 } from "@/index";
@@ -50,7 +51,7 @@ const sessionClosing = resource({
 
 test("an idle session close aborts its resource and session hook closing signals", async () => {
   let hookClosing: AbortSignal | undefined;
-  const piece = extension({
+  const piece = capsule({
     label: "idle-session",
     hooks: {
       session: (event) => {
@@ -59,7 +60,7 @@ test("an idle session close aborts its resource and session hook closing signals
       },
     },
   });
-  const scope = createScope({ extensions: [piece] });
+  const scope = createScope({ capsules: [piece] });
   await scope.ready;
   const session = scope.createSession();
   const closing = session.resolve(sessionClosing);
@@ -75,7 +76,7 @@ test("an idle session close aborts its resource and session hook closing signals
 
 test("a close hook's first closing read is already aborted", async () => {
   let aborted: boolean | undefined;
-  const piece = extension({
+  const piece = capsule({
     label: "first-read-in-close",
     hooks: {
       close: (event) => {
@@ -84,7 +85,7 @@ test("a close hook's first closing read is already aborted", async () => {
       },
     },
   });
-  const scope = createScope({ extensions: [piece] });
+  const scope = createScope({ capsules: [piece] });
   await scope.ready;
 
   const ended = scope.close({ graceful: true });
@@ -95,7 +96,7 @@ test("a close hook's first closing read is already aborted", async () => {
 
 test("closed settles when a session cleanup makes the first root close", async () => {
   const calls: string[] = [];
-  const piece = extension({
+  const piece = capsule({
     label: "reentrant-first-close",
     hooks: {
       close: (event) => {
@@ -104,7 +105,7 @@ test("closed settles when a session cleanup makes the first root close", async (
       },
     },
   });
-  const root = createScope({ signal: new AbortController().signal, extensions: [piece] });
+  const root = createScope({ signal: new AbortController().signal, capsules: [piece] });
   await root.ready;
   const session = root.createSession();
   session.onClose(() => root.close({ graceful: true }).then(() => undefined));
@@ -123,8 +124,8 @@ test("closed settles when a session cleanup makes the first root close", async (
 });
 
 test("a root without a stop signal closes from a session cleanup", async () => {
-  const piece = extension({ label: "reentrant-without-stop" });
-  const root = createScope({ extensions: [piece] });
+  const piece = capsule({ label: "reentrant-without-stop" });
+  const root = createScope({ capsules: [piece] });
   await root.ready;
   const session = root.createSession();
   session.onClose(() => root.close({ graceful: true }).then(() => undefined));
@@ -231,7 +232,7 @@ test("a parent's closing fires in its child before a close hook waits", async ()
   const before = gate();
   const resume = gate();
   let rootClosing: AbortSignal | undefined;
-  const piece = extension({
+  const piece = capsule({
     label: "hold-close",
     hooks: {
       start: (event) => {
@@ -239,7 +240,7 @@ test("a parent's closing fires in its child before a close hook waits", async ()
         return event.next();
       },
       close: async (event) => {
-        expect(event.scope).toBe(scope);
+        expect(event).not.toHaveProperty("scope");
         expect(event.closing).toBe(rootClosing);
         expect(event.closing.aborted).toBe(true);
 
@@ -249,7 +250,7 @@ test("a parent's closing fires in its child before a close hook waits", async ()
       },
     },
   });
-  const scope = createScope({ extensions: [piece] });
+  const scope = createScope({ capsules: [piece] });
   await scope.ready;
   const child = scope.createSession();
   const owned = child.resolve(layerSignals);
@@ -267,8 +268,8 @@ test("a parent's closing fires in its child before a close hook waits", async ()
 
 test("the first closing read after a parent starts closing is already aborted", async () => {
   const resume = gate();
-  let childEvent: Scope.ExtensionEvents["session"] | undefined;
-  const piece = extension({
+  let childEvent: Capsule.Events["session"] | undefined;
+  const piece = capsule({
     label: "late-closing-read",
     hooks: {
       session: (event) => {
@@ -283,7 +284,7 @@ test("the first closing read after a parent starts closing is already aborted", 
     },
   });
 
-  const scope = createScope({ extensions: [piece] });
+  const scope = createScope({ capsules: [piece] });
   await scope.ready;
 
   scope.createSession();
@@ -371,7 +372,7 @@ test("a graceful parent close ends a wait inside a running session body", async 
 test("run, resolve, and write hooks read their owner's closing signal", async () => {
   const signals: AbortSignal[] = [];
   const counts = data({ label: "hook-count", initial: 0 });
-  const piece = extension({
+  const piece = capsule({
     label: "hook-closing",
     hooks: {
       start: (event) => {
@@ -393,7 +394,7 @@ test("run, resolve, and write hooks read their owner's closing signal", async ()
     },
   });
 
-  const scope = createScope({ extensions: [piece] });
+  const scope = createScope({ capsules: [piece] });
   await scope.ready;
   scope.resolve(counts);
   scope.controller(counts).set(1);

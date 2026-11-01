@@ -1,17 +1,17 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension, operation } from "@/index";
+import { createScope, data, capsule, operation } from "@/index";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
   return v;
 };
 
-test("a write chain skips an extension with no write hook", async () => {
+test("a write chain skips a capsule with no write hook", async () => {
   const cell = data({ initial: 0, parse: asNumber });
-  const plain = extension({ label: "plain" });
+  const plain = capsule({ label: "plain" });
   let seen: unknown = "unset";
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       write: (event) => {
@@ -21,7 +21,7 @@ test("a write chain skips an extension with no write hook", async () => {
     },
   });
 
-  const scope = createScope({ extensions: [plain, spy] });
+  const scope = createScope({ capsules: [plain, spy] });
   await scope.ready;
   scope.controller(cell).set(4);
 
@@ -32,14 +32,14 @@ test("a write chain skips an extension with no write hook", async () => {
 
 test("a write chain that skips still refuses when the writer denies", async () => {
   const cell = data({ initial: 1, parse: asNumber });
-  const plain = extension({ label: "plain" });
-  const deny = extension({
+  const plain = capsule({ label: "plain" });
+  const deny = capsule({
     label: "deny",
     hooks: {
       write: () => undefined,
     },
   });
-  const scope = createScope({ extensions: [plain, deny] });
+  const scope = createScope({ capsules: [plain, deny] });
   await scope.ready;
 
   scope.controller(cell).set(2);
@@ -52,7 +52,7 @@ test("three write hooks nest in registration order", async () => {
   const cell = data({ initial: 0, parse: asNumber });
   const order: string[] = [];
   const hook = (label: string) =>
-    extension({
+    capsule({
       label,
       hooks: {
         write: (event) => {
@@ -63,7 +63,7 @@ test("three write hooks nest in registration order", async () => {
       },
     });
 
-  const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
+  const scope = createScope({ capsules: [hook("a"), hook("b"), hook("c")] });
   await scope.ready;
   scope.controller(cell).set(1);
 
@@ -76,7 +76,7 @@ test("three resolve hooks nest in registration order", async () => {
   const cell = data({ initial: 7, parse: asNumber });
   const order: string[] = [];
   const hook = (label: string) =>
-    extension({
+    capsule({
       label,
       hooks: {
         resolve: (event) => {
@@ -88,7 +88,7 @@ test("three resolve hooks nest in registration order", async () => {
       },
     });
 
-  const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
+  const scope = createScope({ capsules: [hook("a"), hook("b"), hook("c")] });
   await scope.ready;
   expect(scope.resolve(cell)).toBe(7);
 
@@ -98,26 +98,26 @@ test("three resolve hooks nest in registration order", async () => {
 
 test("a scope with no resolve hooks reads straight through", async () => {
   const cell = data({ initial: 3, parse: asNumber });
-  const scope = createScope({ extensions: [extension({ label: "plain" })] });
+  const scope = createScope({ capsules: [capsule({ label: "plain" })] });
   await scope.ready;
   expect(scope.resolve(cell)).toBe(3);
   await scope.close();
 });
 
 test("a session chain is installed only when a hook exists", async () => {
-  const plain = createScope({ extensions: [extension({ label: "plain" })] });
+  const plain = createScope({ capsules: [capsule({ label: "plain" })] });
   await plain.ready;
   expect(await plain.session(() => 5)).toBe(5);
   await plain.close();
 
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => event.next(),
     },
   });
 
-  const wrapped = createScope({ extensions: [spy] });
+  const wrapped = createScope({ capsules: [spy] });
   await wrapped.ready;
   expect(await wrapped.session(() => 6)).toBe(6);
   await wrapped.close();
@@ -127,7 +127,7 @@ test("three run hooks nest in registration order", async () => {
   const order: string[] = [];
   const op = operation({ label: "op", run: () => 1 });
   const hook = (label: string) =>
-    extension({
+    capsule({
       label,
       hooks: {
         run: (event) => {
@@ -139,7 +139,7 @@ test("three run hooks nest in registration order", async () => {
       },
     });
 
-  const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
+  const scope = createScope({ capsules: [hook("a"), hook("b"), hook("c")] });
   await scope.ready;
   scope.run(op);
 
@@ -147,10 +147,10 @@ test("three run hooks nest in registration order", async () => {
   await scope.close();
 });
 
-test("two close hooks nest in registration order", async () => {
+test("two close hooks nest in reverse install order", async () => {
   const order: string[] = [];
   const hook = (label: string) =>
-    extension({
+    capsule({
       label,
       hooks: {
         close: async (event) => {
@@ -162,26 +162,26 @@ test("two close hooks nest in registration order", async () => {
       },
     });
 
-  const scope = createScope({ extensions: [hook("a"), hook("b")] });
+  const scope = createScope({ capsules: [hook("a"), hook("b")] });
   await scope.ready;
   await scope.close({ graceful: true });
 
-  expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
+  expect(order).toEqual(["b:before", "a:before", "a:after", "b:after"]);
 });
 
 test("a scope with no close hooks closes straight through", async () => {
-  const scope = createScope({ extensions: [extension({ label: "plain" })] });
+  const scope = createScope({ capsules: [capsule({ label: "plain" })] });
   await scope.ready;
   expect((await scope.close({ graceful: true })).status).toBe("success");
 
-  const forced = createScope({ extensions: [extension({ label: "plain" })] });
+  const forced = createScope({ capsules: [capsule({ label: "plain" })] });
   await forced.ready;
   expect((await forced.close()).status).toBe("cancelled");
 });
 
 test("a forced close with a close hook still settles cancelled", async () => {
   const seen: string[] = [];
-  const hook = extension({
+  const hook = capsule({
     label: "spy",
     hooks: {
       close: async (event) => {
@@ -191,7 +191,7 @@ test("a forced close with a close hook still settles cancelled", async () => {
       },
     },
   });
-  const scope = createScope({ extensions: [hook] });
+  const scope = createScope({ capsules: [hook] });
   await scope.ready;
 
   const result = await scope.close();
@@ -200,10 +200,10 @@ test("a forced close with a close hook still settles cancelled", async () => {
   expect(seen).toEqual(["cancelled"]);
 });
 
-test("a close chain runs past an extension with no close hook", async () => {
+test("a close chain runs past a capsule with no close hook", async () => {
   const order: string[] = [];
-  const plain = extension({ label: "plain" });
-  const closer = extension({
+  const plain = capsule({ label: "plain" });
+  const closer = capsule({
     label: "closer",
     hooks: {
       close: async (event) => {
@@ -215,18 +215,18 @@ test("a close chain runs past an extension with no close hook", async () => {
     },
   });
 
-  const scope = createScope({ extensions: [plain, closer] });
+  const scope = createScope({ capsules: [plain, closer] });
   await scope.ready;
   await scope.close({ graceful: true });
 
   expect(order).toEqual(["before", "after"]);
 });
 
-test("a resolve chain runs past an extension with no resolve hook", async () => {
+test("a resolve chain runs past a capsule with no resolve hook", async () => {
   const cell = data({ initial: 5, parse: asNumber });
   const order: string[] = [];
-  const plain = extension({ label: "plain" });
-  const wrap = extension({
+  const plain = capsule({ label: "plain" });
+  const wrap = capsule({
     label: "wrap",
     hooks: {
       resolve: (event) => {
@@ -238,7 +238,7 @@ test("a resolve chain runs past an extension with no resolve hook", async () => 
     },
   });
 
-  const scope = createScope({ extensions: [plain, wrap] });
+  const scope = createScope({ capsules: [plain, wrap] });
   await scope.ready;
 
   expect(scope.resolve(cell)).toBe(5);

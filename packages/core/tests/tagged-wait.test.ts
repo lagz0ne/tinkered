@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension, isError, operation, resource, tag } from "@/index";
+import { createScope, data, capsule, isError, operation, resource, tag } from "@/index";
 
 /** ADR 0072: a tagged call comes back as a value when its child session ended in place, and as
  * a native promise when the session must wait. One test per case on the wait list. */
@@ -126,8 +126,8 @@ test("wait: a failure rejects through a promise", async () => {
 test("wait: a session hook wraps the tagged call once", async () => {
   let seen = 0;
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "hook",
         hooks: {
           session: async (event) => {

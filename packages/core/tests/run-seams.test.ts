@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, extension, isError, operation, resource, tag } from "@/index";
+import { createScope, capsule, isError, operation, resource, tag } from "@/index";
 
 /** Seams the run side must keep; each one failed under a surviving mutant of the run-side cuts. */
 const zone = tag<string>({ label: "zone", default: "base" });
@@ -93,8 +93,8 @@ test(".all reads a handful of bindings across layers, nearest layer first, newes
 test("a closed scope with session hooks refuses a new session", async () => {
   let seen = 0;
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "hook",
         hooks: {
           session: async (event) => {

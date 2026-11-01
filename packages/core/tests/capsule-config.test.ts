@@ -3,11 +3,12 @@ import { expect, expectTypeOf, test } from "vite-plus/test";
 
 import {
   createScope,
-  extension,
+  capsule,
   isError,
   operation,
   resource,
   tag,
+  type Capsule,
   type Operation,
   type Resource,
   type Scope,
@@ -22,16 +23,16 @@ const migrateSlot = tag<Operation.Handle<string, void>>({ label: "sync.migrate" 
 const sqlite = resource({ label: "sqlite", factory: (): Store => ({ id: "sqlite" }) });
 const migrate = operation({ label: "migrate", run: (): string => "migrated" });
 
-/** A library: it resolves the store the slot holds and runs the migration it was handed. */
-const sync = extension({
+/** A library: it loads the store the slot holds and runs the migration it was handed. */
+const sync = capsule({
   label: "sync",
   config: { store: storeSlot, migrate: migrateSlot },
   hooks: {
-    start: (event) => {
-      const storeUnit = event.resolve(storeSlot);
-      const migrateUnit = event.resolve(migrateSlot);
+    start: async ({ config, load, run }) => {
+      const store = await load(config.store, { role: "state", explain: "Holds the records" });
+      const ran = await run(config.migrate, {}, { role: "setup", explain: "Migrates the store" });
 
-      return { store: event.resolve(storeUnit), ran: event.run(migrateUnit) };
+      return { store, ran };
     },
   },
 });
@@ -63,9 +64,9 @@ test("a filled key binds its tag for a unit that reads it", async () => {
     depends: { from },
     factory: ({ from }) => `hi ${from}`,
   });
-  const mail = extension({ label: "mail", config: { from } });
+  const mail = capsule({ label: "mail", config: { from } });
 
-  const scope = createScope({ extensions: [mail({ from: "ops@example.com" })] });
+  const scope = createScope({ capsules: [mail({ from: "ops@example.com" })] });
   await scope.ready;
 
   expect(scope.resolve(greeting)).toBe("hi ops@example.com");
@@ -74,22 +75,22 @@ test("a filled key binds its tag for a unit that reads it", async () => {
 
 test("a required key left out fails start with MissingConfig", () => {
   const from = tag<string>({ label: "mail.from" });
-  const mail = extension({ label: "mail", config: { from } });
+  const mail = capsule({ label: "mail", config: { from } });
 
   // @ts-expect-error a required key is left out
-  const error = caught(() => createScope({ extensions: [mail({})] }));
+  const error = caught(() => createScope({ capsules: [mail({})] }));
 
   if (!isError(error, "MissingConfig")) throw error;
   expect(error.payload).toEqual({ label: "mail", key: "from" });
 });
 
-test("an uncalled extension with a required key fails start the same way", () => {
+test("an uncalled capsule with a required key fails start the same way", () => {
   const from = tag<string>({ label: "mail.from" });
-  const mail = extension({ label: "mail", config: { from } });
+  const mail = capsule({ label: "mail", config: { from } });
   /** An install list that never filled the key: the type refuses it, so this reads the runtime. */
-  const unfilled: Scope.Extension<unknown> = mail;
+  const unfilled: Capsule.Binding<unknown> = mail;
 
-  const error = caught(() => createScope({ extensions: [unfilled] }));
+  const error = caught(() => createScope({ capsules: [unfilled] }));
 
   if (!isError(error, "MissingConfig")) throw error;
   expect(error.payload).toEqual({ label: "mail", key: "from" });
@@ -97,9 +98,9 @@ test("an uncalled extension with a required key fails start the same way", () =>
 
 test("a key filled with undefined counts as missing", () => {
   const host = tag<string | undefined>({ label: "mail.host", default: "localhost" });
-  const mail = extension({ label: "mail", config: { host: host.required } });
+  const mail = capsule({ label: "mail", config: { host: host.required } });
 
-  const error = caught(() => createScope({ extensions: [mail({ host: undefined })] }));
+  const error = caught(() => createScope({ capsules: [mail({ host: undefined })] }));
 
   if (!isError(error, "MissingConfig")) throw error;
   expect(error.payload).toEqual({ label: "mail", key: "host" });
@@ -113,9 +114,9 @@ test("an optional key left out reads the tag's default; an optional edge reads a
     depends: { port, level: level.optional },
     factory: ({ port, level }) => ({ port, level }),
   });
-  const mail = extension({ label: "mail", config: { port, level: level.optional } });
+  const mail = capsule({ label: "mail", config: { port, level: level.optional } });
 
-  const scope = createScope({ extensions: [mail({})] });
+  const scope = createScope({ capsules: [mail({})] });
   await scope.ready;
 
   expect(scope.resolve(settings)).toEqual({ port: 25, level: { present: false } });
@@ -123,12 +124,13 @@ test("an optional key left out reads the tag's default; an optional edge reads a
   await scope.close();
 });
 
-test("an extension with no config is the extension itself, not a callable", async () => {
-  const events = extension({ label: "events", hooks: { start: () => ({ ok: true }) } });
+test("a capsule with no config is called with nothing, and installs uncalled too", async () => {
+  const events = capsule({ label: "events", hooks: { start: () => ({ ok: true }) } });
 
-  expect("config" in events).toBe(false);
+  expect(events.config).toEqual({});
+  expect(events().label).toBe("events");
 
-  const scope = createScope({ extensions: [events] });
+  const scope = createScope({ capsules: [events] });
   await scope.ready;
 
   expect(scope.resolve(events)).toEqual({ ok: true });
@@ -142,21 +144,21 @@ test("a tag.required key is filled like any other", async () => {
     depends: { port: port.required },
     run: ({ port }) => port,
   });
-  const mail = extension({ label: "mail", config: { port: port.required } });
+  const mail = capsule({ label: "mail", config: { port: port.required } });
 
-  const scope = createScope({ extensions: [mail({ port: 8080 })] });
+  const scope = createScope({ capsules: [mail({ port: 8080 })] });
   await scope.ready;
 
   expect(scope.run(read)).toBe(8080);
   await scope.close();
 });
 
-test("a tags binding on the root wins over the extension's", async () => {
+test("a tags binding on the root wins over the capsule's", async () => {
   const port = tag({ label: "mail.port", default: 25 });
   const read = operation({ label: "read", depends: { port }, run: ({ port }) => port });
-  const mail = extension({ label: "mail", config: { port } });
+  const mail = capsule({ label: "mail", config: { port } });
 
-  const scope = createScope({ tags: [port(8080)], extensions: [mail({ port: 25 })] });
+  const scope = createScope({ tags: [port(8080)], capsules: [mail({ port: 25 })] });
   await scope.ready;
 
   expect(scope.run(read)).toBe(8080);
@@ -172,9 +174,9 @@ test("a list key binds one tag per item, and all reads them last first", async (
     depends: { hook: hook.all },
     factory: ({ hook }) => hook,
   });
-  const auth = extension({ label: "auth", config: { hook: hook.all } });
+  const auth = capsule({ label: "auth", config: { hook: hook.all } });
 
-  const scope = createScope({ extensions: [auth({ hook: ["first", "second"] })] });
+  const scope = createScope({ capsules: [auth({ hook: ["first", "second"] })] });
   await scope.ready;
 
   expect(scope.resolve(hook.all)).toEqual(["second", "first"]);
@@ -184,21 +186,21 @@ test("a list key binds one tag per item, and all reads them last first", async (
 
 test("an empty or left-out list key reads an empty list", async () => {
   const hook = tag<string>({ label: "auth.hook" });
-  const auth = extension({ label: "auth", config: { hook: hook.all } });
+  const auth = capsule({ label: "auth", config: { hook: hook.all } });
 
-  const empty = createScope({ extensions: [auth({ hook: [] })] });
+  const empty = createScope({ capsules: [auth({ hook: [] })] });
   await empty.ready;
   expect(empty.resolve(hook.all)).toEqual([]);
   await empty.close();
 
-  const left = createScope({ extensions: [auth({})] });
+  const left = createScope({ capsules: [auth({})] });
   await left.ready;
   expect(left.resolve(hook.all)).toEqual([]);
   await left.close();
 });
 
 test("a slot key holds a resource, and a unit reads the one the library resolved", async () => {
-  const scope = createScope({ extensions: [sync({ store: sqlite, migrate })] });
+  const scope = createScope({ capsules: [sync({ store: sqlite, migrate })] });
   await scope.ready;
 
   expect(scope.run(whoami)).toBe("sqlite");
@@ -207,7 +209,7 @@ test("a slot key holds a resource, and a unit reads the one the library resolved
 
 test("a preset on the unit a slot holds reaches the unit that reads it", async () => {
   const scope = createScope({
-    extensions: [sync({ store: sqlite, migrate })],
+    capsules: [sync({ store: sqlite, migrate })],
     presets: [preset(sqlite, (): Store => ({ id: "fake" }))],
   });
   await scope.ready;
@@ -217,7 +219,7 @@ test("a preset on the unit a slot holds reaches the unit that reads it", async (
 });
 
 test("a slot key holds an operation, and the library runs the one it was handed", async () => {
-  const scope = createScope({ extensions: [sync({ store: sqlite, migrate })] });
+  const scope = createScope({ capsules: [sync({ store: sqlite, migrate })] });
   await scope.ready;
 
   expect(scope.resolve(sync)).toEqual({ store: { id: "sqlite" }, ran: "migrated" });
@@ -226,14 +228,14 @@ test("a slot key holds an operation, and the library runs the one it was handed"
 
 test("resolve reads the start value of the callable and of the copy alike", async () => {
   const from = tag<string>({ label: "mail.from" });
-  const mail = extension({
+  const mail = capsule({
     label: "mail",
     config: { from },
-    hooks: { start: (event) => ({ from: event.resolve(from) }) },
+    hooks: { start: ({ config }) => ({ from: config.from }) },
   });
   const filled = mail({ from: "ops@example.com" });
 
-  const scope = createScope({ extensions: [filled] });
+  const scope = createScope({ capsules: [filled] });
   await scope.ready;
 
   expect(scope.resolve(filled)).toEqual({ from: "ops@example.com" });
@@ -241,15 +243,13 @@ test("resolve reads the start value of the callable and of the copy alike", asyn
   await scope.close();
 });
 
-test("one library installed twice raises DuplicateExtension", () => {
+test("one library installed twice raises DuplicateCapsule", () => {
   const from = tag<string>({ label: "mail.from" });
-  const mail = extension({ label: "mail", config: { from } });
+  const mail = capsule({ label: "mail", config: { from } });
 
-  const error = caught(() =>
-    createScope({ extensions: [mail({ from: "a" }), mail({ from: "b" })] }),
-  );
+  const error = caught(() => createScope({ capsules: [mail({ from: "a" }), mail({ from: "b" })] }));
 
-  if (!isError(error, "DuplicateExtension")) throw error;
+  if (!isError(error, "DuplicateCapsule")) throw error;
   expect(error.payload).toEqual({ label: "mail" });
 });
 
@@ -261,10 +261,10 @@ test("a config tag's parse refuses a bad value at createScope", () => {
       return raw;
     },
   });
-  const mail = extension({ label: "mail", config: { port } });
+  const mail = capsule({ label: "mail", config: { port } });
 
   // @ts-expect-error a port is a number
-  const error = caught(() => createScope({ extensions: [mail({ port: "eighty" })] }));
+  const error = caught(() => createScope({ capsules: [mail({ port: "eighty" })] }));
 
   if (!isError(error, "DataValidationFailed")) throw error;
   expect(error.payload.label).toBe("mail.port");
@@ -275,7 +275,7 @@ test("a config's values type as the tags say", () => {
   const port = tag({ label: "tt.port", default: 25 });
   const names = tag<string>({ label: "tt.names" });
   const store = tag<Resource.Handle<Store>>({ label: "tt.store" });
-  const mail = extension({ label: "tt", config: { from, port, names: names.all, store } });
+  const mail = capsule({ label: "tt", config: { from, port, names: names.all, store } });
 
   expectTypeOf(mail).parameter(0).toMatchTypeOf<{
     from: string | undefined;
@@ -286,7 +286,7 @@ test("a config's values type as the tags say", () => {
   expectTypeOf<{ from: string; store: Resource.Handle<Store> }>().toMatchTypeOf<
     Parameters<typeof mail>[0]
   >();
-  expectTypeOf(mail({ from: "a", store: sqlite })).toEqualTypeOf<Scope.Extension<void>>();
+  expectTypeOf(mail({ from: "a", store: sqlite })).toEqualTypeOf<Capsule.Binding<void>>();
   mail({ from: "a", store: sqlite, names: ["one"] });
   mail({ from: envValue("a"), store: sqlite });
 
@@ -305,23 +305,23 @@ test("a config's values type as the tags say", () => {
 test("extensions takes a filled configurable one, never an unfilled one", () => {
   const from = tag<string>({ label: "tt.from" });
   const port = tag({ label: "tt.port", default: 25 });
-  const mail = extension({ label: "tt", config: { from } });
-  const soft = extension({ label: "tt.soft", config: { port } });
+  const mail = capsule({ label: "tt", config: { from } });
+  const soft = capsule({ label: "tt.soft", config: { port } });
   /** Never called: it only has to type-check. */
   const install = (options: Scope.RootOptions): void => void options;
 
-  install({ extensions: [mail({ from: "a" })] });
-  install({ extensions: [soft] });
+  install({ capsules: [mail({ from: "a" })] });
+  install({ capsules: [soft] });
   // @ts-expect-error a required key is unfilled
-  install({ extensions: [mail] });
+  install({ capsules: [mail] });
 
   /** A config object passed through a variable keeps the fillable type. */
   const def = { label: "tt.var", config: { from } };
-  const viaVar = extension(def);
+  const viaVar = capsule(def);
 
-  install({ extensions: [viaVar({ from: "a" })] });
+  install({ capsules: [viaVar({ from: "a" })] });
   // @ts-expect-error a required key is unfilled
-  install({ extensions: [viaVar] });
+  install({ capsules: [viaVar] });
 });
 
 test("a tag says whether it has a default", () => {
@@ -330,9 +330,9 @@ test("a tag says whether it has a default", () => {
   expectTypeOf(tag<number>({ label: "tt.required" })).not.toEqualTypeOf<Tag.Defaulted<number>>();
 });
 
-test("resolve of a configurable extension is typed with its start hook's value", () => {
+test("resolve of a configurable capsule is typed with its start hook's value", () => {
   const from = tag<string>({ label: "tt.from" });
-  const mail = extension({
+  const mail = capsule({
     label: "tt",
     config: { from },
     hooks: { start: () => ({ client: "smtp" }) },

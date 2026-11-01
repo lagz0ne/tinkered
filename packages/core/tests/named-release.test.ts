@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension, namespace, operation, resource, tag } from "@/index";
+import { createScope, data, capsule, namespace, operation, resource, tag } from "@/index";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -9,7 +9,7 @@ const asNumber = (v: unknown): number => {
 
 test("a tagged subflow in a named run uses session hooks", async () => {
   let sessions = 0;
-  const spy = extension({
+  const spy = capsule({
     label: "spy",
     hooks: {
       session: async (event) => {
@@ -25,7 +25,7 @@ test("a tagged subflow in a named run uses session hooks", async () => {
     depends: { child },
     run: ({ child }) => child.run({ tags: [marker(1)] }),
   });
-  const scope = createScope({ extensions: [spy] });
+  const scope = createScope({ capsules: [spy] });
   await scope.ready;
 
   expect(await scope.run(parent, { ns: namespace() })).toBe(1);

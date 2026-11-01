@@ -2,7 +2,7 @@ import { getEventListeners } from "node:events";
 
 import { expect, expectTypeOf, test } from "vite-plus/test";
 
-import { createScope, data, extension, operation, resource, type Scope } from "@/index";
+import { createScope, data, capsule, operation, resource, type Scope } from "@/index";
 
 const count = data({ label: "count", initial: 0 });
 
@@ -19,7 +19,7 @@ test("a rejected start rejects ready only after its forced cleanup ends", async 
   const cleanup = gate();
   const events: string[] = [];
   const error = new Error("start failed");
-  const piece = extension({
+  const piece = capsule({
     label: "failed-start",
     hooks: {
       start: (event) => {
@@ -32,7 +32,7 @@ test("a rejected start rejects ready only after its forced cleanup ends", async 
       },
     },
   });
-  const scope = createScope({ extensions: [piece] });
+  const scope = createScope({ capsules: [piece] });
   const ready = scope.ready.catch((cause: unknown) => {
     events.push("ready");
     return cause;
@@ -47,19 +47,10 @@ test("a rejected start rejects ready only after its forced cleanup ends", async 
 test("a rejected start runs every close hook through the current handle", async () => {
   const events: string[] = [];
   const error = new Error("start failed");
-  const first = extension({
+  const first = capsule({
     label: "first",
     hooks: {
-      start: (event) => {
-        const close = event.scope.close.bind(event.scope);
-        event.scope.close = async (options) => {
-          events.push("handle:before");
-          const ended = await close(options);
-          events.push("handle:after");
-          return ended;
-        };
-        return event.next();
-      },
+      start: (event) => event.next(),
       close: async (event) => {
         events.push("first:before");
         const ended = await event.next();
@@ -68,7 +59,7 @@ test("a rejected start runs every close hook through the current handle", async 
       },
     },
   });
-  const second = extension({
+  const second = capsule({
     label: "second",
     hooks: {
       start: () => {
@@ -82,15 +73,22 @@ test("a rejected start runs every close hook through the current handle", async 
       },
     },
   });
-  const scope = createScope({ extensions: [first, second] });
+  const scope = createScope({ capsules: [first, second] });
+  const close = scope.close.bind(scope);
+  scope.close = async (options) => {
+    events.push("handle:before");
+    const ended = await close(options);
+    events.push("handle:after");
+    return ended;
+  };
   await expect(scope.ready).rejects.toBe(error);
 
   expect(events).toEqual([
     "handle:before",
-    "first:before",
     "second:before",
-    "second:after",
+    "first:before",
     "first:after",
+    "second:after",
     "handle:after",
   ]);
 });
@@ -102,7 +100,7 @@ test("close cancels a pending start and joins the hooks already running", async 
   const events: string[] = [];
   const error = new Error("late start failure");
   let closeSignal!: AbortSignal;
-  const piece = extension({
+  const piece = capsule({
     label: "overlap",
     hooks: {
       start: async (event) => {
@@ -121,7 +119,7 @@ test("close cancels a pending start and joins the hooks already running", async 
       },
     },
   });
-  const scope = createScope({ extensions: [piece] });
+  const scope = createScope({ capsules: [piece] });
   const ready = scope.ready.catch((cause: unknown) => {
     events.push("ready");
     return cause;
@@ -146,7 +144,7 @@ test("closed reports the start error after cleanup even when a stop was requeste
   const cleanup = gate();
   const error = new Error("start failed");
   const closes: Scope.CloseOptions[] = [];
-  const piece = extension({
+  const piece = capsule({
     label: "failed-start",
     hooks: {
       start: (event) => {
@@ -163,7 +161,7 @@ test("closed reports the start error after cleanup even when a stop was requeste
       },
     },
   });
-  const scope = createScope({ signal: stop.signal, extensions: [piece] });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
   const ready = expect(scope.ready).rejects.toBe(error);
   await cleanupStarted.promise;
   expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
@@ -185,12 +183,12 @@ test.each([false, true])(
 
     const start = gate();
     const events: string[] = [];
-    const piece = extension({
+    const piece = capsule({
       label: "slow-start",
       hooks: {
         start: async (event) => {
           await start.promise;
-          event.scope.controller(count).set(3);
+          event.load(count, { role: "state", explain: "Counts starts" }).set(3);
           event.defer(() => {
             events.push("cleanup");
           });
@@ -198,7 +196,7 @@ test.each([false, true])(
         },
       },
     });
-    const scope = createScope({ signal: stop.signal, extensions: [piece] });
+    const scope = createScope({ signal: stop.signal, capsules: [piece] });
     if (!alreadyAborted) stop.abort();
 
     scope.controller(count).set(2);
@@ -224,7 +222,7 @@ test("a stop lets in-flight work finish without aborting its ctx signal", async 
       return signal.aborted;
     },
   });
-  const piece = extension({
+  const piece = capsule({
     label: "close-start",
     hooks: {
       close: (event) => {
@@ -233,7 +231,7 @@ test("a stop lets in-flight work finish without aborting its ctx signal", async 
       },
     },
   });
-  const scope = createScope({ signal: stop.signal, extensions: [piece] });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
   await scope.ready;
 
   const running = scope.run(run);
@@ -249,7 +247,7 @@ test("a stop lets in-flight work finish without aborting its ctx signal", async 
 test("a stop after a manual close does not run close hooks again", async () => {
   const stop = new AbortController();
   const modes: Scope.CloseOptions[] = [];
-  const piece = extension({
+  const piece = capsule({
     label: "close-once",
     hooks: {
       close: (event) => {
@@ -258,7 +256,7 @@ test("a stop after a manual close does not run close hooks again", async () => {
       },
     },
   });
-  const scope = createScope({ signal: stop.signal, extensions: [piece] });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
   await scope.ready;
 
   const ended = await scope.close();
@@ -279,7 +277,7 @@ test("a stop joins an object run hook through its cleanup", async () => {
       return 7;
     },
   });
-  const piece = extension({
+  const piece = capsule({
     label: "waiting-hook",
     hooks: {
       run: (event) => {
@@ -289,13 +287,15 @@ test("a stop joins an object run hook through its cleanup", async () => {
         });
         events.push("waiting");
         return resume.promise.then(() => {
-          events.push(`resumed:${event.resolve(count)}`);
+          events.push(
+            `resumed:${event.load(count, { role: "state", explain: "Counts runs" }).get()}`,
+          );
           return value;
         });
       },
     },
   });
-  const scope = createScope({ signal: stop.signal, extensions: [piece] });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
   await scope.ready;
 
   const running = Promise.resolve(scope.run(task));
@@ -361,7 +361,7 @@ test("closed waits for close hooks' after-work and keeps core's Result", async (
   const afterStarted = gate();
   const after = gate();
   let result: Scope.Result | undefined;
-  const piece = extension({
+  const piece = capsule({
     label: "after-work",
     hooks: {
       close: async (event) => {
@@ -372,7 +372,7 @@ test("closed waits for close hooks' after-work and keeps core's Result", async (
       },
     },
   });
-  const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
+  const scope = createScope({ signal: new AbortController().signal, capsules: [piece] });
   await scope.ready;
 
   const closing = scope.close();
@@ -387,7 +387,7 @@ test("closed waits for close hooks' after-work and keeps core's Result", async (
 
 test("closed counts a close hook throw after next as a teardown error", async () => {
   const error = new Error("close hook failed");
-  const piece = extension({
+  const piece = capsule({
     label: "throw-after-close",
     hooks: {
       close: async (event) => {
@@ -396,7 +396,7 @@ test("closed counts a close hook throw after next as a teardown error", async ()
       },
     },
   });
-  const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
+  const scope = createScope({ signal: new AbortController().signal, capsules: [piece] });
   await scope.ready;
   const ended = await scope.close({ graceful: true });
 
@@ -408,7 +408,7 @@ test("closed keeps close-hook and resource cleanup errors together", async () =>
   const before = new Error("before close");
   const cleanup = new Error("resource cleanup");
   const after = new Error("after close");
-  const first = extension({
+  const first = capsule({
     label: "throw-before-close",
     hooks: {
       close: () => {
@@ -416,7 +416,7 @@ test("closed keeps close-hook and resource cleanup errors together", async () =>
       },
     },
   });
-  const last = extension({
+  const last = capsule({
     label: "throw-after-close",
     hooks: {
       close: async (event) => {
@@ -434,7 +434,7 @@ test("closed keeps close-hook and resource cleanup errors together", async () =>
       return 7;
     },
   });
-  const scope = createScope({ signal: new AbortController().signal, extensions: [first, last] });
+  const scope = createScope({ signal: new AbortController().signal, capsules: [first, last] });
   await scope.ready;
 
   scope.resolve(owned);
@@ -448,7 +448,7 @@ test.each([false, true])(
   "closed includes cleanup when a close hook skips next (throws: %s)",
   async (throws) => {
     const error = new Error("close refused");
-    const piece = extension({
+    const piece = capsule({
       label: "skip-close",
       hooks: {
         close: () => {
@@ -458,7 +458,7 @@ test.each([false, true])(
       },
     });
     const innerCalls: string[] = [];
-    const inner = extension({
+    const inner = capsule({
       label: "inner-close",
       hooks: {
         close: (event) => {
@@ -469,7 +469,7 @@ test.each([false, true])(
         },
       },
     });
-    const scope = createScope({ signal: new AbortController().signal, extensions: [piece, inner] });
+    const scope = createScope({ signal: new AbortController().signal, capsules: [piece, inner] });
     await scope.ready;
 
     const cleaned: string[] = [];
@@ -490,7 +490,7 @@ test.each([false, true])(
 test("the root drops its stop listener before any close hook runs", async () => {
   const stop = new AbortController();
   const listeners: number[] = [];
-  const piece = extension({
+  const piece = capsule({
     label: "check-listener",
     hooks: {
       close: (event) => {
@@ -500,7 +500,7 @@ test("the root drops its stop listener before any close hook runs", async () => 
       },
     },
   });
-  const scope = createScope({ signal: stop.signal, extensions: [piece] });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
   await scope.ready;
 
   expect(getEventListeners(stop.signal, "abort")).toHaveLength(1);
@@ -511,24 +511,17 @@ test("the root drops its stop listener before any close hook runs", async () => 
 test("a signal close runs every close hook gracefully through the current handle", async () => {
   const stop = new AbortController();
   const modes: Scope.CloseOptions[] = [];
-  const first = extension({
+  const first = capsule({
     label: "first",
     hooks: {
-      start: (event) => {
-        const close = event.scope.close.bind(event.scope);
-        event.scope.close = (options) => {
-          modes.push(options ?? {});
-          return close(options);
-        };
-        return event.next();
-      },
+      start: (event) => event.next(),
       close: (event) => {
         modes.push(event.options);
         return event.next();
       },
     },
   });
-  const second = extension({
+  const second = capsule({
     label: "second",
     hooks: {
       close: (event) => {
@@ -537,7 +530,12 @@ test("a signal close runs every close hook gracefully through the current handle
       },
     },
   });
-  const scope = createScope({ signal: stop.signal, extensions: [first, second] });
+  const scope = createScope({ signal: stop.signal, capsules: [first, second] });
+  const close = scope.close.bind(scope);
+  scope.close = (options) => {
+    modes.push(options ?? {});
+    return close(options);
+  };
   await scope.ready;
 
   stop.abort();
@@ -548,7 +546,7 @@ test("a signal close runs every close hook gracefully through the current handle
 
 test("only a root given a signal has closed and sessions take no signal", async () => {
   const plain = createScope();
-  const extended = createScope({ extensions: [extension({ label: "plain" })] });
+  const extended = createScope({ capsules: [capsule({ label: "plain" })] });
   const root = createScope({ signal: new AbortController().signal });
 
   expectTypeOf(plain).not.toHaveProperty("closed");

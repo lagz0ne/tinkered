@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension, isError, operation, resource, type Resource } from "@/index";
+import { createScope, data, capsule, isError, operation, resource, type Resource } from "@/index";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -395,13 +395,13 @@ test("a defer from a superseded build never joins the live rebuild's drain", asy
 
 test("a failing start fails the scope with its cause", async () => {
   const cause = new Error("start-boom");
-  const ext = extension({
+  const ext = capsule({
     label: "bad",
     hooks: {
       start: () => Promise.reject(cause),
     },
   });
-  const scope = createScope({ extensions: [ext] });
+  const scope = createScope({ capsules: [ext] });
   const thrown = await scope.ready.then(
     () => undefined,
     (error: unknown) => error,

@@ -1,14 +1,14 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension, namespace, operation, tag } from "@/index";
+import { createScope, data, capsule, namespace, operation, tag } from "@/index";
 
 test("a tagged run invokes its hook once with the original call", async () => {
   const zone = tag({ label: "zone", default: "base" });
   const op = operation({ label: "op", depends: { zone }, run: ({ zone }) => zone });
   const seen: unknown[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "spy",
         hooks: {
           run: (event) => {
@@ -35,8 +35,8 @@ test("a subflow run invokes its hook once", async () => {
   });
   const seen: string[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "spy",
         hooks: {
           run: (event) => {
@@ -58,8 +58,8 @@ test("a tagged run in a session invokes its hook once", async () => {
   const op = operation({ label: "op", depends: { zone }, run: ({ zone }) => zone });
   const seen: unknown[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "spy",
         hooks: {
           run: (event) => {
@@ -81,8 +81,8 @@ test("an inline run in a session invokes its hook with the inline config", async
   const inline = { run: () => 4 };
   const seen: unknown[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "spy",
         hooks: {
           run: (event) => {
@@ -114,8 +114,8 @@ test("a run hook that skips next stops a subflow with its substitute", async () 
     run: ({ child }) => child.run(),
   });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "deny",
         hooks: {
           run: (event) =>
@@ -146,8 +146,8 @@ test("a run hook that throws stops a subflow before its body", async () => {
     run: ({ child }) => child.run(),
   });
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "deny",
         hooks: {
           run: (event) => {
@@ -180,13 +180,13 @@ test("an async run hook keeps a dropped subflow's rejection on the scope", async
       return "dropped";
     },
   });
-  const gate = extension({
+  const gate = capsule({
     label: "gate",
     hooks: {
       run: async (event) => event.next(),
     },
   });
-  const scope = createScope({ extensions: [gate] });
+  const scope = createScope({ capsules: [gate] });
   await scope.ready;
 
   expect(await scope.run(drop)).toBe("dropped");
@@ -198,8 +198,8 @@ test("a namespaced write invokes its hook once", async () => {
   const east = namespace();
   const seen: unknown[] = [];
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "spy",
         hooks: {
           write: (event) => {
@@ -227,7 +227,7 @@ test("two run hooks keep registration order on a subflow", async () => {
   });
   const order: string[] = [];
   const hook = (label: string) =>
-    extension({
+    capsule({
       label,
       hooks: {
         run: (event) => {
@@ -239,7 +239,7 @@ test("two run hooks keep registration order on a subflow", async () => {
         },
       },
     });
-  const scope = createScope({ extensions: [hook("a"), hook("b")] });
+  const scope = createScope({ capsules: [hook("a"), hook("b")] });
 
   expect(scope.run(parent)).toBe(3);
   expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
@@ -251,7 +251,7 @@ test("two hooks keep registration order on a child layer", async () => {
   const op = operation({ label: "op", run: () => 5 });
   const order: string[] = [];
   const hook = (label: string) =>
-    extension({
+    capsule({
       label,
       hooks: {
         run: (event) => {
@@ -267,7 +267,7 @@ test("two hooks keep registration order on a child layer", async () => {
         },
       },
     });
-  const scope = createScope({ extensions: [hook("a"), hook("b")] });
+  const scope = createScope({ capsules: [hook("a"), hook("b")] });
   const session = scope.createSession();
 
   expect(session.run(op)).toBe(5);

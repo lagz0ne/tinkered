@@ -3,7 +3,7 @@ import { runInNewContext } from "node:vm";
 
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, extension } from "@/index";
+import { createScope, data, capsule } from "@/index";
 
 setFlagsFromString("--expose-gc");
 const gc = runInNewContext("gc") as () => void;
@@ -101,14 +101,14 @@ test("a fast-closed session keeps the last write of a controller that is still h
 });
 
 test("a session closed under a session hook keeps the last write of a controller that is still held", async () => {
-  const reader = extension({
+  const reader = capsule({
     label: "reader",
     hooks: {
       session: async (event) => event.next(),
     },
   });
 
-  const root = createScope({ extensions: [reader] });
+  const root = createScope({ capsules: [reader] });
   const session = root.createSession();
   const held = session.controller(cell);
 

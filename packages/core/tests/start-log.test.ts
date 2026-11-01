@@ -1,24 +1,24 @@
 import { describe, expect, it, test } from "vite-plus/test";
 
-import { createScope, extension, LEVELS, type Observe } from "@/index";
+import { createScope, capsule, LEVELS, type Observe } from "@/index";
 
-describe("extension start", () => {
-  it("extension start logs before and after next reach the scope sink without a span", async () => {
+describe("capsule start", () => {
+  it("capsule start logs before and after next reach the scope sink without a span", async () => {
     const lines: Observe.Log[] = [];
     const scope = createScope({
       observe: { history: 1, clock: () => 10, log: (line) => void lines.push(line) },
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "outer",
           hooks: {
             async start(event) {
-              event.log("before", { port: 3000, label: "mine", extension: "caller" });
+              event.log("before", { port: 3000, label: "mine", capsule: "caller" });
               await event.next();
               event.log("after");
             },
           },
         }),
-        extension({
+        capsule({
           label: "inner",
           hooks: {
             start(event) {
@@ -38,21 +38,21 @@ describe("extension start", () => {
         time: 10,
         level: LEVELS.info,
         message: "before",
-        attributes: { port: 3000, label: "mine", extension: "outer" },
+        attributes: { port: 3000, label: "mine", capsule: "outer" },
         span: undefined,
       },
       {
         time: 10,
         level: LEVELS.info,
         message: "inside",
-        attributes: { extension: "inner" },
+        attributes: { capsule: "inner" },
         span: undefined,
       },
       {
         time: 10,
         level: LEVELS.info,
         message: "after",
-        attributes: { extension: "outer" },
+        attributes: { capsule: "outer" },
         span: undefined,
       },
     ]);
@@ -60,12 +60,12 @@ describe("extension start", () => {
     expect(scope.spans()).toEqual([]);
   });
 
-  it("a destructured extension start logger sends every level without span observation", async () => {
+  it("a destructured capsule start logger sends every level without span observation", async () => {
     const lines: Observe.Log[] = [];
     const scope = createScope({
       observe: { clock: () => 7, log: (line) => void lines.push(line) },
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "boot",
           hooks: {
             start(event) {
@@ -95,11 +95,11 @@ describe("extension start", () => {
         { message: "info", level: LEVELS.info },
         { message: "warn", level: LEVELS.warn },
         { message: "error", level: LEVELS.error },
-      ].map((line) => ({ ...line, time: 7, attributes: { extension: "boot" }, span: undefined })),
+      ].map((line) => ({ ...line, time: 7, attributes: { capsule: "boot" }, span: undefined })),
     );
   });
 
-  it("an info threshold drops extension start debug lines before reading the clock", async () => {
+  it("an info threshold drops capsule start debug lines before reading the clock", async () => {
     const lines: Observe.Log[] = [];
     let reads = 0;
     const scope = createScope({
@@ -108,8 +108,8 @@ describe("extension start", () => {
         clock: () => reads++,
         log: (line) => void lines.push(line),
       },
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "boot",
           hooks: {
             start(event) {
@@ -130,7 +130,7 @@ describe("extension start", () => {
         time: 0,
         level: LEVELS.info,
         message: "kept",
-        attributes: { extension: "boot" },
+        attributes: { capsule: "boot" },
         span: undefined,
       },
     ]);
@@ -138,7 +138,7 @@ describe("extension start", () => {
     expect(reads).toBe(1);
   });
 
-  it("extension start logging without a sink reads no clock or attributes", async () => {
+  it("capsule start logging without a sink reads no clock or attributes", async () => {
     let reads = 0;
     const attributes = {
       get detail() {
@@ -146,7 +146,7 @@ describe("extension start", () => {
         return "unused";
       },
     };
-    const boot = extension({
+    const boot = capsule({
       label: "boot",
       hooks: {
         start(event) {
@@ -161,20 +161,20 @@ describe("extension start", () => {
       },
     });
     for (const observe of [undefined, { history: 1, clock: () => reads++ }]) {
-      const scope = createScope({ observe, extensions: [boot] });
+      const scope = createScope({ observe, capsules: [boot] });
       await scope.ready;
       await scope.close();
     }
     expect(reads).toBe(0);
   });
 
-  it("a failed extension start delivers the log before its throw", async () => {
+  it("a failed capsule start delivers the log before its throw", async () => {
     const lines: string[] = [];
     const failure = new Error("boot failed");
     const scope = createScope({
       observe: { log: (line) => void lines.push(line.message) },
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "boot",
           hooks: {
             start(event) {
@@ -189,15 +189,15 @@ describe("extension start", () => {
     expect(lines).toEqual(["failed to boot"]);
   });
 
-  it("a throwing extension start log sink does not fail ready", async () => {
+  it("a throwing capsule start log sink does not fail ready", async () => {
     const scope = createScope({
       observe: {
         log: () => {
           throw new Error("sink failed");
         },
       },
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "boot",
           hooks: {
             async start(event) {
@@ -214,12 +214,12 @@ describe("extension start", () => {
   });
 });
 
-test("an extension close hook logs before and after next with the scope filter and clock", async () => {
+test("a capsule close hook logs before and after next with the scope filter and clock", async () => {
   const lines: Observe.Log[] = [];
   const scope = createScope({
     observe: { level: LEVELS.warn, clock: () => 12, log: (line) => void lines.push(line) },
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "shutdown",
         hooks: {
           async close(event) {
@@ -240,14 +240,14 @@ test("an extension close hook logs before and after next with the scope filter a
       time: 12,
       level: LEVELS.warn,
       message: "before",
-      attributes: { extension: "shutdown" },
+      attributes: { capsule: "shutdown" },
       span: undefined,
     },
     {
       time: 12,
       level: LEVELS.error,
       message: "after",
-      attributes: { extension: "shutdown" },
+      attributes: { capsule: "shutdown" },
       span: undefined,
     },
   ]);

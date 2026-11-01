@@ -4,7 +4,7 @@ import { expect, test } from "vite-plus/test";
 import {
   createScope,
   data,
-  extension,
+  capsule,
   isError,
   namespace,
   operation,
@@ -212,8 +212,8 @@ test("closing refuses new calls before a waiting root close hook resumes", async
   const named = namespace();
   const work = operation({ label: "work", run: () => 1 });
   const root = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "wait",
         hooks: {
           close: async (event) => {
@@ -266,7 +266,7 @@ test("graceful close refuses new calls before run hooks start", async () => {
   const active = operation({ label: "active", run: () => finish.promise });
   const later = operation({ label: "later", run: () => 7 });
   const root = createScope({
-    extensions: [extension({ label: "run hook", hooks: { run: (event) => event.next() } })],
+    capsules: [capsule({ label: "run hook", hooks: { run: (event) => event.next() } })],
   });
   await root.ready;
 
@@ -287,7 +287,7 @@ test("graceful close refuses new calls before run hooks start", async () => {
 test("graceful close refuses new sessions through session hooks", async () => {
   const finish = gate();
   const root = createScope({
-    extensions: [extension({ label: "session hook", hooks: { session: (event) => event.next() } })],
+    capsules: [capsule({ label: "session hook", hooks: { session: (event) => event.next() } })],
   });
   await root.ready;
   const running = root.run({ run: () => finish.promise });
@@ -400,7 +400,7 @@ for (const mode of ["root stop", "root close", "session close"]) {
     const stop = new AbortController();
     const root = createScope({
       signal: stop.signal,
-      extensions: [extension({ label: "helper hooks", hooks: { run: (event) => event.next() } })],
+      capsules: [capsule({ label: "helper hooks", hooks: { run: (event) => event.next() } })],
     });
     await root.ready;
     const session = root.createSession();
@@ -572,8 +572,8 @@ for (const named of [false, true]) {
     const ns = namespace();
     const owned = resource({ label: "draining parent", factory: () => 1 });
     const root = createScope({
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "wait before close",
           hooks: {
             close: async (event) => {
@@ -635,8 +635,8 @@ for (const hooked of [false, true]) {
       const save = operation({ label: "saved helper", run: () => 1 });
       let saved = () => 0;
       const root = createScope({
-        extensions: hooked
-          ? [extension({ label: "saved helper hooks", hooks: { run: (event) => event.next() } })]
+        capsules: hooked
+          ? [capsule({ label: "saved helper hooks", hooks: { run: (event) => event.next() } })]
           : undefined,
       });
 
@@ -816,8 +816,8 @@ for (const hooked of [false, true]) {
       const entered = Promise.withResolvers<Scope.Handle>();
       const cause = new Error("body failed");
       const root = createScope({
-        extensions: hooked
-          ? [extension({ label: "body handle hook", hooks: { session: (event) => event.next() } })]
+        capsules: hooked
+          ? [capsule({ label: "body handle hook", hooks: { session: (event) => event.next() } })]
           : undefined,
       });
       await root.ready;

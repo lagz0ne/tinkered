@@ -1,15 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import {
-  createScope,
-  data,
-  extension,
-  namespace,
-  operation,
-  originOf,
-  resource,
-  tag,
-} from "@/index";
+import { createScope, data, capsule, namespace, operation, originOf, resource, tag } from "@/index";
 
 const zone = tag({ label: "frame-zone", default: "root" });
 const tags = [zone("call")];
@@ -265,8 +256,8 @@ test("session hooks read the first write after next and run hooks fire once", as
   const cell = data({ initial: 1 });
   const events: string[] = [];
   const root = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "observe-first-use",
         hooks: {
           run: (event) => {

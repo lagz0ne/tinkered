@@ -5,7 +5,7 @@ import { expect, expectTypeOf, test } from "vite-plus/test";
 
 import {
   createScope,
-  extension,
+  capsule,
   namespace,
   operation,
   originOf,
@@ -754,8 +754,8 @@ test("an empty ctx raise gets its origin from the run it reaches", async () => {
 
 test("extension raise stamps the start ctx", async () => {
   const scope = createScope({
-    extensions: [
-      extension({
+    capsules: [
+      capsule({
         label: "start",
         hooks: {
           start: (event) => event.raise("StartFailed", {}),
