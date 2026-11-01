@@ -5993,13 +5993,11 @@ class HookCtx implements Capsule.Ctx {
   get obs(): Observe.Ctx {
     return this.ctx?.obs ?? OFF_OBS;
   }
+  /** A hook's lines carry its capsule's label; a run hook's also sit on its run's span. */
   get log(): Observe.Logger {
-    return (
-      this.ctx?.log ??
-      (this.layer.obs.log
-        ? (this.logs ??= logFor(this.layer.obs, undefined, this.ns, this.label))
-        : noop)
-    );
+    return this.layer.obs.log
+      ? (this.logs ??= logFor(this.layer.obs, this.flight?.span, this.ns, this.label))
+      : noop;
   }
   get raise(): Resource.Ctx["raise"] {
     return (this.raiser ??= (kind, payload) => raiseFrom(this.ctx ?? this, kind, payload));

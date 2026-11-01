@@ -1164,3 +1164,63 @@ test("A25c an export named tags raises ReservedExport", () => {
   if (!isError(error, "ReservedExport")) throw error;
   expect(error.payload).toEqual({ label: "bad", key: "tags" });
 });
+
+test("B1 every hook kind's log line carries attributes.capsule", async () => {
+  const lines: { message: string; capsule: unknown }[] = [];
+  const count = data({ label: "b1.count", initial: 0 });
+  const pool = resource({ label: "b1.pool", factory: () => ({ open: true }) });
+  const step = operation({ label: "b1.step", run: () => 1 });
+  const loud = capsule({
+    label: "loud",
+    hooks: {
+      start: ({ log }) => {
+        log("start");
+      },
+      run: ({ log, next }) => {
+        log("run");
+        return next();
+      },
+      resolve: ({ log, next }) => {
+        log("resolve");
+        return next();
+      },
+      write: ({ log, next }) => {
+        log("write");
+        next();
+      },
+      session: ({ log, next }) => {
+        log("session");
+        return next();
+      },
+      close: ({ log, next }) => {
+        log("close");
+        return next();
+      },
+    },
+  });
+  const scope = createScope({
+    capsules: [loud()],
+    observe: {
+      history: 10,
+      log: (line) => {
+        if (line.message !== "b1.step") {
+          lines.push({ message: line.message, capsule: line.attributes.capsule });
+        }
+      },
+    },
+  });
+  await scope.ready;
+
+  scope.run(step);
+  scope.resolve(pool);
+  scope.controller(count).set(1);
+  await scope.session(() => undefined);
+  await scope.close();
+
+  expect(lines).toEqual(
+    ["start", "run", "resolve", "write", "session", "close"].map((message) => ({
+      message,
+      capsule: "loud",
+    })),
+  );
+});
