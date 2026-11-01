@@ -84,6 +84,18 @@ This replaces the `start-v<version>` tag of
 0114, step 5. The GitHub-release-only rule of
 0114 stays.
 
+### 5. Bun is the main runtime
+
+Duke, 2026-11-01 13:27: "Make bun the first
+class support".
+
+- Core and React name `bun >=1.4` in
+  `engines`, next to `node >=22.18.0`.
+- Install lines show `bun add` first.
+- CI job `bun` runs the Core and React tests
+  on Bun 1.4. Then it loads the built dist.
+- CI job `gates` still tests on Node 22.
+
 ## Consequences
 
 - Main has two libraries and no Start tests,
