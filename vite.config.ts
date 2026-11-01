@@ -38,9 +38,8 @@ export default defineConfig({
     ignorePatterns: ["tools/flight-trial/reference/**"],
     overrides: [
       // Plain Node scripts have no tsconfig, so `@/` cannot reach them.
-      // Start's source is compiled inside each app, where `@/` is the app's own folder.
       {
-        files: ["**/*.mjs", "**/*.js", "**/*.cjs", "packages/start/**"],
+        files: ["**/*.mjs", "**/*.js", "**/*.cjs"],
         rules: { "import/no-relative-parent-imports": "off" },
       },
       // A second source folder next to src/ (the playground's example/, blueprint's tinker/),

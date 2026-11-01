@@ -1449,7 +1449,7 @@ async function prove() {
 
   try {
     await symlink(
-      join(workspace, "packages/start/node_modules"),
+      join(workspace, "packages/react/node_modules"),
       join(planted, "node_modules"),
       "dir",
     );

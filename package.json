@@ -12,7 +12,7 @@
     "example:export": "node scripts/export-example.mjs",
     "example:check": "node scripts/check-examples.mjs",
     "dev": "vp run website#dev",
-    "lazy": "node scripts/check-lazy-modules.mjs --prove && node scripts/check-lazy-modules.mjs packages/start/src apps/start-scaffold/src"
+    "lazy": "node scripts/check-lazy-modules.mjs --prove && node scripts/check-lazy-modules.mjs examples/core examples/react packages/react/src"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "catalog:",
@@ -25,6 +25,7 @@
     "mitata": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "typescript": "catalog:",
     "typescript-api": "npm:typescript@5.9.3",
     "vite": "catalog:",
     "vite-plus": "catalog:",
