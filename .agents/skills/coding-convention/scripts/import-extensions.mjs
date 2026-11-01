@@ -1,4 +1,4 @@
-import { parseSource, specifiers } from "../../../../packages/start/lib/source.mjs";
+import { parseSource, specifiers } from "../../../../scripts/lib/source.mjs";
 
 for (const file of process.argv.slice(2)) {
   for (const { name, line } of specifiers(parseSource(file))) {

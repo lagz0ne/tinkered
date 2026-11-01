@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { parseSource } from "../../packages/start/lib/source.mjs";
+import { parseSource } from "../../scripts/lib/source.mjs";
 
 const BUILDERS = new Set(["operation", "resource", "tag", "data"]);
 const FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
