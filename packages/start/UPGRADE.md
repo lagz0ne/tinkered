@@ -2,6 +2,59 @@
 
 `tinker upgrade` prints the sections between your old and new version.
 
+## 0.10.0
+
+Core, React, and Start move to 0.10.0 together.
+`tinker upgrade 0.10.0` sets all three release URLs.
+The tag is `start-v0.10.0` on `lagz0ne/tinkered`.
+
+A library's door is now a capsule (ADR 0121).
+`extension()` is gone. An app must edit:
+
+- `extension({ ... })` is `capsule({ ... })`.
+- `createScope({ extensions })` is
+  `createScope({ capsules })`.
+- `Scope.Extension` is `Capsule.Binding`;
+  `Scope.Configurable` is `Capsule.Handle`.
+- A hook event has no `resolve`, `controller`,
+  or `scope`. Read units through:
+  - `config`: the config values;
+  - `load(unit, meta)`: a resource's value (a
+    promise), or a cell's controller;
+  - `run(op, options, meta)` and
+    `settle(op, options, meta)`: promises.
+- `meta` is `{ role, explain }`; `role` is
+  `setup`, `worker`, `handler`, or `state`.
+- A hook reads a tag through a config key or
+  a unit that depends on it.
+- A start hook that needs the root: the
+  command passes the handle it holds, as
+  `requestContext: { scope: app }`.
+- Close hooks run in reverse install order.
+- Every start hook runs once, even when one
+  skips `next()`.
+- `DuplicateExtension` is `DuplicateCapsule`.
+- A hook log line carries `attributes.capsule`,
+  not `attributes.extension`.
+
+New, with no edit needed:
+
+- `exports`: units on the handle, as
+  `mail.enqueue`. A scope that touches one
+  without its capsule raises `CapsuleMissing`.
+  A reserved name raises `ReservedExport`.
+- `scope.capsules`: what the scope knows about
+  each capsule (config, tags, exports, loaded).
+- `tag({ secret: true })` shows `"[hidden]"`.
+- A tag export, bound per call (A21).
+- `run`, `settle`, and `load` take an
+  `observe: false` namespace (A22, A24).
+- `capsule({ tags })`: fixed tags; the
+  command's own `tags` still win (A25).
+
+The app seam still exports `extensions` from
+`src/lib/tinker.ts`; its values are capsules.
+
 ## 0.9.0
 
 Core, React, and Start move to 0.9.0 together.
