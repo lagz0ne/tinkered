@@ -1,5 +1,24 @@
 # @tinker/core
 
+## Install
+
+On Bun, the main runtime:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.10.1
+bun add $R/tinker-core-0.10.1.tgz
+```
+
+On Node 22.18 or later, with npm:
+
+```bash
+npm install $R/tinker-core-0.10.1.tgz
+```
+
+Each version's URLs are in the
+[changelog](../../CHANGELOG.md).
+
 ## Scope handles
 
 A scope handle is passed by reference (ADR 0108).

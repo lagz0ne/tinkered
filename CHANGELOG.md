@@ -11,11 +11,19 @@ It has Core and React only.
 
 ### Install
 
+On Bun:
+
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
 releases/download/v0.10.1
-npm install \
-  $R/tinker-core-0.10.1.tgz \
+bun add $R/tinker-core-0.10.1.tgz \
+  $R/tinker-react-0.10.1.tgz
+```
+
+On Node, with npm:
+
+```bash
+npm install $R/tinker-core-0.10.1.tgz \
   $R/tinker-react-0.10.1.tgz
 ```
 
@@ -25,6 +33,18 @@ The two URLs:
 - https://github.com/lagz0ne/tinkered/releases/download/v0.10.1/tinker-react-0.10.1.tgz
 
 The React tarball names Core by its URL.
+
+### Bun is the main runtime
+
+- Core and React declare
+  `"engines": { "bun": ">=1.4" }`, next
+  to Node `>=22.18.0`.
+- CI has a `bun` job on Bun 1.4. It runs the
+  Core and React tests on Bun. Then it loads
+  the built Core and React on Bun: a scope
+  starts, reads a cell, and closes.
+- Node 22 is still tested, in the `gates`
+  job.
 
 ### Start is sunset
 
