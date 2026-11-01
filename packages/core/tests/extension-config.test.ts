@@ -121,6 +121,34 @@ test("an optional key left out reads the tag's default; an optional edge reads a
   await scope.close();
 });
 
+test("an extension with no config is the extension itself, not a callable", async () => {
+  const events = extension({ label: "events", hooks: { start: () => ({ ok: true }) } });
+
+  expect("config" in events).toBe(false);
+
+  const scope = createScope({ extensions: [events] });
+  await scope.ready;
+
+  expect(scope.resolve(events)).toEqual({ ok: true });
+  await scope.close();
+});
+
+test("a tag.required key is filled like any other", async () => {
+  const port = tag({ label: "mail.port", default: 25 });
+  const read = operation({
+    label: "read port",
+    depends: { port: port.required },
+    run: ({ port }) => port,
+  });
+  const mail = extension({ label: "mail", config: { port: port.required } });
+
+  const scope = createScope({ extensions: [mail({ port: 8080 })] });
+  await scope.ready;
+
+  expect(scope.run(read)).toBe(8080);
+  await scope.close();
+});
+
 test("a tags binding on the root wins over the extension's", async () => {
   const port = tag({ label: "mail.port", default: 25 });
   const read = operation({ label: "read", depends: { port }, run: ({ port }) => port });
