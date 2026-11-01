@@ -94,7 +94,7 @@ function coreSymbol(node, name) {
 function coreCall(node) {
   return (
     ts.isCallExpression(node) &&
-    ["resource", "extension", "operation", "data", "tag"].some((name) =>
+    ["resource", "capsule", "operation", "data", "tag"].some((name) =>
       coreSymbol(node.expression, name),
     )
   );
@@ -426,10 +426,10 @@ function unitType(type) {
   if (
     checker
       .getPropertiesOfType(type)
-      .some((prop) => /^__@(?:resource|operation|data|tag|extension)Sym@/.test(prop.name))
+      .some((prop) => /^__@(?:resource|operation|data|tag|capsule)Sym@/.test(prop.name))
   )
     return true;
-  return ["Resource", "Operation", "Data", "Tag", "Extension"].includes(
+  return ["Resource", "Operation", "Data", "Tag", "Binding"].includes(
     type.aliasSymbol?.name ?? type.symbol?.name,
   );
 }

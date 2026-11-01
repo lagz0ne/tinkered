@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import { createConnection } from "node:net";
-import { createScope, extension, type Scope } from "@tinker/core";
+import { createScope, capsule, type Scope } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {
@@ -31,7 +31,7 @@ function createGate<T>() {
 }
 
 function captureAppSession(resolve: (scope: Scope.Handle) => void) {
-  return extension({
+  return capsule({
     label: "capture app session",
     hooks: {
       session(event) {
@@ -50,7 +50,7 @@ test.each(services)(
     const capture = captureAppSession(created.resolve);
     const scope = createScope({
       signal: stop.signal,
-      extensions: [capture, app],
+      capsules: [capture, app],
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -62,7 +62,7 @@ test.each(services)(
       ],
     });
     await scope.ready;
-    const { url } = scope.resolve(app);
+    const { url } = await app.serve(scope);
     const session = await created.promise;
     const target = new URL(url);
     let socket: ReturnType<typeof createConnection> | undefined;
@@ -96,7 +96,7 @@ test.each(services)(
     const capture = captureAppSession(created.resolve);
     const scope = createScope({
       signal: stop.signal,
-      extensions: [capture, app],
+      capsules: [capture, app],
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -108,7 +108,7 @@ test.each(services)(
       ],
     });
     await scope.ready;
-    const { url } = scope.resolve(app);
+    const { url } = await app.serve(scope);
     const session = await created.promise;
     session.resolve(web).get("/held", async () => {
       const body = await session.run({
@@ -167,7 +167,7 @@ test.each(services)(
     const stop = new AbortController();
     const scope = createScope({
       signal: stop.signal,
-      extensions: app,
+      capsules: app,
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -179,7 +179,7 @@ test.each(services)(
       ],
     });
     await scope.ready;
-    const { url } = scope.resolve(app);
+    const { url } = await app.serve(scope);
     const target = new URL(url);
     const socket = createConnection({ host: target.hostname, port: Number(target.port) });
     const disconnected = new Promise<void>((resolve) => socket.once("close", () => resolve()));
@@ -220,7 +220,7 @@ test.each(services)(
     const stop = new AbortController();
     const scope = createScope({
       signal: stop.signal,
-      extensions: app,
+      capsules: app,
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -232,7 +232,7 @@ test.each(services)(
       ],
     });
     await scope.ready;
-    const { url } = scope.resolve(app);
+    const { url } = await app.serve(scope);
     await post(url, "/control/clock", { now: 10000 });
     await post(url, "/control/routes", { route: `POST ${path}`, delayMs: 100 });
     const pending = post(url, path, {});

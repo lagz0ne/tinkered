@@ -1,4 +1,4 @@
-import { createScope, extension, isError } from "@tinker/core";
+import { createScope, capsule, isError } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {
@@ -126,7 +126,7 @@ test.each(replies)(
   async ({ status, delivery }) => {
     const returned: unknown[] = [];
     const recorded: unknown[] = [];
-    const outcomes = extension({
+    const outcomes = capsule({
       label: "read webhook outcomes",
       hooks: {
         run(event) {
@@ -135,7 +135,8 @@ test.each(replies)(
             returned.push(value);
             recorded.push(
               ...event
-                .resolve(calls)
+                .load(calls, { role: "state", explain: "Reads the recorded webhook calls" })
+                .get()
                 .filter((call) => call.kind === "webhook")
                 .map((call) => call.delivery),
             );
@@ -147,7 +148,7 @@ test.each(replies)(
     const stop = new AbortController();
     const scope = createScope({
       signal: stop.signal,
-      extensions: [outcomes, paymentApp],
+      capsules: [outcomes, paymentApp],
       tags: [
         port(0),
         host("127.0.0.1"),
@@ -163,7 +164,7 @@ test.each(replies)(
     });
     try {
       await scope.ready;
-      const { url } = scope.resolve(paymentApp);
+      const { url } = await paymentApp.serve(scope);
       await deliver(url);
       await expect.poll(() => returned).toEqual([[delivery]]);
       expect(recorded).toEqual([delivery]);
@@ -189,7 +190,7 @@ test("each webhook copy has an HTTP span below the webhook operation and its res
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
-    extensions: paymentApp,
+    capsules: paymentApp,
     observe: { history: 200 },
     tags: [
       port(0),
@@ -203,7 +204,7 @@ test("each webhook copy has an HTTP span below the webhook operation and its res
   });
   try {
     await scope.ready;
-    const { url } = scope.resolve(paymentApp);
+    const { url } = await paymentApp.serve(scope);
     const created = await fetch(`${url}/v1/payment_intents`, {
       method: "POST",
       headers: { "content-type": "application/json" },

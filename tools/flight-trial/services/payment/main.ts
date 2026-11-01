@@ -24,7 +24,7 @@ export async function main(env: NodeJS.ProcessEnv): Promise<number> {
   process.once("SIGTERM", halt);
   const scope = createScope({
     signal: stop.signal,
-    extensions: app,
+    capsules: app,
     tags: [
       port(settings.PORT),
       host(settings.HOST),
@@ -36,7 +36,7 @@ export async function main(env: NodeJS.ProcessEnv): Promise<number> {
     ],
   });
   await scope.ready;
-  const { url } = scope.resolve(app);
+  const { url } = await app.serve(scope);
   process.stdout.write(`${JSON.stringify({ service: "payment", url, pid: process.pid })}\n`);
   const ended = await scope.closed;
   process.off("SIGINT", halt);

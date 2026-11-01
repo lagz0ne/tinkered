@@ -1,4 +1,5 @@
-import { data, extension, operation, resource, tag } from "@tinker/core";
+import { capsule, data, operation, resource, tag } from "@tinker/core";
+import type { Scope } from "@tinker/core";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights";
 import {
@@ -426,90 +427,93 @@ const readOrder = operation({
   },
 });
 
-/** Startup supplies the scope to middleware; the resource owns the listener. */
-export const app = extension({
-  label: "start supplier app",
-  hooks: {
-    async start({ scope: root, next }) {
+/**
+ * The command passes its root once it is ready; the resource owns the listener (ADR 0120, X2).
+ * A hook holds no scope, so the command, which made the root, wires the requests' session.
+ */
+export const app = Object.assign(capsule({ label: "start supplier app" }), {
+  /**
+   * Wire the routes on one session of `root`, then start the listener.
+   * @param root - From the command that made the root; why: every request runs on its session.
+   */
+  async serve(root: Scope.Handle) {
+    const scope = root.createSession({ tags: [errorShape("duffel"), wireErrors(errors)] });
+    scope.resolve(web).use("*", async (c, next) => {
+      c.set("scope", scope);
       await next();
-      const scope = root.createSession({ tags: [errorShape("duffel"), wireErrors(errors)] });
-      scope.resolve(web).use("*", async (c, next) => {
-        c.set("scope", scope);
-        await next();
+    });
+    const http = scope.resolve(requests);
+    await scope.run(resetScenario, { rawInput: { name: "default" } });
+    http.use("*", async (c, next) => {
+      c.var.scope.run(expireHolds);
+      await next();
+    });
+    scope.resolve(controlRoutes);
+    http.post("/control/scenario", async (c) => {
+      const parsed = scenarioSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidScenario");
+      const result = await c.var.scope.settle(resetScenario, { input: parsed.data });
+      return c.var.respond(result, 200, true);
+    });
+    http.post("/air/offer_requests", (c) => {
+      const parsed = searchSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidOfferRequest");
+      const result = c.var.scope.settle(search, {
+        input: {
+          origin: parsed.data.data.slices.at(0)!.origin,
+          destination: parsed.data.data.slices.at(0)!.destination,
+          date: parsed.data.data.slices.at(0)!.departure_date,
+          cabin: parsed.data.data.cabin_class,
+          passengers: parsed.data.data.passengers.length,
+        },
       });
-      const http = scope.resolve(requests);
-      await scope.run(resetScenario, { rawInput: { name: "default" } });
-      http.use("*", async (c, next) => {
-        c.var.scope.run(expireHolds);
-        await next();
+      return c.var.respond(result, 201, true);
+    });
+    http.post("/air/orders", (c) => {
+      const parsed = orderSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidOrder");
+      const result = c.var.scope.settle(order, {
+        input: {
+          offerId: parsed.data.data.selected_offers.at(0)!,
+          type: parsed.data.data.type,
+          passengers: parsed.data.data.passengers.length,
+        },
       });
-      scope.resolve(controlRoutes);
-      http.post("/control/scenario", async (c) => {
-        const parsed = scenarioSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidScenario");
-        const result = await c.var.scope.settle(resetScenario, { input: parsed.data });
-        return c.var.respond(result, 200, true);
+      return c.var.respond(result, 201, true);
+    });
+    http.post("/air/payments", (c) => {
+      const parsed = paySchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidPayment");
+      const result = c.var.scope.settle(pay, {
+        input: { orderId: parsed.data.data.order_id, amount: parsed.data.data.payment.amount },
       });
-      http.post("/air/offer_requests", (c) => {
-        const parsed = searchSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidOfferRequest");
-        const result = c.var.scope.settle(search, {
-          input: {
-            origin: parsed.data.data.slices.at(0)!.origin,
-            destination: parsed.data.data.slices.at(0)!.destination,
-            date: parsed.data.data.slices.at(0)!.departure_date,
-            cabin: parsed.data.data.cabin_class,
-            passengers: parsed.data.data.passengers.length,
-          },
-        });
-        return c.var.respond(result, 201, true);
+      return c.var.respond(result, 201, true);
+    });
+    http.get("/air/offers/:id{.*}", (c) => {
+      /** Keep raw percent-encoding; Hono's param reader decodes it. */
+      const result = c.var.scope.settle(readOffer, {
+        input: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
       });
-      http.post("/air/orders", (c) => {
-        const parsed = orderSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidOrder");
-        const result = c.var.scope.settle(order, {
-          input: {
-            offerId: parsed.data.data.selected_offers.at(0)!,
-            type: parsed.data.data.type,
-            passengers: parsed.data.data.passengers.length,
-          },
-        });
-        return c.var.respond(result, 201, true);
+      return c.var.respond(result, 200, true);
+    });
+    http.get("/air/orders/:id{.*}", (c) => {
+      /** Keep raw percent-encoding; Hono's param reader decodes it. */
+      const result = c.var.scope.settle(readOrder, {
+        input: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
       });
-      http.post("/air/payments", (c) => {
-        const parsed = paySchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidPayment");
-        const result = c.var.scope.settle(pay, {
-          input: { orderId: parsed.data.data.order_id, amount: parsed.data.data.payment.amount },
-        });
-        return c.var.respond(result, 201, true);
-      });
-      http.get("/air/offers/:id{.*}", (c) => {
-        /** Keep raw percent-encoding; Hono's param reader decodes it. */
-        const result = c.var.scope.settle(readOffer, {
-          input: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
-        });
-        return c.var.respond(result, 200, true);
-      });
-      http.get("/air/orders/:id{.*}", (c) => {
-        /** Keep raw percent-encoding; Hono's param reader decodes it. */
-        const result = c.var.scope.settle(readOrder, {
-          input: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
-        });
-        return c.var.respond(result, 200, true);
-      });
-      http.post("/control/flights", (c) => {
-        const parsed = changeSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidFlightChange");
-        const result = c.var.scope.settle(changeFlight, { input: parsed.data });
-        return c.var.respond(result, 200, true);
-      });
-      http.get("/control/state", (c) => {
-        const result = c.var.scope.settle(readState);
-        return c.var.respond(result, 200, true);
-      });
-      http.notFound((c) => c.var.error("NotFound"));
-      return scope.resolve(listener);
-    },
+      return c.var.respond(result, 200, true);
+    });
+    http.post("/control/flights", (c) => {
+      const parsed = changeSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidFlightChange");
+      const result = c.var.scope.settle(changeFlight, { input: parsed.data });
+      return c.var.respond(result, 200, true);
+    });
+    http.get("/control/state", (c) => {
+      const result = c.var.scope.settle(readState);
+      return c.var.respond(result, 200, true);
+    });
+    http.notFound((c) => c.var.error("NotFound"));
+    return scope.resolve(listener);
   },
 });

@@ -1,5 +1,5 @@
-import { operation, extension, resource } from "@tinker/core";
-import { tabStop } from "./owner";
+import { operation, capsule, resource } from "@tinker/core";
+import { readTabStop } from "./owner";
 import { getBootstrap, getAccount } from "../sync.functions";
 import { syncClient, applyBootstrap } from "./sync";
 import { streamMessage } from "@/lib/tinker";
@@ -249,19 +249,29 @@ const streamChanges = operation({
     }
   },
 });
-export const syncStreaming = extension({
+export const syncStreaming = capsule({
   label: "sync.streaming",
   hooks: {
     async start(event) {
       await event.next();
+      const tab = await event.run(
+        readTabStop,
+        {},
+        {
+          role: "setup",
+          explain: "Reads the tab's stop signal",
+        },
+      );
       let started = false;
       return {
         start() {
           if (started) return;
           started = true;
-          const running = event.scope.settle(streamChanges, {
-            signal: event.scope.resolve(tabStop),
-          });
+          const running = event.settle(
+            streamChanges,
+            { signal: tab },
+            { role: "worker", explain: "Streams the account's changes" },
+          );
           event.defer(async () => {
             const result = await running;
             if (result.status === "failed") throw result.error;

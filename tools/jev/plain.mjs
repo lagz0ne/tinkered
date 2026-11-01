@@ -505,10 +505,11 @@ const TRANSPORT_PAIR = new Set(["onMessage", "onClose"]);
 const LISTEN = /^on[A-Z]/;
 const HANDLE_MAKERS = new Set(["createScope", "createSession", "useScope"]);
 
-/** The config path to each core builder's body; extension hooks are nested. */
+/** The config path to each core builder's body; capsule hooks are nested. */
 const UNIT_BODY = new Map([
   ["operation", ["run"]],
   ["resource", ["factory"]],
+  ["capsule", ["hooks", "start"]],
   ["extension", ["hooks", "start"]],
 ]);
 

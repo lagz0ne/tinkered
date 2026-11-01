@@ -187,7 +187,7 @@ test("a template's omitted fields read as their defaults", async () => {
 });
 
 /** Run the shell in-process: argv in, exit code and streams out. */
-async function answer(args: readonly string[], options?: Omit<Scope.Options, "extensions">) {
+async function answer(args: readonly string[], options?: Omit<Scope.Options, "capsules">) {
   let stdout = "";
   let stderr = "";
   const code = await run({

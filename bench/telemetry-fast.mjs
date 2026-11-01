@@ -18,7 +18,7 @@ const clock = makeTestClock({ now: 1_800_000_000_000 });
 
 const tools = createScope({
   clock,
-  extensions: [telemetryExport],
+  capsules: [telemetryExport],
   tags: [
     env({
       VICTORIA_TRACES_URL: "http://s.test/traces",

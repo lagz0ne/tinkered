@@ -12,7 +12,12 @@ export declare namespace Wire {
       scope: Scope.Handle;
       json: (result: Reply) => Response;
       error: (kind: string, status?: number) => Response;
-      respond: (result: RunResult<unknown>, status: number, envelope: boolean) => Response;
+      /** A run a capsule hook diverted settles later (ADR 0120: a hook's `run` is a promise). */
+      respond: (
+        result: RunResult<unknown> | Promise<RunResult<unknown>>,
+        status: number,
+        envelope: boolean,
+      ) => Response | Promise<Response>;
       body: unknown;
       control: boolean;
     };
@@ -274,7 +279,7 @@ export const web = resource({
   factory: () => new Hono<Wire.Env>({ getPath: (request) => new URL(request.url).pathname }),
 });
 
-/** The service extension installs these after its scope binding, before its routes. */
+/** The service capsule's `serve` installs these after its session binding, before its routes. */
 export const middleware = resource({
   label: "shared HTTP middleware",
   target: "session",
@@ -304,17 +309,27 @@ export const middleware = resource({
       else if (c.req.method === "HEAD") c.res = await c.notFound();
       else await next();
     };
+    const reply = (result: RunResult<unknown>, status: number, envelope: boolean): Response => {
+      if (result.status === "success")
+        return json({ status, body: envelope ? { data: result.value } : result.value });
+      if (result.status === "cancelled") throw result.reason;
+      const failure = z.object({ kind: z.string() }).safeParse(result.error);
+      if (result.kind === "error" && failure.success && Object.hasOwn(errors, failure.data.kind))
+        return error(failure.data.kind);
+      throw result.error;
+    };
     return {
       json,
       error,
-      respond(this: void, result: RunResult<unknown>, status: number, envelope: boolean): Response {
-        if (result.status === "success")
-          return json({ status, body: envelope ? { data: result.value } : result.value });
-        if (result.status === "cancelled") throw result.reason;
-        const failure = z.object({ kind: z.string() }).safeParse(result.error);
-        if (result.kind === "error" && failure.success && Object.hasOwn(errors, failure.data.kind))
-          return error(failure.data.kind);
-        throw result.error;
+      respond(
+        this: void,
+        result: RunResult<unknown> | Promise<RunResult<unknown>>,
+        status: number,
+        envelope: boolean,
+      ): Response | Promise<Response> {
+        if (result instanceof Promise)
+          return result.then((ended) => reply(ended, status, envelope));
+        return reply(result, status, envelope);
       },
       log: createMiddleware<Wire.Env>(async (c, next) => {
         const id = c.var.scope.run(startCall, {
@@ -432,7 +447,7 @@ export const controlRoutes = resource({
   },
 });
 
-/** The extension finishes Hono setup before resolving this owned Node listener. */
+/** The service capsule's `serve` finishes Hono setup before resolving this owned Node listener. */
 export const listener = resource({
   label: "service HTTP listener",
   target: "session",

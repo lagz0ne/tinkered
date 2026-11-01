@@ -34,7 +34,7 @@ const srcDir = join(repo, "tools", "blueprint", "src");
 /** Run the shell in-process: argv in, exit code and streams out (`check.test.ts`'s
  * `answer`). `verify` depends on `corpus` and `bodyJudge`; a test that skips `tags`/`presets`
  * gets the shipped corpus and no engine — the "no key" path. */
-async function answer(args: readonly string[], options?: Omit<Scope.Options, "extensions">) {
+async function answer(args: readonly string[], options?: Omit<Scope.Options, "capsules">) {
   let stdout = "";
   let stderr = "";
   const code = await run({

@@ -1,4 +1,4 @@
-import { createScope, extension, isError, operation, type Observe } from "@tinker/core";
+import { createScope, capsule, isError, operation, type Observe } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {
@@ -12,7 +12,7 @@ import {
 } from "../src/index";
 import { errorShape, web, wireErrors } from "../services/http";
 
-const sessionAudit = extension({
+const sessionAudit = capsule({
   label: "service session audit",
   hooks: {
     session(event) {
@@ -22,11 +22,12 @@ const sessionAudit = extension({
   },
 });
 /** An upstream Hono plugin owns its flag; the service must bind its own request role after it. */
-const upstreamControl = extension({
+const upstreamControl = capsule({
   label: "upstream control middleware",
   hooks: {
-    async start({ scope, next }) {
-      scope.resolve(web).use("*", async (c, next) => {
+    async start({ load, next }) {
+      const hono = await load(web, { role: "setup", explain: "Adds the upstream control flag" });
+      hono.use("*", async (c, next) => {
         c.set("control", true);
         await next();
       });
@@ -87,7 +88,7 @@ test.each(services)(
     const logs: Observe.Log[] = [];
     const scope = createScope({
       signal: stop.signal,
-      extensions: [sessionAudit, upstreamControl, app],
+      capsules: [sessionAudit, upstreamControl, app],
       observe: { history: 300, log: (entry) => logs.push(entry) },
       tags: [
         supplierId("supplier-a"),
@@ -99,7 +100,7 @@ test.each(services)(
     });
     try {
       await scope.ready;
-      const { url } = scope.resolve(app);
+      const { url } = await app.serve(scope);
       expect(new URL(url).hostname).toBe("127.0.0.1");
       await (await post(url, "/control/clock", { now: 10000 })).arrayBuffer();
       await (
@@ -143,7 +144,7 @@ test("payment spans name each step and its failed webhook log keeps the HTTP cau
   const logs: Observe.Log[] = [];
   const scope = createScope({
     signal: stop.signal,
-    extensions: paymentApp,
+    capsules: paymentApp,
     observe: { history: 500, log: (entry) => logs.push(entry) },
     tags: [
       controlToken("grader"),
@@ -154,7 +155,7 @@ test("payment spans name each step and its failed webhook log keeps the HTTP cau
   });
   try {
     await scope.ready;
-    const { url } = scope.resolve(paymentApp);
+    const { url } = await paymentApp.serve(scope);
     await (await post(url, "/control/clock", { now: 10000 })).arrayBuffer();
     const plan = await post(url, "/control/payment");
     expect(await plan.json()).toEqual({

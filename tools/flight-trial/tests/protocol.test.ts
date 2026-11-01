@@ -1,4 +1,4 @@
-import { createScope, extension, resource } from "@tinker/core";
+import { createScope, capsule, resource } from "@tinker/core";
 import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
 import { z } from "zod";
 import { expect, test } from "vite-plus/test";
@@ -18,18 +18,21 @@ const observed = resource({
   label: "protocol operation calls",
   factory: (): { label: string; call: unknown; value: unknown }[] => [],
 });
-const observe = extension({
+const observeMeta = { role: "state", explain: "Records each boundary call" } as const;
+const observe = capsule({
   label: "observe protocol boundary",
   hooks: {
     run(event) {
       const value = event.next();
+      const label = event.op.label;
       if (
-        event.op.label !== undefined &&
-        ["search supplier flights", "book supplier order", "create payment intent"].includes(
-          event.op.label,
-        )
-      )
-        event.resolve(observed).push({ label: event.op.label, call: event.call, value });
+        label !== undefined &&
+        ["search supplier flights", "book supplier order", "create payment intent"].includes(label)
+      ) {
+        void event
+          .load(observed, observeMeta)
+          .then((list) => list.push({ label, call: event.call, value }));
+      }
       return value;
     },
   },
@@ -41,7 +44,7 @@ test("supplier operations take booking params and return domain values", async (
     signal: stop.signal,
     clock: makeTestClock({ now: 10000 }),
     random: makeTestRandom({ seed: 97 }),
-    extensions: [observe, supplierApp],
+    capsules: [observe, supplierApp],
     tags: [
       supplierId("supplier-a"),
       port(0),
@@ -52,7 +55,7 @@ test("supplier operations take booking params and return domain values", async (
   });
   try {
     await scope.ready;
-    const { url } = scope.resolve(supplierApp);
+    const { url } = await supplierApp.serve(scope);
     const search = await fetch(`${url}/air/offer_requests`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -104,7 +107,7 @@ test("Hono validates forms before a payment operation sees params", async () => 
   const stop = new AbortController();
   const scope = createScope({
     signal: stop.signal,
-    extensions: [observe, paymentApp],
+    capsules: [observe, paymentApp],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -116,7 +119,7 @@ test("Hono validates forms before a payment operation sees params", async () => 
   });
   try {
     await scope.ready;
-    const { url } = scope.resolve(paymentApp);
+    const { url } = await paymentApp.serve(scope);
     await (await fetch(`${url}/v1/payment_intents`, { method: "POST", body: "{" })).arrayBuffer();
     const created = await fetch(`${url}/v1/payment_intents`, {
       method: "POST",

@@ -8,7 +8,16 @@
 //   imports(src)       [{ source, names }] · exports(src) → exported names
 import { parseSync } from "oxc-parser";
 
-const UNIT_KINDS = new Set(["data", "resource", "operation", "tag", "extension", "family"]);
+const UNIT_KINDS = new Set([
+  "data",
+  "resource",
+  "operation",
+  "tag",
+  "capsule",
+  "extension",
+  "family",
+]);
+
 const STATIC_KINDS = new Set(["data", "resource", "operation", "tag"]);
 
 const FUNCTION_TYPES = new Set([

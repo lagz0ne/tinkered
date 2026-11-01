@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
-import { data, extension, operation, resource, tag } from "@tinker/core";
+import { capsule, data, operation, resource, tag } from "@tinker/core";
+import type { Scope } from "@tinker/core";
 import { z } from "zod";
 import { httpRequest } from "../http-client";
 import { isError } from "../errors";
@@ -470,101 +471,104 @@ const saveIntentKey = operation({
   },
 });
 
-/** Startup supplies the scope to middleware; the resource owns the listener. */
-export const app = extension({
-  label: "start payment app",
-  hooks: {
-    async start({ scope: root, next }) {
+/**
+ * The command passes its root once it is ready; the resource owns the listener (ADR 0120, X2).
+ * A hook holds no scope, so the command, which made the root, wires the requests' session.
+ */
+export const app = Object.assign(capsule({ label: "start payment app" }), {
+  /**
+   * Wire the routes on one session of `root`, then start the listener.
+   * @param root - From the command that made the root; why: every request runs on its session.
+   */
+  async serve(root: Scope.Handle) {
+    const scope = root.createSession({ tags: [errorShape("stripe"), wireErrors(errors)] });
+    scope.resolve(web).use("*", async (c, next) => {
+      c.set("scope", scope);
       await next();
-      const scope = root.createSession({ tags: [errorShape("stripe"), wireErrors(errors)] });
-      scope.resolve(web).use("*", async (c, next) => {
-        c.set("scope", scope);
+    });
+    const http = scope.resolve(requests);
+    scope.resolve(controlRoutes);
+    await scope.run(resetScenario, { rawInput: { name: "default" } });
+    scope.resolve(webhooks);
+    const pendingKeys = scope.resolve(inFlight);
+    http.use("/v1/:rest{.*}", async (c, next) => {
+      const key = c.req.header("idempotency-key");
+      if (!key || c.req.method !== "POST") return next();
+      const fingerprint = JSON.stringify({
+        route: `${c.req.method} ${c.req.path}`,
+        body: c.var.body,
+      });
+      const result = await c.var.scope.settle(startIntentKey, { input: { key, fingerprint } });
+      if (result.status !== "success") return c.var.respond(result, 200, false);
+      if (result.value?.replay)
+        return c.var.json({
+          ...c.var.scope.resolve(state).keys[key].reply,
+          headers: { "Idempotent-Replayed": "true" },
+        });
+      try {
         await next();
-      });
-      const http = scope.resolve(requests);
-      scope.resolve(controlRoutes);
-      await scope.run(resetScenario, { rawInput: { name: "default" } });
-      scope.resolve(webhooks);
-      const pendingKeys = scope.resolve(inFlight);
-      http.use("/v1/:rest{.*}", async (c, next) => {
-        const key = c.req.header("idempotency-key");
-        if (!key || c.req.method !== "POST") return next();
-        const fingerprint = JSON.stringify({
-          route: `${c.req.method} ${c.req.path}`,
-          body: c.var.body,
-        });
-        const result = await c.var.scope.settle(startIntentKey, { input: { key, fingerprint } });
-        if (result.status !== "success") return c.var.respond(result, 200, false);
-        if (result.value?.replay)
-          return c.var.json({
-            ...c.var.scope.resolve(state).keys[key].reply,
-            headers: { "Idempotent-Replayed": "true" },
-          });
-        try {
-          await next();
-          if (!c.error)
-            c.var.scope.run(saveIntentKey, {
-              rawInput: {
-                key,
-                fingerprint,
-                response: {
-                  status: c.res.status,
-                  body: await c.res.clone().json(),
-                  headers: Object.fromEntries(c.res.headers),
-                },
+        if (!c.error)
+          c.var.scope.run(saveIntentKey, {
+            rawInput: {
+              key,
+              fingerprint,
+              response: {
+                status: c.res.status,
+                body: await c.res.clone().json(),
+                headers: Object.fromEntries(c.res.headers),
               },
-            });
-        } finally {
-          pendingKeys.get(key)?.resolve(false);
-          pendingKeys.delete(key);
-        }
+            },
+          });
+      } finally {
+        pendingKeys.get(key)?.resolve(false);
+        pendingKeys.delete(key);
+      }
+    });
+    http.post("/control/scenario", async (c) => {
+      const parsed = scenarioSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidScenario");
+      const result = await c.var.scope.settle(resetScenario, { input: parsed.data });
+      return c.var.respond(result, 200, true);
+    });
+    http.post("/v1/payment_intents", (c) => {
+      const parsed = intentSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidPaymentIntent");
+      const result = c.var.scope.settle(createIntent, { input: parsed.data });
+      return c.var.respond(result, 200, false);
+    });
+    http.post("/v1/payment_intents/:id/confirm", (c) => {
+      /** Keep raw percent-encoding; Hono's param reader decodes it. */
+      const result = c.var.scope.settle(confirm, {
+        input: { id: new URL(c.req.url).pathname.split("/").at(-2)! },
       });
-      http.post("/control/scenario", async (c) => {
-        const parsed = scenarioSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidScenario");
-        const result = await c.var.scope.settle(resetScenario, { input: parsed.data });
-        return c.var.respond(result, 200, true);
+      return c.var.respond(result, 200, false);
+    });
+    http.get("/v1/payment_intents/:id", (c) => {
+      /** Keep raw percent-encoding; Hono's param reader decodes it. */
+      const result = c.var.scope.settle(readIntent, {
+        input: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
       });
-      http.post("/v1/payment_intents", (c) => {
-        const parsed = intentSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidPaymentIntent");
-        const result = c.var.scope.settle(createIntent, { input: parsed.data });
-        return c.var.respond(result, 200, false);
-      });
-      http.post("/v1/payment_intents/:id/confirm", (c) => {
-        /** Keep raw percent-encoding; Hono's param reader decodes it. */
-        const result = c.var.scope.settle(confirm, {
-          input: { id: new URL(c.req.url).pathname.split("/").at(-2)! },
-        });
-        return c.var.respond(result, 200, false);
-      });
-      http.get("/v1/payment_intents/:id", (c) => {
-        /** Keep raw percent-encoding; Hono's param reader decodes it. */
-        const result = c.var.scope.settle(readIntent, {
-          input: { id: new URL(c.req.url).pathname.split("/").at(-1)! },
-        });
-        return c.var.respond(result, 200, false);
-      });
-      http.post("/v1/refunds", (c) => {
-        const parsed = refundSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidRefund");
-        const result = c.var.scope.settle(refund, { input: parsed.data });
-        return c.var.respond(result, 200, false);
-      });
-      http.post("/control/payment", (c) => {
-        const parsed = planSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidPaymentPlan");
-        const result = c.var.scope.settle(setPlan, { input: parsed.data });
-        return c.var.respond(result, 200, true);
-      });
-      http.post("/control/webhooks", (c) => {
-        const parsed = sendSchema.safeParse(c.var.body);
-        if (!parsed.success) return c.var.error("InvalidWebhookPlan");
-        const result = c.var.scope.settle(controlWebhook, { input: parsed.data });
-        return c.var.respond(result, 200, true);
-      });
-      http.notFound((c) => c.var.error(c.var.control ? "NotFound" : "ResourceMissing"));
-      return scope.resolve(listener);
-    },
+      return c.var.respond(result, 200, false);
+    });
+    http.post("/v1/refunds", (c) => {
+      const parsed = refundSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidRefund");
+      const result = c.var.scope.settle(refund, { input: parsed.data });
+      return c.var.respond(result, 200, false);
+    });
+    http.post("/control/payment", (c) => {
+      const parsed = planSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidPaymentPlan");
+      const result = c.var.scope.settle(setPlan, { input: parsed.data });
+      return c.var.respond(result, 200, true);
+    });
+    http.post("/control/webhooks", (c) => {
+      const parsed = sendSchema.safeParse(c.var.body);
+      if (!parsed.success) return c.var.error("InvalidWebhookPlan");
+      const result = c.var.scope.settle(controlWebhook, { input: parsed.data });
+      return c.var.respond(result, 200, true);
+    });
+    http.notFound((c) => c.var.error(c.var.control ? "NotFound" : "ResourceMissing"));
+    return scope.resolve(listener);
   },
 });

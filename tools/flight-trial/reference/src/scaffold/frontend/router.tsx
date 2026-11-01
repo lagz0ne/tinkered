@@ -23,14 +23,14 @@ export async function getRouter() {
   const toolStop = new AbortController();
   const tools = createScope({
     signal: toolStop.signal,
-    extensions: [telemetry],
+    capsules: [telemetry],
     tags: telemetrySettings(await readTelemetrySettings()),
   });
   await tools.ready;
   const stop = new AbortController();
   const app = createScope({
     signal: stop.signal,
-    extensions: [accountOwner, syncStreaming],
+    capsules: [accountOwner, syncStreaming],
     observe: await tools.resolve(observer),
     tags: [
       frontendSpans(() => tools.resolve(history)),

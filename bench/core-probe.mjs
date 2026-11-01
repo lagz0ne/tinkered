@@ -26,9 +26,13 @@ if (process.argv[2] === "sync1k") {
 const WARM_CALLS = 10_000;
 const coreDist = process.env.CORE_DIST;
 
-const { createScope, data, resource, operation, tag, extension } = await import(
+const { createScope, data, resource, operation, tag, capsule, extension } = await import(
   coreDist ? pathToFileURL(resolve(coreDist)).href : "../packages/core/dist/index.mjs"
 );
+
+/** A base tree from before ADR 0120 v2 has `extension`; a newer one has `capsule`. */
+const declare = capsule ?? extension;
+const install = (list) => (capsule ? { capsules: list } : { extensions: list });
 
 const cfg = data({ label: "cfg", initial: 21 });
 const doubled = resource({ label: "doubled", depends: { n: cfg }, factory: ({ n }) => n * 2 });
@@ -72,8 +76,8 @@ const loggingOp = operation({
 
 const loggingC = sinkScope.controller(loggingOp);
 const observedC = createScope({ observe: { export: () => {} } }).controller(op);
-const runHook = extension({ label: "probe run hook", hooks: { run: (event) => event.next() } });
-const hookedScope = createScope({ extensions: [runHook] });
+const runHook = declare({ label: "probe run hook", hooks: { run: (event) => event.next() } });
+const hookedScope = createScope(install([runHook]));
 await hookedScope.ready;
 
 const opRes = operation({ label: "opRes", depends: { store }, run: ({ store }) => store.base });
@@ -131,12 +135,12 @@ const writeC = writeScope.controller(cfg);
 writeC.watch(() => undefined);
 let writeValue = 0;
 
-const writeHook = extension({
+const writeHook = declare({
   label: "probe write hook",
   hooks: { write: (event) => event.next() },
 });
 
-const hookedWriteScope = createScope({ extensions: [writeHook] });
+const hookedWriteScope = createScope(install([writeHook]));
 await hookedWriteScope.ready;
 const hookedWriteC = hookedWriteScope.controller(cfg);
 hookedWriteC.watch(() => undefined);

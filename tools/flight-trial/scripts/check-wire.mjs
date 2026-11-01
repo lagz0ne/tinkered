@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { createScope, extension, operation, resource, tag } from "@tinker/core";
+import { createScope, capsule, data, operation, resource, tag } from "@tinker/core";
 import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
 import { createServer } from "vite-plus";
 
@@ -40,16 +40,19 @@ const fail = operation({
   depends: { missing },
   run: ({ missing }) => missing,
 });
-const fault = resource({ label: "wire diff fault", factory: () => ({ remaining: 0 }) });
-const failures = extension({
+/** Each root seeds its own fault, so a hook reads it in step through a cell's controller. */
+const fault = data({ label: "wire diff fault", initial: { remaining: 0 } });
+const faultMeta = { role: "state", explain: "Counts the calls left to fail" };
+const failMeta = { role: "handler", explain: "Fails one routed call" };
+const failures = capsule({
   label: "wire diff faults",
   hooks: {
     run(event) {
       if (["read supplier offer", "create payment intent"].includes(event.op.label)) {
-        const state = event.resolve(fault);
+        const state = event.load(fault, faultMeta).get();
         if (state.remaining) {
           state.remaining--;
-          return event.run(fail);
+          return event.run(fail, {}, failMeta);
         }
       }
       return event.next();
@@ -74,7 +77,7 @@ async function start(directory, name) {
     signal: stop.signal,
     clock: makeTestClock({ now: 10000 }),
     random: makeTestRandom({ seed: 97 }),
-    extensions: [failures, app],
+    capsules: [failures, app],
     tags: [
       api.port(0),
       api.host("127.0.0.1"),
@@ -87,7 +90,8 @@ async function start(directory, name) {
   });
   services.push({ stop, scope });
   await scope.ready;
-  return { url: scope.resolve(app).url, fault: scope.resolve(fault) };
+  scope.controller(fault).set({ remaining: 0 });
+  return { url: (await app.serve(scope)).url, fault: scope.resolve(fault) };
 }
 async function request(url, body, options) {
   const bytes = options.raw ?? (body === undefined ? undefined : JSON.stringify(body));

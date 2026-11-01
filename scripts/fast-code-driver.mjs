@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const { createScope, data, resource, operation, extension } = await import(
+const { createScope, data, resource, operation, capsule } = await import(
   pathToFileURL(resolve(process.argv[2])).href
 );
 
@@ -32,11 +32,11 @@ for (let i = 0; i < iterations; i++) {
   sum += controller.run();
 }
 
-const hook = extension({
+const hook = capsule({
   label: "fast-code hook",
   hooks: {
-    start: (event) => {
-      const result = event.settle(op);
+    start: async (event) => {
+      const result = await event.settle(op, {}, { role: "setup", explain: "Warms the hook path" });
       if (result.status !== "success") throw new Error("Hook operation failed");
       return event.next();
     },
@@ -44,7 +44,7 @@ const hook = extension({
   },
 });
 
-const hooked = createScope({ extensions: [hook] });
+const hooked = createScope({ capsules: [hook] });
 await hooked.ready;
 hooked.run(op);
 

@@ -1,4 +1,4 @@
-import { createScope, extension, type Scope } from "@tinker/core";
+import { createScope, capsule, type Scope } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {
@@ -30,8 +30,8 @@ test.each(services)(
     });
     const scope = createScope({
       signal: stop.signal,
-      extensions: [
-        extension({
+      capsules: [
+        capsule({
           label: "capture service session",
           hooks: {
             session(event) {
@@ -54,10 +54,10 @@ test.each(services)(
     });
     try {
       await scope.ready;
+      const { url } = await app.serve(scope);
       const session = await created;
       session.resolve(requests);
       session.resolve(requests);
-      const { url } = scope.resolve(app);
       await (await fetch(`${url}/missing`)).arrayBuffer();
       const log = logSchema.parse(
         await (

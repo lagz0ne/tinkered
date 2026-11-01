@@ -193,7 +193,7 @@ function isExecutable(node) {
 function coreCall(call, target) {
   if (!ts.isCallExpression(call)) return undefined;
   const symbol = target(call.expression);
-  if (!["operation", "resource", "extension"].includes(symbol?.name)) return undefined;
+  if (!["operation", "resource", "capsule", "extension"].includes(symbol?.name)) return undefined;
   return symbol.declarations?.some(
     (declaration) => packageName(realPath(declaration.getSourceFile().fileName)) === "@tinker/core",
   )
@@ -665,7 +665,7 @@ function collectBodies(kind, object, executables, property, checker, fail, modul
     bodies.push(body);
   }
 
-  if (kind !== "extension") {
+  if (kind !== "capsule" && kind !== "extension") {
     return collect(property(object, kind === "resource" ? "factory" : "run"));
   }
 
@@ -877,8 +877,7 @@ function extraCases(outsideImport) {
       rule: 7,
       hit: "probe.ts:3",
       source:
-        outsideImport +
-        'extension({label:"x",hooks:{start({scope}) {scope.run({run:()=>outside("x")});}}});',
+        outsideImport + 'capsule({label:"x",hooks:{start({run}) {run({run:()=>outside("x")});}}});',
     },
     {
       name: "component-value",
@@ -916,7 +915,7 @@ function extraCases(outsideImport) {
 async function prove() {
   const planted = await mkdtemp(join(tmpdir(), "lazy-modules-proof-"));
   const core =
-    'import { operation, resource, extension, createScope, type Scope } from "@tinker/core";\n';
+    'import { operation, resource, capsule, createScope, type Scope } from "@tinker/core";\n';
   const outsideImport = 'import { resolve as outside } from "node:path";\n';
   const lazy =
     'resource({label: "module:node:path", target: "scope", factory: () => import("node:path")})';
@@ -1046,7 +1045,7 @@ async function prove() {
     {
       name: "hook",
       rule: 7,
-      source: outsideImport + 'extension({hooks: {run: () => outside("x")}});',
+      source: outsideImport + 'capsule({label:"x",hooks: {run: () => outside("x")}});',
     },
     {
       name: "core-alias",
@@ -1208,7 +1207,7 @@ async function prove() {
       rule: 7,
       hit: "probe.ts:3",
       source:
-        outsideImport + 'const hooks = {start: () => outside("x")}; extension({label:"x", hooks});',
+        outsideImport + 'const hooks = {start: () => outside("x")}; capsule({label:"x", hooks});',
     },
     {
       name: "parameter-body",
@@ -1229,7 +1228,7 @@ async function prove() {
       name: "missing-hooks",
       tag: "unit-body",
       hit: "probe.ts:2",
-      source: 'extension({label:"x", hooks: unknownHooks});',
+      source: 'capsule({label:"x", hooks: unknownHooks});',
     },
     {
       name: "named-callback",
@@ -1387,7 +1386,7 @@ async function prove() {
     },
     {
       name: "named-hooks-own",
-      source: 'const hooks = {start: () => 1}; extension({label:"x", hooks});',
+      source: 'const hooks = {start: () => 1}; capsule({label:"x", hooks});',
     },
     {
       name: "named-callback-own",

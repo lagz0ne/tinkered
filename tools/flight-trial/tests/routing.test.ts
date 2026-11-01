@@ -1,4 +1,4 @@
-import { createScope, extension, operation, resource, tag, type Observe } from "@tinker/core";
+import { createScope, capsule, data, operation, tag, type Observe } from "@tinker/core";
 import { z } from "zod";
 import { afterEach, beforeEach, expect, test } from "vite-plus/test";
 import {
@@ -22,19 +22,19 @@ const failedDriver = operation({
     return unavailable;
   },
 });
-const failures = resource({
-  label: "routing failure fixture",
-  factory: () => ({ remaining: 0 }),
-});
-const failingCalls = extension({
+/** Each root seeds its own fault, so a hook reads it in step through a cell's controller. */
+const failures = data({ label: "routing failure fixture", initial: { remaining: 0 } });
+const faultMeta = { role: "state", explain: "Counts the calls left to fail" } as const;
+const driverMeta = { role: "handler", explain: "Fails one routed call" } as const;
+const failingCalls = capsule({
   label: "routing failure driver",
   hooks: {
     run(event) {
       if (event.op.label === "create payment intent" || event.op.label === "read supplier offer") {
-        const fault = event.resolve(failures);
+        const fault = event.load(failures, faultMeta).get();
         if (fault.remaining > 0) {
           fault.remaining--;
-          return event.run(failedDriver);
+          return event.run(failedDriver, {}, driverMeta);
         }
       }
       return event.next();
@@ -71,7 +71,7 @@ beforeEach(async () => {
     const logs: Observe.Log[] = [];
     const scope = createScope({
       signal: stop.signal,
-      extensions: [failingCalls, app],
+      capsules: [failingCalls, app],
       observe: { log: (entry) => logs.push(entry) },
       tags: [
         supplierId("supplier-a"),
@@ -84,7 +84,8 @@ beforeEach(async () => {
       ],
     });
     await scope.ready;
-    const { url } = scope.resolve(app);
+    scope.controller(failures).set({ remaining: 0 });
+    const { url } = await app.serve(scope);
     running.push({
       stop,
       closed: scope.closed,

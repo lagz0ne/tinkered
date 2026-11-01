@@ -40,7 +40,7 @@ async function start() {
   const toolStop = new AbortController();
   const tools = createScope({
     signal: toolStop.signal,
-    extensions: [telemetry],
+    capsules: [telemetry],
     tags: telemetrySettings(settings.telemetry),
   });
   await tools.ready;
@@ -49,7 +49,7 @@ async function start() {
   const app = createScope({
     signal: stop.signal,
     observe: await tools.resolve(observer),
-    extensions: [setup, startRequests],
+    capsules: [setup, startRequests],
     tags: [
       backendStop(stop.signal),
       telemetryOrigin(settings.origin),
@@ -96,7 +96,7 @@ async function start() {
     }));
   if (import.meta.hot) import.meta.hot.dispose(close);
   return {
-    requestContext: app.resolve(startRequests),
+    requestContext: { scope: app },
     close,
     readHistory: () => tools.resolve(history),
   };

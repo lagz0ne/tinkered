@@ -1,6 +1,6 @@
 import type pino from "pino";
 import { createIsomorphicFn } from "@tanstack/react-start";
-import { data, extension, operation, resource } from "@tinker/core";
+import { data, capsule, operation, resource } from "@tinker/core";
 import type { Observe } from "@tinker/core";
 import { encodeValue, logRecord, telemetryBatch } from "./records";
 import type { Telemetry } from "./records";
@@ -23,17 +23,19 @@ export const flushTelemetry = operation({
   depends: { queue },
   run: ({ queue }) => queue.flush(),
 });
-export const telemetry = extension({
+export const telemetry = capsule({
   label: "telemetry",
   hooks: {
     async start(event) {
-      const owned = event.resolve(queue);
-      const flush = event.controller(flushTelemetry);
-      owned.start(flush.run.bind(flush));
+      const owned = await event.load(queue, { role: "state", explain: "Holds spans until flush" });
+      owned.start(() =>
+        event.run(flushTelemetry, {}, { role: "worker", explain: "Sends queued spans" }),
+      );
       await event.next();
     },
     async close(event) {
-      await event.resolve(queue).close();
+      const owned = await event.load(queue, { role: "state", explain: "Holds spans until flush" });
+      await owned.close();
       return event.next();
     },
   },
