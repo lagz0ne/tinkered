@@ -15,6 +15,10 @@ const resourceSym: unique symbol = Symbol("resource");
 const extensionSym: unique symbol = Symbol("extension");
 const namespaceSym: unique symbol = Symbol("namespace");
 
+/** The type-only key an unfilled config marks itself with (ADR 0120). Declared, never written: it
+ * exists so the compiler can name the keys a call still has to fill. */
+declare const unfilled: unique symbol;
+
 /** A declared dependency edge: a mode (`controller`, `required`, `optional`, `all`) onto a target. */
 export type Edge<K extends string, Target> = {
   readonly [edge]: true;
@@ -277,6 +281,33 @@ export declare namespace Resource {
     factory(deps: Record<string, unknown>, ctx: Ctx): T;
   };
 }
+
+/** Whether a config key must be filled: a required edge, or a tag with no default. */
+type EntryNeeds<E> =
+  E extends Edge<"required", Tag.Handle<any>>
+    ? true
+    : E extends Edge<"optional" | "all", Tag.Handle<any>>
+      ? false
+      : E extends Tag.Defaulted<any>
+        ? false
+        : E extends Tag.Handle<any>
+          ? true
+          : false;
+
+/** The value a config entry takes: a list edge takes a list, every other entry the tag's own
+ * value. */
+type EntryValue<E> =
+  E extends Edge<"all", Tag.Handle<infer T>>
+    ? readonly T[]
+    : E extends Edge<"required" | "optional", Tag.Handle<infer T>>
+      ? T
+      : E extends Tag.Handle<infer T>
+        ? T
+        : never;
+
+/** One object type, so a hover names the config itself: the keys that must be filled as required
+ * properties, the rest as optional ones. */
+type Flat<T> = { [K in keyof T]: T[K] };
 
 export declare namespace Scope {
   /** What a resource delivers: an async factory is normalized to a plain `Promise<value>`,
@@ -601,38 +632,12 @@ export declare namespace Scope {
   /** An extension's config as authored: a key per tag the library reads (ADR 0120). */
   export type Config = Readonly<Record<string, ConfigEntry>>;
 
-  /** The value a config entry takes: a list edge takes a list, every other entry the tag's own
-   * value. */
-  type EntryValue<E> =
-    E extends Edge<"all", Tag.Handle<infer T>>
-      ? readonly T[]
-      : E extends Edge<"required" | "optional", Tag.Handle<infer T>>
-        ? T
-        : E extends Tag.Handle<infer T>
-          ? T
-          : never;
-
-  /** Whether a config key must be filled: a required edge, or a tag with no default. */
-  type EntryNeeds<E> =
-    E extends Edge<"required", Tag.Handle<any>>
-      ? true
-      : E extends Edge<"optional" | "all", Tag.Handle<any>>
-        ? false
-        : E extends Tag.Defaulted<any>
-          ? false
-          : E extends Tag.Handle<any>
-            ? true
-            : false;
-
-  /** One object type, so a hover names the config itself: the keys that must be filled as
-   * required properties, the rest as optional ones. */
-  type Flat<T> = { [K in keyof T]: T[K] };
-
-  /** The values an extension's config takes (ADR 0120): a required key is required, a key with a
-   * default or an optional edge may be left out. */
+  /** The values an extension's config takes (ADR 0120): a required key must be named, though it may
+   * be written as `undefined` (an unset env value) and fail at start; a key with a default or an
+   * optional edge may be left out. */
   export type ConfigValues<C extends Config> = Flat<
     {
-      [K in keyof C as EntryNeeds<C[K]> extends true ? K : never]: EntryValue<C[K]>;
+      [K in keyof C as EntryNeeds<C[K]> extends true ? K : never]: EntryValue<C[K]> | undefined;
     } & {
       [K in keyof C as EntryNeeds<C[K]> extends true ? never : K]?: EntryValue<C[K]>;
     }
@@ -642,10 +647,6 @@ export declare namespace Scope {
   export type Unfilled<C extends Config> = {
     [K in keyof C]: EntryNeeds<C[K]> extends true ? K : never;
   }[keyof C];
-
-  /** The type-only key an unfilled config marks itself with. No runtime value: it exists so the
-   * compiler can name the missing keys (ADR 0120). */
-  export const unfilled: unique symbol;
 
   /** An extension that declares its config (ADR 0120). Call it to fill the config and get the
    * extension the scope installs; it is an extension either way, so `resolve` and `depends` take
@@ -864,16 +865,16 @@ const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
 
 /** Declare an extension: its label and its hooks. A library that reads tags declares them as its
  * `config`, and the command fills them by calling the extension (ADR 0120). */
-export function extension<T = void>(config: {
-  readonly label: string;
-  readonly hooks?: Scope.Hooks<T>;
-}): Scope.Extension<T>;
-
 export function extension<const C extends Scope.Config, T = void>(config: {
   readonly label: string;
   readonly config: C;
   readonly hooks?: Scope.Hooks<T>;
 }): Scope.Configurable<T, C>;
+
+export function extension<T = void>(config: {
+  readonly label: string;
+  readonly hooks?: Scope.Hooks<T>;
+}): Scope.Extension<T>;
 
 export function extension<T = void>(config: {
   readonly label: string;
@@ -6904,13 +6905,13 @@ function isListEntry(entry: Scope.ConfigEntry): boolean {
   return "kind" in entry && entry.kind === "all";
 }
 
-/** A list key's items as bindings, in the call's own order. The call takes a list, and a bare
- * value reads as a one-item list — the shape every core config takes ({@link Many}). */
+/** A list key's items as bindings, one per item, in the call's own order. */
 function bindList(
   out: Tag.Binding<unknown>[] | undefined,
   tag: Tag.Handle<unknown>,
   value: unknown,
 ): Tag.Binding<unknown>[] | undefined {
-  for (const item of Array.isArray(value) ? value : [value]) (out ??= []).push(tag(item));
+  const items = value as readonly unknown[];
+  for (const item of items) (out ??= []).push(tag(item));
   return out;
 }

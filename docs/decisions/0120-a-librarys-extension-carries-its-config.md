@@ -123,10 +123,11 @@ extensions: [
 
 ### 5. A missing required key fails twice
 
-- At compile time: the call is a type error.
-  An extension with a required key is not an
-  extension until it is called.
-- At start: `createScope` raises
+- At compile time: leaving the key out is a type
+  error. An extension with a required key is not
+  an extension until it is called.
+- At start: a key written as `undefined` (an
+  unset env value) makes `createScope` raise
   `MissingConfig { label, key }`. So no start
   hook checks its tags by hand.
 

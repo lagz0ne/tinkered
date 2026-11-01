@@ -340,14 +340,16 @@ const scope = createScope({
 ```
 
 A key is required when its tag has no default.
-The type names it when the call leaves it out.
-Calling `tag.required` makes a key required whatever its tag says.
-Calling `tag.optional` lets the call leave it out.
-Calling `tag.all` makes a list key: the call takes a list, and each item is one binding.
+Leaving it out is a type error: the error names the key.
+A required key still takes `undefined`, since an env value may be unset.
+An `undefined` value counts as unfilled, so such a key fails at start.
+An optional key then reads its tag's default instead.
+Use `tag.required` to make a key required whatever its tag says.
+Use `tag.optional` to let the call leave it out.
+Use `tag.all` for a list key: the call takes a list, and each item is one binding.
 
 A filled key binds its tag on the root, before the app's own `tags`.
 So a `tags` entry on the root still wins over the extension's.
-An `undefined` value counts as unfilled: an optional key reads the tag's default.
 A list reads every binding last first, so a list key reads back in the reverse of the call's order.
 
 A slot key holds a unit: a resource or an operation the app chooses.
@@ -372,7 +374,8 @@ const syncStart = extension({
 });
 ```
 
-Only a hand holds a scope (ADR 0051), so the library resolves the held unit in its own start.
+Only an extension hook holds the scope (ADR 0051), so the library resolves the held unit in its
+own start.
 A unit that reads the start value sees the instance the scope built, not a copy.
 So a preset on that unit reaches every reader of it.
 
@@ -380,7 +383,7 @@ Core adds no owner mark. A library's index does not export its config tags, so t
 library through its extension.
 
 `createScope` checks the config once, before the root layer exists.
-A required key still missing raises `MissingConfig` with `{ label, key }`.
+A required key written as `undefined` raises `MissingConfig` with `{ label, key }`.
 One library installed twice on a root raises `DuplicateExtension` with `{ label }`.
 A bad value raises `DataValidationFailed` from the tag's own `parse`, there.
 Resolve, run, and write add no work: the bindings sit on the root like any other tag.
@@ -1310,8 +1313,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   extension's own start value, bypassing the resolve chain.
 - `extension({ label, config })` declares the tags a library reads; call it to fill them and get the
   extension a scope installs (ADR 0120).
-- A required config key is a type error until the call fills it, and `MissingConfig { label, key }` when
-  it is left out at start; one library installed twice raises `DuplicateExtension { label }`.
+- Leaving a required config key out is a type error; a key written as `undefined` raises
+  `MissingConfig { label, key }` at start; one library installed twice raises `DuplicateExtension`.
 - A filled config key binds its tag on the root, and the root's own `tags` win; a `tag.all` key binds
   one tag per item and reads every binding last first.
 - A slot key holds a resource or an operation, which the library resolves through the scope, so a

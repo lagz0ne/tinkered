@@ -41,6 +41,9 @@ const whoami = operation({
   run: ({ sync }) => sync.store.id,
 });
 
+/** An env value the way a command passes it: a string, or `undefined` when it is unset. */
+const envValue = (raw: string | undefined): string | undefined => raw;
+
 /** The error `fn` raised, so a test reads it the way a caller does — narrow, or rethrow. */
 const caught = (fn: () => unknown): unknown => {
   try {
@@ -71,7 +74,8 @@ test("a required key left out fails start with MissingConfig", () => {
   const from = tag<string>({ label: "mail.from" });
   const mail = extension({ label: "mail", config: { from } });
 
-  const error = caught(() => createScope({ extensions: [mail({} as never)] }));
+  // @ts-expect-error a required key is left out
+  const error = caught(() => createScope({ extensions: [mail({})] }));
 
   if (!isError(error, "MissingConfig")) throw error;
   expect(error.payload).toEqual({ label: "mail", key: "from" });
@@ -229,7 +233,8 @@ test("a config tag's parse refuses a bad value at createScope", () => {
   });
   const mail = extension({ label: "mail", config: { port } });
 
-  const error = caught(() => createScope({ extensions: [mail({ port: "eighty" as never })] }));
+  // @ts-expect-error a port is a number
+  const error = caught(() => createScope({ extensions: [mail({ port: "eighty" })] }));
 
   if (!isError(error, "DataValidationFailed")) throw error;
   expect(error.payload.label).toBe("mail.port");
@@ -243,8 +248,8 @@ test("a config's values type as the tags say", () => {
   const mail = extension({ label: "tt", config: { from, port, names: names.all, store } });
 
   expectTypeOf(mail).parameter(0).toMatchTypeOf<{
-    from: string;
-    store: Resource.Handle<Store>;
+    from: string | undefined;
+    store: Resource.Handle<Store> | undefined;
     port?: number;
     names?: readonly string[];
   }>();
@@ -253,10 +258,11 @@ test("a config's values type as the tags say", () => {
   >();
   expectTypeOf(mail({ from: "a", store: sqlite })).toEqualTypeOf<Scope.Extension<void>>();
   mail({ from: "a", store: sqlite, names: ["one"] });
+  mail({ from: envValue("a"), store: sqlite });
 
   // @ts-expect-error a required key is missing
   mail({ store: sqlite });
-  // @ts-expect-error a required key is missing, and `from` is the wrong type
+  // @ts-expect-error `from` is the wrong type
   mail({ from: 1, store: sqlite });
   // @ts-expect-error a list key takes a list, not one item
   mail({ from: "a", store: sqlite, names: "one" });
@@ -278,6 +284,14 @@ test("extensions takes a filled configurable one, never an unfilled one", () => 
   install({ extensions: [soft] });
   // @ts-expect-error a required key is unfilled
   install({ extensions: [mail] });
+
+  /** A config object passed through a variable keeps the fillable type. */
+  const def = { label: "tt.var", config: { from } };
+  const viaVar = extension(def);
+
+  install({ extensions: [viaVar({ from: "a" })] });
+  // @ts-expect-error a required key is unfilled
+  install({ extensions: [viaVar] });
 });
 
 test("a tag says whether it has a default", () => {
