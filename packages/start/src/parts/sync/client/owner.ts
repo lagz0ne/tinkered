@@ -1,7 +1,7 @@
-import { extension, resource } from "@tinker/core";
+import { capsule, resource } from "@tinker/core";
 
 import { abortReasons } from "../../../errors";
-import { pageEvents, tabStop } from "./tab";
+import { pageEvents, readTabStop } from "./tab";
 
 /** Listens while the factory runs; `bind` only names what to close on a real page hide. */
 export const tabLifetime = resource({
@@ -27,13 +27,20 @@ export const tabLifetime = resource({
  * stops that account's work. The tab stop signal stops it too, before Core's graceful shutdown
  * waits for it.
  */
-export const accountOwner = extension({
+export const accountOwner = capsule({
   label: "sync.accountOwner",
   hooks: {
-    async start({ next, scope, defer }) {
+    async start({ next, run, defer }) {
       await next();
 
-      const signal = scope.resolve(tabStop);
+      const signal = await run(
+        readTabStop,
+        {},
+        {
+          role: "setup",
+          explain: "Reads the tab's stop signal",
+        },
+      );
       let stop = new AbortController();
       let version = 0;
 

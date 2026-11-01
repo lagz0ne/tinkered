@@ -1,4 +1,4 @@
-import type { Many, Resource, Scope } from "@tinker/core";
+import type { Capsule, Many, Resource } from "@tinker/core";
 
 import type { Sync } from "./envelopes";
 
@@ -13,9 +13,9 @@ export declare namespace SyncPart {
     dehydrate: () => Sync.Snapshot;
     hydrate: (raw: unknown) => Promise<void>;
   };
-  /** What a part gives the router entry: app root extensions, and a resource read from it. */
+  /** What a part gives the router entry: app root capsules, and a resource read from it. */
   type Router<O> = {
-    readonly extensions: Many<Scope.Extension<unknown>>;
+    readonly capsules: Many<Capsule.Installable>;
     readonly router: Resource.Handle<{ options: O; bind(close: () => Promise<void>): void }>;
   };
 }

@@ -1,4 +1,4 @@
-import type { Many, Observe, Resource, Scope, Tag } from "@tinker/core";
+import type { Capsule, Many, Observe, Resource, Tag } from "@tinker/core";
 import type { z } from "zod";
 
 import type { Env } from "../../env";
@@ -19,10 +19,10 @@ export declare namespace Telemetry {
   type Delivery = { traces: boolean; logs: boolean };
   /**
    * What the telemetry part gives the router entry (ADR 0106). The entry makes a telemetry root
-   * from `extensions` and `tags`, so the app root's own work is never observed there.
+   * from `capsules` and `tags`, so the app root's own work is never observed there.
    */
   type Part = {
-    readonly extensions: Many<Scope.Extension<unknown>>;
+    readonly capsules: Many<Capsule.Installable>;
     readonly tags: Tag.Bindings;
     /** The app root's `observe` option, read from the telemetry root. */
     readonly observe: Resource.Handle<Observe.Config | undefined>;

@@ -105,7 +105,7 @@ test("finished spans reach storage as OTLP JSON", async () => {
   const clock = makeTestClock({ now: 1_800_000_000_000 });
   const tools = createScope({
     clock,
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -177,7 +177,7 @@ test("log lines reach storage as JSON lines, one per span too", async () => {
   const clock = makeTestClock({ now: 1_800_000_000_000 });
   const tools = createScope({
     clock,
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -226,7 +226,7 @@ test("log lines reach storage as JSON lines, one per span too", async () => {
 test("lines below info are dropped; warn and error keep their level", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("server"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -251,7 +251,7 @@ test("lines below info are dropped; warn and error keep their level", async () =
 test("a span that never ended is sent with its start as its end; long names are cut", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -314,7 +314,7 @@ test("a span that never ended is sent with its start as its end; long names are 
 test("a storage failure keeps the business result and retries the retained records", async () => {
   const sent = storage([503, 503]);
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -340,7 +340,7 @@ test("a storage failure keeps the business result and retries the retained recor
 test("only the kind storage refused is kept: accepted traces leave, refused logs stay", async () => {
   const sent = storage([200, 503]);
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -355,7 +355,7 @@ test("only the kind storage refused is kept: accepted traces leave, refused logs
 
 test("a storage that cannot be reached counts as a refusal", async () => {
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       storageTags,
       telemetrySide("ssr"),
@@ -375,7 +375,7 @@ test("a storage that cannot be reached counts as a refusal", async () => {
 test("closing the telemetry root sends the finished records", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -393,7 +393,7 @@ test("a server root sends on its own once a second has passed", async () => {
   const clock = makeTestClock();
   const tools = createScope({
     clock,
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       storageTags,
       telemetrySide("server"),
@@ -417,7 +417,7 @@ test("a stuck storage request is aborted by the owned clock during close", async
   const clock = makeTestClock();
   const tools = createScope({
     clock,
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       storageTags,
       telemetrySide("ssr"),
@@ -446,7 +446,7 @@ test("a stuck storage request is aborted by the owned clock during close", async
 test("a full queue drops records past 512 and reports them; each send stays within 64 KiB", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -464,7 +464,7 @@ test("a full queue drops records past 512 and reports them; each send stays with
 test("a record over 48 KB is dropped; one send takes at most 64 records", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -493,7 +493,7 @@ test("a record over 48 KB is dropped; one send takes at most 64 records", async 
 test("sent records free the byte budget for later records", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -517,7 +517,7 @@ test("sent records free the byte budget for later records", async () => {
 test("telemetry sends through httpBackend without tracing its own requests", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     observe: { history: 30 },
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
@@ -538,7 +538,7 @@ test("telemetry sends through httpBackend without tracing its own requests", asy
 test("a tab sends its batch to the base's ingest route: same origin, kept alive", async () => {
   const sent = storage([200, 503]);
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [telemetrySide("browser"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -577,7 +577,7 @@ test("a tab sends its batch to the base's ingest route: same origin, kept alive"
 
 test("a tab whose send throws keeps its records for the next send", async () => {
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       telemetrySide("browser"),
       httpBackend(async () => {
@@ -669,7 +669,7 @@ test("a bad storage URL stops the server entry before the telemetry root, naming
 
 test("the router's part records a server render as ssr", async () => {
   const tools = createScope({
-    extensions: routerPart.extensions,
+    capsules: routerPart.capsules,
     tags: [routerPart.tags],
   });
   await tools.ready;
@@ -679,7 +679,7 @@ test("the router's part records a server render as ssr", async () => {
 });
 
 test("the off part leaves the telemetry root empty and the app root unobserved", async () => {
-  const tools = createScope({ extensions: off.extensions, tags: off.tags });
+  const tools = createScope({ capsules: off.capsules, tags: off.tags });
   await tools.ready;
   expect(tools.resolve(off.observe)).toBeUndefined();
   expect(tools.resolve(off.appTags)).toEqual([]);
@@ -688,7 +688,7 @@ test("the off part leaves the telemetry root empty and the app root unobserved",
 
 test("a record of exactly 48,000 bytes is kept; one byte more is dropped", async () => {
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(storage().backend)],
   });
   await tools.ready;
@@ -701,7 +701,7 @@ test("a record of exactly 48,000 bytes is kept; one byte more is dropped", async
 
 test("the queue holds 1 MiB to the byte, and counts what it holds after a refused send", async () => {
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(storage([503]).backend)],
   });
   await tools.ready;
@@ -721,7 +721,7 @@ test("the queue holds 1 MiB to the byte, and counts what it holds after a refuse
 test("one send carries at most 48,000 bytes: the fifth record goes in the next batch", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -738,7 +738,7 @@ test("while a send runs, the health says sending, and new records wait for the n
   const arrived = Promise.withResolvers<void>();
   const reply = Promise.withResolvers<Response>();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       storageTags,
       telemetrySide("ssr"),
@@ -766,7 +766,7 @@ test("while a send runs, the health says sending, and new records wait for the n
 
 test("after a refused send, new records keep the failed health", async () => {
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("ssr"), httpBackend(storage([503]).backend)],
   });
   await tools.ready;
@@ -796,10 +796,13 @@ test("a queue on a root with no telemetry extension still sends what it holds at
 test("closing gives up on storage after 1.5 s; what is left is dropped", async () => {
   const clock = makeTestClock();
   const calls: PromiseWithResolvers<Response>[] = [];
-  let arrival = Promise.withResolvers<PromiseWithResolvers<Response>>();
+  /** One arrival per held call, so a call that lands before the test waits is not missed. */
+  const arrivals = Array.from({ length: 3 }, () =>
+    Promise.withResolvers<PromiseWithResolvers<Response>>(),
+  );
   const tools = createScope({
     clock,
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       storageTags,
       telemetrySide("ssr"),
@@ -808,8 +811,7 @@ test("closing gives up on storage after 1.5 s; what is left is dropped", async (
         calls.push(call);
         if (calls.length > 3) return Promise.resolve(new Response(null));
 
-        arrival.resolve(call);
-        arrival = Promise.withResolvers();
+        arrivals[calls.length - 1]?.resolve(call);
         return call.promise;
       }),
     ],
@@ -822,7 +824,9 @@ test("closing gives up on storage after 1.5 s; what is left is dropped", async (
     });
   }
   const closing = tools.close({ graceful: true });
-  for (let round = 0; round < 3; round++) {
+  /** The close hook awaits `load(queue)`, so the queue sets its 1.5 s deadline a tick later. */
+  await Promise.resolve();
+  for (const arrival of arrivals) {
     const call = await arrival.promise;
     clock.advance(600);
     call.resolve(new Response(null));
@@ -835,7 +839,7 @@ test("closing gives up on storage after 1.5 s; what is left is dropped", async (
 test("a log line outside any span, and long keys, messages, and errors, are cut", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("server"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -886,7 +890,7 @@ test("a log line outside any span, and long keys, messages, and errors, are cut"
 test("a server groups the spans it sends by side: server, browser, then ssr", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("server"), httpBackend(sent.backend)],
   });
   await tools.ready;
@@ -932,7 +936,7 @@ test("a server groups the spans it sends by side: server, browser, then ssr", as
 
 test("a trace send that throws keeps the traces; the logs sent beside them leave", async () => {
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       storageTags,
       telemetrySide("server"),
@@ -955,7 +959,7 @@ test("a trace send that throws keeps the traces; the logs sent beside them leave
 test("closing a tab never sends a batch over 32,000 UTF-8 bytes", async () => {
   const sent = storage();
   const tools = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [storageTags, telemetrySide("browser"), httpBackend(sent.backend)],
   });
   await tools.ready;

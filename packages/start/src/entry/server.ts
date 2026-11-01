@@ -11,7 +11,6 @@ import { backendStop } from "../backend/lifetime";
 import { retainRender } from "../backend/render-lifetime.server";
 import type { Env } from "../env";
 import { abortReasons, raise } from "../errors";
-import { startRequests } from "../start";
 import { devErrorPage } from "./dev-error";
 import type { getRouter } from "./router";
 
@@ -37,12 +36,12 @@ async function start() {
   const values = { ...process.env };
   const readSettings: Env.Read = appSettings;
   const toolSettings = telemetry.settings(values);
-  const appSettingTags = [auth.settings(values), readSettings(values)];
+  const appSettingTags = readSettings(values);
 
   const toolStop = new AbortController();
   const tools = createScope({
     signal: toolStop.signal,
-    extensions: telemetry.extensions,
+    capsules: telemetry.capsules,
     tags: [toolSettings, telemetry.tags],
   });
   await tools.ready;
@@ -51,7 +50,7 @@ async function start() {
   const app = createScope({
     signal: stop.signal,
     observe: tools.resolve(telemetry.observe),
-    extensions: [startRequests, auth.extensions, extensions],
+    capsules: [auth.capsules(values), extensions],
     tags: [backendStop(stop.signal), appSettingTags, tools.resolve(telemetry.appTags)],
   });
 
@@ -80,7 +79,7 @@ async function start() {
   if (import.meta.hot) import.meta.hot.dispose(close);
 
   return (entry.ready = {
-    requestContext: app.resolve(startRequests),
+    requestContext: { scope: app },
     renderObserve: tools.resolve(telemetry.renderObserve, { ns: telemetry.renderNs }),
     close,
   });

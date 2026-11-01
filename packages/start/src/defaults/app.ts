@@ -1,4 +1,4 @@
-import type { Many, Scope } from "@tinker/core";
+import type { Capsule, Many } from "@tinker/core";
 
-/** The base's empty client seam: an app with no src/lib/tinker.ts adds no extensions. */
-export const extensions: Many<Scope.Extension<unknown>> = [];
+/** The base's empty client seam: an app with no src/lib/tinker.ts adds no capsules. */
+export const extensions: Many<Capsule.Installable> = [];

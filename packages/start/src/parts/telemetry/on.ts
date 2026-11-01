@@ -17,7 +17,7 @@ const sinks = createIsomorphicFn()
 
 /** The telemetry part, on, for the router entry. */
 export const telemetry: Telemetry.Part = {
-  extensions: [telemetryExport],
+  capsules: [telemetryExport],
   tags: [telemetrySide(side()), sinks()],
   observe: observer,
 };

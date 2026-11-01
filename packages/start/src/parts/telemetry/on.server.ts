@@ -8,7 +8,7 @@ import { readTelemetryConfig, telemetrySide } from "./settings";
 
 /** The telemetry part, on, for the server entry: server records, and the browser's by its route. */
 export const telemetry = {
-  extensions: [telemetryExport],
+  capsules: [telemetryExport],
   tags: [telemetrySide("server"), consoleOutput(process.stdout)],
   observe: observer,
   appTags: browserIngest,

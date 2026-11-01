@@ -1,4 +1,4 @@
-import { createScope, operation, tag } from "@tinker/core";
+import { createScope, operation, tag, type Scope } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 
 import { version } from "../package.json";
@@ -49,10 +49,29 @@ test("the base's health operation reports the base version", async () => {
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
-test("the start extension hands each request its root scope", async () => {
-  const root = createScope({ extensions: [startRequests] });
-  await root.ready;
-  expect(root.resolve(startRequests).scope).toBe(root);
+test("the start middleware runs each request in a session of the root it is handed", async () => {
+  const root = createScope({ tags: [greetingName("Ada")] });
+  const run = startRequests.middleware.options.server;
+  const greetings: string[] = [];
+  /** Ends the request after the read, so the test needs no handler result. */
+  const done = new Error("read done");
+
+  await expect(
+    run?.({
+      request: new Request("http://app/"),
+      pathname: "/",
+      handlerType: "router",
+      context: { scope: root },
+      async next(options) {
+        /** Start types `next`'s context as a generic; this middleware passes its session. */
+        const context = options?.context as { readonly session: Scope.Handle } | undefined;
+        if (context !== undefined) greetings.push(readResult(context.session.settle(greet)));
+        throw done;
+      },
+    }),
+  ).rejects.toBe(done);
+
+  expect(greetings).toEqual(["Hello, Ada."]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 

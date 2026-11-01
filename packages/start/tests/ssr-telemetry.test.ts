@@ -35,7 +35,7 @@ test("render close finishes while the process telemetry send is held", async () 
   const sending = Promise.withResolvers<void>();
   const tools = createScope({
     clock: makeTestClock(),
-    extensions: telemetry.extensions,
+    capsules: telemetry.capsules,
     tags: [
       storageTags,
       telemetry.tags,
@@ -69,7 +69,7 @@ test("process close sends two renders from one queue with side ssr", async () =>
   const requests: string[] = [];
   const tools = createScope({
     clock: makeTestClock(),
-    extensions: telemetry.extensions,
+    capsules: telemetry.capsules,
     tags: [
       storageTags,
       telemetry.tags,
@@ -101,7 +101,7 @@ test("process close sends two renders from one queue with side ssr", async () =>
 });
 
 test("renders with telemetry off need no storage settings", async () => {
-  const tools = createScope({ extensions: off.extensions, tags: off.tags });
+  const tools = createScope({ capsules: off.capsules, tags: off.tags });
   await tools.ready;
   const app = createScope({ observe: tools.resolve(off.renderObserve, { ns: off.renderNs }) });
 

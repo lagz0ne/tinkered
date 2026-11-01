@@ -34,7 +34,7 @@ test("cached records keep exact log bytes and trace fields through a retry", asy
   const bodies: string[] = [];
   let refused = true;
   const root = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       telemetryService("s"),
       telemetrySide("ssr"),
@@ -76,7 +76,7 @@ test("cached records keep exact log bytes and trace fields through a retry", asy
 
 test("a full queue drops a record without reading its message", async () => {
   const root = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [telemetrySide("ssr"), httpBackend(async () => new Response(null))],
   });
   await root.ready;

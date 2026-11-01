@@ -26,7 +26,7 @@ test("a 300-record burst is sent before the first tick, one batch at a time", as
   const clock = makeTestClock();
   const root = createScope({
     clock,
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       telemetrySide("server"),
       httpBackend(async (_input, init) => {
@@ -83,7 +83,7 @@ test("a full batch arriving as a send ends is sent before any tick", async () =>
 
     const root = createScope({
       clock,
-      extensions: [telemetryExport],
+      capsules: [telemetryExport],
       tags: [
         telemetrySide("ssr"),
         httpBackend(async (_input, init) => {
@@ -135,7 +135,7 @@ test("a slow console keeps a bounded batch and counts every dropped copy", async
   let stored = 0;
 
   const root = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [
       telemetrySide("ssr"),
       consoleOutput(sink),
@@ -180,7 +180,7 @@ test("a slow console keeps a bounded batch and counts every dropped copy", async
 
 test("records refused during close are counted in the final health", async () => {
   const root = createScope({
-    extensions: [telemetryExport],
+    capsules: [telemetryExport],
     tags: [telemetrySide("ssr"), httpBackend(async () => new Response(null, { status: 503 }))],
   });
   await root.ready;

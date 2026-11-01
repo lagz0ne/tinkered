@@ -1,5 +1,5 @@
 import { data, resource } from "@tinker/core";
-import type { Many, Scope } from "@tinker/core";
+import type { Capsule, Many } from "@tinker/core";
 import { z } from "zod";
 
 import {
@@ -14,7 +14,7 @@ import type { Sync } from "../../src/parts/sync/envelopes";
  * A stand-in client seam for the base's own tests and type check, as `#tinker/app`: the names
  * the sync part reads. Its records keep each snapshot part and each applied change in cells.
  */
-export const extensions: Many<Scope.Extension<unknown>> = [];
+export const extensions: Many<Capsule.Installable> = [];
 export const savedPublic = data<Sync.Public | null>({ label: "test.public", initial: null });
 export const savedPrivate = data<Sync.Private | null>({ label: "test.private", initial: null });
 export const applied = data<unknown[]>({ label: "test.applied", initial: [] });

@@ -29,7 +29,7 @@ const readTelemetry = createIsomorphicFn()
     const toolStop = new AbortController();
     const tools = createScope({
       signal: toolStop.signal,
-      extensions: telemetry.extensions,
+      capsules: telemetry.capsules,
       tags: telemetry.tags,
     });
     await tools.ready;
@@ -75,7 +75,7 @@ export async function getRouter() {
   const stop = new AbortController();
   const app = createScope({
     signal: stop.signal,
-    extensions: [sync.extensions, extensions],
+    capsules: [sync.capsules, extensions],
     observe: tools.observe,
     tags: [tabStop(stop.signal), pageEvents(readPage())],
   });

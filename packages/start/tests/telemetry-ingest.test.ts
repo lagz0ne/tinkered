@@ -318,7 +318,7 @@ test("an ingest that fails, not by a stop, fails the reply", async () => {
 test("on the server, a tab's batch joins the telemetry root under the server's service", async () => {
   const sent: string[] = [];
   const tools = createScope({
-    extensions: serverPart.extensions,
+    capsules: serverPart.capsules,
     tags: [
       serverPart.tags,
       telemetryService("shop"),

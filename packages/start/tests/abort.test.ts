@@ -4,7 +4,7 @@ import { expect, test } from "vite-plus/test";
 
 test("closing the tab owner uses the shared abort reason", async () => {
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
   });
   await root.ready;
@@ -15,7 +15,7 @@ test("closing the tab owner uses the shared abort reason", async () => {
 
 test("account changes reuse one AbortError reason", async () => {
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
   });
   await root.ready;

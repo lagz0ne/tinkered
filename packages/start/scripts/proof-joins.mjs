@@ -72,12 +72,16 @@ export default function settings(env: Env.Values) {
   );
   write(
     "src/items/20-mail/extensions.server.ts",
-    `import { extension } from "@tinker/core";
+    `import { capsule, operation } from "@tinker/core";
 import { mailFrom, smtpUrl } from "@/backend/mail.server";
-export default [extension({ label: "mail", hooks: {
-  async start({ resolve, next }) {
-    resolve(smtpUrl);
-    resolve(mailFrom);
+const readMail = operation({
+  label: "mail.read",
+  depends: { smtpUrl, mailFrom },
+  run: () => undefined,
+});
+export default [capsule({ label: "mail", hooks: {
+  async start({ run, next }) {
+    await run(readMail, {}, { role: "setup", explain: "Checks the mail settings" });
     await next();
   },
 } })];
@@ -123,7 +127,7 @@ try {
   const response = await built.default.fetch(new Request('http://proof/'));
   const body = await response.text();
   if (response.status !== 200 || !body.includes('postgres://proof/db | smtp://proof:25 | proof@example.test')) throw new Error(body);
-  console.log('PASS three item tags reach Start; mail extension starts');
+  console.log('PASS three item tags reach Start; mail capsule starts');
 } finally { await built.close(); }
 `,
   ]);

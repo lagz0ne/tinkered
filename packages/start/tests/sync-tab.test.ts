@@ -112,7 +112,7 @@ test("a tab loads its snapshot once per account, and shares a load in flight", a
   const reply = Promise.withResolvers<Sync.Snapshot>();
   let loads = 0;
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [
       preset(snapshotSource, () => ({
@@ -142,7 +142,7 @@ test("a tab loads its snapshot once per account, and shares a load in flight", a
 test("an account check keeps the same account, and leaves a changed one", async () => {
   const { calls, source } = network(["ada", "grace"]);
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [source],
   });
@@ -164,7 +164,7 @@ test("an account check keeps the same account, and leaves a changed one", async 
 test("each snapshot load and account read stops with its call", async () => {
   const signals: AbortSignal[] = [];
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [
       preset(snapshotSource, () => ({
@@ -194,7 +194,7 @@ test("each snapshot load and account read stops with its call", async () => {
 test("a sign-in holds loads and checks until it completes, with its own load", async () => {
   const { calls, source } = network();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [source],
   });
@@ -221,7 +221,7 @@ test("a sign-in holds loads and checks until it completes, with its own load", a
 
 test("a received frame settles in place after the tab is ready", async () => {
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
   });
   await root.ready;
@@ -236,7 +236,7 @@ test("a received frame settles in place after the tab is ready", async () => {
 
 test("a frame of changes applies; an account frame leaves the account; a stale version does neither", async () => {
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
   });
   await root.ready;
@@ -274,7 +274,7 @@ test("a frame of changes applies; an account frame leaves the account; a stale v
 test("a connection opens from the applied cursors, applies each frame, and ends true on an account change", async () => {
   const fake = sources();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: [tabStop(new AbortController().signal), eventSourceBackend(fake.backend)],
   });
   await root.ready;
@@ -296,7 +296,7 @@ test("a connection opens from the applied cursors, applies each frame, and ends 
 test("an anonymous tab connects from the start of the public stream", async () => {
   const fake = sources();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: [tabStop(new AbortController().signal), eventSourceBackend(fake.backend)],
   });
   await root.ready;
@@ -317,7 +317,7 @@ test("an error, a bad frame, a ninth unread frame, or a stop ends a connection f
   const fake = sources();
   const tab = new AbortController();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: [tabStop(tab.signal), eventSourceBackend(fake.backend)],
   });
   await root.ready;
@@ -392,7 +392,7 @@ test("a second connect closes the first; a stopped signal closes at once; closin
 test("a refresh keeps the same account's cursors, and reloads after a change", async () => {
   const { calls, source } = network(["ada", "grace"]);
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [source],
   });
@@ -416,7 +416,7 @@ test("a refresh that ends after an account exit leaves the new account alone", a
   const answer = Promise.withResolvers<string | null>();
   const asked = Promise.withResolvers<void>();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [
       preset(snapshotSource, () => ({
@@ -462,7 +462,7 @@ test("the tab streams once started: an account frame reloads, an ended connectio
   const tab = new AbortController();
   const root = createScope({
     clock,
-    extensions: [accountOwner, syncStreaming],
+    capsules: [accountOwner, syncStreaming],
     tags: [tabStop(tab.signal), eventSourceBackend(fake.backend)],
     presets: [source],
   });
@@ -517,7 +517,7 @@ test("a connection that fails to open logs a reconnect, and the tab tries again"
   const root = createScope({
     clock,
     observe: { log: ({ message }) => logs.push(message) },
-    extensions: [accountOwner, syncStreaming],
+    capsules: [accountOwner, syncStreaming],
     tags: [
       tabStop(tab.signal),
       eventSourceBackend(() => {
@@ -544,7 +544,7 @@ test("the router side loads and checks through the loader, dehydrates, and hydra
   const page = new EventTarget();
   const tab = new AbortController();
   const root = createScope({
-    extensions: on.extensions,
+    capsules: on.capsules,
     tags: [tabStop(tab.signal), pageEvents(page), eventSourceBackend(fake.backend)],
     presets: [source],
   });
@@ -578,14 +578,14 @@ test("the router side loads and checks through the loader, dehydrates, and hydra
 });
 
 test("the on part streams through the tab's owner; the off part adds nothing and binds nothing", async () => {
-  expect(on.extensions).toEqual([accountOwner, syncStreaming]);
-  const root = createScope({ extensions: off.extensions });
+  expect(on.capsules).toEqual([accountOwner, syncStreaming]);
+  const root = createScope({ capsules: off.capsules });
   await root.ready;
   const router = root.resolve(off.router);
 
   expect(router.options).toEqual({});
   expect(() => router.bind(async () => undefined)).not.toThrow();
-  expect(off.extensions).toEqual([]);
+  expect(off.capsules).toEqual([]);
   expect((await root.close({ graceful: true })).status).toBe("success");
 });
 
@@ -602,7 +602,7 @@ const settledFirst = (promise: Promise<unknown>) =>
 test("a tab whose snapshot came another way still loads its own at the next version", async () => {
   const { calls, source } = network();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [source],
   });
@@ -617,7 +617,7 @@ test("a tab whose snapshot came another way still loads its own at the next vers
 test("a load that cannot apply yet is tried again; a newer load is not dropped when an older one ends", async () => {
   const replies: PromiseWithResolvers<Sync.Snapshot>[] = [];
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [
       preset(snapshotSource, () => ({
@@ -658,7 +658,7 @@ test("a load that cannot apply yet is tried again; a newer load is not dropped w
 test("a snapshot that cannot apply while a write is pending is loaded again", async () => {
   const { calls, source } = network();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [source],
   });
@@ -685,7 +685,7 @@ test("a snapshot that cannot apply while a write is pending is loaded again", as
 test("an account change begun twice holds the tab until the latest one ends", async () => {
   const { source } = network();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(new AbortController().signal),
     presets: [source],
   });
@@ -753,7 +753,7 @@ test("before any connection, close does nothing and next ends at once; a root th
 test("a connection that applies changes, then errors, ends false", async () => {
   const fake = sources();
   const root = createScope({
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: [tabStop(new AbortController().signal), eventSourceBackend(fake.backend)],
   });
   await root.ready;
@@ -797,7 +797,7 @@ test("the tab logs a reconnect only after a failure, and checks nothing more onc
   const root = createScope({
     clock,
     observe: { log: ({ message }) => logs.push(message) },
-    extensions: [accountOwner, syncStreaming],
+    capsules: [accountOwner, syncStreaming],
     tags: [tabStop(tab.signal), eventSourceBackend(fake.backend)],
     presets: [
       preset(snapshotSource, () => ({
@@ -852,7 +852,7 @@ test("a tab stream that fails surfaces its error when the tab closes", async () 
   const tab = new AbortController();
   const root = createScope({
     clock,
-    extensions: [accountOwner, syncStreaming],
+    capsules: [accountOwner, syncStreaming],
     tags: [
       tabStop(tab.signal),
       eventSourceBackend(() => {
@@ -875,7 +875,7 @@ test("the tab's sync work shows on the trace under its own names", async () => {
   const tab = new AbortController();
   const root = createScope({
     observe: { history: 60 },
-    extensions: [accountOwner, syncStreaming],
+    capsules: [accountOwner, syncStreaming],
     tags: [tabStop(tab.signal), eventSourceBackend(fake.backend)],
     presets: [network().source],
   });

@@ -218,7 +218,7 @@ test("reconnecting from applied cursors finishes a save whose final event commit
 
   const browser = createScope({
     signal: stop.signal,
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(stop.signal),
   });
 

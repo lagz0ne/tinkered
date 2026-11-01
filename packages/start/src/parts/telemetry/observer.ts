@@ -1,4 +1,4 @@
-import { extension, LEVELS, operation, resource } from "@tinker/core";
+import { capsule, LEVELS, operation, resource } from "@tinker/core";
 import type { Observe } from "@tinker/core";
 
 import { logConsole } from "./console";
@@ -25,18 +25,20 @@ export const flushTelemetry = operation({
 });
 
 /** On the telemetry root: the queue's timer starts with the root, and its close sends what is left. */
-export const telemetryExport = extension({
+export const telemetryExport = capsule({
   label: "telemetry",
   hooks: {
-    async start(event) {
-      const owned = event.resolve(queue);
-      const flush = event.controller(flushTelemetry);
-      owned.start(flush.run.bind(flush));
-      await event.next();
+    async start({ load, run, next }) {
+      const owned = await load(queue, { role: "state", explain: "Holds records until flush" });
+      owned.start(() =>
+        run(flushTelemetry, {}, { role: "worker", explain: "Sends queued records" }),
+      );
+      await next();
     },
-    async close(event) {
-      await event.resolve(queue).close(true);
-      return event.next();
+    async close({ load, next }) {
+      const owned = await load(queue, { role: "state", explain: "Holds records until flush" });
+      await owned.close(true);
+      return next();
     },
   },
 });

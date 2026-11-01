@@ -1,7 +1,7 @@
 import { createScope, operation } from "@tinker/core";
 import { httpRequest } from "@tinker/start/server";
 import { isError, raise } from "@tinker/start/testing";
-import { backendStop, http, httpBackend, requestStop, startRequests } from "@tinker/start/testing";
+import { backendStop, http, httpBackend, requestStop } from "@tinker/start/testing";
 import { expect, test } from "vite-plus/test";
 
 const post = operation({
@@ -417,7 +417,6 @@ test("backend stop settles a server function's signalled HTTP call", async () =>
   const call = new AbortController();
   const scope = createScope({
     signal: stop.signal,
-    extensions: [startRequests],
     tags: [backend.binding, backendStop(stop.signal)],
   });
   await scope.ready;
@@ -563,7 +562,6 @@ test("forced root and session closes still cancel a never-answering HTTP request
     const stop = new AbortController();
     const scope = createScope({
       signal: stop.signal,
-      extensions: [startRequests],
       tags: [backend.binding],
     });
     await scope.ready;

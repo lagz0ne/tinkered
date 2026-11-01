@@ -1,4 +1,4 @@
-import type { Data, Many, Operation, Resource, Scope, Tag } from "@tinker/core";
+import type { Capsule, Data, Many, Operation, Resource, Tag } from "@tinker/core";
 
 import type { Env as Environment } from "../src/env";
 import type { Database as Store } from "../src/parts/sync/database";
@@ -8,7 +8,7 @@ import type { Sync } from "../src/parts/sync/envelopes";
 export declare namespace App {
   type Env = Environment.Values;
   type Bindings = Tag.Bindings;
-  type Extensions = Many<Scope.Extension<unknown>>;
+  type Extensions = Many<Capsule.Installable>;
   type Settings = Environment.Read;
   type Database = Resource.Handle<Store.Handle | PromiseLike<Store.Handle>>;
   type Auth = Resource.Handle<AuthPort | PromiseLike<AuthPort>>;

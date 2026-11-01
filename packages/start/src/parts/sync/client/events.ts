@@ -1,4 +1,4 @@
-import { extension, operation, resource, tag } from "@tinker/core";
+import { capsule, operation, resource, tag } from "@tinker/core";
 import type { Operation } from "@tinker/core";
 
 import { streamMessage } from "#tinker/app";
@@ -7,7 +7,7 @@ import type { Sync } from "../envelopes";
 import { snapshotSource } from "../functions";
 import type { Stream } from "../protocol";
 import { applyBootstrap, syncClient } from "./sync";
-import { tabStop } from "./tab";
+import { readTabStop } from "./tab";
 
 /**
  * One tab shares a load per account version; a sign-in holds loads and reconnects until its new
@@ -273,17 +273,32 @@ export const streamChanges = operation({
 });
 
 /** The tab's stream: `start` runs it once, until the tab stops. */
-export const syncStreaming = extension({
+export const syncStreaming = capsule({
   label: "sync.streaming",
   hooks: {
-    async start({ next, scope, defer }) {
+    async start({ next, run, settle, defer }) {
       await next();
+      const signal = await run(
+        readTabStop,
+        {},
+        {
+          role: "setup",
+          explain: "Reads the tab's stop signal",
+        },
+      );
       let started = false;
       return {
         start() {
           if (started) return;
           started = true;
-          const running = scope.settle(streamChanges, { signal: scope.resolve(tabStop) });
+          const running = settle(
+            streamChanges,
+            { signal },
+            {
+              role: "worker",
+              explain: "Streams the account's changes into the tab",
+            },
+          );
           defer(async () => {
             const result = await running;
             if (result.status === "failed") throw result.error;

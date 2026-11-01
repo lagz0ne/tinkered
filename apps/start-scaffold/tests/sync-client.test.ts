@@ -44,7 +44,7 @@ test("an event before its receipt finishes only after saved records are applied"
 
   const root = createScope({
     signal: stop.signal,
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(stop.signal),
   });
   await root.ready;
@@ -89,7 +89,7 @@ test("replayed events and older snapshots leave newer records and dirty drafts a
   const stop = new AbortController();
   const root = createScope({
     signal: stop.signal,
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(stop.signal),
   });
   await root.ready;
@@ -155,7 +155,7 @@ test("account exit stops local waits and ignores an old account's late response"
 
   const root = createScope({
     signal: stop.signal,
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(stop.signal),
   });
   await root.ready;

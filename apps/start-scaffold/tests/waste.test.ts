@@ -81,13 +81,13 @@ test("a signed-out private redirect loads one snapshot across separate renders",
 
   const page = createScope({
     signal: stop.signal,
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(stop.signal),
     presets: [source],
   });
   const redirected = createScope({
     signal: stop.signal,
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(stop.signal),
     presets: [source],
   });
@@ -122,7 +122,7 @@ test("sign-in, an old stream account event, and route loads fetch one signed-in 
 
   const browser = createScope({
     signal: stop.signal,
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(stop.signal),
     presets: [
       preset(authClient, async () =>
@@ -203,7 +203,7 @@ test("a private route check clears cached records after another tab signs out", 
 
   const browser = createScope({
     signal: stop.signal,
-    extensions: [accountOwner],
+    capsules: [accountOwner],
     tags: tabStop(stop.signal),
     presets: [
       preset(snapshotSource, () => ({

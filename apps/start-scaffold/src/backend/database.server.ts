@@ -1,4 +1,4 @@
-import { extension, operation, resource, tag } from "@tinker/core";
+import { capsule, operation, resource, tag } from "@tinker/core";
 import type { Database } from "@tinker/start/server";
 
 export type { Database } from "@tinker/start/server";
@@ -73,12 +73,12 @@ export const migrate = operation({
   },
 });
 
-export const databaseSetup = extension({
+export const databaseSetup = capsule({
   label: "database.setup",
   hooks: {
-    async start({ next, scope }) {
+    async start({ next, run }) {
       await next();
-      await scope.run(migrate);
+      await run(migrate, {}, { role: "setup", explain: "Brings the schema up to date" });
     },
   },
 });

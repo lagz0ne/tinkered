@@ -1,5 +1,4 @@
 import { createMiddleware } from "@tanstack/react-start";
-import { extension } from "@tinker/core";
 import type { Scope } from "@tinker/core";
 
 import { responseBodies } from "./backend/body.server";
@@ -43,16 +42,6 @@ const middleware = createMiddleware().server(async ({ context, request, next }) 
   }
 });
 
-/** Startup supplies the root context; all Start boundaries share this middleware. */
-export const startRequests = Object.assign(
-  extension({
-    label: "start.requests",
-    hooks: {
-      async start(event) {
-        await event.next();
-        return { scope: event.scope };
-      },
-    },
-  }),
-  { middleware },
-);
+/** The server entry hands each request its root as `requestContext: { scope }` (ADR 0120, X2);
+ * all Start boundaries share this middleware. */
+export const startRequests = { middleware };
