@@ -5,8 +5,10 @@ import { expect, test } from "vite-plus/test";
 
 import { createScope, data, capsule } from "@/index";
 
-setFlagsFromString("--expose-gc");
-const gc = runInNewContext("gc") as () => void;
+/** Bun has no `--expose-gc`; its own `Bun.gc(true)` runs a full collection. */
+const bun = (globalThis as { Bun?: { gc(force: boolean): void } }).Bun;
+if (!bun) setFlagsFromString("--expose-gc");
+const gc = bun ? () => bun.gc(true) : (runInNewContext("gc") as () => void);
 
 const initial: number[] = [];
 const cell = data({ label: "retained", initial });
