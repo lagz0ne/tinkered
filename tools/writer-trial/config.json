@@ -36,11 +36,5 @@
     "inputDefaultMasks",
     "noOpRejected",
     "wrapsCallersStep"
-  ],
-  "flight": {
-    "image": "tinker-writer-flight:20261007.base.1",
-    "servicesImage": "tinker-flight-services:20261004160855439",
-    "postgresImage": "postgres:17-alpine",
-    "mailpitImage": "axllent/mailpit:v1.27"
-  }
+  ]
 }

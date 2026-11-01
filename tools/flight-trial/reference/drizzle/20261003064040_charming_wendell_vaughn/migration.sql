@@ -1,1 +1,0 @@
-ALTER TABLE "flight_booking" ADD COLUMN "email_state" text DEFAULT 'Not sent' NOT NULL;

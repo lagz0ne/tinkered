@@ -34,8 +34,6 @@ export default defineConfig({
       "import/default": "off",
     },
     options: { typeAware: true, typeCheck: true },
-    // The flight reference answer is its own app; run-reference checks it in the trial image.
-    ignorePatterns: ["tools/flight-trial/reference/**"],
     overrides: [
       // Plain Node scripts have no tsconfig, so `@/` cannot reach them.
       {

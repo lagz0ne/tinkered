@@ -2,15 +2,7 @@
 // Booking grows over rounds 1-5; stock, plan, loans, ballot, kitchen, locker, cinema, and gym are
 // one fresh round each.
 import { createHash } from "node:crypto";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-} from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { freezeJevPackages, verifyJevLoads } from "./jev-packages.mjs";
@@ -19,17 +11,6 @@ export const trialDir = fileURLToPath(new URL(".", import.meta.url));
 export const repoDir = resolve(trialDir, "../..");
 
 export const SUITES = {
-  flight: {
-    rounds: [1, 2, 3, 4, 5],
-    tasks: [
-      "flight/01-search.md",
-      "flight/02-metasearch.md",
-      "flight/03-hold.md",
-      "flight/04-pay.md",
-      "flight/05-email.md",
-    ],
-    guidelines: ["flight-guidelines.md"],
-  },
   booking: {
     rounds: [1, 2, 3, 4, 5],
     // Cumulative: round N stages packets 1..N.
@@ -112,10 +93,6 @@ export const taskRounds = (suite) => roundsFor(suite);
 
 // A fresh-round suite stages one task file, named as its frozen source.
 export const taskFileFor = (suite, round) => {
-  if (suite === "flight") {
-    if (!roundsFor(suite).includes(round)) throw new Error(`Suite flight has no round ${round}`);
-    return SUITES.flight.tasks[round - 1].split("/").pop();
-  }
   if (suite !== "booking" && SUITES[suite]) {
     if (round !== 1) throw new Error(`Suite ${suite} has no round ${round}`);
     return SUITES[suite].tasks[0].split("/").pop();
@@ -136,7 +113,7 @@ export const taskSourcesFor = (suite, round) => {
   if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   if (!SUITES[suite].rounds.includes(round))
     throw new Error(`Suite ${suite} has no round ${round}`);
-  if (["booking", "flight"].includes(suite)) return SUITES[suite].tasks.slice(0, round);
+  if (suite === "booking") return SUITES[suite].tasks.slice(0, round);
   return [...SUITES[suite].tasks];
 };
 
@@ -157,7 +134,7 @@ export const assembleGuidelines = (suite) =>
 
 // Freeze task, rules, and tool copies for one trial. New trials
 // require the shape helper; old trials without frozen/ keep working.
-export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
+export const freezeTrial = (root, suite) => {
   if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   const frozen = join(root, "frozen");
   if (existsSync(frozen)) throw new Error("Frozen copies exist; preserve them, do not refresh");
@@ -172,7 +149,7 @@ export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
     files[dest] = sha256File(src);
   };
   try {
-    freezeTasks(suite, packetDir, put);
+    freezeTasks(suite, put);
     const copies = [
       ...guidelineSourcesFor(suite).map((guide) => [join(trialDir, guide), `rules/${guide}`]),
       ...TRIAL_TOOLS.map((tool) => [join(trialDir, tool), `tools/${tool}`]),
@@ -185,48 +162,18 @@ export const freezeTrial = (root, suite, packetDir = join(trialDir, suite)) => {
     const jev = join(frozen, "jev");
     freezeJevPackages(join(repoDir, "tools/jev"), jev);
     verifyJevLoads(jev);
-    return {
-      dir: "frozen",
-      files,
-      ...(suite === "flight" ? { teacher: flightTeacherSnapshot().pins } : {}),
-    };
+    return { dir: "frozen", files };
   } catch (error) {
     rmSync(frozen, { recursive: true, force: true });
     throw error;
   }
 };
 
-function flightTeacherSnapshot() {
-  const teacher = join(trialDir, "teacher/flight");
-  const files = Object.fromEntries(
-    listFiles(teacher).map((file) => [file, readFileSync(join(teacher, file))]),
-  );
-  const hashes = Object.fromEntries(
-    Object.entries(files).map(([file, bytes]) => [file, sha256Text(bytes)]),
-  );
-  return { files, pins: { files: hashes, hash: sha256Text(JSON.stringify(hashes)) } };
-}
-
-/** Read and hash the same bytes that the grader will receive. */
-export function readFlightTeacher(pins, round) {
-  if (!pins?.hash || !pins.files)
-    throw new Error("Teacher hashes unavailable: create a new flight trial");
-  const snapshot = flightTeacherSnapshot();
-  if (pins.hash !== sha256Text(JSON.stringify(pins.files)) || snapshot.pins.hash !== pins.hash)
-    throw new Error("Teacher files unavailable: checkout differs from hashes frozen at create");
-  for (const file of ["check.mjs", `round-${round}.mjs`])
-    if (!snapshot.files[file]) throw new Error(`Teacher file unavailable: ${file}`);
-  return { files: snapshot.files, hash: pins.hash };
-}
-
-function freezeTasks(suite, packetDir, put) {
-  if (suite === "flight") put(join(trialDir, "flight-services.md"), "rules/SERVICES.md");
+function freezeTasks(suite, put) {
   for (const task of taskSourcesFor(suite, SUITES[suite].rounds.at(-1))) {
-    const source =
-      suite === "flight" ? join(packetDir, task.split("/").pop()) : join(trialDir, task);
+    const source = join(trialDir, task);
     if (existsSync(source)) put(source, `tasks/${task.split("/").pop()}`);
-    else if (suite !== "flight" || task === SUITES.flight.tasks[0])
-      throw new Error(`Missing packet: ${task}`);
+    else throw new Error(`Missing packet: ${task}`);
   }
 }
 
@@ -278,17 +225,4 @@ export const copyTrialTools = (fromDir, ext) => {
     if (tool === "gate.mjs" && !existsSync(src)) continue;
     copyFileSync(src, join(ext, tool === "extension.mjs" ? "index.mjs" : tool));
   }
-};
-
-export const listFiles = (dir) => {
-  const out = [];
-  const walk = (base) => {
-    for (const entry of readdirSync(base)) {
-      const full = join(base, entry);
-      if (statSync(full).isDirectory()) walk(full);
-      else out.push(full.slice(dir.length + 1));
-    }
-  };
-  if (existsSync(dir)) walk(dir);
-  return out.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 };

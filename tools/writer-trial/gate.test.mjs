@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { confirmNearBar, judgeSource } from "./broker.mjs";
-import { gateFiles, gateOf, machineVerdict, flightGate } from "./gate.mjs";
+import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
 
 const jevSource = fileURLToPath(new URL("../jev/", import.meta.url));
 
@@ -61,7 +61,7 @@ void describe("the Jev gate", () => {
   });
   after(() => rmSync(jevDir, { recursive: true, force: true }));
 
-  void it("blocks bare fetch in flight and every older suite", async () => {
+  void it("blocks bare fetch in every suite", async () => {
     const input = {
       source: 'export const load = () => fetch("http://supplier-a:4311/air/offers/id");',
       file: "src/load.ts",
@@ -335,33 +335,5 @@ void describe("a blocking answer near its bar", () => {
     );
     assert.equal(p.advice, 0.52);
     assert.deepEqual(asked, []);
-  });
-});
-
-void describe("flight checks", () => {
-  void it("missing flight plain check stays unavailable even with a clean scaffold", () => {
-    const gate = flightGate({
-      scaffoldExit: 0,
-      plainExit: 1,
-      unavailable: "Image check:plain script unavailable",
-    });
-    assert.equal(gate.status, "unavailable");
-    assert.equal(machineVerdict({ ownExit: 0, teacherExit: 0, gate }), "machine-fail");
-  });
-  void it("a failed available flight plain check blocks", () => {
-    const gate = flightGate({ scaffoldExit: 0, plainExit: 1 });
-    assert.equal(gate.status, "block");
-    assert.equal(gate.blocking[0].rule, "flight-plain");
-  });
-  void it("passing flight scaffold and plain checks still require the source gate", () => {
-    assert.equal(flightGate({ scaffoldExit: 0, plainExit: 0 }), null);
-  });
-});
-
-void describe("flight base doctor", () => {
-  void it("blocks a failed doctor even when own and teacher checks pass", () => {
-    const gate = flightGate({ doctorExit: 1, plainExit: 0 });
-    assert.equal(gate.blocking[0].rule, "flight-doctor");
-    assert.equal(machineVerdict({ ownExit: 0, teacherExit: 0, gate }), "machine-fail");
   });
 });
