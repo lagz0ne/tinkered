@@ -799,14 +799,20 @@ export declare namespace Capsule {
     meta: Meta,
   ) => Promise<RunResult<Awaited<O>>>;
 
+  /** Open a child session of the hook's owner, as `createSession` does, with the hook's namespace
+   * and trace unless `options` names its own. Every `session` hook runs on it. The caller closes
+   * it; the owner's close closes it too; the hook's `signal` does not (ADR 0121 §14). */
+  export type Session = (options: Scope.Options, meta: Meta) => Scope.Handle;
+
   /** What every hook event holds: the hook's own owner, namespace, trace, signal, and lifetime.
-   * `load`, `run`, and `settle` reach units through it; a request's controller never serves
-   * another request. */
+   * `load`, `run`, `settle`, and `session` reach units through it; a request's controller never
+   * serves another request. */
   export type Ctx<C extends Scope.Config = Scope.Config> = Resource.Ctx & {
     readonly config: ConfigOf<C>;
     readonly load: Load;
     readonly run: Run;
     readonly settle: Settle;
+    readonly session: Session;
   };
 
   /** Each hook keeps one object as its input. `kind` narrows the payload and `next` result. */
@@ -897,6 +903,10 @@ export declare namespace Capsule {
   /** One unit a capsule loaded, with the meta of its first load. A unit shows its label. */
   export type Loaded = { readonly unit: string; readonly role: Role; readonly explain: string };
 
+  /** The one line for the sessions a capsule's hooks opened, unit `<label>:session`, with the
+   * meta of its first `session` call. `opened` counts the sessions that opened, not the calls. */
+  export type Opened = Loaded & { readonly opened: number };
+
   /** What a scope knows about one installed capsule. `tags` shows the capsule's fixed tags by
    * label. A `secret` tag's value shows `"[hidden]"`; a unit shows its label. No run status:
    * runs and failures are spans. */
@@ -905,7 +915,7 @@ export declare namespace Capsule {
     readonly config: { readonly [key: string]: unknown };
     readonly tags: { readonly [label: string]: unknown };
     readonly exports: readonly string[];
-    readonly loaded: readonly Loaded[];
+    readonly loaded: readonly (Loaded | Opened)[];
   };
 }
 
@@ -1421,10 +1431,14 @@ type ExtRec = {
     config: Readonly<Record<string, unknown>>;
     tags: Readonly<Record<string, unknown>>;
     exports: readonly string[];
-    loaded: Capsule.Loaded[];
+    loaded: (Capsule.Loaded | OpenedLine)[];
   };
   seen: Set<object>;
+  opens: OpenedLine | undefined;
 };
+
+/** A record's session line; only {@link HookCtx.session} counts it up. */
+type OpenedLine = Capsule.Loaded & { opened: number };
 
 const EXTENSIONS = new WeakMap<Layer, Map<object, ExtRec>>();
 
@@ -5825,6 +5839,7 @@ class HookCtx implements Capsule.Ctx {
   declare private loader: Capsule.Load | undefined;
   declare private runner: Capsule.Run | undefined;
   declare private settles: Capsule.Settle | undefined;
+  declare private opener: Capsule.Session | undefined;
   declare private clean: Resource.Ctx["defer"] | undefined;
   declare private raiser: Resource.Ctx["raise"] | undefined;
   declare private logs: Observe.Logger | undefined;
@@ -5984,6 +5999,33 @@ class HookCtx implements Capsule.Ctx {
         settleRun(this.layer, () => this.invoke(op, call, RECOVERED), call.signal),
       );
     }) as Capsule.Settle);
+  }
+  get session(): Capsule.Session {
+    return (this.opener ??= (options, meta) => {
+      const line = Capsules.opens(this.record, meta);
+      const handle = this.use(() => this.open(this.reach(options)));
+      line.opened++;
+      return handle;
+    });
+  }
+  /** What `createSession` does on the owner's own handle: under `session` hooks the child runs
+   * their chain (ADR 0051), else it is a bare child. */
+  private open(options: Scope.Options): Scope.Handle {
+    const session = this.layer.exts.session;
+    if (session !== undefined) return wrapSession(this.layer, options, session);
+
+    ensureAccepting(this.layer);
+    return new ScopeHandle(makeLayer(this.layer, options));
+  }
+  /** A session's options with this hook's namespace and trace filled in where the caller named
+   * none; a run hook's trace parents the session's spans on the run's span. */
+  private reach(options: Scope.Options): Scope.Options {
+    const span = this.flight?.span;
+    const trace =
+      options.trace !== undefined || span === undefined
+        ? options.trace
+        : { traceId: span.traceId, parentSpanId: span.spanId, sampled: span.sampled };
+    return { ...options, ns: options.ns ?? this.ns, trace };
   }
   get defer(): Resource.Ctx["defer"] {
     return (
@@ -7066,6 +7108,7 @@ class Capsules {
         config: values,
         line,
         seen: new Set(),
+        opens: undefined,
       };
       records.set(ext, rec);
       records.set(of, rec);
@@ -7110,6 +7153,20 @@ class Capsules {
       role: meta.role,
       explain: meta.explain,
     });
+  }
+
+  /** The capsule's session line, added on the first `session` call even if that call fails. */
+  static opens(rec: ExtRec, meta: Capsule.Meta): OpenedLine {
+    if (rec.opens) return rec.opens;
+
+    const line = {
+      unit: `${rec.line.label}:session`,
+      role: meta.role,
+      explain: meta.explain,
+      opened: 0,
+    };
+    rec.line.loaded.push(line);
+    return (rec.opens = line);
   }
 
   /** What `scope.capsules` reads on any layer: its root's records, in `capsules` order. */

@@ -146,3 +146,54 @@ test("A25 a capsule's tags take the shape createScope's tags take", () => {
   // @ts-expect-error a tag binding, not a raw value
   capsule({ label: "tt.side", tags: ["server"] });
 });
+
+test("S1g session is on every hook event, meta is required, and no event has scope or createSession", () => {
+  const each = (event: core.Capsule.Ctx): void => {
+    expectTypeOf(event).toHaveProperty("session");
+    expectTypeOf(event.session({ tags: [] }, meta)).toEqualTypeOf<Scope.Handle>();
+    expectTypeOf(event).not.toHaveProperty("scope");
+    expectTypeOf(event).not.toHaveProperty("createSession");
+    // @ts-expect-error a session needs its meta
+    event.session({});
+  };
+
+  capsule({
+    label: "tt",
+    hooks: {
+      start: (event) => each(event),
+      resolve: (event) => {
+        each(event);
+        return event.next();
+      },
+      run: (event) => {
+        each(event);
+        return event.next();
+      },
+      write: (event) => {
+        each(event);
+        event.next();
+      },
+      close: (event) => {
+        each(event);
+        return event.next();
+      },
+      session: (event) => {
+        each(event);
+        return event.next();
+      },
+    },
+  });
+  expectTypeOf<core.Capsule.Events["start"]>().toHaveProperty("session");
+  expectTypeOf<core.Capsule.Events["close"]>().toHaveProperty("session");
+  expectTypeOf<core.Capsule.Events["session"]>().not.toHaveProperty("createSession");
+});
+
+test("S2a a defaulted key may be left out; a key with no default may not", () => {
+  type Values = Scope.ConfigValues<{ smtpUrl: typeof smtpUrl; from: typeof from }>;
+  const mail = capsule({ label: "tt", config: { smtpUrl, from } });
+
+  expectTypeOf<Values>().toEqualTypeOf<{ smtpUrl: string | undefined; from?: string }>();
+  mail({ smtpUrl: "smtp://x" });
+  // @ts-expect-error smtpUrl has no default, so it must be named
+  mail({ from: "a@example.com" });
+});

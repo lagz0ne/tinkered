@@ -1224,3 +1224,286 @@ test("B1 every hook kind's log line carries attributes.capsule", async () => {
     })),
   );
 });
+
+test("S1a a start hook opens 3 sessions, each with its own tag; the line counts 3 with the first meta", async () => {
+  const requestId = tag<string>({ label: "server.requestId" });
+  const readId = operation({
+    label: "server.readId",
+    depends: { requestId },
+    run: ({ requestId }) => requestId,
+  });
+  const opened: core.Scope.Handle[] = [];
+  const server = capsule({
+    label: "server",
+    hooks: {
+      start: ({ session }) => {
+        opened.push(session({ tags: [requestId("a")] }, { role: "handler", explain: "first" }));
+        opened.push(session({ tags: [requestId("b")] }, { role: "worker", explain: "second" }));
+        opened.push(session({ tags: [requestId("c")] }, { role: "state", explain: "third" }));
+      },
+    },
+  });
+  const scope = createScope({ capsules: [server()] });
+  await scope.ready;
+
+  expect(opened.map((s) => s.resolve(requestId))).toEqual(["a", "b", "c"]);
+  expect(opened.map((s) => s.run(readId))).toEqual(["a", "b", "c"]);
+  expect(scope.capsules[0]?.loaded).toEqual([
+    { unit: "server:session", role: "handler", explain: "first", opened: 3 },
+  ]);
+  await Promise.all(opened.map((s) => s.close()));
+  await scope.close();
+});
+
+test("S1b two sessions opened at the same tick do not share tags", async () => {
+  const requestId = tag<string>({ label: "server.requestId" });
+  const readId = operation({
+    label: "server.readId",
+    depends: { requestId },
+    run: async ({ requestId }) => {
+      await Promise.resolve();
+      return requestId;
+    },
+  });
+  const answers: unknown[] = [];
+  const server = capsule({
+    label: "server",
+    hooks: {
+      start: async ({ session }) => {
+        const open = async (id: string): Promise<string> => {
+          await Promise.resolve();
+          const request = session({ tags: [requestId(id)] }, handler);
+          const answer = await request.run(readId);
+          await request.close();
+          return answer;
+        };
+        answers.push(...(await Promise.all([open("a"), open("b")])));
+      },
+    },
+  });
+  const scope = createScope({ capsules: [server()] });
+  await scope.ready;
+
+  expect(answers).toEqual(["a", "b"]);
+  expect(scope.capsules[0]?.loaded).toEqual([
+    { unit: "server:session", role: "handler", explain: "Runs one MCP tool", opened: 2 },
+  ]);
+  await scope.close();
+});
+
+test("S1c after root close a hook session() raises Disposed and the count stays", async () => {
+  let open: Capsule.Ctx["session"] | undefined;
+  const server = capsule({
+    label: "server",
+    hooks: {
+      start: ({ session }) => {
+        open = session;
+        void session({}, handler).close();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [server()] });
+  await scope.ready;
+  await scope.close();
+
+  const error = caught(() => open?.({}, handler));
+
+  if (!isError(error, "Disposed")) throw error;
+  expect(scope.capsules[0]?.loaded).toEqual([
+    { unit: "server:session", role: "handler", explain: "Runs one MCP tool", opened: 1 },
+  ]);
+});
+
+test("S1d the session line exists only after the first call", async () => {
+  let open: Capsule.Ctx["session"] | undefined;
+  const server = capsule({
+    label: "server",
+    hooks: {
+      start: ({ session }) => {
+        open = session;
+      },
+    },
+  });
+  const scope = createScope({ capsules: [server()] });
+  await scope.ready;
+
+  expect(scope.capsules[0]?.loaded).toEqual([]);
+  const request = open?.({}, handler);
+  expect(scope.capsules[0]?.loaded).toEqual([
+    { unit: "server:session", role: "handler", explain: "Runs one MCP tool", opened: 1 },
+  ]);
+  await request?.close();
+  await scope.close();
+});
+
+test("S1e a session opened in a run hook is a child of that run's session and joins its trace", async () => {
+  const zone = tag<string>({ label: "zone" });
+  const readZone = operation({ label: "read.zone", depends: { zone }, run: ({ zone }) => zone });
+  const request = operation({ label: "request", run: () => "request" });
+  const opened: core.Scope.Handle[] = [];
+  const zones: unknown[] = [];
+  const probe = capsule({
+    label: "probe",
+    hooks: {
+      run: ({ op, next, session }) => {
+        if (op !== request) return next();
+
+        const plain = session({}, handler);
+        const own = session({ tags: [zone("own")] }, handler);
+        opened.push(plain, own);
+        zones.push(plain.run(readZone), own.run(readZone));
+        return next();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [probe()], observe: { history: 20 } });
+  await scope.ready;
+  const outer = scope.createSession({ tags: [zone("outer")] });
+
+  await Promise.resolve(outer.run(request));
+
+  expect(zones).toEqual(["outer", "own"]);
+  const spans = scope.spans();
+  const parent = spans.find((span) => span.name === "request");
+  const reads = spans.filter((span) => span.name === "read.zone");
+  expect(reads).toHaveLength(2);
+  expect(reads.map((span) => span.traceId)).toEqual([parent?.traceId, parent?.traceId]);
+  expect(reads.map((span) => span.parentSpanId)).toEqual([parent?.spanId, parent?.spanId]);
+  await outer.close();
+  const errors = opened.map((s) => caught(() => s.createSession()));
+  expect(errors.map((error) => isError(error, "Disposed"))).toEqual([true, true]);
+  await scope.close();
+});
+
+test("S1f root close closes a session a hook opened and never closed, as it closes a createSession child", async () => {
+  const ended: unknown[] = [];
+  const perRequest = resource({
+    label: "per.request",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer((end) => {
+        ended.push(end.status);
+      });
+      return "conn";
+    },
+  });
+  let opened: core.Scope.Handle | undefined;
+  const server = capsule({
+    label: "server",
+    hooks: {
+      start: async ({ session }) => {
+        const request = session({}, handler);
+        opened = request;
+        await request.resolve(perRequest);
+      },
+    },
+  });
+  const scope = createScope({ capsules: [server()] });
+  await scope.ready;
+  const control = scope.createSession();
+  await control.resolve(perRequest);
+
+  await scope.close();
+
+  expect(ended).toEqual(["cancelled", "cancelled"]);
+  const error = caught(() => opened?.createSession());
+  if (!isError(error, "Disposed")) throw error;
+});
+
+test("S1h a close hook session() raises Disposed before next, and the line shows opened 0", async () => {
+  const errors: unknown[] = [];
+  const server = capsule({
+    label: "server",
+    hooks: {
+      close: ({ session, next }) => {
+        errors.push(caught(() => session({}, handler)));
+        return next();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [server()] });
+  await scope.ready;
+
+  await scope.close();
+
+  expect(errors.map((error) => isError(error, "Disposed"))).toEqual([true]);
+  expect(scope.capsules[0]?.loaded).toEqual([
+    { unit: "server:session", role: "handler", explain: "Runs one MCP tool", opened: 0 },
+  ]);
+});
+
+test("S1i a first session() call that fails still writes the line, with opened 0 and its meta", async () => {
+  let open: Capsule.Ctx["session"] | undefined;
+  const server = capsule({
+    label: "server",
+    hooks: {
+      start: ({ session }) => {
+        open = session;
+      },
+    },
+  });
+  const scope = createScope({ capsules: [server()] });
+  await scope.ready;
+  await scope.close();
+
+  const error = caught(() => open?.({}, { role: "worker", explain: "late" }));
+
+  if (!isError(error, "Disposed")) throw error;
+  expect(scope.capsules[0]?.loaded).toEqual([
+    { unit: "server:session", role: "worker", explain: "late", opened: 0 },
+  ]);
+});
+
+test("S1j every session hook runs on a session a hook opened, as on a createSession child", async () => {
+  const requestId = tag<string>({ label: "server.requestId" });
+  const seen: unknown[] = [];
+  const watch = capsule({
+    label: "watch",
+    hooks: {
+      session: ({ handle, next }) => {
+        seen.push(handle.resolve(requestId));
+        return next();
+      },
+    },
+  });
+  const server = capsule({
+    label: "server",
+    hooks: {
+      start: async ({ session }) => {
+        await session({ tags: [requestId("a")] }, handler).close();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [watch(), server()] });
+  await scope.ready;
+
+  await scope.createSession({ tags: [requestId("b")] }).close();
+
+  expect(seen).toEqual(["a", "b"]);
+  await scope.close();
+});
+
+test("S2b a left-out defaulted key reads its default in a hook and in a unit", async () => {
+  const readFrom = operation({
+    label: "mail.readFrom",
+    depends: { from },
+    run: ({ from }) => from,
+  });
+  const seen: unknown[] = [];
+  const mailer = capsule({
+    label: "mailer",
+    config: { smtpUrl, from },
+    hooks: {
+      start: async ({ config, run }) => {
+        seen.push(config.from, await run(readFrom, {}, setup));
+      },
+    },
+  });
+  const scope = createScope({ capsules: [mailer({ smtpUrl: "smtp://x" })] });
+  await scope.ready;
+
+  expect(seen).toEqual(["noreply@example.com", "noreply@example.com"]);
+  expect(scope.run(readFrom)).toBe("noreply@example.com");
+  expect(scope.capsules[0]?.config).toEqual({ smtpUrl: "smtp://x", from: "noreply@example.com" });
+  await scope.close();
+});

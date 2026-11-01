@@ -128,6 +128,8 @@ An event gains:
   `settle(op, options, meta)`: the same options
   and result as `scope.run` / `scope.settle`, as
   a promise. No controller is made.
+- `session(options, meta)`: opens a session
+  (section 14).
 
 Kept: `next`, `tap`, `kind`, `log`, `signal`,
 `clock`, `random`, `ns`, `defer`, and the
@@ -185,6 +187,8 @@ scope.capsules: readonly Capsule.Record[]
 - `loaded` gains one line per unit per capsule,
   on its first `load`, `run`, or `settle`. A
   later one keeps the first meta.
+- `session` calls share one line per capsule
+  (section 14).
 - A `secret` tag's value shows `"[hidden]"`. A
   unit shows its label.
 - No run status and no event stream: runs are
@@ -280,7 +284,65 @@ export const telemetry = {
   `DuplicateExtension`).
 - `ReservedExport { label, key }`.
 - `CapsuleMissing { unit, capsule }`.
-- `Disposed`: `load` after release.
+- `Disposed`: `load` after release; `session`
+  once the root closes.
+
+### 14. A hook opens a session
+
+Duke, 2026-11-01 10:52: "let session to be
+there along with run and resolve. The goal is
+to make sure we can trace the extension
+easily".
+
+```ts
+start: ({ session }) => {
+  serve((req) => {
+    const s = session(
+      { tags: [request(req)] },
+      { role: "handler", explain: "One request" },
+    );
+    return answer(s).finally(() => s.close());
+  });
+},
+```
+
+- Every hook event has
+  `session(options, meta)`. `options` is what
+  `createSession` takes. It returns the
+  session. The caller closes it.
+- Reach: it is `owner.createSession(options)`.
+  The owner is the root in `start` and
+  `close`, and the hook's session in the
+  others.
+- It takes the hook's `ns` and trace, unless
+  `options` names its own. In a `run` hook,
+  the session's spans sit under the run's span.
+- The hook's `signal` does nothing to it. The
+  owner's close closes it, as it closes any
+  child session.
+- Every `session` hook runs on it, as on a
+  `createSession` child. So a `session` hook
+  that calls `session()` must guard itself, or
+  it opens sessions without end.
+- Once the root closes, it raises `Disposed`.
+  That holds in a `close` hook too, before
+  `next()`: a closing root refuses new
+  sessions.
+- The record gets one line per capsule:
+  `{ unit: "<label>:session", role, explain,
+opened }` (`Capsule.Opened`). The first call
+  writes it, even when that call fails. A later
+  call keeps the first meta. `opened` counts the
+  sessions that opened.
+- `scope` and `createSession` stay off every
+  event.
+
+### 15. A defaulted config key may be left out
+
+Pinned, not changed: a config key whose tag has
+a default may be left out of the capsule call.
+The hook and every unit read the default. A key
+whose tag has no default must be named.
 
 ## Consequences
 
