@@ -93,6 +93,10 @@ export declare namespace Tag {
     readonly all: Edge<"all", Handle<T>>;
     (value: T): Binding<T>;
   };
+
+  /** A tag minted with a `default`: the type carries that fact, so an extension's config
+   * types a bare key as optional (ADR 0120). */
+  export type Defaulted<T> = Handle<T> & { readonly hasDefault: true };
 }
 
 /** A parallel storage bucket inside a layer (ADR 0059): minted by `namespace()`, carried on
@@ -589,6 +593,73 @@ export declare namespace Scope {
     readonly hooks?: Hooks<T>;
   };
 
+  /** One config entry: a tag, or a tag edge that says how the key is filled (ADR 0120). */
+  export type ConfigEntry =
+    | Tag.Handle<any>
+    | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
+
+  /** An extension's config as authored: a key per tag the library reads (ADR 0120). */
+  export type Config = Readonly<Record<string, ConfigEntry>>;
+
+  /** The value a config entry takes: a list edge takes a list, every other entry the tag's own
+   * value. */
+  type EntryValue<E> =
+    E extends Edge<"all", Tag.Handle<infer T>>
+      ? readonly T[]
+      : E extends Edge<"required" | "optional", Tag.Handle<infer T>>
+        ? T
+        : E extends Tag.Handle<infer T>
+          ? T
+          : never;
+
+  /** Whether a config key must be filled: a required edge, or a tag with no default. */
+  type EntryNeeds<E> =
+    E extends Edge<"required", Tag.Handle<any>>
+      ? true
+      : E extends Edge<"optional" | "all", Tag.Handle<any>>
+        ? false
+        : E extends Tag.Defaulted<any>
+          ? false
+          : E extends Tag.Handle<any>
+            ? true
+            : false;
+
+  /** One object type, so a hover names the config itself: the keys that must be filled as
+   * required properties, the rest as optional ones. */
+  type Flat<T> = { [K in keyof T]: T[K] };
+
+  /** The values an extension's config takes (ADR 0120): a required key is required, a key with a
+   * default or an optional edge may be left out. */
+  export type ConfigValues<C extends Config> = Flat<
+    {
+      [K in keyof C as EntryNeeds<C[K]> extends true ? K : never]: EntryValue<C[K]>;
+    } & {
+      [K in keyof C as EntryNeeds<C[K]> extends true ? never : K]?: EntryValue<C[K]>;
+    }
+  >;
+
+  /** The required keys a config still needs filled, or `never` when it needs none. */
+  export type Unfilled<C extends Config> = {
+    [K in keyof C]: EntryNeeds<C[K]> extends true ? K : never;
+  }[keyof C];
+
+  /** The type-only key an unfilled config marks itself with. No runtime value: it exists so the
+   * compiler can name the missing keys (ADR 0120). */
+  export const unfilled: unique symbol;
+
+  /** An extension that declares its config (ADR 0120). Call it to fill the config and get the
+   * extension the scope installs; it is an extension either way, so `resolve` and `depends` take
+   * it called or not. While a required key is unfilled it carries a marker no `extensions` list
+   * accepts, which is what turns a missing key into the compiler naming it. */
+  export type Configurable<T, C extends Config> = Extension<T> & {
+    readonly config: C;
+    (values: ConfigValues<C>): Extension<T>;
+  } & ([Unfilled<C>] extends [never] ? unknown : { readonly [unfilled]: Unfilled<C> });
+
+  /** What `extensions` installs: an extension, or a filled configurable one — an unfilled
+   * required key is refused by its marker. */
+  export type Startable = Extension<unknown> & { readonly [unfilled]?: never };
+
   export type Options = {
     tags?: Tag.Bindings;
     /** The ambient namespace (ADR 0059): every read and write inside resolves through it; a
@@ -603,8 +674,9 @@ export declare namespace Scope {
     clock?: Clock.Handle;
     /** The ambient randomness for this scope; child sessions inherit it. Default is the system source. */
     random?: Random.Handle;
-    /** Middleware installed on the root scope only (ADR 0050); sessions inherit the resolved values. */
-    extensions?: Many<Extension<unknown>>;
+    /** Middleware installed on the root scope only (ADR 0050); sessions inherit the resolved values.
+     * A library's configurable extension is called to fill its config first (ADR 0120). */
+    extensions?: Many<Startable>;
   };
 
   export type RootOptions = Options & {
@@ -790,11 +862,27 @@ const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
   target,
 });
 
+/** Declare an extension: its label and its hooks. A library that reads tags declares them as its
+ * `config`, and the command fills them by calling the extension (ADR 0120). */
 export function extension<T = void>(config: {
   readonly label: string;
   readonly hooks?: Scope.Hooks<T>;
+}): Scope.Extension<T>;
+
+export function extension<const C extends Scope.Config, T = void>(config: {
+  readonly label: string;
+  readonly config: C;
+  readonly hooks?: Scope.Hooks<T>;
+}): Scope.Configurable<T, C>;
+
+export function extension<T = void>(config: {
+  readonly label: string;
+  readonly config?: Scope.Config;
+  readonly hooks?: Scope.Hooks<T>;
 }): Scope.Extension<T> {
-  return { ...config, [extensionSym]: true as const };
+  const keys = config.config;
+  if (keys === undefined) return { ...config, [extensionSym]: true as const };
+  return configurableExtension(config.label, keys, config.hooks);
 }
 
 /** Run a parser on a raw value: a function's return, or a schema's validated value. A schema's
@@ -882,6 +970,19 @@ export function data<T>(config: {
 }
 
 /** Declare an ambient tag. Call it to bind a value; read it via `.required`/`.optional`/`.all`. */
+export function tag<T>(config: {
+  label: string;
+  default: T;
+  parse?: Data.Parse<T>;
+  eq?: (a: T, b: T) => boolean;
+}): Tag.Defaulted<T>;
+
+export function tag<T>(config: {
+  label: string;
+  parse?: Data.Parse<T>;
+  eq?: (a: T, b: T) => boolean;
+}): Tag.Handle<T>;
+
 export function tag<T>(config: {
   label: string;
   default?: T;
@@ -1219,7 +1320,7 @@ type Layer = {
 } & ({ lazy?: false; up: Layer | undefined } | { lazy: true; up: Layer });
 
 type ExtRec = { settled: boolean; value: unknown };
-const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
+const EXTENSIONS = new WeakMap<Layer, Map<object, ExtRec>>();
 
 /** A session under the root's `session` hooks (ADR 0051, 0069), off the Layer record: registered
  * when the session is made, so `closeLayer` finds it with the one lookup it already made for the
@@ -4661,9 +4762,14 @@ export function createScope(options?: Scope.RootOptions): Scope.Handle {
   const { startTimeout = 10_000, extensions, signal } = options ?? {};
   if (!(startTimeout >= 0)) raise("BadStartTimeout", { timeout: startTimeout });
 
-  const layer = makeRootLayer(options);
-  const plain = new ScopeHandle(layer);
   const exts = readMany(extensions);
+  /** The config bindings a declared config mints; none at all for a scope without one, which
+   * then reads its options exactly as before (ADR 0120). */
+  const wired = bindConfig(exts);
+  const layer = makeRootLayer(
+    wired === undefined ? options : { ...options, tags: [wired, options?.tags] },
+  );
+  const plain = new ScopeHandle(layer);
   if (exts.length === 0 && signal === undefined) return plain;
   return extendHandle(layer, plain, exts, signal, startTimeout);
 }
@@ -4885,9 +4991,7 @@ function extendHandle(
     layer.obs = makeObs(undefined, layer.clock);
   }
 
-  const records = new Map<Scope.Extension<unknown>, ExtRec>();
-  for (const ext of exts) records.set(ext, { settled: false, value: undefined });
-  EXTENSIONS.set(layer, records);
+  EXTENSIONS.set(layer, extensionRecords(exts));
 
   layer.exts = readExtRoutes(exts);
   const { close: closers = [], resolve: resolvers, session } = layer.exts;
@@ -6689,4 +6793,124 @@ function runWriteHooks<T>(
     ext.hooks!.write!(new WriteEvent(layer, ext.label, chain, target, value, next));
   };
   at(0);
+}
+
+/** A configurable extension's own fields (ADR 0120): the config it declares, the values a call
+ * filled (`{}` until then), and the callable it came from. Read once, in `createScope`. */
+type WiredExtension<T = unknown> = Scope.Extension<T> & {
+  readonly config?: Scope.Config;
+  readonly values?: Readonly<Record<string, unknown>>;
+  readonly of?: object;
+};
+
+/** The empty fill of a configurable extension nobody called yet. */
+const NO_VALUES: Readonly<Record<string, never>> = Object.freeze({});
+
+/** A configurable extension: an extension until it is called, and a function that fills its
+ * config and answers the extension the scope installs (ADR 0120). `of` keeps the one identity a
+ * second copy of the same library is caught by, called or not. */
+function configurableExtension<const C extends Scope.Config, T>(
+  label: string,
+  config: C,
+  hooks: Scope.Hooks<T> | undefined,
+): Scope.Configurable<T, C> {
+  const fill = Object.assign(
+    (values: Scope.ConfigValues<C>): Scope.Extension<T> => {
+      const filled: WiredExtension<T> = {
+        [extensionSym]: true,
+        label,
+        hooks,
+        config,
+        values,
+        of: fill,
+      };
+      return filled;
+    },
+    { [extensionSym]: true as const, label, hooks, config },
+  );
+  return fill as Scope.Configurable<T, C>;
+}
+
+/** One start-value record per installed extension, and one under the callable a copy was filled
+ * from, so `scope.resolve(mailStart)` reads what `mailStart({...})` returned (ADR 0120). */
+function extensionRecords(exts: readonly Scope.Extension<unknown>[]): Map<object, ExtRec> {
+  const records = new Map<object, ExtRec>();
+  for (const ext of exts) {
+    const rec: ExtRec = { settled: false, value: undefined };
+    records.set(ext, rec);
+    const base = (ext as WiredExtension).of;
+    if (base !== undefined) records.set(base, rec);
+  }
+  return records;
+}
+
+/** True when a config key must be filled: a required edge, or a tag with no default (ADR 0120). */
+function needsConfig(entry: Scope.ConfigEntry): boolean {
+  return "kind" in entry ? entry.kind === "required" : !entry.hasDefault;
+}
+
+/** Bind every configured extension's filled values on the root, before the root layer is made
+ * (ADR 0120). A filled key binds its tag, a list key binds one tag per item, and a missing
+ * required key or a second copy of one library raises. Answers undefined when no extension
+ * declares config, so such a scope takes exactly the path it took before. */
+function bindConfig(exts: readonly Scope.Extension<unknown>[]): Tag.Binding<unknown>[] | undefined {
+  let out: Tag.Binding<unknown>[] | undefined;
+  const bases = new Set<object>();
+  for (const ext of exts) {
+    const { config, of } = ext as WiredExtension;
+    if (config === undefined) continue;
+
+    const base = of ?? ext;
+    if (bases.has(base)) raise("DuplicateExtension", { label: ext.label });
+    bases.add(base);
+    out = bindExtension(out, ext, config);
+  }
+  return out;
+}
+
+/** One extension's filled values as bindings, in the config's own key order. */
+function bindExtension(
+  out: Tag.Binding<unknown>[] | undefined,
+  ext: Scope.Extension<unknown>,
+  config: Scope.Config,
+): Tag.Binding<unknown>[] | undefined {
+  const filled = (ext as WiredExtension).values ?? NO_VALUES;
+  for (const key of Object.keys(config)) out = bindKey(out, ext, key, config[key], filled[key]);
+  return out;
+}
+
+/** One config key as a binding: a list key binds one tag per item, every other key one tag. An
+ * `undefined` value is a missing key, so a required one raises (ADR 0120). */
+function bindKey(
+  out: Tag.Binding<unknown>[] | undefined,
+  ext: Scope.Extension<unknown>,
+  key: string,
+  entry: Scope.ConfigEntry,
+  value: unknown,
+): Tag.Binding<unknown>[] | undefined {
+  if (value === undefined) {
+    if (!needsConfig(entry)) return out;
+    raise("MissingConfig", { label: ext.label, key });
+  }
+
+  const tag = "kind" in entry ? entry.target : entry;
+  if (isListEntry(entry)) return bindList(out, tag, value);
+  (out ??= []).push(tag(value));
+  return out;
+}
+
+/** True for a `tag.all` entry: the key takes a list of values, one binding each. */
+function isListEntry(entry: Scope.ConfigEntry): boolean {
+  return "kind" in entry && entry.kind === "all";
+}
+
+/** A list key's items as bindings, in the call's own order. The call takes a list, and a bare
+ * value reads as a one-item list — the shape every core config takes ({@link Many}). */
+function bindList(
+  out: Tag.Binding<unknown>[] | undefined,
+  tag: Tag.Handle<unknown>,
+  value: unknown,
+): Tag.Binding<unknown>[] | undefined {
+  for (const item of Array.isArray(value) ? value : [value]) (out ??= []).push(tag(item));
+  return out;
 }

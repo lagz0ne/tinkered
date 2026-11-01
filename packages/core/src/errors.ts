@@ -14,6 +14,10 @@ type Payloads = {
   BadStartTimeout: { timeout: number };
   LateTap: Record<string, never>;
   CircularResource: { label: string };
+  /** An extension's config named a required key the command left out (ADR 0120). */
+  MissingConfig: { label: string; key: string };
+  /** One library's configured extension was installed twice on one root (ADR 0120). */
+  DuplicateExtension: { label: string };
 };
 
 export declare namespace Errors {
