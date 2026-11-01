@@ -16,7 +16,7 @@ wraps Vite, Rolldown, Vitest, tsdown, Oxlint, and Oxfmt.
 - `vp install` after a pull.
 - `vp run -r build` first: apps import the packages' built `dist`.
 - `vp check` and `vp run -r test` (every package with its own config; a bare root
-  `vp test` runs them all under the root config and fails on react, drizzle, and the
+  `vp test` runs them all under the root config and fails on react and the
   playground).
 - `vp run prose` after editing any `.md` (it also runs on commit).
 
@@ -203,7 +203,7 @@ The lead, per ticket:
      It counts when the log names the commit you land, on a clean tree,
      and clears 85 on kills alone (user 2026-10-06).
    - The floor is per package. Do not add a per-file target.
-   - `@tinker/start` breaks at 75; every other package at 85 (user 2026-10-06).
+   - Every package breaks at 85 (user 2026-10-06).
 4. Record Core feedback in `docs/roadmap/core-feedback.md`. A row becomes a
    core ticket at its second asker, or at once if the workaround is dishonest.
 

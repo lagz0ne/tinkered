@@ -175,10 +175,7 @@ head.
     ```
 
     `vp lint` flags `../` (`import/no-relative-parent-imports`).
-    Two places keep `../`:
-    - plain `.mjs` scripts, which have no `tsconfig`;
-    - `packages/start`, whose source each app compiles,
-      where `@/` is the app's own `src/`.
+    Plain `.mjs` scripts keep `../`: they have no `tsconfig`.
 
 ## Tests
 
@@ -292,7 +289,7 @@ the commit?
 Read [the examples and checks](../../../docs/fast-code.md).
 Evidence numbers name the reports in that doc.
 
-Library code (Core, React, Start base):
+Library code (Core, React):
 
 - **F1:** Keep hot callees within 460 bytecode bytes and each root within its 920-byte inline budget; move rare paths out. (E1)
 - **F2:** Check inlining with default Maglev on. (E1)

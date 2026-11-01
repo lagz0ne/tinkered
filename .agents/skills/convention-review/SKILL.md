@@ -141,8 +141,7 @@ Raw millisecond numbers are not proof.
 - `L1` A public symbol changed across packages has an
   impact block and its SCIP `refs` (ADR 0065).
 - `L2` A size claim has `pnpm validate` output.
-- `L3` The package's mutation floor holds:
-  85, or 75 for `@tinker/start`.
+- `L3` The package's mutation floor holds: 85.
 - `L4` A `.md` change passes `vp run prose`.
 
 ## Judge each finding
