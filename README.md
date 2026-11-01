@@ -1,9 +1,14 @@
 # tinkered
 
 Core and React are the two Tinker libraries.
-Start feature code uses data, tags, resources, and operations.
-The [Start scaffold](apps/start-scaffold/README.md) has public pages,
-private lists, SSE sync, and local Victoria trace and log storage.
+Apps are built from
+[tinker-app](https://github.com/lagz0ne/tinker-app),
+which needs only `@tinker/core` and `@tinker/react`.
+
+Start (the base, its scaffold, and the `tinker` CLI) was sunset
+on 2026-11-01 ([ADR 0122](docs/decisions/0122-start-sunset.md)).
+Its code lives in tag `start-archive`.
+Old `start-v*` releases stay downloadable.
 
 [Authoring packages and apps](docs/best-practices.md)
 explains units, owners, and namespace instances.

@@ -585,7 +585,6 @@ pnpm validate
 - **F9:** highest context slot in built Core and React.
   The parser follows V8's captured-name rules in `scripts/check-slots.mjs`.
   Core: 339; React: 21.
-  Start ships source files, so it has no base bundle to count.
 - **F1:** built bytecode bytes, per named hot function.
   Source maps find current names after minification.
   `runOnce`: 499; `settleRun`: 53; `OperationCtx`: 126.

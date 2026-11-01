@@ -28,14 +28,8 @@ A resource may retain a native client and private work state.
 Do not hide a feature action behind an unobserved resource method.
 Saved records and visible progress belong in data.
 
-The Start scaffold shows the filled-in form:
-
-- [Database resource](../apps/start-scaffold/src/backend/database.ts).
-- [Current-user resource](../apps/start-scaffold/src/backend/auth.ts).
-- [Mail settings, client, and send action](../apps/start-scaffold/src/backend/mail.ts).
-- [Todo actions](../apps/start-scaffold/src/backend/todos.ts).
-- [Browser records and settings](../apps/start-scaffold/src/frontend/state.ts).
-- [Todo view and its action state](../apps/start-scaffold/src/frontend/Todos.tsx).
+The [Core](../examples/core/README.md) and [React](../examples/react/README.md)
+examples show the filled-in form.
 
 ## Challenge every other form
 
@@ -85,9 +79,7 @@ Its hooks live inside `hooks` and receive one bound event.
 Resolve hooks wrap direct root reads only, not dependency or session reads.
 Use a setup resource when those paths need readiness.
 
-The [Start bridge](../apps/start-scaffold/src/scaffold/start.ts)
-binds middleware to its scope and fails fast when unbound.
-Start dedupes the shared middleware object.
+A framework bridge binds middleware to its scope and fails fast when unbound.
 The app uses native context at that bridge rather than a hidden current scope.
 Feature modules receive declared dependencies, never the scope handle.
 
@@ -99,11 +91,9 @@ The app borrows its observer configuration.
 Close the app first, then close telemetry to send the final records.
 Leave observation off in telemetry to avoid tracing its own exports.
 
-The [copied telemetry graph](../apps/start-scaffold/src/scaffold/telemetry/index.ts)
-uses tags for settings, data for history and health, a queue resource,
-and operations for ingest and export.
+A telemetry graph uses tags for settings, data for history and health,
+a queue resource, and operations for ingest and export.
 Its fixed hook binds Core observation.
-Pino supplies logs; Victoria stores traces and logs.
 
 ## Keep the entry small
 
@@ -133,12 +123,11 @@ Saved records change through committed sync events.
 Apply the saved change before completing the local execution wait.
 Keep dirty text separate from saved records.
 A partial result keeps committed data usable when later work fails.
-See the [current data flow](roadmap/start-scaffold/STATE-SYNC.md).
 
 ## Check the public promise
 
 A test creates a small scope and runs the exported operation or resource.
-Feature tests do not boot the whole Start stack.
+Feature tests do not boot the whole app stack.
 Use real dependencies or public fakes; never patch globals or mock code.
 Control time with Core's test clock rather than sleeping.
 A regression must fail before its fix.
@@ -146,5 +135,3 @@ A regression must fail before its fix.
 Run build before check and consumer tests.
 Run prose after changing Markdown.
 Record observed proof on the board.
-The starter copies its [authoring rules](../apps/start-scaffold/AGENTS.md)
-so future feature work follows the same recipe.
