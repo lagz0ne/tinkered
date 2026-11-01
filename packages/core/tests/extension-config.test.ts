@@ -27,10 +27,12 @@ const sync = extension({
   label: "sync",
   config: { store: storeSlot, migrate: migrateSlot },
   hooks: {
-    start: (event) => ({
-      store: event.resolve(event.resolve(storeSlot)),
-      ran: event.run(event.resolve(migrateSlot)),
-    }),
+    start: (event) => {
+      const storeUnit = event.resolve(storeSlot);
+      const migrateUnit = event.resolve(migrateSlot);
+
+      return { store: event.resolve(storeUnit), ran: event.run(migrateUnit) };
+    },
   },
 });
 

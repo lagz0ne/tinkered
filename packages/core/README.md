@@ -366,16 +366,22 @@ const syncStart = extension({
   label: "sync",
   config: { store: storeSlot, migrate: migrateSlot },
   hooks: {
-    start: (event) => ({
-      store: event.resolve(event.resolve(storeSlot)),
-      ran: event.run(event.resolve(migrateSlot)),
-    }),
+    start: (event) => {
+      const storeUnit = event.resolve(storeSlot);
+      const migrateUnit = event.resolve(migrateSlot);
+
+      return {
+        store: event.resolve(storeUnit),
+        ran: event.run(migrateUnit),
+      };
+    },
   },
 });
 ```
 
 Only an extension hook holds the scope (ADR 0051), so the library resolves the held unit in its
 own start.
+It takes two named steps: read the slot to get the unit, then build or run that unit.
 A unit that reads the start value sees the instance the scope built, not a copy.
 So a preset on that unit reaches every reader of it.
 
