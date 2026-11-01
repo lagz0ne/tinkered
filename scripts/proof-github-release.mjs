@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 
 import { releaseUrls } from "./release-urls.mjs";
 
-/** Real tarballs over HTTP into an empty npm app. Core and React only; no Start. */
+/** Real tarballs over HTTP into an empty Bun app and an empty npm app. Core and React only. */
 const root = resolve(import.meta.dirname, "..");
 const core = JSON.parse(await readFile(join(root, "packages/core/package.json"), "utf8"));
 const version = core.version;
@@ -97,41 +97,50 @@ try {
   const urls = releaseUrls(version, origin);
   console.log(`URLS ${JSON.stringify(urls)}`);
 
-  assert.deepEqual(await readdir(consumer), []);
-  run("npm", ["init", "--yes"], consumer);
-  run("npm", ["install", urls["@tinker/core"], urls["@tinker/react"], "react@19"], consumer);
-  console.log("PASS: npm install of the two loopback URLs in an empty folder.");
+  const probe = [
+    'import { createScope, data } from "@tinker/core";',
+    'import * as react from "@tinker/react";',
+    "",
+    'const count = data({ label: "count", initial: 41 });',
+    "const scope = createScope();",
+    "const value = scope.resolve(count);",
+    "if (value !== 41) throw new Error(`data gave ${value}`);",
+    'if (typeof react.useData !== "function") throw new Error("no useData");',
+    "await scope.close();",
+    "const runtime = process.versions.bun ? `bun ${process.versions.bun}` : `node ${process.version}`;",
+    'console.log(`PROBE ${runtime} data 41; @tinker/react exports ${Object.keys(react).sort().join(", ")}`);',
+    "",
+  ].join("\n");
 
-  const installed = JSON.parse(
-    await readFile(join(consumer, "node_modules/@tinker/core/package.json"), "utf8"),
-  );
-  assert.equal(installed.version, version);
-  console.log(`PASS: node_modules/@tinker/core is ${installed.version}.`);
+  // Bun first: it is the first-class runtime. Then npm on Node.
+  const consumers = [
+    { tool: "bun", app: join(consumer, "bun"), add: ["add"], exec: "bun" },
+    { tool: "npm", app: join(consumer, "npm"), add: ["install"], exec: process.execPath },
+  ];
 
-  await writeFile(
-    join(consumer, "probe.mjs"),
-    [
-      'import { createScope, data } from "@tinker/core";',
-      'import * as react from "@tinker/react";',
-      "",
-      'const count = data({ label: "count", initial: 41 });',
-      "const scope = createScope();",
-      "const value = scope.resolve(count);",
-      "if (value !== 41) throw new Error(`data gave ${value}`);",
-      'if (typeof react.useData !== "function") throw new Error("no useData");',
-      "await scope.close();",
-      'console.log(`PROBE data 41; @tinker/react exports ${Object.keys(react).sort().join(", ")}`);',
-      "",
-    ].join("\n"),
-  );
-  const probe = run(process.execPath, ["probe.mjs"], consumer);
-  assert.ok(probe.includes("PROBE data 41"));
+  for (const { tool, app, add, exec } of consumers) {
+    await mkdir(app);
+    assert.deepEqual(await readdir(app), []);
+    await writeFile(join(app, "package.json"), '{ "name": "app", "private": true }\n');
+    run(tool, [...add, urls["@tinker/core"], urls["@tinker/react"], "react@19"], app);
+    console.log(`PASS: ${tool} ${add[0]} of the two loopback URLs in an empty folder.`);
+
+    const installed = JSON.parse(
+      await readFile(join(app, "node_modules/@tinker/core/package.json"), "utf8"),
+    );
+    assert.equal(installed.version, version);
+    console.log(`PASS: ${tool}: node_modules/@tinker/core is ${installed.version}.`);
+
+    await writeFile(join(app, "probe.mjs"), probe);
+    const output = run(exec, ["probe.mjs"], app);
+    assert.ok(output.includes("PROBE") && output.includes("data 41"));
+    console.log(
+      `PASS: ${exec === "bun" ? "Bun" : "Node"} runs an ESM script that imports Core and React; createScope resolves a data cell; React has useData.`,
+    );
+  }
+
   console.log(
-    "PASS: an ESM script imports Core and React; createScope resolves a data cell; React has useData.",
-  );
-
-  console.log(
-    "NOT PROVEN: public GitHub download URLs, real publication, other package managers, React rendering in a browser.",
+    "NOT PROVEN: public GitHub download URLs, real publication, pnpm and yarn, React rendering in a browser.",
   );
 } finally {
   for (const child of servers.reverse()) await stop(child);
