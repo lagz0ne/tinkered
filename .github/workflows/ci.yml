@@ -48,3 +48,44 @@ jobs:
 
       - name: Release check
         run: node --test scripts/release-check.test.mjs
+
+  # Bun is the main runtime: Core and React tests, then the built dist, on Bun.
+  # pnpm installs (bun install cannot read this pnpm workspace) and the build runs
+  # on Node (Core's build plugin uses the TypeScript API, which needs Node).
+  bun:
+    runs-on: ubuntu-24.04
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.x
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+
+      - name: Install
+        run: |
+          npm install --global pnpm@12.4.1
+          pnpm install --frozen-lockfile
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Browser for the React tests
+        run: pnpm --dir packages/react exec playwright install --with-deps chromium
+
+      - name: Build Core and React
+        run: vp run --filter "@tinker/react..." build
+
+      - name: Core tests on Bun
+        working-directory: packages/core
+        run: bun --bun vp test
+
+      - name: React tests on Bun
+        working-directory: packages/react
+        run: bun --bun vp test
+
+      - name: Smoke the built dist on Bun
+        run: bun scripts/bun-smoke.mjs
