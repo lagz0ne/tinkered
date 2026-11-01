@@ -161,38 +161,49 @@ Each message ends with its fix line.
 - **S24 rawFetch** — a call of `fetch` or `globalThis.fetch`.
   Repo lint: `apps/` and `examples/` only.
   Writer gate: every suite.
-  Skipped: `src/scaffold/http-backend.ts`, which wraps the built-in once.
+  Skipped: `src/scaffold/http-backend.ts`, in trial archives saved
+  before the Start sunset (ADR 0122).
   `EventSource` and `WebSocket` stay out (ADR 0048).
-  Fix: import `httpRequest` from `@/lib/tinker.server`.
-  Depend on its controller and pass request values with `rawInput`.
-  Typed `input` needs the schema's checked, branded shape.
-  The request inherits the caller's cancel signal (ADR 0102).
-  With observation on, it makes `http.request` and its
-  `http <METHOD> <path>` child span.
+  Fix: take `fetch` from a tag the entry binds.
+  Call it only inside an operation, with `ctx.signal`.
+  So each request has a span and inherits the caller's
+  cancel signal (ADR 0102, 0113).
   Map its reply to a feature value or managed error (ADR 0103).
+  `s24-fix.test.mjs` typechecks the fix against `@tinker/core`.
 
   ```ts
-  import { operation } from "@tinker/core";
-  import { httpRequest } from "@/lib/tinker.server";
-  import { raise } from "@/errors";
+  import { operation, tag } from "@tinker/core";
+
+  export const httpSend = tag<typeof fetch>({
+    label: "http.send",
+  });
 
   export const postNotice = operation({
     label: "postNotice",
-    depends: { request: httpRequest.controller },
-    run: async ({ request }) => {
-      const reply = await request.run({
-        rawInput: {
-          url: "https://api.example.com/notices",
+    depends: { send: httpSend },
+    run: async ({ send }, ctx) => {
+      const reply = await send(
+        "https://api.example.com/notices",
+        {
           method: "POST",
           body: "The order is ready.",
+          signal: ctx.signal,
         },
-      });
-      if (reply.status < 200 || reply.status >= 300) {
-        raise("NotificationFailed", {});
+      );
+      if (!reply.ok) {
+        return ctx.raise("NotificationFailed", {
+          status: reply.status,
+        });
       }
       return { sent: true };
     },
   });
+  ```
+
+  The entry binds the built-in once:
+
+  ```ts
+  createScope({ tags: [httpSend(fetch)] });
   ```
 
 - **S25 componentState** — `useState` or `useReducer` in a `.tsx` source file.

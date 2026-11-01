@@ -49,7 +49,7 @@ const MESSAGES = {
   "S22.settle":
     "a settle's Result is dropped: settle recovers a panic, so an unread Result hides it (ADR 0067); read the Result, or call run and let the scope own the failure",
   S23: "hand-made subscribe: keep the value in a data cell; readers watch it or read it with useData",
-  S24: "raw fetch: import httpRequest from @tinker/start/server, depend on httpRequest.controller, and run it with rawInput so requests have spans and inherit the caller's cancel signal (ADR 0102); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code",
+  S24: "raw fetch: take fetch from a tag that the entry binds (`createScope({ tags: [httpSend(fetch)] })`), and call it only inside an operation, with ctx.signal, so each request has a span and inherits the caller's cancel signal (ADR 0102, 0113); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code",
   S25: "component state: make it a data cell and read it with useData; write it from an operation",
   S26: "malformed TSDoc: the TSDoc parser rejects this doc",
   "S26.param": "a @param names no parameter of the declaration it documents",
@@ -66,7 +66,7 @@ const FIXES = {
   S22: "`const r = await load.settle({ input: id })`",
   "S22.settle": "`const r = await load.settle({ input: id })`, then branch on `r.status`",
   S23: '`const status = data<WireStatus>({ label: "wire.status", initial: "connecting" })`',
-  S24: "import { operation } from '@tinker/core'; import { httpRequest } from '@tinker/start/server'; import { raise } from '@/errors'; export const postNotice = operation({ label: 'postNotice', depends: { request: httpRequest.controller }, run: async ({ request }) => { const reply = await request.run({ rawInput: { url: 'https://api.example.com/notices', method: 'POST', body: 'The order is ready.' } }); if (reply.status < 200 || reply.status >= 300) { raise('NotificationFailed', {}); } return { sent: true }; } });",
+  S24: "import { operation, tag } from '@tinker/core'; export const httpSend = tag<typeof fetch>({ label: 'http.send' }); export const postNotice = operation({ label: 'postNotice', depends: { send: httpSend }, run: async ({ send }, ctx) => { const reply = await send('https://api.example.com/notices', { method: 'POST', body: 'The order is ready.', signal: ctx.signal }); if (!reply.ok) return ctx.raise('NotificationFailed', { status: reply.status }); return { sent: true }; } });",
   S25: '`const running = data({ label: "bench.running", initial: false })`',
   S26: "escape `@`, `{`, `}`, and `>` in prose with a backslash, or put code in backticks on one line: `` `@tinker/core` ``, `{@link createScope}`",
   "S26.param": "`@param input - …` with the parameter's own name, or delete the line",
@@ -1149,6 +1149,7 @@ function handRolledScope(file, writer) {
     S21: true,
     S22: true,
     S23: userCode,
+    // The http-backend arm serves saved trial archives from before the Start sunset (ADR 0122).
     S24:
       userCode &&
       !/^(?:\/work\/|apps\/start-scaffold\/)?src\/scaffold\/http-backend\.ts$/.test(file),

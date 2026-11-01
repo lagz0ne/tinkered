@@ -454,7 +454,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
     assert.deepEqual(hits("const socket = new WebSocket(url);\n", APP), []);
   });
 
-  void it("S24 tells a flight app to depend on httpRequest.controller and run it", () => {
+  void it("S24 tells an app to take fetch from a tag and call it inside an operation", () => {
     const source = 'export const load = () => fetch("http://supplier-a:4311/air/offers/id");';
     const file = "src/backend/flights.ts";
     assert.deepEqual(inspectPlain(source, file, { writer: true }), [
@@ -462,7 +462,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
         id: "S24",
         line: 1,
         message:
-          "raw fetch: import httpRequest from @tinker/start/server, depend on httpRequest.controller, and run it with rawInput so requests have spans and inherit the caller's cancel signal (ADR 0102); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code. Fix: import { operation } from '@tinker/core'; import { httpRequest } from '@tinker/start/server'; import { raise } from '@/errors'; export const postNotice = operation({ label: 'postNotice', depends: { request: httpRequest.controller }, run: async ({ request }) => { const reply = await request.run({ rawInput: { url: 'https://api.example.com/notices', method: 'POST', body: 'The order is ready.' } }); if (reply.status < 200 || reply.status >= 300) { raise('NotificationFailed', {}); } return { sent: true }; } });",
+          "raw fetch: take fetch from a tag that the entry binds (`createScope({ tags: [httpSend(fetch)] })`), and call it only inside an operation, with ctx.signal, so each request has a span and inherits the caller's cancel signal (ADR 0102, 0113); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code. Fix: import { operation, tag } from '@tinker/core'; export const httpSend = tag<typeof fetch>({ label: 'http.send' }); export const postNotice = operation({ label: 'postNotice', depends: { send: httpSend }, run: async ({ send }, ctx) => { const reply = await send('https://api.example.com/notices', { method: 'POST', body: 'The order is ready.', signal: ctx.signal }); if (!reply.ok) return ctx.raise('NotificationFailed', { status: reply.status }); return { sent: true }; } });",
       },
     ]);
   });
