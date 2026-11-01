@@ -5,8 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { registryItems } from "../apps/start-scaffold/maintain/registry-source.mjs";
-import { releaseUrls } from "../packages/start/lib/release.mjs";
+import { releaseUrls } from "./release-urls.mjs";
 
 /** Local assets only. There is deliberately no publish mode or GitHub client. */
 const [version, ...flags] = process.argv.slice(2);
@@ -18,9 +17,9 @@ assert.ok(
 
 const urls = releaseUrls(version);
 const root = resolve(import.meta.dirname, "..");
-const out = join(root, ".release", `start-v${version}`);
+const tag = `v${version}`;
+const out = join(root, ".release", tag);
 const assets = join(out, "assets");
-const registryPath = "apps/start-scaffold/public/r";
 const scratch = await mkdtemp(join(tmpdir(), "tinker-release-"));
 const packDir = join(scratch, "packs");
 await mkdir(packDir);
@@ -29,13 +28,12 @@ const run = (command, args, cwd = root) => execFileSync(command, args, { cwd, st
 
 try {
   run("vp", ["run", "-r", "build"]);
-  const manifest = { version, tag: `start-v${version}`, assets: [] };
+  const manifest = { version, tag, assets: [] };
 
-  for (const name of ["core", "react", "start"]) {
+  for (const name of ["core", "react"]) {
     const source = join(root, "packages", name);
     const current = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
-    if (name === "start") run(process.execPath, [join(source, "scripts/pack.mjs"), packDir]);
-    else run("vp", ["pm", "pack", "--pack-destination", packDir], source);
+    run("vp", ["pm", "pack", "--pack-destination", packDir], source);
 
     const unpacked = join(scratch, name);
     await mkdir(unpacked);
@@ -45,14 +43,11 @@ try {
     const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
     pkg.version = version;
 
-    for (const field of ["dependencies", "devDependencies"]) {
+    // The packed React names Core by version in dependencies and devDependencies.
+    for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
       for (const dependency of Object.keys(pkg[field] ?? {})) {
         if (dependency in urls) pkg[field][dependency] = urls[dependency];
       }
-    }
-    if (name === "start") {
-      pkg.tinker.tested["@tinker/core"] = version;
-      pkg.tinker.tested["@tinker/react"] = version;
     }
 
     await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
@@ -68,26 +63,8 @@ try {
     console.log(`ASSET ${file} ${size} bytes sha256 ${sha256}`);
   }
 
-  const { registry, items, packages } = await registryItems({ version });
-  const registryOut = join(out, registryPath);
-  await mkdir(registryOut, { recursive: true });
-  for (const item of items) {
-    await writeFile(join(registryOut, `${item.name}.json`), JSON.stringify(item, null, 2) + "\n");
-  }
-  await writeFile(
-    join(registryOut, "registry.json"),
-    JSON.stringify({ ...registry, items }, null, 2) + "\n",
-  );
-
-  for (const [path, pkg] of Object.entries(packages)) {
-    await writeFile(join(out, "apps/start-scaffold", path), JSON.stringify(pkg, null, 2) + "\n");
-  }
   await writeFile(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-
-  console.log(`DRY RELEASE ${out}`);
-  console.log(
-    `REGISTRY ${registryPath}: ${items.length} items with release URLs; nothing published.`,
-  );
+  console.log(`DRY RELEASE ${out}: Core and React; nothing published.`);
 } finally {
   await rm(scratch, { recursive: true, force: true });
 }
