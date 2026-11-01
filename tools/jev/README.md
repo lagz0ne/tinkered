@@ -160,7 +160,7 @@ Each message ends with its fix line.
   Fix: a `data` cell that readers `watch` or read with `useData`.
 - **S24 rawFetch** — a call of `fetch` or `globalThis.fetch`.
   Repo lint: `apps/` and `examples/` only.
-  Writer gate: every suite, including flight.
+  Writer gate: every suite.
   Skipped: `src/scaffold/http-backend.ts`, which wraps the built-in once.
   `EventSource` and `WebSocket` stay out (ADR 0048).
   Fix: import `httpRequest` from `@/lib/tinker.server`.
@@ -170,7 +170,6 @@ Each message ends with its fix line.
   With observation on, it makes `http.request` and its
   `http <METHOD> <path>` child span.
   Map its reply to a feature value or managed error (ADR 0103).
-  The filled fix text typechecks in a copy of the Start scaffold.
 
   ```ts
   import { operation } from "@tinker/core";
