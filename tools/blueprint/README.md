@@ -111,7 +111,9 @@ ok: 2 nodes, 2 units, 0 findings
   what names it. A name nothing has, or a dangling `depends` entry, reads
   as no nodes — `uses`/`usedBy` never throw.
 
-An extension writes data through declared direct object-hook access.
+An `extension` node is a Core capsule in source (Core ADR 0121).
+It reaches units through its hook event: `load`, `run`, or `settle`,
+on the event or destructured from it.
 The YAML lists those units in `depends`:
 
 ```yaml
@@ -129,18 +131,19 @@ The YAML lists those units in `depends`:
 
 ```ts
 const active = data({ label: "active", initial: 0 });
-const engine = extension({
+const meta = { role: "state", explain: "Counts runs" };
+const engine = capsule({
   label: "engine",
   hooks: {
-    run(event) {
-      event.controller(active).update((n) => n + 1);
-      return event.next();
+    run({ load, next }) {
+      load(active, meta).update((n) => n + 1);
+      return next();
     },
   },
 });
 ```
 
-The extension definition keeps no live count.
+The capsule definition keeps no live count.
 The event selects its owner's data under the current namespace key.
 
 The ADR's own example (`docs/decisions/0052-*.md`):

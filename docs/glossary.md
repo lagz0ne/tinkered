@@ -142,7 +142,7 @@ The copied client has no frame, config tag, or retry.
 
 - **tool** — An ordinary operation plus a row with its facts: `expose(op, { description, schema, name?, respond? })` returns an `Mcp.Row`, and `mcp({ tools })` and `harness({ tools })` take the same rows (ADR 0051). `schema` is a zod raw shape (also the op's `input` parse). The name defaults to the op's label.
 - **tools** — The binding tag: `tools(op)` on a scope or session; a driver reads the table with `scope.resolve(tools.all)`.
-- **mcp** — The driver extension (ADR 0051, 0060): `mcp({ name, version, tools })` returns a `Scope.Extension`; install it, and `scope.resolve(ext)` after `ready` is the MCP SDK's own `McpServer` with one tool per row; each call is a session running an inline op `mcp <name>` with the tool as its subflow; the harness gets `mcpServers` config. `mcpServer` is retired by ADR 0051.
+- **mcp** — History (ADR 0051, 0060; the extension is replaced by a capsule, ADR 0121): the driver extension `mcp({ name, version, tools })`; install it, and `scope.resolve(ext)` after `ready` was the MCP SDK's own `McpServer` with one tool per row; each call was a session running an inline op `mcp <name>` with the tool as its subflow; the harness got `mcpServers` config. `mcpServer` is retired by ADR 0051.
 
 ## Jev advisory layer (`tools/jev/`)
 

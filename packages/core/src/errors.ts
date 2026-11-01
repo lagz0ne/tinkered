@@ -16,11 +16,11 @@ type Payloads = {
   CircularResource: { label: string };
   /** A capsule's config named a required key the command left out (ADR 0120). */
   MissingConfig: { label: string; key: string };
-  /** One library's capsule was installed twice on one root (ADR 0120). */
+  /** One library's capsule was installed twice on one root (ADR 0121). */
   DuplicateCapsule: { label: string };
-  /** A capsule exports a unit under a name its handle keeps for itself (ADR 0120). */
+  /** A capsule exports a unit under a name its handle keeps for itself (ADR 0121). */
   ReservedExport: { label: string; key: string };
-  /** A scope touched an exported unit whose capsule it does not install (ADR 0120). */
+  /** A scope touched an exported unit whose capsule it does not install (ADR 0121). */
   CapsuleMissing: { unit: string; capsule: string };
 };
 

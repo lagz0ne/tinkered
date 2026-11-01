@@ -935,3 +935,82 @@ test("I3c a close-hook load once next() is called raises Disposed, while the clo
 
   if (!isError(reads[0], "Disposed")) throw reads[0];
 });
+
+test("I3d on a root with an ambient ns, a close hook loads a namespace resource and a cell until next(), then Disposed", async () => {
+  const space = namespace();
+  const queue = resource({ label: "tel.queue", target: "namespace", factory: () => ({ q: 1 }) });
+  const count = data({ label: "tel.count", initial: 0 });
+  const reads: unknown[] = [];
+  const outcome = (read: () => unknown): Promise<unknown> =>
+    Promise.resolve()
+      .then(read)
+      .catch((error: unknown) => (isError(error, "Disposed") ? "Disposed" : error));
+  const tel = capsule({
+    label: "tel",
+    hooks: {
+      start: async ({ load }) => {
+        await load(queue, state);
+        load(count, state).set(3);
+      },
+      close: async ({ load, next }) => {
+        reads.push(await load(queue, state));
+        reads.push(load(count, state).get());
+
+        const result = await next();
+        reads.push(await outcome(() => load(queue, state)));
+        reads.push(await outcome(() => load(count, state).get()));
+        return result;
+      },
+    },
+  });
+  const scope = createScope({ ns: [space], capsules: [tel] });
+  await scope.ready;
+  const built = scope.resolve(queue);
+
+  await scope.close({ graceful: true });
+
+  expect(reads).toEqual([built, 3, "Disposed", "Disposed"]);
+  expect(reads[0]).toBe(built);
+});
+
+test("I2b load, run and settle each write their record line when called, even when the call fails", async () => {
+  const broken = resource({
+    label: "db.broken",
+    factory: () => {
+      throw new Error("no pool");
+    },
+  });
+  const boom = operation({
+    label: "db.boom",
+    run: () => {
+      throw new Error("boom");
+    },
+  });
+  const flop = operation({
+    label: "db.flop",
+    run: () => {
+      throw new Error("flop");
+    },
+  });
+  const failures: unknown[] = [];
+  const db = capsule({
+    label: "db",
+    hooks: {
+      start: async ({ load, run, settle }) => {
+        failures.push(await load(broken, setup).catch((error: unknown) => String(error)));
+        failures.push(await run(boom, {}, setup).catch((error: unknown) => String(error)));
+        failures.push((await settle(flop, {}, setup)).status);
+      },
+    },
+  });
+  const scope = createScope({ capsules: [db()] });
+  await scope.ready;
+
+  expect(failures).toEqual(["Error: no pool", "Error: boom", "failed"]);
+  expect(scope.capsules[0]?.loaded.map(({ unit }) => unit)).toEqual([
+    "db.broken",
+    "db.boom",
+    "db.flop",
+  ]);
+  await scope.close();
+});

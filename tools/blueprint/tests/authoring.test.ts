@@ -115,6 +115,35 @@ test("extension source checks skip dynamic access and nested helper bodies", () 
   expect(units.map((unit) => unit.depends)).toEqual([["active"]]);
 });
 
+test("a capsule's hooks reach units through load, run and settle with a meta", () => {
+  const capsuleSource = `const managed = tag({ label: "managed", default: false });
+const active = data({ label: "active", initial: 0 });
+const client = resource({ label: "client", target: "session", factory: () => ({}) });
+const send = operation({ label: "send", run: () => undefined });
+const meta = { role: "handler", explain: "Runs one managed call" };
+const engine = capsule({ label: "engine", hooks: {
+    async run({ next, load, run, settle }) {
+      if (!(await run(managed, {}, meta))) return next();
+      load(active, meta).update((count) => count + 1);
+      await load(client, meta);
+      await settle(send, {}, meta);
+      return next();
+    },
+    close: (event) => {
+      event.load(active, meta).set(0);
+      return event.next();
+    },
+  } });`;
+  const graph = readBlueprint(engineYaml);
+  const units = readUnits(capsuleSource, "engine.ts");
+
+  expect(units.find((unit) => unit.label === "engine")).toMatchObject({
+    kind: "extension",
+    depends: ["managed", "active", "client", "send"],
+  });
+  expect([...plainChecks(graph), ...verifyChecks(graph, units)]).toEqual([]);
+});
+
 test("verify sends an extension's hooks body to the body judge", async () => {
   const seen: (string | undefined)[] = [];
   const recording: Blueprint.Judge = {

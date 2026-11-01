@@ -14,8 +14,16 @@ import type {
 import type { Blueprint } from "./blueprint";
 
 const UNIT_KINDS = ["data", "resource", "operation", "tag", "extension"];
+
+/** The node kind each Core builder call declares. A capsule (Core ADR 0121) is the source form
+ * of a blueprint `extension` node. */
+const SOURCE_KINDS: ReadonlyMap<string, Blueprint.Node["kind"]> = new Map([
+  ...UNIT_KINDS.filter(isUnitKind).map((kind) => [kind, kind] as const),
+  ["capsule", "extension"],
+]);
+
 const HOOK_NAMES = ["start", "session", "run", "resolve", "write", "close"];
-const ACCESS_NAMES = ["controller", "resolve", "run"];
+const ACCESS_NAMES = ["controller", "resolve", "run", "load", "settle"];
 
 type Callable = ArrowFunctionExpression | ParsedFunction;
 
@@ -37,12 +45,37 @@ function isEventAccess(node: MemberExpression, receiver: string): boolean {
   );
 }
 
-function accessTarget(node: CallExpression, receiver: string): string | undefined {
-  if (node.callee.type !== "MemberExpression" || !isEventAccess(node.callee, receiver)) {
-    return undefined;
-  }
+/** A call on the event (`event.load(x)`), or on a name the parameter destructured
+ * (`({ load }) => load(x)`), names its first argument. */
+function accessTarget(
+  node: CallExpression,
+  receiver: string | undefined,
+  picked: ReadonlySet<string>,
+): string | undefined {
+  const callee = node.callee;
+  const onEvent =
+    receiver !== undefined && callee.type === "MemberExpression" && isEventAccess(callee, receiver);
+  const onPicked = callee.type === "Identifier" && picked.has(callee.name);
+  if (!onEvent && !onPicked) return undefined;
+
   const [target] = node.arguments;
   return target?.type === "Identifier" ? target.name : undefined;
+}
+
+/** The access names a destructured first parameter binds under their own name. */
+function pickedAccess(parameter: Callable["params"][number] | undefined): ReadonlySet<string> {
+  if (parameter?.type !== "ObjectPattern") return new Set();
+  const names = parameter.properties.flatMap((property) =>
+    property.type === "Property" &&
+    !property.computed &&
+    property.key.type === "Identifier" &&
+    property.value.type === "Identifier" &&
+    property.key.name === property.value.name &&
+    ACCESS_NAMES.includes(property.key.name)
+      ? [property.key.name]
+      : [],
+  );
+  return new Set(names);
 }
 
 /** Reads only a function's own calls on its first named parameter.
@@ -67,9 +100,9 @@ function readFunctionAccess(program: Program): ReadonlyMap<Callable, readonly st
       const owner = functions.at(-1);
       if (owner === undefined) return;
       const [parameter] = owner.params;
-      if (parameter?.type !== "Identifier") return;
+      const receiver = parameter?.type === "Identifier" ? parameter.name : undefined;
 
-      const target = accessTarget(node, parameter.name);
+      const target = accessTarget(node, receiver, pickedAccess(parameter));
       if (target === undefined) return;
       const found = access.get(owner);
       if (found === undefined) access.set(owner, [target]);
@@ -187,8 +220,8 @@ function unitOf(
 ): Blueprint.Unit | undefined {
   const init = declarator.init;
   if (init?.type !== "CallExpression" || init.callee.type !== "Identifier") return undefined;
-  const kindName = init.callee.name;
-  if (!isUnitKind(kindName)) return undefined;
+  const kindName = SOURCE_KINDS.get(init.callee.name);
+  if (kindName === undefined) return undefined;
   const [arg] = init.arguments;
   if (arg === undefined || arg.type === "SpreadElement") return undefined;
   const label = labelOf(arg);

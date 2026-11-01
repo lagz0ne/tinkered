@@ -28,7 +28,7 @@ export type Edge<K extends string, Target> = {
 
 /** A list as authored (the `clsx` / ESLint flat-config shape): one item, nothing
  * (`null`/`undefined`/`false` — so `cond && item` reads as one), or a list of those to any depth.
- * Every list a config takes — `tags`, `presets`, `extensions`, a driver's rows — is one,
+ * Every list a config takes — `tags`, `presets`, `capsules`, a driver's rows — is one,
  * read once and flat where it lands (see {@link readMany}), so optional and grouped items need no
  * spread: `tags: [request(raw), audit && trace(true), shared]`. Only `false`, never `0`/`""`: a
  * `count && x` slip stays a type error. */
@@ -91,7 +91,7 @@ export declare namespace Tag {
     readonly hasDefault: boolean;
     readonly def: T | undefined;
     readonly parse: Data.Parse<T> | undefined;
-    /** A secret's value never shows: a capsule record shows `"[hidden]"` (ADR 0120). */
+    /** A secret's value never shows: a capsule record shows `"[hidden]"` (ADR 0121). */
     readonly secret: boolean;
     eq(a: T, b: T): boolean;
     readonly required: Edge<"required", Handle<T>>;
@@ -100,7 +100,7 @@ export declare namespace Tag {
     (value: T): Binding<T>;
   };
 
-  /** A tag minted with a `default`: the type carries that fact, so an extension's config
+  /** A tag minted with a `default`: the type carries that fact, so a capsule's config
    * types a bare key as optional (ADR 0120). */
   export type Defaulted<T> = Handle<T> & { readonly hasDefault: true };
 }
@@ -549,10 +549,10 @@ export declare namespace Scope {
     | Tag.Handle<any>
     | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
 
-  /** An extension's config as authored: a key per tag the library reads (ADR 0120). */
+  /** A capsule's config as authored: a key per tag the library reads (ADR 0120). */
   export type Config = Readonly<Record<string, ConfigEntry>>;
 
-  /** The values an extension's config takes (ADR 0120): a required key must be named, though it may
+  /** The values a capsule's config takes (ADR 0120): a required key must be named, though it may
    * be written as `undefined` (an unset env value) and fail at start; a key with a default or an
    * optional edge may be left out. */
   export type ConfigValues<C extends Config> = Flat<
@@ -582,7 +582,7 @@ export declare namespace Scope {
     clock?: Clock.Handle;
     /** The ambient randomness for this scope; child sessions inherit it. Default is the system source. */
     random?: Random.Handle;
-    /** The libraries this root installs (ADR 0120): each capsule is called to fill its config
+    /** The libraries this root installs (ADR 0121): each capsule is called to fill its config
      * first. Their hooks are middleware on the root only (ADR 0050); sessions inherit them. */
     capsules?: Many<Capsule.Installable>;
   };
@@ -738,13 +738,13 @@ export declare namespace Scope {
      * and rejects with the start error only after cleanup ends (ADR 0085). A close already under
      * way is joined. A scope with no capsules is ready at once. */
     readonly ready: Promise<void>;
-    /** What this scope knows about each installed capsule, in `capsules` order (ADR 0120). Live:
+    /** What this scope knows about each installed capsule, in `capsules` order (ADR 0121). Live:
      * a read shows the state now. Empty on a scope with no capsules. */
     readonly capsules: readonly Capsule.Record[];
   };
 }
 
-/** A library's door (ADR 0120): its config, its hooks, and the units it exports. */
+/** A library's door (ADR 0121): its config, its hooks, and the units it exports. */
 export declare namespace Capsule {
   /** What a capsule holds a unit for: it runs once to make ready, runs on in the background,
    * runs per call or request, or is a value the library holds. */
@@ -932,7 +932,7 @@ const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
   target,
 });
 
-/** Declare a capsule (ADR 0120): a library's door. Its `config` names the tags the library
+/** Declare a capsule (ADR 0121): a library's door. Its `config` names the tags the library
  * reads, and the command fills them by calling the capsule; its `exports` are the units others
  * use, copied onto the handle and every binding; its `hooks` run on the root that installs it.
  * An export under a reserved name raises `ReservedExport`. */
@@ -1314,7 +1314,7 @@ function signalOf(layer: Layer): AbortSignal {
   return ac.signal;
 }
 
-/** The extension chains a root chose (ADR 0050, 0051): each is the filtered list of extensions
+/** The capsule chains a root chose (ADR 0050, 0051): each is the filtered list of capsules
  * that declare that hook, or undefined when none does. One record per root, shared by every layer
  * under it, so a session reads its route from its parent instead of walking to the root. */
 type ExtRoutes = {
@@ -1397,7 +1397,7 @@ type Layer = {
   /** The ambient namespace chain of this layer (ADR 0059): set from the scope/session options,
    * inherited by child sessions, overridden per call through a view layer. Undefined = default. */
   ns: readonly Namespace[] | undefined;
-  /** The root's extension routes, inherited by every layer under it ({@link ExtRoutes}). */
+  /** The root's capsule routes, inherited by every layer under it ({@link ExtRoutes}). */
   exts: ExtRoutes;
 } & ({ lazy?: false; up: Layer | undefined } | { lazy: true; up: Layer });
 
@@ -1928,7 +1928,7 @@ type Obs = {
   log: ((entry: Observe.Log) => void) | undefined;
   level: number;
   id: number;
-  /** The logger for runs with no span and no extension label: built once, shared. */
+  /** The logger for runs with no span and no capsule label: built once, shared. */
   plain?: Observe.Logger;
 };
 
@@ -2237,15 +2237,15 @@ function logFor(
   obs: Obs,
   span: SpanImpl | undefined,
   chain?: readonly Namespace[],
-  extension?: string,
+  capsuleLabel?: string,
 ): Observe.Logger {
   if (!obs.log || chain?.[0]?.observe === false) return noop;
-  if (span || extension !== undefined) return makeLogger(obs, span, extension);
+  if (span || capsuleLabel !== undefined) return makeLogger(obs, span, capsuleLabel);
 
   return (obs.plain ??= makeLogger(obs));
 }
 
-function makeLogger(obs: Obs, span?: SpanImpl, extension?: string): Observe.Logger {
+function makeLogger(obs: Obs, span?: SpanImpl, capsuleLabel?: string): Observe.Logger {
   const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
     if (level < obs.level) return;
     isolate(() =>
@@ -2254,7 +2254,9 @@ function makeLogger(obs: Obs, span?: SpanImpl, extension?: string): Observe.Logg
         level,
         message,
         attributes:
-          extension === undefined ? (attributes ?? {}) : { ...attributes, capsule: extension },
+          capsuleLabel === undefined
+            ? (attributes ?? {})
+            : { ...attributes, capsule: capsuleLabel },
         span,
       }),
     );
@@ -2402,7 +2404,7 @@ function addWork(layer: Layer, work: Promise<unknown>): void {
   layer.pending.add(work);
 }
 
-/** Resource builds already own node state; scope and extension handles already have full layers. */
+/** Resource builds already own node state; scope and capsule handles already have full layers. */
 function addDefer(layer: Layer, entry: DeferEntry): void {
   if (layer.hooks === NO_DEFERS) layer.hooks = [];
   layer.hooks.push(entry);
@@ -3286,8 +3288,8 @@ function emptyCtxFor(owner: Layer, chain: readonly Namespace[] | undefined): Res
   return chain?.length ? new EmptyCtx(owner, chain) : (owner.ctx ??= new EmptyCtx(owner));
 }
 
-/** Read what an extension's `start` returned: the root layer holds one record per installed
- * extension, so a session walks up (ADR 0050). Unsettled or not installed is `NotResolved`. */
+/** Read what a capsule's `start` returned: the root layer holds one record per installed
+ * capsule, so a session walks up (ADR 0050). Unsettled or not installed is `NotResolved`. */
 function resolveCapsule(layer: Layer, ext: Capsule.Binding): unknown {
   for (let current: Layer | undefined = layer; current !== undefined; current = current.up) {
     const rec = EXTENSIONS.get(current)?.get(ext);
@@ -4051,7 +4053,7 @@ function abortSubtree(root: Layer, reason = root.reason ?? new CancelReason()): 
 }
 
 const SUCCESS: Scope.Outcome = { status: "success" };
-/** A scope with no extensions is ready at once: one shared, already-resolved promise. */
+/** A scope with no capsules is ready at once: one shared, already-resolved promise. */
 const READY: Promise<void> = Promise.resolve();
 const RELEASED: Scope.End = { status: "released" };
 
@@ -4661,7 +4663,8 @@ function runInline<R, I>(
    * cached in the layer (no `nodeState`/`controllerOf` residue). The body's `input` is replayed
    * as the invocation's `input`, landing on `ctx.input`/`ctx.rawInput` unchanged (no parse — ADR
    * 0037); `tags` open the run's child session exactly as for a declared operation (ADR 0038).
-   * Discrimination is the brand only. */
+   * Discrimination is the brand only. An inline is never exported, so it is born passed for this
+   * root: the capsule check is one compare, with no walk (ADR 0121). */
   const depends = inline.depends ?? {};
   const target = {
     [operationSym]: true,
@@ -4670,6 +4673,8 @@ function runInline<R, I>(
     depends,
     run: inline.run,
     borrows: seesResource(depends),
+    capsule: undefined,
+    passed: layer.exts,
   } as unknown as Operation.Handle<R, I>;
 
   if (layer.exts.run === undefined) {
@@ -4735,8 +4740,8 @@ class ScopeHandle implements Scope.Handle {
   resolve<T>(edge: Edge<"all", Tag.Handle<T>>, ns?: Scope.NsArg): T[];
   resolve<T>(edge: Edge<"optional", Tag.Handle<T>>, ns?: Scope.NsArg): Tag.Presence<T>;
   resolve<T>(edge: Edge<"required", Tag.Handle<T>>, ns?: Scope.NsArg): T;
-  /** Read what an extension's `start` returned (ADR 0050): available once that extension's start
-   * settled (`NotResolved` before, or when the extension is not installed on this scope). */
+  /** Read what a capsule's `start` returned (ADR 0050): available once that capsule's start
+   * settled (`NotResolved` before, or when the capsule is not installed on this scope). */
   resolve<T>(ext: Capsule.Binding<T>): T;
   resolve(
     target:
@@ -5081,7 +5086,7 @@ function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined)
     : resolveNs(layer, target, chain);
 }
 
-/** Wrap a plain root handle with the capsules' plumbing (ADR 0050, 0120): store one record per
+/** Wrap a plain root handle with the capsules' plumbing (ADR 0050, 0121): store one record per
  * installed capsule, override `close` with the close chain (reverse order), add `ready`, then
  * kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
 function extendHandle(
@@ -5609,7 +5614,7 @@ function appendBindings(
   for (let i = tags.length - 1; i >= 0; i--) if (tags[i].tag === target) out.push(tags[i].value);
 }
 
-/** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
+/** Wrap a session's whole life in the capsules' `session` onion (ADR 0051): registration order,
  * first is outermost. `run` is the session's own life — run the body, force-close, keep the body's
  * value beside the close `Result` — so `next()` resolves with whatever `closeLayer` produced (never
  * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists, before any
@@ -5682,9 +5687,9 @@ function closingOf(layer: Layer): AbortSignal {
   return (layer.stop = AbortSignal.any(signals));
 }
 
-/** Run the extensions' `start` onion (ADR 0050): registration order, first is outermost. Each
- * start's returned value (awaited) is stored per extension; the records flip `settled` only when
- * that extension's start settled. A rejected start records the layer failure (so a later close
+/** Run the capsules' `start` onion (ADR 0050): registration order, first is outermost. Each
+ * start's returned value (awaited) is stored per capsule; the records flip `settled` only when
+ * that capsule's start settled. A rejected start records the layer failure (so a later close
  * settles `failed`), closes through the current handle, and rejects `ready` with the same error
  * only after that close ends. Close claims startup at once; one microtask lets the close handler
  * retain cleanup before startup joins it. */
@@ -5798,7 +5803,7 @@ function runStartChain(
 
 /** Run access uses the run's trace and borrow set. Other hooks own their cleanup at their
  * session; root start and close use the root. Reads bypass the root-only resolve onion. `load`,
- * `run`, and `settle` reach units from this context only (ADR 0120). */
+ * `run`, and `settle` reach units from this context only (ADR 0121). */
 class HookCtx implements Capsule.Ctx {
   declare readonly label: string;
   declare readonly ns: readonly Namespace[] | undefined;
@@ -5854,15 +5859,10 @@ class HookCtx implements Capsule.Ctx {
       unit: Resource.Handle<unknown> | Data.Cell<unknown>,
       meta: Capsule.Meta,
     ): unknown => {
-      if (isData(unit)) {
-        const controller = this.use(() => this.cellControl(unit));
-        Capsules.note(this.record, unit, meta);
-        return controller;
-      }
+      Capsules.note(this.record, unit, meta);
+      if (isData(unit)) return this.use(() => this.cellControl(unit));
       try {
-        const value = this.use(() => this.readResource(unit));
-        Capsules.note(this.record, unit, meta);
-        return Promise.resolve(value);
+        return Promise.resolve(this.use(() => this.readResource(unit)));
       } catch (error) {
         return Promise.reject(error);
       }
@@ -5946,10 +5946,9 @@ class HookCtx implements Capsule.Ctx {
       call: Scope.Invocation<unknown>,
       meta: Capsule.Meta,
     ): Promise<unknown> => {
+      Capsules.note(this.record, op, meta);
       try {
-        const value = this.invoke(op, call, this.ctx);
-        Capsules.note(this.record, op, meta);
-        return Promise.resolve(value);
+        return Promise.resolve(this.invoke(op, call, this.ctx));
       } catch (error) {
         return Promise.reject(error);
       }
@@ -5961,9 +5960,10 @@ class HookCtx implements Capsule.Ctx {
       call: Scope.Invocation<unknown>,
       meta: Capsule.Meta,
     ): Promise<unknown> => {
-      const result = settleRun(this.layer, () => this.invoke(op, call, RECOVERED), call.signal);
       Capsules.note(this.record, op, meta);
-      return Promise.resolve(result);
+      return Promise.resolve(
+        settleRun(this.layer, () => this.invoke(op, call, RECOVERED), call.signal),
+      );
     }) as Capsule.Settle);
   }
   get defer(): Resource.Ctx["defer"] {
@@ -5993,7 +5993,7 @@ class HookCtx implements Capsule.Ctx {
   }
 }
 
-/** The close hook's event (ADR 0120, X3): `load` reads only units already built on the root,
+/** The close hook's event (ADR 0121, X3): `load` reads only units already built on the root,
  * and raises `Disposed` once the hook called `next()`, which releases them. */
 class CloseEvent extends HookCtx {
   declare readonly kind: "close";
@@ -6017,8 +6017,14 @@ class CloseEvent extends HookCtx {
   }
 
   protected override readResource(target: Resource.Handle<unknown>): unknown {
-    const built = this.released ? undefined : ownerOf(this.layer, target).nodes.get(target);
-    if (built?.built === undefined) raise("Disposed", { reason: "unit is released" });
+    if (this.released) raise("Disposed", { reason: "unit is released" });
+
+    const owner = ownerOf(this.layer, target);
+    const chain = this.ns;
+    const built = hasResourceNs(target, chain)
+      ? selectNsResource(owner, target, chain)
+      : owner.nodes.get(target);
+    if (built?.built === undefined) raise("Disposed", { reason: "unit is not built" });
     return built.ready ?? built.built.value;
   }
 }
@@ -6082,7 +6088,7 @@ function readExtRoutes(exts: readonly Capsule.Binding[]): ExtRoutes {
   return routes;
 }
 
-/** Only the extension path owns this state. The first close includes the hooks' after-work;
+/** Only the capsule path owns this state. The first close includes the hooks' after-work;
  * a start failure joins it, and a stop request never starts another close (ADR 0085). */
 type RootLifetime = {
   stopStart?: () => void;
@@ -6172,7 +6178,7 @@ function listenForStop(scope: Scope.Handle, signal: AbortSignal, lifetime: RootL
 }
 
 /** The `resolve` onion (ADR 0050, core/t33): registration order, first is outermost. An
- * `Extension` target bypasses the chain — `resolve(ext)` reads the extension registry, not a
+ * `Capsule` target bypasses the chain — `resolve(ext)` reads the capsule registry, not a
  * snapshot the chain wraps. Root handle only in v1: sessions keep the plain dispatch. */
 function resolveThrough(
   layer: Layer,
@@ -6913,7 +6919,7 @@ function nanosFromMillis(ms: number): bigint {
   return BigInt(whole) * 1_000_000n + BigInt(Math.round((ms - whole) * 1_000_000));
 }
 
-/** Only writes with extension hooks need the onion's closures. */
+/** Only writes with capsule hooks need the onion's closures. */
 function runWriteHooks<T>(
   layer: Layer,
   target: Data.Cell<T>,
@@ -6931,7 +6937,7 @@ function runWriteHooks<T>(
   at(0);
 }
 
-/** What a capsule's handle and each of its bindings carry beside their public fields (ADR 0120):
+/** What a capsule's handle and each of its bindings carry beside their public fields (ADR 0121):
  * the config it declares, the values a call filled (`{}` until then), the handle it came from,
  * and its exports. Kept off the objects, so an export may take any name not reserved. */
 type Wired = {
@@ -6948,7 +6954,7 @@ const NO_VALUES: Readonly<Record<string, never>> = Object.freeze({});
  * it last passed its capsule check on. */
 type Exported = { capsule?: Capsule.Binding; passed?: ExtRoutes };
 
-/** A capsule's wiring (ADR 0120): its handle and bindings, the record each root keeps, and the
+/** A capsule's wiring (ADR 0121): its handle and bindings, the record each root keeps, and the
  * check that an exported unit's capsule is installed. One class, so Core's module keeps few
  * names. */
 class Capsules {
@@ -6962,7 +6968,7 @@ class Capsules {
   static readonly noHooks: Capsule.Hooks = Object.freeze({});
   static readonly reserved: readonly string[] = ["label", "config", "hooks", "exports"];
 
-  /** Build a capsule's handle (ADR 0120): a binding itself, and a function that fills the config
+  /** Build a capsule's handle (ADR 0121): a binding itself, and a function that fills the config
    * and answers the binding a scope installs. Each export is copied onto both, the same object
    * (ADR 0057), and marked with the handle, so a scope can tell when its capsule is missing. */
   static handle(def: {
@@ -6983,29 +6989,29 @@ class Capsules {
       Capsules.wired.set(binding, { config, values: values ?? NO_VALUES, of: fill, exports });
       return binding;
     };
-    const handle = Object.defineProperties(fill, {
-      [capsuleSym]: { value: true },
-      label: { value: label },
-      hooks: { value: hooks },
-      config: { value: config ?? NO_VALUES },
+    const handle = Object.assign(fill, {
+      [capsuleSym]: true as const,
+      label,
+      hooks,
+      config: config ?? NO_VALUES,
     });
     Capsules.export(handle, exports);
     Capsules.wired.set(handle, { config, values: NO_VALUES, of: fill, exports });
-    return handle as unknown as Capsule.Binding;
+    return handle;
   }
 
   /** Copy each export onto the handle, and mark each unit but a tag with it: a tag export is
    * bound per call, so it has no capsule check. */
-  static export(handle: object, exports: Capsule.Exports): void {
+  static export(handle: Capsule.Binding, exports: Capsule.Exports): void {
     for (const key of Object.keys(exports)) {
       const unit = exports[key];
       Object.defineProperty(handle, key, { value: unit, enumerable: true });
-      if (!isTag(unit)) (unit as Exported).capsule ??= handle as Capsule.Binding;
+      if (!isTag(unit)) (unit as Exported).capsule ??= handle;
     }
   }
 
   /** One start-value record per installed capsule, and one under the handle a binding was filled
-   * from, so `scope.resolve(mail)` reads what `mail({...})` returned (ADR 0120). Each record also
+   * from, so `scope.resolve(mail)` reads what `mail({...})` returned (ADR 0121). Each record also
    * holds the capsule's line of `scope.capsules`, made now, before any start. */
   static records(scope: Scope.Handle, exts: readonly Capsule.Binding[]): Map<object, ExtRec> {
     const records = new Map<object, ExtRec>();
@@ -7072,7 +7078,7 @@ class Capsules {
     return Capsules.lines.get(root) ?? Capsules.noLines;
   }
 
-  /** Check `unit` and its direct dependencies on first touch in a root (ADR 0120): an exported
+  /** Check `unit` and its direct dependencies on first touch in a root (ADR 0121): an exported
    * unit whose capsule the root does not install raises `CapsuleMissing` before any work. A pass
    * is kept on the unit, so later runs under the same root skip the check. */
   static check<U extends object & { readonly depends?: Scope.Depends }>(layer: Layer, unit: U): U {

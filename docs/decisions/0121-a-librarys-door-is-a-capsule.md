@@ -100,9 +100,14 @@ createScope({
 - `resolve`, `run`, `write`, and `session` stay
   onion middleware, as today.
 
-Behavior change: close hooks ran in install
-order before. Now the last installed closes
-first.
+Behavior changes:
+
+- Close hooks ran in install order before. Now
+  the last installed closes first.
+- A start that skipped `next()` kept the later
+  starts from running. Now every start runs once,
+  so each capsule gets its start value (lead,
+  2026-11-01).
 
 ### 3. What a hook event holds
 
