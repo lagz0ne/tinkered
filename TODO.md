@@ -72,7 +72,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Owner: W1 writer, branch `sunset-start`. The release scripts move on the release branch.
   Proof: on `1008d756`, `vp install`, `vp run -r build`, `vp check`, `vp run prose` exit 0; `vp run -r test` exit 0 on the second run (the first timed out one flight-trial supplier test at 5 s). Logs: `/home/paseo/plans/tinkered-sunset/w1/`.
 
-- **start/join-index** (Start 1) — items join the app by role file names under `src/items/<NN-item>/`; prepare reads only file names and writes `.tinker/app.ts` and `.tinker/app.server.ts`; lists run in numeric folder order, then the user's seam; the user's single names win; two item owners fail prepare and doctor once (ADR 0116). Also fixes the `scripts/ticket.sh` Start size gate: Start has no size task. Helper folders such as `2fa` stay out of item order; a seam with no list no longer fails tsc. Gates green; Start mutation above the 75 floor. Proof: [docs/roadmap/start-base/PROGRESS.md](docs/roadmap/start-base/PROGRESS.md#startjoin-index).
+- **start/join-index** (Start 1) — items join the app by role file names under `src/items/<NN-item>/`; prepare reads only file names and writes `.tinker/app.ts` and `.tinker/app.server.ts`; lists run in numeric folder order, then the user's seam; the user's single names win; two item owners fail prepare and doctor once (ADR 0116). Also fixes the `scripts/ticket.sh` Start size gate: Start has no size task. Helper folders such as `2fa` stay out of item order; a seam with no list no longer fails tsc. Gates green; Start mutation above the 75 floor. Proof: [docs/roadmap/start-base/PROGRESS.md](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROGRESS.md#startjoin-index).
 
 - **core/size-guard-cast-iterable** (Core 55) — for-of targets over a cast iterable now flag in both loop forms (12 plants red on main, green on head); typed controls clean; 244 guard tests, budget 1023/1024 kept; gates green, dist byte-identical, A/B no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-cast-iterable).
 
@@ -104,20 +104,20 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **style/body-steps** — ADR 0111: a body reads as steps; rule 14, `tinker/body-steps`, `curly`. Merged in #4.
   Verify: `vp check` green; each changed file kept its AST; tests green.
 
-- **scaffold/registry-hook-test-trim** — `test:registry-hook` trimmed to the staged checks: case f, the 10/96 pin, old-commit matching and `REGISTRY_HOOK_*` gone; hooks folder made inside the `try`. 13/13 on HEAD; `d333d23f`'s hook fails the format race and delete-only cases. 59 s → 33 s (wall clock, one run). Proof: [PROGRESS](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook-test-trim).
+- **scaffold/registry-hook-test-trim** — `test:registry-hook` trimmed to the staged checks: case f, the 10/96 pin, old-commit matching and `REGISTRY_HOOK_*` gone; hooks folder made inside the `try`. 13/13 on HEAD; `d333d23f`'s hook fails the format race and delete-only cases. 59 s → 33 s (wall clock, one run). Proof: [PROGRESS](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook-test-trim).
   Verify: `test:registry-hook` still fails on `d333d23f`'s two gaps, passes on HEAD, runs faster.
 
 - **core/size-guard-overload-intersection** — the guard joins every iterator overload a zero-argument call can use, every `next()` result, and every `then` and callback overload. The settle budget adds `any` on overflow, and a test pins it. 11 new plants fail on main; all guard tests pass. 15 known false flags, all safe-side. Dist files identical. Build A/B: no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-overload-intersection).
   Verify: the guard never says clean where `for (const …)` gives `any` on the overload probes: S1, void param, tuple rest, async subtype, overloaded callback, `then` overloads, budget overflow. It may flag more. Array-index and async-to-sync fallback reads belong to core/size-guard-iterable-fallbacks.
 
-- **scaffold/registry-hook** — pre-commit checks the staged registry after formatting. Stale staged index (also format race and delete-only input): exit 1 with the repair line. No input touched: skip. `test:registry-hook` 14/14 (landing gate for hook changes). Proof: [docs/roadmap/start-scaffold/PROGRESS.md](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook).
+- **scaffold/registry-hook** — pre-commit checks the staged registry after formatting. Stale staged index (also format race and delete-only input): exit 1 with the repair line. No input touched: skip. `test:registry-hook` 14/14 (landing gate for hook changes). Proof: [docs/roadmap/start-scaffold/PROGRESS.md](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#scaffoldregistry-hook).
   Verify: a commit with a stale staged index fails the hook; a commit that touches no registry input skips it.
 
 - **core/held-resolve-ns-test** (Core 50) — a test pins `resolve(cell, { ns })` in a session hook window. Verify: the test fails with `const chain = layer.ns;` at index.ts:4627 ([4,4,4] vs [3,4,4]). Mutation 86.8%. [Proof](docs/roadmap/core-v1/PROGRESS.md#coreheld-resolve-ns-test).
 
 - **core/closed-read-stale** — a closed layer reads the cells at and above it, never a memo; hook-window `resolve` too. 4 tests fail on `eff48797`; each half of the fix pinned. Mutation 86.8% (kills alone). Timing N=61: no row B slower (taggedres p 0.02). Size 16006 → 16030 B. Slots 338. Jev preflight 402. [Proof](docs/roadmap/core-v1/PROGRESS.md#coreclosed-read-stale).
 
-- **scaffold/registry-drift** — regenerated `registry.json` and `starter.json`, fixing 6 stale copies (`SKILL.md` and `README.md` from `2750f383`, 4 tests from `a450ea18`). `pnpm validate` now runs `test:registry` as lane 21. Proof: [docs/roadmap/start-scaffold/PROGRESS.md](docs/roadmap/start-scaffold/PROGRESS.md).
+- **scaffold/registry-drift** — regenerated `registry.json` and `starter.json`, fixing 6 stale copies (`SKILL.md` and `README.md` from `2750f383`, 4 tests from `a450ea18`). `pnpm validate` now runs `test:registry` as lane 21. Proof: [docs/roadmap/start-scaffold/PROGRESS.md](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **core/size-guard-forof-cost** — `checkForOf` skips the walk unless the target is an object or array literal; `settled` walks one layer at a time, each type id once. Landed 2026-10-11. Haiku writer; Opus review NOT READY once (1 s deadline, PROGRESS overclaim), READY after. 120 guard tests; G90–G91 time out on `6251a860` (main about 22 s); G91 pins the dedupe; the skip changes no answer (parity G72–G91 in both forms). Dist byte-identical; 55 names. Mutation skipped (src unchanged). Jev preflight 402. [Proof](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-forof-cost).
 
@@ -162,7 +162,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **start/mutation-floor** — Start mutation is above the 75 floor; 12 tests pin the sync wheel's survivors.
   Landed 2026-10-10. Reviewer: READY. Full Start lane 4094/4801 = 85.27% kills alone.
   The ~73% figure ran with `build-output.test.mjs` left out; main was already at 85% or more.
-  [Proof](docs/roadmap/start-base/PROGRESS.md#startmutation-floor).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROGRESS.md#startmutation-floor).
 
 - **tools/ticket-pkg-name** — `ticket.sh` now fails on an unknown package name
   (`vp run --fail-if-no-match -F <pkg>`) and on a non-number NN.
@@ -179,18 +179,18 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **start/sync-400** — the sync endpoint answers 400 only for `openSync`'s own input failure.
   Landed 2026-10-10. Proof: a dep's parse failure fails the reply, not a 400; gates green.
-  [Proof](docs/roadmap/start-base/PROGRESS.md#startsync-400).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROGRESS.md#startsync-400).
 
 - **start/mutation-lane-fix** — the Start mutation lane runs again with no `--testFiles` filter.
   `2ac7a388`, landed 2026-10-10. Reviewer: READY. The split rule finds the body chunk by its own full path.
   Mutation: `lib/build-output.mjs` 81.48%; changed lines 5 of 5 killed. Nit: `join()` path, no Windows match.
-  [Proof](docs/roadmap/start-base/PROGRESS.md#startmutation-lane-fix).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROGRESS.md#startmutation-lane-fix).
 
 - **start/sync-push-revocations** — sign-out reaches open streams as a notice (ADR 0110).
   `84cd02ea`..`2d00fcb8`, landed 2026-10-10. Review round 2: one fix (registry ships the drop_session_wake migration).
   A save makes no account read (fails on main); sync1k 379.3 → 15.5 ms per save, b is faster.
   Start mutation 72.6% on a filtered lane; changed lines 93.9%. Full lane 85.27%: see start/mutation-floor.
-  [Proof](docs/roadmap/start-base/PROGRESS.md#startsync-push-revocations).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROGRESS.md#startsync-push-revocations).
 
 - **scaffold/checker-reflect-bind** — the lazy-modules checker catches `Reflect.apply` and bound `scope.run` names.
   `c2423e12`, landed 2026-10-10. Reviewer: READY.
@@ -234,23 +234,23 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   `includeDependenciesRecursively: true`: the body and Start chunks no longer import each other.
   `vp run @tinker-start-scaffold#check` exits 0 on main again; the new test fails on the old setting.
   Owned chunks stay at most 255 slots; `pnpm validate` exit 0, but it does not check Start chunks.
-  [Proof](docs/roadmap/start-base/PROGRESS.md#startbuild-chunk-cycle).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROGRESS.md#startbuild-chunk-cycle).
 
 - **scaffold/proof-app-imports** — drop unused imports in the proof copy; landed 2026-10-09 as `e84ee76c`.
   Main's three `TS6133` errors are gone; the full app check exits 0 with `start/build-chunk-cycle`.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldproof-app-imports).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#scaffoldproof-app-imports).
 
 - **scaffold/lazy-modules** — the scaffold follows ADR 0107; landed 2026-10-09.
   Units drop every `import()`; 8 backend lazy modules and 1 frontend; Drizzle helpers from `drizzleOrm`.
   `vp run lazy` proves 125 plants, then checks the base and the app; stored rows use `safeParse` and managed errors.
   Reviewer READY at `93fc5e90` (Opus `b1891d6c`); no app mutation lane.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#scaffoldlazy-modules).
 
 - **start/lazy-modules** — the base and the checker for ADR 0107; landed 2026-10-09.
   `scripts/check-lazy-modules.mjs` checks rules 7–10; `--prove` 90 cases; `vp run lazy` covers `packages/start/src`.
   The base takes Drizzle and TanStack from lazy modules; `drizzleOrm` is public; the sync endpoint passes `rawInput`.
   Reviewer READY at `cbbd2834` (Opus `8b68d523`); start mutation 83.42% at `c8d51075` (floor 75).
-  [Proof](docs/roadmap/start-base/PROGRESS.md#startlazy-modules).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROGRESS.md#startlazy-modules).
 
 - **perf/rules-lanes, five lanes and Core batch A** — landed 2026-10-08/09.
   Scaffold: sign-up, reset, and profile save answer before mail sends (3 tests fail on main).
@@ -316,20 +316,20 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Owner: lead (Claude, Start scaffold session); Sol writer.
   `node scripts/release.mjs <v> --dry` packs the three tarballs and the registry with release URLs; it has no publish mode.
   `tinker upgrade <v>` writes the three URLs; it stops on edited base bytes.
-  Proof: a local stand-in for GitHub; empty folder to `GET /` 200. Steps: `docs/roadmap/start-base/RELEASE.md`.
+  Proof: a local stand-in for GitHub; empty folder to `GET /` 200. Steps: [RELEASE.md](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/RELEASE.md).
 
 - **trial/base-image** — the Flight trial image installs packed Start, Core, and React; the gate runs `tinker doctor`.
   Owner: lead (Claude, Start scaffold session); Sol writer.
   Image `tinker-writer-flight:20261007.base.1` (keeper and tar saved; old images kept).
   Doctor check 2 replaces the scaffold hashes; a planted base edit is named and blocked.
   Round 1 on the fixed reference: `machine-pass`, three browser cases; no model writer ran.
-  [Proof](docs/roadmap/start-base/proof/19-trial-base-image.txt).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/proof/19-trial-base-image.txt).
 
 - **start/shadcn-registry** — one `shadcn add <registry>/app.json` turns an empty folder into an app on the base.
   Owner: lead (Claude, Start scaffold session); Sol writer.
   10 items, 142 files built from source; `app` written once; examples by `shadcn add --diff`; base by `tinker upgrade`.
   Proof (local registry at 127.0.0.1; nothing published): empty folder to `GET /` 200; every example builds and passes doctor.
-  [PROOF section V](docs/roadmap/start-base/PROOF.md). Publishing waits for the user's go and a domain.
+  [PROOF section V](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROOF.md). Publishing waits for the user's go and a domain.
 
 - **start/scaffold-on-base** — `apps/start-scaffold` runs on the base: `tinker({ auth: true, sync: true })`.
   Owner: lead (Claude, Start scaffold session); Sol writers. Landed in two steps on main.
@@ -337,14 +337,14 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Step 2 (this landing): seam and boundary checks moved into doctor 5, 6, 10; eight named app checks;
   one command runs them all: `vp run @tinker-start-scaffold#check`.
   Registry: 9 items, 77 files; the runtime item installs `@tinker/start`; nothing published.
-  Tests 1,840; mutation 87.30 on kills. Proof: [PROOF sections T and U](docs/roadmap/start-base/PROOF.md).
+  Tests 1,840; mutation 87.30 on kills. Proof: [PROOF sections T and U](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROOF.md).
 
 - **start/base-parts** — telemetry, auth, and sync are base parts, each set in `tinker({ ... })` (ADR 0106).
   Owner: lead (Claude, Start scaffold session); Opus writer. Landed in four steps on main.
   telemetry (on by default) a7b2d685; auth 3af9018b; sync server 5cc843fb; sync client (this landing).
   Each part mounts its routes only while on; doctor names a missing seam name or a refused env key.
   Tests 358; 18 of 18 new breaks caught (full run at 3a: 198 of 198); mutation 87.36 on kills alone.
-  Proof: [PROOF sections P to S](docs/roadmap/start-base/PROOF.md#p-the-telemetry-part-030).
+  Proof: [PROOF sections P to S](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROOF.md#p-the-telemetry-part-030).
   Floor for `@tinker/start` is now 75 (user 2026-10-06).
 
 - **start/base-package** — `@tinker/start` in `packages/start`, the smallest app in `apps/start-min` (ADR 0106).
@@ -352,7 +352,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   `poc/` is gone, history kept. `doctor` reads `extends` as tsc does: `.json` added, chains followed.
   Tests 23 files, 171; 148 of 148 planted breaks caught; mutation 88.21 (88.07 on kills alone).
   `apps/start-min` builds, serves `/`, `/api/health`, `/tinker`; doctor passes.
-  [Proof](docs/roadmap/start-base/PROOF.md#0-the-package).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROOF.md#0-the-package).
 
 - **start/base** — the Start base is a package, glued by one plugin (ADR 0106, accepted).
   Owner: lead (Claude, Start scaffold session); Opus designer, four Opus stress agents, Opus writer and review.
@@ -360,7 +360,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Stress test: 84 checks, 46 → 79 work, 0 need a change, 5 not supported (listed in the ADR).
   Every known mistake fails the build or `tinker doctor` names file and line; 11 checks.
   Tests: 129 plain unit tests of the glue and scope seams, no wrappers; 140 of 140 planted breaks caught.
-  [Proof](docs/roadmap/start-base/PROOF.md).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-base/PROOF.md).
 
 - **core/extension-slot** — the trial shares its HTTP stack as a session resource; Core unchanged (ADR 0105).
   Owner: lead (Claude, Start scaffold session); Opus designer, Sol writer, Opus review (one fix round).
@@ -441,7 +441,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   A closing abort is `HttpRequestFailed`; a caller cancel stays `cancelled`.
   `backendStop` and `requestStop` stay, each covered by a test; 27 HTTP tests.
   ADR 0102 notes the refinement; the core-feedback rows are closed.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#http-closing-starthttp-closing).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#http-closing-starthttp-closing).
 
 - **trial/round-lessons** — clearer notices, smaller writer rules, fixed skill import path.
   Owner: lead (Claude, Start scaffold session); Sol writer, Opus review (one fix round).
@@ -635,7 +635,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Proof: waste tests fail on old code and pass now; 35 app tests;
   a clean shadcn project installs, builds, and passes 35 tests from tarballs;
   compose sign-up, saved todo, and Mailpit mail pass; validate passes.
-  [Proof](docs/roadmap/start-scaffold/REFINE-PROOF.md).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/REFINE-PROOF.md).
 
 - **start/seam** — the fixed scaffold reaches user code only through two seams.
   Owner: lead (Claude, Start scaffold session); Sol writer; Opus reviewer READY at `2bc502be`.
@@ -646,7 +646,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   `test:schema` fails on the old duplicate tables and passes now.
   Two-tab browser sync, sign-out, SSE, and telemetry pass; 0 page errors.
   Open: deep `lib` aliases and the mail assumption in setup.
-  [Proof](docs/roadmap/start-scaffold/SEAM-PROOF.md).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/SEAM-PROOF.md).
 
 - **start/primitive-registry** — keep the four-form Start registry.
   Owner: lead (Codex, Start scaffold session); Sol source-registry writer.
@@ -654,7 +654,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Three items copy 82 exact files, including portable authoring rules.
   New code outside the four forms must give a TSDoc reason.
   All 14 old catalog addresses return 404; kept payloads match source.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#keep-the-plain-start-registry).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#keep-the-plain-start-registry).
 
 - **start/owned-source** — copied integrations, native SSE, and Victoria storage.
   Owner: lead (Codex, Start scaffold session); Astra SSE writer;
@@ -664,7 +664,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Browser sync, stored traces/logs from all three sides, and idle SSE shutdown pass.
   Only Core and React libraries remain; old app and nine dependent examples are removed.
   Source files and 95 integration/tool test files stay owned and runnable.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#observed-main-proof).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#observed-main-proof).
 
 - **start/public-private-sync** — public and private pages use one sync and mutation model.
   Owner: lead (Codex, Start scaffold session); Astra writer.
@@ -675,7 +675,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Installed consumer build/types and exact highlighted source preview pass.
   Only two approved proof-preset census exceptions; all other strict rows are zero.
   OTEL export, live network services, and full live graph inspection are outside this proof.
-  [Proof](docs/roadmap/start-scaffold/PROGRESS.md#public-and-private-sync-proof).
+  [Proof](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#public-and-private-sync-proof).
 
 - **start/sync-result-design** — one update path and results for the required work.
   Owner: lead (Codex, Start scaffold session).
@@ -683,7 +683,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Prose has 0 hits in 176 tracked docs and all five touched docs.
   Three track docs have no wide rows or code lines; diff check passes.
   Design only; runtime seam and browser proof remain pending.
-  [Track](docs/roadmap/start-scaffold/PROGRESS.md#shared-state-and-execution-results).
+  [Track](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md#shared-state-and-execution-results).
 
 - **authoring/state-exit-proof** — ask state-owned work to stop; ignore late replies.
   Owner: lead (Codex, UI state model session).
@@ -700,7 +700,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   all 32 test tasks pass, including eleven app tests; census and TSDoc pass.
   Failure text, retry, Core span, browser Pino, and exact source tabs pass.
   The error reader returns a string; ctx has no type annotation.
-  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+  [Track](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **start/lazy-libraries** — load service libraries only when their unit runs.
   Owner: lead (Codex, Start scaffold session); Astra writer.
@@ -710,7 +710,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   eleven app tests; native middleware, import guard, census, and TSDoc pass.
   Browser Pino, saving and retry, private lists, account switch, and reload pass.
   Seven exact source tabs and the linked graph pass on a phone.
-  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+  [Track](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **start/database-userland** — show the app-owned database resource.
   Owner: lead (Codex, Start scaffold session).
@@ -718,7 +718,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   The database box links to its source; its arrow is bound to backend actions.
   Existing box positions and links are kept; prose and authored census pass.
   The preview reveals existing code; no app TypeScript changed.
-  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+  [Track](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **start/input-states** — inferred todo input and named flow states.
   Owner: lead (Codex, Start scaffold session); Astra writer.
@@ -729,7 +729,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Private account CRUD, account switch, and six exact source tabs pass.
   The write infers input from its reader and takes the owner from a resource.
   The browser flow is one idle, saving, or failed Core data object.
-  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+  [Track](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **start/input-user** — Core input reads and a current-user resource.
   Owner: lead (Codex, Start scaffold session); Astra writer.
@@ -739,7 +739,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   all 32 package test tasks pass one at a time, including eleven app tests;
   middleware, import guard, TSDoc, census, and prose pass;
   phone CRUD, account switch, input retry, and six source tabs pass.
-  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+  [Track](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **start/todos** — one private todo list per account.
   Owner: lead (Codex, Start scaffold session); Astra writer.
@@ -749,7 +749,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   native middleware, import guard, TSDoc, strict census, and prose pass;
   phone CRUD, reload, account switch, and blank-title retry pass.
   The code preview shows six highlighted feature files and the editable graph.
-  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+  [Track](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **start/poc** — native Start scope bridge and runnable Core/React proof.
   Owner: lead (Codex, Start scaffold session); Astra writer.
@@ -760,7 +760,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   phone auth/save/spans pass; prose, TSDoc, and strict census pass.
   The source preview embeds the editable graph and highlights one file at a time.
   Native live inspection and cross-side trace work remain open.
-  [Track](docs/roadmap/start-scaffold/PROGRESS.md).
+  [Track](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/PROGRESS.md).
 
 - **stack/t16 generator** — `vp create stack-app` (`@tinker/create-app`, registered in the root `vite.config.ts`) writes a full app into `apps/<name>` on `workspace:*`: server, migrate step and first migration, static store, a synced cell, live updates over NATS, a job and a cron row, mail with a React Email template, auth (sign-up, sign-in, verify, reset), a server-rendered list page, the trace sink, and the dev host; settings read at the root with a `.env.example`; each piece one row. Its tests generate an app in a temp place, then build, check, and test it (28 starter tests, a real browser test) and remove it. Proof: gate EXIT 0 (generator 12, tracker 128; 0 errors, 28 warnings), changed-file mutation 87.27% (48/0/7), validate 56/56. Lead review. Sol writer 04639f26. [track](docs/roadmap/stack-v1/PROGRESS.md).
 

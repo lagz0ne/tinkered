@@ -46,7 +46,7 @@ React's `useSpans` also returns a snapshot without subscribing.
 Live graph and active-work facts need a native Core surface.
 The app adds no helper that guesses those missing facts.
 Proof: `/tmp/tinkered-start-native-inspection-gap.log`.
-[Design](start-scaffold/DESIGN.md#observation-and-devtool).
+[Design](https://github.com/lagz0ne/tinkered/blob/start-archive/docs/roadmap/start-scaffold/DESIGN.md#observation-and-devtool).
 
 ## React namespace reset — 2026-09-30
 
