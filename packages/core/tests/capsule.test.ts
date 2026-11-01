@@ -1483,6 +1483,43 @@ test("S1j every session hook runs on a session a hook opened, as on a createSess
   await scope.close();
 });
 
+test("S1k two requests at the same tick each open a session from their run hook; each sees only its own request's tags", async () => {
+  const zone = tag<string>({ label: "zone" });
+  const readZone = operation({ label: "read.zone", depends: { zone }, run: ({ zone }) => zone });
+  const gate = deferred();
+  const request = operation({ label: "request", run: () => gate.promise });
+  const opened: core.Scope.Handle[] = [];
+  const zones: unknown[] = [];
+  const probe = capsule({
+    label: "probe",
+    hooks: {
+      run: ({ op, next, session }) => {
+        if (op !== request) return next();
+
+        const own = session({}, handler);
+        opened.push(own);
+        zones.push(own.run(readZone));
+        return next();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [probe()] });
+  await scope.ready;
+  const a = scope.createSession({ tags: [zone("A")] });
+  const b = scope.createSession({ tags: [zone("B")] });
+
+  const running = Promise.all([a.run(request), b.run(request)]);
+  gate.resolve();
+  await running;
+  await a.close();
+
+  expect(zones).toEqual(["A", "B"]);
+  const error = caught(() => opened[0]?.run(readZone));
+  if (!isError(error, "Disposed")) throw error;
+  expect(opened[1]?.run(readZone)).toBe("B");
+  await scope.close();
+});
+
 test("S2b a left-out defaulted key reads its default in a hook and in a unit", async () => {
   const readFrom = operation({
     label: "mail.readFrom",
