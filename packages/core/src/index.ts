@@ -7076,10 +7076,15 @@ class Capsules {
    * unit whose capsule the root does not install raises `CapsuleMissing` before any work. A pass
    * is kept on the unit, so later runs under the same root skip the check. */
   static check<U extends object & { readonly depends?: Scope.Depends }>(layer: Layer, unit: U): U {
-    const routes = layer.exts;
-    if ((unit as Exported).passed === routes) return unit;
+    return (unit as Exported).passed === layer.exts ? unit : Capsules.first(layer, unit);
+  }
 
+  /** The check on a unit's first touch under a root: {@link check} stays small enough to inline
+   * on the run path, and only a first touch pays for this walk. */
+  static first<U extends object & { readonly depends?: Scope.Depends }>(layer: Layer, unit: U): U {
+    const routes = layer.exts;
     Capsules.need(routes, unit);
+
     const depends = unit.depends;
     if (depends !== undefined) {
       for (const key of Object.keys(depends)) {
