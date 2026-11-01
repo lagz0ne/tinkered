@@ -76,24 +76,20 @@
 
 ## Frames and calls
 
-- **frame** — An earlier pre-wired graph of tags, resources, and operations with slots the user fills (ADR 0035). The HTTP frame is retired; the Start scaffold declares its three HTTP units (ADR 0102).
+- **frame** — An earlier pre-wired graph of tags, resources, and operations with slots the user fills (ADR 0035). The HTTP frame is retired; a service declares its three HTTP units (ADR 0102).
 - **slot** — Retired HTTP frame placeholder for tag bindings, request and reply readers, or retry (ADR 0102).
 - **resolve / controller / run** — The three scope verbs (ADR 0036): `resolve(x)` reads the snapshot in dependency form (data value, built resource, tag value); `controller(x)` gives back control (data get/set/update/watch, resource resolve/get, operation run); `run(op, call?)` runs an operation now. `run({ depends?, run }, { input?, tags? }?)` runs an **inline operation**: same path, span, ctx, and cancel; no identity so no preset (ADR 0037).
 - **tagged call** — `run(x, { tags })` on a declared or inline operation, or on a subflow: sugar for `session({ tags }, (s) => s.run(x, …))` — a child session for that run. Its subflows and its session-target resources see the tags; scope-target resources never do; a session-target resource is per flow (ADR 0038). One that ended in place returns its value, not a promise (ADR 0072).
 
-## Copied HTTP client (Start scaffold, ADR 0102)
+## Copied HTTP client (ADR 0102)
 
-- **`httpBackend`** — The tag in `src/scaffold/http-backend.ts` with label `http.backend`.
+- **`httpBackend`** — The tag in `tools/flight-trial/services/http-client.ts` with label `http.backend`.
   Its value has the built-in fetch signature; its default calls fetch.
-- **`http`** — The session-target HTTP resource in `src/scaffold/backend/http.ts`.
-  It sends through the backend and joins caller, cleanup, closing, and bound stop signals.
+- **`http`** — The HTTP resource in the same file.
+  It sends through the backend and joins the caller's and the closing signals.
 - **`httpRequest` / request operation** — One outgoing HTTP call with checked, branded input.
   It returns status, headers, and body text.
   With observation on, its `http.request` span holds the `http <METHOD> <path>` child span.
-- **`backendStop`** — The original backend stop signal tag, labelled `lifetime.backendStop`.
-  It ends HTTP waits before Core joins work during graceful shutdown.
-- **`requestStop`** — The original native request signal tag, labelled `lifetime.requestStop`.
-  It ends that request's HTTP waits when the signal aborts.
 
 The earlier `@tinker/http` backend, config tag, client resource,
 endpoint operation, response source, and retry terms are retired here.
@@ -429,7 +425,7 @@ New sections are lists, one term per item (vertical layout,
 - **state resource** — A resource whose live instance marks one active UI state.
 - **state-owned work** — Work tied to one live state resource instance.
 
-## Start execution results
+## Execution results
 
 - **execution ID** — The ID of one change request, shared by its change and result events.
 - **completion goal** — The work an operation requires before it can report complete.
@@ -449,42 +445,11 @@ New sections are lists, one term per item (vertical layout,
 
 - **plain function** — A function that is not a tag, data, resource, operation, or extension.
 - **plain-function list** — The checked list of allowed plain functions, with params and call sites; it only shrinks.
-- **protocol layer** — The framework code at a service's edge: a Hono handler or Start route.
+- **protocol layer** — The framework code at a service's edge: a Hono handler or a framework route.
   It owns route, params, headers, and wire body in; status, headers, and wire body out.
   Feature operations take plain params and return values or raise managed errors (ADR 0101, 0103).
-- **mounted auth handler** — The scaffold's `handleAuth` operation that calls better-auth's Request/Response API.
-  Only the auth route and proof tests use this named protocol exception (ADR 0103).
 - **entry point** — The one file that creates a root scope and owns its stop signal and exit (ADR 0100).
-
-## Start base (ADR 0106)
-
-- **base** — The fixed Start setup: entries, the Start bridge, HTTP, telemetry, sync, and the auth mount.
-  It ships as the package `@tinker/start` (`packages/start`) and is never edited in an app.
-  Code names still avoid the layer word `Base`.
-- **smallest app** — `apps/start-min`: two files in `src/` and the two glue lines.
-  The base's proof builds, serves, and doctors it.
-- **userland** — The app's own files: `src/`, `tests/`, `drizzle/`, and its config.
-  The base never writes them.
-- **glue** — The two config lines that join an app to the base:
-  `tinker()` in `vite.config.ts` and `extends` in `tsconfig.json`.
-- **generated folder** — `.tinker/`: files that `tinker prepare` writes from the base and the plugin options.
-  It is gitignored and never edited.
-- **base part** — An opt-in slice of the base, set in `tinker({ ... })`: `telemetry`, `auth`, or `sync`.
-- **seam file** — `src/lib/tinker.ts` or `src/lib/tinker.server.ts`.
-  The app files that hand the base its extensions, through `#tinker/app` and `#tinker/app.server`.
-- **named file** — An app file the glue picks up by path, in place of the base's default.
-  The list is `src/router.ts`, `src/start.ts`, `src/server.ts`, `src/routes/__root.tsx`, and `src/style.css`.
-  No other base file can be replaced; Start's other usual files fail the build.
-- **doctor** — `tinker doctor`: ten checks of the base, glue, named files, imports, routes, style, and env.
-  Each finding names a file and a line. `--fix` repairs only base-owned and generated files.
-- **build-start check** — A doctor check that `tinker()` runs when `vp build` starts.
-  A fail stops the build with doctor's own `file:line` message.
-- **app template** — The registry item that writes a new app once, from an empty folder.
-  It is userland from then on and is never re-applied.
-- **example** — Opt-in feature files a registry item copies into an app, such as todos.
-  The app owns them; `shadcn add <item> --diff` shows a newer version.
-- **upgrade** — `tinker upgrade <version>`: swap the base package, rewrite `.tinker/`, run doctor.
-  It never merges and never writes `src/`.
+- **userland** — The app's own files: `src/`, `tests/`, and its config.
 
 ## Fast code
 
