@@ -21,7 +21,7 @@
 - **exporter** — An extension (`onStart`/`onEnd`) that consumes spans; its failures are isolated and never fail application work.
 - **behavior-neutral** — Observation never changes results or value identity; the core wraps no user value. Deep client tracing lives in adapters.
 - **tag** — A typed key for static configuration, with a fixed value per binding.
-- **config key** — One tag an extension declares as its `config`: the library reads it, the command fills it in one call (ADR 0120). Required when the tag has no default.
+- **config key** — One tag a capsule declares as its `config`: the library reads it, the command fills it in one call (ADR 0120, 0121). Required when the tag has no default.
 - **list key** — A config key declared as `tag.all`: the call takes a list, and every item is one binding. Reads last first.
 - **slot key** — A config key whose tag holds a unit (a resource or operation handle), so the app picks the unit the library uses.
 - **data** — A mutable value cell that callers can read, watch, and write.
@@ -162,9 +162,19 @@ The copied client has no frame, config tag, or retry.
 - **protocol** — `Sync.Message`: `register` (client to source) and `snapshot` (source to client). Fixed; any transport carries it.
 - **version** — A per-key integer the source bumps on each change; rides on every snapshot.
 
-## Extensions (core, ADR 0050)
+## Capsules (core, ADR 0121)
 
-- **extension** — Scope hooks that use namespace tags to choose and control instance state.
+- **library** — One folder in `tinker/components/`: a graph of units behind one capsule.
+- **capsule** — A library's door, made with `capsule({ label, config?, exports?, hooks? })`: its config keys, its six hooks, and the units it exports. Replaces the extension.
+- **handle** (of a capsule) — What `capsule()` returns: a binding itself, and a function that fills the config. Each export sits on it: `mail.enqueue`.
+- **binding** — What a call of the handle returns, `mail({ smtpUrl })`; what `createScope({ capsules })` installs. Its exports are the same objects as the handle's.
+- **record** — `scope.capsules`: one line per installed binding, in install order, with its `config` (a secret shows `"[hidden]"`), its `exports`, and the units it `loaded`. Live at any moment.
+- **meta** — `{ role, explain }` on a hook's `load`, `run`, or `settle`: what devtools show. `role` is `setup`, `worker`, `handler`, or `state`.
+- **CapsuleMissing** — The error a scope raises when it first touches an exported unit whose capsule it does not install, before any work.
+
+## Extensions (core, ADR 0050; replaced by capsules, ADR 0121)
+
+- **extension** — Replaced by **capsule** (ADR 0121). Was: scope hooks that use namespace tags to choose and control instance state.
 - **hook chain** — The per-verb onion built once at creation from the extensions that declare that hook; registration order, first is outermost; a verb with no middleware keeps its direct call (pays nothing).
 - **ready** — `scope.ready`: a promise settled when every `start` chain settled; a rejected start force-closes the scope through its `close` (every close hook runs) and rejects `ready` only after that close ended (ADR 0085). No extensions → already resolved.
 - **closed** — `scope.closed` on a root made with a stop `signal`: core's one close `Result`, once that close ended; settles once, never rejects, pending while open (ADR 0085).

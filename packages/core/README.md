@@ -141,17 +141,46 @@ function exitCode(end: Scope.Result): number {
 }
 ```
 
-## Extensions
+## Capsules
 
-An extension is middleware over the scope's verbs (ADR 0050).
-Declare its callbacks under `hooks` and install it with `createScope({ extensions })`.
-Wait with `await scope.ready`, then read its value with `scope.resolve(ext)`.
+A capsule is a library's door (ADR 0121).
+It holds the library's config, its hooks, and the units it exports.
+Make one with `capsule()` and install it with `createScope({ capsules })`.
+Wait with `await scope.ready`, then read its start value with `scope.resolve(mail)`.
 A library that reads tags declares them as its `config` ([Config](#config)).
+
+```ts
+import { capsule, createScope } from "@tinker/core";
+
+export const mail = capsule({
+  label: "mail",
+  config: { smtpUrl, from },
+  exports: { enqueue, send },
+  hooks: {
+    start: async ({ run }) => {
+      await run(migrate, {}, {
+        role: "setup",
+        explain: "Brings the outbox up to date",
+      });
+    },
+  },
+});
+
+const scope = createScope({
+  capsules: [mail({ smtpUrl: url, from: "ops@example.com" })],
+});
+await scope.ready;
+scope.run(mail.enqueue, { input: message });
+await scope.close({ graceful: true });
+```
+
+A capsule with no required key is called with nothing: `health()`.
+It also installs uncalled: `capsules: [health]`.
 
 Start has a 10 000 ms limit on the scope clock (ADR 0119).
 Set `createScope({ startTimeout: 5_000 })` to change it.
 A hanging start rejects `ready` with `StartTimeout`.
-Its payload holds the extension's `label`.
+Its payload holds the capsule's `label`.
 Core closes the scope and runs cleanup before `ready` rejects.
 The label names the innermost start still waiting.
 A settled start cancels the timer.
@@ -161,42 +190,48 @@ Negative limits and `NaN` raise `BadStartTimeout`.
 Finite limits are capped at 2 147 483 647 ms.
 A clock sleep throw or rejection leaves startup waiting without a timeout.
 
-```ts
-import { createScope, extension } from "@tinker/core";
-
-const events = extension({
-  label: "events",
-  hooks: {
-    start: (event) => {
-      event.defer((end) => {
-        console.log("closed:", end.status);
-      });
-      return event.next().then(() => ({
-        connect: () => true,
-      }));
-    },
-    close: (event) => event.next(),
-  },
-});
-
-const scope = createScope({ extensions: [events] });
-await scope.ready;
-scope.resolve(events).connect();
-await scope.close({ graceful: true });
-```
+### Hooks
 
 Each hook takes one event object.
 `event.kind` names the hook and narrows its fields.
 Common access is built on first use.
 Reading `op`, `call`, `ns`, or `next` does not build that access.
 
+- `start`: `next()`; returns the start value. Every start runs once, in `capsules` order.
+- `run`: `op`, the original `call`, `next()`.
+- `write`: `cell`, `value`, `next()`.
+- `resolve`: `target`, `next()`.
+- `close`: `options`, `next()` returns the close result. Close hooks run in reverse order.
+- `session`: `handle`, `next()` returns the session result.
+
+`resolve`, `run`, `write`, and `session` are onion middleware: install order, first is outermost.
+A `start` that skips `next()` still lets the next start run once it returns.
+A `close` that skips `next()` cannot skip cleanup (ADR 0085).
+
+### What a hook reaches
+
+Every event has `config`, `load`, `run`, and `settle`.
+None has `resolve`, `controller`, or `scope`.
+
+- `config`: the config values, read once after the binding, with defaults filled.
+- `load(unit, meta)`: a resource answers a promise of its value; a cell answers its controller.
+- `run(op, options, meta)`: what `scope.run` answers, as a promise. No controller is made.
+- `settle(op, options, meta)`: what `scope.settle` answers, as a promise.
+
+The meta is what devtools show: `{ role, explain }`.
+`role` is `setup`, `worker`, `handler`, or `state`.
+Call options (`input`, `rawInput`, `signal`, `ns`, `tags`) go on the run, never in the meta.
+
 ```ts
 const active = data({ initial: 0 });
-const audit = extension({
+const audit = capsule({
   label: "audit",
   hooks: {
     run(event) {
-      const count = event.controller(active);
+      const count = event.load(active, {
+        role: "state",
+        explain: "Counts runs in flight",
+      });
       count.update((value) => value + 1);
       event.defer((end) => {
         event.log("finished", { status: end.status });
@@ -207,57 +242,50 @@ const audit = extension({
 });
 ```
 
-- `start`: `scope`, `next()`; returns the start value.
-- `run`: `op`, the original `call`, `next()`.
-- `write`: `cell`, `value`, `next()`.
-- `resolve`: `target`, `next()`.
-- `close`: `scope`, `options`, `next()` returns the close result.
-- `session`: `handle`, `next()` returns the session result.
-
-Every event has `resolve`, `controller`, `run`, and `settle`.
-They use the hook's actual owner and effective `ns` chain.
-They also accept an explicit namespace, as the scope verbs do.
+They use the hook's own owner, effective `ns` chain, trace, signal, and lifetime.
+A controller one request loaded never serves another.
 Run hooks share the run's trace, cancellation, and `defer` cleanup.
 Other hooks defer cleanup to their session; start and close use the root.
 All events also have `closing`, `signal`, `obs`, `log`, `clock`, `random`, and `raise`.
 A namespace chain selects buckets in that owner; it does not find a sibling session.
+A hook reads a tag through a unit that depends on it, or through a config key.
 
-`Scope.ExtensionEvent` is the union of these event shapes.
-`Scope.ExtensionEvents["run"]` names one shape.
+In a `close` hook, `load` reads units already built on the root until `next()` releases them.
+After that, and for a unit never built, it raises `Disposed`.
+
+`Capsule.Events[keyof Capsule.Events]` is the union of these event shapes.
+`Capsule.Events["run"]` names one shape.
 A run hook may refuse raw input before its parser runs.
 
 Graceful close joins hook waits before and after `next()`.
 After a run finishes, a saved `next()` raises `Disposed` and starts no body.
-A waiting hook can still use its saved controllers during graceful close.
+A waiting hook can still use its saved `load` and `run` during graceful close.
 Saved data controllers can read, update, and watch through the run's deferred cleanup.
 Forced close aborts its signal and prevents a late `next()` from starting the body.
-Resource reads through a run event retain the selected instance through hook and run cleanup.
+Resource loads through a run event retain the selected instance through hook and run cleanup.
 A hook that starts `next()` and returns a substitute still owns that body's work.
 That body keeps its span open until it ends; its failure still marks the span.
 Catching a body's panic in its hook does not erase the owner's failure.
-A hook-started action shares the active trace; a dropped failure stays on the owner.
+A hook-started run shares the active trace; a dropped failure stays on the owner.
 `event.settle` receives a child failure without failing the owner.
-
-`settle()` on a saved operation controller returns one Result without throwing.
-It returns `cancelled` when a waiting hook is forced closed.
+A saved `settle` returns `cancelled` when a waiting hook is forced closed.
 It returns `failed` with `Disposed` when called after that hook ends.
+A run in a namespace made with `observe: false` leaves no span and no log line.
 
 A tagged call enters its actual child before run hooks start.
 Its session hook runs before its run hook; each runs once.
 
-Start and close can resolve a root-owned resource to keep state apart across roots.
+Start and close can load a root-owned resource to keep state apart across roots.
 Concurrent and repeated closes join the same close hook once.
 
 Resolve hooks cover direct root `resolve` calls only.
-Session reads, dependency reads, controller reads, and event reads bypass them.
-An event's own reads do not enter the same resolve hook again.
-The start event's `scope.resolve` still enters root resolve hooks.
+Session reads, dependency reads, controller reads, and event loads bypass them.
 
-A `resolve` hook wraps snapshot reads on the root handle (first registered is outermost; skip
-`next()` to short-circuit with a substitute):
+A `resolve` hook wraps snapshot reads on the root handle (skip `next()` to short-circuit with a
+substitute):
 
 ```ts
-const gate = extension({
+const gate = capsule({
   label: "gate",
   hooks: {
     resolve: (event) => (allowed ? event.next() : "denied"),
@@ -265,11 +293,11 @@ const gate = extension({
 });
 ```
 
-A `run` hook wraps every operation call, on the root or in a session (first registered is
-outermost; skip `next()` to refuse a call with a substitute):
+A `run` hook wraps every operation call, on the root or in a session (skip `next()` to refuse a
+call with a substitute):
 
 ```ts
-const audit = extension({
+const audit = capsule({
   label: "audit",
   hooks: {
     run: async (event) => {
@@ -282,16 +310,16 @@ const audit = extension({
 });
 ```
 
-Await `ready` before the first `resolve(ext)`.
+Await `ready` before the first `resolve(capsule)`.
 
-A `start` can read, after `await next()`, only extensions listed after it.
-So list an extension that reads a server before that server: `[serve, server]`.
+A `start` can read, after `await next()`, only capsules listed after it.
+So list a capsule that reads a server before that server: `[serve, server]`.
 
-A `write` hook wraps cell writes at every layer (first registered is outermost; skip `next()`
-to refuse a write, leaving the value and watchers unchanged):
+A `write` hook wraps cell writes at every layer (skip `next()` to refuse a write, leaving the value
+and watchers unchanged):
 
 ```ts
-const even = extension({
+const even = capsule({
   label: "even",
   hooks: {
     write: (event) => {
@@ -315,29 +343,52 @@ An async `run` hook keeps a dropped subflow's rejection on the scope, not the ho
 A root write and a session write each invoke the `write` hook once.
 A write through a `depends: { x: cell.controller }` edge invokes the `write` hook.
 A namespaced write invokes the `write` hook once and stores its value in that namespace.
-Two hooks keep registration order for both runs and writes on child layers.
+Two hooks keep install order for both runs and writes on child layers.
+
+### Exports
+
+Exports are copied onto the handle and every binding, as the same objects (ADR 0057).
+So `mail.enqueue === enqueue`, and `mail({ smtpUrl }).enqueue` is the same unit.
+`label`, `config`, `hooks`, and `exports` are reserved: a type error, and `ReservedExport`.
+
+An export needs its capsule.
+A scope that first touches an exported unit whose capsule it does not install raises
+`CapsuleMissing` with `{ unit, capsule }`, before any work.
+A first touch is a run, a resolve, a `load`, or a `depends` of another unit.
+A later run under the same root does not check again.
+A unit that is not exported fails as before, at its first private tag (`MissingTag`).
+
+A tag export is one the capsule binds per call, such as `http.request`.
+It has no capsule check: an unbound one fails with `MissingTag`.
+
+A span of an exported unit carries `attributes.capsule`.
+A hook's log line carries `attributes.capsule`, the hook's capsule label.
+
+### The record
+
+`scope.capsules` is what the scope knows about each installed capsule, in `capsules` order.
+
+```ts
+scope.capsules[0];
+// { label: "mail",
+//   config: { smtpUrl: "smtp://x", from: "ops@x" },
+//   exports: ["enqueue", "send"],
+//   loaded: [{ unit: "mail.migrate",
+//     role: "setup",
+//     explain: "Brings the outbox up to date" }] }
+```
+
+It exists before the first `start`, and a read shows the state now.
+A unit's first `load`, `run`, or `settle` adds one `loaded` line; a later one keeps the first meta.
+A tag made with `secret: true` shows `"[hidden]"` for its whole value.
+A config value that is a unit shows its label.
+It holds no run status: runs and failures are spans.
 
 ### Config
 
 A library reads tags to learn what it is configured against.
 It declares them once, as its `config` (ADR 0120).
-Calling the extension fills the config and answers the extension a scope installs.
-
-```ts
-const mailStart = extension({
-  label: "mail",
-  config: { smtpUrl, from: mailFrom, timeout: mailTimeout },
-  hooks: {
-    start: (event) => ({ send: (msg) => post(msg) }),
-  },
-});
-
-const scope = createScope({
-  extensions: [
-    mailStart({ smtpUrl: url, from: "ops@example.com" }),
-  ],
-});
-```
+Calling the capsule fills the config and answers the binding a scope installs.
 
 A key is required when its tag has no default.
 Leaving it out is a type error: the error names the key.
@@ -349,7 +400,7 @@ Use `tag.optional` to let the call leave it out.
 Use `tag.all` for a list key: the call takes a list, and each item is one binding.
 
 A filled key binds its tag on the root, before the app's own `tags`.
-So a `tags` entry on the root still wins over the extension's.
+So a `tags` entry on the root still wins over the capsule's.
 A list reads every binding last first, so a list key reads back in the reverse of the call's order.
 
 A slot key holds a unit: a resource or an operation the app chooses.
@@ -362,45 +413,47 @@ const migrateSlot = tag<Operation.Handle<string, void>>({
   label: "sync.migrate",
 });
 
-const syncStart = extension({
+const sync = capsule({
   label: "sync",
   config: { store: storeSlot, migrate: migrateSlot },
   hooks: {
-    start: (event) => {
-      const storeUnit = event.resolve(storeSlot);
-      const migrateUnit = event.resolve(migrateSlot);
+    start: async ({ config, load, run }) => {
+      const store = await load(config.store, {
+        role: "state",
+        explain: "Holds the records",
+      });
+      const ran = await run(config.migrate, {}, {
+        role: "setup",
+        explain: "Migrates the store",
+      });
 
-      return {
-        store: event.resolve(storeUnit),
-        ran: event.run(migrateUnit),
-      };
+      return { store, ran };
     },
   },
 });
 ```
 
-Only an extension hook holds the scope (ADR 0051), so the library resolves the held unit in its
-own start.
-It takes two named steps: read the slot to get the unit, then build or run that unit.
+The library builds the held unit in its own start, through the scope.
 A unit that reads the start value sees the instance the scope built, not a copy.
 So a preset on that unit reaches every reader of it.
 
-Core adds no owner mark. A library's index does not export its config tags, so the app uses the
-library through its extension.
+Core adds no owner mark on config tags. A library's index does not export them, so the app uses
+the library through its capsule.
 
 `createScope` checks the config once, before the root layer exists.
 A required key written as `undefined` raises `MissingConfig` with `{ label, key }`.
-One library installed twice on a root raises `DuplicateExtension` with `{ label }`.
+One library installed twice on a root raises `DuplicateCapsule` with `{ label }`.
 A bad value raises `DataValidationFailed` from the tag's own `parse`, there.
 Resolve, run, and write add no work: the bindings sit on the root like any other tag.
 
-`scope.resolve(mailStart)` and `scope.resolve(mailStart({ ... }))` both read the start value.
+`scope.resolve(sync)` and `scope.resolve(sync({ ... }))` both read the start value.
+A binding in `depends` delivers the same start value.
 
 A test fills config the same way, and swaps a heavy unit with a preset (ADR 0015):
 
 ```ts
 const scope = createScope({
-  extensions: [syncStart({ store: sqlite, migrate })],
+  capsules: [sync({ store: sqlite, migrate })],
   presets: [preset(sqlite, () => fakeStore)],
 });
 ```
@@ -554,7 +607,7 @@ point that actually starts it.
 
 ## Closing signal
 
-Resources read `ctx.closing`; extension hooks read `event.closing`.
+Resources read `ctx.closing`; capsule hooks read `event.closing`.
 It is an `AbortSignal` that fires when the owner begins closing.
 It fires on graceful and forced close, before Core drains running work.
 Its reason keeps the web abort name `AbortError` and code `20`.
@@ -669,7 +722,7 @@ with a narrower value type can be assigned to one with a wider union of value ty
 
 Every list a config takes is a `Many<T>`: one item, nothing (`null`, `undefined`, or `false`),
 or a list of those to any depth. That covers a scope's or session's `tags`, a
-call's `tags`, `presets`, `extensions`, and every driver's rows (`routes`, `tools`, `commands`,
+call's `tags`, `presets`, `capsules`, and every driver's rows (`routes`, `tools`, `commands`,
 `cells`). Core reads it once, flat, in authored order, so optional and grouped items need no
 spread:
 
@@ -683,8 +736,8 @@ scope.run(op, { tags: zone("us") });
 scope.createSession({
   tags: [request(raw), wiring.tags?.(c)],
 });
-/** Extensions and presets take the same list shape. */
-createScope({ extensions: [scope?.extensions, ext] });
+/** Capsules and presets take the same list shape. */
+createScope({ capsules: [base?.capsules, mail()] });
 ```
 
 A call whose `tags` is nothing, or a list that flattens to nothing, is an untagged call: it runs
@@ -706,7 +759,7 @@ One tap is called directly; two or more use a loop.
 A throwing sink does not stop the other sinks.
 
 ```ts
-const telemetry = extension({
+const telemetry = capsule({
   label: "telemetry",
   hooks: {
     start(event) {
@@ -741,7 +794,7 @@ Start events send logs before and after `await event.next()` to the scope's `obs
 They use its clock and level filter, even without span observation.
 The bare call uses `info`; `debug`, `info`, `warn`, and `error` pick a level.
 
-Each line keeps caller attributes and sets `attributes.extension` to the extension's label.
+Each line keeps caller attributes and sets `attributes.capsule` to the capsule's label.
 Start opens no span, so its log lines have `span: undefined`.
 Calling `event.tap` after the start chain settles raises `LateTap`.
 Close events use the same logger.
@@ -840,9 +893,9 @@ The namespace tests also pin these guarantees:
 
 - An ambient `createSession({ ns })` resolves there; a per-call `ns` wins for one run.
 - A named write lands at the current layer's first key and never notifies a default watcher.
-- Named calls keep the real layer lifecycle and extension registry.
+- Named calls keep the real layer lifecycle and capsule registry.
 - A tagged subflow in a named run uses session hooks.
-- Pass-through extensions preserve namespaces for writes and resolves.
+- Pass-through capsules preserve namespaces for writes and resolves.
 - A session-target resource builds once in each namespace and reuses its warm bucket.
 - A resource chain reuses its fallback, then switches to a nearer warm bucket.
 - A sync-failed named bucket is not filled by a sibling chain.
@@ -1127,7 +1180,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A resource `raise` stamps the resource ctx before a run receives it.
 - An escaping operation `raise` adds its own run label only once.
 - An empty ctx `raise` gets its origin from the run it reaches.
-- An extension `raise` stamps the start ctx.
+- A capsule `raise` stamps the start ctx.
 - A failed session close carries its error's origin.
 - A panic caught with `try/catch` still fails its layer, with the panic and its origin.
 - A panic received through `settle` leaves its layer successful.
@@ -1180,7 +1233,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A held controller keeps its last write alive after its root closes, with or without a watcher or an `onClose` hook.
 - A held controller keeps its last write alive after its session closes, fast, under a session hook, or swept by its root.
 - Without a held controller, a closed root frees its last write.
-- A scope with no extensions is ready at once on one shared promise; a session after ready is ready.
+- A scope with no capsules is ready at once on one shared promise; a session after ready is ready.
 - `scope.resolve` reads a cell's current value with no subscription, builds a resource once, and reads a
   tag's nearest binding, default, or throws `MissingTag`.
 - `scope.run` shares the controller path: same lookup, same CallArgs rules, stable controller identity.
@@ -1273,13 +1326,13 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A throwing tap does not stop another tap.
 - A quiet namespace emits no spans or logs from its work and hooks.
 
-- Extension start logs before and after next reach the scope sink without a span.
-- A destructured extension start logger sends every level without span observation.
-- An info threshold drops extension start debug lines before reading the clock.
-- Extension start logging without a sink reads no clock or attributes.
-- A failed extension start delivers the log before its throw.
-- A throwing extension start log sink does not fail ready.
-- An extension close hook logs before and after next with the scope filter and clock.
+- Capsule start logs before and after next reach the scope sink without a span.
+- A destructured capsule start logger sends every level without span observation.
+- An info threshold drops capsule start debug lines before reading the clock.
+- Capsule start logging without a sink reads no clock or attributes.
+- A failed capsule start delivers the log before its throw.
+- A throwing capsule start log sink does not fail ready.
+- A capsule close hook logs before and after next with the scope filter and clock.
 - A destructured operation logger stays the same and sends every level in order.
 - A destructured resource logger stays the same and keeps the level threshold.
 - A resource keeps its observation tools and exports manual events and children.
@@ -1311,16 +1364,18 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An async child span closes as failed when its promise rejects.
 - Sibling spans carry distinct ids in call order.
 
-### Extensions
+### Capsules
 
-- An operation depending on an extension receives the start value after ready; while pending it raises
-  `NotResolved` naming the extension.
-- Resolving an extension that is not installed throws `NotResolved` naming it; `resolve(ext)` reads the
-  extension's own start value, bypassing the resolve chain.
-- `extension({ label, config })` declares the tags a library reads; call it to fill them and get the
-  extension a scope installs (ADR 0120).
+- An operation depending on a capsule receives the start value after ready; while pending it raises
+  `NotResolved` naming the capsule.
+- Resolving a capsule that is not installed throws `NotResolved` naming it; `resolve(capsule)` reads
+  the capsule's own start value, bypassing the resolve chain.
+- `capsule({ label, config })` declares the tags a library reads; call it to fill them and get the
+  binding a scope installs (ADR 0120, 0121).
 - Leaving a required config key out is a type error; a key written as `undefined` raises
-  `MissingConfig { label, key }` at start; one library installed twice raises `DuplicateExtension`.
+  `MissingConfig { label, key }` at start; one library installed twice raises `DuplicateCapsule`.
+- The capsule tests (I1-I5, N1-N3, A01-A23) live in `tests/capsule.test.ts` and
+  `tests/capsule.types.test.ts`.
 - A filled config key binds its tag on the root, and the root's own `tags` win; a `tag.all` key binds
   one tag per item and reads every binding last first.
 - A slot key holds a resource or an operation, which the library resolves through the scope, so a
@@ -1331,7 +1386,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   per cell.
 - Requesting a cell controller after close raises `Disposed`, even when it was cached.
 - A closed scope with session hooks refuses a new session with `Disposed`.
-- A write chain skips an extension with no write hook.
+- A write chain skips a capsule with no write hook.
 - A write chain that skips still refuses when the writer denies.
 - Resource and operation controllers from the extended handle stay plain: reads and runs bypass the write
   chain untouched.
@@ -1348,11 +1403,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A scope with no resolve hooks reads straight through.
 - A session chain is installed only when a hook exists.
 - Three run hooks nest in registration order.
-- Two close hooks nest in registration order.
+- Two close hooks nest in reverse install order.
 - A scope with no close hooks closes straight through.
 - A forced close with a close hook still settles cancelled.
-- A close chain runs past an extension with no close hook.
-- A resolve chain runs past an extension with no resolve hook.
+- A close chain runs past a capsule with no close hook.
+- A resolve chain runs past a capsule with no resolve hook.
 
 ## Trace ids
 
