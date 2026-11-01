@@ -67,6 +67,11 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **repo/start-sunset** — Start leaves main (ADR 0122): `packages/start`, `apps/start-min`, `apps/start-scaffold`, the `tinker` CLI, the registry, their tracks, benches, and the writer trial's Flight suite; the code is in tag `start-archive`; old `start-v*` releases stay.
+  Checks that used a Start app now use a kept one: `vp run lazy` reads the examples and React; F13 builds the playground.
+  Owner: W1 writer, branch `sunset-start`. The release scripts move on the release branch.
+  Proof: on `1008d756`, `vp install`, `vp run -r build`, `vp check`, `vp run prose` exit 0; `vp run -r test` exit 0 on the second run (the first timed out one flight-trial supplier test at 5 s). Logs: `/home/paseo/plans/tinkered-sunset/w1/`.
+
 - **start/join-index** (Start 1) — items join the app by role file names under `src/items/<NN-item>/`; prepare reads only file names and writes `.tinker/app.ts` and `.tinker/app.server.ts`; lists run in numeric folder order, then the user's seam; the user's single names win; two item owners fail prepare and doctor once (ADR 0116). Also fixes the `scripts/ticket.sh` Start size gate: Start has no size task. Helper folders such as `2fa` stay out of item order; a seam with no list no longer fails tsc. Gates green; Start mutation above the 75 floor. Proof: [docs/roadmap/start-base/PROGRESS.md](docs/roadmap/start-base/PROGRESS.md#startjoin-index).
 
 - **core/size-guard-cast-iterable** (Core 55) — for-of targets over a cast iterable now flag in both loop forms (12 plants red on main, green on head); typed controls clean; 244 guard tests, budget 1023/1024 kept; gates green, dist byte-identical, A/B no difference we can see. Proof: [docs/roadmap/core-v1/PROGRESS.md](docs/roadmap/core-v1/PROGRESS.md#coresize-guard-cast-iterable).
