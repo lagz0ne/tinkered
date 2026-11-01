@@ -5804,6 +5804,7 @@ class HookCtx implements Capsule.Ctx {
   declare readonly ns: readonly Namespace[] | undefined;
   declare protected layer: Layer;
   declare private ext: Capsule.Binding;
+  declare private rec: ExtRec | undefined;
   declare private flight: HookRun | undefined;
   declare private loader: Capsule.Load | undefined;
   declare private runner: Capsule.Run | undefined;
@@ -5826,7 +5827,11 @@ class HookCtx implements Capsule.Ctx {
     return this.layer.random;
   }
   get config(): Capsule.ConfigOf<Scope.Config> {
-    return Capsules.recordOf(this.layer, this.ext).config as Capsule.ConfigOf<Scope.Config>;
+    return this.record.config as Capsule.ConfigOf<Scope.Config>;
+  }
+  /** This capsule's record on the root: found once per event. */
+  private get record(): ExtRec {
+    return (this.rec ??= Capsules.recordOf(this.layer, this.ext));
   }
   /** Hook tools can precede input parsing. Only `next()` admits the input; both contexts share
    * the same span and ordered cleanup list once a body starts. */
@@ -5851,12 +5856,12 @@ class HookCtx implements Capsule.Ctx {
     ): unknown => {
       if (isData(unit)) {
         const controller = this.use(() => this.cellControl(unit));
-        Capsules.note(this.layer, this.ext, unit, meta);
+        Capsules.note(this.record, unit, meta);
         return controller;
       }
       try {
         const value = this.use(() => this.readResource(unit));
-        Capsules.note(this.layer, this.ext, unit, meta);
+        Capsules.note(this.record, unit, meta);
         return Promise.resolve(value);
       } catch (error) {
         return Promise.reject(error);
@@ -5920,14 +5925,20 @@ class HookCtx implements Capsule.Ctx {
     call: Scope.Invocation<unknown> | undefined,
     caller: RunState | undefined,
   ): unknown {
-    return this.use(() => {
-      const layer = this.layer;
-      const span = this.flight?.span;
-      if (layer.exts.run === undefined) {
-        return runOnce(layer, op, span, this.ns, caller, false, call);
-      }
-      return runHookCall(layer, op, span, this.ns, caller, op, call);
-    });
+    const flight = this.flight;
+    if (flight === undefined) return this.dispatch(op, call, caller);
+    return withHookAccess(flight, () => this.dispatch(op, call, caller));
+  }
+  /** The run path a controller's `run` takes, for this hook's owner and namespace. */
+  private dispatch(
+    op: Operation.Handle<unknown, unknown>,
+    call: Scope.Invocation<unknown> | undefined,
+    caller: RunState | undefined,
+  ): unknown {
+    const layer = this.layer;
+    const span = this.flight?.span;
+    if (layer.exts.run === undefined) return runOnce(layer, op, span, this.ns, caller, false, call);
+    return runHookCall(layer, op, span, this.ns, caller, op, call);
   }
   get run(): Capsule.Run {
     return (this.runner ??= ((
@@ -5937,7 +5948,7 @@ class HookCtx implements Capsule.Ctx {
     ): Promise<unknown> => {
       try {
         const value = this.invoke(op, call, this.ctx);
-        Capsules.note(this.layer, this.ext, op, meta);
+        Capsules.note(this.record, op, meta);
         return Promise.resolve(value);
       } catch (error) {
         return Promise.reject(error);
@@ -5951,7 +5962,7 @@ class HookCtx implements Capsule.Ctx {
       meta: Capsule.Meta,
     ): Promise<unknown> => {
       const result = settleRun(this.layer, () => this.invoke(op, call, RECOVERED), call.signal);
-      Capsules.note(this.layer, this.ext, op, meta);
+      Capsules.note(this.record, op, meta);
       return Promise.resolve(result);
     }) as Capsule.Settle);
   }
@@ -7043,8 +7054,7 @@ class Capsules {
   }
 
   /** Add a unit's line to its capsule's record on first load; a later load keeps the first meta. */
-  static note(layer: Layer, ext: Capsule.Binding, unit: object, meta: Capsule.Meta): void {
-    const rec = Capsules.recordOf(layer, ext);
+  static note(rec: ExtRec, unit: object, meta: Capsule.Meta): void {
     if (rec.seen.has(unit)) return;
 
     rec.seen.add(unit);

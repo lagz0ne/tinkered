@@ -909,3 +909,29 @@ for (const [kind, make] of [
     await scope.close();
   });
 }
+
+test("I3c a close-hook load once next() is called raises Disposed, while the close still drains", async () => {
+  const gate = deferred();
+  const pool = resource({ label: "db.pool", factory: () => ({ open: true }) });
+  const slow = operation({ label: "slow", depends: { pool }, run: () => gate.promise });
+  const reads: unknown[] = [];
+  const db = capsule({
+    label: "db",
+    hooks: {
+      close: async ({ load, next }) => {
+        const ending = next();
+        reads.push(await load(pool, setup).catch((error: unknown) => error));
+        gate.resolve();
+        return ending;
+      },
+    },
+  });
+  const scope = createScope({ capsules: [db()] });
+  await scope.ready;
+  const running = Promise.resolve(scope.run(slow));
+
+  await scope.close({ graceful: true });
+  await running;
+
+  if (!isError(reads[0], "Disposed")) throw reads[0];
+});
