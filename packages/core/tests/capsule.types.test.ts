@@ -100,6 +100,8 @@ test("A12 an export named label, config, hooks or exports is a type error", () =
     capsule({ label: "tt", exports: { hooks: send } });
     // @ts-expect-error exports is reserved
     capsule({ label: "tt", exports: { exports: send } });
+    // @ts-expect-error tags is reserved
+    capsule({ label: "tt", exports: { tags: send } });
   };
 
   expectTypeOf(declare).toBeFunction();
@@ -134,4 +136,13 @@ test("A21 a tag export types onto the handle as the same tag", () => {
 
   expectTypeOf(http.request).toEqualTypeOf(request);
   expectTypeOf(http().request).toEqualTypeOf(request);
+});
+
+test("A25 a capsule's tags take the shape createScope's tags take", () => {
+  const side = tag<string>({ label: "tt.side" });
+  const tags: Scope.RootOptions["tags"] = [side("server"), null, [side("x")]];
+
+  capsule({ label: "tt.side", tags });
+  // @ts-expect-error a tag binding, not a raw value
+  capsule({ label: "tt.side", tags: ["server"] });
 });

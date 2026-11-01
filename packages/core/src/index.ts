@@ -765,7 +765,7 @@ export declare namespace Capsule {
   };
 
   /** The names an export may not take: the handle's own fields. */
-  export type Reserved = "label" | "config" | "hooks" | "exports";
+  export type Reserved = "label" | "config" | "hooks" | "exports" | "tags";
 
   /** A hook's `run` and `settle` options: those of `scope.run`, where an input-carrying operation
    * must name `input` or `rawInput`. */
@@ -775,11 +775,11 @@ export declare namespace Capsule {
    * `depends` slot of that entry delivers. */
   export type ConfigOf<C extends Scope.Config> = { readonly [K in keyof C]: Scope.SlotValue<C[K]> };
 
-  /** Read a resource's value, or a cell's controller, the way the hook's own context reaches it. */
   /** A `load`'s call options: the namespace to read the unit in, as a run's `ns` (A22). A
    * namespace made with `observe: false` builds the unit with no spans or logs. Never meta. */
   export type LoadOptions = { readonly ns?: Ns };
 
+  /** Read a resource's value, or a cell's controller, the way the hook's own context reaches it. */
   export type Load = {
     <V>(unit: Resource.Handle<V>, meta: Meta, options?: LoadOptions): Promise<Awaited<V>>;
     <V>(unit: Data.Cell<V>, meta: Meta, options?: LoadOptions): Scope.DataController<V>;
@@ -897,11 +897,13 @@ export declare namespace Capsule {
   /** One unit a capsule loaded, with the meta of its first load. A unit shows its label. */
   export type Loaded = { readonly unit: string; readonly role: Role; readonly explain: string };
 
-  /** What a scope knows about one installed capsule. A `secret` tag's value shows `"[hidden]"`;
-   * a unit shows its label. No run status: runs and failures are spans. */
+  /** What a scope knows about one installed capsule. `tags` shows the capsule's fixed tags by
+   * label. A `secret` tag's value shows `"[hidden]"`; a unit shows its label. No run status:
+   * runs and failures are spans. */
   export type Record = {
     readonly label: string;
     readonly config: { readonly [key: string]: unknown };
+    readonly tags: { readonly [label: string]: unknown };
     readonly exports: readonly string[];
     readonly loaded: readonly Loaded[];
   };
@@ -948,6 +950,9 @@ export function capsule<
   def: {
     readonly label: string;
     readonly config?: C;
+    /** Fixed tag bindings the capsule carries, bound on the root at install, before the
+     * command's own `tags` (ADR 0121). The same shape as `createScope({ tags })`. */
+    readonly tags?: Tag.Bindings;
     readonly exports?: E;
     readonly hooks?: Capsule.Hooks<T, C>;
   } & ReservedCheck<E>,
@@ -1414,6 +1419,7 @@ type ExtRec = {
   line: {
     label: string;
     config: Readonly<Record<string, unknown>>;
+    tags: Readonly<Record<string, unknown>>;
     exports: readonly string[];
     loaded: Capsule.Loaded[];
   };
@@ -6957,6 +6963,7 @@ function runWriteHooks<T>(
  * and its exports. Kept off the objects, so an export may take any name not reserved. */
 type Wired = {
   readonly config: Scope.Config | undefined;
+  readonly tags: readonly Tag.Binding<unknown>[];
   readonly values: Readonly<Record<string, unknown>>;
   readonly of: object;
   readonly exports: Capsule.Exports;
@@ -6981,7 +6988,7 @@ class Capsules {
   static readonly installed = new WeakMap<ExtRoutes, Set<object>>();
   /** The hooks of a capsule that declares none. */
   static readonly noHooks: Capsule.Hooks = Object.freeze({});
-  static readonly reserved: readonly string[] = ["label", "config", "hooks", "exports"];
+  static readonly reserved: readonly string[] = ["label", "config", "hooks", "exports", "tags"];
 
   /** Build a capsule's handle (ADR 0121): a binding itself, and a function that fills the config
    * and answers the binding a scope installs. Each export is copied onto both, the same object
@@ -6989,10 +6996,12 @@ class Capsules {
   static handle(def: {
     readonly label: string;
     readonly config?: Scope.Config;
+    readonly tags?: Tag.Bindings;
     readonly exports?: Capsule.Exports;
     readonly hooks?: Capsule.Hooks<unknown, never>;
   }): Capsule.Binding {
     const { label, config } = def;
+    const tags = readMany(def.tags);
     const exports = def.exports ?? NO_VALUES;
     const hooks = (def.hooks ?? Capsules.noHooks) as Capsule.Hooks;
     for (const key of Object.keys(exports)) {
@@ -7001,7 +7010,13 @@ class Capsules {
 
     const fill = (values?: Readonly<Record<string, unknown>>): Capsule.Binding => {
       const binding = { [capsuleSym]: true as const, label, hooks, ...exports };
-      Capsules.wired.set(binding, { config, values: values ?? NO_VALUES, of: fill, exports });
+      Capsules.wired.set(binding, {
+        config,
+        tags,
+        values: values ?? NO_VALUES,
+        of: fill,
+        exports,
+      });
       return binding;
     };
     const handle = Object.assign(fill, {
@@ -7011,7 +7026,7 @@ class Capsules {
       config: config ?? NO_VALUES,
     });
     Capsules.export(handle, exports);
-    Capsules.wired.set(handle, { config, values: NO_VALUES, of: fill, exports });
+    Capsules.wired.set(handle, { config, tags, values: NO_VALUES, of: fill, exports });
     return handle;
   }
 
@@ -7031,7 +7046,7 @@ class Capsules {
   static records(scope: Scope.Handle, exts: readonly Capsule.Binding[]): Map<object, ExtRec> {
     const records = new Map<object, ExtRec>();
     for (const ext of exts) {
-      const { config = NO_VALUES, of, exports } = Capsules.wired.get(ext)!;
+      const { config = NO_VALUES, tags, of, exports } = Capsules.wired.get(ext)!;
       const values: Record<string, unknown> = {};
       const shown: Record<string, unknown> = {};
       for (const key of Object.keys(config)) {
@@ -7040,7 +7055,13 @@ class Capsules {
         shown[key] = Capsules.shown(entry, values[key]);
       }
 
-      const line = { label: ext.label, config: shown, exports: Object.keys(exports), loaded: [] };
+      const line = {
+        label: ext.label,
+        config: shown,
+        tags: Capsules.shownTags(tags),
+        exports: Object.keys(exports),
+        loaded: [],
+      };
       const rec: ExtRec = {
         settled: false,
         value: undefined,
@@ -7052,6 +7073,13 @@ class Capsules {
       records.set(of, rec);
     }
     return records;
+  }
+
+  /** A capsule's fixed tags as the record shows them, by tag label, as config values are. */
+  static shownTags(tags: readonly Tag.Binding<unknown>[]): Readonly<Record<string, unknown>> {
+    const shown: Record<string, unknown> = {};
+    for (const { tag, value } of tags) shown[tag.label] = Capsules.shown(tag, value);
+    return shown;
   }
 
   /** A config value as the record shows it: a secret tag's whole value hidden, a unit by its
@@ -7168,17 +7196,18 @@ function needsConfig(entry: Scope.ConfigEntry): boolean {
   return "kind" in entry ? entry.kind === "required" : !entry.hasDefault;
 }
 
-/** Bind every capsule's filled values on the root, before the root layer is made (ADR 0120). A
- * filled key binds its tag, a list key binds one tag per item, and a missing required key or a
- * second copy of one library raises. Answers undefined when no capsule declares config, so such
- * a scope reads its options exactly as before. */
+/** Bind every capsule's fixed tags and filled values on the root, before the root layer is made
+ * (ADR 0120, 0121). A filled key binds its tag, a list key binds one tag per item, and a missing
+ * required key or a second copy of one library raises. Answers undefined when no capsule declares
+ * config or tags, so such a scope reads its options exactly as before. */
 function bindConfig(exts: readonly Capsule.Binding[]): Tag.Binding<unknown>[] | undefined {
   let out: Tag.Binding<unknown>[] | undefined;
   const bases = new Set<object>();
   for (const ext of exts) {
-    const { config, of, values } = Capsules.wired.get(ext)!;
+    const { config, tags, of, values } = Capsules.wired.get(ext)!;
     if (bases.has(of)) raise("DuplicateCapsule", { label: ext.label });
     bases.add(of);
+    if (tags.length > 0) (out ??= []).push(...tags);
     if (config === undefined) continue;
 
     for (const key of Object.keys(config)) out = bindKey(out, ext, key, config[key], values[key]);

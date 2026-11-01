@@ -702,7 +702,9 @@ test("A19 a hook-only capsule runs its session hook and has an empty record", as
   await scope.session(() => "inside");
 
   expect(seen).toEqual(["session"]);
-  expect(scope.capsules).toEqual([{ label: "router", config: {}, exports: [], loaded: [] }]);
+  expect(scope.capsules).toEqual([
+    { label: "router", config: {}, tags: {}, exports: [], loaded: [] },
+  ]);
   await scope.close();
 });
 
@@ -749,6 +751,7 @@ test("the record exists before start with config and exports, and is live", asyn
     {
       label: "mailer",
       config: { smtpUrl: "smtp://x", from: "noreply@example.com" },
+      tags: {},
       exports: ["send"],
       loaded: [],
     },
@@ -1104,4 +1107,60 @@ test("A24c a quiet load still writes its record line", async () => {
     { unit: "sink.flush", role: "worker", explain: "Waits for a stop" },
   ]);
   await scope.close();
+});
+
+test("A25a a capsule's fixed tags bind on the root, so a unit reads them with nothing from the cmd", async () => {
+  const side = tag<"server" | "browser">({ label: "telemetry.side" });
+  const key = tag<string>({ label: "telemetry.key", secret: true });
+  const readSide = operation({
+    label: "telemetry.readSide",
+    depends: { side },
+    run: ({ side }) => side,
+  });
+  const telemetry = {
+    server: capsule({ label: "telemetry", tags: [side("server"), key("k-123")] }),
+  };
+  const scope = createScope({ capsules: [telemetry.server()] });
+  await scope.ready;
+
+  expect(scope.run(readSide)).toBe("server");
+  expect(scope.capsules[0]?.tags).toEqual({
+    "telemetry.side": "server",
+    "telemetry.key": "[hidden]",
+  });
+  await scope.close();
+});
+
+/** Today's rule for one tag bound twice in one root list (index.test.ts "all returns every
+ * binding nearest-first"): the last binding wins. Capsule tags sit in install order, before the
+ * cmd's own `tags`. */
+test("A25b a tag bound twice follows the root list rule: the later capsule, then the cmd, wins", async () => {
+  const side = tag<string>({ label: "telemetry.side" });
+  const readSide = operation({ label: "read", depends: { side }, run: ({ side }) => side });
+  const readAll = operation({
+    label: "readAll",
+    depends: { all: side.all },
+    run: ({ all }) => all,
+  });
+  const first = capsule({ label: "first", tags: [side("first")] });
+  const second = capsule({ label: "second", tags: [side("second")] });
+
+  const two = createScope({ capsules: [first(), second()] });
+  const withCmd = createScope({ capsules: [first(), second()], tags: [side("cmd")] });
+  await Promise.all([two.ready, withCmd.ready]);
+
+  expect(two.run(readSide)).toBe("second");
+  expect(two.run(readAll)).toEqual(["second", "first"]);
+  expect(withCmd.run(readSide)).toBe("cmd");
+  expect(withCmd.run(readAll)).toEqual(["cmd", "second", "first"]);
+  await Promise.all([two.close(), withCmd.close()]);
+});
+
+test("A25c an export named tags raises ReservedExport", () => {
+  const exports: Capsule.Exports = { tags: send };
+
+  const error = caught(() => capsule({ label: "bad", exports }));
+
+  if (!isError(error, "ReservedExport")) throw error;
+  expect(error.payload).toEqual({ label: "bad", key: "tags" });
 });

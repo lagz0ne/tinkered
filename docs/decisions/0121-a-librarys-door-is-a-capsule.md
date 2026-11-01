@@ -181,7 +181,7 @@ scope.capsules: readonly Capsule.Record[]
 - One line per installed binding, in
   `capsules` order.
 - It exists before the first `start`, with
-  `config` and `exports`.
+  `config`, `tags`, and `exports`.
 - `loaded` gains one line per unit per capsule,
   on its first `load`, `run`, or `settle`. A
   later one keeps the first meta.
@@ -195,8 +195,8 @@ scope.capsules: readonly Capsule.Record[]
 - Exports are copied onto the handle and every
   binding: `mail.enqueue === enqueue`.
 - A reserved name (`label`, `config`, `hooks`,
-  `exports`) is a type error, and `capsule()`
-  raises `ReservedExport { label, key }`.
+  `exports`, `tags`) is a type error, and
+  `capsule()` raises `ReservedExport { label, key }`.
 - A span of an exported unit carries
   `attributes.capsule`. A hook's log line
   carries `attributes.capsule` too (it carried
@@ -246,7 +246,34 @@ requestContext: { scope: app },
   own entry file, so a browser import never
   reaches server code (review X4).
 
-### 12. Errors
+### 12. Fixed tags
+
+```ts
+export const telemetry = {
+  server: capsule({
+    label: "telemetry",
+    tags: [side("server")],
+  }),
+};
+```
+
+- `tags` takes what `createScope({ tags })`
+  takes: fixed bindings the capsule carries.
+- Install binds them on the root, as config
+  keys are bound: in `capsules` order, before
+  the command's own `tags`.
+- A tag bound twice follows today's rule for
+  one tag bound twice in one root list: the
+  last binding wins (Core test "all returns
+  every binding nearest-first"). So a later
+  capsule wins over an earlier one, and the
+  command's `tags` win over every capsule
+  ("a tags binding on the root wins over the
+  capsule's").
+- The record shows them in `tags`, by tag
+  label; a `secret` tag shows `"[hidden]"`.
+
+### 13. Errors
 
 - `MissingConfig { label, key }`.
 - `DuplicateCapsule { label }` (was

@@ -350,7 +350,14 @@ Two hooks keep install order for both runs and writes on child layers.
 
 Exports are copied onto the handle and every binding, as the same objects (ADR 0057).
 So `mail.enqueue === enqueue`, and `mail({ smtpUrl }).enqueue` is the same unit.
-`label`, `config`, `hooks`, and `exports` are reserved: a type error, and `ReservedExport`.
+`label`, `config`, `hooks`, `exports`, and `tags` are reserved: a type error, and `ReservedExport`.
+
+A capsule may carry fixed tags: `capsule({ label, tags: [side("server")] })`.
+They take what `createScope({ tags })` takes and bind on the root at install, before the
+command's own `tags`.
+A tag bound twice follows the root list rule: the last binding wins, so a later capsule wins
+over an earlier one, and the command's `tags` win over every capsule.
+The record shows them in `tags`, by tag label.
 
 An export needs its capsule.
 A scope that first touches an exported unit whose capsule it does not install raises
@@ -373,6 +380,7 @@ A hook's log line carries `attributes.capsule`, the hook's capsule label.
 scope.capsules[0];
 // { label: "mail",
 //   config: { smtpUrl: "smtp://x", from: "ops@x" },
+//   tags: {},
 //   exports: ["enqueue", "send"],
 //   loaded: [{ unit: "mail.migrate",
 //     role: "setup",
