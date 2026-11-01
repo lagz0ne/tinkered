@@ -23,6 +23,8 @@ bun add $R/tinker-core-0.10.1.tgz \
 On Node, with npm:
 
 ```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.10.1
 npm install $R/tinker-core-0.10.1.tgz \
   $R/tinker-react-0.10.1.tgz
 ```

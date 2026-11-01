@@ -16,6 +16,15 @@ for (const name of ["core", "react"]) {
   writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
 }
 
+// The install lines name one release: its tag and both tarball names.
+for (const name of ["core", "react"]) {
+  const file = join(root, "packages", name, "README.md");
+  const text = readFileSync(file, "utf8")
+    .replaceAll(/releases\/download\/v\d+\.\d+\.\d+/g, `releases/download/v${version}`)
+    .replaceAll(/(tinker-(?:core|react))-\d+\.\d+\.\d+\.tgz/g, `$1-${version}.tgz`);
+  writeFileSync(file, text);
+}
+
 const changelog = join(root, "CHANGELOG.md");
 
 if (!existsSync(changelog) || !releaseNotes(readFileSync(changelog, "utf8"), version)) {
