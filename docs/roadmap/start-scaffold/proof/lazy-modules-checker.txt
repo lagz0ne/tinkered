@@ -1,9 +1,0 @@
-scaffold/lazy-modules: checker review proof
-Old checker: 948c9e75; all 10 review plants fail their expected check.
-Command: node scripts/check-lazy-modules.mjs --prove
-Fixed checker: 125 cases pass, EXIT 0.
-Each failure plant matches the exact file, line, and tag.
-Missing bodies in d.ts and d.mts point at probe.ts calls.
-Scope.Inline is found by its Core type, with call and bind covered.
-Components used as call or new arguments count as graph code.
-Both source roots together: EXIT 0; code check: 0 errors, 27 warnings.

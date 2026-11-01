@@ -1,7 +1,0 @@
-scaffold/lazy-modules: stored row reads, review fix
-Before review fix: both changed bad-row tests fail with DataValidationFailed, EXIT 1.
-After fix: all 31 scaffold tests pass, EXIT 0.
-Bad stored events: app BadInput with reason Stored event data is invalid.
-Bad stored results: app RetryNotAvailable.
-Fetched rows use safeParse, check success, and raise no ZodError.
-Operation inputs still pass through Core.
