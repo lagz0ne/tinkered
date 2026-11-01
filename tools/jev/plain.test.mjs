@@ -468,10 +468,20 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
   });
 
   void it("S24 leaves the scaffold's built-in fetch backend alone", () => {
-    const source = readFileSync(
-      new URL("../../packages/start/src/backend/http-backend.ts", import.meta.url),
-      "utf8",
-    );
+    // The Start base's http-backend.ts, as kept in tag start-archive (ADR 0122).
+    const source = [
+      'import { tag } from "@tinker/core";',
+      "",
+      "/**",
+      " * The one way out for HTTP the base sends itself; tests bind a fake (ADR 0102). Its default is",
+      " * the real `fetch`: an effect default on the seam, as ADR 0113 allows.",
+      " */",
+      "export const httpBackend = tag<typeof fetch>({",
+      '  label: "http.backend",',
+      "  default: (input, init) => fetch(input, init),",
+      "});",
+      "",
+    ].join("\n");
     for (const file of [
       "src/scaffold/http-backend.ts",
       "/work/src/scaffold/http-backend.ts",
