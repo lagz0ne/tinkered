@@ -779,16 +779,23 @@ export declare namespace Capsule {
   /** What a capsule says about one unit it loads. Devtools show it; nothing else reads it. */
   export type Meta = { readonly role: Role; readonly explain: string };
 
-  /** The units a capsule exports, by the name a caller reads them under: `mail.enqueue`. A tag
-   * export is one the capsule binds per call or request (`http.request`); a scope does not check
-   * that its capsule is installed, so an unbound one fails as any tag does (`MissingTag`). */
+  /** What a capsule exports, by the name a caller reads it under: `mail.enqueue`. A tag export is
+   * one the capsule binds per call or request (`http.request`); a scope does not check that its
+   * capsule is installed, so an unbound one fails as any tag does (`MissingTag`). A foreign value
+   * rides along as is. */
   export type Exports = {
     readonly [name: string]:
       | Operation.Handle<any, any>
       | Resource.Handle<any>
       | Data.Cell<any>
-      | Tag.Handle<any>;
+      | Tag.Handle<any>
+      | Foreign;
   };
+
+  /** A value a capsule exports that is not a unit, such as a React component (ADR 0125). It is
+   * copied as is: never marked, never checked, never read through a scope. An edge is refused, so
+   * `draft.controller` cannot leave a capsule as a writable export (ADR 0123). */
+  export type Foreign = object & { readonly [edge]?: never };
 
   /** The names an export may not take: the handle's own fields. */
   export type Reserved = "label" | "config" | "hooks" | "exports" | "tags";
@@ -985,8 +992,8 @@ const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
 });
 
 /** Declare a capsule (ADR 0121): a library's door. Its `config` names the tags the library
- * reads, and the command fills them by calling the capsule; its `exports` are the units others
- * use, copied onto the handle and every binding; its `hooks` run on the root that installs it.
+ * reads, and the command fills them by calling the capsule; its `exports` are the units (and
+ * foreign values) others use, copied onto the handle and every binding; its `hooks` run on the root that installs it.
  * An export under a reserved name raises `ReservedExport`. */
 export function capsule<
   const C extends Scope.Config = {},
@@ -7089,7 +7096,8 @@ class Capsules {
 
   /** Build a capsule's handle (ADR 0121): a binding itself, and a function that fills the config
    * and answers the binding a scope installs. Each export is copied onto both, the same object
-   * (ADR 0057), and marked with the handle, so a scope can tell when its capsule is missing. */
+   * (ADR 0057). Each op, resource, and cell is marked with the handle, so a scope can tell when its
+   * capsule is missing; a foreign value is not (ADR 0125). */
   static handle(def: {
     readonly label: string;
     readonly config?: Scope.Config;
@@ -7129,12 +7137,15 @@ class Capsules {
   }
 
   /** Copy each export onto the handle, and mark each unit but a tag with it: a tag export is
-   * bound per call, so it has no capsule check. */
+   * bound per call, so it has no capsule check. A foreign value is copied unmarked: it is not
+   * ours to change, and it may be frozen (ADR 0125). */
   static export(handle: Capsule.Binding, exports: Capsule.Exports): Capsule.Exports {
     const shown: Record<string, unknown> = {};
     for (const key of Object.keys(exports)) {
       const unit = exports[key];
-      if (!isTag(unit)) (unit as Exported).capsule ??= handle;
+      if (isOperation(unit) || isResource(unit) || isData(unit)) {
+        (unit as Exported).capsule ??= handle;
+      }
       const value = isData(unit) ? Capsules.view(handle, unit) : unit;
       shown[key] = value;
       Object.defineProperty(handle, key, { value, enumerable: true });

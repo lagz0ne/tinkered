@@ -389,6 +389,17 @@ depends: { point: talk.point, clear: talk.clear }
 - The raw cell, imported from its own file, keeps full power. Lint `tinker/cell-write` warns
   on `.controller` of another capsule's cell.
 
+A value that is not a unit is a foreign export (ADR 0125), such as a React component:
+
+```ts
+const talk = capsule({ label: "talk", exports: { said, say, Panel } });
+// <talk.Panel title="Talk" />
+```
+
+- It is the same object on the handle and on each binding, with its type.
+- Core never marks, checks, or resolves it. It may be frozen.
+- `CapsuleMissing` comes from the exported units it touches.
+
 `label`, `config`, `hooks`, `exports`, and `tags` are reserved: a type error, and `ReservedExport`.
 
 A capsule may carry fixed tags: `capsule({ label, tags: [side("server")] })`.

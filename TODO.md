@@ -75,7 +75,11 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
-- **react/render** — `Render` draws a renderable resource (ADR 0124).
+- **core/foreign-export** — a capsule exports a foreign value as is (ADR 0125); `Render` goes.
+  Proof: `scripts/ticket.sh --check-only` exit 0 (Core 1048, dist 1292, React 108, size 18,417 B of 20,480); Bun: Core 1048, React 108.
+  Mutation on changed lines: 100% (7/7). Opus review: one fix round (edges refused as foreign).
+
+- **react/render** — `Render` draws a renderable resource (ADR 0124). Replaced by `core/foreign-export` before release.
   Proof: vp check 0; React 113/113 on Node and on Bun; Core 1043/1043; build 0.
   Opus review: one fix round (identity test re-renders Render; no size number).
   Mutation: the React runner sees no mutant in browser tests (open React mutation card).

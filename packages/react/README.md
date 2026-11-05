@@ -86,9 +86,6 @@ function App() {
   Async builds suspend; failures reach the error boundary.
 - `useResource(handle, { suspense: false })` returns local query state.
   It includes `status`, `data`, `error`, and `refetch`.
-- `<Render of={res} …props/>` draws a renderable resource:
-  a resource whose value is a component (ADR 0124).
-  The other props go to that component, typed.
 - `useRun` runs an operation and reports the latest result.
   It supplies `run`, `runAsync`, `reset`, and result callbacks.
 - `useRelease` resets a cell or releases a resource.
@@ -238,16 +235,11 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - A synchronous build commits on the first flushed render with no suspend.
 - The hook returns the exact instance core cached for the owner.
 
-### Render
+### Capsule components
 
-- Render builds the resource's component and hands it the other props.
-- The built component keeps its identity across renders, so its DOM is not remounted.
-- An async build suspends, then renders the component.
-- A renderable resource whose capsule is not installed raises CapsuleMissing.
-- A preset replaces the whole component a renderable resource builds.
-- A session resource builds one component per SessionProvider.
-- Render types the built component's props and refuses a resource that builds none.
-- A server render draws a renderable resource in one pass.
+- A component a capsule exports renders from the handle, bound to the capsule's own cells.
+- The exported component keeps each session's data apart.
+- The exported component raises CapsuleMissing through the exported cell it reads.
 
 ### useRun
 
@@ -314,5 +306,5 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 ## Decisions & vocabulary
 
-[ADR 0030–0033, 0124](../../docs/decisions/) and the React section of the
+[ADR 0030–0033, 0125](../../docs/decisions/) and the React section of the
 [glossary](../../docs/glossary.md).

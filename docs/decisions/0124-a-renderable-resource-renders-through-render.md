@@ -1,8 +1,10 @@
 # 0124 A renderable resource renders through `Render`
 
-Date: 2026-11-05. Status: accepted.
+Date: 2026-11-05. Status: superseded.
 Accepted: Duke, 2026-11-05 08:49 UTC:
 "into @tinker/react".
+Replaced by 0125 the same day, before any
+release: `Render` is gone.
 
 ## What the user said
 
