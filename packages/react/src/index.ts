@@ -149,6 +149,16 @@ export declare namespace UseData {
 /** Reactively read a `data` cell: returns its current value and re-renders when it changes. */
 export function useData<T>(cell: Data.Cell<T>): T;
 
+/** Reactively read a capsule's cell export (`talk.point`, ADR 0123). Read-only: no writable pair. */
+export function useData<T>(view: Data.View<T>): T;
+
+/** Reactively read a slice of a capsule's cell export. */
+export function useData<T, S>(
+  view: Data.View<T>,
+  selector: (value: T) => S,
+  isEqual?: (a: S, b: S) => boolean,
+): S;
+
 /** Reactively read a slice of a `data` cell: returns `selector(value)` and re-renders only when the
  * slice changes (`isEqual`, default `Object.is`). Lets a component subscribe to part of a cell. */
 export function useData<T, S>(
@@ -170,7 +180,7 @@ export function useData<T, S>(
 ): UseData.Pair<T, S>;
 
 export function useData<T, S>(
-  cell: Data.Cell<T>,
+  cell: Data.Cell<T> | Data.View<T>,
   a?: ((value: T) => S) | UseData.Options<T>,
   b?: ((a: S, b: S) => boolean) | UseData.Options<S>,
 ): T | S | UseData.Pair<T, T | S> {
@@ -178,14 +188,14 @@ export function useData<T, S>(
 }
 
 function useStoreData<T, S>(
-  cell: Data.Cell<T>,
+  cell: Data.Cell<T> | Data.View<T>,
   a: ((value: T) => S) | UseData.Options<T> | undefined,
   b: ((a: S, b: S) => boolean) | UseData.Options<S> | undefined,
 ): T | S | UseData.Pair<T, T | S> {
   const selector = typeof a === "function" ? a : undefined;
   const options = typeof a === "function" ? (typeof b === "function" ? undefined : b) : a;
   const isEqual = typeof b === "function" ? b : options?.isEqual;
-  const writable = options?.writable === true;
+  const writable = wantsPair(cell, options);
 
   const store = useDataStore(cell, selector, isEqual);
   const value = useSyncExternalStore(store.subscribe, store.read, store.read);
@@ -197,10 +207,15 @@ function useStoreData<T, S>(
  * when called. */
 function readData<T, S>(
   scope: Scope.Handle,
-  cell: Data.Cell<T>,
+  cell: Data.Cell<T> | Data.View<T>,
   a: ((value: T) => S) | UseData.Options<T> | undefined,
   b: ((a: S, b: S) => boolean) | UseData.Options<S> | undefined,
 ): T | S | UseData.Pair<T, T | S> {
+  if (isView(cell)) {
+    const value = scope.resolve(cell).get();
+    return typeof a === "function" ? a(value) : value;
+  }
+
   const raw = scope.resolve(cell);
   const value = typeof a === "function" ? a(raw) : raw;
   const options = typeof a === "function" ? b : a;
@@ -210,11 +225,11 @@ function readData<T, S>(
 }
 
 function useDataStore<T, S>(
-  cell: Data.Cell<T>,
+  cell: Data.Cell<T> | Data.View<T>,
   selector: ((value: T) => S) | undefined,
   isEqual: ((a: T, b: T) => boolean) | ((a: S, b: S) => boolean) | undefined,
 ): DataStore<T, T | S> {
-  const controller = useScope().controller(cell);
+  const controller = readableOf(useScope(), cell);
   const own = useRef<SelectingStore<T, S> | undefined>(undefined);
 
   if (selector === undefined && isEqual === undefined) {
@@ -232,6 +247,25 @@ function useDataStore<T, S>(
   return store;
 }
 
+/** A capsule's cell export: a read edge (ADR 0123). */
+const isView = <T>(target: Data.Cell<T> | Data.View<T>): target is Data.View<T> =>
+  (target as { kind?: unknown }).kind === "reader";
+
+/** A writable pair only for a cell: a capsule's cell export answers the bare value. */
+function wantsPair<T>(
+  cell: Data.Cell<T> | Data.View<T>,
+  options: { readonly writable?: boolean } | undefined,
+): boolean {
+  return options?.writable === true && !isView(cell);
+}
+
+/** What a store reads through: a cell's controller, or a capsule export's reader (no `set`). */
+type Readable<T> = Data.Reader<T> & { readonly set?: (value: T) => void };
+
+function readableOf<T>(scope: Scope.Handle, cell: Data.Cell<T> | Data.View<T>): Readable<T> {
+  return isView(cell) ? scope.resolve(cell) : scope.controller(cell);
+}
+
 /** What `useSyncExternalStore` needs from a cell, plus the write half of the writable pair. */
 type DataStore<T, S> = {
   subscribe: (notify: () => void) => () => void;
@@ -242,7 +276,7 @@ type DataStore<T, S> = {
 /** Raw and selected stores keep the same fields in the same order at the hook's read sites.
  * A selector's cached slice belongs to its component; raw stores are shared per controller. */
 type SelectingStore<T, S> = DataStore<T, S> & {
-  controller: Scope.DataController<T>;
+  controller: Readable<T>;
   select: (value: T) => S;
   equal: (a: S, b: S) => boolean;
 };
@@ -254,20 +288,20 @@ type RawHolder<T> = { [RAW]?: DataStore<T, T> };
 
 /** Only a cache miss creates these closures. Core keeps each controller stable, and the
  * store goes with its controller when the scope no longer retains it. */
-function createRawStore<T>(controller: Scope.DataController<T>): DataStore<T, T> {
+function createRawStore<T>(controller: Readable<T>): DataStore<T, T> {
   const store: SelectingStore<T, T> = {
     controller,
     select: identity,
     equal: Object.is,
     subscribe: (notify) => controller.watch(notify),
     read: () => controller.get(),
-    set: (value) => controller.set(value),
+    set: (value) => controller.set?.(value),
   };
   (controller as RawHolder<T>)[RAW] = store;
   return store;
 }
 
-function createDataStore<T, S>(controller: Scope.DataController<T>): SelectingStore<T, S> {
+function createDataStore<T, S>(controller: Readable<T>): SelectingStore<T, S> {
   let memo:
     | { raw: T; slice: S; select: (value: T) => S; equal: (a: S, b: S) => boolean }
     | undefined = undefined;
@@ -305,7 +339,7 @@ function createDataStore<T, S>(controller: Scope.DataController<T>): SelectingSt
 
       return fresh;
     },
-    set: (value: T) => controller.set(value),
+    set: (value: T) => controller.set?.(value),
   };
   return store;
 }

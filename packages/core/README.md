@@ -6,16 +6,16 @@ On Bun, the main runtime:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.10.1
-bun add $R/tinker-core-0.10.1.tgz
+releases/download/v0.11.0
+bun add $R/tinker-core-0.11.0.tgz
 ```
 
 On Node 22.18 or later, with npm:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.10.1
-npm install $R/tinker-core-0.10.1.tgz
+releases/download/v0.11.0
+npm install $R/tinker-core-0.11.0.tgz
 ```
 
 Each version's URLs are in the
@@ -369,8 +369,26 @@ Two hooks keep install order for both runs and writes on child layers.
 
 ### Exports
 
-Exports are copied onto the handle and every binding, as the same objects (ADR 0057).
-So `mail.enqueue === enqueue`, and `mail({ smtpUrl }).enqueue` is the same unit.
+Exports are copied onto the handle and every binding (ADR 0057).
+An op, a resource, or a tag is the same object: `mail.enqueue === enqueue`.
+A cell is not. It shows as a read view (ADR 0123):
+
+```ts
+const talk = capsule({ label: "talk", exports: { point, clear } });
+
+depends: { point: talk.point, clear: talk.clear }
+// point.get(), point.watch(fn): no set
+```
+
+- A read view has no `controller` and no path to the cell.
+- `depends`, `scope.resolve`, and a hook's `load` hand a reader: `get()` and `watch()`.
+- `useData(talk.point)` reads it in React.
+- A `depends` that names `talk.point.controller` is a type error, and `InvalidDependency` at
+  first touch.
+- To change the cell from outside, call an op the capsule exports.
+- The raw cell, imported from its own file, keeps full power. Lint `tinker/cell-write` warns
+  on `.controller` of another capsule's cell.
+
 `label`, `config`, `hooks`, `exports`, and `tags` are reserved: a type error, and `ReservedExport`.
 
 A capsule may carry fixed tags: `capsule({ label, tags: [side("server")] })`.

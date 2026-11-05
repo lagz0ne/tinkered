@@ -1,5 +1,5 @@
 import type { Data, Operation, Resource, Scope } from "@tinker/core";
-import { createScope, data, operation, resource } from "@tinker/core";
+import { capsule, createScope, data, operation, resource } from "@tinker/core";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { renderToString } from "react-dom/server";
@@ -146,4 +146,26 @@ test("a server render shows an idle run, and the run still works after the rende
   await expect(runAsync?.({ rawInput: "21" })).resolves.toBe(42);
 
   await scope.close();
+});
+
+test("a server render reads a capsule's cell export, raw and sliced", () => {
+  const word = data({ label: "talk.word", initial: "hi" });
+  const talk = capsule({ label: "talk", exports: { word } });
+  const scope = createScope({ capsules: [talk] });
+
+  function Word(): ReactNode {
+    // @ts-expect-error a capsule's cell export has no writable pair: the value comes back bare
+    const bare: unknown = useData(talk.word, { writable: true });
+    return (
+      <p>{`${useData(talk.word)}:${useData(talk.word, (v) => v.toUpperCase())}:${String(bare)}`}</p>
+    );
+  }
+
+  const html = renderToString(
+    <ScopeProvider scope={scope}>
+      <Word />
+    </ScopeProvider>,
+  );
+
+  expect(html).toContain("hi:HI:hi");
 });

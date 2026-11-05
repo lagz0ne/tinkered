@@ -49,6 +49,9 @@ jobs:
       - name: Release check
         run: node --test scripts/release-check.test.mjs
 
+      - name: Lint rules
+        run: node --test tools/lint/cell-write.test.mjs
+
   # Bun is the main runtime: Core and React tests, then the built dist, on Bun.
   # pnpm installs (bun install cannot read this pnpm workspace) and the build runs
   # on Node (Core's build plugin uses the TypeScript API, which needs Node).

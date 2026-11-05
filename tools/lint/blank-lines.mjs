@@ -1,3 +1,5 @@
+import cellWrite from "./cell-write.mjs";
+
 /**
  * A blank line after the imports and around each multi-line top-level statement. One-line
  * statements may sit together. Bodies are left alone. Oxfmt keeps blank lines but never adds
@@ -70,5 +72,5 @@ const bodySteps = {
 
 export default {
   meta: { name: "tinker" },
-  rules: { "blank-lines": blankLines, "body-steps": bodySteps },
+  rules: { "blank-lines": blankLines, "body-steps": bodySteps, "cell-write": cellWrite },
 };

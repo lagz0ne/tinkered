@@ -4,6 +4,63 @@ Each section is one release of
 `@tinker/core` and `@tinker/react`.
 The two move to one version together.
 
+## 0.11.0
+
+A capsule's cell export is read-only
+(ADR 0123).
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.11.0
+bun add $R/tinker-core-0.11.0.tgz \
+  $R/tinker-react-0.11.0.tgz
+```
+
+On Node, with npm:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.11.0
+npm install $R/tinker-core-0.11.0.tgz \
+  $R/tinker-react-0.11.0.tgz
+```
+
+The two URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.11.0/tinker-core-0.11.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.11.0/tinker-react-0.11.0.tgz
+
+### Read views
+
+- A cell in `exports` is now a read view on the
+  handle: `talk.point`.
+- It has no `controller` and no path to the
+  cell.
+- `depends: { p: talk.point }` hands a reader:
+  `get()` and `watch()`.
+- `scope.resolve(talk.point)` and a hook's
+  `load(talk.point, meta)` answer the reader.
+- `useData(talk.point)` reads it in React.
+- To change the cell from outside, call an op
+  the capsule exports.
+- The raw cell, imported from its own file,
+  keeps full power.
+
+### Upgrade
+
+- `talk.point.controller` is now a type error.
+  Use the raw cell inside the capsule, or an
+  op the capsule exports.
+- `mail.outbox === outbox` is false for a cell
+  export. Ops and resources keep the same
+  object.
+- New lint `tinker/cell-write` (warn): a
+  `.controller` on another capsule's cell.
+
 ## 0.10.1
 
 The first release under tag `v0.10.1`.

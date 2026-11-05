@@ -22,6 +22,8 @@
 - **behavior-neutral** — Observation never changes results or value identity; the core wraps no user value. Deep client tracing lives in adapters.
 - **tag** — A typed key for static configuration, with a fixed value per binding.
 - **config key** — One tag a capsule declares as its `config`: the library reads it, the command fills it in one call (ADR 0120, 0121). Required when the tag has no default.
+- **read view** — What a capsule exports for a cell (`talk.point`): no `controller`, no path to the cell (ADR 0123).
+- **reader** — What a read view hands a unit: `get()` and `watch()`, never a write (ADR 0123).
 - **list key** — A config key declared as `tag.all`: the call takes a list, and every item is one binding. Reads last first.
 - **slot key** — A config key whose tag holds a unit (a resource or operation handle), so the app picks the unit the library uses.
 - **data** — A mutable value cell that callers can read, watch, and write.

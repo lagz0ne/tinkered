@@ -596,10 +596,12 @@ test("A10 a secret: true tag hides its whole value in the record", async () => {
   await scope.close();
 });
 
-test("A11 mail.enqueue === enqueue, on the handle and on the binding", () => {
+test("A11 mail.enqueue === enqueue; a cell export is its read view, on the handle and on the binding", () => {
   expect(mail.enqueue).toBe(enqueue);
   expect(mail({ smtpUrl: "smtp://x" }).enqueue).toBe(enqueue);
-  expect(mail({ smtpUrl: "smtp://x" }).outbox).toBe(outbox);
+  expect(mail({ smtpUrl: "smtp://x" }).outbox).toBe(mail.outbox);
+  expect(mail.outbox).not.toHaveProperty("target");
+  expect(mail.outbox).not.toHaveProperty("controller");
 });
 
 test("A12 an export named label raises ReservedExport", () => {

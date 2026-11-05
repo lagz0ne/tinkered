@@ -19,6 +19,9 @@ const namespaceSym: unique symbol = Symbol("namespace");
  * exists so the compiler can name the keys a call still has to fill. */
 declare const unfilled: unique symbol;
 
+/** The type-only key a read view carries its value type under. */
+declare const viewOf: unique symbol;
+
 /** A declared dependency edge: a mode (`controller`, `required`, `optional`, `all`) onto a target. */
 export type Edge<K extends string, Target> = {
   readonly [edge]: true;
@@ -69,6 +72,23 @@ export declare namespace Data {
     eq(a: T, b: T): boolean;
     /** Depend on this cell in write mode: delivered as a controller. */
     readonly controller: Edge<"controller", Cell<T>>;
+  };
+
+  /** What a read edge hands a unit: the value and its changes, never a write. */
+  export type Reader<T> = {
+    get(): T;
+    watch(listener: (next: T, prev: T) => void): () => void;
+  };
+
+  /** A cell as a capsule exports it (`talk.point`): a read edge with no `controller` and no
+   * path to the cell, so nothing reached through the capsule can write. The raw cell keeps full
+   * power. */
+  export type View<T> = {
+    readonly [edge]: true;
+    readonly kind: "reader";
+    readonly label: string;
+    /** Type-only: the cell's value type. */
+    readonly [viewOf]?: T;
   };
 }
 
@@ -488,6 +508,7 @@ export declare namespace Scope {
     | Tag.Handle<any>
     | Capsule.Binding
     | Edge<"controller", Data.Cell<unknown> | Operation.Handle<unknown, unknown>>
+    | Data.View<unknown>
     | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
   export type Depends = Readonly<Record<string, Dependency>>;
 
@@ -495,29 +516,32 @@ export declare namespace Scope {
    * A bare operation is a subflow (a callable controller); a bare resource is its built instance;
    * a bare capsule is its settled start value (ADR 0051: what `scope.resolve(capsule)` returns). */
   export type SlotValue<D> =
-    D extends Edge<"controller", infer N>
-      ? N extends Data.Cell<infer T>
-        ? DataController<T>
-        : N extends Operation.Handle<infer T, infer I>
-          ? OperationController<T, I>
-          : never
-      : D extends Edge<"all", Tag.Handle<infer T>>
-        ? T[]
-        : D extends Edge<"optional", Tag.Handle<infer T>>
-          ? Tag.Presence<T>
-          : D extends Edge<"required", Tag.Handle<infer T>>
-            ? T
-            : D extends Tag.Handle<infer T>
+    D extends Data.View<infer T>
+      ? Data.Reader<T>
+      : D extends Edge<"controller", infer N>
+        ? N extends Data.Cell<infer T>
+          ? DataController<T>
+          : N extends Operation.Handle<infer T, infer I>
+            ? OperationController<T, I>
+            : never
+        : D extends Edge<"all", Tag.Handle<infer T>>
+          ? T[]
+          : D extends Edge<"optional", Tag.Handle<infer T>>
+            ? Tag.Presence<T>
+            : D extends Edge<"required", Tag.Handle<infer T>>
               ? T
-              : D extends Data.Cell<infer T>
+              : D extends Tag.Handle<infer T>
                 ? T
-                : D extends Operation.Handle<infer T, infer I>
-                  ? OperationController<T, I>
-                  : D extends Resource.Handle<infer T>
-                    ? Awaited<T>
-                    : D extends Capsule.Binding<infer T>
-                      ? T
-                      : never;
+                : D extends Data.Cell<infer T>
+                  ? T
+                  : D extends Operation.Handle<infer T, infer I>
+                    ? OperationController<T, I>
+                    : D extends Resource.Handle<infer T>
+                      ? Awaited<T>
+                      : D extends Capsule.Binding<infer T>
+                        ? T
+                        : never;
+
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
 
   /** True when a declared dependency is an async resource (its factory returns a promise, or it is
@@ -666,6 +690,8 @@ export declare namespace Scope {
      * nearest binding, else its default, else throws `MissingTag`. An operation has no snapshot:
      * it is not accepted (no overload), run it with `run` instead. */
     resolve<T>(cell: Data.Cell<T>, ns?: NsArg): T;
+    /** A capsule's cell export reads as its reader, as a `depends` slot delivers it (ADR 0123). */
+    resolve<T>(view: Data.View<T>, ns?: NsArg): Data.Reader<T>;
     resolve<T>(res: Resource.Handle<T>, ns?: NsArg): ResourceValue<T>;
     resolve<T>(tag: Tag.Handle<T>, ns?: NsArg): T;
     /** A tag edge reads exactly what that `depends` slot would deliver (ADR 0020/0036): `.all` →
@@ -783,6 +809,8 @@ export declare namespace Capsule {
   export type Load = {
     <V>(unit: Resource.Handle<V>, meta: Meta, options?: LoadOptions): Promise<Awaited<V>>;
     <V>(unit: Data.Cell<V>, meta: Meta, options?: LoadOptions): Scope.DataController<V>;
+    /** A capsule's cell export loads as its reader (ADR 0123). */
+    <V>(unit: Data.View<V>, meta: Meta, options?: LoadOptions): Data.Reader<V>;
   };
 
   /** Run an operation the way `scope.run` does, from the hook's own context. */
@@ -882,7 +910,12 @@ export declare namespace Capsule {
   };
 
   /** What a capsule call returns and a scope installs: the label, the hooks, and the exports. */
-  export type Binding<T = unknown, E = unknown> = Base<T> & E;
+  export type Binding<T = unknown, E = unknown> = Base<T> & Shown<E>;
+
+  /** The exports as others read them: a cell shows as its read view (`Data.View`). */
+  export type Shown<E> = {
+    readonly [K in keyof E]: E[K] extends Data.Cell<infer V> ? Data.View<V> : E[K];
+  };
 
   /** A capsule's call arguments: optional only when no key is required. */
   export type Args<C extends Scope.Config> = [Scope.Unfilled<C>] extends [never]
@@ -930,6 +963,9 @@ const isResource = (n: unknown): n is Resource.Handle<unknown> =>
 
 const isTag = (n: unknown): n is Tag.Handle<unknown> =>
   (n as { [tagSym]?: true } | null | undefined)?.[tagSym] === true;
+
+const isReader = (n: unknown): n is Data.View<unknown> =>
+  isEdge(n) && (n as { kind: string }).kind === "reader";
 
 const isEdge = (n: unknown): n is Edge<string, unknown> =>
   (n as { [edge]?: true } | null | undefined)?.[edge] === true;
@@ -1898,6 +1934,17 @@ function resolveControllerEdge(
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
 
+/** A read edge's value: the cell's get and watch, never a write (a capsule's read view). */
+function readerOf<T>(
+  layer: Layer,
+  target: Data.Cell<T>,
+  chain: readonly Namespace[] | undefined,
+): Data.Reader<T> {
+  return Capsules.reader(
+    resolveControllerEdge(layer, target, undefined, chain) as Scope.DataController<T>,
+  );
+}
+
 function resolveEdge(
   layer: Layer,
   dep: Edge<string, unknown>,
@@ -1906,6 +1953,10 @@ function resolveEdge(
   caller?: RunState,
 ): unknown {
   if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, up, chain, caller);
+  if (dep.kind === "reader") {
+    return readerOf(layer, Capsules.cellOf(Capsules.check(layer, dep)), chain);
+  }
+
   const target = dep.target as Tag.Handle<unknown>;
   if (dep.kind === "all") return tagAll(layer, target, chain);
   if (dep.kind === "optional") return tagFind(layer, target, chain);
@@ -3880,6 +3931,7 @@ function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): voi
 function depNode(dep: Scope.Dependency): Node | undefined {
   if (isData(dep)) return dep;
   if (isResource(dep)) return dep;
+  if (isReader(dep)) return Capsules.cellOf(dep);
   if (isEdge(dep) && dep.kind === "controller" && isData(dep.target)) return dep.target;
   return undefined;
 }
@@ -4757,6 +4809,7 @@ class ScopeHandle implements Scope.Handle {
     return ctl;
   }
   resolve<T>(cell: Data.Cell<T>, ns?: Scope.NsArg): T;
+  resolve<T>(view: Data.View<T>, ns?: Scope.NsArg): Data.Reader<T>;
   resolve<T>(res: Resource.Handle<T>, ns?: Scope.NsArg): Scope.ResourceValue<T>;
   resolve<T>(tag: Tag.Handle<T>, ns?: Scope.NsArg): T;
   /** A tag edge reads exactly what that `depends` slot would deliver (ADR 0020/0036): `.all` →
@@ -4774,6 +4827,7 @@ class ScopeHandle implements Scope.Handle {
       | Resource.Handle<unknown>
       | Tag.Handle<unknown>
       | Edge<string, Tag.Handle<unknown>>
+      | Data.View<unknown>
       | Capsule.Binding,
     ns?: Scope.NsArg,
   ): unknown {
@@ -5882,13 +5936,16 @@ class HookCtx implements Capsule.Ctx {
   }
   get load(): Capsule.Load {
     return (this.loader ??= ((
-      unit: Resource.Handle<unknown> | Data.Cell<unknown>,
+      unit: Resource.Handle<unknown> | Data.Cell<unknown> | Data.View<unknown>,
       meta: Capsule.Meta,
       options?: Capsule.LoadOptions,
     ): unknown => {
       Capsules.note(this.record, unit, meta);
       const chain = options?.ns === undefined ? this.ns : nsChainOf(options.ns);
       if (isData(unit)) return this.use(() => this.cellControl(unit, chain));
+      if (isReader(unit)) {
+        return this.use(() => Capsules.reader(this.cellControl(Capsules.cellOf(unit), chain)));
+      }
       try {
         return Promise.resolve(this.use(() => this.readResource(unit, chain)));
       } catch (error) {
@@ -7048,8 +7105,9 @@ class Capsules {
       if (Capsules.reserved.includes(key)) raise("ReservedExport", { label, key });
     }
 
+    let shown: Capsule.Exports = NO_VALUES;
     const fill = (values?: Readonly<Record<string, unknown>>): Capsule.Binding => {
-      const binding = { [capsuleSym]: true as const, label, hooks, ...exports };
+      const binding = { [capsuleSym]: true as const, label, hooks, ...shown };
       Capsules.wired.set(binding, {
         config,
         tags,
@@ -7065,19 +7123,65 @@ class Capsules {
       hooks,
       config: config ?? NO_VALUES,
     });
-    Capsules.export(handle, exports);
+    shown = Capsules.export(handle, exports);
     Capsules.wired.set(handle, { config, tags, values: NO_VALUES, of: fill, exports });
     return handle;
   }
 
   /** Copy each export onto the handle, and mark each unit but a tag with it: a tag export is
    * bound per call, so it has no capsule check. */
-  static export(handle: Capsule.Binding, exports: Capsule.Exports): void {
+  static export(handle: Capsule.Binding, exports: Capsule.Exports): Capsule.Exports {
+    const shown: Record<string, unknown> = {};
     for (const key of Object.keys(exports)) {
       const unit = exports[key];
-      Object.defineProperty(handle, key, { value: unit, enumerable: true });
       if (!isTag(unit)) (unit as Exported).capsule ??= handle;
+      const value = isData(unit) ? Capsules.view(handle, unit) : unit;
+      shown[key] = value;
+      Object.defineProperty(handle, key, { value, enumerable: true });
     }
+    return shown as Capsule.Exports;
+  }
+
+  /** Each read view's cell: kept off the view, so nothing reached through a capsule can write. */
+  static readonly cells = new WeakMap<object, Data.Cell<unknown>>();
+
+  /** A cell's read view: a read edge others depend on, marked with its capsule. */
+  static view(handle: Capsule.Binding, unit: Data.Cell<unknown>): Data.View<unknown> {
+    const view = { [edge]: true as const, kind: "reader" as const, label: unit.label };
+    (view as Exported).capsule = handle;
+    Capsules.cells.set(view, unit);
+    return view;
+  }
+
+  static cellOf(view: object): Data.Cell<unknown> {
+    return Capsules.cells.get(view)!;
+  }
+
+  /** One reader per controller, so a reader is as stable as the controller it reads through. */
+  static readonly readers = new WeakMap<object, Data.Reader<unknown>>();
+
+  static reader<T>(control: Scope.DataController<T>): Data.Reader<T> {
+    let reader = Capsules.readers.get(control) as Data.Reader<T> | undefined;
+    if (reader === undefined) {
+      reader = { get: () => control.get(), watch: (listener) => control.watch(listener) };
+      Capsules.readers.set(control, reader as Data.Reader<unknown>);
+    }
+
+    return reader;
+  }
+
+  /** What one `depends` entry is checked under: a view is its own unit. An empty entry, such as
+   * `talk.point.controller` (a view has none), fails here, before any work. */
+  static unitOf(dep: Scope.Dependency | undefined, label: string, key: string): object {
+    if (dep === undefined) {
+      raise("InvalidDependency", {
+        label,
+        reason: `depends.${key} names no unit (a capsule export has no controller)`,
+      });
+    }
+
+    if (isReader(dep) || !isEdge(dep)) return dep;
+    return dep.target as object;
   }
 
   /** One start-value record per installed capsule, and one under the handle a binding was filled
@@ -7193,7 +7297,10 @@ class Capsules {
     if (depends !== undefined) {
       for (const key of Object.keys(depends)) {
         const dep = depends[key];
-        Capsules.need(routes, isEdge(dep) ? (dep.target as object) : dep);
+        Capsules.need(
+          routes,
+          Capsules.unitOf(dep, (unit as unknown as { label: string }).label, key),
+        );
       }
     }
     (unit as Exported).passed = routes;
@@ -7228,7 +7335,7 @@ class Capsules {
     if (Capsules.inlines.get(depends) !== routes) {
       for (const key of Object.keys(depends)) {
         const dep = depends[key];
-        Capsules.need(routes, isEdge(dep) ? (dep.target as object) : dep);
+        Capsules.need(routes, Capsules.unitOf(dep, "inline", key));
       }
       Capsules.inlines.set(depends, routes);
     }

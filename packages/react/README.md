@@ -18,18 +18,18 @@ On Bun, the main runtime:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.10.1
-bun add $R/tinker-core-0.10.1.tgz \
-  $R/tinker-react-0.10.1.tgz
+releases/download/v0.11.0
+bun add $R/tinker-core-0.11.0.tgz \
+  $R/tinker-react-0.11.0.tgz
 ```
 
 On Node 22.18 or later, with npm:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.10.1
-npm install $R/tinker-core-0.10.1.tgz \
-  $R/tinker-react-0.10.1.tgz
+releases/download/v0.11.0
+npm install $R/tinker-core-0.11.0.tgz \
+  $R/tinker-react-0.11.0.tgz
 ```
 
 Each version's URLs are in the
