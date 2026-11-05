@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop.
+  Seen in the ADR 0124 proof (`strict.test.tsx`).
+  Verify: that test renders `ok` with one build.
+
 - **jev/review-enobufs** — `tools/jev/lib.mjs:80` runs `git` through `execSync` with the default `maxBuffer`, so a big range crashes with `spawnSync /bin/sh ENOBUFS`.
   Seen on `node tools/jev/review.mjs 5a9f13a9..154f5a2b` (a 123k-line diff).
   Verify: that command exits 0.
@@ -70,6 +74,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **react/render** — `Render` draws a renderable resource (ADR 0124).
+  Proof: vp check 0; React 113/113 on Node and on Bun; Core 1043/1043; build 0.
+  Opus review: one fix round (identity test re-renders Render; no size number).
+  Mutation: the React runner sees no mutant in browser tests (open React mutation card).
 
 - **repo/start-sunset** — Start leaves main (ADR 0122): `packages/start`, `apps/start-min`, `apps/start-scaffold`, the `tinker` CLI, the registry, their tracks, benches, and the writer trial's Flight suite; the code is in tag `start-archive`; old `start-v*` releases stay.
   Checks that used a Start app now use a kept one: `vp run lazy` reads the examples and React; F13 builds the playground.

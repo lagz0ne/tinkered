@@ -1,5 +1,5 @@
 import type { Data, Namespace, Observe, Operation, Resource, RunResult, Scope } from "@tinker/core";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import {
   createContext,
   createElement,
@@ -521,6 +521,27 @@ export function useResource<T>(
   owner.inherited = inherited;
 
   return useQueryResource(owner);
+}
+
+export declare namespace Render {
+  /** What a renderable resource builds: a component, at once or after an async build. */
+  export type Component = ComponentType<any> | PromiseLike<ComponentType<any>>;
+  /** The props of the component `T` builds. A component typed with `any` props counts as one with
+   * none, so a resource that builds no component still fails on `of` instead of passing as `any`. */
+  export type PropsOf<T extends Component> =
+    Awaited<T> extends ComponentType<infer P> ? (0 extends 1 & P ? {} : P) : never;
+  /** {@link Render}'s props: `of` names the resource; the rest are the built component's own props,
+   * so `of` is a name that component may not use. */
+  export type Props<T extends Component> = { readonly of: Resource.Handle<T> } & PropsOf<T>;
+}
+
+/** Render the component a resource builds (a renderable resource), handing it the other props.
+ * It reads `of` as {@link useResource} does: an async build suspends, the built component keeps
+ * its identity for the resource's owner (so it never remounts on a re-render), and a resource whose
+ * capsule is not installed raises `CapsuleMissing`. A `session` resource builds per React session. */
+export function Render<T extends Render.Component>(props: Render.Props<T>): ReactNode {
+  const { of, ...rest } = props;
+  return createElement(useResource(of), rest);
 }
 
 /** A server render never runs the effect that would observe a pending build, so the owner gets
