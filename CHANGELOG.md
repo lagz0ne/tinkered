@@ -4,6 +4,66 @@ Each section is one release of
 `@tinker/core` and `@tinker/react`.
 The two move to one version together.
 
+## 0.12.0
+
+A capsule exports a foreign value as is
+(ADR 0125). An edge picks the layer a write
+lands on (ADR 0126).
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.12.0
+bun add $R/tinker-core-0.12.0.tgz \
+  $R/tinker-react-0.12.0.tgz
+```
+
+On Node, with npm:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.12.0
+npm install $R/tinker-core-0.12.0.tgz \
+  $R/tinker-react-0.12.0.tgz
+```
+
+The two URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.12.0/tinker-core-0.12.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.12.0/tinker-react-0.12.0.tgz
+
+### Foreign exports
+
+- A value in `exports` that is not a unit,
+  such as a React component, is exported as
+  is: `talk.Panel`.
+- The capsule is then a module to use
+  anywhere.
+
+### Placed edges
+
+- `cell.atScope.controller`: a write lands at
+  the root, outside any namespace.
+- `cell.atNamespace.controller`: a write lands
+  at the root, in the caller's namespace.
+- `cell.controller` does not change: the
+  caller's own layer.
+- They work from a session, a tagged call and
+  a call with a `signal`.
+- A read view (a capsule's cell export) has
+  neither.
+- `tinker/cell-write` also flags both on
+  another capsule's raw cell.
+
+### Upgrade
+
+- Nothing breaks. The 0.11.0 way to write the
+  root, a `scope`-target resource that takes
+  the controller, still works.
+
 ## 0.11.0
 
 A capsule's cell export is read-only
