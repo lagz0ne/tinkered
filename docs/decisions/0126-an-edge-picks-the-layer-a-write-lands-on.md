@@ -17,6 +17,8 @@ Builds on: 0064, 0090, 0123.
   existing edge name after it (14:05: `controller`).
 - 14:07: a capsule export must not be able to
   pick a layer at its edge.
+- 14:57: "Yes" to three placements: own layer,
+  `atNamespace`, `atScope`.
 
 ## Context
 
@@ -52,31 +54,36 @@ that exists only to place one write.
   its shape is declared.
 - **ADR 0123.** "The edge carries the rule."
   Read or write is already chosen at the edge.
-- **ADR 0064.** `scope` is already Core's word for
-  the root owner, on resources.
+- **ADR 0064.** Resource targets already name
+  three owners: `scope`, `namespace`, `session`.
+  The edge borrows those words.
 
 Where ours is simpler:
 
-- One placement, `scope`. No store objects.
+- Three placements, no store objects.
 - The cell declares nothing. Each edge picks.
 
 ## Decision
 
-1. A cell gets one more edge:
-   `cell.atScope.controller`.
-2. It is the write-mode edge, placed at the root.
-   A unit that depends on it gets the root's
-   controller, from any layer below the root.
-3. `cell.controller` does not change.
-   It writes the caller's own layer.
-4. Nothing climbs by itself.
+1. A cell's write-mode edge has three
+   placements, named as resource targets:
+   - `cell.controller`: the caller's own layer
+     (as `session`). It does not change.
+   - `cell.atNamespace.controller`: the root, in
+     the caller's namespace (as `namespace`).
+   - `cell.atScope.controller`: the root, outside
+     any namespace (as `scope`).
+2. A placed edge works from any layer below the
+   root: a session, a tagged call, a call with a
+   `signal`.
+3. Nothing climbs by itself.
    A write lands at the root only through an edge
-   that says `atScope`.
+   that says `atScope` or `atNamespace`.
    A session's own write never escalates.
-5. A read view has no `atScope`
+4. A read view has neither
    (ADR 0123: no `controller`, no path to the
    cell). A capsule export cannot pick a layer.
-6. A `data()` call takes no placement option.
+5. A `data()` call takes no placement option.
 
 ```ts
 const held = data({ initial: null });
@@ -91,15 +98,20 @@ const renew = operation({
 
 ## Evidence
 
-A scratch copy of the v0.11.0 source took one
-property on `data()` and one branch where a
+A scratch copy of the v0.11.0 source took two
+properties on `data()` and one branch where a
 controller edge resolves.
 
-- The remote todo stress app: 68 of 68 tests,
+- The remote todo stress app: 71 of 71 tests,
   3 runs. The OAuth token cache is one edge.
 - A write through `atScope` reaches the root from
   a child session and from a call two levels down.
 - `cell.controller` still writes its own layer.
+- From a signal call in a session with namespace
+  `ann`: `atNamespace` lands under `ann` only;
+  `bob` does not see it. `atScope` lands in the
+  root's own bucket; every namespace sees it
+  unless it holds its own value.
 - A capsule's exported cell has no `atScope`,
   at run time and in the types.
 - Core's own tests under Bun: 683 pass and the
@@ -115,9 +127,13 @@ Code and diff:
 
 - The `tinker/cell-write` lint sees only
   `x.controller`. It must also flag
-  `x.atScope.controller` on another capsule's
-  raw cell.
+  `x.atScope.controller` and
+  `x.atNamespace.controller` on another
+  capsule's raw cell.
 - Proof at landing: `vp test` for Core and React,
   mutation on the changed lines, and the size cap.
-- Only `scope` is a placement. A `namespace` or
-  `session` placement waits for a caller.
+- No placement names "the nearest session above
+  this call" (a panel's `SessionProvider` seen
+  from a signal call). Core makes call children
+  and `createSession` children the same way, with
+  no mark. It waits for a caller.
