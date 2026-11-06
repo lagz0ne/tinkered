@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/edge-at-scope** — `cell.atScope.controller`: the write-mode edge placed at the root (ADR 0126). Also: the `tinker/cell-write` lint flags `x.atScope.controller` on another capsule's raw cell.
+  Scratch diff: `/mnt/project-files/tinkered/plans/remote-cell/todo-atscope/core-atscope.diff`.
+  Verify: `vp test` for Core and React green; a test where a child-session (`signal`) write through `atScope` reaches the root and `cell.controller` stays in the child; a read view has no `atScope` (runtime and types); mutation on the changed lines; size cap holds.
+
 - **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop.
   Seen in the ADR 0124 proof (`strict.test.tsx`).
   Verify: that test renders `ok` with one build.

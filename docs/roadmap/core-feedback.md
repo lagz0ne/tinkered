@@ -943,3 +943,13 @@ The size guard writes a scratch project with `mkdtempSync`.
 It puts it under `packages/core/node_modules` (`private-fields.ts` near :1655).
 So a build with a read-only root fails with `EROFS`.
 State: first caller; no ticket until a second asker.
+
+## An edge picks the layer a write lands on — 2026-11-06
+
+Asked by the remote data design (thread "Design transport and remote data capsules").
+A client token cache is written inside calls that carry a `signal`.
+Each is a child session (ADR 0090), so a plain `held.controller` write is lost.
+The workaround works: a `scope`-target resource that takes the controller.
+Duke chose an edge instead: `held.atScope.controller` (ADR 0126).
+A scratch copy of v0.11.0 passes the app's 68 tests; Core's own `vp test` is still owed.
+State: accepted shape; ticket next.

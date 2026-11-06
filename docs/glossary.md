@@ -23,6 +23,7 @@
 - **tag** — A typed key for static configuration, with a fixed value per binding.
 - **config key** — One tag a capsule declares as its `config`: the library reads it, the command fills it in one call (ADR 0120, 0121). Required when the tag has no default.
 - **read view** — What a capsule exports for a cell (`talk.point`): no `controller`, no path to the cell (ADR 0123).
+- **`atScope`** — `cell.atScope.controller`: the write-mode edge placed at the root by its use. The cell declares no place; `cell.controller` writes its own layer; a read view has none (ADR 0126).
 - **reader** — What a read view hands a unit: `get()` and `watch()`, never a write (ADR 0123).
 - **foreign export** — A value in a capsule's `exports` that is not a unit, such as a React component; copied as is (ADR 0125).
 - **list key** — A config key declared as `tag.all`: the call takes a list, and every item is one binding. Reads last first.
