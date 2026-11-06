@@ -25,10 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/edge-at-scope** — `cell.atScope.controller` and `cell.atNamespace.controller`: write-mode edges placed at the root (ADR 0126). Also: the `tinker/cell-write` lint flags both on another capsule's raw cell.
-  Scratch diff: `/mnt/project-files/tinkered/plans/remote-cell/todo-atscope/core-atscope.diff`.
-  Verify: `vp test` for Core and React green; a test where a child-session (`signal`) write through `atScope` reaches the root's own bucket, `atNamespace` the caller's namespace bucket, and `cell.controller` stays in the child; a read view has no `atScope` (runtime and types); mutation on the changed lines; size cap holds.
-
 - **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop.
   Seen in the ADR 0124 proof (`strict.test.tsx`).
   Verify: that test renders `ok` with one build.
@@ -78,6 +74,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/edge-at-scope** — `cell.atScope.controller` and `cell.atNamespace.controller` place a write at the root (ADR 0126); `tinker/cell-write` flags both on another capsule's raw cell.
+  Proof: `scripts/ticket.sh --check-only --no-mutation` exit 0 (Core 1054, dist 1298, React 108, blueprint 119, flight-trial 148; core gzip 18.36 kB); `tests/edge-placement.test.ts` P1-P6; lint test fails on the old rule.
+  Mutation on changed lines: 95.45% (21/22; the survivor `placed("")` acts as `"namespace"`, equivalent). Opus review: READY; nits kept (edge shape; a fresh atScope controller per run, a cold path); added P6 (a kept controller past its call).
 
 - **core/foreign-export** — a capsule exports a foreign value as is (ADR 0125); `Render` goes.
   Proof: `scripts/ticket.sh --check-only` exit 0 (Core 1048, dist 1292, React 108, size 18,417 B of 20,480); Bun: Core 1048, React 108.

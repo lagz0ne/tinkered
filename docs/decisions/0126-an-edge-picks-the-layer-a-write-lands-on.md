@@ -1,6 +1,7 @@
 # 0126 An edge picks the layer a write lands on
 
-Date: 2026-11-06. Status: accepted shape; implementation open.
+Date: 2026-11-06. Status: accepted; built on main
+(card `core/edge-at-scope`), not released.
 Accepted: Duke, 2026-11-06 14:39 UTC: "Yeah, go adr".
 Builds on: 0064, 0090, 0123.
 
@@ -123,15 +124,21 @@ Code and diff:
 `/mnt/project-files/tinkered/plans/remote-cell/`
 `todo-atscope/`.
 
-## Open
+## Built
 
-- The `tinker/cell-write` lint sees only
-  `x.controller`. It must also flag
+- Core: `data()` gives both placed edges;
+  `resolveEdge` places them at the root.
+- `tests/edge-placement.test.ts`: P1 to P6.
+- `tinker/cell-write` flags
   `x.atScope.controller` and
   `x.atNamespace.controller` on another
   capsule's raw cell.
-- Proof at landing: `vp test` for Core and React,
-  mutation on the changed lines, and the size cap.
+- Gates: `scripts/ticket.sh` checks, Core
+  1054 tests, dist 1298, React 108.
+  Mutation on the changed lines: 95.45%.
+
+## Open
+
 - No placement names "the nearest session above
   this call" (a panel's `SessionProvider` seen
   from a signal call). Core makes call children

@@ -2,8 +2,8 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 /**
- * Warn on `cell.controller` when `cell` is a `data(...)` cell that another capsule's folder
- * declares (ADR 0123). The way in from outside is the capsule's export (`talk.point`, read only)
+ * Warn on `cell.controller`, `cell.atScope.controller` or `cell.atNamespace.controller` when
+ * `cell` is a `data(...)` cell that another capsule's folder declares (ADR 0123, ADR 0126). The way in from outside is the capsule's export (`talk.point`, read only)
  * or an op it exports. A raw import still works; this rule only points at it.
  *
  * Options: `roots` are the folders whose first level is one capsule each (default
@@ -49,16 +49,25 @@ const cellWrite = {
       },
       MemberExpression(node) {
         if (node.computed || node.property.name !== "controller") return;
-        if (node.object.type !== "Identifier") return;
+        const cell = cellOf(node.object);
+        if (cell === undefined) return;
 
-        const owner = imported.get(node.object.name);
+        const owner = imported.get(cell.name);
         if (owner === undefined) return;
 
-        context.report({ node, messageId: "foreign", data: { name: node.object.name, owner } });
+        context.report({ node, messageId: "foreign", data: { name: cell.name, owner } });
       },
     };
   },
 };
+
+/** The cell before `.controller`: `x`, or `x` in a placed edge (`x.atScope`, `x.atNamespace`, ADR 0126). */
+function cellOf(object) {
+  if (object.type === "Identifier") return object;
+  if (object.type !== "MemberExpression" || object.computed) return undefined;
+  if (!["atScope", "atNamespace"].includes(object.property.name)) return undefined;
+  return object.object.type === "Identifier" ? object.object : undefined;
+}
 
 /** The capsule folder a file sits in: the first folder under one of the roots. */
 function capsuleOf(cwd, roots, file) {

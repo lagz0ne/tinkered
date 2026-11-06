@@ -951,5 +951,5 @@ A client token cache is written inside calls that carry a `signal`.
 Each is a child session (ADR 0090), so a plain `held.controller` write is lost.
 The workaround works: a `scope`-target resource that takes the controller.
 Duke chose an edge instead: `held.atScope.controller`, plus `atNamespace` (ADR 0126).
-A scratch copy of v0.11.0 passes the app's 71 tests; Core's own `vp test` is still owed.
-State: accepted shape; ticket next.
+A scratch copy of v0.11.0 passes the app's 71 tests.
+State: landed on main (card `core/edge-at-scope`); not released.

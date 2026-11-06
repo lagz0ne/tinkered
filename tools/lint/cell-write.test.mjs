@@ -110,3 +110,26 @@ void test("an aliased re-export and a typed cell still warn; a file directly und
   assert.equal(lines.length, 1);
   assert.match(lines[0], /`content` is a cell of capsule `src\/frontend\/sync`/);
 });
+
+void test("a placed edge on another capsule's cell warns; on an own cell it does not (ADR 0126)", () => {
+  const lines = lint({
+    ...talk,
+    "src/frontend/work/atoms.ts":
+      'import { data } from "@tinker/core";\n' +
+      'export const open = data({ label: "work.open", initial: false });\n',
+    "src/frontend/work/resources.ts":
+      'import { point } from "@/frontend/talk/atoms";\n' +
+      'import { open } from "./atoms";\n' +
+      "export const deps = {\n" +
+      "  s: point.atScope.controller,\n" +
+      "  n: point.atNamespace.controller,\n" +
+      "  o: open.atScope.controller,\n" +
+      "  x: point.other.controller,\n" +
+      "};\n",
+  });
+
+  assert.equal(lines.length, 2);
+  assert.match(lines[0], /work\/resources\.ts:4:/);
+  assert.match(lines[1], /work\/resources\.ts:5:/);
+  assert.match(lines[0], /`point` is a cell of capsule `src\/frontend\/talk`/);
+});

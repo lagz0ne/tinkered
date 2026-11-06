@@ -72,6 +72,11 @@ export declare namespace Data {
     eq(a: T, b: T): boolean;
     /** Depend on this cell in write mode: delivered as a controller. */
     readonly controller: Edge<"controller", Cell<T>>;
+    /** The write edge placed by this usage, in the words of resource targets (ADR 0064).
+     * `atScope`: the root, outside any namespace. `atNamespace`: the root, in the caller's
+     * namespace. The caller's own layer is plain `controller`. The cell declares no owner. */
+    readonly atScope: { readonly controller: Edge<"controller", Cell<T>> };
+    readonly atNamespace: { readonly controller: Edge<"controller", Cell<T>> };
   };
 
   /** What a read edge hands a unit: the value and its changes, never a write. */
@@ -1101,7 +1106,21 @@ export function data<T>(config: {
     capsule: undefined,
     passed: undefined,
   } as Data.Cell<T> & Exported;
-  return Object.assign(base, { controller: edgeTo("controller", base) });
+  const placed = (placement: "scope" | "namespace") => ({
+    controller: Object.assign(edgeTo("controller", base), { placement }),
+  });
+  return Object.assign(base, {
+    controller: edgeTo("controller", base),
+    atScope: placed("scope"),
+    atNamespace: placed("namespace"),
+  });
+}
+
+/** The root of a layer: where an `atScope` or `atNamespace` edge places its reads and writes. */
+function rootOf(layer: Layer): Layer {
+  let at = layer;
+  while (at.up !== undefined) at = at.up;
+  return at;
 }
 
 /** Declare an ambient tag. Call it to bind a value; read it via `.required`/`.optional`/`.all`. */
@@ -1959,7 +1978,18 @@ function resolveEdge(
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
-  if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, up, chain, caller);
+  if (dep.kind === "controller") {
+    const placement = (dep as { placement?: "scope" | "namespace" }).placement;
+    if (placement === undefined) return resolveControllerEdge(layer, dep.target, up, chain, caller);
+    // scope: the root's own bucket, as a scope-target resource; namespace: the root, keyed by
+    // the caller's namespace chain, as a namespace-target resource.
+    return resolveControllerEdge(
+      rootOf(layer),
+      dep.target,
+      up,
+      placement === "scope" ? NO_NAMESPACE : chain,
+    );
+  }
   if (dep.kind === "reader") {
     return readerOf(layer, Capsules.cellOf(Capsules.check(layer, dep)), chain);
   }
