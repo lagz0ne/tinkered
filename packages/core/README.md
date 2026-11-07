@@ -767,6 +767,43 @@ A driver whose shared state belongs to the source scope must read and write thro
 scope's handle, such as `scope.controller(cell).set(value)`. A cell controller supplied in
 a session operation's `depends` writes to that session.
 
+### Placed edges
+
+The edge picks the layer a write lands on (ADR 0126).
+The cell declares no place. The words are resource targets:
+
+- `cell.controller`: the caller's own layer (as `session`).
+- `cell.atNamespace.controller`: the root, in the caller's
+  namespace (as `namespace`).
+- `cell.atScope.controller`: the root, outside any
+  namespace (as `scope`).
+
+```ts
+const token = data({ initial: null });
+
+const renew = operation({
+  depends: { t: token.atScope.controller },
+  run: async ({ t }) => t.set(await refresh()),
+});
+
+// From a session, or a call with a `signal`:
+await session.run(renew, { signal });
+scope.resolve(token); // the new token
+```
+
+- A placed edge works from a session, a tagged call,
+  and a call with a `signal`.
+- Nothing climbs by itself. A plain `controller` write
+  stays in its own layer.
+- A namespace that holds its own value still reads it
+  after an `atScope` write.
+- A read view (a capsule's cell export) has no
+  placed edge, at run time and in the types.
+- `tinker/cell-write` flags a placed edge on another
+  capsule's raw cell.
+- Before 0.12.0, a `scope`-target resource that takes
+  the controller wrote the root. It still works.
+
 On an open scope, a repeat `controller(target)` read returns the same controller.
 A controller read after close throws `Disposed`.
 
@@ -1019,6 +1056,15 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A data controller get reads the latest write.
 - A scope with empty tag bindings reads defaults.
 - An operation depending on a non-unit fails with `InvalidDependency`.
+- Each placement lands where its resource-target word says.
+- With no namespace, `atNamespace` and `atScope` both land in the
+  root's own bucket.
+- A session's own write never climbs; its shadow wins its own reads.
+- `atScope` from a call two levels below a session still lands at
+  the root.
+- A read view has no placement, at run time and in the types.
+- A placed controller kept past its call still writes the root,
+  and watchers see it.
 
 ### Tags
 

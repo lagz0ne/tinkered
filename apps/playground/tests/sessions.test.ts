@@ -9,7 +9,10 @@ import {
   editNotes,
   editTitle,
   harbor,
+  lastSaved,
   projectBrief,
+  saveDraft,
+  savedTitle,
 } from "../example/sessions/index";
 
 test("resetting a title keeps its notes and the other project draft", async () => {
@@ -83,5 +86,26 @@ test("refetching a project brief rebuilds only that project and keeps both draft
   expect(other.resolve(projectBrief)).toBe(sibling);
   expect(first.resolve(draftTitle)).toBe("Harbor draft");
   expect(other.resolve(draftTitle)).toBe("Beacon draft");
+  await scope.close();
+});
+
+test("a save from a form lands at the root and outlives its form and route", async () => {
+  const scope = createScope();
+  const route = scope.createSession({ ns: harbor });
+  const form = route.createSession();
+  const other = scope.createSession({ ns: beacon }).createSession();
+  form.run(editTitle, { input: "Harbor plan" });
+
+  form.run(saveDraft);
+  await form.close();
+  await route.close();
+  const returned = scope.createSession({ ns: harbor }).createSession();
+
+  expect(returned.resolve(draftTitle)).toBe("Untitled note");
+  expect(returned.resolve(savedTitle)).toBe("Harbor plan");
+  expect(scope.resolve(savedTitle, { ns: harbor })).toBe("Harbor plan");
+  expect(other.resolve(savedTitle)).toBe(null);
+  expect(scope.resolve(lastSaved)).toBe("Harbor: Harbor plan");
+  expect(other.resolve(lastSaved)).toBe("Harbor: Harbor plan");
   await scope.close();
 });

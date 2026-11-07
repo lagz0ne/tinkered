@@ -385,3 +385,14 @@
     padding-inline: 10px;
   }
 }
+.session-save {
+  margin-top: 14px;
+}
+.session-saved {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 14px;
+  color: #d7ece6;
+  font-size: 12px;
+}

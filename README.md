@@ -39,6 +39,27 @@ vp run -r build
 vp run dev
 ```
 
+## `@tinker/core`: the edge picks where a write lands
+
+Since 0.12.0 (ADR 0126). The cell declares no place.
+Each `depends` edge names one:
+
+```ts
+const token = data({ initial: null });
+
+depends: {
+  own: token.controller, // caller's layer
+  ns: token.atNamespace.controller, // root, caller ns
+  all: token.atScope.controller, // root, no ns
+}
+```
+
+A write from a session or a `signal` call stays in
+that call, unless its edge says `atScope` or
+`atNamespace`. The playground's Sessions study
+shows all three. Details:
+[Placed edges](packages/core/README.md#placed-edges).
+
 ## `@tinker/core`: time is an ambient capability
 
 Every operation and resource ctx carries a `clock`. The default is the system clock; a scope can

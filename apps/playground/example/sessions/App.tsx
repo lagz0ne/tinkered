@@ -1,5 +1,13 @@
 import { SessionProvider, useData, useRelease, useResource, useRun } from "@tinker/react";
-import { ArrowRight, Code2, CornerDownRight, LogOut, RefreshCw, RotateCcw } from "lucide-react";
+import {
+  ArrowRight,
+  Code2,
+  CornerDownRight,
+  LogOut,
+  RefreshCw,
+  RotateCcw,
+  Save,
+} from "lucide-react";
 import type { ReactElement } from "react";
 
 import {
@@ -9,10 +17,13 @@ import {
   editNotes,
   editTitle,
   formGeneration,
+  lastSaved,
   openProjects,
   projectBrief,
   projects,
   resetForm,
+  saveDraft,
+  savedTitle,
   toggleRoute,
 } from "./model";
 
@@ -47,6 +58,7 @@ function Draft({ project }: { project: Project }): ReactElement {
   const notes = useData(draftNotes);
   const setTitle = useRun(editTitle);
   const setNotes = useRun(editNotes);
+  const save = useRun(saveDraft);
   const release = useRelease();
   const signal = useResource(draftSignal);
 
@@ -88,8 +100,22 @@ function Draft({ project }: { project: Project }): ReactElement {
           Draft signal {signal.aborted ? "closed" : "open"}
           <span>Aborted when this form closes</span>
         </p>
+        <button type="button" className="session-button session-save" onClick={() => save.run()}>
+          <Save size={14} aria-hidden="true" />
+          Save title
+        </button>
       </fieldset>
     </>
+  );
+}
+
+function Saved(): ReactElement {
+  const saved = useData(savedTitle);
+  return (
+    <p className="session-saved" aria-live="polite">
+      <span className="session-caption">Saved at the root</span>
+      {saved ?? "Nothing saved yet"}
+    </p>
   );
 }
 
@@ -98,6 +124,7 @@ function Route({ project }: { project: Project }): ReactElement {
   const reset = useRun(resetForm);
   return (
     <>
+      <Saved />
       <SessionProvider key={generation}>
         <Draft project={project} />
       </SessionProvider>
@@ -176,6 +203,7 @@ function ProjectPanel({ project, index }: { project: Project; index: number }): 
 }
 
 export function SessionsPage({ onShowSource }: { onShowSource: () => void }): ReactElement {
+  const last = useData(lastSaved);
   return (
     <main className="sessions-page">
       <header className="sessions-intro">
@@ -200,6 +228,7 @@ export function SessionsPage({ onShowSource }: { onShowSource: () => void }): Re
       <div className="sessions-rule">
         <span>Field → form → route</span>
         <span>Each reset has a home.</span>
+        <span aria-live="polite">Last save: {last ?? "none"}</span>
       </div>
       <div className="session-projects">
         {projects.map((project, index) => (
@@ -211,7 +240,14 @@ export function SessionsPage({ onShowSource }: { onShowSource: () => void }): Re
           A session owns a form’s lifetime. A namespace is the project key that keeps its brief
           apart.
         </p>
-        <p>Leaving this view closes the open forms. Project briefs stay until the page reloads.</p>
+        <p>
+          Save title writes from the form session to the root: per project through{" "}
+          <code>atNamespace</code>, and the last save through <code>atScope</code>. Both outlive the
+          form and the route.
+        </p>
+        <p>
+          Leaving this view closes the open forms. Briefs and saves stay until the page reloads.
+        </p>
       </footer>
     </main>
   );

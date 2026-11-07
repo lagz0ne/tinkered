@@ -60,6 +60,31 @@ export const editNotes = operation({
   run: ({ notes }, { input }) => notes.set(input),
 });
 
+/** Saved per project at the root: it outlives the form and the route. */
+export const savedTitle = data<string | null>({ label: "saved-title", initial: null });
+
+/** The last save from any project: at the root, outside every namespace. */
+export const lastSaved = data<string | null>({ label: "last-saved", initial: null });
+
+/**
+ * The form session runs this op. Each edge picks the layer its write lands on (ADR 0126):
+ * `atNamespace` = the root, in this project's key; `atScope` = the root, no key.
+ * A plain `controller` here would write the form session and die with it.
+ */
+export const saveDraft = operation({
+  label: "save-draft",
+  depends: {
+    title: draftTitle,
+    name: projectName.required,
+    saved: savedTitle.atNamespace.controller,
+    last: lastSaved.atScope.controller,
+  },
+  run: ({ title, name, saved, last }) => {
+    saved.set(title);
+    last.set(`${name}: ${title}`);
+  },
+});
+
 /** A form owns its abort signal. Both form reset and route leave run this cleanup. */
 export const draftSignal = resource({
   label: "draft-signal",

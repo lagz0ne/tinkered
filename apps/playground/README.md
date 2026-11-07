@@ -127,6 +127,20 @@ The example proves these rules:
 - Refetch brief builds a new brief for that project only.
   The other project's brief and both drafts stay.
 
+Save title shows placed edges (ADR 0126).
+The form session runs `saveDraft`. Its edges pick the layer:
+
+- `savedTitle.atNamespace.controller`: the root, in the
+  project's key. Each project keeps its own save.
+- `lastSaved.atScope.controller`: the root, no key.
+  Both projects and the page read it.
+- A plain `controller` would write the form session.
+  The save would die with the form.
+
+The test proves it: a save outlives its form and route.
+The other project keeps no saved title, but it sees the
+last save.
+
 The brief is built locally, with no network call or delay.
 Its build number counts real resource builds.
 One reader per project shows the result of its own refetch.
