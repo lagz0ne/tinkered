@@ -4,6 +4,71 @@ Each section is one release of
 `@tinker/core` and `@tinker/react`.
 The two move to one version together.
 
+## 0.14.0
+
+A root with capsules has a starting type
+(ADR 0128). Breaking.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.14.0
+bun add $R/tinker-core-0.14.0.tgz \
+  $R/tinker-react-0.14.0.tgz
+```
+
+On Node, with npm:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.14.0
+npm install $R/tinker-core-0.14.0.tgz \
+  $R/tinker-react-0.14.0.tgz
+```
+
+The two URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.14.0/tinker-core-0.14.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.14.0/tinker-react-0.14.0.tgz
+
+### Starting handle
+
+- `createScope({ capsules })` returns a
+  `Scope.Starting`. Its `run`, `settle`,
+  `session` and `controller(op).run` always
+  return a promise.
+- `await scope.ready` gives the started
+  `Scope.Handle`. Its sync calls stay sync.
+- `createSession()` on it gives a starting
+  session; its `ready` gives the started
+  session.
+- `isStarting(scope)` tells the two apart.
+- A root with no `capsules` does not change.
+- `capsules` that may be unset (a variable)
+  types as either. Narrow it with
+  `isStarting`.
+
+### React
+
+- `ScopeProvider` takes a starting root. It
+  waits for `ready`: a `<Suspense>` above shows
+  its fallback; a failed start reaches the
+  error boundary.
+- In `create` form it renders nothing until
+  start ends, and does not suspend.
+
+### Upgrade
+
+- Await each call on a capsule root, or take
+  `const live = await scope.ready` first.
+- Pass the started handle to code that wants
+  a `Scope.Handle`, and to `renderToString`.
+- Make `no-floating-promises` an error: it
+  finds each call that is not awaited.
+
 ## 0.13.0
 
 A call waits for start, and a capsule's author
