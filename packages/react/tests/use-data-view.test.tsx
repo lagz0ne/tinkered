@@ -42,7 +42,7 @@ test("useData reads a capsule's cell export and re-renders when the owner's op w
   await expect.element(screen.getByText("point:a")).toBeVisible();
   await expect.element(screen.getByText("upper:A")).toBeVisible();
   await expect.element(screen.getByText("bare:a")).toBeVisible();
-  scope.run(talk.clearPoint);
+  await scope.run(talk.clearPoint);
   await expect.element(screen.getByText("point:none")).toBeVisible();
   await expect.element(screen.getByText("upper:NONE")).toBeVisible();
 

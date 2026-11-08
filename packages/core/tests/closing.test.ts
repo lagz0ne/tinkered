@@ -398,7 +398,7 @@ test("run, resolve, and write hooks read their owner's closing signal", async ()
   await scope.ready;
   scope.resolve(counts);
   scope.controller(counts).set(1);
-  scope.run({ label: "hook-read", run: () => 1 });
+  await scope.run({ label: "hook-read", run: () => 1 });
 
   expect(signals).toHaveLength(4);
   for (const signal of signals) {

@@ -176,7 +176,7 @@ test("a confirmed intent sends a signed success webhook", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const intent = await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
@@ -226,7 +226,7 @@ test("parallel calls with one key return the same intent", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const body = { amount: 12300, currency: "usd" };
   const responses = await Promise.all([
@@ -274,7 +274,7 @@ test("a late webhook waits for the chosen time", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/payment", { mode: "late", delayMs: 1000 });
   const intent = await confirm(url);
@@ -314,7 +314,7 @@ test("twice sends the same signed event twice", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/payment", { mode: "twice" });
   await confirm(url);
@@ -351,7 +351,7 @@ test("the failed scenario sends a payment failure webhook", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/scenario", { name: "payment-failed" });
   await confirm(url);
@@ -390,7 +390,7 @@ test("never sends nothing until the grader asks for a webhook now", async () => 
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/payment", { mode: "never" });
   const intent = await confirm(url);
@@ -430,7 +430,7 @@ test("refund keys return the same refund and cannot refund more than paid", asyn
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const intent = await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
@@ -469,7 +469,7 @@ test("payment accepts Stripe form bodies", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const response = await fetch(`${url}/v1/payment_intents`, {
     method: "POST",
@@ -512,7 +512,7 @@ test("the grader can cancel a pending webhook and send it now", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const intent = await confirm(url);
   await post(url, "/control/webhooks", { intent_id: intent.id, mode: "never" });
@@ -552,7 +552,7 @@ test("an injected payment failure uses Stripe's error shape", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/routes", { route: "POST /v1/payment_intents", status: 503 });
   const response = await post(url, "/v1/payment_intents", { amount: 900, currency: "usd" });
@@ -589,7 +589,7 @@ test("repeated confirmation keeps one delivery and a key keeps its original repl
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const body = { amount: 1200, currency: "USD" };
   const first = intentSchema.parse(
@@ -672,7 +672,7 @@ test("partial refunds share the paid limit only with the same intent", async () 
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const first = await confirm(url);
   const other = await confirm(url);
@@ -732,7 +732,7 @@ test("bad payment input and missing resources return Stripe errors", async () =>
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const cases = [
     { path: "/v1/payment_intents", body: {}, status: 400, code: "invalid_payment_intent" },
@@ -822,7 +822,7 @@ test("a payment scenario reset clears intents, keys, route faults and old delive
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const body = { amount: 900, currency: "usd" };
   const first = intentSchema.parse(
@@ -876,7 +876,7 @@ test("the grader rejects an unknown intent and invalid webhook plans", async () 
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const missing = await post(url, "/control/webhooks", { intent_id: "missing", mode: "now" });
   expect(missing.status).toBe(404);
@@ -928,7 +928,7 @@ test("manual late and twice plans change only the chosen intent", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/payment", { mode: "late", delayMs: 100 });
   const first = await confirm(url);
@@ -989,7 +989,7 @@ test("a failed outcome uses the default confirmation plan", async () => {
   });
   running.push({ stop: stopUrl, closed: scopeUrl.closed });
   await scopeUrl.ready;
-  const { url } = await paymentApp.serve(scopeUrl);
+  const { url } = await paymentApp.serve(await scopeUrl.ready);
   await post(url, "/control/clock", { now: 10000 });
   const plan = await post(url, "/control/payment", { outcome: "failed" });
   expect(await plan.json()).toEqual({ data: { outcome: "failed", mode: "now", delayMs: 1000 } });
@@ -1029,7 +1029,7 @@ test("parallel delayed payment calls consume one saved route reply", async () =>
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   await post(url, "/control/routes", {
     route: "POST /v1/payment_intents",
@@ -1123,7 +1123,7 @@ test("a delayed payment call cannot overwrite its replacement rule", async () =>
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   const logs = z.object({
     data: z.array(
@@ -1207,7 +1207,7 @@ test("resetting payment while a call waits clears its fault and old log entry", 
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   const logs = z.object({
     data: z.array(
@@ -1279,7 +1279,7 @@ test("stopping payment ends a delayed call with a Stripe service-stopped error",
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   const logs = z.object({
     data: z.array(
@@ -1342,7 +1342,7 @@ test("Stripe form metadata keeps plain values and drops unsafe nested keys", asy
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   const response = await fetch(`${url}/v1/payment_intents`, {
     method: "POST",
@@ -1396,7 +1396,7 @@ test("payment paths require the complete Stripe route", async () => {
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   const intent = intentSchema.parse(
     await (await post(url, "/v1/payment_intents", { amount: 900, currency: "usd" })).json(),
@@ -1449,7 +1449,7 @@ test("pipelined payment calls protect a key while its first call is still pendin
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   for (const amount of [900, 901]) {
     const clientStop = new AbortController();
     const client = createScope({
@@ -1507,7 +1507,7 @@ test("a confirmation sends its webhook before the grader sets a clock", async ()
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   const intent = await confirm(url);
   await expect.poll(() => received.length).toBe(1);
   expect(JSON.parse(received.at(0)!.body)).toMatchObject({
@@ -1546,7 +1546,7 @@ test("stopping payment aborts an outgoing webhook and closes its HTTP port", asy
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
@@ -1592,7 +1592,7 @@ test("a graceful close aborts a webhook while its response body is open", async 
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   await confirm(url);
   await post(url, "/control/clock", { advanceMs: 20 });
@@ -1641,7 +1641,7 @@ test("a graceful close ends a queued webhook without advancing the clock", async
   });
   running.push({ stop, closed: scope.closed });
   await scope.ready;
-  const { url } = await paymentApp.serve(scope);
+  const { url } = await paymentApp.serve(await scope.ready);
   await post(url, "/control/clock", { now: 10000 });
   await confirm(url);
   let closed = false;

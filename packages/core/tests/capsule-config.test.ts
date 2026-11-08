@@ -146,8 +146,7 @@ test("a tag.required key is filled like any other", async () => {
   });
   const mail = capsule({ label: "mail", config: { port: port.required } });
 
-  const scope = createScope({ capsules: [mail({ port: 8080 })] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [mail({ port: 8080 })] }).ready;
 
   expect(scope.run(read)).toBe(8080);
   await scope.close();
@@ -158,8 +157,7 @@ test("a tags binding on the root wins over the capsule's", async () => {
   const read = operation({ label: "read", depends: { port }, run: ({ port }) => port });
   const mail = capsule({ label: "mail", config: { port } });
 
-  const scope = createScope({ tags: [port(8080)], capsules: [mail({ port: 25 })] });
-  await scope.ready;
+  const scope = await createScope({ tags: [port(8080)], capsules: [mail({ port: 25 })] }).ready;
 
   expect(scope.run(read)).toBe(8080);
   await scope.close();
@@ -200,19 +198,17 @@ test("an empty or left-out list key reads an empty list", async () => {
 });
 
 test("a slot key holds a resource, and a unit reads the one the library resolved", async () => {
-  const scope = createScope({ capsules: [sync({ store: sqlite, migrate })] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [sync({ store: sqlite, migrate })] }).ready;
 
   expect(scope.run(whoami)).toBe("sqlite");
   await scope.close();
 });
 
 test("a preset on the unit a slot holds reaches the unit that reads it", async () => {
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [sync({ store: sqlite, migrate })],
     presets: [preset(sqlite, (): Store => ({ id: "fake" }))],
-  });
-  await scope.ready;
+  }).ready;
 
   expect(scope.run(whoami)).toBe("fake");
   await scope.close();

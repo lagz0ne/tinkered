@@ -301,8 +301,7 @@ test("a session copies its remote trace seed and child sessions inherit it", asy
       session: (event) => event.next(),
     },
   });
-  const scope = createScope({ observe: { history: 20 }, capsules: hook });
-  await scope.ready;
+  const scope = await createScope({ observe: { history: 20 }, capsules: hook }).ready;
 
   const given = { ...seed };
   const session = scope.createSession({ trace: given });

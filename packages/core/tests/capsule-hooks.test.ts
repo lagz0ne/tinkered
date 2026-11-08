@@ -141,7 +141,7 @@ test("three run hooks nest in registration order", async () => {
 
   const scope = createScope({ capsules: [hook("a"), hook("b"), hook("c")] });
   await scope.ready;
-  scope.run(op);
+  await scope.run(op);
 
   expect(order).toEqual(["a:before", "b:before", "c:before", "c:after", "b:after", "a:after"]);
   await scope.close();

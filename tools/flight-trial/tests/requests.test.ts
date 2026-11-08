@@ -54,7 +54,7 @@ test.each(services)(
     });
     try {
       await scope.ready;
-      const { url } = await app.serve(scope);
+      const { url } = await app.serve(await scope.ready);
       const session = await created;
       session.resolve(requests);
       session.resolve(requests);

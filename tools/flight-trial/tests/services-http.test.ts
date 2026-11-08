@@ -164,7 +164,7 @@ test.each(replies)(
     });
     try {
       await scope.ready;
-      const { url } = await paymentApp.serve(scope);
+      const { url } = await paymentApp.serve(await scope.ready);
       await deliver(url);
       await expect.poll(() => returned).toEqual([[delivery]]);
       expect(recorded).toEqual([delivery]);
@@ -204,7 +204,7 @@ test("each webhook copy has an HTTP span below the webhook operation and its res
   });
   try {
     await scope.ready;
-    const { url } = await paymentApp.serve(scope);
+    const { url } = await paymentApp.serve(await scope.ready);
     const created = await fetch(`${url}/v1/payment_intents`, {
       method: "POST",
       headers: { "content-type": "application/json" },

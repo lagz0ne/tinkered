@@ -476,8 +476,7 @@ test("A06 run(op, options, meta) answers what scope.run answers, with one span l
       },
     },
   });
-  const scope = createScope({ capsules: [calc()], observe: { history: 10 } });
-  await scope.ready;
+  const scope = await createScope({ capsules: [calc()], observe: { history: 10 } }).ready;
   const hookSpans = scope.spans().map((span) => span.name);
 
   expect(seen).toEqual([scope.run(add, { input: 2 })]);
@@ -620,7 +619,7 @@ test("A13 a span of an exported unit carries capsule", async () => {
   });
   await scope.ready;
 
-  scope.run(mail.send);
+  await scope.run(mail.send);
 
   expect(scope.spans().map((span) => [span.name, span.attributes.capsule])).toEqual([
     ["mail.send", "mail"],
@@ -674,8 +673,7 @@ test("A17 with mail installed the same op runs, and runs again", async () => {
     depends: { enqueue: mail.enqueue },
     run: ({ enqueue }) => enqueue.run(),
   });
-  const scope = createScope({ capsules: [mail({ smtpUrl: "smtp://x" })] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [mail({ smtpUrl: "smtp://x" })] }).ready;
 
   expect(scope.run(notify)).toBe("queued via smtp://x");
   expect(scope.run(notify)).toBe("queued via smtp://x");
@@ -769,8 +767,7 @@ test("the record exists before start with config and exports, and is live", asyn
 test("Q7a a binding is a depends entry that delivers its start value", async () => {
   const db = capsule({ label: "db", hooks: { start: () => ({ url: "sqlite://" }) } });
   const read = operation({ label: "read", depends: { db }, run: ({ db }) => db.url });
-  const scope = createScope({ capsules: [db()] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [db()] }).ready;
 
   expect(scope.run(read)).toBe("sqlite://");
   await scope.close();
@@ -813,8 +810,7 @@ test("A21 an exported tag is bound per call by the capsule; each session reads i
     },
   });
   const serving = { role: "handler", explain: "Serves one request" } as const;
-  const scope = createScope({ capsules: [http()] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [http()] }).ready;
   const a = scope.createSession();
   const b = scope.createSession();
 
@@ -864,7 +860,7 @@ test("A22 a hook run in an unobserved namespace leaves no span or log for the ta
   expect(await Promise.all(flushes)).toEqual(["flushed"]);
   expect([spans, logs]).toEqual([[], []]);
 
-  scope.run(flush);
+  await scope.run(flush);
 
   expect([spans, logs]).toEqual([["telemetry.flush"], ["flushed", "telemetry.flush"]]);
   await scope.close();
@@ -1122,8 +1118,7 @@ test("A25a a capsule's fixed tags bind on the root, so a unit reads them with no
   const telemetry = {
     server: capsule({ label: "telemetry", tags: [side("server"), key("k-123")] }),
   };
-  const scope = createScope({ capsules: [telemetry.server()] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [telemetry.server()] }).ready;
 
   expect(scope.run(readSide)).toBe("server");
   expect(scope.capsules[0]?.tags).toEqual({
@@ -1147,8 +1142,8 @@ test("A25b a tag bound twice follows the root list rule: the later capsule, then
   const first = capsule({ label: "first", tags: [side("first")] });
   const second = capsule({ label: "second", tags: [side("second")] });
 
-  const two = createScope({ capsules: [first(), second()] });
-  const withCmd = createScope({ capsules: [first(), second()], tags: [side("cmd")] });
+  const two = await createScope({ capsules: [first(), second()] }).ready;
+  const withCmd = await createScope({ capsules: [first(), second()], tags: [side("cmd")] }).ready;
   await Promise.all([two.ready, withCmd.ready]);
 
   expect(two.run(readSide)).toBe("second");
@@ -1213,7 +1208,7 @@ test("B1 every hook kind's log line carries attributes.capsule", async () => {
   });
   await scope.ready;
 
-  scope.run(step);
+  await scope.run(step);
   scope.resolve(pool);
   scope.controller(count).set(1);
   await scope.session(() => undefined);
@@ -1591,8 +1586,7 @@ test("S2b a left-out defaulted key reads its default in a hook and in a unit", a
       },
     },
   });
-  const scope = createScope({ capsules: [mailer({ smtpUrl: "smtp://x" })] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [mailer({ smtpUrl: "smtp://x" })] }).ready;
 
   expect(seen).toEqual(["noreply@example.com", "noreply@example.com"]);
   expect(scope.run(readFrom)).toBe("noreply@example.com");

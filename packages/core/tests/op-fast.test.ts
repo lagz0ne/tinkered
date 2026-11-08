@@ -126,7 +126,7 @@ test("a saved run next refuses to start a body after its run has finished", asyn
     },
   });
   const op = operation({ label: "late-body", run: () => 9 });
-  const root = createScope({ capsules: [around] });
+  const root = await createScope({ capsules: [around] }).ready;
 
   expect(root.settle(op)).toEqual({ status: "success", value: 7 });
 
@@ -172,7 +172,7 @@ test("a hooked run waits for its async resource before calling its body", async 
     },
   });
 
-  const root = createScope({ capsules: [around] });
+  const root = await createScope({ capsules: [around] }).ready;
   const running = root.settle(op);
   expect(calls).toEqual(["before"]);
 

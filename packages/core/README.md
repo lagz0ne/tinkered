@@ -147,19 +147,26 @@ A run passes objects the way a function call does: no copy.
 
 ## Root lifetime
 
-A call made while the root starts waits for start (ADR 0127):
+A root given `capsules` has a starting type (ADR 0127, ADR 0128):
 
 ```ts
-await using scope = createScope({ capsules: [db] });
-const rows = await scope.run(listRows);
+await using app = createScope({ capsules: [db] });
+const rows = await app.run(listRows);
 ```
 
-- `run`, `settle`, `session`, and `controller(op).run` wait.
-- So do the same verbs on a session made during start.
+```ts
+const live = await createScope({ capsules: [db] }).ready;
+const now = live.run(countRows);
+```
+
+- On `app`, `run`, `settle`, `session` and `controller(op).run`
+  always return a promise.
+- A call made before start ends waits for start.
 - After a failed start or a close, a waiting `run` raises `Disposed`.
 - A waiting `settle` returns its result; it never throws.
-- After start the gate is gone; a sync op answers sync again.
-- `resolve` and cell reads do not wait.
+- `ready` resolves to the started handle; its sync calls stay sync.
+- `isStarting(scope)` tells the two apart.
+- A root with no `capsules` is a plain handle, as before.
 - `await using` closes the scope at the end of the block.
 
 Give a root a stop signal and await its final Result (ADR 0085):

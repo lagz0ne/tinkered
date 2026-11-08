@@ -50,7 +50,7 @@ test("its exports keep their types", () => {
 });
 
 test("without the capsule it serves, its first run fails", async () => {
-  await using app = createScope({ capsules: [authTesting] });
+  await using app = await createScope({ capsules: [authTesting] }).ready;
 
   expect(() => app.run(authTesting.signIn)).toThrow("CapsuleMissing");
 });

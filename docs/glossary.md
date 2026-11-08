@@ -177,8 +177,9 @@ The copied client has no frame, config tag, or retry.
 
 - **extension** — Replaced by **capsule** (ADR 0121). Was: scope hooks that use namespace tags to choose and control instance state.
 - **hook chain** — The per-verb onion built once at creation from the extensions that declare that hook; registration order, first is outermost; a verb with no middleware keeps its direct call (pays nothing).
-- **ready** — `scope.ready`: a promise settled when every `start` chain settled; a rejected start force-closes the scope through its `close` (every close hook runs) and rejects `ready` only after that close ended (ADR 0085). No extensions → already resolved.
-- **start gate** — While a root starts, an outside `run`, `settle`, `session`, or op controller call waits for `ready`, then runs; after a failed start or a close it meets the closed scope (ADR 0127). Gone after start.
+- **ready** — `scope.ready`: a promise settled when every `start` chain settled. On a starting handle it resolves to the started handle (ADR 0128); a rejected start force-closes the scope through its `close` (every close hook runs) and rejects `ready` only after that close ended (ADR 0085). No extensions → already resolved.
+- **start gate** — While a root starts, an outside `run`, `settle`, `session`, or op controller call waits for `ready`, then runs; after a failed start or a close it meets the closed scope (ADR 0127). On a starting handle each call stays a promise after start (ADR 0128).
+- **starting handle** — `Scope.Starting`: what `createScope({ capsules })` returns. Every call is a promise; `await scope.ready` gives the started `Scope.Handle`, whose sync calls stay sync (ADR 0128).
 - **closed** — `scope.closed` on a root made with a stop `signal`: core's one close `Result`, once that close ended; settles once, never rejects, pending while open (ADR 0085).
 - **stop signal** — `createScope({ signal })`: an abort closes the root gracefully once `ready` resolved. Not `ctx.signal`: it asks the root to stop; `ctx.signal` cancels work (ADR 0085).
 - **extension value** — What a `start` chain returned, read with `scope.resolve(ext)` once ready (`NotResolved` before). `source()` → `{ connect }`, `subscribe(link)` → `{ close }`.

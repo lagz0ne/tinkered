@@ -40,7 +40,7 @@ test("R1 a cell export is a read view, not the raw cell", () => {
   expectTypeOf(talk.point).toEqualTypeOf<Data.View<string | null>>();
 });
 
-test("R2 a unit that depends on the view gets get and watch, and sees the owner's op write", () => {
+test("R2 a unit that depends on the view gets get and watch, and sees the owner's op write", async () => {
   const seen: (string | null)[] = [];
   const follow = resource({
     label: "work.follow",
@@ -51,7 +51,7 @@ test("R2 a unit that depends on the view gets get and watch, and sees the owner'
       return point;
     },
   });
-  const scope = createScope({ capsules: [talk] });
+  const scope = await createScope({ capsules: [talk] }).ready;
 
   const reader = scope.resolve(follow) as Data.Reader<string | null>;
   expect(Object.keys(reader).sort()).toEqual(["get", "watch"]);
@@ -70,7 +70,7 @@ test("R3 the view has no controller and no path to the cell: nothing to write th
   expect(talk.point.controller).toBeUndefined();
 });
 
-test("R3b a depends that names the missing controller fails at first touch, before any work", () => {
+test("R3b a depends that names the missing controller fails at first touch, before any work", async () => {
   const work: string[] = [];
   const clearFromWork = operation({
     label: "work.clear",
@@ -78,7 +78,7 @@ test("R3b a depends that names the missing controller fails at first touch, befo
     depends: { point: talk.point.controller },
     run: () => work.push("ran"),
   });
-  const scope = createScope({ capsules: [talk] });
+  const scope = await createScope({ capsules: [talk] }).ready;
 
   const error = caught(() => scope.run(clearFromWork));
 
@@ -90,13 +90,13 @@ test("R3b a depends that names the missing controller fails at first touch, befo
   expect(work).toEqual([]);
 });
 
-test("R4 the raw cell keeps full power, as today", () => {
+test("R4 the raw cell keeps full power, as today", async () => {
   const clearRaw = operation({
     label: "work.clearRaw",
     depends: { point: point.controller },
     run: ({ point }) => point.set("raw"),
   });
-  const scope = createScope({ capsules: [talk] });
+  const scope = await createScope({ capsules: [talk] }).ready;
 
   scope.run(clearRaw);
 
@@ -191,9 +191,9 @@ test("R10 a raw controller edge on an exported cell still needs its capsule", ()
   expect(error.payload).toEqual({ unit: "talk.point", capsule: "talk" });
 });
 
-test("R11 an inline run that names the view's controller fails before its body", () => {
+test("R11 an inline run that names the view's controller fails before its body", async () => {
   const work: string[] = [];
-  const scope = createScope({ capsules: [talk] });
+  const scope = await createScope({ capsules: [talk] }).ready;
 
   const error = caught(() =>
     scope.run({

@@ -2846,7 +2846,7 @@ test("an operation preset does not read an unbound tag", () => {
   expect(scope.run(greet)).toBe("");
 });
 
-test("an operation preset gets empty deps under a run hook too", () => {
+test("an operation preset gets empty deps under a run hook too", async () => {
   let built = 0;
   const count = resource({
     label: "count",
@@ -2856,10 +2856,10 @@ test("an operation preset gets empty deps under a run hook too", () => {
     },
   });
   const greet = operation({ label: "greet", depends: { count }, run: ({ count }) => count + 1 });
-  const scope = createScope({
+  const scope = await createScope({
     presets: [preset(greet, (deps) => Object.keys(deps).length)],
     capsules: [capsule({ label: "run hook", hooks: { run: (event) => event.next() } })],
-  });
+  }).ready;
 
   expect(scope.run(greet)).toBe(0);
   expect(built).toBe(0);
@@ -5365,9 +5365,7 @@ test("a run hook wraps a declared operation call: before, next, after", async ()
       },
     },
   });
-  const scope = createScope({ capsules: [wrap] });
-
-  await scope.ready;
+  const scope = await createScope({ capsules: [wrap] }).ready;
 
   const value: number = scope.run(triple);
   expect(value).toBe(3);
@@ -5390,9 +5388,7 @@ test("a run hook that skips next refuses the call and the body never runs", asyn
       run: () => "denied",
     },
   });
-  const scope = createScope({ capsules: [deny] });
-
-  await scope.ready;
+  const scope = await createScope({ capsules: [deny] }).ready;
 
   expect(scope.run(op)).toBe("denied");
   expect(calls).toBe(0);
@@ -5427,7 +5423,7 @@ test("two run hooks nest in registration order", async () => {
   const scope = createScope({ capsules: [a, b] });
 
   await scope.ready;
-  scope.run(op);
+  await scope.run(op);
 
   expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
   await scope.close();
@@ -5444,9 +5440,7 @@ test("a run hook sees an inline config too", async () => {
       },
     },
   });
-  const scope = createScope({ capsules: [count] });
-
-  await scope.ready;
+  const scope = await createScope({ capsules: [count] }).ready;
 
   const value: number = scope.run({ run: () => 7 });
   expect(value).toBe(7);
@@ -5474,9 +5468,7 @@ test("a run hook passes the call through to the operation unchanged", async () =
       },
     },
   });
-  const scope = createScope({ capsules: [pass] });
-
-  await scope.ready;
+  const scope = await createScope({ capsules: [pass] }).ready;
 
   expect(scope.run(double, { rawInput: 21 })).toBe(42);
   expect(seenInput).toBe(21);
@@ -5513,9 +5505,7 @@ test("a session run from an extended scope passes through the run hook", async (
       },
     },
   });
-  const scope = createScope({ capsules: [count] });
-
-  await scope.ready;
+  const scope = await createScope({ capsules: [count] }).ready;
 
   const session = scope.createSession();
   expect(session.run(op)).toBe("ran");
@@ -5693,8 +5683,7 @@ test("resource and operation controllers from the extended handle stay plain", a
 
 test("an operation controller from the extended handle stays plain", async () => {
   const op = operation({ label: "op", run: () => "ran" });
-  const scope = createScope({ capsules: [] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [] }).ready;
   expect(scope.controller(op).run()).toBe("ran");
   await scope.close();
 });
@@ -5742,7 +5731,7 @@ test("a dependency controller write passes through the layer's write hook", asyn
   const scope = createScope({ capsules: [count] });
 
   await scope.ready;
-  scope.run(bump);
+  await scope.run(bump);
 
   expect(writes).toBe(1);
   expect(scope.controller(cell).get()).toBe(5);
@@ -5920,9 +5909,7 @@ test("an operation depending on an extension receives the start value after read
     depends: { origin: ext },
     run: ({ origin }) => origin.connect(),
   });
-  const scope = createScope({ capsules: [ext] });
-
-  await scope.ready;
+  const scope = await createScope({ capsules: [ext] }).ready;
 
   expect(scope.run(use)).toBe(7);
   await scope.close();
@@ -5953,7 +5940,8 @@ test("running an operation on a pending extension dependency waits for start", a
 
   await expect(early).resolves.toBe(7);
   await expect(control).resolves.toBe(7);
-  expect(scope.run(use)).toBe(7);
+  const live = await scope.ready;
+  expect(live.run(use)).toBe(7);
   await scope.close();
 });
 
@@ -5972,9 +5960,7 @@ test("an operation depending on an extension reads the start value", async () =>
       return origin.connect();
     },
   });
-  const scope = createScope({ capsules: [ext] });
-
-  await scope.ready;
+  const scope = await createScope({ capsules: [ext] }).ready;
 
   expect(scope.run(use)).toBe(7);
   await scope.close();

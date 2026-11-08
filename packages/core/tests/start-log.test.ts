@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "vite-plus/test";
 
-import { createScope, capsule, LEVELS, type Observe } from "@/index";
+import { createScope, capsule, isStarting, LEVELS, type Observe } from "@/index";
 
 describe("capsule start", () => {
   it("capsule start logs before and after next reach the scope sink without a span", async () => {
@@ -209,7 +209,9 @@ describe("capsule start", () => {
         }),
       ],
     });
-    await expect(scope.ready).resolves.toBeUndefined();
+    const live = await scope.ready;
+    expect(isStarting(live)).toBe(false);
+    expect(isStarting(scope)).toBe(true);
     await scope.close();
   });
 });

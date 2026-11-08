@@ -265,10 +265,9 @@ test("graceful close refuses new calls before run hooks start", async () => {
   const finish = gate();
   const active = operation({ label: "active", run: () => finish.promise });
   const later = operation({ label: "later", run: () => 7 });
-  const root = createScope({
+  const root = await createScope({
     capsules: [capsule({ label: "run hook", hooks: { run: (event) => event.next() } })],
-  });
-  await root.ready;
+  }).ready;
 
   const saved = root.controller(later);
   const running = root.run(active);
@@ -398,11 +397,10 @@ for (const mode of ["root stop", "root close", "session close"]) {
     });
 
     const stop = new AbortController();
-    const root = createScope({
+    const root = await createScope({
       signal: stop.signal,
       capsules: [capsule({ label: "helper hooks", hooks: { run: (event) => event.next() } })],
-    });
-    await root.ready;
+    }).ready;
     const session = root.createSession();
 
     const signals = session.resolve(lifetime);
@@ -634,13 +632,12 @@ for (const hooked of [false, true]) {
       const finish = gate();
       const save = operation({ label: "saved helper", run: () => 1 });
       let saved = () => 0;
-      const root = createScope({
+      const root = await createScope({
         capsules: hooked
           ? [capsule({ label: "saved helper hooks", hooks: { run: (event) => event.next() } })]
-          : undefined,
-      });
+          : [],
+      }).ready;
 
-      await root.ready;
       await root.run({
         depends: { save },
         run: ({ save }, ctx) => {

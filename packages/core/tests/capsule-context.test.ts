@@ -27,7 +27,7 @@ for (const wait of ["before", "after"]) {
   test(`graceful close joins a root run hook waiting ${wait} next`, async () => {
     const gate = deferred();
     const events: string[] = [];
-    const scope = createScope({
+    const scope = await createScope({
       capsules: [
         capsule({
           label: "wait",
@@ -42,7 +42,7 @@ for (const wait of ["before", "after"]) {
           },
         }),
       ],
-    });
+    }).ready;
     const task = operation({ label: "task", run: () => events.push("body") });
 
     const running = Promise.resolve(scope.run(task)).then(
@@ -69,7 +69,7 @@ for (const wait of ["before", "after"]) {
     const gate = deferred();
     const aborted = deferred();
     const events: string[] = [];
-    const scope = createScope({
+    const scope = await createScope({
       capsules: [
         capsule({
           label: "wait",
@@ -87,7 +87,7 @@ for (const wait of ["before", "after"]) {
           },
         }),
       ],
-    });
+    }).ready;
     const task = operation({ label: "task", run: () => events.push("body") });
 
     const running = Promise.resolve(scope.settle(task));
@@ -115,7 +115,7 @@ test("a hook load holds its resource through release and run cleanup", async () 
       return state;
     },
   });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "hold",
@@ -134,7 +134,7 @@ test("a hook load holds its resource through release and run cleanup", async () 
         },
       }),
     ],
-  });
+  }).ready;
   scope.resolve(value);
 
   const running = Promise.resolve(scope.run(operation({ label: "task", run: () => 7 })));
@@ -155,7 +155,7 @@ test("run access follows the session owner and inherited or explicit namespace c
   const count = data({ initial: 0 });
   const readZone = operation({ label: "read zone", depends: { zone }, run: ({ zone }) => zone });
   const seen: unknown[] = [];
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "write",
@@ -169,7 +169,7 @@ test("run access follows the session owner and inherited or explicit namespace c
         },
       }),
     ],
-  });
+  }).ready;
   const session = scope.createSession({ ns: east });
   const task = operation({ label: "task", depends: { count }, run: ({ count }) => count });
 
@@ -344,7 +344,7 @@ test("hook-started actions share the active trace and run cleanup", async () => 
   const outer = operation({ label: "outer", run: () => 3 });
   const second = operation({ label: "inline", run: () => 4 });
   const ran: Promise<number>[] = [];
-  const scope = createScope({
+  const scope = await createScope({
     observe: { history: 10 },
     capsules: [
       capsule({
@@ -366,7 +366,7 @@ test("hook-started actions share the active trace and run cleanup", async () => 
         },
       }),
     ],
-  });
+  }).ready;
 
   expect(scope.run(outer)).toBe(3);
   expect(await Promise.all(ran)).toEqual([2, 4]);
@@ -392,7 +392,7 @@ test("a dropped hook-started action keeps its failure on the owner", async () =>
     },
   });
   const outer = operation({ label: "outer", run: () => 3 });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "drop",
@@ -404,7 +404,7 @@ test("a dropped hook-started action keeps its failure on the owner", async () =>
         },
       }),
     ],
-  });
+  }).ready;
 
   expect(scope.run(outer)).toBe(3);
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
@@ -420,7 +420,7 @@ test("a hook can settle a child failure without failing its owner", async () => 
   });
   const outer = operation({ label: "outer", run: () => 3 });
   const settled: Promise<unknown>[] = [];
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "settle",
@@ -432,7 +432,7 @@ test("a hook can settle a child failure without failing its owner", async () => 
         },
       }),
     ],
-  });
+  }).ready;
 
   expect(scope.run(outer)).toBe(3);
   expect(await Promise.all(settled)).toMatchObject([{ status: "failed", error: cause }]);
@@ -447,9 +447,9 @@ test("an event union narrows its payload by kind", async () => {
     if (event.kind === "resolve") events.push(event.target.label ?? "unnamed");
     return event.next();
   };
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [capsule({ label: "events", hooks: { run: hook, resolve: hook } })],
-  });
+  }).ready;
 
   expect(scope.run(operation({ label: "task", run: () => 3 }))).toBe(3);
   expect(scope.resolve(data({ label: "cell", initial: 4 }))).toBe(4);
@@ -463,7 +463,7 @@ test("saved controllers stay usable through a waiting hook and its graceful clea
   const events: string[] = [];
   const child = operation({ label: "child", depends: { cell }, run: ({ cell }) => cell });
   const task = operation({ label: "task", run: () => 7 });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "continue",
@@ -491,7 +491,7 @@ test("saved controllers stay usable through a waiting hook and its graceful clea
         },
       }),
     ],
-  });
+  }).ready;
 
   const running = Promise.resolve(scope.run(task));
   const closing = scope.close({ graceful: true });
@@ -507,7 +507,7 @@ test("a saved operation settle returns cancellation when its waiting hook is for
   const aborted = deferred();
   const child = operation({ label: "child", run: () => 3 });
   const task = operation({ label: "task", run: () => 7 });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "settle after abort",
@@ -522,7 +522,7 @@ test("a saved operation settle returns cancellation when its waiting hook is for
         },
       }),
     ],
-  });
+  }).ready;
 
   const running = Promise.resolve(scope.run(task));
   const closing = scope.close();
@@ -537,7 +537,7 @@ test("a saved operation settle returns failed Disposed after its hook ends", asy
   const child = operation({ label: "child", run: () => 3 });
   const task = operation({ label: "task", run: () => 7 });
   const saved: Capsule.Settle[] = [];
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "settle after hook",
@@ -550,7 +550,7 @@ test("a saved operation settle returns failed Disposed after its hook ends", asy
         },
       }),
     ],
-  });
+  }).ready;
 
   scope.run(task);
 
@@ -601,7 +601,7 @@ test("concurrent and repeated closes join the same root hook once", async () => 
 test("a hook that returns a substitute still joins its started body", async () => {
   const gate = deferred();
   const events: string[] = [];
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "substitute",
@@ -613,7 +613,7 @@ test("a hook that returns a substitute still joins its started body", async () =
         },
       }),
     ],
-  });
+  }).ready;
   const task = operation({
     label: "task",
     run: async (_deps, { defer }) => {
@@ -664,7 +664,7 @@ test("a hook can refuse raw input before its parser runs", async () => {
     },
     run: () => "body",
   });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "refuse",
@@ -676,14 +676,14 @@ test("a hook can refuse raw input before its parser runs", async () => {
         },
       }),
     ],
-  });
+  }).ready;
   expect(scope.run(task, { rawInput: "invalid" })).toBe("refused");
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });
 
 test("catching a body's panic in its hook does not erase the owned failure", async () => {
   const cause = new Error("body failed");
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "catch",
@@ -699,7 +699,7 @@ test("catching a body's panic in its hook does not erase the owned failure", asy
         },
       }),
     ],
-  });
+  }).ready;
   const task = operation({
     label: "task",
     run: () => {
@@ -713,7 +713,7 @@ test("catching a body's panic in its hook does not erase the owned failure", asy
 test("an unreturned body keeps its span open and records its failure", async () => {
   const gate = deferred();
   const cause = new Error("body failed");
-  const scope = createScope({
+  const scope = await createScope({
     observe: { history: 5 },
     capsules: [
       capsule({
@@ -726,7 +726,7 @@ test("an unreturned body keeps its span open and records its failure", async () 
         },
       }),
     ],
-  });
+  }).ready;
   const task = operation({
     label: "task",
     run: async () => {
@@ -745,7 +745,7 @@ test("an unreturned body keeps its span open and records its failure", async () 
 });
 
 test("a saved event raise keeps one run in the failure path after next", async () => {
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "saved raise",
@@ -758,7 +758,7 @@ test("a saved event raise keeps one run in the failure path after next", async (
         },
       }),
     ],
-  });
+  }).ready;
   const task = operation({ label: "task", run: () => 3 });
   expect(scope.settle(task)).toMatchObject({
     status: "failed",

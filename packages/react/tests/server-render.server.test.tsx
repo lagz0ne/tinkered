@@ -148,10 +148,10 @@ test("a server render shows an idle run, and the run still works after the rende
   await scope.close();
 });
 
-test("a server render reads a capsule's cell export, raw and sliced", () => {
+test("a server render reads a capsule's cell export, raw and sliced", async () => {
   const word = data({ label: "talk.word", initial: "hi" });
   const talk = capsule({ label: "talk", exports: { word } });
-  const scope = createScope({ capsules: [talk] });
+  const scope = await createScope({ capsules: [talk] }).ready;
 
   function Word(): ReactNode {
     // @ts-expect-error a capsule's cell export has no writable pair: the value comes back bare

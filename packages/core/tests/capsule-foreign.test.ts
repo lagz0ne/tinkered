@@ -51,7 +51,7 @@ test("F4 a scope installs a capsule with a foreign export, and its units still w
   await scope.ready;
 
   scope.controller(draft).set("hi");
-  scope.run(talk.clear);
+  await scope.run(talk.clear);
 
   expect(scope.controller(draft).get()).toBe("");
   expect(scope.capsules[0]?.exports).toEqual(["draft", "clear", "Panel"]);

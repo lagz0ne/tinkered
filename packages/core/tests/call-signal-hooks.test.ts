@@ -72,7 +72,7 @@ test("a signalled run keeps hook access alive through graceful close", async () 
   const stop = new AbortController();
   const gate = deferred();
   const value = data({ initial: "ready" });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "gate",
@@ -87,7 +87,7 @@ test("a signalled run keeps hook access alive through graceful close", async () 
         },
       }),
     ],
-  });
+  }).ready;
 
   const running = scope.settle({ run: () => "done" }, { signal: stop.signal });
   const closing = scope.close({ graceful: true });

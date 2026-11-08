@@ -75,6 +75,10 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/starting-typestate** — ADR 0128: `createScope({ capsules })` returns `Scope.Starting` (every call a promise); `ready` gives the sync handle; React's provider waits on it.
+  Owner: thread lead (Duke's go 2026-11-08 16:42).
+  Proof: Core 1069, React 110, flight-trial 148, playground 69; 13 unawaited test calls found by the lint and fixed.
+
 - **core/start-gate-test-capsule** — ADR 0127: an outside call waits for start; `await using`; `testCapsule` in `@tinker/core/testing`.
   Owner: thread lead (Duke's go 2026-11-08 14:19).
   Proof: `scripts/ticket.sh --check-only 127` exit 0: Core 1067, dist 1311, size 18,873 B (cap 20,480), mutation 86.17 (floor 85). Review: NOT READY, one fix round, READY.

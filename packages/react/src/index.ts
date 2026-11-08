@@ -1,3 +1,4 @@
+import { isStarting } from "@tinker/core";
 import type { Data, Namespace, Observe, Operation, Resource, RunResult, Scope } from "@tinker/core";
 import type { ReactNode } from "react";
 import {
@@ -31,7 +32,7 @@ const NamespaceContext = createContext<Namespace | undefined>(undefined);
 
 /** Start a scope's teardown without awaiting; a scope owns its own shutdown and never throws
  * (ADR 0027), so the unmounting subtree does not wait on the result. */
-function closeScope(scope: Scope.Handle): void {
+function closeScope(scope: Scope.Handle | Scope.Starting): void {
   return void scope.close();
 }
 
@@ -42,32 +43,77 @@ const identity = <V>(value: V): V => value;
 /** Props for {@link ScopeProvider}: either an app-owned `scope` (the app closes it), or a `create`
  * factory the provider owns and closes on unmount. Exactly one. */
 export type ScopeProviderProps =
-  | { readonly scope: Scope.Handle; readonly create?: never; readonly children: ReactNode }
-  | { readonly create: () => Scope.Handle; readonly scope?: never; readonly children: ReactNode };
+  | {
+      readonly scope: Scope.Handle | Scope.Starting;
+      readonly create?: never;
+      readonly children: ReactNode;
+    }
+  | {
+      readonly create: () => Scope.Handle | Scope.Starting;
+      readonly scope?: never;
+      readonly children: ReactNode;
+    };
+
+/** A starting root (ADR 0128): wait for its `ready` with React's `use`, so a `<Suspense>` above
+ * shows its fallback, then provide the started handle. A failed start throws to the nearest
+ * error boundary. */
+function StartedScopeProvider(props: {
+  readonly scope: Scope.Starting;
+  readonly children: ReactNode;
+}): ReactNode {
+  const scope = use(props.scope.ready);
+  return createElement(ScopeContext.Provider, { value: scope, children: props.children });
+}
+
+/** Where {@link OwnedScopeProvider}'s scope is in its life: waiting for start, started, or
+ * failed to start. */
+type Owned =
+  | { readonly kind: "waiting" }
+  | { readonly kind: "started"; readonly scope: Scope.Handle }
+  | { readonly kind: "failed"; readonly error: unknown };
+
+const WAITING: Owned = { kind: "waiting" };
 
 /** Own a created scope for a subtree: create it in an effect (never during render, so a discarded
  * or StrictMode-replayed render leaks nothing), publish it to children only once it exists, and
  * close exactly that scope on unmount. StrictMode's mount→unmount→mount makes a fresh scope for
- * each live mount and never leaves a closed scope on context for a consumer to touch (ADR 0031). */
+ * each live mount and never leaves a closed scope on context for a consumer to touch (ADR 0031).
+ * A starting root (ADR 0128) is published once `ready` gives its started handle: nothing renders
+ * until then, and a failed start throws to the nearest error boundary. It does not suspend: a
+ * Suspense boundary above would hide and show this provider, and StrictMode then replays its
+ * effect, which would close the scope its children just subscribed to. */
 function OwnedScopeProvider(props: {
-  readonly create: () => Scope.Handle;
+  readonly create: () => Scope.Handle | Scope.Starting;
   readonly children: ReactNode;
 }): ReactNode {
   const createRef = useRef(props.create);
   createRef.current = props.create;
 
-  const [scope, setScope] = useState<Scope.Handle | undefined>(undefined);
+  const [owned, setOwned] = useState<Owned>(WAITING);
   useEffect(() => {
-    const owned = createRef.current();
-    setScope(owned);
+    const made = createRef.current();
+    let mounted = true;
+    const settle = (next: Owned): void => {
+      if (mounted) setOwned(next);
+    };
+    if (isStarting(made)) {
+      void made.ready.then(
+        (scope) => settle({ kind: "started", scope }),
+        (error: unknown) => settle({ kind: "failed", error }),
+      );
+    } else {
+      settle({ kind: "started", scope: made });
+    }
     return () => {
-      setScope(undefined);
-      closeScope(owned);
+      mounted = false;
+      setOwned(WAITING);
+      closeScope(made);
     };
   }, []);
 
-  if (scope === undefined) return null;
-  return createElement(ScopeContext.Provider, { value: scope, children: props.children });
+  if (owned.kind === "failed") throw owned.error;
+  if (owned.kind === "waiting") return null;
+  return createElement(ScopeContext.Provider, { value: owned.scope, children: props.children });
 }
 
 /** Put a `@tinker/core` scope on React context for the subtree. Hooks resolve against the nearest
@@ -76,9 +122,11 @@ export function ScopeProvider(props: ScopeProviderProps): ReactNode {
   return createElement(NamespaceContext.Provider, {
     value: undefined,
     children:
-      props.scope !== undefined
-        ? createElement(ScopeContext.Provider, { value: props.scope, children: props.children })
-        : createElement(OwnedScopeProvider, { create: props.create, children: props.children }),
+      props.scope === undefined
+        ? createElement(OwnedScopeProvider, { create: props.create, children: props.children })
+        : isStarting(props.scope)
+          ? createElement(StartedScopeProvider, { scope: props.scope, children: props.children })
+          : createElement(ScopeContext.Provider, { value: props.scope, children: props.children }),
   });
 }
 

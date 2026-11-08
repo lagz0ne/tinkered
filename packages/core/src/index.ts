@@ -624,6 +624,42 @@ export declare namespace Scope {
     readonly signal?: AbortSignal;
   };
 
+  /**
+   * A root given `capsules`, as `createScope` returns it (ADR 0128, typestate): start may still
+   * run, so every call is a promise, before and after start. `ready` gives the started handle,
+   * whose sync calls stay sync. A session made from it is a `Starting` too.
+   */
+  export type Starting<H extends Handle = Handle> = Omit<
+    Handle,
+    "run" | "settle" | "controller" | "createSession" | "ready"
+  > & {
+    controller<T>(target: Data.Cell<T>, ns?: NsArg): DataController<T>;
+    controller<T>(target: Resource.Handle<T>, ns?: NsArg): ResourceController<T>;
+    controller<T, I>(target: Operation.Handle<T, I>, ns?: NsArg): StartingController<T, I>;
+    run<T, I>(op: Operation.Handle<T, I>, ...call: OwnedCall<I> | CallArgs<I>): Promise<Awaited<T>>;
+    run<const D extends Depends = Record<string, never>, R = unknown, I = void>(
+      inline: Inline<D, R, I>,
+      ...call: OwnedInlineCall<I> | InlineCall<I>
+    ): Promise<Awaited<R>>;
+    settle<T, I>(
+      op: Operation.Handle<T, I>,
+      ...call: OwnedCall<I> | CallArgs<I>
+    ): Promise<RunResult<Awaited<T>>>;
+    settle<const D extends Depends = Record<string, never>, R = unknown, I = void>(
+      inline: Inline<D, R, I>,
+      ...call: OwnedInlineCall<I> | InlineCall<I>
+    ): Promise<RunResult<Awaited<R>>>;
+    createSession(options?: Options): Starting;
+    /** Settles when every start settled, with the started handle (ADR 0128). */
+    readonly ready: Promise<H>;
+  };
+
+  /** An operation's controller on a {@link Starting} root: each call is a promise. */
+  export type StartingController<T, I> = {
+    run(...call: OwnedCall<I> | CallArgs<I>): Promise<Awaited<T>>;
+    settle(...call: OwnedCall<I> | CallArgs<I>): Promise<RunResult<Awaited<T>>>;
+  };
+
   export type RootHandle = Handle & {
     /** Core's own close Result, after the close hooks finish. Pending while open; settles once
      * and never rejects. Only roots made with a stop signal have it (ADR 0085).
@@ -4984,12 +5020,32 @@ class ScopeHandle implements Scope.Handle {
 
 /** Create a scope: the root of a layer chain that reads, controls, and runs cells, resources, tags, and operations. */
 export function createScope(
-  options: Scope.RootOptions & { readonly signal: AbortSignal },
+  options: Scope.RootOptions & {
+    readonly capsules: NonNullable<Scope.RootOptions["capsules"]>;
+    readonly signal: AbortSignal;
+  },
+): Scope.Starting<Scope.RootHandle> & Pick<Scope.RootHandle, "closed">;
+
+export function createScope(
+  options: Scope.RootOptions & { readonly capsules: NonNullable<Scope.RootOptions["capsules"]> },
+): Scope.Starting;
+
+export function createScope(
+  options: Scope.RootOptions & { readonly capsules?: undefined; readonly signal: AbortSignal },
 ): Scope.RootHandle;
 
-export function createScope(options?: Scope.RootOptions): Scope.Handle;
+export function createScope(
+  options?: Scope.RootOptions & { readonly capsules?: undefined },
+): Scope.Handle;
 
-export function createScope(options?: Scope.RootOptions): Scope.Handle {
+/** `capsules` may or may not be set (a variable, `dev ? [c] : undefined`): either type. */
+export function createScope(
+  options: Scope.RootOptions & { readonly signal: AbortSignal },
+): Scope.RootHandle | (Scope.Starting<Scope.RootHandle> & Pick<Scope.RootHandle, "closed">);
+
+export function createScope(options?: Scope.RootOptions): Scope.Handle | Scope.Starting;
+
+export function createScope(options?: Scope.RootOptions): Scope.Handle | Scope.Starting {
   const { startTimeout = 10_000, capsules, signal } = options ?? {};
   if (!(startTimeout >= 0)) raise("BadStartTimeout", { timeout: startTimeout });
 
@@ -5001,8 +5057,8 @@ export function createScope(options?: Scope.RootOptions): Scope.Handle {
     wired === undefined ? options : { ...options, tags: [wired, options?.tags] },
   );
   const plain = new ScopeHandle(layer);
-  if (exts.length === 0 && signal === undefined) return plain;
-  return extendHandle(layer, plain, exts, signal, startTimeout);
+  if (exts.length === 0 && signal === undefined) return startingHandle(plain, capsules);
+  return startingHandle(extendHandle(layer, plain, exts, signal, startTimeout), capsules);
 }
 
 /** A node to release and the layer that owns it. Release and invalidation sit at the END of this
@@ -5258,73 +5314,88 @@ function extendHandle(
   if (resolvers) extended.resolve = resolveThrough(layer, resolvers);
   if (signal) listenForStop(extended, signal, lifetime);
 
-  const openGate = gateStart(extended, ready);
-  runStartChain(
-    layer,
-    extended,
-    lifetime,
-    () => {
-      openGate();
-      settleReady();
-    },
-    (error) => {
-      openGate();
-      failReady(error);
-    },
-    startTimeout,
-  );
+  runStartChain(layer, extended, lifetime, settleReady, failReady, startTimeout);
   return extended;
 }
 
-/** The verbs the start gate holds (ADR 0127). */
-const startVerbs = ["run", "settle", "session", "controller", "createSession"] as const;
-
-type StartVerb = (typeof startVerbs)[number];
 type Verb = (...args: unknown[]) => unknown;
 
+/** Every starting face Core made, for {@link isStarting}. */
+const startingFaces = new WeakSet<object>();
+
+/** Whether `scope` is a root given `capsules`, still in its starting type (ADR 0128). A binding
+ * such as React's provider reads it to wait for `ready` before it hands out a sync handle. */
+export function isStarting(scope: Scope.Handle | Scope.Starting): scope is Scope.Starting {
+  return startingFaces.has(scope);
+}
+
 /**
- * Put the start gate on a root handle (ADR 0127). While the root starts, an outside call waits
- * for `ready`, then makes the plain call: after a failed start or a close, that call meets the
- * closed scope (`Disposed`; `settle` returns its result). A session made meanwhile, at any depth,
- * gets the gate too, and so does an operation's controller (React's `useRun`). The returned
- * function opens the gate: each verb then holds its plain method again, so no handle changes shape.
+ * The typestate face of a root given `capsules` (ADR 0128); a root given none returns as is.
+ * On the face each call is a promise. Before
+ * start ends it waits for every start, then calls the started handle: after a failed start or a
+ * close, that call meets the closed scope (`Disposed`; `settle` resolves to its result). After
+ * start it calls at once. `ready` resolves to the started handle, whose sync calls stay sync.
+ * A replaced `close` lands on the started handle, where a failed start calls it (ADR 0085).
  */
-function gateStart(handle: Scope.Handle, ready: Promise<void>): () => void {
+function startingHandle(
+  root: Scope.Handle,
+  capsules: Scope.RootOptions["capsules"],
+): Scope.Handle | Scope.Starting {
+  if (capsules === undefined) return root;
+
   let open = false;
-  const gated: Array<{ verbs: Record<StartVerb, Verb>; plain: Record<StartVerb, Verb> }> = [];
-  const later = (call: () => unknown): unknown => (open ? call() : ready.then(call, call));
-
-  const gate = (target: Scope.Handle): void => {
-    const verbs = target as unknown as Record<StartVerb, Verb>;
-    const plain = {} as Record<StartVerb, Verb>;
-    for (const verb of startVerbs) plain[verb] = verbs[verb];
-    gated.push({ verbs, plain });
-
-    verbs.run = (...args) => later(() => plain.run.apply(target, args));
-    verbs.settle = (...args) => later(() => plain.settle.apply(target, args));
-    verbs.session = (...args) => later(() => plain.session.apply(target, args));
-    verbs.createSession = (...args) => {
-      const session = plain.createSession.apply(target, args) as Scope.Handle;
-      if (!open) gate(session);
-      return session;
-    };
-    verbs.controller = (...args) => {
-      const control = plain.controller.apply(target, args) as Record<"run" | "settle", Verb>;
-      if (open || !isOperation(args[0])) return control;
-
-      return Object.create(control, {
-        run: { value: (...call: unknown[]) => later(() => control.run(...call)) },
-        settle: { value: (...call: unknown[]) => later(() => control.settle(...call)) },
-      });
-    };
-  };
-
-  gate(handle);
-
-  return () => {
+  const ready = root.ready.then(() => {
     open = true;
-    for (const { verbs, plain } of gated) Object.assign(verbs, plain);
+    return root;
+  });
+  ignoreRejection(ready);
+
+  const later = (call: () => unknown): Promise<unknown> =>
+    open ? new Promise((done) => done(call())) : ready.then(call, call);
+
+  /** A face over `target`: the root, or a session made on a face. Its `ready` resolves to
+   * `target` once the root has started, so a session face starts with its root. */
+  const face = (target: Scope.Handle, started: Promise<Scope.Handle>): Scope.Starting => {
+    const verbs = target as unknown as Record<"run" | "settle" | "session" | "controller", Verb>;
+
+    const made = Object.create(target, {
+      ready: { value: started },
+      run: { value: (...args: unknown[]) => later(() => verbs.run.apply(target, args)) },
+      settle: { value: (...args: unknown[]) => later(() => verbs.settle.apply(target, args)) },
+      session: { value: (...args: unknown[]) => later(() => verbs.session.apply(target, args)) },
+      createSession: { value: (options?: Scope.Options) => session(target.createSession(options)) },
+      controller: {
+        value: (...args: unknown[]) => {
+          const control = verbs.controller.apply(target, args) as Record<"run" | "settle", Verb>;
+          if (!isOperation(args[0])) return control;
+
+          return {
+            run: (...call: unknown[]) => later(() => control.run(...call)),
+            settle: (...call: unknown[]) => later(() => control.settle(...call)),
+          };
+        },
+      },
+    }) as Scope.Starting;
+    startingFaces.add(made);
+    return made;
   };
+
+  const session = (target: Scope.Handle): Scope.Starting => {
+    const started = ready.then(() => target);
+    ignoreRejection(started);
+    return face(target, started);
+  };
+
+  const starting = Object.defineProperties(face(root, ready), {
+    close: {
+      get: () => root.close,
+      set: (close: Scope.Handle["close"]) => {
+        root.close = close;
+      },
+    },
+  });
+
+  return starting;
 }
 
 /** Hooked calls select their owner before starting the hook chain. An owned call therefore

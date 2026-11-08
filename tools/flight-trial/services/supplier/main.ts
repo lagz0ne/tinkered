@@ -34,8 +34,7 @@ export async function main(env: NodeJS.ProcessEnv, name: string | undefined): Pr
       holdMs(settings.HOLD_MS),
     ],
   });
-  await scope.ready;
-  const { url } = await app.serve(scope);
+  const { url } = await app.serve(await scope.ready);
   process.stdout.write(`${JSON.stringify({ service: supplier, url, pid: process.pid })}\n`);
   const ended = await scope.closed;
   process.off("SIGINT", halt);

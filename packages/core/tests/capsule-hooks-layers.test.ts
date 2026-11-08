@@ -34,7 +34,7 @@ test("a subflow run invokes its hook once", async () => {
     run: ({ child }) => child.run(),
   });
   const seen: string[] = [];
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "spy",
@@ -46,7 +46,7 @@ test("a subflow run invokes its hook once", async () => {
         },
       }),
     ],
-  });
+  }).ready;
 
   expect(scope.run(parent)).toBe(3);
   expect(seen).toEqual(["parent", "child"]);
@@ -113,7 +113,7 @@ test("a run hook that skips next stops a subflow with its substitute", async () 
     depends: { child },
     run: ({ child }) => child.run(),
   });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "deny",
@@ -123,7 +123,7 @@ test("a run hook that skips next stops a subflow with its substitute", async () 
         },
       }),
     ],
-  });
+  }).ready;
 
   expect(scope.run(parent)).toBe("denied");
   expect(ran).toBe(false);
@@ -145,7 +145,7 @@ test("a run hook that throws stops a subflow before its body", async () => {
     depends: { child },
     run: ({ child }) => child.run(),
   });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "deny",
@@ -157,7 +157,7 @@ test("a run hook that throws stops a subflow before its body", async () => {
         },
       }),
     ],
-  });
+  }).ready;
 
   expect(() => scope.run(parent)).toThrow(cause);
   expect(ran).toBe(false);
@@ -239,7 +239,7 @@ test("two run hooks keep registration order on a subflow", async () => {
         },
       },
     });
-  const scope = createScope({ capsules: [hook("a"), hook("b")] });
+  const scope = await createScope({ capsules: [hook("a"), hook("b")] }).ready;
 
   expect(scope.run(parent)).toBe(3);
   expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
@@ -267,7 +267,7 @@ test("two hooks keep registration order on a child layer", async () => {
         },
       },
     });
-  const scope = createScope({ capsules: [hook("a"), hook("b")] });
+  const scope = await createScope({ capsules: [hook("a"), hook("b")] }).ready;
   const session = scope.createSession();
 
   expect(session.run(op)).toBe(5);

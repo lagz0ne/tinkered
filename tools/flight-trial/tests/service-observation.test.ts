@@ -100,7 +100,7 @@ test.each(services)(
     });
     try {
       await scope.ready;
-      const { url } = await app.serve(scope);
+      const { url } = await app.serve(await scope.ready);
       expect(new URL(url).hostname).toBe("127.0.0.1");
       await (await post(url, "/control/clock", { now: 10000 })).arrayBuffer();
       await (
@@ -155,7 +155,7 @@ test("payment spans name each step and its failed webhook log keeps the HTTP cau
   });
   try {
     await scope.ready;
-    const { url } = await paymentApp.serve(scope);
+    const { url } = await paymentApp.serve(await scope.ready);
     await (await post(url, "/control/clock", { now: 10000 })).arrayBuffer();
     const plan = await post(url, "/control/payment");
     expect(await plan.json()).toEqual({

@@ -89,9 +89,9 @@ async function start(directory, name) {
     ],
   });
   services.push({ stop, scope });
-  await scope.ready;
-  scope.controller(fault).set({ remaining: 0 });
-  return { url: (await app.serve(scope)).url, fault: scope.resolve(fault) };
+  const live = await scope.ready;
+  live.controller(fault).set({ remaining: 0 });
+  return { url: (await app.serve(live)).url, fault: live.resolve(fault) };
 }
 async function request(url, body, options) {
   const bytes = options.raw ?? (body === undefined ? undefined : JSON.stringify(body));

@@ -35,8 +35,7 @@ export async function main(env: NodeJS.ProcessEnv): Promise<number> {
       webhookDelayMs(settings.WEBHOOK_DELAY_MS),
     ],
   });
-  await scope.ready;
-  const { url } = await app.serve(scope);
+  const { url } = await app.serve(await scope.ready);
   process.stdout.write(`${JSON.stringify({ service: "payment", url, pid: process.pid })}\n`);
   const ended = await scope.closed;
   process.off("SIGINT", halt);

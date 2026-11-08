@@ -73,6 +73,11 @@ function App() {
 
 - `ScopeProvider` supplies an app-owned scope with `scope={handle}`.
   Its `create` form owns the scope and closes it on unmount.
+- A root given `capsules` is a starting handle (Core ADR 0128).
+  The provider waits for its `ready` with React's `use`.
+  A `<Suspense>` above shows its fallback until start ends.
+  A failed start reaches the nearest error boundary.
+  In `create` form it renders nothing until start ends.
 - `SessionProvider` opens a child session for its subtree.
   Unmount force-closes that session.
   Writes stay in the session.

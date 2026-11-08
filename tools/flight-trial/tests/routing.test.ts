@@ -85,7 +85,7 @@ beforeEach(async () => {
     });
     await scope.ready;
     scope.controller(failures).set({ remaining: 0 });
-    const { url } = await app.serve(scope);
+    const { url } = await app.serve(await scope.ready);
     running.push({
       stop,
       closed: scope.closed,

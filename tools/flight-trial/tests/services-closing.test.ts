@@ -62,7 +62,7 @@ test.each(services)(
       ],
     });
     await scope.ready;
-    const { url } = await app.serve(scope);
+    const { url } = await app.serve(await scope.ready);
     const session = await created.promise;
     const target = new URL(url);
     let socket: ReturnType<typeof createConnection> | undefined;
@@ -108,7 +108,7 @@ test.each(services)(
       ],
     });
     await scope.ready;
-    const { url } = await app.serve(scope);
+    const { url } = await app.serve(await scope.ready);
     const session = await created.promise;
     session.resolve(web).get("/held", async () => {
       const body = await session.run({
@@ -179,7 +179,7 @@ test.each(services)(
       ],
     });
     await scope.ready;
-    const { url } = await app.serve(scope);
+    const { url } = await app.serve(await scope.ready);
     const target = new URL(url);
     const socket = createConnection({ host: target.hostname, port: Number(target.port) });
     const disconnected = new Promise<void>((resolve) => socket.once("close", () => resolve()));
@@ -232,7 +232,7 @@ test.each(services)(
       ],
     });
     await scope.ready;
-    const { url } = await app.serve(scope);
+    const { url } = await app.serve(await scope.ready);
     await post(url, "/control/clock", { now: 10000 });
     await post(url, "/control/routes", { route: `POST ${path}`, delayMs: 100 });
     const pending = post(url, path, {});

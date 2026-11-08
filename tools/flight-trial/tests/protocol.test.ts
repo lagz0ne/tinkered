@@ -55,7 +55,7 @@ test("supplier operations take booking params and return domain values", async (
   });
   try {
     await scope.ready;
-    const { url } = await supplierApp.serve(scope);
+    const { url } = await supplierApp.serve(await scope.ready);
     const search = await fetch(`${url}/air/offer_requests`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -119,7 +119,7 @@ test("Hono validates forms before a payment operation sees params", async () => 
   });
   try {
     await scope.ready;
-    const { url } = await paymentApp.serve(scope);
+    const { url } = await paymentApp.serve(await scope.ready);
     await (await fetch(`${url}/v1/payment_intents`, { method: "POST", body: "{" })).arrayBuffer();
     const created = await fetch(`${url}/v1/payment_intents`, {
       method: "POST",

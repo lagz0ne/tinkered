@@ -1,6 +1,6 @@
-import { expect, test } from "vite-plus/test";
+import { expect, expectTypeOf, test } from "vite-plus/test";
 
-import { capsule, createScope, data, operation } from "@/index";
+import { capsule, createScope, data, isStarting, operation, type Scope } from "@/index";
 
 /** What the store holds once `start` opens it. */
 const opened = data<string>({ initial: "none" });
@@ -90,14 +90,68 @@ test("an operation's controller waits for start", async () => {
   expect(await control.run()).toBe("open");
 });
 
-test("after start, a sync op answers sync again", async () => {
+test("ready gives the started handle: a sync op answers sync", async () => {
+  gate = Promise.withResolvers();
+  await using app = createScope({ capsules: [store] });
+  gate.resolve();
+  const live = await app.ready;
+
+  expect(live.run(readNow)).toBe("open");
+});
+
+test("a session made on the starting handle starts with it", async () => {
+  gate = Promise.withResolvers();
+  await using app = createScope({ capsules: [store] });
+  await using session = app.createSession();
+
+  expect(isStarting(session)).toBe(true);
+  const early = session.run(read);
+  gate.resolve();
+  const live = await session.ready;
+
+  expect(await early).toBe("open");
+  expect(isStarting(live)).toBe(false);
+  expect(live.run(readNow)).toBe("open");
+});
+
+test("a session's ready rejects when start fails", async () => {
+  await using app = createScope({ capsules: [broken] });
+
+  await expect(app.createSession().ready).rejects.toThrow("start failed");
+});
+
+test("capsules that may be unset type as either handle", () => {
+  const pick = (on: boolean): Scope.RootOptions["capsules"] => (on ? [store] : undefined);
+
+  expectTypeOf(createScope({ capsules: pick(true) })).toEqualTypeOf<
+    Scope.Handle | Scope.Starting
+  >();
+  expectTypeOf(createScope({ capsules: [store] })).toEqualTypeOf<Scope.Starting>();
+  expectTypeOf(createScope()).toEqualTypeOf<Scope.Handle>();
+});
+
+test("the starting handle stays a promise after start", async () => {
   gate = Promise.withResolvers();
   await using app = createScope({ capsules: [store] });
   gate.resolve();
   await app.ready;
 
-  expect(app.run(readNow)).toBe("open");
-  expect(app.run).toBe(Object.getPrototypeOf(Object.getPrototypeOf(app)).run);
+  const later = app.run(readNow);
+  expect(later).toBeInstanceOf(Promise);
+  expect(await later).toBe("open");
+});
+
+test("a sync throw after start is a rejection on the starting handle", async () => {
+  const fails = operation({
+    label: "fails",
+    run: (): number => {
+      throw new Error("sync fail");
+    },
+  });
+  await using app = createScope({ capsules: [capsule({ label: "c", exports: { fails } })] });
+  await app.ready;
+
+  await expect(app.run(fails)).rejects.toThrow("sync fail");
 });
 
 test("after a failed start, a waiting run meets the closed scope", async () => {

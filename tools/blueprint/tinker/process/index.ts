@@ -1,4 +1,4 @@
-import { createScope, isError as isCoreError, tag } from "@tinker/core";
+import { createScope, isError as isCoreError, isStarting, tag } from "@tinker/core";
 import type { Operation, RunResult, Scope, Tag } from "@tinker/core";
 
 import { isError, raise } from "./errors";
@@ -55,6 +55,13 @@ export const io: Tag.Handle<Process.Io> = tag({ label: "process.io" });
 /** Borrowed request to stop the root gracefully, including EOF during service start. */
 export const stop: Tag.Handle<() => void> = tag({ label: "process.stop" });
 
+/** Options may or may not carry capsules: wait for start, then give the started handle. */
+async function started(scope: Scope.Handle | Scope.Starting): Promise<Scope.Handle> {
+  if (isStarting(scope)) return scope.ready;
+  await scope.ready;
+  return scope;
+}
+
 /** Own one root from start through cleanup. Command aborts force-close that root so data
  * stays on its owner; a Core call signal would instead fork a child session. */
 async function execute(entry: Process.Entry, input: Process.RunOptions): Promise<number> {
@@ -77,9 +84,9 @@ async function execute(entry: Process.Entry, input: Process.RunOptions): Promise
   if (cancelled()) abort();
   let code = 0;
   try {
-    await scope.ready;
+    const live = await started(scope);
     if (entry.kind === "command") {
-      code = readResult(await scope.settle(entry.op), input);
+      code = readResult(await live.settle(entry.op), input);
     }
   } catch (error: unknown) {
     code = readFailure(error, input);

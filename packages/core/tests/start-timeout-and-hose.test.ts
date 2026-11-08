@@ -79,7 +79,7 @@ test("start defaults to ten seconds and names an outer hook hanging after next",
 test("a settled start cancels its timeout", async () => {
   const clock = makeTestClock();
   let sleepSignal: AbortSignal | undefined;
-  const scope = createScope({
+  const scope = await createScope({
     clock: {
       ...clock,
       sleep: (ms, signal) => {
@@ -89,9 +89,8 @@ test("a settled start cancels its timeout", async () => {
     },
     startTimeout: 1,
     capsules: [capsule({ label: "done", hooks: { start: (event) => event.next() } })],
-  });
+  }).ready;
 
-  await scope.ready;
   clock.advance(10_000);
   await Promise.resolve();
 
@@ -104,7 +103,7 @@ test("one start tap receives a span and misses work before the tap", async () =>
   const spans: Observe.Span[] = [];
   const logs: string[] = [];
   const work = operation({ label: "work", run: () => 42 });
-  const scope = createScope({
+  const scope = await createScope({
     capsules: [
       capsule({
         label: "telemetry",
@@ -125,9 +124,8 @@ test("one start tap receives a span and misses work before the tap", async () =>
         },
       }),
     ],
-  });
+  }).ready;
 
-  await scope.ready;
   const value = scope.run(work);
   await scope.close();
 
@@ -184,10 +182,10 @@ test("two taps receive the same span, filter their own levels, and keep the larg
   });
 
   await scope.ready;
-  scope.run(work);
-  scope.run(work);
-  scope.run(work);
-  scope.run(work);
+  await scope.run(work);
+  await scope.run(work);
+  await scope.run(work);
+  await scope.run(work);
   await scope.close();
 
   expect(first).toHaveLength(4);
@@ -214,7 +212,7 @@ test("two taps receive the same span, filter their own levels, and keep the larg
 test("a throwing tap does not stop another tap", async () => {
   const spans: Observe.Span[] = [];
   const lines: Observe.Log[] = [];
-  const scope = createScope({
+  const scope = await createScope({
     observe: {
       export: () => {
         throw new Error("sink");
@@ -241,10 +239,9 @@ test("a throwing tap does not stop another tap", async () => {
         },
       }),
     ],
-  });
+  }).ready;
   const work = operation({ label: "work", run: () => 42 });
 
-  await scope.ready;
   const value = scope.run(work);
   await scope.close();
 

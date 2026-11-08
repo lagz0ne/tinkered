@@ -256,12 +256,13 @@ test("named calls keep the real layer lifecycle and extension registry", async (
     label: "waitForAbort",
     run: (_deps, ctx) =>
       new Promise<boolean>((resolve) => {
-        ctx.signal.addEventListener("abort", () => resolve(ctx.signal.aborted), { once: true });
+        ctx.signal.addEventListener("abort", async () => resolve(ctx.signal.aborted), {
+          once: true,
+        });
       }),
   });
 
-  const scope = createScope({ capsules: [readyValue] });
-  await scope.ready;
+  const scope = await createScope({ capsules: [readyValue] }).ready;
 
   expect(scope.run(readExtension, { ns: named })).toBe(42);
   const waiting = scope.run(waitForAbort, { ns: named });
