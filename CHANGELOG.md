@@ -4,6 +4,68 @@ Each section is one release of
 `@tinker/core` and `@tinker/react`.
 The two move to one version together.
 
+## 0.13.0
+
+A call waits for start, and a capsule's author
+ships test tooling as a test capsule
+(ADR 0127).
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.13.0
+bun add $R/tinker-core-0.13.0.tgz \
+  $R/tinker-react-0.13.0.tgz
+```
+
+On Node, with npm:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.13.0
+npm install $R/tinker-core-0.13.0.tgz \
+  $R/tinker-react-0.13.0.tgz
+```
+
+The two URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.13.0/tinker-core-0.13.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.13.0/tinker-react-0.13.0.tgz
+
+### A call waits for start
+
+- While a root starts, `run`, `settle`,
+  `session` and `controller(op).run` wait for
+  every start, then run.
+- So do sessions made during start.
+- After a failed start or a close, a waiting
+  call meets the closed scope: `run` raises
+  `Disposed`; `settle` returns its result.
+- `await using scope = createScope(...)`
+  closes the scope at the end of the block.
+
+### Test capsule
+
+- `testCapsule(of, def)` from
+  `@tinker/core/testing`: a capsule only tests
+  install, labelled `<of>.testing`.
+- Its ops reach `of` through `of`'s exports.
+- A prod file does not import it, so the
+  bundler leaves it out.
+
+### Upgrade
+
+- A run before `ready` no longer raises
+  `NotResolved`; it waits. A test that checked
+  that error now gets the value.
+- A sync op's `run` returns a promise while
+  the root starts. `await` it there.
+- `await scope.ready` before a call still
+  works; it is no longer needed.
+
 ## 0.12.0
 
 A capsule exports a foreign value as is
