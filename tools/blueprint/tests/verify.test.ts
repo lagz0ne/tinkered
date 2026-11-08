@@ -26,8 +26,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** The golden pair is the committed file and source, found through the repo root: under a
  * mutation run this test file lives in a sandbox whose `src` is instrumented, and the pair
- * must be the real one — the code under test is the sandbox's, the data is the repo's. */
-const repo = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+ * must be the real one — the code under test is the sandbox's, the data is the repo's. A git
+ * hook sets `GIT_DIR`, which would point `git` at the hook's repo, not this one: drop it. */
+const gitFree = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")),
+);
+
+const repo = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+  encoding: "utf8",
+  env: gitFree,
+}).trim();
+
 const blueprintYaml = join(repo, "tools", "blueprint", "blueprint.yaml");
 const srcDir = join(repo, "tools", "blueprint", "src");
 
