@@ -70,6 +70,40 @@ await scope.close();
 The test entry ships in the package beside the main entry.
 Test files and source files do not ship.
 
+### Test capsule
+
+A capsule's author ships test tooling as a test capsule (ADR 0127).
+Only test files import it, so a prod build leaves it out.
+
+```ts
+// auth.testing.ts
+import { testCapsule } from "@tinker/core/testing";
+
+const signIn = operation({
+  label: "auth.testing.signIn",
+  depends: { verify: auth.verify },
+  run: ({ verify }) => verify.run({ input: TEST_CODE }),
+});
+
+export const authTesting = testCapsule(auth, {
+  exports: { signIn },
+});
+```
+
+```ts
+// auth.test.ts
+await using app = createScope({
+  capsules: [auth({ api: fakeApi }), authTesting],
+});
+await app.run(authTesting.signIn);
+```
+
+- Its label is `auth.testing`.
+- It takes `config`, `tags`, `exports`, and `hooks`, as a capsule does.
+- It reaches `auth` through its exports only.
+- Its ops reach `auth` through `auth`'s exports.
+- So without `auth` installed, such a run raises `CapsuleMissing`.
+
 ## Operation input
 
 Pass outside data with `scope.run(op, { rawInput: value })`. Core runs the operation's
@@ -112,6 +146,21 @@ A run passes objects the way a function call does: no copy.
 - So a body that changes its input changes the caller's object.
 
 ## Root lifetime
+
+A call made while the root starts waits for start (ADR 0127):
+
+```ts
+await using scope = createScope({ capsules: [db] });
+const rows = await scope.run(listRows);
+```
+
+- `run`, `settle`, `session`, and `controller(op).run` wait.
+- So do the same verbs on a session made during start.
+- After a failed start or a close, a waiting `run` raises `Disposed`.
+- A waiting `settle` returns its result; it never throws.
+- After start the gate is gone; a sync op answers sync again.
+- `resolve` and cell reads do not wait.
+- `await using` closes the scope at the end of the block.
 
 Give a root a stop signal and await its final Result (ADR 0085):
 

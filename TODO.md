@@ -75,6 +75,10 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/start-gate-test-capsule** — ADR 0127: an outside call waits for start; `await using`; `testCapsule` in `@tinker/core/testing`.
+  Owner: thread lead (Duke's go 2026-11-08 14:19).
+  Proof: `scripts/ticket.sh --check-only 127` exit 0: Core 1067, dist 1311, size 18,873 B (cap 20,480), mutation 86.17 (floor 85). Review: NOT READY, one fix round, READY.
+
 - **core/edge-at-scope** — `cell.atScope.controller` and `cell.atNamespace.controller` place a write at the root (ADR 0126); `tinker/cell-write` flags both on another capsule's raw cell.
   Proof: `scripts/ticket.sh --check-only --no-mutation` exit 0 (Core 1054, dist 1298, React 108, blueprint 119, flight-trial 148; core gzip 18.36 kB); `tests/edge-placement.test.ts` P1-P6; lint test fails on the old rule.
   Mutation on changed lines: 95.45% (21/22; the survivor `placed("")` acts as `"namespace"`, equivalent). Opus review: READY; nits kept (edge shape; a fresh atScope controller per run, a cold path); added P6 (a kept controller past its call).

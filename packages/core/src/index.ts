@@ -765,6 +765,8 @@ export declare namespace Scope {
      * ({@link CloseOptions}, ADR 0028). Always resolves to a {@link Result} describing the actual
      * settled state + any teardown errors — never throws (0027). */
     close(opts?: CloseOptions): Promise<Result>;
+    /** Closes the scope at the end of an `await using` block. */
+    [Symbol.asyncDispose](): Promise<void>;
     /** Wait for every capsule's start. A failed start closes through the handle's close hooks
      * and rejects with the start error only after cleanup ends (ADR 0085). A close already under
      * way is joined. A scope with no capsules is ready at once. */
@@ -4971,6 +4973,10 @@ class ScopeHandle implements Scope.Handle {
     const layer = this.layer;
     while (layer.pending.size) await Promise.all(layer.pending);
   }
+  /** `await using scope = createScope(...)` closes it at the block's end (TC39 dispose). */
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
+  }
   close(opts?: Scope.CloseOptions): Promise<Scope.Result> {
     return closeLayer(this.layer, !opts?.graceful, opts?.withData === true);
   }
@@ -5252,8 +5258,73 @@ function extendHandle(
   if (resolvers) extended.resolve = resolveThrough(layer, resolvers);
   if (signal) listenForStop(extended, signal, lifetime);
 
-  runStartChain(layer, extended, lifetime, settleReady, failReady, startTimeout);
+  const openGate = gateStart(extended, ready);
+  runStartChain(
+    layer,
+    extended,
+    lifetime,
+    () => {
+      openGate();
+      settleReady();
+    },
+    (error) => {
+      openGate();
+      failReady(error);
+    },
+    startTimeout,
+  );
   return extended;
+}
+
+/** The verbs the start gate holds (ADR 0127). */
+const startVerbs = ["run", "settle", "session", "controller", "createSession"] as const;
+
+type StartVerb = (typeof startVerbs)[number];
+type Verb = (...args: unknown[]) => unknown;
+
+/**
+ * Put the start gate on a root handle (ADR 0127). While the root starts, an outside call waits
+ * for `ready`, then makes the plain call: after a failed start or a close, that call meets the
+ * closed scope (`Disposed`; `settle` returns its result). A session made meanwhile, at any depth,
+ * gets the gate too, and so does an operation's controller (React's `useRun`). The returned
+ * function opens the gate: each verb then holds its plain method again, so no handle changes shape.
+ */
+function gateStart(handle: Scope.Handle, ready: Promise<void>): () => void {
+  let open = false;
+  const gated: Array<{ verbs: Record<StartVerb, Verb>; plain: Record<StartVerb, Verb> }> = [];
+  const later = (call: () => unknown): unknown => (open ? call() : ready.then(call, call));
+
+  const gate = (target: Scope.Handle): void => {
+    const verbs = target as unknown as Record<StartVerb, Verb>;
+    const plain = {} as Record<StartVerb, Verb>;
+    for (const verb of startVerbs) plain[verb] = verbs[verb];
+    gated.push({ verbs, plain });
+
+    verbs.run = (...args) => later(() => plain.run.apply(target, args));
+    verbs.settle = (...args) => later(() => plain.settle.apply(target, args));
+    verbs.session = (...args) => later(() => plain.session.apply(target, args));
+    verbs.createSession = (...args) => {
+      const session = plain.createSession.apply(target, args) as Scope.Handle;
+      if (!open) gate(session);
+      return session;
+    };
+    verbs.controller = (...args) => {
+      const control = plain.controller.apply(target, args) as Record<"run" | "settle", Verb>;
+      if (open || !isOperation(args[0])) return control;
+
+      return Object.create(control, {
+        run: { value: (...call: unknown[]) => later(() => control.run(...call)) },
+        settle: { value: (...call: unknown[]) => later(() => control.settle(...call)) },
+      });
+    };
+  };
+
+  gate(handle);
+
+  return () => {
+    open = true;
+    for (const { verbs, plain } of gated) Object.assign(verbs, plain);
+  };
 }
 
 /** Hooked calls select their owner before starting the hook chain. An owned call therefore

@@ -5928,7 +5928,7 @@ test("an operation depending on an extension receives the start value after read
   await scope.close();
 });
 
-test("running an operation on a pending extension dependency raises NotResolved", async () => {
+test("running an operation on a pending extension dependency waits for start", async () => {
   const gate = deferred();
   const ext = capsule<{}, {}, { connect(): number }>({
     label: "driver",
@@ -5947,17 +5947,12 @@ test("running an operation on a pending extension dependency raises NotResolved"
   });
   const scope = createScope({ capsules: [ext] });
 
-  try {
-    scope.run(use);
-    throw new Error("unreachable");
-  } catch (e) {
-    if (!isError(e, "NotResolved")) throw e;
-    expect(e.payload.label).toBe("driver");
-  }
-
+  const early = scope.run(use);
+  const control = scope.controller(use).run();
   gate.resolve();
-  await scope.ready;
 
+  await expect(early).resolves.toBe(7);
+  await expect(control).resolves.toBe(7);
   expect(scope.run(use)).toBe(7);
   await scope.close();
 });

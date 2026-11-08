@@ -166,6 +166,7 @@ The copied client has no frame, config tag, or retry.
 
 - **library** — One folder in `tinker/components/`: a graph of units behind one capsule.
 - **capsule** — A library's door, made with `capsule({ label, config?, exports?, hooks? })`: its config keys, its six hooks, and the units it exports. Replaces the extension.
+- **test capsule** — `testCapsule(of, def)` from `@tinker/core/testing`: a capsule only tests install, labelled `<of>.testing`. It ships the author's test tooling and reaches `of` through its exports (ADR 0127).
 - **handle** (of a capsule) — What `capsule()` returns: a binding itself, and a function that fills the config. Each export sits on it: `mail.enqueue`.
 - **binding** — What a call of the handle returns, `mail({ smtpUrl })`; what `createScope({ capsules })` installs. Its exports are the same objects as the handle's.
 - **record** — `scope.capsules`: one line per installed binding, in install order, with its `config` (a secret shows `"[hidden]"`), its `exports`, and the units it `loaded`. Live at any moment.
@@ -177,6 +178,7 @@ The copied client has no frame, config tag, or retry.
 - **extension** — Replaced by **capsule** (ADR 0121). Was: scope hooks that use namespace tags to choose and control instance state.
 - **hook chain** — The per-verb onion built once at creation from the extensions that declare that hook; registration order, first is outermost; a verb with no middleware keeps its direct call (pays nothing).
 - **ready** — `scope.ready`: a promise settled when every `start` chain settled; a rejected start force-closes the scope through its `close` (every close hook runs) and rejects `ready` only after that close ended (ADR 0085). No extensions → already resolved.
+- **start gate** — While a root starts, an outside `run`, `settle`, `session`, or op controller call waits for `ready`, then runs; after a failed start or a close it meets the closed scope (ADR 0127). Gone after start.
 - **closed** — `scope.closed` on a root made with a stop `signal`: core's one close `Result`, once that close ended; settles once, never rejects, pending while open (ADR 0085).
 - **stop signal** — `createScope({ signal })`: an abort closes the root gracefully once `ready` resolved. Not `ctx.signal`: it asks the root to stop; `ctx.signal` cancels work (ADR 0085).
 - **extension value** — What a `start` chain returned, read with `scope.resolve(ext)` once ready (`NotResolved` before). `source()` → `{ connect }`, `subscribe(link)` → `{ close }`.
