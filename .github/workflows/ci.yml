@@ -1,5 +1,7 @@
 # The gates a contributor runs, on every push to main (trunk-based, no PRs).
 # Mutation and timing stay on the bench box: they need its quiet core.
+# The jobs run on the self-hosted runner on the Dokploy box (`tinkered-box`):
+# hosted minutes stopped on 2026-11-06. Only main's pushes trigger it.
 name: ci
 
 on:
@@ -15,7 +17,7 @@ concurrency:
 
 jobs:
   gates:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, tinkered-box]
     env:
       CI: "true"
     steps:
@@ -56,7 +58,7 @@ jobs:
   # pnpm installs (bun install cannot read this pnpm workspace) and the build runs
   # on Node (Core's build plugin uses the TypeScript API, which needs Node).
   bun:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, tinkered-box]
     env:
       CI: "true"
     steps:

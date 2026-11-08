@@ -7,7 +7,7 @@ name: Trunk status
 
 on:
   workflow_run:
-    workflows: [ci, release]
+    workflows: [ci, release, playground]
     types: [completed]
     branches: [main]
 
@@ -23,7 +23,7 @@ jobs:
     if: >-
       github.event.workflow_run.event != 'pull_request' &&
       contains(fromJSON('["success","failure","timed_out"]'), github.event.workflow_run.conclusion)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, tinkered-box]
     timeout-minutes: 5
     env:
       GH_TOKEN: ${{ github.token }}
@@ -34,6 +34,9 @@ jobs:
       URL: ${{ github.event.workflow_run.html_url }}
       SUBJECT: ${{ github.event.workflow_run.display_title }}
     steps:
+      # The box runner is not the hosted image: add the CLI this job needs when it lacks it.
+      - name: Tools
+        run: command -v gh >/dev/null || { apt-get update -qq && apt-get install -y -qq gh; }
       - name: Open, update or close the red-trunk issue
         run: |
           title="main is red: $NAME"

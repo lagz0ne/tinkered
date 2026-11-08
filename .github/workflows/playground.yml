@@ -1,0 +1,72 @@
+name: playground
+
+# Continuous deployment (trunk-based): every green ci run on main goes live at
+# playground.tini.works. It runs on the self-hosted runner on the Dokploy box
+# (`tinkered-box`), builds the static site and its nginx image there, and rolls
+# the Dokploy compose app to it. There is no pull-request trigger.
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One deploy at a time, and never cut one off halfway.
+concurrency:
+  group: deploy-playground
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: [self-hosted, tinkered-box]
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      # The newest green commit wins: an older run that waited does nothing.
+      - name: Skip a commit that main has moved past
+        id: newest
+        run: |
+          git fetch --quiet origin main
+          if [ "$(git rev-parse origin/main)" != "$SHA" ]; then
+            echo "main moved on; the newer run deploys"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        if: steps.newest.outputs.skip != 'true'
+        with:
+          node-version: 22
+
+      - name: Install
+        if: steps.newest.outputs.skip != 'true'
+        run: |
+          npm install --global pnpm@12.4.1
+          pnpm install --frozen-lockfile
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+          command -v jq >/dev/null || { apt-get update -qq && apt-get install -y -qq jq; }
+
+      - name: Build
+        if: steps.newest.outputs.skip != 'true'
+        run: |
+          vp run -r build
+          cd apps/playground && vp run build
+
+      - name: Roll and check
+        if: steps.newest.outputs.skip != 'true'
+        env:
+          DOKPLOY_URL: http://dokploy:3000
+          DOKPLOY_TOKEN_FILE: /run/secrets/dokploy-token
+          COMPOSE_ID: vGQY1X2XEn7f7dyzt9LqP
+        run: scripts/deploy-playground.sh
