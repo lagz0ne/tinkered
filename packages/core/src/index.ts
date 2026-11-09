@@ -65,6 +65,8 @@ export declare namespace Data {
 
   /** A reactive value cell — the only reactive unit. */
   export type Cell<T> = {
+    /** Fixed facts declared on the unit (entry, effect, raises...). */
+    readonly tags: readonly Tag.Binding<unknown>[];
     readonly [cell]: true;
     readonly label: string;
     readonly initial: T;
@@ -268,6 +270,8 @@ export declare namespace Operation {
 
   /** An operation: typed input, declared deps, runs on every call. Not reactive, not memoized. */
   export type Handle<T, I> = {
+    /** Fixed facts declared on the unit (entry, effect, raises...). */
+    readonly tags: readonly Tag.Binding<unknown>[];
     readonly [operationSym]: true;
     readonly label: string;
     readonly input: Data.Parse<I> | undefined;
@@ -301,6 +305,8 @@ export declare namespace Resource {
   /** A reusable built instance. `target` picks the owner and bucket: `scope` = root default,
    * `namespace` = root per namespace, `session` = requesting layer per namespace. */
   export type Handle<T> = {
+    /** Fixed facts declared on the unit (entry, effect, raises...). */
+    readonly tags: readonly Tag.Binding<unknown>[];
     readonly [resourceSym]: true;
     readonly label: string;
     readonly target: "scope" | "namespace" | "session";
@@ -459,6 +465,8 @@ export declare namespace Scope {
    * and is visible to observation. */
   export type Inline<D extends Depends, R, I> = {
     readonly label?: string;
+    /** An inline op has no identity, so it holds no unit tags (ADR 0129). */
+    readonly tags?: undefined;
     readonly depends?: D;
     readonly run: (deps: SlotValues<D>, ctx: Operation.Ctx<I>) => R & AsyncBody<D>;
   };
@@ -1133,11 +1141,13 @@ export function data<T>(config: {
   initial: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
+  tags?: Tag.Bindings;
 }): Data.Cell<T> {
   const label = config.label ?? "anon";
   const base = {
     [cell]: true,
     label,
+    tags: readMany(config.tags),
     initial: admit(label, config.parse, config.initial),
     parse: config.parse,
     eq: config.eq ?? Object.is,
@@ -1250,11 +1260,14 @@ export function operation<
   label: string;
   input?: Data.Parse<I>;
   depends?: D;
+  /** Fixed facts about this unit (entry, effect, raises...): read by tools and hooks, stamped on its span. */
+  tags?: Tag.Bindings;
   run: (deps: Scope.SlotValues<D>, ctx: Operation.Ctx<I>) => R & Scope.AsyncBody<D>;
 }): Operation.Handle<R, I> {
   const base = {
     [operationSym]: true,
     label: config.label,
+    tags: readMany(config.tags),
     input: config.input,
     depends: config.depends ?? {},
     run: config.run as Operation.Handle<R, I>["run"],
@@ -1284,6 +1297,7 @@ export function resource<
   label: string;
   target?: "scope" | "namespace" | "session";
   depends?: D;
+  tags?: Tag.Bindings;
   factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T & Scope.AsyncBody<D>;
 }): Resource.Handle<T> {
   const depends: Scope.Depends = config.depends ?? {};
@@ -1294,6 +1308,7 @@ export function resource<
     [resourceSym]: true,
     mayHook: mayHook,
     label: config.label,
+    tags: readMany(config.tags),
     target: config.target ?? "scope",
     depends,
     factory: config.factory as Resource.Handle<T>["factory"],
@@ -7617,6 +7632,14 @@ class Capsules {
   static mark(span: SpanImpl, unit: object | undefined): SpanImpl {
     const owner = (unit as Exported | undefined)?.capsule;
     if (owner !== undefined) span.attributes.capsule = owner.label;
+
+    const facts = (unit as { tags?: readonly Tag.Binding<unknown>[] } | undefined)?.tags;
+    if (facts === undefined) return span;
+
+    for (const { tag: key, value } of facts) {
+      if (!key.secret) span.attributes[key.label] = value;
+    }
+
     return span;
   }
 }

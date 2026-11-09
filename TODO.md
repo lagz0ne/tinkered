@@ -34,9 +34,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **analyze/lint** — ADR 0129 S2. Rules A1, A2, N1, E1, R1, each finding in one shape with file and line.
   Verify: Hedl gives 1 A1, 0 A2, 1 N1 (`sink.route`), 3 E1 findings; a planted case per rule fails.
 
-- **core/unit-tags** — ADR 0129 S3. `operation`, `resource`, `data` take `tags`; the handle keeps them; non-secret tags go on the span; inline ops get an empty list. Scratch patch: branch `scratch/unit-tags` (local), +21 lines.
-  Verify: the proof tests pass; Core suite green.
-
 - **analyze/route-span** — ADR 0129 S3. The tinker-app routes driver puts `http.route` and `http.response.status_code` on the span of the op a row runs.
   Verify: a Hedl route test reads both on that span.
 
@@ -103,6 +100,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/unit-tags** — ADR 0129 S3. `operation`, `resource`, `data` take `tags`; the handle keeps them; non-secret tags go on the span; an inline op has `tags` undefined (it has no identity).
+  Owner: thread lead (Duke's go 2026-11-09 08:56).
+  Proof: `scripts/ticket.sh --check-only 130` green: Core 1078, size 19,094 B, mutation 86.26; `tests/unit-tags.test.ts` (5).
 
 - **core/handle-shapes** — Handles are classes, not `Object.create` over a fresh handle: the starting face, hooked sessions, and the extended root.
   Owner: thread lead (Duke's pick 2026-11-09 07:19: "Also fix root start first").
