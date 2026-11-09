@@ -26,7 +26,7 @@ call).
 - 03:58: the tool is for an LLM's next step, "read only
   the part of flow matter to the subject".
 - 04:02: "callstack matter": the error carries it, and the
-  story is redrawn from static analysis.
+  run is redrawn from static analysis.
 - 04:04: do not copy a resolved value out; `throw`,
   `raise`, `return` and `.run` are what the analyzer reads.
 - 05:13: "plain return is fine".
@@ -128,11 +128,11 @@ Where ours is simpler:
      shape) must be 0;
    - coverage: every static call shape must run in a test;
    - a `try`'s catch counts once, not once per call.
-8. **Slice and story.** The tool serves an LLM's next
+8. **Slice and backtrace.** The tool serves an LLM's next
    step; it never guesses.
    - `slice <subject>`: only the paths of one route, op or
      cmd, at file and line.
-   - `story <failed run>`: span names, the error's
+   - `backtrace <failed run>`: span names, the error's
      `origin.path` and its stack, joined with the map.
    - Where it cannot read, it says why and what to read
      next.

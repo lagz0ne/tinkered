@@ -40,7 +40,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **analyze/conform** — ADR 0129 S4. `tinker-analyze conform --spans`: fitness (divergence 0), coverage C. Close the 6 analyzer gaps first; the 11 transport-dispatch ops become read-next pointers.
   Verify: Hedl suite gives 0 divergences; the absence list names file and line.
 
-- **analyze/story** — ADR 0129 S6. `slice <subject>` and `story <failed run>`: path at file and line, candidate exits, read-next pointers. Scratch: `story.cjs`.
+- **analyze/backtrace** — ADR 0129 S6. `slice <subject>` and `backtrace <failed run>`: path at file and line, candidate exits, read-next pointers. Scratch: `story2.cjs`.
   Verify: the Hedl talkSay run redraws to `talk.ts:106 raise Refused`.
 
 - **analyze/effects** — ADR 0129 S5. GET-safe and query-in-loop findings.

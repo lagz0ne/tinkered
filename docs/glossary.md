@@ -476,5 +476,5 @@ New sections are lists, one term per item (vertical layout,
 - **fitness** — Every observed run fits a static call shape: divergence is 0.
 - **coverage** — Every static call shape ran in a test: absence is 0.
 - **slice** — Only the paths of one route, op or cmd, at file and line (Weiser).
-- **story** — A failed run redrawn: span names and the error's origin, joined with the call shapes.
+- **backtrace** — The call stack of a failed run, at file and line: span names and the error's origin, joined with the call shapes (as gdb `bt`).
 - **unit tag** — A fixed fact on an `operation`, `resource` or `data` (`tags: [...]`): read by tools and hooks, put on the unit's span, never bound into a run.
