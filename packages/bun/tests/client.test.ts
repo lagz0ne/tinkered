@@ -3,8 +3,8 @@ import type { Observe, Scope } from "@tinker/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { createWs, ws } from "@/index";
-import { ws as wsServer } from "@/server";
+import { createWs, ws } from "@/client";
+import { ws as wsServer } from "@/index";
 
 // The client side, frame by frame: what each call, watch, stop and close puts on the socket.
 

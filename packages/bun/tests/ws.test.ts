@@ -2,8 +2,8 @@ import { channel, createScope, data, operation, remoteData, rpc } from "@tinker/
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { ws } from "@/index";
-import { ws as wsServer } from "@/server";
+import { ws } from "@/client";
+import { ws as wsServer } from "@/index";
 
 const api = rpc({
   greet: { input: z.object({ name: z.string().min(1) }), output: z.object({ text: z.string() }) },

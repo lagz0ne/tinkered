@@ -1,7 +1,7 @@
 {
-  "name": "@tinker/ws",
+  "name": "@tinker/bun",
   "version": "0.15.0",
-  "description": "Tinkered rpc over one WebSocket: a browser or Bun client, and a Bun server.",
+  "description": "Tinker on Bun: the host on Bun.serve, rpc over one WebSocket (server, and a browser client).",
   "license": "MIT",
   "files": [
     "dist"
@@ -10,7 +10,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
-    "./server": "./dist/server.mjs",
+    "./client": "./dist/client.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {

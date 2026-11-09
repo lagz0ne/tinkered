@@ -1,8 +1,8 @@
 import type { Scope } from "@tinker/core";
 
 /** The default client and server, as an app's cmds import them. */
-export { ws as wsClient } from "@/index";
-export { ws as wsServer } from "@/server";
+export { ws as wsClient } from "@/client";
+export { ws as wsServer } from "@/index";
 
 type Door = {
   upgrade: (r: Request, s: Scope.Handle, b: never) => Response | null | undefined;

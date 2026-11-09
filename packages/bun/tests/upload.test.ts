@@ -4,8 +4,8 @@ import { memory } from "@tinker/core/testing";
 import { afterAll, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { ws } from "@/index";
-import { ws as wsServer } from "@/server";
+import { ws } from "@/client";
+import { ws as wsServer } from "@/index";
 
 const { hook } = transport;
 

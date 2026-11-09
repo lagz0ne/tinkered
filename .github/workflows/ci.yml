@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 22
 
-      # The ws package's tests serve a real socket with Bun.serve (ADR 0130).
+      # The bun package's tests serve a real socket with Bun.serve (ADR 0130).
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.x

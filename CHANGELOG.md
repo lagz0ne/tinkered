@@ -2,14 +2,14 @@
 
 Each section is one release of
 `@tinker/core`, `@tinker/react` and,
-since 0.15.0, `@tinker/ws`.
+since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
 ## 0.15.0
 
 rpc and remoteData are Core primitives
 (ADR 0130). Units take tags (ADR 0129).
-A new package: `@tinker/ws`.
+A new package: `@tinker/bun`.
 
 ### Install
 
@@ -20,14 +20,14 @@ R=https://github.com/lagz0ne/tinkered/\
 releases/download/v0.15.0
 bun add $R/tinker-core-0.15.0.tgz \
   $R/tinker-react-0.15.0.tgz \
-  $R/tinker-ws-0.15.0.tgz
+  $R/tinker-bun-0.15.0.tgz
 ```
 
 The three URLs:
 
 - https://github.com/lagz0ne/tinkered/releases/download/v0.15.0/tinker-core-0.15.0.tgz
 - https://github.com/lagz0ne/tinkered/releases/download/v0.15.0/tinker-react-0.15.0.tgz
-- https://github.com/lagz0ne/tinkered/releases/download/v0.15.0/tinker-ws-0.15.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.15.0/tinker-bun-0.15.0.tgz
 
 ### rpc in Core
 
@@ -45,8 +45,11 @@ The three URLs:
   `transport`.
 - `~/components/memory`: import from
   `@tinker/core/testing`.
-- `~/components/ws`: import from
-  `@tinker/ws` and `@tinker/ws/server`.
+- `~/components/ws`: the server from
+  `@tinker/bun`, the client from
+  `@tinker/bun/client`.
+- `~/base/bun-host`: `serve` from
+  `@tinker/bun`.
 - A bytes field marks your own field:
   `bytes(z.custom<RpcBody>(), { max })`.
 - A bad rpc output raises `SchemaRejected`,

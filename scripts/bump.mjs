@@ -21,7 +21,7 @@ for (const name of releasePackages) {
   const file = join(root, "packages", name, "README.md");
   const text = readFileSync(file, "utf8")
     .replaceAll(/releases\/download\/v\d+\.\d+\.\d+/g, `releases/download/v${version}`)
-    .replaceAll(/(tinker-(?:core|react|ws))-\d+\.\d+\.\d+\.tgz/g, `$1-${version}.tgz`);
+    .replaceAll(/(tinker-(?:core|react|bun))-\d+\.\d+\.\d+\.tgz/g, `$1-${version}.tgz`);
   writeFileSync(file, text);
 }
 

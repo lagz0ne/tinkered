@@ -2,7 +2,7 @@ import { capsule, data, operation, tag, transport } from "@tinker/core";
 import type { Scope } from "@tinker/core";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 
-import { frameMax } from "./index";
+import { frameMax } from "./client";
 
 const { kept, openInput, protocol, request, requestStop, sendInput, traceparentOf } = transport;
 

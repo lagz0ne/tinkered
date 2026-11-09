@@ -9,7 +9,7 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   pack: {
-    entry: { index: "src/index.ts", server: "src/server.ts" },
+    entry: { index: "src/index.ts", client: "src/client.ts" },
     deps: { resolveDepSubpath: true, neverBundle: ["bun"] },
     dts: { generator: "tsgo" },
     exports: true,

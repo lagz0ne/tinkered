@@ -1,5 +1,5 @@
-/** The packages one tag ships, tested together: Core, React and the ws transport (ADR 0130). */
-export const releasePackages = ["core", "react", "ws"];
+/** The packages one tag ships, tested together: Core, React and Tinker on Bun (ADR 0130). */
+export const releasePackages = ["core", "react", "bun"];
 
 /**
  * One tag names every release package, tested together (ADR 0122).
