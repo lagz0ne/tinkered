@@ -30,6 +30,8 @@ call).
 - 04:04: do not copy a resolved value out; `throw`,
   `raise`, `return` and `.run` are what the analyzer reads.
 - 05:13: "plain return is fine".
+- 06:52: "so sarif and we should have a tool to show sarif
+  content to human".
 
 ## Context
 
@@ -68,6 +70,9 @@ Scripts: project files,
   Coverage: each path ran.
 - **Program slicing** (Weiser 1981). Keep only the code
   that matters to one subject.
+- **SARIF 2.1.0** `codeFlows` (OASIS).
+  CodeQL shows a taint path this way: steps at file and
+  line, each with kinds such as call, branch, exit.
 - **SherLog** (2010), **lprof** (2014). Redraw a run from
   a few logs plus the source.
 
@@ -138,9 +143,19 @@ Where ours is simpler:
      next.
      Example: a callee picked by a capsule hook.
    - Where a trace fits more than one exit, it lists them.
-9. **Where.** The analyzer is a package beside Core in this
-   repo: `packages/analyze`.
-   It ships with each Core release.
+   - Each call site and exit has an id, its file and line.
+     A span joins to that id, not to a label and an order.
+9. **One format: SARIF 2.1.0.**
+   - Findings, `slice` and `backtrace` all print SARIF.
+   - A path is a `codeFlow`; a step's kinds come from the
+     SARIF list (call, branch true or false, exit,
+     unreachable).
+   - People read it in a SARIF viewer.
+     A Mermaid sequence is a picture drawn from SARIF,
+     never read back.
+10. **Where.** The analyzer is a package beside Core in this
+    repo: `packages/analyze`.
+    It ships with each Core release.
 
 ## Parked
 

@@ -25,8 +25,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **analyze/map** — ADR 0129 S1. `packages/analyze`: the TS-checker pass from the scratch proof (project files `tinkered/plans/agentic-first/proof-callshape/`) as a tested tool: graph, call shapes, Mermaid sequence per route and cmd.
-  Verify: on Hedl c8f8770, 800 ops and 1124 edges; the cancel-route sequence matches the proof.
+- **analyze/map** — ADR 0129 S1. `packages/analyze`: the TS-checker pass from the scratch proof (project files `tinkered/plans/agentic-first/proof-callshape/`) as a tested tool: graph, call shapes, SARIF out. From the proof: a line on every `if` and exit; a file:line id per call site and exit; `break` and `continue` in loops; capsule exports read to their unit kind; a dispatch-by-table node with its hook and table.
+  Verify: on Hedl c8f8770, 800 ops and 1124 edges; the 6 analyzer gaps close; the cancel-route SARIF has a line on every step.
 
 - **analyze/lint** — ADR 0129 S2. Rules A1, A2, N1, E1, R1, each finding in one shape with file and line.
   Verify: Hedl gives 1 A1, 0 A2, 1 N1 (`sink.route`), 3 E1 findings; a planted case per rule fails.
@@ -40,7 +40,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **analyze/conform** — ADR 0129 S4. `tinker-analyze conform --spans`: fitness (divergence 0), coverage C. Close the 6 analyzer gaps first; the 11 transport-dispatch ops become read-next pointers.
   Verify: Hedl suite gives 0 divergences; the absence list names file and line.
 
-- **analyze/backtrace** — ADR 0129 S6. `slice <subject>` and `backtrace <failed run>`: path at file and line, candidate exits, read-next pointers; YAML out, each place as `file` and `line`. Scratch: `backtrace.cjs`.
+- **analyze/backtrace** — ADR 0129 S6. `slice <subject>` and `backtrace <failed run>`: path at file and line, candidate exits, read-next pointers; SARIF `codeFlows` out, shown to people in a SARIF viewer. Scratch: `backtrace.cjs`, `overlay.cjs`, `formats.cjs`.
   Verify: the Hedl talkSay run redraws to `talk.ts:106 raise Refused`.
 
 - **analyze/effects** — ADR 0129 S5. GET-safe and query-in-loop findings.
