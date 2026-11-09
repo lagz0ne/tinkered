@@ -2312,3 +2312,48 @@ Jev:
 - `tests.mjs` and `promises.mjs`: not run. No test file changed.
 - `calibrate.mjs`: skipped. The key is out of budget.
 - `tools/jev/cases.jsonl`: unchanged.
+
+## core/slot-check (2026-11-09)
+
+The slot lane had not run since 0.13.
+
+- Since 0.13 `dist/index.mjs` only re-exports a shared `src-<hash>.mjs` chunk.
+- `check-slots.mjs` looked for `index.mjs.map`, which is gone.
+- So the lane stopped with ENOENT, and only `pnpm validate` ran it.
+- The F9 ratchet in `check-fast-code.mjs` read the re-export.
+  So it always passed.
+
+The fix:
+
+- `bundleOf` follows the entry's one relative import to the chunk.
+- Both lanes measure the chunk. The driver still imports the entry.
+- CI runs `check-slots.mjs` after the build.
+
+The fixed lane failed on main:
+
+- `resolveHeld` sat at slot 256. The anchor sat at slot 266.
+- So 11 hot names needed a wide operand.
+
+12 names moved below `invalidateResource`.
+Each slot is read once per root, or only by the release block:
+
+- `later`, `startingFaces`, `StartingFace`, `SignalFace`, `startingHandle`.
+- `NO_EXTS`, `systemClock`, `makeObs`, `DEFAULT_OBS`, `makeRootLayer`.
+- `idleOf`, before its one user `drainReleasedOwner`.
+- `RELEASED`, before `unlinkNamedState`.
+
+`later` is read on each call on the starting face.
+ADR 0128 makes that face the start-time form.
+Hot code uses the handle that `ready` gives.
+
+Results:
+
+- 251 hot names; the last hot slot is 253. Headroom: 2 names.
+- F9 Core: 339 -> 365. This is growth from 0.13 to now.
+  The broken lane could not see it. No name moved up.
+- Node 24 bytecode, main -> this change:
+  - `runHookBody` 302 -> 300; `stepRunHook` 203 -> 199.
+  - The other hot functions did not change.
+- Not fixed here, found on main with node 24:
+  - F1 `runOnce` 523 and `runHookChain` 209 are over the baseline (504, 190).
+  - F9 React 34 is over the baseline 21.

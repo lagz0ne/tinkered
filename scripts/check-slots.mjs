@@ -7,6 +7,10 @@
 //
 //   node scripts/check-slots.mjs [dist/index.mjs]    default: packages/core/dist/index.mjs
 //
+// Since 0.13 the build splits Core: `dist/index.mjs` only re-exports a shared `src-<hash>.mjs`
+// chunk (also used by `testing.mjs`). V8 gives that chunk its own module context, so the lane
+// follows the entry's one relative import to the chunk and checks the chunk with its map.
+//
 // The slot rule, from V8's scope allocation (src/ast/scopes.cc), checked against
 // `node --print-bytecode` on the core bundle (every function name's `StaCurrentContextSlot`):
 // - A module context starts with 3 header slots (scope info, previous, the module), so the
@@ -18,15 +22,16 @@
 // - Slots go in declaration order in the source (the order the parser declares them), not in
 //   hoisting order: a hoisted function still takes the slot of its place in the file.
 //
-// The anchor: the dist name whose source line, through `index.mjs.map`, is the line that declares
+// The anchor: the dist name whose source line, through the chunk's source map, is the line that declares
 // `invalidateResource`. It is the block's first runtime name (the block's first line is a type,
 // which the build erases). If it is renamed or moved, the lane fails and says so, rather than
 // guarding the wrong line.
 //
 // Exit 1 when a name declared before the anchor has a slot above 255, or the anchor is missing.
 // A `pnpm validate` lane (ADR 0016).
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 
 /** The last slot a one-byte operand can name. */
 const MAX_SLOT = 255;
@@ -421,7 +426,20 @@ function checkHotNames(all, source, map) {
   return true;
 }
 
-function main(file) {
+/** The file that holds the code: `file` when it has a map, else the one chunk it re-exports. */
+export function bundleOf(file) {
+  if (existsSync(`${file}.map`)) return file;
+  const code = readFileSync(file, "utf8");
+  const chunks = [...new Set([...code.matchAll(/\bfrom\s*"(\.\/[^"]+\.mjs)"/g)].map((m) => m[1]))];
+  if (chunks.length !== 1) {
+    throw new Error(`${file}: no source map, and ${chunks.length} relative imports (want 1)`);
+  }
+  return bundleOf(join(dirname(file), chunks[0]));
+}
+
+function main(entry) {
+  const file = bundleOf(entry);
+  console.log(`checking ${file}`);
   const code = readFileSync(file, "utf8");
   const map = JSON.parse(readFileSync(`${file}.map`, "utf8"));
   const { program, errors } = parseSync(file, code, { sourceType: "module" });

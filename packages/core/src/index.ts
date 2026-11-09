@@ -1455,15 +1455,6 @@ type ExtRoutes = {
   [K in keyof Capsule.Hooks]: Capsule.Binding[] | undefined;
 };
 
-const NO_EXTS: ExtRoutes = {
-  run: undefined,
-  write: undefined,
-  session: undefined,
-  start: undefined,
-  close: undefined,
-  resolve: undefined,
-};
-
 /** A layer's node store, child set, owned-work set, defer list, and teardown errors start as these
  * shared empty ones, so an idle layer allocates none (performance rule 4). Never written: the first
  * write gives the layer its own ({@link nodeState}, {@link makeLayer}, {@link addWork},
@@ -2103,29 +2094,6 @@ const OFF_OBS: Observe.Ctx = {
   child: (_name, fn) => fn(undefined),
 };
 
-/** The one sanctioned real-clock read (ADR 0034). `scripts/check-ambient.mjs` skips the reads
- * inside a declaration tagged `@ambientSource`, and only there.
- *
- * @ambientSource */
-const systemClock: Clock.Handle = {
-  currentTimeMillis: () => Date.now(),
-  currentTimeNanos: () =>
-    nanosFromMillis(performance.timeOrigin) + nanosFromMillis(performance.now()),
-  sleep: (ms, signal) =>
-    new Promise<void>((resolve, reject) => {
-      if (signal?.aborted) return reject(signal.reason);
-      const onAbort = (): void => {
-        clearTimeout(id);
-        reject(signal!.reason);
-      };
-      const id = setTimeout(() => {
-        signal?.removeEventListener("abort", onAbort);
-        resolve();
-      }, ms);
-      signal?.addEventListener("abort", onAbort, { once: true });
-    }),
-};
-
 /** The one sanctioned real-random read (ADR 0062). `scripts/check-ambient.mjs` skips the reads
  * inside a declaration tagged `@ambientSource`, and only there.
  *
@@ -2146,27 +2114,6 @@ const systemRandom = {
     return { a: a!, b: b!, c: c!, d: d! || 1 };
   },
 };
-
-/** Span and log times read `observe.clock` if set, else the scope's ambient clock, so a test clock
- * freezes them too (ADR 0034). */
-function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
-  const c = config ?? {};
-  const limit = c.history ?? 0;
-  return {
-    taps: config ? [config] : [],
-    on: !!c.export || limit > 0,
-    clock: c.clock ?? (() => clock.currentTimeMillis()),
-    export: c.export,
-    limit,
-    history: [],
-    log: c.log,
-    level: c.level ?? 0,
-    id: 1,
-  };
-}
-
-/** Observation off: no span opens and no log line is written, so nothing reads its clock. */
-const DEFAULT_OBS: Obs = makeObs(undefined, systemClock);
 
 /** Keep the off check small enough to inline; id creation runs only behind it. */
 function openSpan(
@@ -4077,19 +4024,6 @@ function seedPresets(seeds: Many<Scope.Preset>): Seeded {
   return { nodes, presets: applyPresets(nodes, list) };
 }
 
-function makeRootLayer(options: Scope.Options | undefined): Layer {
-  const clock = options?.clock ?? systemClock;
-  const obs = options?.observe ? makeObs(options.observe, clock) : DEFAULT_OBS;
-  return layerRecord(
-    undefined,
-    options,
-    obs,
-    clock,
-    options?.random ?? systemRandom.source,
-    NO_EXTS,
-  );
-}
-
 /** The ambient namespace chain of a new layer: the options' `ns` (validated), else the parent's
  * — a child session inherits the parent's ambient namespace (ADR 0059 decision 5). */
 function nsFor(
@@ -4221,7 +4155,6 @@ function abortSubtree(root: Layer, reason = root.reason ?? new CancelReason()): 
 const SUCCESS: Scope.Outcome = { status: "success" };
 /** A scope with no capsules is ready at once: one shared, already-resolved promise. */
 const READY: Promise<void> = Promise.resolve();
-const RELEASED: Scope.End = { status: "released" };
 
 /** An empty drain still yields at its caller's await, without allocating an async task. */
 function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
@@ -5230,15 +5163,6 @@ function createBorrows(): HeldBorrows {
   return { list: [] };
 }
 
-/** The promise a release waits on: settles when the last borrow of `owned` ends. */
-function idleOf(owned: ResourceInstance): Promise<void> {
-  if (owned.idle) return owned.idle.done;
-  let wake: () => void = noop;
-  const done = new Promise<void>((resolve) => (wake = resolve));
-  owned.idle = { done, wake };
-  return done;
-}
-
 /** Call `done` after a defer drain: now when it stayed synchronous, else after its tail. */
 function thenDone(tail: Promise<void> | undefined, done: () => void): Promise<void> | undefined {
   if (!tail) {
@@ -5329,141 +5253,6 @@ function extendHandle(
 
   runStartChain(layer, extended, lifetime, settleReady, failReady, startTimeout);
   return extended;
-}
-
-type Verb = (...args: unknown[]) => unknown;
-
-/** What every face of one root shares: whether its start ended, and its `ready`. */
-type Gate = { open: boolean; readonly ready: Promise<Scope.Handle> };
-
-/** Call `target[verb]` at once after start, else once start ends. Always a promise. */
-function later(gate: Gate, target: object, verb: string, args: unknown[]): Promise<unknown> {
-  const own = target as Record<string, Verb>;
-  if (!gate.open) {
-    const call = (): unknown => own[verb](...args);
-    return gate.ready.then(call, call);
-  }
-
-  try {
-    return Promise.resolve(own[verb](...args));
-  } catch (error) {
-    return Promise.reject(error);
-  }
-}
-
-/** Every starting face Core made, for {@link isStarting}. */
-const startingFaces = new WeakSet<object>();
-
-/** Whether `scope` is a root given `capsules`, still in its starting type (ADR 0128). A binding
- * such as React's provider reads it to wait for `ready` before it hands out a sync handle. */
-export function isStarting(scope: Scope.Handle | Scope.Starting): scope is Scope.Starting {
-  return startingFaces.has(scope);
-}
-
-/**
- * The typestate face over `target`: a root given `capsules`, or a session made on a face
- * (ADR 0128). Each call is a promise. Before start ends it waits for every start, then calls the
- * started handle: after a failed start or a close, that call meets the closed scope (`Disposed`;
- * `settle` resolves to its result). After start it calls at once. `ready` resolves to the started
- * handle, whose sync calls stay sync. The rest forwards to `target`, `close` included, so a
- * replaced `close` lands where a failed start calls it (ADR 0085). A class, so every face
- * shares one V8 shape.
- */
-class StartingFace {
-  declare readonly ready: Promise<Scope.Handle>;
-  declare protected target: Scope.Handle;
-  declare private gate: Gate;
-  declare private closer: Scope.Handle["close"] | undefined;
-  constructor(target: Scope.Handle, ready: Promise<Scope.Handle>, gate: Gate) {
-    this.target = target;
-    this.ready = ready;
-    this.gate = gate;
-    this.closer = undefined;
-    startingFaces.add(this);
-  }
-  run(...args: unknown[]): Promise<unknown> {
-    return later(this.gate, this.target, "run", args);
-  }
-  settle(...args: unknown[]): Promise<unknown> {
-    return later(this.gate, this.target, "settle", args);
-  }
-  session(...args: unknown[]): Promise<unknown> {
-    return later(this.gate, this.target, "session", args);
-  }
-  createSession(options?: Scope.Options): StartingFace {
-    const made = this.target.createSession(options);
-    const started = this.gate.ready.then(() => made);
-    ignoreRejection(started);
-    return new StartingFace(made, started, this.gate);
-  }
-  controller(...args: unknown[]): unknown {
-    const control = (this.target.controller as Verb)(...args) as Record<"run" | "settle", Verb>;
-    if (!isOperation(args[0])) return control;
-
-    const gate = this.gate;
-    return {
-      run: (...call: unknown[]) => later(gate, control, "run", call),
-      settle: (...call: unknown[]) => later(gate, control, "settle", call),
-    };
-  }
-  resolve(...args: unknown[]): unknown {
-    return (this.target.resolve as Verb)(...args);
-  }
-  onClose(fn: () => void | PromiseLike<void>): void {
-    this.target.onClose(fn);
-  }
-  spans(): readonly Observe.Span[] {
-    return this.target.spans();
-  }
-  settled(): Promise<void> {
-    return this.target.settled();
-  }
-  get release(): Scope.Handle["release"] {
-    return this.target.release;
-  }
-  get releaseNs(): Scope.Handle["releaseNs"] {
-    return this.release;
-  }
-  get capsules(): readonly Capsule.Record[] {
-    return this.target.capsules;
-  }
-  /** A root's `close` is its own closure; a session's is a method, so bind it to the session. */
-  get close(): Scope.Handle["close"] {
-    const target = this.target;
-    if (!Object.hasOwn(target, "close")) return (this.closer ??= target.close.bind(target));
-
-    return target.close;
-  }
-  set close(close: Scope.Handle["close"]) {
-    this.target.close = close;
-  }
-  [Symbol.asyncDispose](): Promise<void> {
-    return this.target[Symbol.asyncDispose]();
-  }
-}
-
-/** The face of a root given a `signal`: only it has `closed`. */
-class SignalFace extends StartingFace {
-  get closed(): Promise<Scope.Result> {
-    return (this.target as Scope.RootHandle).closed;
-  }
-}
-
-/** A root given `capsules` gets its starting face (ADR 0128); a root given none returns as is. */
-function startingHandle(
-  root: Scope.Handle,
-  capsules: Scope.RootOptions["capsules"],
-): Scope.Handle | Scope.Starting {
-  if (capsules === undefined) return root;
-
-  const ready = root.ready.then(() => {
-    gate.open = true;
-    return root;
-  });
-  const gate: Gate = { open: false, ready };
-  ignoreRejection(ready);
-  const Face = "closed" in root ? SignalFace : StartingFace;
-  return new Face(root, gate.ready, gate) as unknown as Scope.Starting;
 }
 
 /** Hooked calls select their owner before starting the hook chain. An owned call therefore
@@ -5724,6 +5513,8 @@ function isLiveNamedRelease(state: NsResourceState): boolean {
   );
 }
 
+const RELEASED: Scope.End = { status: "released" };
+
 function unlinkNamedState(state: NsResourceState): void {
   const owned = state.owned;
   state.layer.nodes.get(state.target)?.named?.delete(state.key);
@@ -5737,6 +5528,15 @@ function unlinkNamedState(state: NsResourceState): void {
 
 function isHeld(owned: ResourceInstance): boolean {
   return owned.users > 0 || owned.busy || owned.borrows > 0;
+}
+
+/** The promise a release waits on: settles when the last borrow of `owned` ends. */
+function idleOf(owned: ResourceInstance): Promise<void> {
+  if (owned.idle) return owned.idle.done;
+  let wake: () => void = noop;
+  const done = new Promise<void>((resolve) => (wake = resolve));
+  owned.idle = { done, wake };
+  return done;
 }
 
 function drainReleasedOwner(
@@ -6446,6 +6246,141 @@ class HookedSession extends HookedHandle {
   }
 }
 
+type Verb = (...args: unknown[]) => unknown;
+
+/** What every face of one root shares: whether its start ended, and its `ready`. */
+type Gate = { open: boolean; readonly ready: Promise<Scope.Handle> };
+
+/** Call `target[verb]` at once after start, else once start ends. Always a promise. */
+function later(gate: Gate, target: object, verb: string, args: unknown[]): Promise<unknown> {
+  const own = target as Record<string, Verb>;
+  if (!gate.open) {
+    const call = (): unknown => own[verb](...args);
+    return gate.ready.then(call, call);
+  }
+
+  try {
+    return Promise.resolve(own[verb](...args));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+/** Every starting face Core made, for {@link isStarting}. */
+const startingFaces = new WeakSet<object>();
+
+/** Whether `scope` is a root given `capsules`, still in its starting type (ADR 0128). A binding
+ * such as React's provider reads it to wait for `ready` before it hands out a sync handle. */
+export function isStarting(scope: Scope.Handle | Scope.Starting): scope is Scope.Starting {
+  return startingFaces.has(scope);
+}
+
+/**
+ * The typestate face over `target`: a root given `capsules`, or a session made on a face
+ * (ADR 0128). Each call is a promise. Before start ends it waits for every start, then calls the
+ * started handle: after a failed start or a close, that call meets the closed scope (`Disposed`;
+ * `settle` resolves to its result). After start it calls at once. `ready` resolves to the started
+ * handle, whose sync calls stay sync. The rest forwards to `target`, `close` included, so a
+ * replaced `close` lands where a failed start calls it (ADR 0085). A class, so every face
+ * shares one V8 shape.
+ */
+class StartingFace {
+  declare readonly ready: Promise<Scope.Handle>;
+  declare protected target: Scope.Handle;
+  declare private gate: Gate;
+  declare private closer: Scope.Handle["close"] | undefined;
+  constructor(target: Scope.Handle, ready: Promise<Scope.Handle>, gate: Gate) {
+    this.target = target;
+    this.ready = ready;
+    this.gate = gate;
+    this.closer = undefined;
+    startingFaces.add(this);
+  }
+  run(...args: unknown[]): Promise<unknown> {
+    return later(this.gate, this.target, "run", args);
+  }
+  settle(...args: unknown[]): Promise<unknown> {
+    return later(this.gate, this.target, "settle", args);
+  }
+  session(...args: unknown[]): Promise<unknown> {
+    return later(this.gate, this.target, "session", args);
+  }
+  createSession(options?: Scope.Options): StartingFace {
+    const made = this.target.createSession(options);
+    const started = this.gate.ready.then(() => made);
+    ignoreRejection(started);
+    return new StartingFace(made, started, this.gate);
+  }
+  controller(...args: unknown[]): unknown {
+    const control = (this.target.controller as Verb)(...args) as Record<"run" | "settle", Verb>;
+    if (!isOperation(args[0])) return control;
+
+    const gate = this.gate;
+    return {
+      run: (...call: unknown[]) => later(gate, control, "run", call),
+      settle: (...call: unknown[]) => later(gate, control, "settle", call),
+    };
+  }
+  resolve(...args: unknown[]): unknown {
+    return (this.target.resolve as Verb)(...args);
+  }
+  onClose(fn: () => void | PromiseLike<void>): void {
+    this.target.onClose(fn);
+  }
+  spans(): readonly Observe.Span[] {
+    return this.target.spans();
+  }
+  settled(): Promise<void> {
+    return this.target.settled();
+  }
+  get release(): Scope.Handle["release"] {
+    return this.target.release;
+  }
+  get releaseNs(): Scope.Handle["releaseNs"] {
+    return this.release;
+  }
+  get capsules(): readonly Capsule.Record[] {
+    return this.target.capsules;
+  }
+  /** A root's `close` is its own closure; a session's is a method, so bind it to the session. */
+  get close(): Scope.Handle["close"] {
+    const target = this.target;
+    if (!Object.hasOwn(target, "close")) return (this.closer ??= target.close.bind(target));
+
+    return target.close;
+  }
+  set close(close: Scope.Handle["close"]) {
+    this.target.close = close;
+  }
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.target[Symbol.asyncDispose]();
+  }
+}
+
+/** The face of a root given a `signal`: only it has `closed`. */
+class SignalFace extends StartingFace {
+  get closed(): Promise<Scope.Result> {
+    return (this.target as Scope.RootHandle).closed;
+  }
+}
+
+/** A root given `capsules` gets its starting face (ADR 0128); a root given none returns as is. */
+function startingHandle(
+  root: Scope.Handle,
+  capsules: Scope.RootOptions["capsules"],
+): Scope.Handle | Scope.Starting {
+  if (capsules === undefined) return root;
+
+  const ready = root.ready.then(() => {
+    gate.open = true;
+    return root;
+  });
+  const gate: Gate = { open: false, ready };
+  ignoreRejection(ready);
+  const Face = "closed" in root ? SignalFace : StartingFace;
+  return new Face(root, gate.ready, gate) as unknown as Scope.Starting;
+}
+
 /** A bare session wrapped in the `session` chain: the onion starts NOW (before-code runs right after
  * the child layer exists, before any work in it); `next()` settles with the structural close's
  * `Result` however the session closes — through this handle's `close`, or felled by its parent's
@@ -6473,6 +6408,73 @@ function wrapSession(
   ignoreRejection(outcome);
 
   return new HookedSession(child, session, outcome);
+}
+
+/** Once per root, so these names sit below the hot block (perf/session-slots). */
+const NO_EXTS: ExtRoutes = {
+  run: undefined,
+  write: undefined,
+  session: undefined,
+  start: undefined,
+  close: undefined,
+  resolve: undefined,
+};
+
+/** The one sanctioned real-clock read (ADR 0034). `scripts/check-ambient.mjs` skips the reads
+ * inside a declaration tagged `@ambientSource`, and only there.
+ *
+ * @ambientSource */
+const systemClock: Clock.Handle = {
+  currentTimeMillis: () => Date.now(),
+  currentTimeNanos: () =>
+    nanosFromMillis(performance.timeOrigin) + nanosFromMillis(performance.now()),
+  sleep: (ms, signal) =>
+    new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) return reject(signal.reason);
+      const onAbort = (): void => {
+        clearTimeout(id);
+        reject(signal!.reason);
+      };
+      const id = setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      signal?.addEventListener("abort", onAbort, { once: true });
+    }),
+};
+
+/** Span and log times read `observe.clock` if set, else the scope's ambient clock, so a test clock
+ * freezes them too (ADR 0034). */
+function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
+  const c = config ?? {};
+  const limit = c.history ?? 0;
+  return {
+    taps: config ? [config] : [],
+    on: !!c.export || limit > 0,
+    clock: c.clock ?? (() => clock.currentTimeMillis()),
+    export: c.export,
+    limit,
+    history: [],
+    log: c.log,
+    level: c.level ?? 0,
+    id: 1,
+  };
+}
+
+/** Observation off: no span opens and no log line is written, so nothing reads its clock. */
+const DEFAULT_OBS: Obs = makeObs(undefined, systemClock);
+
+function makeRootLayer(options: Scope.Options | undefined): Layer {
+  const clock = options?.clock ?? systemClock;
+  const obs = options?.observe ? makeObs(options.observe, clock) : DEFAULT_OBS;
+  return layerRecord(
+    undefined,
+    options,
+    obs,
+    clock,
+    options?.random ?? systemRandom.source,
+    NO_EXTS,
+  );
 }
 
 function readExtRoutes(exts: readonly Capsule.Binding[]): ExtRoutes {

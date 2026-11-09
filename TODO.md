@@ -101,6 +101,10 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/slot-check** — The V8 slot lane reads the shared chunk again, and hot names fit one-byte slots.
+  Owner: thread lead (Duke's "Yes" 2026-11-09 13:09).
+  Proof: the fixed lane fails on main (`resolveHeld` slot 256) and passes here (last hot slot 253, headroom 2); gate 131 (Core 1078, dist 1322, size 19,094 B, mutation 86.26); review READY. Notes: `docs/roadmap/perf/PROGRESS.md`.
+
 - **core/unit-tags** — ADR 0129 S3. `operation`, `resource`, `data` take `tags`; the handle keeps them; non-secret tags go on the span; an inline op has `tags` undefined (it has no identity).
   Owner: thread lead (Duke's go 2026-11-09 08:56).
   Proof: `scripts/ticket.sh --check-only 130` green: Core 1078, size 19,094 B, mutation 86.26; `tests/unit-tags.test.ts` (5).

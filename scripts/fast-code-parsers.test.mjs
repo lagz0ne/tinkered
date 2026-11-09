@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
+import { bundleOf } from "./check-slots.mjs";
 import {
   highestSlot,
   closures,
@@ -24,6 +28,39 @@ await test("module slots count captured names but omit cells and shadowed names"
     'import { remote } from "pkg"; const local = 1; const shadow = 2; export const cell = 3; function read(shadow) { return local + cell + shadow + remote }';
   assert.equal(highestSlot(code), 3);
   assert.equal(highestSlot("export const x = 1;"), 2);
+});
+
+/** Run `body` in a fresh temp folder, then remove it. */
+function inTemp(body) {
+  const dir = mkdtempSync(join(tmpdir(), "slots-"));
+  try {
+    body(dir);
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+}
+
+await test("a split build is measured on its shared chunk, not the re-export", () => {
+  inTemp((dir) => {
+    const entry = join(dir, "index.mjs");
+    const chunk = join(dir, "src-abc.mjs");
+
+    writeFileSync(entry, 'import{a as e}from"./src-abc.mjs";export{e as run};');
+    writeFileSync(chunk, "export const a = 1;");
+    writeFileSync(`${chunk}.map`, "{}");
+
+    assert.equal(bundleOf(entry), chunk);
+    assert.equal(bundleOf(chunk), chunk);
+  });
+});
+
+await test("an entry with no map and two relative imports is refused", () => {
+  inTemp((dir) => {
+    const entry = join(dir, "index.mjs");
+    writeFileSync(entry, 'export*from"./a.mjs";export*from"./b.mjs";');
+
+    assert.throws(() => bundleOf(entry), /2 relative imports/);
+  });
 });
 
 await test("hot functions count their closures, defaults, and constructor fields", () => {

@@ -2,7 +2,7 @@
   "node": "v24.21.0",
   "v8": "13.6.233.17-node.53",
   "slots": {
-    "core": 339,
+    "core": 365,
     "react": 21
   },
   "bytecode": {

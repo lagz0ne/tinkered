@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 
+import { bundleOf } from "./check-slots.mjs";
 import {
   hotFunctions,
   highestSlot,
@@ -27,7 +28,10 @@ const { values } = parseArgs({
 });
 
 const baseline = JSON.parse(readFileSync(values.baseline, "utf8"));
-const bundle = resolve(values["core-bundle"]);
+/** What the driver imports. Since 0.13 it only re-exports a shared chunk. */
+const entry = resolve(values["core-bundle"]);
+/** The chunk that holds Core's code and its map: what the lanes measure. */
+const bundle = bundleOf(entry);
 const driver = resolve("scripts/fast-code-driver.mjs");
 const deadline = performance.now() + 55_000;
 const read = (file) => readFileSync(file, "utf8");
@@ -76,7 +80,7 @@ function measureBytecode() {
       "--print-bytecode",
       `--print-bytecode-filter=${emitted[name]}`,
       driver,
-      bundle,
+      entry,
     ]);
     actual[name] = bytecodeLength(trace, emitted[name]);
   }
@@ -88,7 +92,7 @@ function measureInlining() {
   if (!/default: --maglev\s/.test(options)) throw new Error("Default Maglev is off");
 
   const emitted = names();
-  const trace = command(process.execPath, ["--trace-turbo-inlining", driver, bundle, "200000"]);
+  const trace = command(process.execPath, ["--trace-turbo-inlining", driver, entry, "200000"]);
   const actual = inlinedInto(trace, emitted.OperationCtx, emitted.runOnce);
   return actual;
 }

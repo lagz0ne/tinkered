@@ -39,6 +39,11 @@ jobs:
       - name: Build
         run: vp run -r build
 
+      # perf/session-slots: Core's hot names keep one-byte V8 context slots.
+      # It ran only in `pnpm validate`, so a broken path went unseen from 0.13 to 0.14.1.
+      - name: Hot names at V8 slot 255 or lower
+        run: node scripts/check-slots.mjs
+
       - name: Check
         run: vp check
 
