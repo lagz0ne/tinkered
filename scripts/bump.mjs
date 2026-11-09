@@ -2,26 +2,26 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { releaseNotes } from "./release-check.mjs";
-import { releaseUrls } from "./release-urls.mjs";
+import { releasePackages, releaseUrls } from "./release-urls.mjs";
 
-/** Move Core and React to one new version. */
+/** Move every release package to one new version. */
 const [version] = process.argv.slice(2);
 releaseUrls(version);
 const root = resolve(import.meta.dirname, "..");
 
-for (const name of ["core", "react"]) {
+for (const name of releasePackages) {
   const file = join(root, "packages", name, "package.json");
   const pkg = JSON.parse(readFileSync(file, "utf8"));
   pkg.version = version;
   writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
 }
 
-// The install lines name one release: its tag and both tarball names.
-for (const name of ["core", "react"]) {
+// The install lines name one release: its tag and each tarball name.
+for (const name of releasePackages) {
   const file = join(root, "packages", name, "README.md");
   const text = readFileSync(file, "utf8")
     .replaceAll(/releases\/download\/v\d+\.\d+\.\d+/g, `releases/download/v${version}`)
-    .replaceAll(/(tinker-(?:core|react))-\d+\.\d+\.\d+\.tgz/g, `$1-${version}.tgz`);
+    .replaceAll(/(tinker-(?:core|react|ws))-\d+\.\d+\.\d+\.tgz/g, `$1-${version}.tgz`);
   writeFileSync(file, text);
 }
 

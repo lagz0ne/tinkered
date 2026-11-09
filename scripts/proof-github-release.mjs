@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { releaseUrls } from "./release-urls.mjs";
+import { releasePackages, releaseUrls } from "./release-urls.mjs";
 
 /** Real tarballs over HTTP into an empty Bun app and an empty npm app. Core and React only. */
 const root = resolve(import.meta.dirname, "..");
@@ -74,7 +74,7 @@ try {
 
   const assets = join(mirror, `lagz0ne/tinkered/releases/download/${tag}`);
   await mkdir(assets, { recursive: true });
-  for (const name of ["core", "react"]) {
+  for (const name of releasePackages) {
     const file = `tinker-${name}-${version}.tgz`;
     const unpacked = join(scratch, name);
     await mkdir(unpacked);

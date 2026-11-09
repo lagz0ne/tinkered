@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { releaseUrls } from "./release-urls.mjs";
+import { releasePackages, releaseUrls } from "./release-urls.mjs";
 
 /** Local assets only. There is deliberately no publish mode or GitHub client. */
 const [version, ...flags] = process.argv.slice(2);
@@ -30,7 +30,7 @@ try {
   run("vp", ["run", "-r", "build"]);
   const manifest = { version, tag, assets: [] };
 
-  for (const name of ["core", "react"]) {
+  for (const name of releasePackages) {
     const source = join(root, "packages", name);
     const current = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
     run("vp", ["pm", "pack", "--pack-destination", packDir], source);

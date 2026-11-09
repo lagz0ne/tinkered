@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { releasePackages } from "./release-urls.mjs";
+
 /** The checks a tag passes before its release is published. Read-only; no GitHub client. */
 
 /**
@@ -24,7 +26,7 @@ export function releaseNotes(text, version) {
  * @param {string} version - From the tag; why: the version both packages must carry.
  */
 export function releaseProblems(root, version) {
-  const versions = ["core", "react"]
+  const versions = releasePackages
     .map((name) => [
       `@tinker/${name}`,
       JSON.parse(readFileSync(join(root, "packages", name, "package.json"), "utf8")).version,
