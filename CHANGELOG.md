@@ -5,6 +5,11 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## Unreleased
+
+- `testCapsule` leaves `@tinker/core/testing` (ADR 0131).
+  Test tooling is a plain capsule in a `*.testing.ts` file.
+
 ## 0.15.0
 
 rpc and remoteData are Core primitives

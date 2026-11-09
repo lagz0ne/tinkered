@@ -70,22 +70,23 @@ await scope.close();
 The test entry ships in the package beside the main entry.
 Test files and source files do not ship.
 
-### Test capsule
+### Test tooling
 
-A capsule's author ships test tooling as a test capsule (ADR 0127).
-Only test files import it, so a prod build leaves it out.
+A capsule's author ships test tooling as a plain capsule
+in a `*.testing.ts` file (ADR 0131). Only test files import
+it, so a prod build leaves it out. An app's build check
+refuses any `*.testing.ts` file in a prod bundle.
 
 ```ts
 // auth.testing.ts
-import { testCapsule } from "@tinker/core/testing";
-
 const signIn = operation({
   label: "auth.testing.signIn",
   depends: { verify: auth.verify },
   run: ({ verify }) => verify.run({ input: TEST_CODE }),
 });
 
-export const authTesting = testCapsule(auth, {
+export const authTesting = capsule({
+  label: "auth.testing",
   exports: { signIn },
 });
 ```

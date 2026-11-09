@@ -1,6 +1,4 @@
-import { capsule } from "./index";
 import type {
-  Capsule,
   Clock as CoreClock,
   Data,
   Operation,
@@ -132,26 +130,6 @@ export function preset<T>(
 
 export function preset(node: unknown, replacement: unknown): Scope.Preset {
   return { [presetSym]: true, node, replacement } as Scope.Preset;
-}
-
-/** What `capsule()` takes. */
-type CapsuleDef<C extends Scope.Config, E extends Capsule.Exports, T> = Parameters<
-  typeof capsule<C, E, T>
->[0];
-
-/**
- * A capsule only tests install (ADR 0127): the author's test tooling for capsule `of`, such as a
- * shortcut op through `of`'s real ops. Its ops reach `of` through `of`'s exports, so a run that
- * needs `of` raises `CapsuleMissing` when `of` is not installed. Its label is `<of>.testing`.
- * Only test files import this entry, so a prod build leaves it out.
- */
-export function testCapsule<
-  const C extends Scope.Config = {},
-  const E extends Capsule.Exports = {},
-  T = void,
->(of: Capsule.Base<unknown>, def: Omit<CapsuleDef<C, E, T>, "label">): Capsule.Handle<C, E, T> {
-  const label = `${of.label}.testing`;
-  return capsule<C, E, T>({ ...def, label } as CapsuleDef<C, E, T>);
 }
 
 /** An in-process transport pair for tests, as Connect's `createRouterTransport` (ADR 0130). */

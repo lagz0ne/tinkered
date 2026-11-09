@@ -166,7 +166,7 @@ The copied client has no frame, config tag, or retry.
 
 - **library** — One folder in `tinker/components/`: a graph of units behind one capsule.
 - **capsule** — A library's door, made with `capsule({ label, config?, exports?, hooks? })`: its config keys, its six hooks, and the units it exports. Replaces the extension.
-- **test capsule** — `testCapsule(of, def)` from `@tinker/core/testing`: a capsule only tests install, labelled `<of>.testing`. It ships the author's test tooling and reaches `of` through its exports (ADR 0127).
+- **test capsule** — A plain capsule in a `*.testing.ts` file that holds a capsule's test tooling. Only tests import it; an app's build check refuses the file in prod (ADR 0131).
 - **handle** (of a capsule) — What `capsule()` returns: a binding itself, and a function that fills the config. Each export sits on it: `mail.enqueue`.
 - **binding** — What a call of the handle returns, `mail({ smtpUrl })`; what `createScope({ capsules })` installs. Its exports are the same objects as the handle's.
 - **record** — `scope.capsules`: one line per installed binding, in install order, with its `config` (a secret shows `"[hidden]"`), its `exports`, and the units it `loaded`. Live at any moment.

@@ -2,6 +2,7 @@
 
 Date: 2026-11-08. Status: accepted; built on main
 (card `core/start-gate-test-capsule`).
+Decision 5 (`testCapsule`) retired by ADR 0131.
 Accepted: Duke, 2026-11-08 14:19 UTC: "Yeah, let's do that
 so we can settle the release".
 Builds on: 0050, 0085, 0121.
