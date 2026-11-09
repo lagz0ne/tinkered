@@ -154,8 +154,19 @@ Where ours is simpler:
      A Mermaid sequence is a picture drawn from SARIF,
      never read back.
 10. **Where.** The analyzer is a package beside Core in this
-    repo: `packages/analyze`.
-    It ships with each Core release.
+    repo: `packages/analyze`, named `@tinker/analyze`.
+    It ships with each Core release, at the same version.
+    - `.`: map, slice, backtrace, conform; SARIF out.
+    - `./lint`: an oxlint JS plugin with A1, A2, N1, E1, R1.
+      The lint and the analyzer read the same shapes, so
+      they ship as one package.
+    - `./vitest`: a span tap for tests, which feeds conform.
+    - `bin`: `tinker-analyze`.
+    - `typescript` is a peer dependency.
+11. **Release order.**
+    - 0.15.0: unit tags, map, lint, backtrace.
+    - Template next: the route span and the devtools pair.
+    - Later: conform and effects.
 
 ## Parked
 
