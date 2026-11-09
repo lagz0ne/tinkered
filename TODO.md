@@ -25,6 +25,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/rpc** — ADR 0130. Move `rpc`, `remoteData` and the protocol from tinker-app into Core's main export; contracts take Standard Schema; the transport contract is a Core type. memory and Bun WebSocket become transport packages.
+  Verify: tinker-app's rpc and remoteData tests pass on Core with the memory package; Core still has 0 dependencies.
+
 - **analyze/map** — ADR 0129 S1. `packages/analyze`: the TS-checker pass from the scratch proof (project files `tinkered/plans/agentic-first/proof-callshape/`) as a tested tool: graph, call shapes, SARIF out. From the proof: a line on every `if` and exit; a file:line id per call site and exit; `break` and `continue` in loops; capsule exports read to their unit kind; a dispatch-by-table node with its hook and table.
   Verify: on Hedl c8f8770, 800 ops and 1124 edges; the 6 analyzer gaps close; the cancel-route SARIF has a line on every step.
 
