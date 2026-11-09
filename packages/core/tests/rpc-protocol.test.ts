@@ -285,8 +285,8 @@ test("serveStream: each end it can have, and what it pushes", async () => {
 });
 
 test("two services with one address: the first wins with a warning, or strict fails start", async () => {
-  const twin = { ...broken.quiet, label: "twin", addresses: ["q"] } as transport.Service;
-  const { server, logs } = await rawServer([broken.quiet, twin]);
+  const shadow = { ...broken.quiet, label: "shadow", addresses: ["q"] } as transport.Service;
+  const { server, logs } = await rawServer([broken.quiet, shadow]);
 
   expect(
     await server.run(memory.server.serve, { input: { address: "q", text: "null", meta: {} } }),
@@ -294,12 +294,12 @@ test("two services with one address: the first wins with a warning, or strict fa
   expect(logs.filter((l) => l.message === "protocol duplicate address")).toEqual([
     expect.objectContaining({
       level: 40,
-      attributes: { capsule: "memory.server", address: "q", winner: "quiet", shadowed: "twin" },
+      attributes: { capsule: "memory.server", address: "q", winner: "quiet", shadowed: "shadow" },
     }),
   ]);
 
   const strict = createScope({
-    capsules: [memory.server({ services: [broken.quiet, twin], strict: true })],
+    capsules: [memory.server({ services: [broken.quiet, shadow], strict: true })],
   });
   const failed = await strict.ready.then(
     () => null,
@@ -307,7 +307,7 @@ test("two services with one address: the first wins with a warning, or strict fa
   );
   expect(failed).toMatchObject({
     kind: "DuplicateAddress",
-    payload: { address: "q", services: ["quiet", "twin"] },
+    payload: { address: "q", services: ["quiet", "shadow"] },
   });
 });
 

@@ -22,6 +22,7 @@ const api = rpc({
     output: z.object({ who: z.string(), url: z.string(), stop: z.boolean() }),
   },
   count: { mode: "stream", input: z.null(), output: z.number() },
+  heard: { mode: "stream", input: z.null(), output: z.string() },
 });
 
 const closed: string[] = [];
@@ -53,11 +54,19 @@ const count = operation({
   run: ({ out }) => out.send(1),
 });
 
+const heard = operation({
+  label: "heard.here",
+  input: z.null(),
+  depends: { out: channel.required, req: transport.request, stop: transport.requestStop },
+  run: ({ out, req, stop }) =>
+    out.send(`${req.headers.get("x-who") ?? ""} ${req.url} ${stop instanceof AbortSignal}`),
+});
+
 async function pair(headers?: Record<string, string>) {
   const spans: Observe.Span[] = [];
   const server = await createScope({
     observe: { export: (s) => void spans.push(s) },
-    capsules: [api({ implement: { who, count } }), memory.server({ services: [api] })],
+    capsules: [api({ implement: { who, count, heard } }), memory.server({ services: [api] })],
   }).ready;
   closers.push(() => server.close());
   const tab = await createScope({
@@ -80,6 +89,17 @@ test("a call reaches the server with the request: its headers, its url, its stop
     url: "http://memory/who",
     stop: true,
   });
+});
+
+test("a watch reaches the server with the request too", async () => {
+  const { tab } = await pair({ "x-who": "bo" });
+
+  const seen: unknown[] = [];
+  for await (const line of await tab.run(api.heard, { input: null })) {
+    seen.push(line);
+    break;
+  }
+  expect(seen).toEqual(["bo http://memory/heard true"]);
 });
 
 test("a client with no headers sends none", async () => {
@@ -159,12 +179,14 @@ test("a client needs its peer, and a server its services", async () => {
 });
 
 test("a server is lenient by default: two services with one address still start", async () => {
-  const twin = rpc({ who: { input: z.null(), output: z.null() } });
+  const shadow = rpc({ who: { input: z.null(), output: z.null() } });
   const server = await createScope({
     capsules: [
-      api({ implement: { who, count } }),
-      twin({ implement: { who: operation({ label: "twin", input: z.null(), run: () => null }) } }),
-      memory.server({ services: [api, twin] }),
+      api({ implement: { who, count, heard } }),
+      shadow({
+        implement: { who: operation({ label: "shadow", input: z.null(), run: () => null }) },
+      }),
+      memory.server({ services: [api, shadow] }),
     ],
   }).ready;
   closers.push(() => server.close());
