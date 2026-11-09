@@ -1,0 +1,186 @@
+import { memory } from "@tinker/core/testing";
+import { afterEach, expect, test } from "vite-plus/test";
+import { z } from "zod";
+
+import { channel, createScope, operation, rpc, transport } from "@/main";
+import type { Observe } from "@/main";
+
+// What an rpc definition takes at start, the names it gives, and what a remote call logs.
+
+const closers: Array<() => unknown> = [];
+
+afterEach(async () => {
+  for (const c of closers.splice(0).reverse()) await c();
+});
+
+const startOf = (capsules: never[]) =>
+  createScope({ capsules }).ready.then(
+    (scope) => (closers.push(() => scope.close()), null),
+    (e: unknown) => e,
+  );
+
+const contracts = {
+  echo: { input: z.object({ n: z.number() }), output: z.object({ n: z.number() }) },
+  ticks: { mode: "stream" as const, input: z.null(), output: z.number() },
+};
+
+const echo = operation({
+  label: "echo.here",
+  input: contracts.echo.input,
+  run: (_, { input }) => input,
+});
+
+const ticks = operation({
+  label: "ticks.here",
+  input: z.null(),
+  depends: { out: channel.required },
+  run: ({ out }) => out.send(1),
+});
+
+test("a definition takes one job: implement or remote, not both and not neither", async () => {
+  const api = rpc(contracts, { label: "todo" });
+  const both = { implement: { echo, ticks }, remote: memory.client };
+
+  expect(await startOf([api(both as never) as never])).toMatchObject({
+    kind: "MissingConfig",
+    payload: { label: "todo", key: "implement | remote" },
+  });
+  expect(await startOf([api({} as never) as never])).toMatchObject({
+    kind: "MissingConfig",
+    payload: { label: "todo", key: "implement | remote" },
+  });
+});
+
+test("implement names a run for every key", async () => {
+  const api = rpc(contracts);
+
+  expect(await startOf([api({ implement: { echo } } as never) as never])).toMatchObject({
+    kind: "MissingConfig",
+    payload: { label: "rpc", key: "implement.ticks" },
+  });
+  expect(
+    await startOf([api({ implement: { echo, ticks: { run: null } } } as never) as never]),
+  ).toMatchObject({ payload: { key: "implement.ticks" } });
+  expect(await startOf([api({ implement: { echo, ticks } }) as never])).toBeNull();
+});
+
+test("a remote with no watch can call, but a stream key fails as remote.watch", async () => {
+  const api = rpc(contracts);
+  const server = await createScope({
+    capsules: [api({ implement: { echo, ticks } }), memory.server({ services: [api] })],
+  }).ready;
+  closers.push(() => server.close());
+  const tab = await createScope({
+    capsules: [
+      memory.client({ peer: server }),
+      api({ remote: { call: memory.client.call } as never }),
+    ],
+  }).ready;
+  closers.push(() => tab.close());
+
+  expect(await tab.run(api.echo, { input: { n: 2 } })).toEqual({ n: 2 });
+  const failed = await Promise.resolve()
+    .then(() => tab.run(api.ticks, { input: null }))
+    .catch((e: unknown) => e);
+  expect(failed).toMatchObject({
+    kind: "MissingConfig",
+    payload: { label: "rpc", key: "remote.watch" },
+  });
+});
+
+test("answer, stream and fault are the definition's own names, not keys", () => {
+  for (const key of ["answer", "stream", "fault"]) {
+    expect(() => rpc({ [key]: contracts.echo }), key).toThrow(`rpc: "${key}" is a reserved key`);
+  }
+  expect(() => rpc({ fault: contracts.echo }, { label: "todo" })).toThrow(
+    'todo: "fault" is a reserved key',
+  );
+  expect(() => rpc({ answers: contracts.echo })).not.toThrow();
+});
+
+test("the definition's ops carry its label; keys keep their own", () => {
+  const api = rpc(contracts, { label: "todo" });
+  const plain = rpc(contracts);
+
+  expect([api.answer.label, api.stream.label, api.receive.label]).toEqual([
+    "todo.answer",
+    "todo.stream",
+    "todo.receive",
+  ]);
+  expect([plain.answer.label, plain.echo.label, plain.ticks.label]).toEqual([
+    "rpc.answer",
+    "echo",
+    "ticks",
+  ]);
+  expect(api.addresses).toEqual(["echo", "ticks"]);
+  expect(api.uploads).toEqual({});
+});
+
+test("a fault names its address and kind, and the trace when there is one", () => {
+  const api = rpc(contracts);
+  const other = rpc(contracts);
+
+  const traced = api.fault.make("echo", "link", { a: 1 }, "abc");
+  expect(traced.message).toBe("echo: link (trace abc)");
+  expect(traced).toMatchObject({
+    address: "echo",
+    fault: "link",
+    payload: { a: 1 },
+    traceId: "abc",
+  });
+  expect(api.fault.make("echo", "failed", {}, undefined).message).toBe("echo: failed");
+  expect(api.fault.is(traced)).toBe(true);
+  expect(other.fault.is(traced)).toBe(false);
+  expect(api.fault.is(new Error("echo: link"))).toBe(false);
+  expect(api.fault.is(null)).toBe(false);
+});
+
+test("a remote fault logs a warning with its address; a refusal does not", async () => {
+  const api = rpc(contracts, { label: "todo" });
+  const logs: Observe.Log[] = [];
+  const server = await createScope({
+    capsules: [
+      api({
+        implement: {
+          echo: operation({
+            label: "echo.fails",
+            input: contracts.echo.input,
+            run: (_, { input }): { n: number } => {
+              if (input.n === 0) throw new Error("zero");
+              return input;
+            },
+          }),
+          ticks,
+        },
+        onStart: [
+          operation({
+            label: "gate",
+            input: transport.hook.start,
+            run: (_, { input }) =>
+              Object(input.input).n === 9 ? input.refuse({ why: "nine" }) : undefined,
+          }),
+        ],
+      }),
+      memory.server({ services: [api] }),
+    ],
+  }).ready;
+  closers.push(() => server.close());
+  const tab = await createScope({
+    observe: { log: (entry) => void logs.push(entry) },
+    capsules: [memory.client({ peer: server }), api({ remote: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+
+  const failed = await tab.run(api.echo, { input: { n: 0 } }).catch((e: unknown) => e);
+  const refused = await tab.run(api.echo, { input: { n: 9 } }).catch((e: unknown) => e);
+
+  expect([Object(failed).fault, Object(refused).fault]).toEqual(["failed", "refused"]);
+  expect(Object(refused).payload).toEqual({ why: "nine" });
+  expect(logs.filter((l) => l.message.endsWith("fault"))).toEqual([
+    expect.objectContaining({
+      message: "todo fault",
+      level: 40,
+      attributes: expect.objectContaining({ address: "echo", fault: "failed" }),
+    }),
+  ]);
+});
