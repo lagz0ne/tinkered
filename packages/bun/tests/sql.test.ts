@@ -76,14 +76,31 @@ describe.skipIf(!PG_URL)("on a live server", () => {
   });
 });
 
-test("the url must be a URL and max a whole number above 0", () => {
-  const bad = [{ url: "postgres://x" }, { url: new URL("postgres://x"), max: 0 }];
-  for (const values of bad) {
-    expect(() => createScope({ capsules: [bunSql(values as never)] })).toThrow(
-      "DataValidationFailed",
-    );
+/** The error a start throws at once (a config error), or null. */
+const startError = (values: unknown) => {
+  try {
+    createScope({ capsules: [bunSql(values as never)] });
+    return null;
+  } catch (error) {
+    const { kind, payload } = Object(error);
+    return { kind, label: payload?.label, key: payload?.key, cause: String(payload?.cause) };
   }
-  expect(() => createScope({ capsules: [bunSql({} as never)] })).toThrow("MissingConfig");
+};
+
+test("the url must be a URL and max a whole number above 0", () => {
+  expect(startError({ url: "postgres://x" })).toEqual({
+    kind: "DataValidationFailed",
+    label: "bunSql.url",
+    key: undefined,
+    cause: "TypeError: not a URL",
+  });
+  for (const max of [0, 1.5]) {
+    expect(startError({ url: new URL("postgres://x"), max })).toMatchObject({
+      label: "bunSql.max",
+      cause: "TypeError: not a whole number above 0",
+    });
+  }
+  expect(startError({})).toMatchObject({ kind: "MissingConfig", label: "bunSql", key: "url" });
   expect(bunSql.label).toBe("bunSql");
   expect(bunSql.connection.label).toBe("bunSql.connection");
 });

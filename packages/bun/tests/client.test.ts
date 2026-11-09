@@ -420,3 +420,16 @@ test("reset tells the server why: its close reason is reset", async () => {
 
   expect(reasons).toEqual(["reset"]);
 });
+
+test("a watch takes the next id and carries the traceparent; a call after it takes the one after", async () => {
+  const { url } = await serve();
+  const frames = spy();
+  const client = await tab(url, {}, { export: () => undefined });
+
+  for await (const n of await client.run(api.count, { input: null })) void n;
+  await client.run(api.echo, { input: { n: 1 } });
+
+  const [watch, call] = frames.messages();
+  expect([watch?.i, call?.i]).toEqual([1, 2]);
+  expect(String(Object(watch).m.traceparent)).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
+});

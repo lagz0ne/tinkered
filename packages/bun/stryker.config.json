@@ -15,5 +15,5 @@
   },
   "tempDirName": ".stryker-tmp",
   "concurrency": 2,
-  "timeoutMS": 30000
+  "timeoutMS": 15000
 }

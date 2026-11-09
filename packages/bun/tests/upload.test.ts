@@ -305,3 +305,22 @@ test("an address the server does not have answers 404; a POST off the path is no
     await door.post(new Request(`http://${base}x/file.put`, { method: "POST" }), backend),
   ).toBeUndefined();
 });
+
+test("a bytes POST the server refuses fails the call as link", async () => {
+  const foreign = await createScope({
+    capsules: [
+      ws.client({ url: `ws://${base}`, headers: { origin: "https://evil.example" } }),
+      api({ remote: ws.client }),
+    ],
+  }).ready;
+  const file = new Blob(["hello"], { type: "text/plain" });
+  const error = await Promise.resolve(
+    foreign.run(api["file.put"], { input: { name: "x", file } }),
+  ).then(
+    () => null,
+    (e: unknown) => e,
+  );
+  await foreign.close();
+
+  expect(api.fault.is(error) && error.fault).toBe("link");
+});

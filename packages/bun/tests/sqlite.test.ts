@@ -93,9 +93,18 @@ test("the default file is in memory", async () => {
 
 test("a file that is not a non-empty name stops the start", () => {
   for (const file of ["", 7]) {
-    expect(() => createScope({ capsules: [bunSqlite({ file } as never)] })).toThrow(
+    let error: unknown = null;
+    try {
+      createScope({ capsules: [bunSqlite({ file } as never)] });
+    } catch (thrown) {
+      error = thrown;
+    }
+    const { kind, payload } = Object(error);
+    expect([kind, payload?.label, String(payload?.cause)]).toEqual([
       "DataValidationFailed",
-    );
+      "bunSqlite.file",
+      "TypeError: not a file name",
+    ]);
   }
   expect(bunSqlite.label).toBe("bunSqlite");
   expect(bunSqlite.connection.label).toBe("bunSqlite.connection");

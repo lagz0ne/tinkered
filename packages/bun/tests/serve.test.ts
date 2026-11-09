@@ -19,9 +19,9 @@ const rest = async (lines: ReadableStreamDefaultReader<string>) => {
  * Runs a fixture host on a free port; resolves its URL from the `tinker: listening` line. `rest`
  * reads the host's stdout to its end.
  */
-const host = async (fixture: string) => {
+const host = async (fixture: string, args: string[] = []) => {
   const child = Bun.spawn(
-    [process.execPath, new URL(`fixtures/${fixture}`, import.meta.url).pathname],
+    [process.execPath, new URL(`fixtures/${fixture}`, import.meta.url).pathname, ...args],
     {
       env: { ...process.env, PORT: "0" },
       stdout: "pipe",
@@ -148,6 +148,36 @@ test("any other throw at start exits 1, and a failed root exits 1", async () => 
   const root = await fails("root");
   expect(root.code).toBe(1);
   expect(root.err).toContain("root broke");
+});
+
+test("a missing tag or a value that failed its schema at start exits 78 too", async () => {
+  expect((await fails("tag")).code).toBe(78);
+  expect((await fails("invalid")).code).toBe(78);
+});
+
+test("a root that closes with a teardown error exits 1 and logs it", async () => {
+  const teardown = await fails("teardown");
+
+  expect(teardown.code).toBe(1);
+  expect(teardown.err).toContain("teardown broke");
+});
+
+test("a stop during start that ends in another error keeps the stop's code and logs the error", async () => {
+  const other = await fails("other", "SIGINT");
+
+  expect(other.code).toBe(130);
+  expect(other.err).toContain("other broke");
+});
+
+test("with no page: the command takes its paths, a bare path is 404, and args pass", async () => {
+  const { url, seen } = await host("api-host.ts", ["--a", "b"]);
+  const reply = (path: string) => fetch(new URL(path, url));
+
+  expect(seen).toContain('args ["--a","b"]');
+  expect(await (await reply("/rpc")).text()).toBe("cmd");
+  expect(await (await reply("/api/x")).text()).toBe("cmd");
+  expect((await reply("/api/none")).status).toBe(404);
+  expect((await reply("/other")).status).toBe(404);
 });
 
 test("a stop during start exits with the stop's code, and logs no second line", async () => {
