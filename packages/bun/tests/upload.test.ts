@@ -24,6 +24,13 @@ const api = rpc({
     output: z.object({ name: z.string(), type: z.string(), text: z.string() }),
   },
   plain: { input: z.null(), output: z.literal("plain") },
+  "file.read": {
+    input: z.object({
+      how: z.enum(["bytes", "buffer", "twice"]),
+      file: bytes(z.custom<RpcBody>(), { max: 64, types: ["text/plain"] }),
+    }),
+    output: z.string(),
+  },
 });
 
 /** The names the implementation ran for, in order. */
@@ -42,6 +49,20 @@ const put = operation({
 
 const plain = operation({ label: "plain.here", input: z.null(), run: () => "plain" as const });
 
+/** Reads the body as bytes or as a buffer, or twice: the second read throws. */
+const read = operation({
+  label: "file.read.here",
+  input: api["file.read"].input,
+  run: async (_, { input: { how, file } }) => {
+    if (how === "bytes") return `bytes ${(await file.bytes()).length}`;
+    if (how === "buffer") return `buffer ${(await file.arrayBuffer()).byteLength}`;
+    await file.text();
+    return Promise.resolve()
+      .then(() => file.text())
+      .then(String, (e: unknown) => String(e));
+  },
+});
+
 /** Refuses a call named "no", before the implementation and before the body. */
 const gate = operation({
   label: "file.gate",
@@ -58,7 +79,10 @@ const link = wsServer.server({
 });
 
 const backend = await createScope({
-  capsules: [api({ implement: { "file.put": put, plain }, onStart: [gate] }), link],
+  capsules: [
+    api({ implement: { "file.put": put, plain, "file.read": read }, onStart: [gate] }),
+    link,
+  ],
 }).ready;
 
 const door = backend.resolve(link);
@@ -114,7 +138,10 @@ test("a key with bytes runs from the client: the value as text, the bytes as the
 
 test("the memory transport carries the bytes as they are", async () => {
   const server = await createScope({
-    capsules: [api({ implement: { "file.put": put, plain } }), memory.server({ services: [api] })],
+    capsules: [
+      api({ implement: { "file.put": put, plain, "file.read": read } }),
+      memory.server({ services: [api] }),
+    ],
   }).ready;
   const tab = await createScope({
     capsules: [memory.client({ peer: server }), api({ remote: memory.client })],
@@ -234,4 +261,47 @@ test("a bytes field is one per key, on a reply key, with a max and a type", () =
       },
     }),
   ).toThrow("one field at most");
+});
+
+test("a POST answers its reply as JSON, never cached; each limit is let in at its edge", async () => {
+  const name = "x".repeat(2048 - '{"name":""}'.length);
+  const answer = await post(
+    "file.put",
+    {
+      "content-type": "Text/Plain; charset=utf-8",
+      "x-input": JSON.stringify({ name }),
+      "x-meta": JSON.stringify({ k: "x".repeat(2048 - '{"k":""}'.length) }),
+      origin: `http://${base.split("/")[0]}`,
+    },
+    "y".repeat(1024),
+  );
+
+  expect([
+    answer.status,
+    answer.headers.get("content-type"),
+    answer.headers.get("cache-control"),
+  ]).toEqual([200, "application/json", "no-store"]);
+  expect(await answer.json()).toEqual({
+    ok: true,
+    value: { name, type: "text/plain", text: "y".repeat(1024) },
+  });
+});
+
+test("the body reads as bytes or a buffer, and only once", async () => {
+  const as = (how: string) =>
+    post("file.read", { "x-input": JSON.stringify({ how }) }, "abc").then((r) => r.json());
+
+  expect(await as("bytes")).toEqual({ ok: true, value: "bytes 3" });
+  expect(await as("buffer")).toEqual({ ok: true, value: "buffer 3" });
+  expect(await as("twice")).toEqual({
+    ok: true,
+    value: "TypeError: The body was read already.",
+  });
+});
+
+test("an address the server does not have answers 404; a POST off the path is not its", async () => {
+  expect((await post("nope", {})).status).toBe(404);
+  expect(
+    await door.post(new Request(`http://${base}x/file.put`, { method: "POST" }), backend),
+  ).toBeUndefined();
 });
