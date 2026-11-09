@@ -61,7 +61,7 @@ const CHECK_OPTIONS = {
   types: ["node"],
   typeRoots: [join(CORE, "node_modules/@types")],
   paths: {
-    "@tinker/core": [join(CORE, "src/index.ts")],
+    "@tinker/core": [join(CORE, "src/main.ts")],
     "@tinker/core/testing": [join(CORE, "src/testing.ts")],
   },
 };
@@ -109,7 +109,16 @@ type Census = {
   attributes: Set<string>;
   /** Names in the emitted type files, except parameter names, which never become keys. */
   typed: Set<string>;
+  /** Property names in the rpc modules ({@link WIRE_MODULE}): a wire key crosses to a peer. */
+  wire: Set<string>;
 };
+
+/**
+ * The modules whose objects cross the wire (ADR 0130): rpc, remoteData, the protocol, and the
+ * memory transport. Their keys reach a peer, a transport package, or a fault's payload, which no
+ * type names, so none of them is renamed.
+ */
+const WIRE_MODULE = /[\\/]src[\\/](?:rpc|remote-data|memory)[\w-]*\.ts$/;
 
 /** The non-computed name of a key or member, or `undefined` for a computed or private one. */
 function keyName(key: ESTree.Node, computed: boolean): string | undefined {
@@ -1790,6 +1799,7 @@ function scanFile(file: string, uses: RegExp): { file: string; syntactic: string
  * - In the public types: users read and write it.
  * - A string in the runtime: a computed key or an `in` check the rename would miss.
  * - A user-visible attribute key ({@link attributeKeys}).
+ * - A key in an rpc module ({@link WIRE_MODULE}).
  * - A built-in or host name: the object may not be Core's.
  * - Read outside Core's source without type checks ({@link untypedReads}, {@link typedReads}).
  */
@@ -1801,6 +1811,7 @@ function findUnsafeNames(names: string[], census: Census, root: string): Map<str
     (name: string) => (census.typed.has(name) ? "in the public types" : undefined),
     (name: string) => (census.strings.has(name) ? "a string in the runtime" : undefined),
     (name: string) => (census.attributes.has(name) ? "a user-visible attribute key" : undefined),
+    (name: string) => (census.wire.has(name) ? "a key in an rpc module" : undefined),
     (name: string) => (builtins.has(name) ? "a built-in or host name" : undefined),
     (name: string) => {
       const file = outside.get(name);
@@ -1899,11 +1910,22 @@ export function privateFields(
   return {
     name: "core-private-fields",
     renderStart() {
-      census = { props: new Set(), strings: new Set(), attributes: new Set(), typed: new Set() };
-      const sources = [...this.getModuleIds()]
+      census = {
+        props: new Set(),
+        strings: new Set(),
+        attributes: new Set(),
+        typed: new Set(),
+        wire: new Set(),
+      };
+      const ids = [...this.getModuleIds()]
         .filter((id) => id.endsWith(".ts") && !id.endsWith(".d.ts"))
-        .toSorted()
-        .map((id) => this.getModuleInfo(id)?.code ?? "");
+        .toSorted();
+      const sources = ids.map((id) => this.getModuleInfo(id)?.code ?? "");
+      for (const id of ids.filter((each) => WIRE_MODULE.test(each))) {
+        const counts = new Map<string, number>();
+        countProps(parseSync(id, this.getModuleInfo(id)?.code ?? "").program, counts);
+        for (const name of counts.keys()) census.wire.add(name);
+      }
       names = write ? {} : seedNames(listed, sources);
     },
     renderChunk(code, chunk) {

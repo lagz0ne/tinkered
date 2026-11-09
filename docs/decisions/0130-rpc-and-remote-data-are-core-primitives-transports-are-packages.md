@@ -1,6 +1,6 @@
 # 0130 rpc and remoteData are Core primitives; transports are packages
 
-Date: 2026-11-09. Status: accepted; not built yet
+Date: 2026-11-09. Status: accepted; built
 (card `core/rpc`).
 Accepted: Duke, 2026-11-09, decisions 1 and 4
 (thread "Make Tinker AI-first via lint, analysis, runtime").
@@ -68,14 +68,45 @@ reads, the protocol options.
    - server exports `serve` and `serveStream`.
      Core types each op; a package implements them.
 4. **Transports are packages.**
-   - memory: no imports, for tests.
    - Bun WebSocket, SSE: one package each.
      An app picks one in its cmd.
+   - memory is the one exception: it is in
+     `@tinker/core/testing`.
+     It is for tests only, and Core's own rpc tests need it.
+     Precedent: Connect ships `createRouterTransport` in its
+     main package.
 5. **Schemas by Standard Schema.**
    A contract's `input` and `output` take any Standard
    Schema value.
    Core keeps 0 dependencies.
    zod contracts keep working.
+
+## Built
+
+- `src/main.ts` is the package entry.
+  It adds `rpc`, `channel`, `bytes`, `remoteData` and the
+  `transport` namespace to the Core exports.
+- `transport` holds what a transport package needs:
+  - `protocol`, `kept`, the wire shapes;
+  - `request`, `requestStop` and `traceparentOf`.
+    The HTTP routes bind the same two tags.
+- `src/rpc-shape.ts` is a small Standard Schema library for
+  the protocol's own shapes.
+  Its names follow zod.
+- rpc code is in its own chunk, and the package sets
+  `"sideEffects": false`.
+  So an app that does not import rpc does not bundle it.
+  - `createScope` + `operation` only: 18,716 B gzip
+    (18,797 B before).
+  - With `rpc`: 26,529 B gzip.
+  - Bun's bundler gives the same result.
+  - The size gate checks both caps, and the chunk.
+- A bad rpc output now raises Core's `SchemaRejected`
+  (`payload.issues`), not a `ZodError`.
+- The size build renames private fields.
+  It now keeps every key of the rpc modules, as each can
+  cross the wire.
+  The ws tests found it: the fault key `side` shipped as `E`.
 
 ## Consequences
 

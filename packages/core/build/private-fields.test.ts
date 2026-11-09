@@ -55,7 +55,7 @@ const childBuild = `
   import { privateFields } from ${JSON.stringify(pathToFileURL(join(core, "build/private-fields.ts")).href)};
   const root = process.argv[1];
   try {
-    await build({ config: false, cwd: ${JSON.stringify(core)}, entry: { index: "src/index.ts", testing: "src/testing.ts" },
+    await build({ config: false, cwd: ${JSON.stringify(core)}, entry: { index: "src/main.ts", testing: "src/testing.ts" },
       outDir: root + "/dist", dts: false, logLevel: "silent",
       plugins: [privateFields(${JSON.stringify([...listed, "layer"])}, root)] });
   } catch (error) { process.stdout.write(String(error)); }
@@ -86,7 +86,7 @@ const timedChild = `
   };
   let error = "";
   try {
-    await build({ config: false, cwd: ${JSON.stringify(core)}, entry: { index: "src/index.ts", testing: "src/testing.ts" },
+    await build({ config: false, cwd: ${JSON.stringify(core)}, entry: { index: "src/main.ts", testing: "src/testing.ts" },
       outDir: root + "/dist", dts: false, logLevel: "silent", plugins: [plugin] });
   } catch (caught) { error = String(caught); }
   process.stdout.write(JSON.stringify({ ms, error }));
@@ -2451,7 +2451,7 @@ test(
       await build({
         config: false,
         cwd: core,
-        entry: { index: "src/index.ts", testing: "src/testing.ts" },
+        entry: { index: "src/main.ts", testing: "src/testing.ts" },
         outDir: join(root, "dist"),
         dts: false,
         minify: true,

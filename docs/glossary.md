@@ -478,3 +478,12 @@ New sections are lists, one term per item (vertical layout,
 - **slice** — Only the paths of one route, op or cmd, at file and line (Weiser).
 - **backtrace** — The call stack of a failed run, at file and line: span names and the error's origin, joined with the call shapes (as gdb `bt`).
 - **unit tag** — A fixed fact on an `operation`, `resource` or `data` (`tags: [...]`): read by tools and hooks, put on the unit's span, never bound into a run.
+
+## rpc and remote data (ADR 0130)
+
+- **rpc** — `rpc(name, contract)`: a capsule with typed calls (`answer`, `stream`). Each call goes through a transport.
+- **remoteData** — `remoteData({ cell })`: a capsule that sends a server cell's value to each client that watches it.
+- **contract** — The `input` and `output` of one rpc call. Each takes any Standard Schema value (zod, valibot, arktype).
+- **protocol** — The wire shapes, faults, codec and lifecycle hooks that rpc and remoteData share. `transport.protocol` in code.
+- **rpc transport** — A capsule pair that carries the protocol: the client exports `call` and `watch`; the server exports `serve` and `serveStream`.
+- **memory transport** — `memory` from `@tinker/core/testing`: an rpc transport in one process, for tests (as Connect's `createRouterTransport`).

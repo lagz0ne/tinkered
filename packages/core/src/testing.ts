@@ -153,3 +153,6 @@ export function testCapsule<
   const label = `${of.label}.testing`;
   return capsule<C, E, T>({ ...def, label } as CapsuleDef<C, E, T>);
 }
+
+/** An in-process transport pair for tests, as Connect's `createRouterTransport` (ADR 0130). */
+export { createMemory, memory } from "./memory";

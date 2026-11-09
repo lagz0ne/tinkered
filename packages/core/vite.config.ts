@@ -13,7 +13,7 @@ export default defineConfig({
     },
   },
   pack: {
-    entry: ["src/index.ts", "src/testing.ts"],
+    entry: { index: "src/main.ts", testing: "src/testing.ts" },
     deps: { resolveDepSubpath: true },
     dts: {
       generator: "tsgo",
@@ -24,7 +24,19 @@ export default defineConfig({
     sourcemap: "hidden",
     /** Rename Core's private fields (core/size-build); `build/private-fields.ts` says why it is safe. */
     plugins: [privateFields()],
-    outputOptions: { comments: { annotation: false } },
+    outputOptions: {
+      comments: { annotation: false },
+      /** rpc and remoteData get their own chunk, so an app that skips them drops it (ADR 0130). */
+      codeSplitting: {
+        groups: [
+          {
+            name: "rpc",
+            test: /src[\\/](rpc|remote-data)[\w-]*\.ts$/,
+            includeDependenciesRecursively: false,
+          },
+        ],
+      },
+    },
   },
   lint: {
     options: {

@@ -49,14 +49,29 @@ function checkRuntime(url) {
 
 checkRuntime(mainUrl);
 
-const runtimeSize = [...visited].reduce(
-  (size, url) => size + gzipSync(readFileSync(new URL(url))).length,
-  0,
+const gzipOf = (url) => gzipSync(readFileSync(new URL(url))).length;
+const runtimeSize = [...visited].reduce((size, url) => size + gzipOf(url), 0);
+
+// ADR 0130: rpc, remoteData and the protocol joined Core in their own chunk. The package says it
+// has no side effects, so an app that uses neither drops that chunk: the core cap stays as it was.
+const corePkg = JSON.parse(readFileSync(new URL("../packages/core/package.json", import.meta.url)));
+
+assert.equal(
+  corePkg.sideEffects,
+  false,
+  "core must say it has no side effects, so rpc tree-shakes",
 );
 
-const runtimeCap = 20480;
+const rpcChunks = [...visited].filter((url) => /\/rpc-[\w-]+\.mjs$/.test(url));
+assert.equal(rpcChunks.length, 1, "rpc and remoteData must sit in one chunk of their own");
+
+const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
+const coreCap = 20480;
+const runtimeCap = 30720;
+assert.ok(coreSize <= coreCap, `core runtime without rpc exceeds ${coreCap} B gzip: ${coreSize} B`);
 assert.ok(runtimeSize <= runtimeCap, `core runtime exceeds ${runtimeCap} B gzip: ${runtimeSize} B`);
-console.log(`core runtime size: ${runtimeSize} B gzip (cap ${runtimeCap} B; all runtime files)`);
+console.log(`core runtime size: ${coreSize} B gzip without rpc (cap ${coreCap} B)`);
+console.log(`core runtime size: ${runtimeSize} B gzip with rpc (cap ${runtimeCap} B)`);
 
 const clock = testing.makeTestClock({ now: 42 });
 const cell = main.data({ label: "entry-cell", initial: 0 });
