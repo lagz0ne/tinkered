@@ -4,6 +4,55 @@ Each section is one release of
 `@tinker/core` and `@tinker/react`.
 The two move to one version together.
 
+## 0.14.1
+
+Faster handles. No API change.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.14.1
+bun add $R/tinker-core-0.14.1.tgz \
+  $R/tinker-react-0.14.1.tgz
+```
+
+On Node, with npm:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.14.1
+npm install $R/tinker-core-0.14.1.tgz \
+  $R/tinker-react-0.14.1.tgz
+```
+
+The two URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.14.1/tinker-core-0.14.1.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.14.1/tinker-react-0.14.1.tgz
+
+### Core
+
+- Handles are classes, not `Object.create`
+  over a handle just made. V8 can now share
+  one shape between them.
+- A session under a root with `session` hooks
+  takes 56% fewer instructions than in 0.12.
+- A session made on the starting handle:
+  51% fewer than in 0.12.
+- Root start: 32% fewer than in 0.12.
+- A sync `run` does not change.
+- Notes: `research/learnings/2026-11-09-handle-shapes.md`.
+
+### Upgrade
+
+- Change the two URLs. No code change.
+- Do not take a verb off a handle
+  (`const { run } = scope`). ADR 0108 forbids it,
+  and it no longer works on the starting handle.
+
 ## 0.14.0
 
 A root with capsules has a starting type
