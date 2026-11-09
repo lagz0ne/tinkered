@@ -25,6 +25,27 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **analyze/map** — ADR 0129 S1. `packages/analyze`: the TS-checker pass from the scratch proof (project files `tinkered/plans/agentic-first/proof-callshape/`) as a tested tool: graph, call shapes, Mermaid sequence per route and cmd.
+  Verify: on Hedl c8f8770, 800 ops and 1124 edges; the cancel-route sequence matches the proof.
+
+- **analyze/lint** — ADR 0129 S2. Rules A1, A2, N1, E1, R1, each finding in one shape with file and line.
+  Verify: Hedl gives 1 A1, 0 A2, 1 N1 (`sink.route`), 3 E1 findings; a planted case per rule fails.
+
+- **core/unit-tags** — ADR 0129 S3. `operation`, `resource`, `data` take `tags`; the handle keeps them; non-secret tags go on the span; inline ops get an empty list. Scratch patch: branch `scratch/unit-tags` (local), +21 lines.
+  Verify: the proof tests pass; Core suite green.
+
+- **analyze/route-span** — ADR 0129 S3. The tinker-app routes driver puts `http.route` and `http.response.status_code` on the span of the op a row runs.
+  Verify: a Hedl route test reads both on that span.
+
+- **analyze/conform** — ADR 0129 S4. `tinker-analyze conform --spans`: fitness (divergence 0), coverage C. Close the 6 analyzer gaps first; the 11 transport-dispatch ops become read-next pointers.
+  Verify: Hedl suite gives 0 divergences; the absence list names file and line.
+
+- **analyze/story** — ADR 0129 S6. `slice <subject>` and `story <failed run>`: path at file and line, candidate exits, read-next pointers. Scratch: `story.cjs`.
+  Verify: the Hedl talkSay run redraws to `talk.ts:106 raise Refused`.
+
+- **analyze/effects** — ADR 0129 S5. GET-safe and query-in-loop findings.
+  Verify: Hedl gives the 5 GET routes and 21 loop sites of the proof.
+
 - **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop.
   Seen in the ADR 0124 proof (`strict.test.tsx`).
   Verify: that test renders `ok` with one build.
@@ -55,6 +76,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Blocked
 
 ## Parked
+
+- **analyze/statechart** — ADR 0129 parked part: state moves from code (checker-narrowed writes, lint M1). Restart once the `analyze/*` cards are Done.
 
 - **core/size-13k** — the rest of the path to 13 KiB, with the same API.
   Parked 2026-10-06 (user: good for now). Measured, not landed:

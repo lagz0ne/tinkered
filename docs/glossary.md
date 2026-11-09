@@ -466,3 +466,15 @@ New sections are lists, one term per item (vertical layout,
 - **context slot** — V8's numbered place for a module name used by a nested function.
 
 - **item module** — An app-owned folder in `src/items/` with its own dependencies and public API.
+
+## Analyzer (ADR 0129)
+
+- **call shape** — One ordered list of the deps an op calls on one path through its `run`: the branches, loops and early returns the source allows.
+- **divergence** — A run or an edge seen in spans that no static call shape allows; the analyzer or a lint rule is wrong.
+- **absence** — A static call shape that no test ran.
+- **conformance** — The check of the static call shapes against observed spans (van der Aalst). It has two parts: fitness and coverage.
+- **fitness** — Every observed run fits a static call shape: divergence is 0.
+- **coverage** — Every static call shape ran in a test: absence is 0.
+- **slice** — Only the paths of one route, op or cmd, at file and line (Weiser).
+- **story** — A failed run redrawn: span names and the error's origin, joined with the call shapes.
+- **unit tag** — A fixed fact on an `operation`, `resource` or `data` (`tags: [...]`): read by tools and hooks, put on the unit's span, never bound into a run.
