@@ -9,9 +9,9 @@ Tinker rpc and remoteData over one WebSocket (ADR 0130).
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.14.1
-bun add $R/tinker-core-0.14.1.tgz \
-  $R/tinker-ws-0.14.1.tgz
+releases/download/v0.15.0
+bun add $R/tinker-core-0.15.0.tgz \
+  $R/tinker-ws-0.15.0.tgz
 ```
 
 ## Use

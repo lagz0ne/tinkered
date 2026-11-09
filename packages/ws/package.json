@@ -1,6 +1,6 @@
 {
   "name": "@tinker/ws",
-  "version": "0.14.1",
+  "version": "0.15.0",
   "description": "Tinkered rpc over one WebSocket: a browser or Bun client, and a Bun server.",
   "license": "MIT",
   "files": [

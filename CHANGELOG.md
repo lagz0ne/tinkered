@@ -1,8 +1,66 @@
 # Changelog
 
 Each section is one release of
-`@tinker/core` and `@tinker/react`.
-The two move to one version together.
+`@tinker/core`, `@tinker/react` and,
+since 0.15.0, `@tinker/ws`.
+They move to one version together.
+
+## 0.15.0
+
+rpc and remoteData are Core primitives
+(ADR 0130). Units take tags (ADR 0129).
+A new package: `@tinker/ws`.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.15.0
+bun add $R/tinker-core-0.15.0.tgz \
+  $R/tinker-react-0.15.0.tgz \
+  $R/tinker-ws-0.15.0.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.15.0/tinker-core-0.15.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.15.0/tinker-react-0.15.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.15.0/tinker-ws-0.15.0.tgz
+
+### rpc in Core
+
+- `rpc`, `channel`, `bytes`, `remoteData`
+  and `transport` are in `@tinker/core`.
+- `memory` is in `@tinker/core/testing`.
+- An app without rpc bundles no rpc code.
+- Contracts take any Standard Schema.
+
+### Moving an app
+
+- `~/components/rpc`, `remote-data`:
+  import from `@tinker/core`.
+- `~/components/protocol`: read it from
+  `transport`.
+- `~/components/memory`: import from
+  `@tinker/core/testing`.
+- `~/components/ws`: import from
+  `@tinker/ws` and `@tinker/ws/server`.
+- A bytes field marks your own field:
+  `bytes(z.custom<RpcBody>(), { max })`.
+- A bad rpc output raises `SchemaRejected`,
+  not a `ZodError`.
+
+### Unit tags
+
+- `operation`, `resource` and `data` take
+  `tags: [...]`.
+- The handle keeps them. The non-secret
+  ones go on the unit's span.
+- An inline op has `tags` undefined. So a
+  handle no longer passes as an inline op:
+  a wrong input now shows as a type error.
 
 ## 0.14.1
 
