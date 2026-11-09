@@ -25,8 +25,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **ws/mutation-85** — `@tinker/ws` mutation is 64.15 (Stryker command runner on Bun; 185 survivors: 47 labels and log text, 34 option objects, 32 conditions). Port the ws-heavy tinker-app tests (rpc, trace, obs, honest) and add label and close-path tests.
-  Verify: `packages/ws` stryker run clears 85 on kills alone.
+- **bun/mutation-85** — `@tinker/bun` (was `@tinker/ws`, 64.15) holds `serve`, `ws.server` and `ws.client`. Add label, close-path and host tests.
+  Verify: `packages/bun` stryker run clears 85 on kills alone.
 
 - **analyze/map** — ADR 0129 S1. `packages/analyze`: the TS-checker pass from the scratch proof (project files `tinkered/plans/agentic-first/proof-callshape/`) as a tested tool: graph, call shapes, SARIF out. From the proof: a line on every `if` and exit; a file:line id per call site and exit; `break` and `continue` in loops; capsule exports read to their unit kind; a dispatch-by-table node with its hook and table.
   Verify: on Hedl c8f8770, 800 ops and 1124 edges; the 6 analyzer gaps close; the cancel-route SARIF has a line on every step.
@@ -105,7 +105,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Owner: thread lead (Duke's "Yes" 2026-11-09 13:09).
   Proof: the fixed lane fails on main (`resolveHeld` slot 256) and passes here (last hot slot 253, headroom 2); gate 131 (Core 1078, dist 1322, size 19,094 B, mutation 86.26); review READY. Notes: `docs/roadmap/perf/PROGRESS.md`.
 
-- **core/rpc** — ADR 0130: rpc, remoteData and `transport` in Core's main export; memory in `@tinker/core/testing`; `@tinker/ws` package; release 0.15.0.
+- **core/rpc** — ADR 0130: rpc, remoteData and `transport` in Core's main export; memory in `@tinker/core/testing`; `@tinker/bun` package (`serve`, `ws.server`, `bunSql`, `bunSqlite`; `ws.client` at `@tinker/bun/client`); release 0.15.0.
   Owner: thread lead (Duke's go 2026-11-09 08:56).
   Proof: Core 1152 tests, dist 1396, size 19,246 B without rpc (an app with no rpc: 18,716 B gzip, esbuild and Bun); ws 28 tests on Bun; tinker-app 181 and Hedl 1472 tests on the local build. Found and fixed: the field rename changed wire key `side`; `bytes()` failed inside `z.object`.
 
