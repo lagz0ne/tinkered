@@ -101,6 +101,11 @@ reads, the protocol options.
   - With `rpc`: 26,529 B gzip.
   - Bun's bundler gives the same result.
   - The size gate checks both caps, and the chunk.
+- `bytes` marks the contract library's own field:
+  `bytes(z.custom<RpcBody>(), { max })`.
+  A zod object takes only zod fields, as multer keeps its
+  limits beside the form's fields.
+  Core still checks that the value is bytes.
 - A bad rpc output now raises Core's `SchemaRejected`
   (`payload.issues`), not a `ZodError`.
 - The size build renames private fields.

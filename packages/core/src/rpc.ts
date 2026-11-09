@@ -73,25 +73,26 @@ const limitKey = Symbol("rpc.bytes");
  * read once on the server. The key then goes on its own POST beside the socket, with the rest of
  * its input as text; the server checks `max` and `types` before it reads one byte.
  *
+ * The field is the contract library's own (an object takes only its own kind of field), and
+ * Core marks it, as multer's limits sit beside the form's fields. Pass a fresh one: it is marked.
+ * Core checks that the value is bytes, so the field may admit any value.
+ *
  *   "talk.attach": {
- *     input: z.object({ name: z.string(), file: bytes({ max: 10 << 20 }) }),
+ *     input: z.object({
+ *       name: z.string(),
+ *       file: bytes(z.custom<RpcBody>(), { max: 10 << 20 }),
+ *     }),
  *     output: z.object({ id: z.string() }),
  *   }
  */
-export const bytes = ({
-  max,
-  types = ["application/octet-stream"],
-}: {
-  max: number;
-  types?: readonly string[];
-}): z.Shape<Body> & { readonly [limitKey]: BytesLimit } => {
+export const bytes = <S extends Data.Schema<unknown>>(
+  field: S,
+  { max, types = ["application/octet-stream"] }: { max: number; types?: readonly string[] },
+): S & { readonly [limitKey]: BytesLimit } => {
   if (!Number.isSafeInteger(max) || max <= 0 || types.length === 0) {
     throw new TypeError("bytes: max is a positive whole number, and types lists one at least");
   }
-  return Object.assign(
-    z.custom<Body>((v) => bodyShape.check(v).issues === undefined, "expected bytes"),
-    { [limitKey]: { max, types } },
-  );
+  return Object.assign(field, { [limitKey]: { max, types } });
 };
 
 const sent = { role: "handler", explain: "Sends through the protocol" } as const;
@@ -277,10 +278,20 @@ const steps = resource({
       if (missing) raise("MissingConfig", { label: def.name, key: `implement.${missing}` });
     };
 
+    /** A key's input checked by its contract; a bytes field must hold bytes, whatever it admits. */
+    const fits = (def: Def, key: string, raw: unknown): Data.SchemaResult<unknown> => {
+      const input = z.checkWith(def.contracts[key]!.input, raw);
+      const field = def.bytesOf[key]?.field;
+      if (input.issues || field === undefined) return input;
+
+      const body = bodyShape.check(Object(input.value)[field]);
+      return body.issues ? { issues: [{ message: "expected bytes", path: [field] }] } : input;
+    };
+
     /** The edge: bad input is this side's bug; it throws here, before anything runs or is sent. */
     const inputOf = (def: Def, { call: invocation, raise }: Event, key: string) => {
       const raw = invocation && "input" in invocation ? invocation.input : invocation?.rawInput;
-      const input = z.checkWith(def.contracts[key]!.input, raw);
+      const input = fits(def, key, raw);
       if (input.issues) {
         return raise("DataValidationFailed", { address: key, issues: input.issues });
       }
@@ -449,7 +460,7 @@ const steps = resource({
         return Promise.resolve(answering ? null : false);
       }
 
-      const parsed = z.checkWith(def.contracts[asked.address]!.input, joined(def, asked));
+      const parsed = fits(def, asked.address, joined(def, asked));
       const here = answering ? answerHere : streamHere;
       return parsed.issues ? invalid(answering, asked.push) : here(def, event, asked, parsed.value);
     };
