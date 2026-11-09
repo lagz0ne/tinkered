@@ -426,15 +426,29 @@ function checkHotNames(all, source, map) {
   return true;
 }
 
-/** The file that holds the code: `file` when it has a map, else the one chunk it re-exports. */
+/** Whether `file` has a map that lists Core's `src/index.ts`. */
+function holdsCore(file) {
+  if (!existsSync(`${file}.map`)) return false;
+  return JSON.parse(readFileSync(`${file}.map`, "utf8")).sources?.includes(ANCHOR_SOURCE) ?? false;
+}
+
+/**
+ * The file that holds the code: `file` when it has a map, else the one chunk it re-exports.
+ * A build split in more chunks (Core's code, rpc) gives the one whose map lists `src/index.ts`.
+ */
 export function bundleOf(file) {
   if (existsSync(`${file}.map`)) return file;
   const code = readFileSync(file, "utf8");
   const chunks = [...new Set([...code.matchAll(/\bfrom\s*"(\.\/[^"]+\.mjs)"/g)].map((m) => m[1]))];
-  if (chunks.length !== 1) {
-    throw new Error(`${file}: no source map, and ${chunks.length} relative imports (want 1)`);
+  if (chunks.length === 1) return bundleOf(join(dirname(file), chunks[0]));
+
+  const core = chunks.map((chunk) => join(dirname(file), chunk)).filter(holdsCore);
+  if (core.length !== 1) {
+    throw new Error(
+      `${file}: no source map, and ${chunks.length} relative imports (want 1, or 1 with Core's map)`,
+    );
   }
-  return bundleOf(join(dirname(file), chunks[0]));
+  return core[0];
 }
 
 function main(entry) {

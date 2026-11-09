@@ -54,6 +54,22 @@ await test("a split build is measured on its shared chunk, not the re-export", (
   });
 });
 
+await test("a build split in more chunks is measured on the one whose map lists src/index.ts", () => {
+  inTemp((dir) => {
+    const entry = join(dir, "index.mjs");
+    const core = join(dir, "src-abc.mjs");
+    const rpc = join(dir, "rpc-def.mjs");
+
+    writeFileSync(entry, 'import{a}from"./src-abc.mjs";import{b}from"./rpc-def.mjs";');
+    writeFileSync(core, "export const a = 1;");
+    writeFileSync(`${core}.map`, JSON.stringify({ sources: ["../src/index.ts"] }));
+    writeFileSync(rpc, "export const b = 1;");
+    writeFileSync(`${rpc}.map`, JSON.stringify({ sources: ["../src/rpc.ts"] }));
+
+    assert.equal(bundleOf(entry), core);
+  });
+});
+
 await test("an entry with no map and two relative imports is refused", () => {
   inTemp((dir) => {
     const entry = join(dir, "index.mjs");
