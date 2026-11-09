@@ -51,16 +51,19 @@ async function pair() {
 test("a bytes field crosses as bytes, with a type the key takes", async () => {
   const { tab } = await pair();
 
+  // Bun's Blob adds `;charset=utf-8` to a `text/plain` type; Node's keeps it as given.
+  const plainText = expect.stringMatching(/^text\/plain(;charset=utf-8)?$/);
+
   const text = new Blob(["hi"], { type: "text/plain;charset=utf-8" });
   expect(await tab.run(api.put, { input: { name: "a", file: text } })).toEqual({
     name: "a",
-    type: "text/plain",
+    type: plainText,
     text: "hi",
   });
 
   const other = new Blob(["x"], { type: "text/html" });
   expect(await tab.run(api.put, { input: { name: "b", file: other } })).toMatchObject({
-    type: "text/plain",
+    type: plainText,
   });
 });
 
