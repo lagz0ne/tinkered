@@ -184,3 +184,48 @@ test("a remote fault logs a warning with its address; a refusal does not", async
     }),
   ]);
 });
+
+test("a watch its transport loses fails as link, as a call does; a fault passes as it is", async () => {
+  const api = rpc(contracts);
+  const call = operation({ label: "lost.call", run: async () => null });
+  const gone = operation({
+    label: "lost.watch",
+    run: async (): Promise<void> => {
+      throw new Error("TransportFailed");
+    },
+  });
+  const scope = await createScope({
+    capsules: [api({ remote: { call, watch: gone } as never })],
+  }).ready;
+  closers.push(() => scope.close());
+
+  const drain = async () => {
+    for await (const n of await scope.run(api.ticks, { input: null })) void n;
+  };
+  const error = await drain().then(
+    () => null,
+    (e: unknown) => e,
+  );
+  expect(api.fault.is(error) && [error.fault, error.payload]).toEqual(["link", {}]);
+
+  const refusedWatch = operation({
+    label: "refused.watch",
+    run: async (): Promise<void> => {
+      throw api.fault.make("ticks", "refused", { why: "no" }, undefined);
+    },
+  });
+  const other = await createScope({
+    capsules: [api({ remote: { call, watch: refusedWatch } as never })],
+  }).ready;
+  closers.push(() => other.close());
+  const passed = await (async () => {
+    for await (const n of await other.run(api.ticks, { input: null })) void n;
+  })().then(
+    () => null,
+    (e: unknown) => e,
+  );
+  expect(api.fault.is(passed) && [passed.fault, passed.payload]).toEqual([
+    "refused",
+    { why: "no" },
+  ]);
+});

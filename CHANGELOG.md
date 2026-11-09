@@ -35,6 +35,8 @@ The three URLs:
   and `transport` are in `@tinker/core`.
 - `memory` is in `@tinker/core/testing`.
 - An app without rpc bundles no rpc code.
+- A watch its link drops fails as `link`,
+  as a call does (it threw a plain error).
 - Contracts take any Standard Schema.
 
 ### Moving an app
@@ -50,6 +52,8 @@ The three URLs:
   `@tinker/bun/client`.
 - `~/base/bun-host`: `serve` from
   `@tinker/bun`.
+- `~/components/bun-sql`, `bun-sqlite`:
+  `@tinker/bun/sql`, `@tinker/bun/sqlite`.
 - A bytes field marks your own field:
   `bytes(z.custom<RpcBody>(), { max })`.
 - A bad rpc output raises `SchemaRejected`,

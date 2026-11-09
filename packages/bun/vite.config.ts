@@ -9,8 +9,13 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   pack: {
-    entry: { index: "src/index.ts", client: "src/client.ts" },
-    deps: { resolveDepSubpath: true, neverBundle: ["bun"] },
+    entry: {
+      index: "src/index.ts",
+      client: "src/client.ts",
+      sql: "src/sql.ts",
+      sqlite: "src/sqlite.ts",
+    },
+    deps: { resolveDepSubpath: true, neverBundle: ["bun", "bun:sqlite", /^drizzle-orm/] },
     dts: { generator: "tsgo" },
     exports: true,
   },

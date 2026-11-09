@@ -8,6 +8,10 @@ The parts of a Tinker app that run on Bun
   one WebSocket.
 - `@tinker/bun/client`: `ws.client`, the
   browser half of that socket.
+- `@tinker/bun/sql`: `bunSql`, Postgres on
+  `Bun.SQL`, with a pool.
+- `@tinker/bun/sqlite`: `bunSqlite`, SQLite
+  on `bun:sqlite`.
 
 ## Install
 
@@ -87,6 +91,28 @@ const tab = await createScope({
   ],
 }).ready;
 ```
+
+## Databases
+
+Each gives a Drizzle connection.
+`drizzle-orm` is an optional peer.
+
+```ts
+import { bunSql } from "@tinker/bun/sql";
+import { bunSqlite } from "@tinker/bun/sqlite";
+
+capsules: [
+  bunSql({ url: new URL(env.DATABASE_URL) }),
+  drizzlePg({ driver: bunSql.connection }),
+];
+```
+
+- `bunSql`: `url` (secret), `max` (10).
+- `bunSqlite`: `file` (`:memory:`).
+- The file is in WAL mode, with foreign
+  keys on.
+- `begin` takes the write lock at once.
+- Each closes with the scope.
 
 ## Guards
 

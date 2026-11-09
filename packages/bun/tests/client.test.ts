@@ -313,3 +313,110 @@ test("remoteData over the socket reads a cell and its pushes", async () => {
   await tick();
   expect(reader.resolve(board.cell).get()).toBe(1);
 });
+
+test("a call aborted after its answer sends no stop", async () => {
+  const { url } = await serve();
+  const frames = spy();
+  const client = await tab(url);
+  const stop = new AbortController();
+
+  await client.run(api.echo, { input: { n: 1 }, signal: stop.signal });
+  stop.abort(new Error("late"));
+  await tick();
+
+  expect(frames.messages()).toEqual([expect.objectContaining({ i: 1, a: "echo" })]);
+});
+
+test("a watch that ended sends no stop, and its open span is ws.open", async () => {
+  const { url } = await serve();
+  const frames = spy();
+  const spans: string[] = [];
+  const client = await tab(url, {}, { export: (s) => void spans.push(s.name) });
+
+  for await (const n of await client.run(api.count, { input: null })) void n;
+  await tick(50);
+
+  expect(frames.messages()).toEqual([expect.objectContaining({ i: 1, a: "count", w: 1 })]);
+  expect(spans).toContain("ws.open");
+});
+
+test("a watch the server answers with a status fails as link", async () => {
+  const transport = wsServer.server({ path: "/rpc", services: [api as never], maxWatches: 0 });
+  const scope = await createScope({
+    capsules: [api({ implement: { echo, slow, count, ticks } }), transport],
+  }).ready;
+  closers.push(() => scope.close());
+
+  const door = scope.resolve(transport);
+  const bun = Bun.serve({
+    port: 0,
+    idleTimeout: 0,
+    websocket: door.websocket as never,
+    fetch: (r, b) => (door.upgrade(r, scope, b as never) === null ? undefined : new Response(null)),
+  });
+  closers.push(() => bun.stop(true));
+  const client = await tab(`ws://localhost:${bun.port}/rpc`);
+
+  const drain = async () => {
+    for await (const n of await client.run(api.count, { input: null })) void n;
+  };
+  expect(await faultOf(drain())).toMatchObject({ fault: "link" });
+});
+
+test("a socket that drops fails its watch as link, and the tab's close skips the dropped socket", async () => {
+  const { url, bun } = await serve();
+  const frames = spy();
+  const client = await tab(url);
+
+  const values = await client.run(api.ticks, { input: null });
+  const drain = async () => {
+    for await (const n of values) void n;
+  };
+  const failed = faultOf(drain());
+  await tick();
+  await bun.stop(true);
+
+  expect(await failed).toMatchObject({ fault: "link" });
+  await client.close();
+  expect(frames.closed).toEqual([]);
+});
+
+test("32 calls of one tick go as one frame, with no empty frame after", async () => {
+  const { url } = await serve();
+  const frames = spy();
+  const client = await tab(url);
+
+  await Promise.all(Array.from({ length: 32 }, (_, n) => client.run(api.echo, { input: { n } })));
+
+  expect(frames.sent.map((f) => f.length)).toEqual([32]);
+});
+
+test("reset tells the server why: its close reason is reset", async () => {
+  const reasons: string[] = [];
+  const transport = wsServer.server({ path: "/rpc", services: [api as never] });
+  const scope = await createScope({
+    capsules: [api({ implement: { echo, slow, count, ticks } }), transport],
+  }).ready;
+  closers.push(() => scope.close());
+
+  const door = scope.resolve(transport);
+  const websocket = door.websocket as unknown as {
+    close: (ws: unknown, ...rest: unknown[]) => void;
+  };
+  const close = websocket.close;
+  websocket.close = (ws, code, reason) => (reasons.push(String(reason)), close(ws, code, reason));
+  const bun = Bun.serve({
+    port: 0,
+    idleTimeout: 0,
+    websocket: websocket as never,
+    fetch: (r, b) => (door.upgrade(r, scope, b as never) === null ? undefined : new Response(null)),
+  });
+  closers.push(() => bun.stop(true));
+  const client = await tab(`ws://localhost:${bun.port}/rpc`);
+
+  await client.run(api.echo, { input: { n: 1 } });
+  client.run(ws.client.reset);
+  await tick(50);
+
+  expect(reasons).toEqual(["reset"]);
+});

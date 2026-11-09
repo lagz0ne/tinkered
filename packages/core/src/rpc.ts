@@ -346,7 +346,12 @@ const steps = resource({
                     { input: { address: key, value: input, meta, push }, signal: until, ...bind },
                     sent,
                   ),
-                ),
+                ).catch((error: unknown) => {
+                  // A watch its transport lost fails as `link`, as a call does.
+                  throw def.fault.is(error)
+                    ? error
+                    : faulted({ ok: false, kind: "link", payload: {} });
+                }),
               (v) => parse(contract.output, v),
               faulted,
               (reason) => leave.abort(reason),
