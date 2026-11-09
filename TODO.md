@@ -75,6 +75,10 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/handle-shapes** — Handles are classes, not `Object.create` over a fresh handle: the starting face, hooked sessions, and the extended root.
+  Owner: thread lead (Duke's pick 2026-11-09 07:19: "Also fix root start first").
+  Proof: gate 129 green (Core 1073, React 112, size 19,065 B, mutation 86.21); review READY after 2 rounds; cachegrind per call vs 0.12: hooked session -56%, session on face -51%, root start -32%. Notes: `research/learnings/2026-11-09-handle-shapes.md`.
+
 - **core/starting-typestate** — ADR 0128: `createScope({ capsules })` returns `Scope.Starting` (every call a promise); `ready` gives the sync handle; React's provider waits on it.
   Owner: thread lead (Duke's go 2026-11-08 16:42).
   Proof: Core 1069, React 110, flight-trial 148, playground 69; 13 unawaited test calls found by the lint and fixed.

@@ -4836,7 +4836,7 @@ function runInline<R, I>(
 }
 
 class ScopeHandle implements Scope.Handle {
-  declare private layer: Layer;
+  declare protected layer: Layer;
   declare readonly ready: Promise<void>;
   declare private releaser:
     | ((target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: unknown) => void)
@@ -5264,9 +5264,10 @@ function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined)
     : resolveNs(layer, target, chain);
 }
 
-/** Wrap a plain root handle with the capsules' plumbing (ADR 0050, 0121): store one record per
- * installed capsule, override `close` with the close chain (reverse order), add `ready`, then
- * kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
+/** Build the {@link ExtendedRoot} with the capsules' plumbing (ADR 0050, 0121): store one record
+ * per installed capsule (`plain` serves only the config reads), set `close` to the close chain
+ * (reverse order), then kick the start chain with the extended root. Cold path only: plain
+ * scopes never enter. */
 function extendHandle(
   layer: Layer,
   plain: Scope.Handle,
@@ -5299,10 +5300,7 @@ function extendHandle(
   ignoreRejection(ready);
 
   const lifetime: RootLifetime = {};
-  const extended: Scope.Handle & { closed?: Promise<Scope.Result> } = Object.create(
-    session === undefined ? plain : withSessionCreate(plain, layer, session),
-  );
-  Object.assign(extended, { ready });
+  const extended = new ExtendedRoot(layer, ready, session);
 
   if (signal) {
     extended.closed = new Promise<Scope.Result>((resolveClosed) => {
@@ -5320,6 +5318,24 @@ function extendHandle(
 
 type Verb = (...args: unknown[]) => unknown;
 
+/** What every face of one root shares: whether its start ended, and its `ready`. */
+type Gate = { open: boolean; readonly ready: Promise<Scope.Handle> };
+
+/** Call `target[verb]` at once after start, else once start ends. Always a promise. */
+function later(gate: Gate, target: object, verb: string, args: unknown[]): Promise<unknown> {
+  const own = target as Record<string, Verb>;
+  if (!gate.open) {
+    const call = (): unknown => own[verb](...args);
+    return gate.ready.then(call, call);
+  }
+
+  try {
+    return Promise.resolve(own[verb](...args));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
 /** Every starting face Core made, for {@link isStarting}. */
 const startingFaces = new WeakSet<object>();
 
@@ -5330,72 +5346,109 @@ export function isStarting(scope: Scope.Handle | Scope.Starting): scope is Scope
 }
 
 /**
- * The typestate face of a root given `capsules` (ADR 0128); a root given none returns as is.
- * On the face each call is a promise. Before
- * start ends it waits for every start, then calls the started handle: after a failed start or a
- * close, that call meets the closed scope (`Disposed`; `settle` resolves to its result). After
- * start it calls at once. `ready` resolves to the started handle, whose sync calls stay sync.
- * A replaced `close` lands on the started handle, where a failed start calls it (ADR 0085).
+ * The typestate face over `target`: a root given `capsules`, or a session made on a face
+ * (ADR 0128). Each call is a promise. Before start ends it waits for every start, then calls the
+ * started handle: after a failed start or a close, that call meets the closed scope (`Disposed`;
+ * `settle` resolves to its result). After start it calls at once. `ready` resolves to the started
+ * handle, whose sync calls stay sync. The rest forwards to `target`, `close` included, so a
+ * replaced `close` lands where a failed start calls it (ADR 0085). A class, so every face
+ * shares one V8 shape.
  */
+class StartingFace {
+  declare readonly ready: Promise<Scope.Handle>;
+  declare protected target: Scope.Handle;
+  declare private gate: Gate;
+  declare private closer: Scope.Handle["close"] | undefined;
+  constructor(target: Scope.Handle, ready: Promise<Scope.Handle>, gate: Gate) {
+    this.target = target;
+    this.ready = ready;
+    this.gate = gate;
+    this.closer = undefined;
+    startingFaces.add(this);
+  }
+  run(...args: unknown[]): Promise<unknown> {
+    return later(this.gate, this.target, "run", args);
+  }
+  settle(...args: unknown[]): Promise<unknown> {
+    return later(this.gate, this.target, "settle", args);
+  }
+  session(...args: unknown[]): Promise<unknown> {
+    return later(this.gate, this.target, "session", args);
+  }
+  createSession(options?: Scope.Options): StartingFace {
+    const made = this.target.createSession(options);
+    const started = this.gate.ready.then(() => made);
+    ignoreRejection(started);
+    return new StartingFace(made, started, this.gate);
+  }
+  controller(...args: unknown[]): unknown {
+    const control = (this.target.controller as Verb)(...args) as Record<"run" | "settle", Verb>;
+    if (!isOperation(args[0])) return control;
+
+    const gate = this.gate;
+    return {
+      run: (...call: unknown[]) => later(gate, control, "run", call),
+      settle: (...call: unknown[]) => later(gate, control, "settle", call),
+    };
+  }
+  resolve(...args: unknown[]): unknown {
+    return (this.target.resolve as Verb)(...args);
+  }
+  onClose(fn: () => void | PromiseLike<void>): void {
+    this.target.onClose(fn);
+  }
+  spans(): readonly Observe.Span[] {
+    return this.target.spans();
+  }
+  settled(): Promise<void> {
+    return this.target.settled();
+  }
+  get release(): Scope.Handle["release"] {
+    return this.target.release;
+  }
+  get releaseNs(): Scope.Handle["releaseNs"] {
+    return this.release;
+  }
+  get capsules(): readonly Capsule.Record[] {
+    return this.target.capsules;
+  }
+  /** A root's `close` is its own closure; a session's is a method, so bind it to the session. */
+  get close(): Scope.Handle["close"] {
+    const target = this.target;
+    if (!Object.hasOwn(target, "close")) return (this.closer ??= target.close.bind(target));
+
+    return target.close;
+  }
+  set close(close: Scope.Handle["close"]) {
+    this.target.close = close;
+  }
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.target[Symbol.asyncDispose]();
+  }
+}
+
+/** The face of a root given a `signal`: only it has `closed`. */
+class SignalFace extends StartingFace {
+  get closed(): Promise<Scope.Result> {
+    return (this.target as Scope.RootHandle).closed;
+  }
+}
+
+/** A root given `capsules` gets its starting face (ADR 0128); a root given none returns as is. */
 function startingHandle(
   root: Scope.Handle,
   capsules: Scope.RootOptions["capsules"],
 ): Scope.Handle | Scope.Starting {
   if (capsules === undefined) return root;
 
-  let open = false;
   const ready = root.ready.then(() => {
-    open = true;
+    gate.open = true;
     return root;
   });
+  const gate: Gate = { open: false, ready };
   ignoreRejection(ready);
-
-  const later = (call: () => unknown): Promise<unknown> =>
-    open ? new Promise((done) => done(call())) : ready.then(call, call);
-
-  /** A face over `target`: the root, or a session made on a face. Its `ready` resolves to
-   * `target` once the root has started, so a session face starts with its root. */
-  const face = (target: Scope.Handle, started: Promise<Scope.Handle>): Scope.Starting => {
-    const verbs = target as unknown as Record<"run" | "settle" | "session" | "controller", Verb>;
-
-    const made = Object.create(target, {
-      ready: { value: started },
-      run: { value: (...args: unknown[]) => later(() => verbs.run.apply(target, args)) },
-      settle: { value: (...args: unknown[]) => later(() => verbs.settle.apply(target, args)) },
-      session: { value: (...args: unknown[]) => later(() => verbs.session.apply(target, args)) },
-      createSession: { value: (options?: Scope.Options) => session(target.createSession(options)) },
-      controller: {
-        value: (...args: unknown[]) => {
-          const control = verbs.controller.apply(target, args) as Record<"run" | "settle", Verb>;
-          if (!isOperation(args[0])) return control;
-
-          return {
-            run: (...call: unknown[]) => later(() => control.run(...call)),
-            settle: (...call: unknown[]) => later(() => control.settle(...call)),
-          };
-        },
-      },
-    }) as Scope.Starting;
-    startingFaces.add(made);
-    return made;
-  };
-
-  const session = (target: Scope.Handle): Scope.Starting => {
-    const started = ready.then(() => target);
-    ignoreRejection(started);
-    return face(target, started);
-  };
-
-  const starting = Object.defineProperties(face(root, ready), {
-    close: {
-      get: () => root.close,
-      set: (close: Scope.Handle["close"]) => {
-        root.close = close;
-      },
-    },
-  });
-
-  return starting;
+  const Face = "closed" in root ? SignalFace : StartingFace;
+  return new Face(root, gate.ready, gate) as unknown as Scope.Starting;
 }
 
 /** Hooked calls select their owner before starting the hook chain. An owned call therefore
@@ -6328,15 +6381,54 @@ class CloseEvent extends HookCtx {
 
 /** A handle whose `createSession` wraps every child in the root's `session` chain (ADR 0051): the
  * direct `resolve` stays plain; run and write hooks follow the inherited routes.
- * Only built when hooks exist; the unwrapped path never enters. */
-function withSessionCreate(
-  plain: Scope.Handle,
-  layer: Layer,
-  session: readonly Capsule.Binding[],
-): Scope.Handle {
-  const h = Object.create(plain) as Scope.Handle;
-  h.createSession = (options?: Scope.Options) => wrapSession(layer, options, session);
-  return h;
+ * Only built when hooks exist; the unwrapped path never enters. A class, not `Object.create` over
+ * a fresh handle: every session then shares one V8 shape instead of minting a prototype. */
+class HookedHandle extends ScopeHandle {
+  declare private chain: readonly Capsule.Binding[];
+  constructor(layer: Layer, chain: readonly Capsule.Binding[]) {
+    super(layer);
+    this.chain = chain;
+  }
+  override createSession(options?: Scope.Options): Scope.Handle {
+    return wrapSession(this.layer, options, this.chain);
+  }
+}
+
+/** A root given capsules or a signal: its own `ready`, a `close` that runs the close hooks, and,
+ * when set, `closed` and a `resolve` through the `resolve` hooks (ADR 0051, 0085). A class, not
+ * `Object.create` over the plain handle, so roots with the same options share one V8 shape. */
+class ExtendedRoot extends ScopeHandle {
+  declare readonly ready: Promise<void>;
+  declare closed?: Promise<Scope.Result>;
+  declare private chain: readonly Capsule.Binding[] | undefined;
+  constructor(layer: Layer, ready: Promise<void>, chain: readonly Capsule.Binding[] | undefined) {
+    super(layer);
+    this.ready = ready;
+    this.chain = chain;
+  }
+  override createSession(options?: Scope.Options): Scope.Handle {
+    if (this.chain === undefined) return super.createSession(options);
+    return wrapSession(this.layer, options, this.chain);
+  }
+}
+
+/** The handle a hooked session's caller gets: its `close` joins the teardown, then the chain's
+ * outcome. */
+class HookedSession extends HookedHandle {
+  declare private outcome: Promise<{ ended: Scope.Result }>;
+  constructor(
+    layer: Layer,
+    chain: readonly Capsule.Binding[],
+    outcome: Promise<{ ended: Scope.Result }>,
+  ) {
+    super(layer, chain);
+    this.outcome = outcome;
+  }
+  override close(opts?: Scope.CloseOptions): Promise<Scope.Result> {
+    return closeLayer(this.layer, !opts?.graceful, opts?.withData === true).then(() =>
+      this.outcome.then(({ ended }) => ended),
+    );
+  }
 }
 
 /** A bare session wrapped in the `session` chain: the onion starts NOW (before-code runs right after
@@ -6352,8 +6444,6 @@ function wrapSession(
 ): Scope.Handle {
   ensureAccepting(up);
   const child = makeLayer(up, options);
-  const plain = new ScopeHandle(child);
-
   let settleNext: (ended: Scope.Result) => void = noop as (ended: Scope.Result) => void;
   const nextPromise = new Promise<Scope.Result>((resolveNext) => {
     settleNext = resolveNext;
@@ -6361,18 +6451,13 @@ function wrapSession(
   const hooks: SessionHooks = { settle: settleNext, state: 0, moved: false };
   SESSION_HOOKS.set(child, hooks);
 
-  const base = withSessionCreate(plain, child, session);
+  const base = new HookedHandle(child, session);
   const outcome = sessionThrough(session, base, child, () =>
     nextPromise.then((ended) => ({ result: undefined, ended })),
   ).finally(() => freeAfterHooks(child, hooks));
   ignoreRejection(outcome);
 
-  return Object.assign(Object.create(base) as Scope.Handle, {
-    close: (opts?: Scope.CloseOptions) =>
-      closeLayer(child, !opts?.graceful, opts?.withData === true).then(() =>
-        outcome.then(({ ended: chained }) => chained),
-      ),
-  });
+  return new HookedSession(child, session, outcome);
 }
 
 function readExtRoutes(exts: readonly Capsule.Binding[]): ExtRoutes {
@@ -6523,7 +6608,7 @@ async function runSessionWrapped<R>(
 ): Promise<R> {
   const hooks: SessionHooks = { settle: undefined, state: 0, moved: false };
   SESSION_HOOKS.set(child, hooks);
-  const handle = withSessionCreate(new ScopeHandle(child), child, session);
+  const handle = new HookedHandle(child, session);
   let wrapped: { result: unknown; ended: Scope.Result };
   try {
     wrapped = await sessionThrough(session, handle, child, async () => {

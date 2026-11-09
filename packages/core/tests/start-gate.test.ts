@@ -188,3 +188,34 @@ test("await using closes the scope at the end of the block", async () => {
 
   expect(() => outside?.run(readNow)).toThrow("Disposed");
 });
+
+test("the starting handle has every member of a started root", async () => {
+  gate = Promise.withResolvers();
+  gate.resolve();
+  await using app = createScope({ capsules: [store], signal: new AbortController().signal });
+  /** tsc lists each RootHandle member here, so a new member must be added to the face too. */
+  const members = {
+    run: 1,
+    settle: 1,
+    session: 1,
+    controller: 1,
+    createSession: 1,
+    resolve: 1,
+    release: 1,
+    releaseNs: 1,
+    onClose: 1,
+    spans: 1,
+    settled: 1,
+    capsules: 1,
+    ready: 1,
+    close: 1,
+    closed: 1,
+    [Symbol.asyncDispose]: 1,
+  } satisfies Record<keyof Scope.RootHandle, 1>;
+  const live = await app.ready;
+
+  for (const name of Reflect.ownKeys(members)) {
+    expect(name in app, String(name)).toBe(true);
+    expect(typeof Reflect.get(app, name), String(name)).toBe(typeof Reflect.get(live, name));
+  }
+});
