@@ -43,6 +43,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **analyze/backtrace** — ADR 0129 S6. `slice <subject>` and `backtrace <failed run>`: path at file and line, candidate exits, read-next pointers; SARIF `codeFlows` out, shown to people in a SARIF viewer. Scratch: `backtrace.cjs`, `overlay.cjs`, `formats.cjs`.
   Verify: the Hedl talkSay run redraws to `talk.ts:106 raise Refused`.
 
+- **devtools/pair** — ADR 0129 follow-up, in tinker-app `tinker/components/devtools/` (Duke 2026-11-09 06:54, 06:57). A capsule pair, as rpc: `devtools.server` runs the analyzer at start (each `bun --hot` reload) and turns each failed run into a backtrace, all SARIF in one data cell; `devtools.client` reads it by live remoteData and exports `<Devtools.Panel/>`, placed by the user. The same SARIF goes to `.tinker/devtools.sarif` for an agent. LLM-first setup: wired in the template's `cmds/dev.ts`, plus a `tinker-devtools` skill. Needs `analyze/map` and `analyze/backtrace`.
+  Verify: in Hedl dev, a failing route shows its codeFlow in the panel and in the file; a file edit refreshes both.
+
 - **analyze/effects** — ADR 0129 S5. GET-safe and query-in-loop findings.
   Verify: Hedl gives the 5 GET routes and 21 loop sites of the proof.
 
