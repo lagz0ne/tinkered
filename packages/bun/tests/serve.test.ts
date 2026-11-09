@@ -1,188 +1,257 @@
-import type { Subprocess } from "bun";
+import { capsule, createScope, operation, rpc } from "@tinker/core";
 import { afterEach, expect, test } from "vite-plus/test";
+import { z } from "zod";
 
-const children: Subprocess[] = [];
+import { ws as wsClient } from "@/client";
+import { serve, ws } from "@/index";
 
-/** A failed test must not leave its host running: `bun test` would wait for it. */
-afterEach(() => {
-  for (const child of children.splice(0)) child.kill();
+import { handler } from "./fixtures/handler";
+
+// The listener is a capsule: one createScope serves the handlers; closing it closes the port.
+
+const closers: Array<() => unknown> = [];
+
+afterEach(async () => {
+  for (const c of closers.splice(0).reverse()) await c();
 });
 
-/** Reads a host's stdout lines to their end. */
-const rest = async (lines: ReadableStreamDefaultReader<string>) => {
-  let text = "";
-  for (let next = await lines.read(); !next.done; next = await lines.read()) text += next.value;
-  return text;
-};
+const api = rpc({ greet: { input: z.object({ name: z.string() }), output: z.string() } });
 
-/**
- * Runs a fixture host on a free port; resolves its URL from the `tinker: listening` line. `rest`
- * reads the host's stdout to its end.
- */
-const host = async (fixture: string, args: string[] = []) => {
-  const child = Bun.spawn(
-    [process.execPath, new URL(`fixtures/${fixture}`, import.meta.url).pathname, ...args],
-    {
-      env: { ...process.env, PORT: "0" },
-      stdout: "pipe",
-      stderr: "inherit",
+const greetHere = operation({
+  label: "greet.here",
+  input: api.greet.input,
+  run: async (_, { input }) => `Hello, ${input.name}.`,
+});
+
+const text = (url: URL, path: string) => fetch(new URL(path, url)).then((r) => r.text());
+
+test("a route handler and the socket handler answer on one port", async () => {
+  const socket = ws.server({ path: "/rpc", services: [api] });
+  const health = handler({
+    answer: (r) => (new URL(r.url).pathname === "/api/health" ? new Response("ok") : undefined),
+  });
+  const app = await createScope({
+    capsules: [
+      serve({ port: 0, websocket: socket, handlers: [health] }),
+      api({ implement: { greet: greetHere } }),
+      socket,
+      health,
+    ],
+  }).ready;
+  closers.push(() => app.close());
+  const at = app.resolve(serve.url).get()!;
+  const tab = await createScope({
+    capsules: [wsClient.client({ url: `ws://${at.host}/rpc` }), api({ remote: wsClient.client })],
+  }).ready;
+  closers.push(() => tab.close());
+
+  expect(await text(at, "/api/health")).toBe("ok");
+  expect(await tab.run(api.greet, { input: { name: "Ada" } })).toBe("Hello, Ada.");
+});
+
+test("handlers are asked in order; one that answers undefined passes the request on", async () => {
+  const first = handler({
+    answer: (r) => (r.url.endsWith("/api/a") ? new Response("a") : undefined),
+  });
+  // A second handler capsule: one scope holds one binding of a capsule today.
+  const second = capsule({
+    label: "second",
+    hooks: {
+      async start({ next }) {
+        await next();
+        return { fetch: () => new Response("b") };
+      },
     },
+  });
+  const app = await createScope({
+    capsules: [serve({ port: 0, handlers: [first, second] }), first, second],
+  }).ready;
+  closers.push(() => app.close());
+  const at = app.resolve(serve.url).get()!;
+
+  expect([await text(at, "/api/a"), await text(at, "/api/x")]).toEqual(["a", "b"]);
+});
+
+test("no handler answers: 404; a path no handler takes gets the page", async () => {
+  const none = handler({ answer: () => undefined });
+  const pages = { "/*": new Response("page") };
+  const app = await createScope({
+    capsules: [serve({ port: 0, pages, handlers: [none] }), none],
+  }).ready;
+  closers.push(() => app.close());
+  const at = app.resolve(serve.url).get()!;
+
+  expect((await fetch(new URL("/api/x", at))).status).toBe(404);
+  expect(await text(at, "/a/b")).toBe("page");
+});
+
+test("close stops the port, then the handlers close", async () => {
+  const seen: string[] = [];
+  const cmd = handler({ answer: () => new Response("cmd"), closing: () => seen.push("handler") });
+  const app = await createScope({
+    capsules: [serve({ port: 0, handlers: [cmd] }), cmd],
+  }).ready;
+  const at = app.resolve(serve.url).get()!;
+
+  await app.close();
+  const after = await fetch(new URL("/api/x", at)).then(
+    () => "answered",
+    () => "refused",
   );
-  children.push(child);
 
-  const lines = child.stdout.pipeThrough(new TextDecoderStream()).getReader();
-  let seen = "";
-  for (let next = await lines.read(); !next.done; next = await lines.read()) {
-    seen += next.value;
-    const url = /tinker: listening on (\S+)/.exec(seen)?.[1];
-    if (url) return { child, url: new URL(url), seen, rest: () => rest(lines) };
-  }
-  return { child, url: undefined, seen, rest: () => rest(lines) };
-};
+  expect([after, seen]).toEqual(["refused", ["handler"]]);
+});
 
-test("a stream quiet for longer than Bun's 10 s default is not reset", async () => {
-  const { child, url } = await host("stream-host.ts");
-  expect(url).toBeDefined();
+test("it prints where it listens on the stdout it is given", async () => {
+  const lines: string[] = [];
+  const cmd = handler({ answer: () => undefined });
+  const app = await createScope({
+    capsules: [serve({ port: 0, handlers: [cmd], stdout: { write: (l) => lines.push(l) } }), cmd],
+  }).ready;
+  closers.push(() => app.close());
 
-  const text = await fetch(new URL("/api/stream", url)).then((reply) => reply.text());
-  expect(text).toBe("one\ntwo\n");
+  expect(lines).toEqual([`tinker: listening on ${app.resolve(serve.url).get()}\n`]);
+});
 
-  child.kill("SIGTERM");
-  expect(await child.exited).toBe(143);
-}, 30_000);
-
-test("a command that exits during start exits with its code and never listens", async () => {
-  const child = Bun.spawn(
-    [process.execPath, new URL("fixtures/exit-host.ts", import.meta.url).pathname],
-    {
-      env: { ...process.env, PORT: "0" },
-      stdout: "pipe",
-      stderr: "inherit",
+test("a scope stopped during start closes the port once start ends", async () => {
+  const stop = new AbortController();
+  const lines: string[] = [];
+  const slow = capsule({
+    label: "slow",
+    hooks: {
+      async start({ next }) {
+        stop.abort(new Error("stop"));
+        await next();
+        return { fetch: () => new Response("slow") };
+      },
     },
+  });
+  const app = createScope({
+    signal: stop.signal,
+    capsules: [serve({ port: 0, handlers: [slow], stdout: { write: (l) => lines.push(l) } }), slow],
+  });
+  await app.closed;
+  const at = /on (\S+)/.exec(lines.join(""))?.[1];
+  const after = await fetch(new URL("/api/x", at)).then(
+    () => "answered",
+    () => "refused",
   );
-  children.push(child);
 
-  const stdout = await new Response(child.stdout).text();
-  expect(await child.exited).toBe(64);
-  expect(stdout).not.toContain("tinker: listening");
+  expect(after).toBe("refused");
 });
 
-test("a command that exits during start still waits for its root to close, and never listens", async () => {
-  const child = Bun.spawn(
-    [process.execPath, new URL("fixtures/exit-closed-host.ts", import.meta.url).pathname],
-    {
-      env: { ...process.env, PORT: "0" },
-      stdout: "pipe",
-      stderr: "inherit",
+test("serve declares its keys, its defaults, and the units it loads", async () => {
+  const { port, pages, websocket, handlers, paths, development, stdout } = serve.config;
+  const app = await createScope({ capsules: [serve({ port: 0 })] }).ready;
+  closers.push(() => app.close());
+
+  expect({
+    labels: [port.target, pages, websocket, handlers, paths, development, stdout].map(
+      (unit) => unit.label,
+    ),
+    record: app.capsules[0],
+  }).toMatchObject({
+    labels: [
+      "serve.port",
+      "serve.pages",
+      "serve.websocket",
+      "serve.handlers",
+      "serve.paths",
+      "serve.development",
+      "serve.stdout",
+    ],
+    record: {
+      label: "serve",
+      config: {
+        port: 0,
+        pages: {},
+        websocket: null,
+        handlers: [],
+        paths: [],
+        development: false,
+        stdout: null,
+      },
+      exports: ["url"],
+      loaded: [
+        { unit: "serve:session", role: "handler", explain: "The handlers answer in this session" },
+        { unit: "serve.live", role: "state", explain: "The listening server" },
+        { unit: "serve.url", role: "state", explain: "The listening server" },
+      ],
     },
+  });
+});
+
+test("a socket handler must go in `websocket`, not `handlers`: Bun takes one per server", async () => {
+  const socket = ws.server({ path: "/rpc", services: [api] });
+  const plain = handler({ answer: () => undefined });
+  const app = createScope({
+    capsules: [
+      serve({ port: 0, handlers: [plain, socket] }),
+      api({ implement: { greet: greetHere } }),
+      socket,
+      plain,
+    ],
+  });
+
+  await expect(app.ready).rejects.toMatchObject({
+    kind: "MissingConfig",
+    payload: { label: "serve", key: "websocket" },
+  });
+});
+
+test("the largest maxBody of the handlers sets the body limit; 1 MiB at least", async () => {
+  const size = (r: Request) => r.arrayBuffer().then((b) => new Response(String(b.byteLength)));
+  const big = capsule({
+    label: "big",
+    hooks: {
+      async start({ next }) {
+        await next();
+        return { fetch: (r: Request) => (r.url.endsWith("/api/big") ? size(r) : undefined) };
+      },
+    },
+  });
+  const small = handler({ answer: size });
+  const post = (at: URL, path: string, bytes: number) =>
+    fetch(new URL(path, at), { method: "POST", body: new Uint8Array(bytes) }).then((r) =>
+      r.ok ? r.text() : String(r.status),
+    );
+  const app = await createScope({
+    capsules: [serve({ port: 0, handlers: [big, small] }), big, small],
+  }).ready;
+  const wide = capsule({
+    label: "wide",
+    hooks: {
+      async start({ next }) {
+        await next();
+        return { fetch: size, maxBody: 4_194_304 };
+      },
+    },
+  });
+  const app2 = await createScope({ capsules: [serve({ port: 0, handlers: [wide] }), wide] }).ready;
+  closers.push(
+    () => app.close(),
+    () => app2.close(),
   );
-  children.push(child);
+  const at = app.resolve(serve.url).get()!;
+  const at2 = app2.resolve(serve.url).get()!;
 
-  const stdout = await new Response(child.stdout).text();
-  expect(await child.exited).toBe(64);
-  expect(stdout).toContain("closed\n");
-  expect(stdout).not.toContain("tinker: listening");
+  expect([
+    await post(at, "/api/small", 1_000_000),
+    await post(at2, "/api/wide", 2_097_152),
+  ]).toEqual(["1000000", "2097152"]);
 });
 
-test("extra paths go to the command, beside /api/* and /rpc/*", async () => {
-  const { url } = await host("paths-host.ts");
-  const text = (path: string) => fetch(new URL(path, url)).then((reply) => reply.text());
+test("`development` turns on Bun's development mode", async () => {
+  const mode = handler({ answer: (_r, _s, server) => new Response(String(server.development)) });
+  const dev = await createScope({
+    capsules: [serve({ port: 0, handlers: [mode], development: true }), mode],
+  }).ready;
+  closers.push(() => dev.close());
+  const prod = await createScope({ capsules: [serve({ port: 0, handlers: [mode] }), mode] }).ready;
+  closers.push(() => prod.close());
 
-  expect(await text("/mcp")).toBe("cmd");
-  expect(await text("/.well-known/x")).toBe("cmd");
-  expect(await text("/api/x")).toBe("cmd");
-  expect(await text("/rpc/x")).toBe("cmd");
-  expect(await text("/a/b")).toBe("page");
-});
-
-test("with no extra paths, /mcp gets the page", async () => {
-  const { url } = await host("page-host.ts");
-  const text = (path: string) => fetch(new URL(path, url)).then((reply) => reply.text());
-
-  expect(await text("/mcp")).toBe("page");
-  expect(await text("/api/x")).toBe("cmd");
-});
-
-test("a hang-up (SIGHUP) closes the port and the root, then exits 129", async () => {
-  const { child, url, rest } = await host("page-host.ts");
-  expect(url).toBeDefined();
-
-  child.kill("SIGHUP");
-
-  expect(await child.exited).toBe(129);
-  // Bun's own hang-up exit also reads 129; a kill by the signal sets signalCode.
-  expect(child.signalCode).toBeNull();
-  expect(await rest()).toContain("closed\n");
-});
-
-/** Runs the throw fixture in one mode; its exit code and its output. */
-const fails = async (mode: string, signal?: NodeJS.Signals) => {
-  const child = Bun.spawn(
-    [process.execPath, new URL("fixtures/throw-host.ts", import.meta.url).pathname],
-    { env: { ...process.env, PORT: "0", THROW: mode }, stdout: "pipe", stderr: "pipe" },
-  );
-  children.push(child);
-  if (signal) {
-    const lines = child.stdout.pipeThrough(new TextDecoderStream()).getReader();
-    await lines.read(); // "starting"
-    child.kill(signal);
-  }
-
-  const [code, err] = await Promise.all([child.exited, new Response(child.stderr).text()]);
-  return { code, err };
-};
-
-test("a config error at start exits 78 and names its kind; a bad URL is one too", async () => {
-  const config = await fails("config");
-
-  expect(config.code).toBe(78);
-  expect(config.err).toContain('tinker: MissingConfig {"key":"url"}');
-  expect((await fails("url")).code).toBe(78);
-});
-
-test("any other throw at start exits 1, and a failed root exits 1", async () => {
-  const plain = await fails("plain");
-
-  expect(plain.code).toBe(1);
-  expect(plain.err).toContain("broke");
-  const root = await fails("root");
-  expect(root.code).toBe(1);
-  expect(root.err).toContain("root broke");
-});
-
-test("a missing tag or a value that failed its schema at start exits 78 too", async () => {
-  expect((await fails("tag")).code).toBe(78);
-  expect((await fails("invalid")).code).toBe(78);
-});
-
-test("a root that closes with a teardown error exits 1 and logs it", async () => {
-  const teardown = await fails("teardown");
-
-  expect(teardown.code).toBe(1);
-  expect(teardown.err).toContain("teardown broke");
-});
-
-test("a stop during start that ends in another error keeps the stop's code and logs the error", async () => {
-  const other = await fails("other", "SIGINT");
-
-  expect(other.code).toBe(130);
-  expect(other.err).toContain("other broke");
-});
-
-test("with no page: the command takes its paths, a bare path is 404, and args pass", async () => {
-  const { url, seen } = await host("api-host.ts", ["--a", "b"]);
-  const reply = (path: string) => fetch(new URL(path, url));
-
-  expect(seen).toContain('args ["--a","b"]');
-  expect(await (await reply("/rpc")).text()).toBe("cmd");
-  expect(await (await reply("/api/x")).text()).toBe("cmd");
-  expect((await reply("/api/none")).status).toBe(404);
-  expect((await reply("/other")).status).toBe(404);
-});
-
-test("a stop during start exits with the stop's code, and logs no second line", async () => {
-  const stopped = await fails("slow", "SIGINT");
-
-  expect(stopped.code).toBe(130);
-  expect(stopped.err).toBe("");
+  expect([
+    await text(dev.resolve(serve.url).get()!, "/api/x"),
+    await text(prod.resolve(serve.url).get()!, "/api/x"),
+  ]).toEqual(["true", "false"]);
 });

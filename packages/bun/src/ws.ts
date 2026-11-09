@@ -381,7 +381,12 @@ export function createWs() {
             .flatMap((one) => Object.values(one.uploads ?? {}))
             .map((l) => l.max),
         );
-        return { upgrade, post, websocket, maxBody };
+        /** The handler `serve` asks: the socket's path, then a bytes POST; else not ours. */
+        const fetch = async (req: Request, scope: Scope.Handle, bun: Server<never>) => {
+          const upgraded = upgrade(req, scope, bun as never);
+          return upgraded === undefined ? post(req, scope) : upgraded;
+        };
+        return { upgrade, post, fetch, websocket, maxBody };
       },
       run({ op, call: invocation, run, log, load, next }): unknown {
         if (op !== serve && op !== serveStream) return next();

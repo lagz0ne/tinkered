@@ -3,4 +3,6 @@
 
 export { createWs, ws } from "./ws";
 export { serve } from "./serve";
-export type { Main, MainClosed, MainContext } from "./serve";
+export type { Handler } from "./serve";
+export { run } from "./run";
+export type { Main, MainClosed, MainContext, MainStarted } from "./run";

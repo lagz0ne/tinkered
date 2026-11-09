@@ -1,7 +1,7 @@
-import { serve } from "@/serve";
+import { run } from "@/run";
 
 /** A host whose command exits 64 during start, as `cmds/server.ts` does on extra args. */
-await serve(async ({ exit }) => {
+await run(({ exit }) => {
   exit(64);
-  return { fetch: async () => undefined, closed: Promise.resolve() };
-}, {});
+  return { closed: Promise.resolve() };
+});

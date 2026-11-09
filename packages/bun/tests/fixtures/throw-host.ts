@@ -1,4 +1,4 @@
-import { serve } from "@/serve";
+import { run } from "@/run";
 
 /**
  * A host whose command fails as `THROW` says: `config` (a MissingConfig), `url` (a bad URL),
@@ -16,10 +16,7 @@ const stopped = async (signal: AbortSignal) => {
   await new Promise((resolve) => signal.addEventListener("abort", resolve));
 };
 
-const root = (closed: object) => ({
-  fetch: async () => new Response("cmd"),
-  closed: Promise.resolve(closed as never),
-});
+const root = (closed: object) => ({ closed: Promise.resolve(closed as never) });
 
 const modes: Record<string, (signal: AbortSignal) => Promise<unknown>> = {
   config: async () => {
@@ -49,4 +46,4 @@ const modes: Record<string, (signal: AbortSignal) => Promise<unknown>> = {
   root: async () => root({ status: "failed", error: new Error("root broke") }),
 };
 
-await serve(({ signal }) => modes[mode]!(signal) as never, { "/*": new Response("page") });
+await run(({ signal }) => modes[mode]!(signal) as never);

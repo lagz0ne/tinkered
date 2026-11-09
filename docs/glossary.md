@@ -486,4 +486,6 @@ New sections are lists, one term per item (vertical layout,
 - **contract** — The `input` and `output` of one rpc call. Each takes any Standard Schema value (zod, valibot, arktype).
 - **protocol** — The wire shapes, faults, codec and lifecycle hooks that rpc and remoteData share. `transport.protocol` in code.
 - **rpc transport** — A capsule pair that carries the protocol: the client exports `call` and `watch`; the server exports `serve` and `serveStream`.
+- **handler** — A capsule whose start returns Bun's `{ fetch, websocket? }`; `serve` asks it for each request (ADR 0132).
+- **serve** — The capsule that owns `Bun.serve` for the scope's life; `run` is the host that owns signals and exit codes (ADR 0132).
 - **memory transport** — `memory` from `@tinker/core/testing`: an rpc transport in one process, for tests (as Connect's `createRouterTransport`).

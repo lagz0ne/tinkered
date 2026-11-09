@@ -1,11 +1,10 @@
-import { serve } from "@/serve";
+import { run } from "@/run";
 
 /**
  * A host whose command exits 64 during start after it built a root: its `closed` resolves only
- * after a short teardown, which prints "closed". The host must wait for it, and never listen.
+ * after a short teardown, which prints "closed". The host must wait for it, and never serve.
  */
-await serve(async ({ exit }) => {
+await run(({ exit }) => {
   exit(64);
-  const closed = Bun.sleep(100).then(() => console.log("closed"));
-  return { fetch: async () => undefined, closed };
-}, {});
+  return { closed: Bun.sleep(100).then(() => console.log("closed")) };
+});

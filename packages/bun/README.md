@@ -3,9 +3,9 @@
 The parts of a Tinker app that run on Bun
 (ADR 0130).
 
-- `@tinker/bun`: `serve`, the host on
-  `Bun.serve`, and `ws.server`, rpc over
-  one WebSocket.
+- `@tinker/bun`: `serve`, `Bun.serve` as a
+  capsule; `run`, the host; and
+  `ws.server`, rpc over one WebSocket.
 - `@tinker/bun/client`: `ws.client`, the
   browser half of that socket.
 - `@tinker/bun/sql`: `bunSql`, Postgres on
@@ -17,66 +17,99 @@ The parts of a Tinker app that run on Bun
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.15.0
-bun add $R/tinker-core-0.15.0.tgz \
-  $R/tinker-bun-0.15.0.tgz
+releases/download/v0.16.0
+bun add $R/tinker-core-0.16.0.tgz \
+  $R/tinker-bun-0.16.0.tgz
 ```
 
-## The host
+## Serve and run
 
-`serve` runs one server command. It owns the
-signals and the exit code.
+`serve` is a capsule: `Bun.serve` for the
+life of the scope (ADR 0132). The cmd gives
+it its values; it reads no `process.env`.
 
 ```ts
-import { serve } from "@tinker/bun";
-import page from "./index.html";
+const socket = ws.server({
+  path: "/rpc",
+  services: [api],
+});
+const table = routes({ table, stop });
+
+export default defineMain(
+  ({ env, signal, stdout }) =>
+    createScope({
+      signal,
+      capsules: [
+        serve({
+          port: Number(env.PORT ?? 4318),
+          pages: { "/*": page },
+          websocket: socket,
+          handlers: [table],
+          stdout,
+        }),
+        api({ implement }),
+        socket,
+        table,
+      ],
+    }),
+);
+```
+
+- `serve` goes first: its start wraps the
+  rest, so it listens once all started.
+- On close it stops the port first.
+- `pages`: static files, Bun's own routes.
+  Every path no handler takes gets them.
+- `websocket`: the one handler with Bun's
+  `websocket` (Bun takes one per server).
+- `handlers`: asked in order; the first
+  `Response` wins.
+- `/api/*`, `/rpc` and `/rpc/*` go to the
+  handlers; `paths` adds more.
+
+A handler is a capsule whose start returns
+Bun's own shape, `{ fetch, websocket? }`.
+`fetch` gives a `Response`, `null` (it
+upgraded the request), or `undefined` (not
+its own: the next handler gets it).
+
+`run` runs one cmd. It owns the signals and
+the exit code.
+
+```ts
+import { run } from "@tinker/bun";
 
 import main from "./server";
 
-await serve(main, { "/*": page });
+await run(main);
 ```
 
 - A config error at start exits 78.
 - Any other throw at start exits 1.
 - A failed root exits 1.
 - A signal exits 128 plus its number.
-- `/api/*`, `/rpc` and `/rpc/*` go to the
-  command; `paths` adds more.
-- Every other path gets the page.
 
 ## The socket
 
-The server, in a command:
+The server is a handler: give it to `serve`
+as `websocket`.
 
 ```ts
-import { ws } from "@tinker/bun";
-
-const app = await createScope({
-  capsules: [
-    api({ implement }),
-    ws.server({ path: "/rpc", services: [api] }),
-  ],
-}).ready;
-
-const link = app.resolve(ws.server);
+const socket = ws.server({
+  path: "/rpc",
+  services: [api],
+});
 ```
 
-The command's `fetch`:
-
-```ts
-const up = link.upgrade(req, app, bun);
-if (up !== undefined) return up;
-return (await link.post(req, app)) ?? table(req);
-```
-
-`upgrade` gives:
+Its `fetch` upgrades the socket's path, then
+takes a bytes POST. Each answer:
 
 - `undefined`: not this path;
 - `null`: upgraded, Bun owns the request;
 - a `Response`: refused (a foreign origin
-  gives 403).
+  gives 403), or the POST's reply.
 
-`post` takes the bytes POSTs of a key with a
+A bytes POST is for a key with a
 bytes field.
 
 The client:

@@ -1,138 +1,119 @@
-import type { Scope } from "@tinker/core";
+import { capsule, data, tag } from "@tinker/core";
+import type { Capsule, Scope } from "@tinker/core";
 import type { HTMLBundle, Server, WebSocketHandler } from "bun";
 
 /**
- * What the host gives a command: its inputs, and the stop. A command picks its own exit codes;
- * a startup throw exits 78 for a config error, else 1, so a command just lets it throw.
+ * What a handler capsule's `start` returns, in Bun's own `{ fetch, websocket }` shape. `fetch`
+ * answers a Response, null when it upgraded the request to a WebSocket (Bun owns it now), or
+ * undefined when the request is not its own: the next handler gets it.
  */
-export type MainContext = {
-  env: Readonly<Record<string, string | undefined>>;
-  args: readonly string[];
-  /** The folder the process runs in; the host reads it, so commands read no process global. */
-  cwd: string;
-  signal: AbortSignal;
-  stdout: { write(chunk: string): unknown };
-  stderr: { write(chunk: string): unknown };
-  exit: (code: number, reason?: unknown) => void;
+export type Handler = {
+  fetch: (
+    request: Request,
+    scope: Scope.Handle,
+    server: Server<never>,
+  ) => Response | null | undefined | Promise<Response | null | undefined>;
+  /** Bun's socket handler, typed by the handler that owns it. */
+  websocket?: WebSocketHandler<never> | object;
+  /** The largest request body this handler takes. */
+  maxBody?: number;
 };
 
-/** The root close results, app first. A failed root exits 1, else its first teardown error. */
-export type MainClosed = Promise<void | Scope.Result | readonly Scope.Result[]>;
+const port = tag<number>({ label: "serve.port" });
+
+const pages = tag<Readonly<Record<string, HTMLBundle | Response>>>({
+  label: "serve.pages",
+  default: {},
+});
+
+const handlers = tag<readonly Capsule.Binding<Handler>[]>({
+  label: "serve.handlers",
+  default: [],
+});
+
+/** The one handler that owns Bun's `websocket`: Bun takes one per server. */
+const websocket = tag<Capsule.Binding<Handler> | null>({ label: "serve.websocket", default: null });
+const paths = tag<readonly string[]>({ label: "serve.paths", default: [] });
+const development = tag<boolean>({ label: "serve.development", default: false });
+
+const stdout = tag<{ write(chunk: string): unknown } | null>({
+  label: "serve.stdout",
+  default: null,
+});
+
+/** Where the server listens, once it does; null before. */
+const url = data<URL | null>({ label: "serve.url", initial: null });
+
+/** The server and the session its handlers answer in. */
+const live = data<{ server: Server<never>; handlers: Scope.Handle } | null>({
+  label: "serve.live",
+  initial: null,
+});
+
+const held = { role: "state", explain: "The listening server" } as const;
+const opened = { role: "handler", explain: "The handlers answer in this session" } as const;
+
+/** Every path a handler gets, beside the page: `/api/*`, `/rpc`, `/rpc/*`, then the app's own. */
+const handlerPaths = ["/api/*", "/rpc", "/rpc/*"];
 
 /**
- * A server command. `fetch` answers undefined when the path is not the command's (404 here),
- * and null when it upgraded the request to a WebSocket (Bun owns it now).
+ * `Bun.serve` for the life of the scope (Effect's `BunHttpServer.layer`, Go's `http.Server`).
+ * It goes first in `capsules`, so its start wraps the others: it listens once every handler has
+ * started, and its close stops the port before the handlers close. Its config comes from the cmd
+ * (the seam): it reads no `process.env`. Signals and exit codes stay with the host, `run`.
+ * - `websocket`: the one handler that brings Bun's `websocket` (ws.server); asked first;
+ * - `handlers`: capsules whose start returns a {@link Handler}, asked in order;
+ * - `pages`: the client's routes, for every path no handler takes;
+ * - `paths`: more Bun route patterns for the handlers;
+ * - `stdout`: where it prints `tinker: listening on <url>`.
  */
-export type Main = (ctx: MainContext) => Promise<{
-  fetch: (request: Request, server: Server<never>) => Promise<Response | null | undefined>;
-  websocket?: WebSocketHandler<never>;
-  /** The largest request body Bun takes (its own default is 128 MiB). */
-  maxRequestBodySize?: number;
-  closed: MainClosed;
-}>;
+export const serve = capsule({
+  label: "serve",
+  config: { port: port.required, pages, websocket, handlers, paths, development, stdout },
+  exports: { url },
+  hooks: {
+    async start({ config, next, session, load, raise }) {
+      await next();
 
-/** POSIX exit codes for a stop by signal: 128 plus the signal's number. */
-const signalCodes = { SIGHUP: 129, SIGINT: 130, SIGTERM: 143 } as const;
+      const scope = session({}, opened);
+      const socket = config.websocket && scope.resolve(config.websocket);
+      const rest = config.handlers.map((handler) => scope.resolve(handler));
+      // Bun takes one `websocket` per server: one in `handlers` would be dropped without a word.
+      if (rest.some((handler) => handler.websocket !== undefined)) {
+        raise("MissingConfig", { label: "serve", key: "websocket" });
+      }
+      const found = socket ? [socket, ...rest] : rest;
+      const answer = async (request: Request, bun: Server<never>) => {
+        for (const handler of found) {
+          const reply = await handler.fetch(request, scope, bun);
+          if (reply !== undefined) return reply ?? undefined;
+        }
+        return new Response(null, { status: 404 });
+      };
 
-/** A startup throw of these kinds is a config error: exit 78 (EX_CONFIG). */
-const configKinds = ["MissingTag", "MissingConfig", "DataValidationFailed"];
-
-/** The exit code for a startup throw: 78 for a config error or a bad URL, else 1. */
-const startCode = (error: unknown) =>
-  configKinds.includes(Object(error).kind) || Object(error).code === "ERR_INVALID_URL" ? 78 : 1;
-
-/** The first failure in the root close results, app first: a failed root's error, else its first teardown error. */
-const failureOf = (closed: Awaited<MainClosed>) =>
-  [closed ?? []]
-    .flat()
-    .flatMap((end) => (end.status === "failed" ? [end.error] : (end.teardownErrors ?? [])))
-    .at(0);
-
-type Started = Awaited<ReturnType<Main>>;
-
-/** The command's paths, each answered by its `fetch`: null is an upgrade, undefined a 404. */
-const commandRoutes = (started: Started, paths: readonly string[]) =>
-  Object.fromEntries(
-    ["/api/*", "/rpc", "/rpc/*", ...paths].map((path) => [
-      path,
-      async (request: Request, server: Server<never>) => {
-        const reply = await started.fetch(request, server);
-        return reply === null ? undefined : (reply ?? new Response(null, { status: 404 }));
-      },
-    ]),
-  );
-
-/** One `Bun.serve` for a started command, its pages beside its paths. */
-const listen = (
-  started: Started,
-  pages: Record<string, HTMLBundle | Response>,
-  paths: readonly string[],
-) =>
-  Bun.serve({
-    port: Number(process.env.PORT ?? 4318),
-    // Bun's 10 s default cuts a slow request; 60 s (max 255) matches the socket idle time.
-    idleTimeout: 60,
-    maxRequestBodySize: started.maxRequestBodySize,
-    // Bun's types want `fetch` beside `websocket`; unset, Bun reads `websocket` as absent.
-    websocket: started.websocket as never,
-    fetch: () => new Response(null, { status: 404 }),
-    development: process.env.NODE_ENV !== "production" && { hmr: false, console: true },
-    routes: { ...commandRoutes(started, paths), ...pages },
-  });
-
-/**
- * Runs one server command on `Bun.serve`, and owns OS signals and the exit code:
- * - a startup throw exits 78 for a config error (a missing tag or config key, a value that
- *   failed its schema, a bad URL), else 1;
- * - a failed root exits 1; a signal exits 128 + its number;
- * - SIGHUP (a closed terminal) stops it like SIGTERM, so `nohup` does not keep it alive;
- * - a stop during start ends with the stop's own code, and no second line.
- * A command that calls `exit` during start gets that code and no port. `/api/*`, `/rpc`,
- * `/rpc/*` and each of `options.paths` (Bun route patterns) go to the command; every other path
- * gets the page. `pages` are the client's routes: Bun's HTML import (dev, or a compiled binary
- * with the client inside), or a build's own files.
- */
-export async function serve(
-  main: Main,
-  pages: Record<string, HTMLBundle | Response>,
-  options: { paths?: readonly string[] } = {},
-) {
-  const stop = new AbortController();
-  let code = 0;
-  const exit = (next: number, reason?: unknown) => {
-    const { kind, payload } = Object(reason);
-    if (kind !== undefined) console.error(`tinker: ${kind} ${JSON.stringify(payload)}`);
-    else if (reason !== undefined) console.error(reason);
-    code ||= next;
-    stop.abort(reason);
-  };
-  for (const [name, signalCode] of Object.entries(signalCodes)) {
-    process.once(name, () => exit(signalCode));
-  }
-
-  const started = await main({
-    env: process.env,
-    args: process.argv.slice(2),
-    cwd: process.cwd(),
-    signal: stop.signal,
-    stdout: process.stdout,
-    stderr: process.stderr,
-    exit,
-  }).catch((error: unknown) => {
-    if (stop.signal.aborted && error === stop.signal.reason) return;
-    exit(startCode(error), error);
-  });
-  if (!started) return process.exit(code);
-
-  // A command that called `exit` during start (a usage error) gets no port; its root still closes.
-  const servers = stop.signal.aborted ? [] : [listen(started, pages, options.paths ?? [])];
-  for (const server of servers) {
-    console.log(`tinker: listening on ${server.url}`);
-    stop.signal.addEventListener("abort", () => void server.stop());
-  }
-
-  const failure = failureOf(await started.closed);
-  if (failure !== undefined) exit(1, failure);
-  await Promise.all(servers.map((server) => server.stop()));
-  process.exit(code);
-}
+      const server = Bun.serve({
+        port: config.port,
+        // Bun's 10 s default cuts a slow request; 60 s (max 255) matches the socket idle time.
+        idleTimeout: 60,
+        maxRequestBodySize: Math.max(1_048_576, ...found.map((handler) => handler.maxBody ?? 0)),
+        // Bun's types want `fetch` beside `websocket`; unset, Bun reads `websocket` as absent.
+        websocket: socket?.websocket as never,
+        fetch: () => new Response(null, { status: 404 }),
+        development: config.development && { hmr: false, console: true },
+        routes: {
+          ...Object.fromEntries([...handlerPaths, ...config.paths].map((path) => [path, answer])),
+          ...config.pages,
+        },
+      });
+      load(live, held).set({ server, handlers: scope });
+      load(url, held).set(server.url);
+      config.stdout?.write(`tinker: listening on ${server.url}\n`);
+    },
+    async close({ load, next }) {
+      const own = load(live, held).get();
+      await own?.server.stop();
+      await own?.handlers.close();
+      return next();
+    },
+  },
+});

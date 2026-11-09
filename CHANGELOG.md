@@ -5,10 +5,41 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
-## Unreleased
+## 0.16.0
 
-- `testCapsule` leaves `@tinker/core/testing` (ADR 0131).
-  Test tooling is a plain capsule in a `*.testing.ts` file.
+`serve` is a capsule; `run` is the host
+(ADR 0132). `testCapsule` is gone (ADR 0131).
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.16.0
+bun add $R/tinker-core-0.16.0.tgz \
+  $R/tinker-react-0.16.0.tgz \
+  $R/tinker-bun-0.16.0.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.0/tinker-core-0.16.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.0/tinker-react-0.16.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.0/tinker-bun-0.16.0.tgz
+
+### Breaking
+
+- `@tinker/bun`: `serve(main, pages)` is gone.
+  - Put `serve({ port, pages, websocket,
+handlers })` first in `capsules`.
+  - Call `run(main)` in the host file.
+  - `main` answers its root: `createScope(...)`.
+  - A handler's start returns `{ fetch,
+websocket? }`; `ws.server` does.
+- `@tinker/core/testing`: `testCapsule` is gone.
+  Test tooling is a plain capsule in a
+  `*.testing.ts` file.
 
 ## 0.15.0
 
