@@ -57,6 +57,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
+- **core/data-keyed** — ADR 0135: `data({ mode: "keyed", key, parse })`, a keyed controller (`set`, `update`, `delete`), and the reads `of(key)` and `where(part)`, on one scope first (no wire). Not started: Duke accepted the mode, the object key and the member rule on 2026-11-10; the server's first value (Q3) is open, and the wire waits for it.
+  Verify: tests at the Core entry for the three writes and the three reads; a write to one member wakes the watcher of that member and of its parts, and no other; today's `data()` calls compile with no change.
+
 - **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
   Verify: that call answers its values; a `break` ends the op.
 
