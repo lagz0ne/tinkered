@@ -607,3 +607,32 @@ test("an explicit nested namespace chooses its own observation setting", async (
   expect(value).toBe(42);
   expect(names).toEqual(["child"]);
 });
+
+test("after a start timeout, an outer hook skips its after-work (ADR 0134)", async () => {
+  const clock = makeTestClock();
+  const events: string[] = [];
+  let finish = (): void => {};
+  const slow = capsule({
+    label: "slow",
+    hooks: { start: () => new Promise<void>((resolve) => (finish = resolve)) },
+  });
+  const serve = capsule({
+    label: "serve",
+    hooks: {
+      start: async ({ next }) => {
+        await next();
+        events.push("listen");
+      },
+    },
+  });
+  const scope = createScope({ clock, startTimeout: 25, capsules: [serve, slow] });
+  const ready = scope.ready.catch((error: unknown) => error);
+
+  clock.advance(25);
+  finish();
+  const error = await ready;
+
+  expect(isError(error, "StartTimeout")).toBe(true);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(events).toEqual([]);
+});

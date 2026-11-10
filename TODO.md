@@ -57,9 +57,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **core/start-sees-stop** — A start hook cannot see a stop asked during start: `closing` aborts only when the close begins, after `ready` (ADR 0085, point 2). So `serve` listens, prints its line, and then closes (ADR 0132, consequences). Hedl's close-order N2c ("SIGTERM during start never listens") fails on 0.16.x; Hedl carries a gate capsule that reads the cmd's signal. Precedent: .NET `IHostedService.StartAsync(token)`: the token says the start was aborted. Needs Duke, asked 2026-11-10: `closing` aborts at the ask (Core), or `serve` takes the cmd's `signal` as config (bun only).
-  Verify: a scope stopped during start prints no `listening on` line and closes clean; Hedl drops its gate.
-
 - **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
   Verify: that call answers its values; a `break` ends the op.
 
@@ -106,6 +103,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/start-sees-stop** — ADR 0134: after a stop, a start hook's `next()` rejects, so `serve` never listens; a stop signal during start ends the start.
+  Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Waits for Duke's word on ADR 0134 and the 0.16.2 release; Hedl drops its gate then.
+  Proof: gate 132 (Core 1214, dist 1458, bun 101, size 19,350 B); scoped mutation 90.65 on the changed lines; review READY; 4 Core tests and 1 `@tinker/bun` run test fail on main.
 
 - **core/own-signal-cancel** — ADR 0133, released as 0.16.1. A call stopped by its own `signal` is cancelled for its caller, not a panic; rpc and keyed `remoteData` make no `AbortSignal.any` over a long-lived signal.
   Owner: thread lead (Duke "agree", 2026-11-10 04:25).

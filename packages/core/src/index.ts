@@ -5264,7 +5264,7 @@ function extendHandle(
   if (resolvers) extended.resolve = resolveThrough(layer, resolvers);
   if (signal) listenForStop(extended, signal, lifetime);
 
-  runStartChain(layer, extended, lifetime, settleReady, failReady, startTimeout);
+  runStartChain(layer, extended, lifetime, settleReady, failReady, startTimeout, signal);
   return extended;
 }
 
@@ -5839,6 +5839,7 @@ function runStartChain(
   done: () => void,
   failed: (error: unknown) => void,
   timeout: number,
+  signal: AbortSignal | undefined,
 ): void {
   const starters = layer.exts.start;
   if (!starters) {
@@ -5879,11 +5880,26 @@ function runStartChain(
       };
     }
   };
+  /** A stop asked during start: set once, by the root's signal (ADR 0134). */
+  let halt = signal?.aborted ? { reason: signal.reason } : undefined;
+  lifetime.halt = (reason) => void (halt ??= { reason });
+  /** After a stop or a timeout, no hook starts and `next()` rejects: no after-work runs. */
+  const stopped = (): void => {
+    if (halt || stop.signal.aborted) throw CLOSING_REASON;
+  };
+  /** A stop signal cut the start short, and no close claimed it: the start ends with its reason. */
+  const halted = (): boolean => halt !== undefined && lifetime.stopStart !== undefined;
   const at = async (index: number): Promise<void> => {
     if (index >= starters.length) return;
+    stopped();
     const ext = starters[index];
     let inner: Promise<void> | undefined;
-    const next = (): Promise<void> => (inner ??= at(index + 1));
+    const next = (): Promise<void> => {
+      if (inner) return inner;
+      inner = at(index + 1).then(stopped);
+      ignoreRejection(inner);
+      return inner;
+    };
 
     pending.add(ext);
     try {
@@ -5934,9 +5950,14 @@ function runStartChain(
     }
   }
   ignoreRejection(
-    at(0).then(() => {
-      if (claim()) done();
-    }, end),
+    at(0).then(
+      () => {
+        if (halted()) return end(halt?.reason, true);
+        if (claim()) done();
+      },
+      (error: unknown) =>
+        halted() && error === CLOSING_REASON ? end(halt?.reason, true) : end(error),
+    ),
   );
 }
 
@@ -6504,6 +6525,8 @@ function readExtRoutes(exts: readonly Capsule.Binding[]): ExtRoutes {
  * a start failure joins it, and a stop request never starts another close (ADR 0085). */
 type RootLifetime = {
   stopStart?: () => void;
+  /** Asks a start under way to end once its running hooks return. */
+  halt?: (reason: unknown) => void;
   closing?: Promise<Scope.Result>;
   finish?: (ended: Scope.Result) => void;
   detach?: () => void;
@@ -6575,6 +6598,7 @@ function watchRootClose(
 
 function listenForStop(scope: Scope.Handle, signal: AbortSignal, lifetime: RootLifetime): void {
   const stop = (): void => {
+    lifetime.halt?.(signal.reason);
     ignoreRejection(
       scope.ready.then(() => {
         if (lifetime.closing === undefined) return scope.close({ graceful: true });

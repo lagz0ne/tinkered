@@ -39,6 +39,7 @@ at the end of a block, but Node 22.23 here cannot parse it.
    ```
 
 2. **An abort closes the root gracefully, after start.**
+   ADR 0134 changes this: a stop during start ends the start.
    - Already aborted, or aborted during start: the close begins once `ready` resolves.
    - A failed start: its forced close is the only close.
    - A close already under way wins; core drops its listener when any close begins.

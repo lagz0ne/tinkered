@@ -186,3 +186,25 @@ test("a stop during start exits with the stop's code, and logs no second line", 
   expect(stopped.code).toBe(130);
   expect(stopped.err).toBe("");
 });
+
+test("a stop while a start waits on a lock never listens, and exits with the stop's code", async () => {
+  const child = Bun.spawn(
+    [process.execPath, new URL("fixtures/held-host.ts", import.meta.url).pathname],
+    { env: { ...process.env, PORT: "0" }, stdout: "pipe", stderr: "pipe" },
+  );
+  children.push(child);
+
+  const lines = child.stdout.pipeThrough(new TextDecoderStream()).getReader();
+  const starting = await lines.read();
+  child.kill("SIGTERM");
+
+  const [code, out, err] = await Promise.all([
+    child.exited,
+    rest(lines),
+    new Response(child.stderr).text(),
+  ]);
+  expect(starting.value).toBe("starting\n");
+  expect(code).toBe(143);
+  expect(out).not.toContain("tinker: listening");
+  expect(err).toBe("");
+});

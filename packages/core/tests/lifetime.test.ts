@@ -175,40 +175,119 @@ test("closed reports the start error after cleanup even when a stop was requeste
   expect(closes).toEqual([{}]);
 });
 
-test.each([false, true])(
-  "a stop requested before ready waits for start (already aborted: %s)",
-  async (alreadyAborted) => {
-    const stop = new AbortController();
-    if (alreadyAborted) stop.abort();
-
-    const start = gate();
-    const events: string[] = [];
-    const piece = capsule({
-      label: "slow-start",
-      hooks: {
-        start: async (event) => {
-          await start.promise;
-          event.load(count, { role: "state", explain: "Counts starts" }).set(3);
-          event.defer(() => {
-            events.push("cleanup");
-          });
-          events.push("start");
-        },
+test("a stop during start waits for running hooks, then ends the start", async () => {
+  const stop = new AbortController();
+  const start = gate();
+  const events: string[] = [];
+  const piece = capsule({
+    label: "slow-start",
+    hooks: {
+      start: async (event) => {
+        await start.promise;
+        event.defer(() => {
+          events.push("cleanup");
+        });
+        events.push("start");
       },
-    });
-    const scope = createScope({ signal: stop.signal, capsules: [piece] });
-    if (!alreadyAborted) stop.abort();
+    },
+  });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
+  stop.abort();
 
-    scope.controller(count).set(2);
-    expect(scope.resolve(count)).toBe(2);
-    expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
+  scope.controller(count).set(2);
+  expect(scope.resolve(count)).toBe(2);
+  expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
 
-    start.release();
-    await scope.ready;
-    expect((await scope.closed).status).toBe("success");
-    expect(events).toEqual(["start", "cleanup"]);
-  },
-);
+  start.release();
+  await expect(scope.ready).rejects.toBe(stop.signal.reason);
+  expect((await scope.closed).status).toBe("cancelled");
+  expect(events).toEqual(["start", "cleanup"]);
+});
+
+test("a stop during start skips the after-work of every hook", async () => {
+  const stop = new AbortController();
+  const held = gate();
+  const events: string[] = [];
+  const serve = capsule({
+    label: "serve",
+    hooks: {
+      start: async ({ next }) => {
+        await next();
+        events.push("listen");
+      },
+      close: ({ next }) => {
+        events.push("close");
+        return next();
+      },
+    },
+  });
+  const db = capsule({
+    label: "db",
+    hooks: {
+      start: async ({ next }) => {
+        await held.promise;
+        events.push("db");
+        await next();
+      },
+    },
+  });
+  const scope = createScope({ signal: stop.signal, capsules: [serve, db] });
+  stop.abort();
+  held.release();
+
+  await expect(scope.ready).rejects.toBe(stop.signal.reason);
+  await scope.closed;
+  expect(events).toEqual(["db", "close"]);
+});
+
+test("a root stopped before it starts runs no start hook", async () => {
+  const stop = new AbortController();
+  stop.abort();
+  const events: string[] = [];
+  const piece = capsule({
+    label: "never",
+    hooks: {
+      start: () => {
+        events.push("start");
+      },
+    },
+  });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
+
+  await expect(scope.ready).rejects.toBe(stop.signal.reason);
+  expect((await scope.closed).status).toBe("cancelled");
+  expect(events).toEqual([]);
+});
+
+test("a close during start skips the after-work of every hook", async () => {
+  const held = gate();
+  const events: string[] = [];
+  const serve = capsule({
+    label: "serve",
+    hooks: {
+      start: async ({ next }) => {
+        await next();
+        events.push("listen");
+      },
+    },
+  });
+  const db = capsule({
+    label: "db",
+    hooks: {
+      start: async () => {
+        await held.promise;
+      },
+    },
+  });
+  const scope = createScope({ capsules: [serve, db] });
+  const closed = scope.close();
+  held.release();
+
+  await expect(scope.ready).rejects.toMatchObject({ code: 20 });
+  await closed;
+  await Promise.resolve();
+  expect(events).toEqual([]);
+});
 
 test("a stop lets in-flight work finish without aborting its ctx signal", async () => {
   const stop = new AbortController();
@@ -560,4 +639,58 @@ test("only a root given a signal has closed and sessions take no signal", async 
   expect(extended).not.toHaveProperty("closed");
   expect(root).toHaveProperty("closed", root.closed);
   await Promise.all([plain.close(), extended.close(), root.close()]);
+});
+
+test("a stop, then a close during start, leaves no teardown error", async () => {
+  const stop = new AbortController();
+  const held = gate();
+  const piece = capsule({
+    label: "held",
+    hooks: { start: () => held.promise },
+  });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
+  stop.abort();
+  const closing = scope.close();
+  held.release();
+
+  await expect(scope.ready).rejects.toMatchObject({ code: 20 });
+  const ended = await closing;
+  expect(ended.teardownErrors ?? []).toEqual([]);
+});
+
+test("a hook that catches next() after a stop does not keep the start", async () => {
+  const stop = new AbortController();
+  const piece = capsule({
+    label: "catcher",
+    hooks: {
+      start: async ({ next }) => {
+        stop.abort();
+        await next().catch(() => undefined);
+      },
+    },
+  });
+  const scope = createScope({ signal: stop.signal, capsules: [piece] });
+
+  await expect(scope.ready).rejects.toBe(stop.signal.reason);
+  expect((await scope.closed).status).toBe("cancelled");
+});
+
+test("a hook that drops next() gets no unhandled rejection from a stop", async () => {
+  const stop = new AbortController();
+  const held = gate();
+  const dropper = capsule({
+    label: "dropper",
+    hooks: {
+      start: async ({ next }) => {
+        void next();
+        await held.promise;
+      },
+    },
+  });
+  const inner = capsule({ label: "inner", hooks: { start: () => undefined } });
+  const scope = createScope({ signal: stop.signal, capsules: [dropper, inner] });
+  stop.abort();
+  held.release();
+
+  await expect(scope.ready).rejects.toBe(stop.signal.reason);
 });

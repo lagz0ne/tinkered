@@ -113,7 +113,7 @@ test("it prints where it listens on the stdout it is given", async () => {
   expect(lines).toEqual([`tinker: listening on ${app.resolve(serve.url).get()}\n`]);
 });
 
-test("a scope stopped during start closes the port once start ends", async () => {
+test("a scope stopped during start never listens (ADR 0134)", async () => {
   const stop = new AbortController();
   const lines: string[] = [];
   const slow = capsule({
@@ -130,14 +130,10 @@ test("a scope stopped during start closes the port once start ends", async () =>
     signal: stop.signal,
     capsules: [serve({ port: 0, handlers: [slow], stdout: { write: (l) => lines.push(l) } }), slow],
   });
-  await app.closed;
-  const at = /on (\S+)/.exec(lines.join(""))?.[1];
-  const after = await fetch(new URL("/api/x", at)).then(
-    () => "answered",
-    () => "refused",
-  );
 
-  expect(after).toBe("refused");
+  await expect(app.ready).rejects.toBe(stop.signal.reason);
+  expect((await app.closed).status).toBe("cancelled");
+  expect(lines).toEqual([]);
 });
 
 test("serve declares its keys, its defaults, and the units it loads", async () => {

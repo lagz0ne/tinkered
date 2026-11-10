@@ -65,7 +65,7 @@ A cmd that exited during start returned a fake
 
 - A cmd is one `createScope`; no request glue.
 - Only the cmd reads env.
-- A scope stopped during start may open the port;
-  its close stops it once start ends.
+- A scope stopped during start never opens the port:
+  `next()` rejects after a stop (ADR 0134).
 - Breaking: `serve(main, pages)` is gone. The
   template and Hedl move to `serve` and `run`.
