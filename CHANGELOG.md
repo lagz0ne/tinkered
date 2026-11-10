@@ -5,6 +5,50 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.16.1
+
+A stopped stream no longer leaks, and no longer
+fails its root's close (ADR 0133). No API change.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.16.1
+bun add $R/tinker-core-0.16.1.tgz \
+  $R/tinker-react-0.16.1.tgz \
+  $R/tinker-bun-0.16.1.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.1/tinker-core-0.16.1.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.1/tinker-react-0.16.1.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.1/tinker-bun-0.16.1.tgz
+
+### Core
+
+- A call given a `signal` that rejects with that
+  signal's reason is cancelled for its caller.
+  Before, the caller's root kept the reason as a
+  panic: its `close()` said `failed`.
+- This hit every rpc stream a reader left, and
+  every session that opened a keyed `remoteData`
+  project. Each kept about 4,000 B on the tab.
+- rpc and keyed `remoteData` no longer call
+  `AbortSignal.any` over a long-lived signal.
+  Node 22 kept about 180 B per call.
+- `bench/heap-stop.mjs` holds the budget:
+  64 B kept per stop; now 5 to 7 B.
+
+### Upgrade
+
+- Change the three URLs. No code change.
+- A `try/catch` around a subflow you stop by its
+  own `signal` now leaves the session clean.
+
 ## 0.16.0
 
 `serve` is a capsule; `run` is the host

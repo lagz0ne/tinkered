@@ -67,11 +67,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **core/own-signal-cancel** — ADR 0133. A call stopped by its own `signal` is cancelled for its caller, not a panic; rpc and keyed `remoteData` make no `AbortSignal.any` over a long-lived signal.
-  Owner: thread lead (Duke "agree", 2026-11-10 04:25).
-  Next: the Core mutation lane on this commit, then push and release 0.16.1.
-  Verify: the three new tests fail on 78ce3fa and pass here; `bench/heap-stop.mjs` exits 0 on Node 22.
-
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
@@ -108,6 +103,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/own-signal-cancel** — ADR 0133, released as 0.16.1. A call stopped by its own `signal` is cancelled for its caller, not a panic; rpc and keyed `remoteData` make no `AbortSignal.any` over a long-lived signal.
+  Owner: thread lead (Duke "agree", 2026-11-10 04:25).
+  Proof: on befce4f, Core 1,208 tests and 1,452 on the built files pass; the three new tests fail on 78ce3fa; `bench/heap-stop.mjs` exits 0 on Node 22 (7, 6, 5 B; 0.16.0: 4,011, 183, 3,846 B and a failed close). Mutation on the changed lines only: the rule's lines all killed; the full lane was not re-run.
 
 - **bun/mutation-bun-runner** — `@tinker/bun` mutation runs its tests in `bun test`, with per-test coverage (`@hughescr/stryker-bun-runner`). A `bunfig.toml` preload maps the `vite-plus/test` imports to `bun:test`. `run.ts` runs only in spawned hosts, so it has its own lane: the command runner, `bun test --bail tests/run.test.ts`.
   Owner: thread lead (Duke picked "Go straight to bun runner", 2026-11-10 03:05).
