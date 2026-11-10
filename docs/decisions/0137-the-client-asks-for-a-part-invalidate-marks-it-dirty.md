@@ -5,6 +5,8 @@ Accepted: Duke, 2026-11-10 UTC: 15:20 (the model),
 15:44 ("prepare to roll").
 Closes: 0135 open items 1 (the server's first
 value) and 3 (reconnect).
+Completed by: 0138 (the drafts below are accepted;
+open items 1 and 4 are closed).
 
 ## What the user said
 

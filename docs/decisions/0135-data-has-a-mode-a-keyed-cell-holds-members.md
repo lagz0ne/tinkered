@@ -5,6 +5,8 @@ Accepted: Duke, 2026-11-10 UTC, in three notes:
 05:34 (the key), 05:38 (the mode), 08:49 (the member).
 Open: order. ADR 0137 closes the two others.
 Refined by: 0136 (the reads), 0137 (the wire).
+Changed by: 0138 (decisions 2 and 5: the key comes
+from the member; the names are accepted).
 Replaces: `family()` of ADR 0048 (gone with `@tinker/sync`).
 
 ## What the user said
