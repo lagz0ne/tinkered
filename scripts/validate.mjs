@@ -25,6 +25,9 @@ const lanes = [
   ["promises (0 sync / <=10 async)", `${strip} bench/promises.mjs`],
   ["deep-chain (no overflow)", `${strip} bench/deep.mjs`],
   ["live-heap-per-request", `node --expose-gc --experimental-strip-types bench/heap.mjs`],
+  // ADR 0133: a stream its reader left, or a session that opened a project, keeps nothing on
+  // the root or on a long-lived caller signal. Reads the built files, so it follows the tests.
+  ["kept-heap-per-stop (<= 64 B)", "node --expose-gc bench/heap-stop.mjs", "show"],
   ["CRAP ceiling", `node scripts/check-crap.mjs ${process.argv[2] ?? 0.6}`],
   // perf/session-slots: V8 gives each top-level name of the bundle a slot; above 255 every use
   // takes a wide bytecode. Names above the release block stay at or below 255. "show" prints

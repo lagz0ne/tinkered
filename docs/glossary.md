@@ -53,7 +53,7 @@
 - **closing signal** — The owner's `ctx.closing` or `event.closing` signal.
   It fires when that layer or its parent begins graceful or forced close.
   It tells a resource to end waits before Core drains running work (ADR 0104).
-- **cancel reason** — What a forced close aborts `ctx.signal` with, and what a `cancelled` Result carries. It reads like the web's `AbortError`: `String(reason)` is `"AbortError: The scope closed before this work finished."`. A hidden brand tells it from a foreign `AbortError`, which counts as a failure.
+- **cancel reason** — What a forced close aborts `ctx.signal` with, and what a `cancelled` Result carries. It reads like the web's `AbortError`: `String(reason)` is `"AbortError: The scope closed before this work finished."`. A hidden brand tells it from a foreign `AbortError`, which counts as a failure. One foreign reason is a cancellation too: the reason of a call's own `signal`, for that call's caller (ADR 0133).
 - **owner-context** — A node resolves deps and registers cleanup at its owning layer and bubbles up from there; a scope resource needing a session-only required tag is a normal `MissingTag`.
 - **brand** — A module-private `unique symbol` a factory stamps on a unit; never exported, so it can't be named/imported outside. A provenance signal (not tamper-proof); guards assert only its presence (ADR 0019).
 - **ambient capability** — A cross-cutting runtime service carried on `ctx` — `signal`, `defer`, `obs`, `log`, `clock`, `random` — configured once at the scope and inherited by sessions; never wired via `depends`. Contrast a dedicated capability (a resource you depend on) and a driver (owns a scope) (ADR 0034, 0062).
@@ -349,6 +349,8 @@ New sections are lists, one term per item (vertical layout,
 - **panic** — Anything else thrown in a run (a
   `TypeError`, a bug). Sticky: it fails the layer
   it ran in, even if a caller catches it.
+  Not a panic: the reason of the call's own
+  `signal` (ADR 0133).
 - **settle** — `op.settle(call)`: runs like `run`
   but never throws; returns a Result. The one way
   to recover a panic.

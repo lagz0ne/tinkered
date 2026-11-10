@@ -337,13 +337,16 @@ const steps = resource({
 
             // The reader leaves (a break, or `stop()`): the watch ends, as the server's channel does.
             const leave = new AbortController();
-            const until = signal ? AbortSignal.any([signal, leave.signal]) : leave.signal;
             return pull(
               (push) =>
                 Promise.resolve(
                   run(
                     watch!,
-                    { input: { address: key, value: input, meta, push }, signal: until, ...bind },
+                    {
+                      input: { address: key, value: input, meta, push },
+                      signal: leave.signal,
+                      ...bind,
+                    },
                     sent,
                   ),
                 ).catch((error: unknown) => {

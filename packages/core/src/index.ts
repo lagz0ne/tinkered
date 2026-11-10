@@ -2456,9 +2456,22 @@ class OperationControl<T, I> {
   }
 }
 
-/** Where a failed run's error goes: a `settle` receives it as a value; any other run sticks it. */
-function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown) => void {
+/** Where a failed run's error goes: a `settle` receives it as a value; any other run sticks it.
+ * A call stopped by its `own` signal ends cancelled, not failed, when it rejects with that
+ * signal's reason, as a .NET task that ends by its own token is Canceled (ADR 0133). The caller's
+ * layer is not aborted, so {@link isCancel} cannot see this one. */
+function runFailure(
+  layer: Layer,
+  caller: RunState | undefined,
+  own?: AbortSignal,
+): (error: unknown) => void {
   if (caller === RECOVERED) return noop;
+  if (own !== undefined) {
+    return (error) => {
+      if (own.aborted && error === own.reason) return;
+      stick(layer, error);
+    };
+  }
   return (error) => stick(layer, error);
 }
 
@@ -2788,7 +2801,7 @@ function runTagged<T, I>(
     ) as Awaited<T> | Promise<Awaited<T>>;
   }
 
-  if (caller) track(layer, tagged, runFailure(layer, caller));
+  if (caller) track(layer, tagged, runFailure(layer, caller, call.signal));
   return tagged;
 }
 
@@ -5279,7 +5292,7 @@ function runHookCall<T, I>(
     caller,
     call.signal,
   );
-  if (caller) track(layer, result, runFailure(layer, caller));
+  if (caller) track(layer, result, runFailure(layer, caller, call.signal));
   return result;
 }
 

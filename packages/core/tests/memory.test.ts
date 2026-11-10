@@ -23,6 +23,7 @@ const api = rpc({
   },
   count: { mode: "stream", input: z.null(), output: z.number() },
   heard: { mode: "stream", input: z.null(), output: z.string() },
+  open: { mode: "stream", input: z.null(), output: z.number() },
 });
 
 const closed: string[] = [];
@@ -62,11 +63,24 @@ const heard = operation({
     out.send(`${req.headers.get("x-who") ?? ""} ${req.url} ${stop instanceof AbortSignal}`),
 });
 
+/** A stream with no end of its own: it stays open until its reader leaves. */
+const open = operation({
+  label: "open.here",
+  input: z.null(),
+  depends: { out: channel.required, perRequest },
+  run: async ({ out }) => {
+    out.send(1);
+    await new Promise<void>((left) => {
+      out.closed.addEventListener("abort", () => left(), { once: true });
+    });
+  },
+});
+
 async function pair(headers?: Record<string, string>) {
   const spans: Observe.Span[] = [];
   const server = await createScope({
     observe: { export: (s) => void spans.push(s) },
-    capsules: [api({ implement: { who, count, heard } }), memory.server({ services: [api] })],
+    capsules: [api({ implement: { who, count, heard, open } }), memory.server({ services: [api] })],
   }).ready;
   closers.push(() => server.close());
   const tab = await createScope({
@@ -118,6 +132,32 @@ test("each request runs in its own server session, closed when it ends", async (
   for await (const _ of await tab.run(api.count, { input: null })) break;
   await tick();
   expect(closed).toEqual(["request", "request"]);
+});
+
+/** ADR 0133: rpc stops a left stream by the call's own signal; that is no failure of the tab. */
+test("a reader that leaves a stream leaves no failure on its tab", async () => {
+  const { tab } = await pair();
+
+  for await (const _ of await tab.run(api.open, { input: null })) break;
+  await tick();
+
+  expect(await tab.close({ graceful: true })).toMatchObject({ status: "success" });
+});
+
+test("a caller's signal ends the stream it opened: the server's request closes", async () => {
+  const { tab } = await pair();
+  const stop = new AbortController();
+  closed.length = 0;
+
+  const values = await tab.run(api.open, { input: null, signal: stop.signal });
+  try {
+    for await (const _ of values) stop.abort();
+  } catch (error) {
+    if (!api.fault.is(error)) throw error;
+  }
+  await tick();
+
+  expect(closed).toEqual(["request"]);
 });
 
 test("the server's spans are in the caller's trace, under the transport's own spans", async () => {
@@ -182,7 +222,7 @@ test("a server is lenient by default: two services with one address still start"
   const shadow = rpc({ who: { input: z.null(), output: z.null() } });
   const server = await createScope({
     capsules: [
-      api({ implement: { who, count, heard } }),
+      api({ implement: { who, count, heard, open } }),
       shadow({
         implement: { who: operation({ label: "shadow", input: z.null(), run: () => null }) },
       }),

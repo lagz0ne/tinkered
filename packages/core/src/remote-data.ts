@@ -314,7 +314,9 @@ const steps = resource({
     /**
      * A session that names a parameter gets that parameter's values in its own layer, as Phoenix
      * joins a topic: the first session starts one stream per key; later ones share them; the
-     * last to close stops them (a reference count, ADR 0059 7).
+     * last to close stops them (a reference count, ADR 0059 7). The root's close stops them too,
+     * by one listener that leaves the root's signal with the entry: `AbortSignal.any` would keep a
+     * record per entry on that signal in Node (ADR 0133).
      */
     const join = (def: Def, param: Param, into: Scope.Handle | null, life?: AbortSignal) => {
       const own = readers.get(def)!;
@@ -333,8 +335,11 @@ const steps = resource({
         own.entries.set(id, made);
 
         const store: Store = { entry: made, load: own.event.load };
-        const signal = AbortSignal.any([made.stop.signal, own.event.signal]);
-        void keep(def, reader(def, own.event, store, param, signal));
+        own.event.signal.addEventListener("abort", () => made.stop.abort(own.event.signal.reason), {
+          once: true,
+          signal: made.stop.signal,
+        });
+        void keep(def, reader(def, own.event, store, param, made.stop.signal));
       }
       const held = entry;
       // Into the session's own layer, or the root's cells when the root names the parameter.

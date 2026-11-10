@@ -144,6 +144,71 @@ test("a distinct error after call cancellation remains a handled failure", async
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "success" });
 });
 
+/** ADR 0133: the reason of a call's own signal is a cancellation for its caller, as a .NET task
+ * that ends by its own token is Canceled, not Faulted. */
+test("a subflow stopped by its own signal and caught leaves its caller's owner clean", async () => {
+  const waits = operation({
+    label: "waits",
+    run: (_deps, ctx) =>
+      new Promise<void>((_done, fail) => {
+        ctx.signal.addEventListener("abort", () => fail(ctx.signal.reason), { once: true });
+      }),
+  });
+  const stops = operation({
+    label: "stops",
+    depends: { sub: waits },
+    run: async ({ sub }) => {
+      const stop = new AbortController();
+      const running = Promise.resolve(sub.run({ signal: stop.signal }));
+      stop.abort();
+
+      try {
+        await running;
+      } catch (error) {
+        if (error !== stop.signal.reason) throw error;
+      }
+      return "stopped";
+    },
+  });
+  const scope = createScope();
+
+  expect(await scope.run(stops)).toBe("stopped");
+  expect(await scope.close({ graceful: true })).toMatchObject({ status: "success" });
+});
+
+test("a panic from a subflow stopped by its own signal still fails its caller's owner", async () => {
+  const body = deferred();
+  const error = new Error("request failed");
+  const fails = operation({
+    label: "fails",
+    run: async () => {
+      await body.promise;
+      throw error;
+    },
+  });
+  const stops = operation({
+    label: "stops",
+    depends: { sub: fails },
+    run: async ({ sub }) => {
+      const stop = new AbortController();
+      const running = Promise.resolve(sub.run({ signal: stop.signal }));
+      stop.abort();
+      body.resolve();
+
+      try {
+        await running;
+      } catch (caught) {
+        if (caught !== error) throw caught;
+      }
+      return "caught";
+    },
+  });
+  const scope = createScope();
+
+  expect(await scope.run(stops)).toBe("caught");
+  expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error });
+});
+
 test("a call signal gives sync inline work its own data and session resource lifetime", async () => {
   const stop = new AbortController();
   const count = data({ initial: 1 });

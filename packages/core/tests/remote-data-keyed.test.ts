@@ -209,6 +209,19 @@ test("the server fills a project once while it is watched, and forgets it when n
   expect(read(again)).toEqual(["p1 first", "while no one watched"]);
 });
 
+/** ADR 0133: the last session to leave a project stops its watch; that is no failure of the tab. */
+test("a session that opens a project and closes leaves no failure on its tab", async () => {
+  const app = await boot();
+  const tab = await app.client();
+
+  const session = tab.createSession({ tags: [board.project("p1")] });
+  await until(() => read(session).length > 0);
+  await session.close();
+  await tick();
+
+  expect((await tab.close()).status).not.toBe("failed");
+});
+
 test("a parameter that does not fit the config is invalid on the server", async () => {
   const app = await boot();
 

@@ -360,6 +360,9 @@ A = `origin/main` `31613e7`; B = `fb35497` (core) with this `bench/`. N=31.
 - **live heap / request** — budget: a few KB (~hand-wired DI)
   t19 measurement: **3,871 B**
   how: `bench/heap.mjs` (`--expose-gc`)
+- **kept heap / stop** — budget: ≤ 64 B (ADR 0133)
+  2026-11-10 measurement: **5 to 7 B** (0.16.0: 4,011 B)
+  how: `bench/heap-stop.mjs` (`--expose-gc`, Node)
 - **mutation score** — budget: Stryker break ≥ 60
   t19 measurement: **77.45%**
   how: `vp run core#mutate`

@@ -54,12 +54,23 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Seen on `node tools/jev/review.mjs 5a9f13a9..154f5a2b` (a 123k-line diff).
   Verify: that command exits 0.
 
+- **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
+  Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
+
+- **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
+  Verify: that call answers its values; a `break` ends the op.
+
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
 ## Doing
 
 ## Review
+
+- **core/own-signal-cancel** — ADR 0133. A call stopped by its own `signal` is cancelled for its caller, not a panic; rpc and keyed `remoteData` make no `AbortSignal.any` over a long-lived signal.
+  Owner: thread lead (Duke "agree", 2026-11-10 04:25).
+  Next: the Core mutation lane on this commit, then push and release 0.16.1.
+  Verify: the three new tests fail on 78ce3fa and pass here; `bench/heap-stop.mjs` exits 0 on Node 22.
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
