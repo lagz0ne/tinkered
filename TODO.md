@@ -98,6 +98,10 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **bun/mutation-bun-runner** — `@tinker/bun` mutation runs its tests in `bun test`, with per-test coverage (`@hughescr/stryker-bun-runner`). A `bunfig.toml` preload maps the `vite-plus/test` imports to `bun:test`. `run.ts` runs only in spawned hosts, so it has its own lane: the command runner, `bun test --bail tests/run.test.ts`.
+  Owner: thread lead (Duke picked "Go straight to bun runner", 2026-11-10 03:05).
+  Proof: on 78ce3fa plus this change, lane 1 85.76 (568 killed and 4 timeouts of 667, 10 min 34 s), lane 2 91.53 (54 of 59, 8 min 6 s); package 86.23. Before (command runner): ws.ts alone took 729 s with bail; per-test took 301 s, same score.
+
 - **bun/mutation-85** — `@tinker/bun` (was `@tinker/ws`, 64.15) holds `serve`, `ws.server`, `ws.client`, `bunSql` and `bunSqlite`. Label, close-path, host, exit-code and driver tests.
   Owner: thread lead.
   Proof: stryker 86.54 on 6519e3d, exit 0 (508 killed, 77 timed out, 91 survived). On kills alone: 75.1. Each timeout drops a send or a reply, so the suite hangs past Stryker's limit. Next: a fail-fast test run, so a hang counts as a kill.

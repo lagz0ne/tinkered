@@ -1,0 +1,3 @@
+[test]
+# Lets `bun test` (the mutation runner) read the `vite-plus/test` imports.
+preload = ["./tests/bun-test-imports.ts"]
