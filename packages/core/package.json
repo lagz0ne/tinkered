@@ -1,6 +1,6 @@
 {
   "name": "@tinker/core",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "description": "Tinkered core: a small, fast reactive/graph dependency engine.",
   "homepage": "https://github.com/author/library#readme",
   "bugs": {

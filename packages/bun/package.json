@@ -1,6 +1,6 @@
 {
   "name": "@tinker/bun",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "description": "Tinker on Bun: the host on Bun.serve, rpc over one WebSocket, and Bun's own databases (Bun.SQL, bun:sqlite).",
   "license": "MIT",
   "files": [

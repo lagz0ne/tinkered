@@ -970,4 +970,4 @@ async start({ next }) {
 ```
 
 Precedent: .NET `IHostedService.StartAsync(token)`.
-State: built in ADR 0134 (after a stop, `next()` rejects); card `core/start-sees-stop` is Done; waits for Duke and the 0.16.2 release.
+State: built in ADR 0134 (after a stop, `next()` rejects); card `core/start-sees-stop` is Done; released in 0.16.2.

@@ -1,6 +1,7 @@
 # 0134 A stop during start ends the start
 
-Date: 2026-11-10. Status: proposed; built.
+Date: 2026-11-10. Status: accepted; built; released in 0.16.2.
+Accepted: Duke, 2026-11-10 08:42 UTC: "ok, do that".
 Changes: ADR 0085 decision 2 (a stop during start).
 Found by: the Hedl thread, on 0.16.1 (test N2c).
 

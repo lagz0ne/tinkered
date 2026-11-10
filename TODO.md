@@ -105,7 +105,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 ## Done
 
 - **core/start-sees-stop** — ADR 0134: after a stop, a start hook's `next()` rejects, so `serve` never listens; a stop signal during start ends the start.
-  Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Waits for Duke's word on ADR 0134 and the 0.16.2 release; Hedl drops its gate then.
+  Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Duke accepted 2026-11-10 08:42; released in 0.16.2.
   Proof: gate 132 (Core 1214, dist 1458, bun 101, size 19,350 B); scoped mutation 90.65 on the changed lines; review READY; 4 Core tests and 1 `@tinker/bun` run test fail on main.
 
 - **core/own-signal-cancel** — ADR 0133, released as 0.16.1. A call stopped by its own `signal` is cancelled for its caller, not a panic; rpc and keyed `remoteData` make no `AbortSignal.any` over a long-lived signal.

@@ -5,6 +5,52 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.16.2
+
+A stop during start ends the start, so `serve`
+never listens after a stop (ADR 0134).
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.16.2
+bun add $R/tinker-core-0.16.2.tgz \
+  $R/tinker-react-0.16.2.tgz \
+  $R/tinker-bun-0.16.2.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.2/tinker-core-0.16.2.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.2/tinker-react-0.16.2.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.16.2/tinker-bun-0.16.2.tgz
+
+### Core
+
+- After a stop, a start hook's `next()` rejects.
+  A stop is a close, a stop signal, or a start
+  timeout. So no hook does its after-work.
+- Before, a `close()` during start ran the close
+  hooks first. Then `serve` still listened, and
+  nothing closed the port.
+- A stop signal during start ends the start once
+  the running hooks return. `ready` rejects with
+  the signal's reason; `closed` is `cancelled`.
+- A signal that aborted before start: no start
+  hook runs.
+
+### Upgrade
+
+- Change the three URLs.
+- Remove a gate capsule that checks the stop
+  signal after `serve`'s `next()`.
+- A test that waits for `ready` after a stop
+  during start: `ready` now rejects with the
+  stop's reason.
+
 ## 0.16.1
 
 A stopped stream no longer leaks, and no longer
