@@ -953,3 +953,21 @@ The workaround works: a `scope`-target resource that takes the controller.
 Duke chose an edge instead: `held.atScope.controller`, plus `atNamespace` (ADR 0126).
 A scratch copy of v0.11.0 passes the app's 71 tests.
 State: landed on main (card `core/edge-at-scope`); not released.
+
+## A start hook cannot see a stop — 2026-11-10
+
+Asked by Hedl (close-order N2c) and by `serve` in `@tinker/bun`. Second asker.
+A stop asked during start closes the root only after `ready` (ADR 0085).
+Until then `closing` is not aborted, so a start hook cannot tell.
+`serve` listens after `next()`, prints its line, and then closes.
+Hedl's workaround: a gate capsule after `serve` that reads the cmd's signal.
+
+```ts
+async start({ next }) {
+  await next();
+  signal.throwIfAborted();
+}
+```
+
+Precedent: .NET `IHostedService.StartAsync(token)`.
+State: card `core/start-sees-stop` (Ready); the rule waits for Duke.

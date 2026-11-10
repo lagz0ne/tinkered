@@ -57,6 +57,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
+- **core/start-sees-stop** — A start hook cannot see a stop asked during start: `closing` aborts only when the close begins, after `ready` (ADR 0085, point 2). So `serve` listens, prints its line, and then closes (ADR 0132, consequences). Hedl's close-order N2c ("SIGTERM during start never listens") fails on 0.16.x; Hedl carries a gate capsule that reads the cmd's signal. Precedent: .NET `IHostedService.StartAsync(token)`: the token says the start was aborted. Needs Duke, asked 2026-11-10: `closing` aborts at the ask (Core), or `serve` takes the cmd's `signal` as config (bun only).
+  Verify: a scope stopped during start prints no `listening on` line and closes clean; Hedl drops its gate.
+
 - **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
   Verify: that call answers its values; a `break` ends the op.
 
