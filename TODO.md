@@ -110,7 +110,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **core/own-signal-cancel** — ADR 0133, released as 0.16.1. A call stopped by its own `signal` is cancelled for its caller, not a panic; rpc and keyed `remoteData` make no `AbortSignal.any` over a long-lived signal.
   Owner: thread lead (Duke "agree", 2026-11-10 04:25).
-  Proof: on befce4f, Core 1,208 tests and 1,452 on the built files pass; the three new tests fail on 78ce3fa; `bench/heap-stop.mjs` exits 0 on Node 22 (7, 6, 5 B; 0.16.0: 4,011, 183, 3,846 B and a failed close). Mutation on the changed lines only: the rule's lines all killed; the full lane was not re-run.
+  Proof: on befce4f, Core 1,208 tests and 1,452 on the built files pass; the three new tests fail on 78ce3fa; `bench/heap-stop.mjs` exits 0 on Node 22 (7, 6, 5 B; 0.16.0: 4,011, 183, 3,846 B and a failed close). Mutation on the changed lines only: the rule's lines all killed. Full Core lane after the push, on 18b9f5c (with ADR 0134): 85.25 (4,734 killed and 40 timeouts of 5,607; 728 survived, 98 not covered), floor 85. The margin is 0.25: `remote-data.ts` is at 71.46.
 
 - **bun/mutation-bun-runner** — `@tinker/bun` mutation runs its tests in `bun test`, with per-test coverage (`@hughescr/stryker-bun-runner`). A `bunfig.toml` preload maps the `vite-plus/test` imports to `bun:test`. `run.ts` runs only in spawned hosts, so it has its own lane: the command runner, `bun test --bail tests/run.test.ts`.
   Owner: thread lead (Duke picked "Go straight to bun runner", 2026-11-10 03:05).
