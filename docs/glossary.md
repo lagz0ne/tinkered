@@ -33,6 +33,8 @@
 - **keyed cell** — A cell with `mode: "keyed"`. A write changes one member: `set`, `update`, `delete`, each with a key (ADR 0135).
 - **member** — One entry of a keyed cell: a key and its value. It is not a cell of its own.
 - **part (of a key)** — Some fields of an object key, such as `{ project }`. `where(part)` reads each member whose key holds them.
+- **invalidate** — Mark a part of a keyed cell dirty, so that each reader of the part asks the server again (ADR 0137). On the server it sends a signal with no data.
+- **ask (for a part)** — One request from a client for the members of a part. The last ask wins (ADR 0137).
 - **dependency mode** — How a dep is taken: **read** (bare `data` → the value) or **write** (`data.controller` → get/set/watch handle). A bare resource slot delivers its **built value** — never a promise (ADR 0044); a bare operation delivers a subflow.
 - **derivation** — A pattern, not a unit: an operation/resource writes a `data` cell (write-mode dep) that others watch; or a consumer watches sources and combines them.
 - **operation (command)** — An action run on demand, with typed input, dependencies, and a result.

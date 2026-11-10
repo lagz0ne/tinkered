@@ -3,7 +3,8 @@
 Date: 2026-11-10. Status: accepted in part; not built.
 Accepted: Duke, 2026-11-10 UTC, in three notes:
 05:34 (the key), 05:38 (the mode), 08:49 (the member).
-Open: the server's first value, order, reconnect.
+Open: order. ADR 0137 closes the two others.
+Refined by: 0136 (the reads), 0137 (the wire).
 Replaces: `family()` of ADR 0048 (gone with `@tinker/sync`).
 
 ## What the user said
@@ -159,9 +160,15 @@ They are in the project files, not in this repo.
 1. On the server, where a part's members come from:
    the cell holds all, or a `fill` loads a part for
    its first reader. Asked 2026-11-10 08:55.
+   Closed by ADR 0137: the client asks for a part.
 2. Order, for an "indexed" value: by a field of the
    member, as a Redis sorted set.
 3. Reconnect: the full set again, or from a version.
+   Closed by ADR 0137: a client that returns asks
+   again.
+
+The wire in "Shown to Duke, no word yet" is replaced
+by ADR 0137.
 
 ## Consequences
 

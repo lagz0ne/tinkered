@@ -57,8 +57,26 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **core/data-keyed** — ADR 0135: `data({ mode: "keyed", key, parse })`, a keyed controller (`set`, `update`, `delete`), and the reads `of(key)` and `where(part)`, on one scope first (no wire). Not started: Duke accepted the mode, the object key and the member rule on 2026-11-10; the server's first value (Q3) is open, and the wire waits for it.
-  Verify: tests at the Core entry for the three writes and the three reads; a write to one member wakes the watcher of that member and of its parts, and no other; today's `data()` calls compile with no change.
+- **core/data-keyed** — keyed data k01 ([track](docs/roadmap/keyed-data/PROGRESS.md); ADR 0135, 0136). `data({ mode: "keyed", key, parse })`, a keyed controller (`set`, `update`, `delete`), and the reads `of(key)` and `where(part)`, on one scope (no wire). Next step: write the brief with the impact block for `data`. Uses the draft names `"single"`, `of`, `where`.
+  Verify: tests at the Core entry for the three writes and the three reads; a write to one member wakes the watcher of that member and of its parts, and no other; two keys with the same fields in another order are one member; today's `data()` calls compile with no change.
+
+- **react/data-keyed-read** — keyed data k02, blocked by k01 (ADR 0136). `useData(cell.where(part))` and `useData(cell.of(key))` take the key at each render; no unit per key.
+  Verify: a browser test: two panels read two parts of one cell; a write to one part renders only its panel; a panel that changes its part leaves the old one; the scope holds no more units after 1,000 different keys.
+
+- **core/keyed-ask** — keyed data k03, blocked by k01 (ADR 0137). `remoteData` serves a keyed cell: the first reader of a part joins it and asks; the server answers from its cell; the last reader leaves.
+  Verify: on the memory transport and on the WebSocket: two clients read two parts and each gets only its members; the board's `onStart` guard gets the part and can refuse it; a client that connects again asks again; after the last reader leaves, the server's table of readers is empty.
+
+- **core/keyed-invalidate** — keyed data k04, blocked by k03 (ADR 0137). `invalidate(part)` on the client marks the part dirty and asks again; on the server it sends a signal with no data to each reader of the part; a set on a served cell marks that key dirty. Uses two drafts: the server signal, and a signal that names a key or a part.
+  Verify: a signal for a full key makes each reader ask for one member; an answer that arrives after a later ask started is dropped; `await invalidate(part)` resolves after the fresh members are in the cell; a client that reads another part gets no signal.
+
+- **core/keyed-load** — keyed data k05, blocked by k04 (ADR 0137). A board takes a `load` for a keyed cell: it gives the members of a part, and the server keeps no member. Uses the draft name `load`.
+  Verify: the six cases of ADR 0137 as tests, with a fake store that answers late; the server holds 0 members after each case.
+
+- **template/todo-keyed** — keyed data k06, blocked by k02 and k04. In `tinker-app`: the todo list is a keyed cell, and a row reads its own member.
+  Verify: one toggle sends one member, not the list (bytes on the wire for 1,000 todos); a toggle renders one row; `bun run check` exits 0.
+
+- **hedl/tasks-keyed** — keyed data k07, blocked by k05 and a release. In Hedl: the projector calls `invalidate` for each notice; the panel reads `where({ project })`; the tasks board has no session tag. k08 (checks, Inbox) and k09 (`remoteData` loses `config`) follow in the track.
+  Verify: the e2e flows pass; a task change sends one member to a reader of that project; a reader of another project gets nothing.
 
 - **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
   Verify: that call answers its values; a `break` ends the op.
