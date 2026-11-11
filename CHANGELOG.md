@@ -5,6 +5,60 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.6
+
+Clear exits at the transport SPI (ADR 0141): a
+backend ends with a value, and a throw is a bug.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.6
+bun add $R/tinker-core-0.17.6.tgz \
+  $R/tinker-react-0.17.6.tgz \
+  $R/tinker-bun-0.17.6.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.6/tinker-core-0.17.6.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.6/tinker-react-0.17.6.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.6/tinker-bun-0.17.6.tgz
+
+### rpc and remoteData
+
+- A backend's `send` resolves with
+  `{ ok: true, text }`, `missing`, or `link` with
+  `sent`. Its `open` resolves with `{ ok: true }`
+  or the same exits. Neither throws.
+- A throw in a backend is a bug. Core logs the
+  cause with the address and gives `failed` with
+  `from: "local"`. It is never `link`, so a keyed
+  part waits for `invalidate`.
+
+### Memory
+
+- Each `createMemory()` has its own server ops. A
+  second pair in one scope now reaches its own
+  server. It gave `CapsuleMissing`, shown as
+  `link`.
+- A memory server that closes ends its open
+  watches as `link`, and its close settles. It
+  hung until the client closed.
+- A closed peer is `link` with `sent: false`.
+
+### Upgrade
+
+- Change the three URLs.
+- A transport of your own: `send` and `open`
+  return a value, not a throw (`transport.Exit`).
+- A test that read a broken setup as `link` now
+  reads `failed`, from local, with the cause in
+  the log.
+
 ## 0.17.5
 
 A fault says who spoke: the server, or this side

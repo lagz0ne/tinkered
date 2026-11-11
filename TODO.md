@@ -119,6 +119,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **core/keyed-guard-part** — done 2026-11-11 (a01ada1; released 0.17.4). `board.part(call)` gives a guard its typed part (ADR 0139 decision 5; patch 0002 from the issue board). Proof: a test reads `part.project` with no cast and its type check fails on a wrong type; S12 count 0; Core 1,290 tests.
 
+- **core/clear-exits** — done 2026-11-11 (released 0.17.6). ADR 0141 (Duke 07:23): a backend's `send` and `open` end with a value; a throw is a bug (logged, failed/local, never link); memory: one server per transport, a closing server ends its watches. Proof: tests per exit; Core 1,300, bun 111, react 115; scoped mutation 85.05.
+
 - **core/fault-from** — done 2026-11-11 (released 0.17.5). ADR 0141: each fault has `from` (server or local) and a local one `sent`; an unknown address is `missing`, not `link`. Proof: the missing-part test fails with `link`; Core 1,295, bun 111, react 115; scoped mutation 85.71; size 32,623 B with rpc. The shape (a field, or the kind alone) waits on Duke.
 
 - **core/keyed-part-state** — done 2026-11-11 (released 0.17.4). ADR 0139 step 1: `board.status(read)` gives pending, ready or fault per part; a refused or invalid part waits for `invalidate`; a link fault heals. Proof: 4 new Core tests (the wait test fails with no wait); Core 1,294 tests, bun 109, react 115; scoped mutation 85.79; size 32,526 B with rpc.
