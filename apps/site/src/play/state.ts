@@ -81,3 +81,5 @@ export const debounce = tag<number>({ label: "play.debounce" });
 export const wasm = tag<string | null>({ label: "play.wasm" });
 /** The tab showing its rename box, if any. */
 export const renaming = data<string | null>({ label: "play.renaming", initial: null });
+/** Where the preview's messages arrive: the page's `window`; a test passes an `EventTarget`. */
+export const inbox = tag<EventTarget>({ label: "play.inbox" });

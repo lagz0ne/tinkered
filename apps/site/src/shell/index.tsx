@@ -13,6 +13,7 @@ export function Shell() {
             Guide
           </Link>
           <Link to="/play">Play</Link>
+          <Link to="/sessions">Sessions</Link>
           <Link to="/bench">Bench</Link>
           <a href="https://github.com/lagz0ne/tinkered">Source</a>
         </nav>

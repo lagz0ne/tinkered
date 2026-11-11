@@ -478,3 +478,85 @@ main.play[data-view="code"] .panes {
   margin-left: auto;
   cursor: pointer;
 }
+
+/* The sessions study: two projects side by side; each layer's label in small grey text. */
+.projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin: 16px 0;
+}
+
+.project {
+  border-top: 2px solid var(--fg);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.project header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.project h2 {
+  margin: 0;
+}
+
+.sessions .layer {
+  color: var(--mute);
+  font-size: 13px;
+  margin: 0;
+}
+
+.sessions .layer b {
+  color: var(--fg);
+}
+
+.sessions button {
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--fg);
+  background: var(--bg);
+  color: var(--fg);
+  padding: 4px 10px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.sessions button.strong {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.brief,
+.form {
+  border: 1px solid var(--line);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.form .row {
+  display: flex;
+  gap: 6px;
+}
+
+.form input,
+.form textarea {
+  font: inherit;
+  border: 1px solid var(--line);
+  padding: 4px 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.notes {
+  color: var(--mute);
+  font-size: 13px;
+}

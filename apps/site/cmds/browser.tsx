@@ -8,6 +8,7 @@ import { bench } from "@/bench";
 import { guide } from "@/guide";
 import { play } from "@/play";
 import { routeTree } from "@/routes";
+import { sessions } from "@/sessions";
 import { TinkerError, TinkerNotFound } from "~/base/fallbacks";
 import { abortReasons } from "~/components/errors";
 import { telemetry } from "~/components/telemetry";
@@ -22,7 +23,8 @@ const app = createScope({
     ws.client({ url: `${location.origin.replace(/^http/, "ws")}/rpc` }),
     guide.api({ remote: ws.client }),
     bench({ timer: performance }),
-    play({ storage: localStorage, debounce: 250, wasm: "/esbuild.wasm" }),
+    play({ storage: localStorage, debounce: 250, wasm: "/esbuild.wasm", inbox: window }),
+    sessions,
   ],
 });
 

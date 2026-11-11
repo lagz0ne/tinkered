@@ -3,8 +3,9 @@ import { expect, test } from "vite-plus/test";
 
 import { play } from "@/play";
 import { addFile, closeFile, editFile, renameFile, reset } from "@/play/ops";
-import { bundler, compile, persistence } from "@/play/services";
-import { bundle, dirty, entry, files, nav, starter, status } from "@/play/state";
+import { setTheme } from "@/play/ops";
+import { bundler, compile, persistence, preview } from "@/play/services";
+import { bundle, dirty, entry, files, nav, starter, status, theme } from "@/play/state";
 
 // The playground at its seam: real esbuild (Bun runs it with no wasm file), a Map as the storage,
 // and the scope's own clock. The lint's one-door rule is for features; a test reads the files.
@@ -20,8 +21,20 @@ const memory = (seed: Record<string, string> = {}) => {
 };
 
 const start = async (store = memory(), debounce = 5) => {
-  const app = createScope({ capsules: [play({ storage: store, debounce, wasm: null })] });
-  return { scope: await app.ready, store };
+  const inbox = new EventTarget();
+  const app = createScope({ capsules: [play({ storage: store, debounce, wasm: null, inbox })] });
+  return { scope: await app.ready, store, inbox };
+};
+
+/** What the preview frame posts to the page. */
+const say = (inbox: EventTarget, data: unknown) =>
+  inbox.dispatchEvent(new MessageEvent("message", { data }));
+
+/** Waits for the bundler's first compile to land. */
+const compiled = async (scope: Awaited<ReturnType<typeof start>>["scope"]) => {
+  scope.resolve(bundler);
+  await expect.poll(() => scope.controller(status).get().text).toBe("running…");
+  return scope.controller(bundle).get();
 };
 
 test("the starter project compiles to one module, bare imports kept for the import map", async () => {
@@ -117,4 +130,86 @@ test("a kept session that does not parse is no session", async () => {
   const { scope } = await start(memory({ "tinker-site:play:v1": "{not json" }));
   expect(scope.resolve(persistence).restored).toBe(false);
   expect(scope.controller(files).get()).toEqual(starter);
+});
+
+test("the newer of two quick edits wins; the older compile's result is dropped", async () => {
+  const { scope } = await start();
+  await compiled(scope);
+
+  scope.run(editFile, {
+    input: { name: "Tile.tsx", content: 'export const Tile = () => "older";' },
+  });
+  await new Promise((r) => setTimeout(r, 8));
+  scope.run(editFile, {
+    input: { name: "Tile.tsx", content: 'export const Tile = () => "newer";' },
+  });
+
+  await expect.poll(() => scope.controller(bundle).get()).toContain("newer");
+  await new Promise((r) => setTimeout(r, 50));
+  expect(scope.controller(bundle).get()).not.toContain("older");
+});
+
+test("an edit that leaves the bundle as it was is ready at once; nothing reloads", async () => {
+  const { scope } = await start();
+  const first = await compiled(scope);
+
+  const tile = scope
+    .controller(files)
+    .get()
+    .find((f) => f.name === "Tile.tsx")!;
+  scope.run(editFile, { input: { name: "Tile.tsx", content: `${tile.content}\n\n` } });
+  await expect.poll(() => scope.controller(status).get().text).toBe("ready");
+  expect(scope.controller(bundle).get()).toBe(first);
+});
+
+test("a released bundler compiles no more: an edit made before the release never lands", async () => {
+  const { scope } = await start(memory(), 30);
+  const first = await compiled(scope);
+
+  scope.run(editFile, { input: { name: "Tile.tsx", content: "export const Tile = () => 1;" } });
+  scope.release(bundler);
+  await new Promise((r) => setTimeout(r, 80));
+  expect(scope.controller(bundle).get()).toBe(first);
+});
+
+test("the preview's ok keeps the compile time; its error becomes the status", async () => {
+  const { scope, inbox } = await start();
+  scope.resolve(preview);
+  scope.controller(status).set({ kind: "info", text: "running…", ms: 42 });
+
+  say(inbox, { tinkerPlay: "ok" });
+  expect(scope.controller(status).get()).toEqual({ kind: "ok", text: "ready", ms: 42 });
+  say(inbox, { tinkerPlay: "error", text: "boom is not defined" });
+  expect(scope.controller(status).get()).toEqual({ kind: "error", text: "boom is not defined" });
+});
+
+test("a message of another shape is not the preview's; a released preview hears nothing", async () => {
+  const { scope, inbox } = await start();
+  scope.resolve(preview);
+  const before = scope.controller(status).get();
+
+  say(inbox, { other: "app" });
+  expect(scope.controller(status).get()).toBe(before);
+  scope.release(preview);
+  say(inbox, { tinkerPlay: "error", text: "late" });
+  expect(scope.controller(status).get()).toBe(before);
+});
+
+test("a clean session gives back only its theme", async () => {
+  const first = await start();
+  first.scope.resolve(persistence);
+  first.scope.run(setTheme, { input: "one-dark" });
+  const kept = Object.fromEntries(first.store.kept);
+
+  const again = await start(memory(kept));
+  again.scope.resolve(persistence);
+  expect(again.scope.controller(theme).get()).toBe("one-dark");
+  expect(again.scope.controller(dirty).get()).toBe(false);
+  expect(again.scope.controller(files).get()).toEqual(starter);
+});
+
+test("an unknown theme is refused at the door", async () => {
+  const { scope } = await start();
+  expect(() => scope.run(setTheme, { rawInput: "solarized" })).toThrow();
+  expect(scope.controller(theme).get()).toBe("github-light");
 });

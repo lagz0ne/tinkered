@@ -13,7 +13,9 @@ import { files, nav, starter } from "@/play/state";
 
 const start = async () => {
   const store = { getItem: () => null, setItem: () => undefined };
-  const app = createScope({ capsules: [play({ storage: store, debounce: 5, wasm: null })] });
+  const app = createScope({
+    capsules: [play({ storage: store, debounce: 5, wasm: null, inbox: new EventTarget() })],
+  });
   return app.ready;
 };
 

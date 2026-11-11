@@ -8,6 +8,7 @@ import {
   dirty,
   entry,
   files,
+  inbox,
   nav,
   saved,
   status,
@@ -212,16 +213,16 @@ const signalled = z.union([
 /** Listens to the preview frame and turns what it posts into `status`. */
 export const preview = resource({
   label: "play.preview",
-  depends: { status: status.controller },
-  factory: ({ status }, { defer }) => {
-    const heard = (event: MessageEvent) => {
-      const said = signalled.safeParse(event.data);
+  depends: { status: status.controller, inbox: inbox.required },
+  factory: ({ status, inbox }, { defer }) => {
+    const heard = (event: Event) => {
+      const said = signalled.safeParse((event as MessageEvent).data);
       if (!said.success) return;
       if ("text" in said.data) status.set({ kind: "error", text: said.data.text });
       else status.update((s) => ({ kind: "ok", text: "ready", ms: s.ms }));
     };
-    window.addEventListener("message", heard);
-    defer(() => window.removeEventListener("message", heard));
+    inbox.addEventListener("message", heard);
+    defer(() => inbox.removeEventListener("message", heard));
     return { listening: true };
   },
 });
