@@ -5,6 +5,60 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.8
+
+A shorter request path. No API changed.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.8
+bun add $R/tinker-core-0.17.8.tgz \
+  $R/tinker-react-0.17.8.tgz \
+  $R/tinker-bun-0.17.8.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.8/tinker-core-0.17.8.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.8/tinker-react-0.17.8.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.8/tinker-bun-0.17.8.tgz
+
+### The WebSocket client
+
+- The frame of a tick goes in the next task,
+  with no timer. Before, it waited at least
+  1 ms on Bun and Node, and 4 ms in a browser
+  when timers nest.
+- One call at a time, Bun to Bun:
+  1,362 µs to 108 µs.
+- A call or a watch takes its `abort` listener
+  off the scope's signal when it ends.
+  Before, each call left one there.
+
+### The server side
+
+- A run that is not the transport's own makes
+  no logger: a run hook reads `op` first.
+- The protocol reads `log` only when it logs
+  a fault.
+
+### Core and React
+
+- Trace ids come from a table. A traced request
+  on Node: 22,489 to 17,975 instructions.
+- React holds the scope and the namespace in
+  one context. One update: 147.1k to 142.3k
+  instructions.
+
+### Upgrade
+
+- Change the three URLs.
+- No code changes.
+
 ## 0.17.7
 
 Two client sets reach one memory server again.
