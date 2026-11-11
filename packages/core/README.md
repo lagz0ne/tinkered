@@ -1173,6 +1173,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - With a load, the server keeps no member.
 - `board.part(call)` gives a guard the part of a keyed join or ask, typed;
   any other call gives `undefined`.
+- `board.status(read)` gives a part's state: `pending` until its first
+  answer, then `ready` or `fault`; `undefined` when no reader holds it.
+- A part that rides a ready part is `ready` at once.
+- A `refused` or `invalid` part waits: no ask again until an
+  `invalidate` names it. A broken link asks again by itself.
 
 ### Tags
 

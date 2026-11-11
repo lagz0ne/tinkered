@@ -128,9 +128,13 @@ test("the guard gets the part at each ask and can refuse it", async () => {
 
   const p1 = watchPart(tab, "p1");
   watchPart(tab, "p2");
-  await until(() => p1.read().length > 0 && tab.resolve(board.faults).get().tasks !== undefined);
+  const p2 = tab.resolve(board.status(board.tasks.where({ project: "p2" })));
+  await until(() => p1.read().length > 0 && p2.get()?.status === "fault");
 
-  expect(tab.resolve(board.faults).get().tasks).toMatchObject({ fault: "refused" });
+  expect(p2.get()).toMatchObject({ status: "fault", fault: { fault: "refused" } });
+  expect(tab.resolve(board.status(board.tasks.where({ project: "p1" }))).get()).toMatchObject({
+    status: "ready",
+  });
   expect(app.seen).toContainEqual({
     key: "tasks.ask",
     input: { read: "where", part: { project: "p1" } },
@@ -495,4 +499,69 @@ test("a guard reads the part with its type: a join and an ask give it, another c
   expect(join?.project).toBe("p1");
   expect(ask?.id).toBe("a");
   expect(board.part({ key: "other", input: {} })).toBeUndefined();
+});
+
+test("a refused part waits for a trigger: no ask again until an invalidate names it", async () => {
+  const app = await boot({ refuse: "p2" });
+  const tab = await app.client();
+  const opens = () => app.seen.filter((s) => s.key === "tasks").length;
+  const state = tab.resolve(board.status(board.tasks.where({ project: "p2" })));
+
+  const p2 = watchPart(tab, "p2");
+  await until(() => state.get()?.status === "fault");
+  const first = opens();
+  await new Promise((done) => setTimeout(done, 400));
+
+  expect(opens()).toBe(first);
+  await tab.run(board.invalidate, { input: { tasks: { project: "p2" } } });
+  await until(() => opens() > first);
+  p2.stop();
+});
+
+test("a part is pending until its first answer, ready with no member, gone when it leaves", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const read = board.tasks.where({ project: "p9" });
+  const state = tab.resolve(board.status(read));
+
+  expect(state.get()).toBeUndefined();
+  const p9 = watchPart(tab, "p9");
+  expect(state.get()).toMatchObject({ status: "pending" }); // the join, before any answer
+  await until(() => state.get()?.status === "ready");
+
+  expect(p9.read()).toEqual([]);
+  p9.stop();
+  expect(state.get()).toBeUndefined();
+});
+
+test("a part that rides a ready part is ready at once", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const all = tab.resolve(board.tasks.where({}));
+  const stop = all.watch(() => undefined);
+  const whole = tab.resolve(board.status(board.tasks.where({})));
+  await until(() => whole.get()?.status === "ready");
+
+  const one = watchPart(tab, "p1");
+  const state = tab.resolve(board.status(board.tasks.where({ project: "p1" })));
+
+  expect(state.get()).toMatchObject({ status: "ready" });
+  one.stop();
+  stop();
+});
+
+test("a ready part that an ask refuses goes to fault, and keeps its members", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const state = tab.resolve(board.status(board.tasks.where({ project: "p1" })));
+  const p1 = watchPart(tab, "p1");
+  await until(() => state.get()?.status === "ready");
+
+  app.refuseAsks(true);
+  await tab.run(board.invalidate, { input: { tasks: { project: "p1" } } });
+  await until(() => state.get()?.status === "fault");
+
+  expect(state.get()).toMatchObject({ status: "fault", fault: { fault: "refused" } });
+  expect(p1.read()).toEqual([task("p1", "a")]);
+  p1.stop();
 });

@@ -121,11 +121,10 @@ for (const kind of ["memory", "ws"] as const) {
 
       const p1 = watchPart(tab, "p1");
       watchPart(tab, "p2");
-      await until(
-        () => p1.read().length > 0 && tab.resolve(board.faults).get().tasks !== undefined,
-      );
+      const p2 = tab.resolve(board.status(board.tasks.where({ project: "p2" })));
+      await until(() => p1.read().length > 0 && p2.get()?.status === "fault");
 
-      expect(tab.resolve(board.faults).get().tasks).toMatchObject({ fault: "refused" });
+      expect(p2.get()).toMatchObject({ status: "fault", fault: { fault: "refused" } });
       expect(app.seen).toContainEqual({
         key: "tasks.ask",
         input: { read: "where", part: { project: "p1" } },

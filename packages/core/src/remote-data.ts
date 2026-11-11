@@ -63,7 +63,14 @@ type Keyed = Scope.KeyedController<unknown, Data.Key> & {
  * A client's part in use, by key: its readers, and the stop of its stream. A part that another
  * part in use holds whole rides that part's stream: `rides` names it, and it has no stream.
  */
-type Joined = { refs: number; readonly ask: Ask; readonly stop: AbortController; rides?: Joined };
+type Joined = {
+  refs: number;
+  readonly ask: Ask;
+  readonly stop: AbortController;
+  rides?: Joined;
+  /** Set while the part waits on a fault that is an answer: a trigger calls it (ADR 0139 4). */
+  wake?: () => void;
+};
 
 /** A client's ask in flight, and the asks that started after it and share members with it. */
 type Asking = {
@@ -177,7 +184,8 @@ const meta = { role: "state", explain: "Remote data of this root" } as const;
 const sending = { role: "handler", explain: "Sends one write to its watchers" } as const;
 const reading = { role: "handler", explain: "Reads one key's stream" } as const;
 const name = "remoteData"; // labels only: the wire address is the key
-const reserved = ["answer", "stream", "drop", "invalidate", "fault", "faults"];
+
+const reserved = "answer stream drop invalidate fault faults part status states".split(" ");
 
 /**
  * The config of a definition, checked: no config key is a cell or reserved, no cell is
@@ -214,6 +222,15 @@ const remake = (shape: Data.Cell<unknown>): Data.Cell<unknown> => {
 type PartIn<D> = {
   [C in keyof D]: D[C] extends Data.Keyed<any, infer K> ? Data.Part<K> : never;
 }[keyof D];
+
+/** A part's state on a client (ADR 0139 1): not read yet, read, or a fault that stands. */
+export type PartState =
+  | { readonly status: "pending" }
+  | { readonly status: "ready" }
+  | { readonly status: "fault"; readonly fault: RemoteFault };
+
+/** A part's state as the client keeps it: under the part's slot. */
+type Stated = PartState & { readonly at: string };
 
 /** A signal as a reader takes it: the ask, and the meta it came with. */
 type Taken = { readonly ask: Ask; readonly meta?: Record<string, string> };
@@ -273,6 +290,8 @@ type Def = {
   readonly wire: Wire;
   readonly state: Data.Cell<Served | null>;
   readonly faults: Data.Cell<Faults>;
+  /** On a reading root: each keyed part in use, and its state (ADR 0139 1). */
+  readonly states: Data.Keyed<Stated, { at: string }>;
   /** A keyed definition's config (F12): the app's own tags; null when not keyed. */
   readonly by: Readonly<Record<string, Tag.Handle<unknown>>> | null;
   /** The parameter in the caller's own layer: every config tag's value there, or null. */
@@ -703,6 +722,19 @@ const steps = resource({
       const { run, clock, signal } = event;
       const cell = event.load(def.made[key]!, meta) as unknown as Keyed;
       const joined = new Map<string, Joined>();
+      const states = event.load(def.states, meta) as unknown as Scope.KeyedController<
+        Stated,
+        { at: string }
+      >;
+      /** Sets the state of a part, and of each part in use that it holds whole. */
+      const stand = (asked: Ask, now: PartState) => {
+        if (signal.aborted) return;
+        for (const j of joined.values()) {
+          if (j.ask === asked || holds(asked, j.ask.part)) {
+            states.set({ ...now, at: partSlot(key, j.ask) });
+          }
+        }
+      };
       const stays = (member: Data.Key) => [...joined.values()].some((j) => holds(j.ask, member));
 
       const pending = new Set<Asking>();
@@ -757,14 +789,14 @@ const steps = resource({
         try {
           got();
           mark(key, null);
+          stand(asked, { status: "ready" });
         } catch (error) {
           const at = partSlot(key, asked);
-          mark(
-            key,
-            def.wire.fault.is(error)
-              ? error
-              : def.wire.fault.make(at, "invalid", { side: "client" }, undefined),
-          );
+          const fault = def.wire.fault.is(error)
+            ? error
+            : def.wire.fault.make(at, "invalid", { side: "client" }, undefined);
+          mark(key, fault);
+          stand(asked, { status: "fault", fault });
         }
       };
 
@@ -773,12 +805,23 @@ const steps = resource({
         const asks = new Map<string, Ask>();
         for (const j of joined.values()) {
           const share = j.rides ? undefined : narrowed(j.ask, dirty);
-          if (share) asks.set(partSlot(key, share), share);
+          // A part that waits on a fault opens again: the new stream's first signal asks.
+          if (share && j.wake) j.wake();
+          else if (share) asks.set(partSlot(key, share), share);
         }
         await Promise.all([...asks.values()].map((a) => ask(a)));
       };
       const mine = askers.get(def) ?? new Map<string, (dirty: Data.Key) => Promise<void>>();
       askers.set(def, mine.set(key, reask));
+
+      /** Waits until a trigger wakes the part, or the part leaves. */
+      const parked = async (part: Joined) => {
+        await new Promise<void>((woken) => {
+          part.wake = woken;
+          part.stop.signal.addEventListener("abort", () => woken(), { once: true });
+        });
+        part.wake = undefined;
+      };
 
       const follow = async (part: Joined) => {
         for (let wait = 50; !part.stop.signal.aborted;) {
@@ -796,7 +839,17 @@ const steps = resource({
             wait = 50;
           } catch (error) {
             if (part.stop.signal.aborted) return;
-            mark(key, def.wire.fault.is(error) ? error : def.wire.fault.make(key, "link", {}));
+            const fault = def.wire.fault.is(error) ? error : def.wire.fault.make(key, "link", {});
+            mark(key, fault);
+            stand(part.ask, { status: "fault", fault });
+
+            // Only a broken link heals by itself. Any other fault is the server's answer, and the
+            // same ask gives it again: the part waits for a trigger (ADR 0139 4).
+            if (fault.fault !== "link") {
+              await parked(part);
+              wait = 50;
+              continue;
+            }
             wait = Math.min(wait * 2, 5000);
           }
           await clock.sleep(wait, part.stop.signal).catch(() => undefined);
@@ -823,12 +876,16 @@ const steps = resource({
         if (made.refs++ === 0) {
           made.rides = coverOf(asked);
           joined.set(at, made);
+          const cover = made.rides && states.of({ at: partSlot(key, made.rides.ask) }).get();
+          if (!signal.aborted) states.set({ ...(cover ?? { status: "pending" }), at });
           if (!made.rides) own(made);
         }
         return () => {
           if (--made.refs > 0) return;
           made.stop.abort();
           joined.delete(at);
+          if (!signal.aborted) states.delete({ at });
+
           // A part that rode this one rides another, or gets its own stream, which asks afresh.
           for (const r of joined.values()) {
             if (r.rides !== made) continue;
@@ -1017,6 +1074,11 @@ export function remoteData<
     label: `${name}.faults`,
     initial: {} as Readonly<Partial<Record<keyof D & string, RemoteFault>>>,
   });
+  const states = data({
+    label: `${name}.states`,
+    mode: "keyed",
+    key: (s: Stated) => ({ at: s.at }),
+  });
 
   // A reader's ask for a signal follows OTel messaging, as `remoteData.receive` does for a push:
   // a process span that links the pass's send span, with the ask under it.
@@ -1048,6 +1110,7 @@ export function remoteData<
     wire,
     state,
     faults: faults as Data.Cell<Faults>,
+    states,
     by,
     paramOf,
     missingOf,
@@ -1220,7 +1283,7 @@ export function remoteData<
       load: loadKey.optional,
       read: readKey.optional,
     },
-    exports: { ...made, faults, drop, invalidate } as unknown as {
+    exports: { ...made, faults, states, drop, invalidate } as unknown as {
       drop: typeof drop;
       invalidate: typeof invalidate;
     },
@@ -1338,6 +1401,12 @@ export function remoteData<
       keyed.has(call.key.replace(/\.ask$/, "") as keyof D & string)
         ? (Object(call.input) as Ask).part
         : undefined,
+    /** The state of a keyed read's part (ADR 0139 1): `useData(board.status(read))`. Undefined
+     * while no reader has the part in use. */
+    status: (read: Data.Read<unknown>) => {
+      const key = Object.keys(made).find((k) => made[k] === read.cell)!;
+      return states.of({ at: partSlot(key, { read: read.read, part: read.part }) });
+    },
     addresses: keys.flatMap((key) => (keyed.has(key) ? [key, `${key}.ask`] : [key])),
     answer: wire.answer,
     stream: wire.stream,
@@ -1351,6 +1420,7 @@ export function remoteData<
       readonly invalidate: typeof invalidate;
       readonly fault: { is(error: unknown): error is RemoteFault };
       part(call: { readonly key: string; readonly input: unknown }): PartIn<D> | undefined;
+      status(read: Data.Read<unknown>): Data.Read<PartState | undefined>;
       readonly addresses: readonly string[];
     } & {
       (values: Config<D>): Capsule.Installable;

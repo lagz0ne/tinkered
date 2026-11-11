@@ -37,6 +37,7 @@
   "lastRoutes",
   "lastTarget",
   "layer",
+  "leave",
   "lines",
   "linesOf",
   "links",
@@ -61,6 +62,7 @@
   "raiser",
   "randomFor",
   "readResource",
+  "readerOf",
   "readers",
   "reads",
   "rec",
@@ -76,6 +78,7 @@
   "shownTags",
   "shownValue",
   "slots",
+  "slotsOf",
   "spec",
   "stopStart",
   "swept",
@@ -87,7 +90,6 @@
   "unitOf",
   "up",
   "visit",
-  "wake",
   "watched",
   "wired"
 ]
