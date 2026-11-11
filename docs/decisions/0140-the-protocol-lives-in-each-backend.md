@@ -28,6 +28,10 @@ In the issue board thread:
   providing such, and those will implement the SPI.
   Protocol should be on those, not on the shape of
   API".
+- 05:16: "\"watch\" is the sense of instant reaction.
+  We should be able to do that even with http by
+  polling, so, that's how we want to enforce the
+  interface".
 
 ## Context
 
@@ -52,13 +56,18 @@ carries:
   their wire.
 - **SLF4J and JDBC.** One SPI; each binding or
   driver owns its protocol.
+- **SignalR and Socket.IO.** One interface over
+  WebSocket, then SSE, then long polling.
+- **Kubernetes watch, Consul blocking queries.** A
+  long poll the server holds until a change, with the
+  last version seen.
 
 ## The direction
 
 ```text
 userland   rpc(...), remoteData(...)
               shape, meaning, the cache
-Core SPI   Remote { call, watch? }
+Core SPI   Remote { call, watch }
            Service { addresses, answer, stream }
 backend    ws, sse, http, memory
               envelope, codec, frames, ids
@@ -67,9 +76,11 @@ backend    ws, sse, http, memory
 - Core keeps the meaning: the fault kinds, what
   `call` and `watch` promise, a part's state, and
   when to ask again (0139).
-- Each backend owns its wire. A backend with no push
-  (plain HTTP) is a full backend: it asks again on
-  a trigger and after a time (0139 decision 3).
+- Each backend owns its wire.
+- `watch` is required (today it is optional). It is
+  "you will be told of a change". How soon is the
+  backend's: plain HTTP polls, on a time or as a
+  long poll. Core has one path and no fallback.
 - One SPI test kit that every backend runs keeps the
   backends from drifting.
 - No formal spec file: "we are the only one
