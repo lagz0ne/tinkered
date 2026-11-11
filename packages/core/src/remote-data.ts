@@ -45,8 +45,21 @@ type Keyed = Scope.KeyedController<unknown, Data.Key> & {
   adopt(value: readonly unknown[]): Data.Key | undefined;
 };
 
-/** A client's part in use, by key: its readers, and the asks it made. The last ask wins. */
-type Joined = { refs: number; asks: number; readonly ask: Ask; readonly stop: AbortController };
+/** A client's part in use, by key: its readers, and the stop of its stream. */
+type Joined = { refs: number; readonly ask: Ask; readonly stop: AbortController };
+
+/** A client's ask in flight. `by` is a later ask that covers it: that one's answer wins. */
+type Asking = { readonly ask: Ask; by?: Asking; done?: Promise<void> };
+
+/** What a server reader has to ask after one pass: one member, or its whole part. */
+type Pass = { readonly at: string; readonly dirty: Map<string, Ask> };
+
+/** `invalidate`'s input: a part (or a key) for each keyed key named. */
+type Dirty<D> = {
+  readonly [
+    K in keyof D as D[K] extends Data.Keyed<any, any> ? K : never
+  ]?: D[K] extends Data.Keyed<any, infer Key> ? (Key extends string ? Key : Data.Part<Key>) : never;
+};
 
 /** One rpc contract, as the wire is built: each key here is a stream or a reply. */
 type Contract = {
@@ -75,22 +88,60 @@ const holds = (ask: Ask, key: Data.Key): boolean =>
     ? textOf(ask.part) === textOf(key)
     : Object.keys(ask.part).every((f) => Object(key)[f] === Object(ask.part)[f]);
 
-/** An ask from the wire: `of` or `where`, and a key that is a string or a flat object of strings
- * and finite numbers. */
+/** Whether a value is a key or a part: a string, or a flat object of strings and finite
+ * numbers. */
+const isKey = (part: unknown): part is Data.Key =>
+  typeof part === "string" ||
+  (typeof part === "object" &&
+    part !== null &&
+    !Array.isArray(part) &&
+    Object.values(part).every(
+      (v) => typeof v === "string" || (typeof v === "number" && Number.isFinite(v)),
+    ));
+
+/** An ask from the wire: `of` or `where`, and a key or a part. */
 const askShape = z.make<Ask>((value) => {
   const ask = Object(value) as { read?: unknown; part?: unknown };
-  const part = ask.part;
-  const flat =
-    typeof part === "string" ||
-    (typeof part === "object" &&
-      part !== null &&
-      !Array.isArray(part) &&
-      Object.values(part).every(
-        (v) => typeof v === "string" || (typeof v === "number" && Number.isFinite(v)),
-      ));
-  if ((ask.read !== "of" && ask.read !== "where") || !flat) return z.fail("expected an ask");
-  return { value: { read: ask.read, part: part as Data.Key } };
+  if ((ask.read !== "of" && ask.read !== "where") || !isKey(ask.part)) {
+    return z.fail("expected an ask");
+  }
+  return { value: { read: ask.read, part: ask.part } };
 });
+
+/**
+ * The share of a reader's part that a dirty part names: the reader's part with the dirty
+ * part's fields added. Undefined when the two share no member.
+ */
+const narrowed = (reader: Ask, dirty: Data.Key): Ask | undefined => {
+  const was = reader.part;
+  if (typeof dirty === "string" || typeof was === "string") {
+    return textOf(was) === textOf(dirty) ? reader : undefined;
+  }
+  const part = { ...was, ...dirty };
+
+  if (textOf(part) === textOf(was)) return reader;
+  if (reader.read === "of" || Object.keys(was).some((f) => was[f] !== part[f])) {
+    return undefined;
+  }
+  return { read: "where", part };
+};
+
+/** The slots of the readers that hold one member: the member's own, and each part of its key
+ * (2^d parts for d fields). */
+const slotsOf = (key: string, member: Data.Key): string[] => {
+  const slots = [partSlot(key, { read: "of", part: member })];
+  if (typeof member === "string") return slots;
+
+  const flat = member;
+  const fields = Object.keys(flat);
+  for (let mask = 0; mask < 1 << fields.length; mask++) {
+    const part = Object.fromEntries(
+      fields.filter((_, i) => mask & (1 << i)).map((f) => [f, flat[f]]),
+    );
+    slots.push(partSlot(key, { read: "where", part }));
+  }
+  return slots;
+};
 
 /** A fault of a definition: rpc's own, branded by the definition's wire. */
 export type RemoteFault = RpcFault;
@@ -99,7 +150,7 @@ const meta = { role: "state", explain: "Remote data of this root" } as const;
 const sending = { role: "handler", explain: "Sends one write to its watchers" } as const;
 const reading = { role: "handler", explain: "Reads one key's stream" } as const;
 const name = "remoteData"; // labels only: the wire address is the key
-const reserved = ["answer", "stream", "drop", "fault", "faults"];
+const reserved = ["answer", "stream", "drop", "invalidate", "fault", "faults"];
 
 /**
  * The config of a definition, checked: no config key is a cell or reserved, no cell is
@@ -144,6 +195,10 @@ type Served = {
   copies: Map<string, Scope.DataController<unknown>>;
   /** By slot: the key, or the key and its parameter. */
   watchers: Map<string, Map<Push, () => void>>;
+  /** A keyed key's slots in use: the part each one reads. */
+  parts: Map<string, Ask>;
+  /** A keyed key's readers with a part to ask in this pass (ADR 0138 11). */
+  pass: Map<Push, Pass>;
   /** A keyed definition: each watched slot's last value, held while a client watches it. */
   held: Map<string, unknown>;
   /** The key's fill for one parameter, run on the root; undefined when the key has none. */
@@ -247,7 +302,15 @@ const steps = resource({
         const tags = Object.entries(def.by!).map(([k, t]) => t(param[k]));
         return Promise.resolve(run(op as never, { tags } as never, sending as never));
       };
-      load(def.state, meta).set({ roots, copies, watchers: new Map(), held: new Map(), fill });
+      load(def.state, meta).set({
+        roots,
+        copies,
+        watchers: new Map(),
+        held: new Map(),
+        fill,
+        parts: new Map(),
+        pass: new Map(),
+      });
       return next();
     };
 
@@ -308,9 +371,13 @@ const steps = resource({
 
       const ended = new Promise<void>((done) => {
         const end = () => {
-          if (set.delete(out.send) && set.size === 0) own.watchers.delete(at);
+          if (set.delete(out.send) && set.size === 0) {
+            own.watchers.delete(at);
+            own.parts.delete(at);
+          }
           done();
         };
+        own.parts.set(at, ask);
         set.set(out.send, end);
         if (out.closed.aborted) end();
         else out.closed.addEventListener("abort", end, { once: true });
@@ -327,6 +394,60 @@ const steps = resource({
       const member = root.of(ask.part).get();
       return member === undefined ? [] : [member];
     };
+
+    /** Sends each reader of this pass one signal: the one member it must ask for, or, when more
+     * than one share of its part is dirty, its whole part (ADR 0138 11). */
+    const flush = (own: Served) => {
+      const pass = [...own.pass];
+      own.pass.clear();
+      for (const [push, { at, dirty }] of pass) {
+        if (!own.watchers.get(at)?.has(push)) continue; // it left during the pass
+
+        push(dirty.size === 1 ? [...dirty.values()][0] : own.parts.get(at));
+      }
+    };
+
+    /** Marks a share of one reader's part dirty in this pass; the pass ends at the next
+     * microtask, so the writes of one call make one pass. */
+    const mark = (own: Served, at: string, push: Push, dirty: Ask) => {
+      if (own.pass.size === 0) queueMicrotask(() => flush(own));
+      const pass = own.pass.get(push) ?? { at, dirty: new Map<string, Ask>() };
+      own.pass.set(push, pass);
+      pass.dirty.set(partSlot("", dirty), dirty);
+    };
+
+    /**
+     * A set on a served keyed cell marks its member dirty for each reader that holds it: a
+     * lookup of 2^d slots. A change that is not one set (a preset, a whole list) marks every
+     * part of the key dirty.
+     */
+    const changed = (own: Served, key: string, member: Data.Key | undefined) => {
+      const slots =
+        member === undefined
+          ? [...own.parts.keys()].filter((at) => at.startsWith(`${key}\u0000`))
+          : slotsOf(key, member);
+      for (const at of slots) {
+        const whole = own.parts.get(at);
+        for (const push of own.watchers.get(at)?.keys() ?? []) {
+          mark(own, at, push, member === undefined ? whole! : { read: "of", part: member });
+        }
+      }
+    };
+
+    /** `invalidate` on a serving root: each reader whose part shares a member with the dirty
+     * part gets a signal for that share. */
+    const dirtyOn = (own: Served, key: string, dirty: Data.Key) => {
+      for (const [at, part] of own.parts) {
+        const share = at.startsWith(`${key}\u0000`) ? narrowed(part, dirty) : undefined;
+        if (share === undefined) continue;
+
+        for (const push of own.watchers.get(at)!.keys()) mark(own, at, push, share);
+      }
+    };
+
+    /** A reading root's `invalidate`, by definition and key: it asks again for the dirty share
+     * of each part in use. */
+    const askers = new Map<Def, Map<string, (dirty: Data.Key) => Promise<void>>>();
 
     /** A store's faults now: its entry's, or the root's cell. */
     const faultsIn = (def: Def, store: Store): Faults =>
@@ -516,31 +637,67 @@ const steps = resource({
       const { run, clock, signal } = event;
       const cell = event.load(def.made[key]!, meta) as unknown as Keyed;
       const joined = new Map<string, Joined>();
-      const keep = (gone: string) => (member: Data.Key) =>
-        [...joined].some(([at, part]) => at !== gone && holds(part.ask, member));
+      const stays = (member: Data.Key) => [...joined.values()].some((j) => holds(j.ask, member));
 
-      const ask = async (part: Joined, asked: Ask) => {
-        const at = partSlot(key, asked);
-        const mine = ++part.asks;
+      const pending = new Set<Asking>();
+      const inUse = (asked: Ask) =>
+        !signal.aborted && [...joined.values()].some((j) => narrowed(j.ask, asked.part));
+
+      /** One ask. A later ask that covers it wins: this one then waits for that one's answer
+       * (ADR 0137 3). Never rejects: a fault goes to `board.faults`. */
+      const ask = (asked: Ask): Promise<void> => {
+        const entry: Asking = { ask: asked };
+        for (const p of pending) if (holds(asked, p.ask.part)) p.by = entry;
+        pending.add(entry);
+        entry.done = settle(entry);
+        return entry.done;
+      };
+
+      const settle = async (entry: Asking): Promise<void> => {
+        const { read, part } = entry.ask;
+        const got = await Promise.resolve()
+          .then(() =>
+            run(def.wire[`${key}.ask`] as never, { input: entry.ask } as never, reading as never),
+          )
+          .then(
+            (members) => () => cell.answer(read, part, members as readonly unknown[], () => false),
+            (error: unknown) => () => {
+              throw error;
+            },
+          );
+        pending.delete(entry);
+        if (entry.by) return entry.by.done;
+        if (!inUse(entry.ask)) return;
+
         try {
-          const members = (await run(
-            def.wire[`${key}.ask`] as never,
-            { input: asked } as never,
-            reading as never,
-          )) as readonly unknown[];
-          if (mine !== part.asks || part.stop.signal.aborted) return;
-          cell.answer(asked.read, asked.part, members, () => false);
+          got();
           mark(key, null);
         } catch (error) {
-          if (part.stop.signal.aborted) return;
           mark(
             key,
             def.wire.fault.is(error)
               ? error
-              : def.wire.fault.make(at, "invalid", { side: "client" }, undefined),
+              : def.wire.fault.make(
+                  partSlot(key, entry.ask),
+                  "invalid",
+                  { side: "client" },
+                  undefined,
+                ),
           );
         }
       };
+
+      /** `invalidate` here: ask again for the dirty share of each part in use, once each. */
+      const reask = async (dirty: Data.Key) => {
+        const asks = new Map<string, Ask>();
+        for (const j of joined.values()) {
+          const share = narrowed(j.ask, dirty);
+          if (share) asks.set(partSlot(key, share), share);
+        }
+        await Promise.all([...asks.values()].map(ask));
+      };
+      const mine = askers.get(def) ?? new Map<string, (dirty: Data.Key) => Promise<void>>();
+      askers.set(def, mine.set(key, reask));
 
       const follow = async (part: Joined) => {
         for (let wait = 50; !part.stop.signal.aborted;) {
@@ -551,7 +708,7 @@ const steps = resource({
               reading as never,
             )) as AsyncIterable<Ask> & { stop(reason?: unknown): void };
             part.stop.signal.addEventListener("abort", () => signals.stop(), { once: true });
-            for await (const dirty of signals) void ask(part, dirty);
+            for await (const dirty of signals) void ask(dirty);
             wait = 50;
           } catch (error) {
             if (part.stop.signal.aborted) return;
@@ -565,12 +722,7 @@ const steps = resource({
       cell.listen((read, part) => {
         const asked: Ask = { read, part };
         const at = partSlot(key, asked);
-        const made = joined.get(at) ?? {
-          refs: 0,
-          asks: 0,
-          ask: asked,
-          stop: new AbortController(),
-        };
+        const made = joined.get(at) ?? { refs: 0, ask: asked, stop: new AbortController() };
         if (made.refs++ === 0) {
           joined.set(at, made);
           signal.addEventListener("abort", () => made.stop.abort(), {
@@ -583,7 +735,7 @@ const steps = resource({
           if (--made.refs > 0) return;
           made.stop.abort();
           joined.delete(at);
-          if (!signal.aborted) cell.answer(read, part, [], keep(at));
+          if (!signal.aborted) cell.answer(read, part, [], stays);
         };
       });
     };
@@ -624,6 +776,12 @@ const steps = resource({
       watch,
       watchPart,
       answerPart,
+      changed,
+      /** `invalidate`: signal the readers on a serving root; ask again on a reading root. */
+      invalidate: async (def: Def, own: Served | null, key: string, dirty: Data.Key) => {
+        if (own) return dirtyOn(own, key, dirty);
+        await askers.get(def)?.get(key)?.(dirty);
+      },
       readStart,
       join,
       /**
@@ -820,12 +978,40 @@ export function remoteData<
       }
     },
   });
+  /**
+   * Marks parts dirty, by keyed key: `{ tasks: { project } }`. On a serving root, each reader
+   * of a part that shares a member gets a signal with no data. On a reading root, each part in
+   * use asks again; the call resolves once the answers are in the cell (ADR 0137 2).
+   */
+  const invalidate = operation({
+    label: `${name}.invalidate`,
+    input: z.make<Dirty<D>>((value) => {
+      const entries = Object.entries(Object(value) as object);
+      const fit = entries.every(([key, part]) => keyed.has(key) && isKey(part));
+      return fit ? { value: value as Dirty<D> } : z.fail("expected keyed keys and their parts");
+    }),
+    depends: { own: state, s: steps },
+    run: async ({ own, s }, { input }) => {
+      await Promise.all(
+        Object.entries(input).map(([key, part]) => s.invalidate(def, own, key, part as Data.Key)),
+      );
+    },
+  });
   const rooting = new Set<unknown>();
-  /** One write to a served root controller. A keyed one adopts the list (ADR 0138). */
-  const put = (control: Scope.DataController<unknown>, key: string, value: unknown) =>
-    keyed.has(key)
-      ? (control as unknown as Keyed).adopt(value as readonly unknown[])
-      : control.set(value);
+  /** One write to the served root controllers. A keyed one adopts the list (ADR 0138), then
+   * marks its member dirty for the readers that hold it. */
+  const root = (served: Served, key: string, value: unknown, s: Steps) => {
+    if (!keyed.has(key)) {
+      served.roots.get(key)!.set(value);
+      served.copies.get(key)!.set(value);
+      return;
+    }
+
+    const list = value as readonly unknown[];
+    const step = (served.roots.get(key) as unknown as Keyed).adopt(list);
+    (served.copies.get(key) as unknown as Keyed).adopt(list);
+    s.changed(served, key, step);
+  };
 
   // Pushes follow OTel messaging: the server runs `remoteData.send` (a producer span) per write;
   // each push carries it as `meta.traceparent`; rpc's `remoteData.receive` on the client links it.
@@ -862,7 +1048,10 @@ export function remoteData<
   const base = capsule({
     label: name,
     config: { serve: serveKey.optional, fill: fillKey.optional, read: readKey.optional },
-    exports: { ...made, faults, drop } as unknown as { drop: typeof drop },
+    exports: { ...made, faults, drop, invalidate } as unknown as {
+      drop: typeof drop;
+      invalidate: typeof invalidate;
+    },
     hooks: {
       async start(event) {
         const { config, load, raise } = event;
@@ -939,8 +1128,7 @@ export function remoteData<
         if (rooting.has(cell)) return next();
         rooting.add(cell);
         try {
-          put(served.roots.get(key)!, key, value);
-          put(served.copies.get(key)!, key, value);
+          root(served, key, value, load(own, meta).get()!);
         } finally {
           rooting.delete(cell);
         }
@@ -981,6 +1169,7 @@ export function remoteData<
       readonly answer: Answer;
       readonly stream: Stream;
       readonly drop: typeof drop;
+      readonly invalidate: typeof invalidate;
       readonly fault: { is(error: unknown): error is RemoteFault };
       readonly addresses: readonly string[];
     } & {

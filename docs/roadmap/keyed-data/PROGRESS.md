@@ -255,3 +255,66 @@ shows it.
 - Core without rpc: 20,970 B (cap 21,504 B).
 - Core with rpc: 30,966 B. The old cap was
   30,720 B. It is now 31,744 B (+1 KiB).
+
+## k04 invalidate, on both sides
+
+### Shape
+
+- `board.invalidate` is an op. Its input names each
+  keyed key and its dirty part:
+
+  ```ts
+  await run(board.invalidate, {
+    input: { tasks: { project } },
+  });
+  ```
+
+- On a serving root, each reader whose part shares a
+  member with the dirty part gets a signal. The
+  signal is that share: `where` the two parts joined,
+  or the reader's own `of`.
+- On a reading root, each part in use asks again for
+  its share. The call resolves when the answers are
+  in the cell. A fault goes to `board.faults`.
+- A set on a served cell marks its member dirty. The
+  server finds the readers by 2^d slots of the key.
+  A change that is not one set marks every part.
+- A pass ends at the next microtask. A reader with one
+  dirty member gets `of` that key. A reader with more
+  gets its whole part.
+- The last ask wins: a later ask that covers an
+  earlier one makes the earlier answer drop. The
+  earlier caller then waits for the later answer.
+
+### One reading to note
+
+ADR 0138 writes `board.invalidate({ project, id })`.
+A board can hold more than one keyed cell, so the
+input names the cell: `{ tasks: { project, id } }`.
+It reads as `board.faults` does.
+
+### Proof
+
+- `packages/core/tests/remote-data-keyed-invalidate.test.ts`:
+  15 tests on the memory transport. They cover each
+  Verify line of the card, a delete, a string key,
+  a share that names no member, and a raw input that
+  does not parse.
+- `remote-data-keyed-cell.test.ts` grew to 17 tests.
+  They close the k03 gaps: a bad ask from the wire,
+  the order of fields, a part that another part
+  holds, a root and a session on one part.
+- Core: 1,270 tests pass.
+- Mutation on the k03 and k04 lines (scoped Stryker,
+  Core tests): 85.30 (410 killed, 2 timeouts, 61
+  survived, 10 with no test). k03 alone was 65.14.
+- Survivors left: the same answer by another road
+  (a label text, a second flush, a key text for a
+  string), and paths a test cannot reach by the
+  public seam (a reader that leaves inside one
+  pass, the backoff of a link).
+
+### Size
+
+- Core with rpc: 31,689 B. The cap is 31,744 B.
+  k05 will need more room.

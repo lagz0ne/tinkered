@@ -2,7 +2,7 @@ import { memory } from "@tinker/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { createScope, data, operation, remoteData, transport } from "@/main";
+import { createScope, data, operation, remoteData, tag, transport } from "@/main";
 import type { Scope } from "@/main";
 
 const { hook } = transport;
@@ -39,13 +39,25 @@ const until = async (ok: () => boolean) => {
 async function boot(options: { refuse?: string } = {}) {
   const seen: { key: string; input: unknown }[] = [];
   const ended: string[] = [];
+  let refuseAsks = false;
+  let gate: { reached: boolean; release: () => void; wait: Promise<void> } | undefined;
   const guard = operation({
     label: "guard",
     input: hook.start,
-    run: (_, { input }) => {
+    run: async (_, { input }) => {
       seen.push({ key: input.key, input: input.input });
       const part = Object(Object(input.input).part) as { project?: string };
-      return part.project === options.refuse ? input.refuse({ project: part.project }) : undefined;
+      const asked = input.key === "tasks.ask";
+      if ((options.refuse && part.project === options.refuse) || (refuseAsks && asked)) {
+        return input.refuse({ project: part.project });
+      }
+
+      const held = asked ? gate : undefined;
+      gate = undefined;
+      if (held) {
+        held.reached = true;
+        await held.wait;
+      }
     },
   });
   const finished = operation({
@@ -78,7 +90,14 @@ async function boot(options: { refuse?: string } = {}) {
     return scope;
   };
   const write = (t: Task) => server.run(add, { input: t, tags: [] });
-  return { server, client, write, seen, ended };
+  const holdAsk = () => {
+    let release = () => undefined as void;
+    const wait = new Promise<void>((done) => (release = done));
+    gate = { reached: false, release, wait };
+    return gate;
+  };
+  const refuse = (on: boolean) => (refuseAsks = on);
+  return { server, client, write, seen, ended, holdAsk, refuseAsks: refuse };
 }
 
 /** A client's reader of a part, kept in use until `stop`. */
@@ -178,4 +197,178 @@ test("a member also read by key stays when its part leaves", async () => {
   part.stop();
 
   expect(all(tab)).toEqual([task("p1", "a")]);
+});
+
+test("an ask from the wire that is not a part is invalid", async () => {
+  const app = await boot();
+  const bad = [
+    { read: "all", part: { project: "p1" } },
+    { read: "where", part: null },
+    { read: "where", part: ["p1"] },
+    { read: "where", part: { project: { deep: "p1" } } },
+    { read: "where", part: { n: Number.NaN } },
+    { read: "where" },
+  ];
+
+  const replies = await Promise.all(
+    bad.map((value) =>
+      app.server.run(board.answer, { input: { address: "tasks.ask", value, meta: {} } }),
+    ),
+  );
+  const good = await app.server.run(board.answer, {
+    input: { address: "tasks.ask", value: { read: "of", part: "x" }, meta: {} },
+  });
+
+  expect(replies.map((r) => Object(r).kind)).toEqual(bad.map(() => "invalid"));
+  expect(good).toEqual({ ok: true, value: [] });
+});
+
+test("a part names one slot whatever the order of its fields", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const one = tab.resolve(board.tasks.where({ id: "a", project: "p1" }));
+  one.watch(() => undefined);
+  await until(() => one.get().length > 0);
+
+  await app.write(task("p1", "a", "renamed"));
+  await until(() => one.get()[0]?.title === "renamed");
+
+  expect(app.seen.filter((s) => s.key === "tasks.ask").map((s) => s.input)).toEqual([
+    { read: "where", part: { id: "a", project: "p1" } },
+    { read: "of", part: { project: "p1", id: "a" } },
+  ]);
+});
+
+test("a member held by another part stays when one part leaves", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const byProject = watchPart(tab, "p1");
+  const byId = tab.resolve(board.tasks.where({ id: "a" }));
+  const stop = byId.watch(() => undefined);
+  await until(() => byProject.read().length > 0 && byId.get().length > 0);
+
+  byProject.stop();
+  const kept = all(tab);
+  stop();
+
+  expect(kept).toEqual([task("p1", "a")]);
+  expect(all(tab)).toEqual([]);
+});
+
+test("a root and a session that read one part share one stream", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const session = tab.createSession();
+  const root = watchPart(tab, "p1");
+  const own = watchPart(session, "p1");
+  await until(() => root.read().length > 0 && own.read().length > 0);
+
+  root.stop();
+  await app.write(task("p1", "a", "renamed"));
+  await until(() => own.read()[0]?.title === "renamed");
+
+  expect(app.seen.filter((s) => s.key === "tasks")).toHaveLength(1);
+  expect(app.ended).not.toContain("tasks");
+  own.stop();
+  await session.close();
+});
+
+test("a refused ask is a fault, and the next good answer clears it", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const p1 = watchPart(tab, "p1");
+  await until(() => p1.read().length > 0);
+  const faults = () => tab.resolve(board.faults).get().tasks;
+
+  app.refuseAsks(true);
+  await tab.run(board.invalidate, { input: { tasks: { project: "p1" } } });
+  const refused = faults();
+  app.refuseAsks(false);
+  await tab.run(board.invalidate, { input: { tasks: { project: "p1" } } });
+
+  expect(refused).toMatchObject({ fault: "refused" });
+  expect(faults()).toBe(undefined);
+});
+
+test("an answer for a part that left is dropped", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const p1 = watchPart(tab, "p1");
+  const p2 = watchPart(tab, "p2");
+  await until(() => p1.read().length > 0 && p2.read().length > 0);
+
+  const held = app.holdAsk();
+  const asked = tab.run(board.invalidate, { input: { tasks: { project: "p1" } } });
+  await until(() => held.reached);
+  p1.stop();
+  held.release();
+  await asked;
+
+  expect(all(tab)).toEqual([task("p2", "b")]);
+});
+
+test("the server's own view of the board holds every member", async () => {
+  const app = await boot();
+
+  await app.write(task("p1", "c"));
+
+  expect(app.server.resolve(board.tasks).get()).toEqual([
+    task("p1", "a"),
+    task("p2", "b"),
+    task("p1", "c"),
+  ]);
+});
+
+test("a keyed board takes no config, and invalidate is a reserved key", () => {
+  const project = tag<string>({ label: "project" });
+
+  const withConfig = () => remoteData({ tasks }, { config: { project } });
+  const reserved = () => remoteData({ invalidate: data({ initial: 0 }) });
+
+  expect(withConfig).toThrow("a keyed cell takes no config");
+  expect(reserved).toThrow("invalidate is a reserved key");
+});
+
+test("an of and a where of one key are two parts on the client", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const one = tab.resolve(board.tasks.of({ project: "p1", id: "a" }));
+  one.watch(() => undefined);
+  const pair = tab.resolve(board.tasks.where({ project: "p1", id: "a" }));
+  const stop = pair.watch(() => undefined);
+  await until(() => one.get() !== undefined && pair.get().length > 0);
+
+  stop();
+
+  expect(one.get()).toEqual(task("p1", "a"));
+  expect(all(tab)).toEqual([task("p1", "a")]);
+});
+
+test("a reader still gets signals after another client leaves its part", async () => {
+  const app = await boot();
+  const [a, b] = await Promise.all([app.client(), app.client()]);
+  const left = watchPart(a, "p1");
+  const stays = watchPart(b, "p1");
+  await until(() => left.read().length > 0 && stays.read().length > 0);
+
+  left.stop();
+  await until(() => app.ended.includes("tasks"));
+  await app.write(task("p1", "a", "renamed"));
+  await until(() => stays.read()[0]?.title === "renamed");
+
+  expect(stays.read()).toEqual([task("p1", "a", "renamed")]);
+});
+
+test("a member stays only for a part that matches it on every field", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const p1 = watchPart(tab, "p1");
+  const other = tab.resolve(board.tasks.where({ project: "p2", id: "a" }));
+  other.watch(() => undefined);
+  await until(() => p1.read().length > 0);
+
+  p1.stop();
+
+  expect(all(tab)).toEqual([]);
+  expect(board.invalidate.label).toBe("remoteData.invalidate");
 });

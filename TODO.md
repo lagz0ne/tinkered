@@ -57,9 +57,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **core/keyed-invalidate** — keyed data k04, blocked by k03 (ADR 0137). `invalidate(part)` on the client marks the part dirty and asks again; on the server it sends a signal with no data to each reader of the part; a set on a served cell marks that key dirty; the signal names a key or a part (ADR 0138).
-  Verify: a signal for a full key makes each reader ask for one member; an answer that arrives after a later ask started is dropped; `await invalidate(part)` resolves after the fresh members are in the cell; a client that reads another part gets no signal; two keys of one part in one pass make one signal for the part.
-
 - **core/keyed-load** — keyed data k05, blocked by k04 (ADR 0137). A board takes a `load` for a keyed cell: it gives the members of a part, and the server keeps no member; the input type of the `load` says which fields a part must have.
   Verify: the six cases of ADR 0137 as tests, with a fake store that answers late; the server holds 0 members after each case.
 
@@ -121,6 +118,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **react/data-keyed-read** — keyed data k02, done 2026-11-11. `useData(tasks.where(part))` and `useData(tasks.of(key))`. Proof: 3 browser tests (one panel renders per write; 1,000 keys leave no part).
 
 - **core/keyed-ask** — keyed data k03, done 2026-11-11. `remoteData` serves a keyed cell: a stream per part, an ask per part, the guard at each ask. Proof: 6 Core tests, 8 Bun tests (memory and WebSocket), size cap with rpc now 31,744 B.
+
+- **core/keyed-invalidate** — keyed data k04, done 2026-11-11. `board.invalidate` on both sides; a set on a served cell signals its member; one pass, one signal per reader. Proof: 15 Core tests; scoped mutation on k03 and k04 lines 85.30.
 
 - **core/start-sees-stop** — ADR 0134: after a stop, a start hook's `next()` rejects, so `serve` never listens; a stop signal during start ends the start.
   Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Duke accepted 2026-11-10 08:42; released in 0.16.2.

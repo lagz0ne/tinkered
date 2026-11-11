@@ -352,3 +352,15 @@ test("a read on the cell names the part, and a part in use keeps one reader", ()
   expect(during).toBe(before);
   expect(after).not.toBe(before);
 });
+
+test("an of and a where of one full key are two readers", () => {
+  const items = seeded();
+  const key = { project: "p1", id: "a" };
+  items.of(key).watch(() => undefined);
+
+  const part = items.where(key);
+  part.watch(() => undefined);
+
+  expect(part.get()).toEqual([task("p1", "a")]);
+  expect(items.of(key).get()).toEqual(task("p1", "a"));
+});
