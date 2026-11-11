@@ -5,6 +5,42 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.2
+
+A keyed board's `load` runs in a session of its
+own, closed when it returns. Before, it ran on the
+root: a session resource it used stayed open.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.2
+bun add $R/tinker-core-0.17.2.tgz \
+  $R/tinker-react-0.17.2.tgz \
+  $R/tinker-bun-0.17.2.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.2/tinker-core-0.17.2.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.2/tinker-react-0.17.2.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.2/tinker-bun-0.17.2.tgz
+
+### remoteData
+
+- A load gets the ask's signal. Its session closes
+  when it returns, as a `fill`'s tagged call does.
+- A transaction that begins on first use now ends
+  with the load. Found by Hedl's Checks board.
+- A tab that drops the ask stops the load.
+
+### Upgrade
+
+- Change the three URLs.
+
 ## 0.17.1
 
 A keyed part that a part in use holds whole opens

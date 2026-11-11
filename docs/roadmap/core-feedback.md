@@ -984,6 +984,8 @@ const teamId = String(part.teamId ?? "");
 ```
 
 Hedl digs the same way for `project`.
+Hedl's Checks board (hedl 25bf4b6) digs `Object(asked.part ?? asked).project`:
+a keyed ask gives `{ read, part }`, a config watch the plain parameter.
 Ask: a typed part for a keyed board's `onStart`.
 State: card `core/keyed-guard-part` in Ready; the shape waits on Duke.
 
@@ -1000,5 +1002,27 @@ Full list: `/mnt/project-files/tinker-app/issue-board/friction.md`.
 - A tab sees `failed`, not the cause of a throw in an op.
 - A board lane needs order, no limit (input to k07).
   Today the tab sorts: `where({ teamId }).toSorted(byRank)`.
+
+State: first asker; no ticket until a second asker.
+
+## A load ran on the root — 2026-11-11
+
+Asked by Hedl's Checks board (hedl 25bf4b6). A bug, fixed at once.
+Hedl's transaction is a session resource: it begins on first use and ends at session close.
+A load ran on the root, so the root's transaction held the one write turn.
+The tests hung. The old `fill` ran in a tagged call, so in a session of its own.
+State: fixed in 0.17.2; the load gets the ask's signal, so it has its own session.
+
+## Hedl's Checks board on keyed data — 2026-11-11
+
+Asked by Hedl (hedl 25bf4b6). First asker of each.
+
+- An op that depends on `board.invalidate` cannot be preset in a unit test
+  without the board capsule (`CapsuleMissing`). Workaround: install the board.
+- Faults are per key, not per part. A refused ask for one project sets
+  `faults.report` for every reader of that board in the tab.
+  Ask: a fault per part, or a `faults.of(part)` read.
+- `of(key)` gives `undefined` before the first answer and when there is no
+  member. The page cannot tell "not read yet" from "nothing there".
 
 State: first asker; no ticket until a second asker.

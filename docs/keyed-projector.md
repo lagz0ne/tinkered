@@ -45,6 +45,8 @@ board({ serve: true, load: { tasks: loadTasks } });
   guard.
 - It can give more than the part. Only the part's
   members go to the reader.
+- It runs in a session of its own, closed when it
+  returns. A transaction it opens ends with it.
 
 ## The rules
 

@@ -227,7 +227,7 @@ type Served = {
   /** Each keyed key's load, from the config. */
   loads: Load;
   /** A keyed key's load of one part, run on the root; undefined when the key has none. */
-  load: (key: string, part: Data.Key) => Promise<unknown> | undefined;
+  load: (key: string, part: Data.Key, signal: AbortSignal) => Promise<unknown> | undefined;
 };
 
 /** A reading root's values for one parameter, shared by every session that names it. */
@@ -329,10 +329,13 @@ const steps = resource({
         return Promise.resolve(run(op as never, { tags } as never, sending as never));
       };
       const loads = config.load.present ? config.load.value : {};
-      // The load parses the part as its own raw input: it reads only the fields it takes.
-      const loadPart = (key: string, part: Data.Key) => {
+      // The load parses the part as its own raw input: it reads only the fields it takes. The
+      // ask's signal gives it a session of its own, closed when it returns, as a fill's tags do.
+      const loadPart = (key: string, part: Data.Key, signal: AbortSignal) => {
         const op = loads[key];
-        return op && Promise.resolve(run(op, { rawInput: part } as never, sending as never));
+        return (
+          op && Promise.resolve(run(op, { rawInput: part, signal } as never, sending as never))
+        );
       };
       load(def.state, meta).set({
         roots,
@@ -422,8 +425,8 @@ const steps = resource({
 
     /** A keyed key's ask, as rpc runs it: the members of the part from its load, or in the
      * root's cell now. A load may give more than the part: only the part's members go out. */
-    const answerPart = (def: Def, own: Served, key: string, ask: Ask) => {
-      const loaded = own.load(key, ask.part);
+    const answerPart = (def: Def, own: Served, key: string, ask: Ask, signal: AbortSignal) => {
+      const loaded = own.load(key, ask.part, signal);
       if (loaded) {
         const keyOf = memberKey(def.cells[key]!);
         return loaded.then((members) =>
@@ -1017,7 +1020,7 @@ export function remoteData<
                 label: `${name}.ask`,
                 input: askShape,
                 depends: { own: state, s: steps },
-                run: ({ own, s }, { input }) => s.answerPart(def, own!, key, input),
+                run: ({ own, s }, { input, signal }) => s.answerPart(def, own!, key, input, signal),
               }),
             ],
           ]

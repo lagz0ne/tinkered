@@ -2,7 +2,7 @@ import { memory } from "@tinker/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { createScope, data, operation, remoteData, transport } from "@/main";
+import { createScope, data, operation, remoteData, resource, transport } from "@/main";
 import type { Data, Scope } from "@/main";
 
 const { hook } = transport;
@@ -352,4 +352,41 @@ test("a member from the load that does not parse is an invalid fault on the clie
     payload: { side: "client" },
   });
   expect(p1.get()).toEqual([task("p1", "a")]);
+});
+
+test("a load runs in a session of its own, closed when it returns", async () => {
+  const events: string[] = [];
+  // As Hedl's transaction: a session resource, begun on first use and ended at session close.
+  const turn = resource({
+    label: "turn",
+    target: "session",
+    factory: (_deps, ctx) => {
+      events.push("begin");
+      ctx.defer(() => void events.push("end"));
+      return {};
+    },
+  });
+  const loadTasks = operation({
+    label: "tasks.load.turn",
+    input: z.object({ project: z.string() }),
+    depends: { turn },
+    run: (_, { input }) => [task(input.project, "a")],
+  });
+  const server = await createScope({
+    capsules: [
+      board({ serve: true, load: { tasks: loadTasks } }),
+      memory.server({ services: [board] }),
+    ],
+  }).ready;
+  closers.push(() => server.close());
+  const tab = await createScope({
+    capsules: [memory.client({ peer: server }), board({ read: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+
+  const p1 = watch(tab, board.tasks.where({ project: "p1" }));
+  await until(() => p1.get().length > 0);
+  await until(() => events.length === 2);
+
+  expect(events).toEqual(["begin", "end"]);
 });
