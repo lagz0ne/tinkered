@@ -160,9 +160,44 @@ Writer and lead: Claude Opus 5.5, in one session.
   visits the 2^d parts of its key. Any other change
   (a preset, a value of a layer) visits each part.
 
+### Proof
+
+- `tests/keyed-data.test.ts`: 23 tests at the Core
+  entry. Core: 1,237 tests pass.
+- Mutation on the new lines alone (scoped Stryker):
+  91.15 (174 killed, 16 survived, 1 timeout).
+  The first run was 71.35; the tests that killed the
+  rest name real promises (a write during a write, a
+  stop called twice, the last part leaving).
+- Survivors left are the same answer by another road:
+  the string-key branch of the key text, the extra
+  mask of the 2^d loop, the id counter going down.
+- `scripts/check-slots.mjs`: headroom still 2. The
+  new classes sit after the release block.
+
 ### Size
 
-The cap is 20,480 B gzip for Core without rpc.
-Main `6d11994`: 19,350 B. With k01: 20,460 B.
-The private-field list was written again
-(`vp run core#fields`).
+- Main `6d11994`: 19,350 B gzip for Core without rpc.
+- With k01 and k02: 20,600 B. The old cap was 20,480 B.
+- The cap is now 21,504 B (+1 KiB), in
+  `scripts/check-core-entries.mjs`. A second mode of
+  `data` is new code; Duke set size as not a goal
+  (2026-11-01).
+
+## k02 React reads by key
+
+- `tasks.of(key)` and `tasks.where(part)` on the cell
+  give a `Data.Read`. It names the cell and the part,
+  and makes no unit.
+- `useData(read)` reads it through the keyed
+  controller of the nearest scope.
+- A part in use hands back the reader that joined it.
+  So the hook gets the same reader, and the same store,
+  at each render of the same part.
+- Proof: `packages/react/tests/use-data-keyed.test.tsx`,
+  3 browser tests. A write to p1 renders the p1 panel
+  once and the p2 panel not at all. A panel moved over
+  1,000 keys leaves each old part: a late write to the
+  first key renders nothing, and its reader is gone.
+- React's mutation lane runs no tests (known, card in
+  `TODO.md`), so it has no number here.

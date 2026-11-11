@@ -103,8 +103,23 @@ export declare namespace Data {
     readonly controller: Edge<"controller", Keyed<V, K>>;
     readonly atScope: { readonly controller: Edge<"controller", Keyed<V, K>> };
     readonly atNamespace: { readonly controller: Edge<"controller", Keyed<V, K>> };
+    /** One member, with the key given where the read is (ADR 0136). Makes no unit. */
+    of(key: K): Read<V | undefined>;
+    /** The members of a part, with the part given where the read is (ADR 0136). Makes no unit. */
+    where(part: Part<K>): Read<readonly V[]>;
     /** Type-only: the key type. */
     readonly [keyOf]?: K;
+  };
+
+  /** A keyed read with its key given at the read (ADR 0136): it names the cell and the part,
+   * and makes no unit. A scope's keyed controller reads it: `controller(cell)[read](part)`. */
+  export type Read<T> = {
+    readonly kind: "read";
+    readonly cell: Keyed<unknown, Key>;
+    readonly read: "of" | "where";
+    readonly part: Key;
+    /** Type-only: the value type. */
+    readonly [viewOf]?: T;
   };
 
   /** What a read edge hands a unit: the value and its changes, never a write. */
@@ -1212,30 +1227,13 @@ export function data(config: {
   tags?: Tag.Bindings;
 }): Data.Cell<unknown> {
   const label = config.label ?? "anon";
-  const keyed =
-    config.key === undefined
-      ? undefined
-      : new KeyedSpec(label, config.key, config.parse, config.eq);
-  const base = {
-    [cell]: true,
-    label,
-    mode: keyed === undefined ? "single" : "keyed",
-    tags: readMany(config.tags),
-    initial: keyed === undefined ? admit(label, config.parse, config.initial) : keyed.empty,
-    parse: keyed === undefined ? config.parse : keyed.admitAll,
-    eq: keyed === undefined ? (config.eq ?? Object.is) : Object.is,
-    keyed,
-    capsule: undefined,
-    passed: undefined,
-  } as Data.Cell<unknown> & Exported & KeyedField;
-  const placed = (placement: "scope" | "namespace") => ({
-    controller: Object.assign(edgeTo("controller", base), { placement }),
-  });
-  return Object.assign(base, {
-    controller: edgeTo("controller", base),
-    atScope: placed("scope"),
-    atNamespace: placed("namespace"),
-  });
+  if (config.key === undefined) {
+    const initial = admit(label, config.parse, config.initial);
+    return createCell(label, config.tags, initial, config.parse, config.eq ?? Object.is, undefined);
+  }
+
+  const keyed = new KeyedSpec(label, config.key, config.parse, config.eq);
+  return createCell(label, config.tags, keyed.empty, keyed.admitAll, Object.is, keyed);
 }
 
 /** The root of a layer: where an `atScope` or `atNamespace` edge places its reads and writes. */
@@ -7848,6 +7846,7 @@ type KeyedIndex = {
 type KeyedRead = {
   readonly at: (value: readonly unknown[]) => unknown;
   readonly many: boolean;
+  readonly reader: Data.Reader<unknown>;
   readonly watchers: Set<Watcher>;
   prev: unknown;
 };
@@ -7889,6 +7888,10 @@ class KeyedSpec {
     }
     return this.store(slots, 0, undefined);
   };
+
+  read(cell: object, read: "of" | "where", part: Data.Key): Data.Read<unknown> {
+    return { kind: "read", cell: cell as Data.Keyed<unknown, Data.Key>, read, part };
+  }
 
   control(inner: Scope.DataController<unknown>): unknown {
     return new KeyedControl(this, inner);
@@ -7943,11 +7946,14 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
   private inner: Scope.DataController<unknown>;
   private parts: Map<string, KeyedRead> | undefined;
   private stop: (() => void) | undefined;
+  /** The id of the value the parts last saw. */
+  private seen: number;
   constructor(spec: KeyedSpec, inner: Scope.DataController<unknown>) {
     this.spec = spec;
     this.inner = inner;
     this.parts = undefined;
     this.stop = undefined;
+    this.seen = 0;
   }
 
   get(): readonly unknown[] {
@@ -7981,7 +7987,12 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
 
   delete(key: Data.Key): void {
     const text = this.spec.text(key);
-    if (this.spec.indexOf(this.get()).slots.has(text)) this.put(text, key, undefined);
+    const index = this.spec.indexOf(this.get());
+    if (!index.slots.has(text)) return;
+
+    const slots = new Map(index.slots);
+    slots.delete(text);
+    this.inner.set(this.spec.store(slots, index.id, key));
   }
 
   of(key: Data.Key): Data.Reader<unknown> {
@@ -8013,24 +8024,31 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     }) as Data.Reader<readonly unknown[]>;
   }
 
-  /** Writes `member` at `text`, or deletes it when `member` is undefined. */
   private put(text: string, key: Data.Key, member: unknown): void {
     const index = this.spec.indexOf(this.get());
     const old = index.slots.get(text);
-    if (old !== undefined && member !== undefined && this.spec.eq(old.member, member)) return;
+    if (old !== undefined && this.spec.eq(old.member, member)) return;
 
     const slots = new Map(index.slots);
-    if (member === undefined) slots.delete(text);
-    else slots.set(text, { key, member });
+    slots.set(text, { key, member });
     this.inner.set(this.spec.store(slots, index.id, key));
   }
 
+  /** A part in use hands back the reader that joined it, so a reader is as stable as its part:
+   * a hook that reads the same part at each render gets the same reader. */
   private reader(
     text: string,
     many: boolean,
     at: (value: readonly unknown[]) => unknown,
   ): Data.Reader<unknown> {
-    return { get: () => at(this.get()), watch: (fn) => this.join(text, many, at, fn) };
+    const joined = this.parts?.get(text);
+    if (joined !== undefined) return joined.reader;
+
+    const reader: Data.Reader<unknown> = {
+      get: () => at(this.get()),
+      watch: (fn) => this.join(text, many, at, fn, reader),
+    };
+    return reader;
   }
 
   private join(
@@ -8038,17 +8056,21 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     many: boolean,
     at: (value: readonly unknown[]) => unknown,
     fn: (next: unknown, prev: unknown) => void,
+    reader: Data.Reader<unknown>,
   ): () => void {
     const parts = (this.parts ??= new Map());
     let entry = parts.get(text);
     if (entry === undefined) {
-      entry = { at, many, watchers: new Set(), prev: at(this.get()) };
+      entry = { at, many, reader, watchers: new Set(), prev: at(this.get()) };
       parts.set(text, entry);
     }
 
     const watcher: Watcher = { fn };
     entry.watchers.add(watcher);
-    this.stop ??= this.watch((next, prev) => this.wake(next, prev));
+    if (this.stop === undefined) {
+      this.seen = this.spec.indexOf(this.get()).id;
+      this.stop = this.watch(() => this.wake());
+    }
 
     const joined = entry;
     return () => {
@@ -8060,16 +8082,25 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     };
   }
 
-  /** One write visits the 2^d parts of its key and reads no other member. A value that one
-   * write did not make from the last one (a preset, a layer's own value) visits every part. */
-  private wake(next: readonly unknown[], prev: readonly unknown[]): void {
+  /** One write visits the 2^d parts of its key and reads no other member. It reads the value
+   * now, not the value it was called with: a watcher that writes during a write calls this again
+   * first, and the late call then finds nothing new. When the value is more than one write past
+   * the last one seen, every part is visited. A value read from a list has `base` 0, which no
+   * value has as its id. */
+  private wake(): void {
     const parts = this.parts as Map<string, KeyedRead>;
-    const index = this.spec.indexOf(next);
-    if (index.changed !== undefined && index.base === this.spec.indexOf(prev).id) {
-      for (const text of this.spec.textsOf(index.changed)) this.visit(parts.get(text), next);
+    const value = this.get();
+    const index = this.spec.indexOf(value);
+    const step = index.base === this.seen;
+
+    this.seen = index.id;
+    if (step) {
+      for (const text of this.spec.textsOf(index.changed as Data.Key)) {
+        this.visit(parts.get(text), value);
+      }
       return;
     }
-    for (const entry of parts.values()) this.visit(entry, next);
+    for (const entry of parts.values()) this.visit(entry, value);
   }
 
   private visit(entry: KeyedRead | undefined, value: readonly unknown[]): void {
@@ -8083,12 +8114,52 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     for (const watcher of entry.watchers) watcher.fn(next, prev);
   }
 
+  /** A member keeps its identity until a write that `eq` lets through, so `of` compares by
+   * identity; a part's list is new for each value, so `where` compares its members. */
   private same(many: boolean, a: unknown, b: unknown): boolean {
-    if (many) {
-      const x = a as readonly unknown[];
-      const y = b as readonly unknown[];
-      return x.length === y.length && x.every((member, at) => member === y[at]);
-    }
-    return a === undefined || b === undefined ? a === b : this.spec.eq(a, b);
+    if (!many) return a === b;
+
+    const x = a as readonly unknown[];
+    const y = b as readonly unknown[];
+    return x.length === y.length && x.every((member, at) => member === y[at]);
   }
+}
+
+/** One cell, single or keyed, in one object shape. Declared here, after the release block, so
+ * its name takes no hot slot (scripts/check-slots.mjs). */
+function createCell(
+  label: string,
+  tags: Tag.Bindings,
+  initial: unknown,
+  parser: Data.Parse<unknown> | undefined,
+  eq: (a: unknown, b: unknown) => boolean,
+  keyed: KeyedSpec | undefined,
+): Data.Cell<unknown> {
+  const base = {
+    [cell]: true,
+    label,
+    mode: keyed === undefined ? "single" : "keyed",
+    tags: readMany(tags),
+    initial,
+    parse: parser,
+    eq,
+    keyed,
+    of: undefined,
+    where: undefined,
+    capsule: undefined,
+    passed: undefined,
+  } as Data.Cell<unknown> & Exported & KeyedField & { of: unknown; where: unknown };
+  if (keyed !== undefined) {
+    base.of = (key: Data.Key) => keyed.read(base, "of", key);
+    base.where = (part: Data.Key) => keyed.read(base, "where", part);
+  }
+
+  const placed = (placement: "scope" | "namespace") => ({
+    controller: Object.assign(edgeTo("controller", base), { placement }),
+  });
+  return Object.assign(base, {
+    controller: edgeTo("controller", base),
+    atScope: placed("scope"),
+    atNamespace: placed("namespace"),
+  });
 }

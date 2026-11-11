@@ -64,12 +64,15 @@ test("update and delete change one member by its key", () => {
   expect(items.get()).toEqual([task("p1", "a", "done"), task("p1", "b"), task("p2", "d")]);
 });
 
-test("a set runs the member's parse", () => {
+test("a set and a preset run the member's parse", () => {
+  const extra = { ...task("p1", "a"), extra: true } as Task;
   const items = createScope().controller(tasks);
+  const seeded = createScope({ presets: [preset(tasks, [extra])] }).controller(tasks);
 
-  items.set({ ...task("p1", "a"), extra: true } as Task);
+  items.set(extra);
 
   expect(items.get()).toEqual([task("p1", "a")]);
+  expect(seeded.get()).toEqual([task("p1", "a")]);
 });
 
 test("a write wakes the watchers of its member and of its parts, and no other", () => {
@@ -83,10 +86,11 @@ test("a write wakes the watchers of its member and of its parts, and no other", 
   watch("p1/a", items.of({ project: "p1", id: "a" }));
   watch("p1/b", items.of({ project: "p1", id: "b" }));
   watch("a", items.where({ id: "a" }));
+  watch("p1&a", items.where({ id: "a", project: "p1" }));
 
   items.update({ project: "p1", id: "a" }, (t) => ({ ...t, title: "done" }));
 
-  expect(woke.sort()).toEqual(["a", "all", "p1", "p1/a"]);
+  expect(woke.sort()).toEqual(["a", "all", "p1", "p1&a", "p1/a"]);
 });
 
 test("a reader's watcher gets the new and the old member", () => {
@@ -101,6 +105,60 @@ test("a reader's watcher gets the new and the old member", () => {
     [task("p1", "a", "done"), task("p1", "a")],
     [undefined, task("p1", "a", "done")],
   ]);
+});
+
+test("a delete of a key that is not there wakes no one", () => {
+  const items = seeded();
+  let woke = 0;
+  items.watch(() => woke++);
+
+  items.delete({ project: "p1", id: "gone" });
+
+  expect(woke).toBe(0);
+});
+
+test("a stop called twice leaves the other watchers of the part", () => {
+  const items = seeded();
+  const part = items.where({ project: "p1" });
+  const woke: string[] = [];
+  const stop = part.watch(() => woke.push("first"));
+  part.watch(() => woke.push("second"));
+  part.watch(() => woke.push("third"));
+
+  stop();
+  stop();
+  items.set(task("p1", "z"));
+
+  expect(woke).toEqual(["second", "third"]);
+});
+
+test("the last watcher of one part leaving keeps the watchers of another", () => {
+  const items = seeded();
+  let woke = 0;
+  const stop = items.where({ project: "p1" }).watch(() => undefined);
+  items.where({ project: "p2" }).watch(() => woke++);
+
+  stop();
+  items.set(task("p2", "z"));
+
+  expect(woke).toBe(1);
+});
+
+test("a watcher that writes during a write leaves each reader on the last value", () => {
+  const items = seeded();
+  items.watch((next) => {
+    if (next.length === 5 && !next.some((t) => t.title === "chained")) {
+      items.set(task("p2", "c", "chained"));
+    }
+  });
+  const seen: string[] = [];
+  items.where({ project: "p1" }).watch((next) => seen.push(next.map((t) => t.title).join()));
+  items.where({ project: "p2" }).watch((next) => seen.push(next.map((t) => t.title).join()));
+  items.of({ project: "p1", id: "a" }).watch(() => seen.push("a"));
+
+  items.set(task("p1", "z"));
+
+  expect(seen.toSorted((x, y) => x.localeCompare(y))).toEqual(["a,b,z", "chained,d"]);
 });
 
 test("a reader that stopped watching is not woken", () => {
@@ -160,7 +218,7 @@ test("an update of a key that is not there raises MissingMember", () => {
   }
 
   if (!isError(thrown, "MissingMember")) throw thrown;
-  expect(thrown.payload.label).toBe("task.items");
+  expect(thrown.payload).toEqual({ label: "task.items", key: '[["id","a"],["project","p9"]]' });
 });
 
 test("an update whose result has another key raises KeyChanged and writes nothing", () => {
@@ -175,12 +233,13 @@ test("an update whose result has another key raises KeyChanged and writes nothin
   }
 
   if (!isError(thrown, "KeyChanged")) throw thrown;
+  expect(thrown.payload.next).toBe('[["id","a"],["project","p2"]]');
   expect(items.get()).toBe(before);
 });
 
 test("a key with a number that is not finite raises InvalidKey", () => {
   const items = createScope().controller(
-    data({ label: "rows", mode: "keyed", key: (row: { n: number }) => ({ n: row.n }) }),
+    data({ mode: "keyed", key: (row: { n: number }) => ({ n: row.n }) }),
   );
 
   let thrown: unknown;
@@ -191,27 +250,33 @@ test("a key with a number that is not finite raises InvalidKey", () => {
   }
 
   if (!isError(thrown, "InvalidKey")) throw thrown;
-  expect(thrown.payload.field).toBe("n");
+  expect(thrown.payload).toEqual({ label: "anon", field: "n" });
 });
 
 test("a number and a string with the same text are two keys", () => {
-  const items = createScope().controller(
-    data({ label: "ids", mode: "keyed", key: (row: { id: number | string }) => ({ id: row.id }) }),
-  );
+  const ids = data({ mode: "keyed", key: (row: { id: number | string }) => ({ id: row.id }) });
+  const items = createScope({ presets: [preset(ids, [{ id: 1 }])] }).controller(ids);
 
-  items.set({ id: 1 });
   items.set({ id: "1" });
 
   expect(items.get()).toEqual([{ id: 1 }, { id: "1" }]);
 });
 
-test("a string key reads one member", () => {
+test("a string key reads one member and is named as its JSON text", () => {
   const items = createScope().controller(
     data({ label: "names", mode: "keyed", key: (row: { name: string }) => row.name }),
   );
-
   items.set({ name: "x" });
 
+  let thrown: unknown;
+  try {
+    items.update("y", (row) => row);
+  } catch (error) {
+    thrown = error;
+  }
+
+  if (!isError(thrown, "MissingMember")) throw thrown;
+  expect(thrown.payload.key).toBe('"y"');
   expect(items.of("x").get()).toEqual({ name: "x" });
 });
 
@@ -271,4 +336,19 @@ test("the types refuse no key, an initial, and a part field not in the key", () 
   expectTypeOf(noKey).toBeFunction();
   expectTypeOf(withInitial).toBeFunction();
   expectTypeOf(where).toBeFunction();
+});
+
+test("a read on the cell names the part, and a part in use keeps one reader", () => {
+  const items = seeded();
+  const read = tasks.where({ project: "p1" });
+  const before = items.where({ project: "p1" });
+  const stop = before.watch(() => undefined);
+
+  const during = items.where({ project: "p1" });
+  stop();
+  const after = items.where({ project: "p1" });
+
+  expect([read.cell, read.read, read.part]).toEqual([tasks, "where", { project: "p1" }]);
+  expect(during).toBe(before);
+  expect(after).not.toBe(before);
 });

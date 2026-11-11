@@ -57,12 +57,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **core/data-keyed** — keyed data k01 ([track](docs/roadmap/keyed-data/PROGRESS.md); ADR 0135, 0136, 0138). `data({ mode: "keyed", key, parse })` where `key` reads the key from a member (ADR 0138), a keyed controller (`set(member)`, `update(key, fn)`, `delete(key)`, `of`, `where`), and the reads `of(key)` and `where(part)`, on one scope (no wire). Next step: write the brief with the impact block for `data`.
-  Verify: tests at the Core entry for the three writes and the three reads; a write to one member wakes the watcher of that member and of its parts, and no other; two keys with the same fields in another order are one member; an `update` of a key that is not there is a named error; a key with `NaN` is refused; today's `data()` calls compile with no change.
-
-- **react/data-keyed-read** — keyed data k02, blocked by k01 (ADR 0136). `useData(cell.where(part))` and `useData(cell.of(key))` take the key at each render; no unit per key.
-  Verify: a browser test: two panels read two parts of one cell; a write to one part renders only its panel; a panel that changes its part leaves the old one; the scope holds no more units after 1,000 different keys.
-
 - **core/keyed-ask** — keyed data k03, blocked by k01 (ADR 0137). `remoteData` serves a keyed cell: the first reader of a part joins it and asks; the server answers from its cell; the last reader leaves.
   Verify: on the memory transport and on the WebSocket: two clients read two parts and each gets only its members; the board's guard gets the part at each ask and can refuse it; a client that connects again asks again; after the last reader leaves, the server's table of readers is empty.
 
@@ -124,6 +118,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/data-keyed** — keyed data k01, done 2026-11-11 ([track](docs/roadmap/keyed-data/PROGRESS.md)). `data({ mode: "keyed", key, parse })`, the keyed controller, `of` and `where`. Proof: 23 Core tests, scoped mutation 91.15, size cap now 21,504 B.
+
+- **react/data-keyed-read** — keyed data k02, done 2026-11-11. `useData(tasks.where(part))` and `useData(tasks.of(key))`. Proof: 3 browser tests (one panel renders per write; 1,000 keys leave no part).
 
 - **core/start-sees-stop** — ADR 0134: after a stop, a start hook's `next()` rejects, so `serve` never listens; a stop signal during start ends the start.
   Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Duke accepted 2026-11-10 08:42; released in 0.16.2.

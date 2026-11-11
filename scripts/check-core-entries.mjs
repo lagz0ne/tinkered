@@ -66,7 +66,8 @@ const rpcChunks = [...visited].filter((url) => /\/rpc-[\w-]+\.mjs$/.test(url));
 assert.equal(rpcChunks.length, 1, "rpc and remoteData must sit in one chunk of their own");
 
 const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
-const coreCap = 20480;
+// Keyed data (ADR 0135 to 0138) raised the core cap by 1 KiB: a second mode of `data`.
+const coreCap = 21504;
 const runtimeCap = 30720;
 assert.ok(coreSize <= coreCap, `core runtime without rpc exceeds ${coreCap} B gzip: ${coreSize} B`);
 assert.ok(runtimeSize <= runtimeCap, `core runtime exceeds ${runtimeCap} B gzip: ${runtimeSize} B`);
