@@ -1,6 +1,6 @@
 # 0137 The client asks for a part; `invalidate` marks it dirty
 
-Date: 2026-11-10. Status: accepted in part; not built.
+Date: 2026-11-10. Status: accepted in part; built; released in 0.17.0.
 Accepted: Duke, 2026-11-10 UTC: 15:20 (the model),
 15:44 ("prepare to roll").
 Closes: 0135 open items 1 (the server's first

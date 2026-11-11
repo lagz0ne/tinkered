@@ -5,6 +5,70 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.0
+
+Keyed data: `data` has a mode, and a keyed cell
+holds members under keys (ADR 0135 to 0138).
+`remoteData` serves a keyed cell part by part.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.0
+bun add $R/tinker-core-0.17.0.tgz \
+  $R/tinker-react-0.17.0.tgz \
+  $R/tinker-bun-0.17.0.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.0/tinker-core-0.17.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.0/tinker-react-0.17.0.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.0/tinker-bun-0.17.0.tgz
+
+### Core
+
+- `data({ mode: "keyed", key, parse })` makes a
+  keyed cell. `key` reads the key from a member.
+- Its controller: `set(member)`, `update(key, fn)`,
+  `delete(key)`, and the reads `of(key)` and
+  `where(part)`.
+- `cell.of(key)` and `cell.where(part)` name a read.
+  `scope.resolve(read)` gives its reader.
+- A write wakes the readers of its member and of its
+  parts, and no other.
+- New errors: `MissingMember`, `KeyChanged`,
+  `InvalidKey`.
+
+### remoteData
+
+- A keyed cell on a board is served by part. The
+  first reader of a part asks for it. The last
+  reader leaves it.
+- The guard (`onStart`) runs at each ask.
+- `board.invalidate` marks parts dirty, on the
+  server and on the client.
+- `board({ serve: true, load })` reads parts from a
+  store. The server then keeps no member.
+- A keyed cell takes no `config`. `invalidate` is a
+  reserved key.
+- Guide: `docs/keyed-projector.md`.
+
+### React
+
+- `useData(cell.where(part))` and
+  `useData(cell.of(key))` read one part or member.
+
+### Upgrade
+
+- Change the three URLs.
+- Nothing else: every old call keeps its type.
+- A board cell named `invalidate` must take
+  another name.
+
 ## 0.16.2
 
 A stop during start ends the start, so `serve`

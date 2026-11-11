@@ -6,16 +6,16 @@ On Bun, the main runtime:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.16.2
-bun add $R/tinker-core-0.16.2.tgz
+releases/download/v0.17.0
+bun add $R/tinker-core-0.17.0.tgz
 ```
 
 On Node 22.18 or later, with npm:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.16.2
-npm install $R/tinker-core-0.16.2.tgz
+releases/download/v0.17.0
+npm install $R/tinker-core-0.17.0.tgz
 ```
 
 Each version's URLs are in the
@@ -864,6 +864,42 @@ scope.resolve(token); // the new token
 On an open scope, a repeat `controller(target)` read returns the same controller.
 A controller read after close throws `Disposed`.
 
+## Keyed data
+
+A keyed cell holds members under keys (ADR 0135 to 0138).
+Its `key` function reads the key from a member.
+
+```ts
+const tasks = data({
+  mode: "keyed",
+  parse: Task,
+  key: (t) => ({ project: t.project, id: t.id }),
+});
+
+const items = scope.controller(tasks);
+items.set(task);
+items.update({ project, id }, (t) => ({
+  ...t,
+  done: true,
+}));
+items.delete({ project, id });
+```
+
+- `items.get()` reads all members, in the order they came.
+- `of(key)` reads one member; `where(part)` reads the members whose
+  key holds the part's fields.
+- `tasks.of(key)` and `tasks.where(part)` name a read; `scope.resolve`
+  gives its reader, and React's `useData` takes it.
+- A write wakes the readers of its member and of its parts, and no other.
+- `update` of a missing key raises `MissingMember`; a result with another
+  key raises `KeyChanged`; a number in a key that is not finite raises
+  `InvalidKey`.
+
+On a `remoteData` board, a keyed cell is served by part: the first reader
+of a part asks for it, and the guard runs at each ask. `board.invalidate`
+marks parts dirty on either side. With `load`, the server reads each part
+from a store and keeps no member (`docs/keyed-projector.md`).
+
 ## Tags
 
 `scope.resolve(tag.all)` returns bindings nearest layer first, and last binding first
@@ -1122,6 +1158,19 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A read view has no placement, at run time and in the types.
 - A placed controller kept past its call still writes the root,
   and watchers see it.
+
+### Keyed data
+
+- A keyed cell starts empty and reads all members in the order they came.
+- `of` reads one member and `where` reads the members of a part.
+- `update` and `delete` change one member by its key.
+- A write wakes the watchers of its member and of its parts, and no other.
+- Two keys with the same fields in another order name one member.
+- A served keyed cell is read by part: a client asks for a part, and the
+  last reader leaving drops it.
+- A set on the server makes each reader of its part ask for one member.
+- An answer that arrives after a later ask started is dropped.
+- With a load, the server keeps no member.
 
 ### Tags
 

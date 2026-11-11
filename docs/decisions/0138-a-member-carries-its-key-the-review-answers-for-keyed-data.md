@@ -1,6 +1,6 @@
 # 0138 A member carries its key; the review answers for keyed data
 
-Date: 2026-11-10. Status: accepted; not built.
+Date: 2026-11-10. Status: accepted; built; released in 0.17.0.
 Accepted: Duke, 2026-11-10 23:49 UTC.
 Changes: 0135 decisions 2 and 5 (the key).
 Accepts: the drafts of 0135 and 0137.

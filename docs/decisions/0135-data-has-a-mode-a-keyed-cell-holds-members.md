@@ -1,6 +1,6 @@
 # 0135 `data` has a mode; a keyed cell holds members
 
-Date: 2026-11-10. Status: accepted in part; not built.
+Date: 2026-11-10. Status: accepted in part; built; released in 0.17.0.
 Accepted: Duke, 2026-11-10 UTC, in three notes:
 05:34 (the key), 05:38 (the mode), 08:49 (the member).
 Open: order. ADR 0137 closes the two others.

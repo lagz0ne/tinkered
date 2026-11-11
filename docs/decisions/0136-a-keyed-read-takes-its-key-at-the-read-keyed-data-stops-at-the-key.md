@@ -1,6 +1,6 @@
 # 0136 A keyed read takes its key at the read; keyed data stops at the key
 
-Date: 2026-11-10. Status: accepted; not built.
+Date: 2026-11-10. Status: accepted; built; released in 0.17.0.
 Accepted: Duke, 2026-11-10 15:44 UTC.
 Refines: 0135 (the reads `of` and `where`).
 
