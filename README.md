@@ -56,7 +56,7 @@ depends: {
 
 A write from a session or a `signal` call stays in
 that call, unless its edge says `atScope` or
-`atNamespace`. The playground's Sessions study
+`atNamespace`. The site's Sessions study (`/sessions`)
 shows all three. Details:
 [Placed edges](packages/core/README.md#placed-edges).
 

@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { basename, resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 
 import { bundleOf } from "./check-slots.mjs";
@@ -156,11 +156,14 @@ function librariesInChunk(chunk) {
 
 function clientCheck() {
   if (!values["client-dir"]) {
-    command("vp", ["build", "--sourcemap", "hidden"], resolve("apps/playground"));
+    command("bun", ["--bun", "vp", "build", "--sourcemap", "hidden"], resolve("apps/site"));
   }
 
-  const dir = values["client-dir"] ?? "apps/playground/dist";
-  const chunks = filesIn(dir).filter((file) => file.endsWith(".js"));
+  const dir = values["client-dir"] ?? "apps/site/dist/client";
+  // Rolldown's CJS interop runtime is generated code with no source, so it gets no map.
+  const chunks = filesIn(dir).filter(
+    (file) => file.endsWith(".js") && !basename(file).startsWith("rolldown-runtime-"),
+  );
   if (!chunks.length) throw new Error("F13 no built client chunks found");
 
   const actual = { zod: 0, drizzle: 0, pglite: 0 };

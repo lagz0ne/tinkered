@@ -82,7 +82,7 @@ function prove(check, args, expected, plant) {
 
   const green = run(
     check,
-    check === "client" ? ["--client-dir", resolve("apps/playground/dist")] : [],
+    check === "client" ? ["--client-dir", resolve("apps/site/dist/client")] : [],
   );
   assert.equal(green.exit, 0, JSON.stringify(green));
 
@@ -149,7 +149,7 @@ try {
   );
 
   const clientDir = join(root, "client");
-  cpSync("apps/playground/dist", clientDir, { recursive: true });
+  cpSync("apps/site/dist/client", clientDir, { recursive: true });
   const chunk = join(clientDir, "planted.js");
   writeFileSync(chunk, "export const planted = 1;");
   writeFileSync(
@@ -159,7 +159,7 @@ try {
   prove(
     "client",
     ["--client-dir", clientDir],
-    /F13 zod chunks: 1 > baseline 0/,
+    /F13 zod chunks: 2 > baseline 1/,
     "A mapped zod module added to temp client chunks",
   );
 
@@ -221,7 +221,7 @@ try {
     "--baseline",
     mismatchFile,
     "--client-dir",
-    resolve("apps/playground/dist"),
+    resolve("apps/site/dist/client"),
   ]);
   assert.equal(afterRecovery.exit, 0, JSON.stringify(afterRecovery));
 

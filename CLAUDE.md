@@ -17,7 +17,7 @@ wraps Vite, Rolldown, Vitest, tsdown, Oxlint, and Oxfmt.
 - `vp run -r build` first: apps import the packages' built `dist`.
 - `vp check` and `vp run -r test` (every package with its own config; a bare root
   `vp test` runs them all under the root config and fails on react and the
-  playground).
+  site).
 - `vp run prose` after editing any `.md` (it also runs on commit).
 
 ## Stay on latest main

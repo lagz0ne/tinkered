@@ -40,17 +40,9 @@ export default defineConfig({
         files: ["**/*.mjs", "**/*.js", "**/*.cjs"],
         rules: { "import/no-relative-parent-imports": "off" },
       },
-      // A second source folder next to src/ (the playground's example/, blueprint's tinker/),
-      // and raw text read from other packages: no `@/` names them.
+      // A second source folder next to src/ (blueprint's tinker/): no `@/` names it.
       {
-        files: [
-          "apps/playground/src/App.tsx",
-          "apps/playground/src/lib/files.ts",
-          "apps/playground/src/lib/sources.ts",
-          "apps/playground/example/**",
-          "apps/playground/tests/**",
-          "tools/blueprint/**",
-        ],
+        files: ["tools/blueprint/**"],
         rules: { "import/no-relative-parent-imports": "off" },
       },
       // Trial fixtures keep the layout their runs recorded.

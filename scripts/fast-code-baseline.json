@@ -28,7 +28,7 @@
     "stepRunHook": 1
   },
   "client": {
-    "zod": 0,
+    "zod": 1,
     "drizzle": 0,
     "pglite": 0
   },
