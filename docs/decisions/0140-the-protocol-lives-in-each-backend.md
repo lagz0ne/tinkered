@@ -1,11 +1,11 @@
 # 0140 The protocol lives in each backend
 
-Date: 2026-11-11. Status: direction from Duke; the
-design is not done; not built.
+Date: 2026-11-11. Status: accepted as the direction
+(Duke, 05:11 to 05:16 UTC); not built.
 Changes: where the wire protocol lives (today
 `rpc-protocol.ts` in Core).
-Governs: the execution id (0139 open), and every
-wire change after this.
+Governs: the execution id, and every wire change
+after this.
 
 ## What the user said
 
@@ -83,16 +83,55 @@ backend    ws, sse, http, memory
   long poll. Core has one path and no fallback.
 - One SPI test kit that every backend runs keeps the
   backends from drifting.
-- No formal spec file: "we are the only one
-  developing and building". The case that stays is
-  an old page against a new server.
+- Core never asks again by itself after a fault. A
+  broken link is the backend's to heal; any other
+  fault is an answer (ADR 0139, decision 4).
+- No formal spec file, and no version at connect:
+  "we are the only one developing and building".
+  "Each side alone" means our library on both sides,
+  at two versions.
+
+## The execution id, at this level
+
+Duke, 04:19: "If you are the trigger, then you'll be
+able to observe the executionId and you can resolve
+the waiting Promise ... other client will just
+receive the update event ... they can just ignore
+and proceed". 04:22: he picked "at the protocol
+level".
+
+With this record that becomes:
+
+- Core gives each run an id, and lets a run wait
+  until a change that carries its id is in its own
+  cache.
+- Each backend carries the id its own way: a field
+  in a ws frame, an `Idempotency-Key` header on HTTP.
+- The id is on every fault, as the ref. It works
+  with tracing off.
+
+```ts
+await move.runAsync({ input });
+// resolved: the card on this client shows the move
+```
 
 ## Open
 
-- Which parts of `rpc-protocol.ts` move to the
-  backends, and which stay as the SPI's meaning.
-- The execution id at this level: Core gives a run
-  its id and lets a run wait for it; each backend
-  carries it its own way (a frame field on ws, an
-  `Idempotency-Key` header on HTTP).
-- The keyed reader with no `watch` is not tested.
+- **What the id promises.** Read your write and the
+  ref (above), or also a safe retry: the server
+  keeps recent replies and answers a repeat from
+  them. The lead's pick: not the safe retry now.
+  TanStack does not retry a mutation by default,
+  and rpc's `retry` is off by default too. A backend
+  can add it later, as HTTP does with
+  `Idempotency-Key`. Duke's to say.
+- An old page against a new server: each backend
+  says what it does (carry on, or close and reload).
+
+## Next, after ADR 0139's list
+
+1. The SPI test kit, run on `memory` and `ws` as
+   they are.
+2. `watch` required; the wire code moves from
+   `rpc-protocol.ts` into each backend.
+3. The execution id, on the SPI.

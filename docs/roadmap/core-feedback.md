@@ -987,23 +987,25 @@ Hedl digs the same way for `project`.
 Hedl's Checks board (hedl 25bf4b6) digs `Object(asked.part ?? asked).project`:
 a keyed ask gives `{ read, part }`, a config watch the plain parameter.
 Ask: a typed part for a keyed board's `onStart`.
-State: card `core/keyed-guard-part` in Ready; the shape waits on Duke.
+State: card `core/keyed-guard-part` in Ready; the shape is `board.part(call)` (ADR 0139, decision 5).
 
 ## Questions from the issue board draft — 2026-11-11
 
-Asked by the issue board draft (tinker-app 1636e09). First asker of each.
-Full list: `/mnt/project-files/tinker-app/issue-board/friction.md`.
+Asked by the issue board (tinker-app 1636e09, then 4bb6416).
+Each one is settled in ADR 0139.
 
-- A keyed cell that is not served loses a call's write
-  (ADR 0138 rule 15). Nothing says so. Maybe a dev warning.
+- A keyed cell that is not served loses a call's write.
+  Closed, no change: `cell.atScope.controller` writes the root (ADR 0126).
 - A refused part is asked again with back-off, up to every 5 s.
-  EventSource stops on a refusal; ours does not.
-  Question: is `refused` final until an `invalidate`?
+  Settled: a fault that is an answer ends the asking (decision 4).
 - A tab sees `failed`, not the cause of a throw in an op.
-- A board lane needs order, no limit (input to k07).
-  Today the tab sorts: `where({ teamId }).toSorted(byRank)`.
+  Closed, by design: the fault's ref finds the cause in the server's trace.
+- A board lane needs order.
+  Settled: order and limit are arguments of the read (decision 2).
+- An op that writes two cells and throws at the second leaves the first.
+  Closed, no change: check first, write last; or the store's transaction.
 
-State: first asker; no ticket until a second asker.
+State: settled 2026-11-11; the build order is in ADR 0139.
 
 ## A load ran on the root — 2026-11-11
 
@@ -1025,7 +1027,8 @@ Asked by Hedl (hedl 25bf4b6). First asker of each.
 - `of(key)` gives `undefined` before the first answer and when there is no
   member. The page cannot tell "not read yet" from "nothing there".
 
-State: first asker; no ticket until a second asker.
+State: the last two are settled by a part's state (ADR 0139, decision 1);
+the first is a first asker.
 
 ## A keyed signal had no trace — 2026-11-11
 

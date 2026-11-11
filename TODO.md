@@ -57,8 +57,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **core/keyed-guard-part** — A keyed board's `onStart` guard gets its part as `unknown` and digs (`Object(Object(input.input).part).teamId`). Askers: the issue board draft, Hedl `boardGuard`, and Hedl's keyed Checks board (a keyed ask gives `{ read, part }`, a config watch the plain parameter) ([feedback](docs/roadmap/core-feedback.md)). Next: Duke picks the shape; lead's pick is a typed reader on the board, `board.tasks.part(input)`, that gives the part or `undefined`.
-  Verify: a guard reads `part.teamId` with no cast; a stream join and an ask both give the part; another key gives `undefined`.
+- **core/keyed-guard-part** — A keyed board's `onStart` guard gets its part as `unknown` and digs (`Object(Object(input.input).part).teamId`). Askers: the issue board, Hedl `boardGuard`, and Hedl's keyed Checks board. Shape settled (ADR 0139, decision 5): `board.part(call)`, one call for every keyed cell of the board. Next: land patch 0002 (`/mnt/project-files/tinker-app/issue-board/fixes/`), with its test.
+  Verify: a guard reads `part.teamId` with no cast; a stream join and an ask both give the part; another key gives `undefined`; a field no key has fails the type check.
 
 - **hedl/tasks-keyed** — keyed data k07, blocked by the order decision (ADR 0138: the Tasks panel reads the newest 50, and a part has no order and no limit). In Hedl: the projector calls `invalidate` for each notice; the panel reads `where({ project })`; the tasks board has no session tag. k08 (checks, Inbox) and k09 (`remoteData` loses `config`) follow in the track.
   Verify: the e2e flows pass; a task change sends one member to a reader of that project; a reader of another project gets nothing.
