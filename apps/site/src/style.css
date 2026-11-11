@@ -1,1 +1,148 @@
-/* Add app styles here. */
+/* Swiss: one column, a hard rule under the bar, red for the one accent. Light only. */
+:root {
+  --bg: #fbfbfa;
+  --fg: #151515;
+  --mute: #5f6168;
+  --line: #dcdcd8;
+  --code: #f1f1ee;
+  --accent: #d0261b;
+  --sans: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 var(--sans);
+}
+
+a {
+  color: inherit;
+}
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px max(16px, env(safe-area-inset-left));
+  border-bottom: 2px solid var(--fg);
+}
+
+.bar .name {
+  font-weight: 700;
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.bar nav {
+  display: flex;
+  gap: 16px;
+}
+
+.bar nav a {
+  text-decoration: none;
+  color: var(--mute);
+}
+
+.bar nav a.active,
+.bar nav a:hover {
+  color: var(--accent);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px max(16px, env(safe-area-inset-left)) 64px;
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+}
+
+h2 {
+  font-size: 18px;
+  margin: 28px 0 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+p,
+li {
+  max-width: 65ch;
+}
+
+code {
+  font: 13px var(--mono);
+  background: var(--code);
+  padding: 0 3px;
+}
+
+pre {
+  background: var(--code);
+  border-left: 3px solid var(--line);
+  padding: 10px 12px;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+.lede {
+  color: var(--mute);
+  font-size: 17px;
+}
+
+.toc {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0;
+  counter-reset: page;
+  border-top: 2px solid var(--fg);
+}
+
+.toc li {
+  counter-increment: page;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.toc li a {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.toc li a::before {
+  content: counter(page) " ";
+  color: var(--accent);
+}
+
+.toc li p {
+  margin: 2px 0 0;
+  color: var(--mute);
+}
+
+.agents {
+  color: var(--mute);
+  font-size: 13px;
+}
+
+.near {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 12px;
+  border-top: 2px solid var(--fg);
+}

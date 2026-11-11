@@ -1,6 +1,8 @@
 import { serve, ws } from "@tinker/bun";
 import { createScope } from "@tinker/core";
 
+import { guide } from "@/guide";
+import { guideOps, guidePaths, guideRoutes } from "@/guide/index.server";
 import { defineMain } from "~/base/main";
 import { observeServerPanics } from "~/base/panics.server";
 import { health } from "~/components/health";
@@ -40,7 +42,7 @@ export default defineMain(async ({ env, args, signal, stdout, stderr, exit }) =>
 
   const socket = ws.server({
     path: "/rpc",
-    services: [],
+    services: [guide.api],
     origin,
   });
   const table = routes({
@@ -48,6 +50,7 @@ export default defineMain(async ({ env, args, signal, stdout, stderr, exit }) =>
     table: {
       "GET /api/health": health,
       "POST /api/telemetry": sink.route,
+      ...guideRoutes,
     },
   });
   const app = createScope({
@@ -56,12 +59,15 @@ export default defineMain(async ({ env, args, signal, stdout, stderr, exit }) =>
       serve({
         port: Number({ ...defaults, ...env }.PORT),
         pages,
+        paths: guidePaths,
         websocket: socket,
         handlers: [table],
         development: env.NODE_ENV !== "production",
         stdout,
       }),
       sink,
+      // The guide: the server holds the pages; the page asks for them by rpc.
+      guide.api({ implement: guideOps }),
       socket,
       table,
     ],

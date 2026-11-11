@@ -4,6 +4,7 @@ import { createScope } from "@tinker/core";
 import { ScopeProvider } from "@tinker/react";
 import { createRoot } from "react-dom/client";
 
+import { guide } from "@/guide";
 import { routeTree } from "@/routes";
 import { TinkerError, TinkerNotFound } from "~/base/fallbacks";
 import { abortReasons } from "~/components/errors";
@@ -17,6 +18,7 @@ const app = createScope({
   capsules: [
     telemetry.browser({ service: "tinker-site-browser", console }),
     ws.client({ url: `${location.origin.replace(/^http/, "ws")}/rpc` }),
+    guide.api({ remote: ws.client }),
   ],
 });
 

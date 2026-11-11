@@ -5,6 +5,7 @@ import { defineConfig } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 
 import { clientMeta } from "./scripts/client-meta";
+import { textImport } from "./scripts/text-import";
 
 const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const alias = { "~": at("tinker"), "@": at("src") };
@@ -14,19 +15,20 @@ const api = `http://127.0.0.1:${process.env.API_PORT ?? 3001}`;
 export default defineConfig({
   // The browser half: the page and its modules, with React Fast Refresh. Bun runs the server.
   root: at("cmds"),
-  plugins: [react(), clientMeta(at("."))],
+  plugins: [react(), clientMeta(at(".")), textImport()],
   resolve: { alias },
   build: { outDir: at("dist/client"), emptyOutDir: true },
   server: {
     port: Number(process.env.DEV_PORT ?? 5173),
     strictPort: true,
-    proxy: { "/rpc": { target: api, ws: true }, "/api": api },
+    proxy: { "/rpc": { target: api, ws: true }, "/api": api, "/llms": api },
   },
   test: {
     root: at("."),
     projects: [
       {
         // The server half and the scripts, on the Bun runtime (`bun --bun vp test`).
+        plugins: [textImport()],
         resolve: { alias },
         test: {
           name: "server",

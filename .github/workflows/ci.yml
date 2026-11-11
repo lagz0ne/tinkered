@@ -58,6 +58,11 @@ jobs:
       - name: Prose
         run: vp run prose
 
+      # The site keeps the template's own gates: its lint, types and plain-function check.
+      - name: Site checks
+        working-directory: apps/site
+        run: bun run typecheck && bun run check:plain && bun --bun vp check
+
       - name: Release check
         run: node --test scripts/release-check.test.mjs
 
