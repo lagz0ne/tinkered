@@ -2,7 +2,7 @@ name: playground
 
 # Continuous deployment (trunk-based): every green ci run on main goes live at
 # playground.tini.works. It runs on the self-hosted runner on the Dokploy box
-# (`tinkered-box`), builds the static site and its nginx image there, and rolls
+# (`tinkered-box`), builds the site binary and its image there, and rolls
 # the Dokploy compose app to it. There is no pull-request trigger.
 
 on:
@@ -65,9 +65,7 @@ jobs:
 
       - name: Build
         if: steps.newest.outputs.skip != 'true'
-        run: |
-          vp run -r build
-          cd apps/playground && vp run build
+        run: vp run -r build
 
       - name: Roll and check
         if: steps.newest.outputs.skip != 'true'

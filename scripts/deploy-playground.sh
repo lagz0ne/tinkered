@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Continuous deployment of the playground on the box (the Dokploy docker host).
 # The playground workflow runs this on the self-hosted runner, after ci passed on
-# main and apps/playground/dist is built. It bakes the image for HEAD, rolls the
+# main and apps/site/dist is built (the site binary). It bakes the image for HEAD, rolls the
 # Dokploy compose app to it, and checks that the new container is healthy and the
 # live page is the one just built.
 #
@@ -20,7 +20,7 @@ key="$(cat "$DOKPLOY_TOKEN_FILE")"
 api() { curl -fsS -H "x-api-key: $key" -H "content-type: application/json" "$@"; }
 
 echo "build $name:$sha"
-docker build -t "$name:$sha" apps/playground
+docker build -t "$name:$sha" apps/site
 
 # The compose file Dokploy holds, with only the image tag changed.
 compose="$(api "$DOKPLOY_URL/api/compose.one?composeId=$COMPOSE_ID" | jq -r .composeFile)"
@@ -43,7 +43,7 @@ api -X POST "$DOKPLOY_URL/api/compose.deploy" \
 
 # Live means: a healthy container on the new image, and the public page is the
 # index.html this run built.
-want="$(sha256sum apps/playground/dist/index.html | cut -d' ' -f1)"
+want="$(sha256sum apps/site/dist/client/index.html | cut -d' ' -f1)"
 for _ in $(seq 1 60); do
   healthy="$(docker ps --filter "ancestor=$name:$sha" --filter health=healthy --format '{{.ID}}' | head -1)"
   got="$(curl -fsS "$LIVE_URL" 2>/dev/null | sha256sum | cut -d' ' -f1 || true)"
