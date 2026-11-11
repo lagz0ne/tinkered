@@ -5,6 +5,41 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.1
+
+A keyed part that a part in use holds whole opens
+no stream of its own: it rides that part's stream.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.1
+bun add $R/tinker-core-0.17.1.tgz \
+  $R/tinker-react-0.17.1.tgz \
+  $R/tinker-bun-0.17.1.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.1/tinker-core-0.17.1.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.1/tinker-react-0.17.1.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.1/tinker-bun-0.17.1.tgz
+
+### remoteData
+
+- A list that reads `where({})` and rows that read
+  `of({ id })` share one stream. A set sends one
+  signal and one ask.
+- When the covering part leaves, a rider rides
+  another cover, or opens its own stream.
+
+### Upgrade
+
+- Change the three URLs.
+
 ## 0.17.0
 
 Keyed data: `data` has a mode, and a keyed cell
