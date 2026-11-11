@@ -92,7 +92,7 @@ reads the newest 50 tasks. Decide it before k07.
   than the `load` needs is refused before the guard; the
   guide for a projector has the rule of the cut log.
 
-- **k06 the template's todo is keyed** -- [ ] blocked by: k02, k04
+- **k06 the template's todo is keyed** -- [x] done 2026-11-11
   In `tinker-app`: the todo list is a keyed cell. A row
   reads its own member.
   Verify: one toggle sends one member, not the list
@@ -101,7 +101,7 @@ reads the newest 50 tasks. Decide it before k07.
   README says that a store with no notices tells a second
   client only through the op.
 
-- **k07 Hedl's tasks board is keyed** -- [ ] blocked by: k05, a release, the order decision (ADR 0138)
+- **k07 Hedl's tasks board is keyed** -- [ ] blocked by: the order decision (ADR 0138)
   In Hedl: the projector calls `invalidate` for each
   notice. The panel reads `where({ project })`. The tasks
   board has no session tag.
@@ -391,3 +391,19 @@ toggle then sends two signals and two asks.
   Core: 1,287 tests pass. Mutation on the new lines:
   84.00 (21 killed, 4 survived: the stop on a root
   close, moved from k03).
+
+## k06: the template's todo is keyed
+
+tinker-app 0.24.0 (e5049cf), on Core 0.17.1.
+
+- `todos` is a keyed cell: `key: (t) => ({ id: t.id })`.
+- The ops call `set`, `update` and `delete`.
+- The page reads `where({})` and maps ids to
+  `TodoRow`.
+- Each row reads `of({ id })`. It rides the list's
+  stream.
+- Proof, 1,000 todos: the list is 85,009 B on the
+  wire. One toggle, with its call and reply, is 352 B.
+- Proof: a browser test sees one row draw at a toggle.
+- The README says a store with no notices tells a
+  second client only through the op.

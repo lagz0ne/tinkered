@@ -57,10 +57,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **template/todo-keyed** — keyed data k06, blocked by k02 and k04. In `tinker-app`: the todo list is a keyed cell, and a row reads its own member.
-  Verify: one toggle sends one member, not the list (bytes on the wire for 1,000 todos); a toggle renders one row; `bun run check` exits 0.
-
-- **hedl/tasks-keyed** — keyed data k07, blocked by k05, a release, and the order decision (ADR 0138: the Tasks panel reads the newest 50, and a part has no order and no limit). In Hedl: the projector calls `invalidate` for each notice; the panel reads `where({ project })`; the tasks board has no session tag. k08 (checks, Inbox) and k09 (`remoteData` loses `config`) follow in the track.
+- **hedl/tasks-keyed** — keyed data k07, blocked by the order decision (ADR 0138: the Tasks panel reads the newest 50, and a part has no order and no limit). In Hedl: the projector calls `invalidate` for each notice; the panel reads `where({ project })`; the tasks board has no session tag. k08 (checks, Inbox) and k09 (`remoteData` loses `config`) follow in the track.
   Verify: the e2e flows pass; a task change sends one member to a reader of that project; a reader of another project gets nothing.
 
 - **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
@@ -119,6 +116,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **core/keyed-invalidate** — keyed data k04, done 2026-11-11. `board.invalidate` on both sides; a set on a served cell signals its member; one pass, one signal per reader. Proof: 15 Core tests; scoped mutation on k03 and k04 lines 85.30.
 
 - **core/keyed-load** — keyed data k05, done 2026-11-11. A board takes a `load` per keyed cell; the server keeps no member; a part with fewer fields is refused before the guard. Proof: the six cases of ADR 0137 as tests; guide `docs/keyed-projector.md`; size cap with rpc now 32,768 B.
+
+- **template/todo-keyed** — keyed data k06, done 2026-11-11. tinker-app 0.24.0 (e5049cf) on Core 0.17.1: the todo list is a keyed cell; each row reads `of({ id })` and rides the list's stream. Proof: 1,000 todos, the list is 85,009 B on the wire, one toggle 352 B; a browser test shows a toggle draws one row; `bun run check` exits 0.
 
 - **core/start-sees-stop** — ADR 0134: after a stop, a start hook's `next()` rejects, so `serve` never listens; a stop signal during start ends the start.
   Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Duke accepted 2026-11-10 08:42; released in 0.16.2.
