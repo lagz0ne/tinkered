@@ -210,6 +210,11 @@ const remake = (shape: Data.Cell<unknown>): Data.Cell<unknown> => {
   return data({ mode: "keyed", key: spec.key, parse: spec.parse, eq: spec.eq });
 };
 
+/** The part of any keyed cell of a definition: a field that every key has reads with no cast. */
+type PartIn<D> = {
+  [C in keyof D]: D[C] extends Data.Keyed<any, infer K> ? Data.Part<K> : never;
+}[keyof D];
+
 /** A signal as a reader takes it: the ask, and the meta it came with. */
 type Taken = { readonly ask: Ask; readonly meta?: Record<string, string> };
 
@@ -1327,6 +1332,12 @@ export function remoteData<
   const fault = { is: (error: unknown): error is RemoteFault => wire.fault.is(error) };
   return Object.assign(install, {
     fault,
+    /** A keyed call's part, as a guard reads it: the wire parsed it (a flat key), and the
+     * cell's key types it. Undefined for a call that is not a keyed join or ask. */
+    part: (call: { readonly key: string; readonly input: unknown }) =>
+      keyed.has(call.key.replace(/\.ask$/, "") as keyof D & string)
+        ? (Object(call.input) as Ask).part
+        : undefined,
     addresses: keys.flatMap((key) => (keyed.has(key) ? [key, `${key}.ask`] : [key])),
     answer: wire.answer,
     stream: wire.stream,
@@ -1339,6 +1350,7 @@ export function remoteData<
       readonly drop: typeof drop;
       readonly invalidate: typeof invalidate;
       readonly fault: { is(error: unknown): error is RemoteFault };
+      part(call: { readonly key: string; readonly input: unknown }): PartIn<D> | undefined;
       readonly addresses: readonly string[];
     } & {
       (values: Config<D>): Capsule.Installable;

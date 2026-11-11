@@ -1,5 +1,5 @@
 import { memory } from "@tinker/core/testing";
-import { afterEach, expect, test } from "vite-plus/test";
+import { afterEach, expect, expectTypeOf, test } from "vite-plus/test";
 import { z } from "zod";
 
 import { createScope, data, operation, remoteData, tag, transport } from "@/main";
@@ -483,4 +483,16 @@ test("a write's signal carries its send span, and the reader's ask links it", as
   expect(sends()[1]!.traceId).toBe(writer.traceId);
   expect(sends()[1]!.attributes).toMatchObject({ "messaging.destination.name": "tasks" });
   linked(sends()[1]!, receives()[2]!);
+});
+
+test("a guard reads the part with its type: a join and an ask give it, another call none", () => {
+  const join = board.part({ key: "tasks", input: { read: "where", part: { project: "p1" } } });
+  const ask = board.part({ key: "tasks.ask", input: { read: "of", part: task("p1", "a") } });
+
+  expectTypeOf(join).toEqualTypeOf<
+    { readonly project?: string; readonly id?: string } | undefined
+  >();
+  expect(join?.project).toBe("p1");
+  expect(ask?.id).toBe("a");
+  expect(board.part({ key: "other", input: {} })).toBeUndefined();
 });
