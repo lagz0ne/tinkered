@@ -372,3 +372,61 @@ test("a member stays only for a part that matches it on every field", async () =
   expect(all(tab)).toEqual([]);
   expect(board.invalidate.label).toBe("remoteData.invalidate");
 });
+
+test("a part that a part in use holds whole rides its stream and asks once per set", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const p1 = watchPart(tab, "p1");
+  await until(() => p1.read().length > 0);
+  const one = tab.resolve(board.tasks.of({ project: "p1", id: "a" }));
+  one.watch(() => undefined);
+  const before = app.seen.length;
+
+  await app.write(task("p1", "a", "renamed"));
+  await until(() => one.get()?.title === "renamed");
+
+  expect(app.seen.filter((s) => s.key === "tasks")).toHaveLength(1);
+  expect(app.seen.slice(before)).toEqual([
+    { key: "tasks.ask", input: { read: "of", part: { project: "p1", id: "a" } } },
+  ]);
+});
+
+test("a part whose cover leaves gets its own stream and stays fresh", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const p1 = watchPart(tab, "p1");
+  await until(() => p1.read().length > 0);
+  const one = tab.resolve(board.tasks.of({ project: "p1", id: "a" }));
+  one.watch(() => undefined);
+
+  p1.stop();
+  await until(() => app.seen.filter((s) => s.key === "tasks").length === 2);
+  await app.write(task("p1", "a", "renamed"));
+  await until(() => one.get()?.title === "renamed");
+
+  expect(app.seen.filter((s) => s.key === "tasks").map((s) => s.input)).toEqual([
+    { read: "where", part: { project: "p1" } },
+    { read: "of", part: { project: "p1", id: "a" } },
+  ]);
+  expect(all(tab)).toEqual([task("p1", "a", "renamed")]);
+});
+
+test("a part whose cover leaves rides another cover, and a part with its own stream keeps it", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const p1 = watchPart(tab, "p1");
+  const p2 = watchPart(tab, "p2");
+  const byId = tab.resolve(board.tasks.where({ id: "a" }));
+  byId.watch(() => undefined);
+  await until(() => p1.read().length > 0 && p2.read().length > 0);
+  const one = tab.resolve(board.tasks.of({ project: "p1", id: "a" }));
+  one.watch(() => undefined);
+  const streams = () => app.seen.filter((s) => s.key === "tasks").length;
+
+  p1.stop();
+  await new Promise((done) => setTimeout(done, 30));
+  await app.write(task("p1", "a", "renamed"));
+  await until(() => one.get()?.title === "renamed");
+
+  expect(streams()).toBe(3);
+});

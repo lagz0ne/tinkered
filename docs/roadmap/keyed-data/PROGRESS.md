@@ -372,3 +372,22 @@ them, and the ask resolves after them.
 
 - Core with rpc: 31,951 B. The cap was 31,744 B. It
   is now 32,768 B.
+
+## A part inside a part in use rides its stream
+
+Found while planning k06. The todo list reads
+`where({})`, and each row reads `of({ id })`. With a
+stream per part, 1,000 rows open 1,000 streams. A
+toggle then sends two signals and two asks.
+
+- A part that a part in use holds whole opens no
+  stream. It rides that part's stream.
+- Its members come in the covering part's answers.
+  No guard runs for it: the covering part passed.
+- When the cover leaves, the rider rides another
+  cover, or opens its own stream, which asks afresh.
+- `invalidate` asks only for parts with a stream.
+- Proof: 3 tests in `remote-data-keyed-cell.test.ts`.
+  Core: 1,287 tests pass. Mutation on the new lines:
+  84.00 (21 killed, 4 survived: the stop on a root
+  close, moved from k03).

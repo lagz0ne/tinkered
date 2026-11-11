@@ -59,8 +59,11 @@ type Keyed = Scope.KeyedController<unknown, Data.Key> & {
   step(value: readonly unknown[]): Data.Key | undefined;
 };
 
-/** A client's part in use, by key: its readers, and the stop of its stream. */
-type Joined = { refs: number; readonly ask: Ask; readonly stop: AbortController };
+/**
+ * A client's part in use, by key: its readers, and the stop of its stream. A part that another
+ * part in use holds whole rides that part's stream: `rides` names it, and it has no stream.
+ */
+type Joined = { refs: number; readonly ask: Ask; readonly stop: AbortController; rides?: Joined };
 
 /** A client's ask in flight, and the asks that started after it and share members with it. */
 type Asking = { readonly ask: Ask; readonly later: Asking[]; done?: Promise<void> };
@@ -738,7 +741,7 @@ const steps = resource({
       const reask = async (dirty: Data.Key) => {
         const asks = new Map<string, Ask>();
         for (const j of joined.values()) {
-          const share = narrowed(j.ask, dirty);
+          const share = j.rides ? undefined : narrowed(j.ask, dirty);
           if (share) asks.set(partSlot(key, share), share);
         }
         await Promise.all([...asks.values()].map(ask));
@@ -766,22 +769,39 @@ const steps = resource({
         }
       };
 
+      /** A part in use that holds every member of this part, if any. */
+      const coverOf = (asked: Ask) =>
+        [...joined.values()].find((j) => j.ask !== asked && holds(j.ask, asked.part));
+
+      /** A part's own stream, until the part leaves or the root closes. */
+      const own = (part: Joined) => {
+        signal.addEventListener("abort", () => part.stop.abort(), {
+          once: true,
+          signal: part.stop.signal,
+        });
+        void follow(part);
+      };
+
       cell.listen((read, part) => {
         const asked: Ask = { read, part };
         const at = partSlot(key, asked);
         const made = joined.get(at) ?? { refs: 0, ask: asked, stop: new AbortController() };
         if (made.refs++ === 0) {
+          made.rides = coverOf(asked);
           joined.set(at, made);
-          signal.addEventListener("abort", () => made.stop.abort(), {
-            once: true,
-            signal: made.stop.signal,
-          });
-          void follow(made);
+          if (!made.rides) own(made);
         }
         return () => {
           if (--made.refs > 0) return;
           made.stop.abort();
           joined.delete(at);
+          // A part that rode this one rides another, or gets its own stream, which asks afresh.
+          for (const r of joined.values()) {
+            if (r.rides !== made) continue;
+
+            r.rides = coverOf(r.ask);
+            if (!r.rides) own(r);
+          }
           if (!signal.aborted) cell.answer(read, part, [], stays);
         };
       });
