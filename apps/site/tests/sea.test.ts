@@ -96,6 +96,17 @@ test("a press lands in every tab of the room, once and in one hue, and nowhere e
   expect(other.waves()).toEqual([]);
 });
 
+test("a press given as raw input reaches the room too; a bad one lands nowhere", async () => {
+  const [a, b] = [await open("reef"), await open("reef")];
+
+  await Promise.resolve(a.scope.run(ocean.press, { rawInput: { x: 2, y: 0 } }));
+  await until(() => b.waves().length === 1);
+  expect(b.waves()[0]).toMatchObject({ x: 2, y: 0, power: 1 });
+
+  expect(() => a.scope.run(ocean.press, { rawInput: { x: "left" } })).toThrow();
+  expect(a.waves()).toHaveLength(1);
+});
+
 test("the storm's presses go to the room as well", async () => {
   const [a, b] = [await open("gale"), await open("gale")];
 

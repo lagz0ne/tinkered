@@ -1,5 +1,6 @@
 import { capsule, data, operation, resource, tag } from "@tinker/core";
 import type { Data } from "@tinker/core";
+import { z } from "zod";
 
 import { ocean } from "@/play";
 
@@ -58,15 +59,21 @@ const shore = resource({
   },
 });
 
-/** Tells the room about a wave that has started here: it deals the id, notes it, and calls. */
+/**
+ * Tells the room about a wave that has started here: it deals the id, notes it, and calls. Its
+ * door parses the press, so the hook can hand over the caller's value as it came.
+ */
 const send = operation({
   label: "tide.send",
-  input: seaPress.omit({ room: true, id: true }),
-  depends: { room: room.required, sent: sent.controller, press: seaApi["wave.press"].controller },
-  run: ({ room, sent, press }, { input, random }) => {
+  input: z.object({
+    press: seaPress.pick({ x: true, y: true, power: true }),
+    hue: seaPress.shape.hue,
+  }),
+  depends: { room: room.required, sent: sent.controller, call: seaApi["wave.press"].controller },
+  run: ({ room, sent, call }, { input: { press, hue }, random }) => {
     const id = random.uuid();
     sent.update((ids) => [...ids.slice(-63), id]);
-    return press.run({ input: { ...input, room, id } });
+    return call.run({ input: { ...press, hue, room, id } });
   },
 });
 
@@ -87,8 +94,9 @@ export const tide = capsule({
     run({ op, call, next, run }) {
       if (op !== ocean.press) return next();
 
-      const input = { ...Object(call?.input), hue: next() };
-      return run(send, { input }, { role: "handler", explain: "Tells the room about the wave" });
+      // One hook serves every op, so Core types the caller's value as unknown: `send` parses it.
+      const rawInput = { press: call?.input ?? call?.rawInput, hue: next() };
+      return run(send, { rawInput }, { role: "handler", explain: "Tells the room about the wave" });
     },
   },
 });
