@@ -66,7 +66,13 @@ type Keyed = Scope.KeyedController<unknown, Data.Key> & {
 type Joined = { refs: number; readonly ask: Ask; readonly stop: AbortController; rides?: Joined };
 
 /** A client's ask in flight, and the asks that started after it and share members with it. */
-type Asking = { readonly ask: Ask; readonly later: Asking[]; done?: Promise<void> };
+type Asking = {
+  readonly ask: Ask;
+  readonly later: Asking[];
+  /** Set when a server signal asked for it: the meta the signal came with. */
+  readonly signalled?: { readonly meta?: Record<string, string> };
+  done?: Promise<void>;
+};
 
 /** What a server reader has to ask after one pass: one member, or its whole part. */
 type Pass = { readonly at: string; readonly dirty: Map<string, Ask> };
@@ -204,6 +210,9 @@ const remake = (shape: Data.Cell<unknown>): Data.Cell<unknown> => {
   return data({ mode: "keyed", key: spec.key, parse: spec.parse, eq: spec.eq });
 };
 
+/** A signal as a reader takes it: the ask, and the meta it came with. */
+type Taken = { readonly ask: Ask; readonly meta?: Record<string, string> };
+
 /** One watcher: rpc's `channel.send` of one stream. */
 type Push = (value: unknown, meta?: Record<string, string>) => void;
 
@@ -220,6 +229,8 @@ type Served = {
   parts: Map<string, Ask>;
   /** A keyed key's readers with a part to ask in this pass (ADR 0138 11). */
   pass: Map<Push, Pass>;
+  /** The pass's send span, as each of its signals carries it (`meta.traceparent`). */
+  sent?: Record<string, string>;
   /** A keyed definition: each watched slot's last value, held while a client watches it. */
   held: Map<string, unknown>;
   /** The key's fill for one parameter, run on the root; undefined when the key has none. */
@@ -264,6 +275,8 @@ type Def = {
   readonly missingOf: import("./index").Resource.Handle<string | null>;
   /** The keys whose cell is keyed (ADR 0135): a stream per part, and an ask. */
   readonly keyed: ReadonlySet<string>;
+  /** By keyed key: a reader's ask for a signal, under a process span that links its send. */
+  readonly takes: Readonly<Record<string, Operation.Handle<unknown, Taken>>>;
 };
 
 type Shape = {
@@ -445,11 +458,13 @@ const steps = resource({
      * than one share of its part is dirty, its whole part (ADR 0138 11). */
     const flush = (own: Served) => {
       const pass = [...own.pass];
+      const sent = own.sent;
       own.pass.clear();
+      own.sent = undefined;
       for (const [push, { at, dirty }] of pass) {
         if (!own.watchers.get(at)?.has(push)) continue; // it left during the pass
 
-        push(dirty.size === 1 ? [...dirty.values()][0] : own.parts.get(at));
+        push(dirty.size === 1 ? [...dirty.values()][0] : own.parts.get(at), sent);
       }
     };
 
@@ -694,8 +709,8 @@ const steps = resource({
       /** One ask (ADR 0137 3). A later ask that shares members with it is fresher for them: this
        * answer leaves them to that one, and this ask resolves after it. Never rejects: a fault
        * goes to `board.faults`. */
-      const ask = (asked: Ask): Promise<void> => {
-        const entry: Asking = { ask: asked, later: [] };
+      const ask = (asked: Ask, signalled?: { meta?: Record<string, string> }): Promise<void> => {
+        const entry: Asking = { ask: asked, later: [], signalled };
         for (const p of pending) if (narrowed(p.ask, asked.part)) p.later.push(entry);
         pending.add(entry);
         entry.done = settle(entry);
@@ -705,9 +720,17 @@ const steps = resource({
       const settle = async (entry: Asking): Promise<void> => {
         const { read, part } = entry.ask;
         const newer = (k: Data.Key) => entry.later.some((l) => holds(l.ask, k));
+        // A signal's ask runs under the reader's process span, which links the pass's send span.
+        const taken = entry.signalled && { ask: entry.ask, meta: entry.signalled.meta };
         const got = await Promise.resolve()
           .then(() =>
-            run(def.wire[`${key}.ask`] as never, { input: entry.ask } as never, reading as never),
+            taken
+              ? run(def.takes[key]!, { input: taken }, reading as never)
+              : run(
+                  def.wire[`${key}.ask`] as never,
+                  { input: entry.ask } as never,
+                  reading as never,
+                ),
           )
           .then(
             (members) => () => {
@@ -747,7 +770,7 @@ const steps = resource({
           const share = j.rides ? undefined : narrowed(j.ask, dirty);
           if (share) asks.set(partSlot(key, share), share);
         }
-        await Promise.all([...asks.values()].map(ask));
+        await Promise.all([...asks.values()].map((a) => ask(a)));
       };
       const mine = askers.get(def) ?? new Map<string, (dirty: Data.Key) => Promise<void>>();
       askers.set(def, mine.set(key, reask));
@@ -759,9 +782,12 @@ const steps = resource({
               def.wire[key] as never,
               { input: part.ask } as never,
               reading as never,
-            )) as AsyncIterable<Ask> & { stop(reason?: unknown): void };
+            )) as AsyncIterable<Ask> & {
+              readonly meta?: Record<string, string>;
+              stop(reason?: unknown): void;
+            };
             part.stop.signal.addEventListener("abort", () => signals.stop(), { once: true });
-            for await (const dirty of signals) void ask(dirty);
+            for await (const dirty of signals) void ask(dirty, { meta: signals.meta });
             wait = 50;
           } catch (error) {
             if (part.stop.signal.aborted) return;
@@ -987,6 +1013,29 @@ export function remoteData<
     initial: {} as Readonly<Partial<Record<keyof D & string, RemoteFault>>>,
   });
 
+  // A reader's ask for a signal follows OTel messaging, as `remoteData.receive` does for a push:
+  // a process span that links the pass's send span, with the ask under it.
+  const takes = Object.fromEntries(
+    [...keyed].map((key) => [
+      key,
+      operation({
+        label: `${name}.receive`,
+        depends: { answer: (wire[`${key}.ask`] as Operation.Handle<unknown, Ask>).controller },
+        run: ({ answer }, { input, obs }: Operation.Ctx<Taken>) => {
+          if (obs.span) {
+            Object.assign(obs.span.attributes, {
+              "messaging.operation.type": "process",
+              "messaging.destination.name": key,
+            });
+          }
+          const link = input.meta?.traceparent;
+          if (link) obs.event("link", { traceparent: link });
+          return answer.run({ input: input.ask });
+        },
+      }) as Operation.Handle<unknown, Taken>,
+    ]),
+  );
+
   const def: Def = {
     cells,
     made,
@@ -998,6 +1047,7 @@ export function remoteData<
     paramOf,
     missingOf,
     keyed,
+    takes,
   };
 
   /** Each key's stream, as rpc runs it on the server: the value now, then each write. */
@@ -1049,6 +1099,23 @@ export function remoteData<
       }
     },
   });
+  /** A keyed pass's producer span, from the first write or `invalidate` of the pass: each signal
+   * of the pass carries it. The pass sends at the next microtask (ADR 0138 11). */
+  const stamp = operation({
+    label: `${name}.send`,
+    input: z.object({ key: z.string() }),
+    depends: { served: state, protocol },
+    run: ({ served, protocol }, { input, obs }) => {
+      if (!served?.pass.size || served.sent) return;
+      if (obs.span) {
+        Object.assign(obs.span.attributes, {
+          "messaging.operation.type": "send",
+          "messaging.destination.name": input.key,
+        });
+      }
+      served.sent = protocol.traceparent(obs.span);
+    },
+  });
   /**
    * Marks parts dirty, by keyed key: `{ tasks: { project } }`. On a serving root, each reader
    * of a part that shares a member gets a signal with no data. On a reading root, each part in
@@ -1061,11 +1128,13 @@ export function remoteData<
       const fit = entries.every(([key, part]) => keyed.has(key) && isKey(part));
       return fit ? { value: value as Dirty<D> } : z.fail("expected keyed keys and their parts");
     }),
-    depends: { own: state, s: steps },
-    run: async ({ own, s }, { input }) => {
-      await Promise.all(
-        Object.entries(input).map(([key, part]) => s.invalidate(def, own, key, part as Data.Key)),
+    depends: { own: state, s: steps, send: stamp.controller },
+    run: async ({ own, s, send }, { input }) => {
+      const asked = Object.entries(input).map(([key, part]) =>
+        s.invalidate(def, own, key, part as Data.Key),
       );
+      for (const key of Object.keys(input)) send.run({ input: { key } });
+      await Promise.all(asked);
     },
   });
   /**
@@ -1230,7 +1299,7 @@ export function remoteData<
         } finally {
           rooting.delete(cell);
         }
-        if (keyed.has(key)) return;
+        if (keyed.has(key)) return void run(stamp, { input: { key } }, sending);
 
         const watchers = [...(served.watchers.get(key)?.keys() ?? [])];
 

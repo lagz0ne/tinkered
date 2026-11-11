@@ -1026,3 +1026,39 @@ Asked by Hedl (hedl 25bf4b6). First asker of each.
   member. The page cannot tell "not read yet" from "nothing there".
 
 State: first asker; no ticket until a second asker.
+
+## A keyed signal had no trace — 2026-11-11
+
+Asked by the issue board draft (Duke: "fully observable end to end").
+A keyed pass sent no span and no `traceparent`.
+The reader's ask ran in a fresh trace.
+State: built in 0.17.3. The pass sends `remoteData.send`; the reader's ask runs under `remoteData.receive`, which links it.
+
+## A write hook cannot see its writer's span — 2026-11-11
+
+Found while building the keyed trace (0.17.3). First asker: the issue board draft.
+A capsule's `write` hook gets no run: `obs.span` is empty there.
+So a send from a set on a served cell starts a new trace.
+The single-cell push is the same.
+A pass from `invalidate` is in the writer's trace: `invalidate` is an op.
+Ask: the write event carries the writing run's span.
+State: open; a Core change to the write event, for Duke.
+
+## Hedl's Inbox board on keyed data — 2026-11-11
+
+Asked by Hedl (hedl 9320400). First asker of each.
+
+- A unit cannot name a run-time key. The project is a session tag,
+  so an op reads every member and picks one.
+- A resource cannot join a part; only a view can. A frame badge
+  reads `of({ project })` only to hold the part open.
+- `useData` takes no selector on a keyed read, so that join draws
+  the frame again on every push.
+- A session that closes runs its watchers: React closes the session,
+  then the child leaves. The leave sets the tab's cell, and a watcher
+  in the closing session runs an op, which throws `Disposed`.
+  Hedl's workaround: `if (!closing.aborted) shape.run()`.
+  It may be a bug: a closing session could drop its watchers.
+
+State: first asker; no ticket until a second asker.
+

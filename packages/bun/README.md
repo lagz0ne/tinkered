@@ -17,9 +17,9 @@ The parts of a Tinker app that run on Bun
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.2
-bun add $R/tinker-core-0.17.2.tgz \
-  $R/tinker-bun-0.17.2.tgz
+releases/download/v0.17.3
+bun add $R/tinker-core-0.17.3.tgz \
+  $R/tinker-bun-0.17.3.tgz
 ```
 
 ## Serve and run

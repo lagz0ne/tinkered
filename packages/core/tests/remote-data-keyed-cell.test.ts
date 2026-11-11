@@ -3,7 +3,7 @@ import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
 import { createScope, data, operation, remoteData, tag, transport } from "@/main";
-import type { Scope } from "@/main";
+import type { Observe, Scope } from "@/main";
 
 const { hook } = transport;
 
@@ -429,4 +429,58 @@ test("a part whose cover leaves rides another cover, and a part with its own str
   await until(() => one.get()?.title === "renamed");
 
   expect(streams()).toBe(3);
+});
+
+test("a write's signal carries its send span, and the reader's ask links it", async () => {
+  const add = operation({
+    label: "tasks.add",
+    input: Task,
+    depends: { items: tasks.controller },
+    run: ({ items }, { input }) => items.set(input),
+  });
+  // As an op that writes its store, then calls invalidate: the send is in the writer's trace.
+  const touch = operation({
+    label: "tasks.touch",
+    depends: { invalidate: board.invalidate },
+    run: ({ invalidate }) => invalidate.run({ input: { tasks: { project: "p1", id: "a" } } }),
+  });
+  const sent: Observe.Span[] = [];
+  const server = await createScope({
+    observe: { export: (x) => void sent.push(x) },
+    capsules: [board({ serve: true }), memory.server({ services: [board] })],
+  }).ready;
+  closers.push(() => server.close());
+  const taken: Observe.Span[] = [];
+  const tab = await createScope({
+    observe: { export: (x) => void taken.push(x) },
+    capsules: [memory.client({ peer: server }), board({ read: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+  const p1 = tab.resolve(board.tasks.where({ project: "p1" }));
+  p1.watch(() => undefined);
+  const receives = () => taken.filter((x) => x.name === "remoteData.receive");
+  const sends = () => sent.filter((x) => x.name === "remoteData.send");
+  await until(() => receives().length === 1); // the join's first signal: the part itself
+
+  server.run(add, { input: task("p1", "a") });
+  await until(() => p1.get().length === 1 && receives().length === 2);
+  await server.run(touch);
+  await until(() => receives().length === 3);
+
+  const linked = (send: Observe.Span, receive: Observe.Span) => {
+    const traceparent = `00-${send.traceId}-${send.spanId}-01`;
+    expect(receive.events.map((e) => [e.name, e.attributes])).toEqual([["link", { traceparent }]]);
+    expect(receive.attributes).toMatchObject({ "messaging.operation.type": "process" });
+    const under = taken.filter((x) => x.traceId === receive.traceId).map((x) => x.name);
+    expect(under).toContain("tasks.ask");
+  };
+  expect(sends()[0]!.attributes).toMatchObject({
+    "messaging.operation.type": "send",
+    "messaging.destination.name": "tasks",
+  });
+  linked(sends()[0]!, receives()[1]!);
+  const writer = sent.find((x) => x.name === "tasks.touch")!;
+  expect(sends()[1]!.traceId).toBe(writer.traceId);
+  expect(sends()[1]!.attributes).toMatchObject({ "messaging.destination.name": "tasks" });
+  linked(sends()[1]!, receives()[2]!);
 });

@@ -25,6 +25,11 @@ for (const n of notices) {
 The server then sends a signal to each reader whose
 part holds that member. The reader asks again.
 
+The signal carries the trace of the `invalidate`
+call. The reader's ask links to it. So a write
+that calls `invalidate` is one chain, from the
+writer to each reader.
+
 ## The load
 
 The load is an op. It gives the members of a part.

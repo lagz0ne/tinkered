@@ -5,6 +5,46 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.3
+
+A keyed signal carries its trace, as a push does.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.3
+bun add $R/tinker-core-0.17.3.tgz \
+  $R/tinker-react-0.17.3.tgz \
+  $R/tinker-bun-0.17.3.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.3/tinker-core-0.17.3.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.3/tinker-react-0.17.3.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.3/tinker-bun-0.17.3.tgz
+
+### remoteData
+
+- A keyed pass runs `remoteData.send`, a producer
+  span. Each signal of the pass carries it as
+  `meta.traceparent`.
+- The reader's ask runs under `remoteData.receive`,
+  a process span that links the send (OTel
+  messaging).
+- A pass from `invalidate` sends under that call:
+  the send is in the writer's trace.
+- A pass from a set on the cell sends from a root
+  span. A write hook does not see its writer's
+  span; the single-cell push is the same.
+
+### Upgrade
+
+- Change the three URLs.
+
 ## 0.17.2
 
 A keyed board's `load` runs in a session of its
