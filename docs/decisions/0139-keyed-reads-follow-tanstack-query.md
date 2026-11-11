@@ -31,6 +31,12 @@ Query handles the open problems. Duke answered:
   retrieval, and server just need to determine and
   return either full (stale) or delta".
 
+- 05:08, the goal over all of it: "the goal is the
+  library can be used on each side independently
+  (because, well', that's actually will run
+  independently) and the protocol must be solid to
+  make sure it works as such for long".
+
 ## Context
 
 The issue board and Hedl found these gaps on 0.17:
@@ -104,6 +110,13 @@ TanStack Query, the rule Duke named:
    cannot show gives the full part. Only the protocol
    changes, not the client's code.
 
+## The goal: each side alone, a solid protocol
+
+The client and the server run apart, so the wire is
+the contract. Each change in this record is judged at
+the wire first. Today there is no wire spec file and
+no version at connect: both are open below.
+
 ## Open
 
 - Point 1: the retry has an end and reads the fault
@@ -115,3 +128,8 @@ TanStack Query, the rule Duke named:
   browser facts, so they may belong to React.
 - The default TTL. TanStack's `staleTime` is 0, and
   it refetches only on a trigger.
+- A wire spec, and a version at connect (as
+  graphql-ws: a `PROTOCOL.md`, and the version in the
+  WebSocket subprotocol).
+- Whether "each side alone" also means a side that is
+  not our library. The issue board thread asked Duke.
