@@ -218,6 +218,38 @@ test("a second memory transport reaches its own server: two pairs in one scope",
   expect(ghost.fault.is(failed) && [failed.fault, failed.from]).toEqual(["missing", "server"]);
 });
 
+test("two client sets reach one memory server, as two sockets reach one URL", async () => {
+  const signed = createMemory();
+  const fresh = operation({ label: "fresh.meta", run: async () => ({ token: "fresh" }) });
+  const { server } = await serverOf(); // the default memory server only
+  const tab = await createScope({
+    capsules: [
+      signed.client({ peer: server, meta: fresh as never }),
+      api({ remote: signed.client }),
+    ],
+  }).ready;
+  closers.push(() => tab.close());
+
+  expect(await tab.run(api.echo, { input: { n: 2 } })).toEqual({ n: 2 });
+});
+
+test("a peer with no memory server is link, sent: false: nothing ran", async () => {
+  const bare = createScope({});
+  closers.push(() => bare.close());
+  const tab = await createScope({
+    capsules: [memory.client({ peer: bare }), api({ remote: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+
+  const failed = await tab.run(api.echo, { input: { n: 1 } }).catch((e: unknown) => e);
+  expect(api.fault.is(failed) && [failed.fault, failed.sent]).toEqual(["link", false]);
+  const drain = async () => {
+    for await (const n of await tab.run(api.count, { input: null })) void n;
+  };
+  const ended = await drain().catch((e: unknown) => e);
+  expect(api.fault.is(ended) && [ended.fault, ended.sent]).toEqual(["link", false]);
+});
+
 test("a closed peer is link with sent: false: nothing ran", async () => {
   const { server } = await serverOf();
   const tab = await createScope({
@@ -241,8 +273,14 @@ test("a closed peer is link with sent: false: nothing ran", async () => {
 
 test("a transport whose send throws is a bug: logged, failed on this side, never link", async () => {
   const logs: Observe.Log[] = [];
-  const bare = createScope({}); // a peer with no memory server: its send throws
-  closers.push(() => bare.close());
+  // A peer that throws, as a backend with a bug: the transport throws.
+  const bare = {
+    createSession: () => ({
+      resolve: () => {
+        throw new Error("broken peer");
+      },
+    }),
+  } as never;
   const tab = await createScope({
     observe: { log: (entry) => void logs.push(entry) },
     capsules: [memory.client({ peer: bare }), api({ remote: memory.client })],
@@ -253,7 +291,7 @@ test("a transport whose send throws is a bug: logged, failed on this side, never
   expect(api.fault.is(failed) && [failed.fault, failed.from]).toEqual(["failed", "local"]);
   expect(logs.find((l) => l.message === "protocol service failed")?.attributes).toMatchObject({
     address: "echo",
-    cause: expect.stringContaining("CapsuleMissing"), // shown, not hidden as offline
+    cause: expect.stringContaining("broken peer"), // shown, not hidden as offline
   });
 });
 

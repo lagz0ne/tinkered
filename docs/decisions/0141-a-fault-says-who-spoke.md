@@ -149,15 +149,20 @@ throw a defect, and gRPC makes it `INTERNAL`.
    server that closes ends each open stream as a
    dropped socket does: `link`, and its close
    settles.
-4. **One transport, one server.** Each
-   `createMemory()` has its own server ops, so a
-   second pair in one scope reaches its own
-   server. A shared pair gave `CapsuleMissing`,
-   which then showed as offline.
+4. **A client reaches the server in its peer.**
+   Each `createMemory()` has its own server ops,
+   and the peer names the ones its server holds.
+   So any memory client reaches the memory server
+   in its peer, as two sockets reach one URL
+   (0.17.7). A shared pair of ops gave
+   `CapsuleMissing`, shown as offline (0.17.5).
+   One server per pair (0.17.6) broke two client
+   sets on one server. A peer with no memory
+   server is `link`, `sent: false`.
 
 The kit (ADR 0140) gets one case per exit per
 backend, one throw inside a backend, two
-transports in one scope, and a server that closes
+client sets on one server, and a server that closes
 while a client watches.
 
 ## Open

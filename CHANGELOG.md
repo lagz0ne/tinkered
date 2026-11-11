@@ -5,6 +5,45 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.7
+
+Two client sets reach one memory server again.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.7
+bun add $R/tinker-core-0.17.7.tgz \
+  $R/tinker-react-0.17.7.tgz \
+  $R/tinker-bun-0.17.7.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.7/tinker-core-0.17.7.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.7/tinker-react-0.17.7.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.7/tinker-bun-0.17.7.tgz
+
+### Memory
+
+- A memory client reaches the memory server in
+  its peer, whichever `createMemory()` made it,
+  as two sockets reach one URL.
+- 0.17.6 needed a server for each pair: a second
+  client set (a signed one) on the default server
+  gave `failed`, "memory: no server here".
+- A peer with no memory server is `link` with
+  `sent: false`.
+
+### Upgrade
+
+- Change the three URLs.
+- A second `pair.server(...)` added only for
+  0.17.6 can go.
+
 ## 0.17.6
 
 Clear exits at the transport SPI (ADR 0141): a

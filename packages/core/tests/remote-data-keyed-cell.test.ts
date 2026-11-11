@@ -592,8 +592,14 @@ test("a part no server serves is the server's missing, and waits as an answer do
 });
 
 test("a part whose transport throws is a bug: failed on this side, and it waits", async () => {
-  const bare = createScope({}); // no memory server: the transport throws
-  closers.push(() => bare.close());
+  // A peer that throws, as a backend with a bug: the transport throws.
+  const bare = {
+    createSession: () => ({
+      resolve: () => {
+        throw new Error("broken peer");
+      },
+    }),
+  } as never;
   const tab = await createScope({
     capsules: [memory.client({ peer: bare }), board({ read: memory.client })],
   }).ready;

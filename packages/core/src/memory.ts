@@ -79,10 +79,19 @@ const cut = <I extends { left?: AbortSignal; push: (text: string) => void }>(
 const dropped = (stop: AbortSignal, reply: Promise<unknown>) =>
   reply.then((value) => (stop.aborted ? undefined : value));
 
+/**
+ * The server ops a peer holds, set by its memory server at start. A client reaches the server in
+ * its peer, whichever transport made it, as a socket reaches the server at its URL.
+ */
+const served = data<{ serve: TextServe; serveStream: TextStream } | null>({
+  label: "memory.served",
+  initial: null,
+});
+
 /** Makes one memory transport. A scope can hold two clients (a public one and a signed one). */
 export function createMemory() {
-  // The server's text ops: one pair per transport, so its client reaches its own server. One
-  // pair shared by two transports made the second's server unknown to Core (CapsuleMissing).
+  // The server's text ops: one pair per transport. One pair shared by two transports made the
+  // second's server unknown to Core (CapsuleMissing); the peer's `served` names the right one.
   const serve = operation({
     label: "memory.serve",
     input: sendInput,
@@ -113,10 +122,14 @@ export function createMemory() {
     depends: { peer: peer.required, headers, protocol },
     run: async ({ peer, headers, protocol }, { input, obs }) => {
       const session = sessionOf(peer, headers, input, protocol.traceparent(obs.span));
+      // A closed peer, or one with no memory server: nothing ran.
       if (!session) return closed;
+
+      const ops = session.resolve(served);
+      if (!ops) return (await session.close(), closed);
       // A throw in the run is a bug, not a link: the protocol logs it (ADR 0141).
       const reply: string | null | undefined = await session
-        .run(serve, { input })
+        .run(ops.serve, { input })
         .finally(() => session.close());
       if (reply === undefined) return gone;
       return reply === null ? missing : { ok: true as const, text: reply };
@@ -130,8 +143,11 @@ export function createMemory() {
     run: async ({ peer, headers, protocol }, { input, signal, obs }) => {
       const session = sessionOf(peer, headers, input, protocol.traceparent(obs.span));
       if (!session) return closed;
+
+      const ops = session.resolve(served);
+      if (!ops) return (await session.close(), closed);
       return session
-        .run(serveStream, { input: { ...input, left: signal } })
+        .run(ops.serveStream, { input: { ...input, left: signal } })
         .then((found: boolean | undefined) =>
           found === undefined ? gone : found ? { ok: true as const } : missing,
         )
@@ -210,6 +226,8 @@ export function createMemory() {
         const routesOf = p.routesOf(config.services, raise as never, log, config.strict);
         const side = { codec: p.given(config.codec) ?? p.json, routes: routesOf };
         load(serverHeld, kept).set({ side, protocol: p });
+        load(served, kept).set({ serve, serveStream });
+
         return next();
       },
       run({ op, call: invocation, run, log, load, next, closing: stop }): unknown {
