@@ -7,15 +7,27 @@ import type { Physics, Shade, Wave } from "./state";
 // The ocean's moves. Each is an operation: its input parsed at the door, its cells declared, its
 // time and chance from the scope (`clock`, `random`), so a test drives every one by hand.
 
-/** A tile press: tile coordinates, not pixels. A wave starts there. Returns the hue it dealt. */
+const spot = z.object({ x: z.number().finite(), y: z.number().finite() });
+
+/** A wave starts here and now, in the hue it was dealt. A press lands one; so can a server. */
+export const land = operation({
+  label: "ocean.land",
+  input: spot.extend({ hue: z.number().finite() }),
+  depends: { waves: waves.controller },
+  run: ({ waves }, { input: { x, y, hue }, clock }) => {
+    const start = clock.currentTimeMillis();
+    waves.update((list) => [...list, { id: (list.at(-1)?.id ?? 0) + 1, x, y, hue, start }]);
+  },
+});
+
+/** A tile press: tile coordinates, not pixels. It deals a hue and lands a wave. Returns the hue. */
 export const press = operation({
   label: "ocean.press",
-  input: z.object({ x: z.number().finite(), y: z.number().finite() }),
-  depends: { waves: waves.controller },
-  run: ({ waves }, { input, clock, random }) => {
+  input: spot,
+  depends: { land: land.controller },
+  run: ({ land }, { input, random }) => {
     const hue = Math.floor(random.next() * 360);
-    const start = clock.currentTimeMillis();
-    waves.update((list) => [...list, { id: (list.at(-1)?.id ?? 0) + 1, ...input, hue, start }]);
+    land.run({ input: { ...input, hue } });
     return hue;
   },
 });

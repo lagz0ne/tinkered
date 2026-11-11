@@ -4,6 +4,9 @@ import { lazy } from "react";
 import { debounce, files, inbox, status, storage, wasm } from "./state";
 
 export type { PlayFile, Status } from "./state";
+/** The starter's ocean, as the playground runs it: the capsule and its page. `/live` runs it too. */
+export { ocean } from "./starter/ocean";
+export { App as Ocean } from "./starter/App";
 
 /** The page carries the editor and the compiler, so it comes as its own chunk on first visit. */
 export const PlayPage = lazy(() => import("./page").then((m) => ({ default: m.PlayPage })));

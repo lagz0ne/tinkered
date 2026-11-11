@@ -1,13 +1,18 @@
-/* Swiss: one column, a hard rule under the bar, red for the one accent. Light only. */
+/* Swiss compact: one sans, one red, hard rules, a left column for labels on a wide screen.
+   Small type, tight rows, flush left. Light only. */
 :root {
-  --bg: #fbfbfa;
-  --fg: #151515;
-  --mute: #5f6168;
-  --line: #dcdcd8;
-  --code: #f1f1ee;
+  --bg: #fafaf8;
+  --paper: #ffffff;
+  --fg: #111111;
+  --mute: #63656b;
+  --line: #dddcd7;
+  --code: #f2f1ed;
   --accent: #d0261b;
-  --sans: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --add: #e9f3ea;
+  --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --gut: max(16px, env(safe-area-inset-left));
+  --bar: 40px;
   color-scheme: light;
 }
 
@@ -19,79 +24,38 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 15px/1.55 var(--sans);
+  font: 14px/1.45 var(--sans);
+  -webkit-text-size-adjust: 100%;
 }
 
 a {
   color: inherit;
+  text-underline-offset: 2px;
 }
 
-.bar {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px max(16px, env(safe-area-inset-left));
-  border-bottom: 2px solid var(--fg);
-}
-
-.bar .name {
-  font-weight: 700;
-  font-size: 18px;
-  text-decoration: none;
-}
-
-.bar nav {
-  display: flex;
-  gap: 16px;
-}
-
-.bar nav a {
-  text-decoration: none;
-  color: var(--mute);
-}
-
-.bar nav a.active,
-.bar nav a:hover {
+a:hover {
   color: var(--accent);
 }
 
-main {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 24px max(16px, env(safe-area-inset-left)) 64px;
-}
-
-h1 {
-  font-size: 30px;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
-  margin: 0 0 12px;
-}
-
-h2 {
-  font-size: 18px;
-  margin: 28px 0 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
-
-p,
-li {
-  max-width: 65ch;
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
 }
 
 code {
-  font: 13px var(--mono);
+  font: 12.5px var(--mono);
   background: var(--code);
   padding: 0 3px;
 }
 
 pre {
-  background: var(--code);
-  border-left: 3px solid var(--line);
+  margin: 8px 0;
   padding: 10px 12px;
+  background: var(--code);
   overflow-x: auto;
+  font: 12.5px/1.5 var(--mono);
 }
 
 pre code {
@@ -99,74 +63,269 @@ pre code {
   padding: 0;
 }
 
-.lede {
-  color: var(--mute);
-  font-size: 17px;
+/* The bar: the name, then the sections. A red rule marks where you are. */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16px;
+  height: var(--bar);
+  padding: 0 var(--gut);
+  background: var(--bg);
+  border-bottom: 2px solid var(--fg);
 }
 
-.toc {
-  list-style: none;
-  padding: 0;
-  margin: 24px 0;
-  counter-reset: page;
-  border-top: 2px solid var(--fg);
-}
-
-.toc li {
-  counter-increment: page;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.toc li a {
-  font-weight: 600;
+.bar .name {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 
-.toc li a::before {
-  content: counter(page) " ";
+.bar nav {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+}
+
+.bar nav a {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--mute);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  white-space: nowrap;
+}
+
+.bar nav a.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.bar nav a:hover {
   color: var(--accent);
 }
 
-.toc li p {
-  margin: 2px 0 0;
+/* A page: a head, then rows. On a wide screen each row's label sits in a left column. */
+main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 20px var(--gut) 56px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 4.2vw, 40px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+h2 > span,
+.kicker,
+.toc li a::before,
+.cards a::before {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+h3 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--mute);
 }
 
-.agents {
+p,
+li {
+  max-width: 68ch;
+}
+
+.kicker {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lede {
+  margin: 0;
+  color: var(--mute);
+  font-size: 15px;
+  max-width: 60ch;
+}
+
+.head {
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--fg);
+}
+
+.grid-row {
+  display: grid;
+  gap: 4px 24px;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.grid-row > * {
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .grid-row {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .grid-row > h2 {
+    grid-row: 1 / span 9;
+  }
+}
+
+/* Home: what it is, three things to try, then the guide in columns. */
+.cards,
+.toc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 24px;
+}
+
+.cards li,
+.toc li {
+  padding: 8px 0 10px;
+  border-top: 1px solid var(--line);
+  counter-increment: item;
+}
+
+.cards,
+.toc {
+  counter-reset: item;
+}
+
+.cards a,
+.toc li a {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cards a::before,
+.toc li a::before {
+  content: counter(item, decimal-leading-zero) " ";
+  font-size: 12px;
+}
+
+.cards p,
+.toc li p {
+  margin: 2px 0 0;
   color: var(--mute);
   font-size: 13px;
 }
 
-.near {
+.agents {
+  margin: 12px 0 0;
+  color: var(--mute);
+  font-size: 12px;
+}
+
+/* A guide page: a narrow side column with the way around, the text beside it. */
+.doc {
+  display: grid;
+  gap: 16px 24px;
+}
+
+@media (min-width: 900px) {
+  .doc {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .doc .side {
+    position: sticky;
+    top: calc(var(--bar) + 20px);
+    align-self: start;
+  }
+}
+
+.side {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 32px;
-  padding-top: 12px;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  padding-top: 8px;
   border-top: 2px solid var(--fg);
 }
 
-/* The benchmark: one result per card, three measured columns, a red bar for the fastest. */
-.protocol {
-  margin: 16px 0;
-  padding-left: 20px;
+.side a {
+  text-decoration: none;
 }
 
-.protocol small,
-.note,
-.libs,
-.step {
+.side .kicker {
+  margin-bottom: 4px;
+}
+
+.side .muted {
   color: var(--mute);
 }
 
-.run {
-  font: inherit;
-  font-weight: 600;
-  padding: 8px 16px;
+.doc article {
+  min-width: 0;
+  border-top: 2px solid var(--fg);
+  padding-top: 8px;
+}
+
+.doc article h1 {
+  font-size: clamp(24px, 3.4vw, 32px);
+  margin-bottom: 12px;
+}
+
+.doc article h2 {
+  margin-top: 20px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.doc article ul,
+.doc article ol {
+  padding-left: 18px;
+}
+
+.doc article li {
+  margin: 2px 0;
+}
+
+.near {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 24px;
+  padding-top: 8px;
+  border-top: 2px solid var(--fg);
+  font-size: 13px;
+}
+
+/* Buttons: square, a hard border; the main action is filled. */
+.run,
+.room button {
+  padding: 6px 14px;
   border: 2px solid var(--fg);
   background: var(--fg);
   color: var(--bg);
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -176,17 +335,71 @@ pre code {
   cursor: progress;
 }
 
+/* The benchmark: the protocol in three columns, then one tight row per library. */
+.protocol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0 24px;
+  counter-reset: item;
+}
+
+.protocol li {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  counter-increment: item;
+}
+
+.protocol li::before {
+  content: counter(item, decimal-leading-zero) " ";
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.protocol b {
+  display: block;
+}
+
+.protocol small,
+.note,
+.libs,
+.step {
+  color: var(--mute);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
 .stopped {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .result {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px 16px;
-  padding: 12px 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 16px;
+  padding: 8px 0;
   border-top: 1px solid var(--line);
+}
+
+@media (min-width: 900px) {
+  .result {
+    grid-template-columns: minmax(180px, 1.2fr) repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .result header {
+    grid-column: auto;
+  }
 }
 
 .result.tinker {
@@ -198,22 +411,23 @@ pre code {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 12px;
+  gap: 0 8px;
 }
 
 .result h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
+  color: var(--fg);
 }
 
 .result header span {
   color: var(--mute);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .renders.ideal {
   color: var(--fg);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .metric {
@@ -226,17 +440,23 @@ pre code {
 .metric-label,
 .metric-compare {
   color: var(--mute);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .metric-value {
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.metric-value small {
+  font-weight: 400;
+  color: var(--mute);
 }
 
 .meter {
   display: block;
-  height: 4px;
+  height: 3px;
   background: var(--line);
 }
 
@@ -253,79 +473,78 @@ pre code {
 .takeaway {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-top: 24px;
-  padding-top: 12px;
-  border-top: 2px solid var(--fg);
-}
-
-.takeaway h2 {
-  grid-column: 1 / -1;
-  margin: 0;
-}
-
-.takeaway h3 {
-  margin: 0;
-  font-size: 13px;
-  color: var(--mute);
+  gap: 12px 24px;
 }
 
 .big {
-  margin: 4px 0;
-  font-size: 26px;
+  margin: 2px 0;
+  font-size: 24px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+}
+
+.big small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--mute);
 }
 
 .gaps {
   margin: 0;
-  padding-left: 18px;
-  font-size: 13px;
+  padding-left: 16px;
+  font-size: 12px;
 }
 
 .method {
-  margin-top: 24px;
+  margin-top: 12px;
   color: var(--mute);
-  font-size: 13px;
+  font-size: 12px;
 }
 
-/* The playground: a bar, then the preview; Code puts the editor beside it (above it on a phone). */
+.method summary {
+  cursor: pointer;
+  color: var(--fg);
+  font-weight: 700;
+}
+
+/* The playground: one tight bar, then the preview; Code puts the editor beside it (above it on
+   a phone). */
 main.play {
   max-width: none;
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 49px);
+  height: calc(100dvh - var(--bar));
 }
 
 .play-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  padding: 8px 16px;
+  gap: 6px 12px;
+  padding: 6px var(--gut);
   border-bottom: 1px solid var(--line);
+  font-size: 13px;
 }
 
 .switch {
   display: flex;
-  border: 2px solid var(--fg);
+  border: 1px solid var(--fg);
 }
 
 .switch button,
 .play-status button,
 .tab button,
 .tab.add {
-  font: inherit;
   border: 0;
   background: none;
-  color: inherit;
   cursor: pointer;
 }
 
 .switch button {
-  padding: 4px 14px;
-  font-weight: 600;
+  padding: 3px 12px;
+  font-weight: 700;
 }
 
 .switch button[aria-pressed="true"] {
@@ -337,10 +556,10 @@ main.play {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 12px;
+  gap: 2px 10px;
   margin: 0;
   color: var(--mute);
-  font-size: 13px;
+  font-size: 12px;
   min-width: 0;
 }
 
@@ -384,7 +603,7 @@ main.play[data-view="code"] .panes {
   display: flex;
   overflow-x: auto;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .tab {
@@ -395,27 +614,26 @@ main.play[data-view="code"] .panes {
 }
 
 .tab button {
-  padding: 6px 10px;
+  padding: 5px 9px;
 }
 
 .tab.on {
   box-shadow: inset 0 -2px 0 var(--accent);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .tab .close {
-  padding: 6px 8px 6px 0;
+  padding: 5px 7px 5px 0;
   color: var(--mute);
 }
 
 .tab.add {
-  padding: 6px 12px;
+  padding: 5px 11px;
 }
 
 .tab.rename {
-  font: inherit;
   width: 12em;
-  padding: 4px 8px;
+  padding: 3px 7px;
 }
 
 .editor {
@@ -429,14 +647,14 @@ main.play[data-view="code"] .panes {
 }
 
 .editor-host .cm-editor {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .preview {
   width: 100%;
   height: 100%;
   border: 0;
-  background: #04101f;
+  background: var(--bg);
 }
 
 .preview.waiting {
@@ -451,18 +669,16 @@ main.play[data-view="code"] .panes {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .tools button,
 .tools select,
 .play-bar .full {
-  font: inherit;
   border: 1px solid var(--line);
-  background: var(--bg);
-  color: inherit;
+  background: var(--paper);
   padding: 2px 8px;
 }
 
@@ -479,84 +695,87 @@ main.play[data-view="code"] .panes {
   cursor: pointer;
 }
 
-/* The sessions study: two projects side by side; each layer's label in small grey text. */
-.projects {
+/* Live: two tabs side by side (one above the other on a phone), then the code that made them. */
+.frames {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-  margin: 16px 0;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px 16px;
+  padding: 12px 0;
 }
 
-.project {
-  border-top: 2px solid var(--fg);
-  padding-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.frames figure {
+  margin: 0;
   min-width: 0;
 }
 
-.project header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+.frames figcaption {
+  font-size: 12px;
+  font-weight: 700;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--fg);
 }
 
-.project h2 {
-  margin: 0;
-}
-
-.sessions .layer {
-  color: var(--mute);
-  font-size: 13px;
-  margin: 0;
-}
-
-.sessions .layer b {
-  color: var(--fg);
-}
-
-.sessions button {
-  font: inherit;
-  font-size: 13px;
-  border: 1px solid var(--fg);
+.frames iframe {
+  display: block;
+  width: 100%;
+  height: clamp(440px, 64vw, 600px);
+  border: 0;
+  border-bottom: 1px solid var(--line);
   background: var(--bg);
-  color: var(--fg);
-  padding: 4px 10px;
-  cursor: pointer;
-  align-self: flex-start;
 }
 
-.sessions button.strong {
-  background: var(--fg);
-  color: var(--bg);
+/* On a phone the frame's controls stack, so the frame grows to show them all. */
+@media (max-width: 699px) {
+  .frames iframe {
+    height: 660px;
+  }
 }
 
-.brief,
-.form {
-  border: 1px solid var(--line);
-  padding: 10px;
+.room {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-}
-
-.form .row {
-  display: flex;
-  gap: 6px;
-}
-
-.form input,
-.form textarea {
-  font: inherit;
-  border: 1px solid var(--line);
-  padding: 4px 6px;
-  min-width: 0;
-  flex: 1;
-}
-
-.notes {
-  color: var(--mute);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 4px 0 12px;
+  border-bottom: 2px solid var(--fg);
   font-size: 13px;
+}
+
+.room input {
+  width: 12em;
+  margin-left: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--fg);
+  background: var(--paper);
+}
+
+.room button {
+  padding: 4px 12px;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 16px;
+}
+
+.diff span {
+  display: block;
+  min-height: 1.5em;
+}
+
+.diff .add {
+  background: var(--add);
+  box-shadow: -12px 0 0 var(--add);
+}
+
+.zero,
+.why {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.zero li,
+.why li {
+  margin: 2px 0;
 }

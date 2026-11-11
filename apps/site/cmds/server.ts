@@ -3,6 +3,7 @@ import { createScope } from "@tinker/core";
 
 import { guide } from "@/guide";
 import { guideOps, guidePaths, guideRoutes } from "@/guide/index.server";
+import { sea, seaOps } from "@/sea/index.server";
 import { defineMain } from "~/base/main";
 import { observeServerPanics } from "~/base/panics.server";
 import { health } from "~/components/health";
@@ -42,7 +43,7 @@ export default defineMain(async ({ env, args, signal, stdout, stderr, exit }) =>
 
   const socket = ws.server({
     path: "/rpc",
-    services: [guide.api],
+    services: [guide.api, sea.board, sea.api],
     origin,
   });
   const table = routes({
@@ -68,6 +69,9 @@ export default defineMain(async ({ env, args, signal, stdout, stderr, exit }) =>
       sink,
       // The guide: the server holds the pages; the page asks for them by rpc.
       guide.api({ implement: guideOps }),
+      // The shared sea: each room's waves in memory; a press is a call.
+      sea.board({ serve: true }),
+      sea.api({ implement: seaOps }),
       socket,
       table,
     ],

@@ -8,7 +8,7 @@ import { bench } from "@/bench";
 import { guide } from "@/guide";
 import { play } from "@/play";
 import { routeTree } from "@/routes";
-import { sessions } from "@/sessions";
+import { Pending } from "@/shell";
 import { TinkerError, TinkerNotFound } from "~/base/fallbacks";
 import { abortReasons } from "~/components/errors";
 import { telemetry } from "~/components/telemetry";
@@ -24,7 +24,6 @@ const app = createScope({
     guide.api({ remote: ws.client }),
     bench({ timer: performance }),
     play({ storage: localStorage, debounce: 250, wasm: "/esbuild.wasm", inbox: window }),
-    sessions,
   ],
 });
 
@@ -45,6 +44,9 @@ const router = createRouter({
   context: { scope: live },
   scrollRestoration: true,
   defaultErrorComponent: TinkerError,
+  // The shell shows at once; a page whose loader waits shows Pending after a moment.
+  defaultPendingComponent: Pending,
+  defaultPendingMs: 150,
   defaultNotFoundComponent: TinkerNotFound,
   Wrap: ({ children }) => <ScopeProvider scope={live}>{children}</ScopeProvider>,
 });

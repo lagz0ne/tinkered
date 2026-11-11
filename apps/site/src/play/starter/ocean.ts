@@ -1,16 +1,30 @@
 import { capsule } from "@tinker/core";
 
-import { ticker } from "./engine";
+import { clear, land, press, setStorm, ticker, tune, turn } from "./engine";
 import { board, cols, frames, heading, physics, rows, storm, walls, waves } from "./state";
 
 /**
  * The ocean's door: `ocean({ cols, rows, frames })` in the scope's capsules. It starts the frame
- * loop and stops it when the scope closes.
+ * loop and stops it when the scope closes. Its moves are exports, so another capsule can wrap
+ * one: a press can go to a server, and the server's wave can land here.
  */
 export const ocean = capsule({
   label: "ocean",
   config: { cols: cols.required, rows: rows.required, frames: frames.required },
-  exports: { physics, waves, storm, heading, walls, board },
+  exports: {
+    physics,
+    waves,
+    storm,
+    heading,
+    walls,
+    board,
+    press,
+    land,
+    clear,
+    tune,
+    setStorm,
+    turn,
+  },
   hooks: {
     async start({ load, next }) {
       await load(ticker, { role: "worker", explain: "Paints the board each frame" });

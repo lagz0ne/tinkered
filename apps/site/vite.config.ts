@@ -20,7 +20,12 @@ export default defineConfig({
   resolve: { alias },
   // public/ holds the play preview's modules and esbuild.wasm (scripts/vendor.ts writes them).
   publicDir: at("public"),
-  build: { outDir: at("dist/client"), emptyOutDir: true },
+  build: {
+    outDir: at("dist/client"),
+    emptyOutDir: true,
+    // Two pages: the site, and one frame of the shared sea (`/sea.html`, shown twice by `/live`).
+    rollupOptions: { input: { index: at("cmds/index.html"), sea: at("cmds/sea.html") } },
+  },
   server: {
     port: Number(process.env.DEV_PORT ?? 5173),
     strictPort: true,

@@ -1066,3 +1066,19 @@ Asked by Hedl (hedl 9320400). First asker of each.
 
 State: first asker; no ticket until a second asker.
 
+
+## The site's shared sea on keyed data — 2026-11-11
+
+Asked by the site's `/live` (`apps/site/src/sea/tide.ts`).
+Second asker of two rows above. So both are now a Core ticket.
+
+- A unit cannot name a run-time key. The room is a tag,
+  so `shore` takes the board's keyed controller and calls
+  `where({ room })` in its factory.
+- A resource cannot join a part. `shore` names the board's own
+  cell through `seaBoard.waves.where({}).cell`, with a cast,
+  because `remoteData` makes its own cells.
+- Ask: a unit names a part by a key from its deps,
+  and a resource holds that part open, as `useData` does.
+
+State: second asker; a Core ticket, for Duke.

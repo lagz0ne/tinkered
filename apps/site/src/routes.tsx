@@ -4,7 +4,7 @@ import type { Scope } from "@tinker/core";
 import { BenchPage } from "@/bench";
 import { guide, GuideHome, GuidePage } from "@/guide";
 import { PlayPage } from "@/play";
-import { SessionsPage } from "@/sessions";
+import { LivePage, roomName } from "@/sea";
 import { Shell } from "@/shell";
 
 const root = createRootRouteWithContext<{ scope: Scope.Handle }>()({ component: Shell });
@@ -38,11 +38,14 @@ const bench = createRoute({ getParentRoute: () => root, path: "/bench", componen
 // The playground: it compiles and runs the project in this browser; its chunk loads on first visit.
 const play = createRoute({ getParentRoute: () => root, path: "/play", component: PlayPage });
 
-// The sessions study: who owns each value, shown by what each reset clears.
-const sessions = createRoute({
+// The shared sea: two tabs on one room. The room is the link's `room`, or the lobby.
+const live = createRoute({
   getParentRoute: () => root,
-  path: "/sessions",
-  component: SessionsPage,
+  path: "/live",
+  validateSearch: (search: Record<string, unknown>) => ({
+    room: roomName.catch("lobby").parse(search.room),
+  }),
+  component: () => <LivePage room={live.useSearch().room} />,
 });
 
-export const routeTree = root.addChildren([index, page, play, sessions, bench]);
+export const routeTree = root.addChildren([index, page, play, live, bench]);

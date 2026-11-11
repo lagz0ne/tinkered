@@ -9,18 +9,18 @@ import { board, idle } from "./state";
 const SLAB = 10;
 const PER_UNIT = 34;
 
-/** Each wall: how it folds down from the top, and how dark it is against the top. */
+/** Each wall: how it folds down from the top, and how much darker than the top it is. */
 const faces = {
-  n: { fold: "rotateX(90deg) scaleY", dark: 0.4 },
-  s: { fold: "rotateX(-90deg) scaleY", dark: 0.52 },
-  w: { fold: "rotateY(-90deg) scaleX", dark: 0.4 },
-  e: { fold: "rotateY(90deg) scaleX", dark: 0.52 },
+  n: { fold: "rotateX(90deg) scaleY", dark: 0.72 },
+  s: { fold: "rotateX(-90deg) scaleY", dark: 0.82 },
+  w: { fold: "rotateY(-90deg) scaleX", dark: 0.72 },
+  e: { fold: "rotateY(90deg) scaleX", dark: 0.82 },
 } as const;
 
-/** The arrow shows with the front, in the top's complement, its lightness mirrored. */
-function Arrow({ i, a, hue, lit }: { i: number; a: number; hue: number; lit: number }) {
+/** The arrow shows with the front: ink on a light top, white on a dark one. */
+function Arrow({ i, a, lit }: { i: number; a: number; lit: number }) {
   const on = i > 0.1;
-  const stroke = `hsl(${(hue + 180) % 360} 72% ${Math.max(14, Math.min(44, 100 - lit))}%)`;
+  const stroke = lit > 60 ? "#111" : "#fff";
   return (
     <span
       className="arrow"
@@ -52,16 +52,16 @@ export const Tile = memo(function Tile({
   const shade = useData(board, (b) => b[k] ?? idle);
   const run = useRun(press);
 
-  // The water: the wave's hue while a front passes, else a deep checker, so calm is not flat.
+  // The water: the wave's hue while a front passes, else a paper-grey checker, so calm is not flat.
   const calm = shade.i === 0 && shade.z === 0;
-  const hue = calm ? 184 : shade.h;
-  const sat = calm ? 32 : shade.s;
-  const lit = calm ? 20 + (k % 2) * 3 : shade.l;
+  const hue = calm ? 45 : shade.h;
+  const sat = calm ? 6 : shade.s;
+  const lit = calm ? 90 - (k % 2) * 3 : shade.l;
 
-  // Rising crests whiten toward seafoam the higher the wave lifts.
+  // Rising crests deepen toward ink the higher the wave lifts.
   const base = `hsl(${hue} ${sat}% ${lit}%)`;
-  const foam = calm ? 0 : Math.round(Math.min(1, shade.z / 2) * 55);
-  const top = foam > 0 ? `color-mix(in srgb, ${base} ${100 - foam}%, #e9fff7)` : base;
+  const ink = calm ? 0 : Math.round(Math.min(1, shade.z / 2) * 30);
+  const top = ink > 0 ? `color-mix(in srgb, ${base} ${100 - ink}%, #111)` : base;
   const h = SLAB + shade.z * PER_UNIT;
 
   // The button keeps the top's colour: it covers walls in the field's fade.
@@ -74,7 +74,7 @@ export const Tile = memo(function Tile({
       aria-label={`tile ${x},${y}`}
     >
       <span className="top" style={{ background: top }} aria-hidden="true">
-        <Arrow i={shade.i} a={shade.a} hue={hue} lit={lit} />
+        <Arrow i={shade.i} a={shade.a} lit={lit} />
       </span>
       {(walls.split(" ").filter(Boolean) as (keyof typeof faces)[]).map((w) => (
         <span
@@ -82,7 +82,7 @@ export const Tile = memo(function Tile({
           className={`wall ${w}`}
           style={{
             transform: `${faces[w].fold}(${h})`,
-            background: `hsl(${hue} ${sat}% ${Math.max(4, Math.round(lit * faces[w].dark))}%)`,
+            background: `hsl(${hue} ${sat}% ${Math.max(8, Math.round(lit * faces[w].dark))}%)`,
           }}
           aria-hidden="true"
         />

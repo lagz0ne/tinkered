@@ -57,40 +57,48 @@ function Results({ report }: { report: Report }) {
   const t = report.takeaway;
   return (
     <>
-      <section aria-label="Measured library results">
-        <h2>Every library. Same work.</h2>
+      <section className="grid-row" aria-label="Measured library results">
+        <h2>
+          <span>02</span> Every library, same work
+        </h2>
         <p className="note">
           Fastest update first. Lower is better. Fan-out is one write, {N} re-renders.
         </p>
-        {report.rows.map((row) => (
-          <ResultRow key={row.name} row={row} />
-        ))}
+        <div>
+          {report.rows.map((row) => (
+            <ResultRow key={row.name} row={row} />
+          ))}
+        </div>
       </section>
       {t && (
-        <section className="takeaway" aria-label="@tinker/react in context">
-          <h2>@tinker/react, in context</h2>
-          <div>
-            <h3>Re-renders</h3>
-            <p className="big">{t.rerenders}</p>
-            <p>
-              One update with @tinker/react.
-              {t.naive &&
-                ` ${t.naive.name} re-renders all ${t.naive.rerenders} for the same change.`}
-            </p>
-          </div>
-          <div>
-            <h3>Update</h3>
-            <p className="big">
-              {t.update.text} <small>µs ±{t.update.spread}%</small>
-            </p>
-            <Gaps gaps={t.update.gaps} />
-          </div>
-          <div>
-            <h3>Fan-out</h3>
-            <p className="big">
-              {t.fanout.text} <small>µs ±{t.fanout.spread}%</small>
-            </p>
-            <Gaps gaps={t.fanout.gaps} />
+        <section className="grid-row" aria-label="@tinker/react in context">
+          <h2>
+            <span>03</span> @tinker/react, in context
+          </h2>
+          <div className="takeaway">
+            <div>
+              <h3>Re-renders</h3>
+              <p className="big">{t.rerenders}</p>
+              <p className="note">
+                One update with @tinker/react.
+                {t.naive &&
+                  ` ${t.naive.name} re-renders all ${t.naive.rerenders} for the same change.`}
+              </p>
+            </div>
+            <div>
+              <h3>Update</h3>
+              <p className="big">
+                {t.update.text} <small>µs ±{t.update.spread}%</small>
+              </p>
+              <Gaps gaps={t.update.gaps} />
+            </div>
+            <div>
+              <h3>Fan-out</h3>
+              <p className="big">
+                {t.fanout.text} <small>µs ±{t.fanout.spread}%</small>
+              </p>
+              <Gaps gaps={t.fanout.gaps} />
+            </div>
           </div>
         </section>
       )}
@@ -116,39 +124,50 @@ export function BenchPage() {
 
   return (
     <main className="bench">
-      <h1>The cost of a change</h1>
-      <p className="lede">
-        One slice. {N} components. How much work does one update take, in your browser?
-      </p>
-      <ol className="protocol">
-        <li>
-          <b>Update</b> One slice changes. Count the re-renders.{" "}
-          <small>{samples.update} samples</small>
-        </li>
-        <li>
-          <b>Mount</b> {N} components. Time the first render. <small>{samples.mount} samples</small>
-        </li>
-        <li>
-          <b>Fan-out</b> One shared write. All {N} render. <small>{samples.fanout} samples</small>
-        </li>
-      </ol>
-      <p className="libs">
-        @tinker/react, Zustand, Jotai, Legend State v2 and v3, Preact Signals, a naive React
-        Context, and a plain useState control. Each in its own best setup.
-      </p>
-      <button type="button" className="run" disabled={busy} onClick={() => start.run()}>
-        {busy ? "Running…" : state.kind === "done" ? "Run again" : "Run benchmark"}
-      </button>
-      {state.kind === "running" && (
-        <p role="status" className="step">
-          {state.step}
+      <header className="head">
+        <p className="kicker">Bench</p>
+        <h1>The cost of a change</h1>
+        <p className="lede">
+          One slice. {N} components. How much work does one update take, in your browser?
         </p>
-      )}
-      {state.kind === "stopped" && (
-        <p role="alert" className="stopped">
-          Run stopped. {state.reason}
+      </header>
+      <section className="grid-row">
+        <h2>
+          <span>01</span> The run
+        </h2>
+        <ol className="protocol">
+          <li>
+            <b>Update</b> One slice changes. Count the re-renders.{" "}
+            <small>{samples.update} samples</small>
+          </li>
+          <li>
+            <b>Mount</b> {N} components. Time the first render.{" "}
+            <small>{samples.mount} samples</small>
+          </li>
+          <li>
+            <b>Fan-out</b> One shared write. All {N} render. <small>{samples.fanout} samples</small>
+          </li>
+        </ol>
+        <p className="libs">
+          @tinker/react, Zustand, Jotai, Legend State v2 and v3, Preact Signals, a naive React
+          Context, and a plain useState control. Each in its own best setup.
         </p>
-      )}
+        <div className="actions">
+          <button type="button" className="run" disabled={busy} onClick={() => start.run()}>
+            {busy ? "Running…" : state.kind === "done" ? "Run again" : "Run benchmark"}
+          </button>
+          {state.kind === "running" && (
+            <p role="status" className="step">
+              {state.step}
+            </p>
+          )}
+          {state.kind === "stopped" && (
+            <p role="alert" className="stopped">
+              Run stopped. {state.reason}
+            </p>
+          )}
+        </div>
+      </section>
       {state.kind === "done" && <Results report={state.report} />}
     </main>
   );

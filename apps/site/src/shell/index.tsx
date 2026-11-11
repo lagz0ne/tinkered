@@ -13,12 +13,25 @@ export function Shell() {
             Guide
           </Link>
           <Link to="/play">Play</Link>
-          <Link to="/sessions">Sessions</Link>
+          <Link to="/live" search={{ room: "lobby" }}>
+            Live
+          </Link>
           <Link to="/bench">Bench</Link>
           <a href="https://github.com/lagz0ne/tinkered">Source</a>
         </nav>
       </header>
       <Outlet />
     </>
+  );
+}
+
+/** What a page shows while its loader waits: the first load waits for the socket. */
+export function Pending() {
+  return (
+    <main>
+      <p className="note" role="status">
+        Loading…
+      </p>
+    </main>
   );
 }

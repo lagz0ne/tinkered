@@ -51,7 +51,7 @@ const live = await app.ready;
 ```text
 src/sea/
   index.ts          the capsule + pages
-  index.server.ts   the server's ops
+  index.server.ts   the server's door
   contract.ts       rpc + remote data
 ```
 

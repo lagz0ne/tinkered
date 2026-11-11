@@ -25,6 +25,11 @@ bun run start  # the built server
 - `/play`: the playground. esbuild-wasm
   compiles the tabs in the browser; a frame
   runs them.
+- `/live?room=<name>`: the playground's ocean,
+  shared. Two frames of `/sea.html` (its own
+  cmd, `cmds/sea.tsx`) on one room.
+  `tide({ room })` sends each press to the
+  server; every tab in the room lands it.
 - `/bench`: @tinker/react against other
   stores, in the visitor's browser.
 

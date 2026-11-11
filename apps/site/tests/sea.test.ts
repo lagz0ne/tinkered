@@ -1,0 +1,116 @@
+import { createScope } from "@tinker/core";
+import type { Scope } from "@tinker/core";
+import { makeTestClock } from "@tinker/core/testing";
+import { afterAll, expect, test } from "vite-plus/test";
+
+import { ocean } from "@/play";
+import type { Frames } from "@/play/starter/state";
+import { sea, tide } from "@/sea";
+import { seaOps } from "@/sea/index.server";
+
+import { listen, wsClient as tab, wsServer as server } from "./support/ws";
+
+// The shared sea as the cmds install it, over a real socket: the server holds each room's
+// waves; each tab runs the playground's ocean plus `tide({ room })`. Nothing else is added.
+
+const backend = await createScope({
+  capsules: [
+    sea.board({ serve: true }),
+    sea.api({ implement: seaOps }),
+    server.server({ path: "/rpc", services: [sea.board, sea.api] }),
+  ],
+}).ready;
+
+const { bun, url } = listen(backend, [server.server]);
+const tabs: Scope.Handle[] = [];
+
+/** Frames by hand: `pump` runs what is queued. */
+const frameQueue = () => {
+  const due = new Map<number, FrameRequestCallback>();
+  let next = 1;
+  const frames: Frames = {
+    requestAnimationFrame: (cb) => (due.set(next, cb), next++),
+    cancelAnimationFrame: (id) => void due.delete(id),
+  };
+  const pump = () => {
+    const run = [...due.values()];
+    due.clear();
+    for (const cb of run) cb(0);
+  };
+  return { frames, pump };
+};
+
+/** A tab in `room`: the ocean on a 3×3 board, with its own frames and clock. */
+const open = async (room: string) => {
+  const queue = frameQueue();
+  const clock = makeTestClock({ now: 1000 });
+  const scope = await createScope({
+    clock,
+    capsules: [
+      tab.client({ url: `${url}/rpc` }),
+      sea.board({ read: tab.client }),
+      sea.api({ remote: tab.client }),
+      ocean({ cols: 3, rows: 3, frames: queue.frames }),
+      tide({ room }),
+    ],
+  }).ready;
+  tabs.push(scope);
+  return { scope, clock, queue, waves: () => scope.resolve(ocean.waves).get() };
+};
+
+const until = async (ok: () => boolean) => {
+  const end = Date.now() + 8000;
+  while (!ok()) {
+    if (Date.now() > end) throw new Error("timed out");
+    await new Promise((r) => setTimeout(r, 10));
+  }
+};
+
+afterAll(async () => {
+  for (const scope of tabs) await scope.close();
+  await bun.stop(true);
+  await backend.close();
+});
+
+test("a press in one tab lands in every tab of the room, in one hue, and nowhere else", async () => {
+  const [a, b, other] = [await open("bay"), await open("bay"), await open("cove")];
+
+  // The tide's hook answers the press with the server's call, so the result is a promise.
+  const dealt = await Promise.resolve(a.scope.run(ocean.press, { input: { x: 1, y: 2 } }));
+  await until(() => a.waves().length === 1 && b.waves().length === 1);
+
+  expect(dealt).toEqual({ hue: a.waves()[0]!.hue });
+  expect(b.waves()[0]).toMatchObject({ x: 1, y: 2, hue: a.waves()[0]!.hue });
+  expect(other.waves()).toEqual([]);
+});
+
+test("the storm's presses go to the room as well", async () => {
+  const [a, b] = [await open("gale"), await open("gale")];
+
+  a.scope.run(ocean.setStorm, { input: true });
+  a.clock.advance(1000);
+  a.queue.pump();
+  await until(() => b.waves().length === 1);
+
+  expect(a.scope.resolve(ocean.storm).get().on).toBe(true);
+  expect(b.scope.resolve(ocean.storm).get().on).toBe(false);
+});
+
+test("a tab that joins a busy room lands only its newest waves", async () => {
+  const clock = makeTestClock({ now: 50_000 });
+  const host = await createScope({
+    clock,
+    random: { next: () => 0.5, uuid: () => crypto.randomUUID() },
+    capsules: [sea.board({ serve: true }), sea.api({ implement: seaOps })],
+  }).ready;
+  const pressAt = (x: number) => host.run(seaOps["wave.press"], { input: { room: "r", x, y: 0 } });
+
+  for (let x = 0; x < 70; x++) pressAt(x % 60);
+  const full = host.resolve(sea.board.waves.where({ room: "r" })).get().length;
+  clock.advance(5000);
+  pressAt(1);
+
+  expect(full).toBe(64);
+  expect(host.resolve(sea.board.waves.where({ room: "r" })).get()).toHaveLength(1);
+  await host.close();
+});
