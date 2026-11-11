@@ -29,12 +29,14 @@
 - **list key** — A config key declared as `tag.all`: the call takes a list, and every item is one binding. Reads last first.
 - **slot key** — A config key whose tag holds a unit (a resource or operation handle), so the app picks the unit the library uses.
 - **data** — A mutable value cell that callers can read, watch, and write.
-- **mode (of data)** — What a cell holds: `"single"` is one value, the default; `"keyed"` is members under keys (ADR 0135, not built).
+- **mode (of data)** — What a cell holds: `"single"` is one value, the default; `"keyed"` is members under keys (ADR 0135).
 - **keyed cell** — A cell with `mode: "keyed"`. A write changes one member: `set(member)`, `update(key, fn)`, `delete(key)`. Its `key` function reads the key from a member (ADR 0135, 0138).
 - **member** — One entry of a keyed cell. It carries its key: the cell's `key` function reads it (ADR 0138). It is not a cell of its own.
 - **part (of a key)** — Some fields of an object key, such as `{ project }`. `where(part)` reads each member whose key holds them.
 - **invalidate** — Mark a part of a keyed cell dirty, so that each reader of the part asks the server again (ADR 0137). On the server it sends a signal with no data; the signal names a key or a part (ADR 0138).
-- **ask (for a part)** — One request from a client for the members of a part. The last ask wins (ADR 0137).
+- **ask (for a part)** — One request from a client for the members of a part. A later ask that shares members wins for them (ADR 0137).
+- **load (of a keyed cell)** — An op on the server that gives the members of a part from a store. Its input says which fields a part must have. With a load, the server keeps no member (ADR 0138).
+- **projector** — A reader of a store's notices that calls `invalidate` for each one (`docs/keyed-projector.md`).
 - **dependency mode** — How a dep is taken: **read** (bare `data` → the value) or **write** (`data.controller` → get/set/watch handle). A bare resource slot delivers its **built value** — never a promise (ADR 0044); a bare operation delivers a subflow.
 - **derivation** — A pattern, not a unit: an operation/resource writes a `data` cell (write-mode dep) that others watch; or a consumer watches sources and combines them.
 - **operation (command)** — An action run on demand, with typed input, dependencies, and a result.

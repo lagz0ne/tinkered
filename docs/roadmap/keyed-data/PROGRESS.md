@@ -318,3 +318,57 @@ It reads as `board.faults` does.
 
 - Core with rpc: 31,689 B. The cap is 31,744 B.
   k05 will need more room.
+
+## k05 load a part from a store
+
+### Shape
+
+- `board({ serve: true, load: { tasks: loadTasks } })`.
+  The load is an op. Its input is a part. It gives
+  members. The type checks the members.
+- The server runs the load with the part as raw
+  input, so the load's own parse picks its fields.
+  Only the part's members go out.
+- With a load the server keeps no member. A set on
+  the cell marks its member dirty and keeps nothing.
+- The server's first `onStart` hook checks the part
+  against the load's input. A part with fewer fields
+  is refused there, before the app's guard.
+- `fill` stays for the config boards. k09 removes
+  both.
+
+### A fix found by case 1
+
+Case 1 failed first: a slow ask for `where p1` came
+back after a fresh ask for `of p1/a`. The later ask
+did not cover the whole part, so the old answer
+landed. Now each ask lists the later asks that share
+members with it. Its answer leaves those members to
+them, and the ask resolves after them.
+
+### Proof
+
+- `packages/core/tests/remote-data-keyed-load.test.ts`:
+  the six cases of ADR 0137, each with a store that
+  answers late. The server holds 0 members after
+  each one: its cell and its board view are empty.
+- Also there: a part with fewer fields is refused
+  before the guard; an `of` read through a load that
+  takes the project; a set on the cell; an empty
+  part after a cut log.
+- The guide: `docs/keyed-projector.md`. It has the
+  rule of the cut log.
+- Core: 1,284 tests pass. All packages: ticket gate
+  green.
+- Mutation on the k05 lines (scoped Stryker): 86.76
+  (59 killed, 8 survived, 1 with no test). The first
+  run was 72.46; the tests added since: an ask from
+  the wire with fewer fields, a board with a cell
+  that has no load, an `invalidate` that waits for a
+  later ask, a member from the load that does not
+  parse.
+
+### Size
+
+- Core with rpc: 31,951 B. The cap was 31,744 B. It
+  is now 32,768 B.

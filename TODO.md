@@ -57,9 +57,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **core/keyed-load** — keyed data k05, blocked by k04 (ADR 0137). A board takes a `load` for a keyed cell: it gives the members of a part, and the server keeps no member; the input type of the `load` says which fields a part must have.
-  Verify: the six cases of ADR 0137 as tests, with a fake store that answers late; the server holds 0 members after each case.
-
 - **template/todo-keyed** — keyed data k06, blocked by k02 and k04. In `tinker-app`: the todo list is a keyed cell, and a row reads its own member.
   Verify: one toggle sends one member, not the list (bytes on the wire for 1,000 todos); a toggle renders one row; `bun run check` exits 0.
 
@@ -120,6 +117,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **core/keyed-ask** — keyed data k03, done 2026-11-11. `remoteData` serves a keyed cell: a stream per part, an ask per part, the guard at each ask. Proof: 6 Core tests, 8 Bun tests (memory and WebSocket), size cap with rpc now 31,744 B.
 
 - **core/keyed-invalidate** — keyed data k04, done 2026-11-11. `board.invalidate` on both sides; a set on a served cell signals its member; one pass, one signal per reader. Proof: 15 Core tests; scoped mutation on k03 and k04 lines 85.30.
+
+- **core/keyed-load** — keyed data k05, done 2026-11-11. A board takes a `load` per keyed cell; the server keeps no member; a part with fewer fields is refused before the guard. Proof: the six cases of ADR 0137 as tests; guide `docs/keyed-projector.md`; size cap with rpc now 32,768 B.
 
 - **core/start-sees-stop** — ADR 0134: after a stop, a start hook's `next()` rejects, so `serve` never listens; a stop signal during start ends the start.
   Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Duke accepted 2026-11-10 08:42; released in 0.16.2.

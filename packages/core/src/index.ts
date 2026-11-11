@@ -8106,14 +8106,19 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     this.inner.set(this.spec.store(slots, 0, undefined));
   }
 
-  /** remoteData's: write a value made under another layer as this controller's own (a request
-   * session's write goes to the root, ADR 0138). Gives the key that one write changed, or
-   * undefined when the value is not one write past this controller's value. */
-  adopt(value: readonly unknown[]): Data.Key | undefined {
+  /** remoteData's: the key that one write changed, when the value is one write past this
+   * controller's value; else undefined. */
+  step(value: readonly unknown[]): Data.Key | undefined {
     const index = this.spec.indexOf(value);
-    const step = index.base === this.spec.indexOf(this.get()).id;
+    return index.base === this.spec.indexOf(this.get()).id ? index.changed : undefined;
+  }
+
+  /** remoteData's: write a value made under another layer as this controller's own (a request
+   * session's write goes to the root, ADR 0138). Gives `step` of the value. */
+  adopt(value: readonly unknown[]): Data.Key | undefined {
+    const key = this.step(value);
     this.inner.set(value);
-    return step ? index.changed : undefined;
+    return key;
   }
 
   private put(text: string, key: Data.Key, member: unknown): void {

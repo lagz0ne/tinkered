@@ -3,7 +3,7 @@ import type { Capsule, Data, Operation, Scope, Tag } from "./index";
 import { channel, rpc } from "./rpc";
 import type { RpcFault } from "./rpc";
 import * as z from "./rpc-shape";
-import { protocol } from "./rpc-transport";
+import { hook, protocol } from "./rpc-transport";
 import type { Answer, Call, Hooks, Stream, Watch } from "./rpc-transport";
 
 // remoteData rides on rpc: each key is an rpc stream key at the same address. Its stream sends
@@ -15,12 +15,25 @@ type Cells = Readonly<Record<string, Data.Cell<any>>>;
 type Read = { readonly call: Call; readonly watch: Watch };
 
 /** The job, picked by the config: serve the cells here, or fill them from a backend. */
-type Job =
-  | { readonly serve: true; readonly fill?: Fill; readonly read?: never }
+type Job<D = Cells> =
+  | { readonly serve: true; readonly fill?: Fill; readonly load?: Loads<D>; readonly read?: never }
   | { readonly read: Read; readonly serve?: never };
 
 /** The lifecycle hooks go to the wire: rpc runs them, on each side, per key. */
-type Config = Job & Hooks;
+type Config<D = Cells> = Job<D> & Hooks;
+
+/**
+ * A keyed key's load: an op that gives the members of a part from a store (ADR 0137, 0138). Its
+ * input says which fields a part must have. With a load, the server keeps no member.
+ */
+type Loads<D> = {
+  readonly [K in keyof D as D[K] extends Data.Keyed<any, any> ? K : never]?: Operation.Handle<
+    D[K] extends Data.Cell<infer L> ? L | PromiseLike<L> : never,
+    any
+  >;
+};
+
+type Load = Readonly<Record<string, Operation.Handle<unknown, any> | undefined>>;
 
 /**
  * A keyed definition's first value for one parameter, per key: an op the server runs in a call
@@ -43,13 +56,14 @@ type Keyed = Scope.KeyedController<unknown, Data.Key> & {
     keep: (key: Data.Key) => boolean,
   ): void;
   adopt(value: readonly unknown[]): Data.Key | undefined;
+  step(value: readonly unknown[]): Data.Key | undefined;
 };
 
 /** A client's part in use, by key: its readers, and the stop of its stream. */
 type Joined = { refs: number; readonly ask: Ask; readonly stop: AbortController };
 
-/** A client's ask in flight. `by` is a later ask that covers it: that one's answer wins. */
-type Asking = { readonly ask: Ask; by?: Asking; done?: Promise<void> };
+/** A client's ask in flight, and the asks that started after it and share members with it. */
+type Asking = { readonly ask: Ask; readonly later: Asking[]; done?: Promise<void> };
 
 /** What a server reader has to ask after one pass: one member, or its whole part. */
 type Pass = { readonly at: string; readonly dirty: Map<string, Ask> };
@@ -125,6 +139,10 @@ const narrowed = (reader: Ask, dirty: Data.Key): Ask | undefined => {
   }
   return { read: "where", part };
 };
+
+/** The key function of a keyed cell: it reads a member's key. */
+const memberKey = (cell: Data.Cell<unknown>) =>
+  (Object(cell).keyed as { key: (member: unknown) => Data.Key }).key;
 
 /** The slots of the readers that hold one member: the member's own, and each part of its key
  * (2^d parts for d fields). */
@@ -203,6 +221,10 @@ type Served = {
   held: Map<string, unknown>;
   /** The key's fill for one parameter, run on the root; undefined when the key has none. */
   fill: (key: string, param: Param) => Promise<unknown> | undefined;
+  /** Each keyed key's load, from the config. */
+  loads: Load;
+  /** A keyed key's load of one part, run on the root; undefined when the key has none. */
+  load: (key: string, part: Data.Key) => Promise<unknown> | undefined;
 };
 
 /** A reading root's values for one parameter, shared by every session that names it. */
@@ -244,6 +266,7 @@ type Def = {
 type Shape = {
   readonly serve: Tag.Presence<true>;
   readonly fill: Tag.Presence<Fill>;
+  readonly load: Tag.Presence<Load>;
   readonly read: Tag.Presence<Read>;
 };
 
@@ -302,6 +325,12 @@ const steps = resource({
         const tags = Object.entries(def.by!).map(([k, t]) => t(param[k]));
         return Promise.resolve(run(op as never, { tags } as never, sending as never));
       };
+      const loads = config.load.present ? config.load.value : {};
+      // The load parses the part as its own raw input: it reads only the fields it takes.
+      const loadPart = (key: string, part: Data.Key) => {
+        const op = loads[key];
+        return op && Promise.resolve(run(op, { rawInput: part } as never, sending as never));
+      };
       load(def.state, meta).set({
         roots,
         copies,
@@ -310,6 +339,8 @@ const steps = resource({
         fill,
         parts: new Map(),
         pass: new Map(),
+        loads,
+        load: loadPart,
       });
       return next();
     };
@@ -386,8 +417,17 @@ const steps = resource({
       return ended;
     };
 
-    /** A keyed key's ask, as rpc runs it: the members of the part in the root's cell now. */
-    const answerPart = (own: Served, key: string, ask: Ask): readonly unknown[] => {
+    /** A keyed key's ask, as rpc runs it: the members of the part from its load, or in the
+     * root's cell now. A load may give more than the part: only the part's members go out. */
+    const answerPart = (def: Def, own: Served, key: string, ask: Ask) => {
+      const loaded = own.load(key, ask.part);
+      if (loaded) {
+        const keyOf = memberKey(def.cells[key]!);
+        return loaded.then((members) =>
+          (members as readonly unknown[]).filter((m) => holds(ask, keyOf(m))),
+        );
+      }
+
       const root = own.roots.get(key) as unknown as Keyed;
       if (ask.read === "where") return root.where(ask.part as never).get();
 
@@ -643,11 +683,14 @@ const steps = resource({
       const inUse = (asked: Ask) =>
         !signal.aborted && [...joined.values()].some((j) => narrowed(j.ask, asked.part));
 
-      /** One ask. A later ask that covers it wins: this one then waits for that one's answer
-       * (ADR 0137 3). Never rejects: a fault goes to `board.faults`. */
+      const keyOf = memberKey(def.made[key]!);
+
+      /** One ask (ADR 0137 3). A later ask that shares members with it is fresher for them: this
+       * answer leaves them to that one, and this ask resolves after it. Never rejects: a fault
+       * goes to `board.faults`. */
       const ask = (asked: Ask): Promise<void> => {
-        const entry: Asking = { ask: asked };
-        for (const p of pending) if (holds(asked, p.ask.part)) p.by = entry;
+        const entry: Asking = { ask: asked, later: [] };
+        for (const p of pending) if (narrowed(p.ask, asked.part)) p.later.push(entry);
         pending.add(entry);
         entry.done = settle(entry);
         return entry.done;
@@ -655,34 +698,38 @@ const steps = resource({
 
       const settle = async (entry: Asking): Promise<void> => {
         const { read, part } = entry.ask;
+        const newer = (k: Data.Key) => entry.later.some((l) => holds(l.ask, k));
         const got = await Promise.resolve()
           .then(() =>
             run(def.wire[`${key}.ask`] as never, { input: entry.ask } as never, reading as never),
           )
           .then(
-            (members) => () => cell.answer(read, part, members as readonly unknown[], () => false),
+            (members) => () => {
+              const fresh = (members as readonly unknown[]).filter((m) => !newer(keyOf(m)));
+              cell.answer(read, part, fresh, newer);
+            },
             (error: unknown) => () => {
               throw error;
             },
           );
         pending.delete(entry);
-        if (entry.by) return entry.by.done;
-        if (!inUse(entry.ask)) return;
+        if (!newer(part) && inUse(entry.ask)) apply(entry.ask, got);
 
+        await Promise.all(entry.later.map((l) => l.done));
+      };
+
+      /** Puts one answer in the cell, or its fault in `board.faults`. */
+      const apply = (asked: Ask, got: () => void) => {
         try {
           got();
           mark(key, null);
         } catch (error) {
+          const at = partSlot(key, asked);
           mark(
             key,
             def.wire.fault.is(error)
               ? error
-              : def.wire.fault.make(
-                  partSlot(key, entry.ask),
-                  "invalid",
-                  { side: "client" },
-                  undefined,
-                ),
+              : def.wire.fault.make(at, "invalid", { side: "client" }, undefined),
           );
         }
       };
@@ -872,6 +919,7 @@ export function remoteData<
 
   const serveKey = tag<true>({ label: `${name}.serve` });
   const fillKey = tag<Fill>({ label: `${name}.fill` });
+  const loadKey = tag<Load>({ label: `${name}.load` });
   const readKey = tag<Read>({ label: `${name}.read` });
 
   const configDepends = Object.fromEntries(
@@ -949,7 +997,7 @@ export function remoteData<
                 label: `${name}.ask`,
                 input: askShape,
                 depends: { own: state, s: steps },
-                run: ({ own, s }, { input }) => s.answerPart(own!, key, input),
+                run: ({ own, s }, { input }) => s.answerPart(def, own!, key, input),
               }),
             ],
           ]
@@ -997,6 +1045,25 @@ export function remoteData<
       );
     },
   });
+  /**
+   * The first `onStart` hook of a server with a load: a part that the load's input does not take
+   * is refused before any guard (ADR 0138 13).
+   */
+  const fitsPart = operation({
+    label: `${name}.fits`,
+    input: hook.start,
+    depends: { own: state },
+    run: ({ own }, { input }) => {
+      const need = own!.loads[input.key.replace(/\.ask$/, "")]?.input;
+      const part = Object(input.input).part;
+      try {
+        if (need) parse(need, part);
+        return undefined;
+      } catch {
+        return input.refuse({ part });
+      }
+    },
+  });
   const rooting = new Set<unknown>();
   /** One write to the served root controllers. A keyed one adopts the list (ADR 0138), then
    * marks its member dirty for the readers that hold it. */
@@ -1008,9 +1075,12 @@ export function remoteData<
     }
 
     const list = value as readonly unknown[];
-    const step = (served.roots.get(key) as unknown as Keyed).adopt(list);
+    const control = served.roots.get(key) as unknown as Keyed;
+    // With a load the store is the truth: a set marks its member dirty, and nothing is kept.
+    if (served.loads[key]) return s.changed(served, key, control.step(list));
+
+    s.changed(served, key, control.adopt(list));
     (served.copies.get(key) as unknown as Keyed).adopt(list);
-    s.changed(served, key, step);
   };
 
   // Pushes follow OTel messaging: the server runs `remoteData.send` (a producer span) per write;
@@ -1047,7 +1117,12 @@ export function remoteData<
 
   const base = capsule({
     label: name,
-    config: { serve: serveKey.optional, fill: fillKey.optional, read: readKey.optional },
+    config: {
+      serve: serveKey.optional,
+      fill: fillKey.optional,
+      load: loadKey.optional,
+      read: readKey.optional,
+    },
     exports: { ...made, faults, drop, invalidate } as unknown as {
       drop: typeof drop;
       invalidate: typeof invalidate;
@@ -1144,9 +1219,10 @@ export function remoteData<
   });
 
   /** One call installs two capsules: the wire (rpc), then the cells (this one). */
-  const install = ({ retry, onStart, onSuccess, onError, onFinish, ...job }: Config) => {
+  const install = ({ retry, onStart, onSuccess, onError, onFinish, ...job }: Config<D>) => {
+    const starts = "load" in job && job.load ? [fitsPart, ...(onStart ?? [])] : onStart;
     const hooks = Object.fromEntries(
-      Object.entries({ retry, onStart, onSuccess, onError, onFinish }).filter(([, v]) => v),
+      Object.entries({ retry, onStart: starts, onSuccess, onError, onFinish }).filter(([, v]) => v),
     );
     return [
       wire("serve" in job && job.serve ? { implement, ...hooks } : { remote: job.read, ...hooks }),
@@ -1173,6 +1249,6 @@ export function remoteData<
       readonly fault: { is(error: unknown): error is RemoteFault };
       readonly addresses: readonly string[];
     } & {
-      (values: Config): Capsule.Installable;
+      (values: Config<D>): Capsule.Installable;
     };
 }
