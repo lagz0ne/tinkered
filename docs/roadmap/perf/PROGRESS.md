@@ -2397,7 +2397,14 @@ Proof:
 - Mutation, Core: no live mutant on the changed lines.
 - Size: 32,767 B with rpc, cap 32,768 B. One byte is left.
 
+After the release:
+
+- Hedl is on 0.17.8 (Hedl `ff3099e`), with no code change.
+  Its checks pass: 1,475 tests.
+- Hedl e2e on `ff3099e`: 209 pass, 1 fails.
+  The one is `F158 looks: Checks`, a picture that differs by 12,907 pixels.
+  It failed with the same count on `2c55b95`, before this work.
+
 Not done here:
 
-- Hedl on the release: Hedl is on 0.17.2.
 - `AbortSignal.any` for each request (card `core/closing-no-any` is its Core half).
