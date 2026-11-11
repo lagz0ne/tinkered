@@ -1,32 +1,40 @@
-import { operation, resource } from "@tinker/core";
+import { operation } from "@tinker/core";
 import { z } from "zod";
 
-import { board, cols, frames, heading, idle, physics, rows, storm, walls, waves } from "./state";
+import { board, cols, heading, idle, physics, rows, stale, storm, walls, waves } from "./state";
 import type { Physics, Shade, Wave } from "./state";
 
-// The ocean's moves. Each is an operation: its input parsed at the door, its cells declared, its
-// time and chance from the scope (`clock`, `random`), so a test drives every one by hand.
+// The ocean's moves and its water. Each is an operation: its input parsed at the door, its cells
+// declared, its time and chance from the scope (`clock`, `random`), so a test drives every one by
+// hand. draw.ts puts the board on the canvas; loop.ts runs one step a frame.
 
 const spot = z.object({ x: z.number().finite(), y: z.number().finite() });
+
+/** A wave's power: a press is 1, the default; a drag leaves weaker ones. */
+const power = z.number().min(0).max(1).optional();
 
 /** A wave starts here and now, in the hue it was dealt. A press lands one; so can a server. */
 export const land = operation({
   label: "ocean.land",
-  input: spot.extend({ hue: z.number().finite() }),
+  input: spot.extend({ hue: z.number().finite(), power }),
   depends: { waves: waves.controller },
-  run: ({ waves }, { input: { x, y, hue }, clock }) => {
+  run: ({ waves }, { input, clock }) => {
     const start = clock.currentTimeMillis();
-    waves.update((list) => [...list, { id: (list.at(-1)?.id ?? 0) + 1, x, y, hue, start }]);
+    const wave = { ...input, power: input.power ?? 1, start };
+    waves.update((list) => [...list, { ...wave, id: (list.at(-1)?.id ?? 0) + 1 }]);
   },
 });
 
-/** A tile press: tile coordinates, not pixels. It deals a hue and lands a wave. Returns the hue. */
+/**
+ * A tile press: tile coordinates, not pixels. It lands a wave, in the hue given or one it deals.
+ * Returns the hue.
+ */
 export const press = operation({
   label: "ocean.press",
-  input: spot,
+  input: spot.extend({ hue: z.number().finite().optional(), power }),
   depends: { land: land.controller },
   run: ({ land }, { input, random }) => {
-    const hue = Math.floor(random.next() * 360);
+    const hue = input.hue ?? Math.floor(random.next() * 360);
     land.run({ input: { ...input, hue } });
     return hue;
   },
@@ -49,7 +57,7 @@ export const tune = operation({
   label: "ocean.tune",
   input: z
     .object({ speed: setting, ring: setting, reach: setting, life: setting, height: setting })
-    .extend({ gap: setting })
+    .extend({ bounce: setting, gap: setting })
     .partial(),
   depends: { physics: physics.controller },
   run: ({ physics }, { input }) => physics.update((p) => ({ ...p, ...input })),
@@ -75,8 +83,8 @@ export const turn = operation({
 });
 
 /**
- * The walls that face the viewer at a heading. CSS turns the board on Z, then tilts it on X, so
- * south faces the viewer near 0°, east near 90°; a wall seen edge on is left out.
+ * The walls that face the viewer at a heading. The view turns the board on Z, then tilts it on X,
+ * so south faces the viewer near 0°, east near 90°; a wall seen edge on is left out.
  */
 export const facing = operation({
   label: "ocean.facing",
@@ -89,63 +97,101 @@ export const facing = operation({
   },
 });
 
-/** A front passing one tile: its wave, its strength 0..1, and the way it travels. */
-type Hit = { w: Wave; i: number; angle: number };
+/** A point a wave spreads from: the press itself (`core`), or its mirror image behind an edge. */
+type Source = { x: number; y: number; hue: number; start: number; gain: number; core: boolean };
 
-/** The fronts passing a tile at `now`, strongest first. A front is strongest on its ring and fades
- * away from the press; it eases in over 90 ms and out over the last 250 ms of its life. */
-export const fronts = operation({
-  label: "ocean.fronts",
-  input: (raw) => raw as { x: number; y: number; list: Wave[]; now: number; p: Physics },
-  run: (_, { input: { x, y, list, now, p } }): Hit[] => {
-    const hits: Hit[] = [];
-    for (const w of list) {
-      const age = now - w.start;
-      const d = Math.hypot(x - w.x, y - w.y);
-      const front = Math.exp(-(((d - (age / 1000) * p.speed) / p.ring) ** 2));
+/**
+ * Where each wave spreads from. An edge sends a wave back as if a second press sat behind it at
+ * the mirror point (the method of images), so each wave has four weaker twins.
+ */
+export const sources = operation({
+  label: "ocean.sources",
+  input: (raw) => raw as { list: Wave[]; bounce: number; cols: number; rows: number },
+  run: (_, { input: { list, bounce, cols, rows } }): Source[] =>
+    list.flatMap((w) => {
+      const own = { x: w.x, y: w.y, hue: w.hue, start: w.start, gain: w.power, core: true };
+      if (bounce <= 0) return [own];
 
-      const a = Math.min(1, Math.max(0, age / 90));
-      const b = Math.min(1, Math.max(0, (p.life - age) / 250));
-      const i = front * Math.max(0, 1 - d / p.reach) * a * a * (3 - 2 * a) * b * b * (3 - 2 * b);
-      if (i > 0.04) hits.push({ w, i, angle: Math.atan2(y - w.y, x - w.x) });
+      const twin = { ...own, gain: bounce * w.power, core: false };
+      return [
+        own,
+        { ...twin, x: -1 - w.x },
+        { ...twin, x: 2 * cols - 1 - w.x },
+        { ...twin, y: -1 - w.y },
+        { ...twin, y: 2 * rows - 1 - w.y },
+      ];
+    }),
+});
+
+/** The water at one frame, per tile: height, colour strength, and the hue as a wheel vector. */
+type Field = { h: number[]; e: number[]; cx: number[]; cy: number[] };
+
+/**
+ * The water's height at `now`: every source's lift, added up, so waves pass through each other
+ * and their crests and troughs meet (superposition).
+ * - The front is a crest on the ring; a trough and smaller ripples follow it.
+ * - A circular wave thins as it spreads: its height falls with the square root of the distance.
+ * - The plunge: the pressed tile sinks on the first frame, then the crest throws it up.
+ */
+export const swell = operation({
+  label: "ocean.swell",
+  input: (raw) => raw as { from: Source[]; now: number; p: Physics; cols: number; rows: number },
+  run: (_, { input: { from, now, p, cols, rows } }): Field => {
+    const zero = Array<number>(cols * rows).fill(0);
+    const f: Field = { h: [...zero], e: [...zero], cx: [...zero], cy: [...zero] };
+    for (const s of from) {
+      const age = now - s.start;
+      const a = Math.min(1, Math.max(0, age / 160));
+      const b = Math.min(1, Math.max(0, (p.life - age) / 400));
+      const gain = s.gain * a * a * (3 - 2 * a) * b * b * (3 - 2 * b);
+      const sink = s.core ? 0.9 * s.gain * b * Math.exp(-age / 140) : 0;
+      const turn = (s.hue * Math.PI) / 180;
+
+      for (let k = 0; k < cols * rows; k++) {
+        const d = Math.hypot((k % cols) - s.x, Math.floor(k / cols) - s.y);
+        const u = d - (age / 1000) * p.speed;
+        const ring = Math.exp(-((u / (p.ring * (u > 0 ? 0.6 : 1.8))) ** 2));
+        const amp = ((gain * Math.max(0, 1 - d / p.reach)) / Math.sqrt(1 + d / 6)) * ring;
+        const dip = sink * Math.exp(-(d * d) / 0.8);
+        const tint = amp + dip;
+        if (tint < 0.004) continue;
+
+        f.h[k]! += amp * Math.cos((Math.PI * u) / (p.ring * 1.1)) - dip;
+        f.e[k]! += tint;
+        f.cx[k]! += Math.cos(turn) * tint;
+        f.cy[k]! += Math.sin(turn) * tint;
+      }
     }
-    return hits.sort((m, n) => n.i - m.i);
+    return f;
   },
 });
 
 /**
- * One tile's look at `now`. Where two fronts meet, their hues blend (a mean on the colour wheel,
- * by strength) and the shade deepens, so the meeting has its own colour.
+ * Each tile's look from the water. A crest or a trough takes the wave's colour; water near its
+ * rest level stays pale, so rings stay clear when many waves cross. The light comes low from one side: a slope that faces it
+ * shines and one that faces away darkens, so a wave reads as a surface, not as steps. Where
+ * waves of two hues meet, the hue is their mean on the colour wheel, by strength.
  */
-export const shadeAt = operation({
-  label: "ocean.shade",
-  input: (raw) => raw as { x: number; y: number; list: Wave[]; now: number; p: Physics },
-  depends: { fronts: fronts.controller },
-  run: ({ fronts }, { input }): Shade => {
-    const hits = fronts.run({ input });
-    const [top, second] = hits;
-    if (!top) return idle;
+export const light = operation({
+  label: "ocean.light",
+  input: (raw) => raw as { f: Field; height: number; cols: number },
+  run: (_, { input: { f, height, cols } }): Shade[] =>
+    f.h.map((h, k) => {
+      const e = Math.min(1, Math.abs(h) * 1.5 + Math.min(1, f.e[k]!) * 0.35);
+      if (e < 0.04) return idle;
 
-    const meet = !!second && second.i > top.i * 0.3;
-    let sx = 0;
-    let sy = 0;
-    for (const { w, i } of hits) {
-      sx += Math.cos((w.hue * Math.PI) / 180) * i;
-      sy += Math.sin((w.hue * Math.PI) / 180) * i;
-    }
-
-    const blend = ((Math.atan2(sy, sx) * 180) / Math.PI + 360) % 360;
-    const look = {
-      h: Math.round(meet ? blend : top.w.hue),
-      s: meet ? 80 : 62,
-      l: Math.round(meet ? 64 - 16 * top.i : 90 - 32 * top.i),
-      a: Math.round((top.angle * 180) / Math.PI / 10) * 10,
-      i: Math.round(top.i * 20) / 20,
-      z: Math.round(top.i * input.p.height * 100) / 100,
-      c: meet,
-    };
-    return { key: Object.values(look).join(), ...look };
-  },
+      const x = k % cols;
+      const across = f.h[x < cols - 1 ? k + 1 : k]! - f.h[x > 0 ? k - 1 : k]!;
+      const down = (f.h[k + cols] ?? h) - (f.h[k - cols] ?? h);
+      const shine = Math.max(-1, Math.min(1, (across + down) * 0.9));
+      const look = {
+        h: Math.round(((Math.atan2(f.cy[k]!, f.cx[k]!) * 180) / Math.PI + 360) % 360),
+        s: Math.round(10 + 80 * e),
+        l: Math.round(Math.max(16, Math.min(96, 88 - 36 * e + 18 * shine))),
+        z: Math.round(Math.max(-0.6, Math.min(3.4, h * height)) * 100) / 100,
+      };
+      return { key: Object.values(look).join(), ...look };
+    }),
 });
 
 /** Drops the waves that outlived `life`. */
@@ -189,22 +235,26 @@ export const paint = operation({
     waves: waves.controller,
     physics: physics.controller,
     board: board.controller,
-    shade: shadeAt.controller,
+    stale: stale.controller,
+    sources: sources.controller,
+    swell: swell.controller,
+    light: light.controller,
     cols: cols.required,
     rows: rows.required,
   },
-  run: ({ waves, physics, board, shade, cols, rows }, { input: now }) => {
-    const list = waves.get();
+  run: ({ waves, physics, board, stale, sources, swell, light, cols, rows }, { input: now }) => {
     const p = physics.get();
+    const from = sources.run({ input: { list: waves.get(), bounce: p.bounce, cols, rows } });
+    const f = swell.run({ input: { from, now, p, cols, rows } });
     const prev = board.get();
-    const next: Shade[] = [];
-    for (let k = 0; k < cols * rows; k++) {
-      const look = shade.run({ input: { x: k % cols, y: Math.floor(k / cols), list, now, p } });
-      const old = prev[k];
-      next.push(old?.key === look.key ? old : look);
-    }
+    const next = light
+      .run({ input: { f, height: p.height, cols } })
+      .map((s, k) => (prev[k]?.key === s.key ? prev[k]! : s));
 
-    if (next.some((s, k) => s !== prev[k]) || next.length !== prev.length) board.set(next);
+    if (next.length === prev.length && next.every((s, k) => s === prev[k])) return;
+
+    board.set(next);
+    stale.set(true);
   },
 });
 
@@ -212,8 +262,13 @@ export const paint = operation({
 export const rotate = operation({
   label: "ocean.rotate",
   input: z.number(),
-  depends: { heading: heading.controller, walls: walls.controller, facing: facing.controller },
-  run: ({ heading, walls, facing }, { input: now }) => {
+  depends: {
+    heading: heading.controller,
+    walls: walls.controller,
+    stale: stale.controller,
+    facing: facing.controller,
+  },
+  run: ({ heading, walls, stale, facing }, { input: now }) => {
     const h = heading.get();
     if (h.angle === h.to) return;
 
@@ -221,45 +276,6 @@ export const rotate = operation({
     const angle = h.from + (h.to - h.from) * t * t * (3 - 2 * t);
     heading.set({ ...h, angle });
     walls.set(facing.run({ input: -45 + angle }));
-  },
-});
-
-/** One frame: expire, blow, paint, rotate, all at one `now`. */
-export const step = operation({
-  label: "ocean.step",
-  depends: {
-    expire: expire.controller,
-    blow: blow.controller,
-    paint: paint.controller,
-    rotate: rotate.controller,
-  },
-  run: ({ expire, blow, paint, rotate }, { clock }) => {
-    const now = clock.currentTimeMillis();
-    expire.run({ input: now });
-    blow.run({ input: now });
-    paint.run({ input: now });
-    rotate.run({ input: now });
-  },
-});
-
-/** The frame loop: one step a frame, until the scope closes. Its value is the board's size. */
-export const ticker = resource({
-  label: "ocean.ticker",
-  depends: {
-    frames: frames.required,
-    step: step.controller,
-    cols: cols.required,
-    rows: rows.required,
-  },
-  factory: ({ frames, step, cols, rows }, { defer }) => {
-    let id = 0;
-    const frame = () => {
-      step.run();
-      id = frames.requestAnimationFrame(frame);
-    };
-
-    id = frames.requestAnimationFrame(frame);
-    defer(() => frames.cancelAnimationFrame(id));
-    return { cols, rows };
+    stale.set(true);
   },
 });

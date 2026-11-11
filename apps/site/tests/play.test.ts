@@ -67,7 +67,7 @@ test("the bundler compiles at start, and again after an edit and a quiet spell",
   expect(first).toContain("createRoot");
 
   scope.run(editFile, {
-    input: { name: "Tile.tsx", content: "export const Tile = () => null;\n" },
+    input: { name: "Scene.tsx", content: "export const Scene = () => null;\n" },
   });
   await expect.poll(() => scope.controller(bundle).get()).not.toBe(first);
   expect(scope.controller(bundle).get()).not.toContain("PER_UNIT");
@@ -137,11 +137,11 @@ test("the newer of two quick edits wins; the older compile's result is dropped",
   await compiled(scope);
 
   scope.run(editFile, {
-    input: { name: "Tile.tsx", content: 'export const Tile = () => "older";' },
+    input: { name: "Scene.tsx", content: 'export const Scene = () => "older";' },
   });
   await new Promise((r) => setTimeout(r, 8));
   scope.run(editFile, {
-    input: { name: "Tile.tsx", content: 'export const Tile = () => "newer";' },
+    input: { name: "Scene.tsx", content: 'export const Scene = () => "newer";' },
   });
 
   await expect.poll(() => scope.controller(bundle).get()).toContain("newer");
@@ -153,11 +153,11 @@ test("an edit that leaves the bundle as it was is ready at once; nothing reloads
   const { scope } = await start();
   const first = await compiled(scope);
 
-  const tile = scope
+  const scene = scope
     .controller(files)
     .get()
-    .find((f) => f.name === "Tile.tsx")!;
-  scope.run(editFile, { input: { name: "Tile.tsx", content: `${tile.content}\n\n` } });
+    .find((f) => f.name === "Scene.tsx")!;
+  scope.run(editFile, { input: { name: "Scene.tsx", content: `${scene.content}\n\n` } });
   await expect.poll(() => scope.controller(status).get().text).toBe("ready");
   expect(scope.controller(bundle).get()).toBe(first);
 });
@@ -166,7 +166,7 @@ test("a released bundler compiles no more: an edit made before the release never
   const { scope } = await start(memory(), 30);
   const first = await compiled(scope);
 
-  scope.run(editFile, { input: { name: "Tile.tsx", content: "export const Tile = () => 1;" } });
+  scope.run(editFile, { input: { name: "Scene.tsx", content: "export const Scene = () => 1;" } });
   scope.release(bundler);
   await new Promise((r) => setTimeout(r, 80));
   expect(scope.controller(bundle).get()).toBe(first);

@@ -72,14 +72,26 @@ afterAll(async () => {
   await backend.close();
 });
 
-test("a press in one tab lands in every tab of the room, in one hue, and nowhere else", async () => {
-  const [a, b, other] = [await open("bay"), await open("bay"), await open("cove")];
+test("a press starts its wave in the pressing tab at once, before the room answers", async () => {
+  const a = await open("quay");
 
-  // The tide's hook answers the press with the server's call, so the result is a promise.
+  const told = a.scope.run(ocean.press, { input: { x: 1, y: 2 } });
+  const started = a.waves().length;
+  await Promise.resolve(told);
+
+  expect(started).toBe(1);
+});
+
+test("a press lands in every tab of the room, once and in one hue, and nowhere else", async () => {
+  const [a, b, other] = [await open("bay"), await open("bay"), await open("cove")];
+  const echo = () => a.scope.resolve(sea.board.waves.where({ room: "bay" })).get();
+
+  // The tide's hook answers the press with its call to the room, so the result is a promise.
   const dealt = await Promise.resolve(a.scope.run(ocean.press, { input: { x: 1, y: 2 } }));
-  await until(() => a.waves().length === 1 && b.waves().length === 1);
+  await until(() => b.waves().length === 1 && echo().length === 1);
 
   expect(dealt).toEqual({ hue: a.waves()[0]!.hue });
+  expect(a.waves()).toHaveLength(1);
   expect(b.waves()[0]).toMatchObject({ x: 1, y: 2, hue: a.waves()[0]!.hue });
   expect(other.waves()).toEqual([]);
 });
@@ -96,19 +108,19 @@ test("the storm's presses go to the room as well", async () => {
   expect(b.scope.resolve(ocean.storm).get().on).toBe(false);
 });
 
-test("a tab that joins a busy room lands only its newest waves", async () => {
+test("a busy room holds 64 waves at most, and drops a wave a few seconds after it began", async () => {
   const clock = makeTestClock({ now: 50_000 });
   const host = await createScope({
     clock,
-    random: { next: () => 0.5, uuid: () => crypto.randomUUID() },
     capsules: [sea.board({ serve: true }), sea.api({ implement: seaOps })],
   }).ready;
-  const pressAt = (x: number) => host.run(seaOps["wave.press"], { input: { room: "r", x, y: 0 } });
+  const pressAt = (n: number) =>
+    host.run(seaOps["wave.press"], { input: { room: "r", id: `w${n}`, x: n % 60, y: 0, hue: 7 } });
 
-  for (let x = 0; x < 70; x++) pressAt(x % 60);
+  for (let n = 0; n < 70; n++) pressAt(n);
   const full = host.resolve(sea.board.waves.where({ room: "r" })).get().length;
   clock.advance(5000);
-  pressAt(1);
+  pressAt(70);
 
   expect(full).toBe(64);
   expect(host.resolve(sea.board.waves.where({ room: "r" })).get()).toHaveLength(1);

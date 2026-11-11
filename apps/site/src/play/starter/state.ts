@@ -11,10 +11,18 @@ export const rows = tag<number>({ label: "ocean.rows" });
 export type Frames = Pick<Window, "requestAnimationFrame" | "cancelAnimationFrame">;
 export const frames = tag<Frames>({ label: "ocean.frames" });
 
+/** Reduced motion: the water stays flat and a turn jumps. The seam reads the visitor's setting. */
+export const still = tag({ label: "ocean.still", default: false });
+
 /**
- * Wave physics, live: tiles per second (`speed`), the front's width (`ring`), the fade radius
- * (`reach`), a wave's life in ms, how high a front lifts a tile (`height`), and the ms between
- * storm presses (`gap`).
+ * Wave physics, live.
+ * - `speed`: tiles per second the front travels.
+ * - `ring`: the front's width, in tiles; a crest leads, a trough and smaller ripples follow.
+ * - `reach`: the distance, in tiles, where a wave has faded out.
+ * - `life`: a wave's life, in ms.
+ * - `height`: how high a crest lifts a tile.
+ * - `bounce`: how much of a wave the board's edges send back, 0..1.
+ * - `gap`: the ms between storm presses.
  */
 export type Physics = {
   speed: number;
@@ -22,16 +30,17 @@ export type Physics = {
   reach: number;
   life: number;
   height: number;
+  bounce: number;
   gap: number;
 };
 
 export const physics = data<Physics>({
   label: "ocean.physics",
-  initial: { speed: 5.5, ring: 1.4, reach: 9, life: 2600, height: 1, gap: 400 },
+  initial: { speed: 8, ring: 1.6, reach: 30, life: 3600, height: 1, bounce: 0.55, gap: 400 },
 });
 
-/** A pressed tile becomes a wave: where, when, and the hue it was dealt. */
-export type Wave = { id: number; x: number; y: number; hue: number; start: number };
+/** A pressed tile becomes a wave: where, when, the hue it was dealt, and its power, 0..1. */
+export type Wave = { id: number; x: number; y: number; hue: number; power: number; start: number };
 export const waves = data<Wave[]>({ label: "ocean.waves", initial: [] });
 
 /** The storm presses a random tile every `gap` ms while it is on; `last` is its last press. */
@@ -47,21 +56,24 @@ export const heading = data({
 export const walls = data({ label: "ocean.walls", initial: "s w" });
 
 /**
- * One tile's look: hue, saturation, lightness, the arrow's angle, intensity 0..1, height 0..3,
- * and whether two fronts meet here. `key` names the look, so an unchanged tile keeps its object.
+ * One tile's look: hue, saturation, lightness, and its height against calm water (`z`; a trough
+ * is below 0). `key` names the look, so an unchanged tile keeps its object.
  */
-export type Shade = {
-  key: string;
-  h: number;
-  s: number;
-  l: number;
-  a: number;
-  i: number;
-  z: number;
-  c: boolean;
-};
+export type Shade = { key: string; h: number; s: number; l: number; z: number };
 
-export const idle: Shade = { key: "idle", h: 0, s: 0, l: 96, a: 0, i: 0, z: 0, c: false };
+export const idle: Shade = { key: "idle", h: 0, s: 0, l: 90, z: 0 };
 
 /** One shade per tile, row by row; the ticker writes it at most once a frame. */
 export const board = data<Shade[]>({ label: "ocean.board", initial: [] });
+
+/** The canvas the board is drawn on; null until the page shows it. */
+export const screen = data<HTMLCanvasElement | null>({ label: "ocean.screen", initial: null });
+
+/** True when the picture is out of date: the next frame draws it. A calm sea draws nothing. */
+export const stale = data({ label: "ocean.stale", initial: true });
+
+/** The keyboard's tile, shown while the board has focus. */
+export const cursor = data({ label: "ocean.cursor", initial: { x: 0, y: 0, on: false } });
+
+/** The pointer's last press: a drag makes a wave on each new tile, not too often, in one hue. */
+export const hand = data({ label: "ocean.hand", initial: { x: -1, y: -1, at: 0, hue: 0 } });

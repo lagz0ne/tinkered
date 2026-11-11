@@ -57,15 +57,15 @@ test("an imported name, and a use of it, lead to Core's own declaration", async 
 
 test("a relative import leads across the project's own tabs", async () => {
   const scope = await start();
-  const tile = text("Tile.tsx");
-  const idle = { file: "state.ts", offset: at(text("state.ts"), "idle: Shade") };
+  const scene = text("Scene.tsx");
+  const poke = { file: "draw.ts", offset: at(text("draw.ts"), "poke = operation") };
 
   expect(
-    await scope.run(follow, { input: { file: "Tile.tsx", offset: at(tile, "idle") } }),
-  ).toEqual(idle);
+    await scope.run(follow, { input: { file: "Scene.tsx", offset: at(scene, "poke") } }),
+  ).toEqual(poke);
   expect(
-    await scope.run(follow, { input: { file: "Tile.tsx", offset: at(tile, "idle", 1) } }),
-  ).toEqual(idle);
+    await scope.run(follow, { input: { file: "Scene.tsx", offset: at(scene, "poke", 1) } }),
+  ).toEqual(poke);
 });
 
 test("an aliased import and a React re-export reach the original declaration", async () => {

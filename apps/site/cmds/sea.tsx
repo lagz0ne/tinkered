@@ -11,6 +11,7 @@ import { abortReasons } from "~/components/errors";
 // the sea's link and `tide({ room })`. Same App, same engine. The room comes from the link.
 
 const room = roomName.catch("lobby").parse(new URLSearchParams(location.search).get("room"));
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const stop = new AbortController();
 
 const app = createScope({
@@ -19,7 +20,7 @@ const app = createScope({
     ws.client({ url: `${location.origin.replace(/^http/, "ws")}/rpc` }),
     sea.board({ read: ws.client }),
     sea.api({ remote: ws.client }),
-    ocean({ cols: 12, rows: 12, frames: window }),
+    ocean({ cols: 20, rows: 20, frames: window, still }),
     tide({ room }),
   ],
 });

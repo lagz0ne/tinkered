@@ -2,13 +2,14 @@ import { createScope, isError } from "@tinker/core";
 import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 
+import { key, look, poke, show, view } from "@/play/starter/draw";
 import { clear, facing, press, setStorm, tune, turn } from "@/play/starter/engine";
 import { ocean } from "@/play/starter/ocean";
-import { board, heading, storm, walls, waves } from "@/play/starter/state";
+import { board, cursor, heading, storm, walls, waves } from "@/play/starter/state";
 import type { Frames } from "@/play/starter/state";
 
 // The starter ocean, as the play page compiles it, run here on a 3×3 board: a hand-driven frame
-// queue, a test clock, and a random that always says 0. Ported from the playground's engine tests.
+// queue, a test clock, and a random that always says 0.
 
 /** Frames by hand: `pump` runs what is queued, `pending` counts it. */
 const frameQueue = () => {
@@ -51,57 +52,64 @@ const refused = (call: () => unknown) => {
   expect.unreachable();
 };
 
-test("a press lifts the tile it hits, and the lift moves outward", async () => {
+test("a press sinks its tile on the first frame; then a crest moves outward", async () => {
   const { scope, clock, queue, shades } = await game();
   queue.pump();
   expect(shades()[4]!.z).toBe(0);
 
   expect(scope.run(press, { input: { x: 1, y: 1 } })).toBe(0);
-  clock.advance(300);
   queue.pump();
-  expect(shades()[4]!.z).toBeGreaterThan(0);
-  expect(shades()[1]!.z).toBeGreaterThan(0);
+  expect(shades()[4]!.z).toBeLessThan(0);
+  expect(shades()[1]!.z).toBeLessThan(0);
 
-  clock.advance(300);
+  clock.advance(150);
   queue.pump();
-  expect(shades()[4]!.z).toBe(0);
-  expect(shades()[1]!.z).toBeGreaterThan(0);
+  expect(shades()[4]!.z).toBeLessThan(0);
+  expect(shades()[1]!.z).toBeGreaterThan(0.3);
   expect(queue.pending()).toBe(1);
 });
 
-test("a pressed tile rises into its wave instead of jumping to full height", async () => {
-  const { scope, clock, queue, shades } = await game();
-  scope.run(press, { input: { x: 1, y: 1 } });
-  queue.pump();
-  expect(shades()[4]!.z).toBe(0);
+test("two waves add up where they meet", async () => {
+  const [one, two] = [await game(), await game()];
+  one.scope.run(press, { input: { x: 0, y: 1 } });
+  two.scope.run(press, { input: { x: 0, y: 1 } });
+  two.scope.run(press, { input: { x: 2, y: 1 } });
 
-  clock.advance(40);
-  queue.pump();
-  const rising = shades()[4]!.z;
+  for (const g of [one, two]) {
+    g.clock.advance(150);
+    g.queue.pump();
+  }
 
-  clock.advance(50);
-  queue.pump();
-  expect(rising).toBeGreaterThan(0);
-  expect(shades()[4]!.z).toBeGreaterThan(rising);
+  const alone = one.shades()[4]!.z;
+  expect(alone).toBeGreaterThan(0.3);
+  expect(two.shades()[4]!.z).toBeCloseTo(alone * 2, 1);
 });
 
-test("a slow wave settles before its life ends, and expires after it", async () => {
-  const { scope, clock, queue, shades, count } = await game();
-  scope.run(tune, { input: { speed: 1 } });
-  scope.run(press, { input: { x: 1, y: 1 } });
-  clock.advance(2350);
-  queue.pump();
+test("an edge sends a wave back; with no bounce the far side stays lower", async () => {
+  const [hard, soft] = [await game(), await game()];
+  soft.scope.run(tune, { input: { bounce: 0 } });
 
-  const crest = shades()[1]!.z;
-  clock.advance(200);
+  for (const g of [hard, soft]) {
+    g.scope.run(press, { input: { x: 0, y: 1 } });
+    g.clock.advance(330);
+    g.queue.pump();
+  }
+
+  expect(soft.shades()[5]!.z).toBeGreaterThan(0);
+  expect(hard.shades()[5]!.z).toBeGreaterThan(soft.shades()[5]!.z);
+});
+
+test("a wave lives its life, then goes", async () => {
+  const { scope, clock, queue, shades, count } = await game();
+  scope.run(press, { input: { x: 1, y: 1 } });
+  clock.advance(3500);
   queue.pump();
-  expect(crest).toBeGreaterThan(0);
-  expect(shades()[1]!.z).toBeLessThan(crest / 2);
   expect(count()).toBe(1);
 
-  clock.advance(100);
+  clock.advance(200);
   queue.pump();
   expect(count()).toBe(0);
+  expect(shades().every((s) => s.z === 0)).toBe(true);
 });
 
 test("a tile whose look did not change keeps its object", async () => {
@@ -120,14 +128,14 @@ test("a tile whose look did not change keeps its object", async () => {
 test("height doubles the lift on the next frame", async () => {
   const { scope, clock, queue, shades } = await game();
   scope.run(press, { input: { x: 1, y: 1 } });
-  clock.advance(300);
+  clock.advance(150);
   queue.pump();
-  const lifted = shades()[4]!.i;
-  expect(lifted).toBeGreaterThan(0);
+  const lifted = shades()[1]!.z;
+  expect(lifted).toBeGreaterThan(0.3);
 
   scope.run(tune, { input: { height: 2 } });
   queue.pump();
-  expect(shades()[4]!.z).toBe(lifted * 2);
+  expect(shades()[1]!.z).toBeCloseTo(lifted * 2, 1);
 });
 
 test("the storm presses a tile every gap, and a longer gap delays the next", async () => {
@@ -229,4 +237,143 @@ test("the walls facing the viewer follow turns past a full circle, and change at
   ] as const) {
     expect([at(h - 0.001), at(h), at(h + 0.001)]).toEqual([before, on, after]);
   }
+});
+
+/** A canvas that only records: its box, and each call that clears or fills it. */
+const paper = () => {
+  const calls: string[] = [];
+  const ctx = new Proxy(
+    {},
+    {
+      get:
+        (_, name) =>
+        (..._args: unknown[]) =>
+          void calls.push(String(name)),
+    },
+  );
+  const el = { clientWidth: 400, clientHeight: 300, width: 0, height: 0, getContext: () => ctx };
+  return { el: Object.assign(el, { ownerDocument: {} }) as unknown as HTMLCanvasElement, calls };
+};
+
+/** Where a tile's centre is on the 400 by 300 canvas, at a turn. */
+const spotOf = (scope: Awaited<ReturnType<typeof game>>["scope"], x: number, y: number) => {
+  const v = scope.run(view, {
+    input: { w: 400, h: 300, angle: scope.controller(heading).get().angle },
+  });
+  return {
+    px: v.ox + (x + 0.5) * v.xx + (y + 0.5) * v.yx,
+    py: v.oy + (x + 0.5) * v.xy + (y + 0.5) * v.yy,
+  };
+};
+
+test("a pointer presses the tile under it, at every turn", async () => {
+  const { scope, clock, queue } = await game();
+  const waveAt = () => scope.controller(waves).get().at(-1);
+  scope.run(show, { input: paper().el });
+
+  scope.run(poke, { input: { ...spotOf(scope, 2, 0), drag: false } });
+  expect(waveAt()).toMatchObject({ x: 2, y: 0 });
+
+  scope.run(turn, { input: 1 });
+  clock.advance(300);
+  queue.pump();
+  scope.run(poke, { input: { ...spotOf(scope, 0, 1), drag: false } });
+  expect(waveAt()).toMatchObject({ x: 0, y: 1 });
+
+  scope.run(poke, { input: { px: -500, py: -500, drag: false } });
+  expect(scope.controller(waves).get()).toHaveLength(3);
+});
+
+test("a drag presses each new tile it enters, at most one each 70 ms, with weaker waves", async () => {
+  const { scope, clock, count } = await game();
+  scope.run(show, { input: paper().el });
+  scope.run(poke, { input: { ...spotOf(scope, 0, 0), drag: false } });
+
+  scope.run(poke, { input: { ...spotOf(scope, 0, 0), drag: true } });
+  scope.run(poke, { input: { ...spotOf(scope, 1, 0), drag: true } });
+  expect(count()).toBe(1);
+
+  clock.advance(70);
+  scope.run(poke, { input: { ...spotOf(scope, 1, 0), drag: true } });
+  clock.advance(500);
+  scope.run(poke, { input: { ...spotOf(scope, 1, 0), drag: true } });
+  expect(count()).toBe(2);
+  expect(
+    scope
+      .controller(waves)
+      .get()
+      .map((w) => w.power),
+  ).toEqual([1, 0.4]);
+});
+
+test("arrow keys move the cursor inside the board; Space presses its tile", async () => {
+  const { scope } = await game();
+  for (const k of ["ArrowLeft", "ArrowRight", "ArrowRight", "ArrowRight", "ArrowDown", " "]) {
+    scope.run(key, { input: k });
+  }
+
+  expect(scope.controller(cursor).get()).toMatchObject({ x: 2, y: 1 });
+  expect(scope.controller(waves).get()[0]).toMatchObject({ x: 2, y: 1 });
+
+  scope.run(key, { input: "ArrowUp" });
+  scope.run(key, { input: "ArrowUp" });
+  scope.run(key, { input: "Enter" });
+  expect(scope.controller(waves).get()[1]).toMatchObject({ x: 2, y: 0 });
+});
+
+test("a calm sea is drawn once; a wave, a turn or the cursor draws it again", async () => {
+  const { scope, clock, queue } = await game();
+  const { el, calls } = paper();
+  const draws = () => calls.filter((c) => c === "clearRect").length;
+  scope.run(show, { input: el });
+
+  queue.pump();
+  queue.pump();
+  expect(draws()).toBe(1);
+  expect(calls.filter((c) => c === "fill")).toHaveLength(9 * 3);
+  expect([el.width, el.height]).toEqual([400, 300]);
+
+  scope.run(press, { input: { x: 1, y: 1 } });
+  queue.pump();
+  expect(draws()).toBe(2);
+
+  scope.run(clear);
+  queue.pump();
+  scope.run(look, { input: true });
+  queue.pump();
+  expect(draws()).toBe(4);
+  expect(calls.filter((c) => c === "stroke")).toHaveLength(1);
+
+  scope.run(turn, { input: 1 });
+  clock.advance(125);
+  queue.pump();
+  expect(draws()).toBe(5);
+});
+
+test("reduced motion keeps the water flat: the colour shows, the height does not", async () => {
+  const tops: number[] = [];
+  const ctx = new Proxy(
+    {},
+    { get: (_, name) => (_x: number, y: number) => void (name === "moveTo" && tops.push(y)) },
+  );
+  const el = { clientWidth: 400, clientHeight: 300, width: 0, height: 0, getContext: () => ctx };
+  const queue = frameQueue();
+  const scope = await createScope({
+    clock: makeTestClock({ now: 1000 }),
+    random: { next: () => 0, uuid: () => "0" },
+    capsules: [ocean({ cols: 3, rows: 3, frames: queue.frames, still: true })],
+  }).ready;
+  scope.run(show, {
+    input: Object.assign(el, { ownerDocument: {} }) as unknown as HTMLCanvasElement,
+  });
+
+  queue.pump();
+  const calm = [...tops];
+  tops.length = 0;
+  scope.run(press, { input: { x: 1, y: 1 } });
+  queue.pump();
+
+  expect(scope.controller(board).get()[4]!.z).toBeLessThan(0);
+  expect(tops).toEqual(calm);
+  await scope.close();
 });

@@ -2,12 +2,14 @@ import { data, tag } from "@tinker/core";
 import { z } from "zod";
 
 import app from "./starter/App.tsx?raw";
+import draw from "./starter/draw.ts?raw";
 import engine from "./starter/engine.ts?raw";
+import loop from "./starter/loop.ts?raw";
 import main from "./starter/main.tsx?raw";
 import ocean from "./starter/ocean.ts?raw";
+import scene from "./starter/Scene.tsx?raw";
 import state from "./starter/state.ts?raw";
 import style from "./starter/style.ts?raw";
-import tile from "./starter/Tile.tsx?raw";
 
 // The play page's state. Only the play ops and services write it; the page draws it.
 
@@ -23,8 +25,10 @@ export const starter: readonly PlayFile[] = [
   { name: "ocean.ts", content: ocean },
   { name: "state.ts", content: state },
   { name: "engine.ts", content: engine },
+  { name: "draw.ts", content: draw },
+  { name: "loop.ts", content: loop },
   { name: "App.tsx", content: app },
-  { name: "Tile.tsx", content: tile },
+  { name: "Scene.tsx", content: scene },
   { name: "style.ts", content: style },
 ];
 

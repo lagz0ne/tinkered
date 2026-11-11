@@ -1,17 +1,10 @@
-import { useData, useResource, useRun } from "@tinker/react";
-import { memo } from "react";
-import type { CSSProperties, ReactElement } from "react";
+import { useData, useRun } from "@tinker/react";
+import type { ReactElement } from "react";
 
-import { clear, setStorm, ticker, tune, turn } from "./engine";
-import { heading, physics, storm, walls, waves } from "./state";
+import { clear, setStorm, tune, turn } from "./engine";
+import { Scene } from "./Scene";
+import { physics, storm, waves } from "./state";
 import { css } from "./style";
-import { Tile } from "./Tile";
-
-/** The heading belongs to the rotating parent so tiles and wave direction turn together. */
-const HEADING = -45;
-
-/** acos(1 / sqrt(3)) gives the ground axes their 30-degree slopes without perspective. */
-const TILT = 54.7356;
 
 function Live(): ReactElement {
   const n = useData(waves, (list) => list.length);
@@ -23,51 +16,6 @@ function Live(): ReactElement {
         <b>{String(n).padStart(2, "0")}</b> {n === 1 ? "wave" : "waves"}
       </span>
     </p>
-  );
-}
-
-/** This parent draws each heading; the board changes only when its wall pair changes.
- * Reduced motion uses the destination heading, keeping turns without the travel between them. */
-const Rotor = memo(function Rotor({ children }: { children: ReactElement }): ReactElement {
-  const h = useData(heading);
-  const seen = useData(walls);
-  const style: CSSProperties & { "--still-heading": string } = {
-    transform: `rotateX(${TILT}deg) rotateZ(${HEADING + h.angle}deg)`,
-    "--still-heading": `rotateX(${TILT}deg) rotateZ(${HEADING + h.to}deg)`,
-  };
-  return (
-    <div className="tilt" style={style} data-walls={seen}>
-      {children}
-    </div>
-  );
-});
-
-/** The ticker is the capsule's frame loop; its value is the board's size. The wall pair changes
- * only at a quarter turn's edges, so a turn does not redraw every tile each frame. */
-const Board = memo(function Board(): ReactElement {
-  const { cols, rows } = useResource(ticker);
-  const seen = useData(walls);
-  const tiles: ReactElement[] = [];
-  for (let k = 0; k < cols * rows; k++) {
-    tiles.push(<Tile key={k} x={k % cols} y={Math.floor(k / cols)} k={k} walls={seen} />);
-  }
-  return (
-    <div className="board" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-      {tiles}
-    </div>
-  );
-});
-
-function Scene(): ReactElement {
-  return (
-    <section className="scene" aria-label="Interactive ocean board">
-      <div className="field">
-        <Rotor>
-          <Board />
-        </Rotor>
-      </div>
-      <p className="caption">Press any tile.</p>
-    </section>
   );
 }
 

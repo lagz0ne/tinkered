@@ -15,6 +15,7 @@ const wave = z.object({
   x: tile,
   y: tile,
   hue: z.number(),
+  power: z.number(),
   /** The server's clock when the wave began; it drops a wave a few seconds later. */
   at: z.number(),
 });
@@ -32,12 +33,22 @@ export const waves = data({
 /** Read: each room's waves go to every tab that reads the room. */
 export const seaBoard = remoteData({ waves });
 
-/** Ask: a press is a call; the server deals the hue, so every tab sees the same colour. */
+/**
+ * A press, as the tab sends it. The tab deals the wave's id and hue, because its own wave has
+ * already started there; the server keeps them, so every tab sees the same colour.
+ */
+export const seaPress = z.object({
+  room: roomName,
+  id: z.string().min(1).max(64),
+  x: tile,
+  y: tile,
+  hue: z.number().int().min(0).max(359),
+  power: z.number().min(0).max(1).optional(),
+});
+
+/** Ask: a press is a call. */
 export const seaApi = rpc({
-  "wave.press": {
-    input: z.object({ room: roomName, x: tile, y: tile }),
-    output: z.object({ hue: z.number() }),
-  },
+  "wave.press": { input: seaPress, output: z.object({ hue: z.number() }) },
 });
 
 /**

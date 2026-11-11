@@ -1,15 +1,14 @@
 // The ocean's look, as one stylesheet App puts in a <style>. Swiss compact: one sans, ink on
 // paper, one red, hard rules. It fits a phone, a frame, or a full screen.
 
-/** The pointer sees a cropped field. Keyboard focus fits every real tile into view before
- * the browser can leave focus outside the crop. Reduced motion keeps direction and colour. */
+/** The scene holds one canvas that fills it; the engine draws the board there. */
 export const css = `
   * { box-sizing: border-box; }
   :root { color-scheme: light; --paper: #fafaf8; --ink: #111; --mute: #63656b; --line: #dddcd7;
     --red: #d0261b; --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }
   body { margin: 0; background: var(--paper); }
   button, input { font: inherit; color: inherit; }
-  button:focus-visible, input:focus-visible, .tile:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
   .wrap { min-height: 100dvh; display: flex; flex-direction: column; padding: 0 16px;
     color: var(--ink); font: 13px/1.4 var(--sans); container-type: inline-size; }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
@@ -18,29 +17,12 @@ export const css = `
   .live { display: flex; gap: 12px; margin: 0; color: var(--mute); font-size: 12px; }
   .live .on { color: var(--red); font-weight: 700; }
   .live b { color: var(--ink); font-variant-numeric: tabular-nums; }
-  .scene { position: relative; flex: 1; display: grid; place-items: center; min-width: 0;
-    min-height: clamp(240px, 70cqw, 640px); overflow: clip; }
-  .field { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;
-    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent),
-      linear-gradient(transparent, #000 10%, #000 88%, transparent); mask-composite: intersect; overflow: clip; }
-  .tilt, .board { transform-style: preserve-3d; }
-  .tilt { flex-shrink: 0; margin-top: 24px; pointer-events: auto; }
-  .board { position: relative; display: grid; gap: 2px; width: min(150cqw, 1200px); touch-action: manipulation; }
-  .scene:has(.tile:focus-visible) .board { width: min(60cqw, 470px); }
-  .scene:has(.tile:focus-visible) .field { mask-image: none; }
-  .tile { position: relative; display: block; width: 100%; aspect-ratio: 1; border: 0; padding: 0;
-    border-radius: 0; cursor: pointer; transform-style: preserve-3d; }
-  .tile.converge > .top { outline-color: #111a; }
-  .tile:hover > .top { outline-color: var(--red); }
-  .wall { position: absolute; display: block; backface-visibility: hidden; pointer-events: none; }
-  .wall.n { left: 0; width: 100%; top: -1px; height: 1px; transform-origin: 50% 100%; }
-  .wall.s { left: 0; width: 100%; top: 100%; height: 1px; transform-origin: 50% 0%; }
-  .wall.e { top: 0; height: 100%; left: 100%; width: 1px; transform-origin: 0% 50%; }
-  .wall.w { top: 0; height: 100%; left: -1px; width: 1px; transform-origin: 100% 50%; }
-  .top { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
-    outline: 1px solid #1111; outline-offset: -1px; }
-  .arrow { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-  .arrow svg { width: 50%; height: 50%; fill: none; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; }
+  .scene { position: relative; flex: 1; min-width: 0; min-height: clamp(240px, 66cqw, 640px);
+    max-height: calc(70cqw + 48px); }
+  /* A vertical swipe scrolls the page; any other drag draws on the water. */
+  .sea { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer;
+    touch-action: pan-y; outline: none; -webkit-tap-highlight-color: transparent; }
+  .sea:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
   .caption { position: absolute; bottom: 6px; left: 0; margin: 0; color: var(--mute); font-size: 12px; pointer-events: none; }
   .panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px;
     padding: 8px 0 12px; border-top: 2px solid var(--ink); }
@@ -70,8 +52,5 @@ export const css = `
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }
-    .tilt { transform: var(--still-heading) !important; }
-    .tile { transform: translateZ(10px) !important; }
-    .wall { display: none; }
   }
 `;
