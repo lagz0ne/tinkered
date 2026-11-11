@@ -8,3 +8,5 @@ dist/
 tests/.gen-*/
 cmds/client-files.gen.ts
 .vitest/
+public/vendor/
+public/esbuild.wasm

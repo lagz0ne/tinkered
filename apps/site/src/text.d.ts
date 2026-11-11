@@ -3,3 +3,9 @@ declare module "*.md" {
   const text: string;
   export default text;
 }
+
+/** Vite's `?raw`: the file's text. The play starter reads its files this way. */
+declare module "*?raw" {
+  const text: string;
+  export default text;
+}

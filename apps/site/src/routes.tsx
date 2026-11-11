@@ -3,6 +3,7 @@ import type { Scope } from "@tinker/core";
 
 import { BenchPage } from "@/bench";
 import { guide, GuideHome, GuidePage } from "@/guide";
+import { PlayPage } from "@/play";
 import { Shell } from "@/shell";
 
 const root = createRootRouteWithContext<{ scope: Scope.Handle }>()({ component: Shell });
@@ -33,4 +34,7 @@ const page = createRoute({
 // The benchmark: the page runs it in this browser; its chunk loads on first visit.
 const bench = createRoute({ getParentRoute: () => root, path: "/bench", component: BenchPage });
 
-export const routeTree = root.addChildren([index, page, bench]);
+// The playground: it compiles and runs the project in this browser; its chunk loads on first visit.
+const play = createRoute({ getParentRoute: () => root, path: "/play", component: PlayPage });
+
+export const routeTree = root.addChildren([index, page, play, bench]);

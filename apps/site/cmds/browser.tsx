@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 
 import { bench } from "@/bench";
 import { guide } from "@/guide";
+import { play } from "@/play";
 import { routeTree } from "@/routes";
 import { TinkerError, TinkerNotFound } from "~/base/fallbacks";
 import { abortReasons } from "~/components/errors";
@@ -21,6 +22,7 @@ const app = createScope({
     ws.client({ url: `${location.origin.replace(/^http/, "ws")}/rpc` }),
     guide.api({ remote: ws.client }),
     bench({ timer: performance }),
+    play({ storage: localStorage, debounce: 250, wasm: "/esbuild.wasm" }),
   ],
 });
 

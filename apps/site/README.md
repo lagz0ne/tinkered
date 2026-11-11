@@ -17,6 +17,24 @@ bun run build  # page bundle, then one binary
 bun run start  # the built server
 ```
 
+## Pages
+
+- `/`, `/guide/<slug>`: the guide, over rpc.
+- `/llms.txt`, `/llms/<slug>.md`: the guide
+  for agents, as plain markdown.
+- `/play`: the playground. esbuild-wasm
+  compiles the tabs in the browser; a frame
+  runs them.
+- `/bench`: @tinker/react against other
+  stores, in the visitor's browser.
+
+## Play's vendor files
+
+`bun run vendor` writes `public/vendor/*.mjs`
+and `public/esbuild.wasm`. The preview's
+import map loads one React, one Core and zod
+from there. Build and dev run it first.
+
 ## Layout
 
 - `cmds/`: the seams. Each one is a top-level

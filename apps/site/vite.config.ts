@@ -17,6 +17,8 @@ export default defineConfig({
   root: at("cmds"),
   plugins: [react(), clientMeta(at(".")), textImport()],
   resolve: { alias },
+  // public/ holds the play preview's modules and esbuild.wasm (scripts/vendor.ts writes them).
+  publicDir: at("public"),
   build: { outDir: at("dist/client"), emptyOutDir: true },
   server: {
     port: Number(process.env.DEV_PORT ?? 5173),
