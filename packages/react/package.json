@@ -1,6 +1,6 @@
 {
   "name": "@tinker/react",
-  "version": "0.17.3",
+  "version": "0.17.4",
   "description": "Tinkered React: a thin React adapter over @tinker/core.",
   "homepage": "https://github.com/author/library#readme",
   "bugs": {

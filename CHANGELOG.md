@@ -5,6 +5,62 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.4
+
+A keyed part has its own state, and a fault that
+is the server's answer ends the asking (ADR 0139,
+decisions 1, 4 and 5).
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.4
+bun add $R/tinker-core-0.17.4.tgz \
+  $R/tinker-react-0.17.4.tgz \
+  $R/tinker-bun-0.17.4.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.4/tinker-core-0.17.4.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.4/tinker-react-0.17.4.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.4/tinker-bun-0.17.4.tgz
+
+### remoteData
+
+- `board.status(read)` gives a part's state:
+  `pending` until its first answer, then `ready`
+  or `fault`. It is `undefined` when no reader
+  holds the part.
+- The page tells "not read yet" from "nothing
+  there": a part with no member is `ready`.
+- A part that rides a ready part is `ready` at
+  once.
+- A `refused` or `invalid` part waits for a
+  trigger. There is no ask again until an
+  `invalidate` names it. Only a broken link asks
+  again by itself.
+- `board.part(call)` gives a guard the part of a
+  keyed join or ask, typed. Any other call gives
+  `undefined`.
+
+### Upgrade
+
+- Change the three URLs.
+- Read a part's fault from `board.status(read)`.
+  `board.faults` is still per key: a later good
+  answer of another part clears it.
+- A page's "Try again" calls `invalidate` with the
+  part. A refused part no longer asks again every
+  few seconds.
+- `part`, `status` and `states` are now reserved:
+  a board cell must not use these names.
+- A guard that parsed the part by hand can use
+  `board.part(call)`.
+
 ## 0.17.3
 
 A keyed signal carries its trace, as a push does.
