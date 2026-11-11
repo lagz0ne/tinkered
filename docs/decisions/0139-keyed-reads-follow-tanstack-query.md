@@ -26,6 +26,10 @@ Query handles the open problems. Duke answered:
   retrieving again is cheap, just as cheap as a
   refreshing the page and nothing we should do about
   that, build a faster backend".
+- 05:07: "if the stale check one to have a version
+  check, the cheapest one is using time of last
+  retrieval, and server just need to determine and
+  return either full (stale) or delta".
 
 ## Context
 
@@ -91,6 +95,14 @@ TanStack Query, the rule Duke named:
    page refresh. There is no version and no "same"
    answer, so ADR 0137 stands. A slow ask is the
    backend's to make fast.
+
+   If a check is added later, it is the cheapest one
+   (Duke, 05:07): the ask carries the time of the last
+   answer, and the server answers the full part or a
+   delta. This is HTTP `If-Modified-Since`. The time
+   is the server's value, sent back; a delete it
+   cannot show gives the full part. Only the protocol
+   changes, not the client's code.
 
 ## Open
 
