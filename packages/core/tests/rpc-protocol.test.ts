@@ -1,4 +1,4 @@
-import { memory } from "@tinker/core/testing";
+import { createMemory, memory } from "@tinker/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
@@ -197,6 +197,66 @@ test("an address no server has is the server's missing on a call", async () => {
   expect(other.fault.is(failed) && [failed.fault, failed.from]).toEqual(["missing", "server"]);
 });
 
+test("a second memory transport reaches its own server: two pairs in one scope", async () => {
+  const other = createMemory();
+  const ghost = rpc({ gone: { input: z.null(), output: z.null() } });
+  const server = await createScope({
+    capsules: [api({ implement: { echo, count } }), other.server({ services: [api] })],
+  }).ready;
+  closers.push(() => server.close());
+  const tab = await createScope({
+    capsules: [
+      other.client({ peer: server }),
+      api({ remote: other.client }),
+      ghost({ remote: other.client }),
+    ],
+  }).ready;
+  closers.push(() => tab.close());
+
+  expect(await tab.run(api.echo, { input: { n: 1 } })).toEqual({ n: 1 });
+  const failed = await tab.run(ghost.gone, { input: null }).catch((e: unknown) => e);
+  expect(ghost.fault.is(failed) && [failed.fault, failed.from]).toEqual(["missing", "server"]);
+});
+
+test("a closed peer is link with sent: false: nothing ran", async () => {
+  const { server } = await serverOf();
+  const tab = await createScope({
+    capsules: [memory.client({ peer: server }), api({ remote: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+  await server.close();
+
+  const failed = await tab.run(api.echo, { input: { n: 1 } }).catch((e: unknown) => e);
+  expect(api.fault.is(failed) && [failed.fault, failed.from, failed.sent]).toEqual([
+    "link",
+    "local",
+    false,
+  ]);
+  const drain = async () => {
+    for await (const n of await tab.run(api.count, { input: null })) void n;
+  };
+  const ended = await drain().catch((e: unknown) => e);
+  expect(api.fault.is(ended) && [ended.fault, ended.sent]).toEqual(["link", false]);
+});
+
+test("a transport whose send throws is a bug: logged, failed on this side, never link", async () => {
+  const logs: Observe.Log[] = [];
+  const bare = createScope({}); // a peer with no memory server: its send throws
+  closers.push(() => bare.close());
+  const tab = await createScope({
+    observe: { log: (entry) => void logs.push(entry) },
+    capsules: [memory.client({ peer: bare }), api({ remote: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+
+  const failed = await tab.run(api.echo, { input: { n: 1 } }).catch((e: unknown) => e);
+  expect(api.fault.is(failed) && [failed.fault, failed.from]).toEqual(["failed", "local"]);
+  expect(logs.find((l) => l.message === "protocol service failed")?.attributes).toMatchObject({
+    address: "echo",
+    cause: expect.stringContaining("CapsuleMissing"), // shown, not hidden as offline
+  });
+});
+
 /** A service whose answer and stream throw: a bug in it, not in rpc. */
 const broken = (() => {
   const answer = operation({
@@ -270,10 +330,7 @@ test("serveStream: each end it can have, and what it pushes", async () => {
     more: true,
     pushed: [{ ok: false, kind: "decode", payload: { side: "server" } }],
   });
-  expect(await open("nobody", "null")).toEqual({
-    more: false,
-    pushed: [{ ok: false, kind: "missing", payload: {} }],
-  });
+  expect(await open("nobody", "null")).toEqual({ more: false, pushed: [] });
   expect(await open("b", "null")).toEqual({
     more: true,
     pushed: [{ ok: false, kind: "failed", payload: {} }],

@@ -47,10 +47,21 @@ export const openInput = sendInput.extend({
   left,
 });
 
-/** Client: one text out, one text back. */
-export type Send = Operation.Handle<Promise<string>, z.infer<typeof sendInput>>;
-/** Client: one text out, texts pushed until the signal aborts or the link ends. */
-export type Open = Operation.Handle<Promise<void>, z.infer<typeof openInput>>;
+/**
+ * How a transport's send or open ends (ADR 0141): every exit is a value. `missing` when the other
+ * side said no one serves the address; `link` when the path failed, `sent: false` when nothing
+ * left this side. A throw is a bug: the protocol logs it and gives `failed` on this side.
+ */
+export type Exit = { ok: false; kind: "missing" } | { ok: false; kind: "link"; sent: boolean };
+
+/** Client: one text out, one text back, or its exit. */
+export type Send = Operation.Handle<
+  Promise<{ ok: true; text: string } | Exit>,
+  z.infer<typeof sendInput>
+>;
+
+/** Client: one text out, texts pushed until the signal aborts (`ok`) or another exit. */
+export type Open = Operation.Handle<Promise<{ ok: true } | Exit>, z.infer<typeof openInput>>;
 /** Server: the text reply, or null when no one answers the address. */
 export type TextServe = Operation.Handle<Promise<string | null>, z.infer<typeof sendInput>>;
 /** Server: pushes texts; false when no one answers the address. */
@@ -78,14 +89,12 @@ export type Reply =
   | { ok: true; value: unknown; meta?: Record<string, string> }
   | { ok: false; kind: Fault; payload: unknown };
 
-/**
- * A transport's send or open that throws: `missing: true` when the other side said no one serves
- * the address, `sent: false` when nothing left this side. Any other throw may have run.
- */
-export const lost = (error: unknown): Extract<Reply, { ok: false }> =>
-  Object(error).missing
-    ? { ok: false, kind: "missing", payload: {} }
-    : { ok: false, kind: "link", payload: { sent: Object(error).sent !== false } };
+/** A transport's exit as a reply: `sent` goes in the payload. */
+export const lost = (exit: Exit): Extract<Reply, { ok: false }> => ({
+  ok: false,
+  kind: exit.kind,
+  payload: { sent: Object(exit).sent },
+});
 
 export const callInput = z.object({ address: z.string(), value: z.unknown(), meta, body });
 

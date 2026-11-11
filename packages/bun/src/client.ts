@@ -5,6 +5,7 @@ const { callInput, kept, openInput, protocol, sendInput, watchInput } = transpor
 type Call = transport.Call;
 type ClientSide = transport.ClientSide;
 type Codec = transport.Codec;
+type Exit = transport.Exit;
 type MetaOp = transport.MetaOp;
 type Protocol = transport.Protocol;
 type RenewOp = transport.RenewOp;
@@ -40,15 +41,11 @@ type In = { i: number; t?: string; e?: number; end?: 1 };
 type Waiter = (message: In | null, sent?: boolean) => void;
 
 /**
- * A send or open that failed, as the protocol reads it (ADR 0141): a 404 is the server's
- * `missing`; a drop before the message left is `sent: false`, nothing ran.
+ * How a send or open ends when no text came (ADR 0141): a value, never a throw. A 404 is the
+ * server's `missing`; a drop before the message left is `sent: false`, nothing ran.
  */
-const failed = (message: In | null, sent = true) =>
-  Object.assign(new Error("TransportFailed"), {
-    payload: message,
-    missing: message?.e === 404,
-    sent,
-  });
+const exitOf = (message: In | null, sent = true): Exit =>
+  message?.e === 404 ? { ok: false, kind: "missing" } : { ok: false, kind: "link", sent };
 
 /** The most messages in one frame: the server closes a socket that sends more (tRPC maxBatchSize). */
 export const frameMax = 32;
@@ -88,6 +85,7 @@ export function createWs() {
       if (input.body) {
         // Bytes go on their own POST beside the socket: `<url>/<address>`, the value as text in
         // `x-input`, the meta in `x-meta`, the bytes as the body, streamed by fetch.
+        // A fetch that rejects is the network (MDN: a TypeError), so a link that may have sent.
         const answer = await fetch(`${url.replace(/^ws/, "http")}/${input.address}`, {
           method: "POST",
           credentials: "same-origin",
@@ -99,20 +97,25 @@ export function createWs() {
           },
           body: input.body as Blob,
           signal,
-        });
-        if (answer.ok) return answer.text();
-        void answer.body?.cancel();
-        throw failed({ i, e: answer.status });
+        }).catch(() => null);
+        if (!answer) return exitOf(null);
+        if (!answer.ok) {
+          void answer.body?.cancel();
+          return exitOf({ i, e: answer.status });
+        }
+        return answer.text().then(
+          (text) => ({ ok: true as const, text }),
+          () => exitOf(null),
+        );
       }
-      return new Promise<string>((got, fail) => {
+      return new Promise<{ ok: true; text: string } | Exit>((got) => {
         own.waits.set(i, (message, sent) => {
           own.waits.delete(i);
-          if (message?.t !== undefined) got(message.t);
-          else fail(failed(message, sent));
+          got(message?.t === undefined ? exitOf(message, sent) : { ok: true, text: message.t });
         });
         signal.addEventListener("abort", () => {
           if (own.waits.delete(i)) own.post({ i, x: 1 });
-          fail(signal.reason);
+          got(exitOf(null));
         });
         own.post({ i, a: input.address, t: input.text, m });
       });
@@ -127,17 +130,16 @@ export function createWs() {
       const own = link.get()!;
       const i = own.next++;
       const m = { ...input.meta, ...protocol.traceparent(obs.span) };
-      return new Promise<void>((ended, fail) => {
+      return new Promise<{ ok: true } | Exit>((ended) => {
         own.waits.set(i, (message, sent) => {
           if (message?.t !== undefined) return input.push(message.t);
           own.waits.delete(i);
-          if (message?.end) ended();
-          else fail(failed(message, sent));
+          ended(message?.end ? { ok: true } : exitOf(message, sent));
         });
         // A reader that leaves stops the server's stream: the server ends the watch.
         signal.addEventListener("abort", () => {
           if (own.waits.delete(i)) own.post({ i, x: 1 });
-          ended();
+          ended({ ok: true });
         });
         own.post({ i, a: input.address, t: input.text, m, w: 1 });
       });

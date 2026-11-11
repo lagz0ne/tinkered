@@ -39,25 +39,66 @@ type ClientConfig = {
   renew?: RenewOp;
 };
 
-/** The server's text ops: one pair for every memory transport, so any memory client reaches it. */
-const serve = operation({
-  label: "memory.serve",
-  input: sendInput,
-  run: (): Promise<string | null> => {
-    throw new Error("memory: no server here");
-  },
-}) as TextServe;
+/** The exits of a memory send or open (ADR 0141): a closed peer ran nothing. */
+const closed = { ok: false, kind: "link", sent: false } as const;
+const missing = { ok: false, kind: "missing" } as const;
+const gone = { ok: false, kind: "link", sent: true } as const;
 
-const serveStream = operation({
-  label: "memory.serveStream",
-  input: openInput,
-  run: (): Promise<boolean> => {
-    throw new Error("memory: no server here");
-  },
-}) as TextStream;
+/** A request session on the peer, as a socket's request; null when the peer is closed. */
+const sessionOf = (
+  peer: Scope.Handle,
+  headers: Readonly<Record<string, string>>,
+  input: { address: string; meta: Record<string, string> },
+  own: Record<string, string>,
+) => {
+  const req = new Request(`http://memory/${input.address}`, { headers });
+  try {
+    return peer.createSession({
+      trace: traceparentOf({ ...input.meta, ...own }.traceparent),
+      tags: [request(req), requestStop(req.signal)],
+    });
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * A close of the server ends its streams, as a socket that drops (ADR 0141): `left` aborts, so the
+ * close settles, and later pushes go nowhere.
+ */
+const cut = <I extends { left?: AbortSignal; push: (text: string) => void }>(
+  input: I,
+  stop: AbortSignal,
+): I => ({
+  ...input,
+  left: AbortSignal.any([input.left ?? stop, stop]),
+  push: (text: string) => stop.aborted || input.push(text),
+});
+
+/** A reply of a server that closed is dropped: `undefined`, which the client reads as a link. */
+const dropped = (stop: AbortSignal, reply: Promise<unknown>) =>
+  reply.then((value) => (stop.aborted ? undefined : value));
 
 /** Makes one memory transport. A scope can hold two clients (a public one and a signed one). */
 export function createMemory() {
+  // The server's text ops: one pair per transport, so its client reaches its own server. One
+  // pair shared by two transports made the second's server unknown to Core (CapsuleMissing).
+  const serve = operation({
+    label: "memory.serve",
+    input: sendInput,
+    run: (): Promise<string | null> => {
+      throw new Error("memory: no server here");
+    },
+  }) as TextServe;
+
+  const serveStream = operation({
+    label: "memory.serveStream",
+    input: openInput,
+    run: (): Promise<boolean> => {
+      throw new Error("memory: no server here");
+    },
+  }) as TextStream;
+
   const peer = tag<Scope.Handle>({ label: "memory.peer" });
   const headers = tag<Readonly<Record<string, string>>>({ label: "memory.headers", default: {} });
   const keys = {
@@ -71,21 +112,14 @@ export function createMemory() {
     input: sendInput,
     depends: { peer: peer.required, headers, protocol },
     run: async ({ peer, headers, protocol }, { input, obs }) => {
-      const sent = { ...input.meta, ...protocol.traceparent(obs.span) }.traceparent;
-      const req = new Request(`http://memory/${input.address}`, { headers });
-      const session = peer.createSession({
-        trace: traceparentOf(sent),
-        tags: [request(req), requestStop(req.signal)],
-      });
-      const reply = await session.run(serve, { input }).finally(() => session.close());
-      if (reply !== null) return reply;
-      const payload = { status: 404 };
-
-      throw Object.assign(new Error("TransportFailed"), {
-        kind: "TransportFailed",
-        payload,
-        missing: true,
-      });
+      const session = sessionOf(peer, headers, input, protocol.traceparent(obs.span));
+      if (!session) return closed;
+      // A throw in the run is a bug, not a link: the protocol logs it (ADR 0141).
+      const reply: string | null | undefined = await session
+        .run(serve, { input })
+        .finally(() => session.close());
+      if (reply === undefined) return gone;
+      return reply === null ? missing : { ok: true as const, text: reply };
     },
   });
 
@@ -93,15 +127,14 @@ export function createMemory() {
     label: "memory.open",
     input: openInput,
     depends: { peer: peer.required, headers, protocol },
-    run: async ({ peer, headers, protocol }, { input, signal, obs }): Promise<void> => {
-      const sent = { ...input.meta, ...protocol.traceparent(obs.span) }.traceparent;
-      const req = new Request(`http://memory/${input.address}`, { headers });
-      const session = peer.createSession({
-        trace: traceparentOf(sent),
-        tags: [request(req), requestStop(req.signal)],
-      });
-      await session
+    run: async ({ peer, headers, protocol }, { input, signal, obs }) => {
+      const session = sessionOf(peer, headers, input, protocol.traceparent(obs.span));
+      if (!session) return closed;
+      return session
         .run(serveStream, { input: { ...input, left: signal } })
+        .then((found: boolean | undefined) =>
+          found === undefined ? gone : found ? { ok: true as const } : missing,
+        )
         .finally(() => session.close());
     },
   });
@@ -179,12 +212,18 @@ export function createMemory() {
         load(serverHeld, kept).set({ side, protocol: p });
         return next();
       },
-      run({ op, call: invocation, run, log, load, next }): unknown {
+      run({ op, call: invocation, run, log, load, next, closing: stop }): unknown {
         if (op !== serve && op !== serveStream) return next();
         const { side, protocol: p } = load(serverHeld, kept).get()!;
         const hook = { run, log, signal: invocation?.signal };
-        const input = (invocation?.input ?? invocation?.rawInput) as never;
-        return op === serve ? p.serveText(side, hook, input) : p.streamText(side, hook, input);
+
+        const input = Object(invocation?.input ?? invocation?.rawInput);
+        return dropped(
+          stop,
+          op === serve
+            ? p.serveText(side, hook, input)
+            : p.streamText(side, hook, cut(input, stop)),
+        );
       },
     },
   });

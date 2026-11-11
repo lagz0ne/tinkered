@@ -1,7 +1,7 @@
 import { capsule, data, operation, parse, resource, tag } from "./index";
 import type { Capsule, Data, Operation, Resource, Tag } from "./index";
 import * as z from "./rpc-shape";
-import { bodyShape, callInput, lifecycle, lost, watchInput } from "./rpc-transport";
+import { bodyShape, callInput, lifecycle, watchInput } from "./rpc-transport";
 import type {
   Answer,
   Body,
@@ -354,8 +354,11 @@ const steps = resource({
                     sent,
                   ),
                 ).catch((error: unknown) => {
-                  // A watch its transport lost fails as `link`, as a call does.
-                  throw def.fault.is(error) ? error : faulted(lost(error));
+                  // A lost link is a pushed fault. A throw here is a bug (ADR 0141): `failed` on
+                  // this side, never `link`, so nothing asks again.
+                  if (def.fault.is(error)) throw error;
+                  log.error(`${def.name} bug`, { address: key, cause: String(error) });
+                  throw faulted({ ok: false, kind: "failed", payload: { side: "client" } });
                 }),
               (v) => parse(contract.output, v),
               faulted,
@@ -628,7 +631,8 @@ export function rpc<const C extends Contracts>(
           address,
           fault: kind,
           from: local ? "local" : "server",
-          ...(local && { sent: kind === "decode" || (kind === "link" && sent !== false) }),
+          // Only a client encode or a part that does not fit surely left nothing.
+          ...(local && { sent: sent ?? !(kind === "encode" || kind === "invalid") }),
           payload,
           traceId,
         } as const,

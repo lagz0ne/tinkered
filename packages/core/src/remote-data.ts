@@ -1,9 +1,9 @@
 import { capsule, data, operation, parse, resource, tag } from "./index";
-import type { Capsule, Data, Operation, Scope, Tag } from "./index";
+import type { Capsule, Data, Observe, Operation, Scope, Tag } from "./index";
 import { channel, rpc } from "./rpc";
 import type { RpcFault } from "./rpc";
 import * as z from "./rpc-shape";
-import { hook, lost, protocol } from "./rpc-transport";
+import { hook, protocol } from "./rpc-transport";
 import type { Answer, Call, Hooks, Stream, Watch } from "./rpc-transport";
 
 // remoteData rides on rpc: each key is an rpc stream key at the same address. Its stream sends
@@ -274,9 +274,13 @@ type Entry = {
 
 type Faults = Readonly<Record<string, RemoteFault>>;
 
-/** A transport's throw as a fault of the definition: `missing`, or `link` (ADR 0141). */
-const faultOf = (def: Def, key: string, lose: ReturnType<typeof lost>) =>
-  def.wire.fault.make(key, lose.kind, lose.payload);
+/** A throw as a fault: a fault as it is; anything else is a bug, logged, `failed` here (ADR 0141). */
+const faultOf = (def: Def, key: string, error: unknown, log: Observe.Logger) => {
+  if (def.wire.fault.is(error)) return error;
+
+  log.error("remoteData bug", { address: key, cause: String(error) });
+  return def.wire.fault.make(key, "failed", { side: "client" });
+};
 
 type Wire = {
   readonly receive: unknown;
@@ -615,7 +619,7 @@ const steps = resource({
           }
           return null;
         } catch (error) {
-          return def.wire.fault.is(error) ? error : faultOf(def, key, lost(error));
+          return faultOf(def, key, error, log);
         } finally {
           done.abort();
         }
@@ -723,7 +727,7 @@ const steps = resource({
       key: string,
       mark: (k: string, e: RemoteFault | null) => void,
     ) => {
-      const { run, clock, signal } = event;
+      const { run, clock, signal, log } = event;
       const cell = event.load(def.made[key]!, meta) as unknown as Keyed;
       const joined = new Map<string, Joined>();
       const states = event.load(def.states, meta) as unknown as Scope.KeyedController<
@@ -843,7 +847,7 @@ const steps = resource({
             wait = 50;
           } catch (error) {
             if (part.stop.signal.aborted) return;
-            const fault = def.wire.fault.is(error) ? error : faultOf(def, key, lost(error));
+            const fault = faultOf(def, key, error, log);
             mark(key, fault);
             stand(part.ask, { status: "fault", fault });
 

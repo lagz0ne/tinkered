@@ -198,7 +198,7 @@ test("a remote fault logs a warning with its address; a refusal does not", async
   ]);
 });
 
-test("a watch its transport loses fails as link, as a call does; a fault passes as it is", async () => {
+test("a watch whose transport throws is a bug: failed on this side, never link; a fault passes as it is", async () => {
   const api = rpc(contracts);
   const call = operation({ label: "lost.call", run: async () => null });
   const gone = operation({
@@ -207,7 +207,9 @@ test("a watch its transport loses fails as link, as a call does; a fault passes 
       throw new Error("TransportFailed");
     },
   });
+  const logs: Observe.Log[] = [];
   const scope = await createScope({
+    observe: { log: (entry) => void logs.push(entry) },
     capsules: [api({ remote: { call, watch: gone } as never })],
   }).ready;
   closers.push(() => scope.close());
@@ -220,14 +222,20 @@ test("a watch its transport loses fails as link, as a call does; a fault passes 
     (e: unknown) => e,
   );
   expect(api.fault.is(error) && [error.fault, error.from, error.sent]).toEqual([
-    "link",
+    "failed",
     "local",
-    true, // a plain throw may have left
+    true, // a throw may come after the send
   ]);
+  // The cause is in this side's log, not hidden as offline.
+  expect(logs.find((l) => l.message.endsWith(" bug"))).toMatchObject({
+    attributes: { address: "ticks", cause: "Error: TransportFailed" },
+  });
+  // A lost link is a value: the watch pushes it as its last reply, then ends.
   const unsent = operation({
     label: "unsent.watch",
-    run: async (): Promise<void> => {
-      throw Object.assign(new Error("TransportFailed"), { sent: false });
+    input: transport.watchInput,
+    run: async (_, { input }): Promise<void> => {
+      input.push({ ok: false, kind: "link", payload: { sent: false } });
     },
   });
   const tab = await createScope({

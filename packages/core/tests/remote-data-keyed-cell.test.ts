@@ -590,3 +590,44 @@ test("a part no server serves is the server's missing, and waits as an answer do
   p1.stop();
   unwatch();
 });
+
+test("a part whose transport throws is a bug: failed on this side, and it waits", async () => {
+  const bare = createScope({}); // no memory server: the transport throws
+  closers.push(() => bare.close());
+  const tab = await createScope({
+    capsules: [memory.client({ peer: bare }), board({ read: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+  const state = tab.resolve(board.status(board.tasks.where({ project: "p1" })));
+  let told = 0;
+  const unwatch = state.watch(() => void told++);
+
+  const p1 = watchPart(tab, "p1");
+  await until(() => state.get()?.status === "fault");
+  const first = told;
+  await new Promise((done) => setTimeout(done, 400));
+
+  expect(state.get()).toMatchObject({ status: "fault", fault: { fault: "failed", from: "local" } });
+  expect(told).toBe(first);
+  p1.stop();
+  unwatch();
+});
+
+test("a server that closes while a client watches: its close settles, and the part shows link", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const state = tab.resolve(board.status(board.tasks.where({ project: "p1" })));
+  const p1 = watchPart(tab, "p1");
+  await until(() => state.get()?.status === "ready");
+
+  const closed = await Promise.race([
+    Promise.resolve(app.server.close()).then(() => "settled"),
+    new Promise((done) => setTimeout(() => done("hung"), 1000)),
+  ]);
+  await until(() => state.get()?.status === "fault");
+  await new Promise((done) => setTimeout(done, 200)); // the heal finds the server gone
+
+  expect(closed).toBe("settled");
+  expect(state.get()).toMatchObject({ status: "fault", fault: { fault: "link", from: "local" } });
+  p1.stop();
+});

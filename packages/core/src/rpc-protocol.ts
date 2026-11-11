@@ -1,7 +1,7 @@
 import { resource } from "./index";
 import type { Observe, Operation, Resource } from "./index";
 import { lost } from "./rpc-wire";
-import type { Body, Codec, Open, Reply, Send, Service } from "./rpc-wire";
+import type { Body, Codec, Exit, Open, Reply, Send, Service } from "./rpc-wire";
 
 // The protocol: the reply envelope, the fault set, the codec use and the route table. Fixed: any transport carries it (glossary "protocol", ADR 0048). It is not a capsule.
 // Each transport (ws, memory) is one client and one server capsule that speaks it, as each
@@ -49,6 +49,8 @@ const renewing = new WeakMap<object, Promise<boolean>>();
 /** A fault from the codec: `encode` or `decode`, saying only the side. */
 type Failed = Extract<Reply, { ok: false }>;
 type Coded<T> = { ok: true; value: T } | Failed;
+type Sent = { ok: true; text: string } | Exit;
+type Ended = { ok: true } | Exit;
 
 const why = { role: "handler", explain: "One layer down" } as const;
 
@@ -196,10 +198,10 @@ export const protocol = resource({
       if (!body.ok) return body; // nothing is sent
 
       const ask = (m: Record<string, string>): Promise<Reply> =>
-        run<string>(hook, own.send, {
+        run<Sent>(hook, own.send, {
           input: { address, text: body.value, meta: m, ...(bytes ? { body: bytes } : {}) },
           signal: hook.signal,
-        }).then((text) => replyOf(address, text), lost);
+        }).then((sent) => (sent.ok ? replyOf(address, sent.text) : lost(sent)), bug(hook, address));
       const first = await ask(meta);
       if (first.ok || first.kind !== "refused" || !(await renewed(first.payload, meta))) {
         return first;
@@ -233,23 +235,34 @@ export const protocol = resource({
         up(reply);
       };
 
-      return run<void>(hook, own.open, {
+      // One exit, after the pushes: a fault that ends it is pushed last.
+      const end = await run<Ended>(hook, own.open, {
         input: { address, text: body.value, meta, push: got },
         signal,
-      });
+      }).then((exit) => (exit.ok ? exit : lost(exit)), bug(hook, address));
+      if (!end.ok && !signal?.aborted) up(end);
     };
 
     /** A service that throws (a bug: rpc and remoteData turn their own throws into `failed`): `failed` too, never a silent end. */
     const broke =
-      (log: Observe.Logger, address: string) =>
-      (error: unknown): Reply => {
+      (log: Observe.Logger, address: string, side?: "client") =>
+      (error: unknown): Failed => {
         log.error("protocol service failed", {
           address,
           cause: String(error),
           stack: String(Object(error).stack ?? ""),
         });
-        return { ok: false, kind: "failed", payload: {} };
+        return { ok: false, kind: "failed", payload: side ? { side } : {} };
       };
+
+    /**
+     * A transport that throws: a bug (ADR 0141), logged with the trace, and `failed` on this side;
+     * never `link`, so nothing asks again. A throw after the caller stopped is the stop.
+     */
+    const bug = (hook: Hook, address: string) => (error: unknown) =>
+      hook.signal?.aborted
+        ? lost({ ok: false, kind: "link", sent: true })
+        : broke(hook.log, address, "client")(error);
 
     /** Server: one text in, the reply text out; null when no service has the address (404). */
     const serveText = async (
@@ -292,9 +305,8 @@ export const protocol = resource({
       if (!read.ok) return (push(codec.serialize(read)), true);
       const send = (reply: Reply) => push(answerText(address, reply));
       const service = routes.get(address);
-      // No one has this address. Over its own stream the client would see only an end, so the
-      // stream says it: missing, as a 404 on a call.
-      if (!service) return (send(lost({ missing: true })), false);
+      // No one has this address: false, and the transport says it its own way (ws: a 404 frame).
+      if (!service) return false;
 
       return run<boolean>(hook, service.stream, {
         input: { address, value: read.value, meta, left, push: send },

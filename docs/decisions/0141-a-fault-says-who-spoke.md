@@ -2,6 +2,7 @@
 
 Date: 2026-11-11. Status: proposed; built on the
 field shape in 0.17.5, while Duke picks the shape.
+Clear exits (Duke, 07:23): built in 0.17.6.
 Changes: the fault of `rpc` and `remoteData`
 (ADR 0140 keeps the kinds in Core).
 Answers: ADR 0140 open 1, for now.
@@ -117,6 +118,47 @@ const f = p.fault;
 if (f.from === "server") show(f); // same ask, same
 else if (!f.sent) offerSend(); // nothing ran
 ```
+
+## Clear exits at the SPI
+
+Duke, 07:23: "those protocol capsule where it
+implements the protocol SPI, they must be tight
+safe, with clear exits", because "javascript
+throwing is the worst mechanism".
+
+Precedent: a Rust `Result`, Go error values, and
+a gRPC status as the only exit. Effect calls a
+throw a defect, and gRPC makes it `INTERNAL`.
+
+1. **Every exit is a value.** A backend's `send`
+   and `open` resolve, never throw.
+
+   ```ts
+   type Exit =
+     | { ok: false; kind: "missing" }
+     | { ok: false; kind: "link"; sent: boolean };
+   // send: { ok: true; text } | Exit
+   // open: { ok: true } | Exit
+   ```
+
+2. **A throw is a bug.** Core logs the cause with
+   the address, in the run's trace, and gives
+   `failed` on this side. It is never `link`, so
+   nothing asks again.
+3. **A closed server ends its watches.** A memory
+   server that closes ends each open stream as a
+   dropped socket does: `link`, and its close
+   settles.
+4. **One transport, one server.** Each
+   `createMemory()` has its own server ops, so a
+   second pair in one scope reaches its own
+   server. A shared pair gave `CapsuleMissing`,
+   which then showed as offline.
+
+The kit (ADR 0140) gets one case per exit per
+backend, one throw inside a backend, two
+transports in one scope, and a server that closes
+while a client watches.
 
 ## Open
 
