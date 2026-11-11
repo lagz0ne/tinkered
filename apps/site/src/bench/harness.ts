@@ -1,4 +1,4 @@
-import { operation } from "@tinker/core";
+import { namespace, operation } from "@tinker/core";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
@@ -35,6 +35,13 @@ export type Sampler = {
 };
 
 type Stat = { median: number; q1: number; q3: number };
+
+/**
+ * Where a timed mount runs: it makes no span. A span for each mount put the cost of the page's
+ * own telemetry inside the timed batch, the same for every library, so each mount row read
+ * about two times slower than the library is.
+ */
+const timed = namespace({ observe: false });
 
 /** Mounts one tree inside `flushSync`, so it is fully subscribed when this returns. */
 export const mount = operation({
@@ -89,7 +96,7 @@ export const mountBatch = operation({
     const roots: Root[] = [];
     try {
       const t0 = timer.now();
-      for (let i = 0; i < count; i++) roots.push(mount.run({ input: lib }));
+      for (let i = 0; i < count; i++) roots.push(mount.run({ input: lib, ns: timed }));
       return timer.now() - t0;
     } finally {
       for (const root of roots) root.unmount();

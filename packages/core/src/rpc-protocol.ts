@@ -33,7 +33,10 @@ export type ClientSide = {
 /** What a server transport holds once started: its codec and its route table. */
 export type ServerSide = { readonly codec: Codec; readonly routes: ReadonlyMap<string, Service> };
 
-/** The hook's own tools: run (with a handler note), log, and the call's signal. */
+/**
+ * The hook's own tools: run (with a handler note), log, and the call's signal. The protocol reads
+ * `log` only when it logs a fault, so a transport can make it on that read.
+ */
 export type Hook = {
   readonly run: (op: never, options: never, why: never) => unknown;
   readonly log: Observe.Logger;
@@ -120,9 +123,9 @@ export const protocol = resource({
     };
 
     /** The codec, used on one side: a fault keeps its cause in this side's log, and says only the side. */
-    const coding = (codec: Codec, side: "client" | "server", log: Observe.Logger) => {
+    const coding = (codec: Codec, side: "client" | "server", hook: Hook) => {
       const fault = (kind: "encode" | "decode", address: string, error: unknown): Failed => {
-        log.error(`protocol ${kind} failed`, {
+        hook.log.error(`protocol ${kind} failed`, {
           address,
           side,
           cause: String(error),
@@ -191,7 +194,7 @@ export const protocol = resource({
       hook: Hook,
       input: { address: string; value: unknown; meta: Record<string, string>; body?: Body },
     ): Promise<Reply> => {
-      const { encode, replyOf } = coding(own.codec, "client", hook.log);
+      const { encode, replyOf } = coding(own.codec, "client", hook);
       const { address, body: bytes } = input;
       const { meta, metaNow, renewed } = await asking(own, hook, input.meta);
       const body = encode(address, input.value);
@@ -221,7 +224,7 @@ export const protocol = resource({
         push: (reply: Reply) => void;
       },
     ): Promise<void> => {
-      const { encode, replyOf } = coding(own.codec, "client", hook.log);
+      const { encode, replyOf } = coding(own.codec, "client", hook);
       const { address, push: up } = input;
       const { signal } = hook;
       const { meta, renewed } = await asking(own, hook, input.meta);
@@ -245,9 +248,9 @@ export const protocol = resource({
 
     /** A service that throws (a bug: rpc and remoteData turn their own throws into `failed`): `failed` too, never a silent end. */
     const broke =
-      (log: Observe.Logger, address: string, side?: "client") =>
+      (hook: Hook, address: string, side?: "client") =>
       (error: unknown): Failed => {
-        log.error("protocol service failed", {
+        hook.log.error("protocol service failed", {
           address,
           cause: String(error),
           stack: String(Object(error).stack ?? ""),
@@ -262,7 +265,7 @@ export const protocol = resource({
     const bug = (hook: Hook, address: string) => (error: unknown) =>
       hook.signal?.aborted
         ? lost({ ok: false, kind: "link", sent: true })
-        : broke(hook.log, address, "client")(error);
+        : broke(hook, address, "client")(error);
 
     /** Server: one text in, the reply text out; null when no service has the address (404). */
     const serveText = async (
@@ -271,7 +274,7 @@ export const protocol = resource({
       input: { address: string; text: string; meta: Record<string, string>; body?: Body },
     ): Promise<string | null> => {
       const { codec, routes } = own;
-      const { decode, answerText } = coding(codec, "server", hook.log);
+      const { decode, answerText } = coding(codec, "server", hook);
       const { address, meta, body } = input;
       const read = decode(address, input.text);
       if (!read.ok) return codec.serialize(read);
@@ -281,7 +284,7 @@ export const protocol = resource({
       const reply = await run<Reply | null>(hook, service.answer, {
         input: { address, value: read.value, meta, ...(body ? { body } : {}) },
         signal: hook.signal,
-      }).catch(broke(hook.log, address));
+      }).catch(broke(hook, address));
 
       return reply === null ? null : answerText(address, reply);
     };
@@ -299,7 +302,7 @@ export const protocol = resource({
       },
     ): Promise<boolean> => {
       const { codec, routes } = own;
-      const { decode, answerText } = coding(codec, "server", hook.log);
+      const { decode, answerText } = coding(codec, "server", hook);
       const { address, meta, push, left } = input;
       const read = decode(address, input.text);
       if (!read.ok) return (push(codec.serialize(read)), true);
@@ -310,7 +313,7 @@ export const protocol = resource({
 
       return run<boolean>(hook, service.stream, {
         input: { address, value: read.value, meta, left, push: send },
-      }).catch((error) => (send(broke(hook.log, address)(error)), true));
+      }).catch((error) => (send(broke(hook, address)(error)), true));
     };
 
     return {

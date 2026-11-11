@@ -2357,3 +2357,47 @@ Results:
 - Not fixed here, found on main with node 24:
   - F1 `runOnce` 523 and `runHookChain` 209 are over the baseline (504, 190).
   - F9 React 34 is over the baseline 21.
+
+## perf/request-path (2026-11-11)
+
+Duke asked why the bench page shows Tinker slower than Jotai,
+and asked for the frontend and the backend to be faster with no API change.
+The full record: [the learnings entry](../../../research/learnings/2026-11-11-request-path.md).
+
+What the search found:
+
+- No release from 0.12.0 to 0.17.7 made Core or React slower.
+- The bench page timed its own telemetry inside each mount.
+- The rpc client waited 1 ms for each frame, and kept a listener for each call.
+- `routes` ran URLPattern two times for each request.
+- A socket hook made a logger for each run in its scope.
+- Trace ids were 28% of a traced request on V8.
+
+What changed:
+
+- `@tinker/react`: one context holds the scope and the namespace.
+- `@tinker/bun` client: the frame goes in the next task; a call takes its listener off.
+- `@tinker/bun` server: a hook reads `op` first; a call makes no stop controller.
+- `@tinker/core`: `hexOf` writes an id from a table; the protocol reads `log` only on a fault.
+- The site and the template: a fixed path is one Map read in `routes`.
+- The site bench page: a timed mount makes no span.
+
+Proof:
+
+- One rpc call at a time, Bun to Bun: 1,362 µs to 108 µs.
+- `GET /api/health`, server CPU: 40.9 µs to 29.7 µs.
+- One rpc call, server CPU, 8 in flight: 51.1 µs to 39.5 µs.
+- A traced request in Core on Node: 22,489 to 17,975 instructions.
+- The bench page mount row: 200 µs to 94 µs.
+- Core 1,302 tests, bun 117, react 115, site 148: all pass.
+- Mutation, the bun package: 84.05 on the full lane.
+  The browser branch of the next-task hop cannot run in `bun test`.
+  Four fault tests on real promises of ADR 0141 took it to 85.12
+  (595 of 699; the client files ran again, the other files did not change).
+- Mutation, Core: no live mutant on the changed lines.
+- Size: 32,767 B with rpc, cap 32,768 B. One byte is left.
+
+Not done here:
+
+- Hedl on the release: Hedl is on 0.17.2.
+- `AbortSignal.any` for each request (card `core/closing-no-any` is its Core half).

@@ -3,6 +3,7 @@ import type { Scope } from "@tinker/core";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 
 import { frameMax } from "./client";
+import { Tools } from "./tools";
 
 const { kept, openInput, protocol, request, requestStop, sendInput, traceparentOf } = transport;
 
@@ -275,8 +276,11 @@ export function createWs() {
             async run(ws, m) {
               const meta = Object(m.m) as Record<string, string>;
               const trace = traceparentOf(meta.traceparent);
-              const stop = new AbortController();
-              const left = AbortSignal.any([stop.signal, own.gone.signal]);
+              // Only a watch has a stop of its own: a call ends with its answer, or with the socket.
+              const stop = m.w ? new AbortController() : undefined;
+              const left = AbortSignal.any(
+                stop ? [stop.signal, own.gone.signal] : [own.gone.signal],
+              );
               const tags = [request(req), requestStop(left)];
               const session = await Promise.resolve()
                 .then(() => scope.createSession({ trace, tags }))
@@ -289,7 +293,7 @@ export function createWs() {
                 return own.emit(ws, reply === null ? { i: m.i, e: 404 } : { i: m.i, t: reply });
               }
 
-              own.watches.set(m.i, stop);
+              own.watches.set(m.i, stop!);
               const push = own.pusher(ws, m.i);
               await Promise.resolve(session.run(serveStream, { input: { ...input, left, push } }))
                 .then((found) => own.emit(ws, found ? { i: m.i, end: 1 } : { i: m.i, e: 404 }))
@@ -388,10 +392,13 @@ export function createWs() {
         };
         return { upgrade, post, fetch, websocket, maxBody };
       },
-      run({ op, call: invocation, run, log, load, next }): unknown {
-        if (op !== serve && op !== serveStream) return next();
-        const { side, protocol: p } = load(held, kept).get()!;
-        const hook = { run, log, signal: invocation?.signal };
+      /** Every run of the scope passes here: one that is not this transport's reads `op` only. */
+      run(event): unknown {
+        const { op, call: invocation } = event;
+        if (op !== serve && op !== serveStream) return event.next();
+
+        const { side, protocol: p } = event.load(held, kept).get()!;
+        const hook = new Tools(event);
         const input = (invocation?.input ?? invocation?.rawInput) as never;
         return op === serve ? p.serveText(side, hook, input) : p.streamText(side, hook, input);
       },

@@ -9,6 +9,7 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -27,8 +28,15 @@ export type { Errors } from "./errors";
  * change: React Native, a Web Worker renderer, Ink, react-test-renderer. */
 const IS_SERVER = typeof document === "undefined";
 
-const ScopeContext = createContext<Scope.Handle | undefined>(undefined);
-const NamespaceContext = createContext<Namespace | undefined>(undefined);
+/** What a provider gives its subtree: the scope hooks resolve against, and the reset namespace
+ * head a React session saved. One context, not two: each provider fiber above a component is one
+ * more step in React's walk for every sibling that does not re-render. */
+type Bound = { readonly scope: Scope.Handle; readonly ns: Namespace | undefined };
+
+const ScopeContext = createContext<Bound | undefined>(undefined);
+
+/** An independent scope clears an outer React session's reset key. */
+const bind = (scope: Scope.Handle): Bound => ({ scope, ns: undefined });
 
 /** Start a scope's teardown without awaiting; a scope owns its own shutdown and never throws
  * (ADR 0027), so the unmounting subtree does not wait on the result. */
@@ -62,14 +70,15 @@ function StartedScopeProvider(props: {
   readonly children: ReactNode;
 }): ReactNode {
   const scope = use(props.scope.ready);
-  return createElement(ScopeContext.Provider, { value: scope, children: props.children });
+  const value = useMemo(() => bind(scope), [scope]);
+  return createElement(ScopeContext.Provider, { value, children: props.children });
 }
 
 /** Where {@link OwnedScopeProvider}'s scope is in its life: waiting for start, started, or
  * failed to start. */
 type Owned =
   | { readonly kind: "waiting" }
-  | { readonly kind: "started"; readonly scope: Scope.Handle }
+  | { readonly kind: "started"; readonly bound: Bound }
   | { readonly kind: "failed"; readonly error: unknown };
 
 const WAITING: Owned = { kind: "waiting" };
@@ -98,11 +107,11 @@ function OwnedScopeProvider(props: {
     };
     if (isStarting(made)) {
       void made.ready.then(
-        (scope) => settle({ kind: "started", scope }),
+        (scope) => settle({ kind: "started", bound: bind(scope) }),
         (error: unknown) => settle({ kind: "failed", error }),
       );
     } else {
-      settle({ kind: "started", scope: made });
+      settle({ kind: "started", bound: bind(made) });
     }
     return () => {
       mounted = false;
@@ -113,21 +122,23 @@ function OwnedScopeProvider(props: {
 
   if (owned.kind === "failed") throw owned.error;
   if (owned.kind === "waiting") return null;
-  return createElement(ScopeContext.Provider, { value: owned.scope, children: props.children });
+  return createElement(ScopeContext.Provider, { value: owned.bound, children: props.children });
 }
 
 /** Put a `@tinker/core` scope on React context for the subtree. Hooks resolve against the nearest
  * provider's scope. This independent scope clears an outer React session's reset key. */
 export function ScopeProvider(props: ScopeProviderProps): ReactNode {
-  return createElement(NamespaceContext.Provider, {
-    value: undefined,
-    children:
-      props.scope === undefined
-        ? createElement(OwnedScopeProvider, { create: props.create, children: props.children })
-        : isStarting(props.scope)
-          ? createElement(StartedScopeProvider, { scope: props.scope, children: props.children })
-          : createElement(ScopeContext.Provider, { value: props.scope, children: props.children }),
-  });
+  const scope = props.scope;
+  const started = scope === undefined || isStarting(scope) ? undefined : scope;
+  const value = useMemo(() => (started === undefined ? undefined : bind(started)), [started]);
+
+  if (scope === undefined) {
+    return createElement(OwnedScopeProvider, { create: props.create, children: props.children });
+  }
+  if (isStarting(scope)) {
+    return createElement(StartedScopeProvider, { scope, children: props.children });
+  }
+  return createElement(ScopeContext.Provider, { value, children: props.children });
 }
 
 /** Open a child session for a subtree: created on mount from the nearest scope, force-closed on
@@ -144,21 +155,20 @@ export function SessionProvider(props: {
   readonly children: ReactNode;
   readonly options?: Scope.Options;
 }): ReactNode {
-  const parent = useScope();
-  const inherited = useContext(NamespaceContext);
+  const above = useBound("useScope");
+  const parent = above.scope;
+  const inherited = above.ns;
   const optionsRef = useRef(props.options);
   optionsRef.current = props.options;
 
-  const [owned, setOwned] = useState<
-    { parent: Scope.Handle; session: Scope.Handle; ns?: Namespace } | undefined
-  >(undefined);
+  const [owned, setOwned] = useState<{ parent: Scope.Handle; bound: Bound } | undefined>(undefined);
 
   useEffect(() => {
     const options = optionsRef.current;
     const session = parent.createSession(options);
     const ns = options?.ns;
     const [head] = ns === undefined ? [inherited] : "tags" in ns ? [ns] : ns;
-    setOwned({ parent, session, ns: head });
+    setOwned({ parent, bound: { scope: session, ns: head } });
 
     return () => {
       setOwned(undefined);
@@ -167,20 +177,19 @@ export function SessionProvider(props: {
   }, [parent, inherited]);
 
   if (owned === undefined || owned.parent !== parent) return null;
-  return createElement(NamespaceContext.Provider, {
-    value: owned.ns,
-    children: createElement(ScopeContext.Provider, {
-      value: owned.session,
-      children: props.children,
-    }),
-  });
+  return createElement(ScopeContext.Provider, { value: owned.bound, children: props.children });
 }
 
 /** Read the nearest scope `Handle`. Raises `NoProvider` when used outside a {@link ScopeProvider}. */
 export function useScope(): Scope.Handle {
-  const scope = useContext(ScopeContext);
-  if (!scope) raise("NoProvider", { hook: "useScope" });
-  return scope;
+  return useBound("useScope").scope;
+}
+
+/** The nearest provider's scope and saved namespace head, from one context read. */
+function useBound(hook: string): Bound {
+  const bound = useContext(ScopeContext);
+  if (!bound) raise("NoProvider", { hook });
+  return bound;
 }
 
 export declare namespace UseData {
@@ -565,11 +574,12 @@ export function useResource<T>(
   handle: Resource.Handle<T>,
   options: Query.Options = QUERY_OPTIONS,
 ): Awaited<T> | Query.Handle<Awaited<T>> {
-  const scope = useScope();
-  if (IS_SERVER) return readServerResource(scope, handle, options);
+  const bound = useBound("useScope");
+  const scope = bound.scope;
+  if (IS_SERVER) return readServerResource(bound, handle, options);
 
   const ns = options.ns;
-  const inherited = useContext(NamespaceContext);
+  const inherited = bound.ns;
   const [, force] = useReducer(RunOwner.bump, 0);
   const ref = useRef<ResourceOwner<T> | undefined>(undefined);
 
@@ -588,14 +598,14 @@ export function useResource<T>(
 /** A server render never runs the effect that would observe a pending build, so the owner gets
  * no `force` and the hooks of the client path are skipped. */
 function readServerResource<T>(
-  scope: Scope.Handle,
+  bound: Bound,
   handle: Resource.Handle<T>,
   options: Query.Options,
 ): Awaited<T> | Query.Handle<Awaited<T>> {
-  if (options.suspense !== false) return readSuspended(scope, handle, options.ns);
+  if (options.suspense !== false) return readSuspended(bound.scope, handle, options.ns);
 
-  const owner = new ResourceOwner(scope, handle, options.ns, noop);
-  owner.inherited = useContext(NamespaceContext);
+  const owner = new ResourceOwner(bound.scope, handle, options.ns, noop);
+  owner.inherited = bound.ns;
   return readQuery(owner);
 }
 
@@ -886,8 +896,7 @@ export function useRun<T, I>(
 export function useRelease(
   ns?: Namespace,
 ): (node: Data.Cell<unknown> | Resource.Handle<unknown>) => void {
-  const scope = useScope();
-  const inherited = useContext(NamespaceContext);
+  const { scope, ns: inherited } = useBound("useScope");
   const selected = ns ?? inherited;
   return useCallback(
     (node) => {

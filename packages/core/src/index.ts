@@ -2279,16 +2279,15 @@ class SpanImpl implements Observe.Span {
 
   get traceId(): string {
     const trace = this.bits();
-    return (trace.text ??= SpanImpl.hex(trace.a, trace.b) + SpanImpl.hex(trace.c, trace.d));
+    return (trace.text ??= hexOf(trace.a, trace.b) + hexOf(trace.c, trace.d));
   }
 
   get spanId(): string {
-    return (this.text ??= SpanImpl.hex(this.high, this.low));
+    return (this.text ??= hexOf(this.high, this.low));
   }
 
   get parentSpanId(): string | undefined {
-    if (this.parentId === undefined) return this.parentHex;
-    return (this.parentHex ??= SpanImpl.hex(this.hi, this.lo));
+    return (this.parentHex ??= this.parentId === undefined ? undefined : hexOf(this.hi, this.lo));
   }
 
   get attributes(): Record<string, unknown> {
@@ -2340,10 +2339,6 @@ class SpanImpl implements Observe.Span {
       d: this.low,
       text: undefined,
     });
-  }
-
-  private static hex(high: number, low: number): string {
-    return (high >>> 0).toString(16).padStart(8, "0") + (low >>> 0).toString(16).padStart(8, "0");
   }
 }
 
@@ -8286,3 +8281,31 @@ function resolvePlaced(
     placement === "scope" ? NO_NAMESPACE : chain,
   );
 }
+
+/** Two words as the 16 hex digits of a span or trace id, by a table and one `fromCharCode`: a flat
+ * string, with no `toString(16)` (V8 leaves its fast path for it) and no `padStart`. It sits
+ * here, after the hot names, so it takes no context slot below 256 (`scripts/check-slots.mjs`). */
+function hexOf(h: number, l: number): string {
+  const d = HEX_CODES;
+  return String.fromCharCode(
+    d[(h >>> 28) & 15]!,
+    d[(h >>> 24) & 15]!,
+    d[(h >>> 20) & 15]!,
+    d[(h >>> 16) & 15]!,
+    d[(h >>> 12) & 15]!,
+    d[(h >>> 8) & 15]!,
+    d[(h >>> 4) & 15]!,
+    d[h & 15]!,
+    d[(l >>> 28) & 15]!,
+    d[(l >>> 24) & 15]!,
+    d[(l >>> 20) & 15]!,
+    d[(l >>> 16) & 15]!,
+    d[(l >>> 12) & 15]!,
+    d[(l >>> 8) & 15]!,
+    d[(l >>> 4) & 15]!,
+    d[l & 15]!,
+  );
+}
+
+/** The char codes of the 16 hex digits. */
+const HEX_CODES = new TextEncoder().encode("0123456789abcdef");

@@ -1,4 +1,4 @@
-import { channel, createScope, operation, rpc } from "@tinker/core";
+import { channel, createScope, operation, rpc, transport } from "@tinker/core";
 import type { Observe } from "@tinker/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
@@ -20,6 +20,22 @@ const api = rpc({
   greet: { input: z.object({ name: z.string() }), output: z.object({ text: z.string() }) },
   forever: { mode: "stream", input: z.null(), output: z.number() },
   done: { mode: "stream", input: z.null(), output: z.number() },
+  wait: { input: z.null(), output: z.null() },
+});
+
+/** How far the `wait` call is: it started, then its request's stop fired. */
+const waiting = { started: 0, stopped: 0 };
+
+const wait = operation({
+  label: "wait.here",
+  input: z.null(),
+  depends: { stop: transport.requestStop.required },
+  run: async ({ stop }) => {
+    waiting.started++;
+    await new Promise((r) => stop.addEventListener("abort", r));
+    waiting.stopped++;
+    return null;
+  },
 });
 
 const greet = operation({
@@ -51,13 +67,13 @@ type Door = {
 async function boot(options: Record<string, unknown> = {}) {
   const spans: string[] = [];
   const logs: Observe.Log[] = [];
-  const transport = wsServer.server({ path: "/rpc", services: [api as never], ...options });
+  const server = wsServer.server({ path: "/rpc", services: [api as never], ...options });
   const scope = await createScope({
     observe: { export: (s) => void spans.push(s.name), log: (l) => void logs.push(l) },
-    capsules: [api({ implement: { greet, forever, done } }), transport],
+    capsules: [api({ implement: { greet, forever, done, wait } }), server],
   }).ready;
 
-  const door = scope.resolve(transport) as never as Door;
+  const door = scope.resolve(server) as never as Door;
   const bun = Bun.serve({
     port: 0,
     idleTimeout: 0,
@@ -147,6 +163,19 @@ test("a watch: pushes, then a stop ends it; a key that ends by itself ends the w
   await s.until(() => s.got().length === 3);
   expect(s.got()[2]).toEqual({ i: 2, end: 1 });
   expect(spans).toContain("ws.serveStream");
+});
+
+test("a call whose socket closes: its request's stop fires", async () => {
+  const { url } = await boot();
+  const { socket, until } = await socketTo(url);
+  const before = { ...waiting };
+
+  socket.send(JSON.stringify([{ i: 1, a: "wait", t: "null" }]));
+  await until(() => waiting.started > before.started);
+  socket.close();
+
+  await until(() => waiting.stopped > before.stopped);
+  expect(waiting.stopped).toBe(before.stopped + 1);
 });
 
 test("a watch on a reply key or an unknown address answers 404", async () => {

@@ -136,6 +136,68 @@ test("a key with bytes runs from the client: the value as text, the bytes as the
   });
 });
 
+test("a key with bytes at an address the server does not have is the server's missing", async () => {
+  const other = rpc({
+    "file.lost": {
+      input: z.object({ file: bytes(z.custom<RpcBody>(), { max: 64, types: ["text/plain"] }) }),
+      output: z.null(),
+    },
+  });
+  const tab = await createScope({
+    capsules: [ws.client({ url: `ws://${base}` }), other({ remote: ws.client })],
+  }).ready;
+
+  const file = new Blob(["x"], { type: "text/plain" });
+  const error = await tab.run(other["file.lost"], { input: { file } }).catch((e: unknown) => e);
+
+  expect(other.fault.is(error) && [error.fault, error.from]).toEqual(["missing", "server"]);
+  await tab.close();
+});
+
+test("bytes the server answers with a status that is not 404 fail as link, sent: true", async () => {
+  const wide = rpc({
+    "file.put": {
+      input: z.object({
+        name: z.string(),
+        file: bytes(z.custom<RpcBody>(), { max: 4096, types: ["text/plain"] }),
+      }),
+      output: z.unknown(),
+    },
+  });
+  const tab = await createScope({
+    capsules: [ws.client({ url: `ws://${base}` }), wide({ remote: ws.client })],
+  }).ready;
+
+  const file = new Blob(["x".repeat(2048)], { type: "text/plain" });
+  const error = await tab
+    .run(wide["file.put"], { input: { name: "big", file } })
+    .catch((e: unknown) => e);
+
+  expect(wide.fault.is(error) && [error.fault, error.from, error.sent]).toEqual([
+    "link",
+    "local",
+    true,
+  ]);
+  await tab.close();
+});
+
+test("bytes to a server that is down fail as link, not as a bug", async () => {
+  const dead = Bun.serve({ port: 0, fetch: () => new Response() });
+  const url = `ws://localhost:${dead.port}/rpc`;
+  await dead.stop(true);
+  const tab = await createScope({
+    capsules: [ws.client({ url }), api({ remote: ws.client })],
+  }).ready;
+
+  const file = new Blob(["x"], { type: "text/plain" });
+  const error = await tab
+    .run(api["file.put"], { input: { name: "down", file } })
+    .catch((e: unknown) => e);
+
+  expect(api.fault.is(error) && [error.fault, error.from]).toEqual(["link", "local"]);
+  await tab.close();
+});
+
 test("the memory transport carries the bytes as they are", async () => {
   const server = await createScope({
     capsules: [

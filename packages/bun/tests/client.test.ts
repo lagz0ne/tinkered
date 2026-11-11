@@ -1,3 +1,5 @@
+import { getEventListeners } from "node:events";
+
 import { channel, createScope, data, operation, remoteData, rpc } from "@tinker/core";
 import type { Observe, Scope } from "@tinker/core";
 import { afterEach, expect, test } from "vite-plus/test";
@@ -259,6 +261,23 @@ test("a socket that drops fails its calls as link; the next call opens a new soc
   release();
 });
 
+test("a watch that got a push, then loses its socket, ends as link, sent: true", async () => {
+  const { url } = await serve();
+  const client = await tab(url);
+  const pushes: unknown[] = [];
+  const first = Promise.withResolvers<void>();
+  const push = (reply: unknown) => (pushes.push(reply), first.resolve());
+
+  const watching = client.run(ws.client.watch, {
+    input: { address: "ticks", value: null, meta: {}, push },
+  });
+  await first.promise;
+  client.run(ws.client.reset);
+  await watching;
+
+  expect(pushes.at(-1)).toEqual({ ok: false, kind: "link", payload: { sent: true } });
+});
+
 test("a socket that never opens fails its call as link, sent: false: nothing ran", async () => {
   const { url, bun } = await serve();
   await bun.stop(true);
@@ -353,6 +372,22 @@ test("a call aborted after its answer sends no stop", async () => {
   await tick();
 
   expect(frames.messages()).toEqual([expect.objectContaining({ i: 1, a: "echo" })]);
+});
+
+test("a call and a watch that ended leave no abort listener on the tab's signal", async () => {
+  const { url } = await serve();
+  const client = await tab(url);
+  const lasting = client.run(operation({ label: "signal.here", run: (_, { signal }) => signal }));
+  const before = getEventListeners(lasting, "abort").length;
+
+  for (let n = 0; n < 8; n++) await client.run(api.echo, { input: { n } });
+  const pushes: unknown[] = [];
+  await client.run(ws.client.watch, {
+    input: { address: "count", value: null, meta: {}, push: (reply) => void pushes.push(reply) },
+  });
+
+  expect(pushes).toHaveLength(3);
+  expect(getEventListeners(lasting, "abort").length).toBe(before);
 });
 
 test("a watch that ended sends no stop, and its open span is ws.open", async () => {

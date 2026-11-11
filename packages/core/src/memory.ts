@@ -197,8 +197,11 @@ export function createMemory() {
         });
         return next();
       },
-      run({ op, call: invocation, run, log, load, next }): unknown {
-        if (op !== call && op !== watch) return next();
+      run(event): unknown {
+        const { op, call: invocation } = event;
+        if (op !== call && op !== watch) return event.next();
+
+        const { run, log, load } = event;
         const { side, protocol: p } = load(clientHeld, kept).get()!;
         const hook = { run, log, signal: invocation?.signal };
         const input = (invocation?.input ?? invocation?.rawInput) as never;
@@ -230,8 +233,11 @@ export function createMemory() {
 
         return next();
       },
-      run({ op, call: invocation, run, log, load, next, closing: stop }): unknown {
-        if (op !== serve && op !== serveStream) return next();
+      run(event): unknown {
+        const { op, call: invocation } = event;
+        if (op !== serve && op !== serveStream) return event.next();
+
+        const { run, log, load, closing: stop } = event;
         const { side, protocol: p } = load(serverHeld, kept).get()!;
         const hook = { run, log, signal: invocation?.signal };
 

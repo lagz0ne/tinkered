@@ -440,10 +440,10 @@ const steps = resource({
 
     /** A throw is `failed`, whatever it carries: its kind is never read. The cause stays here, whole. */
     const failedAt =
-      (def: Def, { log, obs }: Event, address: string) =>
+      (def: Def, event: Event, address: string) =>
       (error: unknown): Reply => {
-        obs.event(`${def.name}.failed`, { address });
-        log.error(`${def.name} call failed`, {
+        event.obs.event(`${def.name}.failed`, { address });
+        event.log.error(`${def.name} call failed`, {
           address,
           cause: String(error),
           stack: String(Object(error).stack ?? ""),

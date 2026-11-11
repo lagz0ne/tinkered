@@ -1,5 +1,7 @@
 import { capsule, data, operation, tag, transport } from "@tinker/core";
 
+import { Tools } from "./tools";
+
 const { callInput, kept, openInput, protocol, sendInput, watchInput } = transport;
 
 type Call = transport.Call;
@@ -50,6 +52,21 @@ const exitOf = (message: In | null, sent = true): Exit =>
 /** The most messages in one frame: the server closes a socket that sends more (tRPC maxBatchSize). */
 export const frameMax = 32;
 
+/** The next task in a browser: one `MessageChannel` and a queue, as React's scheduler does. */
+function viaChannel(): (fn: () => void) => void {
+  const jobs: (() => void)[] = [];
+  const { port1, port2 } = new MessageChannel();
+  port1.onmessage = () => jobs.shift()!();
+  return (fn) => (jobs.push(fn), port2.postMessage(0));
+}
+
+/**
+ * Runs `fn` in the next task, with no timer wait. `setTimeout(0)` waits at least 1 ms on Bun and
+ * Node, and 4 ms in a browser once timers nest (HTML timer clamp). Bun and Node have
+ * `setImmediate`, which does not keep the process alive as an open port does.
+ */
+const nextTick = typeof setImmediate === "function" ? setImmediate : viaChannel();
+
 /** Makes one WebSocket client. */
 export function createWs() {
   const url = tag<string>({ label: "ws.url" });
@@ -74,6 +91,9 @@ export function createWs() {
   const link = data<Link | null>({ label: "ws.link", initial: null });
 
   // Text, one layer down: the protocol calls these. The span goes as `traceparent` in `m`.
+  // A call or a watch with no signal of its own gets the scope's signal, which lives as long as
+  // the tab: each takes its abort listener off when it ends, so none stays on that signal. So
+  // `stop` runs only while its call or watch waits.
   const send = operation({
     label: "ws.send",
     input: sendInput,
@@ -109,14 +129,17 @@ export function createWs() {
         );
       }
       return new Promise<{ ok: true; text: string } | Exit>((got) => {
+        const stop = () => {
+          own.waits.delete(i);
+          own.post({ i, x: 1 });
+          got(exitOf(null));
+        };
         own.waits.set(i, (message, sent) => {
           own.waits.delete(i);
+          signal.removeEventListener("abort", stop);
           got(message?.t === undefined ? exitOf(message, sent) : { ok: true, text: message.t });
         });
-        signal.addEventListener("abort", () => {
-          if (own.waits.delete(i)) own.post({ i, x: 1 });
-          got(exitOf(null));
-        });
+        signal.addEventListener("abort", stop);
         own.post({ i, a: input.address, t: input.text, m });
       });
     },
@@ -131,16 +154,19 @@ export function createWs() {
       const i = own.next++;
       const m = { ...input.meta, ...protocol.traceparent(obs.span) };
       return new Promise<{ ok: true } | Exit>((ended) => {
+        // A reader that leaves stops the server's stream: the server ends the watch.
+        const stop = () => {
+          own.waits.delete(i);
+          own.post({ i, x: 1 });
+          ended({ ok: true });
+        };
         own.waits.set(i, (message, sent) => {
           if (message?.t !== undefined) return input.push(message.t);
           own.waits.delete(i);
+          signal.removeEventListener("abort", stop);
           ended(message?.end ? { ok: true } : exitOf(message, sent));
         });
-        // A reader that leaves stops the server's stream: the server ends the watch.
-        signal.addEventListener("abort", () => {
-          if (own.waits.delete(i)) own.post({ i, x: 1 });
-          ended({ ok: true });
-        });
+        signal.addEventListener("abort", stop);
         own.post({ i, a: input.address, t: input.text, m, w: 1 });
       });
     },
@@ -213,7 +239,7 @@ export function createWs() {
         // The first message of a tick schedules the frame; the frame opens the socket if needed.
         const post = (message: Out) => {
           if (out.push(message) > 1) return;
-          setTimeout(() => {
+          nextTick(() => {
             const sent = out.splice(0);
             opening ??= new Promise<WebSocket>((done, broke) => {
               const socket = Object.keys(config.headers).length
@@ -241,7 +267,7 @@ export function createWs() {
               },
               () => undefined, // the close already failed every waiter
             );
-          }, 0);
+          });
         };
 
         /** Drops the socket now in use, and closes it. */
@@ -266,10 +292,13 @@ export function createWs() {
 
         return next();
       },
-      run({ op, call: invocation, run, log, load, next }): unknown {
-        if (op !== call && op !== watch) return next();
-        const { side, protocol: p } = load(held, kept).get()!;
-        const hook = { run, log, signal: invocation?.signal };
+      /** Every run of the scope passes here: one that is not this transport's reads `op` only. */
+      run(event): unknown {
+        const { op, call: invocation } = event;
+        if (op !== call && op !== watch) return event.next();
+
+        const { side, protocol: p } = event.load(held, kept).get()!;
+        const hook = new Tools(event);
         const input = (invocation?.input ?? invocation?.rawInput) as never;
         return op === call ? p.callOver(side, hook, input) : p.watchOver(side, hook, input);
       },
