@@ -5,6 +5,57 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.5
+
+A fault says who spoke: the server, or this side
+(ADR 0141).
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.5
+bun add $R/tinker-core-0.17.5.tgz \
+  $R/tinker-react-0.17.5.tgz \
+  $R/tinker-bun-0.17.5.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.5/tinker-core-0.17.5.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.5/tinker-react-0.17.5.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.5/tinker-bun-0.17.5.tgz
+
+### rpc and remoteData
+
+- Each fault has `from`: `"server"` or `"local"`.
+- A local fault has `sent`. It is `false` when
+  nothing left, so the server ran nothing.
+- An address no one serves is the new server
+  fault `missing`, as HTTP 404. It was `link`.
+- A keyed part on a `missing` address waits for
+  `invalidate`, as for `refused`. It no longer
+  asks again with back-off.
+
+### @tinker/bun
+
+- A 404, on the socket or on a bytes POST, is
+  `missing`.
+- A socket drop says `sent` per call: a message
+  that never left on the socket is
+  `sent: false`.
+
+### Upgrade
+
+- Change the three URLs.
+- Code that read an unknown address as `link`
+  reads `missing`.
+- A server on 0.17.5 sends `missing` for an
+  unknown address. Move the client and the server
+  together.
+
 ## 0.17.4
 
 A keyed part has its own state, and a fault that
