@@ -29,6 +29,69 @@ type Config = Job & Hooks;
  */
 type Fill = Readonly<Record<string, Operation.Handle<unknown, void>>>;
 
+/** What a keyed key's stream takes and its signal names, and what its ask takes (ADR 0137):
+ * one member (`of` a key) or one part (`where` a part). */
+type Ask = { readonly read: "of" | "where"; readonly part: Data.Key };
+
+/** The calls remoteData makes on a keyed cell's root controller, past its public type. */
+type Keyed = Scope.KeyedController<unknown, Data.Key> & {
+  listen(listener: (read: "of" | "where", part: Data.Key) => () => void): void;
+  answer(
+    read: "of" | "where",
+    part: Data.Key,
+    members: readonly unknown[],
+    keep: (key: Data.Key) => boolean,
+  ): void;
+  adopt(value: readonly unknown[]): Data.Key | undefined;
+};
+
+/** A client's part in use, by key: its readers, and the asks it made. The last ask wins. */
+type Joined = { refs: number; asks: number; readonly ask: Ask; readonly stop: AbortController };
+
+/** One rpc contract, as the wire is built: each key here is a stream or a reply. */
+type Contract = {
+  readonly mode: "stream" | "reply";
+  readonly input: Data.Schema<unknown>;
+  readonly output: Data.Schema<unknown>;
+};
+
+/** A key or a part as text: fields sorted, then JSON, as Core names a member. */
+const textOf = (part: Data.Key): string =>
+  typeof part === "string"
+    ? JSON.stringify(part)
+    : JSON.stringify(
+        Object.keys(part)
+          .sort()
+          .map((field) => [field, part[field]]),
+      );
+
+/** The slot of one part: the key, then `o` or `w` and the part's text. */
+const partSlot = (key: string, ask: Ask): string =>
+  `${key}\u0000${ask.read === "of" ? "o" : "w"}${textOf(ask.part)}`;
+
+/** Whether a member's key is in an asked part. */
+const holds = (ask: Ask, key: Data.Key): boolean =>
+  ask.read === "of"
+    ? textOf(ask.part) === textOf(key)
+    : Object.keys(ask.part).every((f) => Object(key)[f] === Object(ask.part)[f]);
+
+/** An ask from the wire: `of` or `where`, and a key that is a string or a flat object of strings
+ * and finite numbers. */
+const askShape = z.make<Ask>((value) => {
+  const ask = Object(value) as { read?: unknown; part?: unknown };
+  const part = ask.part;
+  const flat =
+    typeof part === "string" ||
+    (typeof part === "object" &&
+      part !== null &&
+      !Array.isArray(part) &&
+      Object.values(part).every(
+        (v) => typeof v === "string" || (typeof v === "number" && Number.isFinite(v)),
+      ));
+  if ((ask.read !== "of" && ask.read !== "where") || !flat) return z.fail("expected an ask");
+  return { value: { read: ask.read, part: part as Data.Key } };
+});
+
 /** A fault of a definition: rpc's own, branded by the definition's wire. */
 export type RemoteFault = RpcFault;
 
@@ -37,6 +100,37 @@ const sending = { role: "handler", explain: "Sends one write to its watchers" } 
 const reading = { role: "handler", explain: "Reads one key's stream" } as const;
 const name = "remoteData"; // labels only: the wire address is the key
 const reserved = ["answer", "stream", "drop", "fault", "faults"];
+
+/**
+ * The config of a definition, checked: no config key is a cell or reserved, no cell is
+ * reserved, and a keyed cell takes no config. Returns the config, or `null` for none.
+ */
+const checked = (cells: Cells, config: object, keyed: ReadonlySet<string>): object | null => {
+  const configKeys = Object.keys(config);
+  const clash = configKeys.filter((key) => key in cells || reserved.includes(key));
+  if (clash.length) {
+    throw new Error(`remoteData: config ${clash.join(", ")} is a cell or reserved key`);
+  }
+
+  const taken = Object.keys(cells).filter((key) => reserved.includes(key));
+  if (taken.length) throw new Error(`remoteData: ${taken.join(", ")} is a reserved key`);
+  if (!configKeys.length) return null;
+  if (keyed.size) throw new Error(`remoteData: a keyed cell takes no config`);
+  return config;
+};
+
+/** A cell of the same shape with a new identity. A keyed cell keeps its key, parse and eq. */
+const remake = (shape: Data.Cell<unknown>): Data.Cell<unknown> => {
+  if (shape.mode === "single") {
+    return data({ initial: shape.initial, parse: shape.parse, eq: (a, b) => shape.eq(a, b) });
+  }
+  const spec = Object(shape).keyed as {
+    key: (member: unknown) => Data.Key;
+    parse: Data.Parse<unknown> | undefined;
+    eq: (a: unknown, b: unknown) => boolean;
+  };
+  return data({ mode: "keyed", key: spec.key, parse: spec.parse, eq: spec.eq });
+};
 
 /** One watcher: rpc's `channel.send` of one stream. */
 type Push = (value: unknown, meta?: Record<string, string>) => void;
@@ -88,6 +182,8 @@ type Def = {
   /** The parameter in the caller's own layer: every config tag's value there, or null. */
   readonly paramOf: import("./index").Resource.Handle<Param | null>;
   readonly missingOf: import("./index").Resource.Handle<string | null>;
+  /** The keys whose cell is keyed (ADR 0135): a stream per part, and an ask. */
+  readonly keyed: ReadonlySet<string>;
 };
 
 type Shape = {
@@ -137,7 +233,12 @@ const steps = resource({
     const serveStart = (def: Def, { load, next, config, run }: StartEvent) => {
       const roots = new Map(def.keys.map((key) => [key, load(def.cells[key]!, meta)] as const));
       const copies = new Map(def.keys.map((key) => [key, load(def.made[key]!, meta)] as const));
-      for (const key of def.keys) copies.get(key)!.set(roots.get(key)!.get());
+      for (const key of def.keys) {
+        const now = roots.get(key)!.get();
+        if (def.keyed.has(key)) {
+          (copies.get(key) as unknown as Keyed).adopt(now as readonly unknown[]);
+        } else copies.get(key)!.set(now);
+      }
 
       const fill = (key: string, param: Param) => {
         const op = config.fill.present ? config.fill.value[key] : undefined;
@@ -189,6 +290,42 @@ const steps = resource({
       if (param !== null && set.size > 0 && !own.held.has(at)) own.held.set(at, now);
       out.send(param === null ? now : (own.held.get(at) ?? now)); // the value now
       return ended;
+    };
+
+    /**
+     * A keyed key's stream, as rpc runs it: the reader joins its part, then the first signal asks
+     * for the part now. Join first, then signal: a write after the join signals again.
+     */
+    const watchPart = (
+      own: Served,
+      key: string,
+      ask: Ask,
+      out: { send: Push; closed: AbortSignal },
+    ) => {
+      const at = partSlot(key, ask);
+      const set = own.watchers.get(at) ?? new Map<Push, () => void>();
+      own.watchers.set(at, set);
+
+      const ended = new Promise<void>((done) => {
+        const end = () => {
+          if (set.delete(out.send) && set.size === 0) own.watchers.delete(at);
+          done();
+        };
+        set.set(out.send, end);
+        if (out.closed.aborted) end();
+        else out.closed.addEventListener("abort", end, { once: true });
+      });
+      out.send(ask);
+      return ended;
+    };
+
+    /** A keyed key's ask, as rpc runs it: the members of the part in the root's cell now. */
+    const answerPart = (own: Served, key: string, ask: Ask): readonly unknown[] => {
+      const root = own.roots.get(key) as unknown as Keyed;
+      if (ask.read === "where") return root.where(ask.part as never).get();
+
+      const member = root.of(ask.part).get();
+      return member === undefined ? [] : [member];
     };
 
     /** A store's faults now: its entry's, or the root's cell. */
@@ -303,12 +440,14 @@ const steps = resource({
     /** Starts every key's loop; resolves once each has its first value or fault. */
     const keep = (def: Def, keys: ReturnType<typeof reader>) =>
       Promise.all(
-        def.keys.map(
-          (key) =>
-            new Promise<void>((done) => {
-              void keys.loop(key, done);
-            }),
-        ),
+        def.keys
+          .filter((key) => !def.keyed.has(key))
+          .map(
+            (key) =>
+              new Promise<void>((done) => {
+                void keys.loop(key, done);
+              }),
+          ),
       );
 
     /**
@@ -363,10 +502,97 @@ const steps = resource({
       };
     };
 
+    /**
+     * A client's keyed key: the first reader of a part joins it, as a stream whose signals each
+     * ask for what they name; the last reader leaves it, and the part's members go, except those
+     * another part in use still holds (ADR 0137, 0138).
+     */
+    const readKeyed = (
+      def: Def,
+      event: StartEvent,
+      key: string,
+      mark: (k: string, e: RemoteFault | null) => void,
+    ) => {
+      const { run, clock, signal } = event;
+      const cell = event.load(def.made[key]!, meta) as unknown as Keyed;
+      const joined = new Map<string, Joined>();
+      const keep = (gone: string) => (member: Data.Key) =>
+        [...joined].some(([at, part]) => at !== gone && holds(part.ask, member));
+
+      const ask = async (part: Joined, asked: Ask) => {
+        const at = partSlot(key, asked);
+        const mine = ++part.asks;
+        try {
+          const members = (await run(
+            def.wire[`${key}.ask`] as never,
+            { input: asked } as never,
+            reading as never,
+          )) as readonly unknown[];
+          if (mine !== part.asks || part.stop.signal.aborted) return;
+          cell.answer(asked.read, asked.part, members, () => false);
+          mark(key, null);
+        } catch (error) {
+          if (part.stop.signal.aborted) return;
+          mark(
+            key,
+            def.wire.fault.is(error)
+              ? error
+              : def.wire.fault.make(at, "invalid", { side: "client" }, undefined),
+          );
+        }
+      };
+
+      const follow = async (part: Joined) => {
+        for (let wait = 50; !part.stop.signal.aborted;) {
+          try {
+            const signals = (await run(
+              def.wire[key] as never,
+              { input: part.ask } as never,
+              reading as never,
+            )) as AsyncIterable<Ask> & { stop(reason?: unknown): void };
+            part.stop.signal.addEventListener("abort", () => signals.stop(), { once: true });
+            for await (const dirty of signals) void ask(part, dirty);
+            wait = 50;
+          } catch (error) {
+            if (part.stop.signal.aborted) return;
+            mark(key, def.wire.fault.is(error) ? error : def.wire.fault.make(key, "link", {}));
+            wait = Math.min(wait * 2, 5000);
+          }
+          await clock.sleep(wait, part.stop.signal).catch(() => undefined);
+        }
+      };
+
+      cell.listen((read, part) => {
+        const asked: Ask = { read, part };
+        const at = partSlot(key, asked);
+        const made = joined.get(at) ?? {
+          refs: 0,
+          asks: 0,
+          ask: asked,
+          stop: new AbortController(),
+        };
+        if (made.refs++ === 0) {
+          joined.set(at, made);
+          signal.addEventListener("abort", () => made.stop.abort(), {
+            once: true,
+            signal: made.stop.signal,
+          });
+          void follow(made);
+        }
+        return () => {
+          if (--made.refs > 0) return;
+          made.stop.abort();
+          joined.delete(at);
+          if (!signal.aborted) cell.answer(read, part, [], keep(at));
+        };
+      });
+    };
+
     /** Read: fill every cell from the backend, then keep it fresh. */
     const readStart = async (def: Def, event: StartEvent) => {
       const { config, raise, next, load, signal } = event;
       if (!config.read.present) return raise("MissingConfig", { label: name, key: "read" });
+
       // A keyed definition reads nothing at the root: each session that names a parameter does.
       if (def.by) {
         readers.set(def, { event, entries: new Map(), root: null });
@@ -377,9 +603,12 @@ const steps = resource({
         }
         return next();
       }
+
       // A fault on the first value does not fail start: the cell keeps its initial value, and
       // `board.faults` shows the fault.
-      await keep(def, reader(def, event, { entry: null, load }, null, signal));
+      const keys = reader(def, event, { entry: null, load }, null, signal);
+      for (const key of def.keyed) readKeyed(def, event, key, keys.mark);
+      await keep(def, keys);
       return next();
     };
 
@@ -393,6 +622,8 @@ const steps = resource({
       fits,
       serveStart,
       watch,
+      watchPart,
+      answerPart,
       readStart,
       join,
       /**
@@ -436,29 +667,14 @@ export function remoteData<
   const D extends Cells,
   const P extends Readonly<Record<string, Tag.Handle<any>>> = {},
 >(cells: D, { config = {} as P }: { readonly config?: P } = {}) {
-  const configKeys = Object.keys(config);
-  const clash = configKeys.filter((key) => key in cells || reserved.includes(key));
-  if (clash.length) {
-    throw new Error(`remoteData: config ${clash.join(", ")} is a cell or reserved key`);
-  }
-
-  const by = configKeys.length > 0 ? (config as Def["by"]) : null;
-
   const keys = Object.keys(cells) as (keyof D & string)[];
-  const taken = keys.filter((key) => reserved.includes(key));
-  if (taken.length) throw new Error(`remoteData: ${taken.join(", ")} is a reserved key`);
+  const keyed = new Set(keys.filter((key) => cells[key]!.mode === "keyed"));
+  const by = checked(cells, config, keyed) as Def["by"];
+  const configKeys = Object.keys(config);
 
   const keyOf = new Map<unknown, string>(keys.map((key) => [cells[key], key]));
   /** This definition's own cells: same shape, new identity. */
-  const made = Object.fromEntries(
-    keys.map((key) => {
-      const shape = cells[key]!;
-      return [
-        key,
-        data({ initial: shape.initial, parse: shape.parse, eq: (a, b) => shape.eq(a, b) }),
-      ];
-    }),
-  ) as unknown as D;
+  const made = Object.fromEntries(keys.map((key) => [key, remake(cells[key]!)])) as unknown as D;
 
   /** The parameter on the wire: each config tag admits its own value (the tag's `parse`). */
   const param =
@@ -480,7 +696,14 @@ export function remoteData<
   // on the client, where a misfit is a fault the key shows (`invalid`), not a broken stream.
   const wire = rpc(
     Object.fromEntries(
-      keys.map((key) => [key, { mode: "stream" as const, input: param, output: z.unknown() }]),
+      keys.flatMap((key): [string, Contract][] =>
+        keyed.has(key)
+          ? [
+              [key, { mode: "stream" as const, input: askShape, output: z.unknown() }],
+              [`${key}.ask`, { mode: "reply" as const, input: askShape, output: z.unknown() }],
+            ]
+          : [[key, { mode: "stream" as const, input: param, output: z.unknown() }]],
+      ),
     ),
     { label: name },
   ) as unknown as Wire &
@@ -545,20 +768,46 @@ export function remoteData<
     by,
     paramOf,
     missingOf,
+    keyed,
   };
 
   /** Each key's stream, as rpc runs it on the server: the value now, then each write. */
   const implement = Object.fromEntries(
-    keys.map((key) => [
-      key,
-      operation({
-        label: `${name}.watch`,
-        input: param,
-        depends: { out: channel, own: state, s: steps },
-        run: ({ out, own, s }, { input }) =>
-          s.watch(def, own!, key, (input ?? null) as Param | null, out),
-      }),
-    ]),
+    keys.flatMap((key): [string, unknown][] =>
+      keyed.has(key)
+        ? [
+            [
+              key,
+              operation({
+                label: `${name}.watch`,
+                input: askShape,
+                depends: { out: channel, own: state, s: steps },
+                run: ({ out, own, s }, { input }) => s.watchPart(own!, key, input, out),
+              }),
+            ],
+            [
+              `${key}.ask`,
+              operation({
+                label: `${name}.ask`,
+                input: askShape,
+                depends: { own: state, s: steps },
+                run: ({ own, s }, { input }) => s.answerPart(own!, key, input),
+              }),
+            ],
+          ]
+        : [
+            [
+              key,
+              operation({
+                label: `${name}.watch`,
+                input: param,
+                depends: { out: channel, own: state, s: steps },
+                run: ({ out, own, s }, { input }) =>
+                  s.watch(def, own!, key, (input ?? null) as Param | null, out),
+              }),
+            ],
+          ],
+    ),
   );
 
   /** Ends every watch this root serves (a test's way to drop the links). */
@@ -572,6 +821,11 @@ export function remoteData<
     },
   });
   const rooting = new Set<unknown>();
+  /** One write to a served root controller. A keyed one adopts the list (ADR 0138). */
+  const put = (control: Scope.DataController<unknown>, key: string, value: unknown) =>
+    keyed.has(key)
+      ? (control as unknown as Keyed).adopt(value as readonly unknown[])
+      : control.set(value);
 
   // Pushes follow OTel messaging: the server runs `remoteData.send` (a producer span) per write;
   // each push carries it as `meta.traceparent`; rpc's `remoteData.receive` on the client links it.
@@ -679,16 +933,19 @@ export function remoteData<
           return;
         }
         // A request runs in a session, and a session keeps its writes (ADR 0090): the root holds
-        // the data. The outer call sends, from the writer's own owner, so the send span is in the
+        // the data. A served keyed cell lives at the root only (ADR 0138): no session keeps a
+        // copy. The outer call sends, from the writer's own owner, so the send span is in the
         // writer's trace.
         if (rooting.has(cell)) return next();
         rooting.add(cell);
         try {
-          served.roots.get(key)!.set(value);
-          served.copies.get(key)!.set(value);
+          put(served.roots.get(key)!, key, value);
+          put(served.copies.get(key)!, key, value);
         } finally {
           rooting.delete(cell);
         }
+        if (keyed.has(key)) return;
+
         const watchers = [...(served.watchers.get(key)?.keys() ?? [])];
 
         void run(publish, { input: { key, value, watchers } }, sending).catch((error) =>
@@ -714,7 +971,7 @@ export function remoteData<
   const fault = { is: (error: unknown): error is RemoteFault => wire.fault.is(error) };
   return Object.assign(install, {
     fault,
-    addresses: keys,
+    addresses: keys.flatMap((key) => (keyed.has(key) ? [key, `${key}.ask`] : [key])),
     answer: wire.answer,
     stream: wire.stream,
     ...config,

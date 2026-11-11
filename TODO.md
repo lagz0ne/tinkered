@@ -57,9 +57,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **core/keyed-ask** — keyed data k03, blocked by k01 (ADR 0137). `remoteData` serves a keyed cell: the first reader of a part joins it and asks; the server answers from its cell; the last reader leaves.
-  Verify: on the memory transport and on the WebSocket: two clients read two parts and each gets only its members; the board's guard gets the part at each ask and can refuse it; a client that connects again asks again; after the last reader leaves, the server's table of readers is empty.
-
 - **core/keyed-invalidate** — keyed data k04, blocked by k03 (ADR 0137). `invalidate(part)` on the client marks the part dirty and asks again; on the server it sends a signal with no data to each reader of the part; a set on a served cell marks that key dirty; the signal names a key or a part (ADR 0138).
   Verify: a signal for a full key makes each reader ask for one member; an answer that arrives after a later ask started is dropped; `await invalidate(part)` resolves after the fresh members are in the cell; a client that reads another part gets no signal; two keys of one part in one pass make one signal for the part.
 
@@ -122,6 +119,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **core/data-keyed** — keyed data k01, done 2026-11-11 ([track](docs/roadmap/keyed-data/PROGRESS.md)). `data({ mode: "keyed", key, parse })`, the keyed controller, `of` and `where`. Proof: 23 Core tests, scoped mutation 91.15, size cap now 21,504 B.
 
 - **react/data-keyed-read** — keyed data k02, done 2026-11-11. `useData(tasks.where(part))` and `useData(tasks.of(key))`. Proof: 3 browser tests (one panel renders per write; 1,000 keys leave no part).
+
+- **core/keyed-ask** — keyed data k03, done 2026-11-11. `remoteData` serves a keyed cell: a stream per part, an ask per part, the guard at each ask. Proof: 6 Core tests, 8 Bun tests (memory and WebSocket), size cap with rpc now 31,744 B.
 
 - **core/start-sees-stop** — ADR 0134: after a stop, a start hook's `next()` rejects, so `serve` never listens; a stop signal during start ends the start.
   Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Duke accepted 2026-11-10 08:42; released in 0.16.2.

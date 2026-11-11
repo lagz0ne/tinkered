@@ -114,6 +114,7 @@ export declare namespace Data {
   /** A keyed read with its key given at the read (ADR 0136): it names the cell and the part,
    * and makes no unit. A scope's keyed controller reads it: `controller(cell)[read](part)`. */
   export type Read<T> = {
+    readonly [edge]: true;
     readonly kind: "read";
     readonly cell: Keyed<unknown, Key>;
     readonly read: "of" | "where";
@@ -126,6 +127,12 @@ export declare namespace Data {
   export type Reader<T> = {
     get(): T;
     watch(listener: (next: T, prev: T) => void): () => void;
+  };
+
+  /** A keyed cell as a capsule exports it: its read view, and `of` and `where` (ADR 0136). */
+  export type KeyedView<V, K extends Key> = View<readonly V[]> & {
+    of(key: K): Read<V | undefined>;
+    where(part: Part<K>): Read<readonly V[]>;
   };
 
   /** A cell as a capsule exports it (`talk.point`): a read edge with no `controller` and no
@@ -578,6 +585,7 @@ export declare namespace Scope {
     | Capsule.Binding
     | Edge<"controller", Data.Cell<unknown> | Operation.Handle<unknown, unknown>>
     | Data.View<unknown>
+    | Data.Read<unknown>
     | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
   export type Depends = Readonly<Record<string, Dependency>>;
 
@@ -587,31 +595,33 @@ export declare namespace Scope {
   export type SlotValue<D> =
     D extends Data.View<infer T>
       ? Data.Reader<T>
-      : D extends Edge<"controller", infer N>
-        ? N extends Data.Keyed<infer V, infer K>
-          ? KeyedController<V, K>
-          : N extends Data.Cell<infer T>
-            ? DataController<T>
-            : N extends Operation.Handle<infer T, infer I>
-              ? OperationController<T, I>
-              : never
-        : D extends Edge<"all", Tag.Handle<infer T>>
-          ? T[]
-          : D extends Edge<"optional", Tag.Handle<infer T>>
-            ? Tag.Presence<T>
-            : D extends Edge<"required", Tag.Handle<infer T>>
-              ? T
-              : D extends Tag.Handle<infer T>
+      : D extends Data.Read<infer T>
+        ? Data.Reader<T>
+        : D extends Edge<"controller", infer N>
+          ? N extends Data.Keyed<infer V, infer K>
+            ? KeyedController<V, K>
+            : N extends Data.Cell<infer T>
+              ? DataController<T>
+              : N extends Operation.Handle<infer T, infer I>
+                ? OperationController<T, I>
+                : never
+          : D extends Edge<"all", Tag.Handle<infer T>>
+            ? T[]
+            : D extends Edge<"optional", Tag.Handle<infer T>>
+              ? Tag.Presence<T>
+              : D extends Edge<"required", Tag.Handle<infer T>>
                 ? T
-                : D extends Data.Cell<infer T>
+                : D extends Tag.Handle<infer T>
                   ? T
-                  : D extends Operation.Handle<infer T, infer I>
-                    ? OperationController<T, I>
-                    : D extends Resource.Handle<infer T>
-                      ? Awaited<T>
-                      : D extends Capsule.Binding<infer T>
-                        ? T
-                        : never;
+                  : D extends Data.Cell<infer T>
+                    ? T
+                    : D extends Operation.Handle<infer T, infer I>
+                      ? OperationController<T, I>
+                      : D extends Resource.Handle<infer T>
+                        ? Awaited<T>
+                        : D extends Capsule.Binding<infer T>
+                          ? T
+                          : never;
 
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
 
@@ -801,6 +811,8 @@ export declare namespace Scope {
     resolve<T>(cell: Data.Cell<T>, ns?: NsArg): T;
     /** A capsule's cell export reads as its reader, as a `depends` slot delivers it (ADR 0123). */
     resolve<T>(view: Data.View<T>, ns?: NsArg): Data.Reader<T>;
+    /** A keyed read (ADR 0136) reads as its reader: one member or one part of the cell. */
+    resolve<T>(read: Data.Read<T>): Data.Reader<T>;
     resolve<T>(res: Resource.Handle<T>, ns?: NsArg): ResourceValue<T>;
     resolve<T>(tag: Tag.Handle<T>, ns?: NsArg): T;
     /** A tag edge reads exactly what that `depends` slot would deliver (ADR 0020/0036): `.all` →
@@ -1032,7 +1044,11 @@ export declare namespace Capsule {
 
   /** The exports as others read them: a cell shows as its read view (`Data.View`). */
   export type Shown<E> = {
-    readonly [K in keyof E]: E[K] extends Data.Cell<infer V> ? Data.View<V> : E[K];
+    readonly [K in keyof E]: E[K] extends Data.Keyed<infer V, infer Q>
+      ? Data.KeyedView<V, Q>
+      : E[K] extends Data.Cell<infer V>
+        ? Data.View<V>
+        : E[K];
   };
 
   /** A capsule's call arguments: optional only when no key is required. */
@@ -2026,7 +2042,9 @@ function dataController<T>(
         : addWatcherNs(layer, target, chain, listener as Watcher["fn"]),
   };
   const keyed = (target as Partial<KeyedField>).keyed;
-  return keyed === undefined ? control : (keyed.control(control) as Scope.DataController<T>);
+  return keyed === undefined
+    ? control
+    : (keyed.control(control, rootOf(layer)) as Scope.DataController<T>);
 }
 
 function addWatcherNs(
@@ -2096,20 +2114,14 @@ function resolveEdge(
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
-  if (dep.kind === "controller") {
-    const placement = (dep as { placement?: "scope" | "namespace" }).placement;
-    if (placement === undefined) return resolveControllerEdge(layer, dep.target, up, chain, caller);
-    // scope: the root's own bucket, as a scope-target resource; namespace: the root, keyed by
-    // the caller's namespace chain, as a namespace-target resource.
-    return resolveControllerEdge(
-      rootOf(layer),
-      dep.target,
-      up,
-      placement === "scope" ? NO_NAMESPACE : chain,
-    );
-  }
+  if (dep.kind === "controller") return resolvePlaced(layer, dep, up, chain, caller);
   if (dep.kind === "reader") {
     return readerOf(layer, Capsules.cellOf(Capsules.check(layer, dep)), chain);
+  }
+  if (dep.kind === "read") {
+    const read = dep as unknown as Data.Read<unknown>;
+    const control = resolveControllerEdge(layer, read.cell, up, chain);
+    return KeyedControl.readerOf(control as Scope.KeyedController<unknown, Data.Key>, read);
   }
 
   const target = dep.target as Tag.Handle<unknown>;
@@ -4935,6 +4947,8 @@ class ScopeHandle implements Scope.Handle {
   /** Read what a capsule's `start` returned (ADR 0050): available once that capsule's start
    * settled (`NotResolved` before, or when the capsule is not installed on this scope). */
   resolve<T>(ext: Capsule.Binding<T>): T;
+  /** A keyed read (ADR 0136) reads as its reader: one member or one part of the cell. */
+  resolve<T>(read: Data.Read<T>): Data.Reader<T>;
   resolve(
     target:
       | Data.Cell<unknown>
@@ -4942,6 +4956,7 @@ class ScopeHandle implements Scope.Handle {
       | Tag.Handle<unknown>
       | Edge<string, Tag.Handle<unknown>>
       | Data.View<unknown>
+      | Data.Read<unknown>
       | Capsule.Binding,
     ns?: Scope.NsArg,
   ): unknown {
@@ -7548,6 +7563,10 @@ class Capsules {
   /** A cell's read view: a read edge others depend on, marked with its capsule. */
   static view(handle: Capsule.Binding, unit: Data.Cell<unknown>): Data.View<unknown> {
     const view = { [edge]: true as const, kind: "reader" as const, label: unit.label };
+    if (unit.mode === "keyed") {
+      const keyed = unit as Data.Keyed<unknown, Data.Key>;
+      Object.assign(view, { of: keyed.of, where: keyed.where });
+    }
     (view as Exported).capsule = handle;
     Capsules.cells.set(view, unit);
     return view;
@@ -7849,7 +7868,13 @@ type KeyedRead = {
   readonly reader: Data.Reader<unknown>;
   readonly watchers: Set<Watcher>;
   prev: unknown;
+  /** What the root's listener gave back for this part: the call that leaves it. */
+  leave: (() => void) | undefined;
 };
+
+/** Told when a part gets its first reader on a root, or on a session under it; it gives back
+ * the call that leaves the part. remoteData asks the server for the part here (ADR 0137). */
+type KeyedListener = (read: "of" | "where", part: Data.Key) => () => void;
 
 /** A keyed cell's rules (ADR 0135, 0138): how a member is admitted, how a key is written as
  * text, and the index each value of the cell carries. The value of the cell stays a plain list
@@ -7890,11 +7915,33 @@ class KeyedSpec {
   };
 
   read(cell: object, read: "of" | "where", part: Data.Key): Data.Read<unknown> {
-    return { kind: "read", cell: cell as Data.Keyed<unknown, Data.Key>, read, part };
+    return { [edge]: true, kind: "read", cell: cell as Data.Keyed<unknown, Data.Key>, read, part };
   }
 
-  control(inner: Scope.DataController<unknown>): unknown {
-    return new KeyedControl(this, inner);
+  /** Each root's listener, by its root layer: a cell is shared by every scope that uses it. */
+  readonly listeners = new WeakMap<object, KeyedListener>();
+
+  control(inner: Scope.DataController<unknown>, root: object): unknown {
+    return new KeyedControl(this, inner, root);
+  }
+
+  /** Members from the wire, each through `parse` and then `key` (ADR 0138), by key text. */
+  slotsOf(members: readonly unknown[]): Map<string, KeyedSlot> {
+    const slots = new Map<string, KeyedSlot>();
+    for (const raw of members) {
+      const member = admit(this.label, this.parse, raw);
+      const key = this.key(member);
+      slots.set(this.text(key), { key, member });
+    }
+    return slots;
+  }
+
+  /** Whether a member's key is in a part: the `of` key's own text, or each `where` field equal. */
+  holds(slot: KeyedSlot, text: string, read: "of" | "where", part: Data.Key): boolean {
+    if (read === "of") return this.text(slot.key) === text;
+
+    const key = slot.key as Record<string, unknown>;
+    return Object.keys(part).every((f) => key[f] === (part as Record<string, unknown>)[f]);
   }
 
   /** A key or a part as text: fields sorted, then JSON, as TanStack Query does. */
@@ -7942,15 +7989,26 @@ class KeyedSpec {
  * counted per controller: the first watcher of a part joins it, the last one leaves it, and the
  * plain watch below ends with the last part (ADR 0136). */
 class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
+  /** The reader a keyed read names, from the keyed controller of its cell. */
+  static readerOf(
+    control: Scope.KeyedController<unknown, Data.Key>,
+    read: Data.Read<unknown>,
+  ): Data.Reader<unknown> {
+    return read.read === "of" ? control.of(read.part) : control.where(read.part as never);
+  }
+
   private spec: KeyedSpec;
   private inner: Scope.DataController<unknown>;
   private parts: Map<string, KeyedRead> | undefined;
   private stop: (() => void) | undefined;
   /** The id of the value the parts last saw. */
   private seen: number;
-  constructor(spec: KeyedSpec, inner: Scope.DataController<unknown>) {
+  private root: object;
+  constructor(spec: KeyedSpec, inner: Scope.DataController<unknown>, root: object) {
     this.spec = spec;
     this.inner = inner;
+    this.root = root;
+
     this.parts = undefined;
     this.stop = undefined;
     this.seen = 0;
@@ -7997,31 +8055,65 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
 
   of(key: Data.Key): Data.Reader<unknown> {
     const text = this.spec.text(key);
-    return this.reader(
-      `o${text}`,
-      false,
-      (value) => this.spec.indexOf(value).slots.get(text)?.member,
-    );
+    return this.reader("of", key, (value) => this.spec.indexOf(value).slots.get(text)?.member);
   }
 
   where(part: Data.Part<Data.Key>): Data.Reader<readonly unknown[]> {
-    const text = `w${this.spec.text(part as Data.Key)}`;
-    const fields = Object.keys(part);
-    return this.reader(text, true, (value) => {
+    const key = part as Data.Key;
+    const text = `w${this.spec.text(key)}`;
+    return this.reader("where", key, (value) => {
       const index = this.spec.indexOf(value);
       const kept = index.where?.get(text);
       if (kept !== undefined) return kept;
 
       const found: unknown[] = [];
       for (const slot of index.slots.values()) {
-        const key = slot.key as Record<string, unknown>;
-        if (fields.every((f) => key[f] === (part as Record<string, unknown>)[f])) {
-          found.push(slot.member);
-        }
+        if (this.spec.holds(slot, text, "where", key)) found.push(slot.member);
       }
       (index.where ??= new Map()).set(text, found);
       return found;
     }) as Data.Reader<readonly unknown[]>;
+  }
+
+  /** remoteData's: be told of each part that gets its first reader on this controller's root. */
+  listen(listener: KeyedListener): void {
+    this.spec.listeners.set(this.root, listener);
+  }
+
+  /** remoteData's: one write that makes a part hold `members`, as the server answered (ADR
+   * 0137). A member of the part that is not in the answer goes, unless `keep` says another part
+   * in use still holds its key. A member that is still there keeps its place, and its identity
+   * when `eq` finds it equal. Each member runs the cell's `parse`. */
+  answer(
+    read: "of" | "where",
+    part: Data.Key,
+    members: readonly unknown[],
+    keep: (key: Data.Key) => boolean,
+  ): void {
+    const index = this.spec.indexOf(this.get());
+    const slots = new Map(index.slots);
+    const text = this.spec.text(part);
+    const given = this.spec.slotsOf(members);
+
+    for (const [at, slot] of index.slots) {
+      if (given.has(at) || !this.spec.holds(slot, text, read, part) || keep(slot.key)) continue;
+      slots.delete(at);
+    }
+    for (const [at, slot] of given) {
+      const old = slots.get(at);
+      if (old === undefined || !this.spec.eq(old.member, slot.member)) slots.set(at, slot);
+    }
+    this.inner.set(this.spec.store(slots, 0, undefined));
+  }
+
+  /** remoteData's: write a value made under another layer as this controller's own (a request
+   * session's write goes to the root, ADR 0138). Gives the key that one write changed, or
+   * undefined when the value is not one write past this controller's value. */
+  adopt(value: readonly unknown[]): Data.Key | undefined {
+    const index = this.spec.indexOf(value);
+    const step = index.base === this.spec.indexOf(this.get()).id;
+    this.inner.set(value);
+    return step ? index.changed : undefined;
   }
 
   private put(text: string, key: Data.Key, member: unknown): void {
@@ -8037,23 +8129,25 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
   /** A part in use hands back the reader that joined it, so a reader is as stable as its part:
    * a hook that reads the same part at each render gets the same reader. */
   private reader(
-    text: string,
-    many: boolean,
+    read: "of" | "where",
+    part: Data.Key,
     at: (value: readonly unknown[]) => unknown,
   ): Data.Reader<unknown> {
+    const text = `${read === "of" ? "o" : "w"}${this.spec.text(part)}`;
     const joined = this.parts?.get(text);
     if (joined !== undefined) return joined.reader;
 
     const reader: Data.Reader<unknown> = {
       get: () => at(this.get()),
-      watch: (fn) => this.join(text, many, at, fn, reader),
+      watch: (fn) => this.join(read, part, text, at, fn, reader),
     };
     return reader;
   }
 
   private join(
+    read: "of" | "where",
+    part: Data.Key,
     text: string,
-    many: boolean,
     at: (value: readonly unknown[]) => unknown,
     fn: (next: unknown, prev: unknown) => void,
     reader: Data.Reader<unknown>,
@@ -8061,8 +8155,10 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     const parts = (this.parts ??= new Map());
     let entry = parts.get(text);
     if (entry === undefined) {
-      entry = { at, many, reader, watchers: new Set(), prev: at(this.get()) };
+      const prev = at(this.get());
+      entry = { at, many: read === "where", reader, watchers: new Set(), prev, leave: undefined };
       parts.set(text, entry);
+      entry.leave = this.spec.listeners.get(this.root)?.(read, part);
     }
 
     const watcher: Watcher = { fn };
@@ -8076,6 +8172,8 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     return () => {
       if (!joined.watchers.delete(watcher) || joined.watchers.size !== 0) return;
       parts.delete(text);
+      joined.leave?.();
+
       if (parts.size !== 0) return;
       this.stop?.();
       this.stop = undefined;
@@ -8162,4 +8260,24 @@ function createCell(
     atScope: placed("scope"),
     atNamespace: placed("namespace"),
   });
+}
+
+/** A controller edge, at its placement: none, the root's own bucket, or the root by namespace. */
+function resolvePlaced(
+  layer: Layer,
+  dep: Edge<string, unknown>,
+  up: SpanImpl | undefined,
+  chain: readonly Namespace[] | undefined,
+  caller?: RunState,
+): unknown {
+  const placement = (dep as { placement?: "scope" | "namespace" }).placement;
+  if (placement === undefined) return resolveControllerEdge(layer, dep.target, up, chain, caller);
+  // scope: the root's own bucket, as a scope-target resource; namespace: the root, keyed by
+  // the caller's namespace chain, as a namespace-target resource.
+  return resolveControllerEdge(
+    rootOf(layer),
+    dep.target,
+    up,
+    placement === "scope" ? NO_NAMESPACE : chain,
+  );
 }

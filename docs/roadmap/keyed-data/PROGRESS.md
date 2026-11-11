@@ -201,3 +201,57 @@ Writer and lead: Claude Opus 5.5, in one session.
   first key renders nothing, and its reader is gone.
 - React's mutation lane runs no tests (known, card in
   `TODO.md`), so it has no number here.
+
+## k03 a client asks for a part
+
+### Shape
+
+- A keyed key has two rpc addresses. The stream
+  `tasks` joins a part. The reply `tasks.ask` gives
+  the members of a part now.
+- The first reader of a part joins it. The server's
+  first signal is the part itself, so the client
+  asks at once.
+- The guard (`onStart`) runs at the join and at each
+  ask. Its input is `{ read, part }`.
+- The last reader leaves. The stream ends, and the
+  client drops the part's members. A member that
+  another part in use holds stays.
+- A link that drops: the stream starts again, and
+  its first signal asks again.
+- One ask at a time wins per part: an answer is
+  dropped when a later ask started.
+
+### One reading to note
+
+The card said "a served keyed cell in a session
+layer is refused". ADR 0138 says it lives at the
+root only. A request runs in a session, so a
+refusal would refuse every request that writes.
+The build reads it as: a session's write goes to
+the root, and no session keeps a copy. The test
+"a write from a request session lands at the root"
+shows it.
+
+### Proof
+
+- `packages/core/tests/remote-data-keyed-cell.test.ts`:
+  6 tests on the memory transport.
+- `packages/bun/tests/remote-data-keyed-cell.test.ts`:
+  4 cases, each on memory and on the WebSocket.
+- The server's table of readers is empty after the
+  last reader: the `onFinish` hook sees the stream
+  end.
+- Core: 1,243 tests pass. Bun: 109 pass.
+- Mutation on the new lines alone (scoped Stryker,
+  Core tests only): 65.14 (240 killed, 86 survived,
+  25 with no test). Too low. The gaps: a bad ask
+  from the wire, an ask `of` one key alone, the
+  backoff of a link. k04 rewrites the ask, so its
+  tests close these, and k04 measures again.
+
+### Size
+
+- Core without rpc: 20,970 B (cap 21,504 B).
+- Core with rpc: 30,966 B. The old cap was
+  30,720 B. It is now 31,744 B (+1 KiB).
