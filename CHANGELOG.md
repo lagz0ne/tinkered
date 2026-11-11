@@ -37,9 +37,10 @@ The three URLs:
   messaging).
 - A pass from `invalidate` sends under that call:
   the send is in the writer's trace.
-- A pass from a set on the cell sends from a root
-  span. A write hook does not see its writer's
-  span; the single-cell push is the same.
+- A pass from a set on the cell sends in the
+  request's trace, with no parent span: a write
+  hook does not see its writer's span. The
+  single-cell push is the same.
 
 ### Upgrade
 

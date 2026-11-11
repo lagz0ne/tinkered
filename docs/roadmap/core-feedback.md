@@ -1038,11 +1038,12 @@ State: built in 0.17.3. The pass sends `remoteData.send`; the reader's ask runs 
 
 Found while building the keyed trace (0.17.3). First asker: the issue board draft.
 A capsule's `write` hook gets no run: `obs.span` is empty there.
-So a send from a set on a served cell starts a new trace.
-The single-cell push is the same.
-A pass from `invalidate` is in the writer's trace: `invalidate` is an op.
-Ask: the write event carries the writing run's span.
-State: open; a Core change to the write event, for Duke.
+So the send from a set on a served cell has no parent span.
+In a request it joins the request's trace (tinker-app 47c8e8f: one trace, live).
+A set on a root with no trace starts a new one. The single-cell push is the same.
+A pass from `invalidate` is a child of that call: `invalidate` is an op.
+Ask: the write event carries the writing run's span, so the send nests under it.
+State: open, small (the trace already joins); a Core change, for Duke.
 
 ## Hedl's Inbox board on keyed data — 2026-11-11
 
