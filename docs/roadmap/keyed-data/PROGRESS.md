@@ -122,3 +122,47 @@ reads the newest 50 tasks. Decide it before k07.
   (ADR 0135, Consequences).
   Verify: no caller in `tinker-app` or Hedl; Core's tests
   and mutation floor hold.
+
+## k01 keyed cell on one scope
+
+Owner: thread "Build keyed data in Core".
+Writer and lead: Claude Opus 5.5, in one session.
+
+### Impact before code
+
+- `data` gets a second overload: `mode: "keyed"`.
+  The old call shape keeps its type. No caller changes.
+- `Data.Cell` gets `mode: "single" | "keyed"`.
+  Only `data()` makes a cell, so no caller builds one.
+- `scope.controller`, `Starting.controller` and the
+  `depends` slot type learn `Data.Keyed`. A plain cell
+  still maps to `DataController`.
+- React, remoteData, tinker-app and Hedl read
+  `Data.Cell` only. A keyed cell is a `Data.Cell` of a
+  list, so each reads it as all members.
+- New errors: `MissingMember`, `KeyChanged`,
+  `InvalidKey`. No old path raises them.
+
+### Shape
+
+- The value of a keyed cell is a plain list of members.
+  Every single-cell path carries it as is: layers,
+  namespaces, presets, write hooks, capsule views.
+- Core keeps an index per value (a `WeakMap`): the
+  members by key text, and the one key that the last
+  write changed.
+- The keyed controller wraps the plain controller of
+  the cell. A write is one plain `set` of a new list.
+- A reader from `of` or `where` joins its part on its
+  first watcher and leaves it on its last. The plain
+  watch under them ends with the last part.
+- A write that one step made from the last value
+  visits the 2^d parts of its key. Any other change
+  (a preset, a value of a layer) visits each part.
+
+### Size
+
+The cap is 20,480 B gzip for Core without rpc.
+Main `6d11994`: 19,350 B. With k01: 20,460 B.
+The private-field list was written again
+(`vp run core#fields`).

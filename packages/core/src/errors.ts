@@ -22,6 +22,13 @@ type Payloads = {
   ReservedExport: { label: string; key: string };
   /** A scope touched an exported unit whose capsule it does not install (ADR 0121). */
   CapsuleMissing: { unit: string; capsule: string };
+  /** A keyed cell's `update` named a key that holds no member (ADR 0138). `key` is the key as
+   * text. */
+  MissingMember: { label: string; key: string };
+  /** A keyed cell's `update` gave a member under another key (ADR 0138). */
+  KeyChanged: { label: string; key: string; next: string };
+  /** A key's field holds a number that is not finite (ADR 0138): JSON writes it as `null`. */
+  InvalidKey: { label: string; field: string };
 };
 
 export declare namespace Errors {

@@ -22,6 +22,9 @@ declare const unfilled: unique symbol;
 /** The type-only key a read view carries its value type under. */
 declare const viewOf: unique symbol;
 
+/** The type-only key a keyed cell carries its key type under. */
+declare const keyOf: unique symbol;
+
 /** A declared dependency edge: a mode (`controller`, `required`, `optional`, `all`) onto a target. */
 export type Edge<K extends string, Target> = {
   readonly [edge]: true;
@@ -69,6 +72,8 @@ export declare namespace Data {
     readonly tags: readonly Tag.Binding<unknown>[];
     readonly [cell]: true;
     readonly label: string;
+    /** `"single"` holds one value; `"keyed"` holds members under keys (ADR 0135). */
+    readonly mode: "single" | "keyed";
     readonly initial: T;
     readonly parse: Parse<T> | undefined;
     eq(a: T, b: T): boolean;
@@ -79,6 +84,27 @@ export declare namespace Data {
      * namespace. The caller's own layer is plain `controller`. The cell declares no owner. */
     readonly atScope: { readonly controller: Edge<"controller", Cell<T>> };
     readonly atNamespace: { readonly controller: Edge<"controller", Cell<T>> };
+  };
+
+  /** A key (ADR 0135, 0138): a string, or a flat object of strings and finite numbers. Core
+   * sorts an object's fields before it writes the key as text, so the order of the fields
+   * names no new member. `1` and `"1"` are two keys. */
+  export type Key = string | { readonly [field: string]: string | number };
+
+  /** What `where` names: some fields of an object key, each with an equal value (ADR 0136). A
+   * string key has no fields, so it has no part. */
+  export type Part<K extends Key> = K extends string ? never : { readonly [F in keyof K]?: K[F] };
+
+  /** A cell that holds members (ADR 0135). Each member is under the key that `key` reads from it
+   * (ADR 0138). The cell's value is all members, in the order they came; `parse` and `eq` are
+   * for one member. */
+  export type Keyed<V, K extends Key> = Cell<readonly V[]> & {
+    readonly mode: "keyed";
+    readonly controller: Edge<"controller", Keyed<V, K>>;
+    readonly atScope: { readonly controller: Edge<"controller", Keyed<V, K>> };
+    readonly atNamespace: { readonly controller: Edge<"controller", Keyed<V, K>> };
+    /** Type-only: the key type. */
+    readonly [keyOf]?: K;
   };
 
   /** What a read edge hands a unit: the value and its changes, never a write. */
@@ -363,6 +389,21 @@ export declare namespace Scope {
     watch(listener: (next: T, prev: T) => void): () => void;
   };
 
+  /** A keyed cell's handle (ADR 0135, 0138). `set` takes a member and reads its key from it;
+   * `update` and `delete` take a key. `get` and `watch` read all members. A reader from `of` or
+   * `where` reads one member or one part, and its watcher wakes only for a change there. An
+   * `update` of a key that is not there raises `MissingMember`; an `update` whose result has
+   * another key raises `KeyChanged`; a key with a number that is not finite raises `InvalidKey`. */
+  export type KeyedController<V, K extends Data.Key> = {
+    get(): readonly V[];
+    watch(listener: (next: readonly V[], prev: readonly V[]) => void): () => void;
+    set(member: V): void;
+    update(key: K, fn: (previous: V) => V): void;
+    delete(key: K): void;
+    of(key: K): Data.Reader<V | undefined>;
+    where(part: Data.Part<K>): Data.Reader<readonly V[]>;
+  };
+
   /** How a subflow call is supplied (ADR 0022, 0038): a pre-typed `input` (parse skipped), or a
    * raw `rawInput` (run through the operation's parse), plus per-call ambient tag bindings and
    * per-call namespace (ADR 0059). A call carrying `tags` or `signal` opens a child session for that run
@@ -532,11 +573,13 @@ export declare namespace Scope {
     D extends Data.View<infer T>
       ? Data.Reader<T>
       : D extends Edge<"controller", infer N>
-        ? N extends Data.Cell<infer T>
-          ? DataController<T>
-          : N extends Operation.Handle<infer T, infer I>
-            ? OperationController<T, I>
-            : never
+        ? N extends Data.Keyed<infer V, infer K>
+          ? KeyedController<V, K>
+          : N extends Data.Cell<infer T>
+            ? DataController<T>
+            : N extends Operation.Handle<infer T, infer I>
+              ? OperationController<T, I>
+              : never
         : D extends Edge<"all", Tag.Handle<infer T>>
           ? T[]
           : D extends Edge<"optional", Tag.Handle<infer T>>
@@ -641,6 +684,7 @@ export declare namespace Scope {
     Handle,
     "run" | "settle" | "controller" | "createSession" | "ready"
   > & {
+    controller<V, K extends Data.Key>(target: Data.Keyed<V, K>, ns?: NsArg): KeyedController<V, K>;
     controller<T>(target: Data.Cell<T>, ns?: NsArg): DataController<T>;
     controller<T>(target: Resource.Handle<T>, ns?: NsArg): ResourceController<T>;
     controller<T, I>(target: Operation.Handle<T, I>, ns?: NsArg): StartingController<T, I>;
@@ -730,6 +774,7 @@ export declare namespace Scope {
   export type Handle = {
     /** Give back control: a handle that delays and steers — data `get/set/update/watch`,
      * resource `resolve/get`, operation `run(call)`. */
+    controller<V, K extends Data.Key>(target: Data.Keyed<V, K>, ns?: NsArg): KeyedController<V, K>;
     controller<T>(target: Data.Cell<T>, ns?: NsArg): DataController<T>;
     controller<T>(target: Resource.Handle<T>, ns?: NsArg): ResourceController<T>;
     controller<T, I>(target: Operation.Handle<T, I>, ns?: NsArg): OperationController<T, I>;
@@ -1135,25 +1180,54 @@ export function readMany<T>(
   return out.length === 0 ? NO_ITEMS : out;
 }
 
+/** Declare a keyed cell (ADR 0135, 0138): it starts empty and holds members, each under the key
+ * `key` reads from it. `parse` and `eq` are for one member. */
+export function data<V, K extends Data.Key>(config: {
+  label?: string;
+  mode: "keyed";
+  key: (member: V) => K;
+  parse?: Data.Parse<V>;
+  eq?: (a: V, b: V) => boolean;
+  tags?: Tag.Bindings;
+  initial?: never;
+}): Data.Keyed<V, K>;
+
 /** Declare a reactive value cell. `parse` validates the initial value once. */
 export function data<T>(config: {
   label?: string;
+  mode?: "single";
   initial: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
   tags?: Tag.Bindings;
-}): Data.Cell<T> {
+}): Data.Cell<T>;
+
+export function data(config: {
+  label?: string;
+  mode?: "single" | "keyed";
+  key?: (member: unknown) => Data.Key;
+  initial?: unknown;
+  parse?: Data.Parse<unknown>;
+  eq?: (a: unknown, b: unknown) => boolean;
+  tags?: Tag.Bindings;
+}): Data.Cell<unknown> {
   const label = config.label ?? "anon";
+  const keyed =
+    config.key === undefined
+      ? undefined
+      : new KeyedSpec(label, config.key, config.parse, config.eq);
   const base = {
     [cell]: true,
     label,
+    mode: keyed === undefined ? "single" : "keyed",
     tags: readMany(config.tags),
-    initial: admit(label, config.parse, config.initial),
-    parse: config.parse,
-    eq: config.eq ?? Object.is,
+    initial: keyed === undefined ? admit(label, config.parse, config.initial) : keyed.empty,
+    parse: keyed === undefined ? config.parse : keyed.admitAll,
+    eq: keyed === undefined ? (config.eq ?? Object.is) : Object.is,
+    keyed,
     capsule: undefined,
     passed: undefined,
-  } as Data.Cell<T> & Exported;
+  } as Data.Cell<unknown> & Exported & KeyedField;
   const placed = (placement: "scope" | "namespace") => ({
     controller: Object.assign(edgeTo("controller", base), { placement }),
   });
@@ -1941,7 +2015,7 @@ function dataController<T>(
     if (entry === undefined) return readCell(layer, target, chain) as T;
     return entry.value as T;
   };
-  return {
+  const control = {
     get,
     set: (value: T) => writeWithHooks(layer, target, value, chain),
     update: (fn: (previous: T) => T) => {
@@ -1953,6 +2027,8 @@ function dataController<T>(
         ? addWatcher(layer, target, rec ?? nodeState(layer, target), listener as Watcher["fn"])
         : addWatcherNs(layer, target, chain, listener as Watcher["fn"]),
   };
+  const keyed = (target as Partial<KeyedField>).keyed;
+  return keyed === undefined ? control : (keyed.control(control) as Scope.DataController<T>);
 }
 
 function addWatcherNs(
@@ -4823,6 +4899,10 @@ class ScopeHandle implements Scope.Handle {
     s.controller = ctl;
     return ctl;
   }
+  controller<V, K extends Data.Key>(
+    target: Data.Keyed<V, K>,
+    ns?: Scope.NsArg,
+  ): Scope.KeyedController<V, K>;
   controller<T>(target: Data.Cell<T>, ns?: Scope.NsArg): Scope.DataController<T>;
   controller<T>(target: Resource.Handle<T>, ns?: Scope.NsArg): Scope.ResourceController<T>;
   controller<T, I>(
@@ -7741,4 +7821,274 @@ function bindList(
   const items = value as readonly unknown[];
   for (const item of items) (out ??= []).push(tag(item));
   return out;
+}
+
+/** Where a cell keeps its keyed rules: `undefined` on a single cell. Off the public type, so only
+ * Core reads it. */
+type KeyedField = { readonly keyed: KeyedSpec | undefined };
+
+/** One member under its key, kept so a read by part needs no call of `key`. */
+type KeyedSlot = { readonly key: Data.Key; readonly member: unknown };
+
+/** What Core knows of one value of a keyed cell. `base` and `changed` say that one write made
+ * this value from the value with id `base`, at key `changed`; a watcher then visits only the
+ * parts of that key. `base` is an id, not the value, so a value never holds its past alive.
+ * `where` keeps each part's answer: a value never changes, so neither does its answer, and a
+ * reader gets the same list until its part changes. */
+type KeyedIndex = {
+  readonly id: number;
+  readonly base: number;
+  readonly changed: Data.Key | undefined;
+  readonly slots: Map<string, KeyedSlot>;
+  where: Map<string, readonly unknown[]> | undefined;
+};
+
+/** One part in use under a keyed controller: how it reads a value, its watchers, and the answer
+ * they last saw. */
+type KeyedRead = {
+  readonly at: (value: readonly unknown[]) => unknown;
+  readonly many: boolean;
+  readonly watchers: Set<Watcher>;
+  prev: unknown;
+};
+
+/** A keyed cell's rules (ADR 0135, 0138): how a member is admitted, how a key is written as
+ * text, and the index each value of the cell carries. The value of the cell stays a plain list
+ * of members, so every single-cell path (layers, namespaces, presets, hooks) carries it as is. */
+class KeyedSpec {
+  static readonly indexes = new WeakMap<object, KeyedIndex>();
+  static last = 0;
+  readonly label: string;
+  readonly key: (member: unknown) => Data.Key;
+  readonly parse: Data.Parse<unknown> | undefined;
+  readonly eq: (a: unknown, b: unknown) => boolean;
+  readonly empty: readonly unknown[];
+  constructor(
+    label: string,
+    key: (member: unknown) => Data.Key,
+    parser: Data.Parse<unknown> | undefined,
+    eq: ((a: unknown, b: unknown) => boolean) | undefined,
+  ) {
+    this.label = label;
+    this.key = key;
+    this.parse = parser;
+    this.eq = eq ?? Object.is;
+    this.empty = this.store(new Map(), 0, undefined);
+  }
+
+  /** The cell's own `parse`: a list that is not a value of this cell is read member by member.
+   * `admit` wraps a throw here as `DataValidationFailed`. */
+  readonly admitAll = (raw: unknown): readonly unknown[] => {
+    if (KeyedSpec.indexes.has(raw as object)) return raw as readonly unknown[];
+
+    const slots = new Map<string, KeyedSlot>();
+    for (const item of raw as readonly unknown[]) {
+      const member = this.parse === undefined ? item : parse(this.parse, item);
+      const key = this.key(member);
+      slots.set(this.text(key), { key, member });
+    }
+    return this.store(slots, 0, undefined);
+  };
+
+  control(inner: Scope.DataController<unknown>): unknown {
+    return new KeyedControl(this, inner);
+  }
+
+  /** A key or a part as text: fields sorted, then JSON, as TanStack Query does. */
+  text(key: Data.Key): string {
+    if (typeof key === "string") return JSON.stringify(key);
+
+    const fields = Object.keys(key).sort();
+    for (const field of fields) {
+      if (!Number.isFinite(key[field]) && typeof key[field] === "number") {
+        raise("InvalidKey", { label: this.label, field });
+      }
+    }
+    return JSON.stringify(fields.map((field) => [field, key[field]]));
+  }
+
+  /** The read texts a write at `key` can change: the key's own `of`, and a `where` for each
+   * subset of its fields, 2^d in all. */
+  textsOf(key: Data.Key): string[] {
+    const texts = [`o${this.text(key)}`];
+    if (typeof key === "string") return texts;
+
+    const fields = Object.keys(key).sort();
+    for (let mask = 0; mask < 1 << fields.length; mask++) {
+      const pairs = fields.filter((_, at) => (mask >> at) & 1).map((f) => [f, key[f]]);
+      texts.push(`w${JSON.stringify(pairs)}`);
+    }
+    return texts;
+  }
+
+  indexOf(value: readonly unknown[]): KeyedIndex {
+    return KeyedSpec.indexes.get(value) as KeyedIndex;
+  }
+
+  /** A new value from its slots. Copies the list: the cost of a write is one pass over the
+   * members (ADR 0135, Consequences). */
+  store(slots: Map<string, KeyedSlot>, base: number, changed: Data.Key | undefined): unknown[] {
+    const value = Array.from(slots.values(), (slot) => slot.member);
+    KeyedSpec.indexes.set(value, { id: ++KeyedSpec.last, base, changed, slots, where: undefined });
+    return value;
+  }
+}
+
+/** A keyed cell's controller: the writes by key, and readers by key or part. It writes through
+ * the cell's plain controller, so a write follows every rule of a single cell. Parts in use are
+ * counted per controller: the first watcher of a part joins it, the last one leaves it, and the
+ * plain watch below ends with the last part (ADR 0136). */
+class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
+  private spec: KeyedSpec;
+  private inner: Scope.DataController<unknown>;
+  private parts: Map<string, KeyedRead> | undefined;
+  private stop: (() => void) | undefined;
+  constructor(spec: KeyedSpec, inner: Scope.DataController<unknown>) {
+    this.spec = spec;
+    this.inner = inner;
+    this.parts = undefined;
+    this.stop = undefined;
+  }
+
+  get(): readonly unknown[] {
+    return this.inner.get() as readonly unknown[];
+  }
+
+  watch(listener: (next: readonly unknown[], prev: readonly unknown[]) => void): () => void {
+    return this.inner.watch(listener as Watcher["fn"]);
+  }
+
+  set(member: unknown): void {
+    const next = admit(this.spec.label, this.spec.parse, member);
+    const key = this.spec.key(next);
+    this.put(this.spec.text(key), key, next);
+  }
+
+  update(key: Data.Key, fn: (previous: unknown) => unknown): void {
+    const text = this.spec.text(key);
+    const slot = this.spec.indexOf(this.get()).slots.get(text);
+    if (slot === undefined) raise("MissingMember", { label: this.spec.label, key: text });
+
+    const next = admit(this.spec.label, this.spec.parse, fn(slot.member));
+    const nextKey = this.spec.key(next);
+    const nextText = this.spec.text(nextKey);
+    if (nextText !== text) {
+      raise("KeyChanged", { label: this.spec.label, key: text, next: nextText });
+    }
+
+    this.put(text, nextKey, next);
+  }
+
+  delete(key: Data.Key): void {
+    const text = this.spec.text(key);
+    if (this.spec.indexOf(this.get()).slots.has(text)) this.put(text, key, undefined);
+  }
+
+  of(key: Data.Key): Data.Reader<unknown> {
+    const text = this.spec.text(key);
+    return this.reader(
+      `o${text}`,
+      false,
+      (value) => this.spec.indexOf(value).slots.get(text)?.member,
+    );
+  }
+
+  where(part: Data.Part<Data.Key>): Data.Reader<readonly unknown[]> {
+    const text = `w${this.spec.text(part as Data.Key)}`;
+    const fields = Object.keys(part);
+    return this.reader(text, true, (value) => {
+      const index = this.spec.indexOf(value);
+      const kept = index.where?.get(text);
+      if (kept !== undefined) return kept;
+
+      const found: unknown[] = [];
+      for (const slot of index.slots.values()) {
+        const key = slot.key as Record<string, unknown>;
+        if (fields.every((f) => key[f] === (part as Record<string, unknown>)[f])) {
+          found.push(slot.member);
+        }
+      }
+      (index.where ??= new Map()).set(text, found);
+      return found;
+    }) as Data.Reader<readonly unknown[]>;
+  }
+
+  /** Writes `member` at `text`, or deletes it when `member` is undefined. */
+  private put(text: string, key: Data.Key, member: unknown): void {
+    const index = this.spec.indexOf(this.get());
+    const old = index.slots.get(text);
+    if (old !== undefined && member !== undefined && this.spec.eq(old.member, member)) return;
+
+    const slots = new Map(index.slots);
+    if (member === undefined) slots.delete(text);
+    else slots.set(text, { key, member });
+    this.inner.set(this.spec.store(slots, index.id, key));
+  }
+
+  private reader(
+    text: string,
+    many: boolean,
+    at: (value: readonly unknown[]) => unknown,
+  ): Data.Reader<unknown> {
+    return { get: () => at(this.get()), watch: (fn) => this.join(text, many, at, fn) };
+  }
+
+  private join(
+    text: string,
+    many: boolean,
+    at: (value: readonly unknown[]) => unknown,
+    fn: (next: unknown, prev: unknown) => void,
+  ): () => void {
+    const parts = (this.parts ??= new Map());
+    let entry = parts.get(text);
+    if (entry === undefined) {
+      entry = { at, many, watchers: new Set(), prev: at(this.get()) };
+      parts.set(text, entry);
+    }
+
+    const watcher: Watcher = { fn };
+    entry.watchers.add(watcher);
+    this.stop ??= this.watch((next, prev) => this.wake(next, prev));
+
+    const joined = entry;
+    return () => {
+      if (!joined.watchers.delete(watcher) || joined.watchers.size !== 0) return;
+      parts.delete(text);
+      if (parts.size !== 0) return;
+      this.stop?.();
+      this.stop = undefined;
+    };
+  }
+
+  /** One write visits the 2^d parts of its key and reads no other member. A value that one
+   * write did not make from the last one (a preset, a layer's own value) visits every part. */
+  private wake(next: readonly unknown[], prev: readonly unknown[]): void {
+    const parts = this.parts as Map<string, KeyedRead>;
+    const index = this.spec.indexOf(next);
+    if (index.changed !== undefined && index.base === this.spec.indexOf(prev).id) {
+      for (const text of this.spec.textsOf(index.changed)) this.visit(parts.get(text), next);
+      return;
+    }
+    for (const entry of parts.values()) this.visit(entry, next);
+  }
+
+  private visit(entry: KeyedRead | undefined, value: readonly unknown[]): void {
+    if (entry === undefined) return;
+
+    const next = entry.at(value);
+    const prev = entry.prev;
+    if (this.same(entry.many, prev, next)) return;
+
+    entry.prev = next;
+    for (const watcher of entry.watchers) watcher.fn(next, prev);
+  }
+
+  private same(many: boolean, a: unknown, b: unknown): boolean {
+    if (many) {
+      const x = a as readonly unknown[];
+      const y = b as readonly unknown[];
+      return x.length === y.length && x.every((member, at) => member === y[at]);
+    }
+    return a === undefined || b === undefined ? a === b : this.spec.eq(a, b);
+  }
 }
