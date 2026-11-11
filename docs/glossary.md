@@ -496,6 +496,9 @@ New sections are lists, one term per item (vertical layout,
 - **contract** — The `input` and `output` of one rpc call. Each takes any Standard Schema value (zod, valibot, arktype).
 - **protocol** — The wire shapes, faults, codec and lifecycle hooks that rpc and remoteData share. `transport.protocol` in code.
 - **rpc transport** — A capsule pair that carries the protocol: the client exports `call` and `watch`; the server exports `serve` and `serveStream`.
+- **server fault / local fault** — Who spoke (ADR 0141). A server fault is the server's answer in the wire format: the same call gets it again. A local fault is this side's: `link`, or `encode`/`decode`/`invalid` with side client. `fault.from` says which.
+- **missing** — The server fault for an address no one serves, as HTTP 404 or gRPC `UNIMPLEMENTED`: nothing ran (ADR 0141).
+- **sent** — On a local fault: `false` when nothing left, so the server ran nothing; `true` when it may have run. The one case that is safe to send again is `false` (ADR 0141, as gRPC transparent retry).
 - **handler** — A capsule whose start returns Bun's `{ fetch, websocket? }`; `serve` asks it for each request (ADR 0132).
 - **serve** — The capsule that owns `Bun.serve` for the scope's life; `run` is the host that owns signals and exit codes (ADR 0132).
 - **memory transport** — `memory` from `@tinker/core/testing`: an rpc transport in one process, for tests (as Connect's `createRouterTransport`).

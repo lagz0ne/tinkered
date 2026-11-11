@@ -1179,6 +1179,21 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A `refused` or `invalid` part waits: no ask again until an
   `invalidate` names it. A broken link asks again by itself.
 
+### Faults
+
+- Each fault of `rpc` and `remoteData` says who
+  spoke: `from` is `"server"` or `"local"`.
+- A server fault is the server's answer:
+  `refused`, `invalid`, `failed`, `missing`, and
+  `encode` or `decode` on the server.
+- `missing`: no one serves the address, so
+  nothing ran (as HTTP 404).
+- A local fault also says `sent`: `false` when
+  nothing left, so the server ran nothing.
+- `link` is local; a transport that cannot tell
+  says `sent: true`.
+- No call is sent again by itself.
+
 ### Tags
 
 - A tag edge reads the nearest binding, in an operation or through the seam, or its default; with

@@ -1,5 +1,6 @@
 import { resource } from "./index";
 import type { Observe, Operation, Resource } from "./index";
+import { lost } from "./rpc-wire";
 import type { Body, Codec, Open, Reply, Send, Service } from "./rpc-wire";
 
 // The protocol: the reply envelope, the fault set, the codec use and the route table. Fixed: any transport carries it (glossary "protocol", ADR 0048). It is not a capsule.
@@ -49,7 +50,6 @@ const renewing = new WeakMap<object, Promise<boolean>>();
 type Failed = Extract<Reply, { ok: false }>;
 type Coded<T> = { ok: true; value: T } | Failed;
 
-const link: Reply = { ok: false, kind: "link", payload: {} };
 const why = { role: "handler", explain: "One layer down" } as const;
 
 /** Optional config, read as plain values. */
@@ -195,13 +195,11 @@ export const protocol = resource({
       const body = encode(address, input.value);
       if (!body.ok) return body; // nothing is sent
 
-      const ask = async (m: Record<string, string>): Promise<Reply> => {
-        const text = await run<string>(hook, own.send, {
+      const ask = (m: Record<string, string>): Promise<Reply> =>
+        run<string>(hook, own.send, {
           input: { address, text: body.value, meta: m, ...(bytes ? { body: bytes } : {}) },
           signal: hook.signal,
-        }).catch(() => null);
-        return text === null ? link : replyOf(address, text);
-      };
+        }).then((text) => replyOf(address, text), lost);
       const first = await ask(meta);
       if (first.ok || first.kind !== "refused" || !(await renewed(first.payload, meta))) {
         return first;
@@ -295,8 +293,8 @@ export const protocol = resource({
       const send = (reply: Reply) => push(answerText(address, reply));
       const service = routes.get(address);
       // No one has this address. Over its own stream the client would see only an end, so the
-      // stream says it: link, as a 404 on a call.
-      if (!service) return (send(link), false);
+      // stream says it: missing, as a 404 on a call.
+      if (!service) return (send(lost({ missing: true })), false);
 
       return run<boolean>(hook, service.stream, {
         input: { address, value: read.value, meta, left, push: send },

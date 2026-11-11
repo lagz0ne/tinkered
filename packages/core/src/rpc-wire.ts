@@ -65,16 +65,27 @@ export type TextStream = Operation.Handle<Promise<boolean>, z.infer<typeof openI
  *   invalid  the input did not fit, like 400
  *   encode   the codec could not turn a value into text (a BigInt in JSON), like gRPC "marshal"
  *   decode   the codec could not read a text, like JSON-RPC -32700 Parse error
- *   link     the transport failed, like 502
+ *   missing  no one serves the address, like 404 or gRPC UNIMPLEMENTED: nothing ran
+ *   link     the transport failed, like 502; `payload.sent` false says nothing left
  * An encode or decode fault says where: `payload.side` is "client" or "server". The cause and
  * stack go to that side's log, with the address, inside the run's trace.
+ * A fault says who spoke (ADR 0141): the server, or this side (`link`, or `side: "client"`).
  * A push carries `meta.traceparent`: the span that sent it, for the receiver to link (OTel messaging).
  */
-export type Fault = "refused" | "failed" | "invalid" | "encode" | "decode" | "link";
+export type Fault = "refused" | "failed" | "invalid" | "encode" | "decode" | "missing" | "link";
 
 export type Reply =
   | { ok: true; value: unknown; meta?: Record<string, string> }
   | { ok: false; kind: Fault; payload: unknown };
+
+/**
+ * A transport's send or open that throws: `missing: true` when the other side said no one serves
+ * the address, `sent: false` when nothing left this side. Any other throw may have run.
+ */
+export const lost = (error: unknown): Extract<Reply, { ok: false }> =>
+  Object(error).missing
+    ? { ok: false, kind: "missing", payload: {} }
+    : { ok: false, kind: "link", payload: { sent: Object(error).sent !== false } };
 
 export const callInput = z.object({ address: z.string(), value: z.unknown(), meta, body });
 

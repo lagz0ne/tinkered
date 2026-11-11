@@ -565,3 +565,28 @@ test("a ready part that an ask refuses goes to fault, and keeps its members", as
   expect(p1.read()).toEqual([task("p1", "a")]);
   p1.stop();
 });
+
+test("a part no server serves is the server's missing, and waits as an answer does", async () => {
+  const server = await createScope({ capsules: [memory.server({ services: [] })] }).ready;
+  closers.push(() => server.close());
+  const tab = await createScope({
+    capsules: [memory.client({ peer: server }), board({ read: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+  const state = tab.resolve(board.status(board.tasks.where({ project: "p1" })));
+  let told = 0;
+  const unwatch = state.watch(() => void told++);
+
+  const p1 = watchPart(tab, "p1");
+  await until(() => state.get()?.status === "fault");
+  const first = told;
+  await new Promise((done) => setTimeout(done, 400));
+
+  expect(state.get()).toMatchObject({
+    status: "fault",
+    fault: { fault: "missing", from: "server" },
+  });
+  expect(told).toBe(first); // a link would heal with back-off: 50, 100, 200 ms
+  p1.stop();
+  unwatch();
+});

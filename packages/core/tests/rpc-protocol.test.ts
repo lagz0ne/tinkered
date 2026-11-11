@@ -185,7 +185,7 @@ test("a refused push on a watch starts a renew", async () => {
   expect(state.renewals).toEqual([{ payload: { why: "stale" }, sent: { token: "old" } }]);
 });
 
-test("an address no server has is link on a call", async () => {
+test("an address no server has is the server's missing on a call", async () => {
   const other = rpc({ gone: { input: z.null(), output: z.null() } });
   const { server } = await serverOf();
   const tab = await createScope({
@@ -194,7 +194,7 @@ test("an address no server has is link on a call", async () => {
   closers.push(() => tab.close());
 
   const failed = await tab.run(other.gone, { input: null }).catch((e: unknown) => e);
-  expect(other.fault.is(failed) && failed.fault).toBe("link");
+  expect(other.fault.is(failed) && [failed.fault, failed.from]).toEqual(["missing", "server"]);
 });
 
 /** A service whose answer and stream throw: a bug in it, not in rpc. */
@@ -272,7 +272,7 @@ test("serveStream: each end it can have, and what it pushes", async () => {
   });
   expect(await open("nobody", "null")).toEqual({
     more: false,
-    pushed: [{ ok: false, kind: "link", payload: {} }],
+    pushed: [{ ok: false, kind: "missing", payload: {} }],
   });
   expect(await open("b", "null")).toEqual({
     more: true,

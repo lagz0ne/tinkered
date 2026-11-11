@@ -1,6 +1,7 @@
 # 0141 A fault says who spoke
 
-Date: 2026-11-11. Status: proposed; not built.
+Date: 2026-11-11. Status: proposed; built on the
+field shape in 0.17.5, while Duke picks the shape.
 Changes: the fault of `rpc` and `remoteData`
 (ADR 0140 keeps the kinds in Core).
 Answers: ADR 0140 open 1, for now.
@@ -102,8 +103,9 @@ What each one does:
 - `missing` on a page is an old page against a
   new server (ADR 0140 open 2). The page can
   reload.
-- A local fault on a read heals: the backend
-  watches again.
+- A `link` on a read heals: the backend watches
+  again. Any other fault is the same next time,
+  so the part waits, as for an answer.
 - A local fault on a call is the caller's. Core
   sends nothing again.
 - `sent: false` is the one case that is safe to

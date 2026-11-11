@@ -120,7 +120,8 @@ async function tab(url: string, extra: Record<string, unknown> = {}, observe?: O
 const faultOf = (p: Promise<unknown>) =>
   p.then(
     () => null,
-    (e: unknown) => (api.fault.is(e) ? { fault: e.fault, payload: e.payload } : e),
+    (e: unknown) =>
+      api.fault.is(e) ? { fault: e.fault, from: e.from, sent: e.sent, payload: e.payload } : e,
   );
 
 test("a call goes as one message: its id, address, text, and the call's traceparent", async () => {
@@ -251,10 +252,37 @@ test("a socket that drops fails its calls as link; the next call opens a new soc
   await tick();
   client.run(ws.client.reset);
 
-  expect(await waiting).toMatchObject({ fault: "link" });
+  // The call had left: the server may have run it (ADR 0141).
+  expect(await waiting).toMatchObject({ fault: "link", from: "local", sent: true });
   expect(await client.run(api.echo, { input: { n: 2 } })).toEqual({ n: 2 });
   expect(frames.opened.length).toBe(2);
   release();
+});
+
+test("a socket that never opens fails its call as link, sent: false: nothing ran", async () => {
+  const { url, bun } = await serve();
+  await bun.stop(true);
+  const client = await tab(url);
+
+  expect(await faultOf(client.run(api.echo, { input: { n: 1 } }))).toMatchObject({
+    fault: "link",
+    from: "local",
+    sent: false,
+  });
+});
+
+test("an address the server does not have is the server's missing, not link", async () => {
+  const { url } = await serve();
+  const other = rpc({ gone: { input: z.null(), output: z.null() } });
+  const client = await createScope({
+    capsules: [ws.client({ url }), other({ remote: ws.client })],
+  }).ready;
+  closers.push(() => client.close());
+
+  const error = await Promise.resolve(client.run(other.gone, { input: null })).catch(
+    (e: unknown) => e,
+  );
+  expect(other.fault.is(error) && [error.fault, error.from]).toEqual(["missing", "server"]);
 });
 
 test("a tab with no url does not start: the url is required", () => {

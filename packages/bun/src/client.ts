@@ -36,8 +36,19 @@ type ClientConfig = {
 type Out = { i: number; a?: string; t?: string; m?: Record<string, string>; w?: 1; x?: 1 };
 /** One message of a frame, server to client. */
 type In = { i: number; t?: string; e?: number; end?: 1 };
-/** Gets each message for its id; null when the socket dropped. */
-type Waiter = (message: In | null) => void;
+/** Gets each message for its id; null when the socket dropped, with whether the id had left. */
+type Waiter = (message: In | null, sent?: boolean) => void;
+
+/**
+ * A send or open that failed, as the protocol reads it (ADR 0141): a 404 is the server's
+ * `missing`; a drop before the message left is `sent: false`, nothing ran.
+ */
+const failed = (message: In | null, sent = true) =>
+  Object.assign(new Error("TransportFailed"), {
+    payload: message,
+    missing: message?.e === 404,
+    sent,
+  });
 
 /** The most messages in one frame: the server closes a socket that sends more (tRPC maxBatchSize). */
 export const frameMax = 32;
@@ -91,13 +102,13 @@ export function createWs() {
         });
         if (answer.ok) return answer.text();
         void answer.body?.cancel();
-        throw Object.assign(new Error("TransportFailed"), { payload: { e: answer.status } });
+        throw failed({ i, e: answer.status });
       }
       return new Promise<string>((got, fail) => {
-        own.waits.set(i, (message) => {
+        own.waits.set(i, (message, sent) => {
           own.waits.delete(i);
           if (message?.t !== undefined) got(message.t);
-          else fail(Object.assign(new Error("TransportFailed"), { payload: message }));
+          else fail(failed(message, sent));
         });
         signal.addEventListener("abort", () => {
           if (own.waits.delete(i)) own.post({ i, x: 1 });
@@ -117,11 +128,11 @@ export function createWs() {
       const i = own.next++;
       const m = { ...input.meta, ...protocol.traceparent(obs.span) };
       return new Promise<void>((ended, fail) => {
-        own.waits.set(i, (message) => {
+        own.waits.set(i, (message, sent) => {
           if (message?.t !== undefined) return input.push(message.t);
           own.waits.delete(i);
           if (message?.end) ended();
-          else fail(Object.assign(new Error("TransportFailed"), { payload: message }));
+          else fail(failed(message, sent));
         });
         // A reader that leaves stops the server's stream: the server ends the watch.
         signal.addEventListener("abort", () => {
@@ -179,6 +190,8 @@ export function createWs() {
         const out: Out[] = [];
         const waits = new Map<number, Waiter>();
         const sockets = new Set<WebSocket>();
+        /** The ids whose message left on the socket now in use, until their end. */
+        const gone = new Set<number>();
         let opening: Promise<WebSocket> | null = null;
         /** The socket now in use: a close of an older one fails nothing of the new one's. */
         let current: WebSocket | null = null;
@@ -190,8 +203,9 @@ export function createWs() {
           current = null;
           opening = null;
           if (socket) sockets.delete(socket);
-          for (const waiter of waits.values()) waiter(null);
+          for (const [i, waiter] of waits) waiter(null, gone.has(i));
           waits.clear();
+          gone.clear();
         };
 
         // The first message of a tick schedules the frame; the frame opens the socket if needed.
@@ -206,7 +220,10 @@ export function createWs() {
               current = socket;
               socket.addEventListener("open", () => done((sockets.add(socket), socket)));
               socket.addEventListener("message", (event) => {
-                for (const m of JSON.parse(String(event.data)) as In[]) waits.get(m.i)?.(m);
+                for (const m of JSON.parse(String(event.data)) as In[]) {
+                  waits.get(m.i)?.(m);
+                  if (!waits.has(m.i)) gone.delete(m.i);
+                }
               });
               socket.addEventListener("close", () => {
                 drop(socket);
@@ -218,6 +235,7 @@ export function createWs() {
                 for (let at = 0; at < sent.length; at += frameMax) {
                   socket.send(JSON.stringify(sent.slice(at, at + frameMax)));
                 }
+                for (const m of sent) gone[m.x ? "delete" : "add"](m.i);
               },
               () => undefined, // the close already failed every waiter
             );

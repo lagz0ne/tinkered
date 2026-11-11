@@ -129,6 +129,19 @@ test("a fault names its address and kind, and the trace when there is one", () =
     traceId: "abc",
   });
   expect(api.fault.make("echo", "failed", {}, undefined).message).toBe("echo: failed");
+  // Who spoke (ADR 0141): the server, or this side; a local fault says if the call left.
+  const said = (kind: Parameters<typeof api.fault.make>[1], payload: unknown) => {
+    const f = api.fault.make("echo", kind, payload, undefined);
+    return [f.from, f.sent];
+  };
+  expect(said("refused", {})).toEqual(["server", undefined]);
+  expect(said("missing", {})).toEqual(["server", undefined]);
+  expect(said("decode", { side: "server" })).toEqual(["server", undefined]);
+  expect(said("encode", { side: "client" })).toEqual(["local", false]);
+  expect(said("invalid", { side: "client" })).toEqual(["local", false]);
+  expect(said("decode", { side: "client" })).toEqual(["local", true]);
+  expect(said("link", { sent: false })).toEqual(["local", false]);
+  expect(said("link", {})).toEqual(["local", true]);
   expect(api.fault.is(traced)).toBe(true);
   expect(other.fault.is(traced)).toBe(false);
   expect(api.fault.is(new Error("echo: link"))).toBe(false);
@@ -206,7 +219,25 @@ test("a watch its transport loses fails as link, as a call does; a fault passes 
     () => null,
     (e: unknown) => e,
   );
-  expect(api.fault.is(error) && [error.fault, error.payload]).toEqual(["link", {}]);
+  expect(api.fault.is(error) && [error.fault, error.from, error.sent]).toEqual([
+    "link",
+    "local",
+    true, // a plain throw may have left
+  ]);
+  const unsent = operation({
+    label: "unsent.watch",
+    run: async (): Promise<void> => {
+      throw Object.assign(new Error("TransportFailed"), { sent: false });
+    },
+  });
+  const tab = await createScope({
+    capsules: [api({ remote: { call, watch: unsent } as never })],
+  }).ready;
+  closers.push(() => tab.close());
+  const never = await (async () => {
+    for await (const n of await tab.run(api.ticks, { input: null })) void n;
+  })().catch((e: unknown) => e);
+  expect(api.fault.is(never) && [never.fault, never.sent]).toEqual(["link", false]);
 
   const refusedWatch = operation({
     label: "refused.watch",

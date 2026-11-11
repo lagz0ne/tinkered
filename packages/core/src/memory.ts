@@ -81,7 +81,11 @@ export function createMemory() {
       if (reply !== null) return reply;
       const payload = { status: 404 };
 
-      throw Object.assign(new Error("TransportFailed"), { kind: "TransportFailed", payload });
+      throw Object.assign(new Error("TransportFailed"), {
+        kind: "TransportFailed",
+        payload,
+        missing: true,
+      });
     },
   });
 

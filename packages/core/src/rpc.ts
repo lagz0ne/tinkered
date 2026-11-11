@@ -1,7 +1,7 @@
 import { capsule, data, operation, parse, resource, tag } from "./index";
 import type { Capsule, Data, Operation, Resource, Tag } from "./index";
 import * as z from "./rpc-shape";
-import { bodyShape, callInput, lifecycle, watchInput } from "./rpc-transport";
+import { bodyShape, callInput, lifecycle, lost, watchInput } from "./rpc-transport";
 import type {
   Answer,
   Body,
@@ -121,6 +121,10 @@ const brandKey = Symbol("rpc.fault");
 export type RpcFault<K extends string = string> = Error & {
   readonly address: K;
   readonly fault: Fault;
+  /** Who spoke: the server's answer, or a fault of this side (ADR 0141). */
+  readonly from: "server" | "local";
+  /** A local fault only: false when nothing left, so the server ran nothing. */
+  readonly sent?: boolean;
   readonly payload: unknown;
   readonly traceId: string | undefined;
 };
@@ -351,9 +355,7 @@ const steps = resource({
                   ),
                 ).catch((error: unknown) => {
                   // A watch its transport lost fails as `link`, as a call does.
-                  throw def.fault.is(error)
-                    ? error
-                    : faulted({ ok: false, kind: "link", payload: {} });
+                  throw def.fault.is(error) ? error : faulted(lost(error));
                 }),
               (v) => parse(contract.output, v),
               faulted,
@@ -610,14 +612,28 @@ export function rpc<const C extends Contracts>(
     /** True for a fault from a call of this definition, on this side. */
     is: (error: unknown): error is RpcFault<keyof C & string> => Object(error)[brandKey] === brand,
     /** A fault of this definition, made on this side (the transport failed, a value did not fit). */
-    make: (address: string, kind: Fault, payload: unknown, traceId: string | undefined): RpcFault =>
-      Object.assign(new Error(`${address}: ${kind}${traceId ? ` (trace ${traceId})` : ""}`), {
-        [brandKey]: brand,
-        address,
-        fault: kind,
-        payload,
-        traceId,
-      }),
+    make: (
+      address: string,
+      kind: Fault,
+      payload: unknown,
+      traceId: string | undefined,
+    ): RpcFault => {
+      const { side, sent } = Object(payload);
+      const local = kind === "link" || side === "client";
+
+      return Object.assign(
+        new Error(`${address}: ${kind}${traceId ? ` (trace ${traceId})` : ""}`),
+        {
+          [brandKey]: brand,
+          address,
+          fault: kind,
+          from: local ? "local" : "server",
+          ...(local && { sent: kind === "decode" || (kind === "link" && sent !== false) }),
+          payload,
+          traceId,
+        } as const,
+      );
+    },
   };
 
   const ops = Object.fromEntries(
