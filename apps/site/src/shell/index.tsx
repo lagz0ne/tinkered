@@ -12,6 +12,7 @@ export function Shell() {
           <Link to="/" activeOptions={{ exact: true }}>
             Guide
           </Link>
+          <Link to="/bench">Bench</Link>
           <a href="https://github.com/lagz0ne/tinkered">Source</a>
         </nav>
       </header>

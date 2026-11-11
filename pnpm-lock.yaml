@@ -399,6 +399,9 @@ importers:
 
   apps/site:
     dependencies:
+      '@preact/signals-react':
+        specifier: ^3.12.0
+        version: 3.12.0(react@19.3.0)
       '@tanstack/react-router':
         specifier: 1.170.41
         version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -411,6 +414,15 @@ importers:
       '@tinker/react':
         specifier: workspace:*
         version: link:../../packages/react
+      jotai:
+        specifier: ^3.0.0
+        version: 3.0.0(@types/react@19.3.0)(react@19.3.0)
+      legend2:
+        specifier: npm:@legendapp/state@2.1.15
+        version: '@legendapp/state@2.1.15(react@19.3.0)'
+      legend3:
+        specifier: npm:@legendapp/state@3.0.0-beta.48
+        version: '@legendapp/state@3.0.0-beta.48(react@19.3.0)'
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -420,6 +432,9 @@ importers:
       zod:
         specifier: ^4.0.0
         version: 4.6.2
+      zustand:
+        specifier: 'catalog:'
+        version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
       '@types/bun':
         specifier: ^1.3.0

@@ -1,6 +1,7 @@
 import { createRootRouteWithContext, createRoute, notFound } from "@tanstack/react-router";
 import type { Scope } from "@tinker/core";
 
+import { BenchPage } from "@/bench";
 import { guide, GuideHome, GuidePage } from "@/guide";
 import { Shell } from "@/shell";
 
@@ -29,4 +30,7 @@ const page = createRoute({
   component: () => <GuidePage page={page.useLoaderData()} />,
 });
 
-export const routeTree = root.addChildren([index, page]);
+// The benchmark: the page runs it in this browser; its chunk loads on first visit.
+const bench = createRoute({ getParentRoute: () => root, path: "/bench", component: BenchPage });
+
+export const routeTree = root.addChildren([index, page, bench]);

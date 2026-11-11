@@ -146,3 +146,145 @@ pre code {
   padding-top: 12px;
   border-top: 2px solid var(--fg);
 }
+
+/* The benchmark: one result per card, three measured columns, a red bar for the fastest. */
+.protocol {
+  margin: 16px 0;
+  padding-left: 20px;
+}
+
+.protocol small,
+.note,
+.libs,
+.step {
+  color: var(--mute);
+}
+
+.run {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 16px;
+  border: 2px solid var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+  cursor: pointer;
+}
+
+.run:disabled {
+  background: var(--bg);
+  color: var(--mute);
+  cursor: progress;
+}
+
+.stopped {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.result {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.result.tinker {
+  border-top: 2px solid var(--accent);
+}
+
+.result header {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.result h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.result header span {
+  color: var(--mute);
+  font-size: 13px;
+}
+
+.renders.ideal {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.metric-label,
+.metric-compare {
+  color: var(--mute);
+  font-size: 12px;
+}
+
+.metric-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.meter {
+  display: block;
+  height: 4px;
+  background: var(--line);
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--fg);
+}
+
+.metric.fastest .meter span {
+  background: var(--accent);
+}
+
+.takeaway {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 2px solid var(--fg);
+}
+
+.takeaway h2 {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.takeaway h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--mute);
+}
+
+.big {
+  margin: 4px 0;
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gaps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.method {
+  margin-top: 24px;
+  color: var(--mute);
+  font-size: 13px;
+}
