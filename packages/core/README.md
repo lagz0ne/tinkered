@@ -336,6 +336,27 @@ After that, and for a unit never built, it raises `Disposed`.
 `Capsule.Events["run"]` names one shape.
 A run hook may refuse raw input before its parser runs.
 
+One run hook serves every operation, so its event is untyped.
+`event.is(op)` says if the run is `op`'s; a true answer gives `op`, `call`, `input`, and
+`next()` that operation's types (ADR 0142).
+`event.input` is the input the body gets: the caller's `input`, or its `rawInput` through the
+operation's parser. A bad raw input raises `DataValidationFailed` at the read.
+
+```ts
+const tide = capsule({
+  label: "tide",
+  hooks: {
+    run(event) {
+      if (!event.is(press)) return event.next();
+
+      const hue = event.next();
+      const input = { ...event.input, hue };
+      return event.run(send, { input }, meta);
+    },
+  },
+});
+```
+
 Graceful close joins hook waits before and after `next()`.
 After a run finishes, a saved `next()` raises `Disposed` and starts no body.
 A waiting hook can still use its saved `load` and `run` during graceful close.
@@ -1639,6 +1660,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A scope with no resolve hooks reads straight through.
 - A session chain is installed only when a hook exists.
 - Three run hooks nest in registration order.
+- A run hook that asks which op it wraps changes that op only; its event gives a raw call's input
+  as the op parses it, refuses a bad raw input as the op does, gives an inline run the caller's
+  input, and has no input for a run with no call (ADR 0142).
 - Two close hooks nest in reverse install order.
 - A scope with no close hooks closes straight through.
 - A forced close with a close hook still settles cancelled.

@@ -1,6 +1,5 @@
 import { capsule, data, operation, resource, tag } from "@tinker/core";
 import type { Data } from "@tinker/core";
-import { z } from "zod";
 
 import { ocean } from "@/play";
 
@@ -59,29 +58,24 @@ const shore = resource({
   },
 });
 
-/**
- * Tells the room about a wave that has started here: it deals the id, notes it, and calls. Its
- * door parses the press, so the hook can hand over the caller's value as it came.
- */
+/** Tells the room about a wave that has started here: it deals the id, notes it, and calls. */
 const send = operation({
   label: "tide.send",
-  input: z.object({
-    press: seaPress.pick({ x: true, y: true, power: true }),
-    hue: seaPress.shape.hue,
-  }),
+  input: seaPress.pick({ x: true, y: true, hue: true, power: true }),
   depends: { room: room.required, sent: sent.controller, call: seaApi["wave.press"].controller },
-  run: ({ room, sent, call }, { input: { press, hue }, random }) => {
+  run: ({ room, sent, call }, { input, random }) => {
     const id = random.uuid();
     sent.update((ids) => [...ids.slice(-63), id]);
-    return call.run({ input: { ...press, hue, room, id } });
+    return call.run({ input: { ...input, room, id } });
   },
 });
 
 /**
  * `tide({ room })`, after `ocean(...)` and the sea's board and api in the cmd's capsules.
  * - start: loads `shore`, so the room's waves land here.
- * - run: a `press` runs here first (`next`), so the wave starts on the touch. Then the hook
- *   sends it to the room, with the hue this tab dealt. The storm presses through it as well.
+ * - run: `event.is(ocean.press)` picks the one move and gives the event that op's types. The
+ *   press runs here first (`next`), so the wave starts on the touch. Then the hook sends it to
+ *   the room, with the hue this tab dealt. The storm presses through it as well.
  */
 export const tide = capsule({
   label: "tide",
@@ -91,12 +85,15 @@ export const tide = capsule({
       await load(shore, { role: "worker", explain: "Lands the room's waves" });
       await next();
     },
-    run({ op, call, next, run }) {
-      if (op !== ocean.press) return next();
+    run(event) {
+      if (!event.is(ocean.press)) return event.next();
 
-      // One hook serves every op, so Core types the caller's value as unknown: `send` parses it.
-      const rawInput = { press: call?.input ?? call?.rawInput, hue: next() };
-      return run(send, { rawInput }, { role: "handler", explain: "Tells the room about the wave" });
+      const input = { ...event.input, hue: event.next() };
+      return event.run(
+        send,
+        { input },
+        { role: "handler", explain: "Tells the room about the wave" },
+      );
     },
   },
 });

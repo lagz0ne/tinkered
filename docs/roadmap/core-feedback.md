@@ -1098,7 +1098,8 @@ Duke asked why the hook read `Object(call?.input)`.
 
 ```ts
 if (!event.is(ocean.press)) return event.next();
-event.call.input; // { x: number; y: number }
+event.input; // { x: number; y: number }
 ```
 
-State: first asker; the ask is with Duke.
+State: built (ADR 0142). Duke, 16:30: "I follow ur rec".
+The tide hook now reads `event.input` and passes a typed `input` on.

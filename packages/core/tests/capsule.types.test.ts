@@ -197,3 +197,28 @@ test("S2a a defaulted key may be left out; a key with no default may not", () =>
   // @ts-expect-error smtpUrl has no default, so it must be named
   mail({ from: "a@example.com" });
 });
+
+test("A12 a run event that is an op's takes that op's input and result types", () => {
+  const press = operation({
+    label: "tt.press",
+    input: (raw) => raw as { x: number },
+    run: (_, { input }) => input.x,
+  });
+
+  capsule({
+    label: "tt",
+    config: { from },
+    hooks: {
+      run: (event) => {
+        expectTypeOf(event.input).toBeUnknown();
+        if (!event.is(press)) return event.next();
+
+        expectTypeOf(event.input).toEqualTypeOf<{ x: number }>();
+        expectTypeOf(event.call?.input).toEqualTypeOf<{ x: number } | undefined>();
+        expectTypeOf(event.next()).toEqualTypeOf<number>();
+        expectTypeOf(event.config.from).toEqualTypeOf<string>();
+        return event.run(send, {}, meta);
+      },
+    },
+  });
+});

@@ -973,6 +973,14 @@ export declare namespace Capsule {
     readonly session: Session;
   };
 
+  /** What a run event holds once `is(op)` said yes (ADR 0142): the op's own input and result. */
+  export type Matched<T, I> = {
+    readonly op: Operation.Handle<T, I>;
+    readonly call: Scope.Invocation<I> | undefined;
+    readonly input: I;
+    readonly next: () => T;
+  };
+
   /** Each hook keeps one object as its input. `kind` narrows the payload and `next` result. */
   export type Details = {
     start: {
@@ -992,7 +1000,14 @@ export declare namespace Capsule {
         | Operation.Handle<unknown, unknown>
         | Scope.Inline<Scope.Depends, unknown, unknown>;
       readonly call: Scope.Invocation<unknown> | undefined;
+      /** The input the body gets: the caller's `input`, or its `rawInput` through the op's
+       * parser. Parsed at each read, before `next()` parses it for the body; a bad raw input
+       * raises `DataValidationFailed` here, as `next()` would (ADR 0142). */
+      readonly input: unknown;
       readonly next: () => unknown;
+      /** Whether this run is `op`'s. A hook serves every operation, so its event is untyped;
+       * a true answer gives `input`, `call`, and `next()` that operation's types (ADR 0142). */
+      readonly is: <T, I, E>(this: E, op: Operation.Handle<T, I>) => this is Matched<T, I> & E;
     };
     write: {
       readonly kind: "write";
@@ -7126,6 +7141,16 @@ class RunEvent extends HookCtx {
     this.op = op;
     this.call = call;
     this.next = next;
+  }
+  /** On the prototype: an event that never asks pays nothing, and its shape stays the same. */
+  get input(): unknown {
+    const { op, call } = this;
+    const given = call?.input;
+    return given !== undefined || !("input" in op) ? given : parseInput(op, call?.rawInput);
+  }
+  is<T, I, E>(this: E, op: Operation.Handle<T, I>): this is Capsule.Matched<T, I> & E;
+  is(this: RunEvent, op: Operation.Handle<unknown, unknown>): boolean {
+    return this.op === op;
   }
 }
 

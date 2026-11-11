@@ -1,11 +1,17 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, capsule, operation } from "@/index";
+import { createScope, data, capsule, isError, operation } from "@/index";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
   return v;
 };
+
+const press = operation({
+  label: "press",
+  input: (raw): { x: number } => ({ x: asNumber(raw) }),
+  run: (_, { input }) => input.x,
+});
 
 test("a write chain skips a capsule with no write hook", async () => {
   const cell = data({ initial: 0, parse: asNumber });
@@ -243,5 +249,89 @@ test("a resolve chain runs past a capsule with no resolve hook", async () => {
 
   expect(scope.resolve(cell)).toBe(5);
   expect(order).toEqual(["before", "after"]);
+  await scope.close();
+});
+
+test("a run hook that asks which op it wraps changes that op only", async () => {
+  const tick = operation({ label: "tick", run: () => 1 });
+  const twice = capsule({
+    label: "twice",
+    hooks: {
+      run: (event) => (event.is(press) ? event.next() + event.input.x : event.next()),
+    },
+  });
+  const scope = createScope({ capsules: [twice] });
+  await scope.ready;
+
+  const out = [await scope.run(press, { input: { x: 2 } }), await scope.run(tick)];
+
+  expect(out).toEqual([4, 1]);
+  await scope.close();
+});
+
+test("a run event gives a raw call's input as the op parses it", async () => {
+  let seen: unknown = "unset";
+  const spy = capsule({
+    label: "spy",
+    hooks: {
+      run: (event) => {
+        seen = event.input;
+        return event.next();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [spy] });
+  await scope.ready;
+
+  await scope.run(press, { rawInput: 3 });
+
+  expect(seen).toEqual({ x: 3 });
+  await scope.close();
+});
+
+test("a run event's input refuses a bad raw input as the op does", async () => {
+  const reader = capsule({ label: "reader", hooks: { run: (event) => event.input } });
+  const scope = createScope({ capsules: [reader] });
+  await scope.ready;
+
+  const failed = await scope.run(press, { rawInput: "three" }).then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+
+  if (!isError(failed, "DataValidationFailed")) throw failed;
+  expect(failed.payload.label).toBe("press");
+  await scope.close();
+});
+
+test("a run event of an inline run gives the caller's input", async () => {
+  const reader = capsule({ label: "reader", hooks: { run: (event) => event.input } });
+  const scope = createScope({ capsules: [reader] });
+  await scope.ready;
+
+  const out = await scope.run({ run: (_, { input }) => input }, { input: 5 });
+
+  expect(out).toBe(5);
+  await scope.close();
+});
+
+test("a run event of a run with no call has no input", async () => {
+  let seen: unknown = "unset";
+  const tick = operation({ label: "tick", run: () => 1 });
+  const spy = capsule({
+    label: "spy",
+    hooks: {
+      run: (event) => {
+        seen = event.input;
+        return event.next();
+      },
+    },
+  });
+  const scope = createScope({ capsules: [spy] });
+  await scope.ready;
+
+  await scope.run(tick);
+
+  expect(seen).toBe(undefined);
   await scope.close();
 });
