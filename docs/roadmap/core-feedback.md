@@ -971,3 +971,34 @@ async start({ next }) {
 
 Precedent: .NET `IHostedService.StartAsync(token)`.
 State: built in ADR 0134 (after a stop, `next()` rejects); card `core/start-sees-stop` is Done; released in 0.16.2.
+
+## A keyed guard reads its part as `unknown` — 2026-11-11
+
+Asked by the issue board draft (tinker-app 1636e09) and by Hedl `boardGuard`. Second asker.
+`hook.start` gives `input.input` as `unknown`.
+A keyed ask's input is `{ read, part }`, so a guard digs:
+
+```ts
+const part = Object(Object(input.input).part);
+const teamId = String(part.teamId ?? "");
+```
+
+Hedl digs the same way for `project`.
+Ask: a typed part for a keyed board's `onStart`.
+State: card `core/keyed-guard-part` in Ready; the shape waits on Duke.
+
+## Questions from the issue board draft — 2026-11-11
+
+Asked by the issue board draft (tinker-app 1636e09). First asker of each.
+Full list: `/mnt/project-files/tinker-app/issue-board/friction.md`.
+
+- A keyed cell that is not served loses a call's write
+  (ADR 0138 rule 15). Nothing says so. Maybe a dev warning.
+- A refused part is asked again with back-off, up to every 5 s.
+  EventSource stops on a refusal; ours does not.
+  Question: is `refused` final until an `invalidate`?
+- A tab sees `failed`, not the cause of a throw in an op.
+- A board lane needs order, no limit (input to k07).
+  Today the tab sorts: `where({ teamId }).toSorted(byRank)`.
+
+State: first asker; no ticket until a second asker.
