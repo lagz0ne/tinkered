@@ -125,6 +125,11 @@ await move.runAsync({ input });
   and rpc's `retry` is off by default too. A backend
   can add it later, as HTTP does with
   `Idempotency-Key`. Duke's to say.
+
+  Duke, 07:02: tell the server's answer from a
+  local fault first, "way way before retry". So no
+  safe retry now; ADR 0141 takes the split.
+
 - An old page against a new server: each backend
   says what it does (carry on, or close and reload).
 
