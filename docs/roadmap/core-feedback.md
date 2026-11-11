@@ -1082,3 +1082,23 @@ Second asker of two rows above. So both are now a Core ticket.
   and a resource holds that part open, as `useData` does.
 
 State: second asker; a Core ticket, for Duke.
+
+## A run hook cannot narrow the call by its op — 2026-11-11
+
+Asked by the site's tide capsule (`apps/site/src/sea/tide.ts`).
+Duke asked why the hook read `Object(call?.input)`.
+
+- One `run` hook serves every op, so `call.input` is `unknown`.
+- `op !== ocean.press` names the op, but does not narrow the call.
+- The hook spread the value through `Object(...)`: a hidden cast.
+- It also lost a press given as `rawInput`.
+- Workaround (site 7cd3f65): the hook hands the value over as it came;
+  a second op parses it at its door.
+- Ask: a type guard on the event, as Redux Toolkit's `action.match`.
+
+```ts
+if (!event.is(ocean.press)) return event.next();
+event.call.input; // { x: number; y: number }
+```
+
+State: first asker; the ask is with Duke.
