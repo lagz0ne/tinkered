@@ -1,9 +1,21 @@
 import { useData, useResource, useRun } from "@tinker/react";
 
 import { editor } from "./editor";
-import { addFile, closeFile, renameFile, reset, selectFile, setRenaming, setView } from "./ops";
+import {
+  addFile,
+  back,
+  closeFile,
+  forward,
+  open,
+  renameFile,
+  reset,
+  setRenaming,
+  setTheme,
+  setView,
+} from "./ops";
 import { bundler, persistence, preview } from "./services";
-import { active, bundle, dirty, files, renaming, status, view } from "./state";
+import { library } from "./sources";
+import { bundle, dirty, files, nav, renaming, status, theme, view } from "./state";
 
 // The play page: the preview runs the bundle in a frame; Code puts the editor beside it. The page
 // holds no state: the ops write the cells, the services compile and keep the session.
@@ -23,9 +35,9 @@ const importMap = JSON.stringify({
 
 function Tabs() {
   const list = useData(files);
-  const shown = useData(active);
+  const shown = useData(nav, (n) => n.place.file);
   const editing = useData(renaming);
-  const select = useRun(selectFile);
+  const select = useRun(open);
   const close = useRun(closeFile);
   const add = useRun(addFile);
   const rename = useRun(renameFile);
@@ -56,7 +68,7 @@ function Tabs() {
               type="button"
               role="tab"
               aria-selected={f.name === shown}
-              onClick={() => select.run({ input: f.name })}
+              onClick={() => select.run({ input: { file: f.name, offset: 0 } })}
               onDoubleClick={() => box.run({ input: f.name })}
             >
               {f.name}
@@ -77,6 +89,62 @@ function Tabs() {
       <button type="button" className="tab add" aria-label="New file" onClick={() => add.run()}>
         +
       </button>
+    </div>
+  );
+}
+
+/** Back, forward, a library source to open, and the editor's colours. */
+function Tools() {
+  const n = useData(nav);
+  const colours = useData(theme);
+  const go = useRun(open);
+  const stepBack = useRun(back);
+  const stepForward = useRun(forward);
+  const paint = useRun(setTheme);
+  const reading = library.some((s) => s.name === n.place.file);
+
+  return (
+    <div className="tools">
+      <button
+        type="button"
+        aria-label="Back (Alt+Left)"
+        disabled={!n.back.length}
+        onClick={() => stepBack.run()}
+      >
+        ←
+      </button>
+      <button
+        type="button"
+        aria-label="Forward (Alt+Right)"
+        disabled={!n.forward.length}
+        onClick={() => stepForward.run()}
+      >
+        →
+      </button>
+      <select
+        aria-label="Open a library source"
+        value={reading ? n.place.file : ""}
+        onChange={(e) => go.run({ input: { file: e.currentTarget.value, offset: 0 } })}
+      >
+        <option value="" disabled>
+          Library source…
+        </option>
+        {library.map((s) => (
+          <option key={s.name} value={s.name}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+      {reading && <span className="reading">read only · F12 to follow</span>}
+      <select
+        aria-label="Editor colours"
+        value={colours}
+        onChange={(e) => paint.run({ rawInput: e.currentTarget.value })}
+      >
+        <option value="github-light">GitHub Light</option>
+        <option value="github-dark">GitHub Dark</option>
+        <option value="one-dark">One Dark</option>
+      </select>
     </div>
   );
 }
@@ -169,11 +237,21 @@ export function PlayPage() {
           </button>
         </div>
         <Status />
+        <button
+          type="button"
+          className="full"
+          onClick={(e) =>
+            void e.currentTarget.closest(".play")?.querySelector(".preview")?.requestFullscreen()
+          }
+        >
+          Full screen
+        </button>
       </div>
       <div className="panes">
         {mode === "code" && (
           <section className="code" aria-label="Code">
             <Tabs />
+            <Tools />
             <Editor />
           </section>
         )}

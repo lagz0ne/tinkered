@@ -3,15 +3,16 @@ import type { Plugin } from "esbuild-wasm";
 import { z } from "zod";
 
 import {
-  active,
   bundle,
   debounce,
   dirty,
   entry,
   files,
+  nav,
   saved,
   status,
   storage,
+  theme,
   wasm,
 } from "./state";
 import type { PlayFile } from "./state";
@@ -151,17 +152,18 @@ const key = "tinker-site:play:v1";
 
 /**
  * Brings back a changed session from `storage`, then keeps every later change there. A clean
- * session is not brought back: a newer starter reaches a returning visitor.
+ * session gives back only its theme: a newer starter reaches a returning visitor.
  */
 export const persistence = resource({
   label: "play.persistence",
   depends: {
     storage: storage.required,
     files: files.controller,
-    active: active.controller,
+    nav: nav.controller,
     dirty: dirty.controller,
+    theme: theme.controller,
   },
-  factory: ({ storage, files, active, dirty }, { defer }) => {
+  factory: ({ storage, files, nav, dirty, theme }, { defer }) => {
     let raw: unknown = null;
     try {
       raw = JSON.parse(storage.getItem(key) ?? "null");
@@ -170,21 +172,34 @@ export const persistence = resource({
     }
 
     const kept = saved.safeParse(raw);
-    if (kept.success && kept.data.dirty) {
-      files.set(kept.data.files);
-      active.set(kept.data.active);
+    const restored = kept.success && kept.data.dirty;
+    if (kept.success) theme.set(kept.data.theme);
+    if (restored) {
+      const { files: list, active } = kept.data;
+      files.set(list);
+      nav.set({
+        place: { file: list.some((f) => f.name === active) ? active : list[0]!.name, offset: 0 },
+        back: [],
+        forward: [],
+      });
       dirty.set(true);
     }
 
     const save = () =>
       storage.setItem(
         key,
-        JSON.stringify({ files: files.get(), active: active.get(), dirty: dirty.get() }),
+        JSON.stringify({
+          files: files.get(),
+          active: nav.get().place.file,
+          dirty: dirty.get(),
+          theme: theme.get(),
+        }),
       );
     defer(files.watch(save));
-    defer(active.watch(save));
+    defer(nav.watch(save));
     defer(dirty.watch(save));
-    return { restored: kept.success && kept.data.dirty };
+    defer(theme.watch(save));
+    return { restored };
   },
 });
 

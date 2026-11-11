@@ -36,16 +36,32 @@ export const saved = z.object({
   files: z.array(z.object({ name: z.string(), content: z.string() })).min(1),
   active: z.string(),
   dirty: z.boolean(),
+  theme: z.enum(["github-light", "github-dark", "one-dark"]).catch("github-light"),
 });
 
 export type Saved = z.infer<typeof saved>;
 
 /** The open files, one per tab. */
 export const files = data<PlayFile[]>({ label: "play.files", initial: [...starter] });
-/** The tab on screen. */
-export const active = data<string>({ label: "play.active", initial: entry });
+/** A spot in a file: the tab or library source, and the character offset in it. */
+export type Place = { file: string; offset: number };
+
+/**
+ * Where the editor stands: `place` is on screen; `back` holds where it came from, newest last;
+ * `forward` holds what a step back undid. A jump adds to `back` and clears `forward`.
+ */
+export type Nav = { place: Place; back: Place[]; forward: Place[] };
+
+export const nav = data<Nav>({
+  label: "play.nav",
+  initial: { place: { file: entry, offset: 0 }, back: [], forward: [] },
+});
+
 /** True once the visitor changed the project; reset clears it. */
 export const dirty = data<boolean>({ label: "play.dirty", initial: false });
+/** The editor's colours. A clean session keeps it too. */
+export type Theme = Saved["theme"];
+export const theme = data<Theme>({ label: "play.theme", initial: "github-light" });
 /** Play shows the preview alone; code shows the editor beside it. */
 export const view = data<"play" | "code">({ label: "play.view", initial: "play" });
 

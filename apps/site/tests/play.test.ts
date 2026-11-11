@@ -4,7 +4,7 @@ import { expect, test } from "vite-plus/test";
 import { play } from "@/play";
 import { addFile, closeFile, editFile, renameFile, reset } from "@/play/ops";
 import { bundler, compile, persistence } from "@/play/services";
-import { active, bundle, dirty, entry, files, starter, status } from "@/play/state";
+import { bundle, dirty, entry, files, nav, starter, status } from "@/play/state";
 
 // The playground at its seam: real esbuild (Bun runs it with no wasm file), a Map as the storage,
 // and the scope's own clock. The lint's one-door rule is for features; a test reads the files.
@@ -75,10 +75,10 @@ test("tabs: add takes the first free name, close moves to the neighbour, the las
   const { scope } = await start();
   expect(scope.run(addFile)).toBe("Untitled1.tsx");
   expect(scope.run(addFile)).toBe("Untitled2.tsx");
-  expect(scope.controller(active).get()).toBe("Untitled2.tsx");
+  expect(scope.controller(nav).get().place.file).toBe("Untitled2.tsx");
 
   expect(scope.run(closeFile, { input: "Untitled2.tsx" })).toBe(true);
-  expect(scope.controller(active).get()).toBe("Untitled1.tsx");
+  expect(scope.controller(nav).get().place.file).toBe("Untitled1.tsx");
   for (const f of scope.controller(files).get().slice(1)) scope.run(closeFile, { input: f.name });
   expect(scope.run(closeFile, { input: entry })).toBe(false);
   expect(
@@ -93,7 +93,7 @@ test("rename refuses a taken name and carries the tab on screen", async () => {
   const { scope } = await start();
   expect(scope.run(renameFile, { input: { from: entry, to: "App.tsx" } })).toBe(false);
   expect(scope.run(renameFile, { input: { from: entry, to: "start.tsx" } })).toBe(true);
-  expect(scope.controller(active).get()).toBe("start.tsx");
+  expect(scope.controller(nav).get().place.file).toBe("start.tsx");
 });
 
 test("a changed session comes back; a clean one yields to the starter", async () => {

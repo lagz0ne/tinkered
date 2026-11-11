@@ -445,3 +445,36 @@ main.play[data-view="code"] .panes {
   color: var(--mute);
   background: var(--code);
 }
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.tools button,
+.tools select,
+.play-bar .full {
+  font: inherit;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: inherit;
+  padding: 2px 8px;
+}
+
+.tools button:disabled {
+  color: var(--mute);
+}
+
+.tools .reading {
+  color: var(--mute);
+}
+
+.play-bar .full {
+  margin-left: auto;
+  cursor: pointer;
+}
