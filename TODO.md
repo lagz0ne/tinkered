@@ -57,9 +57,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **core/keyed-guard-part** — A keyed board's `onStart` guard gets its part as `unknown` and digs (`Object(Object(input.input).part).teamId`). Askers: the issue board, Hedl `boardGuard`, and Hedl's keyed Checks board. Shape settled (ADR 0139, decision 5): `board.part(call)`, one call for every keyed cell of the board. Next: land patch 0002 (`/mnt/project-files/tinker-app/issue-board/fixes/`), with its test.
-  Verify: a guard reads `part.teamId` with no cast; a stream join and an ask both give the part; another key gives `undefined`; a field no key has fails the type check.
-
 - **hedl/tasks-keyed** — keyed data k07, blocked by the order decision (ADR 0138: the Tasks panel reads the newest 50, and a part has no order and no limit). In Hedl: the projector calls `invalidate` for each notice; the panel reads `where({ project })`; the tasks board has no session tag. k08 (checks, Inbox) and k09 (`remoteData` loses `config`) follow in the track.
   Verify: the e2e flows pass; a task change sends one member to a reader of that project; a reader of another project gets nothing.
 
@@ -119,6 +116,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **core/keyed-invalidate** — keyed data k04, done 2026-11-11. `board.invalidate` on both sides; a set on a served cell signals its member; one pass, one signal per reader. Proof: 15 Core tests; scoped mutation on k03 and k04 lines 85.30.
 
 - **core/keyed-load** — keyed data k05, done 2026-11-11. A board takes a `load` per keyed cell; the server keeps no member; a part with fewer fields is refused before the guard. Proof: the six cases of ADR 0137 as tests; guide `docs/keyed-projector.md`; size cap with rpc now 32,768 B.
+
+- **core/keyed-guard-part** — done 2026-11-11 (a01ada1; not released). `board.part(call)` gives a guard its typed part (ADR 0139 decision 5; patch 0002 from the issue board). Proof: a test reads `part.project` with no cast and its type check fails on a wrong type; S12 count 0; Core 1,290 tests.
 
 - **template/todo-keyed** — keyed data k06, done 2026-11-11. tinker-app 0.24.0 (e5049cf) on Core 0.17.1: the todo list is a keyed cell; each row reads `of({ id })` and rides the list's stream. Proof: 1,000 todos, the list is 85,009 B on the wire, one toggle 352 B; a browser test shows a toggle draws one row; `bun run check` exits 0.
 

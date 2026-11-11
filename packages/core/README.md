@@ -1171,6 +1171,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A set on the server makes each reader of its part ask for one member.
 - An answer that arrives after a later ask started is dropped.
 - With a load, the server keeps no member.
+- `board.part(call)` gives a guard the part of a keyed join or ask, typed;
+  any other call gives `undefined`.
 
 ### Tags
 
