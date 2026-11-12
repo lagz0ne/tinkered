@@ -70,6 +70,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
+- **react/data-held-scope** — ADR 0143 (proposed). `useData` reads the scope from context in its first render only; each provider keys its subtree, so a new scope on `<ScopeProvider scope>` mounts the subtree again. No API change.
+  Owner: the cloud lead. Saved on branch `claude/project-thread-iximez`, not on `main`.
+  Next: Duke picks yes or no (asked 2026-11-12). On yes: land on `main`, then release.
+  Proof so far: fan-out in Chromium 47.2 µs to 40.3 µs (three runs agree); 867.2k to 789.1k instructions. 3 new React tests, each fails without its line; React 118 tests; `vp check` green. The React mutation lane sees no mutant in browser tests, so the 3 mutants were made by hand.
+  [Perf progress](docs/roadmap/perf/PROGRESS.md#perfpreact-gap-2026-11-12).
+
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).

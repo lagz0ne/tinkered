@@ -201,6 +201,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 - The subtree uses the exact app-owned scope, which the provider never closes.
 - Under StrictMode, create mode leaks no scope and never exposes a closed one.
+- A new scope on the provider mounts its subtree again.
 
 ### useScope
 
@@ -221,6 +222,8 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - The writable setter keeps its identity across a cell update.
 - Reading through a new scope shows the new scope's value.
 - Reads a cell and re-renders when it is set externally.
+- A render after the scope closed raises Disposed.
+- useData with no provider raises NoProvider.
 - An unchanged object value keeps its identity across a parent re-render.
 - A write after unmount neither updates the removed subtree nor breaks the still-open scope.
 

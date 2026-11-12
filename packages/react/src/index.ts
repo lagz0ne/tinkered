@@ -46,8 +46,9 @@ const ScopeContext = createContext<Bound | undefined>(undefined);
 /** An independent scope clears an outer React session's reset key. */
 const bind = (scope: Scope.Handle, ns?: Namespace): Bound => ({ scope, ns, key: ++serial });
 
-/** Provide a Bound to a subtree. The key makes React mount the subtree again for a new Bound,
- * as `<Provider store>` of react-redux does not support a new store on the fly. */
+/** Provide a Bound to a subtree. The key makes React mount the subtree again for a new Bound
+ * (ADR 0143). The owning providers did that before the key: they render nothing between two
+ * scopes. */
 const provide = (bound: Bound, children: ReactNode): ReactNode =>
   createElement(ScopeContext.Provider, { key: bound.key, value: bound, children });
 
@@ -304,55 +305,40 @@ function useDataStore<T, S>(
   selector: ((value: T) => S) | undefined,
   isEqual: ((a: T, b: T) => boolean) | ((a: S, b: S) => boolean) | undefined,
 ): DataStore<T, T | S> {
-  const held = useHeld<T, S>(cell);
-  const controller = held.controller;
+  const held = useHeld<T, S>();
+  const controller = readableOf(held.bound.scope, cell);
 
   if (selector === undefined && isEqual === undefined) {
     return (controller as RawHolder<T>)[RAW] ?? createRawStore(controller);
   }
 
-  const store = (held.store ??= createDataStore<T, S>(controller));
+  const kept = held.store;
+  const store =
+    kept !== undefined && kept.controller === controller
+      ? kept
+      : (held.store = createDataStore<T, S>(controller));
 
   store.select = selector ?? (identity as (value: T) => S);
   store.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
   return store;
 }
 
-/** What one `useData` call holds for its component: the Bound from its first render, and the
- * controller of the cell it last read. */
-type Held<T, S> = {
-  bound: Bound;
-  cell: Data.Cell<T> | Data.View<T> | Data.Read<T>;
-  controller: Readable<T>;
-  store: SelectingStore<T, S> | undefined;
-};
+/** What one `useData` call holds for its component: the Bound from its first render, and its
+ * selecting store. */
+type Held<T, S> = { readonly bound: Bound; store: SelectingStore<T, S> | undefined };
 
-/** The Bound and the controller of one `useData` call. The context is read in the first render
- * only: a later render that read it would cost a context item for this component and a check
- * for each sibling. It is safe because a provider keys its subtree with its Bound. `use` is the
- * context read that React allows inside a condition. */
-function useHeld<T, S>(cell: Data.Cell<T> | Data.View<T> | Data.Read<T>): Held<T, S> {
+/** The Bound of one `useData` call. The context is read in the first render only: a later render
+ * that read it would cost a context item for this component and a check for each sibling
+ * (ADR 0143). It is safe because a provider keys its subtree with its Bound. `use` is the context
+ * read that React allows inside a condition. */
+function useHeld<T, S>(): Held<T, S> {
   const own = useRef<Held<T, S> | undefined>(undefined);
   const held = own.current;
+  if (held !== undefined) return held;
 
-  if (held === undefined) {
-    const bound = use(ScopeContext);
-    if (!bound) raise("NoProvider", { hook: "useScope" });
-
-    return (own.current = {
-      bound,
-      cell,
-      controller: readableOf(bound.scope, cell),
-      store: undefined,
-    });
-  }
-
-  if (held.cell !== cell) {
-    held.cell = cell;
-    held.controller = readableOf(held.bound.scope, cell);
-    held.store = undefined;
-  }
-  return held;
+  const bound = use(ScopeContext);
+  if (!bound) raise("NoProvider", { hook: "useScope" });
+  return (own.current = { bound, store: undefined });
 }
 
 /** A capsule's cell export: a read edge (ADR 0123). */

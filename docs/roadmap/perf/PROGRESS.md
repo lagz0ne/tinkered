@@ -2408,3 +2408,53 @@ After the release:
 Not done here:
 
 - `AbortSignal.any` for each request (card `core/closing-no-any` is its Core half).
+
+## perf/preact-gap (2026-11-12)
+
+Duke asked what we can do to get closer to Preact Signals.
+The full record: [the learnings entry](../../../research/learnings/2026-11-12-preact-gap.md).
+The decision: [ADR 0143](../../decisions/0143-usedata-holds-its-scope-a-new-scope-mounts-the-subtree-again.md), proposed.
+
+The gap on the site bench, Chromium, median:
+
+- One update: Tinker 6.4 µs, Preact Signals 4.4 µs.
+- A fan-out: 47.0 µs and 25.0 µs.
+- A mount: 123 µs and 88 µs.
+
+Where an update's 46.9k instructions of gap come from:
+
+- 27.8k: the context item React keeps on each component that reads context.
+- 7.0k: the context read and the controller lookup in each render.
+- 5.5k: the provider, which is two more tree levels.
+- 6.6k: two subscriptions for each component, and Core's write.
+
+Built on branch `claude/project-thread-iximez`, card `react/data-held-scope`:
+
+- `useData` reads the context in its first render only.
+- A provider keys its subtree, so a new scope mounts it again.
+- Fan-out: 47.2 µs to 40.3 µs in Chromium, three runs.
+- Fan-out: 867.2k to 789.1k instructions.
+- One update: 142.3k to 135.9k instructions.
+- The adapter grows 104 B minified, 70 B gzip.
+
+Tried and dropped:
+
+- Hold the controller too: fan-out 36.6 µs.
+  But a render after the scope closed showed the cell's first value.
+  Main raises `Disposed`. A test now holds that.
+- Watchers as an array or a Map with number keys, for a faster mount.
+  The first Chromium run showed 125 µs to 106 µs. A second run did not.
+  Counted in Core alone, the watchers are 10 µs of a 123 µs mount.
+  A Set is 117.7k instructions, an array 149.5k, a Map 102.1k.
+
+Checks:
+
+- React: 118 tests. `vp check` green.
+- A new scope mounts the subtree again: fails with no key.
+- A render after close raises `Disposed`: fails when the hook holds the controller.
+- `useData` with no provider raises `NoProvider`: fails with no raise.
+- The React mutation lane sees no mutant in browser tests.
+  So these three mutants were made by hand.
+
+Measured as on 2026-11-11: cachegrind and Chromium, old tree against new, turn by turn.
+`benchd` does not run in a cloud session, so no row is a `bench/queued.sh` row.
