@@ -3,7 +3,7 @@ import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
 import { createScope, data, operation, remoteData, resource, transport } from "@/main";
-import type { Data, Scope } from "@/main";
+import type { Data, Observe, Scope } from "@/main";
 
 const { hook } = transport;
 
@@ -389,4 +389,37 @@ test("a load runs in a session of its own, closed when it returns", async () => 
   await until(() => events.length === 2);
 
   expect(events).toEqual(["begin", "end"]);
+});
+
+test("a reader that leaves while its part loads ends quietly: no bug log, no fault", async () => {
+  const db = store();
+  const loadTasks = operation({
+    label: "tasks.load",
+    input: z.object({ project: z.string() }),
+    run: (_, { input }) => db.read(input.project),
+  });
+  const server = await createScope({
+    capsules: [
+      board({ serve: true, load: { tasks: loadTasks } }),
+      memory.server({ services: [board] }),
+    ],
+  }).ready;
+  closers.push(() => server.close());
+  const logs: Observe.Log[] = [];
+  const tab = await createScope({
+    observe: { log: (entry) => void logs.push(entry) },
+    capsules: [memory.client({ peer: server }), board({ read: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+  const late = db.slow();
+
+  const p1 = watch(tab, board.tasks.where({ project: "p1" }));
+  await until(() => late.reached);
+  p1.stop();
+  await new Promise((done) => setTimeout(done, 30));
+  late.release();
+  await new Promise((done) => setTimeout(done, 30));
+
+  expect(logs.map((l) => l.message)).toEqual([]);
+  expect(tab.resolve(board.faults).get()).toEqual({});
 });

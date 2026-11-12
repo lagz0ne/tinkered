@@ -374,9 +374,10 @@ const steps = resource({
                     sent,
                   ),
                 ).catch((error: unknown) => {
-                  // A lost link is a pushed fault. A throw here is a bug (ADR 0141): `failed` on
-                  // this side, never `link`, so nothing asks again.
+                  // A lost link is a pushed fault. The reader's own leave is a clean end. Any
+                  // other throw is a bug (ADR 0141): `failed` here, never `link`.
                   if (def.fault.is(error)) throw error;
+                  if (leave.signal.aborted) return;
                   log.error(`${def.name} bug`, { address: key, cause: String(error) });
                   throw faulted({ ok: false, kind: "failed", payload: { side: "client" } });
                 }),
