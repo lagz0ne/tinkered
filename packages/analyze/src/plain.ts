@@ -4,7 +4,7 @@ import ts from "typescript-api";
 
 import type { Check } from "./check";
 import { bindingNames, closes } from "./closure";
-import { enclosingFn, isFn, ownWalk, walk } from "./tree";
+import { enclosingFn, isFn, outermostFn, ownWalk, walk } from "./tree";
 import type { Fn } from "./tree";
 
 /** The hooks Core 0.10.0's `capsule()` accepts (`Capsule.Hooks`). */
@@ -474,11 +474,31 @@ function callbackCall(file: File, call: ts.CallExpression | ts.NewExpression) {
   );
 }
 
+/** A Workflow SDK file: `*.flow.ts` or `*.flow.server.ts` (ADR 0148). */
+const flowFile = /\.flow(\.server)?\.ts$/;
+
+/** The directives the Workflow SDK finds a workflow and a step by. */
+const flowDirectives = new Set(["use workflow", "use step"]);
+
+/**
+ * A workflow or a step in a flow file: the SDK finds it by its directive, not by a call. A
+ * directive is one of the body's leading string statements, as ECMAScript reads `"use strict"`.
+ */
+function flowFunction(file: File, fn: Fn) {
+  if (!flowFile.test(file.path) || !fn.body || !ts.isBlock(fn.body)) return false;
+  for (const statement of fn.body.statements) {
+    if (!ts.isExpressionStatement(statement) || !ts.isStringLiteral(statement.expression)) break;
+    if (flowDirectives.has(statement.expression.text)) return true;
+  }
+  return false;
+}
+
 function exempt(file: File, name: string) {
   return Object.hasOwn(file.pass.entries[file.path] ?? {}, name);
 }
 
 function judge(file: File, fn: Fn) {
+  if (flowFunction(file, fn)) return true;
   const name = nameOf(fn);
   if (name === undefined) return inline(file, fn);
   if (exempt(file, name)) return true;
@@ -621,10 +641,17 @@ function calleeFn(file: File, call: ts.CallExpression): Found | undefined {
   return memberFn(boundTo(file, callee.expression.text, call), callee.name.text);
 }
 
+/** A flow function called from inside a flow function: a workflow calls its steps by name. */
+function flowCall(file: File, call: ts.CallExpression, found: Found) {
+  const caller = outermostFn(call);
+  return flowFunction(found.file, found.fn) && caller !== undefined && flowFunction(file, caller);
+}
+
 /**
  * A helper behind a pass: a passing function that a call names, that holds no state of a
  * function around it, and that is no entry. Something else is meant to call a passing function
- * (Core, a library, React); a call by name makes it a plain function again (ADR 0149).
+ * (Core, a library, React); a call by name makes it a plain function again (ADR 0149). A flow
+ * function may call a flow function by name (ADR 0148).
  */
 function helperOf(file: File, call: ts.CallExpression) {
   const found = calleeFn(file, call);
@@ -632,6 +659,7 @@ function helperOf(file: File, call: ts.CallExpression) {
 
   const name = nameOf(found.fn);
   if (name !== undefined && exempt(found.file, name)) return undefined;
+  if (flowCall(file, call, found)) return undefined;
   return closes(found.fn) ? undefined : found;
 }
 
@@ -776,6 +804,8 @@ function check(file: File): Check.Finding[] {
  *   `const { f } = x; f({...})` or `new x.C({...})`;
  * - owned: named inside a passing function that returns it or hands it to a call;
  * - a React component: a capitalized function in a .tsx file that returns JSX;
+ * - a flow function: in a `*.flow.ts` or `*.flow.server.ts` file, a body that starts with the
+ *   directive `"use workflow"` or `"use step"` (the Workflow SDK's workflow and step);
  * - exempt: an item of the app's `entries`.
  *
  * A pass says who calls the function: Core, a library, React. So a call by name takes the pass

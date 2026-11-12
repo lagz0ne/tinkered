@@ -59,8 +59,8 @@ Exit codes:
 
 - `tinker/plain` — a named function in `src/`,
   `cmds/` or `tinker/` is an operation.
-  A function that passes is not called by name:
-  see below.
+  A function that passes is not called by name,
+  and a flow function passes: see below.
 - `tinker/one-wire` — a page file calls no
   `fetch`, `WebSocket`, `EventSource`,
   `XMLHttpRequest` or `sendBeacon`.
@@ -113,6 +113,40 @@ factory: () => {
 The check reads syntax only. It does not see a
 function that comes through `depends`, or one a
 library hands back. Review looks at those.
+
+## Flow files: the Workflow SDK
+
+The [Workflow SDK](https://workflow-sdk.dev) finds
+a workflow and a step by a directive. So they
+cannot be operations (ADR 0148).
+
+A flow file is a file whose name ends in
+`.flow.ts` or `.flow.server.ts`. In it, a
+function passes `tinker/plain` when its body
+starts with `"use workflow"` or `"use step"`:
+
+```ts
+export async function nameFlow() {
+  "use workflow";
+  return await suggest();
+}
+
+async function suggest() {
+  "use step";
+  return callOperation("naming.suggest");
+}
+```
+
+- The directive is first in the body. Only other
+  directives, such as `"use strict"`, may come
+  before it.
+- In any other file, the same function fails.
+- A helper in a flow file still fails.
+- Only a flow function calls a flow function by
+  name. A call from other code is a finding.
+  `start(nameFlow, [...])` is no call by name.
+- Name it `.flow.server.ts` to keep it out of the
+  page rules.
 
 ## The app's own exceptions
 

@@ -38,3 +38,10 @@ export function enclosingFn(node: ts.Node): Fn | undefined {
     if (isFn(parent)) return parent;
   }
 }
+
+/** The outermost function around a node. */
+export function outermostFn(node: ts.Node) {
+  let root: Fn | undefined;
+  for (let owner = enclosingFn(node); owner; owner = enclosingFn(owner)) root = owner;
+  return root;
+}

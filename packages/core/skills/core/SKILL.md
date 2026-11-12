@@ -83,8 +83,9 @@ id, fix the code, and run the check again.
   only. Check: lint and `InvalidDependency`.
   Skill: data.
 - `tinker/plain`: every named function is an
-  operation. Check: `bun run check:plain`.
-  Skill: operation.
+  operation. A Workflow SDK workflow or step in a
+  `*.flow.ts` file passes. Check:
+  `bun run check:plain`. Skill: operation.
 - `tinker/floating`: a root answers each call
   with a promise; await it. Check: lint
   `no-floating-promises`. Skill: operation.

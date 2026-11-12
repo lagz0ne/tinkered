@@ -275,3 +275,29 @@ test("an unnamed function is inline in each event registration", () => {
 
   expect(hits).toEqual(["src/a.ts:8 a plain function"]);
 });
+
+test("a workflow calls its step by name; a plain file that calls a step fails", () => {
+  const hits = plainIn({
+    "src/naming/naming.flow.server.ts": [
+      `export async function nameFlow(input: { idea: string }) {`,
+      `  "use workflow";`,
+      `  const parts = [input.idea].map((s) => suggest(s));`,
+      `  return await suggest(input.idea) + parts.length;`,
+      `}`,
+      `export async function suggest(idea: string) {`,
+      `  "use step";`,
+      `  return idea + "!";`,
+      `}`,
+    ],
+    "src/naming/start.server.ts": [
+      `import { start } from "workflow/api";`,
+      `import { nameFlow, suggest } from "./naming.flow.server";`,
+      `export const kick = start(nameFlow, [{ idea: "a" }]);`,
+      `export const cheat = suggest("b");`,
+    ],
+  });
+
+  expect(hits).toEqual([
+    helper("src/naming/naming.flow.server.ts:6", "src/naming/start.server.ts:4"),
+  ]);
+});
