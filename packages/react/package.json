@@ -1,6 +1,6 @@
 {
   "name": "@tinkered/react",
-  "version": "0.18.1",
+  "version": "0.18.2",
   "description": "Tinkered React: a thin React adapter over @tinkered/core.",
   "keywords": [
     "tanstack-intent"

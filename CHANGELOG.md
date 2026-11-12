@@ -6,6 +6,56 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.18.2
+
+`@tinkered/analyze` reads gap markers. Core,
+React and Bun have no code change.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.18.2 \
+  @tinkered/react@0.18.2 \
+  @tinkered/bun@0.18.2
+bun add -d @tinkered/analyze@0.18.2
+```
+
+From GitHub:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.18.2
+bun add $R/tinker-core-0.18.2.tgz \
+  $R/tinker-react-0.18.2.tgz \
+  $R/tinker-bun-0.18.2.tgz
+bun add -d $R/tinker-analyze-0.18.2.tgz
+```
+
+### Gap markers (ADR 0145)
+
+A gap is a finding that waits on a Tinker
+change. Name the gaps doc in
+`tinker-analyze.json`:
+
+```json
+{ "gaps": "docs/tinker-core-feedback.md" }
+```
+
+Mark the line, and give it a row:
+
+```ts
+// tinker-gap: G3
+const answer = await fetch("/api/auth");
+```
+
+- The finding is allowed while row `G3` is open.
+- A row allows at most its `Lines` count.
+- A stale marker, a closed or missing row, or a
+  row over its count breaks `tinker/gap`.
+- Each run prints `gaps: G1 3/3, G3 5/5`.
+
 ## 0.18.1
 
 A faster fan-out in React. No API changed.
