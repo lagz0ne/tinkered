@@ -10,8 +10,8 @@ It runs no app code.
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.9
-bun add -d $R/tinker-analyze-0.17.9.tgz
+releases/download/v0.17.10
+bun add -d $R/tinker-analyze-0.17.10.tgz
 ```
 
 ## Check an app

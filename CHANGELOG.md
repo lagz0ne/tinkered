@@ -1,9 +1,58 @@
 # Changelog
 
 Each section is one release of
-`@tinker/core`, `@tinker/react` and,
-since 0.15.0, `@tinker/bun`.
+`@tinker/core`, `@tinker/react`,
+`@tinker/bun` (since 0.15.0) and
+`@tinker/analyze` (since 0.17.10).
 They move to one version together.
+
+## 0.17.10
+
+A new package, `@tinker/analyze`: the rule checks
+in one command.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.10
+bun add $R/tinker-core-0.17.10.tgz \
+  $R/tinker-react-0.17.10.tgz \
+  $R/tinker-bun-0.17.10.tgz
+bun add -d $R/tinker-analyze-0.17.10.tgz
+```
+
+The four URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.10/tinker-core-0.17.10.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.10/tinker-react-0.17.10.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.10/tinker-bun-0.17.10.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.10/tinker-analyze-0.17.10.tgz
+
+### `@tinker/analyze` (ADR 0145)
+
+- `tinker-analyze check` reads an app's files and
+  prints each broken rule: file, line, rule id.
+- After the findings, each broken rule names its
+  next step and the skill to read.
+
+```text
+src/a.ts:1 tinker/plain a plain function
+
+tinker/plain: make it an operation
+  read: @tinker/core#core/operation
+```
+
+- Rules: `tinker/plain`, `tinker/one-wire`,
+  `tinker/react-state`.
+- The app's exceptions go in
+  `tinker-analyze.json`, each with a reason.
+- `@tinker/analyze/lint` is the Oxlint plugin:
+  `tinker/cell-write`, `tinker/blank-lines`,
+  `tinker/body-steps`.
+- Core, React and Bun have no code change.
 
 ## 0.17.9
 

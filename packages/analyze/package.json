@@ -1,6 +1,6 @@
 {
   "name": "@tinker/analyze",
-  "version": "0.17.9",
+  "version": "0.17.10",
   "description": "Tinker's checks: one command reads an app and prints each broken rule with its id and the skill to read.",
   "license": "MIT",
   "bin": {
