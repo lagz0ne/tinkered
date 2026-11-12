@@ -13,15 +13,20 @@ const spot = z.object({ x: z.number().finite(), y: z.number().finite() });
 /** A wave's power: a press is 1, the default; a drag leaves weaker ones. */
 const power = z.number().min(0).max(1).optional();
 
-/** A wave starts here and now, in the hue it was dealt. A press lands one; so can a server. */
+/**
+ * A wave starts here, in the hue it was dealt. A press lands one now. A server can land one that
+ * began `age` ms ago: it starts that far into its life, in step with the tabs that saw it begin.
+ * A wave that has outlived `life` does not land.
+ */
 export const land = operation({
   label: "ocean.land",
-  input: spot.extend({ hue: z.number().finite(), power }),
-  depends: { waves: waves.controller },
-  run: ({ waves }, { input, clock }) => {
-    const start = clock.currentTimeMillis();
-    const wave = { ...input, power: input.power ?? 1, start };
-    waves.update((list) => [...list, { ...wave, id: (list.at(-1)?.id ?? 0) + 1 }]);
+  input: spot.extend({ hue: z.number().finite(), power, age: z.number().min(0).optional() }),
+  depends: { waves: waves.controller, physics: physics.controller },
+  run: ({ waves, physics }, { input: { age = 0, ...wave }, clock }) => {
+    if (age >= physics.get().life) return;
+
+    const born = { ...wave, power: wave.power ?? 1, start: clock.currentTimeMillis() - age };
+    waves.update((list) => [...list, { ...born, id: (list.at(-1)?.id ?? 0) + 1 }]);
   },
 });
 

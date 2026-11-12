@@ -13,7 +13,11 @@ import { listen, wsClient as tab, wsServer as server } from "./support/ws";
 // The shared sea as the cmds install it, over a real socket: the server holds each room's
 // waves; each tab runs the playground's ocean plus `tide({ room })`. Nothing else is added.
 
+/** The server's clock, by hand: a wave's `at` is on it, and a test moves it to age a wave. */
+const serverClock = makeTestClock({ now: 50_000 });
+
 const backend = await createScope({
+  clock: serverClock,
   capsules: [
     sea.board({ serve: true }),
     sea.api({ implement: seaOps }),
@@ -105,6 +109,31 @@ test("a press given as raw input reaches the room too; a bad one lands nowhere",
 
   expect(() => a.scope.run(ocean.press, { rawInput: { x: "left" } })).toThrow();
   expect(a.waves()).toHaveLength(1);
+});
+
+test("a tab that joins a room does not start a wave that has ended", async () => {
+  const a = await open("dock");
+  await Promise.resolve(a.scope.run(ocean.press, { input: { x: 0, y: 0 } }));
+  serverClock.advance(20_000);
+
+  const b = await open("dock");
+  const copy = b.scope.resolve(sea.board.waves.where({ room: "dock" }));
+  await until(() => copy.get().length === 1);
+  await Promise.resolve(a.scope.run(ocean.press, { input: { x: 2, y: 2 } }));
+  await until(() => copy.get().some((w) => w.x === 2) && b.waves().length > 0);
+
+  expect(b.waves()).toMatchObject([{ x: 2, y: 2 }]);
+});
+
+test("a tab that joins a room mid-wave starts the wave at its real age", async () => {
+  const a = await open("pier");
+  await Promise.resolve(a.scope.run(ocean.press, { input: { x: 1, y: 1 } }));
+  serverClock.advance(1000);
+
+  const b = await open("pier");
+  await until(() => b.waves().length > 0);
+
+  expect(b.waves()).toMatchObject([{ x: 1, y: 1, start: b.clock.currentTimeMillis() - 1000 }]);
 });
 
 test("the storm's presses go to the room as well", async () => {

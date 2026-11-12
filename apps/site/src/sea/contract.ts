@@ -46,9 +46,13 @@ export const seaPress = z.object({
   power: z.number().min(0).max(1).optional(),
 });
 
-/** Ask: a press is a call. */
+/**
+ * Ask: a press is a call. `clock.now` is the server's clock, in ms: a wave's `at` is on that
+ * clock, so a tab asks for it to tell how old a wave is.
+ */
 export const seaApi = rpc({
   "wave.press": { input: seaPress, output: z.object({ hue: z.number() }) },
+  "clock.now": { input: z.null(), output: z.number() },
 });
 
 /**

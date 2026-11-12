@@ -3,7 +3,7 @@ import { makeTestClock } from "@tinker/core/testing";
 import { expect, test } from "vite-plus/test";
 
 import { key, look, poke, show, view } from "@/play/starter/draw";
-import { clear, facing, press, setStorm, tune, turn } from "@/play/starter/engine";
+import { clear, facing, land, press, setStorm, tune, turn } from "@/play/starter/engine";
 import { ocean } from "@/play/starter/ocean";
 import { board, cursor, heading, storm, walls, waves } from "@/play/starter/state";
 import type { Frames } from "@/play/starter/state";
@@ -110,6 +110,16 @@ test("a wave lives its life, then goes", async () => {
   queue.pump();
   expect(count()).toBe(0);
   expect(shades().every((s) => s.z === 0)).toBe(true);
+});
+
+test("a wave that lands late starts at its age; one past its life does not land", async () => {
+  const { scope } = await game();
+
+  scope.run(land, { input: { x: 1, y: 1, hue: 7, age: 1000 } });
+  scope.run(land, { input: { x: 2, y: 2, hue: 7, age: 3600 } });
+
+  expect(scope.controller(waves).get()).toMatchObject([{ x: 1, y: 1, start: 0 }]);
+  await scope.close();
 });
 
 test("a tile whose look did not change keeps its object", async () => {
