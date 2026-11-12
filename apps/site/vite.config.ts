@@ -56,6 +56,7 @@ export default defineConfig({
             "@tinker/react",
             "react-dom/client",
             "@tanstack/react-router",
+            "vite-plus/test/browser",
           ],
         },
         test: {

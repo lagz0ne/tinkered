@@ -574,10 +574,12 @@ main.play {
   padding: 0;
 }
 
+/* `minmax(0, 1fr)`: a plain `1fr` cannot go under its content, so a long row of file tabs made
+   the column, and then the page, wider than a phone. Now the tab row scrolls by itself. */
 .panes {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -595,13 +597,17 @@ main.play[data-view="code"] .panes {
 .code {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--line);
 }
 
 .tabs {
   display: flex;
+  flex: none;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
   border-bottom: 1px solid var(--line);
   font-size: 12px;
 }
