@@ -19,6 +19,8 @@ wraps Vite, Rolldown, Vitest, tsdown, Oxlint, and Oxfmt.
   `vp test` runs them all under the root config and fails on react and the
   site).
 - `vp run prose` after editing any `.md` (it also runs on commit).
+- `vp run skills` after editing a `SKILL.md` or a public type
+  (ADR 0143). A skill's plain code fence is a whole example.
 
 ## Stay on latest main
 

@@ -2,6 +2,9 @@
   "name": "@tinker/react",
   "version": "0.17.8",
   "description": "Tinkered React: a thin React adapter over @tinker/core.",
+  "keywords": [
+    "tanstack-intent"
+  ],
   "homepage": "https://github.com/author/library#readme",
   "bugs": {
     "url": "https://github.com/author/library/issues"
@@ -13,7 +16,8 @@
     "url": "git+https://github.com/author/library.git"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "type": "module",
   "exports": {
