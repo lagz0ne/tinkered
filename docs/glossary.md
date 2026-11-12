@@ -489,6 +489,7 @@ New sections are lists, one term per item (vertical layout,
 - **slice** — Only the paths of one route, op or cmd, at file and line (Weiser).
 - **backtrace** — The call stack of a failed run, at file and line: span names and the error's origin, joined with the call shapes (as gdb `bt`).
 - **unit tag** — A fixed fact on an `operation`, `resource` or `data` (`tags: [...]`): read by tools and hooks, put on the unit's span, never bound into a run.
+- **flow file** — A file whose name ends in `.flow.ts` or `.flow.server.ts`. In it, a function whose body starts with `"use workflow"` or `"use step"` (a Workflow SDK workflow or step) passes `tinker/plain` (ADR 0148).
 
 ## rpc and remote data (ADR 0130)
 

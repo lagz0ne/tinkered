@@ -5,7 +5,7 @@ description: >
   Tinker app: its label, input shape, deps, run
   body, how to call it, or how it fails. Also
   when a check prints tinker/plain or
-  tinker/floating.
+  tinker/floating, or for a Workflow SDK flow.
 metadata:
   purpose: >
     How to write, call and fail an operation,
@@ -111,6 +111,36 @@ if (result.status === "cancelled") result.reason;
 - `run` answers the value or throws.
 - `settle` answers one of three: `success`,
   `failed` or `cancelled`.
+
+### A durable flow: the Workflow SDK
+
+The [Workflow SDK](https://workflow-sdk.dev) finds
+a workflow and a step by a directive, so they are
+plain functions. Put them in a flow file: a name
+that ends in `.flow.server.ts` (or `.flow.ts`).
+There, `tinker/plain` lets them pass (ADR 0148).
+
+```ts no-check
+// src/naming/naming.flow.server.ts
+export async function nameFlow(idea: string) {
+  "use workflow";
+  return await suggest(idea);
+}
+
+async function suggest(idea: string) {
+  "use step";
+  return callOperation("naming.suggest", { idea });
+}
+```
+
+- Keep a flow function thin: it awaits hooks,
+  sleeps, and calls operations by name.
+- The logic stays in operations. A step cannot
+  import a cell: the SDK bundles it on its own.
+- A step can run again after a crash. Make each
+  step safe to repeat.
+- The directive is first in the body. A helper
+  beside it in the file still fails.
 
 ## Common mistakes
 

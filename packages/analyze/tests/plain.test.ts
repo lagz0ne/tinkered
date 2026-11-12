@@ -513,3 +513,71 @@ export const guarded = new Proxy({ a: 1 }, { get: (target, key) => Reflect.get(t
   expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/stream.ts", 1));
 });
+
+/** A workflow, its step, and a helper, as the Workflow SDK finds them (ADR 0148). */
+const flow = `export async function nameFlow(input: { idea: string }) {
+  "use workflow";
+  return await suggest(input.idea);
+}
+
+export const suggest = async (idea: string) => {
+  "use strict";
+  "use step";
+  return [idea].map((s) => s + "!")[0];
+};
+
+export const helper = (s: string) => s;
+`;
+
+test("a workflow and a step pass in a flow file; a helper beside them fails", () => {
+  const result = checkFiles({
+    "src/naming/naming.flow.ts": flow,
+    "src/naming/naming.flow.server.ts": flow,
+  });
+
+  expect(result.code).toBe(1);
+  expect(result.hits).toBe(
+    [hit("src/naming/naming.flow.server.ts", 12), hit("src/naming/naming.flow.ts", 12)].join("\n"),
+  );
+});
+
+test("a workflow and a step fail outside a flow file", () => {
+  const result = checkFiles({
+    "src/naming/flows.server.ts": flow,
+    "src/naming/naming.flow.tsx": flow,
+  });
+
+  expect(result.code).toBe(1);
+  expect(result.hits).toBe(
+    ["src/naming/flows.server.ts", "src/naming/naming.flow.tsx"]
+      .flatMap((path) => [1, 6, 12].map((line) => hit(path, line)))
+      .join("\n"),
+  );
+});
+
+test("in a flow file, a late, wrapped, other, or missing directive fails", () => {
+  const result = checkFiles({
+    "src/a.flow.server.ts": `export async function late() {
+  const at = 1;
+  "use step";
+  return at;
+}
+
+export async function wrapped() {
+  ("use step");
+  return 1;
+}
+
+export async function other() {
+  "use server";
+}
+
+export async function empty() {}
+`,
+  });
+
+  expect(result.code).toBe(1);
+  expect(result.hits).toBe(
+    [1, 7, 12, 16].map((line) => hit("src/a.flow.server.ts", line)).join("\n"),
+  );
+});

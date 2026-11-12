@@ -519,11 +519,31 @@ function callbackCall(file: File, call: ts.CallExpression | ts.NewExpression) {
   );
 }
 
+/** A Workflow SDK file: `*.flow.ts` or `*.flow.server.ts` (ADR 0148). */
+const flowFile = /\.flow(\.server)?\.ts$/;
+
+/** The directives the Workflow SDK finds a workflow and a step by. */
+const flowDirectives = new Set(["use workflow", "use step"]);
+
+/**
+ * A workflow or a step in a flow file: the SDK finds it by its directive, not by a call. A
+ * directive is one of the body's leading string statements, as ECMAScript reads `"use strict"`.
+ */
+function flowFunction(file: File, fn: Fn) {
+  if (!flowFile.test(file.path) || !fn.body || !ts.isBlock(fn.body)) return false;
+  for (const statement of fn.body.statements) {
+    if (!ts.isExpressionStatement(statement) || !ts.isStringLiteral(statement.expression)) break;
+    if (flowDirectives.has(statement.expression.text)) return true;
+  }
+  return false;
+}
+
 function exempt(file: File, name: string) {
   return name === "cn" || Object.hasOwn(file.pass.entries[file.path] ?? {}, name);
 }
 
 function judge(file: File, fn: Fn) {
+  if (flowFunction(file, fn)) return true;
   const name = nameOf(fn);
   if (name === undefined) return inline(file, fn);
   if (exempt(file, name)) return true;
@@ -648,6 +668,8 @@ function check(file: File): Check.Finding[] {
  * - owned: named inside a passing function that returns it or hands it to a call;
  * - a listener: a top-level function handed to an event registration (`addEventListener`, ...);
  * - a React component: a capitalized function in a .tsx file that returns JSX;
+ * - a flow function: in a `*.flow.ts` or `*.flow.server.ts` file, a body that starts with the
+ *   directive `"use workflow"` or `"use step"` (the Workflow SDK's workflow and step);
  * - exempt: `cn` anywhere (shadcn's registry imports it), or an item of the app's `entries`.
  */
 export function findPlain(sources: readonly Check.Source[], entries: Check.Entries) {
