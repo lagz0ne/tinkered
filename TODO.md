@@ -77,10 +77,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **analyze/call-guard** — ADR 0149. A passing function that app code calls by name is a finding, unless it is a closure or an entry. The listener pass is gone; `cn` is an entry.
-  Owner: this thread's lead. Next: gates, mutation, land, release, then the template and Hedl.
-  Verify: `packages/analyze/tests/called.test.ts`; the site's `check:plain` prints no finding; analyze mutation at 85 or more.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -119,6 +115,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **analyze/call-guard** — done 2026-11-12 (ADR 0149; Duke 15:17, on the card: "A. Build the guard"). A passing function that app code calls by name is a finding, unless it is a closure or an entry. The listener pass is gone; `cn` is an entry. Released as 0.20.0.
+  Proof: `packages/analyze/tests/called.test.ts` (9 tests); analyze 81 tests; the site's `check:plain` prints no finding; analyze mutation 89.90 on e1725cd, clean tree, exit 0.
 
 - **react/data-held-scope** — done 2026-11-12 (ADR 0144; Duke 05:04, on the card: "Yes, land A"). `useData` reads the scope from context in its first render only; each provider keys its subtree, so a new scope on `<ScopeProvider scope>` mounts the subtree again. No API change. Proof (cachegrind and Chromium, old tree against new, turn by turn; `benchd` does not run in a cloud session, so no row is a `bench/queued.sh` row): fan-out in Chromium 47.2 µs to 40.3 µs (three runs agree); 867.2k to 789.1k instructions; one update 142.3k to 135.9k. 3 new React tests, each fails without its line; React 118 tests; `vp check` green. The React mutation lane sees no mutant in browser tests, so the 3 mutants were made by hand. [Perf progress](docs/roadmap/perf/PROGRESS.md#perfpreact-gap-2026-11-12).
 

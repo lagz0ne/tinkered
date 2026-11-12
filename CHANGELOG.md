@@ -6,6 +6,69 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.20.0
+
+`tinker/plain` looks at who calls a function
+(ADR 0149). Core, React and Bun have no code
+change.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.20.0 \
+  @tinkered/react@0.20.0 \
+  @tinkered/bun@0.20.0
+bun add -d @tinkered/analyze@0.20.0
+```
+
+From GitHub:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.20.0
+bun add $R/tinker-core-0.20.0.tgz \
+  $R/tinker-react-0.20.0.tgz \
+  $R/tinker-bun-0.20.0.tgz
+bun add -d $R/tinker-analyze-0.20.0.tgz
+```
+
+### A call by name takes the pass away
+
+A function passes `tinker/plain` when something
+else calls it: Core, a library, React. Now the
+check also reads the calls. A passing function
+that your code calls by name is a finding:
+
+```text
+src/page.tsx:3 tinker/plain a helper, called
+by name at src/page.tsx:7
+```
+
+Your code may call by name:
+
+- an operation, through the scope;
+- a closure: a function that reads a name of a
+  function around it;
+- an entry in `tinker-analyze.json`.
+
+### What to change in an app
+
+- **New findings.** Make each helper an
+  operation, or write it inline.
+- **`cn` is not built in.** List it:
+
+  ```json
+  "src/ui/classes.ts": {
+    "cn": "shadcn's registry imports it."
+  }
+  ```
+
+- **The listener pass is gone.** A named
+  function handed to `addEventListener` is a
+  finding. Write the listener inline.
+
 ## 0.19.0
 
 Each rpc call has an execution id (ADR 0147).
