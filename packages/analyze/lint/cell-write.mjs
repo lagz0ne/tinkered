@@ -18,6 +18,16 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 const cellWrite = {
   meta: {
     type: "suggestion",
+    schema: [
+      {
+        type: "object",
+        properties: {
+          roots: { type: "array", items: { type: "string" } },
+          aliases: { type: "object", additionalProperties: { type: "string" } },
+        },
+        additionalProperties: false,
+      },
+    ],
     messages: {
       foreign:
         "`{{name}}` is a cell of capsule `{{owner}}`. Read it through the capsule's export, " +

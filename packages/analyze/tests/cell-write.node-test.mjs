@@ -14,7 +14,7 @@ const vitePlus = createRequire(join(repo, "package.json")).resolve("vite-plus/pa
 const oxlint = join(createRequire(vitePlus).resolve("oxlint/package.json"), "../bin/oxlint");
 
 /** Lint a small app tree with only this rule on; answer the warning lines. */
-function lint(files) {
+function lint(files, options) {
   const dir = mkdtempSync(join(tmpdir(), "cell-write-"));
   try {
     for (const [path, text] of Object.entries(files)) {
@@ -29,7 +29,10 @@ function lint(files) {
     );
     writeFileSync(
       join(dir, ".oxlintrc.json"),
-      JSON.stringify({ jsPlugins: ["./plugin.mjs"], rules: { "t/cell-write": "warn" } }),
+      JSON.stringify({
+        jsPlugins: ["./plugin.mjs"],
+        rules: { "t/cell-write": options ? ["warn", options] : "warn" },
+      }),
     );
     const out = execFileSync(
       process.execPath,
@@ -132,4 +135,17 @@ void test("a placed edge on another capsule's cell warns; on an own cell it does
   assert.match(lines[0], /work\/resources\.ts:4:/);
   assert.match(lines[1], /work\/resources\.ts:5:/);
   assert.match(lines[0], /`point` is a cell of capsule `src\/frontend\/talk`/);
+});
+
+void test("the roots option names the folders whose first level is one capsule each", () => {
+  const files = {
+    "src/talk/atoms.ts":
+      'import { data } from "@tinkered/core";\n' +
+      'export const point = data({ label: "talk.point", initial: "a" });\n',
+    "src/board/sneak.ts":
+      'import { point } from "@/talk/atoms";\n' + "export const edge = point.controller;\n",
+  };
+
+  assert.equal(lint(files).length, 0);
+  assert.equal(lint(files, { roots: ["src"] }).length, 1);
 });

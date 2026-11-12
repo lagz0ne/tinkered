@@ -40,6 +40,13 @@ Load that skill with Intent:
 bunx intent load @tinkered/core#core/operation
 ```
 
+The command file starts with a `node` line.
+Where only Bun may run, call it with `--bun`:
+
+```bash
+bun --bun tinker-analyze check
+```
+
 Exit codes:
 
 - `0`: no finding.

@@ -25,11 +25,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **skills/check-names-skill** — ADR 0143 decision 5, ADR 0145, in tinker-app, after the release that ships `@tinkered/analyze`. The template runs `tinker-analyze check` in place of its `scripts/check-plain.ts`, with its entries in `tinker-analyze.json`, and takes its lint rules from `@tinkered/analyze/lint`. So it gets the page rules (`tinker/react-state`, `tinker/one-wire`) that the guide's Rules page already claims. Left after that: the lint messages for `tinker/one-door` and `tinker/floating`, and `MissingConfig` (`tinker/config`), name their skill.
-  Verify: in the template, a planted `useState` in `src/` fails `bun run check:plain` with `tinker/react-state` and `read: @tinkered/react#react`.
-
-- **skills/template-wire** — ADR 0143 decision 2, in tinker-app, after the release that ships the skills. `@tanstack/intent` as a dev dependency, `"intent": { "skills": ["@tinkered/*"] }`, and the `intent-skills` block in `AGENTS.md`.
-  Verify: in a fresh `degit` of the template, `intent list` shows the Core and React skills at the installed version.
+- **skills/check-names-skill** — ADR 0143 decision 5. The template runs `tinker-analyze check` (tinker-app 0113472). Left: the lint messages for `tinker/one-door` and `tinker/floating`, and `MissingConfig` (`tinker/config`), name their skill. The template passes `roots: ["tinker/components", "src"]` to `tinker/cell-write`.
+  Verify: a planted case per rule prints its rule id and `read: <skill>`.
 
 - **skills/bun** — `@tinkered/bun` has no skill: `serve`, `ws`, `/client`, `/sql`, `/sqlite`.
   Verify: `vp run skills` passes with a `packages/bun/skills/bun/SKILL.md`; the pack holds it.
@@ -84,6 +81,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **analyze/check** — owner: lead (Fable, thread "Ship Tinker skills and verify tools"). ADR 0145. `packages/analyze` is on main: `tinker-analyze check [root]` holds the plain-function check and the page rules; each finding prints its rule id, and each broken rule its skill. The lint rules are `@tinkered/analyze/lint`. The site runs the package; its script and lint copies are gone. Proof seen: 56 package tests, `vp check`, the site's `check:plain` prints `no findings in 79 files`.
   Next step: mutation. The package scores 77 against the floor of 85; `plain.ts` is at 71 (the script was never under mutation), the other files are at 84 or more. Kill the `plain.ts` survivors through `main`, or delete code no test needs.
+  Also: the command file has a `node` shebang, so a job that blocks node calls `bun --bun tinker-analyze check` (the template does).
   Census: three strict rows still fire and are false here: S11 reads a glob string as a comment, S15 reads a TSDoc example, P04 is a hot-path rule on module-level constant sets.
   Verify: `pnpm --dir packages/analyze mutate` clears 85.
 
@@ -123,6 +121,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **skills/template-wire** — done 2026-11-12 (ADR 0143 decision 2), tinker-app b76fb65 (0.24.8). Intent is a dev dependency, `package.json#intent.skills` allows the Tinker packages, and `AGENTS.md` holds the `intent-skills` block and the check loop. Proof seen: `bunx intent list` shows 2 packages and 7 skills at 0.17.10; a planted `useState` in `src/` fails `bun run check:plain` with `tinker/react-state` and its skill.
 
 - **skills/core-react** — done 2026-11-12 (ADR 0143). Duke: "learn from tanstack and how they are delivering the skill/ instruction to work with library". Skills ship in the package and TanStack Intent carries them: 6 skills in `packages/core/skills/core/` (entry, operation, data, capsule, rpc, testing) and 1 in `packages/react/skills/react/`; `vp run skills` (`intent validate`) is a CI step; `scripts/bump.mjs` stamps `library_version`; 8 rule ids (`tinker/<name>`). Proof: `intent validate` passes 7 files and fails a planted fence at `SKILL.md:193: TS2353`; the Core pack holds the 6 files with `types` `./dist/index.d.mts`; a scratch app with that pack lists 6 skills and loads `@tinkered/core#core/operation`; each runtime claim was run against the built 0.17.8.
 
