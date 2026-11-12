@@ -40,7 +40,7 @@ for p in "${PACKAGES[@]}"; do
   if $NPM trust list "$name" 2>/dev/null | grep -q "$REPO"; then
     echo "$name: trust set already"
   else
-    $NPM trust github "$name" --repo "$REPO" --file "$WORKFLOW" --yes
+    $NPM trust github "$name" --repo "$REPO" --file "$WORKFLOW" --allow-publish --yes
     echo "$name: trust set"
   fi
 done
