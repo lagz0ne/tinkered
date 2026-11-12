@@ -6,21 +6,27 @@ import tideSource from "./tide.ts?raw";
 // own scope with its own socket, as two visitors would be.
 
 /** The one change: the playground's cmd, and the shared one. A `+` line is new. */
-const before = `const app = createScope({
+const before = `const water = ocean({ cols: 20, rows: 20, frames: window });
+const app = createScope({
   capsules: [
-    ocean({ cols: 20, rows: 20, frames: window }),
+    water,
   ],
-});`;
+});
 
-const after = `const app = createScope({
+<water.View />`;
+
+const after = `const water = ocean({ cols: 20, rows: 20, frames: window });
+const app = createScope({
   capsules: [
 +   ws.client({ url }),
 +   sea.board({ read: ws.client }),
 +   sea.api({ remote: ws.client }),
-    ocean({ cols: 20, rows: 20, frames: window }),
+    water,
 +   tide({ room }),
   ],
-});`;
+});
+
+<water.View />`;
 
 const server = `sea.board({ serve: true }),
 sea.api({ implement: seaOps }),`;
@@ -111,7 +117,8 @@ export function LivePage({ room }: { room: string }) {
         </h2>
         <ul className="zero">
           <li>
-            <code>App.tsx</code>, <code>Scene.tsx</code>: no component knows the sea is shared.
+            <code>{"<water.View />"}</code>: the page comes from the ocean capsule, as before. No
+            component knows the sea is shared.
           </li>
           <li>
             <code>engine.ts</code>, <code>state.ts</code>: press, storm and paint are the same ops.
