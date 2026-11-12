@@ -1,5 +1,5 @@
 import { createScope, data } from "@tinkered/core";
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 
@@ -75,6 +75,33 @@ test("under StrictMode, create mode leaks no scope and never exposes a closed on
   await expect.element(screen.getByText("hi")).toBeVisible();
   await screen.unmount();
   await expect.poll(() => creates > 0 && creates === closes).toBe(true);
+});
+
+test("a new scope on the provider mounts its subtree again", async () => {
+  const first = createScope();
+  const second = createScope();
+
+  function Switcher(): React.ReactElement {
+    const [scope, setScope] = useState(first);
+    return (
+      <>
+        <button type="button" onClick={() => setScope(second)}>
+          swap
+        </button>
+        <ScopeProvider scope={scope}>
+          <input aria-label="draft" />
+        </ScopeProvider>
+      </>
+    );
+  }
+
+  const screen = await render(<Switcher />);
+  await screen.getByRole("textbox", { name: "draft" }).fill("typed");
+  await screen.getByRole("button").click();
+
+  await expect.element(screen.getByRole("textbox", { name: "draft" })).toHaveValue("");
+  await first.close();
+  await second.close();
 });
 
 function label(error: unknown): string {

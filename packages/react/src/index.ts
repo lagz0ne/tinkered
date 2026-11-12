@@ -39,12 +39,26 @@ const IS_SERVER = typeof document === "undefined";
 /** What a provider gives its subtree: the scope hooks resolve against, and the reset namespace
  * head a React session saved. One context, not two: each provider fiber above a component is one
  * more step in React's walk for every sibling that does not re-render. */
-type Bound = { readonly scope: Scope.Handle; readonly ns: Namespace | undefined };
+type Bound = {
+  readonly scope: Scope.Handle;
+  readonly ns: Namespace | undefined;
+  /** One number for each Bound. A provider keys its subtree with it, so a new Bound mounts the
+   * subtree again and a `useData` call may hold its Bound for the life of its component. */
+  readonly key: number;
+};
+
+let serial = 0;
 
 const ScopeContext = createContext<Bound | undefined>(undefined);
 
 /** An independent scope clears an outer React session's reset key. */
-const bind = (scope: Scope.Handle): Bound => ({ scope, ns: undefined });
+const bind = (scope: Scope.Handle, ns?: Namespace): Bound => ({ scope, ns, key: ++serial });
+
+/** Provide a Bound to a subtree. The key makes React mount the subtree again for a new Bound
+ * (ADR 0144). The owning providers did that before the key: they render nothing between two
+ * scopes. */
+const provide = (bound: Bound, children: ReactNode): ReactNode =>
+  createElement(ScopeContext.Provider, { key: bound.key, value: bound, children });
 
 /** Start a scope's teardown without awaiting; a scope owns its own shutdown and never throws
  * (ADR 0027), so the unmounting subtree does not wait on the result. */
@@ -79,7 +93,7 @@ function StartedScopeProvider(props: {
 }): ReactNode {
   const scope = use(props.scope.ready);
   const value = useMemo(() => bind(scope), [scope]);
-  return createElement(ScopeContext.Provider, { value, children: props.children });
+  return provide(value, props.children);
 }
 
 /** Where {@link OwnedScopeProvider}'s scope is in its life: waiting for start, started, or
@@ -130,7 +144,7 @@ function OwnedScopeProvider(props: {
 
   if (owned.kind === "failed") throw owned.error;
   if (owned.kind === "waiting") return null;
-  return createElement(ScopeContext.Provider, { value: owned.bound, children: props.children });
+  return provide(owned.bound, props.children);
 }
 
 /** Put a `@tinkered/core` scope on React context for the subtree. Hooks resolve against the nearest
@@ -146,7 +160,7 @@ export function ScopeProvider(props: ScopeProviderProps): ReactNode {
   if (isStarting(scope)) {
     return createElement(StartedScopeProvider, { scope, children: props.children });
   }
-  return createElement(ScopeContext.Provider, { value, children: props.children });
+  return provide(value!, props.children);
 }
 
 /** Open a child session for a subtree: created on mount from the nearest scope, force-closed on
@@ -176,7 +190,7 @@ export function SessionProvider(props: {
     const session = parent.createSession(options);
     const ns = options?.ns;
     const [head] = ns === undefined ? [inherited] : "tags" in ns ? [ns] : ns;
-    setOwned({ parent, bound: { scope: session, ns: head } });
+    setOwned({ parent, bound: bind(session, head) });
 
     return () => {
       setOwned(undefined);
@@ -185,7 +199,7 @@ export function SessionProvider(props: {
   }, [parent, inherited]);
 
   if (owned === undefined || owned.parent !== parent) return null;
-  return createElement(ScopeContext.Provider, { value: owned.bound, children: props.children });
+  return provide(owned.bound, props.children);
 }
 
 /** Read the nearest scope `Handle`. Raises `NoProvider` when used outside a {@link ScopeProvider}. */
@@ -299,22 +313,40 @@ function useDataStore<T, S>(
   selector: ((value: T) => S) | undefined,
   isEqual: ((a: T, b: T) => boolean) | ((a: S, b: S) => boolean) | undefined,
 ): DataStore<T, T | S> {
-  const controller = readableOf(useScope(), cell);
-  const own = useRef<SelectingStore<T, S> | undefined>(undefined);
+  const held = useHeld<T, S>();
+  const controller = readableOf(held.bound.scope, cell);
 
   if (selector === undefined && isEqual === undefined) {
     return (controller as RawHolder<T>)[RAW] ?? createRawStore(controller);
   }
 
-  const kept = own.current;
+  const kept = held.store;
   const store =
     kept !== undefined && kept.controller === controller
       ? kept
-      : (own.current = createDataStore<T, S>(controller));
+      : (held.store = createDataStore<T, S>(controller));
 
   store.select = selector ?? (identity as (value: T) => S);
   store.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
   return store;
+}
+
+/** What one `useData` call holds for its component: the Bound from its first render, and its
+ * selecting store. */
+type Held<T, S> = { readonly bound: Bound; store: SelectingStore<T, S> | undefined };
+
+/** The Bound of one `useData` call. The context is read in the first render only: a later render
+ * that read it would cost a context item for this component and a check for each sibling
+ * (ADR 0144). It is safe because a provider keys its subtree with its Bound. `use` is the context
+ * read that React allows inside a condition. */
+function useHeld<T, S>(): Held<T, S> {
+  const own = useRef<Held<T, S> | undefined>(undefined);
+  const held = own.current;
+  if (held !== undefined) return held;
+
+  const bound = use(ScopeContext);
+  if (!bound) raise("NoProvider", { hook: "useScope" });
+  return (own.current = { bound, store: undefined });
 }
 
 /** A capsule's cell export: a read edge (ADR 0123). */
