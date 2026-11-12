@@ -107,6 +107,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **site/sea-late-join** — done 2026-11-12. Duke: "when joining the new room will repeat the whole waves of new room, is that a bug or an desired feature?" A bug. Measured on the live site: a tab that joined 20 s after a drag started 4 old waves at once. Cause: the tide told a wave's age from the room's newest wave, not from now, and an idle room keeps its last waves. Fix: the room's waves are state with a start time. The tab asks the server's clock once (`clock.now`; Cristian's algorithm, as Firebase's `serverTimeOffset`) and lands each wave at its real age; `ocean.land` takes `age` and drops a wave past its life. Proof: 3 tests that fail on the old code; local browser check: joined 20 s late, 0 waves; joined 300 ms late, 13 waves mid-flight that end on time.
+
 - **site/play-tabs-phone** — done 2026-11-12. Duke: "the tab bar to navigate code file makes the ui scrolling on mobile". The panes' one column was `1fr`, which cannot go under its content, so nine file tabs made the page 855 px wide on a 390 px phone. Now `minmax(0, 1fr)`: the tab row scrolls by itself (as Material's scrollable tabs). Proof: `tests/browser/play-phone.test.tsx` fails on the old styles (581, not 390) and passes now; the live page measured 390.
 
 - **site/ocean-view** — done 2026-11-12. Duke asked if a capsule that exports its React component makes the code nicer. Tried in the real code (ADR 0125): `ocean` exports its page as `View`; `main.tsx` and `cmds/sea.tsx` render `<water.View />` from the binding and import no component. Proof: site 169 tests, `/play` compiles the starter, `/live` syncs two tabs.

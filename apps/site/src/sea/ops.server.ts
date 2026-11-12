@@ -1,6 +1,6 @@
 import { operation } from "@tinker/core";
 
-import { seaPress, waves } from "./contract";
+import { seaApi, seaPress, waves } from "./contract";
 
 // The server's work for `seaApi`. A wave lives a few seconds, so a room holds only its last few
 // waves: memory stays small with no store and no timer.
@@ -27,5 +27,12 @@ const pressWave = operation({
   },
 });
 
+/** The clock that stamps each wave's `at`. */
+const readClock = operation({
+  label: "sea.clock.now.do",
+  input: seaApi["clock.now"].input,
+  run: (_, { clock }) => clock.currentTimeMillis(),
+});
+
 /** The server's side of `seaApi`, by address: `sea.api({ implement: seaOps })`. */
-export const seaOps = { "wave.press": pressWave } as const;
+export const seaOps = { "wave.press": pressWave, "clock.now": readClock } as const;
