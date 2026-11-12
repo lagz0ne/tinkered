@@ -6,6 +6,54 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.20.1
+
+A Workflow SDK flow file passes `tinker/plain`
+(ADR 0148, issue #35). Core, React and Bun have
+no code change.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.20.1 \
+  @tinkered/react@0.20.1 \
+  @tinkered/bun@0.20.1
+bun add -d @tinkered/analyze@0.20.1
+```
+
+### Flow files
+
+A flow file ends in `.flow.ts` or
+`.flow.server.ts`. In it, a function whose body
+starts with `"use workflow"` or `"use step"`
+passes:
+
+```ts
+export async function nameFlow() {
+  "use workflow";
+  return await suggest();
+}
+
+async function suggest() {
+  "use step";
+  return callOperation("naming.suggest");
+}
+```
+
+- A workflow may call its steps by name.
+- Other code that calls a step by name gets a
+  finding at the step.
+- `start(nameFlow, [...])` is no call by name.
+- A helper in a flow file still fails.
+
+### What to change in an app
+
+- Remove each `plain.entries` row you wrote for
+  a workflow or a step, and name the file
+  `*.flow.server.ts`.
+
 ## 0.20.0
 
 `tinker/plain` looks at who calls a function

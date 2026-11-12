@@ -116,6 +116,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **analyze/flow-files** — done 2026-11-12 (ADR 0148, issue #35, PR #36; Duke 15:47: "Go ahead"). In a `*.flow.ts` or `*.flow.server.ts` file, a workflow or step passes `tinker/plain`; only a flow function calls a flow function by name. Released as 0.20.1.
+  Proof: `packages/analyze/tests/plain.test.ts` (3 flow tests) and `called.test.ts` (step called from a plain file is a finding; `start(nameFlow)` is not; the called test fails without the clause); analyze 85 tests; mutation 89.90, exit 0.
+
 - **analyze/call-guard** — done 2026-11-12 (ADR 0149; Duke 15:17, on the card: "A. Build the guard"). A passing function that app code calls by name is a finding, unless it is a closure or an entry. The listener pass is gone; `cn` is an entry. Released as 0.20.0.
   Proof: `packages/analyze/tests/called.test.ts` (9 tests); analyze 81 tests; the site's `check:plain` prints no finding; analyze mutation 89.90 on e1725cd, clean tree, exit 0.
 
