@@ -79,12 +79,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **analyze/check** — owner: lead (Fable, thread "Ship Tinker skills and verify tools"). ADR 0145. `packages/analyze` is on main: `tinker-analyze check [root]` holds the plain-function check and the page rules; each finding prints its rule id, and each broken rule its skill. The lint rules are `@tinkered/analyze/lint`. The site runs the package; its script and lint copies are gone. Proof seen: 56 package tests, `vp check`, the site's `check:plain` prints `no findings in 79 files`.
-  Next step: mutation. The package scores 77 against the floor of 85; `plain.ts` is at 71 (the script was never under mutation), the other files are at 84 or more. Kill the `plain.ts` survivors through `main`, or delete code no test needs.
-  Also: the command file has a `node` shebang, so a job that blocks node calls `bun --bun tinker-analyze check` (the template does).
-  Census: three strict rows still fire and are false here: S11 reads a glob string as a comment, S15 reads a TSDoc example, P04 is a hot-path rule on module-level constant sets.
-  Verify: `pnpm --dir packages/analyze mutate` clears 85.
-
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
@@ -121,6 +115,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **analyze/check** — done 2026-11-12 (ADR 0145). Duke: "we are able to deliver that (skill and tool for verification)"; he chose the package. `packages/analyze`: `tinker-analyze check [root]` holds the plain-function check and the page rules; each finding prints its rule id, and each broken rule its skill. The lint rules are `@tinkered/analyze/lint`. The site and the template run the package; their copies are gone. Proof seen: 66 package tests; mutation 90.54 on 1624a13 plus the shape tests (floor 85; `plain.ts` 88.27, up from 71); the site's `check:plain` prints `no findings in 79 files`; in the template a planted `useState` fails with `tinker/react-state` and its skill. Open, in ADR 0145: Hedl's gap markers, SARIF out. The command file has a `node` shebang, so a job that blocks node calls `bun --bun tinker-analyze check`.
 
 - **skills/template-wire** — done 2026-11-12 (ADR 0143 decision 2), tinker-app b76fb65 (0.24.8). Intent is a dev dependency, `package.json#intent.skills` allows the Tinker packages, and `AGENTS.md` holds the `intent-skills` block and the check loop. Proof seen: `bunx intent list` shows 2 packages and 7 skills at 0.17.10; a planted `useState` in `src/` fails `bun run check:plain` with `tinker/react-state` and its skill.
 
