@@ -6,6 +6,62 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.19.0
+
+Each rpc call has an execution id (ADR 0147).
+React, Bun and Analyze have no code change.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.19.0 \
+  @tinkered/react@0.19.0 \
+  @tinkered/bun@0.19.0
+bun add -d @tinkered/analyze@0.19.0
+```
+
+From GitHub:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.19.0
+bun add $R/tinker-core-0.19.0.tgz \
+  $R/tinker-react-0.19.0.tgz \
+  $R/tinker-bun-0.19.0.tgz
+bun add -d $R/tinker-analyze-0.19.0.tgz
+```
+
+### The execution id (ADR 0147)
+
+- The client makes one id per call. It goes as
+  `meta.execution`.
+- The server binds it as the `execution` tag.
+- A fault has it: `error.execution`.
+- The server's `rpc call failed` log line has
+  the same id, with tracing off too.
+- A call ends at its reply, as a TanStack Query
+  mutation does.
+
+To see your own write at once:
+
+```ts
+await run(api.move, { input });
+await run(board.invalidate, {
+  input: { tasks: { project } },
+});
+```
+
+Read the id on the server:
+
+```ts
+const audit = operation({
+  depends: { id: execution.optional },
+  run: ({ id }) => id.present && id.value,
+});
+```
+
 ## 0.18.2
 
 `@tinkered/analyze` reads gap markers. Core,

@@ -94,8 +94,8 @@ bunx intent list
 
 ```text
 PACKAGE          VERSION  SKILLS
-@tinkered/core   0.18.2   6
-@tinkered/react  0.18.2   1
+@tinkered/core   0.19.0   6
+@tinkered/react  0.19.0   1
 ```
 
 ### 3. Turn on the checks
