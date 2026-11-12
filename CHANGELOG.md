@@ -6,6 +6,65 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.18.1
+
+A faster fan-out in React. No API changed.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.18.1 \
+  @tinkered/react@0.18.1 \
+  @tinkered/bun@0.18.1
+bun add -d @tinkered/analyze@0.18.1
+```
+
+From GitHub:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.18.1
+bun add $R/tinker-core-0.18.1.tgz \
+  $R/tinker-react-0.18.1.tgz \
+  $R/tinker-bun-0.18.1.tgz
+bun add -d $R/tinker-analyze-0.18.1.tgz
+```
+
+### `useData` holds its scope (ADR 0144)
+
+- A `useData` call reads the scope from context
+  in its first render only.
+- React then keeps no changing context item on
+  that component. A sibling that does not render
+  costs less.
+- Site bench, one write to 50 components, in
+  Chromium: 47.2 µs to 40.3 µs.
+
+### One behaviour changes
+
+```tsx
+<ScopeProvider scope={scope}>
+  <Page />
+</ScopeProvider>
+```
+
+- When `scope` becomes another scope, `Page`
+  mounts again.
+- Before, `Page` stayed and read the new scope.
+- Typed text, focus, and scroll below the
+  provider start fresh.
+- `create` mode and `SessionProvider` did this
+  already.
+
+### The same as before
+
+- A render after the scope closed raises
+  `Disposed`.
+- `useData` with no provider raises `NoProvider`.
+- Core, Bun and analyze have no code change.
+
 ## 0.18.0
 
 The packages are now `@tinkered/*`, and each

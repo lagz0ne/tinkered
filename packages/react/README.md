@@ -18,18 +18,18 @@ On Bun, the main runtime:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.18.0
-bun add $R/tinker-core-0.18.0.tgz \
-  $R/tinker-react-0.18.0.tgz
+releases/download/v0.18.1
+bun add $R/tinker-core-0.18.1.tgz \
+  $R/tinker-react-0.18.1.tgz
 ```
 
 On Node 22.18 or later, with npm:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.18.0
-npm install $R/tinker-core-0.18.0.tgz \
-  $R/tinker-react-0.18.0.tgz
+releases/download/v0.18.1
+npm install $R/tinker-core-0.18.1.tgz \
+  $R/tinker-react-0.18.1.tgz
 ```
 
 Each version's URLs are in the
@@ -73,6 +73,7 @@ function App() {
 
 - `ScopeProvider` supplies an app-owned scope with `scope={handle}`.
   Its `create` form owns the scope and closes it on unmount.
+  A new `scope` value mounts the subtree again (ADR 0144).
 - A root given `capsules` is a starting handle (Core ADR 0128).
   The provider waits for its `ready` with React's `use`.
   A `<Suspense>` above shows its fallback until start ends.
