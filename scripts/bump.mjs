@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { releaseNotes } from "./release-check.mjs";
@@ -23,6 +23,15 @@ for (const name of releasePackages) {
     .replaceAll(/releases\/download\/v\d+\.\d+\.\d+/g, `releases/download/v${version}`)
     .replaceAll(/(tinker-(?:core|react|bun))-\d+\.\d+\.\d+\.tgz/g, `$1-${version}.tgz`);
   writeFileSync(file, text);
+}
+
+// A skill says which version it teaches (ADR 0143): `intent stale` reads it.
+for (const name of releasePackages) {
+  for (const file of globSync("skills/**/SKILL.md", { cwd: join(root, "packages", name) })) {
+    const path = join(root, "packages", name, file);
+    const text = readFileSync(path, "utf8");
+    writeFileSync(path, text.replace(/(library_version: )'[^']*'/, `$1'${version}'`));
+  }
 }
 
 const changelog = join(root, "CHANGELOG.md");

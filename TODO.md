@@ -25,6 +25,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **skills/check-names-skill** — ADR 0143 decision 5, in tinker-app. Each check prints its rule id and the skill to read next: `check:plain` (`tinker/plain`), the lint (`tinker/one-door`, `tinker/floating`), `MissingConfig` (`tinker/config`). The template also gets Hedl's frontend check (`tinker/react-state`, `tinker/one-wire`): today the guide's Rules page says `bun run check` fails on `useState`, and in the template it does not.
+  Verify: a planted case per rule prints `<file>:<line> tinker/<rule>` and `read: @tinker/core#core/<skill>`.
+
+- **skills/template-wire** — ADR 0143 decision 2, in tinker-app, after the release that ships the skills. `@tanstack/intent` as a dev dependency, `"intent": { "skills": ["@tinker/*"] }`, and the `intent-skills` block in `AGENTS.md`.
+  Verify: in a fresh `degit` of the template, `intent list` shows the Core and React skills at the installed version.
+
+- **skills/bun** — `@tinker/bun` has no skill: `serve`, `ws`, `/client`, `/sql`, `/sqlite`.
+  Verify: `vp run skills` passes with a `packages/bun/skills/bun/SKILL.md`; the pack holds it.
+
+- **skills/hedl-move** — Hedl's six `.agents/skills/tinker-*` are app copies. Move what is library knowledge into the package skills; keep only Hedl's own rules in Hedl.
+  Verify: Hedl's `AGENTS.md` points at the package skills; no fact is in two places.
+
 - **analyze/map** — ADR 0129 S1. `packages/analyze`: the TS-checker pass from the scratch proof (project files `tinkered/plans/agentic-first/proof-callshape/`) as a tested tool: graph, call shapes, SARIF out. From the proof: a line on every `if` and exit; a file:line id per call site and exit; `break` and `continue` in loops; capsule exports read to their unit kind; a dispatch-by-table node with its hook and table.
   Verify: on Hedl c8f8770, 800 ops and 1124 edges; the 6 analyzer gaps close; the cancel-route SARIF has a line on every step.
 
@@ -112,6 +124,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **skills/core-react** — done 2026-11-12 (ADR 0143). Duke: "learn from tanstack and how they are delivering the skill/ instruction to work with library". Skills ship in the package and TanStack Intent carries them: 6 skills in `packages/core/skills/core/` (entry, operation, data, capsule, rpc, testing) and 1 in `packages/react/skills/react/`; `vp run skills` (`intent validate`) is a CI step; `scripts/bump.mjs` stamps `library_version`; 8 rule ids (`tinker/<name>`). Proof: `intent validate` passes 7 files and fails a planted fence at `SKILL.md:193: TS2353`; the Core pack holds the 6 files with `types` `./dist/index.d.mts`; a scratch app with that pack lists 6 skills and loads `@tinker/core#core/operation`; each runtime claim was run against the built 0.17.8.
 
 - **site/sea-late-join** — done 2026-11-12. Duke: "when joining the new room will repeat the whole waves of new room, is that a bug or an desired feature?" A bug. Measured on the live site: a tab that joined 20 s after a drag started 4 old waves at once. Cause: the tide told a wave's age from the room's newest wave, not from now, and an idle room keeps its last waves. Fix: the room's waves are state with a start time. The tab asks the server's clock once (`clock.now`; Cristian's algorithm, as Firebase's `serverTimeOffset`) and lands each wave at its real age; `ocean.land` takes `age` and drops a wave past its life. Proof: 3 tests that fail on the old code; local browser check: joined 20 s late, 0 waves; joined 300 ms late, 13 waves mid-flight that end on time.
 

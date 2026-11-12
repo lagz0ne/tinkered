@@ -58,6 +58,10 @@ jobs:
       - name: Prose
         run: vp run prose
 
+      # ADR 0143: each code example in a package's skills compiles against its source.
+      - name: Skills
+        run: vp run skills
+
       # The site keeps the template's own gates: its lint, types and plain-function check.
       - name: Site checks
         working-directory: apps/site

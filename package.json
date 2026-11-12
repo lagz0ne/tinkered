@@ -9,6 +9,7 @@
     "build": "vp run -r build",
     "validate": "node scripts/validate.mjs",
     "prose": "node scripts/prose-lint.mjs",
+    "skills": "intent validate",
     "example:export": "node scripts/export-example.mjs",
     "example:check": "node scripts/check-examples.mjs",
     "dev": "vp run site#dev",
@@ -18,6 +19,7 @@
     "@happy-dom/global-registrator": "catalog:",
     "@inferdi/inferdi": "catalog:",
     "@preact/signals-react": "^3.12.0",
+    "@tanstack/intent": "catalog:",
     "effect": "catalog:",
     "jotai": "^3.0.0",
     "legend2": "npm:@legendapp/state@2.1.15",
@@ -29,6 +31,7 @@
     "typescript-api": "npm:typescript@5.9.3",
     "vite": "catalog:",
     "vite-plus": "catalog:",
+    "zod": "catalog:",
     "zustand": "catalog:"
   },
   "devEngines": {

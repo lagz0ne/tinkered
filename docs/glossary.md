@@ -502,3 +502,6 @@ New sections are lists, one term per item (vertical layout,
 - **handler** — A capsule whose start returns Bun's `{ fetch, websocket? }`; `serve` asks it for each request (ADR 0132).
 - **serve** — The capsule that owns `Bun.serve` for the scope's life; `run` is the host that owns signals and exit codes (ADR 0132).
 - **memory transport** — `memory` from `@tinker/core/testing`: an rpc transport in one process, for tests (as Connect's `createRouterTransport`).
+- **skill** — A `SKILL.md` file in a package's `skills/` folder that teaches an agent one task with that package: whole examples and common mistakes. Ships in the release, so it has the code's version (ADR 0143).
+- **rule id** — The name a check prints for one rule, `tinker/<name>` (`tinker/plain`). A mistake in a skill carries the same id, so a failed check leads to the skill (ADR 0143).
+- **Intent** — `@tanstack/intent`, the CLI that validates skills here and lists and loads them in an app (ADR 0143).

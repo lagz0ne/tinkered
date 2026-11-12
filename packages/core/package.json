@@ -2,6 +2,9 @@
   "name": "@tinker/core",
   "version": "0.17.8",
   "description": "Tinkered core: a small, fast reactive/graph dependency engine.",
+  "keywords": [
+    "tanstack-intent"
+  ],
   "homepage": "https://github.com/author/library#readme",
   "bugs": {
     "url": "https://github.com/author/library/issues"
@@ -14,16 +17,19 @@
   },
   "files": [
     "dist/*.mjs",
-    "dist/*.d.mts"
+    "dist/*.d.mts",
+    "skills"
   ],
   "type": "module",
   "sideEffects": false,
+  "types": "./src/main.ts",
   "exports": {
     ".": "./dist/index.mjs",
     "./testing": "./dist/testing.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
+    "types": "./dist/index.d.mts",
     "access": "public"
   },
   "scripts": {
