@@ -1,103 +1,232 @@
-# tinkered
+# Tinker
 
-Core and React are the two Tinker libraries.
-Apps are built from
-[tinker-app](https://github.com/lagz0ne/tinker-app),
-which needs only `@tinkered/core` and `@tinkered/react`.
+Tinker is a small set of libraries for apps that
+you and an AI agent write together.
 
-Start (the base, its scaffold, and the `tinker` CLI) was sunset
-on 2026-11-01 ([ADR 0122](docs/decisions/0122-start-sunset.md)).
-Its code lives in tag `start-archive`.
-Old `start-v*` releases stay downloadable.
+- **App logic** is operations and data cells in
+  one scope (`@tinkered/core`).
+- **The page** reads those cells
+  (`@tinkered/react`).
+- **The server** runs on Bun (`@tinkered/bun`).
+- **The checks** read your code and name the
+  skill that fixes each finding
+  (`@tinkered/analyze`).
 
-[Authoring packages and apps](docs/best-practices.md)
-explains units, owners, and namespace instances.
+Each package ships its own skills: the rules for
+its code, for the version you installed.
 
-## Development
+## How it fits
 
-- Check everything is ready:
-
-```bash
-vp run ready
+```text
+you or your agent write code
+   |
+tinker-analyze check
+   |  a finding names a rule and a skill
+intent load <skill>
+   |  the skill shows the right shape
+fix, then check again
 ```
 
-- Run the tests:
+The skills come with the package, through
+[TanStack Intent](https://tanstack.com/intent)
+(ADR 0143). So the advice always matches the code
+you have.
+
+## Start a new app
+
+The fastest way in. The
+[tinker-app](https://github.com/lagz0ne/tinker-app)
+template has the skills, the checks, and the
+`AGENTS.md` block set up.
 
 ```bash
-vp run -r test
+bunx degit lagz0ne/tinker-app my-app
+cd my-app && bun install
+bun run dev
 ```
 
-- Build the monorepo:
+Before you call a change done:
 
 ```bash
-vp run -r build
+bun run check:plain  # Tinker rules
+bun run check:style  # format and lint
+bun run check        # types, tests, build
 ```
 
-- Run the development server:
+## Add Tinker to an app you have
+
+### 1. Install the packages
 
 ```bash
-vp run dev
+bun add @tinkered/core @tinkered/react
+bun add -d @tinkered/analyze @tanstack/intent
 ```
 
-## `@tinkered/core`: the edge picks where a write lands
+Add `@tinkered/bun` for the server half.
+All packages share one version.
 
-Since 0.12.0 (ADR 0126). The cell declares no place.
-Each `depends` edge names one:
+### 2. Let your agent find the skills
 
-```ts
-const token = data({ initial: null });
+In `package.json`, allow the Tinker skills:
 
-depends: {
-  own: token.controller, // caller's layer
-  ns: token.atNamespace.controller, // root, caller ns
-  all: token.atScope.controller, // root, no ns
+```json
+"intent": {
+  "skills": ["@tinkered/*"]
 }
 ```
 
-A write from a session or a `signal` call stays in
-that call, unless its edge says `atScope` or
-`atNamespace`. Details:
-[Placed edges](packages/core/README.md#placed-edges).
+Then write the agent block:
 
-## `@tinkered/core`: time is an ambient capability
+```bash
+bunx intent install
+```
 
-Every operation and resource ctx carries a `clock`. The default is the system clock; a scope can
-be seeded with a controllable one, so time-dependent code is tested with no `Date` mock and no
-fake timers (ADR 0034). Nothing below needs a cast; see `examples/core/basic.ts`.
+It writes an `AGENTS.md` block.
+The block tells the agent to list the skills and
+load the one that fits before it edits code.
+For Claude Code, put `@AGENTS.md` in `CLAUDE.md`.
+
+See what you got:
+
+```bash
+bunx intent list
+```
+
+```text
+PACKAGE          VERSION  SKILLS
+@tinkered/core   0.18.2   6
+@tinkered/react  0.18.2   1
+```
+
+### 3. Turn on the checks
+
+```json
+"scripts": {
+  "check:plain": "bun --bun tinker-analyze check"
+}
+```
+
+A finding is one line. Then each broken rule
+names its next step and its skill:
+
+```text
+src/add.ts:1 tinker/plain a plain function
+
+tinker/plain: make it an operation
+  read: @tinkered/core#core/operation
+
+1 findings in 1 files
+```
+
+Load that skill and fix the code:
+
+```bash
+bunx intent load @tinkered/core#core/operation
+```
+
+Exit `0` is clean, `1` has findings, `2` is a
+bad call or config. So CI can gate on it.
+
+An exception goes in `tinker-analyze.json`, with
+its reason as text. A finding that waits on a
+Tinker change gets a gap marker. Both are in the
+[analyze README](packages/analyze/README.md).
+
+### 4. Add the lint rules (optional)
+
+The same package has an Oxlint plugin. It checks
+where a cell write may go, and how a body reads
+as steps.
 
 ```ts
-import { createScope, data, operation } from "@tinkered/core";
-import { makeTestClock } from "@tinkered/core/testing";
-
-const stamp = operation({
-  label: "stamp",
-  run: (_deps, { clock }) => clock.currentTimeMillis(),
-});
-
-const clock = makeTestClock({ now: 1_000 });
-const scope = createScope({ clock });
-scope.run(stamp); // 1000
-
-clock.advance(500);
-scope.run(stamp); // 1500
-
-// `sleep` waits on the same clock; pass `ctx.signal`
-// so a forced close cancels it.
-const nap = operation({
-  label: "nap",
-  run: (_deps, { clock, signal }) =>
-    clock.sleep(1_000, signal),
-});
-const woke = scope.run(nap);
-clock.advance(1_000); // resolves `woke`
-await woke;
-const count = data({ label: "count", initial: 21 });
-const doubled = scope.run(
+jsPlugins: [
   {
-    depends: { count },
-    run: ({ count }, { input }) => count + input,
+    name: "tinker",
+    specifier: "@tinkered/analyze/lint",
   },
-  { input: 21 },
-); // inline: same call object, one span
+],
+```
+
+The rule list is in the
+[analyze README](packages/analyze/README.md#lint-rules).
+
+## Your first operation
+
+```ts
+import {
+  createScope,
+  data,
+  operation,
+} from "@tinkered/core";
+
+const count = data({ label: "count", initial: 0 });
+
+const add = operation({
+  label: "count.add",
+  depends: { count: count.controller },
+  run: ({ count }, { input }: { input: number }) => {
+    count.update((n) => n + input);
+    return count.get();
+  },
+});
+
+const scope = createScope();
+await scope.run(add, { input: 2 }); // 2
 await scope.close();
 ```
+
+- `data` is a cell: one value.
+- `operation` is an action. Its `depends` names
+  what it reads or writes.
+- The scope owns every cell and every run.
+  `close` ends them all.
+
+Next: `bunx intent load @tinkered/core#core`.
+
+## Upgrade
+
+```bash
+bun update --latest '@tinkered/*'
+```
+
+Then run `bunx intent list` and the checks.
+The skills move with the code. What changed is
+in the [changelog](CHANGELOG.md).
+
+## The packages
+
+- [`@tinkered/core`](packages/core/README.md):
+  scope, operations, data cells, capsules, rpc,
+  remote data.
+- [`@tinkered/react`](packages/react/README.md):
+  hooks that read cells and run operations.
+- [`@tinkered/bun`](packages/bun/README.md):
+  the server, the socket, and Bun's SQL drivers.
+- [`@tinkered/analyze`](packages/analyze/README.md):
+  `tinker-analyze check` and the lint plugin.
+
+More to read:
+
+- [Authoring packages and apps](docs/best-practices.md):
+  units, owners, and namespace instances.
+- [Decisions](docs/decisions/): why each rule
+  is what it is.
+- [Glossary](docs/glossary.md): the words we use.
+
+## Work on Tinker itself
+
+This repo uses Vite+ (`vp`). The rules for
+contributors are in `CLAUDE.md`.
+
+```bash
+vp install
+vp run -r build   # apps read the built dist
+vp run -r test
+vp run dev        # the site
+```
+
+`vp run ready` runs every gate, mutation too.
+
+Start, the old base and its CLI, was sunset on
+2026-11-01 ([ADR 0122](docs/decisions/0122-start-sunset.md)).
+Its code is in tag `start-archive`.

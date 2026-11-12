@@ -9,10 +9,12 @@ It runs no app code.
 ## Install
 
 ```bash
-R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.18.2
-bun add -d $R/tinker-analyze-0.18.2.tgz
+bun add -d @tinkered/analyze
 ```
+
+Each release also attaches tarballs to its
+GitHub release; the
+[changelog](../../CHANGELOG.md) lists them.
 
 ## Check an app
 

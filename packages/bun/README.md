@@ -16,11 +16,12 @@ The parts of a Tinker app that run on Bun
 ## Install
 
 ```bash
-R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.18.2
-bun add $R/tinker-core-0.18.2.tgz \
-  $R/tinker-bun-0.18.2.tgz
+bun add @tinkered/core @tinkered/bun
 ```
+
+Each release also attaches tarballs to its
+GitHub release; the
+[changelog](../../CHANGELOG.md) lists them.
 
 ## Serve and run
 

@@ -16,15 +16,6 @@ for (const name of releasePackages) {
   writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
 }
 
-// The install lines name one release: its tag and each tarball name.
-for (const name of releasePackages) {
-  const file = join(root, "packages", name, "README.md");
-  const text = readFileSync(file, "utf8")
-    .replaceAll(/releases\/download\/v\d+\.\d+\.\d+/g, `releases/download/v${version}`)
-    .replaceAll(/(tinker-(?:core|react|bun|analyze))-\d+\.\d+\.\d+\.tgz/g, `$1-${version}.tgz`);
-  writeFileSync(file, text);
-}
-
 // A skill says which version it teaches (ADR 0143): `intent stale` reads it.
 for (const name of releasePackages) {
   for (const file of globSync("skills/**/SKILL.md", { cwd: join(root, "packages", name) })) {

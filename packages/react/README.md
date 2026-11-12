@@ -14,26 +14,19 @@ adds no store, no cache, no reducer, no query-key ([ADR 0030](../../docs/decisio
 
 ## Install
 
-On Bun, the main runtime:
-
 ```bash
-R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.18.2
-bun add $R/tinker-core-0.18.2.tgz \
-  $R/tinker-react-0.18.2.tgz
+bun add @tinkered/core @tinkered/react
 ```
 
 On Node 22.18 or later, with npm:
 
 ```bash
-R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.18.2
-npm install $R/tinker-core-0.18.2.tgz \
-  $R/tinker-react-0.18.2.tgz
+npm install @tinkered/core @tinkered/react
 ```
 
-Each version's URLs are in the
-[changelog](../../CHANGELOG.md).
+Each release also attaches tarballs to its
+GitHub release; the
+[changelog](../../CHANGELOG.md) lists them.
 
 ## 60-second example
 
