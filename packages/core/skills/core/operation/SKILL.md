@@ -12,8 +12,8 @@ metadata:
     and why a plain helper function is not
     allowed in app code.
   type: sub-skill
-  library: '@tinker/core'
-  library_version: '0.17.10'
+  library: '@tinkered/core'
+  library_version: '0.18.0'
 requires:
   - core
 sources:
@@ -28,7 +28,7 @@ shape, its deps and a `run`. Each call is a span.
 ## Setup
 
 ```ts
-import { createScope, data, operation } from "@tinker/core";
+import { createScope, data, operation } from "@tinkered/core";
 import { z } from "zod";
 
 const hues = data<number[]>({
@@ -68,7 +68,7 @@ const { hue } = await scope.run(press, {
 Name it in `depends`. Then call it.
 
 ```ts
-import { operation } from "@tinker/core";
+import { operation } from "@tinkered/core";
 import { z } from "zod";
 
 const double = operation({
@@ -94,7 +94,7 @@ A dep that is an operation has `run` and
 ### Read the result without a throw
 
 ```ts
-import { createScope, operation } from "@tinker/core";
+import { createScope, operation } from "@tinkered/core";
 
 const risky = operation({
   label: "risky",
@@ -136,7 +136,7 @@ the line of each plain function.
 ### HIGH: `name` in place of `label`
 
 ```ts expect-error
-import { operation } from "@tinker/core";
+import { operation } from "@tinkered/core";
 
 const bad = operation({
   name: "wave.press",

@@ -56,4 +56,4 @@ A failed call is a fault from a fixed set:
 
 Core owns the meaning: the shape, the faults and
 what `call` and `watch` promise. A backend owns the
-wire: `ws` from `@tinker/bun`, `memory` for tests.
+wire: `ws` from `@tinkered/bun`, `memory` for tests.

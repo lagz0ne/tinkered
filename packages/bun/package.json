@@ -1,8 +1,13 @@
 {
-  "name": "@tinker/bun",
-  "version": "0.17.10",
+  "name": "@tinkered/bun",
+  "version": "0.18.0",
   "description": "Tinker on Bun: the host on Bun.serve, rpc over one WebSocket, and Bun's own databases (Bun.SQL, bun:sqlite).",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lagz0ne/tinkered.git",
+    "directory": "packages/bun"
+  },
   "files": [
     "dist"
   ],
@@ -27,7 +32,7 @@
     "prepublishOnly": "vp run build"
   },
   "dependencies": {
-    "@tinker/core": "workspace:*"
+    "@tinkered/core": "workspace:*"
   },
   "devDependencies": {
     "@hughescr/stryker-bun-runner": "catalog:",

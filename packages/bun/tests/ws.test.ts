@@ -1,4 +1,4 @@
-import { channel, createScope, data, operation, remoteData, rpc } from "@tinker/core";
+import { channel, createScope, data, operation, remoteData, rpc } from "@tinkered/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 

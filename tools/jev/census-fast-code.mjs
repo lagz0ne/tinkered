@@ -72,7 +72,7 @@ function functionVars(node) {
 function importedBuilders(program) {
   const names = new Map();
   for (const node of program.body) {
-    if (node.type !== "ImportDeclaration" || node.source.value !== "@tinker/core") continue;
+    if (node.type !== "ImportDeclaration" || node.source.value !== "@tinkered/core") continue;
     for (const spec of node.specifiers) {
       if (spec.type === "ImportNamespaceSpecifier") names.set(spec.local.name, "*");
       if (spec.type === "ImportSpecifier" && BUILDERS.has(spec.imported.name)) {

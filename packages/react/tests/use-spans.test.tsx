@@ -1,4 +1,4 @@
-import { createScope, operation, resource } from "@tinker/core";
+import { createScope, operation, resource } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 

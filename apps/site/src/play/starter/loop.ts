@@ -1,4 +1,4 @@
-import { operation, resource } from "@tinker/core";
+import { operation, resource } from "@tinkered/core";
 
 import { draw } from "./draw";
 import { blow, expire, paint, rotate } from "./engine";

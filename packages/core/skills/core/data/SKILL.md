@@ -12,8 +12,8 @@ metadata:
     through a controller, and keep an exported
     cell read only.
   type: sub-skill
-  library: '@tinker/core'
-  library_version: '0.17.10'
+  library: '@tinkered/core'
+  library_version: '0.18.0'
 requires:
   - core
 sources:
@@ -30,7 +30,7 @@ changed.
 ## Setup
 
 ```ts
-import { createScope, data, operation } from "@tinker/core";
+import { createScope, data, operation } from "@tinkered/core";
 
 const theme = data({ label: "theme", initial: "light" });
 
@@ -62,7 +62,7 @@ await scope.run(flip);
 ### Keep members under keys
 
 ```ts
-import { data, operation } from "@tinker/core";
+import { data, operation } from "@tinkered/core";
 import { z } from "zod";
 
 const wave = z.object({
@@ -107,7 +107,7 @@ A write from a session stays in that session. The
 edge says when it must go up.
 
 ```ts
-import { data, operation } from "@tinker/core";
+import { data, operation } from "@tinkered/core";
 
 const token = data<string | null>({
   label: "auth.token",
@@ -138,7 +138,7 @@ feature's own operations write it. Others call
 those operations.
 
 ```ts expect-error
-import { capsule, data, operation } from "@tinker/core";
+import { capsule, data, operation } from "@tinkered/core";
 
 const waves = data<number[]>({
   label: "sea.waves",

@@ -12,8 +12,8 @@ metadata:
     serve it, call it, and read server cells
     on the client with remote data.
   type: sub-skill
-  library: '@tinker/core'
-  library_version: '0.17.10'
+  library: '@tinkered/core'
+  library_version: '0.18.0'
 requires:
   - core
   - capsule
@@ -31,7 +31,7 @@ change. Both are one contract that both sides
 import.
 
 Core owns the meaning. A backend owns the wire:
-`ws` from `@tinker/bun`, `memory` for tests.
+`ws` from `@tinkered/bun`, `memory` for tests.
 
 ## Setup
 
@@ -44,7 +44,7 @@ import {
   operation,
   remoteData,
   rpc,
-} from "@tinker/core";
+} from "@tinkered/core";
 import { z } from "zod";
 
 const wave = z.object({

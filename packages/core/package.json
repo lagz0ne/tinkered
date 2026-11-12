@@ -1,6 +1,6 @@
 {
-  "name": "@tinker/core",
-  "version": "0.17.10",
+  "name": "@tinkered/core",
+  "version": "0.18.0",
   "description": "Tinkered core: a small, fast reactive/graph dependency engine.",
   "keywords": [
     "tanstack-intent"
@@ -13,7 +13,8 @@
   "author": "Author Name <author.name@mail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/author/library.git"
+    "url": "git+https://github.com/lagz0ne/tinkered.git",
+    "directory": "packages/core"
   },
   "files": [
     "dist/*.mjs",

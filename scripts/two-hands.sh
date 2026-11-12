@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The two-hands gate (ADR 0051): `Scope.Handle` may appear only in a composition root
-# (a file that calls `createScope`, or a test), or in `@tinker/core` and `@tinker/react`
+# (a file that calls `createScope`, or a test), or in `@tinkered/core` and `@tinkered/react`
 # (they define or provide it). Anywhere else — an app module, an example, a package that
 # is not a driver — is a leak. Prints the offending lines; exit 1 on any.
 set -euo pipefail

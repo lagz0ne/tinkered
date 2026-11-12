@@ -1,4 +1,4 @@
-import { capsule } from "@tinker/core";
+import { capsule } from "@tinkered/core";
 import { lazy } from "react";
 
 import { run, timer } from "./state";

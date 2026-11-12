@@ -162,12 +162,12 @@ head.
     Never `../`.
     So a file moves without its imports changing.
     `vp check` sorts imports into three groups:
-    - packages (`node:fs`, `react`, `@tinker/core`);
+    - packages (`node:fs`, `react`, `@tinkered/core`);
     - `@/` paths;
     - `./` siblings.
 
     ```ts
-    import { operation } from "@tinker/core";
+    import { operation } from "@tinkered/core";
 
     import { raise } from "@/errors";
 
@@ -232,7 +232,7 @@ package. The root test run collects it, so it stays honest.
 
 ## Performance
 
-Learned on `@tinker/core` (see `research/learnings/2026-09-16-core-vs-inferdi.md`). The
+Learned on `@tinkered/core` (see `research/learnings/2026-09-16-core-vs-inferdi.md`). The
 hot path is anything a request pays: create a scope, build a resource, run an op, close.
 
 1. **Measure, then change, then measure.** Use `benchctl ab` or

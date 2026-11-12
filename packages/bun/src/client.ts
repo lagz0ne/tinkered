@@ -1,4 +1,4 @@
-import { capsule, data, operation, tag, transport } from "@tinker/core";
+import { capsule, data, operation, tag, transport } from "@tinkered/core";
 
 import { Tools } from "./tools";
 

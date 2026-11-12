@@ -1,6 +1,6 @@
 import { inspect } from "node:util";
 
-import { makeTestClock } from "@tinker/core/testing";
+import { makeTestClock } from "@tinkered/core/testing";
 import { expect, expectTypeOf, test } from "vite-plus/test";
 
 import {

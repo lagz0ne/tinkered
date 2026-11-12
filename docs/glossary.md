@@ -71,7 +71,7 @@
 - **random** — The ambient randomness source on every ctx (`ctx.random`): `next()` (a float in `[0, 1)`) / `uuid()` (a v4-shaped id). Default `systemRandom` (`Math.random` / `crypto.randomUUID`, or `crypto.getRandomValues` where a plain-http page lacks `randomUUID`); set once via `createScope({ random })`; inherited by sessions. Both reads are synchronous — Effect's default-service Random, simpler than the clock (no wait, no signal) (ADR 0062).
 - **TestRandom** — `makeTestRandom({ seed })`: a `Random` backed by a seeded mulberry32 generator — the same seed replays the same `next()` and `uuid()` stream. The mock-free seam for random-dependent code, no `Math.random` mock and no `crypto` stub (ADR 0062).
 
-## React adapter (`@tinker/react`)
+## React adapter (`@tinkered/react`)
 
 - **adapter** — The React binding is an adapter, not a store: it adds no state/cache/reducer, only subscribes to core and provides its `Handle` on Context (ADR 0030). React-aware observation lives here (core stays behavior-neutral).
 - **`ScopeProvider`** — Puts a scope `Handle` on React Context. `scope={handle}` uses an app-owned scope; `create={() => createScope(opts)}` creates/owns/closes it on unmount (the easy path, used in tests). Presets/tags/observe flow through here.
@@ -501,7 +501,7 @@ New sections are lists, one term per item (vertical layout,
 - **sent** — On a local fault: `false` when nothing left, so the server ran nothing; `true` when it may have run. The one case that is safe to send again is `false` (ADR 0141, as gRPC transparent retry).
 - **handler** — A capsule whose start returns Bun's `{ fetch, websocket? }`; `serve` asks it for each request (ADR 0132).
 - **serve** — The capsule that owns `Bun.serve` for the scope's life; `run` is the host that owns signals and exit codes (ADR 0132).
-- **memory transport** — `memory` from `@tinker/core/testing`: an rpc transport in one process, for tests (as Connect's `createRouterTransport`).
+- **memory transport** — `memory` from `@tinkered/core/testing`: an rpc transport in one process, for tests (as Connect's `createRouterTransport`).
 - **skill** — A `SKILL.md` file in a package's `skills/` folder that teaches an agent one task with that package: whole examples and common mistakes. Ships in the release, so it has the code's version (ADR 0143).
 - **rule id** — The name a check prints for one rule, `tinker/<name>` (`tinker/plain`). A mistake in a skill carries the same id, so a failed check leads to the skill (ADR 0143).
 - **Intent** — `@tanstack/intent`, the CLI that validates skills here and lists and loads them in an app (ADR 0143).

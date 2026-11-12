@@ -1,4 +1,4 @@
-import { createScope } from "@tinker/core";
+import { createScope } from "@tinkered/core";
 import { z } from "zod";
 import { app, supplierId, holdMs } from "./index";
 import { port, host, controlToken, stopSignal } from "../http";

@@ -28,7 +28,7 @@ export function releaseNotes(text, version) {
 export function releaseProblems(root, version) {
   const versions = releasePackages
     .map((name) => [
-      `@tinker/${name}`,
+      `@tinkered/${name}`,
       JSON.parse(readFileSync(join(root, "packages", name, "package.json"), "utf8")).version,
     ])
     .filter(([, value]) => value !== version)

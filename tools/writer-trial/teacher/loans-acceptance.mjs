@@ -62,7 +62,7 @@ let coreMod;
 let loadError;
 try {
   app = await vite.ssrLoadModule("/src/index.ts");
-  coreMod = await vite.ssrLoadModule("@tinker/core");
+  coreMod = await vite.ssrLoadModule("@tinkered/core");
 } catch (error) {
   loadError = error?.message ?? String(error);
 }
@@ -1121,7 +1121,13 @@ const server = await createServer({
   root,
   cacheDir: "/tmp/teacher-loans-browser",
   optimizeDeps: {
-    include: ["react", "react-dom/client", "react/jsx-runtime", "@tinker/core", "@tinker/react"],
+    include: [
+      "react",
+      "react-dom/client",
+      "react/jsx-runtime",
+      "@tinkered/core",
+      "@tinkered/react",
+    ],
   },
   configFile: false,
   server: { host: "127.0.0.1", port: 5173, strictPort: true },

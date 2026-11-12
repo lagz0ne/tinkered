@@ -37,34 +37,49 @@ try {
 
     const unpacked = join(scratch, name);
     await mkdir(unpacked);
-    run("tar", ["-xzf", join(packDir, `tinker-${name}-${current.version}.tgz`), "-C", unpacked]);
+    run("tar", ["-xzf", join(packDir, `tinkered-${name}-${current.version}.tgz`), "-C", unpacked]);
 
     const pkgPath = join(unpacked, "package/package.json");
-    const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
-    pkg.version = version;
+    const packed = JSON.parse(await readFile(pkgPath, "utf8"));
 
-    // The packed React names Core by version in dependencies and devDependencies.
-    for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
-      for (const dependency of Object.keys(pkg[field] ?? {})) {
-        if (dependency in urls) pkg[field][dependency] = urls[dependency];
+    // Two tarballs per package. The GitHub one names its siblings by release URL. The npm one
+    // names them by `^version`, so an app gets one Core after an upgrade (ADR 0146).
+    const kinds = [
+      {
+        file: `tinker-${name}-${version}.tgz`,
+        pin: (dep) => urls[dep],
+        url: urls[`@tinkered/${name}`],
+      },
+      { file: `npm-tinkered-${name}-${version}.tgz`, pin: () => `^${version}`, url: null },
+    ];
+
+    for (const kind of kinds) {
+      const pkg = structuredClone(packed);
+      pkg.version = version;
+
+      // The packed React names Core by version in dependencies and devDependencies.
+      for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
+        for (const dependency of Object.keys(pkg[field] ?? {})) {
+          if (dependency in urls) pkg[field][dependency] = kind.pin(dependency);
+        }
       }
+
+      await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+      const file = kind.file;
+      const target = join(assets, file);
+      run("tar", ["-czf", target, "-C", unpacked, "package"]);
+
+      const size = (await stat(target)).size;
+      const sha256 = createHash("sha256")
+        .update(await readFile(target))
+        .digest("hex");
+      manifest.assets.push({ file, size, sha256, url: kind.url });
+      console.log(`ASSET ${file} ${size} bytes sha256 ${sha256}`);
     }
-
-    await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-    const file = `tinker-${name}-${version}.tgz`;
-    const target = join(assets, file);
-    run("tar", ["-czf", target, "-C", unpacked, "package"]);
-
-    const size = (await stat(target)).size;
-    const sha256 = createHash("sha256")
-      .update(await readFile(target))
-      .digest("hex");
-    manifest.assets.push({ file, size, sha256, url: urls[`@tinker/${name}`] });
-    console.log(`ASSET ${file} ${size} bytes sha256 ${sha256}`);
   }
 
   await writeFile(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-  console.log(`DRY RELEASE ${out}: Core and React; nothing published.`);
+  console.log(`DRY RELEASE ${out}: GitHub and npm tarballs; nothing published.`);
 } finally {
   await rm(scratch, { recursive: true, force: true });
 }

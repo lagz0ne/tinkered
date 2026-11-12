@@ -23,7 +23,7 @@
     "check": "vp check"
   },
   "dependencies": {
-    "@tinker/core": "workspace:*",
+    "@tinkered/core": "workspace:*",
     "ai": "catalog:",
     "oxc-parser": "catalog:",
     "yaml": "catalog:",
@@ -32,7 +32,7 @@
   "devDependencies": {
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
-    "@tinker/core": "workspace:*",
+    "@tinkered/core": "workspace:*",
     "@types/node": "^26.1.1",
     "bumpp": "^11.1.0",
     "typescript": "^7.0.2",

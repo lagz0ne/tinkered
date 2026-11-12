@@ -1,4 +1,4 @@
-import { createScope, capsule, isError, operation, type Observe } from "@tinker/core";
+import { createScope, capsule, isError, operation, type Observe } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {

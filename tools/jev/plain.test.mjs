@@ -127,7 +127,7 @@ void describe("plain rules in a source file", () => {
 
   void it("S18 fires on a unit builder called inside a function", () => {
     const src = [
-      'import { operation } from "@tinker/core";',
+      'import { operation } from "@tinkered/core";',
       "function textAction(label: string) {",
       "  return operation({ label, run: () => 1 });",
       "}",
@@ -137,7 +137,7 @@ void describe("plain rules in a source file", () => {
 
   void it("S18 leaves a module-level unit and a non-core function alone", () => {
     const src = [
-      'import { operation } from "@tinker/core";',
+      'import { operation } from "@tinkered/core";',
       'export const op = operation({ label: "op", run: () => 1 });',
       "const operationLike = (f: () => number) => f();",
       "function build() {\n  return operationLike(() => 1);\n}",
@@ -155,7 +155,7 @@ void describe("plain rules in a source file", () => {
 
   void it("S18 leaves a driver's extension built from wiring rows alone", () => {
     const src = [
-      'import { extension } from "@tinker/core";',
+      'import { extension } from "@tinkered/core";',
       "export function mcp(rows: readonly Row[]) {",
       '  return extension({ label: "mcp", hooks: { start: (event) => event.next() } });',
       "}",
@@ -165,7 +165,7 @@ void describe("plain rules in a source file", () => {
 
   void it("S18's message names exactly the builders it counts", () => {
     const [found] = inspectPlain(
-      'import { data } from "@tinker/core";\nfunction f() { return data({ label: "x", initial: 1 }); }\n',
+      'import { data } from "@tinkered/core";\nfunction f() { return data({ label: "x", initial: 1 }); }\n',
       SRC,
       { writer: true },
     );
@@ -174,7 +174,7 @@ void describe("plain rules in a source file", () => {
 
   void it("S19 fires on a helper that takes a controller, directly or through a type alias", () => {
     const src = [
-      'import type { Scope } from "@tinker/core";',
+      'import type { Scope } from "@tinkered/core";',
       "type Cells = { notice: Scope.DataController<string> };",
       "function fail(n: Scope.DataController<string>) {}",
       "const save = (cells: Cells) => cells;",
@@ -194,7 +194,7 @@ void describe("plain rules in a source file", () => {
 
   void it("S18 stays writer policy: the repo's own lint does not report it", () => {
     const src =
-      'import { operation } from "@tinker/core";\nfunction f() { return operation({ label: "x", run: () => 1 }); }\n';
+      'import { operation } from "@tinkered/core";\nfunction f() { return operation({ label: "x", run: () => 1 }); }\n';
     assert.deepEqual(hits(src, SRC, false), []);
   });
 
@@ -234,7 +234,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
 
   void it("S21 fires on Date.now, performance.now, timers, and new Date() in a unit body", () => {
     const src = [
-      'import { operation } from "@tinker/core";',
+      'import { operation } from "@tinkered/core";',
       "export const stamp = operation({",
       '  label: "stamp",',
       "  run: () => {",
@@ -261,7 +261,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
 
   void it("S21 leaves ctx.clock and a formatted saved time in a unit body alone", () => {
     const src = [
-      'import { resource } from "@tinker/core";',
+      'import { resource } from "@tinkered/core";',
       "export const stamp = resource({",
       '  label: "stamp",',
       "  factory: async (ctx) => {",
@@ -275,7 +275,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
 
   void it("S21 counts only unit bodies in the repo lint: a driver's own timer is fine", () => {
     const src = [
-      'import { extension, operation } from "@tinker/core";',
+      'import { extension, operation } from "@tinkered/core";',
       "const kill = (child: Child) => setTimeout(() => child.kill(), 5);",
       "export const ticker = extension({",
       '  label: "ticker",',
@@ -321,7 +321,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
 
   void it("S22 fires on a settle whose Result a core handle drops", () => {
     const src = [
-      'import { createScope, operation } from "@tinker/core";',
+      'import { createScope, operation } from "@tinkered/core";',
       "const scope = createScope();",
       "void scope.settle(boot);",
       "export const save = operation({",
@@ -361,7 +361,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
 
   void it("S22 leaves a read settle, a returned one, void run, and a local settle method alone", () => {
     const src = [
-      'import { operation, resource } from "@tinker/core";',
+      'import { operation, resource } from "@tinkered/core";',
       "export const feed = resource({",
       '  label: "feed",',
       "  depends: { poll },",
@@ -462,7 +462,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
         id: "S24",
         line: 1,
         message:
-          "raw fetch: take fetch from a tag that the entry binds (`createScope({ tags: [httpSend(fetch)] })`), and call it only inside an operation, with ctx.signal, so each request has a span and inherits the caller's cancel signal (ADR 0102, 0113); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code. Fix: import { operation, tag } from '@tinker/core'; export const httpSend = tag<typeof fetch>({ label: 'http.send' }); export const postNotice = operation({ label: 'postNotice', depends: { send: httpSend }, run: async ({ send }, ctx) => { const reply = await send('https://api.example.com/notices', { method: 'POST', body: 'The order is ready.', signal: ctx.signal }); if (!reply.ok) return ctx.raise('NotificationFailed', { status: reply.status }); return { sent: true }; } });",
+          "raw fetch: take fetch from a tag that the entry binds (`createScope({ tags: [httpSend(fetch)] })`), and call it only inside an operation, with ctx.signal, so each request has a span and inherits the caller's cancel signal (ADR 0102, 0113); map the reply to a feature value or managed error (ADR 0103); never call built-in fetch in app code. Fix: import { operation, tag } from '@tinkered/core'; export const httpSend = tag<typeof fetch>({ label: 'http.send' }); export const postNotice = operation({ label: 'postNotice', depends: { send: httpSend }, run: async ({ send }, ctx) => { const reply = await send('https://api.example.com/notices', { method: 'POST', body: 'The order is ready.', signal: ctx.signal }); if (!reply.ok) return ctx.raise('NotificationFailed', { status: reply.status }); return { sent: true }; } });",
       },
     ]);
   });
@@ -470,7 +470,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
   void it("S24 leaves the scaffold's built-in fetch backend alone", () => {
     // The Start base's http-backend.ts, as kept in tag start-archive (ADR 0122).
     const source = [
-      'import { tag } from "@tinker/core";',
+      'import { tag } from "@tinkered/core";',
       "",
       "/**",
       " * The one way out for HTTP the base sends itself; tests bind a fake (ADR 0102). Its default is",
@@ -886,7 +886,7 @@ void describe("S26 malformed TSDoc", () => {
 
   void it("fires on each parser error kind at its line", () => {
     const src = [
-      "/** Reads @tinker/core. */",
+      "/** Reads @tinkered/core. */",
       "const a = 1;",
       "/** Uses {@link a. */",
       "const b = 1;",
@@ -926,7 +926,7 @@ void describe("S26 malformed TSDoc", () => {
 
   void it("stays quiet on prose, the standard tags, and real parameters", () => {
     const src = [
-      "/** Only prose, with `@tinker/core` in backticks. */",
+      "/** Only prose, with `@tinkered/core` in backticks. */",
       "const a = 1;",
       "/**",
       " * Saves a draft. See {@link a} and {@link a | the a}.",

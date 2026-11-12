@@ -1,5 +1,5 @@
-import { createScope, resource } from "@tinker/core";
-import type { Resource } from "@tinker/core";
+import { createScope, resource } from "@tinkered/core";
+import type { Resource } from "@tinkered/core";
 import { useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";

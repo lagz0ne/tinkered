@@ -11,8 +11,8 @@ metadata:
     clock, the random source and heavy parts,
     and join two scopes with the memory backend.
   type: sub-skill
-  library: '@tinker/core'
-  library_version: '0.17.10'
+  library: '@tinkered/core'
+  library_version: '0.18.0'
 requires:
   - core
 sources:
@@ -26,17 +26,17 @@ A test makes a real scope and calls the public
 units. It swaps time, chance and heavy parts.
 Nothing is mocked.
 
-Test helpers come from `@tinker/core/testing`.
+Test helpers come from `@tinkered/core/testing`.
 The main entry has none.
 
 ## Setup
 
 ```ts
-import { createScope, data, operation } from "@tinker/core";
+import { createScope, data, operation } from "@tinkered/core";
 import {
   makeTestClock,
   makeTestRandom,
-} from "@tinker/core/testing";
+} from "@tinkered/core/testing";
 
 const stamps = data<number[]>({
   label: "stamps",
@@ -76,8 +76,8 @@ await scope.close();
 A preset replaces one unit in one scope.
 
 ```ts
-import { createScope, data, resource } from "@tinker/core";
-import { preset } from "@tinker/core/testing";
+import { createScope, data, resource } from "@tinkered/core";
+import { preset } from "@tinkered/core/testing";
 
 const compiler = resource({
   label: "compiler",
@@ -109,7 +109,7 @@ The `memory` backend joins two scopes in one
 process. No socket, no port.
 
 ```ts no-check
-import { memory } from "@tinker/core/testing";
+import { memory } from "@tinkered/core/testing";
 
 const server = await createScope({
   capsules: [

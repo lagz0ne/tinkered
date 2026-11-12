@@ -1,4 +1,4 @@
-import { makeTestRandom } from "@tinker/core/testing";
+import { makeTestRandom } from "@tinkered/core/testing";
 import { expect, test } from "vite-plus/test";
 
 import { createScope, operation } from "@/index";

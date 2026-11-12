@@ -10,21 +10,21 @@ description: >
 metadata:
   purpose: >
     How React reads cells and runs operations
-    through @tinker/react, with no state and no
+    through @tinkered/react, with no state and no
     effect of its own.
   type: framework
   framework: react
-  library: '@tinker/react'
-  library_version: '0.17.10'
+  library: '@tinkered/react'
+  library_version: '0.18.0'
 requires:
-  - '@tinker/core#core'
+  - '@tinkered/core#core'
 sources:
   - 'lagz0ne/tinkered:packages/react/src/index.ts'
 ---
 
 # Tinker React
 
-Read the `@tinker/core` skill `core` first. This
+Read the `@tinkered/core` skill `core` first. This
 skill adds the React side only.
 
 React is a thin host. It reads cells and runs
@@ -34,12 +34,12 @@ in a resource.
 ## Setup
 
 ```tsx
-import { createScope, data, operation } from "@tinker/core";
+import { createScope, data, operation } from "@tinkered/core";
 import {
   ScopeProvider,
   useData,
   useRun,
-} from "@tinker/react";
+} from "@tinkered/react";
 import { createRoot } from "react-dom/client";
 
 const count = data({ label: "count", initial: 0 });
@@ -82,8 +82,8 @@ createRoot(document.body).render(
 ### Read a part of a cell
 
 ```tsx
-import { data } from "@tinker/core";
-import { useData } from "@tinker/react";
+import { data } from "@tinkered/core";
+import { useData } from "@tinkered/react";
 
 const user = data({
   label: "user",
@@ -117,12 +117,12 @@ children. A write inside it stays inside it, and
 ends when the subtree unmounts.
 
 ```tsx
-import { data } from "@tinker/core";
+import { data } from "@tinkered/core";
 import {
   SessionProvider,
   useController,
   useData,
-} from "@tinker/react";
+} from "@tinkered/react";
 
 const draft = data({ label: "form.draft", initial: "" });
 
@@ -178,7 +178,7 @@ depends on it.
 ### HIGH: `fetch` in a component [tinker/one-wire]
 
 The page talks to the server by rpc and remote
-data only. Read the `@tinker/core` skill
+data only. Read the `@tinkered/core` skill
 `core/rpc`.
 
 ### MEDIUM: a new object as the selected value

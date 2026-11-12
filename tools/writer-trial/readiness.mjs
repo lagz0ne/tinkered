@@ -20,7 +20,7 @@ for (const w of manifest.workers) {
     ],
     [
       "packages and types",
-      'node --input-type=module -e \'import {createScope} from "@tinker/core"; import {useData} from "@tinker/react"; import fs from "node:fs"; if(typeof createScope!=="function"||typeof useData!=="function")process.exit(1); for(const p of ["core","react"]) {const dir="node_modules/@tinker/"+p+"/dist";if(!fs.existsSync(dir+"/index.d.mts")||fs.existsSync(dir+"/index.mjs.map"))process.exit(2);} console.log("PASS")\'',
+      'node --input-type=module -e \'import {createScope} from "@tinkered/core"; import {useData} from "@tinkered/react"; import fs from "node:fs"; if(typeof createScope!=="function"||typeof useData!=="function")process.exit(1); for(const p of ["core","react"]) {const dir="node_modules/@tinkered/"+p+"/dist";if(!fs.existsSync(dir+"/index.d.mts")||fs.existsSync(dir+"/index.mjs.map"))process.exit(2);} console.log("PASS")\'',
     ],
     [
       "no gateway key in worker",

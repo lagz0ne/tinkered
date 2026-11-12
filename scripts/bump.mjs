@@ -41,4 +41,4 @@ if (!existsSync(changelog) || !releaseNotes(readFileSync(changelog, "utf8"), ver
 }
 
 console.log(`Bumped to ${version}. Land it on main; green CI publishes v${version}.`);
-console.log("tinker-app takes the new Core and React through its own pin bump.");
+console.log("tinker-app takes the new packages through its own pin bump.");

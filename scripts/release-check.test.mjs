@@ -22,10 +22,10 @@ await test("this tree passes as its own version", () => {
 
 await test("a tag that does not match the tree names every problem", () => {
   assert.deepEqual(releaseProblems(root, "9.9.9"), [
-    `@tinker/core is ${version}, not 9.9.9`,
-    `@tinker/react is ${version}, not 9.9.9`,
-    `@tinker/bun is ${version}, not 9.9.9`,
-    `@tinker/analyze is ${version}, not 9.9.9`,
+    `@tinkered/core is ${version}, not 9.9.9`,
+    `@tinkered/react is ${version}, not 9.9.9`,
+    `@tinkered/bun is ${version}, not 9.9.9`,
+    `@tinkered/analyze is ${version}, not 9.9.9`,
     'CHANGELOG.md has no "## 9.9.9" section',
   ]);
 });

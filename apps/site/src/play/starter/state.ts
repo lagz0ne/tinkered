@@ -1,4 +1,4 @@
-import { data, tag } from "@tinker/core";
+import { data, tag } from "@tinkered/core";
 
 // The ocean's state. Every value lives in a cell the scope owns; the size and the frames are the
 // capsule's config, which main.tsx, the seam, passes.

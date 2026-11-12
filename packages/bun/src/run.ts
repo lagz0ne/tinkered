@@ -1,4 +1,4 @@
-import type { Scope } from "@tinker/core";
+import type { Scope } from "@tinkered/core";
 
 /**
  * What the host gives a command: its inputs, and the stop. A command picks its own exit codes;

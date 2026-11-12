@@ -26,7 +26,7 @@ for (const name of ["core", "react"]) {
       version: pkg.version,
       type: "module",
       exports: { ".": { types: "./dist/index.d.mts", default: "./dist/index.mjs" } },
-      ...(name === "react" ? { peerDependencies: { react: ">=19", "@tinker/core": "*" } } : {}),
+      ...(name === "react" ? { peerDependencies: { react: ">=19", "@tinkered/core": "*" } } : {}),
     }),
   );
 }
@@ -37,8 +37,8 @@ writeFileSync(
       private: true,
       type: "module",
       dependencies: {
-        "@tinker/core": "file:./core",
-        "@tinker/react": "file:./react",
+        "@tinkered/core": "file:./core",
+        "@tinkered/react": "file:./react",
         react: "19.3.0",
         "react-dom": "19.3.0",
         "vite-plus": "1.0.0",

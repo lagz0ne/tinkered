@@ -22,7 +22,7 @@ void test("preflight's lint includes fast-code judges on short helpers and roots
 
 void test("fast-code judges read library helpers and unit builders while existing scope stays intact", () => {
   const source =
-    'import { operation } from "@tinker/core"; export function make(input) { return operation({ run: () => input }); }';
+    'import { operation } from "@tinkered/core"; export function make(input) { return operation({ run: () => input }); }';
   const unit = slice(source, "packages/demo/src/run.ts").find((u) => u.name === "make");
 
   const questions = lintQuestions(unit);

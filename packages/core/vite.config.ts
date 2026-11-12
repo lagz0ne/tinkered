@@ -9,7 +9,7 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@tinker/core/testing": fileURLToPath(new URL("./src/testing.ts", import.meta.url)),
+      "@tinkered/core/testing": fileURLToPath(new URL("./src/testing.ts", import.meta.url)),
     },
   },
   pack: {

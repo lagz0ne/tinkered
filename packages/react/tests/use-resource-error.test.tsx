@@ -1,5 +1,5 @@
-import type { Resource } from "@tinker/core";
-import { createScope, isError, resource, tag } from "@tinker/core";
+import type { Resource } from "@tinkered/core";
+import { createScope, isError, resource, tag } from "@tinkered/core";
 import { Suspense } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";

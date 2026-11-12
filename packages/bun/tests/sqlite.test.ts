@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createScope } from "@tinker/core";
+import { createScope } from "@tinkered/core";
 import { sql } from "drizzle-orm";
 import { afterAll, afterEach, expect, test } from "vite-plus/test";
 

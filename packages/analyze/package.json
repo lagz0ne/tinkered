@@ -1,8 +1,13 @@
 {
-  "name": "@tinker/analyze",
-  "version": "0.17.10",
+  "name": "@tinkered/analyze",
+  "version": "0.18.0",
   "description": "Tinker's checks: one command reads an app and prints each broken rule with its id and the skill to read.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lagz0ne/tinkered.git",
+    "directory": "packages/analyze"
+  },
   "bin": {
     "tinker-analyze": "./dist/cli.mjs"
   },

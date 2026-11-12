@@ -1,4 +1,4 @@
-import { useData, useRun } from "@tinker/react";
+import { useData, useRun } from "@tinkered/react";
 import type { ReactElement } from "react";
 
 import { clear, setStorm, tune, turn } from "./engine";

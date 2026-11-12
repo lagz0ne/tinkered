@@ -1,4 +1,4 @@
-import { capsule, data, remoteData, rpc } from "@tinker/core";
+import { capsule, data, remoteData, rpc } from "@tinkered/core";
 import { z } from "zod";
 
 // The shared sea's contract: both sides import it. A room is a sea; each press there is a wave

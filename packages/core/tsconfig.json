@@ -17,7 +17,7 @@
     "skipLibCheck": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@tinker/core/testing": ["./src/testing.ts"]
+      "@tinkered/core/testing": ["./src/testing.ts"]
     }
   }
 }

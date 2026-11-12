@@ -1,4 +1,4 @@
-import { capsule, createScope, data, isError, operation } from "@tinker/core";
+import { capsule, createScope, data, isError, operation } from "@tinkered/core";
 import type { ReactNode } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";

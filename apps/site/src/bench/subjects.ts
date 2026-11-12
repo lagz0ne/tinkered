@@ -1,7 +1,7 @@
 import { signal } from "@preact/signals-react";
 import { useSignals } from "@preact/signals-react/runtime";
-import { createScope, data, resource } from "@tinker/core";
-import { ScopeProvider, useData } from "@tinker/react";
+import { createScope, data, resource } from "@tinkered/core";
+import { ScopeProvider, useData } from "@tinkered/react";
 import { useAtomValueRaw } from "jotai/react";
 import { atom, createStore } from "jotai/vanilla";
 import { observable as observable2 } from "legend2";
@@ -41,7 +41,7 @@ type Sink = { value: unknown };
 
 const indexes = [...Array(N).keys()];
 
-/** @tinker/react: one cell per slice, one shared cell, one scope. */
+/** @tinkered/react: one cell per slice, one shared cell, one scope. */
 const tinker = resource({
   label: "bench.tinker",
   factory: (): Lib => {
@@ -62,7 +62,7 @@ const tinker = resource({
     const children = indexes.map((i) => h(Cell, { key: i, i }));
 
     return {
-      name: "@tinker/react",
+      name: "@tinkered/react",
       fine: true,
       App: () => h("div", null, h(ScopeProvider, { scope, children })),
       update: (i, v) => controllers[i]!.set(v),

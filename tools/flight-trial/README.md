@@ -11,7 +11,7 @@ Build Core and this package first.
 From the workspace root:
 
 ```bash
-./node_modules/.bin/vp run @tinker/core#build
+./node_modules/.bin/vp run @tinkered/core#build
 ./node_modules/.bin/vp run flight-trial#build
 ./node_modules/.bin/vp run flight-trial#generate
 ```

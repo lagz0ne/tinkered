@@ -1,5 +1,5 @@
 import { Container } from "@inferdi/inferdi";
-// Head-to-head microbenchmarks: @tinker/core (built dist) vs InferDI (@inferdi/inferdi 6.x).
+// Head-to-head microbenchmarks: @tinkered/core (built dist) vs InferDI (@inferdi/inferdi 6.x).
 //
 // InferDI is a real, fast, decorator-free typed DI container (scopes + teardown) — tinker's exact
 // domain and a far tougher bar than Effect. Both run with DEFAULT runtime checks on (inferdi's

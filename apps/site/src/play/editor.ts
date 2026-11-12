@@ -2,7 +2,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { Annotation, Compartment, EditorState, Prec } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
-import { resource } from "@tinker/core";
+import { resource } from "@tinkered/core";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import { basicSetup } from "codemirror";
 

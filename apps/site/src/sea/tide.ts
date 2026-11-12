@@ -1,5 +1,5 @@
-import { capsule, data, operation, resource, tag } from "@tinker/core";
-import type { Data } from "@tinker/core";
+import { capsule, data, operation, resource, tag } from "@tinkered/core";
+import type { Data } from "@tinkered/core";
 
 import { ocean } from "@/play";
 

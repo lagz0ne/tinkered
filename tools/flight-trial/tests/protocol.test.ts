@@ -1,5 +1,5 @@
-import { createScope, capsule, resource } from "@tinker/core";
-import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
+import { createScope, capsule, resource } from "@tinkered/core";
+import { makeTestClock, makeTestRandom } from "@tinkered/core/testing";
 import { z } from "zod";
 import { expect, test } from "vite-plus/test";
 import {

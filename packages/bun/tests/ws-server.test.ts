@@ -1,5 +1,5 @@
-import { channel, createScope, operation, rpc, transport } from "@tinker/core";
-import type { Observe } from "@tinker/core";
+import { channel, createScope, operation, rpc, transport } from "@tinkered/core";
+import type { Observe } from "@tinkered/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 

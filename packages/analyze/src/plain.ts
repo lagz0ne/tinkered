@@ -545,7 +545,7 @@ function passes(file: File, fn: Fn): boolean {
 
 /** A bare package import is a library; `~/`, `@/` and relative paths are app code. */
 function library(specifier: string) {
-  return !/^(\.|~\/|@\/)/.test(specifier) && specifier !== "@tinker/core";
+  return !/^(\.|~\/|@\/)/.test(specifier) && specifier !== "@tinkered/core";
 }
 
 /** Each local name an import binds, with the name it has in its module. */
@@ -566,7 +566,7 @@ function readImport(file: File, node: ts.ImportDeclaration) {
   if (!node.importClause) return;
 
   for (const [local, name] of importNames(node.importClause)) {
-    if (specifier === "@tinker/core") file.core.set(local, name);
+    if (specifier === "@tinkered/core") file.core.set(local, name);
     else if (library(specifier)) file.library.add(local);
     else readAppImport(file, local, { from: appFile(file, specifier), name });
   }

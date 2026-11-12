@@ -1,4 +1,4 @@
-import { capsule, createScope, data, operation, type Scope } from "@tinker/core";
+import { capsule, createScope, data, operation, type Scope } from "@tinkered/core";
 import type { ReactNode } from "react";
 import { StrictMode, Suspense } from "react";
 import { expect, test } from "vite-plus/test";

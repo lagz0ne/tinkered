@@ -44,10 +44,10 @@ function lint(files) {
 
 const talk = {
   "src/frontend/talk/atoms.ts":
-    'import { data } from "@tinker/core";\n' +
+    'import { data } from "@tinkered/core";\n' +
     'export const point = data({ label: "talk.point", initial: "a" });\n',
   "src/frontend/talk/operations.ts":
-    'import { operation } from "@tinker/core";\n' +
+    'import { operation } from "@tinkered/core";\n' +
     'import { point } from "./atoms";\n' +
     "export const clear = operation({\n" +
     '  label: "talk.clear",\n' +
@@ -61,7 +61,7 @@ void test("a controller on another capsule's cell warns; its op, a read, and an 
   const lines = lint({
     ...talk,
     "src/frontend/work/atoms.ts":
-      'import { data } from "@tinker/core";\n' +
+      'import { data } from "@tinkered/core";\n' +
       'export const open = data({ label: "work.open", initial: false });\n',
     "src/frontend/work/resources.ts":
       'import { point } from "@/frontend/talk/atoms";\n' +
@@ -95,11 +95,11 @@ void test("a cell re-exported under another name through an index still warns", 
 void test("an aliased re-export and a typed cell still warn; a file directly under a root does not", () => {
   const lines = lint({
     "src/frontend/sync/atoms.ts":
-      'import { data, type Data } from "@tinker/core";\n' +
+      'import { data, type Data } from "@tinkered/core";\n' +
       'export const content: Data.Cell<number> = data({ label: "content", initial: 0 });\n',
     "src/frontend/sync/index.ts": 'export { content } from "@/frontend/sync/atoms";\n',
     "src/frontend/loose.ts":
-      'import { data } from "@tinker/core";\n' +
+      'import { data } from "@tinkered/core";\n' +
       'export const loose = data({ label: "loose", initial: 0 });\n',
     "src/frontend/checks/resources.ts":
       'import { content } from "@/frontend/sync";\n' +
@@ -115,7 +115,7 @@ void test("a placed edge on another capsule's cell warns; on an own cell it does
   const lines = lint({
     ...talk,
     "src/frontend/work/atoms.ts":
-      'import { data } from "@tinker/core";\n' +
+      'import { data } from "@tinkered/core";\n' +
       'export const open = data({ label: "work.open", initial: false });\n',
     "src/frontend/work/resources.ts":
       'import { point } from "@/frontend/talk/atoms";\n' +

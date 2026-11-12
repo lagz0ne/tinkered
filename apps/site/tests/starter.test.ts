@@ -1,5 +1,5 @@
-import { createScope, isError } from "@tinker/core";
-import { makeTestClock } from "@tinker/core/testing";
+import { createScope, isError } from "@tinkered/core";
+import { makeTestClock } from "@tinkered/core/testing";
 import { expect, test } from "vite-plus/test";
 
 import { key, look, poke, show, view } from "@/play/starter/draw";

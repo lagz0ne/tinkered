@@ -3,7 +3,7 @@
 Core and React are the two Tinker libraries.
 Apps are built from
 [tinker-app](https://github.com/lagz0ne/tinker-app),
-which needs only `@tinker/core` and `@tinker/react`.
+which needs only `@tinkered/core` and `@tinkered/react`.
 
 Start (the base, its scaffold, and the `tinker` CLI) was sunset
 on 2026-11-01 ([ADR 0122](docs/decisions/0122-start-sunset.md)).
@@ -39,7 +39,7 @@ vp run -r build
 vp run dev
 ```
 
-## `@tinker/core`: the edge picks where a write lands
+## `@tinkered/core`: the edge picks where a write lands
 
 Since 0.12.0 (ADR 0126). The cell declares no place.
 Each `depends` edge names one:
@@ -59,15 +59,15 @@ that call, unless its edge says `atScope` or
 `atNamespace`. Details:
 [Placed edges](packages/core/README.md#placed-edges).
 
-## `@tinker/core`: time is an ambient capability
+## `@tinkered/core`: time is an ambient capability
 
 Every operation and resource ctx carries a `clock`. The default is the system clock; a scope can
 be seeded with a controllable one, so time-dependent code is tested with no `Date` mock and no
 fake timers (ADR 0034). Nothing below needs a cast; see `examples/core/basic.ts`.
 
 ```ts
-import { createScope, data, operation } from "@tinker/core";
-import { makeTestClock } from "@tinker/core/testing";
+import { createScope, data, operation } from "@tinkered/core";
+import { makeTestClock } from "@tinkered/core/testing";
 
 const stamp = operation({
   label: "stamp",

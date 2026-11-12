@@ -1,6 +1,6 @@
 import type { ChangeEvent, FormEvent, ReactElement } from "react";
-import { createScope } from "@tinker/core";
-import { ScopeProvider, useData, useRun } from "@tinker/react";
+import { createScope } from "@tinkered/core";
+import { ScopeProvider, useData, useRun } from "@tinkered/react";
 import { bookings, editDraft, rooms } from "./model";
 import {
   bookForm,

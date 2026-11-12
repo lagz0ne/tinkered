@@ -1,4 +1,4 @@
-import { capsule, tag } from "@tinker/core";
+import { capsule, tag } from "@tinkered/core";
 
 import type { Handler } from "@/serve";
 

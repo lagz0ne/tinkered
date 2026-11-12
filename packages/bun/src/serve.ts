@@ -1,5 +1,5 @@
-import { capsule, data, tag } from "@tinker/core";
-import type { Capsule, Scope } from "@tinker/core";
+import { capsule, data, tag } from "@tinkered/core";
+import type { Capsule, Scope } from "@tinkered/core";
 import type { HTMLBundle, Server, WebSocketHandler } from "bun";
 
 /**

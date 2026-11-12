@@ -24,7 +24,7 @@ const listed = JSON.parse(
   readFileSync(new URL("./private-fields.json", import.meta.url), "utf8"),
 ) as string[];
 
-const imports = `import { createScope } from "@tinker/core";\n`;
+const imports = `import { createScope } from "@tinkered/core";\n`;
 /** Each test's own time limit: every test packs Core once. */
 const BUILD_MS = 60_000;
 

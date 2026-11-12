@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
+import { makeTestClock, makeTestRandom } from "@tinkered/core/testing";
 import { expect, test } from "vite-plus/test";
 
 import { createScope, capsule, namespace, operation, resource, tag, type Observe } from "@/index";

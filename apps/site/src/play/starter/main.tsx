@@ -1,5 +1,5 @@
-import { createScope } from "@tinker/core";
-import { ScopeProvider } from "@tinker/react";
+import { createScope } from "@tinkered/core";
+import { ScopeProvider } from "@tinkered/react";
 import { createRoot } from "react-dom/client";
 
 import { ocean } from "./ocean";

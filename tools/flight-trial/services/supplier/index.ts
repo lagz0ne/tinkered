@@ -1,5 +1,5 @@
-import { capsule, data, operation, resource, tag } from "@tinker/core";
-import type { Scope } from "@tinker/core";
+import { capsule, data, operation, resource, tag } from "@tinkered/core";
+import type { Scope } from "@tinkered/core";
 import { z } from "zod";
 import { readFlights, type Flights } from "../../src/flights";
 import {

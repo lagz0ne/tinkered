@@ -1,5 +1,5 @@
-import type { Data } from "@tinker/core";
-import { createScope, data } from "@tinker/core";
+import type { Data } from "@tinkered/core";
+import { createScope, data } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 

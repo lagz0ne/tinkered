@@ -7,7 +7,7 @@ export default defineConfig({
     banner: ({ fileName }) => (fileName === "main.mjs" ? "#!/usr/bin/env node" : undefined),
     deps: {
       resolveDepSubpath: true,
-      neverBundle: ["@tinker/core", "zod", "yaml", "ai"],
+      neverBundle: ["@tinkered/core", "zod", "yaml", "ai"],
     },
     dts: {
       generator: "tsgo",

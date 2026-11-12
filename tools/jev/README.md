@@ -100,7 +100,7 @@ One call cannot carry it: core's `index.ts` failed with `max_tokens_exceeded`.
 It prints `skipped: too big for one call`, still judges that file's units, and exits 0.
 `review.mjs` skips the same way.
 
-Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`) and S18 (a `data`, `operation`, `resource`, or `tag` call from `@tinker/core`, or a `family` call from `@tinker/sync`, inside a function; a driver's `extension` is left out, ADR 0051) run in writer mode only: the gate asks for them; the repo's own lint does not.
+Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`) and S18 (a `data`, `operation`, `resource`, or `tag` call from `@tinkered/core`, or a `family` call from `@tinker/sync`, inside a function; a driver's `extension` is left out, ADR 0051) run in writer mode only: the gate asks for them; the repo's own lint does not.
 S19 (a helper whose parameter type holds a controller, scope, or session) also has a repo lane, below. Arrow and function-expression consts are units in every file, like `function` declarations. A helper function's unit also carries `uses`: the lines of its own file that call it, so a judge sees what happens to the value it returns.
 `lint.mjs` lists its rows; the writer-trial gate blocks on each one (ADR 0068).
 
@@ -112,7 +112,7 @@ The census reports counts; `--strict` fails on a hit.
 They skip tests, comments, and strings.
 
 - **P05 (A2)** — a call to `operation`, `resource`, `tag`, or `data` inside a function or class in `apps/` or `examples/`.
-  Named imports, aliases, and namespace imports from `@tinker/core` count.
+  Named imports, aliases, and namespace imports from `@tinkered/core` count.
   Local names that hide those imports do not count.
   Library source is left out.
   Fix: `const save = operation({ label: "save", run: () => 1 });` at module top level.
@@ -169,10 +169,10 @@ Each message ends with its fix line.
   So each request has a span and inherits the caller's
   cancel signal (ADR 0102, 0113).
   Map its reply to a feature value or managed error (ADR 0103).
-  `s24-fix.test.mjs` typechecks the fix against `@tinker/core`.
+  `s24-fix.test.mjs` typechecks the fix against `@tinkered/core`.
 
   ```ts
-  import { operation, tag } from "@tinker/core";
+  import { operation, tag } from "@tinkered/core";
 
   export const httpSend = tag<typeof fetch>({
     label: "http.send",
@@ -525,7 +525,7 @@ No live judge. Retired judges keep their cases in cases.jsonl.
 
 ### guide — the unit classifier lint.mjs uses; for words, blueprint suggest
 
-**`unit`** — Which @tinker/core unit fits this code or description?
+**`unit`** — Which @tinkered/core unit fits this code or description?
 
 - `data`: a piece of state kept and read over time — a form field, a draft, a filter, a selection, a notice, a list — written by operations or a driver
 - `resource`: something that subscribes, listens, polls, connects, opens, or streams; built once per owner; needs cleanup

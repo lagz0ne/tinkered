@@ -15,7 +15,7 @@ export function releaseUrls(version, origin = "https://github.com") {
   }
   return Object.fromEntries(
     releasePackages.map((name) => [
-      `@tinker/${name}`,
+      `@tinkered/${name}`,
       `${origin}/lagz0ne/tinkered/releases/download/v${version}/tinker-${name}-${version}.tgz`,
     ]),
   );

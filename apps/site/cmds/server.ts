@@ -1,5 +1,5 @@
-import { serve, ws } from "@tinker/bun";
-import { createScope } from "@tinker/core";
+import { serve, ws } from "@tinkered/bun";
+import { createScope } from "@tinkered/core";
 
 import { guide } from "@/guide";
 import { guideOps, guidePaths, guideRoutes } from "@/guide/index.server";

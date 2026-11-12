@@ -167,10 +167,10 @@ const noteHooks = (note, srcFiles, short) => {
 const noteReads = (note, srcFiles, tsxFiles, short) => {
   const tinker = imported(
     srcFiles,
-    ["@tinker/react"],
+    ["@tinkered/react"],
     ["useData", "useRun", "useScope", "ScopeProvider"],
   );
-  const core = imported(srcFiles, ["@tinker/core"], ["data"]);
+  const core = imported(srcFiles, ["@tinkered/core"], ["data"]);
   const dataHits = hits(srcFiles, short, anyCall(core.local.get("data"), core.spaces));
   note("cell declarations found", dataHits.join(", ") || "none (ownership: lead review)");
   const scopeHits = hits(

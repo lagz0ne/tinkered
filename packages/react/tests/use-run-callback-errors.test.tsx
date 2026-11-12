@@ -1,5 +1,5 @@
-import type { Operation } from "@tinker/core";
-import { createScope, operation } from "@tinker/core";
+import type { Operation } from "@tinkered/core";
+import { createScope, operation } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 

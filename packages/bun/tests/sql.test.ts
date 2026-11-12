@@ -1,4 +1,4 @@
-import { createScope } from "@tinker/core";
+import { createScope } from "@tinkered/core";
 import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, test } from "vite-plus/test";
 

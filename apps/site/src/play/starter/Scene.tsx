@@ -1,4 +1,4 @@
-import { useRun, useScope } from "@tinker/react";
+import { useRun, useScope } from "@tinkered/react";
 import { memo, useCallback } from "react";
 import type { ReactElement } from "react";
 

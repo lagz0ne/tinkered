@@ -1,4 +1,4 @@
-import type { Observe, transport } from "@tinker/core";
+import type { Observe, transport } from "@tinkered/core";
 
 /** What a run hook's event gives the protocol. */
 type Event = {

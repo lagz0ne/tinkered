@@ -1,5 +1,13 @@
-import { isStarting } from "@tinker/core";
-import type { Data, Namespace, Observe, Operation, Resource, RunResult, Scope } from "@tinker/core";
+import { isStarting } from "@tinkered/core";
+import type {
+  Data,
+  Namespace,
+  Observe,
+  Operation,
+  Resource,
+  RunResult,
+  Scope,
+} from "@tinkered/core";
 import type { ReactNode } from "react";
 import {
   createContext,
@@ -125,7 +133,7 @@ function OwnedScopeProvider(props: {
   return createElement(ScopeContext.Provider, { value: owned.bound, children: props.children });
 }
 
-/** Put a `@tinker/core` scope on React context for the subtree. Hooks resolve against the nearest
+/** Put a `@tinkered/core` scope on React context for the subtree. Hooks resolve against the nearest
  * provider's scope. This independent scope clears an outer React session's reset key. */
 export function ScopeProvider(props: ScopeProviderProps): ReactNode {
   const scope = props.scope;

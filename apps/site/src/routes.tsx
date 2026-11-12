@@ -1,5 +1,5 @@
 import { createRootRouteWithContext, createRoute, notFound } from "@tanstack/react-router";
-import type { Scope } from "@tinker/core";
+import type { Scope } from "@tinkered/core";
 
 import { BenchPage } from "@/bench";
 import { guide, GuideHome, GuidePage } from "@/guide";

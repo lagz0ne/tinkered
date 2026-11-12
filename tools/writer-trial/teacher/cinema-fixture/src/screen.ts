@@ -1,5 +1,5 @@
-import { data, operation } from "@tinker/core";
-import type { Data, Operation } from "@tinker/core";
+import { data, operation } from "@tinkered/core";
+import type { Data, Operation } from "@tinkered/core";
 import { buySeats, holdSeat, releaseSeat, undoSeats } from "./model";
 import type { Seat, SeatState } from "./model";
 import { errorKind } from "./errors";

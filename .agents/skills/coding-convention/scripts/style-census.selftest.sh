@@ -27,7 +27,7 @@ check() {
 
 # Positive: real preset() calls in source must be flagged, incl. generics and a space.
 cat >"$tmp/calls.ts" <<'TS'
-import { data, preset } from "@tinker/core";
+import { data, preset } from "@tinkered/core";
 const count = data({ initial: 0 });
 export const a = preset(count, 1);
 export const b = preset<number>(count, 2);
@@ -127,8 +127,8 @@ check "lets an app test import its feature module" T04 0 "$(id_count T04 "$tmp/a
 
 mkdir -p "$tmp/apps/demo/src" "$tmp/examples" "$tmp/packages/demo/src"
 cat >"$tmp/apps/demo/src/units.tsx" <<'TS'
-import { operation, resource, tag, data, operation as op } from "@tinker/core";
-import * as core from "@tinker/core";
+import { operation, resource, tag, data, operation as op } from "@tinkered/core";
+import * as core from "@tinkered/core";
 const top = operation({ run: () => 1 });
 function build() {
   operation({ run: () => 1 });
@@ -153,8 +153,8 @@ check "keeps app builder rule off library source" P05 0 "$(id_count P05 "$tmp/pa
 cp "$tmp/apps/demo/src/units.tsx" "$tmp/apps/demo/src/units.test.tsx"
 check "skips builder calls in tests" P05 0 "$(id_count P05 "$tmp/apps/demo/src/units.test.tsx")"
 cat >"$tmp/apps/demo/src/clean.ts" <<'TS'
-import { operation, resource as res } from "@tinker/core";
-import * as core from "@tinker/core";
+import { operation, resource as res } from "@tinkered/core";
+import * as core from "@tinkered/core";
 import { data } from "elsewhere";
 export const top = res({ factory: () => 1 });
 /** operation({}) */
@@ -165,7 +165,7 @@ function local() { const res = () => 1; res({}); }
 TS
 check "ignores top-level units, foreign names, shadows, docs, and strings" P05 0 "$(id_count P05 "$tmp/apps/demo/src/clean.ts")"
 cat >"$tmp/apps/demo/src/blocks.ts" <<'TS'
-import { operation } from "@tinker/core";
+import { operation } from "@tinkered/core";
 function blocks() {
   { const operation = () => 1; operation({}); }
   operation({ run: () => 1 });

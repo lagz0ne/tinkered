@@ -1,4 +1,4 @@
-# @tinker/core
+# @tinkered/core
 
 ## Install
 
@@ -6,16 +6,16 @@ On Bun, the main runtime:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.10
-bun add $R/tinker-core-0.17.10.tgz
+releases/download/v0.18.0
+bun add $R/tinker-core-0.18.0.tgz
 ```
 
 On Node 22.18 or later, with npm:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.10
-npm install $R/tinker-core-0.17.10.tgz
+releases/download/v0.18.0
+npm install $R/tinker-core-0.18.0.tgz
 ```
 
 Each version's URLs are in the
@@ -37,15 +37,15 @@ It is made on first read and kept for later reads.
 ## Test helpers
 
 The main entry exports no test helpers.
-Import them from `@tinker/core/testing`:
+Import them from `@tinkered/core/testing`:
 
 ```ts
-import { createScope, data } from "@tinker/core";
-import { makeTestClock } from "@tinker/core/testing";
-import { makeTestRandom } from "@tinker/core/testing";
-import { preset } from "@tinker/core/testing";
-import type * as Core from "@tinker/core";
-import type { Clock, Random } from "@tinker/core/testing";
+import { createScope, data } from "@tinkered/core";
+import { makeTestClock } from "@tinkered/core/testing";
+import { makeTestRandom } from "@tinkered/core/testing";
+import { preset } from "@tinkered/core/testing";
+import type * as Core from "@tinkered/core";
+import type { Clock, Random } from "@tinkered/core/testing";
 
 const time: Clock.Options = { now: 100 };
 const seed: Random.Options = { seed: 42 };
@@ -61,12 +61,12 @@ const scope = createScope({
 await scope.close();
 ```
 
-`Clock.Handle` and `Random.Handle` stay in `@tinker/core`.
+`Clock.Handle` and `Random.Handle` stay in `@tinkered/core`.
 `Clock.Test`, `Clock.Options`, and `Random.Options` live in
-`@tinker/core/testing`.
-`preset` also lives in `@tinker/core/testing`.
+`@tinkered/core/testing`.
+`preset` also lives in `@tinkered/core/testing`.
 `Scope.Preset` and the scope's `presets` option stay in
-`@tinker/core`.
+`@tinkered/core`.
 The test entry ships in the package beside the main entry.
 Test files and source files do not ship.
 
@@ -210,7 +210,7 @@ A cancelled Result is a clean stop there.
 Process keeps its own forced stop and exit code 130.
 
 ```ts
-import type { Scope } from "@tinker/core";
+import type { Scope } from "@tinkered/core";
 
 function exitCode(end: Scope.Result): number {
   if (end.status === "failed") return 1;
@@ -228,7 +228,7 @@ Wait with `await scope.ready`, then read its start value with `scope.resolve(mai
 A library that reads tags declares them as its `config` ([Config](#config)).
 
 ```ts
-import { capsule, createScope } from "@tinker/core";
+import { capsule, createScope } from "@tinkered/core";
 
 export const mail = capsule({
   label: "mail",

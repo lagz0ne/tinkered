@@ -11,7 +11,7 @@
     "test": "vp test"
   },
   "dependencies": {
-    "@tinker/core": "workspace:*"
+    "@tinkered/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

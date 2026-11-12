@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { inspectPlain } from "./plain.mjs";
 
-await test("the S24 fix text typechecks against @tinker/core and passes the plain rules", (t) => {
+await test("the S24 fix text typechecks against @tinkered/core and passes the plain rules", (t) => {
   const [finding] = inspectPlain(
     'export const send = () => fetch("https://api.example.com/notices");',
     "src/backend/notices.ts",
@@ -21,8 +21,8 @@ await test("the S24 fix text typechecks against @tinker/core and passes the plai
   const copy = mkdtempSync(join(import.meta.dirname, ".s24-core-"));
   try {
     mkdirSync(join(copy, "src/backend"), { recursive: true });
-    mkdirSync(join(copy, "node_modules/@tinker"), { recursive: true });
-    symlinkSync(core, join(copy, "node_modules/@tinker/core"), "dir");
+    mkdirSync(join(copy, "node_modules/@tinkered"), { recursive: true });
+    symlinkSync(core, join(copy, "node_modules/@tinkered/core"), "dir");
     writeFileSync(join(copy, "package.json"), '{"type":"module"}');
     writeFileSync(
       join(copy, "tsconfig.json"),
@@ -44,7 +44,7 @@ await test("the S24 fix text typechecks against @tinker/core and passes the plai
     // The entry line the message names: the seam binds the built-in fetch to the tag.
     writeFileSync(
       join(copy, "src/main.ts"),
-      'import { createScope } from "@tinker/core";\n' +
+      'import { createScope } from "@tinkered/core";\n' +
         'import { httpSend, postNotice } from "./backend/notices";\n' +
         "const scope = createScope({ tags: [httpSend(fetch)] });\n" +
         "export const sent = scope.run(postNotice);\n",

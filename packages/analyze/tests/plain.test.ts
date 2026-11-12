@@ -64,7 +64,7 @@ test("an IIFE and an object of helpers fail", () => {
 
 test("an operation passes, with its inline callbacks", () => {
   const result = checkFiles({
-    "src/api/greet.ts": `import { operation } from "@tinker/core";
+    "src/api/greet.ts": `import { operation } from "@tinkered/core";
 
 export const shout = operation({
   label: "shout",
@@ -79,7 +79,7 @@ export const shout = operation({
 
 test("a resource's returned methods pass; a helper only called inside it fails", () => {
   const result = checkFiles({
-    "tinker/counter.ts": `import { resource } from "@tinker/core";
+    "tinker/counter.ts": `import { resource } from "@tinkered/core";
 
 export const counter = resource({
   label: "counter",
@@ -101,8 +101,8 @@ export const counter = resource({
 
 test("capsule hooks pass; a non-hook in hooks fails", () => {
   const result = checkFiles({
-    "tinker/c.ts": `import { capsule } from "@tinker/core";
-import type { Capsule } from "@tinker/core";
+    "tinker/c.ts": `import { capsule } from "@tinkered/core";
+import type { Capsule } from "@tinkered/core";
 
 export const shared: Capsule.Hooks = {
   async close({ next }) {
@@ -130,7 +130,7 @@ export const c = capsule({
 
 test("a function returned from a start hook passes", () => {
   const result = checkFiles({
-    "tinker/rpc.ts": `import { capsule } from "@tinker/core";
+    "tinker/rpc.ts": `import { capsule } from "@tinkered/core";
 
 export const rpc = capsule({
   label: "rpc",
@@ -145,7 +145,7 @@ export const rpc = capsule({
   },
 });
 `,
-    "tinker/routes.ts": `import { capsule } from "@tinker/core";
+    "tinker/routes.ts": `import { capsule } from "@tinkered/core";
 
 export const routes = capsule({
   label: "routes",
@@ -285,7 +285,7 @@ test("a React component and a top-level listener pass", () => {
 });
 
 /** A module resource: Core loads the package, and functions reach it through `depends`. */
-const authModules = `import { resource } from "@tinker/core";
+const authModules = `import { resource } from "@tinkered/core";
 
 export const authModule = resource({
   label: "module:better-auth",
@@ -294,7 +294,7 @@ export const authModule = resource({
 `;
 
 /** Better Auth's shape: destructure the module, call it with nested option callbacks. */
-const authFile = `import { operation, resource } from "@tinker/core";
+const authFile = `import { operation, resource } from "@tinkered/core";
 
 import { authModule } from "./modules";
 
@@ -325,7 +325,7 @@ export const check = operation({
 `;
 
 /** Kysely's shape: \`new x.Kysely({...})\` and \`new Kysely({...})\` with option callbacks. */
-const kyselyFile = `import { resource } from "@tinker/core";
+const kyselyFile = `import { resource } from "@tinkered/core";
 
 const kyselyModule = resource({
   label: "module:kysely",
@@ -386,12 +386,12 @@ test("a named helper inside a module-resource factory still fails, on its own li
 test("a resource that imports an app path is not a library: its options fail", () => {
   const result = checkFiles({
     "tinker/x.ts": `export const make = (options: object) => options;\n`,
-    "tinker/modules.ts": `import { resource } from "@tinker/core";
+    "tinker/modules.ts": `import { resource } from "@tinkered/core";
 
 export const local = resource({ label: "local", factory: () => import("./x") });
 export const aliased = resource({ label: "aliased", factory: () => import("~/x") });
 `,
-    "tinker/use.ts": `import { resource } from "@tinker/core";
+    "tinker/use.ts": `import { resource } from "@tinkered/core";
 
 import { aliased, local } from "./modules";
 
@@ -414,7 +414,7 @@ export const used = resource({
 
 test("a factory that returns a package on one branch and app code on another is no library", () => {
   const result = checkFiles({
-    "tinker/modules.ts": `import { resource } from "@tinker/core";
+    "tinker/modules.ts": `import { resource } from "@tinkered/core";
 
 export const branches = resource({
   label: "branches",
@@ -424,7 +424,7 @@ export const branches = resource({
   },
 });
 `,
-    "tinker/use.ts": `import { resource } from "@tinker/core";
+    "tinker/use.ts": `import { resource } from "@tinkered/core";
 
 import { branches } from "./modules";
 

@@ -1,5 +1,5 @@
-import { data, operation } from "@tinker/core";
-import type { Data, Operation } from "@tinker/core";
+import { data, operation } from "@tinkered/core";
+import type { Data, Operation } from "@tinkered/core";
 import { castVote, closePoll, createPoll, undoPoll, voteCount, withdrawVote } from "./model";
 import type { Poll, Vote } from "./model";
 import { errorKind } from "./errors";

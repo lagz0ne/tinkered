@@ -1,4 +1,4 @@
-import { data, tag } from "@tinker/core";
+import { data, tag } from "@tinkered/core";
 
 // The bench page's state: what the run is doing, and what it found. Only the run writes them.
 
@@ -26,7 +26,7 @@ export type Row = {
   fanout: Measure;
 };
 
-/** @tinker/react against each other store: "1.4× faster than", "about the same as". */
+/** @tinkered/react against each other store: "1.4× faster than", "about the same as". */
 export type Gap = { words: string; name: string };
 
 export type Takeaway = {

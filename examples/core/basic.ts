@@ -1,4 +1,4 @@
-import { data, operation, resource, tag } from "@tinker/core";
+import { data, operation, resource, tag } from "@tinkered/core";
 
 export const region = tag<string>({ label: "region" });
 export const count = data({ label: "count", initial: 0 });

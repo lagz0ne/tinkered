@@ -1,5 +1,5 @@
-import type { Data, Operation, Resource, Scope } from "@tinker/core";
-import { capsule, createScope, data, operation, resource } from "@tinker/core";
+import type { Data, Operation, Resource, Scope } from "@tinkered/core";
+import { capsule, createScope, data, operation, resource } from "@tinkered/core";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { renderToString } from "react-dom/server";

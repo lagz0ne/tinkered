@@ -1,4 +1,4 @@
-import { capsule } from "@tinker/core";
+import { capsule } from "@tinkered/core";
 
 import { App } from "./App";
 import { clear, land, press, setStorm, tune, turn } from "./engine";

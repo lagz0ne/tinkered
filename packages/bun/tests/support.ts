@@ -1,4 +1,4 @@
-import type { Scope } from "@tinker/core";
+import type { Scope } from "@tinkered/core";
 
 /** The default client and server, as an app's cmds import them. */
 export { ws as wsClient } from "@/client";

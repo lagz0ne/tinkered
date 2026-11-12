@@ -1,7 +1,7 @@
-// Head-to-head microbenchmarks: @tinker/core store layer vs Zustand (vanilla) 5.x.
+// Head-to-head microbenchmarks: @tinkered/core store layer vs Zustand (vanilla) 5.x.
 //
-// Zustand = a vanilla store + a thin useSyncExternalStore hook; @tinker/react's useData wraps
-// useSyncExternalStore over @tinker/core's data controller. So the performance-deciding code on both
+// Zustand = a vanilla store + a thin useSyncExternalStore hook; @tinkered/react's useData wraps
+// useSyncExternalStore over @tinkered/core's data controller. So the performance-deciding code on both
 // sides is the VANILLA store (get / set / subscribe+notify). This benches that apples-to-apples.
 // (A separate real-React re-render benchmark covers the hook/reconciler layer.)
 //

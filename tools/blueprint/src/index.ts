@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
-import { operation, resource, tag, type Operation, type Resource, type Tag } from "@tinker/core";
+import { operation, resource, tag, type Operation, type Resource, type Tag } from "@tinkered/core";
 import {
   createGateway,
   experimental_evaluate as evaluate,

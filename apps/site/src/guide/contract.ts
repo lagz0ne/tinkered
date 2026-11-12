@@ -1,4 +1,4 @@
-import { rpc } from "@tinker/core";
+import { rpc } from "@tinkered/core";
 import { z } from "zod";
 
 // The guide's contract: both sides import it. The server holds the pages; a page asks for the

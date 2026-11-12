@@ -1,5 +1,5 @@
-import { data, operation } from "@tinker/core";
-import type { Data, Operation } from "@tinker/core";
+import { data, operation } from "@tinkered/core";
+import type { Data, Operation } from "@tinkered/core";
 import { addClass, classes, joinClass, leaveClass, setCapacity, undoGym } from "./model";
 import type { GymClass, Signup } from "./model";
 import { errorKind } from "./errors";

@@ -49,7 +49,7 @@ async function resolveImports(root: string) {
   try {
     const importer = join(root, "tests", "random.test.ts");
     const index = await server.pluginContainer.resolveId("@/index", importer);
-    const testing = await server.pluginContainer.resolveId("@tinker/core/testing", importer);
+    const testing = await server.pluginContainer.resolveId("@tinkered/core/testing", importer);
     return { index: index?.id, testing: testing?.id };
   } finally {
     await server.close();

@@ -7,7 +7,13 @@ const server = await createServer({
   root,
   cacheDir: "/tmp/teacher-browser-cache",
   optimizeDeps: {
-    include: ["react", "react-dom/client", "react/jsx-runtime", "@tinker/core", "@tinker/react"],
+    include: [
+      "react",
+      "react-dom/client",
+      "react/jsx-runtime",
+      "@tinkered/core",
+      "@tinkered/react",
+    ],
   },
   configFile: false,
   server: { host: "127.0.0.1", port: 5173, strictPort: true },

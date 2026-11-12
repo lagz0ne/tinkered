@@ -1,6 +1,6 @@
-import { createScope } from "@tinker/core";
-import type { Scope } from "@tinker/core";
-import { makeTestClock } from "@tinker/core/testing";
+import { createScope } from "@tinkered/core";
+import type { Scope } from "@tinkered/core";
+import { makeTestClock } from "@tinkered/core/testing";
 import { afterAll, expect, test } from "vite-plus/test";
 
 import { ocean } from "@/play";

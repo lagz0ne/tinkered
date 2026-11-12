@@ -195,7 +195,8 @@ function coreCall(call, target) {
   const symbol = target(call.expression);
   if (!["operation", "resource", "capsule", "extension"].includes(symbol?.name)) return undefined;
   return symbol.declarations?.some(
-    (declaration) => packageName(realPath(declaration.getSourceFile().fileName)) === "@tinker/core",
+    (declaration) =>
+      packageName(realPath(declaration.getSourceFile().fileName)) === "@tinkered/core",
   )
     ? symbol.name
     : undefined;
@@ -207,7 +208,7 @@ function coreType(type, name, owner) {
   return symbol.declarations?.some(
     (declaration) =>
       propertyName(declaration.parent.parent?.name) === owner &&
-      packageName(realPath(declaration.getSourceFile().fileName)) === "@tinker/core",
+      packageName(realPath(declaration.getSourceFile().fileName)) === "@tinkered/core",
   );
 }
 
@@ -395,7 +396,7 @@ function moduleReference(declaration) {
 }
 
 function ownPath(path) {
-  return path.startsWith(".") || path.startsWith("#") || path.startsWith("@tinker/");
+  return path.startsWith(".") || path.startsWith("#") || path.startsWith("@tinkered/");
 }
 
 function importedName(node, checker, seen = new Set()) {
@@ -811,7 +812,7 @@ function extraCases(outsideImport) {
         rule: 7,
         hit: "probe.ts:3",
         source: outsideImport + 'import {invoke} from "./helper"; invoke({run:()=>outside("x")});',
-        helper: `import {createScope} from "@tinker/core"; const scope=createScope(); export const invoke=scope.${method}.bind(scope);`,
+        helper: `import {createScope} from "@tinkered/core"; const scope=createScope(); export const invoke=scope.${method}.bind(scope);`,
       },
       {
         name: `inline-${method}-reflect-bind-variable`,
@@ -915,7 +916,7 @@ function extraCases(outsideImport) {
 async function prove() {
   const planted = await mkdtemp(join(tmpdir(), "lazy-modules-proof-"));
   const core =
-    'import { operation, resource, capsule, createScope, type Scope } from "@tinker/core";\n';
+    'import { operation, resource, capsule, createScope, type Scope } from "@tinkered/core";\n';
   const outsideImport = 'import { resolve as outside } from "node:path";\n';
   const lazy =
     'resource({label: "module:node:path", target: "scope", factory: () => import("node:path")})';
@@ -973,14 +974,14 @@ async function prove() {
       rule: 7,
       source:
         outsideImport +
-        'import * as Core from "@tinker/core"; Core.operation({run: () => outside("x")});',
+        'import * as Core from "@tinkered/core"; Core.operation({run: () => outside("x")});',
     },
     {
       name: "core-destructure",
       rule: 7,
       source:
         outsideImport +
-        'import * as Core from "@tinker/core"; const {operation: op} = Core; op({run: () => outside("x")});',
+        'import * as Core from "@tinkered/core"; const {operation: op} = Core; op({run: () => outside("x")});',
     },
     {
       name: "reexport",

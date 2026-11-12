@@ -66,9 +66,9 @@ const FIXES = {
   S22: "`const r = await load.settle({ input: id })`",
   "S22.settle": "`const r = await load.settle({ input: id })`, then branch on `r.status`",
   S23: '`const status = data<WireStatus>({ label: "wire.status", initial: "connecting" })`',
-  S24: "import { operation, tag } from '@tinker/core'; export const httpSend = tag<typeof fetch>({ label: 'http.send' }); export const postNotice = operation({ label: 'postNotice', depends: { send: httpSend }, run: async ({ send }, ctx) => { const reply = await send('https://api.example.com/notices', { method: 'POST', body: 'The order is ready.', signal: ctx.signal }); if (!reply.ok) return ctx.raise('NotificationFailed', { status: reply.status }); return { sent: true }; } });",
+  S24: "import { operation, tag } from '@tinkered/core'; export const httpSend = tag<typeof fetch>({ label: 'http.send' }); export const postNotice = operation({ label: 'postNotice', depends: { send: httpSend }, run: async ({ send }, ctx) => { const reply = await send('https://api.example.com/notices', { method: 'POST', body: 'The order is ready.', signal: ctx.signal }); if (!reply.ok) return ctx.raise('NotificationFailed', { status: reply.status }); return { sent: true }; } });",
   S25: '`const running = data({ label: "bench.running", initial: false })`',
-  S26: "escape `@`, `{`, `}`, and `>` in prose with a backslash, or put code in backticks on one line: `` `@tinker/core` ``, `{@link createScope}`",
+  S26: "escape `@`, `{`, `}`, and `>` in prose with a backslash, or put code in backticks on one line: `` `@tinkered/core` ``, `{@link createScope}`",
   "S26.param": "`@param input - …` with the parameter's own name, or delete the line",
   S27: "`if (import.meta.main) await main(shell);`; for a server, `if (import.meta.main) process.exitCode = await runServer(process.env, stop.signal);`",
   "S29.ready":
@@ -354,7 +354,7 @@ function parseRow(errors, starts) {
  *  label: it counts like `data`. An `extension` does not count: a driver builds its extension
  *  from wiring rows inside a function by design (ADR 0051, ADR 0060). */
 const UNIT_BUILDERS = new Map([
-  ["@tinker/core", new Set(["data", "operation", "resource", "tag"])],
+  ["@tinkered/core", new Set(["data", "operation", "resource", "tag"])],
 ]);
 
 const HANDLE_TYPE =
@@ -751,7 +751,7 @@ function bodiesOf(node, local) {
 function unitBodies(program) {
   const local = new Map();
   for (const [name, path] of UNIT_BODY) {
-    for (const as of importedNames(program, "@tinker/core", new Set([name]))) local.set(as, path);
+    for (const as of importedNames(program, "@tinkered/core", new Set([name]))) local.set(as, path);
   }
   const fns = [];
   walk(program, (n) => fns.push(...bodiesOf(n, local)));
@@ -1213,7 +1213,7 @@ function programHits(source, program, file, writer) {
 // Every file, both lanes. The parser is the TSDoc reference one, on its default tags plus the
 // repo's own: every standard tag (`@remarks`, `@example`, `@param`, `{@link}`, `@internal`, …)
 // and every tag in CUSTOM_TAGS passes, and any other (`@type`, `@default`, a package name like
-// `@tinker/core` left bare in prose) hits.
+// `@tinkered/core` left bare in prose) hits.
 
 /** The repo's own TSDoc tags. `@ambientSource`: the declaration `scripts/check-ambient.mjs`
  *  lets read the real clock or randomness (ADR 0034, 0062). */

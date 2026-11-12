@@ -1,4 +1,4 @@
-import { createScope, operation, tag, type Operation } from "@tinker/core";
+import { createScope, operation, tag, type Operation } from "@tinkered/core";
 import { StrictMode, useLayoutEffect, useRef } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";

@@ -4,7 +4,7 @@ import { mkdir, rm } from "node:fs/promises";
  * Before `vp build` and `vp dev`: writes the modules the play preview loads through its import
  * map into public/vendor, and the in-browser compiler into public/esbuild.wasm. Vite copies
  * public/ into dist/client, so the binary serves them as it serves the page.
- * - One React and one Core for the user's code and for @tinker/react: both stay bare imports.
+ * - One React and one Core for the user's code and for @tinkered/react: both stay bare imports.
  * - React is CommonJS: each entry names its exports, so `import { useState }` works.
  */
 const site = new URL("../", import.meta.url).pathname;
@@ -23,11 +23,11 @@ const named = async (spec: string) => {
 };
 
 const modules = [
-  { name: "core", from: "export * from '@tinker/core';", external: [] },
+  { name: "core", from: "export * from '@tinkered/core';", external: [] },
   {
     name: "tinker-react",
-    from: "export * from '@tinker/react';",
-    external: ["react", "@tinker/core"],
+    from: "export * from '@tinkered/react';",
+    external: ["react", "@tinkered/core"],
   },
   { name: "zod", from: "export * from 'zod';", external: [] },
   { name: "react", from: await named("react"), external: [] },

@@ -30,7 +30,7 @@ bun run start  # the built server
   cmd, `cmds/sea.tsx`) on one room.
   `tide({ room })` sends each press to the
   server; every tab in the room lands it.
-- `/bench`: @tinker/react against other
+- `/bench`: @tinkered/react against other
   stores, in the visitor's browser.
 
 ## Play's vendor files

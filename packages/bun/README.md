@@ -1,25 +1,25 @@
-# @tinker/bun
+# @tinkered/bun
 
 The parts of a Tinker app that run on Bun
 (ADR 0130).
 
-- `@tinker/bun`: `serve`, `Bun.serve` as a
+- `@tinkered/bun`: `serve`, `Bun.serve` as a
   capsule; `run`, the host; and
   `ws.server`, rpc over one WebSocket.
-- `@tinker/bun/client`: `ws.client`, the
+- `@tinkered/bun/client`: `ws.client`, the
   browser half of that socket.
-- `@tinker/bun/sql`: `bunSql`, Postgres on
+- `@tinkered/bun/sql`: `bunSql`, Postgres on
   `Bun.SQL`, with a pool.
-- `@tinker/bun/sqlite`: `bunSqlite`, SQLite
+- `@tinkered/bun/sqlite`: `bunSqlite`, SQLite
   on `bun:sqlite`.
 
 ## Install
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.10
-bun add $R/tinker-core-0.17.10.tgz \
-  $R/tinker-bun-0.17.10.tgz
+releases/download/v0.18.0
+bun add $R/tinker-core-0.18.0.tgz \
+  $R/tinker-bun-0.18.0.tgz
 ```
 
 ## Serve and run
@@ -77,7 +77,7 @@ its own: the next handler gets it).
 the exit code.
 
 ```ts
-import { run } from "@tinker/bun";
+import { run } from "@tinkered/bun";
 
 import main from "./server";
 
@@ -115,7 +115,7 @@ bytes field.
 The client:
 
 ```ts
-import { ws } from "@tinker/bun/client";
+import { ws } from "@tinkered/bun/client";
 
 const tab = await createScope({
   capsules: [
@@ -131,8 +131,8 @@ Each gives a Drizzle connection.
 `drizzle-orm` is an optional peer.
 
 ```ts
-import { bunSql } from "@tinker/bun/sql";
-import { bunSqlite } from "@tinker/bun/sqlite";
+import { bunSql } from "@tinkered/bun/sql";
+import { bunSqlite } from "@tinkered/bun/sqlite";
 
 capsules: [
   bunSql({ url: new URL(env.DATABASE_URL) }),

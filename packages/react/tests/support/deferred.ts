@@ -1,4 +1,4 @@
-import { resource } from "@tinker/core";
+import { resource } from "@tinkered/core";
 
 /** A promise whose settlement a test drives by hand — the deterministic-async fixture:
  * no timers, no sleeps. Hand `promise` to the code under test, then `resolve`/`reject`

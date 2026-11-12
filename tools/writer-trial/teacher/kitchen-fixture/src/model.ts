@@ -2,8 +2,8 @@
  * Teacher-only kitchen queue. Built from the frozen task and the public
  * core declarations only; never copied into a worker image or context.
  */
-import { data, operation } from "@tinker/core";
-import type { Data, Operation } from "@tinker/core";
+import { data, operation } from "@tinkered/core";
+import type { Data, Operation } from "@tinkered/core";
 import { fail } from "./errors";
 
 /** Where one ticket is in the kitchen. */

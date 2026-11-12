@@ -23,26 +23,26 @@ export type Source = { name: string; content: string };
 
 /** Core and React, by the name the editor shows. */
 export const library: readonly Source[] = [
-  { name: "@tinker/core/main.ts", content: coreMain },
-  { name: "@tinker/core/index.ts", content: coreIndex },
-  { name: "@tinker/core/errors.ts", content: coreErrors },
-  { name: "@tinker/core/preset-symbol.ts", content: corePresetSymbol },
-  { name: "@tinker/core/trace-random.ts", content: coreTraceRandom },
-  { name: "@tinker/core/rpc.ts", content: coreRpc },
-  { name: "@tinker/core/rpc-lifecycle.ts", content: coreRpcLifecycle },
-  { name: "@tinker/core/rpc-protocol.ts", content: coreRpcProtocol },
-  { name: "@tinker/core/rpc-request.ts", content: coreRpcRequest },
-  { name: "@tinker/core/rpc-shape.ts", content: coreRpcShape },
-  { name: "@tinker/core/rpc-transport.ts", content: coreRpcTransport },
-  { name: "@tinker/core/rpc-wire.ts", content: coreRpcWire },
-  { name: "@tinker/core/remote-data.ts", content: coreRemoteData },
-  { name: "@tinker/core/memory.ts", content: coreMemory },
-  { name: "@tinker/react/index.ts", content: reactIndex },
-  { name: "@tinker/react/errors.ts", content: reactErrors },
+  { name: "@tinkered/core/main.ts", content: coreMain },
+  { name: "@tinkered/core/index.ts", content: coreIndex },
+  { name: "@tinkered/core/errors.ts", content: coreErrors },
+  { name: "@tinkered/core/preset-symbol.ts", content: corePresetSymbol },
+  { name: "@tinkered/core/trace-random.ts", content: coreTraceRandom },
+  { name: "@tinkered/core/rpc.ts", content: coreRpc },
+  { name: "@tinkered/core/rpc-lifecycle.ts", content: coreRpcLifecycle },
+  { name: "@tinkered/core/rpc-protocol.ts", content: coreRpcProtocol },
+  { name: "@tinkered/core/rpc-request.ts", content: coreRpcRequest },
+  { name: "@tinkered/core/rpc-shape.ts", content: coreRpcShape },
+  { name: "@tinkered/core/rpc-transport.ts", content: coreRpcTransport },
+  { name: "@tinkered/core/rpc-wire.ts", content: coreRpcWire },
+  { name: "@tinkered/core/remote-data.ts", content: coreRemoteData },
+  { name: "@tinkered/core/memory.ts", content: coreMemory },
+  { name: "@tinkered/react/index.ts", content: reactIndex },
+  { name: "@tinkered/react/errors.ts", content: reactErrors },
 ];
 
 /** The bare imports the library answers, and the file each one starts at. */
 export const entries: Readonly<Record<string, string>> = {
-  "@tinker/core": "@tinker/core/main.ts",
-  "@tinker/react": "@tinker/react/index.ts",
+  "@tinkered/core": "@tinkered/core/main.ts",
+  "@tinkered/react": "@tinkered/react/index.ts",
 };

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
-import { makeTestRandom } from "@tinker/core/testing";
+import { makeTestRandom } from "@tinkered/core/testing";
 import type { z } from "zod";
 import { failFlightData } from "./errors";
 import { cabinSchema, dataSchema, flightSchema, sourceSchema, supplierSchema } from "./schema";

@@ -1,4 +1,4 @@
-import { data, tag } from "@tinker/core";
+import { data, tag } from "@tinkered/core";
 import { z } from "zod";
 
 import app from "./starter/App.tsx?raw";

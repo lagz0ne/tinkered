@@ -1,4 +1,4 @@
-import { createScope } from "@tinker/core";
+import { createScope } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 
 import { bench } from "@/bench";
@@ -78,13 +78,13 @@ test("a library that renders less than it was asked stops the run", async () => 
   });
 });
 
-test("the report sorts by update, says each gap, and puts @tinker/react in context", async () => {
+test("the report sorts by update, says each gap, and puts @tinkered/react in context", async () => {
   const scope = await scopeWith([]);
   const steady = (ms: number) => Array.from({ length: 9 }, () => ms);
   const out = scope.run(report, {
     input: [
       sampler(lib("slow store"), { update: steady(0.004), fanout: steady(0.1), mount: steady(1) }),
-      sampler(lib("@tinker/react"), {
+      sampler(lib("@tinkered/react"), {
         update: steady(0.002),
         fanout: steady(0.1),
         mount: steady(1),
@@ -92,7 +92,7 @@ test("the report sorts by update, says each gap, and puts @tinker/react in conte
     ],
   });
 
-  expect(out.rows.map((r) => r.name)).toEqual(["@tinker/react", "slow store"]);
+  expect(out.rows.map((r) => r.name)).toEqual(["@tinkered/react", "slow store"]);
   expect(out.rows[1]!.update).toMatchObject({ text: "4.00", compare: "2.0× slower", bar: 100 });
   expect(out.rows[0]!.update).toMatchObject({ text: "2.00", compare: "≈ fastest", fastest: true });
   expect(out.takeaway?.update.gaps).toEqual([{ name: "slow store", words: "2.0× faster than" }]);

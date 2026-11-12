@@ -11,8 +11,8 @@
     "preview": "vp preview"
   },
   "dependencies": {
-    "@tinker/core": "workspace:*",
-    "@tinker/react": "workspace:*",
+    "@tinkered/core": "workspace:*",
+    "@tinkered/react": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.0.0"

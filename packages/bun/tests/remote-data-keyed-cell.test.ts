@@ -1,6 +1,6 @@
-import { createScope, data, operation, remoteData, transport } from "@tinker/core";
-import type { Scope } from "@tinker/core";
-import { memory } from "@tinker/core/testing";
+import { createScope, data, operation, remoteData, transport } from "@tinkered/core";
+import type { Scope } from "@tinkered/core";
+import { memory } from "@tinkered/core/testing";
 import { afterEach, describe, expect, test } from "vite-plus/test";
 import { z } from "zod";
 

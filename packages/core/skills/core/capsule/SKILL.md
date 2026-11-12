@@ -12,8 +12,8 @@ metadata:
     the cmd, and reach its units through the
     binding only.
   type: sub-skill
-  library: '@tinker/core'
-  library_version: '0.17.10'
+  library: '@tinkered/core'
+  library_version: '0.18.0'
 requires:
   - core
 sources:
@@ -36,7 +36,7 @@ import {
   data,
   operation,
   tag,
-} from "@tinker/core";
+} from "@tinkered/core";
 import { z } from "zod";
 
 // src/sea/index.ts

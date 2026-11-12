@@ -1,5 +1,5 @@
-import { createScope, data, operation } from "@tinker/core";
-import { ScopeProvider, useData, useRun } from "@tinker/react";
+import { createScope, data, operation } from "@tinkered/core";
+import { ScopeProvider, useData, useRun } from "@tinkered/react";
 import { z } from "zod";
 
 /** The draft one form edits. Cleared on a successful save. */

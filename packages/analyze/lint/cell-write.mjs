@@ -21,7 +21,7 @@ const cellWrite = {
     messages: {
       foreign:
         "`{{name}}` is a cell of capsule `{{owner}}`. Read it through the capsule's export, " +
-        "or change it with an op that capsule exports. Read: @tinker/core#core/data.",
+        "or change it with an op that capsule exports. Read: @tinkered/core#core/data.",
     },
   },
   create(context) {

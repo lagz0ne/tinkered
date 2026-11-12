@@ -1,4 +1,4 @@
-import { preset } from "@tinker/core/testing";
+import { preset } from "@tinkered/core/testing";
 import { expect, expectTypeOf, test } from "vite-plus/test";
 
 import {

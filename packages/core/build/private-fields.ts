@@ -47,7 +47,7 @@ const OUTSIDE = ["apps", "packages", "tools", "scripts", "bench", "examples"];
 const SKIPPED = new Set(["node_modules", "dist", "vendor", join(CORE, "src"), join(CORE, "build")]);
 
 /**
- * The checker's options: the repo's strict, bundler-resolved settings. `@tinker/core` resolves to
+ * The checker's options: the repo's strict, bundler-resolved settings. `@tinkered/core` resolves to
  * Core's source, so the check never waits on Core's own built output.
  */
 const CHECK_OPTIONS = {
@@ -61,8 +61,8 @@ const CHECK_OPTIONS = {
   types: ["node"],
   typeRoots: [join(CORE, "node_modules/@types")],
   paths: {
-    "@tinker/core": [join(CORE, "src/main.ts")],
-    "@tinker/core/testing": [join(CORE, "src/testing.ts")],
+    "@tinkered/core": [join(CORE, "src/main.ts")],
+    "@tinkered/core/testing": [join(CORE, "src/testing.ts")],
   },
 };
 
@@ -499,7 +499,7 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 
 /** True when `specifier`, imported from `file`, loads Core's runtime: the package or its files. */
 function isCore(specifier: string, file: string): boolean {
-  if (specifier === "@tinker/core" || specifier.startsWith("@tinker/core/")) return true;
+  if (specifier === "@tinkered/core" || specifier.startsWith("@tinkered/core/")) return true;
   if (specifier.startsWith("@/")) return !relative(CORE, file).startsWith("..");
   if (!specifier.startsWith(".")) return false;
   const target = relative(CORE, resolve(dirname(file), specifier));
@@ -1783,7 +1783,7 @@ function outsideReads(names: string[], root: string): Map<string, string> {
  */
 function scanFile(file: string, uses: RegExp): { file: string; syntactic: string[] }[] {
   const code = readFileSync(file, "utf8");
-  if (!/@tinker\/core|@\/|\/(src|dist)\/|import\s*\(/.test(code) || !uses.test(code)) return [];
+  if (!/@tinkered\/core|@\/|\/(src|dist)\/|import\s*\(/.test(code) || !uses.test(code)) return [];
 
   const { program, comments } = parseSync(file, code);
   if (!importsCore(file, program)) return [];

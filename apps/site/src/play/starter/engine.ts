@@ -1,4 +1,4 @@
-import { operation } from "@tinker/core";
+import { operation } from "@tinkered/core";
 import { z } from "zod";
 
 import { board, cols, heading, idle, physics, rows, stale, storm, walls, waves } from "./state";

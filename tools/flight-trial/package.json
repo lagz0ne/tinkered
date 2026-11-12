@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@hono/node-server": "catalog:",
-    "@tinker/core": "workspace:*",
+    "@tinkered/core": "workspace:*",
     "hono": "catalog:",
     "zod": "catalog:"
   },

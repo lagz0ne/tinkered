@@ -1,4 +1,4 @@
-import { createScope } from "@tinker/core";
+import { createScope } from "@tinkered/core";
 
 import { run } from "@/run";
 import { serve } from "@/serve";

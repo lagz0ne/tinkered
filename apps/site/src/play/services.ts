@@ -1,4 +1,4 @@
-import { operation, resource } from "@tinker/core";
+import { operation, resource } from "@tinkered/core";
 import type { Plugin } from "esbuild-wasm";
 import { z } from "zod";
 

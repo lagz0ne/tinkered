@@ -1,5 +1,5 @@
 import { createConnection } from "node:net";
-import { createScope, resource, tag } from "@tinker/core";
+import { createScope, resource, tag } from "@tinkered/core";
 import { createHmac } from "node:crypto";
 import { createServer, type ServerResponse } from "node:http";
 import { once } from "node:events";

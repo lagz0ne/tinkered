@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createScope, type Scope } from "@tinker/core";
+import { createScope, type Scope } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 
 import { corpus, corpusPath, explain, isError, readCorpus, readTemplate, shell } from "@/index";

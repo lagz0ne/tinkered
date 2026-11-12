@@ -1,5 +1,5 @@
-import { data, operation } from "@tinker/core";
-import type { Data, Operation } from "@tinker/core";
+import { data, operation } from "@tinkered/core";
+import type { Data, Operation } from "@tinkered/core";
 import { collectParcel, receiveParcel, returnToDesk, storeParcel, undoDesk } from "./model";
 import type { Parcel, ParcelState, Size } from "./model";
 import { errorKind } from "./errors";

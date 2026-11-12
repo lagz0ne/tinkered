@@ -1,4 +1,4 @@
-import { operation, resource } from "@tinker/core";
+import { operation, resource } from "@tinkered/core";
 
 import { entries, library } from "./sources";
 import { files } from "./state";

@@ -149,7 +149,7 @@ void describe("shape findings", () => {
 
   void it("flags useScope in a view and a scope prop, not the ScopeProvider root", () => {
     const rows = inspectShape(
-      `import { useScope } from "@tinker/react";\nfunction C() {\n  const s = useScope();\n  return <p>{String(!!s)}</p>;\n}\nfunction D({ scope }) {\n  return <p>{scope}</p>;\n}`,
+      `import { useScope } from "@tinkered/react";\nfunction C() {\n  const s = useScope();\n  return <p>{String(!!s)}</p>;\n}\nfunction D({ scope }) {\n  return <p>{scope}</p>;\n}`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -161,12 +161,12 @@ void describe("shape findings", () => {
     );
 
     const aliased = inspectShape(
-      `import { ScopeProvider as SP } from "@tinker/react";\nexport function Root(props) {\n  return <SP scope={props.scope}><App /></SP>;\n}`,
+      `import { ScopeProvider as SP } from "@tinkered/react";\nexport function Root(props) {\n  return <SP scope={props.scope}><App /></SP>;\n}`,
       "a.tsx",
     );
     assert.deepEqual(aliased, []);
     const namespaced = inspectShape(
-      `import * as R from "@tinker/react";\nexport function Root(props) {\n  return <R.ScopeProvider scope={props.scope}><App /></R.ScopeProvider>;\n}`,
+      `import * as R from "@tinkered/react";\nexport function Root(props) {\n  return <R.ScopeProvider scope={props.scope}><App /></R.ScopeProvider>;\n}`,
       "a.tsx",
     );
     assert.deepEqual(namespaced, []);
@@ -226,7 +226,7 @@ void describe("shape findings", () => {
 
   void it("flags writable useData in a view, plain, aliased, and namespaced", () => {
     const plain = inspectShape(
-      `import { useData } from "@tinker/react";\nfunction MoveForm() {\n  const [item, setItem] = useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      `import { useData } from "@tinkered/react";\nfunction MoveForm() {\n  const [item, setItem] = useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -236,7 +236,7 @@ void describe("shape findings", () => {
     assert.match(plain[0].message, /rule 9/);
 
     const aliased = inspectShape(
-      `import { useData as read } from "@tinker/react";\nfunction MoveForm() {\n  const [item, setItem] = read(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      `import { useData as read } from "@tinkered/react";\nfunction MoveForm() {\n  const [item, setItem] = read(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -244,7 +244,7 @@ void describe("shape findings", () => {
       [["no-writable-in-view", 3]],
     );
     const namespaced = inspectShape(
-      `import * as TR from "@tinker/react";\nfunction MoveForm() {\n  const [item, setItem] = TR.useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      `import * as TR from "@tinkered/react";\nfunction MoveForm() {\n  const [item, setItem] = TR.useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -255,7 +255,7 @@ void describe("shape findings", () => {
 
   void it("leaves read-only useData, other modules, same-name functions, and useRun alone", () => {
     const readOnly = inspectShape(
-      `import { useData } from "@tinker/react";\nfunction MoveForm() {\n  const item = useData(formItem);\n  return <p>{item}</p>;\n}`,
+      `import { useData } from "@tinkered/react";\nfunction MoveForm() {\n  const item = useData(formItem);\n  return <p>{item}</p>;\n}`,
       "a.tsx",
     );
     assert.deepEqual(readOnly, []);
@@ -275,7 +275,7 @@ function MoveForm() {
     );
     assert.deepEqual(sameName, []);
     const runAllowed = inspectShape(
-      `import { useData, useRun } from "@tinker/react";\nfunction MoveForm() {\n  const item = useData(formItem);\n  const run = useRun(submitMove);\n  return <p onClick={() => run.run()}>{item}</p>;\n}`,
+      `import { useData, useRun } from "@tinkered/react";\nfunction MoveForm() {\n  const item = useData(formItem);\n  const run = useRun(submitMove);\n  return <p onClick={() => run.run()}>{item}</p>;\n}`,
       "a.tsx",
     );
     assert.deepEqual(runAllowed, []);
@@ -283,7 +283,7 @@ function MoveForm() {
 
   void it("flags writable useData in one scope, not a sibling's local or a param", () => {
     const sibling = inspectShape(
-      `import { useData } from "@tinker/react";\nfunction helper() { const useData = () => {}; }\nfunction View() { const x = useData(cell, { writable: true }); return <div/>; }`,
+      `import { useData } from "@tinkered/react";\nfunction helper() { const useData = () => {}; }\nfunction View() { const x = useData(cell, { writable: true }); return <div/>; }`,
       "case.tsx",
     );
     assert.deepEqual(
@@ -292,7 +292,7 @@ function MoveForm() {
     );
 
     const param = inspectShape(
-      `import { useData } from "@tinker/react";\nfunction View(useData) { const x = useData(cell, { writable: true }); return <div/>; }`,
+      `import { useData } from "@tinkered/react";\nfunction View(useData) { const x = useData(cell, { writable: true }); return <div/>; }`,
       "case.tsx",
     );
     assert.deepEqual(param, []);
@@ -305,7 +305,7 @@ function MoveForm() {
 
   void it("flags aliased and namespaced hook calls, not their shadowed names", () => {
     const aliased = inspectShape(
-      `import { useData as read } from "@tinker/react";\nfunction View() { const [a, setA] = read(c, { writable: true }); return <p>{a}</p>; }`,
+      `import { useData as read } from "@tinkered/react";\nfunction View() { const [a, setA] = read(c, { writable: true }); return <p>{a}</p>; }`,
       "case.tsx",
     );
     assert.deepEqual(
@@ -313,13 +313,13 @@ function MoveForm() {
       [["no-writable-in-view", 2]],
     );
     const shadowedAlias = inspectShape(
-      `import { useData as read } from "@tinker/react";\nfunction View(read) { const [a, setA] = read(c, { writable: true }); return <p>{a}</p>; }`,
+      `import { useData as read } from "@tinkered/react";\nfunction View(read) { const [a, setA] = read(c, { writable: true }); return <p>{a}</p>; }`,
       "case.tsx",
     );
     assert.deepEqual(shadowedAlias, []);
 
     const namespaced = inspectShape(
-      `import * as TR from "@tinker/react";\nfunction View() { const [a, setA] = TR.useData(c, { writable: true }); return <p>{a}</p>; }`,
+      `import * as TR from "@tinkered/react";\nfunction View() { const [a, setA] = TR.useData(c, { writable: true }); return <p>{a}</p>; }`,
       "case.tsx",
     );
     assert.deepEqual(
@@ -327,7 +327,7 @@ function MoveForm() {
       [["no-writable-in-view", 2]],
     );
     const shadowedNs = inspectShape(
-      `import * as TR from "@tinker/react";\nfunction View(TR) { const [a, setA] = TR.useData(c, { writable: true }); return <p>{a}</p>; }`,
+      `import * as TR from "@tinkered/react";\nfunction View(TR) { const [a, setA] = TR.useData(c, { writable: true }); return <p>{a}</p>; }`,
       "case.tsx",
     );
     assert.deepEqual(shadowedNs, []);
@@ -335,7 +335,7 @@ function MoveForm() {
 
   void it("flags one mixed file's imported call only", () => {
     const rows = inspectShape(
-      `import { useData } from "@tinker/react";\nfunction helper() { const useData = () => {}; }\nfunction Shadowed(useData) { const y = useData(c, { writable: true }); return <div/>; }\nfunction View() { const [a, setA] = useData(c, { writable: true }); return <p>{a}</p>; }`,
+      `import { useData } from "@tinkered/react";\nfunction helper() { const useData = () => {}; }\nfunction Shadowed(useData) { const y = useData(c, { writable: true }); return <div/>; }\nfunction View() { const [a, setA] = useData(c, { writable: true }); return <p>{a}</p>; }`,
       "case.tsx",
     );
     assert.deepEqual(
@@ -346,12 +346,12 @@ function MoveForm() {
 
   void it("binds a nested function local wherever the use sits", () => {
     const nested = inspectShape(
-      `import { useData } from "@tinker/react"; function View() { function useData() {} const x=useData(c,{writable:true}); return <div/>; }`,
+      `import { useData } from "@tinkered/react"; function View() { function useData() {} const x=useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(nested, []);
     const hoisted = inspectShape(
-      `import { useData } from "@tinker/react"; function View() { const x=useData(c,{writable:true}); function useData() {} return <div/>; }`,
+      `import { useData } from "@tinkered/react"; function View() { const x=useData(c,{writable:true}); function useData() {} return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(hoisted, []);
@@ -359,7 +359,7 @@ function MoveForm() {
 
   void it("binds late imports and late functions before resolving calls", () => {
     const lateImport = inspectShape(
-      `function V(){ useData(c,{writable:true}); return <div/>; } import {useData} from "@tinker/react";`,
+      `function V(){ useData(c,{writable:true}); return <div/>; } import {useData} from "@tinkered/react";`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -367,7 +367,7 @@ function MoveForm() {
       [["no-writable-in-view", 1]],
     );
     const lateFunction = inspectShape(
-      `import {useData} from "@tinker/react"; function V(){ useData(c,{writable:true}); function useData(){} return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ useData(c,{writable:true}); function useData(){} return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(lateFunction, []);
@@ -375,7 +375,7 @@ function MoveForm() {
 
   void it("keeps catch params and loop heads inside their own frame", () => {
     const afterCatch = inspectShape(
-      `import {useData} from "@tinker/react"; function V(){ try{}catch(useData){} useData(c,{writable:true}); return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ try{}catch(useData){} useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -383,13 +383,13 @@ function MoveForm() {
       [["no-writable-in-view", 1]],
     );
     const insideCatch = inspectShape(
-      `import {useData} from "@tinker/react"; function V(){ try{}catch(useData){ useData(c,{writable:true}); } return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ try{}catch(useData){ useData(c,{writable:true}); } return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(insideCatch, []);
 
     const afterLoop = inspectShape(
-      `import {useData} from "@tinker/react"; function V(){ for(let useData of []){} useData(c,{writable:true}); return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ for(let useData of []){} useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -397,7 +397,7 @@ function MoveForm() {
       [["no-writable-in-view", 1]],
     );
     const insideLoop = inspectShape(
-      `import {useData} from "@tinker/react"; function V(){ for(let useData of []){ useData(c,{writable:true}); } return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ for(let useData of []){ useData(c,{writable:true}); } return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(insideLoop, []);
@@ -405,7 +405,7 @@ function MoveForm() {
 
   void it("keeps a strict block function inside its block", () => {
     const after = inspectShape(
-      `import {useData} from "@tinker/react"; function V(){ { function useData(){} } useData(c,{writable:true}); return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ { function useData(){} } useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -413,7 +413,7 @@ function MoveForm() {
       [["no-writable-in-view", 1]],
     );
     const inside = inspectShape(
-      `import {useData} from "@tinker/react"; function V(){ { function useData(){} useData(c,{writable:true}); } return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ { function useData(){} useData(c,{writable:true}); } return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(inside, []);
@@ -421,7 +421,7 @@ function MoveForm() {
 
   void it("sees a nested block under any statement shape", () => {
     const rows = inspectShape(
-      `import {useData} from "@tinker/react"; function V(){ if(ok){ const useData=local; useData(c,{writable:true}); } return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ if(ok){ const useData=local; useData(c,{writable:true}); } return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(rows, []);
@@ -431,11 +431,11 @@ function MoveForm() {
     // A same-process test timeout cannot interrupt a sync hang, so each
     // case runs under an external timeout: exit 124 means the walk looped.
     const cases = [
-      `import {useData} from "@tinker/react"; function V(){ var useData=local; useData(c,{writable:true}); return <div/>; }`,
-      `import {useData} from "@tinker/react"; function V(){ { var useData=local; } useData(c,{writable:true}); return <div/>; }`,
-      `import {useData} from "@tinker/react"; var useData=local; function V(){ useData(c,{writable:true}); return <div/>; }`,
-      `import {useData as read} from "@tinker/react"; function V(){ var read=local; read(c,{writable:true}); return <div/>; }`,
-      `import * as TR from "@tinker/react"; function V(){ var TR=local; TR.useData(c,{writable:true}); return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ var useData=local; useData(c,{writable:true}); return <div/>; }`,
+      `import {useData} from "@tinkered/react"; function V(){ { var useData=local; } useData(c,{writable:true}); return <div/>; }`,
+      `import {useData} from "@tinkered/react"; var useData=local; function V(){ useData(c,{writable:true}); return <div/>; }`,
+      `import {useData as read} from "@tinkered/react"; function V(){ var read=local; read(c,{writable:true}); return <div/>; }`,
+      `import * as TR from "@tinkered/react"; function V(){ var TR=local; TR.useData(c,{writable:true}); return <div/>; }`,
     ];
     for (const src of cases) {
       const out = execFileSync(process.execPath, ["--input-type=module", "-e", RUN_SHAPE], {
@@ -450,7 +450,7 @@ function MoveForm() {
 
   void it("keeps a block-local const inside its block", () => {
     const rows = inspectShape(
-      `import { useData } from "@tinker/react"; function View() { { const useData = () => {}; } const x=useData(c,{writable:true}); return <div/>; }`,
+      `import { useData } from "@tinkered/react"; function View() { { const useData = () => {}; } const x=useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(
@@ -458,7 +458,7 @@ function MoveForm() {
       [["no-writable-in-view", 1]],
     );
     const inside = inspectShape(
-      `import { useData } from "@tinker/react"; function View() { { const useData = () => {}; const y=useData(c,{writable:true}); } return <div/>; }`,
+      `import { useData } from "@tinkered/react"; function View() { { const useData = () => {}; const y=useData(c,{writable:true}); } return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(inside, []);
@@ -466,23 +466,23 @@ function MoveForm() {
 
   void it("reads defaults and rests in params, including aliased and namespaced", () => {
     const def = inspectShape(
-      `import { useData } from "@tinker/react"; function View(useData = local) { const x=useData(c,{writable:true}); return <div/>; }`,
+      `import { useData } from "@tinkered/react"; function View(useData = local) { const x=useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(def, []);
     const rest = inspectShape(
-      `import { useData } from "@tinker/react"; function View({a, ...useData}) { const x=useData(c,{writable:true}); return <div/>; }`,
+      `import { useData } from "@tinkered/react"; function View({a, ...useData}) { const x=useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(rest, []);
 
     const aliasDef = inspectShape(
-      `import { useData as read } from "@tinker/react"; function View(read = local) { const x=read(c,{writable:true}); return <div/>; }`,
+      `import { useData as read } from "@tinkered/react"; function View(read = local) { const x=read(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(aliasDef, []);
     const nsParam = inspectShape(
-      `import * as TR from "@tinker/react"; function View(TR = local) { const x=TR.useData(c,{writable:true}); return <div/>; }`,
+      `import * as TR from "@tinkered/react"; function View(TR = local) { const x=TR.useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
     );
     assert.deepEqual(nsParam, []);

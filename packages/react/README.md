@@ -1,10 +1,10 @@
-# @tinker/react
+# @tinkered/react
 
 React is a host adapter: it connects an app's Core graph to mounted views.
 The app declares the graph; this package binds reads, actions, and view lifetime.
 See the [package roles](../../docs/best-practices.md#give-the-package-a-job).
 
-A thin React binding for [`@tinker/core`](../core). It is **not a store** — core already owns
+A thin React binding for [`@tinkered/core`](../core). It is **not a store** — core already owns
 state, reactivity, lifetime, and observability. This package only _subscribes_ and _provides_: it
 adds no store, no cache, no reducer, no query-key ([ADR 0030](../../docs/decisions/0030-react-is-a-thin-adapter-not-a-store.md)).
 
@@ -18,18 +18,18 @@ On Bun, the main runtime:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.10
-bun add $R/tinker-core-0.17.10.tgz \
-  $R/tinker-react-0.17.10.tgz
+releases/download/v0.18.0
+bun add $R/tinker-core-0.18.0.tgz \
+  $R/tinker-react-0.18.0.tgz
 ```
 
 On Node 22.18 or later, with npm:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.10
-npm install $R/tinker-core-0.17.10.tgz \
-  $R/tinker-react-0.17.10.tgz
+releases/download/v0.18.0
+npm install $R/tinker-core-0.18.0.tgz \
+  $R/tinker-react-0.18.0.tgz
 ```
 
 Each version's URLs are in the
@@ -185,7 +185,7 @@ Playwright — [ADR 0033](../../docs/decisions/0033-react-tests-run-in-vitest-br
 mocks, no sleeps. Presets flow through `createScope({ presets })` in a `create`-mode provider — no
 test-only API.
 
-Tests import `@tinker/core` from its **built** `dist`, so build core first. From the workspace root:
+Tests import `@tinkered/core` from its **built** `dist`, so build core first. From the workspace root:
 
 ```bash
 vp run core#build

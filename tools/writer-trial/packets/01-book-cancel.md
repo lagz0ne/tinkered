@@ -1,7 +1,7 @@
 # Round 1 — book and cancel
 
 You build a room-booking screen.
-It uses only `@tinker/core` and `@tinker/react`.
+It uses only `@tinkered/core` and `@tinkered/react`.
 Core owns the rules. React reads state and runs actions.
 No server. No database. No other state library.
 
@@ -126,7 +126,7 @@ Notes on the shape above:
 - `cancelBooking` returns nothing.
 - `BookingApp` creates its own scope and needs no props.
 - `Data`, `Operation`, and `ReactElement` come from
-  `@tinker/core` and `react`.
+  `@tinkered/core` and `react`.
 
 ## Errors in `src/errors.ts`
 

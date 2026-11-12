@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createScope, isError as isCoreError, type Scope } from "@tinker/core";
-import { preset } from "@tinker/core/testing";
+import { createScope, isError as isCoreError, type Scope } from "@tinkered/core";
+import { preset } from "@tinkered/core/testing";
 import { expect, test } from "vite-plus/test";
 
 import {
@@ -107,7 +107,7 @@ test("readUnits ignores spread entries in depends", () => {
 test("readUnits skips calls that do not declare a named const unit", () => {
   const units = readUnits(
     [
-      'import { operation } from "@tinker/core";',
+      'import { operation } from "@tinkered/core";',
       'let mutable = operation({ label: "mutable" });',
       'const wrong = make({ label: "wrong" });',
       'const member = factory.operation({ label: "member" });',

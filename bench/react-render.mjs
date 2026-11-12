@@ -1,4 +1,4 @@
-// Real-React head-to-head: @tinker/react (useData) vs Zustand (create/useStore), in a headless DOM.
+// Real-React head-to-head: @tinkered/react (useData) vs Zustand (create/useStore), in a headless DOM.
 //
 // The fair "match/beat Zustand" test: N components each subscribed to ONE slice of a store; update one
 // slice; measure (a) re-render COUNT (selectivity — ideal 1, both use useSyncExternalStore selectors),

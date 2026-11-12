@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { createHmac } from "node:crypto";
-import { createScope, resource, tag } from "@tinker/core";
+import { createScope, resource, tag } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 

@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, ManagedRuntime, Ref } from "effect";
-// Head-to-head microbenchmarks: @tinker/core (built dist) vs Effect (3.x).
+// Head-to-head microbenchmarks: @tinkered/core (built dist) vs Effect (3.x).
 //
 // "Proper" wall-clock via mitata: warms up, defeats dead-code elimination, and reports robust
 // stats. We key decisions off MIN ns/iter — on a busy shared host the minimum is the sample least

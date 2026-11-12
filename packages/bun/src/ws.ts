@@ -1,5 +1,5 @@
-import { capsule, data, operation, tag, transport } from "@tinker/core";
-import type { Scope } from "@tinker/core";
+import { capsule, data, operation, tag, transport } from "@tinkered/core";
+import type { Scope } from "@tinkered/core";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 
 import { frameMax } from "./client";

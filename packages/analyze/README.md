@@ -1,4 +1,4 @@
-# @tinker/analyze
+# @tinkered/analyze
 
 The checks for a Tinker app (ADR 0129, ADR 0143).
 One command reads the app's files.
@@ -10,8 +10,8 @@ It runs no app code.
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.10
-bun add -d $R/tinker-analyze-0.17.10.tgz
+releases/download/v0.18.0
+bun add -d $R/tinker-analyze-0.18.0.tgz
 ```
 
 ## Check an app
@@ -29,7 +29,7 @@ next step and its skill.
 src/a.ts:1 tinker/plain a plain function
 
 tinker/plain: make it an operation
-  read: @tinker/core#core/operation
+  read: @tinkered/core#core/operation
 
 1 findings in 12 files
 ```
@@ -37,7 +37,7 @@ tinker/plain: make it an operation
 Load that skill with Intent:
 
 ```bash
-bunx intent load @tinker/core#core/operation
+bunx intent load @tinkered/core#core/operation
 ```
 
 Exit codes:
@@ -94,13 +94,13 @@ Each exception carries its reason as text.
 
 ## Lint rules
 
-`@tinker/analyze/lint` is an Oxlint plugin.
+`@tinkered/analyze/lint` is an Oxlint plugin.
 
 ```ts
 jsPlugins: [
   {
     name: "tinker",
-    specifier: "@tinker/analyze/lint",
+    specifier: "@tinkered/analyze/lint",
   },
 ],
 rules: {
@@ -118,7 +118,7 @@ rules: {
 ## From code
 
 ```ts
-import { check } from "@tinker/analyze";
+import { check } from "@tinkered/analyze";
 
 const report = check(process.cwd());
 ```

@@ -1,4 +1,4 @@
-import { namespace, operation } from "@tinker/core";
+import { namespace, operation } from "@tinkered/core";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
@@ -211,7 +211,7 @@ export const column = operation({
   },
 });
 
-/** @tinker/react against one other library, in words. */
+/** @tinkered/react against one other library, in words. */
 export const gap = operation({
   label: "bench.gap",
   input: (raw) => raw as { tinker: Stat; other: Stat; name: string },
@@ -233,7 +233,7 @@ export const gap = operation({
   },
 });
 
-/** The page's numbers from the samples: rows by update speed, and @tinker/react in context. */
+/** The page's numbers from the samples: rows by update speed, and @tinkered/react in context. */
 export const report = operation({
   label: "bench.report",
   input: (raw) => raw as Sampler[],

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { createScope, capsule, data, operation, resource, tag } from "@tinker/core";
-import { makeTestClock, makeTestRandom } from "@tinker/core/testing";
+import { createScope, capsule, data, operation, resource, tag } from "@tinkered/core";
+import { makeTestClock, makeTestRandom } from "@tinkered/core/testing";
 import { createServer } from "vite-plus";
 
 const base = "880f1c4f";

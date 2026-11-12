@@ -1,4 +1,4 @@
-import { useData, useRun } from "@tinker/react";
+import { useData, useRun } from "@tinkered/react";
 
 import { gapFloor, runBench, samples } from "./harness";
 import { run } from "./state";
@@ -71,16 +71,16 @@ function Results({ report }: { report: Report }) {
         </div>
       </section>
       {t && (
-        <section className="grid-row" aria-label="@tinker/react in context">
+        <section className="grid-row" aria-label="@tinkered/react in context">
           <h2>
-            <span>03</span> @tinker/react, in context
+            <span>03</span> @tinkered/react, in context
           </h2>
           <div className="takeaway">
             <div>
               <h3>Re-renders</h3>
               <p className="big">{t.rerenders}</p>
               <p className="note">
-                One update with @tinker/react.
+                One update with @tinkered/react.
                 {t.naive &&
                   ` ${t.naive.name} re-renders all ${t.naive.rerenders} for the same change.`}
               </p>
@@ -116,7 +116,7 @@ function Results({ report }: { report: Report }) {
   );
 }
 
-/** `/bench`: @tinker/react against other stores, in this browser. */
+/** `/bench`: @tinkered/react against other stores, in this browser. */
 export function BenchPage() {
   const state = useData(run);
   const start = useRun(runBench);
@@ -149,7 +149,7 @@ export function BenchPage() {
           </li>
         </ol>
         <p className="libs">
-          @tinker/react, Zustand, Jotai, Legend State v2 and v3, Preact Signals, a naive React
+          @tinkered/react, Zustand, Jotai, Legend State v2 and v3, Preact Signals, a naive React
           Context, and a plain useState control. Each in its own best setup.
         </p>
         <div className="actions">

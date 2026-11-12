@@ -1,5 +1,5 @@
-import type { Resource } from "@tinker/core";
-import { createScope, resource } from "@tinker/core";
+import type { Resource } from "@tinkered/core";
+import { createScope, resource } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 

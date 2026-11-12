@@ -11,8 +11,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "paths": {
-      "@tinker/core": ["../../../../packages/core/dist/index.d.mts"],
-      "@tinker/react": ["../../../../packages/react/dist/index.d.mts"],
+      "@tinkered/core": ["../../../../packages/core/dist/index.d.mts"],
+      "@tinkered/react": ["../../../../packages/react/dist/index.d.mts"],
       "react": ["../../../../node_modules/.pnpm/@types+react@19.3.0/node_modules/@types/react"],
       "react-dom/client": [
         "../../../../node_modules/.pnpm/@types+react-dom@19.3.0_@types+react@19.3.0/node_modules/@types/react-dom/client"

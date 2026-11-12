@@ -1,4 +1,4 @@
-import { useData, useResource, useRun } from "@tinker/react";
+import { useData, useResource, useRun } from "@tinkered/react";
 
 import { editor } from "./editor";
 import {
@@ -23,8 +23,8 @@ import { bundle, dirty, files, nav, renaming, status, theme, view } from "./stat
 /** The modules the bundle imports by bare name: one React, one Core and zod, served by the site. */
 const importMap = JSON.stringify({
   imports: {
-    "@tinker/core": "/vendor/core.mjs",
-    "@tinker/react": "/vendor/tinker-react.mjs",
+    "@tinkered/core": "/vendor/core.mjs",
+    "@tinkered/react": "/vendor/tinker-react.mjs",
     react: "/vendor/react.mjs",
     "react/jsx-runtime": "/vendor/react-jsx-runtime.mjs",
     "react-dom": "/vendor/react-dom.mjs",

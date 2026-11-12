@@ -314,13 +314,13 @@ importers:
       '@tanstack/react-router':
         specifier: 1.170.41
         version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@tinker/bun':
+      '@tinkered/bun':
         specifier: workspace:*
         version: link:../../packages/bun
-      '@tinker/core':
+      '@tinkered/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@tinker/react':
+      '@tinkered/react':
         specifier: workspace:*
         version: link:../../packages/react
       '@uiw/codemirror-theme-github':
@@ -357,7 +357,7 @@ importers:
         specifier: 'catalog:'
         version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
-      '@tinker/analyze':
+      '@tinkered/analyze':
         specifier: workspace:*
         version: link:../../packages/analyze
       '@types/bun':
@@ -390,7 +390,7 @@ importers:
 
   examples/core:
     dependencies:
-      '@tinker/core':
+      '@tinkered/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -406,10 +406,10 @@ importers:
 
   examples/react:
     dependencies:
-      '@tinker/core':
+      '@tinkered/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@tinker/react':
+      '@tinkered/react':
         specifier: workspace:*
         version: link:../../packages/react
       react:
@@ -465,7 +465,7 @@ importers:
 
   packages/bun:
     dependencies:
-      '@tinker/core':
+      '@tinkered/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -526,7 +526,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@tinker/core':
+      '@tinkered/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -572,7 +572,7 @@ importers:
 
   tools/blueprint:
     dependencies:
-      '@tinker/core':
+      '@tinkered/core':
         specifier: workspace:*
         version: link:../../packages/core
       ai:
@@ -618,7 +618,7 @@ importers:
       '@hono/node-server':
         specifier: 'catalog:'
         version: 1.19.17(hono@4.13.8)
-      '@tinker/core':
+      '@tinkered/core':
         specifier: workspace:*
         version: link:../../packages/core
       hono:

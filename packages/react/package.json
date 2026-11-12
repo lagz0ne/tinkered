@@ -1,7 +1,7 @@
 {
-  "name": "@tinker/react",
-  "version": "0.17.10",
-  "description": "Tinkered React: a thin React adapter over @tinker/core.",
+  "name": "@tinkered/react",
+  "version": "0.18.0",
+  "description": "Tinkered React: a thin React adapter over @tinkered/core.",
   "keywords": [
     "tanstack-intent"
   ],
@@ -13,7 +13,8 @@
   "author": "Author Name <author.name@mail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/author/library.git"
+    "url": "git+https://github.com/lagz0ne/tinkered.git",
+    "directory": "packages/react"
   },
   "files": [
     "dist",
@@ -37,12 +38,12 @@
     "prepublishOnly": "vp run build"
   },
   "dependencies": {
-    "@tinker/core": "workspace:*"
+    "@tinkered/core": "workspace:*"
   },
   "devDependencies": {
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
-    "@tinker/core": "workspace:*",
+    "@tinkered/core": "workspace:*",
     "@types/node": "^26.1.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",

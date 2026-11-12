@@ -1,4 +1,4 @@
-import { makeTestClock } from "@tinker/core/testing";
+import { makeTestClock } from "@tinkered/core/testing";
 import { expect, test } from "vite-plus/test";
 
 import {

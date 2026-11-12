@@ -1,4 +1,4 @@
-import { capsule, resource, tag } from "@tinker/core";
+import { capsule, resource, tag } from "@tinkered/core";
 import { SQL } from "bun";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";

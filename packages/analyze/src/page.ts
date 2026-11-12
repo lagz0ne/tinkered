@@ -131,7 +131,7 @@ function readDestructure(bound: Bound, node: ts.Node) {
  * `tinker/one-wire`: only the rpc client talks to the server. A finding is a call of `fetch` or
  * `.fetch`, `.sendBeacon`, or `XMLHttpRequest`, `EventSource` or `WebSocket` however it is built.
  *
- * `tinker/react-state`: state lives in Core cells, read through `@tinker/react`. A finding is a
+ * `tinker/react-state`: state lives in Core cells, read through `@tinkered/react`. A finding is a
  * call of `useEffect`, `useLayoutEffect`, `useState` or `useReducer`, whatever name an import
  * gave it. The finding is the use, not the import.
  */

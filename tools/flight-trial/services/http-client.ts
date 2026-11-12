@@ -1,4 +1,4 @@
-import { operation, resource, tag } from "@tinker/core";
+import { operation, resource, tag } from "@tinkered/core";
 import { z } from "zod";
 
 /** Tests bind this tag; service code sends through httpRequest instead. */

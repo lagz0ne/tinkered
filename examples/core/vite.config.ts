@@ -3,7 +3,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   pack: {
     entry: ["main.ts"],
-    deps: { neverBundle: ["@tinker/core"] },
+    deps: { neverBundle: ["@tinkered/core"] },
     exports: false,
   },
   lint: {

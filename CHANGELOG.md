@@ -1,10 +1,44 @@
 # Changelog
 
 Each section is one release of
-`@tinker/core`, `@tinker/react`,
-`@tinker/bun` (since 0.15.0) and
-`@tinker/analyze` (since 0.17.10).
+`@tinkered/core`, `@tinkered/react`,
+`@tinkered/bun` and `@tinkered/analyze`.
+Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
+
+## 0.18.0
+
+The packages are now `@tinkered/*`, and each
+release goes to npm too (ADR 0146).
+
+### Upgrade
+
+- Rename every import: `@tinker/core` is now
+  `@tinkered/core`. The same for react, bun and
+  analyze.
+- In `package.json`, rename the keys. Then pick
+  npm or the GitHub URLs below.
+
+### Install from npm
+
+Once npm has the packages:
+
+```bash
+bun add @tinkered/core @tinkered/react \
+  @tinkered/bun
+bun add -d @tinkered/analyze
+```
+
+### Install from GitHub
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.18.0
+bun add $R/tinker-core-0.18.0.tgz \
+  $R/tinker-react-0.18.0.tgz \
+  $R/tinker-bun-0.18.0.tgz
+bun add -d $R/tinker-analyze-0.18.0.tgz
+```
 
 ## 0.17.10
 

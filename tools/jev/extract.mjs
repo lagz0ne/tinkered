@@ -372,7 +372,7 @@ export function unitCouldBeModuleLevel(src, file = "a.ts") {
   const program = parse(file, src);
   const coreNames = new Set();
   for (const n of program.body) {
-    if (n.type === "ImportDeclaration" && n.source.value === "@tinker/core") {
+    if (n.type === "ImportDeclaration" && n.source.value === "@tinkered/core") {
       for (const s of n.specifiers) {
         if (s.type === "ImportSpecifier" && STATIC_KINDS.has(s.imported.name)) {
           coreNames.add(s.local.name);

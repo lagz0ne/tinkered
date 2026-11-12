@@ -1,7 +1,8 @@
 # When CI passes on main and main's version has no release yet,
-# publish Core and React as one GitHub release, tag vX.Y.Z.
-# Landing the bump commit is the release. No registry. The release uses only
-# the job's own GITHUB_TOKEN. Start is sunset (ADR 0122): no Start tarball;
+# publish the packages as one GitHub release, tag vX.Y.Z, then to npm.
+# Landing the bump commit is the release. The GitHub release uses only the
+# job's own GITHUB_TOKEN; npm uses trusted publishing (OIDC), no token
+# (ADR 0146). Start is sunset (ADR 0122): no Start tarball;
 # old start-vX.Y.Z releases stay as they are.
 name: release
 
@@ -22,6 +23,9 @@ jobs:
   publish:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: [self-hosted, tinkered-box]
+    outputs:
+      new: ${{ steps.version.outputs.new }}
+      version: ${{ steps.version.outputs.version }}
     env:
       SHA: ${{ github.event.workflow_run.head_sha }}
       GH_TOKEN: ${{ github.token }}
@@ -40,6 +44,7 @@ jobs:
           TAG="v$VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null || echo none)
           if [ "$DRAFT" = "false" ]; then
             echo "$TAG is out already; nothing to publish."
@@ -95,3 +100,42 @@ jobs:
           gh release download "$TAG" --dir fetched --pattern '*.tgz'
           jq -r '.assets[] | "\(.sha256)  fetched/\(.file)"' \
             ".release/$TAG/manifest.json" | sha256sum --check
+
+  # npm accepts OIDC only from a GitHub-hosted runner, so this job runs there.
+  # It builds nothing: it publishes the npm tarballs the box job attached.
+  # A package npm does not know yet is skipped: its first publish and its
+  # trust are Duke's one-time step, scripts/npm-setup.sh (ADR 0146).
+  npm:
+    needs: publish
+    if: needs.publish.outputs.new == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: ${{ needs.publish.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+      - name: npm with trusted publishing
+        run: npm install --global npm@12.2.2
+      - name: Download the npm tarballs
+        run: |
+          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'npm-tinkered-*.tgz'
+      - name: Publish
+        run: |
+          for t in npm-tinkered-*-"$VERSION".tgz; do
+            name="@tinkered/$(basename "$t" | sed -E 's/^npm-tinkered-(.*)-[0-9.]+\.tgz$/\1/')"
+            if ! npm view "$name" name >/dev/null 2>&1; then
+              echo "::warning::$name is not on npm yet. Run scripts/npm-setup.sh once."
+              continue
+            fi
+            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
+              echo "$name@$VERSION is on npm already."
+              continue
+            fi
+            npm publish "$t" --access public
+          done

@@ -10,7 +10,7 @@ Suites share one repeatable flow:
 
 ## What workers can see
 
-- Built `@tinker/core` and `@tinker/react` packages.
+- Built `@tinkered/core` and `@tinkered/react` packages.
 - Their public type declarations.
 - A blank Vite project, React, TypeScript, and Playwright.
 - Rules and task packets through the current round.

@@ -45,7 +45,7 @@ const lanes = [
     "node scripts/check-core-entries.mjs",
   ],
   // Copied blueprint (ADR 0052, blueprint-v1 t01/t05): the size promise; zod, yaml,
-  // and @tinker/* stay out of dist at runtime; the binary ships its corpus and evals.
+  // and @tinkered/* stay out of dist at runtime; the binary ships its corpus and evals.
   ["blueprint tests", `${VP} run --no-cache blueprint#test`],
   ["blueprint size (<= 20 kB gzip)", `${VP} run --no-cache blueprint#size`],
   ["blueprint source retains corpus and evals", "node tools/blueprint/scripts/check-corpus.mjs"],

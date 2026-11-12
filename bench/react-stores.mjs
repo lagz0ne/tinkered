@@ -1,4 +1,4 @@
-// Real-React head-to-head across store libraries: @tinker/react vs Zustand, Jotai, Legend State v2,
+// Real-React head-to-head across store libraries: @tinkered/react vs Zustand, Jotai, Legend State v2,
 // Legend State v3 (beta), Preact Signals. N components each subscribed to ONE slice; update one slice.
 // Metrics per lib: re-render count (ideal 1), update latency (min ns), mount+unmount of N (min ns).
 // Emits `METRIC <metric>_<lib>=<value>`. Run: node --expose-gc bench/react-stores.mjs

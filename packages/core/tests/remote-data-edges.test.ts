@@ -1,4 +1,4 @@
-import { memory } from "@tinker/core/testing";
+import { memory } from "@tinkered/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 

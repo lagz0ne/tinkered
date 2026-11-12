@@ -1,4 +1,4 @@
-import { capsule, createScope } from "@tinker/core";
+import { capsule, createScope } from "@tinkered/core";
 
 import { run } from "@/run";
 import { serve } from "@/serve";

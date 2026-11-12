@@ -1,4 +1,4 @@
-import { createScope } from "@tinker/core";
+import { createScope } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 
 import { play } from "@/play";
@@ -28,7 +28,7 @@ const at = (content: string, word: string, nth = 0) => {
   return i;
 };
 
-const core = "@tinker/core/index.ts";
+const core = "@tinkered/core/index.ts";
 
 /** `createScope` has overloads: TypeScript names the one the call picks. */
 const overloads = [...text(core).matchAll(/export function createScope/g)].map((m) => m.index + 16);
@@ -40,8 +40,8 @@ const isCreateScope = (to: unknown) => {
 
 test("the library lists Core and React sources, read only beside the tabs", () => {
   const names = library.map((s) => s.name);
-  expect(names).toContain("@tinker/core/main.ts");
-  expect(names).toContain("@tinker/react/index.ts");
+  expect(names).toContain("@tinkered/core/main.ts");
+  expect(names).toContain("@tinkered/react/index.ts");
   expect(text(core)).toContain("export function createScope");
 });
 
@@ -70,14 +70,14 @@ test("a relative import leads across the project's own tabs", async () => {
 
 test("an aliased import and a React re-export reach the original declaration", async () => {
   const scope = await start();
-  const fixture = `import { createScope as makeScope } from "@tinker/core";
-import { isError } from "@tinker/react";
+  const fixture = `import { createScope as makeScope } from "@tinkered/core";
+import { isError } from "@tinkered/react";
 export const go = () => makeScope();
 export const ok = (v: unknown) => isError(v, "NoProvider");
 `;
   scope.controller(files).set([{ name: "fixture.ts", content: fixture }]);
   const via = (offset: number) => scope.run(follow, { input: { file: "fixture.ts", offset } });
-  const errors = "@tinker/react/errors.ts";
+  const errors = "@tinkered/react/errors.ts";
 
   expect(isCreateScope(await via(at(fixture, "makeScope", 1)))).toBe(true);
   expect(await via(at(fixture, "isError", 1))).toEqual({
@@ -88,7 +88,7 @@ export const ok = (v: unknown) => isError(v, "NoProvider");
 
 test("inside Core, an import leads to the module that declares it", async () => {
   const scope = await start();
-  const errors = "@tinker/core/errors.ts";
+  const errors = "@tinkered/core/errors.ts";
   expect(
     await scope.run(follow, { input: { file: core, offset: at(text(core), "raise }") } }),
   ).toEqual({ file: errors, offset: at(text(errors), "function raise") + 9 });
@@ -96,7 +96,7 @@ test("inside Core, an import leads to the module that declares it", async () => 
 
 test("a comment, a string or a browser global gives no jump, and the place stays", async () => {
   const scope = await start();
-  const noise = `import { createScope } from "@tinker/core";
+  const noise = `import { createScope } from "@tinkered/core";
 // createScope runs a scope.
 export const title = "createScope";
 export const go = () => console.log("ready");
@@ -116,7 +116,7 @@ export const go = () => console.log("ready");
 
 test("a local that shadows an import leads to the local", async () => {
   const scope = await start();
-  const shadow = `import { createScope } from "@tinker/core";
+  const shadow = `import { createScope } from "@tinkered/core";
 export const viaParam = (createScope: () => object) => createScope();
 `;
   scope.controller(files).set([{ name: "shadow.ts", content: shadow }]);

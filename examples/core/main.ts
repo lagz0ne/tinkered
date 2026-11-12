@@ -1,5 +1,5 @@
-import { createScope, type Scope } from "@tinker/core";
-import { makeTestClock } from "@tinker/core/testing";
+import { createScope, type Scope } from "@tinkered/core";
+import { makeTestClock } from "@tinkered/core/testing";
 
 import { count, doubled, region, stamp, store } from "./index";
 

@@ -1,5 +1,5 @@
-import { createScope, isError as isCoreError, isStarting, tag } from "@tinker/core";
-import type { Operation, RunResult, Scope, Tag } from "@tinker/core";
+import { createScope, isError as isCoreError, isStarting, tag } from "@tinkered/core";
+import type { Operation, RunResult, Scope, Tag } from "@tinkered/core";
 
 import { isError, raise } from "./errors";
 import type { Errors } from "./errors";

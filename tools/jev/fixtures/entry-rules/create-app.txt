@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import { createScope, type Observe, type Scope } from "@tinker/core";
+import { createScope, type Observe, type Scope } from "@tinkered/core";
 import { hono, type HonoScope } from "@tinker/hono";
 import { type Sync } from "@tinker/sync";
 import { api } from "../client/api";

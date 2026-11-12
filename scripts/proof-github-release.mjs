@@ -49,7 +49,7 @@ try {
   assert.deepEqual(
     manifest.assets.map((asset) => [asset.file, asset.url]),
     Object.entries(releaseUrls(version)).map(([name, url]) => [
-      `${name.replace("@tinker/", "tinker-")}-${version}.tgz`,
+      `${name.replace("@tinkered/", "tinker-")}-${version}.tgz`,
       url,
     ]),
   );
@@ -84,8 +84,8 @@ try {
     const text = await readFile(pkgPath, "utf8");
     if (name === "react") {
       assert.equal(
-        JSON.parse(text).dependencies["@tinker/core"],
-        releaseUrls(version)["@tinker/core"],
+        JSON.parse(text).dependencies["@tinkered/core"],
+        releaseUrls(version)["@tinkered/core"],
       );
       console.log("PASS: packed React names Core by its GitHub release URL.");
     }
@@ -98,8 +98,8 @@ try {
   console.log(`URLS ${JSON.stringify(urls)}`);
 
   const probe = [
-    'import { createScope, data } from "@tinker/core";',
-    'import * as react from "@tinker/react";',
+    'import { createScope, data } from "@tinkered/core";',
+    'import * as react from "@tinkered/react";',
     "",
     'const count = data({ label: "count", initial: 41 });',
     "const scope = createScope();",
@@ -108,7 +108,7 @@ try {
     'if (typeof react.useData !== "function") throw new Error("no useData");',
     "await scope.close();",
     "const runtime = process.versions.bun ? `bun ${process.versions.bun}` : `node ${process.version}`;",
-    'console.log(`PROBE ${runtime} data 41; @tinker/react exports ${Object.keys(react).sort().join(", ")}`);',
+    'console.log(`PROBE ${runtime} data 41; @tinkered/react exports ${Object.keys(react).sort().join(", ")}`);',
     "",
   ].join("\n");
 
@@ -122,14 +122,14 @@ try {
     await mkdir(app);
     assert.deepEqual(await readdir(app), []);
     await writeFile(join(app, "package.json"), '{ "name": "app", "private": true }\n');
-    run(tool, [...add, urls["@tinker/core"], urls["@tinker/react"], "react@19"], app);
+    run(tool, [...add, urls["@tinkered/core"], urls["@tinkered/react"], "react@19"], app);
     console.log(`PASS: ${tool} ${add[0]} of the two loopback URLs in an empty folder.`);
 
     const installed = JSON.parse(
-      await readFile(join(app, "node_modules/@tinker/core/package.json"), "utf8"),
+      await readFile(join(app, "node_modules/@tinkered/core/package.json"), "utf8"),
     );
     assert.equal(installed.version, version);
-    console.log(`PASS: ${tool}: node_modules/@tinker/core is ${installed.version}.`);
+    console.log(`PASS: ${tool}: node_modules/@tinkered/core is ${installed.version}.`);
 
     await writeFile(join(app, "probe.mjs"), probe);
     const output = run(exec, ["probe.mjs"], app);

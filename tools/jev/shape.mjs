@@ -66,7 +66,7 @@ function hookOf(callee, bindings) {
 }
 
 /** A `useScope(…)` call at this site — bare, aliased, or off a bound namespace —
- *  else false. The name must resolve to the `@tinker/react` import; a local
+ *  else false. The name must resolve to the `@tinkered/react` import; a local
  *  `useScope` of our own is never the hook. */
 function isScopeCall(node, bound, ctx) {
   const c = node.callee;
@@ -98,7 +98,7 @@ function writesCell(node) {
 }
 
 /** The binding kind of one import specifier: `hook…` for a hook name or
- *  alias from `@tinker/react`, `hook-ns` for a bound namespace, else `local`.
+ *  alias from `@tinkered/react`, `hook-ns` for a bound namespace, else `local`.
  *  Split by hook family so each half stays under the cap. */
 function specKind(s, hook, hookAlias, hookNs, scopeAlias) {
   return specData(s, hook, hookAlias, hookNs) ?? specScope(s, hook, scopeAlias) ?? "local";
@@ -179,7 +179,7 @@ function tagOf(opening) {
 }
 
 /** Is this element the bound scope provider — `<ScopeProvider>` (or alias) or
- *  `<R.ScopeProvider>` off the `@tinker/react` namespace? */
+ *  `<R.ScopeProvider>` off the `@tinkered/react` namespace? */
 function isScopeTag(tag, bound) {
   if (tag === null) return false;
   if (tag.obj === null) return bound.scopeView.has(tag.prop);
@@ -187,7 +187,7 @@ function isScopeTag(tag, bound) {
 }
 
 /** Does this body render the scope provider — the `ScopeProvider` binding from
- *  `@tinker/react` (or its alias), or `<R.ScopeProvider>` off its namespace? Then it is the
+ *  `@tinkered/react` (or its alias), or `<R.ScopeProvider>` off its namespace? Then it is the
  *  composition-root adapter, not a scope leak (rule 2 leaves the root its hand). A
  *  `ThemeProvider` or any other `*Provider` is not one. */
 function providesScope(body, bound) {
@@ -432,7 +432,7 @@ function isFnRoot(node) {
 
 /** Bind one import row: hook kinds stay, everything else is `local`. */
 function noteRow(node, bind, bound) {
-  const hook = node.source.value === "@tinker/react";
+  const hook = node.source.value === "@tinkered/react";
   for (const q of node.specifiers) {
     if (q.local) {
       bind(node, q.local.name, specKind(q, hook, bound.dataCall, bound.scopeNs, bound.scopeCall));
@@ -463,7 +463,7 @@ function scopeAliases(source, program) {
 }
 
 /** One `import … from` row: react hook aliases/namespaces, or useScope/ScopeProvider
- *  aliases/namespaces from `@tinker/react`. One branch per source keeps it under the cap. */
+ *  aliases/namespaces from `@tinkered/react`. One branch per source keeps it under the cap. */
 function bindReact(into, node) {
   for (const s of node.specifiers) {
     if (s.type === "ImportSpecifier" && HOOK_RULE.has(s.imported?.name)) {
@@ -475,7 +475,7 @@ function bindReact(into, node) {
   }
 }
 
-/** One `@tinker/react` import row: useScope and ScopeProvider aliases plus namespaces,
+/** One `@tinkered/react` import row: useScope and ScopeProvider aliases plus namespaces,
  *  and useData aliases (namespaces share the scope set). */
 function bindScope(into, node) {
   const named = {
@@ -494,14 +494,14 @@ function bindScope(into, node) {
 }
 
 /** One `import … from` row: react hook aliases/namespaces, or useScope/ScopeProvider
- *  aliases/namespaces from `@tinker/react`. */
+ *  aliases/namespaces from `@tinkered/react`. */
 function bindImports(into, node) {
   if (node.source.value === "react") bindReact(into, node);
-  if (node.source.value === "@tinker/react") bindScope(into, node);
+  if (node.source.value === "@tinkered/react") bindScope(into, node);
 }
 
 /** One writable-useData row for a call node, or null. The callee must resolve
- *  to the `@tinker/react` import through the frame tree at the call site. */
+ *  to the `@tinkered/react` import through the frame tree at the call site. */
 function writableRow(source, node, ctx, inView) {
   const line = lineOf(source, node.start);
   const hook = hookAt(node.callee, ctx, node);

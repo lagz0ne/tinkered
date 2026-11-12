@@ -1,4 +1,4 @@
-import { createScope } from "@tinker/core";
+import { createScope } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 
 import { play } from "@/play";
@@ -43,7 +43,7 @@ test("the starter project compiles to one module, bare imports kept for the impo
 
   expect(out.ok).toBe(true);
   if (!out.ok) return;
-  expect(out.code).toContain('from "@tinker/core"');
+  expect(out.code).toContain('from "@tinkered/core"');
   expect(out.code).toContain('from "react-dom/client"');
   expect(out.code).not.toContain('from "./engine"');
 });

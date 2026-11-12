@@ -25,13 +25,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **skills/check-names-skill** — ADR 0143 decision 5, ADR 0145, in tinker-app, after the release that ships `@tinker/analyze`. The template runs `tinker-analyze check` in place of its `scripts/check-plain.ts`, with its entries in `tinker-analyze.json`, and takes its lint rules from `@tinker/analyze/lint`. So it gets the page rules (`tinker/react-state`, `tinker/one-wire`) that the guide's Rules page already claims. Left after that: the lint messages for `tinker/one-door` and `tinker/floating`, and `MissingConfig` (`tinker/config`), name their skill.
-  Verify: in the template, a planted `useState` in `src/` fails `bun run check:plain` with `tinker/react-state` and `read: @tinker/react#react`.
+- **skills/check-names-skill** — ADR 0143 decision 5, ADR 0145, in tinker-app, after the release that ships `@tinkered/analyze`. The template runs `tinker-analyze check` in place of its `scripts/check-plain.ts`, with its entries in `tinker-analyze.json`, and takes its lint rules from `@tinkered/analyze/lint`. So it gets the page rules (`tinker/react-state`, `tinker/one-wire`) that the guide's Rules page already claims. Left after that: the lint messages for `tinker/one-door` and `tinker/floating`, and `MissingConfig` (`tinker/config`), name their skill.
+  Verify: in the template, a planted `useState` in `src/` fails `bun run check:plain` with `tinker/react-state` and `read: @tinkered/react#react`.
 
-- **skills/template-wire** — ADR 0143 decision 2, in tinker-app, after the release that ships the skills. `@tanstack/intent` as a dev dependency, `"intent": { "skills": ["@tinker/*"] }`, and the `intent-skills` block in `AGENTS.md`.
+- **skills/template-wire** — ADR 0143 decision 2, in tinker-app, after the release that ships the skills. `@tanstack/intent` as a dev dependency, `"intent": { "skills": ["@tinkered/*"] }`, and the `intent-skills` block in `AGENTS.md`.
   Verify: in a fresh `degit` of the template, `intent list` shows the Core and React skills at the installed version.
 
-- **skills/bun** — `@tinker/bun` has no skill: `serve`, `ws`, `/client`, `/sql`, `/sqlite`.
+- **skills/bun** — `@tinkered/bun` has no skill: `serve`, `ws`, `/client`, `/sql`, `/sqlite`.
   Verify: `vp run skills` passes with a `packages/bun/skills/bun/SKILL.md`; the pack holds it.
 
 - **skills/hedl-move** — Hedl's six `.agents/skills/tinker-*` are app copies. Move what is library knowledge into the package skills; keep only Hedl's own rules in Hedl.
@@ -82,7 +82,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **analyze/check** — owner: lead (Fable, thread "Ship Tinker skills and verify tools"). ADR 0145. `packages/analyze` is on main: `tinker-analyze check [root]` holds the plain-function check and the page rules; each finding prints its rule id, and each broken rule its skill. The lint rules are `@tinker/analyze/lint`. The site runs the package; its script and lint copies are gone. Proof seen: 56 package tests, `vp check`, the site's `check:plain` prints `no findings in 79 files`.
+- **analyze/check** — owner: lead (Fable, thread "Ship Tinker skills and verify tools"). ADR 0145. `packages/analyze` is on main: `tinker-analyze check [root]` holds the plain-function check and the page rules; each finding prints its rule id, and each broken rule its skill. The lint rules are `@tinkered/analyze/lint`. The site runs the package; its script and lint copies are gone. Proof seen: 56 package tests, `vp check`, the site's `check:plain` prints `no findings in 79 files`.
   Next step: mutation. The package scores 77 against the floor of 85; `plain.ts` is at 71 (the script was never under mutation), the other files are at 84 or more. Kill the `plain.ts` survivors through `main`, or delete code no test needs.
   Census: three strict rows still fire and are false here: S11 reads a glob string as a comment, S15 reads a TSDoc example, P04 is a hot-path rule on module-level constant sets.
   Verify: `pnpm --dir packages/analyze mutate` clears 85.
@@ -124,7 +124,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
-- **skills/core-react** — done 2026-11-12 (ADR 0143). Duke: "learn from tanstack and how they are delivering the skill/ instruction to work with library". Skills ship in the package and TanStack Intent carries them: 6 skills in `packages/core/skills/core/` (entry, operation, data, capsule, rpc, testing) and 1 in `packages/react/skills/react/`; `vp run skills` (`intent validate`) is a CI step; `scripts/bump.mjs` stamps `library_version`; 8 rule ids (`tinker/<name>`). Proof: `intent validate` passes 7 files and fails a planted fence at `SKILL.md:193: TS2353`; the Core pack holds the 6 files with `types` `./dist/index.d.mts`; a scratch app with that pack lists 6 skills and loads `@tinker/core#core/operation`; each runtime claim was run against the built 0.17.8.
+- **skills/core-react** — done 2026-11-12 (ADR 0143). Duke: "learn from tanstack and how they are delivering the skill/ instruction to work with library". Skills ship in the package and TanStack Intent carries them: 6 skills in `packages/core/skills/core/` (entry, operation, data, capsule, rpc, testing) and 1 in `packages/react/skills/react/`; `vp run skills` (`intent validate`) is a CI step; `scripts/bump.mjs` stamps `library_version`; 8 rule ids (`tinker/<name>`). Proof: `intent validate` passes 7 files and fails a planted fence at `SKILL.md:193: TS2353`; the Core pack holds the 6 files with `types` `./dist/index.d.mts`; a scratch app with that pack lists 6 skills and loads `@tinkered/core#core/operation`; each runtime claim was run against the built 0.17.8.
 
 - **site/sea-late-join** — done 2026-11-12. Duke: "when joining the new room will repeat the whole waves of new room, is that a bug or an desired feature?" A bug. Measured on the live site: a tab that joined 20 s after a drag started 4 old waves at once. Cause: the tide told a wave's age from the room's newest wave, not from now, and an idle room keeps its last waves. Fix: the room's waves are state with a start time. The tab asks the server's clock once (`clock.now`; Cristian's algorithm, as Firebase's `serverTimeOffset`) and lands each wave at its real age; `ocean.land` takes `age` and drops a wave past its life. Proof: 3 tests that fail on the old code; local browser check: joined 20 s late, 0 waves; joined 300 ms late, 13 waves mid-flight that end on time.
 
@@ -158,17 +158,17 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **core/start-sees-stop** — ADR 0134: after a stop, a start hook's `next()` rejects, so `serve` never listens; a stop signal during start ends the start.
   Owner: thread lead (Hedl thread's finding, 2026-11-10 05:27; test N2c). Duke accepted 2026-11-10 08:42; released in 0.16.2.
-  Proof: gate 132 (Core 1214, dist 1458, bun 101, size 19,350 B); scoped mutation 90.65 on the changed lines; review READY; 4 Core tests and 1 `@tinker/bun` run test fail on main.
+  Proof: gate 132 (Core 1214, dist 1458, bun 101, size 19,350 B); scoped mutation 90.65 on the changed lines; review READY; 4 Core tests and 1 `@tinkered/bun` run test fail on main.
 
 - **core/own-signal-cancel** — ADR 0133, released as 0.16.1. A call stopped by its own `signal` is cancelled for its caller, not a panic; rpc and keyed `remoteData` make no `AbortSignal.any` over a long-lived signal.
   Owner: thread lead (Duke "agree", 2026-11-10 04:25).
   Proof: on befce4f, Core 1,208 tests and 1,452 on the built files pass; the three new tests fail on 78ce3fa; `bench/heap-stop.mjs` exits 0 on Node 22 (7, 6, 5 B; 0.16.0: 4,011, 183, 3,846 B and a failed close). Mutation on the changed lines only: the rule's lines all killed. Full Core lane after the push, on 18b9f5c (with ADR 0134): 85.25 (4,734 killed and 40 timeouts of 5,607; 728 survived, 98 not covered), floor 85. The margin is 0.25: `remote-data.ts` is at 71.46.
 
-- **bun/mutation-bun-runner** — `@tinker/bun` mutation runs its tests in `bun test`, with per-test coverage (`@hughescr/stryker-bun-runner`). A `bunfig.toml` preload maps the `vite-plus/test` imports to `bun:test`. `run.ts` runs only in spawned hosts, so it has its own lane: the command runner, `bun test --bail tests/run.test.ts`.
+- **bun/mutation-bun-runner** — `@tinkered/bun` mutation runs its tests in `bun test`, with per-test coverage (`@hughescr/stryker-bun-runner`). A `bunfig.toml` preload maps the `vite-plus/test` imports to `bun:test`. `run.ts` runs only in spawned hosts, so it has its own lane: the command runner, `bun test --bail tests/run.test.ts`.
   Owner: thread lead (Duke picked "Go straight to bun runner", 2026-11-10 03:05).
   Proof: on 78ce3fa plus this change, lane 1 85.76 (568 killed and 4 timeouts of 667, 10 min 34 s), lane 2 91.53 (54 of 59, 8 min 6 s); package 86.23. Before (command runner): ws.ts alone took 729 s with bail; per-test took 301 s, same score.
 
-- **bun/mutation-85** — `@tinker/bun` (was `@tinker/ws`, 64.15) holds `serve`, `ws.server`, `ws.client`, `bunSql` and `bunSqlite`. Label, close-path, host, exit-code and driver tests.
+- **bun/mutation-85** — `@tinkered/bun` (was `@tinker/ws`, 64.15) holds `serve`, `ws.server`, `ws.client`, `bunSql` and `bunSqlite`. Label, close-path, host, exit-code and driver tests.
   Owner: thread lead.
   Proof: stryker 86.54 on 6519e3d, exit 0 (508 killed, 77 timed out, 91 survived). On kills alone: 75.1. Each timeout drops a send or a reply, so the suite hangs past Stryker's limit. Next: a fail-fast test run, so a hang counts as a kill.
 
@@ -176,7 +176,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Owner: thread lead (Duke's "Yes" 2026-11-09 13:09).
   Proof: the fixed lane fails on main (`resolveHeld` slot 256) and passes here (last hot slot 253, headroom 2); gate 131 (Core 1078, dist 1322, size 19,094 B, mutation 86.26); review READY. Notes: `docs/roadmap/perf/PROGRESS.md`.
 
-- **core/rpc** — ADR 0130: rpc, remoteData and `transport` in Core's main export; memory in `@tinker/core/testing`; `@tinker/bun` package (`serve`, `ws.server`, `bunSql`, `bunSqlite`; `ws.client` at `@tinker/bun/client`); release 0.15.0.
+- **core/rpc** — ADR 0130: rpc, remoteData and `transport` in Core's main export; memory in `@tinkered/core/testing`; `@tinkered/bun` package (`serve`, `ws.server`, `bunSql`, `bunSqlite`; `ws.client` at `@tinkered/bun/client`); release 0.15.0.
   Owner: thread lead (Duke's go 2026-11-09 08:56).
   Proof: Core 1152 tests, dist 1396, size 19,246 B without rpc (an app with no rpc: 18,716 B gzip, esbuild and Bun); ws 28 tests on Bun; tinker-app 181 and Hedl 1472 tests on the local build. Core mutation 85.27 on be3f62c. Found and fixed: the field rename changed wire key `side`; `bytes()` failed inside `z.object`.
 
@@ -192,7 +192,7 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Owner: thread lead (Duke's go 2026-11-08 16:42).
   Proof: Core 1069, React 110, flight-trial 148, playground 69; 13 unawaited test calls found by the lint and fixed.
 
-- **core/start-gate-test-capsule** — ADR 0127: an outside call waits for start; `await using`; `testCapsule` in `@tinker/core/testing`.
+- **core/start-gate-test-capsule** — ADR 0127: an outside call waits for start; `await using`; `testCapsule` in `@tinkered/core/testing`.
   Owner: thread lead (Duke's go 2026-11-08 14:19).
   Proof: `scripts/ticket.sh --check-only 127` exit 0: Core 1067, dist 1311, size 18,873 B (cap 20,480), mutation 86.17 (floor 85). Review: NOT READY, one fix round, READY.
 

@@ -8,7 +8,7 @@ export default defineConfig({
       // Remove to preserve subpath imports as written (the new default).
       // https://tsdown.dev/options/dependencies#deps-resolvedepsubpath
       resolveDepSubpath: true,
-      neverBundle: ["@tinker/core", "zod"],
+      neverBundle: ["@tinkered/core", "zod"],
     },
     dts: { generator: "tsgo" },
     exports: false,

@@ -7,14 +7,14 @@ import type { Check } from "./check";
 export const rules: Readonly<Record<Check.Rule, { fix: string; skill: string }>> = {
   "tinker/plain": {
     fix: "make it an operation",
-    skill: "@tinker/core#core/operation",
+    skill: "@tinkered/core#core/operation",
   },
   "tinker/one-wire": {
     fix: "call the server through the rpc client",
-    skill: "@tinker/core#core/rpc",
+    skill: "@tinkered/core#core/rpc",
   },
   "tinker/react-state": {
-    fix: "hold the state in a Core cell and read it with @tinker/react",
-    skill: "@tinker/react#react",
+    fix: "hold the state in a Core cell and read it with @tinkered/react",
+    skill: "@tinkered/react#react",
   },
 };

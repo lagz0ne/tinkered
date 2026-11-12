@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 
-import { capsule, resource, tag } from "@tinker/core";
+import { capsule, resource, tag } from "@tinkered/core";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 

@@ -2,7 +2,7 @@
 name: core
 description: >
   Use when you write or change app logic with
-  @tinker/core: an operation, a data cell, a
+  @tinkered/core: an operation, a data cell, a
   resource, a capsule, rpc, remote data, or a
   test of them. Start here, then load one task
   skill.
@@ -12,8 +12,8 @@ metadata:
     units, the rules with their checks, and the
     task skill to load next.
   type: core
-  library: '@tinker/core'
-  library_version: '0.17.10'
+  library: '@tinkered/core'
+  library_version: '0.18.0'
 sources:
   - 'lagz0ne/tinkered:packages/core/src/main.ts'
   - 'lagz0ne/tinkered:docs/best-practices.md'
@@ -43,7 +43,7 @@ the task crosses two of them.
 ## Setup
 
 ```ts
-import { createScope, data, operation } from "@tinker/core";
+import { createScope, data, operation } from "@tinkered/core";
 
 const count = data({ label: "count", initial: 0 });
 
@@ -90,7 +90,7 @@ id, fix the code, and run the check again.
   `no-floating-promises`. Skill: operation.
 
 The page rules (`tinker/react-state`,
-`tinker/one-wire`) are in the `@tinker/react`
+`tinker/one-wire`) are in the `@tinkered/react`
 skill.
 
 ## Completion

@@ -160,7 +160,7 @@ export const LINT = {
   },
 };
 
-// React judges (rules 9 and 10 + the @tinker/react README): grep owns useState/useRef/useEffect
+// React judges (rules 9 and 10 + the @tinkered/react README): grep owns useState/useRef/useEffect
 // and Scope.Handle props; Jev gets the five things grep cannot see.
 Object.assign(LINT, {
   readsMoreThanRendered: {
@@ -378,7 +378,7 @@ export const GUIDE = {
     minConfidence: 0.6,
     q: {
       type: "choice",
-      instructions: "Which @tinker/core unit fits this code or description?",
+      instructions: "Which @tinkered/core unit fits this code or description?",
       criteria: {
         data: "a piece of state kept and read over time — a form field, a draft, a filter, a selection, a notice, a list — written by operations or a driver",
         resource:

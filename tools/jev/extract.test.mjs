@@ -5,7 +5,7 @@ import { describe, it, test } from "node:test";
 
 import { docs, unitCouldBeModuleLevel, units } from "./extract.mjs";
 
-const core = 'import { operation, resource, data, tag, operation as op } from "@tinker/core";\n';
+const core = 'import { operation, resource, data, tag, operation as op } from "@tinkered/core";\n';
 
 void test("a static core unit inside a function is reported at its call", () => {
   const src =

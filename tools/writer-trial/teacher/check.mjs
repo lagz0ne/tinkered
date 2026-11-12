@@ -17,7 +17,7 @@ const vite = await createServer({
 let scope;
 try {
   const app = await vite.ssrLoadModule("/src/index.ts");
-  const core = await vite.ssrLoadModule("@tinker/core");
+  const core = await vite.ssrLoadModule("@tinkered/core");
   scope = core.createScope();
 
   const expectThrow = (fn, kind) => {

@@ -2,7 +2,7 @@ import { once } from "node:events";
 import { serve } from "@hono/node-server";
 import { Hono, type Context, type Next } from "hono";
 import { createMiddleware } from "hono/factory";
-import { data, operation, resource, tag, type Scope, type RunResult } from "@tinker/core";
+import { data, operation, resource, tag, type Scope, type RunResult } from "@tinkered/core";
 import { failFlightService } from "../src/errors";
 import { z } from "zod";
 

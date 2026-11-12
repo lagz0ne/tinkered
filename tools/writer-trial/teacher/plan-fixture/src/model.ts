@@ -4,8 +4,8 @@
  * Enough behavior for the checker to boot: core cells, managed errors,
  * course/link/complete/reopen/undo operations, and a labeled screen.
  */
-import { data, operation } from "@tinker/core";
-import type { Data, Operation } from "@tinker/core";
+import { data, operation } from "@tinkered/core";
+import type { Data, Operation } from "@tinkered/core";
 import { fail } from "./errors";
 
 export type Course = {

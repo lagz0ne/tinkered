@@ -40,11 +40,11 @@ test("each finding prints its rule id; each broken rule prints its step and its 
       "src/b.tsx:3 tinker/one-wire `fetch`: a page's own network call",
       "",
       "tinker/one-wire: call the server through the rpc client",
-      "  read: @tinker/core#core/rpc",
+      "  read: @tinkered/core#core/rpc",
       "tinker/plain: make it an operation",
-      "  read: @tinker/core#core/operation",
-      "tinker/react-state: hold the state in a Core cell and read it with @tinker/react",
-      "  read: @tinker/react#react",
+      "  read: @tinkered/core#core/operation",
+      "tinker/react-state: hold the state in a Core cell and read it with @tinkered/react",
+      "  read: @tinkered/react#react",
       "",
       "3 findings in 2 files",
       "",
@@ -160,7 +160,7 @@ test("an empty config and a config of reasons are both read", () => {
 
 test("every rule names a skill of a Tinker package", () => {
   for (const { skill, fix } of Object.values(rules)) {
-    expect(skill).toMatch(/^@tinker\/(core|react)#/);
+    expect(skill).toMatch(/^@tinkered\/(core|react)#/);
     expect(fix).not.toBe("");
   }
 });

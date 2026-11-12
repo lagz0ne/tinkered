@@ -1,4 +1,4 @@
-import { capsule, createScope, operation, rpc } from "@tinker/core";
+import { capsule, createScope, operation, rpc } from "@tinkered/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 

@@ -1,7 +1,7 @@
-import { serve } from "@tinker/bun";
-import { createScope } from "@tinker/core";
-import type { Scope } from "@tinker/core";
-import { memory } from "@tinker/core/testing";
+import { serve } from "@tinkered/bun";
+import { createScope } from "@tinkered/core";
+import type { Scope } from "@tinkered/core";
+import { memory } from "@tinkered/core/testing";
 import { afterAll, expect, test } from "vite-plus/test";
 
 import { guide } from "@/guide";

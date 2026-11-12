@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import { createConnection } from "node:net";
-import { createScope, capsule, type Scope } from "@tinker/core";
+import { createScope, capsule, type Scope } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {

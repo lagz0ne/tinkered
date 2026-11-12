@@ -20,7 +20,7 @@ export default defineConfig({
       "@/main": built("index.mjs"),
       /** An internal module with no built file of its own: its unit tests read the source. */
       "@/rpc-shape": fileURLToPath(new URL("./src/rpc-shape.ts", import.meta.url)),
-      "@tinker/core/testing": built("testing.mjs"),
+      "@tinkered/core/testing": built("testing.mjs"),
     },
   },
   test: {
