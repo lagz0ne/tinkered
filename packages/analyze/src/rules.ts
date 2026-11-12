@@ -13,6 +13,10 @@ export const rules: Readonly<Record<Check.Rule, { fix: string; skill: string }>>
     fix: "call the server through the rpc client",
     skill: "@tinkered/core#core/rpc",
   },
+  "tinker/gap": {
+    fix: "keep each marker above its finding, on an open row, within the row's count",
+    skill: "@tinkered/core#core",
+  },
   "tinker/react-state": {
     fix: "hold the state in a Core cell and read it with @tinkered/react",
     skill: "@tinkered/react#react",

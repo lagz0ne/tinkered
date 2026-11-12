@@ -18,8 +18,17 @@ then, per rule, the next step and the skill to read.
 `;
 
 /** One line per finding, then one block per rule that has a finding. */
-function report({ files, findings }: Check.Report): Main.Result {
-  if (!findings.length) return { code: 0, out: `no findings in ${files} files\n`, err: "" };
+/** One line per gaps row: marked lines over the row's count, as `G3 5/5`. */
+function gapLine(gaps: readonly Check.Gap[]) {
+  const rows = gaps.map(
+    ({ gap, marked, lines, open }) => `${gap} ${marked}/${lines}${open ? "" : " closed"}`,
+  );
+  return rows.length ? `gaps: ${rows.join(", ")}\n` : "";
+}
+
+function report({ files, findings, gaps }: Check.Report): Main.Result {
+  const out = gapLine(gaps);
+  if (!findings.length) return { code: 0, out: `${out}no findings in ${files} files\n`, err: "" };
 
   const lines = findings.map(({ path, line, rule, what }) => `${path}:${line} ${rule} ${what}`);
   const broken = [...new Set(findings.map((finding) => finding.rule))].sort();
@@ -29,7 +38,7 @@ function report({ files, findings }: Check.Report): Main.Result {
   ]);
 
   const count = `${findings.length} findings in ${files} files`;
-  return { code: 1, out: "", err: [...lines, "", ...steps, "", count, ""].join("\n") };
+  return { code: 1, out, err: [...lines, "", ...steps, "", count, ""].join("\n") };
 }
 
 /**

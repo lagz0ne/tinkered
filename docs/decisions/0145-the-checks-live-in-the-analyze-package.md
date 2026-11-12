@@ -82,13 +82,24 @@ files`. Its script copy and lint copy are gone.
 - A planted case per rule prints its id and its
   skill (`tests/main.test.ts`).
 
+## Added: gap markers
+
+Hedl allowed a page-rule finding with a
+`// tinker-gap: G<n>` line, tied to an open row
+of a doc. The package now does the same for
+any rule, when `tinker-analyze.json` names the
+doc in `gaps`. A row allows at most its
+`Lines` count, so the count only goes down.
+Broken markers break `tinker/gap`.
+
+Proof: on Hedl 295c3b4, the package gives the
+same counts as Hedl's script (G1 3/3, G3 5/5,
+G5 1/1). It also finds two raw `fetch` calls in
+`src/routes.tsx`, outside the folder Hedl's
+script reads.
+
 ## Not decided
 
-- **Hedl's gap markers.** Hedl allows a page-rule
-  finding with a `tinker-gap: G<n>` line tied to a
-  doc row. The package has `page.skip` per file
-  only. Hedl keeps its script until this is
-  settled.
 - **SARIF out.** ADR 0129 wants findings in SARIF.
   The command prints text today.
 - **`tinker/seam`, `tinker/config`.** They have no

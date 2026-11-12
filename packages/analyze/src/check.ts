@@ -2,12 +2,13 @@ import { globSync, readFileSync } from "node:fs";
 import { join, matchesGlob } from "node:path";
 
 import { raise } from "./errors";
+import { applyGaps } from "./gaps";
 import { findPage } from "./page";
 import { findPlain } from "./plain";
 
 export declare namespace Check {
   /** A rule id, as the skills name it (ADR 0143 decision 4). */
-  type Rule = "tinker/plain" | "tinker/one-wire" | "tinker/react-state";
+  type Rule = "tinker/plain" | "tinker/one-wire" | "tinker/react-state" | "tinker/gap";
   /** One file of the app: its path from the app root, with `/`, and its text. */
   type Source = { path: string; text: string };
   /** One broken rule at one line. `what` names the thing found there. */
@@ -25,9 +26,16 @@ export declare namespace Check {
      * files). `skip` takes files out again: a glob, and the reason as its value.
      */
     page?: { files?: readonly string[]; skip?: Readonly<Record<string, string>> };
+    /**
+     * The app's gaps doc, from the root. A finding marked `// tinker-gap: G<n>` on the line
+     * above is allowed while row `G<n>` of that doc is open and within its count.
+     */
+    gaps?: string;
   };
+  /** One row of the gaps doc: its id, whether it is open, its count, and its marked lines. */
+  type Gap = { gap: string; open: boolean; lines: number; marked: number };
   /** `files` counts every file read. Findings are in path order, then line order. */
-  type Report = { files: number; findings: Finding[] };
+  type Report = { files: number; findings: Finding[]; gaps: Gap[] };
 }
 
 /** The app code the plain-function check reads. */
@@ -68,6 +76,7 @@ const parts: readonly [keys: readonly string[], ok: (value: unknown) => boolean,
   [["plain", "entries"], isEntries, "`plain.entries` maps a file to its names and reasons"],
   [["page", "files"], isGlobs, "`page.files` is a list of globs"],
   [["page", "skip"], isReasons, "`page.skip` maps a glob to a reason"],
+  [["gaps"], (value) => typeof value === "string", "`gaps` is the path of the gaps doc"],
 ];
 
 function parse(text: string): unknown {
@@ -113,6 +122,14 @@ function pageSources(root: string, { files = pageFiles, skip = {} }: Check.Confi
   return [...paths.values()];
 }
 
+/** The gaps doc the config names; a missing doc stops the run like a bad config. */
+function gapsDoc(root: string, path: string): Check.Source {
+  if (!globSync(path, { cwd: root }).length) {
+    return raise("BadConfig", { path: configName, reason: `the gaps doc ${path} does not exist` });
+  }
+  return { path, text: readFileSync(join(root, path), "utf8") };
+}
+
 /**
  * Read the app at `root` and answer every broken rule. It reads files and nothing else: it
  * runs no app code. A `tinker-analyze.json` at the root holds the app's own exceptions.
@@ -124,9 +141,14 @@ export function check(root: string): Check.Report {
   const app = sourcesOf(root, appFiles, appFile);
   const page = pageSources(root, config.page ?? {});
 
-  const findings = [...findPlain(app, config.plain?.entries ?? {}), ...page.flatMap(findPage)].sort(
+  const found = [...findPlain(app, config.plain?.entries ?? {}), ...page.flatMap(findPage)];
+  const sources = new Map([...app, ...page].map((source) => [source.path, source]));
+  const { findings, gaps } = config.gaps
+    ? applyGaps(found, [...sources.values()], gapsDoc(root, config.gaps))
+    : { findings: found, gaps: [] };
+
+  findings.sort(
     (a, b) => a.path.localeCompare(b.path) || a.line - b.line || a.rule.localeCompare(b.rule),
   );
-  const files = new Set([...app, ...page].map((source) => source.path)).size;
-  return { files, findings };
+  return { files: sources.size, findings, gaps };
 }

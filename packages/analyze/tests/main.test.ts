@@ -116,6 +116,7 @@ test.each([
   [`{ "page": { "files": [1] } }`, "`page.files` is a list of globs"],
   [`{ "page": { "skip": ["src/**"] } }`, "`page.skip` maps a glob to a reason"],
   [`{ "page": { "skip": { "src/**": true } } }`, "`page.skip` maps a glob to a reason"],
+  [`{ "gaps": ["docs/gaps.md"] }`, "`gaps` is the path of the gaps doc"],
 ])("a config of the wrong shape (%s) stops the run with exit 2", (text, reason) => {
   const folder = appOf({ "tinker-analyze.json": text, "src/a.ts": `fetch("/api");\n` });
 
@@ -152,7 +153,7 @@ test("an empty config and a config of reasons are both read", () => {
     "src/a.ts": `export function shout() {}\n\nexport function toString() {}\n`,
   });
 
-  expect(check(empty)).toEqual({ files: 1, findings: [] });
+  expect(check(empty)).toEqual({ files: 1, findings: [], gaps: [] });
   expect(check(full).findings).toEqual([
     { path: "src/a.ts", line: 3, rule: "tinker/plain", what: "a plain function" },
   ]);

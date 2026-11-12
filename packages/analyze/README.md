@@ -92,12 +92,44 @@ Each exception carries its reason as text.
 }
 ```
 
+- `gaps`: the path of a gaps doc. A finding
+  is allowed when the line above it is
+  `// tinker-gap: G3` and row `G3` is open.
+  See below.
 - `plain.entries`: functions that stay plain, by
   file and name. An entry runs before a scope
   exists, so it cannot be an operation.
 - `page.files`: where the page's files are.
   Default: `src/**`.
 - `page.skip`: globs to leave out of the page.
+
+## Gaps: a finding you cannot fix yet
+
+A gap is a finding that waits on a Tinker
+change. Mark it, and give it a row in the
+gaps doc.
+
+```ts
+// tinker-gap: G3
+const answer = await fetch("/api/auth");
+```
+
+```md
+## G3: the auth library's own HTTP
+
+- Status: open
+- Lines: 5
+```
+
+- The marker is on the line directly above.
+- The row must be open.
+- A row allows at most `Lines` marked lines,
+  so the count can only go down.
+- A marker with no finding below it breaks
+  `tinker/gap`.
+
+Each run prints the counts:
+`gaps: G1 3/3, G3 5/5`.
 
 ## Lint rules
 
