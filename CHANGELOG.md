@@ -5,6 +5,74 @@ Each section is one release of
 since 0.15.0, `@tinker/bun`.
 They move to one version together.
 
+## 0.17.9
+
+Core and React ship agent skills. A run hook
+can ask which op it wraps.
+
+### Install
+
+On Bun:
+
+```bash
+R=https://github.com/lagz0ne/tinkered/\
+releases/download/v0.17.9
+bun add $R/tinker-core-0.17.9.tgz \
+  $R/tinker-react-0.17.9.tgz \
+  $R/tinker-bun-0.17.9.tgz
+```
+
+The three URLs:
+
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.9/tinker-core-0.17.9.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.9/tinker-react-0.17.9.tgz
+- https://github.com/lagz0ne/tinkered/releases/download/v0.17.9/tinker-bun-0.17.9.tgz
+
+### Skills for agents (ADR 0143)
+
+- `@tinker/core` holds six skills in
+  `skills/core/`: the entry, operation, data,
+  capsule, rpc and testing.
+- `@tinker/react` holds one in `skills/react/`.
+- The format is Agent Skills. An app reads them
+  with TanStack Intent:
+
+```bash
+bun add -d @tanstack/intent
+bunx intent install
+bunx intent list
+bunx intent load @tinker/core#core/operation
+```
+
+- Each code example in a skill is compiled
+  against this release.
+- Each rule has an id, such as `tinker/plain`.
+  A mistake in a skill carries the id of its
+  rule.
+
+### A run hook asks which op it wraps (ADR 0142)
+
+- `event.is(op)` is a type guard. A true answer
+  gives `op`, `call`, `input` and `next()` that
+  op's types.
+- `event.input` is the input the body gets. A
+  raw call is parsed at the read.
+
+```ts
+hooks: {
+  run(event) {
+    if (!event.is(press)) return event.next();
+    const { room } = event.input;
+    return event.next();
+  },
+},
+```
+
+### Upgrade
+
+- Change the three URLs.
+- No code changes.
+
 ## 0.17.8
 
 A shorter request path. No API changed.

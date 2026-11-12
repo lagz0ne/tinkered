@@ -15,7 +15,7 @@ metadata:
   type: framework
   framework: react
   library: '@tinker/react'
-  library_version: '0.17.8'
+  library_version: '0.17.9'
 requires:
   - '@tinker/core#core'
 sources:

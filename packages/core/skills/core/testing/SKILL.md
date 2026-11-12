@@ -12,7 +12,7 @@ metadata:
     and join two scopes with the memory backend.
   type: sub-skill
   library: '@tinker/core'
-  library_version: '0.17.8'
+  library_version: '0.17.9'
 requires:
   - core
 sources:

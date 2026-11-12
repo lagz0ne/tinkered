@@ -6,16 +6,16 @@ On Bun, the main runtime:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.8
-bun add $R/tinker-core-0.17.8.tgz
+releases/download/v0.17.9
+bun add $R/tinker-core-0.17.9.tgz
 ```
 
 On Node 22.18 or later, with npm:
 
 ```bash
 R=https://github.com/lagz0ne/tinkered/\
-releases/download/v0.17.8
-npm install $R/tinker-core-0.17.8.tgz
+releases/download/v0.17.9
+npm install $R/tinker-core-0.17.9.tgz
 ```
 
 Each version's URLs are in the
